@@ -44,6 +44,8 @@ interface ModalDetalheAgendamentoProps {
   onUpdateStatus: (status: string) => Promise<void>;
   onDelete: () => Promise<void>;
   onReenviarWhatsApp: () => Promise<void>;
+  onAbrirConsulta?: () => void;
+  consultaDisponivel?: boolean;
   updatingStatus: boolean;
   reenviandoMensagem: boolean;
 }
@@ -55,6 +57,8 @@ export function ModalDetalheAgendamento({
   onUpdateStatus,
   onDelete,
   onReenviarWhatsApp,
+  onAbrirConsulta,
+  consultaDisponivel,
   updatingStatus,
   reenviandoMensagem,
 }: ModalDetalheAgendamentoProps) {
@@ -75,7 +79,7 @@ export function ModalDetalheAgendamento({
 
         <div className="space-y-3">
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Paciente</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Cliente</p>
             <p className="font-semibold text-gray-900 dark:text-gray-100">{event.extendedProps.patient_name}</p>
             <p className="text-sm text-gray-600 dark:text-gray-400">{event.extendedProps.patient_phone}</p>
           </div>
@@ -138,18 +142,28 @@ export function ModalDetalheAgendamento({
         </div>
 
         <div className="mt-4 flex flex-col gap-2">
+          {consultaDisponivel && onAbrirConsulta && (
+            <button
+              type="button"
+              onClick={onAbrirConsulta}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2 text-white rounded-lg transition-colors"
+              style={{ backgroundColor: "#8B3D52" }}
+            >
+              Abrir consulta
+            </button>
+          )}
           <button
             type="button"
             onClick={onReenviarWhatsApp}
             disabled={reenviandoMensagem || !event.extendedProps.patient_phone}
             className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            title="Reenviar confirmação por WhatsApp ao paciente"
+            title="Reenviar confirmação por WhatsApp ao cliente"
           >
             <MessageCircle size={18} />
             {reenviandoMensagem ? "Enviando…" : "Reenviar mensagem WhatsApp"}
           </button>
           {!event.extendedProps.patient_phone && (
-            <p className="text-xs text-gray-500 dark:text-gray-400">Paciente sem telefone; não é possível reenviar.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Cliente sem telefone; não é possível reenviar.</p>
           )}
         </div>
         <div className="mt-4 flex gap-3">

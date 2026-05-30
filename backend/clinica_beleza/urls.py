@@ -18,6 +18,10 @@ from .views import (
     WhatsAppConfigView,
     CampanhaPromocaoListView, CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView,
 )
+from .views_consultas import (
+    ConsultaListView, ConsultaDetailView, ConsultaAplicarProtocoloView,
+    PatientAnamneseView, ConsultaEvolucaoListView, PatientHistoricoConsultasView,
+)
 from .views_estoque import (
     ProdutoEstoqueListView, ProdutoEstoqueDetailView,
     MovimentacaoEstoqueView, HistoricoEstoqueView, EstoqueResumoView,
@@ -39,6 +43,14 @@ urlpatterns = [
     # Pacientes
     path('patients/', PatientListView.as_view(), name='patients-list'),
     path('patients/<int:pk>/', PatientDetailView.as_view(), name='patients-detail'),
+    path('patients/<int:patient_id>/anamnese/', PatientAnamneseView.as_view(), name='patient-anamnese'),
+    path('patients/<int:patient_id>/consultas/', PatientHistoricoConsultasView.as_view(), name='patient-consultas-historico'),
+
+    # Consultas (criadas via agenda)
+    path('consultas/', ConsultaListView.as_view(), name='consultas-list'),
+    path('consultas/<int:pk>/', ConsultaDetailView.as_view(), name='consultas-detail'),
+    path('consultas/<int:pk>/aplicar-protocolo/', ConsultaAplicarProtocoloView.as_view(), name='consultas-aplicar-protocolo'),
+    path('consultas/<int:consulta_id>/evolucoes/', ConsultaEvolucaoListView.as_view(), name='consultas-evolucoes'),
     
     # Profissionais
     path('professionals/', ProfessionalListView.as_view(), name='professionals-list'),

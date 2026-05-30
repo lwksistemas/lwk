@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Plus, Lock } from "lucide-react";
 import apiClient from "@/lib/api-client";
@@ -86,6 +86,7 @@ function criarIntervalosEvents(profId: string, horarios: HorarioTrabalho[], prof
 
 export default function AgendaPage() {
   const params = useParams();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const slug = params.slug as string;
   const { handleLogout } = useLojaAuth(slug);
@@ -109,6 +110,7 @@ export default function AgendaPage() {
   const [reenviandoMensagem, setReenviandoMensagem] = useState(false);
   const [conflictData, setConflictData] = useState<(ConflitoAgendaData & { appointmentId: number; payloadForResolve: { status?: string; date?: string } }) | null>(null);
   const [conflictResolving, setConflictResolving] = useState(false);
+  const [consultaId, setConsultaId] = useState<number | null>(null);
   const [calendarPlugins, setCalendarPlugins] = useState<any[]>([]);
   const [ptBrLocale, setPtBrLocale] = useState<any>(null);
   useClinicaBelezaDark();
@@ -351,7 +353,19 @@ export default function AgendaPage() {
       return;
     }
     setSelectedEvent({ id: info.event.id, title: info.event.title, start: info.event.start, end: info.event.end, backgroundColor: info.event.backgroundColor, borderColor: info.event.borderColor, textColor: info.event.textColor, extendedProps: info.event.extendedProps });
+    setConsultaId(null);
     setShowModal(true);
+    const dbId = info.event.extendedProps?.dbId;
+    const st = info.event.extendedProps?.status;
+    if (dbId && (st === "IN_PROGRESS" || st === "COMPLETED")) {
+      clinicaBelezaFetch(`/consultas/?appointment=${dbId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          const arr = Array.isArray(data) ? data : [];
+          if (arr[0]?.id) setConsultaId(arr[0].id);
+        })
+        .catch(() => {});
+    }
   };
 
   const conflitoComBloqueio = (date: Date) => bloqueios.some((b) => {
@@ -398,6 +412,13 @@ export default function AgendaPage() {
       }
       if (!res.ok) throw new Error(data.error || "Erro ao atualizar status");
       setSelectedEvent((prev) => prev ? { ...prev, extendedProps: { ...prev.extendedProps, status: novoStatus } } : null);
+      if (data.consulta_id) {
+        setConsultaId(data.consulta_id);
+        if (novoStatus === "IN_PROGRESS") {
+          const abrir = confirm("Consulta iniciada. Deseja abrir a tela de atendimento agora?");
+          if (abrir) router.push(`/loja/${slug}/clinica-beleza/consultas?id=${data.consulta_id}`);
+        }
+      }
       carregarDados();
     } catch (error) { logger.warn("Erro ao atualizar status:", error); alert(error instanceof Error ? error.message : "Erro ao atualizar status."); }
     finally { setUpdatingStatus(false); }
@@ -546,6 +567,10 @@ export default function AgendaPage() {
         open={showModal && selectedEvent != null} onClose={() => setShowModal(false)} onSuccess={carregarDados}
         event={selectedEvent!} onUpdateStatus={atualizarStatusAgendamento} onDelete={deletarEvento}
         onReenviarWhatsApp={reenviarMensagemWhatsApp} updatingStatus={updatingStatus} reenviandoMensagem={reenviandoMensagem}
+        consultaDisponivel={consultaId != null}
+        onAbrirConsulta={() => {
+          if (consultaId) router.push(`/loja/${slug}/clinica-beleza/consultas?id=${consultaId}`);
+        }}
       />
       <ModalCriarAgendamento
         open={showCreateModal} onClose={() => setShowCreateModal(false)} onSuccess={carregarDados}

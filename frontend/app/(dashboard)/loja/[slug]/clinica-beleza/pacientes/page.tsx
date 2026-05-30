@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Cadastro de Pacientes - Clínica da Beleza
+ * Cadastro de Clientes - Clínica da Beleza
  * Listagem + criar/editar (integrado com API e permissões)
  */
 
@@ -316,7 +316,7 @@ export default function PacientesPage() {
   };
 
   const exclude = async (p: Patient) => {
-    if (!confirm(`Desativar o paciente "${entityName(p)}"?`)) return;
+    if (!confirm(`Desativar o cliente "${entityName(p)}"?`)) return;
     try {
       await clinicaBelezaFetch(`/patients/${p.id}/`, { method: "DELETE" });
       load();
@@ -330,9 +330,9 @@ export default function PacientesPage() {
   return (
     <>
       <ClinicaBelezaStandardPageHeader
-        title="Pacientes"
-        subtitle="Cadastro de pacientes da clínica"
-        newLabel="Novo Paciente"
+        title="Clientes"
+        subtitle="Cadastro de clientes da clínica"
+        newLabel="Novo Cliente"
         onNew={openNew}
       />
       <div className="min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6">
@@ -342,7 +342,7 @@ export default function PacientesPage() {
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>
         ) : activeList.length === 0 ? (
           <div className="bg-white/80 dark:bg-neutral-800/80 rounded-xl p-8 text-center text-gray-500 dark:text-gray-400">
-            Nenhum paciente cadastrado. Clique em &quot;Novo Paciente&quot; para começar.
+            Nenhum cliente cadastrado. Clique em &quot;Novo Cliente&quot; para começar.
           </div>
         ) : (
           <div className="bg-white/80 dark:bg-neutral-800/80 rounded-xl shadow overflow-hidden">
@@ -406,7 +406,7 @@ export default function PacientesPage() {
           <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-4 border-b dark:border-neutral-600">
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                {editing ? "Editar Paciente" : "Novo Paciente"}
+                {editing ? "Editar Cliente" : "Novo Cliente"}
               </h2>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded">
                 <X size={20} className="text-gray-700 dark:text-gray-300" />
@@ -489,7 +489,7 @@ export default function PacientesPage() {
                   className="rounded border-gray-300 dark:border-neutral-600 text-purple-600"
                 />
                 <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Permitir WhatsApp (lembretes e cobranças) — LGPD: o paciente pode optar por não receber
+                  Permitir WhatsApp (lembretes e cobranças) — LGPD: o cliente pode optar por não receber
                 </span>
               </label>
             </div>

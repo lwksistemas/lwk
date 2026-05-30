@@ -234,7 +234,7 @@ export default function FinanceiroClinicaPage() {
                   <thead className="bg-gray-50 dark:bg-neutral-700 border-b border-gray-200 dark:border-neutral-600">
                     <tr>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Data</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Paciente</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Cliente</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Profissional</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Procedimento</th>
                       <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Valor</th>

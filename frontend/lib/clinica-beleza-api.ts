@@ -298,4 +298,26 @@ export class ClinicaBelezaAPI {
     delete: (id: number) => ClinicaBelezaAPI.delete(`/campanhas/${id}/`),
     enviar: (id: number) => ClinicaBelezaAPI.post(`/campanhas/${id}/enviar/`, {}),
   };
+
+  static consultas = {
+    list: (params?: { patient?: number; professional?: number; status?: string; appointment?: number }) =>
+      ClinicaBelezaAPI.get('/consultas/', params),
+    get: (id: number) => ClinicaBelezaAPI.get(`/consultas/${id}/`),
+    update: (id: number, data: Record<string, unknown>) => ClinicaBelezaAPI.patch(`/consultas/${id}/`, data),
+    aplicarProtocolo: (id: number, protocolId: number) =>
+      ClinicaBelezaAPI.post(`/consultas/${id}/aplicar-protocolo/`, { protocol_id: protocolId }),
+    evolucoes: {
+      list: (consultaId: number) => ClinicaBelezaAPI.get(`/consultas/${consultaId}/evolucoes/`),
+      create: (consultaId: number, data: Record<string, unknown>) =>
+        ClinicaBelezaAPI.post(`/consultas/${consultaId}/evolucoes/`, data),
+    },
+    historicoCliente: (patientId: number) =>
+      ClinicaBelezaAPI.get(`/patients/${patientId}/consultas/`),
+  };
+
+  static anamnese = {
+    get: (patientId: number) => ClinicaBelezaAPI.get(`/patients/${patientId}/anamnese/`),
+    save: (patientId: number, data: Record<string, unknown>) =>
+      ClinicaBelezaAPI.put(`/patients/${patientId}/anamnese/`, data),
+  };
 }

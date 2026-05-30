@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   Users,
+  Stethoscope,
   ClipboardList,
   Droplets,
   Sparkles,
@@ -36,7 +37,8 @@ export interface ClinicaBelezaNavItem {
 export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: 'dashboard' },
   { label: 'Agenda', icon: CalendarDays, path: 'agenda' },
-  { label: 'Pacientes', icon: Users, path: 'clinica-beleza/pacientes' },
+  { label: 'Clientes', icon: Users, path: 'clinica-beleza/pacientes' },
+  { label: 'Consultas', icon: Stethoscope, path: 'clinica-beleza/consultas' },
   {
     label: 'Protocolos (geral)',
     icon: ClipboardList,

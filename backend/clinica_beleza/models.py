@@ -494,3 +494,129 @@ class MovimentacaoEstoque(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.produto.nome} ({self.quantidade})"
+
+
+class Consulta(LojaIsolationMixin, models.Model):
+    """Consulta clínica — criada automaticamente ao mudar status do agendamento na agenda."""
+    STATUS_CHOICES = (
+        ('IN_PROGRESS', 'Em Atendimento'),
+        ('COMPLETED', 'Concluída'),
+        ('CANCELLED', 'Cancelada'),
+    )
+
+    appointment = models.OneToOneField(
+        Appointment,
+        on_delete=models.CASCADE,
+        related_name='consulta',
+        verbose_name='Agendamento',
+    )
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='consultas', verbose_name='Cliente')
+    professional = models.ForeignKey(
+        Professional, on_delete=models.SET_NULL, null=True, related_name='consultas', verbose_name='Profissional',
+    )
+    procedure = models.ForeignKey(Procedure, on_delete=models.CASCADE, related_name='consultas', verbose_name='Procedimento')
+    protocol = models.ForeignKey(
+        ProcedureProtocol,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='consultas',
+        verbose_name='Protocolo aplicado',
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='IN_PROGRESS', verbose_name='Status')
+    data_inicio = models.DateTimeField(null=True, blank=True, verbose_name='Início')
+    data_fim = models.DateTimeField(null=True, blank=True, verbose_name='Fim')
+    observacoes_gerais = models.TextField(blank=True, default='', verbose_name='Observações gerais')
+    protocolo_notas = models.TextField(blank=True, default='', verbose_name='Notas do protocolo')
+    valor_consulta = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_consultas'
+        ordering = ['-data_inicio', '-created_at']
+        verbose_name = 'Consulta'
+        verbose_name_plural = 'Consultas'
+        indexes = [
+            models.Index(fields=['patient', 'status']),
+            models.Index(fields=['loja_id', 'status']),
+        ]
+
+    def __str__(self):
+        return f'Consulta {self.patient.nome} — {self.procedure.nome}'
+
+    @property
+    def duracao_minutos(self):
+        if self.data_inicio and self.data_fim:
+            return int((self.data_fim - self.data_inicio).total_seconds() / 60)
+        return None
+
+
+class PatientAnamnese(LojaIsolationMixin, models.Model):
+    """Anamnese do cliente — histórico clínico persistente."""
+    patient = models.OneToOneField(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='anamnese',
+        verbose_name='Cliente',
+    )
+    queixa_principal = models.TextField(blank=True, default='')
+    historico_medico = models.TextField(blank=True, default='')
+    medicamentos_uso = models.TextField(blank=True, default='')
+    alergias = models.TextField(blank=True, default='')
+    condicoes_clinicas = models.TextField(blank=True, default='')
+    tipo_pele = models.CharField(max_length=100, blank=True, default='')
+    pressao_arterial = models.CharField(max_length=20, blank=True, default='')
+    peso = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    altura = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    observacoes = models.TextField(blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_anamneses'
+        verbose_name = 'Anamnese do cliente'
+        verbose_name_plural = 'Anamneses dos clientes'
+
+    def __str__(self):
+        return f'Anamnese — {self.patient.nome}'
+
+
+class ConsultaEvolucao(LojaIsolationMixin, models.Model):
+    """Evolução registrada durante ou após a consulta."""
+    consulta = models.ForeignKey(
+        Consulta,
+        on_delete=models.CASCADE,
+        related_name='evolucoes',
+        verbose_name='Consulta',
+    )
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='evolucoes', verbose_name='Cliente')
+    professional = models.ForeignKey(
+        Professional, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Profissional',
+    )
+    descricao = models.TextField(blank=True, default='', verbose_name='Evolução')
+    procedimento_realizado = models.TextField(blank=True, default='')
+    produtos_utilizados = models.TextField(blank=True, default='')
+    orientacoes = models.TextField(blank=True, default='')
+    protocolo_snapshot = models.TextField(blank=True, default='', help_text='Texto do protocolo aplicado')
+    satisfacao = models.PositiveSmallIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_consulta_evolucoes'
+        ordering = ['-created_at']
+        verbose_name = 'Evolução da consulta'
+        verbose_name_plural = 'Evoluções das consultas'
+
+    def __str__(self):
+        return f'Evolução {self.patient.nome} — {self.created_at:%d/%m/%Y %H:%M}'

@@ -233,7 +233,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
               changeLabel="Hoje"
             />
             <StatCard
-              title="Pacientes ativos"
+              title="Clientes ativos"
               value={stats?.patients_total ?? 0}
               icon={Users}
               changeLabel="Cadastrados"

@@ -181,6 +181,7 @@ class AgendaUpdateView(APIView):
                 valid = dict(Appointment.STATUS_CHOICES).keys()
                 if new_status not in valid:
                     return Response({'error': f'Status inválido. Use: {", ".join(valid)}'}, status=status.HTTP_400_BAD_REQUEST)
+                old_status = appointment.status
                 appointment.status = new_status
 
             if new_date is None and new_status is None and not resolve_use_local:
@@ -189,6 +190,13 @@ class AgendaUpdateView(APIView):
             appointment.version = (appointment.version or 1) + 1
             appointment.updated_by_id = getattr(request.user, 'id', None)
             appointment.save()
+
+            consulta_id = None
+            if new_status is not None:
+                from .consulta_service import sync_consulta_from_appointment_status
+                consulta = sync_consulta_from_appointment_status(appointment, new_status, old_status)
+                if consulta:
+                    consulta_id = consulta.id
 
             if new_status == 'COMPLETED':
                 try:
@@ -206,7 +214,10 @@ class AgendaUpdateView(APIView):
                 except Exception as e:
                     logger.warning('WhatsApp confirmação agendamento %s: %s', pk, e)
 
-            return Response(AgendaEventSerializer(appointment).data)
+            response_data = AgendaEventSerializer(appointment).data
+            if consulta_id is not None:
+                response_data['consulta_id'] = consulta_id
+            return Response(response_data)
 
         except Appointment.DoesNotExist:
             return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)

@@ -5,6 +5,7 @@ from rest_framework import serializers
 from .models import (
     Patient, Professional, Procedure, ProcedureProtocol,
     Appointment, Payment, BloqueioHorario, HorarioTrabalhoProfissional,
+    Consulta, PatientAnamnese, ConsultaEvolucao,
 )
 from core.serializer_mixins import TextNormalizationMixin
 from core.logging_utils import mask_email
@@ -394,4 +395,57 @@ class BloqueioHorarioSerializer(serializers.ModelSerializer):
             'data_inicio', 'data_fim', 'motivo', 'observacoes', 'criado_em',
         ]
         read_only_fields = ['criado_em']
+
+
+class PatientAnamneseSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='patient.nome', read_only=True)
+
+    class Meta:
+        model = PatientAnamnese
+        fields = [
+            'id', 'patient', 'patient_name',
+            'queixa_principal', 'historico_medico', 'medicamentos_uso', 'alergias',
+            'condicoes_clinicas', 'tipo_pele', 'pressao_arterial', 'peso', 'altura',
+            'observacoes', 'created_at', 'updated_at', 'loja_id',
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+
+
+class ConsultaEvolucaoSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='patient.nome', read_only=True)
+    professional_name = serializers.CharField(source='professional.nome', read_only=True, default=None)
+
+    class Meta:
+        model = ConsultaEvolucao
+        fields = [
+            'id', 'consulta', 'patient', 'patient_name', 'professional', 'professional_name',
+            'descricao', 'procedimento_realizado', 'produtos_utilizados', 'orientacoes',
+            'protocolo_snapshot', 'satisfacao', 'created_at', 'updated_at', 'loja_id',
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+
+
+class ConsultaSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='patient.nome', read_only=True)
+    professional_name = serializers.CharField(source='professional.nome', read_only=True, default=None)
+    procedure_name = serializers.CharField(source='procedure.nome', read_only=True)
+    protocol_name = serializers.CharField(source='protocol.nome', read_only=True, default=None)
+    appointment_date = serializers.DateTimeField(source='appointment.date', read_only=True)
+    appointment_status = serializers.CharField(source='appointment.status', read_only=True)
+    duracao_minutos = serializers.ReadOnlyField()
+    total_evolucoes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Consulta
+        fields = [
+            'id', 'appointment', 'patient', 'patient_name', 'professional', 'professional_name',
+            'procedure', 'procedure_name', 'protocol', 'protocol_name', 'status',
+            'data_inicio', 'data_fim', 'duracao_minutos', 'observacoes_gerais', 'protocolo_notas',
+            'valor_consulta', 'appointment_date', 'appointment_status', 'total_evolucoes',
+            'created_at', 'updated_at', 'loja_id',
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'loja_id', 'appointment']
+
+    def get_total_evolucoes(self, obj):
+        return obj.evolucoes.count()
 

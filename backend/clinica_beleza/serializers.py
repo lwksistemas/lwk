@@ -44,9 +44,16 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
         if perfil not in valid_perfis:
             perfil = 'profissional'
         email = validated_data.get('email')
-        name = validated_data.get('name')
+        name = validated_data.pop('name', None)
+        specialty = validated_data.pop('specialty', None)
+        phone = validated_data.pop('phone', None) or ''
 
-        professional = Professional.objects.create(**validated_data)
+        professional = Professional.objects.create(
+            nome=name,
+            email=email,
+            especialidade=specialty,
+            telefone=phone,
+        )
 
         if criar_acesso:
             from django.contrib.auth import get_user_model
@@ -230,7 +237,7 @@ class ProfessionalSerializer(serializers.ModelSerializer):
         exclude = ['loja_id']  # loja_id é preenchido automaticamente
         extra_kwargs = {
             'email': {'required': False, 'allow_blank': True, 'allow_null': True},
-            'phone': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'telefone': {'required': False, 'allow_blank': True},
         }
 
     def get_is_administrador_vinculado(self, obj):

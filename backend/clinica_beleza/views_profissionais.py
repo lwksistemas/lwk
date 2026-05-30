@@ -17,6 +17,48 @@ from .utils import LojaContextHelper
 
 logger = logging.getLogger(__name__)
 
+_PROFESSIONAL_FIELD_MAP = {
+    'name': 'nome',
+    'specialty': 'especialidade',
+    'phone': 'telefone',
+    'active': 'is_active',
+}
+
+
+def _map_professional_data(raw_data):
+    """Normaliza campos legados (inglês) para os nomes do model."""
+    data = raw_data.copy() if hasattr(raw_data, 'copy') else dict(raw_data)
+    data = {k: (v[0] if isinstance(v, list) and len(v) == 1 else v) for k, v in data.items()}
+
+    def _empty_to_none(v):
+        if isinstance(v, list):
+            v = v[0] if len(v) == 1 else None
+        if isinstance(v, str) and (v.strip() == '' or v.strip().lower() == 'null'):
+            return None
+        return v
+
+    for en, pt in _PROFESSIONAL_FIELD_MAP.items():
+        if en in data and pt not in data:
+            data[pt] = data.pop(en)
+
+    for key in ('email', 'telefone'):
+        if key in data:
+            data[key] = _empty_to_none(data[key])
+    if 'telefone' in data and data['telefone'] is None:
+        data['telefone'] = ''
+
+    for key in ('nome', 'especialidade'):
+        if key in data and isinstance(data[key], str):
+            data[key] = data[key].strip() or None
+
+    if 'is_active' in data and isinstance(data['is_active'], str):
+        data['is_active'] = data['is_active'].strip().lower() in ('1', 'true', 'yes', 'on')
+
+    for key in ('criar_acesso', 'perfil'):
+        data.pop(key, None)
+
+    return data
+
 
 class ProfessionalListView(APIView):
     """
@@ -52,22 +94,8 @@ class ProfessionalListView(APIView):
     def post(self, request):
         raw = request.data if isinstance(request.data, dict) else dict(request.data)
 
-        def _empty_to_none(v):
-            if isinstance(v, list):
-                v = v[0] if len(v) == 1 else None
-            if isinstance(v, str) and (v.strip() == '' or v.strip().lower() == 'null'):
-                return None
-            return v
-
+        # Criar com acesso (usuário Django) — serializer usa campos em inglês
         data = {k: (v[0] if isinstance(v, list) and len(v) == 1 else v) for k, v in raw.items()}
-        for key in ('email', 'phone'):
-            if key in data:
-                data[key] = _empty_to_none(data[key])
-        for key in ('name', 'specialty'):
-            if key in data and isinstance(data[key], str):
-                data[key] = data[key].strip() or None
-
-        # Criar com acesso (usuário Django)
         if data.get('criar_acesso') and data.get('email'):
             serializer = ProfessionalCreateWithUserSerializer(data=data)
             if serializer.is_valid():
@@ -83,30 +111,17 @@ class ProfessionalListView(APIView):
                     break
             return Response(err_payload, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validação antecipada
-        def _str_val(key):
-            v = data.get(key)
-            if isinstance(v, list):
-                v = v[0] if v else ''
-            return (v or '').strip() if isinstance(v, str) else ''
-
-        name_val = _str_val('name')
-        specialty_val = _str_val('specialty')
+        payload = _map_professional_data(raw)
+        name_val = (payload.get('nome') or '').strip()
+        specialty_val = (payload.get('especialidade') or '').strip()
         if not name_val or not specialty_val:
             missing = [f for f, v in [('nome', name_val), ('especialidade', specialty_val)] if not v]
             return Response({'detail': f'Preencha {", ".join(missing)}.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        active_val = data.get('active', True)
-        if isinstance(active_val, str):
-            active_val = active_val.strip().lower() in ('1', 'true', 'yes', 'on')
+        payload['nome'] = name_val
+        payload['especialidade'] = specialty_val
+        payload.setdefault('is_active', True)
 
-        payload = {
-            'nome': name_val,
-            'especialidade': specialty_val,
-            'telefone': data.get('phone') or data.get('telefone') or '',
-            'email': data.get('email'),
-            'is_active': bool(active_val),
-        }
         serializer = ProfessionalSerializer(data=payload)
         if serializer.is_valid():
             serializer.save()
@@ -133,7 +148,8 @@ class ProfessionalDetailView(APIView):
             return Response({'error': 'O administrador vinculado à loja não pode ser editado.'}, status=status.HTTP_403_FORBIDDEN)
         try:
             obj = Professional.objects.get(pk=pk)
-            serializer = ProfessionalSerializer(obj, data=request.data, partial=True)
+            data = _map_professional_data(request.data)
+            serializer = ProfessionalSerializer(obj, data=data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data)

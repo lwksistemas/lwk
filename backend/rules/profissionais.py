@@ -2,12 +2,22 @@
 Regras de profissionais: horário de trabalho, folgas, limite de atendimentos por dia.
 """
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from clinica_beleza.models import Appointment, HorarioTrabalhoProfissional
 
 
 # Limite máximo de atendimentos por profissional por dia (pode vir de config/RegraAutomatica no futuro)
 LIMITE_ATENDIMENTOS_POR_DIA = 20
+
+
+def _to_local(dt):
+    """Converte datetime aware/naive para horário local (expediente cadastrado em hora de parede)."""
+    if dt is None:
+        return None
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt, timezone.get_current_timezone())
+    return timezone.localtime(dt)
 
 
 def validar_horario_trabalho(contexto):
@@ -26,14 +36,17 @@ def validar_horario_trabalho(contexto):
     if not horarios.exists():
         return
 
-    dia_semana = date_start.weekday()  # 0=segunda … 6=domingo (igual ao model)
+    local_start = _to_local(date_start)
+    local_end = _to_local(date_end)
+
+    dia_semana = local_start.weekday()  # 0=segunda … 6=domingo (igual ao model)
     try:
         horario = horarios.get(dia_semana=dia_semana)
     except HorarioTrabalhoProfissional.DoesNotExist:
         raise ValidationError("Profissional não trabalha neste dia da semana.")
 
-    t_start = date_start.time()
-    t_end = date_end.time()
+    t_start = local_start.time()
+    t_end = local_end.time()
 
     if t_start < horario.hora_entrada:
         raise ValidationError(
@@ -64,10 +77,12 @@ def limite_atendimentos_dia(contexto):
     if not profissional or not date_start:
         return
 
+    local_start = _to_local(date_start)
+
     # Conta agendamentos do profissional naquele dia (excluindo o que está sendo editado)
     base = Appointment.objects.filter(
         professional=profissional,
-        date__date=date_start.date(),
+        date__date=local_start.date(),
     ).exclude(pk=appointment_id or 0)
 
     if base.count() >= LIMITE_ATENDIMENTOS_POR_DIA:

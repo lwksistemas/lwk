@@ -5,13 +5,14 @@ from datetime import timedelta
 
 from django.core.cache import cache
 from django.db.models import Count, Q, Sum
+from django.db.models.functions import Coalesce, TruncDate
 from django.utils.timezone import now
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
-from .models import Patient, Procedure, Appointment, Payment
+from .models import Patient, Procedure, Appointment, Payment, Consulta
 from .serializers import AppointmentListSerializer
 from .utils import LojaContextHelper
 from tenants.middleware import get_current_loja_id
@@ -27,6 +28,35 @@ SOROTERAPIA_CATEGORIA_Q = (
     | Q(procedure__categoria__icontains='detox')
     | Q(procedure__categoria__icontains='disposicao')
 )
+
+
+def _consultas_concluidas_no_mes(first_day_month, today):
+    """
+    Consultas concluídas no mês civil, pela data de conclusão (data_fim).
+    Fallback: updated_at ou data do agendamento (dados legados sem data_fim).
+    """
+    return (
+        Consulta.objects.filter(status='COMPLETED')
+        .annotate(
+            realizado_em=TruncDate(
+                Coalesce('data_fim', 'updated_at', 'appointment__date'),
+            ),
+        )
+        .filter(realizado_em__gte=first_day_month, realizado_em__lte=today)
+    )
+
+
+def _top_procedures_realizados_mes(first_day_month, today):
+    rows = (
+        _consultas_concluidas_no_mes(first_day_month, today)
+        .values('procedure__nome')
+        .annotate(count=Count('id'))
+        .order_by('-count')[:5]
+    )
+    return [
+        {'name': item['procedure__nome'] or 'Sem nome', 'count': item['count']}
+        for item in rows
+    ]
 
 
 def _top_procedures_qs(*, first_day_month, today, soroterapia_only: bool, completed_only: bool):
@@ -78,7 +108,7 @@ class DashboardView(APIView):
 
         period = (request.query_params.get('period') or 'proximos').strip().lower()
         professional_id = request.query_params.get('professional')
-        cache_key = f'clinica_beleza_dashboard_v3_{loja_id}_{today}_{period}_{professional_id or "all"}'
+        cache_key = f'clinica_beleza_dashboard_v4_{loja_id}_{today}_{period}_{professional_id or "all"}'
 
         cached_data = cache.get(cache_key)
         if cached_data:
@@ -98,11 +128,7 @@ class DashboardView(APIView):
             status='PAID', payment_date__date=today
         ).aggregate(total=Sum('amount'))['total'] or 0
 
-        sessions_month = Appointment.objects.filter(
-            date__date__gte=first_day_month,
-            date__date__lte=today,
-            status='COMPLETED',
-        ).count()
+        sessions_month = _consultas_concluidas_no_mes(first_day_month, today).count()
 
         revenue_last_7_days = []
         for i in range(6, -1, -1):
@@ -115,13 +141,8 @@ class DashboardView(APIView):
                 'value': float(day_revenue),
             })
 
-        # Procedimentos realizados no mês (concluídos, todas as categorias)
-        top_procedures = _top_procedures_qs(
-            first_day_month=first_day_month,
-            today=today,
-            soroterapia_only=False,
-            completed_only=True,
-        )
+        # Procedimentos realizados no mês — consultas concluídas (não data do agendamento)
+        top_procedures = _top_procedures_realizados_mes(first_day_month, today)
         # Gráfico pizza: volume soroterapia no mês (inclui agendados/confirmados)
         top_procedures_volume = _top_procedures_qs(
             first_day_month=first_day_month,

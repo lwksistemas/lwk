@@ -171,6 +171,9 @@ def finalizar_consulta(consulta, *, payment_method=None, mark_as_paid=False, amo
             appointment.version = (appointment.version or 1) + 1
             appointment.save(update_fields=['status', 'version', 'updated_at'])
             sync_consulta_from_appointment_status(appointment, 'COMPLETED', old_status)
+        if not consulta.data_fim:
+            consulta.data_fim = now()
+            consulta.save(update_fields=['data_fim', 'updated_at'])
         try:
             MotorRegras().executar('AGENDAMENTO_FINALIZADO', {'appointment': appointment})
         except Exception:
@@ -185,9 +188,17 @@ def finalizar_consulta(consulta, *, payment_method=None, mark_as_paid=False, amo
     if consulta.status != 'IN_PROGRESS':
         raise ValueError('Inicie a consulta antes de finalizar.')
 
+    ts = now()
+
     appointment.status = 'COMPLETED'
     appointment.version = (appointment.version or 1) + 1
     appointment.save(update_fields=['status', 'version', 'updated_at'])
+
+    consulta.status = 'COMPLETED'
+    if not consulta.data_inicio:
+        consulta.data_inicio = ts
+    consulta.data_fim = ts
+    consulta.save(update_fields=['status', 'data_inicio', 'data_fim', 'updated_at'])
 
     sync_consulta_from_appointment_status(appointment, 'COMPLETED', old_status)
 

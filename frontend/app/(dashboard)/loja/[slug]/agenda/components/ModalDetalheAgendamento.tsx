@@ -1,41 +1,14 @@
 "use client";
 
 import { X, MessageCircle } from "lucide-react";
+import {
+  CLINICA_AGENDA_STATUS_COLORS,
+  CLINICA_AGENDA_STATUS_LABEL,
+  CLINICA_AGENDA_STATUS_OPCOES,
+} from "@/lib/clinica-beleza-constants";
+import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 
-/** Cores por status */
-const CORES_STATUS: Record<string, { bg: string; border: string }> = {
-  SCHEDULED: { bg: "#a855f7", border: "#9333ea" },
-  CONFIRMED: { bg: "#22c55e", border: "#16a34a" },
-  PENDING: { bg: "#f59e0b", border: "#d97706" },
-  IN_PROGRESS: { bg: "#3b82f6", border: "#2563eb" },
-  COMPLETED: { bg: "#0d9488", border: "#0f766e" },
-  CANCELLED: { bg: "#dc2626", border: "#b91c1c" },
-  NO_SHOW: { bg: "#b45309", border: "#92400e" },
-};
-
-export interface AgendaEventData {
-  id: string;
-  title: string;
-  start: string;
-  end: string;
-  backgroundColor: string;
-  borderColor: string;
-  textColor: string;
-  extendedProps: {
-    dbId: number | string;
-    status: string;
-    patient_name: string;
-    patient_phone: string;
-    professional_name: string;
-    procedure_name: string;
-    procedure_duration: number;
-    duracao_minutos?: number;
-    procedure_price: string;
-    notes: string;
-    version?: number;
-    updated_at?: string;
-  };
-}
+export type { AgendaEventData };
 
 interface ModalDetalheAgendamentoProps {
   open: boolean;
@@ -45,8 +18,6 @@ interface ModalDetalheAgendamentoProps {
   onUpdateStatus: (status: string) => Promise<void>;
   onDelete: () => Promise<void>;
   onReenviarWhatsApp: () => Promise<void>;
-  onAbrirConsulta?: () => void;
-  consultaDisponivel?: boolean;
   updatingStatus: boolean;
   reenviandoMensagem: boolean;
 }
@@ -58,12 +29,13 @@ export function ModalDetalheAgendamento({
   onUpdateStatus,
   onDelete,
   onReenviarWhatsApp,
-  onAbrirConsulta,
-  consultaDisponivel,
   updatingStatus,
   reenviandoMensagem,
 }: ModalDetalheAgendamentoProps) {
   if (!open || !event) return null;
+
+  const status = event.extendedProps.status;
+  const statusSomenteLeitura = status === "IN_PROGRESS" || status === "COMPLETED";
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -111,31 +83,56 @@ export function ModalDetalheAgendamento({
           </div>
 
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Status {updatingStatus && <span className="text-xs">(salvando…)</span>}</p>
-            <div className="flex items-center gap-2">
-              <span
-                className="shrink-0 w-3 h-3 rounded-full border-2 border-gray-900/10"
-                style={{
-                  backgroundColor: CORES_STATUS[event.extendedProps.status]?.bg ?? "#a855f7",
-                  borderColor: CORES_STATUS[event.extendedProps.status]?.border ?? "#9333ea",
-                }}
-                aria-hidden
-              />
-              <select
-                value={event.extendedProps.status}
-                onChange={(e) => onUpdateStatus(e.target.value)}
-                disabled={updatingStatus}
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-70"
-              >
-                <option value="SCHEDULED">🟣 Agendado</option>
-                <option value="CONFIRMED">🟢 Confirmado</option>
-                <option value="PENDING">🟠 Pendente</option>
-                <option value="IN_PROGRESS">🔵 Em Atendimento</option>
-                <option value="COMPLETED">⚫ Concluído</option>
-                <option value="CANCELLED">🔴 Cancelado</option>
-                <option value="NO_SHOW">⬜ Faltou</option>
-              </select>
-            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+              Status {updatingStatus && <span className="text-xs">(salvando…)</span>}
+            </p>
+            {statusSomenteLeitura ? (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-neutral-900/60 border border-gray-200 dark:border-neutral-600">
+                <span
+                  className="shrink-0 w-3 h-3 rounded-full"
+                  style={{
+                    backgroundColor: CLINICA_AGENDA_STATUS_COLORS[status]?.bg ?? "#a855f7",
+                    border: `2px solid ${CLINICA_AGENDA_STATUS_COLORS[status]?.border ?? "#9333ea"}`,
+                  }}
+                  aria-hidden
+                />
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  {CLINICA_AGENDA_STATUS_LABEL[status] || status}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span
+                  className="shrink-0 w-3 h-3 rounded-full border-2 border-gray-900/10"
+                  style={{
+                    backgroundColor: CLINICA_AGENDA_STATUS_COLORS[status]?.bg ?? "#a855f7",
+                    borderColor: CLINICA_AGENDA_STATUS_COLORS[status]?.border ?? "#9333ea",
+                  }}
+                  aria-hidden
+                />
+                <select
+                  value={status}
+                  onChange={(e) => onUpdateStatus(e.target.value)}
+                  disabled={updatingStatus}
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-70"
+                >
+                  {CLINICA_AGENDA_STATUS_OPCOES.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {statusSomenteLeitura ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                Início e conclusão do atendimento são feitos em Consultas.
+              </p>
+            ) : status === "CONFIRMED" ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                Após confirmar, a profissional inicia o atendimento em Consultas.
+              </p>
+            ) : null}
           </div>
 
           {event.extendedProps.notes && (
@@ -147,16 +144,6 @@ export function ModalDetalheAgendamento({
         </div>
 
         <div className="mt-4 flex flex-col gap-2">
-          {consultaDisponivel && onAbrirConsulta && (
-            <button
-              type="button"
-              onClick={onAbrirConsulta}
-              className="flex items-center justify-center gap-2 w-full px-4 py-2 text-white rounded-lg transition-colors"
-              style={{ backgroundColor: "#8B3D52" }}
-            >
-              Abrir consulta
-            </button>
-          )}
           <button
             type="button"
             onClick={onReenviarWhatsApp}
@@ -182,7 +169,7 @@ export function ModalDetalheAgendamento({
             onClick={onClose}
             className="flex-1 px-4 py-2 bg-gray-200 dark:bg-neutral-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-500 transition-colors"
           >
-            Salvar
+            Fechar
           </button>
         </div>
       </div>

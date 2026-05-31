@@ -364,13 +364,22 @@
   transform: translateY(-1px);
 }
 
-/* Bloqueios: cursor de redimensionar na borda inferior */
-.fc-event-bloqueio .fc-event-resizer {
-  cursor: ns-resize;
-  height: 8px;
+/* Bloqueios: arrastar corpo, redimensionar na borda inferior (igual aos agendamentos) */
+.fc-event-bloqueio {
+  cursor: grab;
+}
+.fc-event-bloqueio:active {
+  cursor: grabbing;
+}
+.fc-event-bloqueio:hover {
+  transform: none;
 }
 .fc-event-bloqueio .fc-event-resizer-end {
-  bottom: 0;
+  cursor: s-resize !important;
+  height: 12px !important;
+  bottom: calc(12px / -2) !important;
+  z-index: 5;
+  pointer-events: auto;
 }
 .fc-event-feriado,
 .fc-event-feriado .fc-event-title,
@@ -502,11 +511,12 @@
   font-size: 0.75rem;
 }
 
-/* Eventos no modo semana/dia - mais espaçados */
+/* Eventos no modo semana/dia - mais espaçados; sem altura mínima que impede resize curto */
 .fc-timegrid-event {
   border-radius: 4px;
   padding: 2px 4px;
   font-size: 0.8rem;
+  min-height: 0 !important;
 }
 
 /* Melhorar seleção de horários */
@@ -590,14 +600,14 @@
     font-size: 0.75rem;
   }
   .fc-agenda-mobile .fc-timegrid-slot {
-    min-height: 2.5rem; /* mais fácil tocar nos horários */
+    min-height: 1.25rem;
   }
   .fc-agenda-mobile .fc-timegrid-slot-label {
     font-size: 0.7rem;
     padding: 0.25rem 0.35rem;
   }
   .fc-agenda-mobile .fc-timegrid-event {
-    min-height: 2rem;
+    min-height: 0;
     font-size: 0.75rem;
     padding: 0.15rem 0.35rem;
   }

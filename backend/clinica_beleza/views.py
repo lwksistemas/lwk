@@ -9,7 +9,6 @@ Cada domínio está em seu próprio arquivo:
 - views_financeiro.py  → PaymentListView, PaymentDetailView, FinanceiroResumoView
 - views_agenda.py      → AgendaView, AgendaHojeView, AgendaUpdateView, AgendaCreateView,
                           AgendaDeleteView, AgendaReenviarMensagemView,
-                          AppointmentListView, AppointmentDetailView,
                           BloqueioHorarioListView, BloqueioHorarioDetailView
 - views_whatsapp.py    → WhatsAppConfigView, CampanhaPromocaoListView,
                           CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView
@@ -39,7 +38,6 @@ from .views_financeiro import PaymentListView, PaymentDetailView, FinanceiroResu
 
 # Agenda & Bloqueios
 from .views_agenda import (  # noqa: F401
-    AppointmentListView, AppointmentDetailView,
     AgendaView, AgendaHojeView, AgendaUpdateView, AgendaCreateView,
     AgendaDeleteView, AgendaReenviarMensagemView,
     BloqueioHorarioListView, BloqueioHorarioDetailView,

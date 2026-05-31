@@ -43,61 +43,8 @@ def _bloqueio_impede_agendamento(data_inicio, data_fim, professional_id, bloquei
 
 
 # ---------------------------------------------------------------------------
-# Agendamentos (CRUD simples)
+# Agenda / Calendário (substitui CRUD legado /appointments/)
 # ---------------------------------------------------------------------------
-
-class AppointmentListView(APIView):
-    """GET /clinica-beleza/appointments/  POST /clinica-beleza/appointments/"""
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        qs = Appointment.objects.select_related('patient', 'professional', 'procedure')
-        if d := request.query_params.get('date'):
-            qs = qs.filter(date__date=d)
-        if s := request.query_params.get('status'):
-            qs = qs.filter(status=s)
-        if p := request.query_params.get('professional'):
-            qs = qs.filter(professional_id=p)
-        return Response(AppointmentListSerializer(qs.order_by('-date'), many=True).data)
-
-    def post(self, request):
-        serializer = AppointmentCreateSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class AppointmentDetailView(APIView):
-    """GET /clinica-beleza/appointments/<id>/  PUT  DELETE"""
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, pk):
-        try:
-            obj = Appointment.objects.select_related('patient', 'professional', 'procedure').get(pk=pk)
-            return Response(AppointmentDetailSerializer(obj).data)
-        except Appointment.DoesNotExist:
-            return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-
-    def put(self, request, pk):
-        try:
-            obj = Appointment.objects.get(pk=pk)
-            serializer = AppointmentCreateSerializer(obj, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Appointment.DoesNotExist:
-            return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-
-    def delete(self, request, pk):
-        try:
-            Appointment.objects.get(pk=pk).delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Appointment.DoesNotExist:
-            return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-
-
 # ---------------------------------------------------------------------------
 # Agenda (calendário FullCalendar)
 # ---------------------------------------------------------------------------
@@ -174,8 +121,8 @@ class AgendaUpdateView(APIView):
                     new_duracao = int(new_duracao)
                 except (TypeError, ValueError):
                     return Response({'error': 'Duração inválida.'}, status=status.HTTP_400_BAD_REQUEST)
-                if new_duracao < 15:
-                    return Response({'error': 'Duração mínima de 15 minutos.'}, status=status.HTTP_400_BAD_REQUEST)
+                if new_duracao < 5:
+                    return Response({'error': 'Duração mínima de 5 minutos.'}, status=status.HTTP_400_BAD_REQUEST)
                 appointment.duracao_minutos = new_duracao
 
             date_changed = new_date is not None
@@ -206,6 +153,14 @@ class AgendaUpdateView(APIView):
                 valid = dict(Appointment.STATUS_CHOICES).keys()
                 if new_status not in valid:
                     return Response({'error': f'Status inválido. Use: {", ".join(valid)}'}, status=status.HTTP_400_BAD_REQUEST)
+                if new_status in ('IN_PROGRESS', 'COMPLETED'):
+                    return Response(
+                        {
+                            'error': 'Em atendimento e concluído são alterados em Consultas '
+                            '(iniciar / finalizar consulta).',
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 old_status = appointment.status
                 appointment.status = new_status
 

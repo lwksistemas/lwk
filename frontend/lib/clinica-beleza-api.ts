@@ -226,78 +226,6 @@ export class ClinicaBelezaAPI {
   static async delete(path: string): Promise<void> {
     await clinicaBelezaFetch(path, { method: 'DELETE' });
   }
-  
-  // Métodos específicos para endpoints comuns
-  
-  static dashboard = {
-    get: (params?: { period?: string; professional?: number }) => 
-      ClinicaBelezaAPI.get('/dashboard/', params),
-  };
-  
-  static appointments = {
-    list: (params?: { date?: string; status?: string; professional?: number }) =>
-      ClinicaBelezaAPI.get('/appointments/', params),
-    get: (id: number) => 
-      ClinicaBelezaAPI.get(`/appointments/${id}/`),
-    create: (data: any) => 
-      ClinicaBelezaAPI.post('/appointments/', data),
-    update: (id: number, data: any) => 
-      ClinicaBelezaAPI.put(`/appointments/${id}/`, data),
-    delete: (id: number) => 
-      ClinicaBelezaAPI.delete(`/appointments/${id}/`),
-  };
-  
-  static patients = {
-    list: () => ClinicaBelezaAPI.get('/patients/'),
-    get: (id: number) => ClinicaBelezaAPI.get(`/patients/${id}/`),
-    create: (data: any) => ClinicaBelezaAPI.post('/patients/', data),
-    update: (id: number, data: any) => ClinicaBelezaAPI.put(`/patients/${id}/`, data),
-    delete: (id: number) => ClinicaBelezaAPI.delete(`/patients/${id}/`),
-  };
-  
-  static professionals = {
-    list: () => ClinicaBelezaAPI.get('/professionals/'),
-    get: (id: number) => ClinicaBelezaAPI.get(`/professionals/${id}/`),
-    create: (data: any) => ClinicaBelezaAPI.post('/professionals/', data),
-    update: (id: number, data: any) => ClinicaBelezaAPI.put(`/professionals/${id}/`, data),
-    delete: (id: number) => ClinicaBelezaAPI.delete(`/professionals/${id}/`),
-  };
-  
-  static procedures = {
-    list: () => ClinicaBelezaAPI.get('/procedures/'),
-    get: (id: number) => ClinicaBelezaAPI.get(`/procedures/${id}/`),
-    create: (data: any) => ClinicaBelezaAPI.post('/procedures/', data),
-    update: (id: number, data: any) => ClinicaBelezaAPI.put(`/procedures/${id}/`, data),
-    delete: (id: number) => ClinicaBelezaAPI.delete(`/procedures/${id}/`),
-  };
-  
-  static agenda = {
-    list: (params?: { start?: string; end?: string; professional?: number }) =>
-      ClinicaBelezaAPI.get('/agenda/', params),
-    today: () => ClinicaBelezaAPI.get('/agenda/hoje/'),
-    create: (data: any) => ClinicaBelezaAPI.post('/agenda/create/', data),
-    update: (id: number, data: any) => ClinicaBelezaAPI.patch(`/agenda/${id}/update/`, data),
-    delete: (id: number) => ClinicaBelezaAPI.delete(`/agenda/${id}/delete/`),
-    reenviarMensagem: (id: number) => ClinicaBelezaAPI.post(`/agenda/${id}/reenviar-mensagem/`, {}),
-  };
-  
-  static bloqueios = {
-    list: (params?: { start?: string; end?: string; professional?: number }) =>
-      ClinicaBelezaAPI.get('/bloqueios/', params),
-    get: (id: number) => ClinicaBelezaAPI.get(`/bloqueios/${id}/`),
-    create: (data: any) => ClinicaBelezaAPI.post('/bloqueios/', data),
-    update: (id: number, data: any) => ClinicaBelezaAPI.put(`/bloqueios/${id}/`, data),
-    delete: (id: number) => ClinicaBelezaAPI.delete(`/bloqueios/${id}/`),
-  };
-  
-  static campanhas = {
-    list: () => ClinicaBelezaAPI.get('/campanhas/'),
-    get: (id: number) => ClinicaBelezaAPI.get(`/campanhas/${id}/`),
-    create: (data: any) => ClinicaBelezaAPI.post('/campanhas/', data),
-    update: (id: number, data: any) => ClinicaBelezaAPI.put(`/campanhas/${id}/`, data),
-    delete: (id: number) => ClinicaBelezaAPI.delete(`/campanhas/${id}/`),
-    enviar: (id: number) => ClinicaBelezaAPI.post(`/campanhas/${id}/enviar/`, {}),
-  };
 
   static consultas = {
     list: (params?: { patient?: number; professional?: number; status?: string; appointment?: number }) =>
@@ -306,6 +234,7 @@ export class ClinicaBelezaAPI {
     update: (id: number, data: Record<string, unknown>) => ClinicaBelezaAPI.patch(`/consultas/${id}/`, data),
     aplicarProtocolo: (id: number, protocolId: number) =>
       ClinicaBelezaAPI.post(`/consultas/${id}/aplicar-protocolo/`, { protocol_id: protocolId }),
+    iniciar: (id: number) => ClinicaBelezaAPI.post(`/consultas/${id}/iniciar/`, {}),
     finalizar: (
       id: number,
       data?: { payment_method?: string; mark_as_paid?: boolean; amount?: number | string },

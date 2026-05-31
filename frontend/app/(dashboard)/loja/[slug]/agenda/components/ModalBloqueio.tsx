@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } from "@/lib/clinica-beleza-api";
+import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { logger } from "@/lib/logger";
 
 interface SelectedBloqueio {
@@ -27,9 +27,7 @@ export function ModalBloqueio({ open, onClose, onSuccess, bloqueio }: ModalBloqu
     if (!confirm(`Excluir o bloqueio "${bloqueio.motivo}"?`)) return;
     setDeleting(true);
     try {
-      const baseURL = getClinicaBelezaBaseUrl();
-      const headers = getClinicaBelezaHeaders();
-      const res = await fetch(`${baseURL}/bloqueios/${bloqueio.id}/`, { method: "DELETE", headers });
+      const res = await clinicaBelezaFetch(`/bloqueios/${bloqueio.id}/`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Erro ao excluir bloqueio");

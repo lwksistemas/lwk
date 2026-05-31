@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders } from "@/lib/clinica-beleza-api";
+import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 
 const DIAS_SEMANA = [
   { value: 0, label: "Segunda-feira" },
@@ -65,9 +65,7 @@ export function ModalHorariosTrabalho({
       setLoading(true);
       setError("");
       try {
-        const base = getClinicaBelezaBaseUrl();
-        const headers = getClinicaBelezaHeaders();
-        const res = await fetch(`${base}/professionals/${professionalId}/horarios-trabalho/`, { headers });
+        const res = await clinicaBelezaFetch(`/professionals/${professionalId}/horarios-trabalho/`);
         if (res.ok) {
           const data = (await res.json()) as HorarioTrabalhoItem[];
           const byDay: Record<number, HorarioTrabalhoItem> = {};
@@ -128,12 +126,8 @@ export function ModalHorariosTrabalho({
           ativo: true,
         };
       });
-      const base = getClinicaBelezaBaseUrl();
-      const headers = getClinicaBelezaHeaders() as Record<string, string>;
-      headers["Content-Type"] = "application/json";
-      const res = await fetch(`${base}/professionals/${professionalId}/horarios-trabalho/`, {
+      const res = await clinicaBelezaFetch(`/professionals/${professionalId}/horarios-trabalho/`, {
         method: "PUT",
-        headers,
         body: JSON.stringify(payload),
       });
       if (!res.ok) {

@@ -17,8 +17,7 @@ import {
 } from "@/lib/clinica-beleza-entities";
 import { formatProcedimentoApiErrors } from "@/lib/clinica-beleza-form-errors";
 import { formatCurrency } from "@/lib/financeiro-helpers";
-import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
-import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
+import { deleteClinicaBelezaEntity, saveClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
 import {
   bloquearCriacaoDuplicadaOffline,
   deveVerificarDuplicataOffline,
@@ -71,8 +70,18 @@ export function ProcedimentosPageContent({
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
-  const [list, setList] = useState<Procedure[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const moduleKey = defaultCategoria || "";
+  const presetCategoria = defaultCategoriaForModule(moduleKey) || defaultCategoria;
+  const listPath =
+    moduleKey && !showAllCategories ? `/procedures/?categoria=${encodeURIComponent(moduleKey)}` : "/procedures/";
+
+  const { list, setList, loading, load } = useClinicaBelezaEntityList<Procedure>({
+    path: listPath,
+    fetchOffline: buscarProcedimentosOffline,
+    saveOffline: salvarProcedimentosOffline,
+    reloadDeps: [moduleKey, showAllCategories],
+  });
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Procedure | null>(null);
   const [form, setForm] = useState({
@@ -84,56 +93,12 @@ export function ProcedimentosPageContent({
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [showAllCategories, setShowAllCategories] = useState(false);
-  useClinicaBelezaDark();
-
-  const moduleKey = defaultCategoria || "";
-  const presetCategoria = defaultCategoriaForModule(moduleKey) || defaultCategoria;
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      if (!navigator.onLine) {
-        const data = await buscarProcedimentosOffline();
-        setList(Array.isArray(data) ? (data as Procedure[]) : []);
-      } else {
-        const qs = moduleKey && !showAllCategories ? `?categoria=${encodeURIComponent(moduleKey)}` : "";
-        const res = await clinicaBelezaFetch(`/procedures${qs}`);
-        const data = await res.json();
-        if (res.ok) {
-          const arr = Array.isArray(data) ? data : [];
-          setList(arr);
-          await salvarProcedimentosOffline(arr);
-        } else setList([]);
-      }
-    } catch {
-      setList([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     if (defaultCategoria) {
       setForm((f) => ({ ...f, categoria: defaultCategoria }));
     }
   }, [defaultCategoria]);
-
-  useEffect(() => {
-    load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAllCategories, moduleKey]);
-
-  useEffect(() => {
-    const onSyncDone = () => {
-      if (navigator.onLine) {
-        // Aguardar um pouco para garantir que o backend processou
-        setTimeout(() => load(), 500);
-      }
-    };
-    window.addEventListener("offline-sync-done", onSyncDone);
-    return () => window.removeEventListener("offline-sync-done", onSyncDone);
-  }, []);
 
   const openNew = () => {
     setEditing(null);
@@ -243,28 +208,15 @@ export function ProcedimentosPageContent({
 
     try {
       if (editing) {
-        const res = await clinicaBelezaFetch(`/procedures/${editing.id}/`, {
-          method: "PUT",
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(formatProcedimentoApiErrors(err as Record<string, unknown>) || "Erro ao atualizar");
-        }
+        await saveClinicaBelezaEntity(`/procedures/${editing.id}/`, "PUT", body);
       } else {
-        const res = await clinicaBelezaFetch("/procedures/", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(formatProcedimentoApiErrors(err as Record<string, unknown>) || "Erro ao cadastrar");
-        }
+        await saveClinicaBelezaEntity("/procedures/", "POST", body);
       }
       setShowModal(false);
       load();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Erro ao salvar";
+      const err = e && typeof e === "object" ? (e as Record<string, unknown>) : {};
+      const msg = formatProcedimentoApiErrors(err) || (e instanceof Error ? e.message : "Erro ao salvar");
       if (isFetchNetworkError(msg)) {
         try {
           const lojaSlug = getLojaSlug();
@@ -322,14 +274,12 @@ export function ProcedimentosPageContent({
   const exclude = async (p: Procedure) => {
     if (!confirm(`Desativar o procedimento "${entityName(p)}"?`)) return;
     try {
-      await clinicaBelezaFetch(`/procedures/${p.id}/`, { method: "DELETE" });
+      await deleteClinicaBelezaEntity(`/procedures/${p.id}/`);
       load();
     } catch {
       alert("Erro ao desativar.");
     }
   };
-
-  useClinicaBelezaDark();
 
   const activeList = list.filter((p) => entityActive(p));
   const filteredList =

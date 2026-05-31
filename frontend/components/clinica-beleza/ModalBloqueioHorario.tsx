@@ -2,31 +2,20 @@
 
 /**
  * Modal de Bloqueio de Horários - Clínica da Beleza
- * Tipos: 🚫 Almoço | 🏖 Férias | 🛠 Manutenção | 📅 Evento interno | Outro
- * Responsivo (mobile/tablet/desktop), integrado com a API.
+ * Intervalo de almoço: configure em Profissionais → Horários de trabalho.
  */
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { formatDateTimeLocal } from "@/lib/clinica-beleza-datetime";
 
 const TIPOS_BLOQUEIO = [
-  { value: "Horário de almoço", label: "🚫 Horário de almoço" },
   { value: "Férias do profissional", label: "🏖 Férias do profissional" },
   { value: "Manutenção", label: "🛠 Manutenção" },
   { value: "Evento interno", label: "📅 Evento interno" },
   { value: "", label: "✏️ Outro (digite abaixo)" },
 ] as const;
-
-
-function formatDateTimeLocal(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const h = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${day}T${h}:${min}`;
-}
 
 interface Professional {
   id: number;
@@ -78,9 +67,10 @@ export function ModalBloqueioHorario({
     setMotivoOutro("");
     setProfessionalId(defaultProfessionalId || "");
     setObservacoes("");
-    // Padrão "Horário de almoço": 12:00 às 14:00 no dia selecionado
-    const inicio = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 12, 0, 0);
-    const fim = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 14, 0, 0);
+    const inicio = new Date(base);
+    inicio.setMinutes(0, 0, 0);
+    const fim = new Date(inicio);
+    fim.setHours(fim.getHours() + 1);
     setDataInicio(formatDateTimeLocal(inicio));
     setDataFim(formatDateTimeLocal(fim));
   }, [isOpen, dataInicioSugerida, defaultProfessionalId]);
@@ -235,6 +225,7 @@ export function ModalBloqueioHorario({
 
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Use início e fim para um único bloqueio (pode ser um horário no dia ou vários dias seguidos).
+            O intervalo de almoço do profissional é configurado em Profissionais → Horários de trabalho.
           </p>
 
           <div>

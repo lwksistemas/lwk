@@ -13,142 +13,37 @@ import {
   History,
   FileText,
   Activity,
-  Save,
-  Pencil,
-  X,
   ChevronRight,
   CheckCircle2,
+  Play,
 } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
-import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { formatCurrency } from "@/lib/financeiro-helpers";
-import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
+import { CLINICA_CONSULTA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
+import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { logger } from "@/lib/logger";
-
-interface Consulta {
-  id: number;
-  patient: number;
-  procedure: number;
-  patient_name: string;
-  professional_name: string;
-  procedure_name: string;
-  protocol?: number | null;
-  protocol_name?: string | null;
-  status: string;
-  data_inicio?: string | null;
-  data_fim?: string | null;
-  observacoes_gerais?: string;
-  protocolo_notas?: string;
-  valor_consulta: string | number;
-  appointment_date?: string;
-  appointment_status?: string;
-  total_evolucoes: number;
-}
-
-const CONSULTA_STATUS_LABEL: Record<string, string> = {
-  SCHEDULED: "Agendada",
-  IN_PROGRESS: "Em atendimento",
-  COMPLETED: "Concluída",
-  CANCELLED: "Cancelada",
-};
-
-interface Protocolo {
-  id: number;
-  nome: string;
-  procedure: number;
-  descricao?: string;
-  preparacao?: string;
-  execucao?: string;
-  pos_procedimento?: string;
-  materiais_necessarios?: string;
-}
-
-interface Anamnese {
-  queixa_principal: string;
-  historico_medico: string;
-  medicamentos_uso: string;
-  alergias: string;
-  condicoes_clinicas: string;
-  tipo_pele: string;
-  pressao_arterial: string;
-  peso: string | number | null;
-  altura: string | number | null;
-  observacoes: string;
-}
-
-interface Evolucao {
-  id: number;
-  descricao: string;
-  procedimento_realizado: string;
-  produtos_utilizados: string;
-  orientacoes: string;
-  protocolo_snapshot: string;
-  satisfacao?: number | null;
-  created_at: string;
-  professional_name?: string;
-}
-
-const EMPTY_ANAMNESE: Anamnese = {
-  queixa_principal: "",
-  historico_medico: "",
-  medicamentos_uso: "",
-  alergias: "",
-  condicoes_clinicas: "",
-  tipo_pele: "",
-  pressao_arterial: "",
-  peso: "",
-  altura: "",
-  observacoes: "",
-};
-
-const ANAMNESE_FIELDS = [
-  ["queixa_principal", "Queixa principal"],
-  ["historico_medico", "Histórico médico"],
-  ["medicamentos_uso", "Medicamentos em uso"],
-  ["alergias", "Alergias"],
-  ["condicoes_clinicas", "Condições clínicas"],
-  ["tipo_pele", "Tipo de pele"],
-  ["pressao_arterial", "Pressão arterial"],
-  ["observacoes", "Observações"],
-] as const;
-
-type TabId = "atendimento" | "anamnese" | "evolucao" | "historico";
-
-function PreviewBlock({
-  label,
-  value,
-  empty = "—",
-  mono,
-}: {
-  label: string;
-  value?: string | null;
-  empty?: string;
-  mono?: boolean;
-}) {
-  const text = (value ?? "").trim();
-  return (
-    <div>
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{label}</p>
-      <div
-        className={`rounded-lg bg-gray-50 dark:bg-neutral-900/60 border border-gray-100 dark:border-neutral-700 px-3 py-2.5 text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap min-h-[2.5rem] ${
-          mono ? "font-mono text-xs" : ""
-        }`}
-      >
-        {text || empty}
-      </div>
-    </div>
-  );
-}
+import {
+  type Consulta,
+  type Protocolo,
+  type Anamnese,
+  type Evolucao,
+  type TabId,
+  EMPTY_ANAMNESE,
+  ConsultaAtendimentoTab,
+  ConsultaAnamneseTab,
+  ConsultaEvolucaoTab,
+  ConsultaHistoricoTab,
+  ConsultaFinalizarModal,
+} from "./components";
 
 export default function ConsultasPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const slug = params.slug as string;
-  useClinicaBelezaDark();
 
   const [consultas, setConsultas] = useState<Consulta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,6 +66,7 @@ export default function ConsultasPage() {
   const [protocoloPendingId, setProtocoloPendingId] = useState<number | null>(null);
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
+  const [iniciando, setIniciando] = useState(false);
   const [finalizarForm, setFinalizarForm] = useState({
     payment_method: "CASH",
     mark_as_paid: false,
@@ -332,6 +228,21 @@ export default function ConsultasPage() {
     }
   };
 
+  const iniciarConsulta = async () => {
+    if (!selected) return;
+    if (!confirm("Iniciar atendimento? A agenda será marcada como Em atendimento.")) return;
+    setIniciando(true);
+    try {
+      const data = await ClinicaBelezaAPI.consultas.iniciar(selected.id);
+      setSelected({ ...selected, ...data });
+      await loadConsultas();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Erro ao iniciar consulta.");
+    } finally {
+      setIniciando(false);
+    }
+  };
+
   const abrirFinalizarModal = () => {
     if (!selected) return;
     setFinalizarForm({
@@ -360,14 +271,14 @@ export default function ConsultasPage() {
           : "Consulta finalizada. Lançamento pendente criado no Financeiro e agenda atualizada.",
       );
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Erro ao finalizar consulta.";
-      alert(msg);
+      alert(e instanceof Error ? e.message : "Erro ao finalizar consulta.");
     } finally {
       setFinalizando(false);
     }
   };
 
-  const podeFinalizar = selected && selected.status !== "COMPLETED" && selected.status !== "CANCELLED";
+  const podeIniciar = selected?.status === "SCHEDULED";
+  const podeFinalizar = selected?.status === "IN_PROGRESS";
 
   const tabs: { id: TabId; label: string; icon: typeof FileText }[] = [
     { id: "atendimento", label: "Atendimento", icon: ClipboardList },
@@ -377,9 +288,15 @@ export default function ConsultasPage() {
   ];
 
   const formatData = (d?: string | null) =>
-    d ? new Date(d).toLocaleString("pt-BR") : "—";
+    d ? formatClinicaDateTime(new Date(d)) : "—";
 
-  /* ── Consulta em tela cheia ── */
+  const resetTabEdits = () => {
+    setEditAtendimento(false);
+    setEditAnamnese(false);
+    setEditEvolucao(false);
+    setProtocoloPreview(null);
+  };
+
   if (selected) {
     return (
       <>
@@ -398,38 +315,48 @@ export default function ConsultasPage() {
               Voltar à lista
             </button>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
-              <span>{formatData(selected.data_inicio || selected.appointment_date)}</span>
+              <span>Agendado: {formatData(selected.appointment_date)}</span>
+              <span>Início: {formatData(selected.data_inicio)}</span>
+              <span>Fim: {formatData(selected.data_fim)}</span>
               <span>{formatCurrency(Number(selected.valor_consulta))}</span>
               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300">
-                {CONSULTA_STATUS_LABEL[selected.status] || selected.status}
+                {CLINICA_CONSULTA_STATUS_LABEL[selected.status] || selected.status}
               </span>
               {selected.protocol_name && (
                 <span>Protocolo: <strong className="text-gray-800 dark:text-gray-200">{selected.protocol_name}</strong></span>
               )}
-              {podeFinalizar && (
-                <button
-                  type="button"
-                  onClick={abrirFinalizarModal}
-                  className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium"
-                  style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-                >
-                  <CheckCircle2 size={16} />
-                  Finalizar consulta
-                </button>
-              )}
+              <div className="ml-auto flex flex-wrap gap-2">
+                {podeIniciar && (
+                  <button
+                    type="button"
+                    onClick={iniciarConsulta}
+                    disabled={iniciando}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                    style={{ backgroundColor: "#2563eb" }}
+                  >
+                    <Play size={16} />
+                    {iniciando ? "Iniciando…" : "Iniciar consulta"}
+                  </button>
+                )}
+                {podeFinalizar && (
+                  <button
+                    type="button"
+                    onClick={abrirFinalizarModal}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium"
+                    style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                  >
+                    <CheckCircle2 size={16} />
+                    Finalizar consulta
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap gap-2 mt-4">
               {tabs.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   type="button"
-                  onClick={() => {
-                    setTab(id);
-                    setEditAtendimento(false);
-                    setEditAnamnese(false);
-                    setEditEvolucao(false);
-                    setProtocoloPreview(null);
-                  }}
+                  onClick={() => { setTab(id); resetTabEdits(); }}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     tab === id ? "text-white" : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300"
                   }`}
@@ -448,426 +375,132 @@ export default function ConsultasPage() {
             ) : (
               <>
                 {tab === "atendimento" && (
-                  <div className="space-y-5">
-                    {protocolos.length > 0 && !editAtendimento && (
-                      <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4">
-                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Protocolo cadastrado</p>
-                        {!protocoloPreview ? (
-                          <select
-                            className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600 text-sm"
-                            value=""
-                            onChange={(e) => {
-                              const pid = Number(e.target.value);
-                              if (pid) selecionarProtocolo(pid);
-                            }}
-                            disabled={saving}
-                          >
-                            <option value="">Selecionar para ver preview...</option>
-                            {protocolos.map((p) => (
-                              <option key={p.id} value={p.id}>{p.nome}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <div className="space-y-3">
-                            <p className="font-semibold text-gray-900 dark:text-gray-100">{protocoloPreview.nome}</p>
-                            {protocoloPreview.preparacao && <PreviewBlock label="Preparação" value={protocoloPreview.preparacao} />}
-                            {protocoloPreview.execucao && <PreviewBlock label="Execução" value={protocoloPreview.execucao} mono />}
-                            {protocoloPreview.pos_procedimento && <PreviewBlock label="Pós-procedimento" value={protocoloPreview.pos_procedimento} />}
-                            {protocoloPreview.materiais_necessarios && <PreviewBlock label="Materiais" value={protocoloPreview.materiais_necessarios} />}
-                            <div className="flex gap-2 pt-1">
-                              <button
-                                type="button"
-                                onClick={confirmarProtocolo}
-                                disabled={saving}
-                                className="px-4 py-2 rounded-lg text-white text-sm disabled:opacity-50"
-                                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-                              >
-                                Aplicar protocolo
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => { setProtocoloPreview(null); setProtocoloPendingId(null); }}
-                                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm"
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4 md:p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">Notas do atendimento</h3>
-                        {!editAtendimento ? (
-                          <button
-                            type="button"
-                            onClick={() => { setObservacoesDraft(observacoes); setEditAtendimento(true); }}
-                            className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-700"
-                          >
-                            <Pencil size={14} />
-                            Editar
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => { setObservacoesDraft(observacoes); setEditAtendimento(false); }}
-                            className="inline-flex items-center gap-1.5 text-sm text-gray-500"
-                          >
-                            <X size={14} />
-                            Cancelar
-                          </button>
-                        )}
-                      </div>
-                      {!editAtendimento ? (
-                        <PreviewBlock label="Conteúdo" value={observacoes} empty="Nenhuma anotação registrada." mono />
-                      ) : (
-                        <>
-                          <textarea
-                            rows={12}
-                            value={observacoesDraft}
-                            onChange={(e) => setObservacoesDraft(e.target.value)}
-                            className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600 font-mono text-sm"
-                          />
-                          <button
-                            type="button"
-                            onClick={salvarObservacoes}
-                            disabled={saving}
-                            className="mt-3 flex items-center gap-2 px-4 py-2 rounded-lg text-white disabled:opacity-50"
-                            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-                          >
-                            <Save size={18} />
-                            {saving ? "Salvando..." : "Salvar atendimento"}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                  <ConsultaAtendimentoTab
+                    protocolos={protocolos}
+                    protocoloPreview={protocoloPreview}
+                    editAtendimento={editAtendimento}
+                    observacoes={observacoes}
+                    observacoesDraft={observacoesDraft}
+                    saving={saving}
+                    onSelectProtocolo={selecionarProtocolo}
+                    onConfirmProtocolo={confirmarProtocolo}
+                    onCancelProtocolo={() => { setProtocoloPreview(null); setProtocoloPendingId(null); }}
+                    onStartEdit={() => { setObservacoesDraft(observacoes); setEditAtendimento(true); }}
+                    onCancelEdit={() => { setObservacoesDraft(observacoes); setEditAtendimento(false); }}
+                    onChangeDraft={setObservacoesDraft}
+                    onSave={salvarObservacoes}
+                  />
                 )}
-
                 {tab === "anamnese" && (
-                  <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4 md:p-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">Anamnese do cliente</h3>
-                      {!editAnamnese ? (
-                        <button
-                          type="button"
-                          onClick={() => { setAnamneseDraft(anamnese); setEditAnamnese(true); }}
-                          className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-700"
-                        >
-                          <Pencil size={14} />
-                          Editar
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => { setAnamneseDraft(anamnese); setEditAnamnese(false); }}
-                          className="inline-flex items-center gap-1.5 text-sm text-gray-500"
-                        >
-                          <X size={14} />
-                          Cancelar
-                        </button>
-                      )}
-                    </div>
-                    {!editAnamnese ? (
-                      <>
-                        {ANAMNESE_FIELDS.map(([field, label]) => (
-                          <PreviewBlock key={field} label={label} value={String(anamnese[field] ?? "")} />
-                        ))}
-                        <div className="grid grid-cols-2 gap-4">
-                          <PreviewBlock label="Peso (kg)" value={anamnese.peso != null && anamnese.peso !== "" ? String(anamnese.peso) : ""} />
-                          <PreviewBlock label="Altura (m)" value={anamnese.altura != null && anamnese.altura !== "" ? String(anamnese.altura) : ""} />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        {ANAMNESE_FIELDS.map(([field, label]) => (
-                          <div key={field}>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
-                            <textarea
-                              rows={field === "queixa_principal" ? 3 : 2}
-                              value={String(anamneseDraft[field] ?? "")}
-                              onChange={(e) => setAnamneseDraft((prev) => ({ ...prev, [field]: e.target.value }))}
-                              className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600 text-sm"
-                            />
-                          </div>
-                        ))}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Peso (kg)</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={anamneseDraft.peso ?? ""}
-                              onChange={(e) => setAnamneseDraft((prev) => ({ ...prev, peso: e.target.value }))}
-                              className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Altura (m)</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={anamneseDraft.altura ?? ""}
-                              onChange={(e) => setAnamneseDraft((prev) => ({ ...prev, altura: e.target.value }))}
-                              className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
-                            />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={salvarAnamnese}
-                          disabled={saving}
-                          className="flex items-center gap-2 px-4 py-2 rounded-lg text-white disabled:opacity-50"
-                          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-                        >
-                          <Save size={18} />
-                          Salvar anamnese
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  <ConsultaAnamneseTab
+                    anamnese={anamnese}
+                    anamneseDraft={anamneseDraft}
+                    editAnamnese={editAnamnese}
+                    saving={saving}
+                    onStartEdit={() => { setAnamneseDraft(anamnese); setEditAnamnese(true); }}
+                    onCancelEdit={() => { setAnamneseDraft(anamnese); setEditAnamnese(false); }}
+                    onChangeDraft={setAnamneseDraft}
+                    onSave={salvarAnamnese}
+                  />
                 )}
-
                 {tab === "evolucao" && (
-                  <div className="space-y-5">
-                    {evolucoes.length > 0 && (
-                      <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4 md:p-6 space-y-4">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">Registros desta consulta</h3>
-                        {evolucoes.map((ev) => (
-                          <div key={ev.id} className="rounded-lg border border-gray-100 dark:border-neutral-700 p-4 space-y-2">
-                            <p className="text-xs text-gray-500">
-                              {formatData(ev.created_at)}
-                              {ev.professional_name ? ` · ${ev.professional_name}` : ""}
-                            </p>
-                            {ev.descricao && <PreviewBlock label="Evolução" value={ev.descricao} />}
-                            {ev.procedimento_realizado && <PreviewBlock label="Procedimento" value={ev.procedimento_realizado} />}
-                            {ev.produtos_utilizados && <PreviewBlock label="Produtos" value={ev.produtos_utilizados} />}
-                            {ev.orientacoes && <PreviewBlock label="Orientações" value={ev.orientacoes} />}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4 md:p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">Nova evolução</h3>
-                        {!editEvolucao ? (
-                          <button
-                            type="button"
-                            onClick={() => setEditEvolucao(true)}
-                            className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg text-white"
-                            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-                          >
-                            <Pencil size={14} />
-                            Registrar
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditEvolucao(false);
-                              setEvolucaoForm({ descricao: "", procedimento_realizado: "", produtos_utilizados: "", orientacoes: "", satisfacao: "" });
-                            }}
-                            className="inline-flex items-center gap-1.5 text-sm text-gray-500"
-                          >
-                            <X size={14} />
-                            Cancelar
-                          </button>
-                        )}
-                      </div>
-                      {!editEvolucao ? (
-                        <p className="text-sm text-gray-500">Clique em Registrar para adicionar uma evolução nesta consulta.</p>
-                      ) : (
-                        <div className="space-y-3">
-                          <textarea placeholder="Evolução / observações clínicas" rows={3} value={evolucaoForm.descricao} onChange={(e) => setEvolucaoForm((f) => ({ ...f, descricao: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600" />
-                          <textarea placeholder="Procedimento realizado" rows={2} value={evolucaoForm.procedimento_realizado} onChange={(e) => setEvolucaoForm((f) => ({ ...f, procedimento_realizado: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600" />
-                          <textarea placeholder="Produtos utilizados" rows={2} value={evolucaoForm.produtos_utilizados} onChange={(e) => setEvolucaoForm((f) => ({ ...f, produtos_utilizados: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600" />
-                          <textarea placeholder="Orientações ao cliente" rows={2} value={evolucaoForm.orientacoes} onChange={(e) => setEvolucaoForm((f) => ({ ...f, orientacoes: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600" />
-                          <select value={evolucaoForm.satisfacao} onChange={(e) => setEvolucaoForm((f) => ({ ...f, satisfacao: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600">
-                            <option value="">Satisfação (opcional)</option>
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <option key={n} value={n}>{n}</option>
-                            ))}
-                          </select>
-                          <button type="button" onClick={salvarEvolucao} disabled={saving} className="px-4 py-2 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}>
-                            Confirmar evolução
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <ConsultaEvolucaoTab
+                    evolucoes={evolucoes}
+                    editEvolucao={editEvolucao}
+                    evolucaoForm={evolucaoForm}
+                    saving={saving}
+                    formatData={formatData}
+                    onStartEdit={() => setEditEvolucao(true)}
+                    onCancelEdit={() => {
+                      setEditEvolucao(false);
+                      setEvolucaoForm({ descricao: "", procedimento_realizado: "", produtos_utilizados: "", orientacoes: "", satisfacao: "" });
+                    }}
+                    onChangeForm={setEvolucaoForm}
+                    onSave={salvarEvolucao}
+                  />
                 )}
-
                 {tab === "historico" && (
-                  <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4 md:p-6 space-y-3">
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Consultas anteriores do cliente</h3>
-                    {historico.length === 0 ? (
-                      <p className="text-gray-500 text-sm">Nenhuma consulta anterior.</p>
-                    ) : (
-                      historico.map((h) => (
-                        <button
-                          key={h.id}
-                          type="button"
-                          onClick={() => h.id !== selected.id && loadDetalhes(h)}
-                          disabled={h.id === selected.id}
-                          className={`w-full text-left p-4 rounded-lg border transition-colors ${
-                            h.id === selected.id
-                              ? "border-[#8B3D52] bg-[#F5E6EA]/40 dark:bg-neutral-700 cursor-default"
-                              : "border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-700/50"
-                          }`}
-                        >
-                          <div className="flex justify-between items-center gap-2">
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-gray-100">{h.procedure_name}</p>
-                              <p className="text-xs text-gray-500 mt-0.5">
-                                {formatData(h.data_inicio)}
-                                {h.professional_name ? ` · ${h.professional_name}` : ""}
-                              </p>
-                            </div>
-                            {h.id !== selected.id && <ChevronRight size={18} className="text-gray-400 shrink-0" />}
-                          </div>
-                          {h.total_evolucoes > 0 && (
-                            <p className="text-xs text-gray-500 mt-1">{h.total_evolucoes} evolução(ões)</p>
-                          )}
-                        </button>
-                      ))
-                    )}
-                  </div>
+                  <ConsultaHistoricoTab
+                    historico={historico}
+                    selectedId={selected.id}
+                    formatData={formatData}
+                    onSelect={loadDetalhes}
+                  />
                 )}
               </>
             )}
           </div>
         </div>
 
-        {showFinalizarModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-md">
-              <div className="flex items-center justify-between p-4 border-b dark:border-neutral-700">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Finalizar consulta</h2>
-                <button type="button" onClick={() => setShowFinalizarModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
-                  <X size={18} />
-                </button>
-              </div>
-              <div className="p-4 space-y-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  A agenda será marcada como <strong>Concluída</strong> e um lançamento será criado no Financeiro.
-                </p>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Valor (R$)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={finalizarForm.amount}
-                    onChange={(e) => setFinalizarForm((f) => ({ ...f, amount: e.target.value }))}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Forma de pagamento</label>
-                  <select
-                    value={finalizarForm.payment_method}
-                    onChange={(e) => setFinalizarForm((f) => ({ ...f, payment_method: e.target.value }))}
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
-                  >
-                    {Object.entries(CLINICA_FORMA_PAGAMENTO_LABEL).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={finalizarForm.mark_as_paid}
-                    onChange={(e) => setFinalizarForm((f) => ({ ...f, mark_as_paid: e.target.checked }))}
-                  />
-                  Registrar como pago agora
-                </label>
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowFinalizarModal(false)}
-                    className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-neutral-600"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={finalizarConsulta}
-                    disabled={finalizando}
-                    className="flex-1 py-2 rounded-lg text-white disabled:opacity-50"
-                    style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-                  >
-                    {finalizando ? "Finalizando..." : "Confirmar"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConsultaFinalizarModal
+          open={showFinalizarModal}
+          finalizando={finalizando}
+          form={finalizarForm}
+          onClose={() => setShowFinalizarModal(false)}
+          onChange={setFinalizarForm}
+          onConfirm={finalizarConsulta}
+        />
       </>
     );
   }
 
-  /* ── Lista (sem filtro de status) ── */
   return (
     <>
       <ClinicaBelezaStandardPageHeader
         title="Consultas"
-        subtitle="Selecione uma consulta ou inicie pela Agenda"
+        subtitle="Confirme na Agenda · inicie e finalize aqui"
       />
       <ClinicaBelezaPageContent>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-            As consultas são criadas ao alterar o status do agendamento na Agenda.
-          </p>
-          {loading ? (
-            <div className="text-center py-16 text-gray-500">Carregando...</div>
-          ) : consultas.length === 0 ? (
-            <ClinicaBelezaPanel className="p-12 text-center text-gray-500 text-sm">
-              Nenhuma consulta ainda. Altere o status de um agendamento na Agenda.
-            </ClinicaBelezaPanel>
-          ) : (
-            <ClinicaBelezaPanel>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 dark:bg-neutral-900/80 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-neutral-700">
-                    <tr>
-                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Cliente</th>
-                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Procedimento</th>
-                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden sm:table-cell">Data</th>
-                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden md:table-cell">Profissional</th>
-                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden lg:table-cell">Status</th>
-                      <th className="w-12" />
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+          Fluxo: recepção confirma o agendamento na Agenda → profissional inicia e finaliza o atendimento aqui.
+          Horários de início e fim são registrados automaticamente.
+        </p>
+        {loading ? (
+          <div className="text-center py-16 text-gray-500">Carregando...</div>
+        ) : consultas.length === 0 ? (
+          <ClinicaBelezaPanel className="p-12 text-center text-gray-500 text-sm">
+            Nenhuma consulta ainda. Confirme um agendamento na Agenda para liberar o atendimento.
+          </ClinicaBelezaPanel>
+        ) : (
+          <ClinicaBelezaPanel>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-neutral-900/80 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-neutral-700">
+                  <tr>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Cliente</th>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Procedimento</th>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden sm:table-cell">Data</th>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden md:table-cell">Profissional</th>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden lg:table-cell">Status</th>
+                    <th className="w-12" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {consultas.map((c) => (
+                    <tr
+                      key={c.id}
+                      onClick={() => loadDetalhes(c)}
+                      className="border-t border-gray-100 dark:border-neutral-700/80 hover:bg-[#F5E6EA]/40 dark:hover:bg-neutral-700/30 transition-colors cursor-pointer"
+                    >
+                      <td className="px-4 md:px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{c.patient_name}</td>
+                      <td className="px-4 md:px-6 py-4 text-gray-700 dark:text-gray-300">{c.procedure_name}</td>
+                      <td className="px-4 md:px-6 py-4 hidden sm:table-cell text-gray-600 dark:text-gray-400 text-xs">
+                        {formatData(c.data_inicio || c.appointment_date)}
+                      </td>
+                      <td className="px-4 md:px-6 py-4 hidden md:table-cell text-gray-600 dark:text-gray-400">{c.professional_name || "—"}</td>
+                      <td className="px-4 md:px-6 py-4 hidden lg:table-cell">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-400">
+                          {CLINICA_CONSULTA_STATUS_LABEL[c.status] || c.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-gray-400"><ChevronRight size={18} /></td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {consultas.map((c) => (
-                      <tr
-                        key={c.id}
-                        onClick={() => loadDetalhes(c)}
-                        className="border-t border-gray-100 dark:border-neutral-700/80 hover:bg-[#F5E6EA]/40 dark:hover:bg-neutral-700/30 transition-colors cursor-pointer"
-                      >
-                        <td className="px-4 md:px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{c.patient_name}</td>
-                        <td className="px-4 md:px-6 py-4 text-gray-700 dark:text-gray-300">{c.procedure_name}</td>
-                        <td className="px-4 md:px-6 py-4 hidden sm:table-cell text-gray-600 dark:text-gray-400 text-xs">
-                          {formatData(c.data_inicio || c.appointment_date)}
-                        </td>
-                        <td className="px-4 md:px-6 py-4 hidden md:table-cell text-gray-600 dark:text-gray-400">{c.professional_name || "—"}</td>
-                        <td className="px-4 md:px-6 py-4 hidden lg:table-cell">
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-400">
-                            {CONSULTA_STATUS_LABEL[c.status] || c.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 text-gray-400"><ChevronRight size={18} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </ClinicaBelezaPanel>
-          )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </ClinicaBelezaPanel>
+        )}
       </ClinicaBelezaPageContent>
     </>
   );

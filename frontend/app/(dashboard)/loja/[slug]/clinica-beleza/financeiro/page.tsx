@@ -17,9 +17,9 @@ import {
   CLINICA_PAGAMENTO_STATUS_LABEL,
 } from "@/lib/clinica-beleza-constants";
 import { formatCurrency } from "@/lib/financeiro-helpers";
+import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { entityName } from "@/lib/clinica-beleza-entities";
-import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 
 interface Resumo {
   caixa_diario: number;
@@ -63,7 +63,6 @@ export default function FinanceiroClinicaPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [professionalFilter, setProfessionalFilter] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("");
-  useClinicaBelezaDark();
 
   const loadResumo = async () => {
     try {
@@ -258,13 +257,7 @@ export default function FinanceiroClinicaPage() {
                         >
                           <td className="py-3 px-4 text-gray-600 dark:text-gray-300 whitespace-nowrap">
                             {p.data_atendimento
-                              ? new Date(p.data_atendimento).toLocaleDateString("pt-BR", {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  year: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
+                              ? formatClinicaDateTime(new Date(p.data_atendimento))
                               : "—"}
                           </td>
                           <td className="py-3 px-4 text-gray-800 dark:text-gray-200">{p.paciente_nome || "—"}</td>

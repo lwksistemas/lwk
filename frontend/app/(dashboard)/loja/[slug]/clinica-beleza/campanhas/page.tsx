@@ -11,7 +11,8 @@ import { Pencil, Trash2, X, Send } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
-import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
+import { deleteClinicaBelezaEntity } from "@/lib/clinica-beleza-crud";
+import { formatClinicaDataCurta, formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 
 interface Campanha {
   id: number;
@@ -148,14 +149,12 @@ export default function CampanhasPage() {
   const exclude = async (c: Campanha) => {
     if (!confirm(`Excluir a campanha "${c.titulo}"?`)) return;
     try {
-      await clinicaBelezaFetch(`/campanhas/${c.id}/`, { method: "DELETE" });
+      await deleteClinicaBelezaEntity(`/campanhas/${c.id}/`, "Erro ao excluir.");
       load();
     } catch {
       alert("Erro ao excluir.");
     }
   };
-
-  const [darkMode] = useClinicaBelezaDark();
 
   return (
     <>
@@ -190,11 +189,11 @@ export default function CampanhasPage() {
                   <h3 className="font-semibold text-gray-900 dark:text-gray-100">{c.titulo}</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">{c.mensagem}</p>
                   <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    {c.data_inicio && <span>De: {c.data_inicio.slice(0, 10)}</span>}
-                    {c.data_fim && <span>Até: {c.data_fim.slice(0, 10)}</span>}
+                    {c.data_inicio && <span>De: {formatClinicaDataCurta(new Date(c.data_inicio))}</span>}
+                    {c.data_fim && <span>Até: {formatClinicaDataCurta(new Date(c.data_fim))}</span>}
                     {c.enviada_em && (
                       <span className="text-green-600 dark:text-green-400">
-                        Enviada em {new Date(c.enviada_em).toLocaleString("pt-BR")} — {c.total_enviados} paciente(s)
+                        Enviada em {formatClinicaDateTime(new Date(c.enviada_em))} — {c.total_enviados} paciente(s)
                       </span>
                     )}
                   </div>

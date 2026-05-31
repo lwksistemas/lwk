@@ -12,10 +12,9 @@ import {
 } from 'recharts';
 import { LojaInfo } from '@/types/dashboard';
 import { useClinicaBelezaDark } from '@/hooks/useClinicaBelezaDark';
-import {
-  getClinicaBelezaBaseUrl,
-  getClinicaBelezaHeaders,
-} from '@/lib/clinica-beleza-api';
+import { formatCurrency } from '@/lib/financeiro-helpers';
+import { CLINICA_AGENDA_STATUS_LABEL } from '@/lib/clinica-beleza-constants';
+import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 
 interface DashboardStats {
   appointments_today: number;
@@ -68,19 +67,7 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED: 'bg-red-100 text-red-700',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  SCHEDULED: 'Agendado',
-  CONFIRMED: 'Confirmado',
-  PENDING: 'Pendente',
-  COMPLETED: 'Concluído',
-  CANCELLED: 'Cancelado',
-};
-
 const CHART_COLORS = [CLINICA_BELEZA_PRIMARY, '#A64D63', '#C4727E', '#E8A0B0', '#D4A574'];
-
-function formatCurrency(value: number): string {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
 
 function pctChange(current: number, previous: number): string | null {
   if (!previous) return null;
@@ -137,7 +124,7 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 
 function AppointmentItem({ appt }: { appt: Appointment }) {
   const statusClass = STATUS_COLORS[appt.status] || STATUS_COLORS.PENDING;
-  const statusLabel = STATUS_LABELS[appt.status] || appt.status;
+  const statusLabel = CLINICA_AGENDA_STATUS_LABEL[appt.status] || appt.status;
   return (
     <div className="flex items-center justify-between py-3 border-b border-gray-50 dark:border-gray-700 last:border-0">
       <div className="flex items-center gap-3 min-w-0">
@@ -173,11 +160,9 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
   async function fetchData() {
     setLoading(true);
     try {
-      const base = getClinicaBelezaBaseUrl();
-      const headers = getClinicaBelezaHeaders() as Record<string, string>;
       const [dashRes, finRes] = await Promise.all([
-        fetch(`${base}/dashboard/`, { headers }),
-        fetch(`${base}/financeiro/resumo/`, { headers }).catch(() => null),
+        clinicaBelezaFetch('/dashboard/'),
+        clinicaBelezaFetch('/financeiro/resumo/').catch(() => null),
       ]);
       if (dashRes.ok) setData(await dashRes.json());
       if (finRes?.ok) setFinancial(await finRes.json());

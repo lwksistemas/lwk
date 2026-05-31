@@ -107,14 +107,16 @@ export function businessHoursFromHorarios(horarios: HorarioTrabalho[]): Business
   return blocks;
 }
 
+import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
+
 /** Eventos visuais de intervalo (almoço) para o calendário da agenda. */
 export function intervalosEventsFromHorarios(
   profId: string,
   horarios: HorarioTrabalho[],
   profName: string,
   dias = 90,
-) {
-  const result: Array<Record<string, unknown>> = [];
+): AgendaEventData[] {
+  const result: AgendaEventData[] = [];
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   for (let i = 0; i < dias; i++) {

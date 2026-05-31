@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { getClinicaBelezaBaseUrl, getClinicaBelezaHeaders, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { adicionarNaFilaSync } from "@/lib/offline-db";
 import { notificarFilaAtualizada } from "@/hooks/useSyncPending";
 import {
@@ -182,11 +182,8 @@ export function ModalCriarAgendamento({
         resetAndClose();
         return;
       }
-      const baseURL = getClinicaBelezaBaseUrl();
-      const headers = getClinicaBelezaHeaders();
-      const res = await fetch(`${baseURL}/agenda/create/`, {
+      const res = await clinicaBelezaFetch("/agenda/create/", {
         method: "POST",
-        headers,
         body: JSON.stringify(payload),
       });
       if (!res.ok) {

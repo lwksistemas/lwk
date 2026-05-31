@@ -5,11 +5,15 @@
  * Lista em tela cheia; novo/editar ocupa a página inteira (sem modal).
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronRight, Pencil, Save, Trash2, Users } from "lucide-react";
-import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
-import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
+import {
+  CLINICA_FORM_INPUT,
+  deleteClinicaBelezaEntity,
+  saveClinicaBelezaEntity,
+  useClinicaBelezaEntityList,
+} from "@/lib/clinica-beleza-crud";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
@@ -66,8 +70,7 @@ const EMPTY_FORM = {
   allow_whatsapp: true,
 };
 
-const INPUT =
-  "w-full px-3 py-2.5 border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 text-sm";
+const INPUT = CLINICA_FORM_INPUT;
 
 function patientToForm(p: Patient) {
   return {
@@ -89,52 +92,19 @@ export default function PacientesPage() {
   const slug = params.slug as string;
   const basePath = `/loja/${slug}/clinica-beleza/pacientes`;
 
-  const [list, setList] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { list, setList, loading, load } = useClinicaBelezaEntityList<Patient>({
+    path: "/patients/",
+    fetchOffline: buscarPacientesOffline,
+    saveOffline: salvarPacientesOffline,
+  });
   const [editing, setEditing] = useState<Patient | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  useClinicaBelezaDark();
-
   const isNovo = searchParams.get("novo") === "1";
   const editIdParam = searchParams.get("id");
   const isFormView = isNovo || Boolean(editIdParam);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      if (!navigator.onLine) {
-        const data = await buscarPacientesOffline();
-        setList(Array.isArray(data) ? (data as Patient[]) : []);
-      } else {
-        const res = await clinicaBelezaFetch("/patients/");
-        const data = await res.json();
-        if (res.ok) {
-          const arr = Array.isArray(data) ? data : [];
-          setList(arr);
-          await salvarPacientesOffline(arr);
-        } else setList([]);
-      }
-    } catch {
-      setList([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  useEffect(() => {
-    const onSyncDone = async () => {
-      if (navigator.onLine) setTimeout(() => load(), 500);
-    };
-    window.addEventListener("offline-sync-done", onSyncDone);
-    return () => window.removeEventListener("offline-sync-done", onSyncDone);
-  }, [load]);
 
   useEffect(() => {
     if (isNovo) {
@@ -244,22 +214,15 @@ export default function PacientesPage() {
 
     try {
       if (editing) {
-        const res = await clinicaBelezaFetch(`/patients/${editing.id}/`, { method: "PUT", body: JSON.stringify(body) });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(formatClinicaApiValidationErrors(err) || "Erro ao atualizar");
-        }
+        await saveClinicaBelezaEntity(`/patients/${editing.id}/`, "PUT", body);
       } else {
-        const res = await clinicaBelezaFetch("/patients/", { method: "POST", body: JSON.stringify(body) });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(formatClinicaApiValidationErrors(err) || "Erro ao cadastrar");
-        }
+        await saveClinicaBelezaEntity("/patients/", "POST", body);
       }
       finishSave();
     } catch (e: unknown) {
       if (e instanceof Error && e.message === "SESSION_ENDED") return;
-      const msg = e instanceof Error ? e.message : "Erro ao salvar";
+      const err = e && typeof e === "object" ? (e as Record<string, unknown>) : {};
+      const msg = formatClinicaApiValidationErrors(err) || (e instanceof Error ? e.message : "Erro ao salvar");
       if (isFetchNetworkError(msg)) {
         try {
           const lojaSlug = getLojaSlug();
@@ -313,7 +276,7 @@ export default function PacientesPage() {
   const exclude = async (p: Patient) => {
     if (!confirm(`Desativar o cliente "${entityName(p)}"?`)) return;
     try {
-      await clinicaBelezaFetch(`/patients/${p.id}/`, { method: "DELETE" });
+      await deleteClinicaBelezaEntity(`/patients/${p.id}/`);
       load();
     } catch {
       alert("Erro ao desativar.");

@@ -11,6 +11,8 @@ import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBel
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { Package, ArrowDown, ArrowUp, AlertTriangle, Search, X } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { formatCurrency } from "@/lib/financeiro-helpers";
+import { formatClinicaDataCurta } from "@/lib/clinica-beleza-datetime";
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
 
 interface Produto {
@@ -40,9 +42,6 @@ const CATEGORIAS = [
 ];
 
 const categoriaLabel = (val: string) => CATEGORIAS.find((c) => c.value === val)?.label ?? val;
-
-const formatBRL = (value: number | string) =>
-  Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export interface EstoquePageContentProps {
   title?: string;
@@ -339,7 +338,7 @@ export function EstoquePageContent({
                   <span className="text-sm font-medium">Valor Total Estoque</span>
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {formatBRL(resumo?.valor_total_estoque ?? 0)}
+                  {formatCurrency(resumo?.valor_total_estoque ?? 0)}
                 </p>
               </div>
             </section>
@@ -403,9 +402,9 @@ export function EstoquePageContent({
                           <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{categoriaLabel(p.categoria)}</td>
                           <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-gray-100">{p.quantidade_atual}</td>
                           <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300">{p.quantidade_minima}</td>
-                          <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300">{formatBRL(p.preco_custo)}</td>
+                          <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300">{formatCurrency(p.preco_custo)}</td>
                           <td className="py-3 px-4 text-gray-600 dark:text-gray-300">
-                            {p.validade ? new Date(p.validade + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
+                            {p.validade ? formatClinicaDataCurta(new Date(p.validade + "T00:00:00")) : "—"}
                           </td>
                           <td className="py-3 px-4"><StatusBadge produto={p} /></td>
                           <td className="py-3 px-4 text-right">

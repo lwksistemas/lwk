@@ -8,7 +8,7 @@ from rest_framework import status
 
 from .models import Consulta, PatientAnamnese, ConsultaEvolucao, ProcedureProtocol, Patient
 from .serializers import ConsultaSerializer, PatientAnamneseSerializer, ConsultaEvolucaoSerializer
-from .consulta_service import finalizar_consulta
+from .consulta_service import finalizar_consulta, iniciar_consulta
 
 
 class ConsultaListView(APIView):
@@ -58,6 +58,29 @@ class ConsultaDetailView(APIView):
 
     def patch(self, request, pk):
         return self.put(request, pk)
+
+
+class ConsultaIniciarView(APIView):
+    """POST /clinica-beleza/consultas/<id>/iniciar/ — inicia atendimento (consulta + agenda)."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            consulta = Consulta.objects.select_related(
+                'patient', 'professional', 'procedure', 'protocol', 'appointment', 'appointment__procedure',
+            ).get(pk=pk)
+        except Consulta.DoesNotExist:
+            return Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            iniciar_consulta(consulta)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        consulta = Consulta.objects.select_related(
+            'patient', 'professional', 'procedure', 'protocol', 'appointment',
+        ).get(pk=pk)
+        return Response(ConsultaSerializer(consulta).data)
 
 
 class ConsultaFinalizarView(APIView):

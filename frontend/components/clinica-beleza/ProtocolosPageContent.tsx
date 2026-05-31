@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Pencil, Trash2, X, ClipboardList } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
+import { deleteClinicaBelezaEntity, saveClinicaBelezaEntity } from '@/lib/clinica-beleza-crud';
 import { entityName, procedureCategoria } from '@/lib/clinica-beleza-entities';
 import { procedureMatchesModule } from '@/lib/clinica-beleza-categories';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
@@ -151,13 +152,10 @@ export function ProtocolosPageContent({
       cuidados_especiais: form.cuidados_especiais.trim(),
     };
     try {
-      const res = editing
-        ? await clinicaBelezaFetch(`/protocolos/${editing.id}/`, { method: 'PUT', body: JSON.stringify(body) })
-        : await clinicaBelezaFetch('/protocolos/', { method: 'POST', body: JSON.stringify(body) });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setError(typeof err === 'object' ? JSON.stringify(err) : 'Erro ao salvar');
-        return;
+      if (editing) {
+        await saveClinicaBelezaEntity(`/protocolos/${editing.id}/`, 'PUT', body);
+      } else {
+        await saveClinicaBelezaEntity('/protocolos/', 'POST', body);
       }
       setShowModal(false);
       load();
@@ -171,7 +169,7 @@ export function ProtocolosPageContent({
   const exclude = async (p: Protocol) => {
     if (!confirm(`Desativar o protocolo "${p.nome}"?`)) return;
     try {
-      await clinicaBelezaFetch(`/protocolos/${p.id}/`, { method: 'DELETE' });
+      await deleteClinicaBelezaEntity(`/protocolos/${p.id}/`);
       load();
     } catch {
       alert('Erro ao desativar.');

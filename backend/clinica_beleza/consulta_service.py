@@ -130,6 +130,32 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
     return payment
 
 
+def iniciar_consulta(consulta):
+    """
+    Profissional inicia atendimento: consulta → IN_PROGRESS, agenda → IN_PROGRESS, data_inicio.
+    """
+    appointment = consulta.appointment
+    if consulta.status != 'SCHEDULED':
+        raise ValueError('A consulta precisa estar agendada para ser iniciada.')
+    if appointment.status not in ('CONFIRMED', 'SCHEDULED'):
+        raise ValueError('Confirme o agendamento na agenda antes de iniciar a consulta.')
+
+    old_status = appointment.status
+    ts = now()
+
+    appointment.status = 'IN_PROGRESS'
+    appointment.version = (appointment.version or 1) + 1
+    appointment.save(update_fields=['status', 'version', 'updated_at'])
+
+    consulta.status = 'IN_PROGRESS'
+    consulta.data_inicio = ts
+    consulta.save(update_fields=['status', 'data_inicio', 'updated_at'])
+
+    sync_consulta_from_appointment_status(appointment, 'IN_PROGRESS', old_status)
+    consulta.refresh_from_db()
+    return consulta
+
+
 def finalizar_consulta(consulta, *, payment_method=None, mark_as_paid=False, amount=None):
     """
     Finaliza consulta clínica: agenda → COMPLETED, consulta concluída e lançamento financeiro.
@@ -156,8 +182,8 @@ def finalizar_consulta(consulta, *, payment_method=None, mark_as_paid=False, amo
         consulta.refresh_from_db()
         return consulta
 
-    if consulta.status not in ('IN_PROGRESS', 'SCHEDULED'):
-        raise ValueError('A consulta precisa estar em atendimento para ser finalizada.')
+    if consulta.status != 'IN_PROGRESS':
+        raise ValueError('Inicie a consulta antes de finalizar.')
 
     appointment.status = 'COMPLETED'
     appointment.version = (appointment.version or 1) + 1

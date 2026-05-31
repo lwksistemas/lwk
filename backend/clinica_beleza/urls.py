@@ -5,7 +5,6 @@ from django.urls import path, include
 from .views import (
     DashboardView,
     LojaInfoView,
-    AppointmentListView, AppointmentDetailView,
     PatientListView, PatientDetailView,
     ProfessionalListView, ProfessionalDetailView,
     HorarioTrabalhoProfissionalView,
@@ -19,7 +18,8 @@ from .views import (
     CampanhaPromocaoListView, CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView,
 )
 from .views_consultas import (
-    ConsultaListView, ConsultaDetailView, ConsultaAplicarProtocoloView, ConsultaFinalizarView,
+    ConsultaListView, ConsultaDetailView, ConsultaAplicarProtocoloView,
+    ConsultaIniciarView, ConsultaFinalizarView,
     PatientAnamneseView, ConsultaEvolucaoListView, PatientHistoricoConsultasView,
 )
 from .views_estoque import (
@@ -36,10 +36,6 @@ urlpatterns = [
     # Dados do administrador da loja (nome, email, telefone)
     path('loja-info/', LojaInfoView.as_view(), name='loja-info'),
     
-    # Agendamentos
-    path('appointments/', AppointmentListView.as_view(), name='appointments-list'),
-    path('appointments/<int:pk>/', AppointmentDetailView.as_view(), name='appointments-detail'),
-    
     # Pacientes
     path('patients/', PatientListView.as_view(), name='patients-list'),
     path('patients/<int:pk>/', PatientDetailView.as_view(), name='patients-detail'),
@@ -49,6 +45,7 @@ urlpatterns = [
     # Consultas (criadas via agenda)
     path('consultas/', ConsultaListView.as_view(), name='consultas-list'),
     path('consultas/<int:pk>/', ConsultaDetailView.as_view(), name='consultas-detail'),
+    path('consultas/<int:pk>/iniciar/', ConsultaIniciarView.as_view(), name='consultas-iniciar'),
     path('consultas/<int:pk>/finalizar/', ConsultaFinalizarView.as_view(), name='consultas-finalizar'),
     path('consultas/<int:pk>/aplicar-protocolo/', ConsultaAplicarProtocoloView.as_view(), name='consultas-aplicar-protocolo'),
     path('consultas/<int:consulta_id>/evolucoes/', ConsultaEvolucaoListView.as_view(), name='consultas-evolucoes'),

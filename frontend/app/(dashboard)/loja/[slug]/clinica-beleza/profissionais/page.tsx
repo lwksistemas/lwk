@@ -12,7 +12,7 @@ import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/Cli
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
 import { ProfissionalFormModal } from "./components/ProfissionalFormModal";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
-import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
+import { deleteClinicaBelezaEntity, saveClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
 import {
   entityActive,
   entityEmail,
@@ -60,8 +60,11 @@ export default function ProfissionaisPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const slug = params.slug as string;
-  const [list, setList] = useState<Professional[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { list, setList, loading, load } = useClinicaBelezaEntityList<Professional>({
+    path: "/professionals/",
+    fetchOffline: buscarProfissionaisOffline,
+    saveOffline: salvarProfissionaisOffline,
+  });
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Professional | null>(null);
   const [form, setForm] = useState({
@@ -76,7 +79,6 @@ export default function ProfissionaisPage() {
   const [error, setError] = useState("");
   const [lojaOwnerInfo, setLojaOwnerInfo] = useState<LojaOwnerInfo | null>(null);
   const [horariosProfessional, setHorariosProfessional] = useState<Professional | null>(null);
-  useClinicaBelezaDark();
 
   const loadLojaInfo = async () => {
     if (!navigator.onLine) return;
@@ -95,42 +97,8 @@ export default function ProfissionaisPage() {
     }
   };
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      if (!navigator.onLine) {
-        const data = await buscarProfissionaisOffline();
-        setList(Array.isArray(data) ? (data as Professional[]) : []);
-      } else {
-        const res = await clinicaBelezaFetch("/professionals/");
-        const data = await res.json();
-        if (res.ok) {
-          const arr = Array.isArray(data) ? data : [];
-          setList(arr);
-          await salvarProfissionaisOffline(arr);
-        } else setList([]);
-      }
-    } catch {
-      setList([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    load();
     loadLojaInfo();
-  }, []);
-
-  useEffect(() => {
-    const onSyncDone = () => {
-      if (navigator.onLine) {
-        // Aguardar um pouco para garantir que o backend processou
-        setTimeout(() => load(), 500);
-      }
-    };
-    window.addEventListener("offline-sync-done", onSyncDone);
-    return () => window.removeEventListener("offline-sync-done", onSyncDone);
   }, []);
 
   useEffect(() => {
@@ -246,23 +214,9 @@ export default function ProfissionaisPage() {
 
     try {
       if (editing) {
-        const res = await clinicaBelezaFetch(`/professionals/${editing.id}/`, {
-          method: "PUT",
-          body: JSON.stringify({ ...body, criar_acesso: undefined }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({})) as Record<string, unknown>;
-          throw new Error(formatProfissionalApiErrors(err) || "Erro ao atualizar");
-        }
+        await saveClinicaBelezaEntity(`/professionals/${editing.id}/`, "PUT", { ...body, criar_acesso: undefined });
       } else {
-        const res = await clinicaBelezaFetch("/professionals/", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({})) as Record<string, unknown>;
-          throw new Error(formatProfissionalApiErrors(err) || "Erro ao cadastrar");
-        }
+        await saveClinicaBelezaEntity("/professionals/", "POST", body);
       }
       setShowModal(false);
       load();
@@ -270,7 +224,8 @@ export default function ProfissionaisPage() {
         alert("Profissional criado! A senha foi enviada por e-mail.");
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Erro ao salvar";
+      const err = e && typeof e === "object" ? e as Record<string, unknown> : {};
+      const msg = formatProfissionalApiErrors(err) || (e instanceof Error ? e.message : "Erro ao salvar");
       if (isFetchNetworkError(msg)) {
         try {
           const lojaSlug = getLojaSlug();
@@ -328,14 +283,13 @@ export default function ProfissionaisPage() {
   const exclude = async (p: Professional) => {
     if (!confirm(`Desativar o profissional "${entityName(p)}"?`)) return;
     try {
-      await clinicaBelezaFetch(`/professionals/${p.id}/`, { method: "DELETE" });
+      await deleteClinicaBelezaEntity(`/professionals/${p.id}/`);
       load();
     } catch {
       alert("Erro ao desativar.");
     }
   };
 
-  useClinicaBelezaDark(); // Aplica tema escuro (localStorage + document.documentElement)
   const activeList = list.filter((p) => entityActive(p));
 
   return (

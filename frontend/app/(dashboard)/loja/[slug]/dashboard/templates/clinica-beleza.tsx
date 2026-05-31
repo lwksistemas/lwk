@@ -57,6 +57,7 @@ interface DashboardData {
   next_appointments: Appointment[];
   revenue_last_7_days?: RevenueDay[];
   top_procedures?: TopProcedure[];
+  top_procedures_volume?: TopProcedure[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -160,14 +161,17 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
   async function fetchData() {
     setLoading(true);
     try {
+      const lojaCtx = loja?.id || loja?.slug ? { id: loja.id, slug: loja.slug || slug } : undefined;
       const [dashRes, finRes] = await Promise.all([
-        clinicaBelezaFetch('/dashboard/'),
-        clinicaBelezaFetch('/financeiro/resumo/').catch(() => null),
+        clinicaBelezaFetch('/dashboard/?period=proximos', {}, lojaCtx),
+        clinicaBelezaFetch('/financeiro/resumo/', {}, lojaCtx).catch(() => null),
       ]);
       if (dashRes.ok) setData(await dashRes.json());
+      else setData(null);
       if (finRes?.ok) setFinancial(await finRes.json());
     } catch (err) {
       console.error('Dashboard fetch error:', err);
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -177,6 +181,9 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
   const appointments = data?.next_appointments || [];
   const revenueData = data?.revenue_last_7_days || [];
   const topProcedures = data?.top_procedures || [];
+  const topProceduresVolume = data?.top_procedures_volume?.length
+    ? data.top_procedures_volume
+    : topProcedures;
 
   const apptChange = stats?.appointments_yesterday != null
     ? pctChange(stats.appointments_today, stats.appointments_yesterday)
@@ -254,11 +261,11 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
 
             <ChartCard title="Top 5 Soroterapias">
               <div className="h-56 flex items-center justify-center">
-                {topProcedures.length > 0 ? (
+                {topProceduresVolume.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={topProcedures.slice(0, 5)}
+                        data={topProceduresVolume.slice(0, 5)}
                         dataKey="count"
                         nameKey="name"
                         cx="50%"
@@ -267,7 +274,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
                         outerRadius={85}
                         paddingAngle={2}
                       >
-                        {topProcedures.slice(0, 5).map((_, i) => (
+                        {topProceduresVolume.slice(0, 5).map((_, i) => (
                           <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                         ))}
                       </Pie>
@@ -278,9 +285,9 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
                   <p className="text-sm text-gray-400">Sem dados disponíveis</p>
                 )}
               </div>
-              {topProcedures.length > 0 && (
+              {topProceduresVolume.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 justify-center">
-                  {topProcedures.slice(0, 5).map((proc, i) => (
+                  {topProceduresVolume.slice(0, 5).map((proc, i) => (
                     <div key={i} className="flex items-center gap-1.5 text-xs text-gray-600">
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS[i] }} />
                       {proc.name}

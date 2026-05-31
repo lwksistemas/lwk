@@ -111,7 +111,8 @@ class LojaContextHelper:
         cache.delete(f'owner_professional_{loja_id}')
         cache.delete(f'loja_owner_info_{loja_id}')
         cache.delete(f'whatsapp_config_{loja_id}')
-        # Invalida cache do dashboard
         from django.utils.timezone import now
         today = now().date()
-        cache.delete(f'clinica_beleza_dashboard_{loja_id}_{today}')
+        for prefix in ('clinica_beleza_dashboard_', 'clinica_beleza_dashboard_v2_'):
+            for period in ('hoje', 'semana', 'proximos'):
+                cache.delete(f'{prefix}{loja_id}_{today}_{period}_all')

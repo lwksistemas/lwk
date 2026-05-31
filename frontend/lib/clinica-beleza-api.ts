@@ -130,14 +130,15 @@ function reportarErroApiParaSuporte(
  */
 export async function clinicaBelezaFetch(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  loja?: { id?: number; slug?: string } | null,
 ): Promise<Response> {
   const base = getClinicaBelezaBaseUrl();
   const url = path.startsWith("http") ? path : `${base}${path.startsWith("/") ? path : `/${path}`}`;
   const method = (options.method || "GET").toUpperCase();
   const response = await fetch(url, {
     ...options,
-    headers: { ...getClinicaBelezaHeaders(), ...options.headers },
+    headers: { ...getClinicaBelezaHeadersWithLoja(loja), ...options.headers },
   });
   if (response.status === 401) {
     const handled = await handle401SessionResponse(response);

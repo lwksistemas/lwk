@@ -281,11 +281,17 @@ class AppointmentListSerializer(serializers.ModelSerializer):
     professional_name = serializers.CharField(source='professional.nome', read_only=True)
     procedure_name = serializers.CharField(source='procedure.nome', read_only=True)
     procedure_price = serializers.DecimalField(source='procedure.preco', max_digits=10, decimal_places=2, read_only=True)
+    time = serializers.SerializerMethodField()
+
+    def get_time(self, obj):
+        from django.utils import timezone
+        local_dt = timezone.localtime(obj.date)
+        return local_dt.strftime('%H:%M')
     
     class Meta:
         model = Appointment
         fields = [
-            'id', 'date', 'status', 
+            'id', 'date', 'time', 'status', 
             'patient', 'patient_name',
             'professional', 'professional_name',
             'procedure', 'procedure_name', 'procedure_price',

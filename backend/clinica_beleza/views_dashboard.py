@@ -78,7 +78,7 @@ class DashboardView(APIView):
 
         period = (request.query_params.get('period') or 'proximos').strip().lower()
         professional_id = request.query_params.get('professional')
-        cache_key = f'clinica_beleza_dashboard_v2_{loja_id}_{today}_{period}_{professional_id or "all"}'
+        cache_key = f'clinica_beleza_dashboard_v3_{loja_id}_{today}_{period}_{professional_id or "all"}'
 
         cached_data = cache.get(cache_key)
         if cached_data:
@@ -115,14 +115,14 @@ class DashboardView(APIView):
                 'value': float(day_revenue),
             })
 
-        # Soroterapias do mês (realizadas = concluídas)
+        # Procedimentos realizados no mês (concluídos, todas as categorias)
         top_procedures = _top_procedures_qs(
             first_day_month=first_day_month,
             today=today,
-            soroterapia_only=True,
+            soroterapia_only=False,
             completed_only=True,
         )
-        # Gráfico pizza: volume do mês (inclui agendados/confirmados)
+        # Gráfico pizza: volume soroterapia no mês (inclui agendados/confirmados)
         top_procedures_volume = _top_procedures_qs(
             first_day_month=first_day_month,
             today=today,
@@ -135,13 +135,6 @@ class DashboardView(APIView):
                 today=today,
                 soroterapia_only=False,
                 completed_only=False,
-            )
-        if not top_procedures:
-            top_procedures = _top_procedures_qs(
-                first_day_month=first_day_month,
-                today=today,
-                soroterapia_only=False,
-                completed_only=True,
             )
 
         # Próximos agendamentos: a partir de agora (não só hoje)

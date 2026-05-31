@@ -113,6 +113,6 @@ class LojaContextHelper:
         cache.delete(f'whatsapp_config_{loja_id}')
         from django.utils.timezone import now
         today = now().date()
-        for prefix in ('clinica_beleza_dashboard_', 'clinica_beleza_dashboard_v2_'):
+        for prefix in ('clinica_beleza_dashboard_', 'clinica_beleza_dashboard_v2_', 'clinica_beleza_dashboard_v3_'):
             for period in ('hoje', 'semana', 'proximos'):
                 cache.delete(f'{prefix}{loja_id}_{today}_{period}_all')

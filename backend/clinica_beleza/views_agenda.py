@@ -288,7 +288,7 @@ class AgendaCreateView(APIView):
             try:
                 motor.executar('AGENDAMENTO_CRIADO', {
                     'profissional': appointment.professional, 'date': appointment.date,
-                    'date_end': appointment.date + timedelta(minutes=appointment.procedure.duracao_minutos),
+                    'date_end': appointment.date + timedelta(minutes=appointment.get_duracao_efetiva()),
                     'appointment_id': appointment.id, 'appointment': appointment,
                 })
             except Exception:

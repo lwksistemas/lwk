@@ -252,7 +252,8 @@ export default function AgendaPage() {
             const endStr = hasT ? rawE : (rawS.slice(0, 10) ? `${rawS.slice(0, 10)}T23:59:59` : "");
             return {
               id: `bloqueio-${b.id}`, title: `🚫 ${b.motivo}`, start: startStr, end: endStr,
-              allDay: false, backgroundColor: COR_BLOQUEIO.bg, borderColor: COR_BLOQUEIO.border, textColor: "#fff", editable: false,
+              allDay: false, backgroundColor: COR_BLOQUEIO.bg, borderColor: COR_BLOQUEIO.border, textColor: "#fff",
+              editable: true, constraint: false,
               extendedProps: { isBloqueio: true, bloqueioId: b.id, motivo: b.motivo, professional_name: b.professional_name || "Todos" },
             };
           });
@@ -307,8 +308,49 @@ export default function AgendaPage() {
     }
   };
 
+  const atualizarBloqueioHorario = async (info: { event: any; revert: () => void }) => {
+    const bloqueioId = info.event.extendedProps?.bloqueioId;
+    const start = info.event.start as Date | null;
+    const end = info.event.end as Date | null;
+    if (!bloqueioId || !start || !end) {
+      info.revert();
+      return;
+    }
+    if (end <= start) {
+      alert("O fim do bloqueio deve ser depois do início.");
+      info.revert();
+      return;
+    }
+    try {
+      const res = await clinicaBelezaFetch(`/bloqueios/${bloqueioId}/`, {
+        method: "PUT",
+        body: JSON.stringify({
+          data_inicio: start.toISOString(),
+          data_fim: end.toISOString(),
+          motivo: info.event.extendedProps.motivo,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data.error || data.detail || (Array.isArray(data.data_fim) ? data.data_fim[0] : null) || "Erro ao atualizar bloqueio.";
+        alert(typeof msg === "string" ? msg : "Erro ao atualizar bloqueio.");
+        info.revert();
+        return;
+      }
+      carregarDados();
+    } catch (error) {
+      logger.warn("Erro ao atualizar bloqueio:", error);
+      alert("Erro ao atualizar bloqueio. Tente novamente.");
+      info.revert();
+    }
+  };
+
   const moverEvento = async (info: any) => {
-    if (info.event.extendedProps?.isBloqueio || info.event.extendedProps?.isIntervalo) return;
+    if (info.event.extendedProps?.isIntervalo) return;
+    if (info.event.extendedProps?.isBloqueio) {
+      await atualizarBloqueioHorario(info);
+      return;
+    }
     const { version, updated_at } = info.event.extendedProps || {};
     const body: any = { date: info.event.start.toISOString() };
     if (version != null) body.version = version;
@@ -329,8 +371,12 @@ export default function AgendaPage() {
   };
 
   const redimensionarEvento = async (info: any) => {
-    if (info.event.extendedProps?.isBloqueio || info.event.extendedProps?.isIntervalo) {
+    if (info.event.extendedProps?.isIntervalo) {
       info.revert();
+      return;
+    }
+    if (info.event.extendedProps?.isBloqueio) {
+      await atualizarBloqueioHorario(info);
       return;
     }
     if (info.event.extendedProps?.status === "CANCELLED") {
@@ -585,7 +631,7 @@ export default function AgendaPage() {
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#b45309]" aria-hidden />Faltou</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#6b7280]" aria-hidden />Cancelado</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#f59e0b]" aria-hidden />Intervalo</span>
-          <span className="hidden sm:inline text-gray-500 dark:text-gray-400">· Arraste a borda inferior do evento para ajustar a duração</span>
+          <span className="hidden sm:inline text-gray-500 dark:text-gray-400">· Arraste ou redimensione agendamentos e bloqueios 🚫</span>
         </div>
       </ClinicaBelezaPageHeaderFooter>
 

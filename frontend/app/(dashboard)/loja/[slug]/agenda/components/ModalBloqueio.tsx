@@ -57,8 +57,11 @@ export function ModalBloqueio({ open, onClose, onSuccess, bloqueio }: ModalBloqu
           </button>
         </div>
         <p className="text-gray-600 dark:text-gray-400 mb-2">{bloqueio.motivo}</p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Profissional: {bloqueio.professional_name}</p>
-        <div className="mt-6 flex gap-3">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Profissional: {bloqueio.professional_name}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+          Arraste o bloqueio para outro horário ou puxe a borda inferior para ajustar a duração.
+        </p>
+        <div className="flex gap-3">
           <button
             type="button"
             onClick={excluirBloqueio}

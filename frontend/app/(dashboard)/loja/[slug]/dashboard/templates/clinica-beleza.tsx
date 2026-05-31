@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { CalendarDays, Users, TrendingUp, Activity } from 'lucide-react';
+import { CalendarDays, Users, TrendingUp, Activity, CalendarRange } from 'lucide-react';
 import { ClinicaBelezaShell } from '@/components/clinica-beleza/ClinicaBelezaShell';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import {
@@ -24,6 +24,13 @@ interface DashboardStats {
   revenue_month: number;
   revenue_today?: number;
   sessions_month?: number;
+}
+
+interface DashboardFilter {
+  mes: number;
+  ano: number;
+  label: string;
+  is_current_month: boolean;
 }
 
 interface Appointment {
@@ -53,6 +60,7 @@ interface FinancialSummary {
 }
 
 interface DashboardData {
+  filter?: DashboardFilter;
   statistics: DashboardStats;
   next_appointments: Appointment[];
   revenue_last_7_days?: RevenueDay[];
@@ -69,6 +77,16 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const CHART_COLORS = [CLINICA_BELEZA_PRIMARY, '#A64D63', '#C4727E', '#E8A0B0', '#D4A574'];
+
+function currentMesAnoValue(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function parseMesAno(value: string): { mes: number; ano: number } {
+  const [anoStr, mesStr] = value.split('-');
+  return { ano: Number(anoStr), mes: Number(mesStr) };
+}
 
 function pctChange(current: number, previous: number): string | null {
   if (!previous) return null;
@@ -150,21 +168,21 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
   const [data, setData] = useState<DashboardData | null>(null);
   const [financial, setFinancial] = useState<FinancialSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mesAno, setMesAno] = useState(currentMesAnoValue);
   const [darkMode] = useClinicaBelezaDark();
 
-  useEffect(() => {
-    if (!loja?.id && !loja?.slug) return;
-    fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loja?.id, loja?.slug]);
+  const mesAnoMax = useMemo(() => currentMesAnoValue(), []);
 
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
+    if (!loja?.id && !loja?.slug) return;
     setLoading(true);
     try {
+      const { mes, ano } = parseMesAno(mesAno);
       const lojaCtx = loja?.id || loja?.slug ? { id: loja.id, slug: loja.slug || slug } : undefined;
+      const qs = `period=proximos&mes=${mes}&ano=${ano}`;
       const [dashRes, finRes] = await Promise.all([
-        clinicaBelezaFetch('/dashboard/?period=proximos', {}, lojaCtx),
-        clinicaBelezaFetch('/financeiro/resumo/', {}, lojaCtx).catch(() => null),
+        clinicaBelezaFetch(`/dashboard/?${qs}`, {}, lojaCtx),
+        clinicaBelezaFetch(`/financeiro/resumo/?mes=${mes}&ano=${ano}`, {}, lojaCtx).catch(() => null),
       ]);
       if (dashRes.ok) setData(await dashRes.json());
       else setData(null);
@@ -175,28 +193,60 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
     } finally {
       setLoading(false);
     }
-  }
+  }, [loja?.id, loja?.slug, loja.slug, slug, mesAno]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const stats = data?.statistics;
+  const filterLabel = data?.filter?.label ?? 'Este mês';
+  const isCurrentMonth = data?.filter?.is_current_month ?? true;
   const appointments = data?.next_appointments || [];
   const revenueData = data?.revenue_last_7_days || [];
   const topProcedures = data?.top_procedures || [];
   const topProceduresVolume = data?.top_procedures_volume || [];
+  const soroterapiaComMovimento = topProceduresVolume.filter((p) => p.count > 0);
 
   const apptChange = stats?.appointments_yesterday != null
     ? pctChange(stats.appointments_today, stats.appointments_yesterday)
     : null;
 
   const displayName = loja?.nome?.split(' ')[0] || 'Usuária';
+  const faturamentoChartTitle = isCurrentMonth
+    ? `Faturamento (${filterLabel})`
+    : `Faturamento — ${filterLabel}`;
 
   return (
     <ClinicaBelezaShell loja={loja} onLogout={onLogout}>
       <header className="px-4 md:px-6 lg:px-8 pt-5 pb-4 w-full">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Bem-vinda, {displayName}! 👋
-        </p>
-        <p className="text-xs text-gray-400 mt-0.5">Aqui está o resumo da sua clínica hoje.</p>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Bem-vinda, {displayName}! 👋
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {isCurrentMonth
+                ? 'Resumo de hoje e indicadores do mês selecionado.'
+                : `Indicadores de ${filterLabel}. Atendimentos de hoje permanecem atuais.`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <CalendarRange className="w-4 h-4 text-gray-400 hidden sm:block" aria-hidden />
+            <label htmlFor="dashboard-mes-ano" className="sr-only">
+              Filtrar mês do dashboard
+            </label>
+            <input
+              id="dashboard-mes-ano"
+              type="month"
+              value={mesAno}
+              max={mesAnoMax}
+              onChange={(e) => e.target.value && setMesAno(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100"
+            />
+          </div>
+        </div>
       </header>
 
       {loading ? (
@@ -232,38 +282,42 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
               title="Sessões realizadas"
               value={stats?.sessions_month ?? 0}
               icon={Activity}
-              changeLabel="Este mês"
+              changeLabel={filterLabel}
             />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ChartCard title="Faturamento (últimos 7 dias)">
+            <ChartCard title={faturamentoChartTitle}>
               <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={revenueData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#f0f0f0'} />
-                    <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#9ca3af" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="#9ca3af" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke={CLINICA_BELEZA_PRIMARY}
-                      strokeWidth={2.5}
-                      dot={{ r: 4, fill: CLINICA_BELEZA_PRIMARY }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {revenueData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={revenueData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#f0f0f0'} />
+                      <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                      <YAxis tick={{ fontSize: 11 }} stroke="#9ca3af" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(v) => formatCurrency(Number(v))} />
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        stroke={CLINICA_BELEZA_PRIMARY}
+                        strokeWidth={2.5}
+                        dot={{ r: 3, fill: CLINICA_BELEZA_PRIMARY }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-gray-400 text-center py-16">Sem faturamento no período</p>
+                )}
               </div>
             </ChartCard>
 
-            <ChartCard title="Top 5 Soroterapias">
+            <ChartCard title={`Top 5 Soroterapias — ${filterLabel}`}>
               <div className="h-56 flex items-center justify-center">
-                {topProceduresVolume.length > 0 ? (
+                {soroterapiaComMovimento.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={topProceduresVolume.slice(0, 5)}
+                        data={soroterapiaComMovimento.slice(0, 5)}
                         dataKey="count"
                         nameKey="name"
                         cx="50%"
@@ -272,23 +326,28 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
                         outerRadius={85}
                         paddingAngle={2}
                       >
-                        {topProceduresVolume.slice(0, 5).map((_, i) => (
+                        {soroterapiaComMovimento.slice(0, 5).map((_, i) => (
                           <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip />
                     </PieChart>
                   </ResponsiveContainer>
+                ) : topProceduresVolume.length > 0 ? (
+                  <p className="text-sm text-gray-400 text-center px-4">
+                    Soroterapias cadastradas, sem movimento em {filterLabel}.
+                  </p>
                 ) : (
-                  <p className="text-sm text-gray-400">Sem dados disponíveis</p>
+                  <p className="text-sm text-gray-400">Nenhuma soroterapia cadastrada</p>
                 )}
               </div>
               {topProceduresVolume.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 justify-center">
                   {topProceduresVolume.slice(0, 5).map((proc, i) => (
-                    <div key={i} className="flex items-center gap-1.5 text-xs text-gray-600">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS[i] }} />
+                    <div key={i} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
                       {proc.name}
+                      {proc.count > 0 ? ` (${proc.count})` : ' — 0 no período'}
                     </div>
                   ))}
                 </div>
@@ -317,7 +376,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
 
             <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
               <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">
-                Procedimentos realizados (mês)
+                Procedimentos realizados — {filterLabel}
               </h3>
               {topProcedures.length > 0 ? (
                 <div className="space-y-3">
@@ -341,13 +400,13 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400 text-center py-6">Sem dados</p>
+                <p className="text-sm text-gray-400 text-center py-6">Sem consultas concluídas no período</p>
               )}
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col">
               <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">
-                Resumo financeiro (mês)
+                Resumo financeiro — {filterLabel}
               </h3>
               <div className="space-y-3 flex-1">
                 <div className="flex justify-between text-sm">

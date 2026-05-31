@@ -1,7 +1,8 @@
 """
 Views de Dashboard e Info da Loja — Clínica da Beleza
 """
-from datetime import timedelta
+import calendar
+from datetime import date, timedelta
 
 from django.core.cache import cache
 from django.db.models import Count, F, Q, Sum
@@ -16,30 +17,58 @@ from .serializers import AppointmentListSerializer
 from .utils import LojaContextHelper
 from tenants.middleware import get_current_loja_id
 
+MESES_PT = (
+    '', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+)
 
-# Soroterapia: categoria/procedimento do módulo (alinhado ao frontend)
-SOROTERAPIA_CATEGORIA_Q = (
+
+# Soroterapia: categoria do cadastro (ex.: "soroterapia", "Soroterapia")
+SOROTERAPIA_PROCEDURE_Q = (
     Q(procedure__categoria__iexact='soroterapia')
     | Q(procedure__categoria__icontains='soroterapia')
-    | Q(procedure__categoria__icontains='soro')
-    | Q(procedure__categoria__icontains='iv ')
-    | Q(procedure__categoria__icontains='vitamina')
-    | Q(procedure__categoria__icontains='imunidade')
-    | Q(procedure__categoria__icontains='detox')
-    | Q(procedure__categoria__icontains='disposicao')
+    | Q(procedure__categoria__iexact='injetavel')
+    | Q(procedure__categoria__icontains='injetavel')
 )
 
-# Exclui categorias de estética/facial que não são soroterapia
-NAO_SOROTERAPIA_CATEGORIA_Q = (
-    Q(procedure__categoria__icontains='estetica')
-    | Q(procedure__categoria__icontains='estética')
-    | Q(procedure__categoria__icontains='facial')
-    | Q(procedure__categoria__icontains='corporal')
-    | Q(procedure__categoria__icontains='capilar')
-    | Q(procedure__categoria__icontains='peeling')
-    | Q(procedure__categoria__icontains='botox')
-    | Q(procedure__categoria__icontains='preenchimento')
+SOROTERAPIA_CADASTRO_Q = (
+    Q(categoria__iexact='soroterapia')
+    | Q(categoria__icontains='soroterapia')
+    | Q(categoria__iexact='injetavel')
+    | Q(categoria__icontains='injetavel')
 )
+
+
+def _parse_dashboard_period(request, today: date):
+    """Intervalo do filtro mensal (mes/ano). No mês atual, termina em today."""
+    try:
+        ano = int(request.query_params.get('ano') or today.year)
+        mes = int(request.query_params.get('mes') or today.month)
+        if not (1 <= mes <= 12):
+            raise ValueError('mes invalido')
+    except (ValueError, TypeError):
+        ano, mes = today.year, today.month
+
+    first_day = date(ano, mes, 1)
+    last_day = date(ano, mes, calendar.monthrange(ano, mes)[1])
+    if ano == today.year and mes == today.month:
+        period_end = today
+    else:
+        period_end = last_day
+
+    return first_day, period_end, mes, ano
+
+
+def _revenue_by_day(first_day: date, period_end: date):
+    rows = []
+    day = first_day
+    while day <= period_end:
+        day_revenue = Payment.objects.filter(
+            status='PAID', payment_date__date=day,
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        rows.append({'day': day.strftime('%d/%m'), 'value': float(day_revenue)})
+        day += timedelta(days=1)
+    return rows
 
 
 def _backfill_consultas_data_fim():
@@ -47,27 +76,39 @@ def _backfill_consultas_data_fim():
     Consulta.objects.filter(status='COMPLETED', data_fim__isnull=True).update(data_fim=F('updated_at'))
 
 
-def _consulta_realizada_no_mes_q(first_day_month, today):
-    """Consulta concluída no mês se data_fim, updated_at ou agendamento cair no intervalo."""
-    def in_month(prefix: str) -> Q:
-        return Q(**{f'{prefix}__date__gte': first_day_month}) & Q(**{f'{prefix}__date__lte': today})
+def _consulta_realizada_no_periodo_q(period_start, period_end):
+    """Consulta concluída no intervalo se data_fim, updated_at ou agendamento cair nele."""
+
+    def in_period(prefix: str) -> Q:
+        return (
+            Q(**{f'{prefix}__date__gte': period_start})
+            & Q(**{f'{prefix}__date__lte': period_end})
+        )
 
     return (
-        in_month('data_fim')
-        | in_month('updated_at')
-        | in_month('appointment__date')
+        in_period('data_fim')
+        | in_period('updated_at')
+        | in_period('appointment__date')
+    )
+
+
+def _consulta_realizada_no_mes_q(first_day_month, today):
+    return _consulta_realizada_no_periodo_q(first_day_month, today)
+
+
+def _consultas_concluidas_no_periodo(period_start, period_end):
+    return Consulta.objects.filter(status='COMPLETED').filter(
+        _consulta_realizada_no_periodo_q(period_start, period_end),
     )
 
 
 def _consultas_concluidas_no_mes(first_day_month, today):
-    return Consulta.objects.filter(status='COMPLETED').filter(
-        _consulta_realizada_no_mes_q(first_day_month, today),
-    )
+    return _consultas_concluidas_no_periodo(first_day_month, today)
 
 
-def _top_procedures_realizados_mes(first_day_month, today):
+def _top_procedures_realizados_periodo(period_start, period_end):
     rows = (
-        _consultas_concluidas_no_mes(first_day_month, today)
+        _consultas_concluidas_no_periodo(period_start, period_end)
         .values('procedure__nome')
         .annotate(count=Count('id'))
         .order_by('-count')[:5]
@@ -78,6 +119,61 @@ def _top_procedures_realizados_mes(first_day_month, today):
     ]
 
 
+def _top_procedures_realizados_mes(first_day_month, today):
+    return _top_procedures_realizados_periodo(first_day_month, today)
+
+
+def _top_soroterapia_periodo(period_start, period_end):
+    """
+    Top soroterapias no mês: consultas concluídas + agendamentos (volume).
+    Se não houver movimento, lista cadastros ativos de soroterapia (count=0).
+    """
+    counts: dict[str, int] = {}
+
+    def add_rows(rows):
+        for item in rows:
+            name = item['procedure__nome'] or 'Sem nome'
+            counts[name] = counts.get(name, 0) + item['count']
+
+    add_rows(
+        _consultas_concluidas_no_periodo(period_start, period_end)
+        .filter(SOROTERAPIA_PROCEDURE_Q)
+        .values('procedure__nome')
+        .annotate(count=Count('id'))
+    )
+    add_rows(
+        Appointment.objects.filter(
+            date__date__gte=period_start,
+            date__date__lte=period_end,
+            status__in=['COMPLETED', 'CONFIRMED', 'SCHEDULED', 'IN_PROGRESS'],
+        )
+        .filter(SOROTERAPIA_PROCEDURE_Q)
+        .values('procedure__nome')
+        .annotate(count=Count('id'))
+    )
+
+    ranked = sorted(
+        [{'name': name, 'count': count} for name, count in counts.items() if count > 0],
+        key=lambda x: x['count'],
+        reverse=True,
+    )[:5]
+
+    if ranked:
+        return ranked
+
+    cadastros = (
+        Procedure.objects.filter(is_active=True)
+        .filter(SOROTERAPIA_CADASTRO_Q)
+        .order_by('nome')
+        .values_list('nome', flat=True)[:5]
+    )
+    return [{'name': nome, 'count': 0} for nome in cadastros]
+
+
+def _top_soroterapia_mes(first_day_month, today):
+    return _top_soroterapia_periodo(first_day_month, today)
+
+
 def _top_procedures_qs(*, first_day_month, today, soroterapia_only: bool, completed_only: bool):
     status_filter = ['COMPLETED'] if completed_only else ['COMPLETED', 'CONFIRMED', 'SCHEDULED', 'IN_PROGRESS']
     qs = Appointment.objects.filter(
@@ -86,7 +182,7 @@ def _top_procedures_qs(*, first_day_month, today, soroterapia_only: bool, comple
         status__in=status_filter,
     )
     if soroterapia_only:
-        qs = qs.filter(SOROTERAPIA_CATEGORIA_Q).exclude(NAO_SOROTERAPIA_CATEGORIA_Q)
+        qs = qs.filter(SOROTERAPIA_PROCEDURE_Q)
     rows = (
         qs.values('procedure__nome')
         .annotate(count=Count('id'))
@@ -125,9 +221,13 @@ class DashboardView(APIView):
         yesterday = today - timedelta(days=1)
         current = now()
 
+        period_start, period_end, filter_mes, filter_ano = _parse_dashboard_period(request, today)
         period = (request.query_params.get('period') or 'proximos').strip().lower()
         professional_id = request.query_params.get('professional')
-        cache_key = f'clinica_beleza_dashboard_v6_{loja_id}_{today}_{period}_{professional_id or "all"}'
+        cache_key = (
+            f'clinica_beleza_dashboard_v8_{loja_id}_{filter_ano}_{filter_mes:02d}'
+            f'_{period}_{professional_id or "all"}'
+        )
 
         cached_data = cache.get(cache_key)
         if cached_data:
@@ -140,37 +240,25 @@ class DashboardView(APIView):
         patients_total = Patient.objects.filter(is_active=True).count()
         procedures_total = Procedure.objects.filter(is_active=True).count()
 
-        first_day_month = today.replace(day=1)
         revenue_month = Payment.objects.filter(
-            status='PAID', payment_date__gte=first_day_month, payment_date__lte=today
+            status='PAID',
+            payment_date__date__gte=period_start,
+            payment_date__date__lte=period_end,
         ).aggregate(total=Sum('amount'))['total'] or 0
 
         revenue_today = Payment.objects.filter(
             status='PAID', payment_date__date=today
         ).aggregate(total=Sum('amount'))['total'] or 0
 
-        sessions_month = _consultas_concluidas_no_mes(first_day_month, today).count()
+        sessions_month = _consultas_concluidas_no_periodo(period_start, period_end).count()
 
-        revenue_last_7_days = []
-        for i in range(6, -1, -1):
-            day = today - timedelta(days=i)
-            day_revenue = Payment.objects.filter(
-                status='PAID', payment_date__date=day
-            ).aggregate(total=Sum('amount'))['total'] or 0
-            revenue_last_7_days.append({
-                'day': day.strftime('%d/%m'),
-                'value': float(day_revenue),
-            })
+        revenue_last_7_days = _revenue_by_day(period_start, period_end)
 
-        # Procedimentos realizados no mês — consultas concluídas (não data do agendamento)
-        top_procedures = _top_procedures_realizados_mes(first_day_month, today)
-        # Gráfico pizza: somente soroterapia (sem fallback para outros procedimentos)
-        top_procedures_volume = _top_procedures_qs(
-            first_day_month=first_day_month,
-            today=today,
-            soroterapia_only=True,
-            completed_only=False,
-        )
+        top_procedures = _top_procedures_realizados_periodo(period_start, period_end)
+        top_procedures_volume = _top_soroterapia_periodo(period_start, period_end)
+
+        filter_label = f'{MESES_PT[filter_mes]}/{filter_ano}'
+        is_current_month = filter_ano == today.year and filter_mes == today.month
 
         # Próximos agendamentos: a partir de agora (não só hoje)
         if period == 'hoje':
@@ -200,6 +288,14 @@ class DashboardView(APIView):
         limit = 10 if period == 'hoje' else 15
 
         data = {
+            'filter': {
+                'mes': filter_mes,
+                'ano': filter_ano,
+                'label': filter_label,
+                'is_current_month': is_current_month,
+                'period_start': period_start.isoformat(),
+                'period_end': period_end.isoformat(),
+            },
             'statistics': {
                 'appointments_today': appointments_today,
                 'appointments_yesterday': appointments_yesterday,

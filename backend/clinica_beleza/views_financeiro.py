@@ -79,23 +79,43 @@ class FinanceiroResumoView(APIView):
     """
     GET /clinica-beleza/financeiro/resumo/
     Resumo: caixa diário, total mês, contas a receber, comissões.
+    Query: mes, ano (opcional — padrão mês atual).
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        from datetime import date
+        import calendar
+
         today = now().date()
-        first_day = today.replace(day=1)
+        try:
+            ano = int(request.query_params.get('ano') or today.year)
+            mes = int(request.query_params.get('mes') or today.month)
+            if not (1 <= mes <= 12):
+                raise ValueError
+        except (ValueError, TypeError):
+            ano, mes = today.year, today.month
+
+        first_day = date(ano, mes, 1)
+        last_day = date(ano, mes, calendar.monthrange(ano, mes)[1])
+        period_end = today if (ano == today.year and mes == today.month) else last_day
 
         def _sum(qs):
             return float(qs.aggregate(total=Sum('amount'))['total'] or 0)
 
-        faturamento = _sum(Payment.objects.filter(status='PAID', payment_date__date__gte=first_day, payment_date__date__lte=today))
+        faturamento = _sum(Payment.objects.filter(
+            status='PAID',
+            payment_date__date__gte=first_day,
+            payment_date__date__lte=period_end,
+        ))
         contas_a_receber = _sum(Payment.objects.filter(status='PENDING'))
         comissao_mes = float(
-            Payment.objects.filter(status='PAID', payment_date__date__gte=first_day, payment_date__date__lte=today)
-            .aggregate(total=Sum('comissao_valor'))['total'] or 0
+            Payment.objects.filter(
+                status='PAID',
+                payment_date__date__gte=first_day,
+                payment_date__date__lte=period_end,
+            ).aggregate(total=Sum('comissao_valor'))['total'] or 0
         )
-        # Despesas: comissões pagas são o custo principal da clínica
         despesas = comissao_mes
 
         return Response({
@@ -103,8 +123,8 @@ class FinanceiroResumoView(APIView):
             'total_mes': faturamento,
             'contas_a_receber': contas_a_receber,
             'comissao_mes': comissao_mes,
-            # Campos para o dashboard moderno
             'faturamento': faturamento,
             'despesas': despesas,
             'lucro': faturamento - despesas,
+            'filter': {'mes': mes, 'ano': ano},
         })

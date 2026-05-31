@@ -181,9 +181,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
   const appointments = data?.next_appointments || [];
   const revenueData = data?.revenue_last_7_days || [];
   const topProcedures = data?.top_procedures || [];
-  const topProceduresVolume = data?.top_procedures_volume?.length
-    ? data.top_procedures_volume
-    : topProcedures;
+  const topProceduresVolume = data?.top_procedures_volume || [];
 
   const apptChange = stats?.appointments_yesterday != null
     ? pctChange(stats.appointments_today, stats.appointments_yesterday)

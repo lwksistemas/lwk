@@ -17,15 +17,28 @@ from .utils import LojaContextHelper
 from tenants.middleware import get_current_loja_id
 
 
-# Palavras-chave alinhadas ao frontend (clinica-beleza-categories.ts)
+# Soroterapia: categoria/procedimento do módulo (alinhado ao frontend)
 SOROTERAPIA_CATEGORIA_Q = (
-    Q(procedure__categoria__icontains='soroterapia')
+    Q(procedure__categoria__iexact='soroterapia')
+    | Q(procedure__categoria__icontains='soroterapia')
     | Q(procedure__categoria__icontains='soro')
     | Q(procedure__categoria__icontains='iv ')
     | Q(procedure__categoria__icontains='vitamina')
     | Q(procedure__categoria__icontains='imunidade')
     | Q(procedure__categoria__icontains='detox')
     | Q(procedure__categoria__icontains='disposicao')
+)
+
+# Exclui categorias de estética/facial que não são soroterapia
+NAO_SOROTERAPIA_CATEGORIA_Q = (
+    Q(procedure__categoria__icontains='estetica')
+    | Q(procedure__categoria__icontains='estética')
+    | Q(procedure__categoria__icontains='facial')
+    | Q(procedure__categoria__icontains='corporal')
+    | Q(procedure__categoria__icontains='capilar')
+    | Q(procedure__categoria__icontains='peeling')
+    | Q(procedure__categoria__icontains='botox')
+    | Q(procedure__categoria__icontains='preenchimento')
 )
 
 
@@ -73,7 +86,7 @@ def _top_procedures_qs(*, first_day_month, today, soroterapia_only: bool, comple
         status__in=status_filter,
     )
     if soroterapia_only:
-        qs = qs.filter(SOROTERAPIA_CATEGORIA_Q)
+        qs = qs.filter(SOROTERAPIA_CATEGORIA_Q).exclude(NAO_SOROTERAPIA_CATEGORIA_Q)
     rows = (
         qs.values('procedure__nome')
         .annotate(count=Count('id'))
@@ -114,7 +127,7 @@ class DashboardView(APIView):
 
         period = (request.query_params.get('period') or 'proximos').strip().lower()
         professional_id = request.query_params.get('professional')
-        cache_key = f'clinica_beleza_dashboard_v5_{loja_id}_{today}_{period}_{professional_id or "all"}'
+        cache_key = f'clinica_beleza_dashboard_v6_{loja_id}_{today}_{period}_{professional_id or "all"}'
 
         cached_data = cache.get(cache_key)
         if cached_data:
@@ -151,20 +164,13 @@ class DashboardView(APIView):
 
         # Procedimentos realizados no mês — consultas concluídas (não data do agendamento)
         top_procedures = _top_procedures_realizados_mes(first_day_month, today)
-        # Gráfico pizza: volume soroterapia no mês (inclui agendados/confirmados)
+        # Gráfico pizza: somente soroterapia (sem fallback para outros procedimentos)
         top_procedures_volume = _top_procedures_qs(
             first_day_month=first_day_month,
             today=today,
             soroterapia_only=True,
             completed_only=False,
         )
-        if not top_procedures_volume:
-            top_procedures_volume = _top_procedures_qs(
-                first_day_month=first_day_month,
-                today=today,
-                soroterapia_only=False,
-                completed_only=False,
-            )
 
         # Próximos agendamentos: a partir de agora (não só hoje)
         if period == 'hoje':

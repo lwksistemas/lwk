@@ -4,8 +4,7 @@ Views de Dashboard e Info da Loja — Clínica da Beleza
 from datetime import timedelta
 
 from django.core.cache import cache
-from django.db.models import Count, Q, Sum
-from django.db.models.functions import Coalesce, TruncDate
+from django.db.models import Count, F, Q, Sum
 from django.utils.timezone import now
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -30,19 +29,26 @@ SOROTERAPIA_CATEGORIA_Q = (
 )
 
 
-def _consultas_concluidas_no_mes(first_day_month, today):
-    """
-    Consultas concluídas no mês civil, pela data de conclusão (data_fim).
-    Fallback: updated_at ou data do agendamento (dados legados sem data_fim).
-    """
+def _backfill_consultas_data_fim():
+    """Consultas concluídas sem data_fim (legado) — usa updated_at para o dashboard."""
+    Consulta.objects.filter(status='COMPLETED', data_fim__isnull=True).update(data_fim=F('updated_at'))
+
+
+def _consulta_realizada_no_mes_q(first_day_month, today):
+    """Consulta concluída no mês se data_fim, updated_at ou agendamento cair no intervalo."""
+    def in_month(prefix: str) -> Q:
+        return Q(**{f'{prefix}__date__gte': first_day_month}) & Q(**{f'{prefix}__date__lte': today})
+
     return (
-        Consulta.objects.filter(status='COMPLETED')
-        .annotate(
-            realizado_em=TruncDate(
-                Coalesce('data_fim', 'updated_at', 'appointment__date'),
-            ),
-        )
-        .filter(realizado_em__gte=first_day_month, realizado_em__lte=today)
+        in_month('data_fim')
+        | in_month('updated_at')
+        | in_month('appointment__date')
+    )
+
+
+def _consultas_concluidas_no_mes(first_day_month, today):
+    return Consulta.objects.filter(status='COMPLETED').filter(
+        _consulta_realizada_no_mes_q(first_day_month, today),
     )
 
 
@@ -108,11 +114,13 @@ class DashboardView(APIView):
 
         period = (request.query_params.get('period') or 'proximos').strip().lower()
         professional_id = request.query_params.get('professional')
-        cache_key = f'clinica_beleza_dashboard_v4_{loja_id}_{today}_{period}_{professional_id or "all"}'
+        cache_key = f'clinica_beleza_dashboard_v5_{loja_id}_{today}_{period}_{professional_id or "all"}'
 
         cached_data = cache.get(cache_key)
         if cached_data:
             return Response(cached_data)
+
+        _backfill_consultas_data_fim()
 
         appointments_today = Appointment.objects.filter(date__date=today).count()
         appointments_yesterday = Appointment.objects.filter(date__date=yesterday).count()

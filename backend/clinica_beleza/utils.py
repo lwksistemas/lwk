@@ -118,6 +118,7 @@ class LojaContextHelper:
             'clinica_beleza_dashboard_v2_',
             'clinica_beleza_dashboard_v3_',
             'clinica_beleza_dashboard_v4_',
+            'clinica_beleza_dashboard_v5_',
         ):
             for period in ('hoje', 'semana', 'proximos'):
                 cache.delete(f'{prefix}{loja_id}_{today}_{period}_all')

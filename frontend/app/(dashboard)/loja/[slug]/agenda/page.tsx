@@ -181,7 +181,7 @@ export default function AgendaPage() {
       extendedProps: {
         dbId: e.id, status: e.status, patient_name: e.patient_name, patient_phone: e.patient_phone,
         professional_name: e.professional_name, procedure_name: e.procedure_name,
-        procedure_duration: e.procedure_duration, procedure_price: e.procedure_price,
+        procedure_duration: e.procedure_duration, duracao_minutos: e.duracao_minutos, procedure_price: e.procedure_price,
         notes: e.notes, version: e.version, updated_at: e.updated_at,
       },
     };
@@ -308,7 +308,7 @@ export default function AgendaPage() {
   };
 
   const moverEvento = async (info: any) => {
-    if (info.event.extendedProps?.isBloqueio) return;
+    if (info.event.extendedProps?.isBloqueio || info.event.extendedProps?.isIntervalo) return;
     const { version, updated_at } = info.event.extendedProps || {};
     const body: any = { date: info.event.start.toISOString() };
     if (version != null) body.version = version;
@@ -326,6 +326,63 @@ export default function AgendaPage() {
       if (!res.ok) { alert(data.error || "Não foi possível mover. Horário pode estar bloqueado."); info.revert(); return; }
       carregarDados();
     } catch (error) { logger.warn("Erro ao mover evento:", error); alert("Erro ao mover evento. Tente novamente."); info.revert(); }
+  };
+
+  const redimensionarEvento = async (info: any) => {
+    if (info.event.extendedProps?.isBloqueio || info.event.extendedProps?.isIntervalo) {
+      info.revert();
+      return;
+    }
+    if (info.event.extendedProps?.status === "CANCELLED") {
+      info.revert();
+      alert("Não é possível alterar a duração de um agendamento cancelado.");
+      return;
+    }
+    const dbId = info.event.extendedProps?.dbId;
+    if (typeof dbId === "string" && dbId.startsWith("offline-")) {
+      info.revert();
+      alert("Agendamento offline. Aguarde a sincronização para ajustar a duração.");
+      return;
+    }
+    const start = info.event.start as Date | null;
+    const end = info.event.end as Date | null;
+    if (!start || !end) {
+      info.revert();
+      return;
+    }
+    const duracaoMinutos = Math.max(15, Math.round((end.getTime() - start.getTime()) / 60000));
+    const { version, updated_at } = info.event.extendedProps || {};
+    const body: Record<string, unknown> = { duracao_minutos: duracaoMinutos };
+    if (version != null) body.version = version;
+    if (updated_at) body.updated_at = updated_at;
+    try {
+      const res = await clinicaBelezaFetch(`/agenda/${info.event.id}/update/`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.conflict) {
+        info.revert();
+        setConflictData({
+          server: data.server,
+          local: data.local,
+          resolution_hint: data.resolution_hint,
+          appointmentId: Number(info.event.id),
+          payloadForResolve: { duracao_minutos: duracaoMinutos },
+        });
+        return;
+      }
+      if (!res.ok) {
+        alert(data.error || "Não foi possível ajustar a duração. Verifique horário de trabalho e bloqueios.");
+        info.revert();
+        return;
+      }
+      carregarDados();
+    } catch (error) {
+      logger.warn("Erro ao redimensionar evento:", error);
+      alert("Erro ao ajustar duração. Tente novamente.");
+      info.revert();
+    }
   };
 
   const handleEventClick = (info: any) => {
@@ -528,6 +585,7 @@ export default function AgendaPage() {
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#b45309]" aria-hidden />Faltou</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#6b7280]" aria-hidden />Cancelado</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#f59e0b]" aria-hidden />Intervalo</span>
+          <span className="hidden sm:inline text-gray-500 dark:text-gray-400">· Arraste a borda inferior do evento para ajustar a duração</span>
         </div>
       </ClinicaBelezaPageHeaderFooter>
 
@@ -542,15 +600,17 @@ export default function AgendaPage() {
               locale={ptBrLocale}
               editable
               eventStartEditable={true}
-              eventDurationEditable={false}
+              eventDurationEditable
               selectable={!!selectedProfessional}
               selectMirror
               selectConstraint={selectedProfessional && horariosTrabalho.some((h) => h.ativo) ? "businessHours" : undefined}
               eventConstraint={selectedProfessional && horariosTrabalho.some((h) => h.ativo) ? "businessHours" : undefined}
+              eventResizeConstraint={selectedProfessional && horariosTrabalho.some((h) => h.ativo) ? "businessHours" : undefined}
               dayMaxEvents={isMobile ? 6 : true}
               weekends
               events={eventos}
               eventDrop={moverEvento}
+              eventResize={redimensionarEvento}
               eventClick={handleEventClick}
               dateClick={handleDateClick}
               height="100%"

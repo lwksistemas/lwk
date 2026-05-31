@@ -230,6 +230,12 @@ class Appointment(LojaIsolationMixin, models.Model):
     professional = models.ForeignKey(Professional, on_delete=models.CASCADE, verbose_name="Profissional")
     procedure = models.ForeignKey(Procedure, on_delete=models.CASCADE, verbose_name="Procedimento")
     notes = models.TextField(blank=True, null=True, verbose_name="Observações")
+    duracao_minutos = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Duração efetiva (min)",
+        help_text="Opcional. Se vazio, usa a duração cadastrada do procedimento.",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
     # Sincronização offline: version para detectar conflitos; updated_by_id = ID do user (schema public)
@@ -252,6 +258,11 @@ class Appointment(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f"{self.patient.nome} - {self.procedure.nome} - {self.date.strftime('%d/%m/%Y %H:%M')}"
+
+    def get_duracao_efetiva(self) -> int:
+        if self.duracao_minutos is not None:
+            return self.duracao_minutos
+        return self.procedure.duracao_minutos
 
 
 class BloqueioHorario(BloqueioAgendaBase):

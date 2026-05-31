@@ -140,6 +140,7 @@ class AgendaUpdateView(APIView):
             appointment = Appointment.objects.select_related('procedure', 'professional', 'patient').get(pk=pk)
             new_date = request.data.get('date')
             new_status = request.data.get('status')
+            new_duracao = request.data.get('duracao_minutos')
             local_version = request.data.get('version')
             resolve_use_local = request.data.get('resolve_use_local') is True
 
@@ -168,10 +169,26 @@ class AgendaUpdateView(APIView):
                         status=status.HTTP_409_CONFLICT,
                     )
 
-            if new_date is not None:
+            if new_duracao is not None:
+                try:
+                    new_duracao = int(new_duracao)
+                except (TypeError, ValueError):
+                    return Response({'error': 'Duração inválida.'}, status=status.HTTP_400_BAD_REQUEST)
+                if new_duracao < 15:
+                    return Response({'error': 'Duração mínima de 15 minutos.'}, status=status.HTTP_400_BAD_REQUEST)
+                appointment.duracao_minutos = new_duracao
+
+            date_changed = new_date is not None
+            if date_changed:
                 from django.utils.dateparse import parse_datetime
                 date_start = (parse_datetime(new_date) if isinstance(new_date, str) else new_date) or now()
-                date_end = date_start + timedelta(minutes=appointment.procedure.duracao_minutos)
+                appointment.date = date_start
+            else:
+                date_start = appointment.date
+
+            duracao_changed = request.data.get('duracao_minutos') is not None
+            if date_changed or duracao_changed:
+                date_end = date_start + timedelta(minutes=appointment.get_duracao_efetiva())
                 bloqueios = BloqueioHorario.objects.filter(
                     Q(professional_id=appointment.professional_id) | Q(professional_id__isnull=True)
                 )
@@ -184,7 +201,6 @@ class AgendaUpdateView(APIView):
                     })
                 except ValidationError as e:
                     return Response({'error': e.messages[0] if e.messages else str(e)}, status=status.HTTP_400_BAD_REQUEST)
-                appointment.date = date_start
 
             if new_status is not None:
                 valid = dict(Appointment.STATUS_CHOICES).keys()
@@ -193,8 +209,8 @@ class AgendaUpdateView(APIView):
                 old_status = appointment.status
                 appointment.status = new_status
 
-            if new_date is None and new_status is None and not resolve_use_local:
-                return Response({'error': 'Envie date e/ou status'}, status=status.HTTP_400_BAD_REQUEST)
+            if not date_changed and new_status is None and not duracao_changed and not resolve_use_local:
+                return Response({'error': 'Envie date, duracao_minutos e/ou status'}, status=status.HTTP_400_BAD_REQUEST)
 
             appointment.version = (appointment.version or 1) + 1
             appointment.updated_by_id = getattr(request.user, 'id', None)

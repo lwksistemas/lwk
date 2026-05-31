@@ -29,6 +29,7 @@ export interface AgendaEventData {
     professional_name: string;
     procedure_name: string;
     procedure_duration: number;
+    duracao_minutos?: number;
     procedure_price: string;
     notes: string;
     version?: number;
@@ -88,8 +89,12 @@ export function ModalDetalheAgendamento({
             <p className="text-sm text-gray-500 dark:text-gray-400">Procedimento</p>
             <p className="font-semibold text-gray-900 dark:text-gray-100">{event.extendedProps.procedure_name}</p>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              {event.extendedProps.procedure_duration} min - R${" "}
-              {event.extendedProps.procedure_price}
+              {(event.extendedProps.duracao_minutos ?? event.extendedProps.procedure_duration)} min
+              {event.extendedProps.duracao_minutos != null &&
+                event.extendedProps.duracao_minutos !== event.extendedProps.procedure_duration && (
+                  <span className="text-amber-600 dark:text-amber-400"> (ajustado na agenda)</span>
+                )}
+              {" "}- R$ {event.extendedProps.procedure_price}
             </p>
           </div>
 

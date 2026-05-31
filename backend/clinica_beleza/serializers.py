@@ -343,6 +343,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     professional_id = serializers.IntegerField(source='professional.id', read_only=True)
     procedure_name = serializers.CharField(source='procedure.nome', read_only=True)
     procedure_duration = serializers.IntegerField(source='procedure.duracao_minutos', read_only=True)
+    duracao_minutos = serializers.SerializerMethodField()
     procedure_price = serializers.DecimalField(source='procedure.preco', max_digits=10, decimal_places=2, read_only=True)
     
     # Sincronização offline: version e updated_at para detecção de conflito
@@ -358,7 +359,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
             'status', 'notes',
             'patient', 'patient_name', 'patient_phone',
             'professional', 'professional_name', 'professional_id',
-            'procedure', 'procedure_name', 'procedure_duration', 'procedure_price',
+            'procedure', 'procedure_name', 'procedure_duration', 'duracao_minutos', 'procedure_price',
             'version', 'updated_at', 'updated_by_id',
         ]
     
@@ -366,10 +367,13 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         """Título do evento no calendário"""
         return f"{obj.patient.nome} - {obj.procedure.nome}"
     
+    def get_duracao_minutos(self, obj):
+        return obj.get_duracao_efetiva()
+
     def get_end(self, obj):
-        """Calcula o fim do evento baseado na duração do procedimento"""
+        """Calcula o fim do evento (duração efetiva ou padrão do procedimento)."""
         from datetime import timedelta
-        return obj.date + timedelta(minutes=obj.procedure.duracao_minutos)
+        return obj.date + timedelta(minutes=obj.get_duracao_efetiva())
     
     def get_backgroundColor(self, obj):
         """Cor de fundo baseada no status"""

@@ -364,7 +364,14 @@
   transform: translateY(-1px);
 }
 
-/* Feriados: texto escuro para legibilidade no fundo âmbar */
+/* Bloqueios: cursor de redimensionar na borda inferior */
+.fc-event-bloqueio .fc-event-resizer {
+  cursor: ns-resize;
+  height: 8px;
+}
+.fc-event-bloqueio .fc-event-resizer-end {
+  bottom: 0;
+}
 .fc-event-feriado,
 .fc-event-feriado .fc-event-title,
 .fc-event-feriado .fc-event-main {

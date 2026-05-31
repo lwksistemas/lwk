@@ -406,6 +406,12 @@ class BloqueioHorarioDetailView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except BloqueioHorario.DoesNotExist:
             return Response({'error': 'Bloqueio não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.exception('Erro ao atualizar BloqueioHorario %s: %s', pk, e)
+            return Response({'error': 'Erro ao atualizar bloqueio. Verifique data/hora e tente novamente.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk):
+        return self.put(request, pk)
 
     def delete(self, request, pk):
         try:

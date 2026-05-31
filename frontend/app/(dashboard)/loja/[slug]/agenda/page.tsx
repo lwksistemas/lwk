@@ -253,8 +253,15 @@ export default function AgendaPage() {
             return {
               id: `bloqueio-${b.id}`, title: `🚫 ${b.motivo}`, start: startStr, end: endStr,
               allDay: false, backgroundColor: COR_BLOQUEIO.bg, borderColor: COR_BLOQUEIO.border, textColor: "#fff",
-              editable: true, constraint: false,
-              extendedProps: { isBloqueio: true, bloqueioId: b.id, motivo: b.motivo, professional_name: b.professional_name || "Todos" },
+              editable: true, durationEditable: true, startEditable: true, constraint: false,
+              classNames: ["fc-event-bloqueio"],
+              extendedProps: {
+                isBloqueio: true,
+                bloqueioId: b.id,
+                motivo: b.motivo,
+                professional: b.professional,
+                professional_name: b.professional_name || "Todos",
+              },
             };
           });
         }
@@ -321,14 +328,20 @@ export default function AgendaPage() {
       info.revert();
       return;
     }
+    const motivoRaw = info.event.extendedProps?.motivo || info.event.title || "Bloqueio";
+    const motivo = String(motivoRaw).replace(/^🚫\s*/, "").trim() || "Bloqueio";
+    const body: Record<string, unknown> = {
+      data_inicio: start.toISOString(),
+      data_fim: end.toISOString(),
+      motivo,
+    };
+    const prof = info.event.extendedProps?.professional;
+    if (prof != null && prof !== "") body.professional = prof;
+
     try {
       const res = await clinicaBelezaFetch(`/bloqueios/${bloqueioId}/`, {
         method: "PUT",
-        body: JSON.stringify({
-          data_inicio: start.toISOString(),
-          data_fim: end.toISOString(),
-          motivo: info.event.extendedProps.motivo,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -631,7 +644,7 @@ export default function AgendaPage() {
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#b45309]" aria-hidden />Faltou</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#6b7280]" aria-hidden />Cancelado</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#f59e0b]" aria-hidden />Intervalo</span>
-          <span className="hidden sm:inline text-gray-500 dark:text-gray-400">· Arraste ou redimensione agendamentos e bloqueios 🚫</span>
+          <span className="hidden sm:inline text-gray-500 dark:text-gray-400">· Bloqueios 🚫: arraste ou puxe a borda inferior para ajustar</span>
         </div>
       </ClinicaBelezaPageHeaderFooter>
 
@@ -651,7 +664,6 @@ export default function AgendaPage() {
               selectMirror
               selectConstraint={selectedProfessional && horariosTrabalho.some((h) => h.ativo) ? "businessHours" : undefined}
               eventConstraint={selectedProfessional && horariosTrabalho.some((h) => h.ativo) ? "businessHours" : undefined}
-              eventResizeConstraint={selectedProfessional && horariosTrabalho.some((h) => h.ativo) ? "businessHours" : undefined}
               dayMaxEvents={isMobile ? 6 : true}
               weekends
               events={eventos}

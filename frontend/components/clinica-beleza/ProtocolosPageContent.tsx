@@ -1,10 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Pencil, Trash2, X, ClipboardList } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
-import { deleteClinicaBelezaEntity, saveClinicaBelezaEntity } from '@/lib/clinica-beleza-crud';
+import {
+  CLINICA_BELEZA_ONLINE_ONLY,
+  deleteClinicaBelezaEntity,
+  saveClinicaBelezaEntity,
+  useClinicaBelezaEntityList,
+} from '@/lib/clinica-beleza-crud';
 import { entityName, procedureCategoria } from '@/lib/clinica-beleza-entities';
 import { procedureMatchesModule } from '@/lib/clinica-beleza-categories';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
@@ -66,46 +71,47 @@ export function ProtocolosPageContent({
 }: ProtocolosPageContentProps) {
   const params = useParams();
   const slug = params.slug as string;
-  const [list, setList] = useState<Protocol[]>([]);
+  const protocolosPath = useMemo(
+    () =>
+      defaultCategoria
+        ? `/protocolos?categoria=${encodeURIComponent(defaultCategoria)}`
+        : '/protocolos',
+    [defaultCategoria],
+  );
+  const { list, loading, load } = useClinicaBelezaEntityList<Protocol>({
+    path: protocolosPath,
+    ...CLINICA_BELEZA_ONLINE_ONLY,
+    reloadDeps: [defaultCategoria],
+  });
   const [procedures, setProcedures] = useState<Procedure[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Protocol | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const loadProcedures = useCallback(async () => {
     try {
-      const qs = defaultCategoria ? `?categoria=${encodeURIComponent(defaultCategoria)}` : '';
-      const [protRes, procRes] = await Promise.all([
-        clinicaBelezaFetch(`/protocolos${qs}`),
-        clinicaBelezaFetch('/procedures/'),
-      ]);
-      if (protRes.ok) {
-        const data = await protRes.json();
-        setList(Array.isArray(data) ? data : []);
-      } else setList([]);
-      if (procRes.ok) {
-        const data = await procRes.json();
-        const arr = Array.isArray(data) ? data : [];
-        setProcedures(
-          defaultCategoria
-            ? arr.filter((p: Procedure) => procedureMatchesModule(procedureCategoria(p), defaultCategoria))
-            : arr
-        );
+      const procRes = await clinicaBelezaFetch('/procedures/');
+      if (!procRes.ok) {
+        setProcedures([]);
+        return;
       }
+      const data = await procRes.json();
+      const arr = Array.isArray(data) ? data : [];
+      setProcedures(
+        defaultCategoria
+          ? arr.filter((p: Procedure) => procedureMatchesModule(procedureCategoria(p), defaultCategoria))
+          : arr,
+      );
     } catch {
-      setList([]);
-    } finally {
-      setLoading(false);
+      setProcedures([]);
     }
   }, [defaultCategoria]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    loadProcedures();
+  }, [loadProcedures]);
 
   const openNew = () => {
     setEditing(null);
@@ -159,8 +165,13 @@ export function ProtocolosPageContent({
       }
       setShowModal(false);
       load();
-    } catch {
-      setError('Erro ao salvar protocolo.');
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message === 'SESSION_ENDED') return;
+      const msg =
+        e && typeof e === 'object' && 'error' in e && typeof (e as { error?: string }).error === 'string'
+          ? (e as { error: string }).error
+          : 'Erro ao salvar protocolo.';
+      setError(msg);
     } finally {
       setSaving(false);
     }

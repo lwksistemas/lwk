@@ -5,13 +5,17 @@
  * Criar promoções e enviar mensagem em massa por WhatsApp aos pacientes
  */
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import { Pencil, Trash2, X, Send } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
-import { deleteClinicaBelezaEntity } from "@/lib/clinica-beleza-crud";
+import {
+  CLINICA_BELEZA_ONLINE_ONLY,
+  deleteClinicaBelezaEntity,
+  saveClinicaBelezaEntity,
+  useClinicaBelezaEntityList,
+} from "@/lib/clinica-beleza-crud";
 import { formatClinicaDataCurta, formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 
 interface Campanha {
@@ -26,12 +30,19 @@ interface Campanha {
   created_at: string;
 }
 
+function extractSaveError(e: unknown, fallback: string): string {
+  if (e instanceof Error && e.message === "SESSION_ENDED") return "SESSION_ENDED";
+  if (e && typeof e === "object" && "error" in e && typeof (e as { error?: string }).error === "string") {
+    return (e as { error: string }).error;
+  }
+  return e instanceof Error ? e.message : fallback;
+}
+
 export default function CampanhasPage() {
-  const params = useParams();
-  const router = useRouter();
-  const slug = params.slug as string;
-  const [list, setList] = useState<Campanha[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { list, loading, load } = useClinicaBelezaEntityList<Campanha>({
+    path: "/campanhas/",
+    ...CLINICA_BELEZA_ONLINE_ONLY,
+  });
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Campanha | null>(null);
   const [form, setForm] = useState({
@@ -44,24 +55,6 @@ export default function CampanhasPage() {
   const [saving, setSaving] = useState(false);
   const [sendingId, setSendingId] = useState<number | null>(null);
   const [error, setError] = useState("");
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await clinicaBelezaFetch("/campanhas/");
-      const data = await res.json();
-      if (res.ok) setList(Array.isArray(data) ? data : []);
-      else setList([]);
-    } catch {
-      setList([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
 
   const openNew = () => {
     setEditing(null);
@@ -99,28 +92,16 @@ export default function CampanhasPage() {
         ativa: form.ativa,
       };
       if (editing) {
-        const res = await clinicaBelezaFetch(`/campanhas/${editing.id}/`, {
-          method: "PUT",
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "Erro ao atualizar");
-        }
+        await saveClinicaBelezaEntity(`/campanhas/${editing.id}/`, "PUT", body);
       } else {
-        const res = await clinicaBelezaFetch("/campanhas/", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "Erro ao cadastrar");
-        }
+        await saveClinicaBelezaEntity("/campanhas/", "POST", body);
       }
       setShowModal(false);
       load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Erro ao salvar");
+      const msg = extractSaveError(e, "Erro ao salvar");
+      if (msg === "SESSION_ENDED") return;
+      setError(msg);
     } finally {
       setSaving(false);
     }

@@ -96,6 +96,12 @@ export function useClinicaBelezaEntityList<T>({
   return { list, setList, loading, load };
 }
 
+/** Entidades sem cache offline (campanhas, protocolos, etc.). */
+export const CLINICA_BELEZA_ONLINE_ONLY = {
+  fetchOffline: async (): Promise<unknown[]> => [],
+  saveOffline: async (): Promise<void> => {},
+};
+
 /** Classes CSS compartilhadas em formulários da clínica. */
 export const CLINICA_FORM_INPUT =
   'w-full px-3 py-2.5 border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 text-sm';

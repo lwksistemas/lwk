@@ -421,6 +421,21 @@ ASAAS_INVOICE_SERVICE_NAME = os.environ.get('ASAAS_INVOICE_SERVICE_NAME', 'Softw
 ASAAS_INVOICE_SERVICE_ID = os.environ.get('ASAAS_INVOICE_SERVICE_ID', '')
 
 # ============================================
+# MEMED — Prescrição digital (Clínica da Beleza)
+# Receituário e exames. api-key/secret-key ficam no servidor; o frontend recebe
+# apenas o token do prescritor. Docs: https://doc.memed.com.br/docs/backend-api
+# ============================================
+MEMED_API_KEY = os.environ.get('MEMED_API_KEY', '')
+MEMED_SECRET_KEY = os.environ.get('MEMED_SECRET_KEY', '')
+# 'integration' (sandbox/homologação) ou 'production'
+MEMED_ENVIRONMENT = os.environ.get('MEMED_ENVIRONMENT', 'integration')
+# Prescritor padrão (CPF, external_id ou registro+UF, ex.: '12345SP') quando o
+# profissional não tiver registro_profissional cadastrado. Útil para testes.
+MEMED_PRESCRITOR_ID = os.environ.get('MEMED_PRESCRITOR_ID', '')
+# UF usada junto ao registro profissional (CRM) para identificar o prescritor.
+MEMED_DEFAULT_UF = os.environ.get('MEMED_DEFAULT_UF', '')
+
+# ============================================
 # DJANGO-Q CONFIGURATION (Task Queue)
 # ============================================
 Q_CLUSTER = {

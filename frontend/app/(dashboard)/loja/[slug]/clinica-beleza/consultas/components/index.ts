@@ -13,3 +13,5 @@ export { ConsultaAtendimentoTab } from "./ConsultaAtendimentoTab";
 export { ConsultaAnamneseTab } from "./ConsultaAnamneseTab";
 export { ConsultaEvolucaoTab } from "./ConsultaEvolucaoTab";
 export { ConsultaHistoricoTab } from "./ConsultaHistoricoTab";
+export { default as MemedPrescricao } from "./MemedPrescricao";
+export type { MemedPrescricaoHandle } from "./MemedPrescricao";

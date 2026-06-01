@@ -2,6 +2,7 @@ export interface Consulta {
   id: number;
   patient: number;
   procedure: number;
+  professional?: number | null;
   patient_name: string;
   professional_name: string;
   procedure_name: string;

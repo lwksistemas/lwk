@@ -5,7 +5,7 @@
  * Lista simplificada; consulta selecionada ocupa a página inteira com preview antes de editar.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -16,6 +16,8 @@ import {
   ChevronRight,
   CheckCircle2,
   Play,
+  Pill,
+  FlaskConical,
 } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
@@ -37,6 +39,8 @@ import {
   ConsultaEvolucaoTab,
   ConsultaHistoricoTab,
   ConsultaFinalizarModal,
+  MemedPrescricao,
+  type MemedPrescricaoHandle,
 } from "./components";
 
 export default function ConsultasPage() {
@@ -67,6 +71,8 @@ export default function ConsultasPage() {
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [iniciando, setIniciando] = useState(false);
+  const memedRef = useRef<MemedPrescricaoHandle>(null);
+  const [memedBusy, setMemedBusy] = useState(false);
   const [finalizarForm, setFinalizarForm] = useState({
     payment_method: "CASH",
     mark_as_paid: false,
@@ -277,6 +283,19 @@ export default function ConsultasPage() {
     }
   };
 
+  const abrirMemed = async () => {
+    if (!memedRef.current || memedBusy) return;
+    setMemedBusy(true);
+    try {
+      await memedRef.current.abrir();
+    } catch (e: unknown) {
+      logger.warn("Erro ao abrir a Memed:", e);
+      alert(e instanceof Error ? e.message : "Erro ao abrir a prescrição da Memed.");
+    } finally {
+      setMemedBusy(false);
+    }
+  };
+
   const podeIniciar = selected?.status === "SCHEDULED";
   const podeFinalizar = selected?.status === "IN_PROGRESS";
 
@@ -366,8 +385,34 @@ export default function ConsultasPage() {
                   {label}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={abrirMemed}
+                disabled={memedBusy}
+                title="Abrir receituário digital na Memed"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
+              >
+                <Pill size={16} />
+                Receituário
+              </button>
+              <button
+                type="button"
+                onClick={abrirMemed}
+                disabled={memedBusy}
+                title="Solicitar exames na Memed"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
+              >
+                <FlaskConical size={16} />
+                Exames
+              </button>
             </div>
           </div>
+          <MemedPrescricao
+            ref={memedRef}
+            professionalId={selected.professional ?? null}
+            patientId={selected.patient}
+            patientName={selected.patient_name}
+          />
 
           <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
             {loadingDetalhe ? (

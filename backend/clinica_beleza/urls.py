@@ -27,6 +27,7 @@ from .views_estoque import (
     MovimentacaoEstoqueView, HistoricoEstoqueView, EstoqueResumoView,
 )
 from .views_protocolos import ProtocolListView, ProtocolDetailView
+from .views_memed import MemedTokenView
 
 app_name = 'clinica_beleza'
 
@@ -49,6 +50,9 @@ urlpatterns = [
     path('consultas/<int:pk>/finalizar/', ConsultaFinalizarView.as_view(), name='consultas-finalizar'),
     path('consultas/<int:pk>/aplicar-protocolo/', ConsultaAplicarProtocoloView.as_view(), name='consultas-aplicar-protocolo'),
     path('consultas/<int:consulta_id>/evolucoes/', ConsultaEvolucaoListView.as_view(), name='consultas-evolucoes'),
+
+    # Memed — prescrição digital (receituário e exames)
+    path('memed/token/', MemedTokenView.as_view(), name='memed-token'),
     
     # Profissionais
     path('professionals/', ProfessionalListView.as_view(), name='professionals-list'),

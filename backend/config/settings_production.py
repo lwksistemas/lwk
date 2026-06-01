@@ -382,6 +382,13 @@ ASAAS_INTEGRATION_ENABLED = True
 ASAAS_API_KEY = os.environ.get('ASAAS_API_KEY', '')
 ASAAS_SANDBOX = os.environ.get('ASAAS_SANDBOX', 'True').lower() == 'true'
 
+# MEMED — Prescrição digital (Clínica da Beleza). Docs: https://doc.memed.com.br/docs/backend-api
+MEMED_API_KEY = os.environ.get('MEMED_API_KEY', '')
+MEMED_SECRET_KEY = os.environ.get('MEMED_SECRET_KEY', '')
+MEMED_ENVIRONMENT = os.environ.get('MEMED_ENVIRONMENT', 'integration')  # 'integration' ou 'production'
+MEMED_PRESCRITOR_ID = os.environ.get('MEMED_PRESCRITOR_ID', '')
+MEMED_DEFAULT_UF = os.environ.get('MEMED_DEFAULT_UF', '')
+
 # LOGGING
 LOGGING = {
     'version': 1,

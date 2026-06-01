@@ -254,4 +254,15 @@ export class ClinicaBelezaAPI {
     save: (patientId: number, data: Record<string, unknown>) =>
       ClinicaBelezaAPI.put(`/patients/${patientId}/anamnese/`, data),
   };
+
+  static memed = {
+    /** Token do prescritor + URL do script da Memed (api-key/secret-key ficam no backend). */
+    token: (params?: { professional?: number; prescritor?: string; uf?: string }) =>
+      ClinicaBelezaAPI.get<{
+        token: string;
+        script_url: string;
+        environment: string;
+        prescritor?: { nome?: string; sobrenome?: string; crm?: string; uf?: string };
+      }>('/memed/token/', params as Record<string, string> | undefined),
+  };
 }

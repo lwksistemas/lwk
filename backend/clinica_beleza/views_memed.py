@@ -134,6 +134,12 @@ class MemedTokenView(APIView):
             prof = Professional.objects.filter(pk=professional_id).first()
             if prof and prof.registro_profissional:
                 raw = prof.registro_profissional.strip().upper()
+                # CPF (11 dígitos) identifica o prescritor independentemente do conselho
+                # (CRM/COREN/CRF/…), pois o cadastro e o certificado na Memed são por
+                # pessoa física. Quando informado, tem prioridade e dispensa a UF.
+                digitos = ''.join(ch for ch in raw if ch.isdigit())
+                if len(digitos) == 11:
+                    return digitos
                 match_uf = re.search(r'[-\s/]*([A-Z]{2})\s*$', raw)
                 uf_campo = match_uf.group(1) if match_uf else ''
                 registro = ''.join(ch for ch in raw if ch.isalnum())

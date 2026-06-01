@@ -93,6 +93,8 @@ export function ProfissionalFormModal({ editing, form, saving, error, onChange, 
             </div>
             <p className="col-span-3 text-xs text-gray-500 dark:text-gray-400">
               Usado para vincular o profissional como prescritor na Memed (receituário e exames).
+              Aceita CRM, COREN, CRF e outros conselhos. Você também pode informar o CPF do
+              prescritor (11 dígitos), que vale para qualquer conselho.
             </p>
           </div>
           {!editing && (

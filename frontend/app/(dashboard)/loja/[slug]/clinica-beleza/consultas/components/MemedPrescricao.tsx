@@ -13,7 +13,7 @@
  */
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
-import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { apenasDigitos } from "@/lib/format-br";
 import { logger } from "@/lib/logger";
 
@@ -205,11 +205,20 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
       if (initPromiseRef.current) return initPromiseRef.current;
 
       const promise = (async () => {
-        const cfg = await ClinicaBelezaAPI.memed.token({
-          professional: professionalId ?? undefined,
-        });
+        const path =
+          professionalId != null
+            ? `/memed/token/?professional=${professionalId}`
+            : "/memed/token/";
+        const res = await clinicaBelezaFetch(path);
+        const cfg = await res.json();
+        if (!res.ok) {
+          throw new Error(
+            (typeof cfg?.error === "string" && cfg.error) ||
+              "Não foi possível obter o token do prescritor na Memed.",
+          );
+        }
         if (!cfg?.token || !cfg?.script_url) {
-          throw new Error("Configuração da Memed incompleta.");
+          throw new Error("Configuração da Memed incompleta (token ou script ausente).");
         }
         clinicaRef.current = cfg.clinica ?? null;
         await carregarScript(cfg.script_url, cfg.token);

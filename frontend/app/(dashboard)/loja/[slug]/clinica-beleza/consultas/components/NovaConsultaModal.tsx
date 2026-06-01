@@ -76,6 +76,19 @@ export function NovaConsultaModal({
     return base.slice(0, 50);
   }, [busca, patients]);
 
+  // Seleciona automaticamente quando a busca deixa apenas um cliente, evitando o
+  // erro comum de digitar e esquecer de clicar no nome na lista.
+  useEffect(() => {
+    if (pacientesFiltrados.length === 1) {
+      setPatientId(pacientesFiltrados[0].id);
+    }
+  }, [pacientesFiltrados]);
+
+  const clienteSelecionado = useMemo(
+    () => patients.find((p) => p.id === patientId) || null,
+    [patients, patientId],
+  );
+
   const criar = async () => {
     if (!patientId || !professionalId || !procedureId) {
       setErro("Selecione o cliente, o profissional e o procedimento.");
@@ -145,9 +158,15 @@ export function NovaConsultaModal({
                     ))
                   )}
                 </select>
-                <p className="text-xs text-gray-400 mt-1">
-                  O cliente precisa estar cadastrado em Pacientes.
-                </p>
+                {clienteSelecionado ? (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    Cliente selecionado: <strong>{clienteSelecionado.nome}</strong>
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Clique no nome para selecionar. O cliente precisa estar cadastrado em Pacientes.
+                  </p>
+                )}
               </div>
 
               <div>

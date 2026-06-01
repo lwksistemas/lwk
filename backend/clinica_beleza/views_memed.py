@@ -54,6 +54,39 @@ def _memed_credentials(env):
     return api_key, secret_key
 
 
+def _dados_clinica(request):
+    """
+    Dados do estabelecimento (loja atual) para o cabeçalho/rodapé da receita,
+    usados pelo comando setWorkplace da Memed. Retorna {} se indisponível —
+    nesse caso o frontend simplesmente não chama setWorkplace.
+    """
+    try:
+        from tenants.middleware import ensure_loja_context, get_current_loja_id
+        from superadmin.models import Loja
+
+        ensure_loja_context(request)
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return {}
+        loja = Loja.objects.using('default').filter(id=loja_id).first()
+        if not loja:
+            return {}
+
+        endereco = ', '.join(p for p in [loja.logradouro, loja.numero] if p)
+        if loja.bairro:
+            endereco = f"{endereco} - {loja.bairro}" if endereco else loja.bairro
+        return {
+            'local_name': loja.nome or '',
+            'address': endereco,
+            'city': loja.cidade or '',
+            'state': (loja.uf or '').upper(),
+            'phone': loja.owner_telefone or '',
+        }
+    except Exception as e:  # noqa: BLE001 — dado opcional; nunca deve quebrar o token.
+        logger.warning('Memed: não foi possível obter dados da clínica (%s)', e)
+        return {}
+
+
 class MemedTokenView(APIView):
     """
     GET /clinica-beleza/memed/token/?professional=<id>&uf=<UF>
@@ -130,6 +163,7 @@ class MemedTokenView(APIView):
                 'crm': attrs.get('crm', ''),
                 'uf': attrs.get('uf', ''),
             },
+            'clinica': _dados_clinica(request),
         })
 
     def _resolver_prescritor_id(self, request, env='integration'):

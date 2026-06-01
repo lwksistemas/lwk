@@ -263,6 +263,13 @@ export class ClinicaBelezaAPI {
         script_url: string;
         environment: string;
         prescritor?: { nome?: string; sobrenome?: string; crm?: string; uf?: string };
+        clinica?: {
+          local_name?: string;
+          address?: string;
+          city?: string;
+          state?: string;
+          phone?: string;
+        };
       }>('/memed/token/', params as Record<string, string> | undefined),
   };
 }

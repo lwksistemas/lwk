@@ -28,6 +28,16 @@ declare global {
 export interface MemedPrescricaoHandle {
   /** Garante a Memed carregada, define o paciente e abre o editor de prescrição. */
   abrir: () => Promise<void>;
+  /** Fecha o editor de prescrição da Memed (comando `hide`). */
+  fechar: () => void;
+}
+
+interface DadosClinica {
+  local_name?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  phone?: string;
 }
 
 interface MemedPrescricaoProps {
@@ -80,6 +90,7 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
   ({ professionalId, patientId, patientName }, ref) => {
     const initPromiseRef = useRef<Promise<void> | null>(null);
     const readyRef = useRef(false);
+    const clinicaRef = useRef<DadosClinica | null>(null);
 
     const carregarScript = useCallback((scriptUrl: string, token: string) => {
       return new Promise<void>((resolve, reject) => {
@@ -140,6 +151,7 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
         if (!cfg?.token || !cfg?.script_url) {
           throw new Error("Configuração da Memed incompleta.");
         }
+        clinicaRef.current = cfg.clinica ?? null;
         await carregarScript(cfg.script_url, cfg.token);
         await aguardarModulo();
         readyRef.current = true;
@@ -160,6 +172,19 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
       });
     }, [garantirPronto]);
 
+    // Logout ao desmontar: limpa o localStorage da Memed. A doc exige isso
+    // OBRIGATORIAMENTE quando vários prescritores usam o mesmo computador, para
+    // evitar mistura de cadastros entre sessões. Doc: comandos-mdhub/logout.
+    useEffect(() => {
+      return () => {
+        try {
+          window.MdHub?.command?.send?.("plataforma.sdk", "logout");
+        } catch {
+          // Silencioso: o componente já está sendo desmontado.
+        }
+      };
+    }, []);
+
     const definirPaciente = useCallback(async () => {
       let detalhe: Record<string, any> = {};
       try {
@@ -169,8 +194,11 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
       }
       // A Memed não permite editar manualmente os campos enviados via MdHub.
       // Por isso enviamos apenas os campos preenchidos — o prescritor completa o resto.
+      // A Memed aceita o id externo como `idExterno` (SDK) e `external_id` (exemplos
+      // oficiais do script). Enviamos os dois para garantir o vínculo do paciente.
       const paciente: Record<string, unknown> = {
         idExterno: String(patientId),
+        external_id: String(patientId),
         nome: detalhe?.nome || patientName,
       };
       const cpf = apenasDigitos(detalhe?.cpf);
@@ -186,17 +214,43 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
       await window.MdHub.command.send("plataforma.prescricao", "setPaciente", paciente);
     }, [patientId, patientName]);
 
+    // Preenche o local de atendimento (clínica) no receituário via setWorkplace.
+    // Opcional: se não houver dados da clínica, não envia nada.
+    const definirClinica = useCallback(async () => {
+      const clinica = clinicaRef.current;
+      if (!clinica || !clinica.local_name) return;
+      const workplace: Record<string, unknown> = { local_name: clinica.local_name };
+      if (clinica.address) workplace.address = clinica.address;
+      if (clinica.city) workplace.city = clinica.city;
+      if (clinica.state) workplace.state = clinica.state;
+      if (clinica.phone) workplace.phone = String(clinica.phone);
+      try {
+        await window.MdHub.command.send("plataforma.prescricao", "setWorkplace", workplace);
+      } catch (e) {
+        logger.warn("Memed: não foi possível definir o local de atendimento:", e);
+      }
+    }, []);
+
     const abrir = useCallback(async () => {
       await garantirPronto();
       if (!window.MdHub) {
         throw new Error("Memed não disponível.");
       }
       await definirPaciente();
+      await definirClinica();
       // Método canônico do quickstart da Memed para exibir o módulo de prescrição.
       window.MdHub.module.show("plataforma.prescricao");
-    }, [garantirPronto, definirPaciente]);
+    }, [garantirPronto, definirPaciente, definirClinica]);
 
-    useImperativeHandle(ref, () => ({ abrir }), [abrir]);
+    const fechar = useCallback(() => {
+      try {
+        window.MdHub?.module?.hide?.("plataforma.prescricao");
+      } catch (e) {
+        logger.warn("Memed: falha ao fechar o módulo de prescrição:", e);
+      }
+    }, []);
+
+    useImperativeHandle(ref, () => ({ abrir, fechar }), [abrir, fechar]);
 
     return null;
   },

@@ -392,6 +392,10 @@ MEMED_DEFAULT_UF = os.environ.get('MEMED_DEFAULT_UF', '')
 MEMED_API_KEY_PROD = os.environ.get('MEMED_API_KEY_PROD', '')
 MEMED_SECRET_KEY_PROD = os.environ.get('MEMED_SECRET_KEY_PROD', '')
 MEMED_PRESCRITOR_ID_PROD = os.environ.get('MEMED_PRESCRITOR_ID_PROD', '')
+# Auto-cadastro do prescritor na Memed ao salvar um profissional (POST de usuário).
+# O endpoint de criação não está na doc pública da Memed — ative só depois de confirmar
+# com o suporte de parceiros que sua conta tem permissão para criar prescritores via API.
+MEMED_AUTO_CADASTRO = os.environ.get('MEMED_AUTO_CADASTRO', 'false').strip().lower() in ('1', 'true', 'yes', 'on')
 
 # LOGGING
 LOGGING = {

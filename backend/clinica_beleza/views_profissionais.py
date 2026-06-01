@@ -17,6 +17,18 @@ from .utils import LojaContextHelper
 
 logger = logging.getLogger(__name__)
 
+
+def _sync_memed(professional):
+    """Dispara o auto-cadastro do prescritor na Memed (best-effort; nunca quebra o save)."""
+    try:
+        from .memed_service import sincronizar_prescritor
+        resultado = sincronizar_prescritor(professional)
+        if resultado.get('ok') is False and resultado.get('status'):
+            logger.info('Memed auto-cadastro prof %s: %s', getattr(professional, 'id', None), resultado)
+    except Exception as e:  # noqa: BLE001 — sincronização é opcional.
+        logger.warning('Memed auto-cadastro ignorado (prof %s): %s', getattr(professional, 'id', None), e)
+
+
 _PROFESSIONAL_FIELD_MAP = {
     'name': 'nome',
     'specialty': 'especialidade',
@@ -99,8 +111,10 @@ class ProfessionalListView(APIView):
         if data.get('criar_acesso') and data.get('email'):
             serializer = ProfessionalCreateWithUserSerializer(data=data)
             if serializer.is_valid():
+                professional = serializer.save()
+                _sync_memed(professional)
                 return Response(
-                    ProfessionalSerializer(serializer.save()).data,
+                    ProfessionalSerializer(professional).data,
                     status=status.HTTP_201_CREATED,
                 )
             err_payload = dict(serializer.errors)
@@ -124,7 +138,8 @@ class ProfessionalListView(APIView):
 
         serializer = ProfessionalSerializer(data=payload)
         if serializer.is_valid():
-            serializer.save()
+            professional = serializer.save()
+            _sync_memed(professional)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         logger.error('POST professionals 400 payload=%s errors=%s', payload, json.dumps(serializer.errors, ensure_ascii=False))
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -151,7 +166,8 @@ class ProfessionalDetailView(APIView):
             data = _map_professional_data(request.data)
             serializer = ProfessionalSerializer(obj, data=data, partial=True)
             if serializer.is_valid():
-                serializer.save()
+                professional = serializer.save()
+                _sync_memed(professional)
                 return Response(serializer.data)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Professional.DoesNotExist:

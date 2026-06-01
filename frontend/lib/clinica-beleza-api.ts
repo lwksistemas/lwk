@@ -253,6 +253,9 @@ export class ClinicaBelezaAPI {
   static consultas = {
     list: (params?: { patient?: number; professional?: number; status?: string; appointment?: number }) =>
       ClinicaBelezaAPI.get('/consultas/', params),
+    /** Abre uma consulta avulsa (sem agendamento na agenda) a partir do cadastro do cliente. */
+    criar: (data: { patient: number; professional: number; procedure: number; iniciar?: boolean }) =>
+      ClinicaBelezaAPI.post('/consultas/', data),
     get: (id: number) => ClinicaBelezaAPI.get(`/consultas/${id}/`),
     update: (id: number, data: Record<string, unknown>) => ClinicaBelezaAPI.patch(`/consultas/${id}/`, data),
     aplicarProtocolo: (id: number, protocolId: number) =>

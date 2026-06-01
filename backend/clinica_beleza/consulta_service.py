@@ -101,6 +101,41 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
     return None
 
 
+def criar_consulta_avulsa(*, patient, professional, procedure, loja_id=None, iniciar=True):
+    """
+    Cria uma consulta "avulsa" (sem agendamento prévio na agenda), a partir do
+    cadastro do cliente. Gera o Appointment correspondente e a Consulta vinculada.
+
+    Por padrão já inicia o atendimento (status IN_PROGRESS) para liberar imediatamente
+    o atendimento e o receituário/exames. Passe iniciar=False para deixar agendada.
+
+    Retorna a Consulta criada.
+    """
+    ts = now()
+    status_inicial = 'IN_PROGRESS' if iniciar else 'SCHEDULED'
+    loja_id = loja_id or getattr(patient, 'loja_id', None)
+
+    appointment = Appointment.objects.create(
+        date=ts,
+        status=status_inicial,
+        patient=patient,
+        professional=professional,
+        procedure=procedure,
+        loja_id=loja_id,
+    )
+    consulta = Consulta.objects.create(
+        appointment=appointment,
+        patient=patient,
+        professional=professional,
+        procedure=procedure,
+        status=status_inicial,
+        data_inicio=ts if iniciar else None,
+        valor_consulta=_valor_consulta(appointment),
+        loja_id=loja_id,
+    )
+    return consulta
+
+
 def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=None, mark_as_paid=False, amount=None):
     """Garante lançamento financeiro do atendimento (cria ou atualiza)."""
     payment = Payment.objects.filter(appointment=appointment).first()

@@ -6,16 +6,23 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
-from .models import Consulta, PatientAnamnese, ConsultaEvolucao, ProcedureProtocol, Patient, PrescricaoMemed
+from .models import (
+    Consulta, PatientAnamnese, ConsultaEvolucao, ProcedureProtocol,
+    Patient, Professional, Procedure, PrescricaoMemed,
+)
 from .serializers import (
     ConsultaSerializer, PatientAnamneseSerializer, ConsultaEvolucaoSerializer,
     PrescricaoMemedSerializer,
 )
-from .consulta_service import finalizar_consulta, iniciar_consulta
+from .consulta_service import finalizar_consulta, iniciar_consulta, criar_consulta_avulsa
 
 
 class ConsultaListView(APIView):
-    """GET /clinica-beleza/consultas/ — lista consultas (criadas via agenda)."""
+    """
+    GET  /clinica-beleza/consultas/ — lista consultas.
+    POST /clinica-beleza/consultas/ — abre uma consulta avulsa (sem agendamento na
+         agenda) a partir do cadastro do cliente.
+    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -31,6 +38,42 @@ class ConsultaListView(APIView):
         if appointment_id := request.query_params.get('appointment'):
             qs = qs.filter(appointment_id=appointment_id)
         return Response(ConsultaSerializer(qs, many=True).data)
+
+    def post(self, request):
+        patient_id = request.data.get('patient')
+        professional_id = request.data.get('professional')
+        procedure_id = request.data.get('procedure')
+        if not patient_id or not professional_id or not procedure_id:
+            return Response(
+                {'error': 'Informe cliente, profissional e procedimento.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            patient = Patient.objects.get(pk=patient_id)
+        except Patient.DoesNotExist:
+            return Response({'error': 'Cliente não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            professional = Professional.objects.get(pk=professional_id)
+        except Professional.DoesNotExist:
+            return Response({'error': 'Profissional não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            procedure = Procedure.objects.get(pk=procedure_id)
+        except Procedure.DoesNotExist:
+            return Response({'error': 'Procedimento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        iniciar = request.data.get('iniciar', True)
+        consulta = criar_consulta_avulsa(
+            patient=patient,
+            professional=professional,
+            procedure=procedure,
+            loja_id=patient.loja_id,
+            iniciar=bool(iniciar),
+        )
+        consulta = Consulta.objects.select_related(
+            'patient', 'professional', 'procedure', 'protocol', 'appointment',
+        ).get(pk=consulta.id)
+        return Response(ConsultaSerializer(consulta).data, status=status.HTTP_201_CREATED)
 
 
 class ConsultaDetailView(APIView):

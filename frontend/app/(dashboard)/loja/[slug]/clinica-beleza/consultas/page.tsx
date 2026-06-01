@@ -18,6 +18,7 @@ import {
   Play,
   Pill,
   FlaskConical,
+  Plus,
 } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
@@ -39,6 +40,7 @@ import {
   ConsultaEvolucaoTab,
   ConsultaHistoricoTab,
   ConsultaFinalizarModal,
+  NovaConsultaModal,
   MemedPrescricao,
   type MemedPrescricaoHandle,
 } from "./components";
@@ -70,6 +72,7 @@ export default function ConsultasPage() {
   const [protocoloPreview, setProtocoloPreview] = useState<Protocolo | null>(null);
   const [protocoloPendingId, setProtocoloPendingId] = useState<number | null>(null);
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
+  const [showNovaConsulta, setShowNovaConsulta] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [iniciando, setIniciando] = useState(false);
   const memedRef = useRef<MemedPrescricaoHandle>(null);
@@ -149,6 +152,12 @@ export default function ConsultasPage() {
       loadDetalhes(found);
     }
   }, [searchParams, consultas, selected?.id, loadDetalhes]);
+
+  const onConsultaCriada = async (consulta: Consulta) => {
+    setShowNovaConsulta(false);
+    setConsultas((prev) => [consulta, ...prev]);
+    await loadDetalhes(consulta);
+  };
 
   const voltarLista = () => {
     setSelected(null);
@@ -512,15 +521,28 @@ export default function ConsultasPage() {
         subtitle="Confirme na Agenda · inicie e finalize aqui"
       />
       <ClinicaBelezaPageContent>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-          Fluxo: recepção confirma o agendamento na Agenda → profissional inicia e finaliza o atendimento aqui.
-          Horários de início e fim são registrados automaticamente.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400 max-w-2xl">
+            Fluxo: recepção confirma o agendamento na Agenda → profissional inicia e finaliza o atendimento aqui.
+            Horários de início e fim são registrados automaticamente. Você também pode abrir uma consulta
+            avulsa direto pelo cadastro do cliente, sem passar pela Agenda.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowNovaConsulta(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-white text-sm font-medium shrink-0"
+            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+          >
+            <Plus size={16} />
+            Nova consulta
+          </button>
+        </div>
         {loading ? (
           <div className="text-center py-16 text-gray-500">Carregando...</div>
         ) : consultas.length === 0 ? (
           <ClinicaBelezaPanel className="p-12 text-center text-gray-500 text-sm">
-            Nenhuma consulta ainda. Confirme um agendamento na Agenda para liberar o atendimento.
+            Nenhuma consulta ainda. Confirme um agendamento na Agenda ou clique em <strong>Nova consulta</strong> para
+            abrir um atendimento direto pelo cadastro do cliente.
           </ClinicaBelezaPanel>
         ) : (
           <ClinicaBelezaPanel>
@@ -563,6 +585,11 @@ export default function ConsultasPage() {
           </ClinicaBelezaPanel>
         )}
       </ClinicaBelezaPageContent>
+      <NovaConsultaModal
+        open={showNovaConsulta}
+        onClose={() => setShowNovaConsulta(false)}
+        onCreated={onConsultaCriada}
+      />
     </>
   );
 }

@@ -454,56 +454,49 @@ class TenantMiddleware:
         # Validar owner
         if loja.owner_id != request.user.id:
             # 🔧 PERMITIR acesso se for funcionário/profissional/vendedor (só logar se for bloquear)
+            #
+            # IMPORTANTE: cada verificação é isolada em seu próprio try/except. As tabelas de
+            # funcionário (clinica_estetica/restaurante) vivem no schema da loja e podem NÃO
+            # existir conforme o tipo de loja — uma exceção ali não pode abortar as demais
+            # verificações (ex.: ProfissionalUsuario da Clínica da Beleza, que fica no schema
+            # público). Antes, um erro em clinica_funcionarios bloqueava profissionais válidos.
+
+            # Profissional/usuário da Clínica da Beleza (ProfissionalUsuario) — schema público.
+            try:
+                from superadmin.models import ProfissionalUsuario
+                if ProfissionalUsuario.objects.filter(user=request.user, loja=loja).exists():
+                    return True
+            except Exception as e:
+                logger.error(f"❌ Erro ao verificar ProfissionalUsuario: {e}")
+
+            # Vendedor do CRM (VendedorUsuario) — schema público.
+            try:
+                from superadmin.models import VendedorUsuario
+                if VendedorUsuario.objects.filter(user=request.user, loja=loja).exists():
+                    return True
+            except Exception as e:
+                logger.error(f"❌ Erro ao verificar VendedorUsuario: {e}")
+
+            # Funcionário (Clínica Estética) — tabela no schema da loja; pode não existir.
             try:
                 from clinica_estetica.models import Funcionario as FuncionarioClinica
-                from restaurante.models import Funcionario as FuncionarioRestaurante
-                from servicos.models import Funcionario as FuncionarioServicos
-                
-                # Verificar se é funcionário (Clínica Estética)
-                is_funcionario_clinica = FuncionarioClinica.objects.all_without_filter().filter(
-                    loja_id=loja.id,
-                    email=request.user.email,
-                    is_active=True
-                ).exists()
-                
-                if is_funcionario_clinica:
+                if FuncionarioClinica.objects.all_without_filter().filter(
+                    loja_id=loja.id, email=request.user.email, is_active=True
+                ).exists():
                     return True
-                
-                # Verificar se é funcionário (Restaurante)
-                is_funcionario_restaurante = FuncionarioRestaurante.objects.all_without_filter().filter(
-                    loja_id=loja.id,
-                    email=request.user.email,
-                    is_active=True
-                ).exists()
-                
-                if is_funcionario_restaurante:
-                    return True
-                
-                # Verificar se é profissional/usuário da Clínica da Beleza (ProfissionalUsuario)
-                from superadmin.models import ProfissionalUsuario
-                is_profissional_loja = ProfissionalUsuario.objects.filter(
-                    user=request.user,
-                    loja=loja
-                ).exists()
-                if is_profissional_loja:
-                    return True
-
-                # Verificar se é vendedor do CRM (VendedorUsuario)
-                from superadmin.models import VendedorUsuario
-                is_vendedor_loja = VendedorUsuario.objects.filter(
-                    user=request.user,
-                    loja=loja
-                ).exists()
-                if is_vendedor_loja:
-                    return True
-                
-                # Verificar se é funcionário (Serviços)
-                # Nota: Serviços não usa LojaIsolationMixin, então não tem loja_id
-                # Vamos pular essa verificação por enquanto
-                
             except Exception as e:
-                logger.error(f"❌ Erro ao verificar se é funcionário: {e}", exc_info=True)
-            
+                logger.debug(f"Verificação FuncionarioClinica ignorada: {e}")
+
+            # Funcionário (Restaurante) — tabela no schema da loja; pode não existir.
+            try:
+                from restaurante.models import Funcionario as FuncionarioRestaurante
+                if FuncionarioRestaurante.objects.all_without_filter().filter(
+                    loja_id=loja.id, email=request.user.email, is_active=True
+                ).exists():
+                    return True
+            except Exception as e:
+                logger.debug(f"Verificação FuncionarioRestaurante ignorada: {e}")
+
             logger.warning(
                 f"⚠️ Usuário {request.user.id} ({request.user.email}) não tem permissão para loja {loja.slug} (owner: {loja.owner_id})"
             )

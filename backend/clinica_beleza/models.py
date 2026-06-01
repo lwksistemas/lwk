@@ -594,6 +594,52 @@ class Consulta(LojaIsolationMixin, models.Model):
         return None
 
 
+class PrescricaoMemed(LojaIsolationMixin, models.Model):
+    """
+    Prescrição emitida na Memed (receituário/exames), registrada no histórico do
+    paciente a partir do evento `prescricaoImpressa` capturado no frontend.
+    """
+    consulta = models.ForeignKey(
+        Consulta,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='prescricoes_memed',
+        verbose_name='Consulta',
+    )
+    patient = models.ForeignKey(
+        Patient, on_delete=models.CASCADE, related_name='prescricoes_memed', verbose_name='Cliente',
+    )
+    professional = models.ForeignKey(
+        Professional, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Profissional',
+    )
+    prescricao_id = models.CharField(
+        max_length=64, blank=True, default='', verbose_name='ID na Memed',
+        help_text='Identificador da prescrição retornado pela Memed.',
+    )
+    resumo = models.TextField(
+        blank=True, default='', verbose_name='Resumo',
+        help_text='Lista legível dos itens prescritos (medicamentos/exames).',
+    )
+    itens = models.JSONField(
+        default=list, blank=True, verbose_name='Itens',
+        help_text='Itens estruturados da prescrição (nome, posologia, tipo, receituário).',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_prescricoes_memed'
+        ordering = ['-created_at']
+        verbose_name = 'Prescrição Memed'
+        verbose_name_plural = 'Prescrições Memed'
+
+    def __str__(self):
+        return f'Prescrição {self.patient.nome} — {self.created_at:%d/%m/%Y %H:%M}'
+
+
 class PatientAnamnese(LojaIsolationMixin, models.Model):
     """Anamnese do cliente — histórico clínico persistente."""
     patient = models.OneToOneField(

@@ -22,7 +22,7 @@ import {
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { CLINICA_CONSULTA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
@@ -59,6 +59,7 @@ export default function ConsultasPage() {
   const [anamneseDraft, setAnamneseDraft] = useState<Anamnese>(EMPTY_ANAMNESE);
   const [evolucoes, setEvolucoes] = useState<Evolucao[]>([]);
   const [historico, setHistorico] = useState<Consulta[]>([]);
+  const [prescricoes, setPrescricoes] = useState<PrescricaoMemedItem[]>([]);
   const [observacoes, setObservacoes] = useState("");
   const [observacoesDraft, setObservacoesDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -119,11 +120,12 @@ export default function ConsultasPage() {
     router.replace(`/loja/${slug}/clinica-beleza/consultas?id=${consulta.id}`, { scroll: false });
 
     try {
-      const [anam, evol, hist, prots] = await Promise.all([
+      const [anam, evol, hist, prots, presc] = await Promise.all([
         ClinicaBelezaAPI.anamnese.get(consulta.patient),
         ClinicaBelezaAPI.consultas.evolucoes.list(consulta.id),
         ClinicaBelezaAPI.consultas.historicoCliente(consulta.patient),
         ClinicaBelezaAPI.get("/protocolos/", { procedure: consulta.procedure }),
+        ClinicaBelezaAPI.memed.listarPrescricoesPaciente(consulta.patient).catch(() => []),
       ]);
       const anamMerged = { ...EMPTY_ANAMNESE, ...anam };
       setAnamnese(anamMerged);
@@ -131,6 +133,7 @@ export default function ConsultasPage() {
       setEvolucoes(Array.isArray(evol) ? evol : []);
       setHistorico(Array.isArray(hist) ? hist : []);
       setProtocolos(Array.isArray(prots) ? prots : []);
+      setPrescricoes(Array.isArray(presc) ? presc : []);
     } catch (e) {
       logger.warn("Erro ao carregar detalhes da consulta:", e);
     } finally {
@@ -283,6 +286,16 @@ export default function ConsultasPage() {
     }
   };
 
+  const recarregarPrescricoes = useCallback(async () => {
+    if (!selected) return;
+    try {
+      const presc = await ClinicaBelezaAPI.memed.listarPrescricoesPaciente(selected.patient);
+      setPrescricoes(Array.isArray(presc) ? presc : []);
+    } catch (e) {
+      logger.warn("Erro ao recarregar prescrições:", e);
+    }
+  }, [selected]);
+
   const abrirMemed = async () => {
     if (!memedRef.current || memedBusy) return;
     setMemedBusy(true);
@@ -409,9 +422,11 @@ export default function ConsultasPage() {
           </div>
           <MemedPrescricao
             ref={memedRef}
+            consultaId={selected.id}
             professionalId={selected.professional ?? null}
             patientId={selected.patient}
             patientName={selected.patient_name}
+            onPrescricaoRegistrada={recarregarPrescricoes}
           />
 
           <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
@@ -468,6 +483,7 @@ export default function ConsultasPage() {
                   <ConsultaHistoricoTab
                     historico={historico}
                     selectedId={selected.id}
+                    prescricoes={prescricoes}
                     formatData={formatData}
                     onSelect={loadDetalhes}
                   />

@@ -7,7 +7,7 @@ from .bloqueio_utils import bloqueio_datetime_range, split_datetime_range
 from .models import (
     Patient, Professional, Procedure, ProcedureProtocol,
     Appointment, Payment, BloqueioHorario, HorarioTrabalhoProfissional,
-    Consulta, PatientAnamnese, ConsultaEvolucao,
+    Consulta, PatientAnamnese, ConsultaEvolucao, PrescricaoMemed,
 )
 from core.serializer_mixins import TextNormalizationMixin, CpfNormalizationMixin
 from core.logging_utils import mask_email
@@ -503,6 +503,19 @@ class ConsultaEvolucaoSerializer(serializers.ModelSerializer):
             'protocolo_snapshot', 'satisfacao', 'created_at', 'updated_at', 'loja_id',
         ]
         read_only_fields = ['created_at', 'updated_at', 'loja_id']
+
+
+class PrescricaoMemedSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='patient.nome', read_only=True)
+    professional_name = serializers.CharField(source='professional.nome', read_only=True, default=None)
+
+    class Meta:
+        model = PrescricaoMemed
+        fields = [
+            'id', 'consulta', 'patient', 'patient_name', 'professional', 'professional_name',
+            'prescricao_id', 'resumo', 'itens', 'created_at', 'loja_id',
+        ]
+        read_only_fields = ['created_at', 'loja_id']
 
 
 class ConsultaSerializer(serializers.ModelSerializer):

@@ -6,8 +6,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
-from .models import Consulta, PatientAnamnese, ConsultaEvolucao, ProcedureProtocol, Patient
-from .serializers import ConsultaSerializer, PatientAnamneseSerializer, ConsultaEvolucaoSerializer
+from .models import Consulta, PatientAnamnese, ConsultaEvolucao, ProcedureProtocol, Patient, PrescricaoMemed
+from .serializers import (
+    ConsultaSerializer, PatientAnamneseSerializer, ConsultaEvolucaoSerializer,
+    PrescricaoMemedSerializer,
+)
 from .consulta_service import finalizar_consulta, iniciar_consulta
 
 
@@ -219,3 +222,52 @@ class PatientHistoricoConsultasView(APIView):
             'professional', 'procedure', 'protocol', 'appointment',
         ).order_by('-data_inicio', '-created_at')
         return Response(ConsultaSerializer(qs, many=True).data)
+
+
+class ConsultaPrescricaoView(APIView):
+    """
+    GET  /clinica-beleza/consultas/<consulta_id>/prescricoes/ — lista prescrições da consulta.
+    POST /clinica-beleza/consultas/<consulta_id>/prescricoes/ — registra uma prescrição emitida
+         na Memed (a partir do evento prescricaoImpressa).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, consulta_id):
+        qs = PrescricaoMemed.objects.filter(consulta_id=consulta_id).select_related(
+            'patient', 'professional',
+        ).order_by('-created_at')
+        return Response(PrescricaoMemedSerializer(qs, many=True).data)
+
+    def post(self, request, consulta_id):
+        try:
+            consulta = Consulta.objects.get(pk=consulta_id)
+        except Consulta.DoesNotExist:
+            return Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+        itens = request.data.get('itens') or []
+        if not isinstance(itens, list):
+            itens = []
+        data = {
+            'consulta': consulta.id,
+            'patient': consulta.patient_id,
+            'professional': request.data.get('professional') or consulta.professional_id,
+            'prescricao_id': str(request.data.get('prescricao_id') or '')[:64],
+            'resumo': request.data.get('resumo') or '',
+            'itens': itens,
+        }
+        serializer = PrescricaoMemedSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save(loja_id=consulta.loja_id)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PatientPrescricaoView(APIView):
+    """GET /clinica-beleza/patients/<patient_id>/prescricoes/ — prescrições do cliente (histórico)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, patient_id):
+        qs = PrescricaoMemed.objects.filter(patient_id=patient_id).select_related(
+            'professional', 'consulta',
+        ).order_by('-created_at')
+        return Response(PrescricaoMemedSerializer(qs, many=True).data)

@@ -41,9 +41,57 @@ interface DadosClinica {
 }
 
 interface MemedPrescricaoProps {
+  consultaId: number;
   professionalId?: number | null;
   patientId: number;
   patientName: string;
+  /** Chamado após registrar uma prescrição emitida (para atualizar o histórico). */
+  onPrescricaoRegistrada?: () => void;
+}
+
+/**
+ * Handler global do evento `prescricaoImpressa`. É registrado uma única vez no MdHub
+ * (que dispara o evento) e delega para a instância atual do componente, que conhece a
+ * consulta/paciente correntes. Evita registrar múltiplos listeners a cada clique.
+ */
+let prescricaoImpressaHandler: ((data: unknown) => void) | null = null;
+
+/** Remove tags HTML simples (a posologia vem como HTML). */
+function stripHtml(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+interface ItemPrescricao {
+  nome?: string;
+  posologia?: string;
+  tipo?: string;
+  receituario?: string;
+}
+
+/** Extrai (de forma defensiva) os dados úteis do payload do evento prescricaoImpressa. */
+function parsePrescricao(data: unknown): { prescricaoId: string; itens: ItemPrescricao[]; resumo: string } {
+  const d = (data ?? {}) as Record<string, any>;
+  const prescricao = (d.prescricao ?? d["prescrição"] ?? d) as Record<string, any>;
+  const meds: any[] = Array.isArray(d.medicamentos)
+    ? d.medicamentos
+    : Array.isArray(prescricao?.medicamentos)
+      ? prescricao.medicamentos
+      : [];
+  const prescricaoId = String(prescricao?.id ?? d.id ?? "");
+
+  const itens: ItemPrescricao[] = meds.map((m) => ({
+    nome: m?.nome ?? m?.descricao ?? "",
+    posologia: m?.sanitized_posology ?? stripHtml(m?.posologia),
+    tipo: m?.tipo ?? "",
+    receituario: m?.receituario ?? "",
+  }));
+
+  const resumo = itens
+    .map((it) => (it.posologia ? `- ${it.nome} — ${it.posologia}` : `- ${it.nome}`))
+    .join("\n");
+
+  return { prescricaoId, itens, resumo };
 }
 
 const SCRIPT_ID = "memed-sinapse-prescricao";
@@ -73,6 +121,18 @@ function registrarListenerPrescricao(): void {
   sinapse.event.add("core:moduleInit", (module: any) => {
     if (module?.name === MODULO_PRESCRICAO) {
       (window as any)[READY_FLAG] = true;
+      // Captura o evento de prescrição emitida (uma única vez por carregamento).
+      const mdhub = (window as any).MdHub;
+      if (mdhub?.event?.add && !(window as any).__memedPrescImpressaRegistrado) {
+        (window as any).__memedPrescImpressaRegistrado = true;
+        mdhub.event.add("prescricaoImpressa", (data: unknown) => {
+          try {
+            prescricaoImpressaHandler?.(data);
+          } catch {
+            // Não deixa um erro de callback quebrar a Memed.
+          }
+        });
+      }
     }
   });
 }
@@ -87,7 +147,7 @@ function toBrDate(value?: string | null): string {
 }
 
 const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
-  ({ professionalId, patientId, patientName }, ref) => {
+  ({ consultaId, professionalId, patientId, patientName, onPrescricaoRegistrada }, ref) => {
     const initPromiseRef = useRef<Promise<void> | null>(null);
     const readyRef = useRef(false);
     const clinicaRef = useRef<DadosClinica | null>(null);
@@ -184,6 +244,26 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
         }
       };
     }, []);
+
+    // Registra o handler da prescrição emitida com a consulta/paciente atuais.
+    // Ao emitir uma receita na Memed, salva no histórico do paciente.
+    useEffect(() => {
+      prescricaoImpressaHandler = (data: unknown) => {
+        const { prescricaoId, itens, resumo } = parsePrescricao(data);
+        ClinicaBelezaAPI.memed
+          .salvarPrescricao(consultaId, {
+            prescricao_id: prescricaoId,
+            resumo,
+            itens,
+            professional: professionalId ?? null,
+          })
+          .then(() => onPrescricaoRegistrada?.())
+          .catch((e) => logger.warn("Memed: falha ao registrar prescrição no histórico:", e));
+      };
+      return () => {
+        prescricaoImpressaHandler = null;
+      };
+    }, [consultaId, professionalId, onPrescricaoRegistrada]);
 
     const definirPaciente = useCallback(async () => {
       let detalhe: Record<string, any> = {};

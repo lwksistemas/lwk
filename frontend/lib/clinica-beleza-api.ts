@@ -175,6 +175,28 @@ export async function clinicaBelezaFetch(
   return response;
 }
 
+/** Item estruturado de uma prescrição emitida na Memed. */
+export interface PrescricaoMemedItemDetalhe {
+  nome?: string;
+  posologia?: string;
+  tipo?: string;
+  receituario?: string;
+}
+
+/** Prescrição Memed registrada no histórico do paciente. */
+export interface PrescricaoMemedItem {
+  id: number;
+  consulta: number | null;
+  patient: number;
+  patient_name?: string;
+  professional: number | null;
+  professional_name?: string | null;
+  prescricao_id: string;
+  resumo: string;
+  itens: PrescricaoMemedItemDetalhe[];
+  created_at: string;
+}
+
 /**
  * Cliente API otimizado com métodos tipados
  */
@@ -271,5 +293,15 @@ export class ClinicaBelezaAPI {
           phone?: string;
         };
       }>('/memed/token/', params as Record<string, string> | undefined),
+
+    /** Registra no histórico do paciente uma prescrição emitida na Memed. */
+    salvarPrescricao: (
+      consultaId: number,
+      data: { prescricao_id?: string; resumo?: string; itens?: unknown[]; professional?: number | null },
+    ) => ClinicaBelezaAPI.post(`/consultas/${consultaId}/prescricoes/`, data),
+
+    /** Lista as prescrições registradas para um paciente (histórico). */
+    listarPrescricoesPaciente: (patientId: number) =>
+      ClinicaBelezaAPI.get<PrescricaoMemedItem[]>(`/patients/${patientId}/prescricoes/`),
   };
 }

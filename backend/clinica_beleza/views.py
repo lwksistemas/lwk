@@ -22,7 +22,8 @@ from .views_pacientes import PatientListView, PatientDetailView  # noqa: F401
 
 # Profissionais
 from .views_profissionais import (  # noqa: F401
-    ProfessionalListView, ProfessionalDetailView, HorarioTrabalhoProfissionalView,
+    ProfessionalListView, ProfessionalDetailView, ProfessionalMemedStatusView,
+    HorarioTrabalhoProfissionalView,
 )
 
 # Procedimentos

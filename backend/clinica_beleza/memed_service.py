@@ -118,3 +118,49 @@ def sincronizar_prescritor(professional, *, force: bool = False) -> dict:
 
     logger.info('Memed auto-cadastro prof %s -> HTTP %s: %s', professional.id, resp.status_code, corpo[:300])
     return {'ok': False, 'status': resp.status_code, 'detail': corpo[:300], 'external_id': ext}
+
+
+def consultar_status_memed(professional) -> dict:
+    """
+    Consulta o status do prescritor na Memed (GET por CPF).
+    Best-effort: nunca lança exceção.
+    """
+    prof_id = getattr(professional, 'id', None)
+    cpf = re.sub(r'\D', '', getattr(professional, 'cpf', '') or '')
+    if len(cpf) != 11:
+        return {'professional_id': prof_id, 'state': 'sem_cpf', 'label': 'Sem CPF'}
+
+    env, endpoints = _memed_config()
+    api_key, secret_key = _memed_credentials(env)
+    if not api_key or not secret_key:
+        return {'professional_id': prof_id, 'state': 'sem_credenciais', 'label': 'Memed não configurada'}
+
+    url = f"{endpoints['api']}/sinapse-prescricao/usuarios/{cpf}"
+    try:
+        resp = requests.get(
+            url,
+            params={'api-key': api_key, 'secret-key': secret_key},
+            headers={'Accept': 'application/vnd.api+json', 'Cache-Control': 'no-cache'},
+            timeout=12,
+        )
+    except requests.RequestException as e:
+        logger.warning('Memed status: falha de rede (prof %s): %s', prof_id, e)
+        return {'professional_id': prof_id, 'state': 'erro', 'label': 'Indisponível'}
+
+    if resp.status_code == 404:
+        return {'professional_id': prof_id, 'state': 'nao_cadastrado', 'label': 'Não cadastrado'}
+
+    if not resp.ok:
+        return {'professional_id': prof_id, 'state': 'erro', 'label': 'Erro ao consultar'}
+
+    attrs = ((resp.json() or {}).get('data') or {}).get('attributes') or {}
+    status = (attrs.get('status') or 'Desconhecido').strip()
+    return {
+        'professional_id': prof_id,
+        'state': 'ok',
+        'status': status,
+        'label': status,
+        'terms_accepted': bool(attrs.get('terms_accepted')),
+        'tem_token': bool(attrs.get('token')),
+        'environment': env,
+    }

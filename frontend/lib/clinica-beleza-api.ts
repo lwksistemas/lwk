@@ -280,6 +280,19 @@ export class ClinicaBelezaAPI {
       ClinicaBelezaAPI.put(`/patients/${patientId}/anamnese/`, data),
   };
 
+  static professionals = {
+    /** Status Memed (Em análise, Ativo, etc.) por id do profissional. */
+    memedStatus: () =>
+      ClinicaBelezaAPI.get<Record<string, {
+        state: string;
+        label: string;
+        status?: string;
+        terms_accepted?: boolean;
+        tem_token?: boolean;
+        environment?: string;
+      }>>('/professionals/memed-status/'),
+  };
+
   static memed = {
     /** Token do prescritor + URL do script da Memed (api-key/secret-key ficam no backend). */
     token: (params?: { professional?: number; prescritor?: string; uf?: string }) =>

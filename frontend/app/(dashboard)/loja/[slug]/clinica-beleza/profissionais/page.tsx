@@ -4,14 +4,15 @@
  * Cadastro de Profissionais - Clínica da Beleza
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Pencil, Trash2, Clock } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
 import { ProfissionalFormModal } from "./components/ProfissionalFormModal";
-import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { MemedStatusBadge, type MemedStatusInfo } from "./components/MemedStatusBadge";
+import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { deleteClinicaBelezaEntity, saveClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
 import {
   entityActive,
@@ -97,6 +98,8 @@ export default function ProfissionaisPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [memedStatus, setMemedStatus] = useState<Record<number, MemedStatusInfo>>({});
+  const [memedStatusLoading, setMemedStatusLoading] = useState(false);
   const [lojaOwnerInfo, setLojaOwnerInfo] = useState<LojaOwnerInfo | null>(null);
   const [horariosProfessional, setHorariosProfessional] = useState<Professional | null>(null);
 
@@ -117,9 +120,30 @@ export default function ProfissionaisPage() {
     }
   };
 
+  const loadMemedStatus = useCallback(async () => {
+    if (!navigator.onLine) return;
+    setMemedStatusLoading(true);
+    try {
+      const data = await ClinicaBelezaAPI.professionals.memedStatus();
+      const parsed: Record<number, MemedStatusInfo> = {};
+      for (const [k, v] of Object.entries(data || {})) {
+        parsed[Number(k)] = v;
+      }
+      setMemedStatus(parsed);
+    } catch (err) {
+      logger.warn("Erro ao carregar status Memed:", err);
+    } finally {
+      setMemedStatusLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadLojaInfo();
   }, []);
+
+  useEffect(() => {
+    if (!loading) void loadMemedStatus();
+  }, [loading, list, loadMemedStatus]);
 
   useEffect(() => {
     if (searchParams.get("novo") === "1") openNew();
@@ -253,6 +277,7 @@ export default function ProfissionaisPage() {
       }
       setShowModal(false);
       load();
+      void loadMemedStatus();
       if (!editing && criarAcesso) {
         alert("Profissional criado! A senha foi enviada por e-mail.");
       }
@@ -354,6 +379,7 @@ export default function ProfissionaisPage() {
                   <tr>
                     <th className="text-left p-3">Nome</th>
                     <th className="text-left p-3">Especialidade</th>
+                    <th className="text-left p-3 hidden lg:table-cell">Memed</th>
                     <th className="text-left p-3 hidden md:table-cell">Telefone</th>
                     <th className="w-40 p-3">Ações</th>
                   </tr>
@@ -363,6 +389,9 @@ export default function ProfissionaisPage() {
                     <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
                       <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{entityName(p)}</td>
                       <td className="p-3 text-gray-700 dark:text-gray-300">{professionalSpecialty(p) || "—"}</td>
+                      <td className="p-3 hidden lg:table-cell">
+                        <MemedStatusBadge info={memedStatus[p.id]} loading={memedStatusLoading} />
+                      </td>
                       <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{entityPhone(p) || "—"}</td>
                       <td className="p-3">
                         <div className="flex gap-2">
@@ -412,6 +441,8 @@ export default function ProfissionaisPage() {
           form={form}
           saving={saving}
           error={error}
+          memedStatus={editing ? memedStatus[editing.id] : undefined}
+          memedStatusLoading={memedStatusLoading}
           onChange={setForm}
           onSave={save}
           onClose={() => setShowModal(false)}

@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react';
 import { formatTelefone, formatCpf } from '@/lib/format-br';
+import { MemedStatusBadge, type MemedStatusInfo } from './MemedStatusBadge';
 
 type PerfilAcesso = 'administrador' | 'profissional' | 'recepcao';
 
@@ -44,6 +45,8 @@ interface Props {
   form: FormData;
   saving: boolean;
   error: string;
+  memedStatus?: MemedStatusInfo;
+  memedStatusLoading?: boolean;
   onChange: (form: FormData) => void;
   onSave: () => void;
   onClose: () => void;
@@ -51,7 +54,7 @@ interface Props {
 
 const inputClass = 'w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100';
 
-export function ProfissionalFormModal({ editing, form, saving, error, onChange, onSave, onClose }: Props) {
+export function ProfissionalFormModal({ editing, form, saving, error, memedStatus, memedStatusLoading, onChange, onSave, onClose }: Props) {
   const set = (field: keyof FormData, value: string | boolean) => onChange({ ...form, [field]: value });
 
   return (
@@ -89,9 +92,14 @@ export function ProfissionalFormModal({ editing, form, saving, error, onChange, 
             <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={inputClass} placeholder="email@exemplo.com" />
           </div>
           <div className="rounded-lg border border-gray-200 dark:border-neutral-700 p-3 space-y-2">
-            <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
-              Prescritor (Memed — receituário e exames)
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                Prescritor (Memed — receituário e exames)
+              </p>
+              {(editing || form.cpf.replace(/\D/g, '').length === 11) && (
+                <MemedStatusBadge info={memedStatus} loading={memedStatusLoading} />
+              )}
+            </div>
             <div className="grid grid-cols-6 gap-2">
               <div className="col-span-3">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Conselho</label>

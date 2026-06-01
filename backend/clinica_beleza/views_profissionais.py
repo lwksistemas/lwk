@@ -194,6 +194,40 @@ class ProfessionalDetailView(APIView):
             return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
 
+class ProfessionalMemedStatusView(APIView):
+    """
+    Status Memed dos prescritores da loja (consulta em lote via API Memed).
+    GET /clinica-beleza/professionals/memed-status/
+    Retorna dict { "<professional_id>": { state, label, status?, ... } }.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        from .memed_service import consultar_status_memed
+
+        active_only = request.query_params.get('active', 'true').lower() == 'true'
+        qs = Professional.objects.all().order_by('id')
+        if active_only:
+            qs = qs.filter(is_active=True)
+
+        professionals = list(qs)
+        results = {}
+
+        def _fetch(prof):
+            info = consultar_status_memed(prof)
+            return str(prof.id), info
+
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            futures = [pool.submit(_fetch, p) for p in professionals]
+            for future in as_completed(futures):
+                pid, info = future.result()
+                results[pid] = info
+
+        return Response(results)
+
+
 class HorarioTrabalhoProfissionalView(APIView):
     """
     Dias e horários de trabalho do profissional.

@@ -7,6 +7,7 @@ from .views import (
     LojaInfoView,
     PatientListView, PatientDetailView,
     ProfessionalListView, ProfessionalDetailView,
+    ProfessionalMemedStatusView,
     HorarioTrabalhoProfissionalView,
     ProcedureListView, ProcedureDetailView,
     PaymentListView, PaymentDetailView,
@@ -58,6 +59,7 @@ urlpatterns = [
     path('memed/token/', MemedTokenView.as_view(), name='memed-token'),
     
     # Profissionais
+    path('professionals/memed-status/', ProfessionalMemedStatusView.as_view(), name='professionals-memed-status'),
     path('professionals/', ProfessionalListView.as_view(), name='professionals-list'),
     path('professionals/<int:pk>/', ProfessionalDetailView.as_view(), name='professionals-detail'),
     path('professionals/<int:pk>/horarios-trabalho/', HorarioTrabalhoProfissionalView.as_view(), name='horarios-trabalho'),

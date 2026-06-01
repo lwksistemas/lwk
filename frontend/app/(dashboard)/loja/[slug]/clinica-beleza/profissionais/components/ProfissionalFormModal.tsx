@@ -1,6 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { formatTelefone } from '@/lib/format-br';
 
 type PerfilAcesso = 'administrador' | 'profissional' | 'recepcao';
 
@@ -56,7 +57,7 @@ export function ProfissionalFormModal({ editing, form, saving, error, onChange, 
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone</label>
-            <input value={form.phone} onChange={(e) => set('phone', e.target.value)} className={inputClass} placeholder="(00) 00000-0000" />
+            <input value={form.phone} onChange={(e) => set('phone', formatTelefone(e.target.value))} className={inputClass} placeholder="(00) 00000-0000" inputMode="tel" maxLength={15} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E-mail</label>

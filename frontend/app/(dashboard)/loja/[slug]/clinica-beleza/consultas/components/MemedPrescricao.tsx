@@ -14,6 +14,7 @@
 
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { apenasDigitos } from "@/lib/format-br";
 import { logger } from "@/lib/logger";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -128,8 +129,10 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
         idExterno: String(patientId),
         nome: detalhe?.nome || patientName,
       };
-      if (detalhe?.cpf) paciente.cpf = detalhe.cpf;
-      if (detalhe?.telefone) paciente.telefone = detalhe.telefone;
+      const cpf = apenasDigitos(detalhe?.cpf);
+      if (cpf) paciente.cpf = cpf;
+      const telefone = apenasDigitos(detalhe?.telefone);
+      if (telefone) paciente.telefone = telefone;
       if (detalhe?.email) paciente.email = detalhe.email;
       if (detalhe?.endereco) paciente.endereco = detalhe.endereco;
       if (detalhe?.cidade) paciente.cidade = detalhe.cidade;

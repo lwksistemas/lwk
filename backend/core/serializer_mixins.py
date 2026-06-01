@@ -2,6 +2,7 @@
 Mixins reutilizáveis para serializers
 """
 from .phone_utils import normalizar_telefone
+from .cpf_utils import normalizar_cpf
 
 
 class PhoneNormalizationMixin:
@@ -65,6 +66,33 @@ class PhoneNormalizationMixin:
             if field_name in data and data[field_name]:
                 data[field_name] = normalizar_telefone(data[field_name])
         
+        return data
+
+
+class CpfNormalizationMixin:
+    """
+    Mixin para padronizar campos de CPF automaticamente no formato XXX.XXX.XXX-XX.
+
+    Uso:
+        class MeuSerializer(CpfNormalizationMixin, serializers.ModelSerializer):
+            cpf_fields = ['cpf']  # Campos a normalizar (padrão: ['cpf'])
+    """
+
+    cpf_fields = ['cpf']
+
+    def validate(self, attrs):
+        fields_to_normalize = getattr(self, 'cpf_fields', self.cpf_fields)
+        for field_name in fields_to_normalize:
+            if field_name in attrs and attrs[field_name]:
+                attrs[field_name] = normalizar_cpf(attrs[field_name])
+        return super().validate(attrs)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        fields_to_normalize = getattr(self, 'cpf_fields', self.cpf_fields)
+        for field_name in fields_to_normalize:
+            if field_name in data and data[field_name]:
+                data[field_name] = normalizar_cpf(data[field_name])
         return data
 
 

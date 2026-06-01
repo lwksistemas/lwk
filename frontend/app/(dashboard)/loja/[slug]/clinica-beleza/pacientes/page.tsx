@@ -28,6 +28,7 @@ import {
   patientNotes,
 } from "@/lib/clinica-beleza-entities";
 import { formatClinicaApiValidationErrors } from "@/lib/clinica-beleza-form-errors";
+import { formatTelefone, formatCpf } from "@/lib/format-br";
 import {
   bloquearCriacaoDuplicadaOffline,
   deveVerificarDuplicataOffline,
@@ -75,9 +76,9 @@ const INPUT = CLINICA_FORM_INPUT;
 function patientToForm(p: Patient) {
   return {
     name: entityName(p),
-    phone: entityPhone(p) || "",
+    phone: formatTelefone(entityPhone(p)),
     email: entityEmail(p) || "",
-    cpf: patientCpf(p) || "",
+    cpf: formatCpf(patientCpf(p) || ""),
     birth_date: patientBirthDate(p) ? patientBirthDate(p)!.slice(0, 10) : "",
     address: patientAddress(p) || "",
     notes: patientNotes(p) || "",
@@ -330,9 +331,11 @@ export default function PacientesPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Telefone</label>
                     <input
                       value={form.phone}
-                      onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, phone: formatTelefone(e.target.value) }))}
                       className={INPUT}
                       placeholder="(00) 00000-0000"
+                      inputMode="tel"
+                      maxLength={15}
                     />
                   </div>
                   <div>
@@ -349,9 +352,11 @@ export default function PacientesPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CPF</label>
                     <input
                       value={form.cpf}
-                      onChange={(e) => setForm((f) => ({ ...f, cpf: e.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, cpf: formatCpf(e.target.value) }))}
                       className={INPUT}
                       placeholder="000.000.000-00"
+                      inputMode="numeric"
+                      maxLength={14}
                     />
                   </div>
                   <div>
@@ -471,9 +476,9 @@ export default function PacientesPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-4 md:px-6 py-4 text-gray-700 dark:text-gray-300">{entityPhone(p) || "—"}</td>
+                        <td className="px-4 md:px-6 py-4 text-gray-700 dark:text-gray-300">{formatTelefone(entityPhone(p)) || "—"}</td>
                         <td className="px-4 md:px-6 py-4 hidden sm:table-cell text-gray-700 dark:text-gray-300">{entityEmail(p) || "—"}</td>
-                        <td className="px-4 md:px-6 py-4 hidden lg:table-cell text-gray-700 dark:text-gray-300">{patientCpf(p) || "—"}</td>
+                        <td className="px-4 md:px-6 py-4 hidden lg:table-cell text-gray-700 dark:text-gray-300">{formatCpf(patientCpf(p) || "") || "—"}</td>
                         <td className="px-4 md:px-6 py-4">
                           <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                             <button

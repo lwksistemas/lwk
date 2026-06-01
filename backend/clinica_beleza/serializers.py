@@ -9,7 +9,7 @@ from .models import (
     Appointment, Payment, BloqueioHorario, HorarioTrabalhoProfissional,
     Consulta, PatientAnamnese, ConsultaEvolucao,
 )
-from core.serializer_mixins import TextNormalizationMixin
+from core.serializer_mixins import TextNormalizationMixin, CpfNormalizationMixin
 from core.logging_utils import mask_email
 
 
@@ -185,7 +185,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
         return professional
 
 
-class PatientSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+class PatientSerializer(CpfNormalizationMixin, TextNormalizationMixin, serializers.ModelSerializer):
     """Serializer para Pacientes. Aceita phone opcional e birth_date em YYYY-MM-DD ou DD/MM/YYYY."""
     phone = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
     birth_date = serializers.DateField(required=False, allow_null=True, input_formats=['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'])

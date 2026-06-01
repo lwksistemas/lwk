@@ -109,8 +109,12 @@ def sincronizar_prescritor(professional, *, force: bool = False) -> dict:
         logger.info('Memed auto-cadastro OK prof %s (external_id=%s)', professional.id, ext)
         return {'ok': True, 'status': resp.status_code, 'external_id': ext, 'environment': env}
 
-    # 409/422 normalmente indicam que o prescritor já existe (idempotente do nosso lado).
-    logger.info(
-        'Memed auto-cadastro prof %s -> HTTP %s: %s', professional.id, resp.status_code, (resp.text or '')[:300]
-    )
-    return {'ok': False, 'status': resp.status_code, 'detail': (resp.text or '')[:300], 'external_id': ext}
+    # O POST cria o prescritor; reenvios (ex.: ao editar o profissional) retornam erro
+    # informando que já existe. Tratamos como sucesso idempotente.
+    corpo = (resp.text or '')
+    if resp.status_code in (400, 409, 422) and ('ja cadastrado' in corpo.lower() or 'external_id' in corpo.lower()):
+        logger.info('Memed auto-cadastro prof %s: prescritor já existe (external_id=%s)', professional.id, ext)
+        return {'ok': True, 'status': resp.status_code, 'already_exists': True, 'external_id': ext, 'environment': env}
+
+    logger.info('Memed auto-cadastro prof %s -> HTTP %s: %s', professional.id, resp.status_code, corpo[:300])
+    return {'ok': False, 'status': resp.status_code, 'detail': corpo[:300], 'external_id': ext}

@@ -114,19 +114,25 @@ class MemedTokenView(APIView):
             )
 
         url = f"{endpoints['api']}/sinapse-prescricao/usuarios/{prescritor_id}"
-        try:
-            resp = requests.get(
-                url,
-                params={'api-key': api_key, 'secret-key': secret_key},
-                headers={
-                    'Accept': 'application/vnd.api+json',
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache',
-                },
-                timeout=20,
-            )
-        except requests.RequestException as e:
-            logger.warning('Memed: falha ao conectar (%s)', e)
+        # Em produção a Memed pode responder mais devagar; usamos timeout maior e
+        # uma tentativa extra para erros transitórios de rede.
+        resp = None
+        for tentativa in range(2):
+            try:
+                resp = requests.get(
+                    url,
+                    params={'api-key': api_key, 'secret-key': secret_key},
+                    headers={
+                        'Accept': 'application/vnd.api+json',
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache',
+                    },
+                    timeout=30,
+                )
+                break
+            except requests.RequestException as e:
+                logger.warning('Memed: falha ao conectar (tentativa %s/2): %s', tentativa + 1, e)
+        if resp is None:
             return Response(
                 {'error': 'Não foi possível conectar à Memed. Tente novamente.'},
                 status=status.HTTP_502_BAD_GATEWAY,

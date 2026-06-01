@@ -44,9 +44,25 @@ interface Professional {
   phone?: string | null;
   telefone?: string | null;
   email?: string | null;
+  registro_profissional?: string | null;
   active?: boolean;
   is_active?: boolean;
   is_administrador_vinculado?: boolean;
+}
+
+/** Separa o campo "CRM-UF" (ex.: "016964-SP") em registro e UF. */
+function parseRegistro(value?: string | null): { registro: string; uf: string } {
+  const reg = (value || "").trim();
+  const m = /^(.+?)[-\s/]+([A-Za-z]{2})$/.exec(reg);
+  if (m) return { registro: m[1].trim(), uf: m[2].toUpperCase() };
+  return { registro: reg, uf: "" };
+}
+
+/** Combina registro + UF no formato "CRM-UF" para salvar em registro_profissional. */
+function joinRegistro(registro: string, uf: string): string | null {
+  const r = registro.trim();
+  if (!r) return null;
+  return uf ? `${r}-${uf}` : r;
 }
 
 interface LojaOwnerInfo {
@@ -72,6 +88,8 @@ export default function ProfissionaisPage() {
     specialty: "",
     phone: "",
     email: "",
+    registro: "",
+    uf: "",
     criar_acesso: false,
     perfil: "profissional" as PerfilAcesso,
   });
@@ -107,18 +125,21 @@ export default function ProfissionaisPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", specialty: "", phone: "", email: "", criar_acesso: false, perfil: "profissional" });
+    setForm({ name: "", specialty: "", phone: "", email: "", registro: "", uf: "", criar_acesso: false, perfil: "profissional" });
     setError("");
     setShowModal(true);
   };
 
   const openEdit = (p: Professional) => {
     setEditing(p);
+    const { registro, uf } = parseRegistro(p.registro_profissional);
     setForm({
       name: entityName(p),
       specialty: professionalSpecialty(p) || "",
       phone: entityPhone(p) || "",
       email: entityEmail(p) || "",
+      registro,
+      uf,
       criar_acesso: false,
       perfil: "profissional",
     });
@@ -147,6 +168,7 @@ export default function ProfissionaisPage() {
       specialty: form.specialty.trim(),
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
+      registro_profissional: joinRegistro(form.registro, form.uf),
       active: true,
     };
     if (!editing && criarAcesso) {

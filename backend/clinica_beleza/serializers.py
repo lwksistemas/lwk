@@ -23,6 +23,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
     email = serializers.EmailField()
     specialty = serializers.CharField(max_length=150)
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
+    registro_profissional = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
     criar_acesso = serializers.BooleanField(default=False, write_only=True)
     perfil = serializers.ChoiceField(
         choices=[
@@ -47,12 +48,14 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
         name = validated_data.pop('name', None)
         specialty = validated_data.pop('specialty', None)
         phone = validated_data.pop('phone', None) or ''
+        registro = (validated_data.pop('registro_profissional', None) or '').strip() or None
 
         professional = Professional.objects.create(
             nome=name,
             email=email,
             especialidade=specialty,
             telefone=phone,
+            registro_profissional=registro,
         )
 
         if criar_acesso:

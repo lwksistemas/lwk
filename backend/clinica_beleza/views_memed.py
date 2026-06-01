@@ -8,6 +8,7 @@ Fluxo (https://doc.memed.com.br/docs/backend-api):
    e abre o módulo de prescrição (medicamentos e exames no mesmo editor).
 """
 import logging
+import re
 
 import requests
 from django.conf import settings
@@ -126,12 +127,24 @@ class MemedTokenView(APIView):
             return explicit
 
         # 2) Registro profissional (CRM) do profissional da consulta + UF.
+        #    O campo registro_profissional pode vir como "016964-SP" (CRM-UF);
+        #    extraímos a UF do próprio campo, com fallback para ?uf ou MEMED_DEFAULT_UF.
         professional_id = request.query_params.get('professional')
         if professional_id:
             prof = Professional.objects.filter(pk=professional_id).first()
             if prof and prof.registro_profissional:
-                registro = ''.join(ch for ch in prof.registro_profissional if ch.isalnum())
-                uf = (request.query_params.get('uf') or getattr(settings, 'MEMED_DEFAULT_UF', '') or '').strip().upper()
+                raw = prof.registro_profissional.strip().upper()
+                match_uf = re.search(r'[-\s/]*([A-Z]{2})\s*$', raw)
+                uf_campo = match_uf.group(1) if match_uf else ''
+                registro = ''.join(ch for ch in raw if ch.isalnum())
+                if uf_campo and registro.endswith(uf_campo):
+                    registro = registro[: -len(uf_campo)]
+                uf = (
+                    request.query_params.get('uf')
+                    or uf_campo
+                    or getattr(settings, 'MEMED_DEFAULT_UF', '')
+                    or ''
+                ).strip().upper()
                 if registro:
                     return f"{registro}{uf}" if uf else registro
 

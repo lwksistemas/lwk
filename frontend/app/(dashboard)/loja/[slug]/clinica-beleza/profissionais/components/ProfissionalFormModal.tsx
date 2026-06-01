@@ -5,11 +5,19 @@ import { formatTelefone } from '@/lib/format-br';
 
 type PerfilAcesso = 'administrador' | 'profissional' | 'recepcao';
 
+const UFS_BR = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS',
+  'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC',
+  'SP', 'SE', 'TO',
+];
+
 interface FormData {
   name: string;
   specialty: string;
   phone: string;
   email: string;
+  registro: string;
+  uf: string;
   criar_acesso: boolean;
   perfil: PerfilAcesso;
 }
@@ -62,6 +70,30 @@ export function ProfissionalFormModal({ editing, form, saving, error, onChange, 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E-mail</label>
             <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={inputClass} placeholder="email@exemplo.com" />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Registro (CRM/COREN/CRF…)</label>
+              <input
+                value={form.registro}
+                onChange={(e) => set('registro', e.target.value)}
+                className={inputClass}
+                placeholder="Ex.: 016964"
+                inputMode="text"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">UF</label>
+              <select value={form.uf} onChange={(e) => set('uf', e.target.value)} className={inputClass}>
+                <option value="">—</option>
+                {UFS_BR.map((uf) => (
+                  <option key={uf} value={uf}>{uf}</option>
+                ))}
+              </select>
+            </div>
+            <p className="col-span-3 text-xs text-gray-500 dark:text-gray-400">
+              Usado para vincular o profissional como prescritor na Memed (receituário e exames).
+            </p>
           </div>
           {!editing && (
             <>

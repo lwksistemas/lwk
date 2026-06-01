@@ -70,6 +70,8 @@ docs_backup/
 backend/staticfiles/
 .venv/
 .venv-nfse-test/
+.venv-reemit/
+backend/.venv-reemit/
 .env*.local
 
 # Artefatos temporários locais

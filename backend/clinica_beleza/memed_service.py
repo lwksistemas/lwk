@@ -52,6 +52,8 @@ def _payload_prescritor(professional) -> dict:
         'board_number': registro or None,
         'board_state': (getattr(professional, 'conselho_uf', '') or '').upper() or None,
     }
+    nascimento = getattr(professional, 'data_nascimento', None)
+    sexo = (getattr(professional, 'sexo', '') or '').upper() or None
     attrs = {
         'external_id': external_id_prescritor(professional),
         'nome': nome,
@@ -59,6 +61,8 @@ def _payload_prescritor(professional) -> dict:
         'cpf': cpf or None,
         'email': getattr(professional, 'email', None) or None,
         'telefone': re.sub(r'\D', '', getattr(professional, 'telefone', '') or '') or None,
+        'data_nascimento': nascimento.strftime('%d/%m/%Y') if nascimento else None,
+        'sexo': sexo if sexo in ('M', 'F') else None,
         'board': {k: v for k, v in board.items() if v} or None,
     }
     return {k: v for k, v in attrs.items() if v}

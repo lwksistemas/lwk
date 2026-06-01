@@ -107,6 +107,18 @@ class Professional(ProfissionalBase):
         max_length=14, blank=True, null=True, verbose_name="CPF",
         help_text="CPF do prescritor (usado para assinar na Memed).",
     )
+    SEXO_CHOICES = (
+        ('M', 'Masculino'),
+        ('F', 'Feminino'),
+    )
+    data_nascimento = models.DateField(
+        blank=True, null=True, verbose_name="Data de nascimento",
+        help_text="Data de nascimento do prescritor (usada no cadastro da Memed).",
+    )
+    sexo = models.CharField(
+        max_length=1, blank=True, null=True, choices=SEXO_CHOICES,
+        verbose_name="Sexo", help_text="Sexo do prescritor (usado no cadastro da Memed).",
+    )
 
     # Aliases para compatibilidade com código existente
     @property

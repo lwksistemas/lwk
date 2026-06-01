@@ -33,6 +33,8 @@ interface FormData {
   registro: string;
   uf: string;
   cpf: string;
+  data_nascimento: string;
+  sexo: string;
   criar_acesso: boolean;
   perfil: PerfilAcesso;
 }
@@ -131,9 +133,29 @@ export function ProfissionalFormModal({ editing, form, saving, error, onChange, 
                 maxLength={14}
               />
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data de nascimento</label>
+                <input
+                  type="date"
+                  value={form.data_nascimento}
+                  onChange={(e) => set('data_nascimento', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sexo</label>
+                <select value={form.sexo} onChange={(e) => set('sexo', e.target.value)} className={inputClass}>
+                  <option value="">—</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Feminino</option>
+                </select>
+              </div>
+            </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               O CPF (e‑CPF) é o que vincula o prescritor à assinatura digital A1/A3 na Memed e
-              vale para qualquer conselho (CRM, COREN, CRF…).
+              vale para qualquer conselho (CRM, COREN, CRF…). Data de nascimento e sexo
+              agilizam o cadastro do prescritor na Memed.
             </p>
           </div>
           {!editing && (

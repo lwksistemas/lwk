@@ -53,7 +53,7 @@ def _map_professional_data(raw_data):
         if en in data and pt not in data:
             data[pt] = data.pop(en)
 
-    for key in ('email', 'telefone'):
+    for key in ('email', 'telefone', 'data_nascimento', 'sexo'):
         if key in data:
             data[key] = _empty_to_none(data[key])
     if 'telefone' in data and data['telefone'] is None:

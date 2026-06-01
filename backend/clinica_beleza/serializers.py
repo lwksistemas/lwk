@@ -27,6 +27,8 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
     conselho = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
     conselho_uf = serializers.CharField(max_length=2, required=False, allow_blank=True, allow_null=True)
     cpf = serializers.CharField(max_length=14, required=False, allow_blank=True, allow_null=True)
+    data_nascimento = serializers.DateField(required=False, allow_null=True)
+    sexo = serializers.ChoiceField(choices=['M', 'F'], required=False, allow_blank=True, allow_null=True)
     criar_acesso = serializers.BooleanField(default=False, write_only=True)
     perfil = serializers.ChoiceField(
         choices=[
@@ -55,6 +57,8 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
         conselho = (validated_data.pop('conselho', None) or '').strip().upper() or None
         conselho_uf = (validated_data.pop('conselho_uf', None) or '').strip().upper() or None
         cpf = (validated_data.pop('cpf', None) or '').strip() or None
+        data_nascimento = validated_data.pop('data_nascimento', None) or None
+        sexo = (validated_data.pop('sexo', None) or '').strip().upper() or None
 
         professional = Professional.objects.create(
             nome=name,
@@ -65,6 +69,8 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
             conselho=conselho,
             conselho_uf=conselho_uf,
             cpf=cpf,
+            data_nascimento=data_nascimento,
+            sexo=sexo,
         )
 
         if criar_acesso:

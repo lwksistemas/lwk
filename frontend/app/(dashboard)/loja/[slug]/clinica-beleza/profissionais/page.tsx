@@ -48,6 +48,8 @@ interface Professional {
   conselho?: string | null;
   conselho_uf?: string | null;
   cpf?: string | null;
+  data_nascimento?: string | null;
+  sexo?: string | null;
   active?: boolean;
   is_active?: boolean;
   is_administrador_vinculado?: boolean;
@@ -88,6 +90,8 @@ export default function ProfissionaisPage() {
     registro: "",
     uf: "",
     cpf: "",
+    data_nascimento: "",
+    sexo: "",
     criar_acesso: false,
     perfil: "profissional" as PerfilAcesso,
   });
@@ -123,7 +127,7 @@ export default function ProfissionaisPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", specialty: "", phone: "", email: "", conselho: "", registro: "", uf: "", cpf: "", criar_acesso: false, perfil: "profissional" });
+    setForm({ name: "", specialty: "", phone: "", email: "", conselho: "", registro: "", uf: "", cpf: "", data_nascimento: "", sexo: "", criar_acesso: false, perfil: "profissional" });
     setError("");
     setShowModal(true);
   };
@@ -140,6 +144,8 @@ export default function ProfissionaisPage() {
       registro: legado.registro,
       uf: p.conselho_uf || legado.uf,
       cpf: p.cpf || "",
+      data_nascimento: p.data_nascimento || "",
+      sexo: p.sexo || "",
       criar_acesso: false,
       perfil: "profissional",
     });
@@ -172,6 +178,8 @@ export default function ProfissionaisPage() {
       conselho: form.conselho || null,
       conselho_uf: form.uf || null,
       cpf: form.cpf.trim() || null,
+      data_nascimento: form.data_nascimento || null,
+      sexo: form.sexo || null,
       active: true,
     };
     if (!editing && criarAcesso) {

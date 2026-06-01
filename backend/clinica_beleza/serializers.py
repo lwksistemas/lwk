@@ -24,6 +24,9 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
     specialty = serializers.CharField(max_length=150)
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True, allow_null=True)
     registro_profissional = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
+    conselho = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
+    conselho_uf = serializers.CharField(max_length=2, required=False, allow_blank=True, allow_null=True)
+    cpf = serializers.CharField(max_length=14, required=False, allow_blank=True, allow_null=True)
     criar_acesso = serializers.BooleanField(default=False, write_only=True)
     perfil = serializers.ChoiceField(
         choices=[
@@ -49,6 +52,9 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
         specialty = validated_data.pop('specialty', None)
         phone = validated_data.pop('phone', None) or ''
         registro = (validated_data.pop('registro_profissional', None) or '').strip() or None
+        conselho = (validated_data.pop('conselho', None) or '').strip().upper() or None
+        conselho_uf = (validated_data.pop('conselho_uf', None) or '').strip().upper() or None
+        cpf = (validated_data.pop('cpf', None) or '').strip() or None
 
         professional = Professional.objects.create(
             nome=name,
@@ -56,6 +62,9 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
             especialidade=specialty,
             telefone=phone,
             registro_profissional=registro,
+            conselho=conselho,
+            conselho_uf=conselho_uf,
+            cpf=cpf,
         )
 
         if criar_acesso:

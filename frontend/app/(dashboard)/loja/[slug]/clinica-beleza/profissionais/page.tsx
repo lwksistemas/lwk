@@ -45,24 +45,20 @@ interface Professional {
   telefone?: string | null;
   email?: string | null;
   registro_profissional?: string | null;
+  conselho?: string | null;
+  conselho_uf?: string | null;
+  cpf?: string | null;
   active?: boolean;
   is_active?: boolean;
   is_administrador_vinculado?: boolean;
 }
 
-/** Separa o campo "CRM-UF" (ex.: "016964-SP") em registro e UF. */
-function parseRegistro(value?: string | null): { registro: string; uf: string } {
+/** Compat: separa "016964-SP" em registro/UF quando os campos dedicados não existem. */
+function parseRegistroLegado(value?: string | null): { registro: string; uf: string } {
   const reg = (value || "").trim();
   const m = /^(.+?)[-\s/]+([A-Za-z]{2})$/.exec(reg);
   if (m) return { registro: m[1].trim(), uf: m[2].toUpperCase() };
   return { registro: reg, uf: "" };
-}
-
-/** Combina registro + UF no formato "CRM-UF" para salvar em registro_profissional. */
-function joinRegistro(registro: string, uf: string): string | null {
-  const r = registro.trim();
-  if (!r) return null;
-  return uf ? `${r}-${uf}` : r;
 }
 
 interface LojaOwnerInfo {
@@ -88,8 +84,10 @@ export default function ProfissionaisPage() {
     specialty: "",
     phone: "",
     email: "",
+    conselho: "",
     registro: "",
     uf: "",
+    cpf: "",
     criar_acesso: false,
     perfil: "profissional" as PerfilAcesso,
   });
@@ -125,21 +123,23 @@ export default function ProfissionaisPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", specialty: "", phone: "", email: "", registro: "", uf: "", criar_acesso: false, perfil: "profissional" });
+    setForm({ name: "", specialty: "", phone: "", email: "", conselho: "", registro: "", uf: "", cpf: "", criar_acesso: false, perfil: "profissional" });
     setError("");
     setShowModal(true);
   };
 
   const openEdit = (p: Professional) => {
     setEditing(p);
-    const { registro, uf } = parseRegistro(p.registro_profissional);
+    const legado = parseRegistroLegado(p.registro_profissional);
     setForm({
       name: entityName(p),
       specialty: professionalSpecialty(p) || "",
       phone: entityPhone(p) || "",
       email: entityEmail(p) || "",
-      registro,
-      uf,
+      conselho: p.conselho || "",
+      registro: legado.registro,
+      uf: p.conselho_uf || legado.uf,
+      cpf: p.cpf || "",
       criar_acesso: false,
       perfil: "profissional",
     });
@@ -168,7 +168,10 @@ export default function ProfissionaisPage() {
       specialty: form.specialty.trim(),
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
-      registro_profissional: joinRegistro(form.registro, form.uf),
+      registro_profissional: form.registro.trim() || null,
+      conselho: form.conselho || null,
+      conselho_uf: form.uf || null,
+      cpf: form.cpf.trim() || null,
       active: true,
     };
     if (!editing && criarAcesso) {

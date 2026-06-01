@@ -80,7 +80,34 @@ class Patient(ClienteBase):
 
 class Professional(ProfissionalBase):
     """Profissionais da clínica (herda de ProfissionalBase)"""
-    
+
+    CONSELHO_CHOICES = (
+        ('CRM', 'CRM - Medicina'),
+        ('CRO', 'CRO - Odontologia'),
+        ('COREN', 'COREN - Enfermagem'),
+        ('CRF', 'CRF - Farmácia'),
+        ('CRP', 'CRP - Psicologia'),
+        ('CRN', 'CRN - Nutrição'),
+        ('CREFITO', 'CREFITO - Fisioterapia/TO'),
+        ('CRBM', 'CRBM - Biomedicina'),
+        ('CRMV', 'CRMV - Veterinária'),
+        ('CRFa', 'CRFa - Fonoaudiologia'),
+    )
+
+    # Dados do prescritor para integração com a Memed (receituário/exames).
+    conselho = models.CharField(
+        max_length=10, blank=True, null=True,
+        choices=CONSELHO_CHOICES, verbose_name="Conselho",
+        help_text="Conselho de classe (CRM, COREN, CRF, etc.)",
+    )
+    conselho_uf = models.CharField(
+        max_length=2, blank=True, null=True, verbose_name="UF do conselho",
+    )
+    cpf = models.CharField(
+        max_length=14, blank=True, null=True, verbose_name="CPF",
+        help_text="CPF do prescritor (usado para assinar na Memed).",
+    )
+
     # Aliases para compatibilidade com código existente
     @property
     def name(self):

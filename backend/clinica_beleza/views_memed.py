@@ -132,27 +132,35 @@ class MemedTokenView(APIView):
         professional_id = request.query_params.get('professional')
         if professional_id:
             prof = Professional.objects.filter(pk=professional_id).first()
-            if prof and prof.registro_profissional:
-                raw = prof.registro_profissional.strip().upper()
-                # CPF (11 dígitos) identifica o prescritor independentemente do conselho
-                # (CRM/COREN/CRF/…), pois o cadastro e o certificado na Memed são por
-                # pessoa física. Quando informado, tem prioridade e dispensa a UF.
-                digitos = ''.join(ch for ch in raw if ch.isdigit())
-                if len(digitos) == 11:
-                    return digitos
-                match_uf = re.search(r'[-\s/]*([A-Z]{2})\s*$', raw)
-                uf_campo = match_uf.group(1) if match_uf else ''
-                registro = ''.join(ch for ch in raw if ch.isalnum())
-                if uf_campo and registro.endswith(uf_campo):
-                    registro = registro[: -len(uf_campo)]
-                uf = (
-                    request.query_params.get('uf')
-                    or uf_campo
-                    or getattr(settings, 'MEMED_DEFAULT_UF', '')
-                    or ''
-                ).strip().upper()
-                if registro:
-                    return f"{registro}{uf}" if uf else registro
+            if prof:
+                # CPF identifica o prescritor independentemente do conselho
+                # (CRM/COREN/CRF/…), pois cadastro e certificado na Memed são por
+                # pessoa física. Tem prioridade e dispensa a UF.
+                cpf_digitos = ''.join(ch for ch in (prof.cpf or '') if ch.isdigit())
+                if len(cpf_digitos) == 11:
+                    return cpf_digitos
+
+                if prof.registro_profissional:
+                    raw = prof.registro_profissional.strip().upper()
+                    # Compatibilidade: CPF digitado no campo de registro.
+                    so_digitos = ''.join(ch for ch in raw if ch.isdigit())
+                    if len(so_digitos) == 11 and not prof.conselho_uf:
+                        return so_digitos
+                    # Compatibilidade: UF embutida no registro ("016964-SP").
+                    match_uf = re.search(r'[-\s/]*([A-Z]{2})\s*$', raw)
+                    uf_campo = match_uf.group(1) if match_uf else ''
+                    registro = ''.join(ch for ch in raw if ch.isalnum())
+                    if uf_campo and registro.endswith(uf_campo):
+                        registro = registro[: -len(uf_campo)]
+                    uf = (
+                        request.query_params.get('uf')
+                        or (prof.conselho_uf or '')
+                        or uf_campo
+                        or getattr(settings, 'MEMED_DEFAULT_UF', '')
+                        or ''
+                    ).strip().upper()
+                    if registro:
+                        return f"{registro}{uf}" if uf else registro
 
         # 3) Prescritor padrão (clínica com um único médico / ambiente de testes).
         return (getattr(settings, 'MEMED_PRESCRITOR_ID', '') or '').strip()

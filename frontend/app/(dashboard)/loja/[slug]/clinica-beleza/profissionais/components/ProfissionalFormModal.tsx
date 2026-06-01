@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { formatTelefone } from '@/lib/format-br';
+import { formatTelefone, formatCpf } from '@/lib/format-br';
 
 type PerfilAcesso = 'administrador' | 'profissional' | 'recepcao';
 
@@ -11,13 +11,28 @@ const UFS_BR = [
   'SP', 'SE', 'TO',
 ];
 
+const CONSELHOS = [
+  ['CRM', 'CRM - Medicina'],
+  ['CRO', 'CRO - Odontologia'],
+  ['COREN', 'COREN - Enfermagem'],
+  ['CRF', 'CRF - Farmácia'],
+  ['CRP', 'CRP - Psicologia'],
+  ['CRN', 'CRN - Nutrição'],
+  ['CREFITO', 'CREFITO - Fisioterapia/TO'],
+  ['CRBM', 'CRBM - Biomedicina'],
+  ['CRMV', 'CRMV - Veterinária'],
+  ['CRFa', 'CRFa - Fonoaudiologia'],
+] as const;
+
 interface FormData {
   name: string;
   specialty: string;
   phone: string;
   email: string;
+  conselho: string;
   registro: string;
   uf: string;
+  cpf: string;
   criar_acesso: boolean;
   perfil: PerfilAcesso;
 }
@@ -71,30 +86,54 @@ export function ProfissionalFormModal({ editing, form, saving, error, onChange, 
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E-mail</label>
             <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={inputClass} placeholder="email@exemplo.com" />
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Registro (CRM/COREN/CRF…)</label>
-              <input
-                value={form.registro}
-                onChange={(e) => set('registro', e.target.value)}
-                className={inputClass}
-                placeholder="Ex.: 016964"
-                inputMode="text"
-              />
+          <div className="rounded-lg border border-gray-200 dark:border-neutral-700 p-3 space-y-2">
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+              Prescritor (Memed — receituário e exames)
+            </p>
+            <div className="grid grid-cols-6 gap-2">
+              <div className="col-span-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Conselho</label>
+                <select value={form.conselho} onChange={(e) => set('conselho', e.target.value)} className={inputClass}>
+                  <option value="">—</option>
+                  {CONSELHOS.map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nº registro</label>
+                <input
+                  value={form.registro}
+                  onChange={(e) => set('registro', e.target.value)}
+                  className={inputClass}
+                  placeholder="Ex.: 016964"
+                  inputMode="text"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">UF</label>
+                <select value={form.uf} onChange={(e) => set('uf', e.target.value)} className={inputClass}>
+                  <option value="">—</option>
+                  {UFS_BR.map((uf) => (
+                    <option key={uf} value={uf}>{uf}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">UF</label>
-              <select value={form.uf} onChange={(e) => set('uf', e.target.value)} className={inputClass}>
-                <option value="">—</option>
-                {UFS_BR.map((uf) => (
-                  <option key={uf} value={uf}>{uf}</option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CPF do prescritor</label>
+              <input
+                value={form.cpf}
+                onChange={(e) => set('cpf', formatCpf(e.target.value))}
+                className={inputClass}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                maxLength={14}
+              />
             </div>
-            <p className="col-span-3 text-xs text-gray-500 dark:text-gray-400">
-              Usado para vincular o profissional como prescritor na Memed (receituário e exames).
-              Aceita CRM, COREN, CRF e outros conselhos. Você também pode informar o CPF do
-              prescritor (11 dígitos), que vale para qualquer conselho.
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              O CPF (e‑CPF) é o que vincula o prescritor à assinatura digital A1/A3 na Memed e
+              vale para qualquer conselho (CRM, COREN, CRF…).
             </p>
           </div>
           {!editing && (

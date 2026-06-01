@@ -12,7 +12,7 @@
  * Carrega sob demanda (no primeiro clique) para não pesar a página.
  */
 
-import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { apenasDigitos } from "@/lib/format-br";
 import { logger } from "@/lib/logger";
@@ -37,6 +37,35 @@ interface MemedPrescricaoProps {
 }
 
 const SCRIPT_ID = "memed-sinapse-prescricao";
+const MODULO_PRESCRICAO = "plataforma.prescricao";
+const READY_FLAG = "__memedPrescricaoPronta";
+const TIMEOUT_MS = 30000;
+
+/** Indica se o módulo de prescrição da Memed já terminou de inicializar. */
+function moduloPronto(): boolean {
+  return typeof window !== "undefined" && (window as any)[READY_FLAG] === true;
+}
+
+/**
+ * Registra (uma única vez) o listener de `core:moduleInit` e marca um flag global
+ * quando o módulo de prescrição fica pronto.
+ *
+ * Por que global e idempotente: o evento `core:moduleInit` dispara só uma vez por
+ * carregamento do script. Se registrarmos um novo listener a cada clique, o evento
+ * já terá disparado e nunca mais chega — causando timeout. Marcar o flag e fazer
+ * polling sobre ele evita essa corrida.
+ */
+function registrarListenerPrescricao(): void {
+  if (typeof window === "undefined") return;
+  const sinapse = (window as any).MdSinapsePrescricao;
+  if (!sinapse?.event?.add || (window as any).__memedListenerRegistrado) return;
+  (window as any).__memedListenerRegistrado = true;
+  sinapse.event.add("core:moduleInit", (module: any) => {
+    if (module?.name === MODULO_PRESCRICAO) {
+      (window as any)[READY_FLAG] = true;
+    }
+  });
+}
 
 /** Converte data ISO (YYYY-MM-DD) para o formato dd/mm/aaaa esperado pela Memed. */
 function toBrDate(value?: string | null): string {
@@ -56,8 +85,9 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
       return new Promise<void>((resolve, reject) => {
         const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
         if (existing) {
-          // Script já presente: garante o token mais recente do prescritor.
+          // Script já presente: garante o token mais recente do prescritor e o listener.
           existing.setAttribute("data-token", token);
+          registrarListenerPrescricao();
           resolve();
           return;
         }
@@ -67,7 +97,10 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
         script.src = scriptUrl;
         script.setAttribute("data-token", token);
         script.async = true;
-        script.onload = () => resolve();
+        script.onload = () => {
+          registrarListenerPrescricao();
+          resolve();
+        };
         script.onerror = () => reject(new Error("Falha ao carregar o script da Memed."));
         document.body.appendChild(script);
       });
@@ -75,20 +108,24 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
 
     const aguardarModulo = useCallback(() => {
       return new Promise<void>((resolve, reject) => {
-        if (!window.MdSinapsePrescricao) {
-          reject(new Error("Memed não inicializada (MdSinapsePrescricao indisponível)."));
-          return;
-        }
-        const timeout = setTimeout(
-          () => reject(new Error("Tempo esgotado ao iniciar a Memed.")),
-          30000,
-        );
-        window.MdSinapsePrescricao.event.add("core:moduleInit", (module: any) => {
-          if (module?.name === "plataforma.prescricao") {
-            clearTimeout(timeout);
+        registrarListenerPrescricao();
+        const inicio = Date.now();
+        const verificar = () => {
+          if (moduloPronto()) {
             resolve();
+            return;
           }
-        });
+          if (Date.now() - inicio > TIMEOUT_MS) {
+            reject(new Error(
+              "Tempo esgotado ao iniciar a Memed. Verifique a conexão e tente novamente.",
+            ));
+            return;
+          }
+          // O listener pode ainda não estar registrado se o script demorar a executar.
+          registrarListenerPrescricao();
+          setTimeout(verificar, 250);
+        };
+        verificar();
       });
     }, []);
 
@@ -115,6 +152,13 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
       });
       return promise;
     }, [professionalId, carregarScript, aguardarModulo]);
+
+    // Pré-carrega a Memed ao abrir a consulta, para o primeiro clique ser instantâneo.
+    useEffect(() => {
+      garantirPronto().catch((e) => {
+        logger.warn("Memed: pré-carregamento falhou (tentará novamente ao clicar):", e);
+      });
+    }, [garantirPronto]);
 
     const definirPaciente = useCallback(async () => {
       let detalhe: Record<string, any> = {};

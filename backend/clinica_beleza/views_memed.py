@@ -40,6 +40,20 @@ def _memed_config():
     return env, MEMED_ENDPOINTS[env]
 
 
+def _memed_credentials(env):
+    """
+    Retorna (api_key, secret_key) conforme o ambiente. Em produção, prioriza as
+    chaves *_PROD; se ausentes, faz fallback para as genéricas (homologação).
+    """
+    if env == 'production':
+        api_key = getattr(settings, 'MEMED_API_KEY_PROD', '') or getattr(settings, 'MEMED_API_KEY', '')
+        secret_key = getattr(settings, 'MEMED_SECRET_KEY_PROD', '') or getattr(settings, 'MEMED_SECRET_KEY', '')
+    else:
+        api_key = getattr(settings, 'MEMED_API_KEY', '')
+        secret_key = getattr(settings, 'MEMED_SECRET_KEY', '')
+    return api_key, secret_key
+
+
 class MemedTokenView(APIView):
     """
     GET /clinica-beleza/memed/token/?professional=<id>&uf=<UF>
@@ -50,15 +64,15 @@ class MemedTokenView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        api_key = getattr(settings, 'MEMED_API_KEY', '')
-        secret_key = getattr(settings, 'MEMED_SECRET_KEY', '')
+        env, endpoints = _memed_config()
+        api_key, secret_key = _memed_credentials(env)
         if not api_key or not secret_key:
             return Response(
                 {'error': 'Integração Memed não configurada. Defina MEMED_API_KEY e MEMED_SECRET_KEY no servidor.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        prescritor_id = self._resolver_prescritor_id(request)
+        prescritor_id = self._resolver_prescritor_id(request, env)
         if not prescritor_id:
             return Response(
                 {'error': 'Prescritor não identificado. Cadastre o registro profissional (CRM) do profissional '
@@ -66,7 +80,6 @@ class MemedTokenView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        env, endpoints = _memed_config()
         url = f"{endpoints['api']}/sinapse-prescricao/usuarios/{prescritor_id}"
         try:
             resp = requests.get(
@@ -119,7 +132,7 @@ class MemedTokenView(APIView):
             },
         })
 
-    def _resolver_prescritor_id(self, request):
+    def _resolver_prescritor_id(self, request, env='integration'):
         """Resolve o identificador do prescritor na Memed (CPF, external_id ou registro+UF)."""
         # 1) Identificador explícito na query (?prescritor=...) tem prioridade.
         explicit = (request.query_params.get('prescritor') or '').strip()
@@ -163,4 +176,9 @@ class MemedTokenView(APIView):
                         return f"{registro}{uf}" if uf else registro
 
         # 3) Prescritor padrão (clínica com um único médico / ambiente de testes).
-        return (getattr(settings, 'MEMED_PRESCRITOR_ID', '') or '').strip()
+        #    Em produção, prioriza MEMED_PRESCRITOR_ID_PROD (fallback ao genérico).
+        default_id = ''
+        if env == 'production':
+            default_id = getattr(settings, 'MEMED_PRESCRITOR_ID_PROD', '') or ''
+        default_id = default_id or getattr(settings, 'MEMED_PRESCRITOR_ID', '')
+        return (default_id or '').strip()

@@ -434,6 +434,12 @@ MEMED_ENVIRONMENT = os.environ.get('MEMED_ENVIRONMENT', 'integration')
 MEMED_PRESCRITOR_ID = os.environ.get('MEMED_PRESCRITOR_ID', '')
 # UF usada junto ao registro profissional (CRM) para identificar o prescritor.
 MEMED_DEFAULT_UF = os.environ.get('MEMED_DEFAULT_UF', '')
+# Chaves específicas de PRODUÇÃO. Quando MEMED_ENVIRONMENT=production e estas
+# estiverem preenchidas, têm prioridade sobre as genéricas acima (que ficam para
+# homologação/sandbox). Se vazias, faz fallback para MEMED_API_KEY/SECRET_KEY.
+MEMED_API_KEY_PROD = os.environ.get('MEMED_API_KEY_PROD', '')
+MEMED_SECRET_KEY_PROD = os.environ.get('MEMED_SECRET_KEY_PROD', '')
+MEMED_PRESCRITOR_ID_PROD = os.environ.get('MEMED_PRESCRITOR_ID_PROD', '')
 
 # ============================================
 # DJANGO-Q CONFIGURATION (Task Queue)

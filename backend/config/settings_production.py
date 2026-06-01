@@ -388,6 +388,10 @@ MEMED_SECRET_KEY = os.environ.get('MEMED_SECRET_KEY', '')
 MEMED_ENVIRONMENT = os.environ.get('MEMED_ENVIRONMENT', 'integration')  # 'integration' ou 'production'
 MEMED_PRESCRITOR_ID = os.environ.get('MEMED_PRESCRITOR_ID', '')
 MEMED_DEFAULT_UF = os.environ.get('MEMED_DEFAULT_UF', '')
+# Chaves de PRODUÇÃO (prioridade quando MEMED_ENVIRONMENT=production; fallback p/ as genéricas).
+MEMED_API_KEY_PROD = os.environ.get('MEMED_API_KEY_PROD', '')
+MEMED_SECRET_KEY_PROD = os.environ.get('MEMED_SECRET_KEY_PROD', '')
+MEMED_PRESCRITOR_ID_PROD = os.environ.get('MEMED_PRESCRITOR_ID_PROD', '')
 
 # LOGGING
 LOGGING = {

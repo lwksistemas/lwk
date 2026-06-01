@@ -7,8 +7,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
-from .models import Patient
+from .models import Patient, Appointment
 from .serializers import PatientSerializer
+
+# Status de agendamento ainda "em aberto" (não terminais)
+_OPEN_APPOINTMENT_STATUSES = ('PENDING', 'SCHEDULED', 'CONFIRMED', 'IN_PROGRESS')
 
 logger = logging.getLogger(__name__)
 
@@ -88,9 +91,23 @@ class PatientDetailView(APIView):
 
     def delete(self, request, pk):
         try:
+            from django.utils import timezone
+            from django.db.models import F
+
             obj = Patient.objects.get(pk=pk)
+            agora = timezone.now()
+            # Cancela os agendamentos futuros em aberto, liberando os horários.
+            # O histórico (concluídos/cancelados/faltas) é preservado.
+            canceladas = Appointment.objects.filter(
+                patient=obj,
+                date__gte=agora,
+                status__in=_OPEN_APPOINTMENT_STATUSES,
+            ).update(status='CANCELLED', updated_at=agora, version=F('version') + 1)
             obj.is_active = False
             obj.save()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            return Response(
+                {'message': f'Paciente desativado. {canceladas} agendamento(s) futuro(s) cancelado(s).'},
+                status=status.HTTP_200_OK,
+            )
         except Patient.DoesNotExist:
             return Response({'error': 'Paciente não encontrado'}, status=status.HTTP_404_NOT_FOUND)

@@ -54,7 +54,11 @@ class AgendaView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        qs = Appointment.objects.select_related('patient', 'professional', 'procedure')
+        qs = (
+            Appointment.objects
+            .select_related('patient', 'professional', 'procedure')
+            .filter(patient__is_active=True)
+        )
         if s := request.query_params.get('start'):
             qs = qs.filter(date__gte=s)
         if e := request.query_params.get('end'):
@@ -72,7 +76,7 @@ class AgendaHojeView(APIView):
         qs = (
             Appointment.objects
             .select_related('patient', 'professional', 'procedure')
-            .filter(date__date=now().date())
+            .filter(patient__is_active=True, date__date=now().date())
             .order_by('date')
         )
         return Response(AgendaEventSerializer(qs, many=True).data)

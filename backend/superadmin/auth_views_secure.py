@@ -368,12 +368,14 @@ class SecureLoginView(APIView):
         
         if loja_slug:
             try:
+                from django.db.models import Q
+                slug_match = Q(loja__slug=loja_slug) | Q(loja__atalho=loja_slug)
                 if ProfissionalUsuario.objects.filter(
-                    user=user, loja__slug=loja_slug, loja__is_active=True
+                    slug_match, user=user, loja__is_active=True
                 ).exists():
                     return 'loja'
                 if VendedorUsuario.objects.filter(
-                    user=user, loja__slug=loja_slug, loja__is_active=True
+                    slug_match, user=user, loja__is_active=True
                 ).exists():
                     return 'loja'
             except Exception:

@@ -73,7 +73,7 @@ export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug,
     setSeletorCriarAberto(false);
 
     apiClient
-      .get<LeadOption[] | { results: LeadOption[] }>('/crm-vendas/leads/')
+      .get<LeadOption[] | { results: LeadOption[] }>('/crm-vendas/leads/?page_size=500')
       .then((res) => {
         const list = normalizeListResponse(res.data);
         setLeads(list);
@@ -94,9 +94,12 @@ export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug,
   }, [open]);
 
   const leadsFiltrados = useMemo(() => {
-    const q = leadBusca.trim().toLowerCase();
+    const q = leadBusca.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     if (!q) return leads;
-    return leads.filter((l) => (l.nome || '').toLowerCase().includes(q));
+    return leads.filter((l) => {
+      const nome = (l.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return nome.includes(q);
+    });
   }, [leads, leadBusca]);
 
   const updateItemCriar = (idx: number, field: 'produto_servico_id' | 'quantidade' | 'preco_unitario', value: string | number) => {

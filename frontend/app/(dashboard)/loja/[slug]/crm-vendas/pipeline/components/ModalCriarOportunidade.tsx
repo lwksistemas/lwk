@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { X } from 'lucide-react';
 import apiClient from '@/lib/api-client';
@@ -41,6 +41,7 @@ interface Props {
 
 export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug, etapas, initialLeadId }: Props) {
   const [leads, setLeads] = useState<LeadOption[]>([]);
+  const [leadBusca, setLeadBusca] = useState('');
   const [contas, setContas] = useState<ContaOption[]>([]);
   const [produtosServicos, setProdutosServicos] = useState<ProdutoServicoOption[]>([]);
   const [seletorCriarAberto, setSeletorCriarAberto] = useState(false);
@@ -91,6 +92,12 @@ export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug,
       .catch(() => setContas([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const leadsFiltrados = useMemo(() => {
+    const q = leadBusca.trim().toLowerCase();
+    if (!q) return leads;
+    return leads.filter((l) => (l.nome || '').toLowerCase().includes(q));
+  }, [leads, leadBusca]);
 
   const updateItemCriar = (idx: number, field: 'produto_servico_id' | 'quantidade' | 'preco_unitario', value: string | number) => {
     setFormCriar((f) => {
@@ -252,14 +259,22 @@ export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug,
           )}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lead *</label>
+            <input
+              type="text"
+              placeholder="Buscar lead pelo nome..."
+              value={leadBusca}
+              onChange={(e) => setLeadBusca(e.target.value)}
+              className="w-full px-3 py-2 mb-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+            />
             <select
               value={formCriar.lead_id}
               onChange={(e) => setFormCriar((f) => ({ ...f, lead_id: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               required
+              size={leadBusca.trim() ? Math.min(leadsFiltrados.length + 1, 5) : 1}
             >
               <option value="">Selecione o lead</option>
-              {leads.map((l) => (
+              {leadsFiltrados.map((l) => (
                 <option key={l.id} value={l.id}>{l.nome}</option>
               ))}
             </select>

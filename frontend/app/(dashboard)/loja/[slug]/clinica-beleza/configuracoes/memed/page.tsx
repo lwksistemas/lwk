@@ -12,6 +12,14 @@ import {
   getClinicaBelezaHeadersWithLoja,
 } from '@/lib/clinica-beleza-api';
 
+interface TimbradoDetalhe {
+  ok?: boolean;
+  professional_id?: number;
+  error?: string;
+  detail?: string;
+  status?: number;
+}
+
 interface TimbradoStatus {
   tem_timbrado: boolean;
   pdf_nome?: string;
@@ -19,6 +27,8 @@ interface TimbradoStatus {
   updated_at?: string | null;
   aplicados?: number;
   total?: number;
+  warning?: string;
+  detalhes?: TimbradoDetalhe[];
 }
 
 function formatBytes(n?: number): string {
@@ -92,10 +102,23 @@ export default function ClinicaBelezaConfiguracoesMemedPage() {
       }
       setStatus(data as TimbradoStatus);
       setArquivo(null);
-      if (data.aplicados != null) {
-        setMsg(`Timbrado aplicado na Memed para ${data.aplicados} de ${data.total} prescritor(es).`);
+      const aplicados = data.aplicados as number | undefined;
+      const total = data.total as number | undefined;
+      if (typeof aplicados === 'number') {
+        if (aplicados > 0) {
+          setMsg(`Timbrado aplicado na Memed para ${aplicados} de ${total} prescritor(es).`);
+        } else {
+          const detalhes = (data.detalhes as TimbradoDetalhe[] | undefined) ?? [];
+          const memedErr = detalhes.find((d) => d.detail)?.detail || detalhes[0]?.error;
+          setErro(
+            (typeof data.warning === 'string' && data.warning) ||
+              `Timbrado salvo no LWK, mas a Memed não aplicou (${aplicados}/${total}).` +
+                (memedErr ? ` Detalhe: ${String(memedErr).slice(0, 200)}` : '') +
+                ' Isso costuma ocorrer enquanto o prescritor está "Em análise" na Memed — tente de novo quando estiver Ativo, ou contate o suporte Memed.',
+          );
+        }
       } else {
-        setMsg('Timbrado salvo e aplicado na Memed.');
+        setMsg('Timbrado salvo no sistema.');
       }
     } catch {
       setErro('Erro de conexão ao enviar timbrado.');
@@ -120,11 +143,11 @@ export default function ClinicaBelezaConfiguracoesMemedPage() {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Timbrado A4 (PDF)</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Envie o PDF timbrado da clínica (ex.: <strong>Timbrado A4.pdf</strong>). A Memed usa esse
-                arquivo como cabeçalho/rodapé nas receitas e nos pedidos de exames — o mesmo modelo para
-                ambos.
-              </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Envie o <strong>modelo</strong> PDF timbrado da clínica (ex.: <strong>Timbrado A4.pdf</strong>, ~900 KB).
+              Não use a receita já emitida (ex.: <strong>receita.pdf</strong> de poucos KB) — esse arquivo é a saída
+              da Memed, não o papel timbrado de entrada.
+            </p>
             </div>
           </div>
 

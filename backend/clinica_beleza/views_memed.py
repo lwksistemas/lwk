@@ -288,11 +288,17 @@ class MemedTimbradoView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         resultado = aplicar_timbrado_loja_a_profissionais(pdf_bytes, filename, profs)
-        return Response({
+        payload = {
             'tem_timbrado': True,
             'pdf_nome': filename,
             'tamanho_bytes': len(pdf_bytes),
             'aplicados': resultado['aplicados'],
             'total': resultado['total'],
             'detalhes': resultado['detalhes'],
-        })
+        }
+        if resultado['aplicados'] == 0:
+            payload['warning'] = (
+                'Timbrado salvo no LWK, mas a Memed recusou a aplicação para todos os prescritores. '
+                'Prescritores "Em análise" ou conta parceira sem permissão de layout costumam causar isso.'
+            )
+        return Response(payload)

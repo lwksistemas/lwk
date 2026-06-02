@@ -157,7 +157,6 @@ export default function ConsultasPage() {
   const onConsultaCriada = async (consulta: Consulta) => {
     setShowNovaConsulta(false);
     setConsultas((prev) => [consulta, ...prev]);
-    await loadDetalhes(consulta);
   };
 
   const voltarLista = () => {

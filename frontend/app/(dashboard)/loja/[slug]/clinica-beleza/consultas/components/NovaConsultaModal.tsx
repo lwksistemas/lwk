@@ -72,12 +72,11 @@ export function NovaConsultaModal({
 
   const pacientesFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    const base = q ? patients.filter((p) => (p.nome || "").toLowerCase().includes(q)) : patients;
-    return base.slice(0, 50);
+    if (!q) return [];
+    return patients.filter((p) => (p.nome || "").toLowerCase().includes(q)).slice(0, 50);
   }, [busca, patients]);
 
-  // Seleciona automaticamente quando a busca deixa apenas um cliente, evitando o
-  // erro comum de digitar e esquecer de clicar no nome na lista.
+  // Seleciona automaticamente quando a busca deixa apenas um cliente
   useEffect(() => {
     if (pacientesFiltrados.length === 1) {
       setPatientId(pacientesFiltrados[0].id);
@@ -139,20 +138,22 @@ export function NovaConsultaModal({
                     className="w-full pl-8 pr-3 py-2 text-sm border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
                   />
                 </div>
-                <select
-                  value={patientId}
-                  onChange={(e) => setPatientId(e.target.value ? Number(e.target.value) : "")}
-                  size={3}
-                  className="w-full px-3 py-1.5 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600 text-sm"
-                >
-                  {pacientesFiltrados.length === 0 ? (
-                    <option value="" disabled>Nenhum cliente encontrado</option>
-                  ) : (
-                    pacientesFiltrados.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nome}</option>
-                    ))
-                  )}
-                </select>
+                {busca.trim() && (
+                  <select
+                    value={patientId}
+                    onChange={(e) => { setPatientId(e.target.value ? Number(e.target.value) : ""); setBusca(""); }}
+                    size={Math.min(pacientesFiltrados.length || 1, 4)}
+                    className="w-full px-3 py-1.5 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600 text-sm mb-1"
+                  >
+                    {pacientesFiltrados.length === 0 ? (
+                      <option value="" disabled>Nenhum cliente encontrado</option>
+                    ) : (
+                      pacientesFiltrados.map((p) => (
+                        <option key={p.id} value={p.id}>{p.nome}</option>
+                      ))
+                    )}
+                  </select>
+                )}
                 {clienteSelecionado && (
                   <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                     Selecionado: <strong>{clienteSelecionado.nome}</strong>

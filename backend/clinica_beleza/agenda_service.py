@@ -122,18 +122,27 @@ def detectar_conflito(appointment, local_version, request_data, serializer_class
 # Criar agendamento
 # ---------------------------------------------------------------------------
 
-def criar_agendamento(validated_data, *, user=None, request=None):
+def criar_agendamento(validated_data, *, user=None, request=None, serializer=None):
     """
     Cria um agendamento com todas as validações de negócio.
     Retorna o Appointment criado.
     Lança AgendaValidationError se bloqueio ou regra impedir.
-    """
-    from .serializers import AppointmentCreateSerializer
 
+    Se `serializer` for passado, usa serializer.save() (suporta múltiplos procedimentos).
+    """
     date_start = validated_data['date']
-    procedure = validated_data['procedure']
     professional = validated_data['professional']
-    date_end = date_start + timedelta(minutes=procedure.duracao_minutos)
+
+    # Calcular duração total (múltiplos procedimentos ou procedimento único)
+    procedures_list = validated_data.get('_procedures_list')
+    if procedures_list:
+        total_duration = sum(p.duracao_minutos for p in procedures_list)
+    elif validated_data.get('procedure'):
+        total_duration = validated_data['procedure'].duracao_minutos
+    else:
+        total_duration = 30
+
+    date_end = date_start + timedelta(minutes=total_duration)
 
     # Verificar bloqueios
     if bloqueio_impede_agendamento(date_start, date_end, professional.id):
@@ -144,8 +153,12 @@ def criar_agendamento(validated_data, *, user=None, request=None):
         'AGENDAMENTO_CRIADO', professional, date_start, date_end, appointment_id=None
     )
 
-    # Criar
-    appointment = Appointment.objects.create(**validated_data)
+    # Criar via serializer (lida com AppointmentProcedure) ou direto
+    if serializer:
+        appointment = serializer.save()
+    else:
+        clean_data = {k: v for k, v in validated_data.items() if not k.startswith('_')}
+        appointment = Appointment.objects.create(**clean_data)
 
     # Regras pós-criação (best-effort)
     try:

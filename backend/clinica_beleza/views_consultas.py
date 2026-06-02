@@ -44,9 +44,15 @@ class ConsultaListView(APIView):
         patient_id = request.data.get('patient')
         professional_id = request.data.get('professional')
         procedure_id = request.data.get('procedure')
-        if not patient_id or not professional_id or not procedure_id:
+        procedures_ids = request.data.get('procedures_ids') or []
+        if not patient_id or not professional_id:
             return Response(
-                {'error': 'Informe cliente, profissional e procedimento.'},
+                {'error': 'Informe cliente e profissional.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not procedures_ids and not procedure_id:
+            return Response(
+                {'error': 'Informe pelo menos um procedimento.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -58,17 +64,23 @@ class ConsultaListView(APIView):
             professional = Professional.objects.get(pk=professional_id)
         except Professional.DoesNotExist:
             return Response({'error': 'Profissional não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-        try:
-            procedure = Procedure.objects.get(pk=procedure_id)
-        except Procedure.DoesNotExist:
-            return Response({'error': 'Procedimento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Por padrão NÃO inicia o atendimento — quem inicia é o profissional.
+        # Resolver procedimentos
+        if procedures_ids:
+            proc_list = list(Procedure.objects.filter(id__in=procedures_ids, is_active=True))
+            if not proc_list:
+                return Response({'error': 'Nenhum procedimento válido encontrado.'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            try:
+                proc_list = [Procedure.objects.get(pk=procedure_id)]
+            except Procedure.DoesNotExist:
+                return Response({'error': 'Procedimento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
         iniciar = request.data.get('iniciar', False)
         consulta = criar_consulta_avulsa(
             patient=patient,
             professional=professional,
-            procedure=procedure,
+            procedures=proc_list,
             loja_id=patient.loja_id,
             iniciar=bool(iniciar),
         )

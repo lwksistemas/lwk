@@ -132,6 +132,7 @@ class AgendaCreateView(APIView):
                 serializer.validated_data,
                 user=request.user,
                 request=request,
+                serializer=serializer,
             )
             return Response(AgendaEventSerializer(appointment).data, status=status.HTTP_201_CREATED)
         except AgendaValidationError as e:

@@ -162,7 +162,16 @@ class Appointment(LojaIsolationMixin, models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SCHEDULED', verbose_name="Status")
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, verbose_name="Paciente")
     professional = models.ForeignKey(Professional, on_delete=models.CASCADE, verbose_name="Profissional")
-    procedure = models.ForeignKey(Procedure, on_delete=models.CASCADE, verbose_name="Procedimento")
+    procedure = models.ForeignKey(
+        Procedure, on_delete=models.CASCADE, verbose_name="Procedimento principal",
+        null=True, blank=True,
+        help_text="Legado: procedimento único. Use appointment_procedures para múltiplos.",
+    )
+    procedures = models.ManyToManyField(
+        Procedure, through='AppointmentProcedure',
+        related_name='appointments_multi', blank=True,
+        verbose_name="Procedimentos",
+    )
     notes = models.TextField(blank=True, null=True, verbose_name="Observações")
     duracao_minutos = models.PositiveIntegerField(
         null=True,
@@ -191,12 +200,88 @@ class Appointment(LojaIsolationMixin, models.Model):
         ]
 
     def __str__(self):
-        return f"{self.patient.nome} - {self.procedure.nome} - {self.date.strftime('%d/%m/%Y %H:%M')}"
+        nomes = ', '.join(
+            self.procedures.values_list('nome', flat=True)
+        ) if self.procedures.exists() else (self.procedure.nome if self.procedure_id else '—')
+        return f"{self.patient.nome} - {nomes} - {self.date.strftime('%d/%m/%Y %H:%M')}"
 
     def get_duracao_efetiva(self) -> int:
+        """Duração efetiva: campo manual > soma dos procedimentos > procedimento principal."""
         if self.duracao_minutos is not None:
             return self.duracao_minutos
-        return self.procedure.duracao_minutos
+        # Soma dos procedimentos extras (se houver)
+        total = sum(
+            ap.duracao_minutos or ap.procedure.duracao_minutos
+            for ap in self.appointment_procedures.select_related('procedure').all()
+        )
+        if total > 0:
+            return total
+        # Fallback: procedimento principal (legado)
+        if self.procedure_id:
+            return self.procedure.duracao_minutos
+        return 30
+
+    @property
+    def valor_total(self):
+        """Valor total: soma dos preços de todos os procedimentos."""
+        from decimal import Decimal
+        total = sum(
+            (ap.valor or ap.procedure.preco or Decimal('0'))
+            for ap in self.appointment_procedures.select_related('procedure').all()
+        )
+        if total > 0:
+            return total
+        if self.procedure_id:
+            return self.procedure.preco or Decimal('0')
+        return Decimal('0')
+
+
+class AppointmentProcedure(LojaIsolationMixin, models.Model):
+    """
+    Procedimentos de um agendamento — permite N procedimentos por agendamento.
+    Cada item tem sua duração (override opcional) e valor.
+    """
+    appointment = models.ForeignKey(
+        Appointment,
+        on_delete=models.CASCADE,
+        related_name='appointment_procedures',
+        verbose_name='Agendamento',
+    )
+    procedure = models.ForeignKey(
+        Procedure,
+        on_delete=models.CASCADE,
+        verbose_name='Procedimento',
+    )
+    duracao_minutos = models.PositiveIntegerField(
+        null=True, blank=True,
+        verbose_name='Duração (min)',
+        help_text='Opcional. Se vazio, usa a duração cadastrada do procedimento.',
+    )
+    valor = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        verbose_name='Valor (R$)',
+        help_text='Opcional. Se vazio, usa o preço cadastrado do procedimento.',
+    )
+    ordem = models.PositiveSmallIntegerField(default=0, verbose_name='Ordem')
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_appointment_procedures'
+        ordering = ['ordem', 'id']
+        verbose_name = 'Procedimento do agendamento'
+        verbose_name_plural = 'Procedimentos do agendamento'
+
+    def __str__(self):
+        return f"{self.procedure.nome} ({self.get_duracao() or '?'} min)"
+
+    def get_duracao(self) -> int:
+        return self.duracao_minutos or self.procedure.duracao_minutos
+
+    def get_valor(self):
+        from decimal import Decimal
+        return self.valor or self.procedure.preco or Decimal('0')
 
 
 class BloqueioHorario(BloqueioAgendaBase):

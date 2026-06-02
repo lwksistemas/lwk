@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, Search } from "lucide-react";
+import { X, Search, Plus, Trash2 } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { logger } from "@/lib/logger";
@@ -10,13 +10,10 @@ import type { Consulta } from "./consultas-types";
 interface Option {
   id: number;
   nome: string;
+  duracao_minutos?: number;
+  preco?: number;
 }
 
-/**
- * Abre uma consulta avulsa (sem agendamento prévio na agenda) selecionando um
- * cliente já cadastrado, o profissional e o procedimento. A consulta é criada
- * em "Em atendimento", liberando imediatamente o receituário/exames.
- */
 export function NovaConsultaModal({
   open,
   onClose,
@@ -34,7 +31,7 @@ export function NovaConsultaModal({
   const [busca, setBusca] = useState("");
   const [patientId, setPatientId] = useState<number | "">("");
   const [professionalId, setProfessionalId] = useState<number | "">("");
-  const [procedureId, setProcedureId] = useState<number | "">("");
+  const [selectedProcedures, setSelectedProcedures] = useState<number[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -43,7 +40,7 @@ export function NovaConsultaModal({
     setBusca("");
     setPatientId("");
     setProfessionalId("");
-    setProcedureId("");
+    setSelectedProcedures([]);
     setErro("");
     setLoadingData(true);
     (async () => {
@@ -56,11 +53,9 @@ export function NovaConsultaModal({
         const ativos = (arr: unknown) => (Array.isArray(arr) ? (arr as Option[]) : []);
         setPatients(ativos(pac));
         const profList = ativos(prof);
-        const procList = ativos(proc);
         setProfessionals(profList);
-        setProcedures(procList);
+        setProcedures(ativos(proc));
         if (profList.length === 1) setProfessionalId(profList[0].id);
-        if (procList.length === 1) setProcedureId(procList[0].id);
       } catch (e) {
         logger.warn("Erro ao carregar dados para nova consulta:", e);
         setErro("Não foi possível carregar os cadastros. Tente novamente.");
@@ -76,7 +71,6 @@ export function NovaConsultaModal({
     return patients.filter((p) => (p.nome || "").toLowerCase().includes(q)).slice(0, 50);
   }, [busca, patients]);
 
-  // Seleciona automaticamente quando a busca deixa apenas um cliente
   useEffect(() => {
     if (pacientesFiltrados.length === 1) {
       setPatientId(pacientesFiltrados[0].id);
@@ -88,9 +82,39 @@ export function NovaConsultaModal({
     [patients, patientId],
   );
 
+  // Procedimentos disponíveis (exclui os já adicionados)
+  const procedimentosDisponiveis = useMemo(
+    () => procedures.filter((p) => !selectedProcedures.includes(p.id)),
+    [procedures, selectedProcedures],
+  );
+
+  const adicionarProcedimento = (id: number) => {
+    if (id && !selectedProcedures.includes(id)) {
+      setSelectedProcedures((prev) => [...prev, id]);
+    }
+  };
+
+  const removerProcedimento = (id: number) => {
+    setSelectedProcedures((prev) => prev.filter((p) => p !== id));
+  };
+
+  // Resumo: duração total e valor total
+  const resumo = useMemo(() => {
+    let duracao = 0;
+    let valor = 0;
+    for (const id of selectedProcedures) {
+      const proc = procedures.find((p) => p.id === id);
+      if (proc) {
+        duracao += proc.duracao_minutos || 0;
+        valor += proc.preco || 0;
+      }
+    }
+    return { duracao, valor };
+  }, [selectedProcedures, procedures]);
+
   const criar = async () => {
-    if (!patientId || !professionalId || !procedureId) {
-      setErro("Selecione o cliente, o profissional e o procedimento.");
+    if (!patientId || !professionalId || selectedProcedures.length === 0) {
+      setErro("Selecione o cliente, o profissional e pelo menos um procedimento.");
       return;
     }
     setSalvando(true);
@@ -99,7 +123,7 @@ export function NovaConsultaModal({
       const consulta = await ClinicaBelezaAPI.consultas.criar({
         patient: Number(patientId),
         professional: Number(professionalId),
-        procedure: Number(procedureId),
+        procedures_ids: selectedProcedures,
       });
       onCreated(consulta as Consulta);
     } catch (e: unknown) {
@@ -126,6 +150,7 @@ export function NovaConsultaModal({
             <div className="text-center py-8 text-gray-500 text-sm">Carregando cadastros...</div>
           ) : (
             <>
+              {/* Cliente */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Cliente *</label>
                 <div className="relative mb-2">
@@ -161,6 +186,7 @@ export function NovaConsultaModal({
                 )}
               </div>
 
+              {/* Profissional */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Profissional *</label>
                 <select
@@ -175,18 +201,61 @@ export function NovaConsultaModal({
                 </select>
               </div>
 
+              {/* Procedimentos (multi-select) */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Procedimento *</label>
-                <select
-                  value={procedureId}
-                  onChange={(e) => setProcedureId(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
-                >
-                  <option value="">Selecione...</option>
-                  {procedures.map((p) => (
-                    <option key={p.id} value={p.id}>{p.nome}</option>
-                  ))}
-                </select>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Procedimentos * <span className="font-normal text-gray-400">(pode adicionar vários)</span>
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    id="proc-select"
+                    className="flex-1 px-3 py-2 text-sm border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                    defaultValue=""
+                    onChange={(e) => {
+                      const id = Number(e.target.value);
+                      if (id) adicionarProcedimento(id);
+                      e.target.value = "";
+                    }}
+                  >
+                    <option value="">Adicionar procedimento...</option>
+                    {procedimentosDisponiveis.map((p) => (
+                      <option key={p.id} value={p.id}>{p.nome}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Lista de procedimentos selecionados */}
+                {selectedProcedures.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    {selectedProcedures.map((id) => {
+                      const proc = procedures.find((p) => p.id === id);
+                      if (!proc) return null;
+                      return (
+                        <div key={id} className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-neutral-700/50 rounded-lg">
+                          <div className="text-sm">
+                            <span className="font-medium text-gray-800 dark:text-gray-200">{proc.nome}</span>
+                            <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
+                              {proc.duracao_minutos}min
+                              {proc.preco ? ` · R$ ${Number(proc.preco).toFixed(2)}` : ""}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removerProcedimento(id)}
+                            className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {/* Resumo */}
+                    <div className="flex items-center justify-between px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 border-t dark:border-neutral-600 mt-1 pt-2">
+                      <span>Duração total: <strong>{resumo.duracao} min</strong></span>
+                      {resumo.valor > 0 && <span>Valor: <strong>R$ {resumo.valor.toFixed(2)}</strong></span>}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

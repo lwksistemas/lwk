@@ -101,36 +101,53 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
     return None
 
 
-def criar_consulta_avulsa(*, patient, professional, procedure, loja_id=None, iniciar=False):
+def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=None, loja_id=None, iniciar=False):
     """
     Cria uma consulta "avulsa" (sem agendamento prévio na agenda), a partir do
     cadastro do cliente. Gera o Appointment correspondente e a Consulta vinculada.
 
-    Por padrão NÃO inicia o atendimento (status SCHEDULED) — quem inicia é o
-    profissional. Passe iniciar=True para iniciar imediatamente (IN_PROGRESS).
+    Suporta múltiplos procedimentos via `procedures` (lista de Procedure).
+    Se `procedures` não for passado, usa `procedure` (retrocompatível).
 
     Retorna a Consulta criada.
     """
+    from .models import AppointmentProcedure
+
     ts = now()
     status_inicial = 'IN_PROGRESS' if iniciar else 'SCHEDULED'
     loja_id = loja_id or getattr(patient, 'loja_id', None)
+
+    # Resolve lista de procedimentos
+    proc_list = procedures or ([procedure] if procedure else [])
+    if not proc_list:
+        raise ValueError('Informe pelo menos um procedimento.')
+    primary_procedure = proc_list[0]
 
     appointment = Appointment.objects.create(
         date=ts,
         status=status_inicial,
         patient=patient,
         professional=professional,
-        procedure=procedure,
+        procedure=primary_procedure,
         loja_id=loja_id,
     )
+    # Criar itens na tabela intermediária
+    for ordem, proc in enumerate(proc_list):
+        AppointmentProcedure.objects.create(
+            appointment=appointment,
+            procedure=proc,
+            ordem=ordem,
+            loja_id=loja_id,
+        )
+
     consulta = Consulta.objects.create(
         appointment=appointment,
         patient=patient,
         professional=professional,
-        procedure=procedure,
+        procedure=primary_procedure,
         status=status_inicial,
         data_inicio=ts if iniciar else None,
-        valor_consulta=_valor_consulta(appointment),
+        valor_consulta=appointment.valor_total,
         loja_id=loja_id,
     )
     return consulta

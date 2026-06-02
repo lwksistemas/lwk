@@ -717,3 +717,27 @@ class ConsultaEvolucao(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f'Evolução {self.patient.nome} — {self.created_at:%d/%m/%Y %H:%M}'
+
+
+class MemedTimbrado(LojaIsolationMixin, models.Model):
+    """
+    PDF timbrado A4 da clínica (cabeçalho/rodapé) para receituário e exames na Memed.
+    Um arquivo por loja; aplicado a cada prescritor via API da Memed ao salvar/upload.
+    """
+    pdf = models.BinaryField(
+        verbose_name='PDF timbrado',
+        help_text='Arquivo PDF A4 com papel timbrado da clínica.',
+    )
+    pdf_nome = models.CharField(max_length=255, blank=True, default='', verbose_name='Nome do arquivo')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_memed_timbrado'
+        verbose_name = 'Timbrado Memed'
+        verbose_name_plural = 'Timbrados Memed'
+
+    def __str__(self):
+        return self.pdf_nome or f'Timbrado loja {self.loja_id}'

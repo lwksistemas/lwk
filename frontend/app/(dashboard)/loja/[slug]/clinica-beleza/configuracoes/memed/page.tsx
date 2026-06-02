@@ -1,0 +1,211 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { FileText, Upload, RefreshCw } from 'lucide-react';
+import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
+import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
+import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
+import {
+  clinicaBelezaFetch,
+  getClinicaBelezaBaseUrl,
+  getClinicaBelezaHeadersWithLoja,
+} from '@/lib/clinica-beleza-api';
+
+interface TimbradoStatus {
+  tem_timbrado: boolean;
+  pdf_nome?: string;
+  tamanho_bytes?: number;
+  updated_at?: string | null;
+  aplicados?: number;
+  total?: number;
+}
+
+function formatBytes(n?: number): string {
+  if (!n) return '—';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export default function ClinicaBelezaConfiguracoesMemedPage() {
+  const slug = (useParams()?.slug as string) ?? '';
+  const base = `/loja/${slug}/clinica-beleza/configuracoes`;
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<TimbradoStatus>({ tem_timbrado: false });
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [msg, setMsg] = useState('');
+  const [erro, setErro] = useState('');
+
+  const carregar = async () => {
+    setLoading(true);
+    setErro('');
+    try {
+      const res = await clinicaBelezaFetch('/memed/timbrado/');
+      if (res.ok) {
+        setStatus((await res.json()) as TimbradoStatus);
+      }
+    } catch {
+      setErro('Não foi possível carregar o timbrado.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void carregar();
+  }, []);
+
+  const enviarPdf = async (apenasAplicar = false) => {
+    setSaving(true);
+    setErro('');
+    setMsg('');
+    try {
+      const url = `${getClinicaBelezaBaseUrl()}/memed/timbrado/`;
+      const headers = getClinicaBelezaHeadersWithLoja();
+      delete (headers as Record<string, string>)['Content-Type'];
+
+      let res: Response;
+      if (apenasAplicar) {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ aplicar: true }),
+        });
+      } else {
+        if (!arquivo) {
+          setErro('Selecione o PDF timbrado A4.');
+          setSaving(false);
+          return;
+        }
+        const form = new FormData();
+        form.append('pdf', arquivo);
+        res = await fetch(url, { method: 'POST', headers, body: form });
+      }
+
+      const data = await res.json();
+      if (!res.ok) {
+        setErro(typeof data?.error === 'string' ? data.error : 'Falha ao enviar timbrado.');
+        return;
+      }
+      setStatus(data as TimbradoStatus);
+      setArquivo(null);
+      if (data.aplicados != null) {
+        setMsg(`Timbrado aplicado na Memed para ${data.aplicados} de ${data.total} prescritor(es).`);
+      } else {
+        setMsg('Timbrado salvo e aplicado na Memed.');
+      }
+    } catch {
+      setErro('Erro de conexão ao enviar timbrado.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <ClinicaBelezaStandardPageHeader
+        title="Receituário Memed — Timbrado"
+        subtitle="Papel timbrado A4 para receitas e pedidos de exames"
+        showOffline={false}
+        backHref={base}
+      />
+      <ClinicaBelezaPageContent className="max-w-2xl space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 rounded-lg text-white" style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}>
+              <FileText size={22} />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Timbrado A4 (PDF)</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Envie o PDF timbrado da clínica (ex.: <strong>Timbrado A4.pdf</strong>). A Memed usa esse
+                arquivo como cabeçalho/rodapé nas receitas e nos pedidos de exames — o mesmo modelo para
+                ambos.
+              </p>
+            </div>
+          </div>
+
+          {loading ? (
+            <p className="text-sm text-gray-500">Carregando…</p>
+          ) : status.tem_timbrado ? (
+            <div className="rounded-lg bg-gray-50 dark:bg-neutral-900/50 p-3 text-sm text-gray-700 dark:text-gray-300">
+              <p><strong>Arquivo atual:</strong> {status.pdf_nome}</p>
+              <p><strong>Tamanho:</strong> {formatBytes(status.tamanho_bytes)}</p>
+              {status.updated_at && (
+                <p><strong>Atualizado:</strong> {new Date(status.updated_at).toLocaleString('pt-BR')}</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Nenhum timbrado configurado ainda. Envie o PDF abaixo.
+            </p>
+          )}
+
+          {erro && (
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+              {erro}
+            </div>
+          )}
+          {msg && (
+            <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 text-sm">
+              {msg}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              PDF timbrado (A4)
+            </label>
+            <label className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-[#8B3D52]/50 transition-colors">
+              <Upload size={20} className="text-gray-400 shrink-0" />
+              <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                {arquivo ? arquivo.name : 'Clique para selecionar Timbrado A4.pdf'}
+              </span>
+              <input
+                type="file"
+                accept=".pdf,application/pdf"
+                className="hidden"
+                onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Máx. 5 MB. O timbrado é aplicado automaticamente a todos os profissionais com CPF cadastrado na Memed.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-2">
+            <button
+              type="button"
+              disabled={saving || !arquivo}
+              onClick={() => void enviarPdf(false)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white disabled:opacity-50"
+              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            >
+              <Upload size={16} />
+              {saving ? 'Enviando…' : 'Salvar e aplicar na Memed'}
+            </button>
+            {status.tem_timbrado && (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void enviarPdf(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50"
+              >
+                <RefreshCw size={16} />
+                Reaplicar aos prescritores
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+          <p>• Novos profissionais cadastrados com CPF recebem o timbrado automaticamente.</p>
+          <p>• A assinatura digital (certificado A1 da Nayara) continua sendo feita na Memed, no computador dela.</p>
+        </div>
+      </ClinicaBelezaPageContent>
+    </>
+  );
+}

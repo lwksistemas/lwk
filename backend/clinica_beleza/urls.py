@@ -29,7 +29,7 @@ from .views_estoque import (
     MovimentacaoEstoqueView, HistoricoEstoqueView, EstoqueResumoView,
 )
 from .views_protocolos import ProtocolListView, ProtocolDetailView
-from .views_memed import MemedTokenView
+from .views_memed import MemedTokenView, MemedTimbradoView
 
 app_name = 'clinica_beleza'
 
@@ -57,6 +57,7 @@ urlpatterns = [
 
     # Memed — prescrição digital (receituário e exames)
     path('memed/token/', MemedTokenView.as_view(), name='memed-token'),
+    path('memed/timbrado/', MemedTimbradoView.as_view(), name='memed-timbrado'),
     
     # Profissionais
     path('professionals/memed-status/', ProfessionalMemedStatusView.as_view(), name='professionals-memed-status'),

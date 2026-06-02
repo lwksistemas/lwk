@@ -107,6 +107,7 @@ def sincronizar_prescritor(professional, *, force: bool = False) -> dict:
     ext = external_id_prescritor(professional)
     if resp.status_code in (200, 201):
         logger.info('Memed auto-cadastro OK prof %s (external_id=%s)', professional.id, ext)
+        _aplicar_timbrado_automatico(professional)
         return {'ok': True, 'status': resp.status_code, 'external_id': ext, 'environment': env}
 
     # O POST cria o prescritor; reenvios (ex.: ao editar o profissional) retornam erro
@@ -114,10 +115,32 @@ def sincronizar_prescritor(professional, *, force: bool = False) -> dict:
     corpo = (resp.text or '')
     if resp.status_code in (400, 409, 422) and ('ja cadastrado' in corpo.lower() or 'external_id' in corpo.lower()):
         logger.info('Memed auto-cadastro prof %s: prescritor já existe (external_id=%s)', professional.id, ext)
+        _aplicar_timbrado_automatico(professional)
         return {'ok': True, 'status': resp.status_code, 'already_exists': True, 'external_id': ext, 'environment': env}
 
     logger.info('Memed auto-cadastro prof %s -> HTTP %s: %s', professional.id, resp.status_code, corpo[:300])
     return {'ok': False, 'status': resp.status_code, 'detail': corpo[:300], 'external_id': ext}
+
+
+def _aplicar_timbrado_automatico(professional):
+    """Se a loja tiver PDF timbrado salvo, aplica na Memed para o prescritor (best-effort)."""
+    try:
+        from .models import MemedTimbrado
+        from .memed_impressao import aplicar_timbrado_prescritor
+
+        loja_id = getattr(professional, 'loja_id', None)
+        if not loja_id:
+            return
+        timbrado = MemedTimbrado.objects.filter(loja_id=loja_id).first()
+        if not timbrado or not timbrado.pdf:
+            return
+        aplicar_timbrado_prescritor(
+            professional,
+            bytes(timbrado.pdf),
+            timbrado.pdf_nome or 'timbrado.pdf',
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning('Memed timbrado automático ignorado (prof %s): %s', getattr(professional, 'id', None), e)
 
 
 def consultar_status_memed(professional) -> dict:
@@ -154,12 +177,12 @@ def consultar_status_memed(professional) -> dict:
         return {'professional_id': prof_id, 'state': 'erro', 'label': 'Erro ao consultar'}
 
     attrs = ((resp.json() or {}).get('data') or {}).get('attributes') or {}
-    status = (attrs.get('status') or 'Desconhecido').strip()
+    status_val = (attrs.get('status') or 'Desconhecido').strip()
     return {
         'professional_id': prof_id,
         'state': 'ok',
-        'status': status,
-        'label': status,
+        'status': status_val,
+        'label': status_val,
         'terms_accepted': bool(attrs.get('terms_accepted')),
         'tem_token': bool(attrs.get('token')),
         'environment': env,

@@ -51,6 +51,13 @@ export default function ClinicaBelezaConfiguracoesPage() {
       itens: ['Integração WhatsApp', 'Lembretes de consultas'],
     },
     {
+      titulo: 'Receituário Memed — Timbrado',
+      descricao: 'PDF timbrado A4 para receitas e pedidos de exames',
+      href: `${base}/memed`,
+      icon: FileText,
+      itens: ['Upload Timbrado A4.pdf', 'Aplica a todos os prescritores', 'Receita e exames'],
+    },
+    {
       titulo: 'Nota Fiscal (NFS-e)',
       descricao: 'Configure como as notas fiscais serão emitidas',
       href: `${base}/nota-fiscal`,

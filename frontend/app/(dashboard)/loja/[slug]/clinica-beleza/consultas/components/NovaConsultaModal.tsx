@@ -115,7 +115,7 @@ export function NovaConsultaModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b dark:border-neutral-700">
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Nova consulta</h2>
           <button type="button" onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
@@ -147,8 +147,8 @@ export function NovaConsultaModal({
                 <select
                   value={patientId}
                   onChange={(e) => setPatientId(e.target.value ? Number(e.target.value) : "")}
-                  size={5}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                  size={4}
+                  className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600 text-sm"
                 >
                   {pacientesFiltrados.length === 0 ? (
                     <option value="" disabled>Nenhum cliente encontrado</option>

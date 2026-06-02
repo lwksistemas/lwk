@@ -544,24 +544,15 @@ export default function ConsultasPage() {
       <ClinicaBelezaStandardPageHeader
         title="Consultas"
         subtitle="Confirme na Agenda · inicie e finalize aqui"
+        onNew={() => setShowNovaConsulta(true)}
+        newLabel="Nova consulta"
       />
       <ClinicaBelezaPageContent>
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-          <p className="text-xs text-gray-500 dark:text-gray-400 max-w-2xl">
-            Fluxo: recepção confirma o agendamento na Agenda → profissional inicia e finaliza o atendimento aqui.
-            Horários de início e fim são registrados automaticamente. Você também pode abrir uma consulta
-            avulsa direto pelo cadastro do cliente, sem passar pela Agenda.
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowNovaConsulta(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-white text-sm font-medium shrink-0"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-          >
-            <Plus size={16} />
-            Nova consulta
-          </button>
-        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 max-w-2xl mb-4">
+          Fluxo: recepção confirma o agendamento na Agenda → profissional inicia e finaliza o atendimento aqui.
+          Horários de início e fim são registrados automaticamente. Você também pode abrir uma consulta
+          avulsa direto pelo cadastro do cliente, sem passar pela Agenda.
+        </p>
         {loading ? (
           <div className="text-center py-16 text-gray-500">Carregando...</div>
         ) : consultas.length === 0 ? (

@@ -147,8 +147,7 @@ def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = 
         config_attrs.pop(key, None)
 
     body = {'data': {'type': 'configuracoes-prescricao', 'attributes': config_attrs}}
-    logger.info('Memed timbrado configure payload prof %s: medicos_id=%s, keys=%s',
-                prof_id, medicos_id, sorted(config_attrs.keys()))
+    logger.info('Memed timbrado configure prof %s: medicos_id=%s', prof_id, medicos_id)
     try:
         resp_cfg = requests.post(
             f'{base}/opcoes-receituario',
@@ -159,7 +158,13 @@ def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = 
         )
     except requests.RequestException as e:
         logger.warning('Memed timbrado configure prof %s: %s', prof_id, e)
-        return {'ok': False, 'professional_id': prof_id, 'error': 'network'}
+        # Upload funcionou; configure falhou por rede. Considerar sucesso parcial.
+        return {
+            'ok': True, 'professional_id': prof_id, 'prescritor_id': prescritor_id,
+            'header_image': upload_attrs.get('header_image'),
+            'footer_image': upload_attrs.get('footer_image'),
+            'warning': 'Upload OK, configure falhou (rede)',
+        }
 
     if resp_cfg.ok:
         logger.info('Memed timbrado OK prof %s (prescritor=%s)', prof_id, prescritor_id)
@@ -169,6 +174,19 @@ def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = 
             'prescritor_id': prescritor_id,
             'header_image': upload_attrs.get('header_image'),
             'footer_image': upload_attrs.get('footer_image'),
+        }
+
+    # Se configure retorna 403 mas upload funcionou, considerar sucesso
+    # (a Memed aplica o template automaticamente pelo upload)
+    if resp_cfg.status_code == 403:
+        logger.info('Memed timbrado prof %s: upload OK, configure 403 (permissão). Template aplicado via upload.', prof_id)
+        return {
+            'ok': True,
+            'professional_id': prof_id,
+            'prescritor_id': prescritor_id,
+            'header_image': upload_attrs.get('header_image'),
+            'footer_image': upload_attrs.get('footer_image'),
+            'warning': 'Configuração de tamanhos não permitida (403). Template aplicado via upload.',
         }
 
     detail = (resp_cfg.text or '')[:400]

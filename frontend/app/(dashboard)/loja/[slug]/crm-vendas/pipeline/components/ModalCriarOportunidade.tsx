@@ -269,28 +269,29 @@ export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug,
               onChange={(e) => { setLeadBusca(e.target.value); setFormCriar((f) => ({ ...f, lead_id: '' })); }}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
             />
-            {leadBusca.trim() && leadsFiltrados.length > 0 && !formCriar.lead_id && (
-              <select
-                value=""
-                onChange={(e) => {
-                  setFormCriar((f) => ({ ...f, lead_id: e.target.value }));
-                  const lead = leads.find((l) => String(l.id) === e.target.value);
-                  if (lead) setLeadBusca(lead.nome);
-                }}
-                size={Math.min(leadsFiltrados.length, 5)}
-                className="w-full mt-1 px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-              >
+            {leadBusca.trim() && !formCriar.lead_id && leadsFiltrados.length > 0 && (
+              <div className="w-full mt-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 max-h-40 overflow-y-auto">
                 {leadsFiltrados.map((l) => (
-                  <option key={l.id} value={l.id}>{l.nome}</option>
+                  <button
+                    key={l.id}
+                    type="button"
+                    onClick={() => {
+                      setFormCriar((f) => ({ ...f, lead_id: String(l.id) }));
+                      setLeadBusca(l.nome);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-100 dark:border-gray-600 last:border-b-0"
+                  >
+                    {l.nome}
+                  </button>
                 ))}
-              </select>
+              </div>
             )}
-            {leadBusca.trim() && leadsFiltrados.length === 0 && (
+            {leadBusca.trim() && !formCriar.lead_id && leadsFiltrados.length === 0 && (
               <p className="text-xs text-gray-500 mt-1">Nenhum lead encontrado.</p>
             )}
             {formCriar.lead_id && (
               <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                Selecionado: <strong>{leads.find((l) => String(l.id) === formCriar.lead_id)?.nome}</strong>
+                ✓ {leads.find((l) => String(l.id) === formCriar.lead_id)?.nome}
               </p>
             )}
             {leads.length === 0 && (

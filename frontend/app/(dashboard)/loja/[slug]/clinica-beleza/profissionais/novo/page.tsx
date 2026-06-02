@@ -50,6 +50,7 @@ export default function NovoProfissionalPage() {
     criar_acesso: false, perfil: "profissional" as PerfilAcesso,
   });
   const [comissoes, setComissoes] = useState<Commission[]>([]);
+  const [comissaoConsulta, setComissaoConsulta] = useState({ modo: "percentual", valor: "" });
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -90,13 +91,22 @@ export default function NovoProfissionalPage() {
         });
         setComissoes(
           Array.isArray(comissoesData)
-            ? comissoesData.map((c: any) => ({
-                id: c.id, tipo: c.tipo, modo: c.modo,
-                valor: String(c.valor), procedure: c.procedure,
-                procedure_name: c.procedure_name,
-              }))
+            ? comissoesData
+                .filter((c: any) => c.tipo === "procedimento")
+                .map((c: any) => ({
+                  id: c.id, tipo: c.tipo, modo: c.modo,
+                  valor: String(c.valor), procedure: c.procedure,
+                  procedure_name: c.procedure_name,
+                }))
             : []
         );
+        // Comissão da consulta (tipo=consulta)
+        const consultaComissao = Array.isArray(comissoesData)
+          ? comissoesData.find((c: any) => c.tipo === "consulta")
+          : null;
+        if (consultaComissao) {
+          setComissaoConsulta({ modo: consultaComissao.modo, valor: String(consultaComissao.valor) });
+        }
       } catch (e) {
         logger.warn("Erro ao carregar profissional:", e);
         setError("Erro ao carregar dados do profissional.");
@@ -162,20 +172,31 @@ export default function NovoProfissionalPage() {
       }
 
       // Salvar comissões
-      if (profId && comissoes.length > 0) {
-        const payload = comissoes
-          .filter((c) => c.valor && Number(c.valor) > 0 && c.procedure)
-          .map((c) => ({
-            tipo: "procedimento",
-            modo: c.modo,
-            valor: c.valor,
-            procedure: c.procedure,
-          }));
-        if (payload.length > 0) {
-          await clinicaBelezaFetch(`/professionals/${profId}/comissoes/`, {
-            method: "POST", body: JSON.stringify(payload),
+      if (profId) {
+        const payload: any[] = [];
+        // Comissão da consulta
+        if (comissaoConsulta.valor && Number(comissaoConsulta.valor) > 0) {
+          payload.push({
+            tipo: "consulta",
+            modo: comissaoConsulta.modo,
+            valor: comissaoConsulta.valor,
+            procedure: null,
           });
         }
+        // Comissões por procedimento
+        for (const c of comissoes) {
+          if (c.valor && Number(c.valor) > 0 && c.procedure) {
+            payload.push({
+              tipo: "procedimento",
+              modo: c.modo,
+              valor: c.valor,
+              procedure: c.procedure,
+            });
+          }
+        }
+        await clinicaBelezaFetch(`/professionals/${profId}/comissoes/`, {
+          method: "POST", body: JSON.stringify(payload),
+        });
       }
 
       router.push(`/loja/${slug}/clinica-beleza/profissionais`);
@@ -278,59 +299,92 @@ export default function NovoProfissionalPage() {
             </div>
           </section>
 
-          {/* Seção: Comissões por Procedimento */}
-          <section className="bg-white dark:bg-neutral-800 rounded-xl border dark:border-neutral-700 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comissões</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  Defina a comissão por procedimento — percentual (%) ou valor fixo (R$)
-                </p>
+          {/* Seção: Comissões */}
+          <section className="bg-white dark:bg-neutral-800 rounded-xl border dark:border-neutral-700 p-5 space-y-5">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comissões</h3>
+
+            {/* Comissão da consulta (atendimento geral) */}
+            <div className="bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800/40 rounded-lg p-4 space-y-3">
+              <p className="text-xs font-semibold text-purple-800 dark:text-purple-300">Comissão da Consulta (atendimento)</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Valor que o profissional recebe por cada consulta realizada, independente do procedimento.
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="w-32">
+                  <select value={comissaoConsulta.modo} onChange={(e) => setComissaoConsulta((c) => ({ ...c, modo: e.target.value }))} className={inputClass}>
+                    <option value="percentual">% do valor</option>
+                    <option value="fixo">R$ fixo</option>
+                  </select>
+                </div>
+                <div className="w-28">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={comissaoConsulta.valor}
+                    onChange={(e) => setComissaoConsulta((c) => ({ ...c, valor: e.target.value }))}
+                    className={inputClass}
+                    placeholder={comissaoConsulta.modo === "percentual" ? "30" : "150.00"}
+                  />
+                </div>
+                <span className="text-xs text-gray-500">{comissaoConsulta.modo === "percentual" ? "% do valor da consulta" : "reais por consulta"}</span>
               </div>
-              <button type="button" onClick={addComissao} className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline">
-                <Plus size={14} /> Adicionar
-              </button>
             </div>
-            {comissoes.length === 0 ? (
-              <p className="text-xs text-gray-500 dark:text-gray-400 italic">Nenhuma comissão configurada para este profissional.</p>
-            ) : (
-              <div className="space-y-2">
-                {comissoes.map((c, idx) => (
-                  <div key={idx} className="flex flex-wrap items-center gap-2 bg-gray-50 dark:bg-neutral-700/30 rounded-lg px-3 py-2.5">
-                    <div className="flex-1 min-w-[140px]">
-                      <select
-                        value={c.procedure ?? ""}
-                        onChange={(e) => updateComissao(idx, "procedure", e.target.value ? Number(e.target.value) : null)}
-                        className={inputClass}
-                      >
-                        <option value="">Selecione o procedimento...</option>
-                        {procedures.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                      </select>
-                    </div>
-                    <div className="w-28">
-                      <select value={c.modo} onChange={(e) => updateComissao(idx, "modo", e.target.value)} className={inputClass}>
-                        <option value="percentual">%</option>
-                        <option value="fixo">R$</option>
-                      </select>
-                    </div>
-                    <div className="w-24">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={c.valor}
-                        onChange={(e) => updateComissao(idx, "valor", e.target.value)}
-                        className={inputClass}
-                        placeholder={c.modo === "percentual" ? "30" : "200.00"}
-                      />
-                    </div>
-                    <button type="button" onClick={() => removeComissao(idx)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
+
+            {/* Comissões por procedimento */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Comissão por Procedimento</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Valor adicional ou específico por procedimento (sobrepõe a comissão geral quando definido).
+                  </p>
+                </div>
+                <button type="button" onClick={addComissao} className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline">
+                  <Plus size={14} /> Adicionar
+                </button>
               </div>
-            )}
+              {comissoes.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">Nenhuma comissão por procedimento configurada.</p>
+              ) : (
+                <div className="space-y-2">
+                  {comissoes.map((c, idx) => (
+                    <div key={idx} className="flex flex-wrap items-center gap-2 bg-gray-50 dark:bg-neutral-700/30 rounded-lg px-3 py-2.5">
+                      <div className="flex-1 min-w-[140px]">
+                        <select
+                          value={c.procedure ?? ""}
+                          onChange={(e) => updateComissao(idx, "procedure", e.target.value ? Number(e.target.value) : null)}
+                          className={inputClass}
+                        >
+                          <option value="">Selecione o procedimento...</option>
+                          {procedures.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                        </select>
+                      </div>
+                      <div className="w-28">
+                        <select value={c.modo} onChange={(e) => updateComissao(idx, "modo", e.target.value)} className={inputClass}>
+                          <option value="percentual">%</option>
+                          <option value="fixo">R$</option>
+                        </select>
+                      </div>
+                      <div className="w-24">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={c.valor}
+                          onChange={(e) => updateComissao(idx, "valor", e.target.value)}
+                          className={inputClass}
+                          placeholder={c.modo === "percentual" ? "30" : "200.00"}
+                        />
+                      </div>
+                      <button type="button" onClick={() => removeComissao(idx)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </section>
 
           {/* Seção: Acesso (apenas novo) */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, Search, Plus, Trash2 } from "lucide-react";
+import { X, Search, Trash2 } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { logger } from "@/lib/logger";
@@ -105,8 +105,8 @@ export function NovaConsultaModal({
     for (const id of selectedProcedures) {
       const proc = procedures.find((p) => p.id === id);
       if (proc) {
-        duracao += proc.duracao_minutos || 0;
-        valor += proc.preco || 0;
+        duracao += Number(proc.duracao_minutos) || 0;
+        valor += Number(proc.preco) || 0;
       }
     }
     return { duracao, valor };
@@ -235,8 +235,8 @@ export function NovaConsultaModal({
                           <div className="text-sm">
                             <span className="font-medium text-gray-800 dark:text-gray-200">{proc.nome}</span>
                             <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
-                              {proc.duracao_minutos}min
-                              {proc.preco ? ` · R$ ${Number(proc.preco).toFixed(2)}` : ""}
+                              {Number(proc.duracao_minutos) || 0}min
+                              {Number(proc.preco) ? ` · R$ ${Number(proc.preco).toFixed(2)}` : ""}
                             </span>
                           </div>
                           <button

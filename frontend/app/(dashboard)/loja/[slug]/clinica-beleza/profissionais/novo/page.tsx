@@ -108,7 +108,7 @@ export default function NovoProfissionalPage() {
 
   // Comissões helpers
   const addComissao = () => {
-    setComissoes((prev) => [...prev, { tipo: "consulta", modo: "percentual", valor: "", procedure: null }]);
+    setComissoes((prev) => [...prev, { tipo: "procedimento", modo: "percentual", valor: "", procedure: null }]);
   };
   const removeComissao = (idx: number) => {
     setComissoes((prev) => prev.filter((_, i) => i !== idx));
@@ -164,12 +164,12 @@ export default function NovoProfissionalPage() {
       // Salvar comissões
       if (profId && comissoes.length > 0) {
         const payload = comissoes
-          .filter((c) => c.valor && Number(c.valor) > 0)
+          .filter((c) => c.valor && Number(c.valor) > 0 && c.procedure)
           .map((c) => ({
-            tipo: c.tipo,
+            tipo: "procedimento",
             modo: c.modo,
             valor: c.valor,
-            procedure: c.tipo === "procedimento" ? c.procedure : null,
+            procedure: c.procedure,
           }));
         if (payload.length > 0) {
           await clinicaBelezaFetch(`/professionals/${profId}/comissoes/`, {
@@ -278,52 +278,55 @@ export default function NovoProfissionalPage() {
             </div>
           </section>
 
-          {/* Seção: Comissões */}
+          {/* Seção: Comissões por Procedimento */}
           <section className="bg-white dark:bg-neutral-800 rounded-xl border dark:border-neutral-700 p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comissões</h3>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comissões</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Defina a comissão por procedimento — percentual (%) ou valor fixo (R$)
+                </p>
+              </div>
               <button type="button" onClick={addComissao} className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline">
                 <Plus size={14} /> Adicionar
               </button>
             </div>
             {comissoes.length === 0 ? (
-              <p className="text-xs text-gray-500 dark:text-gray-400">Nenhuma comissão configurada.</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 italic">Nenhuma comissão configurada para este profissional.</p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {comissoes.map((c, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-2 items-end bg-gray-50 dark:bg-neutral-700/30 rounded-lg p-3">
-                    <div className="col-span-3">
-                      <label className={labelClass}>Tipo</label>
-                      <select value={c.tipo} onChange={(e) => updateComissao(idx, "tipo", e.target.value)} className={inputClass}>
-                        <option value="consulta">Consulta</option>
-                        <option value="procedimento">Procedimento</option>
+                  <div key={idx} className="flex flex-wrap items-center gap-2 bg-gray-50 dark:bg-neutral-700/30 rounded-lg px-3 py-2.5">
+                    <div className="flex-1 min-w-[140px]">
+                      <select
+                        value={c.procedure ?? ""}
+                        onChange={(e) => updateComissao(idx, "procedure", e.target.value ? Number(e.target.value) : null)}
+                        className={inputClass}
+                      >
+                        <option value="">Selecione o procedimento...</option>
+                        {procedures.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
                       </select>
                     </div>
-                    <div className="col-span-3">
-                      <label className={labelClass}>Modo</label>
+                    <div className="w-28">
                       <select value={c.modo} onChange={(e) => updateComissao(idx, "modo", e.target.value)} className={inputClass}>
-                        <option value="percentual">% Percentual</option>
-                        <option value="fixo">R$ Fixo</option>
+                        <option value="percentual">%</option>
+                        <option value="fixo">R$</option>
                       </select>
                     </div>
-                    <div className="col-span-2">
-                      <label className={labelClass}>{c.modo === "percentual" ? "%" : "R$"}</label>
-                      <input type="number" step="0.01" value={c.valor} onChange={(e) => updateComissao(idx, "valor", e.target.value)} className={inputClass} placeholder="0.00" />
+                    <div className="w-24">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={c.valor}
+                        onChange={(e) => updateComissao(idx, "valor", e.target.value)}
+                        className={inputClass}
+                        placeholder={c.modo === "percentual" ? "30" : "200.00"}
+                      />
                     </div>
-                    {c.tipo === "procedimento" && (
-                      <div className="col-span-3">
-                        <label className={labelClass}>Procedimento</label>
-                        <select value={c.procedure ?? ""} onChange={(e) => updateComissao(idx, "procedure", e.target.value ? Number(e.target.value) : null)} className={inputClass}>
-                          <option value="">Todos</option>
-                          {procedures.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                        </select>
-                      </div>
-                    )}
-                    <div className={c.tipo === "procedimento" ? "col-span-1" : "col-span-4"}>
-                      <button type="button" onClick={() => removeComissao(idx)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                    <button type="button" onClick={() => removeComissao(idx)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 ))}
               </div>

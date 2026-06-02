@@ -337,7 +337,7 @@ export default function NovoProfissionalPage() {
                 <div>
                   <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Comissão por Procedimento</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Valor adicional ou específico por procedimento (sobrepõe a comissão geral quando definido).
+                    Valor que o profissional recebe por cada procedimento realizado.
                   </p>
                 </div>
                 <button type="button" onClick={addComissao} className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline">

@@ -255,7 +255,7 @@ export default function NovaOportunidadePage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-10">
+    <div className="space-y-6 pb-10">
       {/* Header */}
       <div className="flex items-center gap-4">
         <button

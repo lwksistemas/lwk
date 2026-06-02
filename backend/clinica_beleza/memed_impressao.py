@@ -104,7 +104,7 @@ def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = 
     try:
         resp_get = requests.get(
             f'{base}/opcoes-receituario',
-            params={'token': params['token']},
+            params=params,
             headers=headers,
             timeout=30,
         )
@@ -128,26 +128,31 @@ def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = 
     if not medicos_id:
         return {'ok': False, 'professional_id': prof_id, 'error': 'sem_medicos_id'}
 
-    config_attrs = {
+    # Manter todos os atributos existentes e apenas atualizar cabeçalho/rodapé
+    config_attrs = dict(attrs)
+    config_attrs.update({
         'medicos_id': medicos_id,
         'indice': 1,
         'mostrar_cabecalho_rodape_simples': 1,
         'mostrar_cabecalho_rodape_especial': 1,
-        'largura_papel': 21,
-        'altura_papel': 29.7,
         'tamanho_cabecalho': 3.5,
         'tamanho_rodape': 2.5,
-    }
+    })
     if upload_attrs.get('header_image'):
         config_attrs['header_image'] = upload_attrs['header_image']
     if upload_attrs.get('footer_image'):
         config_attrs['footer_image'] = upload_attrs['footer_image']
+    # Remover campos read-only que a API não aceita no POST
+    for key in ('id', 'created_at', 'updated_at', 'ativo'):
+        config_attrs.pop(key, None)
 
     body = {'data': {'type': 'configuracoes-prescricao', 'attributes': config_attrs}}
+    logger.info('Memed timbrado configure payload prof %s: medicos_id=%s, keys=%s',
+                prof_id, medicos_id, sorted(config_attrs.keys()))
     try:
         resp_cfg = requests.post(
             f'{base}/opcoes-receituario',
-            params={'token': params['token']},
+            params=params,
             json=body,
             headers={**headers, 'Content-Type': 'application/json'},
             timeout=30,

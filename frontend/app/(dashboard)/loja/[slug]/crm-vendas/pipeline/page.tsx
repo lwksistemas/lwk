@@ -160,18 +160,17 @@ export default function CrmVendasPipelinePage() {
   useEffect(() => {
     const leadIdParam = searchParams.get('lead_id');
     if (searchParams.get('novo') === '1') {
-      setModalCriar(true);
-      // Se veio com lead_id, pré-selecionar
-      if (leadIdParam) {
-        setInitialLeadId(leadIdParam);
-      }
-      router.replace(`/loja/${slug}/crm-vendas/pipeline`, { scroll: false });
+      // Redirecionar para a página dedicada de nova oportunidade
+      const url = leadIdParam
+        ? `/loja/${slug}/crm-vendas/pipeline/nova-oportunidade?lead_id=${leadIdParam}`
+        : `/loja/${slug}/crm-vendas/pipeline/nova-oportunidade`;
+      router.replace(url);
+      return;
     }
   }, [searchParams, router, slug]);
 
   const handleAbrirCriar = () => {
-    setInitialLeadId(undefined);
-    setModalCriar(true);
+    router.push(`/loja/${slug}/crm-vendas/pipeline/nova-oportunidade`);
   };
 
   const handleCardClick = (op: Oportunidade) => {

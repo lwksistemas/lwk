@@ -108,6 +108,11 @@ class ConsultaDetailView(APIView):
     def put(self, request, pk):
         try:
             obj = self._get(pk)
+            if obj.status == 'COMPLETED':
+                return Response(
+                    {'error': 'Consulta finalizada não pode ser editada.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             serializer = ConsultaSerializer(obj, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
@@ -279,6 +284,12 @@ class ConsultaEvolucaoListView(APIView):
             consulta = Consulta.objects.get(pk=consulta_id)
         except Consulta.DoesNotExist:
             return Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+        if consulta.status == 'COMPLETED':
+            return Response(
+                {'error': 'Consulta finalizada não permite novas evoluções.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         data = {
             **request.data,

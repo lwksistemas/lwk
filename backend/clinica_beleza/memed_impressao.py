@@ -85,7 +85,7 @@ def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = 
     try:
         resp_up = requests.post(
             f'{base}/opcoes-receituario/upload-template',
-            params=params,
+            params={'token': params['token']},
             files={'template': (filename, pdf_bytes, 'application/pdf')},
             headers=headers,
             timeout=90,
@@ -104,7 +104,7 @@ def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = 
     try:
         resp_get = requests.get(
             f'{base}/opcoes-receituario',
-            params=params,
+            params={'token': params['token']},
             headers=headers,
             timeout=30,
         )
@@ -147,7 +147,7 @@ def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = 
     try:
         resp_cfg = requests.post(
             f'{base}/opcoes-receituario',
-            params=params,
+            params={'token': params['token']},
             json=body,
             headers={**headers, 'Content-Type': 'application/json'},
             timeout=30,

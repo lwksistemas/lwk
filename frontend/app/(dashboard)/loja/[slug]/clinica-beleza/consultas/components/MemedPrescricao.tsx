@@ -209,6 +209,20 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
           professionalId != null
             ? `/memed/token/?professional=${professionalId}`
             : "/memed/token/";
+
+        // Preload hint: adiciona <link rel="preload"> para o script da Memed
+        // antes mesmo de ter o token (URL é estável por ambiente).
+        const preloadScript = (url: string) => {
+          if (document.querySelector(`link[href="${url}"]`)) return;
+          const link = document.createElement("link");
+          link.rel = "preload";
+          link.as = "script";
+          link.href = url;
+          document.head.appendChild(link);
+        };
+        // URL conhecida (produção) — preload enquanto busca token
+        preloadScript("https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js");
+
         const res = await clinicaBelezaFetch(path);
         const cfg = await res.json();
         if (!res.ok) {

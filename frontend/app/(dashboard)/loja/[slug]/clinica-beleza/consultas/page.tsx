@@ -451,7 +451,7 @@ export default function ConsultasPage() {
                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
                   >
                     <Pill size={16} />
-                    Receituário
+                    {memedBusy ? "Carregando..." : "Receituário"}
                   </button>
                   <button
                     type="button"
@@ -461,7 +461,7 @@ export default function ConsultasPage() {
                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
                   >
                     <FlaskConical size={16} />
-                    Exames
+                    {memedBusy ? "Carregando..." : "Exames"}
                   </button>
                 </>
               )}

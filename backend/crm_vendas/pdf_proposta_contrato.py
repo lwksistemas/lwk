@@ -276,6 +276,8 @@ def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=Tru
         table_data = [['Item', 'Qtd', 'Preço Unit.', 'Subtotal']]
     valor_unico = 0
     valor_mensal = 0
+    valor_trimestral = 0
+    valor_anual = 0
     for item in itens:
         ps = item.produto_servico
         tipo_ps = ps.get_tipo_display() if hasattr(ps, 'get_tipo_display') else getattr(ps, 'tipo', '')
@@ -292,8 +294,12 @@ def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=Tru
             table_data.append([nome, qtd, preco, subtotal])
         if recorrencia == 'unico':
             valor_unico += float(sub)
-        else:
+        elif recorrencia == 'mensal':
             valor_mensal += float(sub)
+        elif recorrencia == 'trimestral':
+            valor_trimestral += float(sub)
+        elif recorrencia == 'anual':
+            valor_anual += float(sub)
     if incluir_recorrencia:
         col_widths = [None, 60, 35, 65, 65]
     else:
@@ -312,7 +318,7 @@ def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=Tru
     ]))
     t.hAlign = 'LEFT'
     elements.append(t)
-    return valor_unico, valor_mensal
+    return valor_unico, valor_mensal, valor_trimestral, valor_anual
 
 
 def _build_secao_desconto(elements, documento, style):
@@ -321,10 +327,12 @@ def _build_secao_desconto(elements, documento, style):
     desconto_valor = getattr(documento, 'desconto_valor', None) or 0
     has_desconto = desconto_valor and float(desconto_valor) > 0
 
-    # Buscar valores de adesão/mensal se disponíveis nos itens
+    # Buscar valores de adesão/mensal/anual se disponíveis nos itens
     oportunidade = getattr(documento, 'oportunidade', None)
     valor_unico = 0
     valor_mensal = 0
+    valor_trimestral = 0
+    valor_anual = 0
     if oportunidade:
         try:
             for item in oportunidade.itens.select_related('produto_servico').all():
@@ -333,8 +341,12 @@ def _build_secao_desconto(elements, documento, style):
                 sub = float(item.quantidade * item.preco_unitario) if item.quantidade and item.preco_unitario else 0
                 if recorrencia == 'unico':
                     valor_unico += sub
-                else:
+                elif recorrencia == 'mensal':
                     valor_mensal += sub
+                elif recorrencia == 'trimestral':
+                    valor_trimestral += sub
+                elif recorrencia == 'anual':
+                    valor_anual += sub
         except Exception:
             pass
 
@@ -344,6 +356,10 @@ def _build_secao_desconto(elements, documento, style):
         resumo_data.append(['Adesão/Implantação:', _formatar_valor(valor_unico)])
     if valor_mensal > 0:
         resumo_data.append(['Valor Mensal:', f'{_formatar_valor(valor_mensal)}/mês'])
+    if valor_trimestral > 0:
+        resumo_data.append(['Valor Trimestral:', f'{_formatar_valor(valor_trimestral)}/trimestre'])
+    if valor_anual > 0:
+        resumo_data.append(['Valor Anual:', f'{_formatar_valor(valor_anual)}/ano'])
     resumo_data.append(['Valor Total:', _formatar_valor(valor_total)])
     if has_desconto:
         desconto_tipo = getattr(documento, 'desconto_tipo', 'percentual')

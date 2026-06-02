@@ -15,6 +15,7 @@ from .serializers import (
     PrescricaoMemedSerializer,
 )
 from .consulta_service import finalizar_consulta, iniciar_consulta, criar_consulta_avulsa
+from .pagination import paginate_queryset
 
 
 class ConsultaListView(APIView):
@@ -37,7 +38,7 @@ class ConsultaListView(APIView):
             qs = qs.filter(status=st)
         if appointment_id := request.query_params.get('appointment'):
             qs = qs.filter(appointment_id=appointment_id)
-        return Response(ConsultaSerializer(qs, many=True).data)
+        return paginate_queryset(qs, request, ConsultaSerializer)
 
     def post(self, request):
         patient_id = request.data.get('patient')
@@ -62,7 +63,8 @@ class ConsultaListView(APIView):
         except Procedure.DoesNotExist:
             return Response({'error': 'Procedimento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        iniciar = request.data.get('iniciar', True)
+        # Por padrão NÃO inicia o atendimento — quem inicia é o profissional.
+        iniciar = request.data.get('iniciar', False)
         consulta = criar_consulta_avulsa(
             patient=patient,
             professional=professional,
@@ -104,6 +106,29 @@ class ConsultaDetailView(APIView):
 
     def patch(self, request, pk):
         return self.put(request, pk)
+
+    def delete(self, request, pk):
+        try:
+            consulta = self._get(pk)
+        except Consulta.DoesNotExist:
+            return Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Só permite excluir consultas que ainda não foram concluídas
+        if consulta.status == 'COMPLETED':
+            return Response(
+                {'error': 'Consultas concluídas não podem ser excluídas.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Cancela o agendamento vinculado (se existir e estiver aberto)
+        appointment = consulta.appointment
+        if appointment and appointment.status not in ('COMPLETED', 'CANCELLED'):
+            appointment.status = 'CANCELLED'
+            appointment.version = (appointment.version or 1) + 1
+            appointment.save(update_fields=['status', 'version', 'updated_at'])
+
+        consulta.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ConsultaIniciarView(APIView):

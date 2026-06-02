@@ -18,55 +18,24 @@ class Patient(ClienteBase):
         verbose_name="Permitir WhatsApp",
         help_text="Se desmarcado, o paciente não recebe mensagens por WhatsApp (LGPD).",
     )
-    
-    # Aliases para compatibilidade com código existente
+
+    # DEPRECATED: aliases inglês→português mantidos apenas para o management command
+    # popular_loja_clinica_beleza. O mapeamento real é feito em views_pacientes._map_patient_data.
     @property
     def name(self):
         return self.nome
-    
+
     @name.setter
     def name(self, value):
         self.nome = value
-    
+
     @property
     def phone(self):
         return self.telefone
-    
+
     @phone.setter
     def phone(self, value):
         self.telefone = value
-    
-    @property
-    def birth_date(self):
-        return self.data_nascimento
-    
-    @birth_date.setter
-    def birth_date(self, value):
-        self.data_nascimento = value
-    
-    @property
-    def address(self):
-        return self.endereco
-    
-    @address.setter
-    def address(self, value):
-        self.endereco = value
-    
-    @property
-    def notes(self):
-        return self.observacoes
-    
-    @notes.setter
-    def notes(self, value):
-        self.observacoes = value
-    
-    @property
-    def active(self):
-        return self.is_active
-    
-    @active.setter
-    def active(self, value):
-        self.is_active = value
 
     class Meta(ClienteBase.Meta):
         app_label = 'clinica_beleza'
@@ -120,39 +89,6 @@ class Professional(ProfissionalBase):
         verbose_name="Sexo", help_text="Sexo do prescritor (usado no cadastro da Memed).",
     )
 
-    # Aliases para compatibilidade com código existente
-    @property
-    def name(self):
-        return self.nome
-    
-    @name.setter
-    def name(self, value):
-        self.nome = value
-    
-    @property
-    def specialty(self):
-        return self.especialidade
-    
-    @specialty.setter
-    def specialty(self, value):
-        self.especialidade = value
-    
-    @property
-    def phone(self):
-        return self.telefone
-    
-    @phone.setter
-    def phone(self, value):
-        self.telefone = value
-    
-    @property
-    def active(self):
-        return self.is_active
-    
-    @active.setter
-    def active(self, value):
-        self.is_active = value
-
     class Meta(ProfissionalBase.Meta):
         app_label = 'clinica_beleza'
         verbose_name = "Profissional"
@@ -165,47 +101,6 @@ class Professional(ProfissionalBase):
 
 class Procedure(ServicoBase):
     """Procedimentos/Serviços oferecidos (herda de ServicoBase)"""
-    
-    # Aliases para compatibilidade com código existente
-    @property
-    def name(self):
-        return self.nome
-    
-    @name.setter
-    def name(self, value):
-        self.nome = value
-    
-    @property
-    def description(self):
-        return self.descricao
-    
-    @description.setter
-    def description(self, value):
-        self.descricao = value
-    
-    @property
-    def price(self):
-        return self.preco
-    
-    @price.setter
-    def price(self, value):
-        self.preco = value
-    
-    @property
-    def duration(self):
-        return self.duracao_minutos
-    
-    @duration.setter
-    def duration(self, value):
-        self.duracao_minutos = value
-    
-    @property
-    def active(self):
-        return self.is_active
-    
-    @active.setter
-    def active(self, value):
-        self.is_active = value
 
     class Meta(ServicoBase.Meta):
         app_label = 'clinica_beleza'

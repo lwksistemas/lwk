@@ -14,6 +14,7 @@ from .serializers import (
     HorarioTrabalhoProfissionalSerializer,
 )
 from .utils import LojaContextHelper
+from .views_base import map_field_names
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +50,7 @@ def _map_professional_data(raw_data):
             return None
         return v
 
-    for en, pt in _PROFESSIONAL_FIELD_MAP.items():
-        if en in data and pt not in data:
-            data[pt] = data.pop(en)
+    data = map_field_names(data, _PROFESSIONAL_FIELD_MAP)
 
     for key in ('email', 'telefone', 'data_nascimento', 'sexo'):
         if key in data:

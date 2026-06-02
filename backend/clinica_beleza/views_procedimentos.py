@@ -9,6 +9,7 @@ from rest_framework import status
 
 from .models import Procedure
 from .serializers import ProcedureSerializer
+from .views_base import GetObjectMixin, map_field_names
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +25,7 @@ _PROCEDURE_FIELD_MAP = {
 
 
 def _map_procedure_data(raw_data):
-    data = raw_data.copy() if hasattr(raw_data, 'copy') else dict(raw_data)
-    for en, pt in _PROCEDURE_FIELD_MAP.items():
-        if en in data and pt not in data:
-            data[pt] = data.pop(en)
-    return data
+    return map_field_names(raw_data, _PROCEDURE_FIELD_MAP)
 
 
 class ProcedureListView(APIView):
@@ -58,33 +55,33 @@ class ProcedureListView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ProcedureDetailView(APIView):
+class ProcedureDetailView(GetObjectMixin, APIView):
     """GET /clinica-beleza/procedures/<id>/  PUT  DELETE"""
     permission_classes = [IsAuthenticated]
+    model_class = Procedure
+    not_found_message = 'Procedimento não encontrado'
 
     def get(self, request, pk):
-        try:
-            return Response(ProcedureSerializer(Procedure.objects.get(pk=pk)).data)
-        except Procedure.DoesNotExist:
-            return Response({'error': 'Procedimento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        return Response(ProcedureSerializer(obj).data)
 
     def put(self, request, pk):
-        try:
-            obj = Procedure.objects.get(pk=pk)
-            data = _map_procedure_data(request.data)
-            serializer = ProcedureSerializer(obj, data=data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Procedure.DoesNotExist:
-            return Response({'error': 'Procedimento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        data = _map_procedure_data(request.data)
+        serializer = ProcedureSerializer(obj, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        try:
-            obj = Procedure.objects.get(pk=pk)
-            obj.is_active = False
-            obj.save()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Procedure.DoesNotExist:
-            return Response({'error': 'Procedimento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        obj.is_active = False
+        obj.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)

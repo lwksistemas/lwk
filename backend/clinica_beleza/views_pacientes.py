@@ -9,13 +9,15 @@ from rest_framework import status
 
 from .models import Patient, Appointment
 from .serializers import PatientSerializer
+from .views_base import GetObjectMixin, map_field_names
+from .pagination import paginate_queryset
 
 # Status de agendamento ainda "em aberto" (não terminais)
 _OPEN_APPOINTMENT_STATUSES = ('PENDING', 'SCHEDULED', 'CONFIRMED', 'IN_PROGRESS')
 
 logger = logging.getLogger(__name__)
 
-# Mapeamento de campos inglês → português (reutilizado em list e detail)
+# Mapeamento de campos inglês → português
 _PATIENT_FIELD_MAP = {
     'name': 'nome',
     'phone': 'telefone',
@@ -29,14 +31,7 @@ _PATIENT_NULL_FIELDS = ('telefone', 'endereco', 'observacoes', 'cpf', 'cidade', 
 
 def _map_patient_data(raw_data):
     """Normaliza campos inglês→português e converte None para '' em campos de texto."""
-    data = raw_data.copy() if hasattr(raw_data, 'copy') else dict(raw_data)
-    for en, pt in _PATIENT_FIELD_MAP.items():
-        if en in data and pt not in data:
-            data[pt] = data.pop(en)
-    for field in _PATIENT_NULL_FIELDS:
-        if field in data and data[field] is None:
-            data[field] = ''
-    return data
+    return map_field_names(raw_data, _PATIENT_FIELD_MAP, _PATIENT_NULL_FIELDS)
 
 
 class PatientListView(APIView):
@@ -52,7 +47,7 @@ class PatientListView(APIView):
         queryset = Patient.objects.all().order_by('nome')
         if active_only:
             queryset = queryset.filter(is_active=True)
-        return Response(PatientSerializer(queryset, many=True).data)
+        return paginate_queryset(queryset, request, PatientSerializer)
 
     def post(self, request):
         data = _map_patient_data(request.data)

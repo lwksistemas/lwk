@@ -60,13 +60,23 @@ def _parse_dashboard_period(request, today: date):
 
 
 def _revenue_by_day(first_day: date, period_end: date):
+    """Faturamento por dia usando agregação SQL (uma query em vez de N)."""
+    from django.db.models.functions import TruncDay
+
+    rows_db = (
+        Payment.objects
+        .filter(status='PAID', payment_date__date__gte=first_day, payment_date__date__lte=period_end)
+        .annotate(day=TruncDay('payment_date'))
+        .values('day')
+        .annotate(total=Sum('amount'))
+        .order_by('day')
+    )
+    revenue_map = {row['day'].date(): float(row['total']) for row in rows_db}
+
     rows = []
     day = first_day
     while day <= period_end:
-        day_revenue = Payment.objects.filter(
-            status='PAID', payment_date__date=day,
-        ).aggregate(total=Sum('amount'))['total'] or 0
-        rows.append({'day': day.strftime('%d/%m'), 'value': float(day_revenue)})
+        rows.append({'day': day.strftime('%d/%m'), 'value': revenue_map.get(day, 0)})
         day += timedelta(days=1)
     return rows
 

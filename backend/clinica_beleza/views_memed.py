@@ -93,8 +93,11 @@ class MemedTokenView(APIView):
 
     Retorna o token do prescritor (para o data-token do script da Memed), a URL do
     script e o ambiente. Mantém api-key/secret-key no servidor.
+
+    Performance: cache do token por 15 minutos (token da Memed dura 24h+).
     """
     permission_classes = [IsAuthenticated]
+    CACHE_TTL = 900  # 15 minutos
 
     def get(self, request):
         env, endpoints = _memed_config()
@@ -113,9 +116,16 @@ class MemedTokenView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Cache do token por prescritor (evita chamada HTTP a cada clique)
+        from django.core.cache import cache
+        from tenants.middleware import get_current_loja_id
+        loja_id = get_current_loja_id() or 0
+        cache_key = f'memed_token_{loja_id}_{prescritor_id}'
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
         url = f"{endpoints['api']}/sinapse-prescricao/usuarios/{prescritor_id}"
-        # Em produção a Memed pode responder mais devagar; usamos timeout maior e
-        # uma tentativa extra para erros transitórios de rede.
         resp = None
         for tentativa in range(2):
             try:
@@ -125,9 +135,8 @@ class MemedTokenView(APIView):
                     headers={
                         'Accept': 'application/vnd.api+json',
                         'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache',
                     },
-                    timeout=30,
+                    timeout=15,
                 )
                 break
             except requests.RequestException as e:
@@ -159,7 +168,7 @@ class MemedTokenView(APIView):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
-        return Response({
+        payload = {
             'token': token,
             'script_url': endpoints['script'],
             'environment': env,
@@ -170,7 +179,9 @@ class MemedTokenView(APIView):
                 'uf': attrs.get('uf', ''),
             },
             'clinica': _dados_clinica(request),
-        })
+        }
+        cache.set(cache_key, payload, self.CACHE_TTL)
+        return Response(payload)
 
     def _resolver_prescritor_id(self, request, env='integration'):
         """Resolve o identificador do prescritor na Memed (CPF, external_id ou registro+UF)."""

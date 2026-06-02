@@ -10,6 +10,7 @@ from django.db.models import Sum
 
 from .models import Payment
 from .serializers import PaymentSerializer
+from .pagination import paginate_queryset
 
 
 class PaymentListView(APIView):
@@ -30,7 +31,7 @@ class PaymentListView(APIView):
             queryset = queryset.filter(payment_date__date=d)
         if p := request.query_params.get('professional'):
             queryset = queryset.filter(appointment__professional_id=p)
-        return Response(PaymentSerializer(queryset, many=True).data)
+        return paginate_queryset(queryset, request, PaymentSerializer)
 
     def post(self, request):
         serializer = PaymentSerializer(data=request.data)

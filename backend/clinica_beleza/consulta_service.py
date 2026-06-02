@@ -101,13 +101,13 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
     return None
 
 
-def criar_consulta_avulsa(*, patient, professional, procedure, loja_id=None, iniciar=True):
+def criar_consulta_avulsa(*, patient, professional, procedure, loja_id=None, iniciar=False):
     """
     Cria uma consulta "avulsa" (sem agendamento prévio na agenda), a partir do
     cadastro do cliente. Gera o Appointment correspondente e a Consulta vinculada.
 
-    Por padrão já inicia o atendimento (status IN_PROGRESS) para liberar imediatamente
-    o atendimento e o receituário/exames. Passe iniciar=False para deixar agendada.
+    Por padrão NÃO inicia o atendimento (status SCHEDULED) — quem inicia é o
+    profissional. Passe iniciar=True para iniciar imediatamente (IN_PROGRESS).
 
     Retorna a Consulta criada.
     """

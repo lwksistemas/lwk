@@ -124,8 +124,8 @@ export function NovaConsultaModal({
         </div>
         <div className="p-4 space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Abre o atendimento direto pelo cadastro do cliente, sem precisar passar pela Agenda.
-            A consulta inicia <strong>Em atendimento</strong>.
+            Abre uma consulta direto pelo cadastro do cliente, sem precisar passar pela Agenda.
+            O profissional inicia o atendimento quando estiver pronto.
           </p>
 
           {loadingData ? (

@@ -258,6 +258,8 @@ export class ClinicaBelezaAPI {
       ClinicaBelezaAPI.post('/consultas/', data),
     get: (id: number) => ClinicaBelezaAPI.get(`/consultas/${id}/`),
     update: (id: number, data: Record<string, unknown>) => ClinicaBelezaAPI.patch(`/consultas/${id}/`, data),
+    /** Exclui uma consulta (somente se não estiver concluída). */
+    excluir: (id: number) => ClinicaBelezaAPI.delete(`/consultas/${id}/`),
     aplicarProtocolo: (id: number, protocolId: number) =>
       ClinicaBelezaAPI.post(`/consultas/${id}/aplicar-protocolo/`, { protocol_id: protocolId }),
     iniciar: (id: number) => ClinicaBelezaAPI.post(`/consultas/${id}/iniciar/`, {}),

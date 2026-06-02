@@ -19,6 +19,7 @@ import {
   Pill,
   FlaskConical,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
@@ -320,6 +321,20 @@ export default function ConsultasPage() {
 
   const podeIniciar = selected?.status === "SCHEDULED";
   const podeFinalizar = selected?.status === "IN_PROGRESS";
+  const podeExcluir = selected?.status !== "COMPLETED";
+
+  const excluirConsulta = async () => {
+    if (!selected) return;
+    if (!confirm("Excluir esta consulta? O agendamento vinculado será cancelado.")) return;
+    try {
+      await ClinicaBelezaAPI.consultas.excluir(selected.id);
+      setSelected(null);
+      await loadConsultas();
+      router.replace(`/loja/${slug}/clinica-beleza/consultas`, { scroll: false });
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Erro ao excluir consulta.");
+    }
+  };
 
   const tabs: { id: TabId; label: string; icon: typeof FileText }[] = [
     { id: "atendimento", label: "Atendimento", icon: ClipboardList },
@@ -388,6 +403,16 @@ export default function ConsultasPage() {
                   >
                     <CheckCircle2 size={16} />
                     Finalizar consulta
+                  </button>
+                )}
+                {podeExcluir && (
+                  <button
+                    type="button"
+                    onClick={excluirConsulta}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  >
+                    <Trash2 size={16} />
+                    Excluir
                   </button>
                 )}
               </div>

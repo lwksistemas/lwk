@@ -69,21 +69,11 @@ class LojaContextHelper:
         Retorna (config, loja) para a loja atual.
         Usa cache de 10 minutos para melhor performance.
         """
+        from .views_base import resolve_loja_id_from_request
+
         lid = loja_id or get_current_loja_id()
         if not lid and request:
-            try:
-                lid = request.headers.get('X-Loja-ID')
-                if lid:
-                    lid = int(lid)
-            except (ValueError, TypeError):
-                lid = None
-            if not lid and request.headers.get('X-Tenant-Slug'):
-                from superadmin.models import Loja
-                loja = Loja.objects.using('default').filter(
-                    slug__iexact=request.headers.get('X-Tenant-Slug').strip()
-                ).first()
-                if loja:
-                    lid = loja.id
+            lid = resolve_loja_id_from_request(request)
         
         if not lid:
             return None, None
@@ -111,17 +101,11 @@ class LojaContextHelper:
         cache.delete(f'owner_professional_{loja_id}')
         cache.delete(f'loja_owner_info_{loja_id}')
         cache.delete(f'whatsapp_config_{loja_id}')
+        # Invalidar cache do dashboard (versão atual)
         from django.utils.timezone import now
         today = now().date()
-        for prefix in (
-            'clinica_beleza_dashboard_',
-            'clinica_beleza_dashboard_v2_',
-            'clinica_beleza_dashboard_v3_',
-            'clinica_beleza_dashboard_v4_',
-            'clinica_beleza_dashboard_v5_',
-            'clinica_beleza_dashboard_v6_',
-            'clinica_beleza_dashboard_v7_',
-            'clinica_beleza_dashboard_v8_',
-        ):
-            for period in ('hoje', 'semana', 'proximos'):
-                cache.delete(f'{prefix}{loja_id}_{today}_{period}_all')
+        year, month = today.year, today.month
+        for period in ('hoje', 'semana', 'proximos'):
+            cache.delete(
+                f'clinica_beleza_dashboard_v8_{loja_id}_{year}_{month:02d}_{period}_all'
+            )

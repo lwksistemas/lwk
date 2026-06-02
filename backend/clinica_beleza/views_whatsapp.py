@@ -23,21 +23,8 @@ class WhatsAppConfigView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _get_config(self, request=None):
-        loja_id = get_current_loja_id()
-        if not loja_id and request:
-            try:
-                lid = request.headers.get('X-Loja-ID')
-                if lid:
-                    loja_id = int(lid)
-            except (ValueError, TypeError):
-                pass
-            if not loja_id:
-                slug = (request.headers.get('X-Tenant-Slug') or '').strip()
-                if slug:
-                    from superadmin.models import Loja
-                    loja = Loja.objects.using('default').filter(slug__iexact=slug).first()
-                    if loja:
-                        loja_id = loja.id
+        from .views_base import resolve_loja_id_from_request
+        loja_id = resolve_loja_id_from_request(request) if request else get_current_loja_id()
         if not loja_id:
             logger.warning('WhatsAppConfigView: contexto de loja não encontrado')
             return None
@@ -46,7 +33,6 @@ class WhatsAppConfigView(APIView):
         try:
             loja = Loja.objects.using('default').get(id=loja_id)
             owner_tel = (getattr(loja, 'owner_telefone', None) or '').strip()
-            # Usar loja_id para evitar erro de database router (FK cross-database)
             config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
             if not config:
                 config = WhatsAppConfig(
@@ -61,7 +47,6 @@ class WhatsAppConfigView(APIView):
             elif not (config.whatsapp_numero or '').strip() and owner_tel:
                 config.whatsapp_numero = owner_tel
                 config.save(update_fields=['whatsapp_numero', 'updated_at'])
-            # Anexar loja como atributo para uso no _serialize (evita query cross-db)
             config._loja_cache = loja
             return config
         except Exception as e:

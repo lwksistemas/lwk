@@ -2,11 +2,8 @@
 Views de Agenda, Bloqueios de Horário e Agendamentos — Clínica da Beleza
 """
 import logging
-from datetime import timedelta
 
-from django.core.exceptions import ValidationError
 from django.db.models import Q
-from django.utils import timezone
 from django.utils.timezone import now
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -14,37 +11,20 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
 from .models import Appointment, BloqueioHorario
-from .bloqueio_utils import bloqueio_datetime_range, intervalos_sobrepoem
 from .serializers import (
-    AppointmentListSerializer, AppointmentDetailSerializer,
     AppointmentCreateSerializer, AgendaEventSerializer,
     BloqueioHorarioSerializer,
 )
 from .utils import LojaContextHelper
-from rules.base import MotorRegras
+from .views_base import GetObjectMixin
+from .agenda_service import (
+    AgendaConflictError, AgendaValidationError,
+    atualizar_agendamento, detectar_conflito,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def _bloqueio_impede_agendamento(data_inicio, data_fim, professional_id, bloqueios_queryset):
-    """Retorna True se algum bloqueio sobrepõe o intervalo [data_inicio, data_fim]."""
-    if timezone.is_naive(data_inicio):
-        data_inicio = timezone.make_aware(data_inicio, timezone.get_current_timezone())
-    if timezone.is_naive(data_fim):
-        data_fim = timezone.make_aware(data_fim, timezone.get_current_timezone())
-
-    for b in bloqueios_queryset:
-        if b.professional_id is not None and b.professional_id != professional_id:
-            continue
-        b_inicio, b_fim = bloqueio_datetime_range(b)
-        if intervalos_sobrepoem(data_inicio, data_fim, b_inicio, b_fim):
-            return True
-    return False
-
-
-# ---------------------------------------------------------------------------
-# Agenda / Calendário (substitui CRUD legado /appointments/)
-# ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 # Agenda (calendário FullCalendar)
 # ---------------------------------------------------------------------------
@@ -88,130 +68,53 @@ class AgendaUpdateView(APIView):
 
     def patch(self, request, pk):
         try:
-            appointment = Appointment.objects.select_related('procedure', 'professional', 'patient').get(pk=pk)
-            new_date = request.data.get('date')
-            new_status = request.data.get('status')
-            new_duracao = request.data.get('duracao_minutos')
-            local_version = request.data.get('version')
-            resolve_use_local = request.data.get('resolve_use_local') is True
-
-            # Detecção de conflito de sincronização
-            if local_version is not None and not resolve_use_local:
-                if appointment.version != local_version:
-                    server_data = AgendaEventSerializer(appointment).data
-                    local_payload = {
-                        'id': appointment.id, 'version': local_version,
-                        'date': request.data.get('date'), 'status': request.data.get('status'),
-                        'updated_at': request.data.get('updated_at'),
-                    }
-                    resolution_hint = None
-                    if appointment.status == 'CANCELLED':
-                        resolution_hint = 'server_cancelled'
-                    elif appointment.updated_at and request.data.get('updated_at'):
-                        try:
-                            from django.utils.dateparse import parse_datetime
-                            local_ts = parse_datetime(request.data.get('updated_at'))
-                            if local_ts and local_ts > appointment.updated_at:
-                                resolution_hint = 'local_newer'
-                        except Exception:
-                            pass
-                    return Response(
-                        {'conflict': True, 'server': server_data, 'local': local_payload, 'resolution_hint': resolution_hint},
-                        status=status.HTTP_409_CONFLICT,
-                    )
-
-            if new_duracao is not None:
-                try:
-                    new_duracao = int(new_duracao)
-                except (TypeError, ValueError):
-                    return Response({'error': 'Duração inválida.'}, status=status.HTTP_400_BAD_REQUEST)
-                if new_duracao < 5:
-                    return Response({'error': 'Duração mínima de 5 minutos.'}, status=status.HTTP_400_BAD_REQUEST)
-                appointment.duracao_minutos = new_duracao
-
-            date_changed = new_date is not None
-            if date_changed:
-                from django.utils.dateparse import parse_datetime
-                date_start = (parse_datetime(new_date) if isinstance(new_date, str) else new_date) or now()
-                appointment.date = date_start
-            else:
-                date_start = appointment.date
-
-            duracao_changed = request.data.get('duracao_minutos') is not None
-            if date_changed or duracao_changed:
-                date_end = date_start + timedelta(minutes=appointment.get_duracao_efetiva())
-                bloqueios = BloqueioHorario.objects.filter(
-                    Q(professional_id=appointment.professional_id) | Q(professional_id__isnull=True)
-                )
-                if _bloqueio_impede_agendamento(date_start, date_end, appointment.professional_id, bloqueios):
-                    return Response({'error': 'Horário bloqueado. Escolha outro horário.'}, status=status.HTTP_400_BAD_REQUEST)
-                try:
-                    MotorRegras().executar('AGENDAMENTO_ATUALIZADO', {
-                        'profissional': appointment.professional, 'date': date_start,
-                        'date_end': date_end, 'appointment_id': appointment.id,
-                    })
-                except ValidationError as e:
-                    return Response({'error': e.messages[0] if e.messages else str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-            if new_status is not None:
-                valid = dict(Appointment.STATUS_CHOICES).keys()
-                if new_status not in valid:
-                    return Response({'error': f'Status inválido. Use: {", ".join(valid)}'}, status=status.HTTP_400_BAD_REQUEST)
-                if new_status in ('IN_PROGRESS', 'COMPLETED'):
-                    return Response(
-                        {
-                            'error': 'Em atendimento e concluído são alterados em Consultas '
-                            '(iniciar / finalizar consulta).',
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                old_status = appointment.status
-                appointment.status = new_status
-
-            if not date_changed and new_status is None and not duracao_changed and not resolve_use_local:
-                return Response({'error': 'Envie date, duracao_minutos e/ou status'}, status=status.HTTP_400_BAD_REQUEST)
-
-            appointment.version = (appointment.version or 1) + 1
-            appointment.updated_by_id = getattr(request.user, 'id', None)
-            appointment.save()
-
-            consulta_id = None
-            consulta_error = None
-            if new_status is not None:
-                from .consulta_service import sync_consulta_from_appointment_status
-                try:
-                    consulta = sync_consulta_from_appointment_status(appointment, new_status, old_status)
-                    if consulta:
-                        consulta_id = consulta.id
-                except Exception as e:
-                    logger.exception('Erro ao sincronizar consulta agendamento %s status %s: %s', pk, new_status, e)
-                    consulta_error = 'Consulta não criada. Execute a atualização do sistema ou contate o suporte.'
-
-            if new_status == 'COMPLETED':
-                try:
-                    MotorRegras().executar('AGENDAMENTO_FINALIZADO', {'appointment': appointment})
-                except Exception:
-                    pass
-
-            if new_status == 'CONFIRMED':
-                try:
-                    if getattr(appointment.patient, 'allow_whatsapp', True):
-                        config, _ = LojaContextHelper.get_whatsapp_config(request=request)
-                        if config and config.enviar_confirmacao:
-                            from whatsapp.services import enviar_confirmacao_agendamento
-                            enviar_confirmacao_agendamento(appointment, user=request.user, config=config)
-                except Exception as e:
-                    logger.warning('WhatsApp confirmação agendamento %s: %s', pk, e)
-
-            response_data = AgendaEventSerializer(appointment).data
-            if consulta_id is not None:
-                response_data['consulta_id'] = consulta_id
-            if consulta_error:
-                response_data['consulta_error'] = consulta_error
-            return Response(response_data)
-
+            appointment = Appointment.objects.select_related(
+                'procedure', 'professional', 'patient'
+            ).get(pk=pk)
         except Appointment.DoesNotExist:
             return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Detecção de conflito offline
+        local_version = request.data.get('version')
+        resolve_use_local = request.data.get('resolve_use_local') is True
+        if not resolve_use_local:
+            try:
+                detectar_conflito(appointment, local_version, request.data, AgendaEventSerializer)
+            except AgendaConflictError as e:
+                return Response(
+                    {'conflict': True, 'server': e.server_data, 'local': e.local_payload,
+                     'resolution_hint': e.resolution_hint},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+        new_date = request.data.get('date')
+        new_status = request.data.get('status')
+        new_duracao = request.data.get('duracao_minutos')
+
+        if not new_date and new_status is None and new_duracao is None and not resolve_use_local:
+            return Response(
+                {'error': 'Envie date, duracao_minutos e/ou status'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            result = atualizar_agendamento(
+                appointment,
+                new_date=new_date,
+                new_status=new_status,
+                new_duracao=new_duracao,
+                user=request.user,
+                request=request,
+            )
+        except AgendaValidationError as e:
+            return Response({'error': e.message}, status=status.HTTP_400_BAD_REQUEST)
+
+        response_data = AgendaEventSerializer(result.appointment).data
+        if result.consulta_id is not None:
+            response_data['consulta_id'] = result.consulta_id
+        if result.consulta_error:
+            response_data['consulta_error'] = result.consulta_error
+        return Response(response_data)
 
 
 class AgendaCreateView(APIView):
@@ -222,55 +125,23 @@ class AgendaCreateView(APIView):
         serializer = AppointmentCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        from .agenda_service import criar_agendamento
         try:
-            data = serializer.validated_data
-            date_start = data['date']
-            date_end = date_start + timedelta(minutes=data['procedure'].duracao_minutos)
-            professional_id = data['professional'].id
-            bloqueios = BloqueioHorario.objects.filter(
-                Q(professional_id=professional_id) | Q(professional_id__isnull=True)
+            appointment = criar_agendamento(
+                serializer.validated_data,
+                user=request.user,
+                request=request,
             )
-            if _bloqueio_impede_agendamento(date_start, date_end, professional_id, bloqueios):
-                return Response({'error': 'Horário bloqueado. Escolha outro horário ou profissional.'}, status=status.HTTP_400_BAD_REQUEST)
-
-            motor = MotorRegras()
-            try:
-                motor.executar('AGENDAMENTO_CRIADO', {
-                    'profissional': data['professional'], 'date': date_start,
-                    'date_end': date_end, 'appointment_id': None,
-                })
-            except ValidationError as e:
-                return Response({'error': e.messages[0] if e.messages else str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-            appointment = serializer.save()
-
-            try:
-                motor.executar('AGENDAMENTO_CRIADO', {
-                    'profissional': appointment.professional, 'date': appointment.date,
-                    'date_end': appointment.date + timedelta(minutes=appointment.get_duracao_efetiva()),
-                    'appointment_id': appointment.id, 'appointment': appointment,
-                })
-            except Exception:
-                pass
-
-            # WhatsApp: confirmação ao criar
-            if appointment.status in ('CONFIRMED', 'SCHEDULED') and getattr(appointment.patient, 'allow_whatsapp', True):
-                try:
-                    if (getattr(appointment.patient, 'phone', None) or '').strip():
-                        config, _ = LojaContextHelper.get_whatsapp_config(request=request)
-                        if config and config.enviar_confirmacao:
-                            from whatsapp.services import enviar_confirmacao_agendamento
-                            enviar_confirmacao_agendamento(appointment, user=request.user, config=config)
-                except Exception as e:
-                    logger.warning('WhatsApp confirmação ao criar agendamento %s: %s', appointment.id, e)
-
             return Response(AgendaEventSerializer(appointment).data, status=status.HTTP_201_CREATED)
-
-        except ValidationError as e:
-            return Response({'error': e.messages[0] if e.messages else str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except AgendaValidationError as e:
+            return Response({'error': e.message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.exception('Erro ao criar agendamento: %s', e)
-            return Response({'error': 'Erro ao salvar agendamento. Verifique se a loja está configurada e tente novamente.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {'error': 'Erro ao salvar agendamento. Verifique se a loja está configurada e tente novamente.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class AgendaDeleteView(APIView):
@@ -291,13 +162,14 @@ class AgendaReenviarMensagemView(APIView):
 
     def post(self, request, pk):
         try:
-            appointment = Appointment.objects.get(pk=pk)
+            appointment = Appointment.objects.select_related('patient').get(pk=pk)
         except Appointment.DoesNotExist:
             return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
         if not getattr(appointment.patient, 'allow_whatsapp', True):
             return Response({'sent': False, 'message': 'Paciente não permite receber WhatsApp.'})
-        if not (getattr(appointment.patient, 'phone', None) or '').strip():
+        telefone = getattr(appointment.patient, 'telefone', '') or ''
+        if not telefone.strip():
             return Response({'sent': False, 'message': 'Paciente sem telefone cadastrado.'})
 
         config, _ = LojaContextHelper.get_whatsapp_config(request=request)
@@ -342,39 +214,41 @@ class BloqueioHorarioListView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
             logger.exception('Erro ao criar BloqueioHorario: %s', e)
-            return Response({'error': 'Erro ao salvar bloqueio. Verifique data/hora e tente novamente.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'Erro ao salvar bloqueio. Verifique data/hora e tente novamente.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
-class BloqueioHorarioDetailView(APIView):
+class BloqueioHorarioDetailView(GetObjectMixin, APIView):
     """GET /clinica-beleza/bloqueios/<id>/  PUT  DELETE"""
     permission_classes = [IsAuthenticated]
+    model_class = BloqueioHorario
+    not_found_message = 'Bloqueio não encontrado'
+    select_related_fields = ['professional']
 
     def get(self, request, pk):
-        try:
-            return Response(BloqueioHorarioSerializer(BloqueioHorario.objects.select_related('professional').get(pk=pk)).data)
-        except BloqueioHorario.DoesNotExist:
-            return Response({'error': 'Bloqueio não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        return Response(BloqueioHorarioSerializer(obj).data)
 
     def put(self, request, pk):
-        try:
-            obj = BloqueioHorario.objects.get(pk=pk)
-            serializer = BloqueioHorarioSerializer(obj, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except BloqueioHorario.DoesNotExist:
-            return Response({'error': 'Bloqueio não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.exception('Erro ao atualizar BloqueioHorario %s: %s', pk, e)
-            return Response({'error': 'Erro ao atualizar bloqueio. Verifique data/hora e tente novamente.'}, status=status.HTTP_400_BAD_REQUEST)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        serializer = BloqueioHorarioSerializer(obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request, pk):
         return self.put(request, pk)
 
     def delete(self, request, pk):
-        try:
-            BloqueioHorario.objects.get(pk=pk).delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except BloqueioHorario.DoesNotExist:
-            return Response({'error': 'Bloqueio não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -8,6 +8,7 @@ from .models import (
     Patient, Professional, Procedure, ProcedureProtocol,
     Appointment, Payment, BloqueioHorario, HorarioTrabalhoProfissional,
     Consulta, PatientAnamnese, ConsultaEvolucao, PrescricaoMemed,
+    ProdutoEstoque, MovimentacaoEstoque,
 )
 from core.serializer_mixins import TextNormalizationMixin, CpfNormalizationMixin
 from core.logging_utils import mask_email
@@ -42,13 +43,8 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
     )
 
     def create(self, validated_data):
-        import logging
-        logger = logging.getLogger(__name__)
         criar_acesso = validated_data.pop('criar_acesso', False)
         perfil = validated_data.pop('perfil', 'profissional')
-        valid_perfis = ('administrador', 'profissional', 'recepcao', 'recepcionista', 'caixa', 'limpeza', 'estoque')
-        if perfil not in valid_perfis:
-            perfil = 'profissional'
         email = validated_data.get('email')
         name = validated_data.pop('name', None)
         specialty = validated_data.pop('specialty', None)
@@ -74,133 +70,26 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
         )
 
         if criar_acesso:
-            from django.contrib.auth import get_user_model
-            from django.utils.crypto import get_random_string
-            from django.core.mail import send_mail
-            from django.conf import settings
-            from django.db import IntegrityError
-            from superadmin.models import Loja, ProfissionalUsuario
-            from tenants.middleware import get_current_loja_id
-
-            User = get_user_model()
-            default_db = 'default'
+            from .professional_service import criar_profissional_com_acesso, ProfessionalAccessError
             try:
-                loja_id = get_current_loja_id()
-                if not loja_id:
-                    professional.delete()
-                    msg = 'Contexto de loja não encontrado.'
-                    raise serializers.ValidationError({'loja': msg, 'detail': msg})
-
-                loja = Loja.objects.using(default_db).get(id=loja_id)
-                senha_provisoria = get_random_string(8)
-                user = None
-
-                existing_user = User.objects.using(default_db).filter(username=email).first()
-                if existing_user:
-                    # Já é profissional DESTA loja -> não permitir duplicar
-                    if ProfissionalUsuario.objects.using(default_db).filter(
-                        user=existing_user,
-                        loja_id=loja_id,
-                    ).exists():
-                        professional.delete()
-                        msg = 'Este e-mail já possui acesso a esta loja. Use outro ou cadastre sem "Criar acesso".'
-                        raise serializers.ValidationError({'email': msg, 'detail': msg})
-                    # É proprietário de alguma loja -> não reutilizar
-                    if existing_user.lojas_owned.exists():
-                        professional.delete()
-                        msg = 'Já existe um usuário (proprietário de loja) com este e-mail. Use outro ou não marque "Criar acesso".'
-                        raise serializers.ValidationError({'email': msg, 'detail': msg})
-                    # Usuário órfão ou só em outras lojas: reutilizar e vincular a esta loja
-                    user = existing_user
-                    user.set_password(senha_provisoria)
-                    user.first_name = name or user.first_name or ''
-                    user.save(update_fields=['password', 'first_name'])
-                    ProfissionalUsuario.objects.using(default_db).create(
-                        user=user,
-                        loja=loja,
-                        professional_id=professional.id,
-                        perfil=perfil,
-                        precisa_trocar_senha=True,
-                    )
-                    logger.info('Usuário órfão reutilizado para acesso à loja: %s (email=%s)', loja_id, mask_email(email))
-                else:
-                    # Novo usuário
-                    user = User.objects.db_manager(default_db).create_user(
-                        username=email,
-                        email=email,
-                        password=senha_provisoria,
-                        first_name=name or '',
-                    )
-                    ProfissionalUsuario.objects.using(default_db).create(
-                        user=user,
-                        loja=loja,
-                        professional_id=professional.id,
-                        perfil=perfil,
-                        precisa_trocar_senha=True,
-                    )
-
-                site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
-                login_url = f"{site_url}/loja/{loja.slug}/login"
-                # Mapear perfil para nome amigável
-                perfil_nome = {
-                    'administrador': 'Administrador',
-                    'profissional': 'Profissional',
-                    'recepcao': 'Recepcionista',
-                    'recepcionista': 'Recepcionista',
-                    'caixa': 'Caixa',
-                    'limpeza': 'Limpeza',
-                    'estoque': 'Estoque',
-                }.get(perfil, 'Profissional')
-                
-                try:
-                    from core.email_templates import email_senha_provisoria_html
-                    from django.core.mail import EmailMultiAlternatives
-                    
-                    info_adicional = {
-                        "Loja": loja.nome,
-                        "Tipo de Sistema": loja.tipo_loja.nome,
-                        "Seu Perfil": perfil_nome,
-                    }
-                    
-                    html_content, texto_plano = email_senha_provisoria_html(
-                        nome_destinatario=name or 'Profissional',
-                        usuario=email,
-                        senha=senha_provisoria,
-                        url_login=login_url,
-                        titulo_principal="Bem-vindo ao Sistema",
-                        subtitulo="Seu acesso foi criado com sucesso!",
-                        info_adicional=info_adicional,
-                        nome_sistema=loja.nome
-                    )
-                    
-                    email_msg = create_email_multipart(
-                        f'Acesso ao Sistema - {loja.nome}',
-                        texto_plano,
-                        [email],
-                        html=html_content,
-                    )
-                    email_msg.send(fail_silently=True)
-                except Exception as mail_err:
-                    logger.warning('Envio de e-mail ao criar profissional falhou: %s', mail_err)
-            except serializers.ValidationError:
-                raise
-            except Loja.DoesNotExist:
+                criar_profissional_com_acesso(
+                    professional,
+                    email=email,
+                    name=name or '',
+                    perfil=perfil,
+                )
+            except ProfessionalAccessError as e:
                 professional.delete()
-                logger.warning('Loja id=%s não encontrada ao criar acesso', loja_id)
-                msg = 'Loja não encontrada. Tente novamente ou cadastre sem "Criar acesso".'
-                raise serializers.ValidationError({'loja': msg, 'detail': msg})
-            except IntegrityError as e:
-                professional.delete()
-                logger.warning('IntegrityError ao criar ProfissionalUsuario: %s', e)
-                msg = 'Este e-mail já possui acesso a esta loja ou há conflito de dados. Cadastre sem "Criar acesso" ou use outro e-mail.'
-                raise serializers.ValidationError({'email': msg, 'detail': msg})
+                raise serializers.ValidationError({e.field: e.message, 'detail': e.message})
             except Exception as e:
                 professional.delete()
-                logger.exception('Erro ao criar acesso do profissional: %s', e)
+                import logging
+                logging.getLogger(__name__).exception('Erro ao criar acesso do profissional: %s', e)
                 msg = 'Erro ao criar acesso. Tente novamente ou cadastre sem "Criar acesso".'
                 raise serializers.ValidationError({'detail': msg})
 
         return professional
+
 
 
 class PatientSerializer(CpfNormalizationMixin, TextNormalizationMixin, serializers.ModelSerializer):
@@ -522,6 +411,28 @@ class PrescricaoMemedSerializer(serializers.ModelSerializer):
             'prescricao_id', 'resumo', 'itens', 'created_at', 'loja_id',
         ]
         read_only_fields = ['created_at', 'loja_id']
+
+
+class ProdutoEstoqueSerializer(serializers.ModelSerializer):
+    """Serializer para produtos do estoque — substitui serialização manual."""
+    categoria_display = serializers.CharField(source='get_categoria_display', read_only=True)
+    estoque_baixo = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = ProdutoEstoque
+        exclude = ['loja_id']
+
+
+class MovimentacaoEstoqueSerializer(serializers.ModelSerializer):
+    """Serializer para movimentações de estoque."""
+    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    profissional_nome = serializers.CharField(
+        source='profissional.nome', read_only=True, default=None,
+    )
+
+    class Meta:
+        model = MovimentacaoEstoque
+        exclude = ['loja_id']
 
 
 class ConsultaSerializer(serializers.ModelSerializer):

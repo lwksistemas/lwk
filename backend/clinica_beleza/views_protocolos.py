@@ -8,38 +8,31 @@ from rest_framework import status
 
 from .models import ProcedureProtocol
 from .serializers import ProcedureProtocolSerializer
+from .views_base import GetObjectMixin
 
 
 class ProtocolListView(APIView):
     """
-    GET /clinica-beleza/protocolos/?procedure=&categoria=
+    GET /clinica-beleza/protocolos/?procedure=&categoria=&active=true
     POST /clinica-beleza/protocolos/
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        queryset = ProcedureProtocol.objects.select_related('procedure').filter(is_active=True)
+        active_only = request.query_params.get('active', 'true').lower() == 'true'
+        queryset = ProcedureProtocol.objects.select_related('procedure')
+        if active_only:
+            queryset = queryset.filter(is_active=True)
         procedure_id = request.query_params.get('procedure')
-        categoria = (request.query_params.get('categoria') or '').strip()
         if procedure_id:
             try:
                 queryset = queryset.filter(procedure_id=int(procedure_id))
             except (ValueError, TypeError):
                 pass
+        categoria = (request.query_params.get('categoria') or '').strip()
         if categoria:
             queryset = queryset.filter(procedure__categoria__icontains=categoria)
-        active_only = request.query_params.get('active', 'true').lower() == 'true'
-        if not active_only:
-            queryset = ProcedureProtocol.objects.select_related('procedure').all()
-            if procedure_id:
-                try:
-                    queryset = queryset.filter(procedure_id=int(procedure_id))
-                except (ValueError, TypeError):
-                    pass
-            if categoria:
-                queryset = queryset.filter(procedure__categoria__icontains=categoria)
-        queryset = queryset.order_by('procedure__nome', 'nome')
-        return Response(ProcedureProtocolSerializer(queryset, many=True).data)
+        return Response(ProcedureProtocolSerializer(queryset.order_by('procedure__nome', 'nome'), many=True).data)
 
     def post(self, request):
         serializer = ProcedureProtocolSerializer(data=request.data)
@@ -49,33 +42,33 @@ class ProtocolListView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ProtocolDetailView(APIView):
+class ProtocolDetailView(GetObjectMixin, APIView):
     """GET / PUT / DELETE /clinica-beleza/protocolos/<id>/"""
     permission_classes = [IsAuthenticated]
+    model_class = ProcedureProtocol
+    not_found_message = 'Protocolo não encontrado'
+    select_related_fields = ['procedure']
 
     def get(self, request, pk):
-        try:
-            obj = ProcedureProtocol.objects.select_related('procedure').get(pk=pk)
-            return Response(ProcedureProtocolSerializer(obj).data)
-        except ProcedureProtocol.DoesNotExist:
-            return Response({'error': 'Protocolo não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        return Response(ProcedureProtocolSerializer(obj).data)
 
     def put(self, request, pk):
-        try:
-            obj = ProcedureProtocol.objects.get(pk=pk)
-            serializer = ProcedureProtocolSerializer(obj, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except ProcedureProtocol.DoesNotExist:
-            return Response({'error': 'Protocolo não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        serializer = ProcedureProtocolSerializer(obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        try:
-            obj = ProcedureProtocol.objects.get(pk=pk)
-            obj.is_active = False
-            obj.save(update_fields=['is_active', 'updated_at'])
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except ProcedureProtocol.DoesNotExist:
-            return Response({'error': 'Protocolo não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        obj.is_active = False
+        obj.save(update_fields=['is_active', 'updated_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)

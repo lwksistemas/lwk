@@ -97,7 +97,7 @@ function parsePrescricao(data: unknown): { prescricaoId: string; itens: ItemPres
 const SCRIPT_ID = "memed-sinapse-prescricao";
 const MODULO_PRESCRICAO = "plataforma.prescricao";
 const READY_FLAG = "__memedPrescricaoPronta";
-const TIMEOUT_MS = 30000;
+const TIMEOUT_MS = 20000;
 
 /** Indica se o módulo de prescrição da Memed já terminou de inicializar. */
 function moduloPronto(): boolean {
@@ -194,7 +194,7 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
           }
           // O listener pode ainda não estar registrado se o script demorar a executar.
           registrarListenerPrescricao();
-          setTimeout(verificar, 250);
+          setTimeout(verificar, 150);
         };
         verificar();
       });
@@ -235,10 +235,20 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
     }, [professionalId, carregarScript, aguardarModulo]);
 
     // Pré-carrega a Memed ao abrir a consulta, para o primeiro clique ser instantâneo.
+    // Retry automático: se falhar, tenta novamente após 3s (máx 2 tentativas).
     useEffect(() => {
-      garantirPronto().catch((e) => {
-        logger.warn("Memed: pré-carregamento falhou (tentará novamente ao clicar):", e);
-      });
+      let tentativas = 0;
+      const maxTentativas = 2;
+      const tentarPrecarregar = () => {
+        garantirPronto().catch((e) => {
+          tentativas++;
+          logger.warn(`Memed: pré-carregamento falhou (tentativa ${tentativas}/${maxTentativas}):`, e);
+          if (tentativas < maxTentativas) {
+            setTimeout(tentarPrecarregar, 3000);
+          }
+        });
+      };
+      tentarPrecarregar();
     }, [garantirPronto]);
 
     // Logout ao desmontar: limpa o localStorage da Memed. A doc exige isso

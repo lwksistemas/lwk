@@ -321,6 +321,10 @@ export default function ConsultasPage() {
   const podeIniciar = selected?.status === "SCHEDULED";
   const podeFinalizar = selected?.status === "IN_PROGRESS";
   const podeExcluir = selected?.status !== "COMPLETED";
+  // Consulta ativa = em atendimento. Só aí pode editar/prescrever.
+  const consultaAtiva = selected?.status === "IN_PROGRESS";
+  // Consulta finalizada = somente leitura.
+  const consultaFinalizada = selected?.status === "COMPLETED";
 
   const excluirConsulta = async () => {
     if (!selected) return;
@@ -417,40 +421,50 @@ export default function ConsultasPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2 mt-4">
-              {tabs.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => { setTab(id); resetTabEdits(); }}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    tab === id ? "text-white" : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300"
-                  }`}
-                  style={tab === id ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
-                >
-                  <Icon size={16} />
-                  {label}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={abrirMemed}
-                disabled={memedBusy}
-                title="Abrir receituário digital na Memed"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
-              >
-                <Pill size={16} />
-                Receituário
-              </button>
-              <button
-                type="button"
-                onClick={abrirMemed}
-                disabled={memedBusy}
-                title="Solicitar exames na Memed"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
-              >
-                <FlaskConical size={16} />
-                Exames
-              </button>
+              {tabs.map(({ id, label, icon: Icon }) => {
+                // Antes de iniciar: só Histórico acessível
+                // Em atendimento ou finalizada: todos acessíveis (finalizada = leitura)
+                const disabled = !consultaAtiva && !consultaFinalizada && id !== "historico";
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => { if (!disabled) { setTab(id); resetTabEdits(); } }}
+                    disabled={disabled}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                      tab === id ? "text-white" : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300"
+                    }`}
+                    style={tab === id ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </button>
+                );
+              })}
+              {consultaAtiva && (
+                <>
+                  <button
+                    type="button"
+                    onClick={abrirMemed}
+                    disabled={memedBusy}
+                    title="Abrir receituário digital na Memed"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
+                  >
+                    <Pill size={16} />
+                    Receituário
+                  </button>
+                  <button
+                    type="button"
+                    onClick={abrirMemed}
+                    disabled={memedBusy}
+                    title="Solicitar exames na Memed"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
+                  >
+                    <FlaskConical size={16} />
+                    Exames
+                  </button>
+                </>
+              )}
             </div>
           </div>
           <MemedPrescricao
@@ -465,20 +479,26 @@ export default function ConsultasPage() {
           <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
             {loadingDetalhe ? (
               <div className="text-center py-16 text-gray-500">Carregando consulta...</div>
+            ) : !consultaAtiva && !consultaFinalizada ? (
+              <div className="text-center py-16">
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  Consulta aguardando início. O profissional deve clicar em <strong>"Iniciar consulta"</strong> para habilitar o atendimento.
+                </p>
+              </div>
             ) : (
               <>
                 {tab === "atendimento" && (
                   <ConsultaAtendimentoTab
-                    protocolos={protocolos}
+                    protocolos={consultaFinalizada ? [] : protocolos}
                     protocoloPreview={protocoloPreview}
-                    editAtendimento={editAtendimento}
+                    editAtendimento={consultaFinalizada ? false : editAtendimento}
                     observacoes={observacoes}
                     observacoesDraft={observacoesDraft}
                     saving={saving}
-                    onSelectProtocolo={selecionarProtocolo}
+                    onSelectProtocolo={consultaFinalizada ? () => {} : selecionarProtocolo}
                     onConfirmProtocolo={confirmarProtocolo}
                     onCancelProtocolo={() => { setProtocoloPreview(null); setProtocoloPendingId(null); }}
-                    onStartEdit={() => { setObservacoesDraft(observacoes); setEditAtendimento(true); }}
+                    onStartEdit={consultaFinalizada ? () => {} : () => { setObservacoesDraft(observacoes); setEditAtendimento(true); }}
                     onCancelEdit={() => { setObservacoesDraft(observacoes); setEditAtendimento(false); }}
                     onChangeDraft={setObservacoesDraft}
                     onSave={salvarObservacoes}
@@ -488,9 +508,9 @@ export default function ConsultasPage() {
                   <ConsultaAnamneseTab
                     anamnese={anamnese}
                     anamneseDraft={anamneseDraft}
-                    editAnamnese={editAnamnese}
+                    editAnamnese={consultaFinalizada ? false : editAnamnese}
                     saving={saving}
-                    onStartEdit={() => { setAnamneseDraft(anamnese); setEditAnamnese(true); }}
+                    onStartEdit={consultaFinalizada ? () => {} : () => { setAnamneseDraft(anamnese); setEditAnamnese(true); }}
                     onCancelEdit={() => { setAnamneseDraft(anamnese); setEditAnamnese(false); }}
                     onChangeDraft={setAnamneseDraft}
                     onSave={salvarAnamnese}
@@ -499,11 +519,11 @@ export default function ConsultasPage() {
                 {tab === "evolucao" && (
                   <ConsultaEvolucaoTab
                     evolucoes={evolucoes}
-                    editEvolucao={editEvolucao}
+                    editEvolucao={consultaFinalizada ? false : editEvolucao}
                     evolucaoForm={evolucaoForm}
                     saving={saving}
                     formatData={formatData}
-                    onStartEdit={() => setEditEvolucao(true)}
+                    onStartEdit={consultaFinalizada ? () => {} : () => setEditEvolucao(true)}
                     onCancelEdit={() => {
                       setEditEvolucao(false);
                       setEvolucaoForm({ descricao: "", procedimento_realizado: "", produtos_utilizados: "", orientacoes: "", satisfacao: "" });

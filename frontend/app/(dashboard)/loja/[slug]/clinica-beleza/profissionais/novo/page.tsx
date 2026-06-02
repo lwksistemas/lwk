@@ -205,7 +205,7 @@ export default function NovoProfissionalPage() {
         backHref={`/loja/${slug}/clinica-beleza/profissionais`}
       />
       <ClinicaBelezaPageContent>
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="space-y-6">
           {error && (
             <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
               <p className="text-sm text-red-800 dark:text-red-300 whitespace-pre-line">{error}</p>

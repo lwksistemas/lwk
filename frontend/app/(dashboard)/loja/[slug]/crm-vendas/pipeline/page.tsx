@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
@@ -11,6 +11,52 @@ import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/Pipeli
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import ModalCriarOportunidade from './components/ModalCriarOportunidade';
 import ModalEditarOportunidade from './components/ModalEditarOportunidade';
+
+const ETAPAS_FECHADAS = new Set(['closed_won', 'closed_lost']);
+
+/** Período filtra por data de criação (abertas) ou data de fechamento (ganho/perdido). */
+function oportunidadeNoPeriodo(
+  op: Oportunidade,
+  dataInicio: string,
+  dataFim: string,
+): boolean {
+  if (!dataInicio && !dataFim) return true;
+
+  // Determinar a data de referência:
+  // - Ganho: data_fechamento_ganho
+  // - Perdido: data_fechamento_perdido
+  // - Abertas: created_at (data de criação)
+  let dataRef = '';
+  if (op.etapa === 'closed_won') {
+    dataRef = op.data_fechamento_ganho || op.created_at || '';
+  } else if (op.etapa === 'closed_lost') {
+    dataRef = op.data_fechamento_perdido || op.created_at || '';
+  } else {
+    dataRef = op.created_at || '';
+  }
+
+  if (!dataRef) return true;
+  const dataOp = new Date(dataRef);
+  if (Number.isNaN(dataOp.getTime())) return true;
+  if (dataInicio && dataOp < new Date(dataInicio)) return false;
+  if (dataFim) {
+    const dataFimDate = new Date(dataFim);
+    dataFimDate.setHours(23, 59, 59, 999);
+    if (dataOp > dataFimDate) return false;
+  }
+  return true;
+}
+
+function filtrarOportunidadesPipeline(
+  oportunidades: Oportunidade[],
+  opts: { etapa?: string; vendedor?: string; dataInicio: string; dataFim: string },
+): Oportunidade[] {
+  return oportunidades.filter((op) => {
+    if (opts.etapa && op.etapa !== opts.etapa) return false;
+    if (opts.vendedor && String(op.vendedor) !== opts.vendedor) return false;
+    return oportunidadeNoPeriodo(op, opts.dataInicio, opts.dataFim);
+  });
+}
 
 function loadOportunidades(setOportunidades: (o: Oportunidade[]) => void, setError: (e: string | null) => void) {
   // Adicionar timestamp para evitar cache
@@ -144,44 +190,24 @@ export default function CrmVendasPipelinePage() {
     loadOportunidades(setOportunidades, setError);
   };
 
-  const oportunidadesFiltradas = oportunidades.filter((op) => {
-    // Filtro por etapa
-    if (filtroEtapaPipeline && op.etapa !== filtroEtapaPipeline) {
-      return false;
-    }
-    
-    // Filtro por vendedor
-    if (filtroVendedor && String(op.vendedor) !== filtroVendedor) {
-      return false;
-    }
-    
-    // Filtro por período — usa data_fechamento_ganho para closed_won, data_fechamento_perdido para closed_lost, senão created_at
-    if (dataInicio || dataFim) {
-      let dataRef = '';
-      if (op.etapa === 'closed_won') {
-        dataRef = (op as any).data_fechamento_ganho || (op as any).data_fechamento || op.created_at || '';
-      } else if (op.etapa === 'closed_lost') {
-        dataRef = (op as any).data_fechamento_perdido || (op as any).data_fechamento || op.created_at || '';
-      } else {
-        dataRef = op.created_at || '';
-      }
-      if (!dataRef) return true;
-      const dataOp = new Date(dataRef);
-      if (Number.isNaN(dataOp.getTime())) return true;
-      if (dataInicio && dataOp < new Date(dataInicio)) {
-        return false;
-      }
-      if (dataFim) {
-        const dataFimDate = new Date(dataFim);
-        dataFimDate.setHours(23, 59, 59, 999);
-        if (dataOp > dataFimDate) {
-          return false;
-        }
-      }
-    }
-    
-    return true;
-  });
+  const oportunidadesBase = useMemo(
+    () => filtrarOportunidadesPipeline(oportunidades, {
+      vendedor: filtroVendedor,
+      dataInicio,
+      dataFim,
+    }),
+    [oportunidades, filtroVendedor, dataInicio, dataFim],
+  );
+
+  const oportunidadesFiltradas = useMemo(
+    () => filtrarOportunidadesPipeline(oportunidades, {
+      etapa: filtroEtapaPipeline || undefined,
+      vendedor: filtroVendedor,
+      dataInicio,
+      dataFim,
+    }),
+    [oportunidades, filtroEtapaPipeline, filtroVendedor, dataInicio, dataFim],
+  );
 
   return (
     <div className="space-y-8">
@@ -260,12 +286,12 @@ export default function CrmVendasPipelinePage() {
                 onChange={(e) => setFiltroEtapaPipeline(e.target.value)}
                 className="min-w-[12rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               >
-                <option value="">Todos ({oportunidades.length})</option>
+                <option value="">Todos ({oportunidadesBase.length})</option>
                 {etapasAtivas().map((et) => {
-                  const count = oportunidades.filter(o => o.etapa === et.key).length;
+                  const count = oportunidadesBase.filter((o) => o.etapa === et.key).length;
                   return (
                     <option key={et.key} value={et.key}>
-                      {et.label} ({count})
+                      {et.label} — {count} {count === 1 ? 'oportunidade' : 'oportunidades'}
                     </option>
                   );
                 })}

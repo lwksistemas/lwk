@@ -264,7 +264,7 @@ export default function LojaLoginDinamicoPage() {
         <LoginBackgroundLayer imageUrl={loginBackground} fallbackColor={loginBackgroundFallback} />
       )}
       
-      <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl" style={{ position: 'relative', zIndex: 2 }}>
+      <div className="max-w-sm w-full space-y-4 sm:space-y-5 p-5 sm:p-6 bg-white dark:bg-gray-800 rounded-lg shadow-2xl" style={{ position: 'relative', zIndex: 2 }}>
         {/* Header */}
         <div>
           <div className="mx-auto flex items-center justify-center">
@@ -272,38 +272,38 @@ export default function LojaLoginDinamicoPage() {
               <Image
                 src={loginLogo}
                 alt={lojaInfo.nome}
-                width={140}
-                height={140}
-                className="h-32 w-32 sm:h-36 sm:w-36 object-contain"
+                width={100}
+                height={100}
+                className="h-20 w-20 sm:h-24 sm:w-24 object-contain"
                 unoptimized
               />
             ) : (
               <div 
-                className="h-14 w-14 sm:h-16 sm:w-16 rounded-full flex items-center justify-center"
+                className="h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: corPrimaria }}
               >
-                <svg className="h-8 w-8 sm:h-10 sm:w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-7 w-7 sm:h-8 sm:w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
               </div>
             )}
           </div>
-          <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+          <h2 className="mt-3 text-center text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
             {lojaInfo.nome}
           </h2>
-          <p className="mt-1 sm:mt-2 text-center text-sm sm:text-base text-gray-600 dark:text-gray-300">
+          <p className="mt-1 text-center text-xs sm:text-sm text-gray-600 dark:text-gray-300">
             {lojaInfo.tipo_loja_nome}
           </p>
-          <p className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-center text-xs text-gray-500 dark:text-gray-400">
             Portal da Loja
           </p>
         </div>
         
         {/* Form */}
-        <form className="mt-6 sm:mt-8 space-y-5 sm:space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
           <ErrorAlert message={error} onClose={() => setError('')} />
           
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Username */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

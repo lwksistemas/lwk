@@ -70,7 +70,7 @@ interface ItemPrescricao {
 }
 
 /** Extrai (de forma defensiva) os dados úteis do payload do evento prescricaoImpressa. */
-function parsePrescricao(data: unknown): { prescricaoId: string; itens: ItemPrescricao[]; resumo: string } {
+function parsePrescricao(data: unknown): { prescricaoId: string; itens: ItemPrescricao[]; resumo: string; pdfUrl: string } {
   const d = (data ?? {}) as Record<string, any>;
   const prescricao = (d.prescricao ?? d["prescrição"] ?? d) as Record<string, any>;
   const meds: any[] = Array.isArray(d.medicamentos)
@@ -79,6 +79,12 @@ function parsePrescricao(data: unknown): { prescricaoId: string; itens: ItemPres
       ? prescricao.medicamentos
       : [];
   const prescricaoId = String(prescricao?.id ?? d.id ?? "");
+
+  // URL do PDF gerado pela Memed (já com timbrado)
+  const pdfUrl = String(
+    d.url_pdf ?? d.pdf_url ?? prescricao?.url_pdf ?? prescricao?.pdf_url
+    ?? d.url ?? prescricao?.url ?? ""
+  );
 
   const itens: ItemPrescricao[] = meds.map((m) => ({
     nome: m?.nome ?? m?.descricao ?? "",
@@ -91,7 +97,7 @@ function parsePrescricao(data: unknown): { prescricaoId: string; itens: ItemPres
     .map((it) => (it.posologia ? `- ${it.nome} — ${it.posologia}` : `- ${it.nome}`))
     .join("\n");
 
-  return { prescricaoId, itens, resumo };
+  return { prescricaoId, itens, resumo, pdfUrl };
 }
 
 const SCRIPT_ID = "memed-sinapse-prescricao";
@@ -282,12 +288,13 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
     // Ao emitir uma receita na Memed, salva no histórico do paciente.
     useEffect(() => {
       prescricaoImpressaHandler = (data: unknown) => {
-        const { prescricaoId, itens, resumo } = parsePrescricao(data);
+        const { prescricaoId, itens, resumo, pdfUrl } = parsePrescricao(data);
         ClinicaBelezaAPI.memed
           .salvarPrescricao(consultaId, {
             prescricao_id: prescricaoId,
             resumo,
             itens,
+            pdf_url: pdfUrl,
             professional: professionalId ?? null,
           })
           .then(() => onPrescricaoRegistrada?.())

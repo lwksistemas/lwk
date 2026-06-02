@@ -684,6 +684,10 @@ class PrescricaoMemed(LojaIsolationMixin, models.Model):
         default=list, blank=True, verbose_name='Itens',
         help_text='Itens estruturados da prescrição (nome, posologia, tipo, receituário).',
     )
+    pdf_url = models.URLField(
+        max_length=500, blank=True, default='', verbose_name='URL do PDF',
+        help_text='Link para o PDF da prescrição gerado pela Memed.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = LojaIsolationManager()

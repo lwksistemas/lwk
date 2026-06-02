@@ -521,7 +521,7 @@ class PrescricaoMemedSerializer(serializers.ModelSerializer):
         model = PrescricaoMemed
         fields = [
             'id', 'consulta', 'patient', 'patient_name', 'professional', 'professional_name',
-            'prescricao_id', 'resumo', 'itens', 'created_at', 'loja_id',
+            'prescricao_id', 'resumo', 'itens', 'pdf_url', 'created_at', 'loja_id',
         ]
         read_only_fields = ['created_at', 'loja_id']
 

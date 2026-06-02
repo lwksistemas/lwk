@@ -194,6 +194,7 @@ export interface PrescricaoMemedItem {
   prescricao_id: string;
   resumo: string;
   itens: PrescricaoMemedItemDetalhe[];
+  pdf_url?: string;
   created_at: string;
 }
 
@@ -315,7 +316,7 @@ export class ClinicaBelezaAPI {
     /** Registra no histórico do paciente uma prescrição emitida na Memed. */
     salvarPrescricao: (
       consultaId: number,
-      data: { prescricao_id?: string; resumo?: string; itens?: unknown[]; professional?: number | null },
+      data: { prescricao_id?: string; resumo?: string; itens?: unknown[]; pdf_url?: string; professional?: number | null },
     ) => ClinicaBelezaAPI.post(`/consultas/${consultaId}/prescricoes/`, data),
 
     /** Lista as prescrições registradas para um paciente (histórico). */

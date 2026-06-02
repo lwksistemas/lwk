@@ -165,10 +165,23 @@ function HistoricoPrescricoes({
     <div className="space-y-3">
       {items.map((p) => (
         <div key={p.id} className="p-3 rounded-lg border border-gray-200 dark:border-neutral-600">
-          <p className="text-xs text-gray-500">
-            {formatData(p.created_at)}
-            {p.professional_name ? ` · ${p.professional_name}` : ""}
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs text-gray-500">
+              {formatData(p.created_at)}
+              {p.professional_name ? ` · ${p.professional_name}` : ""}
+            </p>
+            {p.pdf_url && (
+              <a
+                href={p.pdf_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline shrink-0"
+              >
+                <Pill size={12} />
+                Imprimir PDF
+              </a>
+            )}
+          </div>
           {p.itens && p.itens.length > 0 ? (
             <ul className="mt-1.5 space-y-1">
               {p.itens.map((it, idx) => (

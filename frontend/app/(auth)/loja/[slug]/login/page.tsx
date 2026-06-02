@@ -264,7 +264,7 @@ export default function LojaLoginDinamicoPage() {
         <LoginBackgroundLayer imageUrl={loginBackground} fallbackColor={loginBackgroundFallback} />
       )}
       
-      <div className="max-w-sm w-full space-y-4 sm:space-y-5 p-5 sm:p-6 bg-white dark:bg-gray-800 rounded-lg shadow-2xl" style={{ position: 'relative', zIndex: 2 }}>
+      <div className="max-w-sm w-full space-y-4 sm:space-y-5 p-5 sm:p-6 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-2xl border-t-4" style={{ position: 'relative', zIndex: 2, borderTopColor: corPrimaria }}>
         {/* Header */}
         <div>
           <div className="mx-auto flex items-center justify-center">
@@ -315,6 +315,7 @@ export default function LojaLoginDinamicoPage() {
                 required
                 autoComplete="username"
                 className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-0 dark:focus:ring-offset-gray-800 transition-colors"
+                style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
                 value={credentials.username}
                 onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
                 placeholder="Digite seu usuário"
@@ -333,6 +334,7 @@ export default function LojaLoginDinamicoPage() {
                 required
                 autoComplete="off"
                 className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-0 dark:focus:ring-offset-gray-800 transition-colors"
+                style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
                 value={credentials.cpf_cnpj}
                 onChange={handleCpfCnpjChange}
                 placeholder="000.000.000-00 ou 00.000.000/0000-00"

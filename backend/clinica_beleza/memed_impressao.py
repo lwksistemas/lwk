@@ -135,8 +135,8 @@ def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = 
         'mostrar_cabecalho_rodape_especial': 1,
         'largura_papel': 21,
         'altura_papel': 29.7,
-        'tamanho_cabecalho': max(float(attrs.get('tamanho_cabecalho') or 4), 4),
-        'tamanho_rodape': max(float(attrs.get('tamanho_rodape') or 2), 2),
+        'tamanho_cabecalho': 3.5,
+        'tamanho_rodape': 2.5,
     }
     if upload_attrs.get('header_image'):
         config_attrs['header_image'] = upload_attrs['header_image']

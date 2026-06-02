@@ -41,6 +41,32 @@ const FALLBACK_COLORS: Record<LoginBackgroundKey, string> = {
   default: '#1f2937',
 };
 
+/** Cor primária para UI da tela de login — baseada na imagem de fundo padrão */
+export const LOGIN_THEME_COLORS: Record<LoginBackgroundKey, string> = {
+  clinicaBeleza: '#c4737b',
+  clinicaEstetica: '#9b5d7a',
+  cabeleireiro: '#8b6b4a',
+  hotel: '#4a7ab5',
+  restaurante: '#b5704a',
+  crm: '#3b7d5c',
+  servicos: '#5a7a8a',
+  commerce: '#6a6a6a',
+  default: '#4a6a8a',
+};
+
+export function getLoginThemeColor(tipoLojaNome: string): string {
+  const tipo = (tipoLojaNome || '').trim();
+  if (isTipoClinicaBeleza(tipo)) return LOGIN_THEME_COLORS.clinicaBeleza;
+  if (isTipoClinicaEstetica(tipo)) return LOGIN_THEME_COLORS.clinicaEstetica;
+  if (isTipoCabeleireiro(tipo)) return LOGIN_THEME_COLORS.cabeleireiro;
+  if (isTipoHotel(tipo)) return LOGIN_THEME_COLORS.hotel;
+  if (isTipoRestaurante(tipo)) return LOGIN_THEME_COLORS.restaurante;
+  if (isTipoCRMVendas(tipo)) return LOGIN_THEME_COLORS.crm;
+  if (isTipoServicos(tipo)) return LOGIN_THEME_COLORS.servicos;
+  if (isTipoCommerce(tipo)) return LOGIN_THEME_COLORS.commerce;
+  return LOGIN_THEME_COLORS.default;
+}
+
 const LOCAL = LOGIN_BACKGROUND_PATHS;
 
 /**

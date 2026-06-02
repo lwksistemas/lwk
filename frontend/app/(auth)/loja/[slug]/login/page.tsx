@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
-import { resolveLoginBackground, getLoginBackgroundHintFromSlug, getLoginBackgroundFallbackFromSlug, getLoginBackgroundFallbackColor, preloadLoginBackground } from '@/lib/login-default-backgrounds';
+import { resolveLoginBackground, getLoginBackgroundHintFromSlug, getLoginBackgroundFallbackFromSlug, getLoginBackgroundFallbackColor, preloadLoginBackground, getLoginThemeColor } from '@/lib/login-default-backgrounds';
 import { LoginBackgroundLayer } from '@/components/auth/LoginBackgroundLayer';
 import { getPublicApiJson } from '@/lib/public-api';
 import { logger } from '@/lib/logger';
@@ -250,6 +250,8 @@ export default function LojaLoginDinamicoPage() {
   const loginLogo = lojaInfo.login_logo || lojaInfo.logo;
   const hasBackgroundImage = Boolean(loginBackground);
   const loginBackgroundFallback = getLoginBackgroundFallbackColor(loginBackground);
+  // Cor temática baseada na imagem de fundo padrão (não na cor da loja)
+  const corTema = getLoginThemeColor(lojaInfo.tipo_loja_nome);
 
   return (
     <div
@@ -264,7 +266,7 @@ export default function LojaLoginDinamicoPage() {
         <LoginBackgroundLayer imageUrl={loginBackground} fallbackColor={loginBackgroundFallback} />
       )}
       
-      <div className="max-w-sm w-full space-y-4 sm:space-y-5 p-5 sm:p-6 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-2xl border-t-4" style={{ position: 'relative', zIndex: 2, borderTopColor: corPrimaria }}>
+      <div className="max-w-sm w-full space-y-4 sm:space-y-5 p-5 sm:p-6 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-2xl border-t-4" style={{ position: 'relative', zIndex: 2, borderTopColor: corTema }}>
         {/* Header */}
         <div>
           <div className="mx-auto flex items-center justify-center">
@@ -280,7 +282,7 @@ export default function LojaLoginDinamicoPage() {
             ) : (
               <div 
                 className="h-12 w-12 sm:h-14 sm:w-14 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: corPrimaria }}
+                style={{ backgroundColor: corTema }}
               >
                 <svg className="h-7 w-7 sm:h-8 sm:w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
@@ -315,7 +317,7 @@ export default function LojaLoginDinamicoPage() {
                 required
                 autoComplete="username"
                 className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-0 dark:focus:ring-offset-gray-800 transition-colors"
-                style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
+                style={{ '--tw-ring-color': corTema } as React.CSSProperties}
                 value={credentials.username}
                 onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
                 placeholder="Digite seu usuário"
@@ -334,7 +336,7 @@ export default function LojaLoginDinamicoPage() {
                 required
                 autoComplete="off"
                 className="block w-full px-3 py-3 sm:py-2.5 min-h-[44px] text-base sm:text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-0 dark:focus:ring-offset-gray-800 transition-colors"
-                style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
+                style={{ '--tw-ring-color': corTema } as React.CSSProperties}
                 value={credentials.cpf_cnpj}
                 onChange={handleCpfCnpjChange}
                 placeholder="000.000.000-00 ou 00.000.000/0000-00"
@@ -370,10 +372,10 @@ export default function LojaLoginDinamicoPage() {
             disabled={loading}
             className="w-full py-3.5 sm:py-3 px-4 min-h-[48px] text-white font-semibold rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
             style={{
-              backgroundColor: corPrimaria
+              backgroundColor: corTema
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = corSecundaria}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = corPrimaria}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '0.85'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
           >
             {loading ? (
               <span className="flex items-center justify-center">
@@ -394,7 +396,7 @@ export default function LojaLoginDinamicoPage() {
           <button
             onClick={() => setShowRecuperarSenha(true)}
             className="text-sm hover:underline min-h-[44px] py-2 px-4 transition-colors"
-            style={{ color: corPrimaria }}
+            style={{ color: corTema }}
             disabled={loading}
           >
             Esqueceu sua senha?

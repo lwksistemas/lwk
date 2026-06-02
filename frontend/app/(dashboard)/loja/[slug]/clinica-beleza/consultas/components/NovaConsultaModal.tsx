@@ -115,40 +115,35 @@ export function NovaConsultaModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b dark:border-neutral-700">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Nova consulta</h2>
-          <button type="button" onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
+      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b dark:border-neutral-700 shrink-0">
+          <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Nova consulta</h2>
+          <button type="button" onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
             <X size={18} />
           </button>
         </div>
-        <div className="p-4 space-y-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Abre uma consulta direto pelo cadastro do cliente, sem precisar passar pela Agenda.
-            O profissional inicia o atendimento quando estiver pronto.
-          </p>
-
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {loadingData ? (
             <div className="text-center py-8 text-gray-500 text-sm">Carregando cadastros...</div>
           ) : (
             <>
               <div>
-                <label className="block text-sm font-medium mb-1">Cliente</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Cliente *</label>
                 <div className="relative mb-2">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
                     value={busca}
                     onChange={(e) => setBusca(e.target.value)}
-                    placeholder="Buscar cliente pelo nome..."
-                    className="w-full pl-9 pr-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                    placeholder="Buscar pelo nome..."
+                    className="w-full pl-8 pr-3 py-2 text-sm border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
                   />
                 </div>
                 <select
                   value={patientId}
                   onChange={(e) => setPatientId(e.target.value ? Number(e.target.value) : "")}
-                  size={4}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600 text-sm"
+                  size={3}
+                  className="w-full px-3 py-1.5 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600 text-sm"
                 >
                   {pacientesFiltrados.length === 0 ? (
                     <option value="" disabled>Nenhum cliente encontrado</option>
@@ -158,23 +153,19 @@ export function NovaConsultaModal({
                     ))
                   )}
                 </select>
-                {clienteSelecionado ? (
+                {clienteSelecionado && (
                   <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                    Cliente selecionado: <strong>{clienteSelecionado.nome}</strong>
-                  </p>
-                ) : (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Clique no nome para selecionar. O cliente precisa estar cadastrado em Pacientes.
+                    Selecionado: <strong>{clienteSelecionado.nome}</strong>
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Profissional</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Profissional *</label>
                 <select
                   value={professionalId}
                   onChange={(e) => setProfessionalId(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                  className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
                 >
                   <option value="">Selecione...</option>
                   {professionals.map((p) => (
@@ -184,11 +175,11 @@ export function NovaConsultaModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Procedimento</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Procedimento *</label>
                 <select
                   value={procedureId}
                   onChange={(e) => setProcedureId(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                  className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
                 >
                   <option value="">Selecione...</option>
                   {procedures.map((p) => (
@@ -200,21 +191,20 @@ export function NovaConsultaModal({
           )}
 
           {erro && <p className="text-sm text-red-600 dark:text-red-400">{erro}</p>}
-
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-neutral-600">
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={criar}
-              disabled={salvando || loadingData}
-              className="flex-1 py-2 rounded-lg text-white disabled:opacity-50"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-            >
-              {salvando ? "Abrindo..." : "Abrir consulta"}
-            </button>
-          </div>
+        </div>
+        <div className="flex gap-3 px-5 py-4 border-t dark:border-neutral-700 shrink-0">
+          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium">
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={criar}
+            disabled={salvando || loadingData}
+            className="flex-1 py-2.5 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+          >
+            {salvando ? "Abrindo..." : "Abrir consulta"}
+          </button>
         </div>
       </div>
     </div>

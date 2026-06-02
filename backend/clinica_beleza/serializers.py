@@ -7,7 +7,7 @@ from .bloqueio_utils import bloqueio_datetime_range, split_datetime_range
 from .models import (
     Patient, Professional, Procedure, ProcedureProtocol,
     Appointment, AppointmentProcedure, Payment, BloqueioHorario,
-    HorarioTrabalhoProfissional,
+    HorarioTrabalhoProfissional, ProfessionalCommission,
     Consulta, PatientAnamnese, ConsultaEvolucao, PrescricaoMemed,
     ProdutoEstoque, MovimentacaoEstoque,
 )
@@ -153,6 +153,24 @@ class ProfessionalSerializer(serializers.ModelSerializer):
         if owner_professional_id is None:
             return False
         return obj.id == owner_professional_id
+
+
+class ProfessionalCommissionSerializer(serializers.ModelSerializer):
+    """Serializer para comissões dos profissionais."""
+    procedure_name = serializers.CharField(source='procedure.nome', read_only=True, default=None)
+    valor_display = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = ProfessionalCommission
+        fields = [
+            'id', 'professional', 'tipo', 'modo', 'valor', 'procedure',
+            'procedure_name', 'valor_display', 'is_active',
+        ]
+        read_only_fields = ['id']
+        extra_kwargs = {
+            'professional': {'required': False},
+            'procedure': {'required': False, 'allow_null': True},
+        }
 
 
 class ProcedureSerializer(serializers.ModelSerializer):

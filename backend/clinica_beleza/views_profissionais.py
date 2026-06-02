@@ -8,10 +8,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
-from .models import Professional, HorarioTrabalhoProfissional, Appointment, BloqueioHorario
+from .models import Professional, HorarioTrabalhoProfissional, Appointment, BloqueioHorario, ProfessionalCommission
 from .serializers import (
     ProfessionalSerializer, ProfessionalCreateWithUserSerializer,
-    HorarioTrabalhoProfissionalSerializer,
+    HorarioTrabalhoProfissionalSerializer, ProfessionalCommissionSerializer,
 )
 from .utils import LojaContextHelper
 from .views_base import map_field_names
@@ -262,4 +262,49 @@ class HorarioTrabalhoProfissionalView(APIView):
             else:
                 HorarioTrabalhoProfissional.objects.filter(professional_id=pk).delete()
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(created, status=status.HTTP_200_OK)
+
+
+class ProfessionalCommissionView(APIView):
+    """
+    GET  /clinica-beleza/professionals/<id>/comissoes/ — lista comissões do profissional.
+    POST /clinica-beleza/professionals/<id>/comissoes/ — cria/atualiza comissões (recebe lista).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            Professional.objects.get(pk=pk)
+        except Professional.DoesNotExist:
+            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        qs = ProfessionalCommission.objects.filter(
+            professional_id=pk, is_active=True
+        ).select_related('procedure').order_by('tipo', 'procedure__nome')
+        return Response(ProfessionalCommissionSerializer(qs, many=True).data)
+
+    def post(self, request, pk):
+        """Recebe uma lista de comissões. Substitui todas as existentes."""
+        try:
+            professional = Professional.objects.get(pk=pk)
+        except Professional.DoesNotExist:
+            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not isinstance(request.data, list):
+            return Response(
+                {'error': 'Envie uma lista de comissões.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Desativar comissões existentes e criar novas
+        ProfessionalCommission.objects.filter(professional_id=pk).update(is_active=False)
+        created = []
+        for item in request.data:
+            data = {**item, 'professional': pk}
+            serializer = ProfessionalCommissionSerializer(data=data)
+            if serializer.is_valid():
+                obj = serializer.save(professional=professional, is_active=True)
+                created.append(ProfessionalCommissionSerializer(obj).data)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
         return Response(created, status=status.HTTP_200_OK)

@@ -99,6 +99,73 @@ class Professional(ProfissionalBase):
         return f"{self.nome} - {self.especialidade}"
 
 
+class ProfessionalCommission(LojaIsolationMixin, models.Model):
+    """
+    Configuração de comissão por profissional.
+    Permite comissão por consulta (atendimento) e por procedimento específico.
+    Cada tipo pode ser valor fixo (R$) ou percentual (%).
+    """
+    TIPO_CHOICES = (
+        ('consulta', 'Por consulta (atendimento)'),
+        ('procedimento', 'Por procedimento'),
+    )
+    MODO_CHOICES = (
+        ('percentual', 'Percentual (%)'),
+        ('fixo', 'Valor fixo (R$)'),
+    )
+
+    professional = models.ForeignKey(
+        Professional,
+        on_delete=models.CASCADE,
+        related_name='comissoes',
+        verbose_name='Profissional',
+    )
+    tipo = models.CharField(
+        max_length=20, choices=TIPO_CHOICES,
+        verbose_name='Tipo de comissão',
+    )
+    modo = models.CharField(
+        max_length=15, choices=MODO_CHOICES, default='percentual',
+        verbose_name='Modo de cálculo',
+    )
+    valor = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        verbose_name='Valor',
+        help_text='Percentual (ex: 30.00 = 30%) ou valor fixo em R$.',
+    )
+    procedure = models.ForeignKey(
+        'Procedure',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='comissoes',
+        verbose_name='Procedimento',
+        help_text='Obrigatório quando tipo = procedimento. Vazio = comissão geral por consulta.',
+    )
+    is_active = models.BooleanField(default=True, verbose_name='Ativo')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_professional_commissions'
+        ordering = ['professional', 'tipo', 'procedure']
+        verbose_name = 'Comissão do profissional'
+        verbose_name_plural = 'Comissões dos profissionais'
+
+    def __str__(self):
+        if self.tipo == 'procedimento' and self.procedure:
+            return f"{self.professional.nome} — {self.procedure.nome}: {self.valor_display}"
+        return f"{self.professional.nome} — Consulta: {self.valor_display}"
+
+    @property
+    def valor_display(self):
+        if self.modo == 'percentual':
+            return f"{self.valor}%"
+        return f"R$ {self.valor}"
+
+
 class Procedure(ServicoBase):
     """Procedimentos/Serviços oferecidos (herda de ServicoBase)"""
 

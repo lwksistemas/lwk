@@ -5,36 +5,22 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Pencil, Trash2, Clock } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
-import { ProfissionalFormModal } from "./components/ProfissionalFormModal";
 import { MemedStatusBadge, type MemedStatusInfo } from "./components/MemedStatusBadge";
 import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
-import { deleteClinicaBelezaEntity, saveClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
+import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
 import {
   entityActive,
-  entityEmail,
   entityName,
   entityPhone,
   professionalSpecialty,
 } from "@/lib/clinica-beleza-entities";
-import { formatProfissionalApiErrors } from "@/lib/clinica-beleza-form-errors";
-import {
-  bloquearCriacaoDuplicadaOffline,
-  deveVerificarDuplicataOffline,
-  gerarIdTemporarioOffline,
-  isBrowserOffline,
-  isFetchNetworkError,
-  isRegistroPendenteSync,
-  temDuplicataNaLista,
-} from "@/lib/clinica-beleza-offline";
-import { buscarProfissionaisOffline, salvarProfissionaisOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
+import { buscarProfissionaisOffline, salvarProfissionaisOffline } from "@/lib/offline-db";
 import { logger } from "@/lib/logger";
-
-type PerfilAcesso = "administrador" | "profissional" | "recepcao";
 
 interface Professional {
   id: number;
@@ -56,14 +42,6 @@ interface Professional {
   is_administrador_vinculado?: boolean;
 }
 
-/** Compat: separa "016964-SP" em registro/UF quando os campos dedicados não existem. */
-function parseRegistroLegado(value?: string | null): { registro: string; uf: string } {
-  const reg = (value || "").trim();
-  const m = /^(.+?)[-\s/]+([A-Za-z]{2})$/.exec(reg);
-  if (m) return { registro: m[1].trim(), uf: m[2].toUpperCase() };
-  return { registro: reg, uf: "" };
-}
-
 interface LojaOwnerInfo {
   owner_username: string;
   owner_email: string;
@@ -73,31 +51,12 @@ interface LojaOwnerInfo {
 export default function ProfissionaisPage() {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const slug = params.slug as string;
   const { list, setList, loading, load } = useClinicaBelezaEntityList<Professional>({
     path: "/professionals/",
     fetchOffline: buscarProfissionaisOffline,
     saveOffline: salvarProfissionaisOffline,
   });
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState<Professional | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    specialty: "",
-    phone: "",
-    email: "",
-    conselho: "",
-    registro: "",
-    uf: "",
-    cpf: "",
-    data_nascimento: "",
-    sexo: "",
-    criar_acesso: false,
-    perfil: "profissional" as PerfilAcesso,
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [memedStatus, setMemedStatus] = useState<Record<number, MemedStatusInfo>>({});
   const [memedStatusLoading, setMemedStatusLoading] = useState(false);
   const [lojaOwnerInfo, setLojaOwnerInfo] = useState<LojaOwnerInfo | null>(null);
@@ -145,197 +104,12 @@ export default function ProfissionaisPage() {
     if (!loading) void loadMemedStatus();
   }, [loading, list, loadMemedStatus]);
 
-  useEffect(() => {
-    if (searchParams.get("novo") === "1") openNew();
-  }, [searchParams]);
-
   const openNew = () => {
-    setEditing(null);
-    setForm({ name: "", specialty: "", phone: "", email: "", conselho: "", registro: "", uf: "", cpf: "", data_nascimento: "", sexo: "", criar_acesso: false, perfil: "profissional" });
-    setError("");
-    setShowModal(true);
+    router.push(`/loja/${slug}/clinica-beleza/profissionais/novo`);
   };
 
   const openEdit = (p: Professional) => {
-    setEditing(p);
-    const legado = parseRegistroLegado(p.registro_profissional);
-    setForm({
-      name: entityName(p),
-      specialty: professionalSpecialty(p) || "",
-      phone: entityPhone(p) || "",
-      email: entityEmail(p) || "",
-      conselho: p.conselho || "",
-      registro: legado.registro,
-      uf: p.conselho_uf || legado.uf,
-      cpf: p.cpf || "",
-      data_nascimento: p.data_nascimento || "",
-      sexo: p.sexo || "",
-      criar_acesso: false,
-      perfil: "profissional",
-    });
-    setError("");
-    setShowModal(true);
-  };
-
-  const save = async () => {
-    if (!form.name.trim()) {
-      setError("Nome é obrigatório.");
-      return;
-    }
-    if (!form.specialty.trim()) {
-      setError("Especialidade é obrigatória.");
-      return;
-    }
-    const criarAcesso = Boolean(form.criar_acesso);
-    if (criarAcesso && !form.email.trim()) {
-      setError("E-mail é obrigatório para criar acesso e enviar senha.");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    const body: Record<string, unknown> = {
-      name: form.name.trim(),
-      specialty: form.specialty.trim(),
-      phone: form.phone.trim() || null,
-      email: form.email.trim() || null,
-      registro_profissional: form.registro.trim() || null,
-      conselho: form.conselho || null,
-      conselho_uf: form.uf || null,
-      cpf: form.cpf.trim() || null,
-      data_nascimento: form.data_nascimento || null,
-      sexo: form.sexo || null,
-      active: true,
-    };
-    if (!editing && criarAcesso) {
-      body.criar_acesso = true;
-      body.perfil = form.perfil;
-    }
-
-    if (isBrowserOffline()) {
-      try {
-        const lojaSlug = getLojaSlug();
-
-        if (deveVerificarDuplicataOffline(editing)) {
-          const jaExisteLocal = temDuplicataNaLista(list, (p) =>
-            entityName(p).toLowerCase() === form.name.trim().toLowerCase() &&
-            professionalSpecialty(p).toLowerCase() === form.specialty.trim().toLowerCase(),
-          );
-          if (jaExisteLocal) {
-            setError("Este profissional já foi adicionado. Aguarde a sincronização.");
-            setSaving(false);
-            return;
-          }
-        }
-
-        if (editing && !isRegistroPendenteSync(editing.id)) {
-          await adicionarNaFilaSync({
-            tipo: "profissional",
-            payload: { action: "update", id: editing.id, body: { ...body, criar_acesso: undefined } },
-            lojaSlug,
-          });
-          const updatedList = list.map((p) =>
-            p.id === editing.id
-              ? { ...p, name: String(body.name), specialty: String(body.specialty), phone: (body.phone as string) ?? entityPhone(p), email: (body.email as string) ?? entityEmail(p) }
-              : p
-          );
-          setList(updatedList);
-          await salvarProfissionaisOffline(updatedList);
-        } else {
-          await adicionarNaFilaSync({
-            tipo: "profissional",
-            payload: { action: "create", body },
-            lojaSlug,
-          });
-          const tempId = gerarIdTemporarioOffline();
-          const newProf: Professional = {
-            id: tempId,
-            name: String(body.name),
-            specialty: String(body.specialty),
-            phone: (body.phone as string) ?? null,
-            email: (body.email as string) ?? null,
-            active: true,
-          };
-          const updatedList = [newProf, ...list];
-          setList(updatedList);
-          await salvarProfissionaisOffline(updatedList);
-        }
-        setShowModal(false);
-        alert("Salvo offline. O profissional será sincronizado quando você estiver online.");
-      } catch (err) {
-        logger.warn("Erro ao salvar offline:", err);
-        setError("Erro ao salvar localmente. Tente novamente.");
-      }
-      setSaving(false);
-      return;
-    }
-
-    try {
-      if (editing) {
-        await saveClinicaBelezaEntity(`/professionals/${editing.id}/`, "PUT", { ...body, criar_acesso: undefined });
-      } else {
-        await saveClinicaBelezaEntity("/professionals/", "POST", body);
-      }
-      setShowModal(false);
-      load();
-      void loadMemedStatus();
-      if (!editing && criarAcesso) {
-        alert("Profissional criado! A senha foi enviada por e-mail.");
-      }
-    } catch (e: unknown) {
-      const err = e && typeof e === "object" ? e as Record<string, unknown> : {};
-      const msg = formatProfissionalApiErrors(err) || (e instanceof Error ? e.message : "Erro ao salvar");
-      if (isFetchNetworkError(msg)) {
-        try {
-          const lojaSlug = getLojaSlug();
-
-          if (bloquearCriacaoDuplicadaOffline(editing, list, (p) =>
-            entityName(p) === form.name.trim() && professionalSpecialty(p) === form.specialty.trim(),
-          )) {
-            setError("Este profissional já foi adicionado offline. Aguarde a sincronização.");
-            setSaving(false);
-            return;
-          }
-          
-          if (editing && editing.id > 0) {
-            await adicionarNaFilaSync({
-              tipo: "profissional",
-              payload: { action: "update", id: editing.id, body: { ...body, criar_acesso: undefined } },
-              lojaSlug,
-            });
-            const updatedList = list.map((p) =>
-              p.id === editing.id
-                ? { ...p, name: String(body.name), specialty: String(body.specialty), phone: (body.phone as string) ?? entityPhone(p), email: (body.email as string) ?? entityEmail(p) }
-                : p
-            );
-            setList(updatedList);
-            await salvarProfissionaisOffline(updatedList);
-          } else {
-            await adicionarNaFilaSync({ tipo: "profissional", payload: { action: "create", body }, lojaSlug });
-            const tempId = gerarIdTemporarioOffline();
-            const newProf: Professional = {
-              id: tempId,
-              name: String(body.name),
-              specialty: String(body.specialty),
-              phone: (body.phone as string) ?? null,
-              email: (body.email as string) ?? null,
-              active: true,
-            };
-            const updatedList = [newProf, ...list];
-            setList(updatedList);
-            await salvarProfissionaisOffline(updatedList);
-          }
-          setShowModal(false);
-          alert("Sem conexão. Profissional salvo offline e será sincronizado quando você estiver online.");
-        } catch (err) {
-          logger.warn("Erro ao salvar offline:", err);
-          setError("Sem conexão. Não foi possível salvar offline. Tente novamente.");
-        }
-      } else {
-        setError(msg);
-      }
-    } finally {
-      setSaving(false);
-    }
+    router.push(`/loja/${slug}/clinica-beleza/profissionais/novo?id=${p.id}`);
   };
 
   const exclude = async (p: Professional) => {
@@ -434,20 +208,6 @@ export default function ProfissionaisPage() {
           </div>
         )}
       </ClinicaBelezaPageContent>
-
-      {showModal && (
-        <ProfissionalFormModal
-          editing={!!editing}
-          form={form}
-          saving={saving}
-          error={error}
-          memedStatus={editing ? memedStatus[editing.id] : undefined}
-          memedStatusLoading={memedStatusLoading}
-          onChange={setForm}
-          onSave={save}
-          onClose={() => setShowModal(false)}
-        />
-      )}
 
       {horariosProfessional && (
         <ModalHorariosTrabalho

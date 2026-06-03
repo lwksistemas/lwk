@@ -12,6 +12,7 @@ import {
   BarChart3,
   Settings,
   Headphones,
+  FileText,
 } from 'lucide-react';
 
 /** Cor principal do app (mockup Beleza & Vitalidade) */
@@ -39,6 +40,7 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Consultas', icon: Stethoscope, path: 'clinica-beleza/consultas' },
   { label: 'Procedimentos', icon: ListChecks, path: 'clinica-beleza/procedimentos' },
   { label: 'Protocolos', icon: ClipboardList, path: 'clinica-beleza/protocolos' },
+  { label: 'Templates', icon: FileText, path: 'clinica-beleza/templates' },
   { label: 'Estoque', icon: Package, path: 'clinica-beleza/estoque' },
   { label: 'Financeiro', icon: DollarSign, path: 'clinica-beleza/financeiro' },
   {

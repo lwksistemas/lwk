@@ -208,7 +208,11 @@ if _use_redis_env and _redis_url:
         'retry_on_timeout': True,
     }
     if _redis_url.startswith('rediss://'):
-        _pool_kwargs['ssl_cert_reqs'] = None
+        import ssl
+        import certifi
+
+        _pool_kwargs['ssl_cert_reqs'] = ssl.CERT_REQUIRED
+        _pool_kwargs['ssl_ca_certs'] = certifi.where()
     _redis_options['CONNECTION_POOL_KWARGS'] = _pool_kwargs
     _redis_options['SOCKET_CONNECT_TIMEOUT'] = 5
     _redis_options['SOCKET_TIMEOUT'] = 5
@@ -321,6 +325,10 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '60/minute',
         'user': '200/minute',
+        'public_loja_create': '5/hour',
+        'public_loja_lookup': '20/hour',
+        'auth_login': '20/minute',
+        'password_reset': '3/hour',
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
@@ -368,7 +376,11 @@ if os.environ.get('RAILWAY_ENVIRONMENT'):
 else:
     SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
 SECURE_REFERRER_POLICY = 'same-origin'
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -381,6 +393,24 @@ SECURE_HSTS_PRELOAD = True
 ASAAS_INTEGRATION_ENABLED = True
 ASAAS_API_KEY = os.environ.get('ASAAS_API_KEY', '')
 ASAAS_SANDBOX = os.environ.get('ASAAS_SANDBOX', 'True').lower() == 'true'
+WEBHOOK_STRICT_VERIFY = os.environ.get('WEBHOOK_STRICT_VERIFY', 'true').lower() in ('true', '1', 'yes')
+ASAAS_WEBHOOK_TOKEN = os.environ.get('ASAAS_WEBHOOK_TOKEN', '').strip()
+ASAAS_LOJA_WEBHOOK_TOKEN = os.environ.get('ASAAS_LOJA_WEBHOOK_TOKEN', '').strip()
+MERCADOPAGO_WEBHOOK_SECRET = os.environ.get('MERCADOPAGO_WEBHOOK_SECRET', '').strip()
+SERVE_API_SCHEMA = os.environ.get('SERVE_API_SCHEMA', 'false').lower() in ('true', '1', 'yes')
+
+# JWT em cookies httpOnly (frontend: NEXT_PUBLIC_JWT_HTTPONLY_COOKIES=true + withCredentials)
+JWT_USE_HTTPONLY_COOKIES = os.environ.get('JWT_USE_HTTPONLY_COOKIES', 'true').lower() in (
+    'true', '1', 'yes',
+)
+_jwt_domain = os.environ.get('JWT_COOKIE_DOMAIN', '').strip()
+JWT_COOKIE_DOMAIN = _jwt_domain or None
+
+# Helpers de segurança (slug, mensagens genéricas)
+from config.security_helpers import validate_store_slug, GENERIC_AUTH_ERROR_MESSAGE  # noqa: E402,F401
+
+MFA_TOTP_ISSUER = os.environ.get('MFA_TOTP_ISSUER', 'LWK Sistemas')
+MFA_ENFORCE_TYPES = os.environ.get('MFA_ENFORCE_TYPES', '')  # ex: superadmin,suporte
 
 # MEMED — Prescrição digital (Clínica da Beleza). Docs: https://doc.memed.com.br/docs/backend-api
 MEMED_API_KEY = os.environ.get('MEMED_API_KEY', '')

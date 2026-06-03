@@ -8,12 +8,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class AuthLoginThrottle(UserRateThrottle):
+class AuthLoginThrottle(AnonRateThrottle):
     """
-    Rate limiting para login - aumentado temporariamente
-    100 tentativas a cada 15 minutos (para recuperar do loop infinito)
+    Rate limiting para login por IP.
     """
-    rate = '100/15min'
+    rate = '20/minute'
     scope = 'auth_login'
     
     def allow_request(self, request, view):
@@ -63,7 +62,7 @@ class BulkOperationsThrottle(UserRateThrottle):
     Rate limiting para operações em lote
     10 operações por minuto
     """
-    rate = '10/min'
+    rate = '10/minute'
     scope = 'bulk_operations'
 
 
@@ -90,6 +89,18 @@ class RelaxedUserThrottle(UserRateThrottle):
     3000 requests por hora (para suportar mais usuários)
     """
     rate = '3000/hour'
+
+
+class PublicLojaCreateThrottle(AnonRateThrottle):
+    """Cadastro público de loja — limite por IP."""
+    rate = '5/hour'
+    scope = 'public_loja_create'
+
+
+class PublicLojaLookupThrottle(AnonRateThrottle):
+    """Busca pública por CPF/CNPJ — limite por IP."""
+    rate = '20/hour'
+    scope = 'public_loja_lookup'
 
 
 class DashboardRateThrottle(UserRateThrottle):

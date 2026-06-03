@@ -304,8 +304,30 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
         'user': '10000/hour',  # 166 req/min = 2.7 req/seg por usuário (suporta 500 usuários)
+        'public_loja_create': '5/hour',
+        'public_loja_lookup': '20/hour',
+        'auth_login': '20/minute',
+        'password_reset': '3/hour',
     }
 }
+
+# OpenAPI: expor schema apenas em DEBUG ou com flag explícita
+SERVE_API_SCHEMA = config('SERVE_API_SCHEMA', default=DEBUG, cast=bool)
+
+# Webhooks — tokens configurados no painel Asaas / Mercado Pago
+WEBHOOK_STRICT_VERIFY = config('WEBHOOK_STRICT_VERIFY', default=not DEBUG, cast=bool)
+ASAAS_WEBHOOK_TOKEN = config('ASAAS_WEBHOOK_TOKEN', default='').strip()
+ASAAS_LOJA_WEBHOOK_TOKEN = config('ASAAS_LOJA_WEBHOOK_TOKEN', default='').strip()
+MERCADOPAGO_WEBHOOK_SECRET = config('MERCADOPAGO_WEBHOOK_SECRET', default='').strip()
+
+JWT_USE_HTTPONLY_COOKIES = config('JWT_USE_HTTPONLY_COOKIES', default=False, cast=bool)
+JWT_COOKIE_DOMAIN = config('JWT_COOKIE_DOMAIN', default='').strip() or None
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = True
+
+MFA_TOTP_ISSUER = config('MFA_TOTP_ISSUER', default='LWK Sistemas')
+MFA_ENFORCE_TYPES = config('MFA_ENFORCE_TYPES', default='')  # ex: superadmin,suporte
 
 # drf-spectacular (OpenAPI / Swagger)
 SPECTACULAR_SETTINGS = {

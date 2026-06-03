@@ -1,6 +1,8 @@
 """
-🔒 CONFIGURAÇÕES DE SEGURANÇA ADICIONAIS
-Importar em settings.py ou settings_production.py
+🔒 CONFIGURAÇÕES DE SEGURANÇA ADICIONAIS (legado / referência).
+
+Helpers ativos: config/security_helpers.py
+Produção: config/settings_production.py (cookies, JWT httpOnly, Redis TLS, etc.)
 """
 from decouple import config
 
@@ -56,7 +58,7 @@ SECURE_BROWSER_XSS_FILTER = True
 # Configuração de throttling por endpoint
 REST_FRAMEWORK_THROTTLE_RATES = {
     # Autenticação - muito restritivo
-    'auth_login': '5/15min',  # 5 tentativas a cada 15 minutos
+    'auth_login': '5/minute',  # 5 tentativas por minuto
     'auth_refresh': '10/hour',
     'password_reset': '3/hour',
     
@@ -65,7 +67,7 @@ REST_FRAMEWORK_THROTTLE_RATES = {
     'anon': '100/hour',
     
     # Operações pesadas
-    'bulk_operations': '10/min',
+    'bulk_operations': '10/minute',
     'reports': '30/hour',
 }
 

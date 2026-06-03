@@ -3,6 +3,7 @@
  */
 
 import { clearSessionAndRedirect, getLoginUrlForRedirect, getCurrentApiBaseUrl } from "@/lib/api-client";
+import { USE_JWT_HTTPONLY_COOKIES } from "@/lib/auth-cookies";
 
 const SESSION_CODES = [
   "DIFFERENT_SESSION",
@@ -13,7 +14,7 @@ const SESSION_CODES = [
 ] as const;
 
 function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || USE_JWT_HTTPONLY_COOKIES) return null;
   return sessionStorage.getItem("access_token");
 }
 
@@ -138,6 +139,7 @@ export async function clinicaBelezaFetch(
   const method = (options.method || "GET").toUpperCase();
   const response = await fetch(url, {
     ...options,
+    credentials: USE_JWT_HTTPONLY_COOKIES ? "include" : options.credentials,
     headers: { ...getClinicaBelezaHeadersWithLoja(loja), ...options.headers },
   });
   if (response.status === 401) {
@@ -255,7 +257,7 @@ export class ClinicaBelezaAPI {
     list: (params?: { patient?: number; professional?: number; status?: string; appointment?: number }) =>
       ClinicaBelezaAPI.get('/consultas/', params),
     /** Abre uma consulta avulsa (sem agendamento na agenda) a partir do cadastro do cliente. */
-    criar: (data: { patient: number; professional: number; procedure?: number; procedures_ids?: number[]; iniciar?: boolean }) =>
+    criar: (data: { patient: number; professional: number; procedure?: number; procedures_ids?: number[]; iniciar?: boolean; local_atendimento?: number; valor_consulta?: number | string }) =>
       ClinicaBelezaAPI.post('/consultas/', data),
     get: (id: number) => ClinicaBelezaAPI.get(`/consultas/${id}/`),
     update: (id: number, data: Record<string, unknown>) => ClinicaBelezaAPI.patch(`/consultas/${id}/`, data),
@@ -357,6 +359,27 @@ export class ClinicaBelezaAPI {
       return `${base}/documentos/${docId}/pdf/`;
     },
   };
+
+  static locaisAtendimento = {
+    list: () =>
+      ClinicaBelezaAPI.get<LocalAtendimentoItem[]>('/locais-atendimento/'),
+    create: (data: { nome: string; valor_consulta: number | string }) =>
+      ClinicaBelezaAPI.post<LocalAtendimentoItem>('/locais-atendimento/', data),
+    update: (id: number, data: { nome?: string; valor_consulta?: number | string }) =>
+      ClinicaBelezaAPI.put<LocalAtendimentoItem>(`/locais-atendimento/${id}/`, data),
+    delete: (id: number) =>
+      ClinicaBelezaAPI.delete(`/locais-atendimento/${id}/`),
+  };
+}
+
+/** Local de atendimento para consultas */
+export interface LocalAtendimentoItem {
+  id: number;
+  nome: string;
+  valor_consulta: string | number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 /** Template de documento clínico */

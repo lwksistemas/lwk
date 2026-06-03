@@ -101,7 +101,7 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
     return None
 
 
-def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=None, loja_id=None, iniciar=False):
+def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=None, loja_id=None, iniciar=False, local_atendimento_id=None, valor_consulta=None):
     """
     Cria uma consulta "avulsa" (sem agendamento prévio na agenda), a partir do
     cadastro do cliente. Gera o Appointment correspondente e a Consulta vinculada.
@@ -109,9 +109,13 @@ def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=N
     Suporta múltiplos procedimentos via `procedures` (lista de Procedure).
     Se `procedures` não for passado, usa `procedure` (retrocompatível).
 
+    Se `local_atendimento_id` for informado, associa o local à consulta e usa
+    seu valor_consulta como padrão (caso `valor_consulta` não seja fornecido).
+    Se `valor_consulta` for fornecido explicitamente (override), usa esse valor.
+
     Retorna a Consulta criada.
     """
-    from .models import AppointmentProcedure
+    from .models import AppointmentProcedure, LocalAtendimento
 
     ts = now()
     status_inicial = 'IN_PROGRESS' if iniciar else 'SCHEDULED'
@@ -122,6 +126,14 @@ def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=N
     if not proc_list:
         raise ValueError('Informe pelo menos um procedimento.')
     primary_procedure = proc_list[0]
+
+    # Resolve local de atendimento
+    local_atendimento = None
+    if local_atendimento_id:
+        try:
+            local_atendimento = LocalAtendimento.objects.get(pk=local_atendimento_id, is_active=True)
+        except LocalAtendimento.DoesNotExist:
+            local_atendimento = None
 
     appointment = Appointment.objects.create(
         date=ts,
@@ -140,6 +152,17 @@ def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=N
             loja_id=loja_id,
         )
 
+    # Determinar valor da consulta:
+    # 1. Se valor_consulta fornecido explicitamente (override), usar esse
+    # 2. Se local_atendimento informado, usar valor do local
+    # 3. Caso contrário, usar valor total dos procedimentos (comportamento original)
+    if valor_consulta is not None and valor_consulta > 0:
+        valor_final = Decimal(str(valor_consulta))
+    elif local_atendimento:
+        valor_final = local_atendimento.valor_consulta
+    else:
+        valor_final = appointment.valor_total
+
     consulta = Consulta.objects.create(
         appointment=appointment,
         patient=patient,
@@ -147,7 +170,8 @@ def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=N
         procedure=primary_procedure,
         status=status_inicial,
         data_inicio=ts if iniciar else None,
-        valor_consulta=appointment.valor_total,
+        valor_consulta=valor_final,
+        local_atendimento=local_atendimento,
         loja_id=loja_id,
     )
     return consulta

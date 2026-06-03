@@ -1,3 +1,12 @@
+export interface LocalAtendimento {
+  id: number;
+  nome: string;
+  valor_consulta: string | number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Consulta {
   id: number;
   patient: number;
@@ -14,6 +23,8 @@ export interface Consulta {
   observacoes_gerais?: string;
   protocolo_notas?: string;
   valor_consulta: string | number;
+  local_atendimento?: number | null;
+  local_atendimento_name?: string | null;
   appointment_date?: string;
   appointment_status?: string;
   total_evolucoes: number;

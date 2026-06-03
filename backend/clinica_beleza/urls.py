@@ -41,6 +41,9 @@ from .views_prontuario import (
 from .views_admin_professional import (
     AdminProfessionalStatusView, AdminProfessionalToggleView,
 )
+from .views_locais_atendimento import (
+    LocalAtendimentoListView, LocalAtendimentoDetailView,
+)
 
 app_name = 'clinica_beleza'
 
@@ -65,6 +68,10 @@ urlpatterns = [
     path('consultas/<int:pk>/aplicar-protocolo/', ConsultaAplicarProtocoloView.as_view(), name='consultas-aplicar-protocolo'),
     path('consultas/<int:consulta_id>/evolucoes/', ConsultaEvolucaoListView.as_view(), name='consultas-evolucoes'),
     path('consultas/<int:consulta_id>/prescricoes/', ConsultaPrescricaoView.as_view(), name='consultas-prescricoes'),
+
+    # Locais de atendimento
+    path('locais-atendimento/', LocalAtendimentoListView.as_view(), name='locais-atendimento-list'),
+    path('locais-atendimento/<int:pk>/', LocalAtendimentoDetailView.as_view(), name='locais-atendimento-detail'),
 
     # Memed — prescrição digital (receituário e exames)
     path('memed/token/', MemedTokenView.as_view(), name='memed-token'),

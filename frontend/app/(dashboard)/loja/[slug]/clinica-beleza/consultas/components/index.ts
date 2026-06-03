@@ -18,5 +18,6 @@ export { ConsultaDocumentosTab } from "./ConsultaDocumentosTab";
 export type { DocumentoTipo } from "./ConsultaDocumentosTab";
 export { UsarTemplateModal } from "./UsarTemplateModal";
 export { DigitarManualModal } from "./DigitarManualModal";
+export { LocaisAtendimentoModal } from "./LocaisAtendimentoModal";
 export { default as MemedPrescricao } from "./MemedPrescricao";
 export type { MemedPrescricaoHandle } from "./MemedPrescricao";

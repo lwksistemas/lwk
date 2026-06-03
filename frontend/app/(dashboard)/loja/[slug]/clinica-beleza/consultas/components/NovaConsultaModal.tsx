@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, Search, Trash2 } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
 import { logger } from "@/lib/logger";
 import type { Consulta } from "./consultas-types";
 
@@ -26,12 +26,15 @@ export function NovaConsultaModal({
   const [patients, setPatients] = useState<Option[]>([]);
   const [professionals, setProfessionals] = useState<Option[]>([]);
   const [procedures, setProcedures] = useState<Option[]>([]);
+  const [locais, setLocais] = useState<LocalAtendimentoItem[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
   const [busca, setBusca] = useState("");
   const [patientId, setPatientId] = useState<number | "">("");
   const [professionalId, setProfessionalId] = useState<number | "">("");
   const [selectedProcedures, setSelectedProcedures] = useState<number[]>([]);
+  const [localAtendimentoId, setLocalAtendimentoId] = useState<number | "">("");
+  const [valorConsulta, setValorConsulta] = useState<string>("");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -41,20 +44,24 @@ export function NovaConsultaModal({
     setPatientId("");
     setProfessionalId("");
     setSelectedProcedures([]);
+    setLocalAtendimentoId("");
+    setValorConsulta("");
     setErro("");
     setLoadingData(true);
     (async () => {
       try {
-        const [pac, prof, proc] = await Promise.all([
+        const [pac, prof, proc, locaisRes] = await Promise.all([
           ClinicaBelezaAPI.get<Option[]>("/patients/"),
           ClinicaBelezaAPI.get<Option[]>("/professionals/"),
           ClinicaBelezaAPI.get<Option[]>("/procedures/"),
+          ClinicaBelezaAPI.locaisAtendimento.list(),
         ]);
         const ativos = (arr: unknown) => (Array.isArray(arr) ? (arr as Option[]) : []);
         setPatients(ativos(pac));
         const profList = ativos(prof);
         setProfessionals(profList);
         setProcedures(ativos(proc));
+        setLocais(Array.isArray(locaisRes) ? locaisRes : []);
         if (profList.length === 1) setProfessionalId(profList[0].id);
       } catch (e) {
         logger.warn("Erro ao carregar dados para nova consulta:", e);
@@ -112,6 +119,18 @@ export function NovaConsultaModal({
     return { duracao, valor };
   }, [selectedProcedures, procedures]);
 
+  const handleLocalChange = (id: number | "") => {
+    setLocalAtendimentoId(id);
+    if (id) {
+      const local = locais.find((l) => l.id === id);
+      if (local) {
+        setValorConsulta(String(Number(local.valor_consulta)));
+      }
+    } else {
+      setValorConsulta("");
+    }
+  };
+
   const criar = async () => {
     if (!patientId || !professionalId || selectedProcedures.length === 0) {
       setErro("Selecione o cliente, o profissional e pelo menos um procedimento.");
@@ -120,11 +139,24 @@ export function NovaConsultaModal({
     setSalvando(true);
     setErro("");
     try {
-      const consulta = await ClinicaBelezaAPI.consultas.criar({
+      const payload: {
+        patient: number;
+        professional: number;
+        procedures_ids: number[];
+        local_atendimento?: number;
+        valor_consulta?: number | string;
+      } = {
         patient: Number(patientId),
         professional: Number(professionalId),
         procedures_ids: selectedProcedures,
-      });
+      };
+      if (localAtendimentoId) {
+        payload.local_atendimento = Number(localAtendimentoId);
+      }
+      if (valorConsulta) {
+        payload.valor_consulta = valorConsulta;
+      }
+      const consulta = await ClinicaBelezaAPI.consultas.criar(payload);
       onCreated(consulta as Consulta);
     } catch (e: unknown) {
       logger.warn("Erro ao abrir consulta avulsa:", e);
@@ -200,6 +232,44 @@ export function NovaConsultaModal({
                   ))}
                 </select>
               </div>
+
+              {/* Local de Atendimento */}
+              {locais.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Local de Atendimento</label>
+                  <select
+                    value={localAtendimentoId}
+                    onChange={(e) => handleLocalChange(e.target.value ? Number(e.target.value) : "")}
+                    className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                  >
+                    <option value="">Selecione o local...</option>
+                    {locais.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.nome} — R$ {Number(l.valor_consulta).toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Valor da Consulta (visível quando local selecionado) */}
+              {locais.length > 0 && localAtendimentoId && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Valor da Consulta (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={valorConsulta}
+                    onChange={(e) => setValorConsulta(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                    placeholder="0.00"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Preenchido pelo local selecionado. Pode ser alterado manualmente.</p>
+                </div>
+              )}
 
               {/* Procedimentos (multi-select) */}
               <div>

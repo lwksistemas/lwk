@@ -3,7 +3,7 @@ Views de Consultas — Clínica da Beleza
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import CLINICA_MEMBER
 from rest_framework import status
 
 from .models import (
@@ -24,7 +24,7 @@ class ConsultaListView(APIView):
     POST /clinica-beleza/consultas/ — abre uma consulta avulsa (sem agendamento na
          agenda) a partir do cadastro do cliente.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def get(self, request):
         qs = Consulta.objects.select_related(
@@ -77,12 +77,16 @@ class ConsultaListView(APIView):
                 return Response({'error': 'Procedimento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         iniciar = request.data.get('iniciar', False)
+        local_atendimento_id = request.data.get('local_atendimento')
+        valor_consulta_override = request.data.get('valor_consulta')
         consulta = criar_consulta_avulsa(
             patient=patient,
             professional=professional,
             procedures=proc_list,
             loja_id=patient.loja_id,
             iniciar=bool(iniciar),
+            local_atendimento_id=local_atendimento_id,
+            valor_consulta=valor_consulta_override,
         )
         consulta = Consulta.objects.select_related(
             'patient', 'professional', 'procedure', 'protocol', 'appointment',
@@ -92,7 +96,7 @@ class ConsultaListView(APIView):
 
 class ConsultaDetailView(APIView):
     """GET / PUT / PATCH /clinica-beleza/consultas/<id>/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def _get(self, pk):
         return Consulta.objects.select_related(
@@ -150,7 +154,7 @@ class ConsultaDetailView(APIView):
 
 class ConsultaIniciarView(APIView):
     """POST /clinica-beleza/consultas/<id>/iniciar/ — inicia atendimento (consulta + agenda)."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def post(self, request, pk):
         try:
@@ -173,7 +177,7 @@ class ConsultaIniciarView(APIView):
 
 class ConsultaFinalizarView(APIView):
     """POST /clinica-beleza/consultas/<id>/finalizar/ — conclui consulta, agenda e financeiro."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def post(self, request, pk):
         try:
@@ -205,7 +209,7 @@ class ConsultaFinalizarView(APIView):
 
 class ConsultaAplicarProtocoloView(APIView):
     """POST /clinica-beleza/consultas/<id>/aplicar-protocolo/ — vincula protocolo e preenche notas."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def post(self, request, pk):
         try:
@@ -240,7 +244,7 @@ class ConsultaAplicarProtocoloView(APIView):
 
 class PatientAnamneseView(APIView):
     """GET / PUT /clinica-beleza/patients/<patient_id>/anamnese/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def get(self, request, patient_id):
         try:
@@ -271,7 +275,7 @@ class PatientAnamneseView(APIView):
 
 class ConsultaEvolucaoListView(APIView):
     """GET / POST /clinica-beleza/consultas/<consulta_id>/evolucoes/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def get(self, request, consulta_id):
         qs = ConsultaEvolucao.objects.filter(consulta_id=consulta_id).select_related(
@@ -306,7 +310,7 @@ class ConsultaEvolucaoListView(APIView):
 
 class PatientHistoricoConsultasView(APIView):
     """GET /clinica-beleza/patients/<patient_id>/consultas/ — histórico do cliente."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def get(self, request, patient_id):
         qs = Consulta.objects.filter(patient_id=patient_id).select_related(
@@ -321,7 +325,7 @@ class ConsultaPrescricaoView(APIView):
     POST /clinica-beleza/consultas/<consulta_id>/prescricoes/ — registra uma prescrição emitida
          na Memed (a partir do evento prescricaoImpressa).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def get(self, request, consulta_id):
         qs = PrescricaoMemed.objects.filter(consulta_id=consulta_id).select_related(
@@ -355,7 +359,7 @@ class ConsultaPrescricaoView(APIView):
 
 class PatientPrescricaoView(APIView):
     """GET /clinica-beleza/patients/<patient_id>/prescricoes/ — prescrições do cliente (histórico)."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def get(self, request, patient_id):
         qs = PrescricaoMemed.objects.filter(patient_id=patient_id).select_related(

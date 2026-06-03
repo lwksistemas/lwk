@@ -627,6 +627,14 @@ class Consulta(LojaIsolationMixin, models.Model):
     observacoes_gerais = models.TextField(blank=True, default='', verbose_name='Observações gerais')
     protocolo_notas = models.TextField(blank=True, default='', verbose_name='Notas do protocolo')
     valor_consulta = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    local_atendimento = models.ForeignKey(
+        'LocalAtendimento',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='consultas',
+        verbose_name='Local de atendimento',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -866,3 +874,28 @@ class DocumentoClinico(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f'{self.get_tipo_display()} — {self.patient.nome} ({self.created_at:%d/%m/%Y})'
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LOCAIS DE ATENDIMENTO — Locais onde consultas são realizadas
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class LocalAtendimento(LojaIsolationMixin, models.Model):
+    """Local de atendimento com valor de consulta associado (ex: Consultório, Home Care, Telemedicina)."""
+    nome = models.CharField(max_length=200, verbose_name="Nome do local")
+    valor_consulta = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor da consulta (R$)")
+    is_active = models.BooleanField(default=True, verbose_name="Ativo")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_locais_atendimento'
+        ordering = ['nome']
+        verbose_name = 'Local de atendimento'
+        verbose_name_plural = 'Locais de atendimento'
+
+    def __str__(self):
+        return f"{self.nome} - R$ {self.valor_consulta}"

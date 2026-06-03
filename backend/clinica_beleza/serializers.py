@@ -11,6 +11,7 @@ from .models import (
     Consulta, PatientAnamnese, ConsultaEvolucao, PrescricaoMemed,
     ProdutoEstoque, MovimentacaoEstoque,
     DocumentTemplate, DocumentoClinico,
+    LocalAtendimento,
 )
 from core.serializer_mixins import TextNormalizationMixin, CpfNormalizationMixin
 from core.logging_utils import mask_email
@@ -558,6 +559,14 @@ class ConsultaSerializer(serializers.ModelSerializer):
     appointment_status = serializers.CharField(source='appointment.status', read_only=True)
     duracao_minutos = serializers.ReadOnlyField()
     total_evolucoes = serializers.SerializerMethodField()
+    local_atendimento = serializers.PrimaryKeyRelatedField(
+        queryset=LocalAtendimento.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+    local_atendimento_name = serializers.CharField(
+        source='local_atendimento.nome', read_only=True, default=None, allow_null=True,
+    )
 
     class Meta:
         model = Consulta
@@ -565,7 +574,8 @@ class ConsultaSerializer(serializers.ModelSerializer):
             'id', 'appointment', 'patient', 'patient_name', 'professional', 'professional_name',
             'procedure', 'procedure_name', 'protocol', 'protocol_name', 'status',
             'data_inicio', 'data_fim', 'duracao_minutos', 'observacoes_gerais', 'protocolo_notas',
-            'valor_consulta', 'appointment_date', 'appointment_status', 'total_evolucoes',
+            'valor_consulta', 'local_atendimento', 'local_atendimento_name',
+            'appointment_date', 'appointment_status', 'total_evolucoes',
             'created_at', 'updated_at', 'loja_id',
         ]
         read_only_fields = ['created_at', 'updated_at', 'loja_id', 'appointment']
@@ -573,6 +583,25 @@ class ConsultaSerializer(serializers.ModelSerializer):
     def get_total_evolucoes(self, obj):
         return obj.evolucoes.count()
 
+
+
+class LocalAtendimentoSerializer(serializers.ModelSerializer):
+    """Serializer para Locais de Atendimento (CRUD)."""
+
+    class Meta:
+        model = LocalAtendimento
+        fields = ['id', 'nome', 'valor_consulta', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_active', 'created_at', 'updated_at']
+
+    def validate_nome(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError('O nome do local é obrigatório.')
+        return value.strip()
+
+    def validate_valor_consulta(self, value):
+        if value is None or value < 0:
+            raise serializers.ValidationError('O valor deve ser maior ou igual a zero.')
+        return value
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

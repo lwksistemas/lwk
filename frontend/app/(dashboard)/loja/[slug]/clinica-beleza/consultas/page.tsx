@@ -21,6 +21,7 @@ import {
   FlaskConical,
   Plus,
   Trash2,
+  Settings,
 } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
@@ -46,6 +47,7 @@ import {
   NovaConsultaModal,
   UsarTemplateModal,
   DigitarManualModal,
+  LocaisAtendimentoModal,
   MemedPrescricao,
   type MemedPrescricaoHandle,
 } from "./components";
@@ -79,6 +81,7 @@ export default function ConsultasPage() {
   const [protocoloPendingId, setProtocoloPendingId] = useState<number | null>(null);
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [showNovaConsulta, setShowNovaConsulta] = useState(false);
+  const [showLocaisModal, setShowLocaisModal] = useState(false);
   const [templateModalTipo, setTemplateModalTipo] = useState<DocumentoTipo | null>(null);
   const [manualModalTipo, setManualModalTipo] = useState<DocumentoTipo | null>(null);
   const [savingManualDoc, setSavingManualDoc] = useState(false);
@@ -393,6 +396,9 @@ export default function ConsultasPage() {
               {selected.protocol_name && (
                 <span>Protocolo: <strong className="text-gray-800 dark:text-gray-200">{selected.protocol_name}</strong></span>
               )}
+              {selected.local_atendimento_name && (
+                <span>Local: <strong className="text-gray-800 dark:text-gray-200">{selected.local_atendimento_name}</strong></span>
+              )}
               <div className="ml-auto flex flex-wrap gap-2">
                 {podeIniciar && (
                   <button
@@ -621,6 +627,17 @@ export default function ConsultasPage() {
         subtitle="Confirme na Agenda · inicie e finalize aqui"
         onNew={() => setShowNovaConsulta(true)}
         newLabel="Nova consulta"
+        extraActions={
+          <button
+            type="button"
+            onClick={() => setShowLocaisModal(true)}
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            aria-label="Configurar locais de atendimento"
+            title="Locais de atendimento"
+          >
+            <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
+          </button>
+        }
       />
       <ClinicaBelezaPageContent>
         {loading ? (
@@ -675,6 +692,10 @@ export default function ConsultasPage() {
         open={showNovaConsulta}
         onClose={() => setShowNovaConsulta(false)}
         onCreated={onConsultaCriada}
+      />
+      <LocaisAtendimentoModal
+        open={showLocaisModal}
+        onClose={() => setShowLocaisModal(false)}
       />
     </>
   );

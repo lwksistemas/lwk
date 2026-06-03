@@ -10,7 +10,6 @@ import { Pencil, Trash2, Clock } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
-import { AdminProfissionalToggle } from "@/components/clinica-beleza/AdminProfissionalToggle";
 import { MemedStatusBadge, type MemedStatusInfo } from "./components/MemedStatusBadge";
 import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
@@ -134,15 +133,6 @@ export default function ProfissionaisPage() {
         onNew={openNew}
       />
       <ClinicaBelezaPageContent>
-        {lojaOwnerInfo && (
-          <>
-            <AdminProfissionalToggle onToggled={load} />
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
-              <span className="text-amber-700 dark:text-amber-400">O administrador da loja aparece na tabela abaixo (linha &quot;Administrador - somente leitura&quot;) e não pode ser editado nem excluído.</span>
-            </p>
-          </>
-        )}
-
         {loading ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>
         ) : activeList.length === 0 ? (
@@ -174,9 +164,22 @@ export default function ProfissionaisPage() {
                       <td className="p-3">
                         <div className="flex gap-2">
                           {p.is_administrador_vinculado ? (
-                            <span className="text-xs text-amber-700 dark:text-amber-400" title="O administrador da loja não pode ser editado nem excluído">
-                              Administrador (somente leitura)
-                            </span>
+                            <>
+                              <button
+                                onClick={() => setHorariosProfessional(p)}
+                                className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"
+                                title="Dias e horários de trabalho"
+                              >
+                                <Clock size={18} />
+                              </button>
+                              <button
+                                onClick={() => openEdit(p)}
+                                className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
+                                title="Editar"
+                              >
+                                <Pencil size={18} />
+                              </button>
+                            </>
                           ) : (
                             <>
                               <button

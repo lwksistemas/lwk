@@ -44,7 +44,6 @@ import {
   ConsultaHistoricoTab,
   ConsultaDocumentosTab,
   ConsultaFinalizarModal,
-  NovaConsultaModal,
   UsarTemplateModal,
   DigitarManualModal,
   LocaisAtendimentoModal,
@@ -80,7 +79,7 @@ export default function ConsultasPage() {
   const [protocoloPreview, setProtocoloPreview] = useState<Protocolo | null>(null);
   const [protocoloPendingId, setProtocoloPendingId] = useState<number | null>(null);
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
-  const [showNovaConsulta, setShowNovaConsulta] = useState(false);
+  // Nova consulta agora é página dedicada (/consultas/nova)
   const [showLocaisModal, setShowLocaisModal] = useState(false);
   const [templateModalTipo, setTemplateModalTipo] = useState<DocumentoTipo | null>(null);
   const [manualModalTipo, setManualModalTipo] = useState<DocumentoTipo | null>(null);
@@ -123,7 +122,7 @@ export default function ConsultasPage() {
   const loadDetalhes = useCallback(async (consulta: Consulta) => {
     setLoadingDetalhe(true);
     setSelected(consulta);
-    setTab("atendimento");
+    setTab(consulta.status === "COMPLETED" ? "historico" : "atendimento");
     setEditAtendimento(false);
     setEditAnamnese(false);
     setEditEvolucao(false);
@@ -165,9 +164,8 @@ export default function ConsultasPage() {
     }
   }, [searchParams, consultas, selected?.id, loadDetalhes]);
 
-  const onConsultaCriada = async (consulta: Consulta) => {
-    setShowNovaConsulta(false);
-    setConsultas((prev) => [consulta, ...prev]);
+  const navigateNovaConsulta = () => {
+    router.push(`/loja/${slug}/clinica-beleza/consultas/nova`);
   };
 
   const voltarLista = () => {
@@ -358,6 +356,11 @@ export default function ConsultasPage() {
     { id: "historico", label: "Histórico", icon: History },
   ];
 
+  // Consulta finalizada: mostrar apenas Histórico (somente leitura)
+  const visibleTabs = consultaFinalizada
+    ? tabs.filter((t) => t.id === "historico")
+    : tabs;
+
   const formatData = (d?: string | null) =>
     d ? formatClinicaDateTime(new Date(d)) : "—";
 
@@ -436,7 +439,7 @@ export default function ConsultasPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2 mt-4">
-              {tabs.map(({ id, label, icon: Icon }) => {
+              {visibleTabs.map(({ id, label, icon: Icon }) => {
                 // Antes de iniciar: só Histórico acessível
                 // Em atendimento ou finalizada: todos acessíveis (finalizada = leitura)
                 const disabled = !consultaAtiva && !consultaFinalizada && id !== "historico";
@@ -625,7 +628,7 @@ export default function ConsultasPage() {
       <ClinicaBelezaStandardPageHeader
         title="Consultas"
         subtitle="Confirme na Agenda · inicie e finalize aqui"
-        onNew={() => setShowNovaConsulta(true)}
+        onNew={navigateNovaConsulta}
         newLabel="Nova consulta"
         extraActions={
           <button
@@ -688,11 +691,7 @@ export default function ConsultasPage() {
           </ClinicaBelezaPanel>
         )}
       </ClinicaBelezaPageContent>
-      <NovaConsultaModal
-        open={showNovaConsulta}
-        onClose={() => setShowNovaConsulta(false)}
-        onCreated={onConsultaCriada}
-      />
+
       <LocaisAtendimentoModal
         open={showLocaisModal}
         onClose={() => setShowLocaisModal(false)}

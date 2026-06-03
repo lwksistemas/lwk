@@ -31,6 +31,13 @@ from .views_estoque import (
 )
 from .views_protocolos import ProtocolListView, ProtocolDetailView
 from .views_memed import MemedTokenView, MemedTimbradoView
+from .views_documentos import (
+    DocumentTemplateListView, DocumentTemplateDetailView,
+    ConsultaDocumentoListView, ConsultaDocumentoDeleteView,
+)
+from .views_prontuario import (
+    ProntuarioView, ProntuarioPDFView, DocumentoPDFView,
+)
 
 app_name = 'clinica_beleza'
 
@@ -101,4 +108,15 @@ urlpatterns = [
     path('estoque/<int:pk>/', ProdutoEstoqueDetailView.as_view(), name='estoque-detail'),
     path('estoque/<int:pk>/movimentar/', MovimentacaoEstoqueView.as_view(), name='estoque-movimentar'),
     path('estoque/<int:pk>/historico/', HistoricoEstoqueView.as_view(), name='estoque-historico'),
+    # Templates de documentos clínicos
+    path('templates/', DocumentTemplateListView.as_view(), name='templates-list'),
+    path('templates/<int:pk>/', DocumentTemplateDetailView.as_view(), name='templates-detail'),
+    # Documentos da consulta
+    path('consultas/<int:consulta_id>/documentos/', ConsultaDocumentoListView.as_view(), name='consulta-documentos-list'),
+    path('consultas/<int:consulta_id>/documentos/<int:doc_id>/', ConsultaDocumentoDeleteView.as_view(), name='consulta-documentos-delete'),
+    # Prontuário do paciente
+    path('patients/<int:patient_id>/prontuario/', ProntuarioView.as_view(), name='prontuario'),
+    path('patients/<int:patient_id>/prontuario/pdf/', ProntuarioPDFView.as_view(), name='prontuario-pdf'),
+    # PDF de documento individual
+    path('documentos/<int:doc_id>/pdf/', DocumentoPDFView.as_view(), name='documento-pdf'),
 ]

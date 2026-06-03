@@ -55,7 +55,7 @@ export interface Evolucao {
   professional_name?: string;
 }
 
-export type TabId = "atendimento" | "anamnese" | "evolucao" | "historico";
+export type TabId = "atendimento" | "anamnese" | "evolucao" | "historico" | "documentos";
 
 export const EMPTY_ANAMNESE: Anamnese = {
   queixa_principal: "",

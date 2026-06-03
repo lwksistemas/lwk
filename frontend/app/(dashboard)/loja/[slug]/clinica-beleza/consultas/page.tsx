@@ -13,6 +13,7 @@ import {
   History,
   FileText,
   Activity,
+  FolderOpen,
   ChevronRight,
   CheckCircle2,
   Play,
@@ -40,11 +41,15 @@ import {
   ConsultaAnamneseTab,
   ConsultaEvolucaoTab,
   ConsultaHistoricoTab,
+  ConsultaDocumentosTab,
   ConsultaFinalizarModal,
   NovaConsultaModal,
+  UsarTemplateModal,
+  DigitarManualModal,
   MemedPrescricao,
   type MemedPrescricaoHandle,
 } from "./components";
+import type { DocumentoTipo } from "./components/ConsultaDocumentosTab";
 
 export default function ConsultasPage() {
   const params = useParams();
@@ -74,6 +79,9 @@ export default function ConsultasPage() {
   const [protocoloPendingId, setProtocoloPendingId] = useState<number | null>(null);
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [showNovaConsulta, setShowNovaConsulta] = useState(false);
+  const [templateModalTipo, setTemplateModalTipo] = useState<DocumentoTipo | null>(null);
+  const [manualModalTipo, setManualModalTipo] = useState<DocumentoTipo | null>(null);
+  const [savingManualDoc, setSavingManualDoc] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [iniciando, setIniciando] = useState(false);
   const memedRef = useRef<MemedPrescricaoHandle>(null);
@@ -341,6 +349,7 @@ export default function ConsultasPage() {
 
   const tabs: { id: TabId; label: string; icon: typeof FileText }[] = [
     { id: "atendimento", label: "Atendimento", icon: ClipboardList },
+    { id: "documentos", label: "Documentos", icon: FolderOpen },
     { id: "anamnese", label: "Anamnese", icon: FileText },
     { id: "evolucao", label: "Evolução", icon: Activity },
     { id: "historico", label: "Histórico", icon: History },
@@ -541,6 +550,15 @@ export default function ConsultasPage() {
                     onSelect={loadDetalhes}
                   />
                 )}
+                {tab === "documentos" && (
+                  <ConsultaDocumentosTab
+                    consultaId={selected.id}
+                    consultaAtiva={consultaAtiva}
+                    onUsarMemed={abrirMemed}
+                    onUsarTemplate={(tipo) => setTemplateModalTipo(tipo)}
+                    onDigitarManual={(tipo) => setManualModalTipo(tipo)}
+                  />
+                )}
               </>
             )}
           </div>
@@ -554,6 +572,44 @@ export default function ConsultasPage() {
           onChange={setFinalizarForm}
           onConfirm={finalizarConsulta}
         />
+
+        {selected && templateModalTipo && (
+          <UsarTemplateModal
+            open={!!templateModalTipo}
+            tipo={templateModalTipo}
+            consultaId={selected.id}
+            onClose={() => setTemplateModalTipo(null)}
+            onSuccess={() => {
+              // Documento criado com sucesso — pode recarregar dados se necessário
+              setTemplateModalTipo(null);
+            }}
+          />
+        )}
+
+        {selected && manualModalTipo && (
+          <DigitarManualModal
+            open={!!manualModalTipo}
+            tipo={manualModalTipo}
+            saving={savingManualDoc}
+            onClose={() => setManualModalTipo(null)}
+            onSave={async (data) => {
+              setSavingManualDoc(true);
+              try {
+                await ClinicaBelezaAPI.documentos.create(selected.id, {
+                  tipo: data.tipo,
+                  conteudo: data.conteudo,
+                  titulo: data.titulo || undefined,
+                });
+                setManualModalTipo(null);
+              } catch (e) {
+                logger.warn("Erro ao salvar documento manual:", e);
+                alert("Erro ao salvar documento. Tente novamente.");
+              } finally {
+                setSavingManualDoc(false);
+              }
+            }}
+          />
+        )}
       </>
     );
   }

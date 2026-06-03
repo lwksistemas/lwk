@@ -323,4 +323,109 @@ export class ClinicaBelezaAPI {
     listarPrescricoesPaciente: (patientId: number) =>
       ClinicaBelezaAPI.get<PrescricaoMemedItem[]>(`/patients/${patientId}/prescricoes/`),
   };
+
+  static templates = {
+    list: (params?: { tipo?: string; page?: number; page_size?: number }) =>
+      ClinicaBelezaAPI.get<{ results: DocumentTemplateItem[]; count: number }>('/templates/', params),
+    get: (id: number) => ClinicaBelezaAPI.get<DocumentTemplateItem>(`/templates/${id}/`),
+    create: (data: { nome: string; tipo: string; conteudo: string }) =>
+      ClinicaBelezaAPI.post<DocumentTemplateItem>('/templates/', data),
+    update: (id: number, data: Partial<{ nome: string; tipo: string; conteudo: string }>) =>
+      ClinicaBelezaAPI.put<DocumentTemplateItem>(`/templates/${id}/`, data),
+    delete: (id: number) => ClinicaBelezaAPI.delete(`/templates/${id}/`),
+  };
+
+  static documentos = {
+    list: (consultaId: number) =>
+      ClinicaBelezaAPI.get<DocumentoClinicoItem[]>(`/consultas/${consultaId}/documentos/`),
+    create: (consultaId: number, data: { tipo: string; conteudo?: string; template_id?: number; titulo?: string }) =>
+      ClinicaBelezaAPI.post<DocumentoClinicoItem>(`/consultas/${consultaId}/documentos/`, data),
+    delete: (consultaId: number, docId: number) =>
+      ClinicaBelezaAPI.delete(`/consultas/${consultaId}/documentos/${docId}/`),
+  };
+
+  static prontuario = {
+    get: (patientId: number, secao?: string) =>
+      ClinicaBelezaAPI.get<ProntuarioData>(`/patients/${patientId}/prontuario/`, secao ? { secao } : undefined),
+    pdfUrl: (patientId: number, secao?: string) => {
+      const base = getClinicaBelezaBaseUrl();
+      const query = secao ? `?secao=${secao}` : '';
+      return `${base}/patients/${patientId}/prontuario/pdf/${query}`;
+    },
+    documentoPdfUrl: (docId: number) => {
+      const base = getClinicaBelezaBaseUrl();
+      return `${base}/documentos/${docId}/pdf/`;
+    },
+  };
+}
+
+/** Template de documento clínico */
+export interface DocumentTemplateItem {
+  id: number;
+  professional: number;
+  nome: string;
+  tipo: string;
+  conteudo: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Documento clínico gerado durante consulta */
+export interface DocumentoClinicoItem {
+  id: number;
+  consulta: number;
+  patient: number;
+  professional: number;
+  professional_name: string | null;
+  template: number | null;
+  tipo: string;
+  titulo: string;
+  conteudo: string;
+  created_at: string;
+}
+
+/** Dados do prontuário agrupado por seção */
+export interface ProntuarioData {
+  receituario: ProntuarioDocItem[];
+  pedido_exame: ProntuarioDocItem[];
+  atestado: ProntuarioDocItem[];
+  documento_personalizado: ProntuarioDocItem[];
+  evolucao: ProntuarioEvolucaoItem[];
+  anamnese: ProntuarioAnamneseItem | null;
+}
+
+export interface ProntuarioDocItem {
+  id: number;
+  tipo: string;
+  titulo: string;
+  conteudo: string;
+  professional_name: string | null;
+  consulta_id: number | null;
+  created_at: string | null;
+  pdf_url?: string;
+  source: 'documento_clinico' | 'memed';
+}
+
+export interface ProntuarioEvolucaoItem {
+  id: number;
+  descricao: string;
+  procedimento_realizado: string;
+  produtos_utilizados: string;
+  orientacoes: string;
+  professional_name: string | null;
+  consulta_id: number | null;
+  created_at: string | null;
+}
+
+export interface ProntuarioAnamneseItem {
+  id: number;
+  queixa_principal: string;
+  historico_medico: string;
+  medicamentos_uso: string;
+  alergias: string;
+  tipo_pele: string;
+  observacoes: string;
+  created_at: string | null;
+  updated_at: string | null;
 }

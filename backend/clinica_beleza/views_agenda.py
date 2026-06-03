@@ -37,7 +37,7 @@ class AgendaView(APIView):
         qs = (
             Appointment.objects
             .select_related('patient', 'professional', 'procedure')
-            .filter(patient__is_active=True)
+            .filter(patient__is_active=True, professional__is_active=True)
         )
         if s := request.query_params.get('start'):
             qs = qs.filter(date__gte=s)
@@ -56,7 +56,7 @@ class AgendaHojeView(APIView):
         qs = (
             Appointment.objects
             .select_related('patient', 'professional', 'procedure')
-            .filter(patient__is_active=True, date__date=now().date())
+            .filter(patient__is_active=True, professional__is_active=True, date__date=now().date())
             .order_by('date')
         )
         return Response(AgendaEventSerializer(qs, many=True).data)

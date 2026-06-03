@@ -10,6 +10,7 @@ import { Pencil, Trash2, Clock } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
+import { AdminProfissionalToggle } from "@/components/clinica-beleza/AdminProfissionalToggle";
 import { MemedStatusBadge, type MemedStatusInfo } from "./components/MemedStatusBadge";
 import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
@@ -134,9 +135,12 @@ export default function ProfissionaisPage() {
       />
       <ClinicaBelezaPageContent>
         {lojaOwnerInfo && (
-          <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
-            <span className="text-amber-700 dark:text-amber-400">O administrador da loja aparece na tabela abaixo (linha &quot;Administrador - somente leitura&quot;) e não pode ser editado nem excluído.</span>
-          </p>
+          <>
+            <AdminProfissionalToggle onToggled={load} />
+            <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
+              <span className="text-amber-700 dark:text-amber-400">O administrador da loja aparece na tabela abaixo (linha &quot;Administrador - somente leitura&quot;) e não pode ser editado nem excluído.</span>
+            </p>
+          </>
         )}
 
         {loading ? (

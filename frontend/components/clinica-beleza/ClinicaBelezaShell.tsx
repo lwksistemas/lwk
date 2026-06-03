@@ -274,8 +274,16 @@ export function ClinicaBelezaShell({
   const router = useRouter();
   const slug = (params?.slug as string) || loja?.slug || '';
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = sessionStorage.getItem('sidebar-collapsed');
+    return stored !== null ? stored === 'true' : true; // default: collapsed
+  });
   const [darkMode, setDarkMode] = useClinicaBelezaDark();
+
+  useEffect(() => {
+    sessionStorage.setItem('sidebar-collapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     if (slug) syncLojaTenantSlug(slug);

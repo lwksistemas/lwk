@@ -38,6 +38,9 @@ from .views_documentos import (
 from .views_prontuario import (
     ProntuarioView, ProntuarioPDFView, DocumentoPDFView,
 )
+from .views_admin_professional import (
+    AdminProfessionalStatusView, AdminProfessionalToggleView,
+)
 
 app_name = 'clinica_beleza'
 
@@ -68,6 +71,8 @@ urlpatterns = [
     path('memed/timbrado/', MemedTimbradoView.as_view(), name='memed-timbrado'),
     
     # Profissionais
+    path('professionals/admin-status/', AdminProfessionalStatusView.as_view(), name='admin-professional-status'),
+    path('professionals/toggle-admin/', AdminProfessionalToggleView.as_view(), name='admin-professional-toggle'),
     path('professionals/memed-status/', ProfessionalMemedStatusView.as_view(), name='professionals-memed-status'),
     path('professionals/', ProfessionalListView.as_view(), name='professionals-list'),
     path('professionals/<int:pk>/', ProfessionalDetailView.as_view(), name='professionals-detail'),

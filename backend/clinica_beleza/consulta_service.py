@@ -156,7 +156,7 @@ def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=N
     # 1. Se valor_consulta fornecido explicitamente (override), usar esse
     # 2. Se local_atendimento informado, usar valor do local
     # 3. Caso contrário, usar valor total dos procedimentos (comportamento original)
-    if valor_consulta is not None and valor_consulta > 0:
+    if valor_consulta is not None and Decimal(str(valor_consulta)) > 0:
         valor_final = Decimal(str(valor_consulta))
     elif local_atendimento:
         valor_final = local_atendimento.valor_consulta

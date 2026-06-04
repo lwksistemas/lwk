@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { CalendarDays, Users, TrendingUp, Activity, CalendarRange } from 'lucide-react';
 import { ClinicaBelezaShell } from '@/components/clinica-beleza/ClinicaBelezaShell';
+import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -219,6 +220,23 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
 
   return (
     <ClinicaBelezaShell loja={loja} onLogout={onLogout}>
+      <ClinicaBelezaStandardPageHeader
+        title="Dashboard"
+        icon={CalendarDays}
+        extraActions={
+          <div className="flex items-center gap-2">
+            <CalendarRange className="w-4 h-4 text-gray-400 hidden sm:block" aria-hidden />
+            <input
+              type="month"
+              value={mesAno}
+              max={mesAnoMax}
+              onChange={(e) => e.target.value && setMesAno(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100"
+              aria-label="Filtrar mês do dashboard"
+            />
+          </div>
+        }
+      />
       {loading ? (
         <div className="flex items-center justify-center h-64">
           <div
@@ -228,25 +246,6 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
         </div>
       ) : (
         <div className="p-4 md:p-6 lg:p-8 space-y-6 w-full">
-          {/* Header com título + filtro de mês */}
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-            <div className="flex items-center gap-2 shrink-0">
-              <CalendarRange className="w-4 h-4 text-gray-400 hidden sm:block" aria-hidden />
-              <label htmlFor="dashboard-mes-ano" className="sr-only">
-                Filtrar mês do dashboard
-              </label>
-              <input
-                id="dashboard-mes-ano"
-                type="month"
-                value={mesAno}
-                max={mesAnoMax}
-                onChange={(e) => e.target.value && setMesAno(e.target.value)}
-                className="px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-          </div>
-
           {/* Cards de indicadores */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <StatCard

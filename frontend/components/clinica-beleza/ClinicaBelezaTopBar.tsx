@@ -1,27 +1,15 @@
 'use client';
 
 import { useCallback } from 'react';
-import { CalendarDays, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
 import { CLINICA_BELEZA_PRIMARY } from './clinica-beleza-nav';
 import { useClinicaBelezaPageHeaderMount } from './ClinicaBelezaPageHeaderContext';
-
-function formatDatePicker(): string {
-  return new Date().toLocaleDateString('pt-BR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
 
 function DashboardTopBarRight({ loja }: { loja: LojaInfo }) {
   const displayName = loja?.nome?.split(' ')[0] || 'Usuária';
   return (
     <div className="flex items-center gap-2 sm:gap-3">
-      <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-sm text-gray-600 dark:text-gray-300">
-        <CalendarDays className="w-4 h-4 shrink-0" style={{ color: CLINICA_BELEZA_PRIMARY }} />
-        <span className="capitalize whitespace-nowrap">{formatDatePicker()}</span>
-      </div>
       <div className="flex items-center gap-2">
         <div className="text-right hidden md:block">
           <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">Administrador(a)</p>

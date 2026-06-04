@@ -219,36 +219,6 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
 
   return (
     <ClinicaBelezaShell loja={loja} onLogout={onLogout}>
-      <header className="px-4 md:px-6 lg:px-8 pt-5 pb-4 w-full">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Bem-vinda, {displayName}! 👋
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {isCurrentMonth
-                ? 'Resumo de hoje e indicadores do mês selecionado.'
-                : `Indicadores de ${filterLabel}. Atendimentos de hoje permanecem atuais.`}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <CalendarRange className="w-4 h-4 text-gray-400 hidden sm:block" aria-hidden />
-            <label htmlFor="dashboard-mes-ano" className="sr-only">
-              Filtrar mês do dashboard
-            </label>
-            <input
-              id="dashboard-mes-ano"
-              type="month"
-              value={mesAno}
-              max={mesAnoMax}
-              onChange={(e) => e.target.value && setMesAno(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100"
-            />
-          </div>
-        </div>
-      </header>
-
       {loading ? (
         <div className="flex items-center justify-center h-64">
           <div
@@ -258,6 +228,26 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
         </div>
       ) : (
         <div className="p-4 md:p-6 lg:p-8 space-y-6 w-full">
+          {/* Header com título + filtro de mês */}
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+            <div className="flex items-center gap-2 shrink-0">
+              <CalendarRange className="w-4 h-4 text-gray-400 hidden sm:block" aria-hidden />
+              <label htmlFor="dashboard-mes-ano" className="sr-only">
+                Filtrar mês do dashboard
+              </label>
+              <input
+                id="dashboard-mes-ano"
+                type="month"
+                value={mesAno}
+                max={mesAnoMax}
+                onChange={(e) => e.target.value && setMesAno(e.target.value)}
+                className="px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100"
+              />
+            </div>
+          </div>
+
+          {/* Cards de indicadores */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <StatCard
               title="Atendimentos hoje"
@@ -286,75 +276,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ChartCard title={faturamentoChartTitle}>
-              <div className="h-56">
-                {revenueData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={revenueData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#f0f0f0'} />
-                      <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#9ca3af" />
-                      <YAxis tick={{ fontSize: 11 }} stroke="#9ca3af" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                      <Line
-                        type="monotone"
-                        dataKey="value"
-                        stroke={CLINICA_BELEZA_PRIMARY}
-                        strokeWidth={2.5}
-                        dot={{ r: 3, fill: CLINICA_BELEZA_PRIMARY }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-sm text-gray-400 text-center py-16">Sem faturamento no período</p>
-                )}
-              </div>
-            </ChartCard>
-
-            <ChartCard title={`Top 5 Soroterapias — ${filterLabel}`}>
-              <div className="h-56 flex items-center justify-center">
-                {soroterapiaComMovimento.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={soroterapiaComMovimento.slice(0, 5)}
-                        dataKey="count"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={55}
-                        outerRadius={85}
-                        paddingAngle={2}
-                      >
-                        {soroterapiaComMovimento.slice(0, 5).map((_, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : topProceduresVolume.length > 0 ? (
-                  <p className="text-sm text-gray-400 text-center px-4">
-                    Soroterapias cadastradas, sem movimento em {filterLabel}.
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-400">Nenhuma soroterapia cadastrada</p>
-                )}
-              </div>
-              {topProceduresVolume.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 justify-center">
-                  {topProceduresVolume.slice(0, 5).map((proc, i) => (
-                    <div key={i} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                      {proc.name}
-                      {proc.count > 0 ? ` (${proc.count})` : ' — 0 no período'}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ChartCard>
-          </div>
-
+          {/* Próximos agendamentos + Procedimentos + Financeiro */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4">
@@ -440,6 +362,76 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
                 Ver relatório financeiro
               </Link>
             </div>
+          </div>
+
+          {/* Gráficos no final */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ChartCard title={faturamentoChartTitle}>
+              <div className="h-56">
+                {revenueData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={revenueData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#f0f0f0'} />
+                      <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                      <YAxis tick={{ fontSize: 11 }} stroke="#9ca3af" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(v) => formatCurrency(Number(v))} />
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        stroke={CLINICA_BELEZA_PRIMARY}
+                        strokeWidth={2.5}
+                        dot={{ r: 3, fill: CLINICA_BELEZA_PRIMARY }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-gray-400 text-center py-16">Sem faturamento no período</p>
+                )}
+              </div>
+            </ChartCard>
+
+            <ChartCard title={`Top 5 Soroterapias — ${filterLabel}`}>
+              <div className="h-56 flex items-center justify-center">
+                {soroterapiaComMovimento.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={soroterapiaComMovimento.slice(0, 5)}
+                        dataKey="count"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={2}
+                      >
+                        {soroterapiaComMovimento.slice(0, 5).map((_, i) => (
+                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : topProceduresVolume.length > 0 ? (
+                  <p className="text-sm text-gray-400 text-center px-4">
+                    Soroterapias cadastradas, sem movimento em {filterLabel}.
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-400">Nenhuma soroterapia cadastrada</p>
+                )}
+              </div>
+              {topProceduresVolume.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 justify-center">
+                  {topProceduresVolume.slice(0, 5).map((proc, i) => (
+                    <div key={i} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      {proc.name}
+                      {proc.count > 0 ? ` (${proc.count})` : ' — 0 no período'}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ChartCard>
           </div>
         </div>
       )}

@@ -3,8 +3,8 @@ View customizada para refresh token.
 Renova JWT e atualiza cookie httpOnly quando habilitado.
 """
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.views import TokenRefreshView
 import logging
@@ -35,8 +35,10 @@ class SessionAwareTokenRefreshView(TokenRefreshView):
 
         serializer = TokenRefreshSerializer(data={'refresh': refresh})
         try:
-            serializer.is_valid(raise_exception=True)
-        except ValidationError:
+            valid = serializer.is_valid()
+        except TokenError:
+            valid = False
+        if not valid:
             logger.debug('refresh token inválido ou expirado')
             return Response(
                 {

@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "Frontend Lint Check",
+  "description": "Verifica erros de lint no frontend após editar arquivos TypeScript/TSX",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "frontend/**/*.tsx",
+      "frontend/**/*.ts"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "cd /home/luiz/Documentos/lwksistemas/frontend && npx next lint --quiet --max-warnings 0 2>&1 | tail -5",
+    "timeout": 30
+  }
+}

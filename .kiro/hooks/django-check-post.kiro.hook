@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "Django Check após edição",
+  "description": "Roda python3 manage.py check após editar arquivos Python do backend para garantir que não há erros de model/import",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "backend/**/*.py"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "cd /home/luiz/Documentos/lwksistemas/backend && python3 manage.py check --deploy 2>&1 | tail -3",
+    "timeout": 30
+  },
+  "workspaceFolderName": "lwksistemas",
+  "shortName": "django-check-post"
+}

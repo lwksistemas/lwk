@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Revisar convenções pós-escrita",
+  "description": "Revisa o código escrito para garantir que segue os padrões do projeto (service layer, mixins, etc.)",
+  "version": "1",
+  "when": {
+    "type": "postToolUse",
+    "toolTypes": [
+      "write"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Verifique se o código segue as convenções do projeto: usar service layer para lógica de negócio, GetObjectMixin para views, map_field_names para mapeamento de campos. Se houver lógica complexa na view (>30 linhas), sugira extrair para um service."
+  }
+}

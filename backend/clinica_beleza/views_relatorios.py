@@ -38,6 +38,8 @@ class RelatorioComissoesView(APIView):
                     **p,
                     'valor_total': float(p['valor_total']),
                     'comissao_total': float(p['comissao_total']),
+                    'comissao_consulta': float(p['comissao_consulta']),
+                    'comissao_procedimento': float(p['comissao_procedimento']),
                 }
                 for p in resultado['profissionais']
             ],
@@ -45,6 +47,8 @@ class RelatorioComissoesView(APIView):
                 'total_atendimentos': resultado['totais']['total_atendimentos'],
                 'valor_total': float(resultado['totais']['valor_total']),
                 'comissao_total': float(resultado['totais']['comissao_total']),
+                'comissao_consulta': float(resultado['totais']['comissao_consulta']),
+                'comissao_procedimento': float(resultado['totais']['comissao_procedimento']),
             },
         })
 

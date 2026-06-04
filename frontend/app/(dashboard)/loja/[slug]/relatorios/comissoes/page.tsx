@@ -13,6 +13,10 @@ interface ProfissionalComissao {
   valor_total: number;
   comissao_percentual: number;
   comissao_total: number;
+  comissao_consulta: number;
+  atendimentos_consulta: number;
+  comissao_procedimento: number;
+  atendimentos_procedimento: number;
 }
 
 interface RelatorioData {
@@ -21,6 +25,8 @@ interface RelatorioData {
     total_atendimentos: number;
     valor_total: number;
     comissao_total: number;
+    comissao_consulta: number;
+    comissao_procedimento: number;
   };
 }
 
@@ -102,11 +108,11 @@ export default function RelatorioComissoesPage() {
   const exportarCSV = () => {
     if (!data) return;
     const BOM = '\ufeff';
-    let csv = 'Profissional;Atendimentos;Valor Total (R$);Comissão (%);Comissão (R$)\n';
+    let csv = 'Profissional;Atendimentos;Valor Total (R$);Comissão Consulta (R$);Comissão Procedimento (R$);Comissão Total (R$)\n';
     for (const p of data.profissionais) {
-      csv += `${p.nome};${p.total_atendimentos};${p.valor_total.toFixed(2)};${p.comissao_percentual};${p.comissao_total.toFixed(2)}\n`;
+      csv += `${p.nome};${p.total_atendimentos};${p.valor_total.toFixed(2)};${p.comissao_consulta.toFixed(2)};${p.comissao_procedimento.toFixed(2)};${p.comissao_total.toFixed(2)}\n`;
     }
-    csv += `TOTAIS;${data.totais.total_atendimentos};${data.totais.valor_total.toFixed(2)};;${data.totais.comissao_total.toFixed(2)}\n`;
+    csv += `TOTAIS;${data.totais.total_atendimentos};${data.totais.valor_total.toFixed(2)};${data.totais.comissao_consulta.toFixed(2)};${data.totais.comissao_procedimento.toFixed(2)};${data.totais.comissao_total.toFixed(2)}\n`;
 
     const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -241,8 +247,9 @@ export default function RelatorioComissoesPage() {
                     <th className="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Profissional</th>
                     <th className="text-center px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Atendimentos</th>
                     <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Valor Total (R$)</th>
-                    <th className="text-center px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Comissão (%)</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Comissão (R$)</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Comissão Consulta</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Comissão Procedimento</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Comissão Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -251,7 +258,12 @@ export default function RelatorioComissoesPage() {
                       <td className="px-4 py-3 text-gray-900 dark:text-white font-medium">{p.nome}</td>
                       <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{p.total_atendimentos}</td>
                       <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{formatCurrency(p.valor_total)}</td>
-                      <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{p.comissao_percentual}%</td>
+                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                        {p.comissao_consulta > 0 ? formatCurrency(p.comissao_consulta) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                        {p.comissao_procedimento > 0 ? formatCurrency(p.comissao_procedimento) : '—'}
+                      </td>
                       <td className="px-4 py-3 text-right font-semibold" style={{ color: CLINICA_BELEZA_PRIMARY }}>{formatCurrency(p.comissao_total)}</td>
                     </tr>
                   ))}
@@ -261,7 +273,8 @@ export default function RelatorioComissoesPage() {
                     <td className="px-4 py-3 text-gray-900 dark:text-white">TOTAIS</td>
                     <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{data.totais.total_atendimentos}</td>
                     <td className="px-4 py-3 text-right text-gray-900 dark:text-white">{formatCurrency(data.totais.valor_total)}</td>
-                    <td className="px-4 py-3 text-center text-gray-500">—</td>
+                    <td className="px-4 py-3 text-right text-gray-900 dark:text-white">{formatCurrency(data.totais.comissao_consulta)}</td>
+                    <td className="px-4 py-3 text-right text-gray-900 dark:text-white">{formatCurrency(data.totais.comissao_procedimento)}</td>
                     <td className="px-4 py-3 text-right" style={{ color: CLINICA_BELEZA_PRIMARY }}>{formatCurrency(data.totais.comissao_total)}</td>
                   </tr>
                 </tfoot>

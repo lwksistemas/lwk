@@ -1,16 +1,17 @@
 """
 Service layer para Relatório de Comissões — Clínica da Beleza.
 
-Calcula comissões por profissional a partir dos pagamentos com status PAID.
+Calcula comissões por profissional a partir dos pagamentos com status PAID,
+com detalhamento por tipo (consulta vs procedimento).
 """
 from decimal import Decimal
 from datetime import date
 from typing import Optional
 
-from django.db.models import Sum, Count, Value
+from django.db.models import Sum, Count, Value, Q
 from django.db.models.functions import Coalesce
 
-from .models import Payment
+from .models import Payment, ProfessionalCommission
 
 
 def calcular_comissoes(
@@ -21,25 +22,9 @@ def calcular_comissoes(
 ) -> dict:
     """
     Calcula comissões dos profissionais com base nos pagamentos PAID no período.
+    Separa comissão de consulta (comissao_percentual > 0) de comissão fixa por procedimento.
 
-    Retorna:
-        {
-            "profissionais": [
-                {
-                    "professional_id": int,
-                    "nome": str,
-                    "total_atendimentos": int,
-                    "valor_total": Decimal,
-                    "comissao_percentual": int,
-                    "comissao_total": Decimal,
-                }
-            ],
-            "totais": {
-                "total_atendimentos": int,
-                "valor_total": Decimal,
-                "comissao_total": Decimal,
-            }
-        }
+    Retorna dict com 'profissionais' (lista detalhada) e 'totais'.
     """
     qs = Payment.objects.filter(status='PAID')
 
@@ -61,6 +46,18 @@ def calcular_comissoes(
             total_atendimentos=Count('id'),
             valor_total=Coalesce(Sum('amount'), Value(Decimal('0'))),
             comissao_total=Coalesce(Sum('comissao_valor'), Value(Decimal('0'))),
+            # Comissão percentual (tipo consulta): pagamentos com comissao_percentual > 0
+            comissao_consulta=Coalesce(
+                Sum('comissao_valor', filter=Q(comissao_percentual__gt=0)),
+                Value(Decimal('0')),
+            ),
+            atendimentos_consulta=Count('id', filter=Q(comissao_percentual__gt=0)),
+            # Comissão fixa (tipo procedimento): pagamentos com comissao_percentual = 0 e comissao_valor > 0
+            comissao_procedimento=Coalesce(
+                Sum('comissao_valor', filter=Q(comissao_percentual=0, comissao_valor__gt=0)),
+                Value(Decimal('0')),
+            ),
+            atendimentos_procedimento=Count('id', filter=Q(comissao_percentual=0, comissao_valor__gt=0)),
         )
         .order_by('appointment__professional__nome')
     )
@@ -69,11 +66,14 @@ def calcular_comissoes(
     total_atend = 0
     total_valor = Decimal('0')
     total_comissao = Decimal('0')
+    total_comissao_consulta = Decimal('0')
+    total_comissao_procedimento = Decimal('0')
 
     for row in dados:
         valor = row['valor_total'] or Decimal('0')
         comissao = row['comissao_total'] or Decimal('0')
-        # Percentual médio de comissão
+        comissao_consulta = row['comissao_consulta'] or Decimal('0')
+        comissao_procedimento = row['comissao_procedimento'] or Decimal('0')
         pct = int((comissao / valor * 100).quantize(Decimal('1'))) if valor > 0 else 0
 
         profissionais.append({
@@ -83,10 +83,16 @@ def calcular_comissoes(
             'valor_total': valor,
             'comissao_percentual': pct,
             'comissao_total': comissao,
+            'comissao_consulta': comissao_consulta,
+            'atendimentos_consulta': row['atendimentos_consulta'],
+            'comissao_procedimento': comissao_procedimento,
+            'atendimentos_procedimento': row['atendimentos_procedimento'],
         })
         total_atend += row['total_atendimentos']
         total_valor += valor
         total_comissao += comissao
+        total_comissao_consulta += comissao_consulta
+        total_comissao_procedimento += comissao_procedimento
 
     return {
         'profissionais': profissionais,
@@ -94,5 +100,7 @@ def calcular_comissoes(
             'total_atendimentos': total_atend,
             'valor_total': total_valor,
             'comissao_total': total_comissao,
+            'comissao_consulta': total_comissao_consulta,
+            'comissao_procedimento': total_comissao_procedimento,
         },
     }

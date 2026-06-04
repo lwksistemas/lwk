@@ -79,6 +79,7 @@ npm run dev
 
 ## 📚 Documentação
 
+- [Deploy, GitHub e rollback (~2 min)](docs/DEPLOY_E_ROLLBACK.md) - Integração Vercel/Railway, deploy manual e como reverter versão bugada
 - [Migração Heroku Postgres](MIGRACAO_HEROKU_POSTGRES_v917.md) - Migração do RDS AWS para Heroku Postgres
 - [Tipos de App](TIPOS_APP_CRIADOS_v922.md) - Tipos de app disponíveis no sistema
 

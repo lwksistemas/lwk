@@ -10,7 +10,7 @@ export function ClinicaBelezaPageContent({
 }) {
   return (
     <div
-      className={`min-h-full bg-[#f8f9fa] dark:bg-gray-950 p-4 md:p-6 lg:p-8 w-full ${className}`}
+      className={`min-h-full bg-[#f7f2f4] dark:bg-gray-950 p-4 md:p-6 lg:p-8 w-full ${className}`}
     >
       {children}
     </div>

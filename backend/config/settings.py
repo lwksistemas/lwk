@@ -329,6 +329,11 @@ CSRF_COOKIE_HTTPONLY = True
 MFA_TOTP_ISSUER = config('MFA_TOTP_ISSUER', default='LWK Sistemas')
 MFA_ENFORCE_TYPES = config('MFA_ENFORCE_TYPES', default='')  # ex: superadmin,suporte
 
+# Criptografia de campos (MFA backup, TOTP, ISSNet). Preferir chave dedicada em produção.
+FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='').strip()
+# Em produção (DEBUG=False), falha o boot se superadmin/auth/contenttypes tiverem migrate pendente
+MIGRATION_GUARD_STRICT = config('MIGRATION_GUARD_STRICT', default=not DEBUG, cast=bool)
+
 # drf-spectacular (OpenAPI / Swagger)
 SPECTACULAR_SETTINGS = {
     'TITLE': 'LWK Sistemas API',

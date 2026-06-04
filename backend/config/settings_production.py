@@ -411,6 +411,8 @@ from config.security_helpers import validate_store_slug, GENERIC_AUTH_ERROR_MESS
 
 MFA_TOTP_ISSUER = os.environ.get('MFA_TOTP_ISSUER', 'LWK Sistemas')
 MFA_ENFORCE_TYPES = os.environ.get('MFA_ENFORCE_TYPES', '')  # ex: superadmin,suporte
+FIELD_ENCRYPTION_KEY = os.environ.get('FIELD_ENCRYPTION_KEY', '').strip()
+MIGRATION_GUARD_STRICT = os.environ.get('MIGRATION_GUARD_STRICT', 'true').lower() in ('true', '1', 'yes')
 
 # MEMED — Prescrição digital (Clínica da Beleza). Docs: https://doc.memed.com.br/docs/backend-api
 MEMED_API_KEY = os.environ.get('MEMED_API_KEY', '')

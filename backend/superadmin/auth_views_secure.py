@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from core.throttling import AuthLoginThrottle
 from core.auth_cookies import attach_auth_cookies, clear_auth_cookies
+from core.audit import registrar_evento_seguranca
 from core.login_lockout import check_account_locked, record_login_failure, clear_login_failures
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -109,6 +110,14 @@ class SecureLoginView(APIView):
 
         locked_until = check_account_locked(username)
         if locked_until:
+            registrar_evento_seguranca(
+                'login_conta_bloqueada',
+                f'Tentativa de login com conta bloqueada ({user_type})',
+                request=request,
+                username=username,
+                sucesso=False,
+                detalhes={'locked_until': locked_until.isoformat(), 'user_type': user_type},
+            )
             return Response({
                 'error': (
                     'Muitas tentativas de login. Aguarde alguns minutos ou contate o suporte.'
@@ -146,7 +155,15 @@ class SecureLoginView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         if not user:
-            record_login_failure(username)
+            just_locked = record_login_failure(username)
+            if just_locked:
+                registrar_evento_seguranca(
+                    'login_lockout_ativado',
+                    f'Conta bloqueada após falhas ({user_type})',
+                    request=request,
+                    username=username,
+                    sucesso=False,
+                )
             logger.warning(f"❌ Tentativa de login falhou: {username}")
             return Response({
                 'error': 'Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.',

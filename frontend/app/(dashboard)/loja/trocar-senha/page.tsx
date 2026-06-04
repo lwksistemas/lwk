@@ -7,6 +7,7 @@ import { authService } from '@/lib/auth';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
 import PasswordInput from '@/components/auth/PasswordInput';
 import { logger } from '@/lib/logger';
+import { validatePasswordPolicy } from '@/lib/password-policy';
 
 export default function TrocarSenhaLojaPage() {
   const router = useRouter();
@@ -50,8 +51,9 @@ export default function TrocarSenhaLojaPage() {
     e.preventDefault();
     setErro('');
 
-    if (formData.nova_senha.length < 6) {
-      setErro('A senha deve ter no mínimo 6 caracteres');
+    const policyError = validatePasswordPolicy(formData.nova_senha);
+    if (policyError) {
+      setErro(policyError);
       return;
     }
 
@@ -162,7 +164,7 @@ export default function TrocarSenhaLojaPage() {
               Dicas para uma senha forte:
             </h4>
             <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-              <li>• Use no mínimo 6 caracteres (recomendado: 8+)</li>
+              <li>• Mínimo 8 caracteres, com letra e número</li>
               <li>• Combine letras maiúsculas e minúsculas</li>
               <li>• Inclua números e símbolos</li>
               <li>• Não use informações pessoais</li>

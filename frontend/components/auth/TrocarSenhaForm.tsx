@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import PasswordInput from '@/components/auth/PasswordInput';
+import { validatePasswordPolicy } from '@/lib/password-policy';
 
 interface TrocarSenhaFormProps {
   /** Tipo de usuário: 'loja', 'suporte' ou 'superadmin' */
@@ -73,9 +74,9 @@ export default function TrocarSenhaForm({
     e.preventDefault();
     setErro('');
 
-    // Validações
-    if (formData.nova_senha.length < 6) {
-      setErro('A senha deve ter no mínimo 6 caracteres');
+    const policyError = validatePasswordPolicy(formData.nova_senha);
+    if (policyError) {
+      setErro(policyError);
       return;
     }
 
@@ -179,9 +180,9 @@ export default function TrocarSenhaForm({
                 Dicas para uma senha forte:
               </h4>
               <ul className="text-xs text-blue-700 space-y-1">
-                <li>• Use no mínimo 6 caracteres (recomendado: 8+)</li>
-                <li>• Combine letras maiúsculas e minúsculas</li>
-                <li>• Inclua números e símbolos</li>
+                <li>• Mínimo 8 caracteres, com letra e número</li>
+                <li>• Combine maiúsculas e minúsculas</li>
+                <li>• Inclua símbolos se possível</li>
                 <li>• Não use informações pessoais</li>
               </ul>
             </div>

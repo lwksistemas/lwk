@@ -261,12 +261,8 @@ class SecurityIsolationMiddleware:
                     'grupo_requerido': 'loja'
                 }, status=401)
             
-            # Verificar se é membro da loja (owner, profissional, vendedor, funcionário)
-            user_group = self._get_user_group(request.user)
-            if user_group != 'loja':
-                slug = self._extract_store_slug(request)
-                if slug and self._user_belongs_to_store(request.user, slug):
-                    user_group = 'loja'
+            slug = self._extract_store_slug(request)
+            user_group = self._resolve_store_user_group(request.user, slug)
 
             if user_group != 'loja':
                 logger.critical(f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} (grupo: {user_group}) tentou acessar loja: {path}")
@@ -298,16 +294,15 @@ class SecurityIsolationMiddleware:
                 'mensagem': 'Use o painel de Super Admin para gerenciar lojas'
             }, status=403)
         
-        user_group = self._get_user_group(request.user)
+        if not self._is_store_route(request.path):
+            return None
+
+        requested_store_slug = self._extract_store_slug(request)
+        user_group = self._resolve_store_user_group(request.user, requested_store_slug)
         if user_group != 'loja':
             return None
-        
-        # Verificar se está tentando acessar dados de loja
-        if self._is_store_route(request.path):
-            # Extrair slug da loja da URL ou header
-            requested_store_slug = self._extract_store_slug(request)
-            
-            if requested_store_slug:
+
+        if requested_store_slug:
                 # Owner, profissional (Clínica da Beleza) ou vendedor (CRM) da loja do contexto.
                 # Resolve slug/atalho/CNPJ; em erro interno não bloqueia (defesa em profundidade:
                 # as permissões de view + LojaIsolationManager seguem validando).
@@ -316,13 +311,36 @@ class SecurityIsolationMiddleware:
                         "🚨 VIOLAÇÃO CRÍTICA: Usuário %s tentou acessar loja: %s",
                         request.user.username, requested_store_slug
                     )
+                    try:
+                        from core.audit import registrar_evento_seguranca
+                        registrar_evento_seguranca(
+                            'cross_store_access_denied',
+                            'Tentativa de acesso a dados de outra loja',
+                            request=request,
+                            sucesso=False,
+                            detalhes={'loja_solicitada': requested_store_slug},
+                        )
+                    except Exception:
+                        pass
                     return JsonResponse({
                         'error': 'Acesso negado - Você só pode acessar suas próprias lojas',
                         'code': 'CROSS_STORE_ACCESS_DENIED',
                         'loja_solicitada': requested_store_slug
                     }, status=403)
-        
+
         return None  # Sem violação
+
+    def _resolve_store_user_group(self, user, store_slug=None):
+        """
+        Grupo efetivo para rotas de loja: owner/prof/vendedor ou funcionário
+        (cabeleireiro/hotel/etc.) vinculado por e-mail no tenant.
+        """
+        user_group = self._get_user_group(user)
+        if user_group == 'loja':
+            return 'loja'
+        if store_slug and self._user_belongs_to_store(user, store_slug):
+            return 'loja'
+        return user_group
 
     def _user_belongs_to_store(self, user, store_slug):
         """

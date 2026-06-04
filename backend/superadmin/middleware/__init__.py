@@ -103,7 +103,6 @@ class SuperAdminSecurityMiddleware:
                 '/api/superadmin/lojas/buscar-por-documento/', # Buscar loja por CPF/CNPJ (acesso rápido)
                 '/api/superadmin/lojas/por-atalho/',          # ✅ NOVO v1441: Buscar loja por atalho
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
-                '/api/superadmin/lojas/debug_senha_status/',
                 '/api/superadmin/usuarios/recuperar_senha/',  # Recuperação de senha superadmin/suporte
                 '/api/superadmin/lojas/recuperar_senha/',     # Recuperação de senha lojas
                 '/api/superadmin/mercadopago-webhook/',       # Webhook Mercado Pago (notificações de pagamento)

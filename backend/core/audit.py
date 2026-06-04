@@ -92,3 +92,55 @@ def _get_client_ip(request):
     if x_forwarded_for:
         return x_forwarded_for.split(',')[0].strip()
     return request.META.get('REMOTE_ADDR', '0.0.0.0')
+
+
+def registrar_evento_seguranca(
+    acao: str,
+    descricao: str = '',
+    *,
+    request=None,
+    username: str = '',
+    sucesso: bool = False,
+    detalhes: dict | None = None,
+):
+    """
+    Registra evento de segurança (login, lockout, violação de isolamento) no AuditLog.
+    Não propaga exceção — falha só gera warning no log.
+    """
+    try:
+        from superadmin.models import AuditLog
+
+        user = None
+        usuario_email = ''
+        usuario_nome = username or ''
+        ip = '0.0.0.0'
+        det = dict(detalhes or {})
+
+        if request is not None:
+            ip = _get_client_ip(request)
+            det.setdefault('method', request.method)
+            det.setdefault('path', (request.path or '')[:500])
+            det.setdefault(
+                'user_agent',
+                (request.META.get('HTTP_USER_AGENT') or '')[:200],
+            )
+            if getattr(request, 'user', None) and request.user.is_authenticated:
+                user = request.user
+                usuario_email = user.email or ''
+                usuario_nome = user.get_full_name() or user.username
+
+        if username and not usuario_nome:
+            usuario_nome = username
+
+        AuditLog.objects.using('default').create(
+            user=user,
+            usuario_email=usuario_email,
+            usuario_nome=usuario_nome[:255],
+            acao=acao[:100],
+            descricao=(descricao or '')[:500],
+            ip_address=ip,
+            sucesso=sucesso,
+            detalhes=det,
+        )
+    except Exception as e:
+        logger.warning('Falha ao registrar evento de segurança (%s): %s', acao, e)

@@ -1,6 +1,8 @@
 """
 Testes IDOR / isolamento entre tenants e grupos de usuário.
 """
+from unittest.mock import patch
+
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
@@ -135,3 +137,32 @@ class SecurityIdorTestCase(TestCase):
         response = mw(request)
         self.assertIsNotNone(response)
         self.assertEqual(response.status_code, 403)
+
+    def test_funcionario_unknown_group_blocked_cross_store(self):
+        """Funcionário (grupo unknown) deve passar isolamento cross-loja como membro 'loja'."""
+        from django.test import RequestFactory
+        func_user = User.objects.create_user('func@hotel.com', 'func@hotel.com', 'pass12345')
+        factory = RequestFactory()
+        mw = SecurityIsolationMiddleware(lambda r: None)
+
+        request = factory.get('/api/hotel/reservas/')
+        request.user = func_user
+        request.META['HTTP_X_TENANT_SLUG'] = self.loja_b.slug
+
+        with patch.object(mw, '_get_user_group', return_value='unknown'):
+            with patch.object(mw, '_user_belongs_to_store') as mock_belongs:
+                mock_belongs.side_effect = lambda _u, slug: slug == self.loja_a.slug
+                response = mw(request)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response.status_code, 403)
+        import json
+        body = json.loads(response.content)
+        self.assertEqual(body.get('code'), 'CROSS_STORE_ACCESS_DENIED')
+
+    def test_resolve_store_user_group_promotes_funcionario(self):
+        mw = SecurityIsolationMiddleware(lambda r: None)
+        func_user = User.objects.create_user('f2@t.com', 'f2@t.com', 'pass12345')
+        with patch.object(mw, '_get_user_group', return_value='unknown'):
+            with patch.object(mw, '_user_belongs_to_store', return_value=True):
+                self.assertEqual(mw._resolve_store_user_group(func_user, 'loja-a'), 'loja')

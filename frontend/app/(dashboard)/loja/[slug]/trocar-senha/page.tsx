@@ -6,6 +6,7 @@ import apiClient from '@/lib/api-client';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
 import PasswordInput from '@/components/auth/PasswordInput';
 import { logger } from '@/lib/logger';
+import { validatePasswordPolicy } from '@/lib/password-policy';
 
 export default function TrocarSenhaLojaComSlugPage() {
   const router = useRouter();
@@ -51,8 +52,9 @@ export default function TrocarSenhaLojaComSlugPage() {
     e.preventDefault();
     setErro('');
 
-    if (formData.nova_senha.length < 6) {
-      setErro('A senha deve ter no mínimo 6 caracteres');
+    const policyError = validatePasswordPolicy(formData.nova_senha);
+    if (policyError) {
+      setErro(policyError);
       return;
     }
 

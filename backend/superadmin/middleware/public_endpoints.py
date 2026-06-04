@@ -37,7 +37,6 @@ class PublicEndpointsConfig:
     # Endpoints que permitem acesso anônimo mas também autenticado
     ALLOW_ANONYMOUS = [
         '/superadmin/lojas/debug_auth/',
-        '/superadmin/lojas/debug_senha_status/',
     ]
     
     # Endpoints de recuperação de senha

@@ -292,7 +292,6 @@ class SecurityDetector:
             '/superadmin/lojas/',  # Pode acessar sua própria loja
             '/superadmin/lojas/info_publica/',
             '/superadmin/lojas/verificar_senha_provisoria/',
-            '/superadmin/lojas/debug_senha_status/',
             '/superadmin/usuarios/verificar_senha_provisoria/',
             '/superadmin/usuarios/alterar_senha_primeiro_acesso/',
             '/superadmin/usuarios/recuperar_senha/',

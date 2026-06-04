@@ -2,7 +2,7 @@
 Módulo de criptografia para campos sensíveis.
 
 Usa Fernet (AES-128-CBC + HMAC-SHA256) do pacote cryptography.
-A chave é derivada da SECRET_KEY do Django via PBKDF2.
+A chave usa FIELD_ENCRYPTION_KEY (recomendado em produção) ou SECRET_KEY via PBKDF2.
 
 Uso:
     from core.encryption import encrypt_value, decrypt_value
@@ -34,11 +34,18 @@ _fernet_instance = None
 ENCRYPTED_PREFIX = 'enc::'
 
 
+def _encryption_secret_bytes() -> bytes:
+    dedicated = (getattr(settings, 'FIELD_ENCRYPTION_KEY', None) or '').strip()
+    if dedicated:
+        return dedicated.encode('utf-8')
+    return settings.SECRET_KEY.encode('utf-8')
+
+
 def _get_fernet() -> Fernet:
-    """Retorna instância Fernet derivada da SECRET_KEY do Django."""
+    """Retorna instância Fernet (FIELD_ENCRYPTION_KEY ou SECRET_KEY)."""
     global _fernet_instance
     if _fernet_instance is None:
-        secret = settings.SECRET_KEY.encode('utf-8')
+        secret = _encryption_secret_bytes()
         # Derivar chave de 32 bytes via PBKDF2
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { logger } from '@/lib/logger';
@@ -138,12 +139,20 @@ export default function SuporteDashboardPage() {
               <h1 className="text-2xl font-bold">Portal de Suporte</h1>
               <p className="text-blue-200 text-sm">Gerenciamento de Chamados</p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md transition-colors"
-            >
-              Sair
-            </button>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/suporte/seguranca"
+                className="px-3 py-2 text-sm bg-blue-800 hover:bg-blue-700 rounded-md transition-colors"
+              >
+                🔐 Segurança (2FA)
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+              >
+                Sair
+              </button>
+            </div>
           </div>
         </div>
       </nav>

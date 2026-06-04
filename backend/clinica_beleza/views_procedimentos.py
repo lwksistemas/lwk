@@ -4,7 +4,7 @@ Views de Procedimentos — Clínica da Beleza
 import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import CLINICA_MEMBER
 from rest_framework import status
 
 from .models import Procedure
@@ -33,7 +33,7 @@ class ProcedureListView(APIView):
     GET /clinica-beleza/procedures/
     POST /clinica-beleza/procedures/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def get(self, request):
         active_only = request.query_params.get('active', 'true').lower() == 'true'
@@ -57,7 +57,7 @@ class ProcedureListView(APIView):
 
 class ProcedureDetailView(GetObjectMixin, APIView):
     """GET /clinica-beleza/procedures/<id>/  PUT  DELETE"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
     model_class = Procedure
     not_found_message = 'Procedimento não encontrado'
 

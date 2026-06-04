@@ -35,7 +35,10 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         """
         Autentica o usuário e verifica sessão única.
         """
+        from core.auth_cookies import inject_bearer_from_cookie, get_session_id_from_request
         from django.db import OperationalError
+
+        inject_bearer_from_cookie(request)
         
         # Retry logic para autenticação JWT (evitar timeout do PostgreSQL)
         max_retries = 3
@@ -71,18 +74,18 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         if request.path.startswith('/api/auth/'):
             return user, token
         
-        # Extrair session_id do header X-Session-ID
-        client_session_id = request.headers.get('X-Session-ID', '').strip()
-        
-        # Se o frontend não enviou session_id, deixar passar (compatibilidade com
-        # requests que não passam pelo interceptor, ex: heartbeat via axios direto)
+        client_session_id = get_session_id_from_request(request)
+
         if not client_session_id:
-            # Apenas atualizar atividade (best-effort)
-            try:
-                SessionManager.update_activity(user.id)
-            except Exception:
-                pass
-            return user, token
+            logger.warning(
+                "Sessão rejeitada: X-Session-ID ausente user_id=%s path=%s",
+                user.id, request.path,
+            )
+            raise AuthenticationFailed({
+                'detail': 'Sessão inválida. Faça login novamente.',
+                'code': 'NO_SESSION_HEADER',
+                'message': 'Identificador de sessão ausente. Faça login novamente.',
+            })
         
         # Validar sessão única com cache
         validation = self._validate_with_cache(user.id, client_session_id)
@@ -169,5 +172,8 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
             
         except Exception as e:
             logger.error("session.validate_with_cache: error: %s", e)
-            # Em caso de erro no DB, permitir acesso (fail-open para não bloquear o sistema)
-            return {'valid': True}
+            return {
+                'valid': False,
+                'reason': 'SESSION_DB_ERROR',
+                'message': 'Erro ao validar sessão. Tente novamente em instantes.',
+            }

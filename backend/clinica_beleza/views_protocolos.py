@@ -3,7 +3,7 @@ Views de Protocolos de Procedimentos — Clínica da Beleza
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import CLINICA_MEMBER
 from rest_framework import status
 
 from .models import ProcedureProtocol
@@ -16,7 +16,7 @@ class ProtocolListView(APIView):
     GET /clinica-beleza/protocolos/?procedure=&categoria=&active=true
     POST /clinica-beleza/protocolos/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def get(self, request):
         active_only = request.query_params.get('active', 'true').lower() == 'true'
@@ -44,7 +44,7 @@ class ProtocolListView(APIView):
 
 class ProtocolDetailView(GetObjectMixin, APIView):
     """GET / PUT / DELETE /clinica-beleza/protocolos/<id>/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
     model_class = ProcedureProtocol
     not_found_message = 'Protocolo não encontrado'
     select_related_fields = ['procedure']

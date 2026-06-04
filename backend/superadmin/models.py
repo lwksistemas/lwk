@@ -808,7 +808,14 @@ class UsuarioSistema(models.Model):
     # Senha provisória (para recuperação de senha)
     senha_provisoria = models.CharField(max_length=50, blank=True, help_text='Senha provisória gerada automaticamente')
     senha_foi_alterada = models.BooleanField(default=False, help_text='Indica se o usuário já alterou a senha provisória')
-    
+
+    # MFA TOTP (superadmin / suporte)
+    mfa_enabled = models.BooleanField(default=False, help_text='Autenticação em duas etapas ativa')
+    mfa_totp_secret = models.TextField(
+        blank=True,
+        help_text='Secret TOTP criptografado (configurar via API MFA)',
+    )
+
     # Permissões específicas
     pode_criar_lojas = models.BooleanField(default=False)
     pode_gerenciar_financeiro = models.BooleanField(default=False)

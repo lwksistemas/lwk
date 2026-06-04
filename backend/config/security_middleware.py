@@ -140,8 +140,14 @@ class SecurityIsolationMiddleware:
         """
         path = request.path
 
-        # Webhook Asaas da conta da LOJA (cada CNPJ no Asaas) — não confundir com /api/asaas/webhook/ (LWK)
+        # Webhooks públicos (validação de assinatura nas views)
         if path.startswith('/api/crm-vendas/webhooks/asaas/'):
+            return None
+        if path.startswith('/api/asaas/webhook'):
+            return None
+        if path.startswith('/api/auth/'):
+            return None
+        if '/google-calendar/callback/' in path:
             return None
         
         # ========================================
@@ -348,14 +354,18 @@ class SecurityIsolationMiddleware:
         except:
             pass
         
-        # Verificar se é proprietário de loja
+        # Proprietário, profissional ou vendedor vinculado a loja ativa
         try:
-            from superadmin.models import Loja
+            from superadmin.models import Loja, ProfissionalUsuario, VendedorUsuario
             if Loja.objects.filter(owner=user, is_active=True).exists():
                 return 'loja'
-        except:
+            if ProfissionalUsuario.objects.filter(user=user, loja__is_active=True).exists():
+                return 'loja'
+            if VendedorUsuario.objects.filter(user=user, loja__is_active=True).exists():
+                return 'loja'
+        except Exception:
             pass
-        
+
         return 'unknown'
     
     def _is_store_route(self, path):

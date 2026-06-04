@@ -118,6 +118,13 @@ const MENU_CARDS: MenuCardProps[] = [
     color: 'red',
   },
   {
+    title: 'Segurança da conta (2FA)',
+    description: 'Ativar autenticador Google/Microsoft no seu login',
+    icon: '🔐',
+    href: '/superadmin/seguranca',
+    color: 'red',
+  },
+  {
     title: 'Monitoramento de Storage',
     description: 'Acompanhar crescimento do banco de todas as lojas em tempo real',
     icon: '💾',

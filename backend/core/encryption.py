@@ -23,6 +23,10 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+
+class EncryptionError(Exception):
+    """Falha ao criptografar — não armazenar plaintext."""
+
 # Cache da instância Fernet (criada uma vez por processo)
 _fernet_instance = None
 
@@ -64,7 +68,7 @@ def encrypt_value(plaintext: str) -> str:
         return ENCRYPTED_PREFIX + token.decode('utf-8')
     except Exception as e:
         logger.error('Erro ao criptografar valor: %s', e)
-        return plaintext  # Fallback: retorna sem criptografar
+        raise EncryptionError('Falha ao criptografar dado sensível') from e
 
 
 def decrypt_value(ciphertext: str) -> str:

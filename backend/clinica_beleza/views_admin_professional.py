@@ -9,7 +9,7 @@ import logging
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import CLINICA_ADMIN
 from rest_framework import status
 
 from superadmin.models import Loja
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 class AdminProfessionalStatusView(APIView):
     """GET /professionals/admin-status/ — retorna estado do toggle admin-profissional."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
 
     def get(self, request):
         loja_id = resolve_loja_id_from_request(request)
@@ -57,7 +57,7 @@ class AdminProfessionalStatusView(APIView):
 class AdminProfessionalToggleView(APIView):
     """POST /professionals/toggle-admin/ — habilitar ou desabilitar admin como profissional."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
 
     def post(self, request):
         loja_id = resolve_loja_id_from_request(request)

@@ -144,6 +144,15 @@ class LojaViewSet(viewsets.ModelViewSet):
         if self.action == 'heartbeat':
             return [permissions.IsAuthenticated()]
         return super().get_permissions()
+
+    def get_throttles(self):
+        from core.throttling import PublicLojaCreateThrottle, PublicLojaLookupThrottle
+
+        if self.action == 'create':
+            return [PublicLojaCreateThrottle()]
+        if self.action == 'buscar_por_documento':
+            return [PublicLojaLookupThrottle()]
+        return super().get_throttles()
     
     def get_queryset(self):
         queryset = Loja.objects.select_related(
@@ -223,13 +232,6 @@ class LojaViewSet(viewsets.ModelViewSet):
             ]
             endereco = ', '.join(p for p in endereco_parts if p).strip() or None
 
-            owner = getattr(loja, 'owner', None)
-            admin_nome = None
-            admin_email = None
-            if owner:
-                admin_nome = f"{getattr(owner, 'first_name', '') or ''} {getattr(owner, 'last_name', '') or ''}".strip() or getattr(owner, 'username', '') or None
-                admin_email = getattr(owner, 'email', None) or None
-
             data = {
                 'id': loja.id,
                 'nome': getattr(loja, 'nome', '') or '',
@@ -245,9 +247,6 @@ class LojaViewSet(viewsets.ModelViewSet):
                 'senha_foi_alterada': getattr(loja, 'senha_foi_alterada', False),
                 'requer_cpf_cnpj': True,
                 'endereco': endereco,
-                'cpf_cnpj': getattr(loja, 'cpf_cnpj', '') or None,
-                'admin_nome': admin_nome,
-                'admin_email': admin_email,
             }
             
             cache.set(cache_key, data, 300)

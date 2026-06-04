@@ -25,6 +25,7 @@ from .google_calendar_service import (
     push_atividade_to_google,
 )
 from .models import Atividade
+from core.oauth_state import encode_oauth_state, parse_oauth_state
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,7 @@ def google_calendar_auth(request):
         auth_url, _ = flow.authorization_url(
             access_type='offline',
             prompt='consent',
-            state=_encode_oauth_state(loja_id, vendedor_id),
+            state=encode_oauth_state(loja_id, vendedor_id),
             include_granted_scopes='true',
         )
         return Response({'auth_url': auth_url})
@@ -137,7 +138,7 @@ def google_calendar_callback(request):
     if error:
         logger.warning('Google OAuth error: %s', error)
         state = request.GET.get('state')
-        loja_id, _ = _parse_oauth_state(state)
+        loja_id, _ = parse_oauth_state(state)
         slug = _get_loja_slug_by_id(loja_id)
         return _redirect_calendario(slug, success=False)
 
@@ -148,7 +149,7 @@ def google_calendar_callback(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    loja_id, vendedor_id = _parse_oauth_state(request.GET.get('state'))
+    loja_id, vendedor_id = parse_oauth_state(request.GET.get('state'))
     if not loja_id:
         return Response(
             {'detail': 'Estado inválido (loja).'},
@@ -199,33 +200,6 @@ def google_calendar_callback(request):
         logger.exception('Erro no callback Google Calendar: %s', e)
         slug = _get_loja_slug_by_id(loja_id)
         return _redirect_calendario(slug, success=False)
-
-
-def _encode_oauth_state(loja_id, vendedor_id=None):
-    """Codifica loja_id e vendedor_id no state do OAuth. Formato: loja_id ou loja_id:vendedor_id."""
-    if not loja_id:
-        return None
-    if vendedor_id is not None:
-        return f'{loja_id}:{vendedor_id}'
-    return str(loja_id)
-
-
-def _parse_oauth_state(state):
-    """Extrai (loja_id, vendedor_id) do state. vendedor_id=None se não houver."""
-    if not state:
-        return None, None
-    parts = str(state).strip().split(':')
-    try:
-        loja_id = int(parts[0])
-    except (TypeError, ValueError, IndexError):
-        return None, None
-    vendedor_id = None
-    if len(parts) >= 2 and parts[1]:
-        try:
-            vendedor_id = int(parts[1])
-        except (TypeError, ValueError):
-            pass
-    return loja_id, vendedor_id
 
 
 def _extract_email_from_credentials(credentials):

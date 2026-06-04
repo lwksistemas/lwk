@@ -2,16 +2,25 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { logger } from './logger';
 import { getLoginUrl } from './auth';
 import { getPrimaryApiRoot, getPrimaryApiBaseUrl } from './api-base';
+import { USE_JWT_HTTPONLY_COOKIES } from './auth-cookies';
 
 const TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '120000', 10);
 
 const SESSION_CODES = [
-  'DIFFERENT_SESSION', 'NO_SESSION', 'TIMEOUT',
-  'SESSION_CONFLICT', 'SESSION_TIMEOUT', 'SESSION_REPLACED',
+  'DIFFERENT_SESSION', 'NO_SESSION', 'NO_SESSION_HEADER', 'TIMEOUT',
+  'SESSION_CONFLICT', 'SESSION_TIMEOUT', 'SESSION_REPLACED', 'SESSION_DB_ERROR',
 ] as const;
 
 /** Limpa tokens/sessão e redireciona para login. Exportado para uso em fetch() (ex.: clinica-beleza). */
-export function clearSessionAndRedirect(loginUrl: string, message?: string) {
+export async function clearSessionAndRedirect(loginUrl: string, message?: string) {
+  if (USE_JWT_HTTPONLY_COOKIES && typeof window !== 'undefined') {
+    try {
+      const base = getPrimaryApiBaseUrl();
+      await axios.post(`${base}/auth/logout/`, {}, { withCredentials: true });
+    } catch {
+      /* cookies limpos no servidor quando possível */
+    }
+  }
   sessionStorage.removeItem('access_token');
   sessionStorage.removeItem('refresh_token');
   sessionStorage.removeItem('user_type');
@@ -43,7 +52,9 @@ export function getLoginUrlForRedirect(): string {
 function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
   if (typeof window === 'undefined') return config;
 
-  const accessToken = sessionStorage.getItem('access_token');
+  const accessToken = USE_JWT_HTTPONLY_COOKIES
+    ? null
+    : sessionStorage.getItem('access_token');
   const pathLojaMatch = window.location.pathname.match(/^\/loja\/([^/]+)/);
   let lojaSlug: string | null = null;
   if (pathLojaMatch) {
@@ -114,7 +125,7 @@ async function handle401(
   if (errorCode && SESSION_CODES.includes(errorCode as (typeof SESSION_CODES)[number])) {
     logger.critical('Sessão inválida:', errorCode);
     const loginUrl = getLoginUrlForRedirect();
-    clearSessionAndRedirect(
+    void clearSessionAndRedirect(
       loginUrl,
       typeof errorMessage === 'string' ? errorMessage : 'Sua sessão expirou. Faça login novamente.'
     );
@@ -127,18 +138,24 @@ async function handle401(
       logger.log('Tentando refresh token...');
       const refreshToken = sessionStorage.getItem('refresh_token');
       const accessToken = sessionStorage.getItem('access_token');
-      if (!refreshToken) {
-        clearSessionAndRedirect(getLoginUrlForRedirect());
+      if (!USE_JWT_HTTPONLY_COOKIES && !refreshToken) {
+        await         void clearSessionAndRedirect(getLoginUrlForRedirect());
         return Promise.reject(error);
       }
       const base = getPrimaryApiBaseUrl();
+      const refreshHeaders: Record<string, string> = {};
+      if (accessToken) refreshHeaders.Authorization = `Bearer ${accessToken}`;
+      const sessionId = sessionStorage.getItem('session_id');
+      if (sessionId) refreshHeaders['X-Session-ID'] = sessionId;
       const response = await axios.post(
         `${base}/auth/token/refresh/`,
-        { refresh: refreshToken },
-        { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }
+        USE_JWT_HTTPONLY_COOKIES ? {} : { refresh: refreshToken },
+        { headers: refreshHeaders, withCredentials: USE_JWT_HTTPONLY_COOKIES }
       );
       const { access } = response.data;
-      sessionStorage.setItem('access_token', access);
+      if (!USE_JWT_HTTPONLY_COOKIES && access) {
+        sessionStorage.setItem('access_token', access);
+      }
       originalRequest.headers = originalRequest.headers || {};
       originalRequest.headers.Authorization = `Bearer ${access}`;
       logger.log('Refresh OK, repetindo requisição');
@@ -151,7 +168,7 @@ async function handle401(
       if (errCode === 'DIFFERENT_SESSION' || errCode === 'NO_SESSION') {
         alert(errMessage || 'Sua sessão foi encerrada. Faça login novamente.');
       }
-      clearSessionAndRedirect(getLoginUrlForRedirect());
+      void clearSessionAndRedirect(getLoginUrlForRedirect());
       return Promise.reject(refreshError);
     }
   }
@@ -163,6 +180,7 @@ function createApiInstance(): AxiosInstance {
     baseURL: getPrimaryApiBaseUrl(),
     headers: { 'Content-Type': 'application/json' },
     timeout: TIMEOUT,
+    withCredentials: USE_JWT_HTTPONLY_COOKIES,
   });
 }
 

@@ -1,5 +1,6 @@
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
+from core.throttling import PasswordResetThrottle
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.conf import settings
@@ -182,7 +183,12 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
             'tipo': usuario_sistema.get_tipo_display()
         })
     
-    @action(detail=False, methods=['post'], permission_classes=[])
+    @action(
+        detail=False,
+        methods=['post'],
+        permission_classes=[],
+        throttle_classes=[PasswordResetThrottle],
+    )
     def recuperar_senha(self, request):
         """Recuperar senha de usuário do sistema (público)"""
         email = request.data.get('email')
@@ -451,6 +457,11 @@ def mercadopago_webhook(request):
             status=status.HTTP_200_OK,
         )
 
+    from core.webhook_security import verify_mercadopago_signature, webhook_auth_failed_response
+
+    if not verify_mercadopago_signature(request):
+        return webhook_auth_failed_response()
+
     try:
         body = MercadoPagoAdminService.parse_webhook_body(request)
         notification_type = body.get('type') or body.get('action')
@@ -514,6 +525,7 @@ def sync_mercadopago_loja(request):
 
 @api_view(['POST'])
 @permission_classes([])
+@throttle_classes([PasswordResetThrottle])
 def recuperar_senha_loja(request):
     """Recuperar senha de loja pelo email e slug"""
     from ..services.loja_password_recovery_service import LojaPasswordRecoveryService

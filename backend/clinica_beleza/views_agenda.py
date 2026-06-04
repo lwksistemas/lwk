@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.utils.timezone import now
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import CLINICA_MEMBER
 from rest_framework import status
 
 from .models import Appointment, BloqueioHorario
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 class AgendaView(APIView):
     """GET /clinica-beleza/agenda/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def get(self, request):
         qs = (
@@ -50,7 +50,7 @@ class AgendaView(APIView):
 
 class AgendaHojeView(APIView):
     """GET /clinica-beleza/agenda/hoje/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def get(self, request):
         qs = (
@@ -64,7 +64,7 @@ class AgendaHojeView(APIView):
 
 class AgendaUpdateView(APIView):
     """PATCH /clinica-beleza/agenda/<id>/update/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def patch(self, request, pk):
         try:
@@ -119,7 +119,7 @@ class AgendaUpdateView(APIView):
 
 class AgendaCreateView(APIView):
     """POST /clinica-beleza/agenda/create/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def post(self, request):
         serializer = AppointmentCreateSerializer(data=request.data)
@@ -147,7 +147,7 @@ class AgendaCreateView(APIView):
 
 class AgendaDeleteView(APIView):
     """DELETE /clinica-beleza/agenda/<id>/delete/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def delete(self, request, pk):
         try:
@@ -159,7 +159,7 @@ class AgendaDeleteView(APIView):
 
 class AgendaReenviarMensagemView(APIView):
     """POST /clinica-beleza/agenda/<id>/reenviar-mensagem/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def post(self, request, pk):
         try:
@@ -194,7 +194,7 @@ class AgendaReenviarMensagemView(APIView):
 
 class BloqueioHorarioListView(APIView):
     """GET /clinica-beleza/bloqueios/  POST /clinica-beleza/bloqueios/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
 
     def get(self, request):
         qs = BloqueioHorario.objects.all().select_related('professional').order_by('-data_inicio')
@@ -223,7 +223,7 @@ class BloqueioHorarioListView(APIView):
 
 class BloqueioHorarioDetailView(GetObjectMixin, APIView):
     """GET /clinica-beleza/bloqueios/<id>/  PUT  DELETE"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_MEMBER
     model_class = BloqueioHorario
     not_found_message = 'Bloqueio não encontrado'
     select_related_fields = ['professional']

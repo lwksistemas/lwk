@@ -5,7 +5,7 @@ import json
 import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import CLINICA_ADMIN
 from rest_framework import status
 
 from .models import Professional, HorarioTrabalhoProfissional, Appointment, BloqueioHorario, ProfessionalCommission
@@ -77,7 +77,7 @@ class ProfessionalListView(APIView):
     GET /clinica-beleza/professionals/
     POST /clinica-beleza/professionals/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
 
     def get(self, request):
         active_only = request.query_params.get('active', 'true').lower() == 'true'
@@ -146,7 +146,7 @@ class ProfessionalListView(APIView):
 
 class ProfessionalDetailView(APIView):
     """GET /clinica-beleza/professionals/<id>/  PUT  DELETE"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
 
     def get(self, request, pk):
         try:
@@ -199,7 +199,7 @@ class ProfessionalMemedStatusView(APIView):
     GET /clinica-beleza/professionals/memed-status/
     Retorna dict { "<professional_id>": { state, label, status?, ... } }.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
 
     def get(self, request):
         from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -233,7 +233,7 @@ class HorarioTrabalhoProfissionalView(APIView):
     GET /clinica-beleza/professionals/<id>/horarios-trabalho/
     PUT /clinica-beleza/professionals/<id>/horarios-trabalho/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
 
     def get(self, request, pk):
         try:
@@ -270,7 +270,7 @@ class ProfessionalCommissionView(APIView):
     GET  /clinica-beleza/professionals/<id>/comissoes/ — lista comissões do profissional.
     POST /clinica-beleza/professionals/<id>/comissoes/ — cria/atualiza comissões (recebe lista).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
 
     def get(self, request, pk):
         try:

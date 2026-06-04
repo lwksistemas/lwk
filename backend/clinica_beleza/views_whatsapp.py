@@ -5,7 +5,7 @@ import logging
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import CLINICA_ADMIN
 from rest_framework import status
 
 from .models import Patient, CampanhaPromocao
@@ -20,7 +20,7 @@ class WhatsAppConfigView(APIView):
     GET /clinica-beleza/whatsapp-config/
     PATCH /clinica-beleza/whatsapp-config/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
 
     def _get_config(self, request=None):
         from .views_base import resolve_loja_id_from_request
@@ -130,7 +130,7 @@ def _campanha_to_dict(c):
 
 class CampanhaPromocaoListView(APIView):
     """GET /clinica-beleza/campanhas/  POST /clinica-beleza/campanhas/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
 
     def get(self, request):
         campanhas = CampanhaPromocao.objects.all().order_by('-created_at')
@@ -154,7 +154,7 @@ class CampanhaPromocaoListView(APIView):
 
 class CampanhaPromocaoDetailView(APIView):
     """GET /clinica-beleza/campanhas/<id>/  PUT  DELETE"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
 
     def get(self, request, pk):
         try:
@@ -192,7 +192,7 @@ class CampanhaPromocaoDetailView(APIView):
 
 class CampanhaPromocaoEnviarView(APIView):
     """POST /clinica-beleza/campanhas/<id>/enviar/"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
 
     def post(self, request, pk):
         try:

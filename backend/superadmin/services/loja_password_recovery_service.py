@@ -17,6 +17,10 @@ from .provisional_password_helpers import loja_login_absolute_url
 
 logger = logging.getLogger(__name__)
 
+_RECOVERY_OK_MESSAGE = (
+    'Se o email estiver cadastrado para esta loja, você receberá uma senha provisória em instantes.'
+)
+
 
 class LojaPasswordRecoveryService:
     """Encapsula validação, geração de senha e envio de email."""
@@ -28,19 +32,10 @@ class LojaPasswordRecoveryService:
                 http_status.HTTP_400_BAD_REQUEST,
             )
 
-        try:
-            loja = Loja.objects.get(slug=slug, is_active=True)
-        except Loja.DoesNotExist:
-            return (
-                {'detail': 'Loja não encontrada ou inativa'},
-                http_status.HTTP_404_NOT_FOUND,
-            )
-
-        if loja.owner.email != email:
-            return (
-                {'detail': 'Email não corresponde ao proprietário da loja'},
-                http_status.HTTP_404_NOT_FOUND,
-            )
+        loja = Loja.objects.filter(slug=slug, is_active=True).select_related('owner', 'tipo_loja', 'plano').first()
+        if not loja or not loja.owner_id or (loja.owner.email or '').strip().lower() != email.strip().lower():
+            logger.info('Recuperação de senha loja: solicitação ignorada (slug=%s)', slug)
+            return ({'message': _RECOVERY_OK_MESSAGE}, http_status.HTTP_200_OK)
 
         nova_senha = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%', k=10))
 
@@ -90,10 +85,4 @@ class LojaPasswordRecoveryService:
                 http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        return (
-            {
-                'message': 'Senha provisória enviada para o email cadastrado',
-                'email': email,
-            },
-            http_status.HTTP_200_OK,
-        )
+        return ({'message': _RECOVERY_OK_MESSAGE}, http_status.HTTP_200_OK)

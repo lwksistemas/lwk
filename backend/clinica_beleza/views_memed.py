@@ -14,7 +14,7 @@ import requests
 from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import CLINICA_CLINICAL
 from rest_framework import status
 
 from .models import Professional
@@ -96,7 +96,7 @@ class MemedTokenView(APIView):
 
     Performance: cache do token por 15 minutos (token da Memed dura 24h+).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
     CACHE_TTL = 900  # 15 minutos
 
     def get(self, request):
@@ -243,7 +243,7 @@ class MemedTimbradoView(APIView):
     POST /clinica-beleza/memed/timbrado/  — upload PDF (multipart campo ``pdf``)
                                             ou JSON ``{"aplicar": true}`` para reaplicar
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
     MAX_PDF_BYTES = 5 * 1024 * 1024
 
     def get(self, request):
@@ -276,8 +276,11 @@ class MemedTimbradoView(APIView):
             upload = request.FILES.get('pdf')
             if not upload:
                 return Response({'error': 'Envie o arquivo PDF no campo pdf.'}, status=status.HTTP_400_BAD_REQUEST)
-            if not (upload.name or '').lower().endswith('.pdf'):
-                return Response({'error': 'O arquivo deve ser .pdf'}, status=status.HTTP_400_BAD_REQUEST)
+            from core.upload_validation import validate_pdf_upload
+
+            ok, err = validate_pdf_upload(upload)
+            if not ok:
+                return Response({'error': err}, status=status.HTTP_400_BAD_REQUEST)
             pdf_bytes = upload.read()
             if len(pdf_bytes) > self.MAX_PDF_BYTES:
                 return Response({'error': 'PDF muito grande (máx. 5 MB).'}, status=status.HTTP_400_BAD_REQUEST)

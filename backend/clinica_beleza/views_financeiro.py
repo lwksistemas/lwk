@@ -3,7 +3,7 @@ Views de Pagamentos e Financeiro — Clínica da Beleza
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import CLINICA_FINANCEIRO
 from rest_framework import status
 from django.utils.timezone import now
 from django.db.models import Sum
@@ -18,7 +18,7 @@ class PaymentListView(APIView):
     GET /clinica-beleza/payments/
     POST /clinica-beleza/payments/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
         queryset = Payment.objects.select_related(
@@ -43,7 +43,7 @@ class PaymentListView(APIView):
 
 class PaymentDetailView(APIView):
     """GET /clinica-beleza/payments/<id>/  PUT  DELETE"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_FINANCEIRO
 
     def _get(self, pk):
         return Payment.objects.select_related(
@@ -82,7 +82,7 @@ class FinanceiroResumoView(APIView):
     Resumo: caixa diário, total mês, contas a receber, comissões.
     Query: mes, ano (opcional — padrão mês atual).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
         from datetime import date

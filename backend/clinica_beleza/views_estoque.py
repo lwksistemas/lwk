@@ -8,7 +8,7 @@ from decimal import Decimal
 from django.db.models import F, Sum
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import CLINICA_ESTOQUE
 from rest_framework import status
 
 from .models import ProdutoEstoque, MovimentacaoEstoque
@@ -23,7 +23,7 @@ class ProdutoEstoqueListView(APIView):
     GET /clinica-beleza/estoque/
     POST /clinica-beleza/estoque/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ESTOQUE
 
     def get(self, request):
         qs = ProdutoEstoque.objects.all().order_by('nome')
@@ -48,7 +48,7 @@ class ProdutoEstoqueListView(APIView):
 
 class ProdutoEstoqueDetailView(GetObjectMixin, APIView):
     """GET /clinica-beleza/estoque/<id>/  PUT  DELETE"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ESTOQUE
     model_class = ProdutoEstoque
     not_found_message = 'Produto não encontrado'
 
@@ -83,7 +83,7 @@ class MovimentacaoEstoqueView(GetObjectMixin, APIView):
     Registra entrada ou saída de estoque e atualiza quantidade.
     Body: { "tipo": "entrada"|"saida"|"ajuste", "quantidade": 5, "motivo": "Compra fornecedor" }
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ESTOQUE
     model_class = ProdutoEstoque
     not_found_message = 'Produto não encontrado'
 
@@ -147,7 +147,7 @@ class HistoricoEstoqueView(GetObjectMixin, APIView):
     GET /clinica-beleza/estoque/<id>/historico/
     Retorna histórico de movimentações do produto.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ESTOQUE
     model_class = ProdutoEstoque
     not_found_message = 'Produto não encontrado'
 
@@ -169,7 +169,7 @@ class EstoqueResumoView(APIView):
     GET /clinica-beleza/estoque/resumo/
     Resumo: total produtos, estoque baixo, valor total.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ESTOQUE
 
     def get(self, request):
         produtos = ProdutoEstoque.objects.filter(is_active=True)

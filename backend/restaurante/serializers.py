@@ -124,6 +124,16 @@ class NotaFiscalEntradaSerializer(serializers.ModelSerializer):
     fornecedor_nome = serializers.CharField(source='fornecedor.nome', read_only=True)
     itens = ItemNotaFiscalEntradaSerializer(many=True, read_only=True)
 
+    def validate_xml_file(self, value):
+        if not value:
+            return value
+        from core.upload_validation import validate_xml_upload
+
+        ok, msg = validate_xml_upload(value)
+        if not ok:
+            raise serializers.ValidationError(msg)
+        return value
+
     class Meta:
         model = NotaFiscalEntrada
         fields = [

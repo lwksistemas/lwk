@@ -1,3 +1,26 @@
+function buildConnectSrc() {
+  const origins = new Set(["'self'"]);
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  if (apiUrl) {
+    try {
+      const u = new URL(apiUrl.replace(/\/api\/?$/, ''));
+      origins.add(u.origin);
+    } catch {
+      /* ignore */
+    }
+  }
+  [
+    'https://api.lwksistemas.com.br',
+    'https://lwks-backend-production.up.railway.app',
+    'https://viacep.com.br',
+    'https://brasilapi.com.br',
+    'https://memed.com.br',
+    'https://*.memed.com.br',
+    'wss://*.memed.com.br',
+  ].forEach((o) => origins.add(o));
+  return Array.from(origins).join(' ');
+}
+
 const securityHeaders = [
   {
     key: 'Content-Security-Policy',
@@ -11,12 +34,20 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://*.memed.com.br",
       "img-src 'self' data: blob: https://res.cloudinary.com https://i.pravatar.cc https://*.memed.com.br",
       "font-src 'self' data: https://*.memed.com.br",
-      "connect-src 'self' https://api.lwksistemas.com.br https://lwks-backend-production.up.railway.app https://viacep.com.br https://brasilapi.com.br https://memed.com.br https://*.memed.com.br wss://*.memed.com.br",
+      `connect-src ${buildConnectSrc()}`,
       "frame-src 'self' https://memed.com.br https://*.memed.com.br",
       "child-src 'self' blob: https://memed.com.br https://*.memed.com.br",
       "worker-src 'self' blob: https://*.memed.com.br",
       "upgrade-insecure-requests",
     ].join('; '),
+  },
+  {
+    key: 'Cross-Origin-Opener-Policy',
+    value: 'same-origin',
+  },
+  {
+    key: 'Cross-Origin-Resource-Policy',
+    value: 'same-site',
   },
   {
     key: 'Permissions-Policy',

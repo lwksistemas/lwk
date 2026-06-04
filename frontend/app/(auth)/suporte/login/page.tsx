@@ -19,7 +19,8 @@ interface LoginConfig {
 }
 
 export default function SuporteLoginPage() {
-  const [credentials, setCredentials] = useState({ username: '', password: '', cpf_cnpj: '' });
+  const [credentials, setCredentials] = useState({ username: '', password: '', cpf_cnpj: '', otp_code: '' });
+  const [showMfa, setShowMfa] = useState(false);
   const [lembrarCpf, setLembrarCpf] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -128,8 +129,10 @@ export default function SuporteLoginPage() {
 
       await new Promise(resolve => setTimeout(resolve, 100));
       window.location.replace('/suporte/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Erro ao fazer login. Tente novamente.');
+    } catch (err: unknown) {
+      const e = err as Error & { mfaRequired?: boolean };
+      if (e.mfaRequired) setShowMfa(true);
+      setError(e.message || 'Erro ao fazer login. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -300,6 +303,32 @@ export default function SuporteLoginPage() {
               placeholder="Digite sua senha"
               autoComplete="current-password"
             />
+
+            {showMfa && (
+              <div>
+                <label htmlFor="otp_code" className="block text-sm font-medium text-gray-700 mb-1">
+                  Código do autenticador (6 dígitos)
+                </label>
+                <input
+                  id="otp_code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  required
+                  className="block w-full px-3 py-3 min-h-[44px] text-base text-gray-900 border border-gray-300 rounded-md bg-white"
+                  value={credentials.otp_code}
+                  onChange={(e) =>
+                    setCredentials({
+                      ...credentials,
+                      otp_code: e.target.value.replace(/\D/g, '').slice(0, 6),
+                    })
+                  }
+                  placeholder="000000"
+                  disabled={loading}
+                />
+              </div>
+            )}
           </div>
 
           {/* Submit Button */}

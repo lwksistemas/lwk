@@ -304,7 +304,11 @@ def asaas_sync_stats(request):
 @permission_classes([])  # Webhook público, sem autenticação
 def asaas_webhook(request):
     """Webhook para receber notificações do Asaas"""
-    
+    from core.webhook_security import verify_asaas_access_token, webhook_auth_failed_response
+
+    if not verify_asaas_access_token(request):
+        return webhook_auth_failed_response()
+
     try:
         payload = request.data if isinstance(request.data, dict) else {}
         logger.info("Webhook Asaas recebido: %s", _asaas_webhook_log_context(payload))

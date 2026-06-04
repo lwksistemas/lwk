@@ -4,7 +4,7 @@ Views do Prontuário — Visualização e geração de PDF
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import CLINICA_CLINICAL
 from rest_framework import status
 
 from .models import DocumentoClinico, Patient
@@ -22,7 +22,7 @@ class ProntuarioView(APIView):
     Query params:
         ?secao=receituario — filtra por seção específica
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
 
     def get(self, request, patient_id):
         if not Patient.objects.filter(pk=patient_id).exists():
@@ -46,7 +46,7 @@ class ProntuarioPDFView(APIView):
         ?secao=receituario — PDF de uma seção específica
         (sem parâmetro) — PDF completo
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
 
     def get(self, request, patient_id):
         if not Patient.objects.filter(pk=patient_id).exists():
@@ -77,7 +77,7 @@ class DocumentoPDFView(GetObjectMixin, APIView):
     GET /clinica-beleza/documentos/<doc_id>/pdf/
     Gera PDF de um documento individual.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
     model_class = DocumentoClinico
     not_found_message = 'Documento não encontrado'
 

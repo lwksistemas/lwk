@@ -5,6 +5,7 @@
  */
 
 import apiClient from './api-client';
+import { USE_JWT_HTTPONLY_COOKIES } from './auth-cookies';
 
 export type UserType = 'superadmin' | 'suporte' | 'loja';
 
@@ -12,6 +13,7 @@ interface LoginCredentials {
   username: string;
   password: string;
   cpf_cnpj?: string;
+  otp_code?: string;
 }
 
 interface LoginResponse {
@@ -39,10 +41,13 @@ class AuthService {
   ): Promise<LoginResponse> {
     try {
       let endpoint = '';
-      let payload: any = {
+      let payload: Record<string, string> = {
         username: credentials.username,
         password: credentials.password,
       };
+      if (credentials.otp_code?.trim()) {
+        payload.otp_code = credentials.otp_code.trim();
+      }
 
       // Definir endpoint baseado no tipo de usuário
     switch (userType) {
@@ -80,9 +85,10 @@ class AuthService {
         sessionStorage.removeItem('current_vendedor_id');
       }
 
-      // Salvar tokens e informações do usuário no sessionStorage
-      this.setToken(data.access);
-      this.setRefreshToken(data.refresh);
+      if (!USE_JWT_HTTPONLY_COOKIES) {
+        this.setToken(data.access);
+        this.setRefreshToken(data.refresh);
+      }
       if (responseUserType) this.setUserType(responseUserType);
       if (lojaSlug) this.setLojaSlug(lojaSlug);
       if (typeof window !== 'undefined' && lojaId) {
@@ -118,6 +124,12 @@ class AuthService {
 
       return data;
     } catch (error: any) {
+      const data = error.response?.data;
+      if (data?.mfa_required || data?.code === 'MFA_REQUIRED') {
+        const err = new Error(data.error || 'Informe o código do autenticador.');
+        (err as Error & { mfaRequired?: boolean }).mfaRequired = true;
+        throw err;
+      }
       if (error.response?.data?.error) {
         throw new Error(error.response.data.error);
       } else if (error.response?.data?.detail) {
@@ -135,16 +147,10 @@ class AuthService {
    */
   logout(): void {
     if (typeof window !== 'undefined') {
-      // Tentar invalidar sessão no backend (fire-and-forget)
-      const token = sessionStorage.getItem(this.TOKEN_KEY);
-      if (token) {
-        try {
-          const apiUrl = sessionStorage.getItem('api_base_url') || '';
-          fetch(`${apiUrl}/auth/logout/`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          }).catch(() => {});
-        } catch {}
+      try {
+        apiClient.post('/auth/logout/').catch(() => {});
+      } catch {
+        /* ignore */
       }
 
       sessionStorage.removeItem(this.TOKEN_KEY);

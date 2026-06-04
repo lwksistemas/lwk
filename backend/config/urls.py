@@ -1,13 +1,17 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from django.conf import settings
 from superadmin.token_refresh_view import SessionAwareTokenRefreshView
 from superadmin.views import atalho_redirect  # ✅ NOVO v1421: Redirecionamento por atalho
+from config.api_schema_views import (
+    ProtectedSpectacularAPIView,
+    ProtectedSpectacularSwaggerView,
+)
 
 def api_root(request):
     """API Root - Informações do sistema"""
-    return JsonResponse({
+    payload = {
         'sistema': 'LWK Sistemas',
         'versao': '1.0.0',
         'status': 'online',
@@ -38,15 +42,15 @@ def api_root(request):
             'homepage': '/api/homepage/',
         },
         'documentacao': 'Sistema Multi-Tenant para gestão de lojas',
-        'schema': '/api/schema/',
-        'swagger_ui': '/api/schema/swagger-ui/',
-    })
+    }
+    if getattr(settings, 'SERVE_API_SCHEMA', settings.DEBUG):
+        payload['schema'] = '/api/schema/'
+        payload['swagger_ui'] = '/api/schema/swagger-ui/'
+    return JsonResponse(payload)
 
 urlpatterns = [
     path('', api_root, name='api_root'),  # Rota raiz
     path('api/', api_root, name='api_info'),  # Informações da API
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('admin/', admin.site.urls),
     
     # Autenticação JWT SEGURA com isolamento por grupo
@@ -80,3 +84,13 @@ urlpatterns = [
     # IMPORTANTE: Vem por último para não conflitar com outras rotas
     path('<str:atalho>/', atalho_redirect, name='atalho_redirect'),
 ]
+
+if getattr(settings, 'SERVE_API_SCHEMA', settings.DEBUG):
+    urlpatterns = [
+        path('api/schema/', ProtectedSpectacularAPIView.as_view(), name='schema'),
+        path(
+            'api/schema/swagger-ui/',
+            ProtectedSpectacularSwaggerView.as_view(url_name='schema'),
+            name='swagger-ui',
+        ),
+    ] + urlpatterns

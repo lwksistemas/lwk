@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
+from core.throttling import AuthLoginThrottle
+from core.auth_cookies import attach_auth_cookies, clear_auth_cookies
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from superadmin.session_manager import SessionManager
@@ -90,7 +92,8 @@ class SecureLoginView(APIView):
     - /api/auth/loja/login/ - Apenas proprietários de loja
     """
     permission_classes = [AllowAny]
-    
+    throttle_classes = [AuthLoginThrottle]
+
     def post(self, request, user_type=None):
         username = request.data.get('username')
         password = request.data.get('password')
@@ -231,7 +234,13 @@ class SecureLoginView(APIView):
                     'code': 'WRONG_STORE',
                     'sua_loja': loja.slug
                 }, status=status.HTTP_403_FORBIDDEN)
-        
+
+        from superadmin.mfa_views import validate_mfa_at_login
+
+        mfa_block = validate_mfa_at_login(request, user, real_user_type)
+        if mfa_block is not None:
+            return mfa_block
+
         # Gerar tokens
         refresh = RefreshToken.for_user(user)
         refresh['user_type'] = real_user_type
@@ -346,8 +355,14 @@ class SecureLoginView(APIView):
             precisa_trocar_senha,
         )
         
-        return Response(response_data, status=status.HTTP_200_OK)
-    
+        response = Response(response_data, status=status.HTTP_200_OK)
+        return attach_auth_cookies(
+            response,
+            access=access,
+            refresh=str(refresh),
+            session_id=session_id,
+        )
+
     def _get_user_type(self, user, loja_slug=None):
         """Identifica o tipo de usuário. Para login loja, loja_slug permite reconhecer profissional."""
         if user.is_superuser:
@@ -406,15 +421,17 @@ class SecureLogoutView(APIView):
             
             logger.info(f"👋 Logout: {username} (ID: {user_id})")
             
-            return Response({
+            response = Response({
                 'message': 'Logout realizado com sucesso',
                 'code': 'LOGOUT_SUCCESS'
             }, status=status.HTTP_200_OK)
-        
-        return Response({
+            return clear_auth_cookies(response)
+
+        response = Response({
             'error': 'Usuário não autenticado',
             'code': 'NOT_AUTHENTICATED'
         }, status=status.HTTP_401_UNAUTHORIZED)
+        return clear_auth_cookies(response)
 
 
 class BeaconLogoutView(APIView):

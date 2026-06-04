@@ -62,8 +62,6 @@ class SecurityIsolationMiddleware:
                 '/api/superadmin/lojas/info_publica',
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
                 '/api/superadmin/lojas/verificar_senha_provisoria',
-                '/api/superadmin/lojas/debug_senha_status/',
-                '/api/superadmin/lojas/debug_senha_status',
                 '/api/superadmin/lojas/por-atalho/',
                 '/api/superadmin/lojas/por-atalho',
                 '/api/superadmin/lojas/buscar-por-documento/',
@@ -160,8 +158,6 @@ class SecurityIsolationMiddleware:
                 '/api/superadmin/lojas/info_publica',  # Sem barra final
                 '/api/superadmin/lojas/verificar_senha_provisoria/',
                 '/api/superadmin/lojas/verificar_senha_provisoria',  # Sem barra final
-                '/api/superadmin/lojas/debug_senha_status/',
-                '/api/superadmin/lojas/debug_senha_status',  # Sem barra final
                 '/api/superadmin/lojas/por-atalho/',  # ✅ NOVO v1431: Buscar loja por atalho
                 '/api/superadmin/lojas/por-atalho',  # ✅ Sem barra final
                 '/api/superadmin/lojas/buscar-por-documento/',  # Buscar loja por CPF/CNPJ
@@ -300,34 +296,46 @@ class SecurityIsolationMiddleware:
             requested_store_slug = self._extract_store_slug(request)
             
             if requested_store_slug:
-                # Verificar se o usuário é proprietário DESTA loja (suporta múltiplas lojas por dono)
-                try:
-                    from superadmin.models import Loja
-                    user_owns_this_store = Loja.objects.filter(
-                        owner=request.user, is_active=True, slug=requested_store_slug
-                    ).exists()
-                    if not user_owns_this_store:
-                        user_lojas_slugs = list(
-                            Loja.objects.filter(owner=request.user, is_active=True).values_list('slug', flat=True)
-                        )
-                        logger.critical(
-                            "🚨 VIOLAÇÃO CRÍTICA: Usuário %s (lojas: %s) tentou acessar loja: %s",
-                            request.user.username, user_lojas_slugs, requested_store_slug
-                        )
-                        return JsonResponse({
-                            'error': 'Acesso negado - Você só pode acessar suas próprias lojas',
-                            'code': 'CROSS_STORE_ACCESS_DENIED',
-                            'loja_solicitada': requested_store_slug
-                        }, status=403)
-                    
-                except Exception as e:
-                    logger.error(f"Erro ao verificar isolamento de loja: {e}")
+                # Owner, profissional (Clínica da Beleza) ou vendedor (CRM) da loja do contexto.
+                # Resolve slug/atalho/CNPJ; em erro interno não bloqueia (defesa em profundidade:
+                # as permissões de view + LojaIsolationManager seguem validando).
+                if not self._user_belongs_to_store(request.user, requested_store_slug):
+                    logger.critical(
+                        "🚨 VIOLAÇÃO CRÍTICA: Usuário %s tentou acessar loja: %s",
+                        request.user.username, requested_store_slug
+                    )
                     return JsonResponse({
-                        'error': 'Erro ao verificar permissões',
-                        'code': 'PERMISSION_CHECK_ERROR'
-                    }, status=500)
+                        'error': 'Acesso negado - Você só pode acessar suas próprias lojas',
+                        'code': 'CROSS_STORE_ACCESS_DENIED',
+                        'loja_solicitada': requested_store_slug
+                    }, status=403)
         
         return None  # Sem violação
+
+    def _user_belongs_to_store(self, user, store_slug):
+        """
+        True se o usuário é owner, profissional ou vendedor da loja indicada
+        (resolve slug/atalho/CNPJ). Em erro interno, não bloqueia (fail-open):
+        as permissões de view e o LojaIsolationManager continuam validando.
+        """
+        try:
+            from tenants.middleware import resolve_loja_from_slug_or_cnpj
+            from superadmin.models import ProfissionalUsuario, VendedorUsuario
+
+            loja = resolve_loja_from_slug_or_cnpj(store_slug)
+            if not loja or not loja.is_active:
+                # Slug desconhecido: deixar a view tratar (404 / endpoints públicos).
+                return True
+            if loja.owner_id == user.id:
+                return True
+            if ProfissionalUsuario.objects.filter(user=user, loja=loja).exists():
+                return True
+            if VendedorUsuario.objects.filter(user=user, loja=loja).exists():
+                return True
+            return False
+        except Exception as e:
+            logger.error("store isolation: erro ao validar pertencimento: %s", e)
+            return True
     
     def _get_user_group(self, user):
         """
@@ -372,6 +380,7 @@ class SecurityIsolationMiddleware:
         """Verifica se a rota é de uma loja"""
         store_routes = [
             '/api/clinica/',
+            '/api/clinica-beleza/',  # ✅ Clínica da Beleza (owner + ProfissionalUsuario)
             '/api/crm/',
             '/api/ecommerce/',
             '/api/restaurante/',

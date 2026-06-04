@@ -158,6 +158,9 @@ class TenantMiddleware:
     OTIMIZAÇÃO: Cache de lojas para evitar queries repetidas
     """
     
+    # Limite do cache de lojas em memória (por worker) — evita crescimento ilimitado
+    LOJA_CACHE_MAX = 1000
+
     def __init__(self, get_response):
         self.get_response = get_response
         self._loja_cache = {}  # Cache em memória {slug: loja_data}
@@ -244,7 +247,9 @@ class TenantMiddleware:
                         loja_id = loja.id
                         db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", tenant_slug)}'
                         
-                        # Armazenar no cache
+                        # Armazenar no cache (com limite para evitar crescimento ilimitado por worker)
+                        if len(self._loja_cache) >= self.LOJA_CACHE_MAX:
+                            self._loja_cache.clear()
                         self._loja_cache[cache_key] = {
                             'id': loja_id,
                             'database_name': db_name,

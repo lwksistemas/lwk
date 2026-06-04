@@ -115,23 +115,39 @@ def validate_mfa_at_login(request, user, user_type: str):
     if user_type not in ('superadmin', 'suporte'):
         return None
 
+    from django.db import DatabaseError, connection
+
     try:
         usuario = UsuarioSistema.objects.get(user=user, tipo=user_type, is_active=True)
+        mfa_enabled = bool(usuario.mfa_enabled)
+        mfa_secret_enc = usuario.mfa_totp_secret or ''
     except UsuarioSistema.DoesNotExist:
+        return None
+    except DatabaseError as e:
+        # Schema desatualizado (ex.: colunas MFA ausentes) não pode derrubar o login.
+        # Trata como MFA não configurado e registra para correção (rodar migrate).
+        logger.critical(
+            'MFA indisponível no login user_id=%s (schema desatualizado?): %s. '
+            'Aplique: python manage.py migrate superadmin', user.id, e,
+        )
+        try:
+            connection.rollback()
+        except Exception:
+            pass
         return None
 
     enforce = getattr(settings, 'MFA_ENFORCE_TYPES', [])
     if isinstance(enforce, str):
         enforce = [t.strip() for t in enforce.split(',') if t.strip()]
 
-    if user_type in enforce and not usuario.mfa_enabled:
+    if user_type in enforce and not mfa_enabled:
         return Response({
             'error': 'Autenticação em duas etapas é obrigatória. Configure MFA no painel.',
             'code': 'MFA_SETUP_REQUIRED',
             'mfa_required': True,
         }, status=status.HTTP_403_FORBIDDEN)
 
-    if not usuario.mfa_enabled:
+    if not mfa_enabled:
         return None
 
     otp_code = (request.data.get('otp_code') or '').strip()
@@ -142,7 +158,7 @@ def validate_mfa_at_login(request, user, user_type: str):
             'mfa_required': True,
         }, status=status.HTTP_403_FORBIDDEN)
 
-    secret = decrypt_totp_secret(usuario.mfa_totp_secret or '')
+    secret = decrypt_totp_secret(mfa_secret_enc)
     if not secret or not verify_totp_code(secret, otp_code):
         logger.warning('MFA inválido no login user_id=%s', user.id)
         return Response({

@@ -310,7 +310,7 @@ export function ClinicaBelezaShell({
     onNavigate: handleNavigate,
   };
 
-  const sidebarClass = `flex flex-col shrink-0 sticky top-0 h-screen z-20 bg-[#f3f4f6] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${
+  const sidebarClass = `flex flex-col shrink-0 sticky top-0 h-screen z-20 bg-[#f0eaec] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${
     sidebarCollapsed ? 'w-16' : 'w-64'
   }`;
 
@@ -318,13 +318,13 @@ export function ClinicaBelezaShell({
     pathname === `/loja/${slug}/dashboard` || pathname === `/loja/${slug}/dashboard/`;
 
   return (
-    <div className="flex min-h-screen bg-[#f8f9fa] dark:bg-gray-950">
+    <div className="flex min-h-screen bg-[#f7f2f4] dark:bg-gray-950">
       <aside className={`hidden lg:flex ${sidebarClass}`}>
         <SidebarContent {...sidebarProps} />
       </aside>
 
       <aside
-        className={`lg:hidden fixed inset-y-0 left-0 z-[100] w-64 flex flex-col bg-[#f3f4f6] dark:bg-gray-900 border-r border-gray-200 shadow-xl transform transition-transform duration-200 ${
+        className={`lg:hidden fixed inset-y-0 left-0 z-[100] w-64 flex flex-col bg-[#f0eaec] dark:bg-gray-900 border-r border-gray-200 shadow-xl transform transition-transform duration-200 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
         }`}
         aria-hidden={!sidebarOpen}

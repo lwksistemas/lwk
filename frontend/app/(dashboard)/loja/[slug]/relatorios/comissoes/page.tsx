@@ -76,6 +76,31 @@ export default function RelatorioComissoesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [professionals, setProfessionals] = useState<ProfessionalOption[]>([]);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [clinicaNome, setClinicaNome] = useState('');
+
+  // Carregar logo/nome da clínica para cabeçalho de impressão
+  useEffect(() => {
+    clinicaBelezaFetch('/loja-info/')
+      .then(async (res) => {
+        if (res.ok) {
+          const info = await res.json();
+          setClinicaNome(info.nome || info.owner_username || '');
+        }
+      })
+      .catch(() => {});
+    // Buscar logo da loja via info pública
+    fetch(`/api/superadmin/lojas/info_publica/?slug=${slug}`)
+      .then(async (res) => {
+        if (res.ok) {
+          const info = await res.json();
+          if (info.logo) setLogoUrl(info.logo);
+          else if (info.login_logo) setLogoUrl(info.login_logo);
+          if (info.nome) setClinicaNome(info.nome);
+        }
+      })
+      .catch(() => {});
+  }, [slug]);
 
   // Carregar lista de profissionais para o filtro
   useEffect(() => {
@@ -144,10 +169,20 @@ export default function RelatorioComissoesPage() {
     <div className="p-4 sm:p-6 print-area">
       {/* Cabeçalho para impressão */}
       <div className="hidden print:block mb-6">
+        {logoUrl ? (
+          <div className="flex justify-center mb-4">
+            <img src={logoUrl} alt={clinicaNome} className="max-h-20 object-contain" />
+          </div>
+        ) : clinicaNome ? (
+          <div className="text-center mb-4">
+            <h2 className="text-lg font-bold text-gray-800">{clinicaNome}</h2>
+          </div>
+        ) : null}
         <h1 className="text-2xl font-bold" style={{ color: CLINICA_BELEZA_PRIMARY }}>
           Relatório de Comissões
         </h1>
         <p className="text-sm text-gray-600">Período: {dataInicio} a {dataFim}</p>
+        <p className="text-xs text-gray-400">Gerado em: {new Date().toLocaleDateString('pt-BR')}</p>
         <hr className="my-4 border-gray-300" />
       </div>
 

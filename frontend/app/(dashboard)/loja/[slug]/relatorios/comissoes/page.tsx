@@ -6,17 +6,29 @@ import { Download, Printer, Search } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 
+interface ProcedimentoComissao {
+  procedimento_nome: string;
+  qtd: number;
+  valor_total: number;
+  comissao: number;
+  modo: string;
+  regra: string;
+}
+
+interface ComissaoConsulta {
+  modo: string;
+  regra: string;
+  valor: number;
+}
+
 interface ProfissionalComissao {
   professional_id: number;
   nome: string;
   total_atendimentos: number;
   valor_total: number;
-  comissao_percentual: number;
   comissao_total: number;
-  comissao_consulta: number;
-  atendimentos_consulta: number;
-  comissao_procedimento: number;
-  atendimentos_procedimento: number;
+  comissao_consulta: ComissaoConsulta | null;
+  procedimentos: ProcedimentoComissao[];
 }
 
 interface RelatorioData {
@@ -25,8 +37,6 @@ interface RelatorioData {
     total_atendimentos: number;
     valor_total: number;
     comissao_total: number;
-    comissao_consulta: number;
-    comissao_procedimento: number;
   };
 }
 
@@ -108,11 +118,14 @@ export default function RelatorioComissoesPage() {
   const exportarCSV = () => {
     if (!data) return;
     const BOM = '\ufeff';
-    let csv = 'Profissional;Atendimentos;Valor Total (R$);Comissão Consulta (R$);Comissão Procedimento (R$);Comissão Total (R$)\n';
+    let csv = 'Profissional;Procedimento;Qtd;Valor (R$);Regra;Comissão (R$)\n';
     for (const p of data.profissionais) {
-      csv += `${p.nome};${p.total_atendimentos};${p.valor_total.toFixed(2)};${p.comissao_consulta.toFixed(2)};${p.comissao_procedimento.toFixed(2)};${p.comissao_total.toFixed(2)}\n`;
+      csv += `${p.nome};;${p.total_atendimentos};${p.valor_total.toFixed(2)};;${p.comissao_total.toFixed(2)}\n`;
+      for (const proc of p.procedimentos) {
+        csv += `;${proc.procedimento_nome};${proc.qtd};${proc.valor_total.toFixed(2)};${proc.regra};${proc.comissao.toFixed(2)}\n`;
+      }
     }
-    csv += `TOTAIS;${data.totais.total_atendimentos};${data.totais.valor_total.toFixed(2)};${data.totais.comissao_consulta.toFixed(2)};${data.totais.comissao_procedimento.toFixed(2)};${data.totais.comissao_total.toFixed(2)}\n`;
+    csv += `TOTAIS;;${data.totais.total_atendimentos};${data.totais.valor_total.toFixed(2)};;${data.totais.comissao_total.toFixed(2)}\n`;
 
     const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -244,28 +257,41 @@ export default function RelatorioComissoesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-700" style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}10` }}>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Profissional</th>
-                    <th className="text-center px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Atendimentos</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Valor Total (R$)</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Comissão Consulta</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Comissão Procedimento</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Comissão Total</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Profissional / Procedimento</th>
+                    <th className="text-center px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Qtd</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Valor (R$)</th>
+                    <th className="text-center px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Regra</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Comissão (R$)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.profissionais.map((p) => (
-                    <tr key={p.professional_id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-4 py-3 text-gray-900 dark:text-white font-medium">{p.nome}</td>
-                      <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{p.total_atendimentos}</td>
-                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{formatCurrency(p.valor_total)}</td>
-                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
-                        {p.comissao_consulta > 0 ? formatCurrency(p.comissao_consulta) : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
-                        {p.comissao_procedimento > 0 ? formatCurrency(p.comissao_procedimento) : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold" style={{ color: CLINICA_BELEZA_PRIMARY }}>{formatCurrency(p.comissao_total)}</td>
-                    </tr>
+                    <>
+                      {/* Linha do profissional (resumo) */}
+                      <tr key={p.professional_id} className="border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30">
+                        <td className="px-4 py-3 text-gray-900 dark:text-white font-bold">{p.nome}</td>
+                        <td className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">{p.total_atendimentos}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">{formatCurrency(p.valor_total)}</td>
+                        <td className="px-4 py-3 text-center text-xs text-gray-500">
+                          {p.comissao_consulta ? `Consulta: ${p.comissao_consulta.regra}` : ''}
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold" style={{ color: CLINICA_BELEZA_PRIMARY }}>{formatCurrency(p.comissao_total)}</td>
+                      </tr>
+                      {/* Linhas de procedimentos */}
+                      {p.procedimentos.map((proc, idx) => (
+                        <tr key={`${p.professional_id}-${idx}`} className="border-b border-gray-100 dark:border-gray-700">
+                          <td className="px-4 py-2 pl-8 text-gray-600 dark:text-gray-400 text-sm">↳ {proc.procedimento_nome}</td>
+                          <td className="px-4 py-2 text-center text-gray-600 dark:text-gray-400">{proc.qtd}</td>
+                          <td className="px-4 py-2 text-right text-gray-600 dark:text-gray-400">{formatCurrency(proc.valor_total)}</td>
+                          <td className="px-4 py-2 text-center">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${proc.modo === 'percentual' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : proc.modo === 'fixo' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-gray-100 text-gray-500'}`}>
+                              {proc.regra}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-right text-gray-700 dark:text-gray-300">{formatCurrency(proc.comissao)}</td>
+                        </tr>
+                      ))}
+                    </>
                   ))}
                 </tbody>
                 <tfoot>
@@ -273,8 +299,7 @@ export default function RelatorioComissoesPage() {
                     <td className="px-4 py-3 text-gray-900 dark:text-white">TOTAIS</td>
                     <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{data.totais.total_atendimentos}</td>
                     <td className="px-4 py-3 text-right text-gray-900 dark:text-white">{formatCurrency(data.totais.valor_total)}</td>
-                    <td className="px-4 py-3 text-right text-gray-900 dark:text-white">{formatCurrency(data.totais.comissao_consulta)}</td>
-                    <td className="px-4 py-3 text-right text-gray-900 dark:text-white">{formatCurrency(data.totais.comissao_procedimento)}</td>
+                    <td className="px-4 py-3"></td>
                     <td className="px-4 py-3 text-right" style={{ color: CLINICA_BELEZA_PRIMARY }}>{formatCurrency(data.totais.comissao_total)}</td>
                   </tr>
                 </tfoot>

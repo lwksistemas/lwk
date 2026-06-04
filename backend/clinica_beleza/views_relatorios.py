@@ -35,11 +35,27 @@ class RelatorioComissoesView(APIView):
         return Response({
             'profissionais': [
                 {
-                    **p,
+                    'professional_id': p['professional_id'],
+                    'nome': p['nome'],
+                    'total_atendimentos': p['total_atendimentos'],
                     'valor_total': float(p['valor_total']),
                     'comissao_total': float(p['comissao_total']),
-                    'comissao_consulta': float(p['comissao_consulta']),
-                    'comissao_procedimento': float(p['comissao_procedimento']),
+                    'comissao_consulta': {
+                        'modo': p['comissao_consulta']['modo'],
+                        'regra': p['comissao_consulta']['regra'],
+                        'valor': float(p['comissao_consulta']['valor']),
+                    } if p.get('comissao_consulta') else None,
+                    'procedimentos': [
+                        {
+                            'procedimento_nome': proc['procedimento_nome'],
+                            'qtd': proc['qtd'],
+                            'valor_total': float(proc['valor_total']),
+                            'comissao': float(proc['comissao']),
+                            'modo': proc.get('modo', ''),
+                            'regra': proc.get('regra', ''),
+                        }
+                        for proc in p['procedimentos']
+                    ],
                 }
                 for p in resultado['profissionais']
             ],
@@ -47,8 +63,6 @@ class RelatorioComissoesView(APIView):
                 'total_atendimentos': resultado['totais']['total_atendimentos'],
                 'valor_total': float(resultado['totais']['valor_total']),
                 'comissao_total': float(resultado['totais']['comissao_total']),
-                'comissao_consulta': float(resultado['totais']['comissao_consulta']),
-                'comissao_procedimento': float(resultado['totais']['comissao_procedimento']),
             },
         })
 

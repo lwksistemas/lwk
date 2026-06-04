@@ -184,6 +184,9 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
     if isinstance(valor, (int, float, str)):
         valor = Decimal(str(valor))
 
+    # Resolver comissão do profissional
+    comissao_pct, comissao_val = _resolver_comissao(appointment.professional, appointment.procedure, valor)
+
     if not payment:
         return Payment.objects.create(
             appointment=appointment,
@@ -191,6 +194,8 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
             payment_method=payment_method or 'CASH',
             status='PAID' if mark_as_paid else 'PENDING',
             payment_date=now() if mark_as_paid else None,
+            comissao_percentual=comissao_pct,
+            comissao_valor=comissao_val,
             loja_id=appointment.loja_id,
         )
 
@@ -202,8 +207,56 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
         payment.status = 'PAID'
         if not payment.payment_date:
             payment.payment_date = now()
+    # Atualizar comissão se ainda era 0
+    if payment.comissao_percentual == 0 and payment.comissao_valor == 0:
+        payment.comissao_percentual = comissao_pct
+        payment.comissao_valor = comissao_val
     payment.save()
     return payment
+
+
+def _resolver_comissao(professional, procedure, valor_pagamento):
+    """
+    Resolve a comissão aplicável ao profissional para este atendimento.
+    Prioridade: comissão por procedimento > comissão por consulta (geral).
+    Retorna (percentual: int, valor: Decimal).
+    """
+    from .models import ProfessionalCommission
+
+    if not professional:
+        return 0, Decimal('0')
+
+    # 1. Comissão por procedimento específico
+    if procedure:
+        comissao = ProfessionalCommission.objects.filter(
+            professional=professional,
+            tipo='procedimento',
+            procedure=procedure,
+            is_active=True,
+        ).first()
+        if comissao:
+            return _calcular_comissao(comissao, valor_pagamento)
+
+    # 2. Comissão geral por consulta
+    comissao = ProfessionalCommission.objects.filter(
+        professional=professional,
+        tipo='consulta',
+        is_active=True,
+    ).first()
+    if comissao:
+        return _calcular_comissao(comissao, valor_pagamento)
+
+    return 0, Decimal('0')
+
+
+def _calcular_comissao(comissao, valor_pagamento):
+    """Calcula percentual e valor da comissão baseado no modo (percentual ou fixo)."""
+    if comissao.modo == 'percentual':
+        pct = int(comissao.valor)
+        val = (valor_pagamento * comissao.valor / Decimal('100')).quantize(Decimal('0.01'))
+        return pct, val
+    else:  # fixo
+        return 0, comissao.valor
 
 
 def iniciar_consulta(consulta):

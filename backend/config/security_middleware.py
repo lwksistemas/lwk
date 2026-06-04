@@ -15,6 +15,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Rotas CRM Vendas acessíveis sem JWT de loja (token na URL, webhook, etc.)
+_CRM_VENDAS_PUBLIC_PREFIXES = (
+    '/api/crm-vendas/webhooks/',
+    '/api/crm-vendas/documento-pdf/',
+    '/api/crm-vendas/assinar/',
+    '/api/crm-vendas/relatorio-comissao/',
+)
+
 
 class SecurityIsolationMiddleware:
     """
@@ -138,8 +146,8 @@ class SecurityIsolationMiddleware:
         """
         path = request.path
 
-        # Webhooks públicos (validação de assinatura nas views)
-        if path.startswith('/api/crm-vendas/webhooks/asaas/'):
+        # Webhooks e rotas públicas por token (validação nas views)
+        if self._is_crm_vendas_public_path(path):
             return None
         if path.startswith('/api/asaas/webhook'):
             return None
@@ -253,9 +261,13 @@ class SecurityIsolationMiddleware:
                     'grupo_requerido': 'loja'
                 }, status=401)
             
-            # Verificar se é proprietário de loja (SUPERADMIN NÃO PODE ACESSAR)
+            # Verificar se é membro da loja (owner, profissional, vendedor, funcionário)
             user_group = self._get_user_group(request.user)
-            
+            if user_group != 'loja':
+                slug = self._extract_store_slug(request)
+                if slug and self._user_belongs_to_store(request.user, slug):
+                    user_group = 'loja'
+
             if user_group != 'loja':
                 logger.critical(f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} (grupo: {user_group}) tentou acessar loja: {path}")
                 return JsonResponse({
@@ -332,10 +344,58 @@ class SecurityIsolationMiddleware:
                 return True
             if VendedorUsuario.objects.filter(user=user, loja=loja).exists():
                 return True
+            if self._funcionario_email_ativo_na_loja(user, loja):
+                return True
             return False
         except Exception as e:
             logger.error("store isolation: erro ao validar pertencimento: %s", e)
             return True
+
+    def _funcionario_email_ativo_na_loja(self, user, loja):
+        """
+        Funcionários (cabeleireiro, hotel, clínica estética, restaurante) no schema da loja.
+        Vinculados pelo e-mail do User Django (mesmo padrão do TenantMiddleware).
+        """
+        email = (getattr(user, 'email', None) or '').strip()
+        if not email:
+            return False
+        try:
+            from core.db_config import ensure_loja_database_config
+            from tenants.middleware import set_current_loja_id, set_current_tenant_db
+
+            db_name = getattr(loja, 'database_name', None) or f'loja_{loja.slug}'
+            if not ensure_loja_database_config(db_name, conn_max_age=0):
+                return False
+            set_current_tenant_db(db_name)
+            set_current_loja_id(loja.id)
+
+            import importlib
+
+            for import_path, model_name in (
+                ('cabeleireiro.models', 'Funcionario'),
+                ('hotel.models', 'Funcionario'),
+                ('clinica_estetica.models', 'Funcionario'),
+                ('restaurante.models', 'Funcionario'),
+            ):
+                try:
+                    mod = importlib.import_module(import_path)
+                    model_cls = getattr(mod, model_name)
+                    if model_cls.objects.all_without_filter().filter(
+                        loja_id=loja.id,
+                        email__iexact=email,
+                        is_active=True,
+                    ).exists():
+                        return True
+                except Exception:
+                    continue
+            return False
+        except Exception as e:
+            logger.debug('funcionario email check: %s', e)
+            return False
+
+    @staticmethod
+    def _is_crm_vendas_public_path(path):
+        return any(path.startswith(prefix) for prefix in _CRM_VENDAS_PUBLIC_PREFIXES)
     
     def _get_user_group(self, user):
         """
@@ -378,17 +438,24 @@ class SecurityIsolationMiddleware:
     
     def _is_store_route(self, path):
         """Verifica se a rota é de uma loja"""
-        store_routes = [
+        store_routes = (
             '/api/clinica/',
-            '/api/clinica-beleza/',  # ✅ Clínica da Beleza (owner + ProfissionalUsuario)
+            '/api/clinica-beleza/',
+            '/api/cabeleireiro/',
+            '/api/hotel/',
+            '/api/crm-vendas/',
             '/api/crm/',
             '/api/ecommerce/',
             '/api/restaurante/',
             '/api/servicos/',
             '/api/stores/',
             '/api/products/',
-        ]
-        return any(path.startswith(route) for route in store_routes)
+        )
+        if not any(path.startswith(route) for route in store_routes):
+            return False
+        if path.startswith('/api/crm-vendas/') and SecurityIsolationMiddleware._is_crm_vendas_public_path(path):
+            return False
+        return True
     
     def _extract_store_slug(self, request):
         """

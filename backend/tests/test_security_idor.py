@@ -100,3 +100,38 @@ class SecurityIdorTestCase(TestCase):
         response = mw(request)
         self.assertIsNotNone(response)
         self.assertEqual(response.status_code, 403)
+
+    def test_refresh_invalid_token_returns_401_not_500(self):
+        response = self.client.post(
+            '/api/auth/token/refresh/',
+            {'refresh': 'token-invalido'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertIn('token', str(response.data).lower() + str(response.data.get('code', '')).lower())
+
+    def test_crm_vendas_public_assinar_not_treated_as_store_route(self):
+        mw = SecurityIsolationMiddleware(lambda r: None)
+        self.assertFalse(mw._is_store_route('/api/crm-vendas/assinar/abc-token/'))
+        self.assertTrue(mw._is_store_route('/api/crm-vendas/contas/'))
+
+    def test_crm_vendas_public_assinar_no_store_owner_middleware_block(self):
+        from django.contrib.auth.models import AnonymousUser
+        from django.test import RequestFactory
+
+        factory = RequestFactory()
+        request = factory.get('/api/crm-vendas/assinar/abc-token/')
+        request.user = AnonymousUser()
+        mw = SecurityIsolationMiddleware(lambda r: None)
+        self.assertIsNone(mw._check_route_isolation(request))
+
+    def test_security_middleware_blocks_superuser_cabeleireiro_route(self):
+        from django.test import RequestFactory
+
+        factory = RequestFactory()
+        request = factory.get('/api/cabeleireiro/agendamentos/')
+        request.user = self.superuser
+        mw = SecurityIsolationMiddleware(lambda r: None)
+        response = mw(request)
+        self.assertIsNotNone(response)
+        self.assertEqual(response.status_code, 403)

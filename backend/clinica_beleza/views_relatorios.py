@@ -45,16 +45,17 @@ class RelatorioComissoesView(APIView):
                         'regra': p['comissao_consulta']['regra'],
                         'valor': float(p['comissao_consulta']['valor']),
                     } if p.get('comissao_consulta') else None,
-                    'procedimentos': [
+                    'detalhes': [
                         {
-                            'procedimento_nome': proc['procedimento_nome'],
-                            'qtd': proc['qtd'],
-                            'valor_total': float(proc['valor_total']),
-                            'comissao': float(proc['comissao']),
-                            'modo': proc.get('modo', ''),
-                            'regra': proc.get('regra', ''),
+                            'local_nome': d.get('local_nome', ''),
+                            'procedimento_nome': d['procedimento_nome'],
+                            'qtd': d['qtd'],
+                            'valor_total': float(d['valor_total']),
+                            'comissao': float(d['comissao']),
+                            'modo': d.get('modo', ''),
+                            'regra': d.get('regra', ''),
                         }
-                        for proc in p['procedimentos']
+                        for d in p['detalhes']
                     ],
                 }
                 for p in resultado['profissionais']

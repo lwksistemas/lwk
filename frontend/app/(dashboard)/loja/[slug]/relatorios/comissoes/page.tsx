@@ -6,7 +6,8 @@ import { Download, Printer, Search } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 
-interface ProcedimentoComissao {
+interface DetalheComissao {
+  local_nome: string;
   procedimento_nome: string;
   qtd: number;
   valor_total: number;
@@ -28,7 +29,7 @@ interface ProfissionalComissao {
   valor_total: number;
   comissao_total: number;
   comissao_consulta: ComissaoConsulta | null;
-  procedimentos: ProcedimentoComissao[];
+  detalhes: DetalheComissao[];
 }
 
 interface RelatorioData {
@@ -143,14 +144,14 @@ export default function RelatorioComissoesPage() {
   const exportarCSV = () => {
     if (!data) return;
     const BOM = '\ufeff';
-    let csv = 'Profissional;Procedimento;Qtd;Valor (R$);Regra;Comissão (R$)\n';
+    let csv = 'Profissional;Local;Procedimento;Qtd;Valor (R$);Regra;Comissão (R$)\n';
     for (const p of data.profissionais) {
-      csv += `${p.nome};;${p.total_atendimentos};${p.valor_total.toFixed(2)};;${p.comissao_total.toFixed(2)}\n`;
-      for (const proc of p.procedimentos) {
-        csv += `;${proc.procedimento_nome};${proc.qtd};${proc.valor_total.toFixed(2)};${proc.regra};${proc.comissao.toFixed(2)}\n`;
+      csv += `${p.nome};;;${p.total_atendimentos};${p.valor_total.toFixed(2)};;${p.comissao_total.toFixed(2)}\n`;
+      for (const d of p.detalhes) {
+        csv += `;${d.local_nome || '-'};${d.procedimento_nome};${d.qtd};${d.valor_total.toFixed(2)};${d.regra};${d.comissao.toFixed(2)}\n`;
       }
     }
-    csv += `TOTAIS;;${data.totais.total_atendimentos};${data.totais.valor_total.toFixed(2)};;${data.totais.comissao_total.toFixed(2)}\n`;
+    csv += `TOTAIS;;;${data.totais.total_atendimentos};${data.totais.valor_total.toFixed(2)};;${data.totais.comissao_total.toFixed(2)}\n`;
 
     const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -312,18 +313,20 @@ export default function RelatorioComissoesPage() {
                         </td>
                         <td className="px-4 py-3 text-right font-bold" style={{ color: CLINICA_BELEZA_PRIMARY }}>{formatCurrency(p.comissao_total)}</td>
                       </tr>
-                      {/* Linhas de procedimentos */}
-                      {p.procedimentos.map((proc, idx) => (
+                      {/* Linhas de detalhes (local + procedimento) */}
+                      {p.detalhes.map((d, idx) => (
                         <tr key={`${p.professional_id}-${idx}`} className="border-b border-gray-100 dark:border-gray-700">
-                          <td className="px-4 py-2 pl-8 text-gray-600 dark:text-gray-400 text-sm">↳ {proc.procedimento_nome}</td>
-                          <td className="px-4 py-2 text-center text-gray-600 dark:text-gray-400">{proc.qtd}</td>
-                          <td className="px-4 py-2 text-right text-gray-600 dark:text-gray-400">{formatCurrency(proc.valor_total)}</td>
+                          <td className="px-4 py-2 pl-8 text-gray-600 dark:text-gray-400 text-sm">
+                            ↳ {d.local_nome ? `[${d.local_nome}] ` : ''}{d.procedimento_nome}
+                          </td>
+                          <td className="px-4 py-2 text-center text-gray-600 dark:text-gray-400">{d.qtd}</td>
+                          <td className="px-4 py-2 text-right text-gray-600 dark:text-gray-400">{formatCurrency(d.valor_total)}</td>
                           <td className="px-4 py-2 text-center">
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${proc.modo === 'percentual' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : proc.modo === 'fixo' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-gray-100 text-gray-500'}`}>
-                              {proc.regra}
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${d.modo === 'percentual' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : d.modo === 'fixo' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-gray-100 text-gray-500'}`}>
+                              {d.regra}
                             </span>
                           </td>
-                          <td className="px-4 py-2 text-right text-gray-700 dark:text-gray-300">{formatCurrency(proc.comissao)}</td>
+                          <td className="px-4 py-2 text-right text-gray-700 dark:text-gray-300">{formatCurrency(d.comissao)}</td>
                         </tr>
                       ))}
                     </>

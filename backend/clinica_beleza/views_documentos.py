@@ -3,7 +3,7 @@ Views de Documentos Clínicos — Templates e Documentos da Consulta
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import CLINICA_CLINICAL
 from rest_framework import status
 
 from .models import Consulta, DocumentoClinico, DocumentTemplate, Professional
@@ -15,23 +15,39 @@ from .documento_service import criar_documento, render_template
 
 def _get_professional_from_request(request):
     """
-    Resolve o Professional do usuário logado na loja atual via ProfissionalUsuario.
+    Resolve o Professional do usuário logado na loja atual.
+    Verifica:
+    1. ProfissionalUsuario (acesso por vínculo)
+    2. Owner da loja (admin habilitado como profissional)
     Retorna Professional ou None.
     """
-    from superadmin.models import ProfissionalUsuario
+    from superadmin.models import Loja, ProfissionalUsuario
 
     loja_id = resolve_loja_id_from_request(request)
     if not loja_id:
         return None
 
+    # 1. Vínculo ProfissionalUsuario
     vinculo = ProfissionalUsuario.objects.using('default').filter(
         user=request.user,
         loja_id=loja_id,
     ).first()
-    if not vinculo:
-        return None
+    if vinculo:
+        prof = Professional.objects.filter(pk=vinculo.professional_id).first()
+        if prof:
+            return prof
 
-    return Professional.objects.filter(pk=vinculo.professional_id).first()
+    # 2. Owner da loja — buscar professional pelo email
+    try:
+        loja = Loja.objects.using('default').get(pk=loja_id)
+        if loja.owner_id == request.user.id:
+            return Professional.objects.filter(
+                email=request.user.email, is_active=True
+            ).first()
+    except Loja.DoesNotExist:
+        pass
+
+    return None
 
 
 class DocumentTemplateListView(APIView):
@@ -43,7 +59,7 @@ class DocumentTemplateListView(APIView):
         ?tipo=receituario — filtra por tipo
         ?page=1&page_size=20 — paginação (opcional, retrocompatível)
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
 
     def get(self, request):
         professional = _get_professional_from_request(request)
@@ -85,7 +101,7 @@ class DocumentTemplateDetailView(GetObjectMixin, APIView):
     PUT    /clinica-beleza/templates/<id>/ — atualiza template
     DELETE /clinica-beleza/templates/<id>/ — soft-delete (is_active=False)
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
     model_class = DocumentTemplate
     not_found_message = 'Template não encontrado'
 
@@ -124,7 +140,7 @@ class ConsultaDocumentoListView(APIView):
     GET  /clinica-beleza/consultas/<consulta_id>/documentos/ — lista documentos da consulta.
     POST /clinica-beleza/consultas/<consulta_id>/documentos/ — cria documento na consulta.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
 
     def _get_consulta(self, consulta_id):
         try:
@@ -199,7 +215,7 @@ class ConsultaDocumentoDeleteView(GetObjectMixin, APIView):
     DELETE /clinica-beleza/consultas/<consulta_id>/documentos/<doc_id>/ — exclui documento.
     Só permite exclusão se a consulta está IN_PROGRESS.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
     model_class = DocumentoClinico
     not_found_message = 'Documento não encontrado'
     select_related_fields = ['consulta']

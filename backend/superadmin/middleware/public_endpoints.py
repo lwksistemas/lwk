@@ -34,10 +34,8 @@ class PublicEndpointsConfig:
         '/health/',
     ]
     
-    # Endpoints que permitem acesso anônimo mas também autenticado
-    ALLOW_ANONYMOUS = [
-        '/superadmin/lojas/debug_auth/',
-    ]
+    # Endpoints que permitem acesso anônimo mas também autenticado (somente DEBUG nas views)
+    ALLOW_ANONYMOUS: list[str] = []
     
     # Endpoints de recuperação de senha
     PASSWORD_RECOVERY = [

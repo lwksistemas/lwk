@@ -150,7 +150,7 @@ class SecurityIdorTestCase(TestCase):
         request.META['HTTP_X_TENANT_SLUG'] = self.loja_b.slug
 
         with patch.object(mw, '_get_user_group', return_value='unknown'):
-            with patch.object(mw, '_user_belongs_to_store') as mock_belongs:
+            with patch('core.store_membership.user_belongs_to_store') as mock_belongs:
                 mock_belongs.side_effect = lambda _u, slug: slug == self.loja_a.slug
                 response = mw(request)
 
@@ -164,5 +164,5 @@ class SecurityIdorTestCase(TestCase):
         mw = SecurityIsolationMiddleware(lambda r: None)
         func_user = User.objects.create_user('f2@t.com', 'f2@t.com', 'pass12345')
         with patch.object(mw, '_get_user_group', return_value='unknown'):
-            with patch.object(mw, '_user_belongs_to_store', return_value=True):
+            with patch('core.store_membership.user_belongs_to_store', return_value=True):
                 self.assertEqual(mw._resolve_store_user_group(func_user, 'loja-a'), 'loja')

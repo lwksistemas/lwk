@@ -61,22 +61,14 @@ class ValidationService:
     @staticmethod
     def validar_senha(senha: str, min_length: int = 8) -> Tuple[bool, Optional[str]]:
         """
-        Valida força da senha
-        
-        Args:
-            senha: Senha a ser validada
-            min_length: Tamanho mínimo da senha
-            
-        Returns:
-            Tuple (is_valid, error_message)
+        Valida força da senha (política central em core.password_validation).
         """
+        from core.password_validation import validate_password_policy
+
         if not senha:
-            return False, "Senha não pode ser vazia"
-        
-        if len(senha) < min_length:
-            return False, f"Senha deve ter no mínimo {min_length} caracteres"
-        
-        return True, None
+            return False, 'Senha não pode ser vazia'
+        ok, msg = validate_password_policy(senha)
+        return ok, msg if not ok else None
     
     @staticmethod
     def validar_username_disponivel(username: str, exclude_id: Optional[int] = None) -> Tuple[bool, Optional[str]]:

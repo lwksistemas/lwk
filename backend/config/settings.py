@@ -214,7 +214,12 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+_disable_manifest = os.environ.get('DISABLE_STATICFILES_MANIFEST', '').lower() in ('true', '1', 'yes')
+_manifest_exists = (STATIC_ROOT / 'staticfiles.json').exists()
+if _disable_manifest or not _manifest_exists:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+else:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # ✅ OTIMIZAÇÃO: Whitenoise otimizado
 WHITENOISE_COMPRESS_OFFLINE = True

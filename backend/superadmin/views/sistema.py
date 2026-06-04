@@ -152,9 +152,19 @@ def health_check(request):
         logger.warning(f'Health check: Loja.objects.count() falhou: {e}')
 
     import os
+    from core.migration_guard import get_pending_critical_migrations
     from core.resend_api import resend_api_key
+
+    pending = []
+    try:
+        pending = [
+            f'{app}.{name}' for app, name in get_pending_critical_migrations()
+        ]
+    except Exception as e:
+        logger.warning('Health check: migrations: %s', e)
+
     email_provider = 'resend' if resend_api_key() else 'smtp'
-    return JsonResponse({
+    payload = {
         'status': 'healthy',
         'database': 'connected',
         'lojas_count': loja_count,
@@ -163,7 +173,12 @@ def health_check(request):
         'build': os.environ.get('LWK_BUILD', 'unknown'),
         'email_provider': email_provider,
         'email_backend': getattr(settings, 'EMAIL_BACKEND', ''),
-    }, status=200)
+        'migrations_pending': pending,
+    }
+    if pending:
+        payload['status'] = 'degraded'
+        return JsonResponse(payload, status=503)
+    return JsonResponse(payload, status=200)
 
 
 class LoginConfigSistemaViewSet(viewsets.ModelViewSet):

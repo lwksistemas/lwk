@@ -9,6 +9,7 @@ from core.throttling import AuthLoginThrottle
 from core.auth_cookies import attach_auth_cookies, clear_auth_cookies
 from core.audit import registrar_evento_seguranca
 from core.login_lockout import check_account_locked, record_login_failure, clear_login_failures
+from core.store_membership import resolve_loja_for_user, user_belongs_to_store
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from superadmin.session_manager import SessionManager
@@ -185,6 +186,7 @@ class SecureLoginView(APIView):
                 
                 # Validar se o CPF/CNPJ corresponde
                 if cpf_cnpj_limpo != loja_cpf_cnpj_limpo:
+                    record_login_failure(username)
                     logger.critical(f"🚨 VIOLAÇÃO: CPF/CNPJ incorreto para usuário {username}")
                     return Response({
                         'error': 'CPF/CNPJ incorreto. Verifique os dados e tente novamente.',
@@ -205,6 +207,7 @@ class SecureLoginView(APIView):
                     
                     # Validar se o CPF corresponde
                     if cpf_limpo != usuario_cpf_limpo:
+                        record_login_failure(username)
                         logger.critical(f"🚨 VIOLAÇÃO: CPF incorreto para usuário {username} ({user_type})")
                         return Response({
                             'error': 'CPF incorreto. Verifique os dados e tente novamente.',
@@ -213,9 +216,16 @@ class SecureLoginView(APIView):
             except UsuarioSistema.DoesNotExist:
                 pass
         
-        # Identificar tipo real do usuário (para loja, considerar também profissional)
+        # Identificar tipo real do usuário (owner, prof, vendedor, funcionário)
         real_user_type = self._get_user_type(user, loja_slug=loja_slug)
-        
+        if (
+            user_type == 'loja'
+            and real_user_type == 'unknown'
+            and loja_slug
+            and user_belongs_to_store(user, loja_slug)
+        ):
+            real_user_type = 'loja'
+
         # Validar se o tipo corresponde ao endpoint
         if user_type and real_user_type != user_type:
             logger.critical(
@@ -229,39 +239,21 @@ class SecureLoginView(APIView):
                 'endpoint_correto': self._get_correct_endpoint(real_user_type)
             }, status=status.HTTP_403_FORBIDDEN)
         
-        # Se for loja, validar slug e obter loja (owner, profissional ou vendedor)
+        loja_login = None
         if real_user_type == 'loja':
-            loja = Loja.objects.filter(owner=user, is_active=True).first()
-            if not loja and loja_slug:
-                # Buscar por slug OU atalho
-                from django.db.models import Q
-                pu = ProfissionalUsuario.objects.filter(
-                    user=user, loja__is_active=True
-                ).filter(
-                    Q(loja__slug=loja_slug) | Q(loja__atalho=loja_slug)
-                ).select_related('loja').first()
-                if pu:
-                    loja = pu.loja
-                if not loja:
-                    vu = VendedorUsuario.objects.filter(
-                        user=user, loja__is_active=True
-                    ).filter(
-                        Q(loja__slug=loja_slug) | Q(loja__atalho=loja_slug)
-                    ).select_related('loja').first()
-                    if vu:
-                        loja = vu.loja
-            if not loja:
+            loja_login = resolve_loja_for_user(user, loja_slug)
+            if not loja_login:
                 return Response({
                     'error': 'Usuário não possui loja ativa',
                     'code': 'NO_ACTIVE_STORE'
                 }, status=status.HTTP_403_FORBIDDEN)
-            # Validar slug OU atalho
-            if loja_slug and loja.slug != loja_slug and (getattr(loja, 'atalho', '') or '') != loja_slug:
+            if loja_slug and not user_belongs_to_store(user, loja_slug):
+                record_login_failure(username)
                 logger.critical(f"🚨 VIOLAÇÃO: Usuário {username} tentou login na loja errada")
                 return Response({
                     'error': 'Você não pode fazer login nesta loja',
                     'code': 'WRONG_STORE',
-                    'sua_loja': loja.slug
+                    'sua_loja': loja_login.slug
                 }, status=status.HTTP_403_FORBIDDEN)
 
         from superadmin.mfa_views import validate_mfa_at_login
@@ -280,22 +272,18 @@ class SecureLoginView(APIView):
         refresh['username'] = user.username
         refresh['email'] = user.email
         
-        if real_user_type == 'loja':
-            loja = Loja.objects.filter(owner=user, is_active=True).first()
-            if loja:
-                refresh['loja_id'] = loja.id
-                refresh['loja_slug'] = loja.slug
-        
+        if real_user_type == 'loja' and loja_login:
+            refresh['loja_id'] = loja_login.id
+            refresh['loja_slug'] = loja_login.slug
+
         access_token = refresh.access_token
         access_token['user_type'] = real_user_type
         access_token['username'] = user.username
         access_token['email'] = user.email
-        
-        if real_user_type == 'loja':
-            loja = Loja.objects.filter(owner=user, is_active=True).first()
-            if loja:
-                access_token['loja_id'] = loja.id
-                access_token['loja_slug'] = loja.slug
+
+        if real_user_type == 'loja' and loja_login:
+            access_token['loja_id'] = loja_login.id
+            access_token['loja_slug'] = loja_login.slug
         
         access = str(access_token)
         
@@ -320,38 +308,38 @@ class SecureLoginView(APIView):
         
         # Verificar se precisa trocar senha provisória
         precisa_trocar_senha = False
-        if real_user_type == 'loja':
-            loja = Loja.objects.filter(owner=user, is_active=True).first()
-            if not loja and loja_slug:
-                pu = ProfissionalUsuario.objects.filter(
-                    user=user, loja__slug=loja_slug, loja__is_active=True
-                ).select_related('loja').first()
-                if pu:
-                    loja = pu.loja
-                    response_data['precisa_trocar_senha'] = pu.precisa_trocar_senha
-                    response_data['professional_id'] = pu.professional_id
-                    response_data['is_professional'] = True
-                if not loja:
-                    vu = VendedorUsuario.objects.filter(
-                        user=user, loja__slug=loja_slug, loja__is_active=True
-                    ).select_related('loja').first()
-                    if vu:
-                        loja = vu.loja
-                        response_data['precisa_trocar_senha'] = vu.precisa_trocar_senha
-                        response_data['vendedor_id'] = vu.vendedor_id
-                        # IMPORTANTE: Owner NUNCA é marcado como vendedor, mesmo se vinculado
-                        # Apenas vendedores comuns (não-owners) são marcados como is_vendedor
-                        if loja.owner_id != user.id:
-                            response_data['is_vendedor'] = True
-                            
-                            # Verificar se é Gerente de Vendas (tem acesso completo)
-                            from django.contrib.auth.models import Group
-                            if user.groups.filter(name='Gerente de Vendas').exists():
-                                response_data['is_gerente'] = True
-            if loja:
-                if not response_data.get('is_professional'):
-                    # Owner: verificar senha provisória da loja
+        if real_user_type == 'loja' and loja_login:
+            loja = loja_login
+            from django.db.models import Q
+            slug_match = Q(loja=loja)
+            if loja_slug:
+                slug_match = Q(loja__slug=loja_slug) | Q(loja__atalho=loja_slug)
+            pu = ProfissionalUsuario.objects.filter(
+                user=user, loja__is_active=True,
+            ).filter(slug_match).first()
+            if pu:
+                response_data['precisa_trocar_senha'] = pu.precisa_trocar_senha
+                response_data['professional_id'] = pu.professional_id
+                response_data['is_professional'] = True
+            else:
+                vu = VendedorUsuario.objects.filter(
+                    user=user, loja__is_active=True,
+                ).filter(slug_match).first()
+                if vu:
+                    response_data['precisa_trocar_senha'] = vu.precisa_trocar_senha
+                    response_data['vendedor_id'] = vu.vendedor_id
+                    if loja.owner_id != user.id:
+                        response_data['is_vendedor'] = True
+                        from django.contrib.auth.models import Group
+                        if user.groups.filter(name='Gerente de Vendas').exists():
+                            response_data['is_gerente'] = True
+                elif loja.owner_id == user.id:
                     precisa_trocar_senha = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
+                    response_data['precisa_trocar_senha'] = precisa_trocar_senha
+                else:
+                    response_data['precisa_trocar_senha'] = False
+
+            if loja:
                 response_data['loja'] = {
                     'id': loja.id,
                     'slug': loja.slug,
@@ -426,9 +414,11 @@ class SecureLoginView(APIView):
                     slug_match, user=user, loja__is_active=True
                 ).exists():
                     return 'loja'
+                if user_belongs_to_store(user, loja_slug):
+                    return 'loja'
             except Exception:
                 pass
-        
+
         return 'unknown'
     
     def _get_correct_endpoint(self, user_type):

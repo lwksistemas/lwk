@@ -253,8 +253,10 @@ USE_TZ = True
 # STATIC FILES
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-# Se o manifest de staticfiles não existir no deploy, storage sem manifest evita 500 em respostas HTML da API
-if os.environ.get('DISABLE_STATICFILES_MANIFEST', '').lower() in ('true', '1', 'yes'):
+# Sem manifest no disco → storage sem manifest (evita 500 em Browsable API / {% static %})
+_disable_manifest = os.environ.get('DISABLE_STATICFILES_MANIFEST', '').lower() in ('true', '1', 'yes')
+_manifest_exists = (STATIC_ROOT / 'staticfiles.json').exists()
+if _disable_manifest or not _manifest_exists:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 else:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -303,7 +305,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 _drf_renderers = (
     'rest_framework.renderers.JSONRenderer',
 )
-if not os.environ.get('DISABLE_STATICFILES_MANIFEST', '').lower() in ('true', '1', 'yes'):
+if not _disable_manifest and _manifest_exists:
     _drf_renderers = (
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',

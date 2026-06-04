@@ -1,7 +1,12 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.conf import settings
+
+
+def favicon_empty(_request):
+    """Evita 500 quando browser/bots pedem /favicon.ico na API."""
+    return HttpResponse(status=204)
 from superadmin.token_refresh_view import SessionAwareTokenRefreshView
 from superadmin.views import atalho_redirect  # ✅ NOVO v1421: Redirecionamento por atalho
 from config.api_schema_views import (
@@ -49,6 +54,7 @@ def api_root(request):
     return JsonResponse(payload)
 
 urlpatterns = [
+    path('favicon.ico', favicon_empty, name='favicon'),
     path('', api_root, name='api_root'),  # Rota raiz
     path('api/', api_root, name='api_info'),  # Informações da API
     path('admin/', admin.site.urls),

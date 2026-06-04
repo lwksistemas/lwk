@@ -306,7 +306,8 @@ class SecurityIsolationMiddleware:
                 # Owner, profissional (Clínica da Beleza) ou vendedor (CRM) da loja do contexto.
                 # Resolve slug/atalho/CNPJ; em erro interno não bloqueia (defesa em profundidade:
                 # as permissões de view + LojaIsolationManager seguem validando).
-                if not self._user_belongs_to_store(request.user, requested_store_slug):
+                from core.store_membership import user_belongs_to_store
+                if not user_belongs_to_store(request.user, requested_store_slug):
                     logger.critical(
                         "🚨 VIOLAÇÃO CRÍTICA: Usuário %s tentou acessar loja: %s",
                         request.user.username, requested_store_slug
@@ -338,78 +339,10 @@ class SecurityIsolationMiddleware:
         user_group = self._get_user_group(user)
         if user_group == 'loja':
             return 'loja'
-        if store_slug and self._user_belongs_to_store(user, store_slug):
+        from core.store_membership import user_belongs_to_store
+        if store_slug and user_belongs_to_store(user, store_slug):
             return 'loja'
         return user_group
-
-    def _user_belongs_to_store(self, user, store_slug):
-        """
-        True se o usuário é owner, profissional ou vendedor da loja indicada
-        (resolve slug/atalho/CNPJ). Em erro interno, não bloqueia (fail-open):
-        as permissões de view e o LojaIsolationManager continuam validando.
-        """
-        try:
-            from tenants.middleware import resolve_loja_from_slug_or_cnpj
-            from superadmin.models import ProfissionalUsuario, VendedorUsuario
-
-            loja = resolve_loja_from_slug_or_cnpj(store_slug)
-            if not loja or not loja.is_active:
-                # Slug desconhecido: deixar a view tratar (404 / endpoints públicos).
-                return True
-            if loja.owner_id == user.id:
-                return True
-            if ProfissionalUsuario.objects.filter(user=user, loja=loja).exists():
-                return True
-            if VendedorUsuario.objects.filter(user=user, loja=loja).exists():
-                return True
-            if self._funcionario_email_ativo_na_loja(user, loja):
-                return True
-            return False
-        except Exception as e:
-            logger.error("store isolation: erro ao validar pertencimento: %s", e)
-            return True
-
-    def _funcionario_email_ativo_na_loja(self, user, loja):
-        """
-        Funcionários (cabeleireiro, hotel, clínica estética, restaurante) no schema da loja.
-        Vinculados pelo e-mail do User Django (mesmo padrão do TenantMiddleware).
-        """
-        email = (getattr(user, 'email', None) or '').strip()
-        if not email:
-            return False
-        try:
-            from core.db_config import ensure_loja_database_config
-            from tenants.middleware import set_current_loja_id, set_current_tenant_db
-
-            db_name = getattr(loja, 'database_name', None) or f'loja_{loja.slug}'
-            if not ensure_loja_database_config(db_name, conn_max_age=0):
-                return False
-            set_current_tenant_db(db_name)
-            set_current_loja_id(loja.id)
-
-            import importlib
-
-            for import_path, model_name in (
-                ('cabeleireiro.models', 'Funcionario'),
-                ('hotel.models', 'Funcionario'),
-                ('clinica_estetica.models', 'Funcionario'),
-                ('restaurante.models', 'Funcionario'),
-            ):
-                try:
-                    mod = importlib.import_module(import_path)
-                    model_cls = getattr(mod, model_name)
-                    if model_cls.objects.all_without_filter().filter(
-                        loja_id=loja.id,
-                        email__iexact=email,
-                        is_active=True,
-                    ).exists():
-                        return True
-                except Exception:
-                    continue
-            return False
-        except Exception as e:
-            logger.debug('funcionario email check: %s', e)
-            return False
 
     @staticmethod
     def _is_crm_vendas_public_path(path):

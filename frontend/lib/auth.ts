@@ -14,6 +14,7 @@ interface LoginCredentials {
   password: string;
   cpf_cnpj?: string;
   otp_code?: string;
+  backup_code?: string;
 }
 
 interface LoginResponse {
@@ -47,6 +48,9 @@ class AuthService {
       };
       if (credentials.otp_code?.trim()) {
         payload.otp_code = credentials.otp_code.trim();
+      }
+      if (credentials.backup_code?.trim()) {
+        payload.backup_code = credentials.backup_code.trim();
       }
 
       // Definir endpoint baseado no tipo de usuário
@@ -129,6 +133,9 @@ class AuthService {
         const err = new Error(data.error || 'Informe o código do autenticador.');
         (err as Error & { mfaRequired?: boolean }).mfaRequired = true;
         throw err;
+      }
+      if (data?.code === 'ACCOUNT_LOCKED') {
+        throw new Error(data.error || 'Conta temporariamente bloqueada. Tente mais tarde.');
       }
       if (error.response?.data?.error) {
         throw new Error(error.response.data.error);

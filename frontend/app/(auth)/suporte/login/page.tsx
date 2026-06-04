@@ -19,7 +19,13 @@ interface LoginConfig {
 }
 
 export default function SuporteLoginPage() {
-  const [credentials, setCredentials] = useState({ username: '', password: '', cpf_cnpj: '', otp_code: '' });
+  const [credentials, setCredentials] = useState({
+    username: '',
+    password: '',
+    cpf_cnpj: '',
+    otp_code: '',
+    backup_code: '',
+  });
   const [showMfa, setShowMfa] = useState(false);
   const [lembrarCpf, setLembrarCpf] = useState(false);
   const [error, setError] = useState('');
@@ -315,7 +321,7 @@ export default function SuporteLoginPage() {
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   maxLength={6}
-                  required
+                  required={!credentials.backup_code?.trim()}
                   className="block w-full px-3 py-3 min-h-[44px] text-base text-gray-900 border border-gray-300 rounded-md bg-white"
                   value={credentials.otp_code}
                   onChange={(e) =>
@@ -325,6 +331,22 @@ export default function SuporteLoginPage() {
                     })
                   }
                   placeholder="000000"
+                  disabled={loading}
+                />
+                <p className="text-xs text-gray-500 mt-2 mb-1">Ou código de recuperação (se perdeu o app):</p>
+                <input
+                  id="backup_code"
+                  type="text"
+                  autoComplete="off"
+                  className="block w-full px-3 py-3 min-h-[44px] text-base text-gray-900 border border-gray-300 rounded-md bg-white font-mono uppercase"
+                  value={credentials.backup_code}
+                  onChange={(e) =>
+                    setCredentials({
+                      ...credentials,
+                      backup_code: e.target.value.toUpperCase(),
+                    })
+                  }
+                  placeholder="XXXX-XXXX"
                   disabled={loading}
                 />
               </div>

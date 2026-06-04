@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from core.throttling import AuthLoginThrottle
 from core.auth_cookies import attach_auth_cookies, clear_auth_cookies
+from core.login_lockout import check_account_locked, record_login_failure, clear_login_failures
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from superadmin.session_manager import SessionManager
@@ -105,6 +106,16 @@ class SecureLoginView(APIView):
                 'error': 'Username e password são obrigatórios',
                 'code': 'MISSING_CREDENTIALS'
             }, status=status.HTTP_400_BAD_REQUEST)
+
+        locked_until = check_account_locked(username)
+        if locked_until:
+            return Response({
+                'error': (
+                    'Muitas tentativas de login. Aguarde alguns minutos ou contate o suporte.'
+                ),
+                'code': 'ACCOUNT_LOCKED',
+                'locked_until': locked_until.isoformat(),
+            }, status=status.HTTP_403_FORBIDDEN)
         
         # ✅ CORREÇÃO v895: Autenticar com retry em caso de timeout
         try:
@@ -135,6 +146,7 @@ class SecureLoginView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         if not user:
+            record_login_failure(username)
             logger.warning(f"❌ Tentativa de login falhou: {username}")
             return Response({
                 'error': 'Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.',
@@ -239,7 +251,11 @@ class SecureLoginView(APIView):
 
         mfa_block = validate_mfa_at_login(request, user, real_user_type)
         if mfa_block is not None:
+            if mfa_block.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN):
+                record_login_failure(username)
             return mfa_block
+
+        clear_login_failures(username)
 
         # Gerar tokens
         refresh = RefreshToken.for_user(user)

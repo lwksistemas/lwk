@@ -489,11 +489,10 @@ class LojaViewSet(viewsets.ModelViewSet):
                 {'error': 'As senhas não coincidem'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        if len(nova_senha) < 6:
-            return Response(
-                {'error': 'A senha deve ter no mínimo 6 caracteres'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        from core.password_validation import validate_password_policy
+        ok, msg = validate_password_policy(nova_senha)
+        if not ok:
+            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
 
         loja = self.get_object()
         user = request.user

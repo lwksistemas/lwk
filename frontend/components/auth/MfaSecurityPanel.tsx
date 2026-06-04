@@ -6,6 +6,7 @@ import {
   confirmMfa,
   disableMfa,
   fetchMfaStatus,
+  regenerateMfaBackupCodes,
   setupMfa,
   type MfaSetupResponse,
 } from '@/lib/mfa-api';
@@ -55,6 +56,9 @@ export default function MfaSecurityPanel({
   const [setupData, setSetupData] = useState<MfaSetupResponse | null>(null);
   const [confirmCode, setConfirmCode] = useState('');
   const [disableCode, setDisableCode] = useState('');
+  const [regenerateCode, setRegenerateCode] = useState('');
+  const [backupCodesShown, setBackupCodesShown] = useState<string[] | null>(null);
+  const [backupRemaining, setBackupRemaining] = useState(0);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -62,6 +66,7 @@ export default function MfaSecurityPanel({
       const status = await fetchMfaStatus();
       setMfaAvailable(status.mfa_available);
       setMfaEnabled(status.mfa_enabled);
+      setBackupRemaining(status.backup_codes_remaining ?? 0);
       if (status.mfa_enabled) {
         setSetupData(null);
         setConfirmCode('');
@@ -103,9 +108,12 @@ export default function MfaSecurityPanel({
     setMessage(null);
     setBusy(true);
     try {
-      await confirmMfa(confirmCode);
+      const result = await confirmMfa(confirmCode);
       setMessage({ type: 'success', text: 'Autenticação em duas etapas ativada com sucesso.' });
       setSetupData(null);
+      if (result.backup_codes?.length) {
+        setBackupCodesShown(result.backup_codes);
+      }
       await loadStatus();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
@@ -142,6 +150,37 @@ export default function MfaSecurityPanel({
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleRegenerateBackup = async () => {
+    if (regenerateCode.length !== 6) {
+      setMessage({ type: 'error', text: 'Informe o código do autenticador (6 dígitos).' });
+      return;
+    }
+    setMessage(null);
+    setBusy(true);
+    try {
+      const data = await regenerateMfaBackupCodes(regenerateCode);
+      setBackupCodesShown(data.backup_codes);
+      setRegenerateCode('');
+      setMessage({ type: 'success', text: 'Novos códigos gerados. Códigos antigos foram invalidados.' });
+      await loadStatus();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      setMessage({
+        type: 'error',
+        text: e.response?.data?.detail || 'Não foi possível gerar novos códigos.',
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copyBackupCodes = () => {
+    if (!backupCodesShown?.length) return;
+    navigator.clipboard.writeText(backupCodesShown.join('\n')).then(() => {
+      setMessage({ type: 'success', text: 'Códigos copiados.' });
+    });
   };
 
   const copySecret = () => {
@@ -207,6 +246,49 @@ export default function MfaSecurityPanel({
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                   Sua conta exige código do autenticador em cada login.
                 </p>
+                <p className="text-sm text-gray-500">
+                  Códigos de recuperação restantes: <strong>{backupRemaining}</strong>
+                </p>
+                {backupCodesShown && backupCodesShown.length > 0 && (
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                      Guarde estes códigos em local seguro (exibidos uma vez):
+                    </p>
+                    <ul className="font-mono text-sm space-y-1">
+                      {backupCodesShown.map((c) => (
+                        <li key={c}>{c}</li>
+                      ))}
+                    </ul>
+                    <Button type="button" variant="outline" size="sm" onClick={copyBackupCodes}>
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copiar códigos
+                    </Button>
+                  </div>
+                )}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
+                  <Label>Gerar novos códigos de recuperação</Label>
+                  <p className="text-xs text-gray-500">
+                    Informe o código do app. Os códigos anteriores deixam de funcionar.
+                  </p>
+                  <Input
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={regenerateCode}
+                    onChange={(e) =>
+                      setRegenerateCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+                    }
+                    className="max-w-xs font-mono text-lg tracking-widest"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={handleRegenerateBackup}
+                  >
+                    Gerar novos códigos
+                  </Button>
+                </div>
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
                   <Label htmlFor="disable_otp">Desativar MFA</Label>
                   <p className="text-xs text-gray-500">

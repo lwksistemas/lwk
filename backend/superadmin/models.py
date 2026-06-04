@@ -815,6 +815,10 @@ class UsuarioSistema(models.Model):
         blank=True,
         help_text='Secret TOTP criptografado (configurar via API MFA)',
     )
+    mfa_backup_codes = models.TextField(
+        blank=True,
+        help_text='Hashes dos códigos de recuperação MFA (JSON criptografado)',
+    )
 
     # Permissões específicas
     pode_criar_lojas = models.BooleanField(default=False)
@@ -839,6 +843,22 @@ class UsuarioSistema(models.Model):
     
     def __str__(self):
         return f"{self.user.username} ({self.get_tipo_display()})"
+
+
+class LoginLockout(models.Model):
+    """Tentativas falhas de login por username (anti brute-force)."""
+
+    username_key = models.CharField(max_length=150, unique=True, db_index=True)
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Bloqueio de login'
+        verbose_name_plural = 'Bloqueios de login'
+
+    def __str__(self):
+        return f'{self.username_key} ({self.failed_attempts} falhas)'
 
 
 class ProfissionalUsuario(models.Model):

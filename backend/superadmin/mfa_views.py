@@ -8,6 +8,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.mfa_backup import (
+    backup_codes_remaining,
+    issue_backup_codes,
+    verify_and_consume_backup_code,
+)
 from core.mfa_service import (
     decrypt_totp_secret,
     encrypt_totp_secret,
@@ -66,10 +71,17 @@ class MfaConfirmView(APIView):
         if not verify_totp_code(secret, code):
             return Response({'detail': 'Código inválido ou expirado.', 'code': 'MFA_INVALID'}, status=400)
 
+        plain_codes, encrypted = issue_backup_codes()
         usuario.mfa_enabled = True
-        usuario.save(update_fields=['mfa_enabled', 'updated_at'])
+        usuario.mfa_backup_codes = encrypted
+        usuario.save(update_fields=['mfa_enabled', 'mfa_backup_codes', 'updated_at'])
         logger.info('MFA ativado user_id=%s tipo=%s', request.user.id, usuario.tipo)
-        return Response({'message': 'MFA ativado com sucesso.', 'mfa_enabled': True})
+        return Response({
+            'message': 'MFA ativado com sucesso. Guarde os códigos de recuperação em local seguro.',
+            'mfa_enabled': True,
+            'backup_codes': plain_codes,
+            'backup_codes_hint': 'Cada código só pode ser usado uma vez, no lugar do código do app.',
+        })
 
 
 class MfaDisableView(APIView):
@@ -88,7 +100,8 @@ class MfaDisableView(APIView):
 
         usuario.mfa_enabled = False
         usuario.mfa_totp_secret = ''
-        usuario.save(update_fields=['mfa_enabled', 'mfa_totp_secret', 'updated_at'])
+        usuario.mfa_backup_codes = ''
+        usuario.save(update_fields=['mfa_enabled', 'mfa_totp_secret', 'mfa_backup_codes', 'updated_at'])
         return Response({'message': 'MFA desativado.', 'mfa_enabled': False})
 
 
@@ -102,6 +115,30 @@ class MfaStatusView(APIView):
         return Response({
             'mfa_available': usuario.tipo in ('superadmin', 'suporte'),
             'mfa_enabled': bool(usuario.mfa_enabled),
+            'backup_codes_remaining': backup_codes_remaining(usuario.mfa_backup_codes or ''),
+        })
+
+
+class MfaRegenerateBackupView(APIView):
+    """Gera novos códigos de recuperação (invalida os anteriores). Exige TOTP válido."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        code = (request.data.get('otp_code') or '').strip()
+        usuario = _get_usuario_sistema(request.user)
+        if not usuario or not usuario.mfa_enabled:
+            return Response({'detail': 'MFA não está ativo.'}, status=400)
+        secret = decrypt_totp_secret(usuario.mfa_totp_secret or '')
+        if not secret or not verify_totp_code(secret, code):
+            return Response({'detail': 'Código do autenticador inválido.', 'code': 'MFA_INVALID'}, status=400)
+
+        plain_codes, encrypted = issue_backup_codes()
+        usuario.mfa_backup_codes = encrypted
+        usuario.save(update_fields=['mfa_backup_codes', 'updated_at'])
+        return Response({
+            'message': 'Novos códigos gerados. Os anteriores foram invalidados.',
+            'backup_codes': plain_codes,
         })
 
 
@@ -121,6 +158,7 @@ def validate_mfa_at_login(request, user, user_type: str):
         usuario = UsuarioSistema.objects.get(user=user, tipo=user_type, is_active=True)
         mfa_enabled = bool(usuario.mfa_enabled)
         mfa_secret_enc = usuario.mfa_totp_secret or ''
+        mfa_backup_enc = usuario.mfa_backup_codes or ''
     except UsuarioSistema.DoesNotExist:
         return None
     except DatabaseError as e:
@@ -151,12 +189,23 @@ def validate_mfa_at_login(request, user, user_type: str):
         return None
 
     otp_code = (request.data.get('otp_code') or '').strip()
-    if not otp_code:
+    backup_code = (request.data.get('backup_code') or '').strip()
+    if not otp_code and not backup_code:
         return Response({
-            'error': 'Informe o código do autenticador (6 dígitos).',
+            'error': 'Informe o código do autenticador (6 dígitos) ou um código de recuperação.',
             'code': 'MFA_REQUIRED',
             'mfa_required': True,
         }, status=status.HTTP_403_FORBIDDEN)
+
+    if backup_code:
+        ok, new_blob = verify_and_consume_backup_code(mfa_backup_enc, backup_code)
+        if ok:
+            try:
+                usuario.mfa_backup_codes = new_blob
+                usuario.save(update_fields=['mfa_backup_codes', 'updated_at'])
+            except Exception as e:
+                logger.error('Falha ao consumir código backup user_id=%s: %s', user.id, e)
+            return None
 
     secret = decrypt_totp_secret(mfa_secret_enc)
     if not secret or not verify_totp_code(secret, otp_code):

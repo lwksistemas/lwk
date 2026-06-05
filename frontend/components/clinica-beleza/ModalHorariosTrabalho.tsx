@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 
 const DIAS_SEMANA = [
   { value: 0, label: "Segunda-feira" },
@@ -65,9 +65,10 @@ export function ModalHorariosTrabalho({
       setLoading(true);
       setError("");
       try {
-        const res = await clinicaBelezaFetch(`/professionals/${professionalId}/horarios-trabalho/`);
-        if (res.ok) {
-          const data = (await res.json()) as HorarioTrabalhoItem[];
+        const data = (await ClinicaBelezaAPI.professionals.horarios.get(
+          professionalId,
+        )) as HorarioTrabalhoItem[];
+        if (data) {
           const byDay: Record<number, HorarioTrabalhoItem> = {};
           DIAS_SEMANA.forEach((d) => {
             byDay[d.value] = {
@@ -126,14 +127,7 @@ export function ModalHorariosTrabalho({
           ativo: true,
         };
       });
-      const res = await clinicaBelezaFetch(`/professionals/${professionalId}/horarios-trabalho/`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || err?.detail || "Erro ao salvar");
-      }
+      await ClinicaBelezaAPI.professionals.horarios.save(professionalId, payload);
       onSaved?.();
       onClose();
     } catch (e) {

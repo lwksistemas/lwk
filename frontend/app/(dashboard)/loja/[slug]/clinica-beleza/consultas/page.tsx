@@ -13,6 +13,8 @@ import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clini
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
+import { NovaConsultaPageContent } from "@/components/clinica-beleza/NovaConsultaPageContent";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import {
   type Consulta,
   ConsultasListTable,
@@ -25,6 +27,8 @@ export default function ConsultasPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const basePath = `/loja/${slug}/clinica-beleza/consultas`;
+  const isNovo = searchParams.get("novo") === "1";
 
   const {
     list: consultas,
@@ -45,23 +49,47 @@ export default function ConsultasPage() {
 
   useEffect(() => {
     const idParam = searchParams.get("id");
-    if (!idParam || consultas.length === 0) return;
+    if (!idParam) {
+      if (selected) setSelected(null);
+      return;
+    }
     const found = consultas.find((c) => String(c.id) === idParam);
-    if (found && found.id !== selected?.id) {
-      setSelected(found);
+    if (found) {
+      if (found.id !== selected?.id) setSelected(found);
+      return;
     }
-    if (!idParam && selected) {
-      setSelected(null);
-    }
+    let cancelled = false;
+    ClinicaBelezaAPI.consultas.get(Number(idParam))
+      .then((c) => {
+        if (!cancelled) setSelected(c as Consulta);
+      })
+      .catch(() => {
+        if (!cancelled) setSelected(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams, consultas, selected?.id]);
 
   const voltarLista = () => {
     setSelected(null);
-    router.replace(`/loja/${slug}/clinica-beleza/consultas`, { scroll: false });
+    router.replace(basePath, { scroll: false });
   };
 
   const formatData = (d?: string | null) =>
     d ? formatClinicaDateTime(new Date(d)) : "—";
+
+  if (isNovo) {
+    return (
+      <NovaConsultaPageContent
+        slug={slug}
+        onDone={() => {
+          router.replace(basePath, { scroll: false });
+          loadConsultas();
+        }}
+      />
+    );
+  }
 
   if (selected) {
     return (
@@ -79,7 +107,7 @@ export default function ConsultasPage() {
       <ClinicaBelezaStandardPageHeader
         title="Consultas"
         subtitle="Confirme na Agenda · inicie e finalize aqui"
-        onNew={() => router.push(`/loja/${slug}/clinica-beleza/consultas/nova`)}
+        onNew={() => router.replace(`${basePath}?novo=1`, { scroll: false })}
         newLabel="Nova consulta"
         extraActions={
           <button

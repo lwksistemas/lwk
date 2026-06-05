@@ -122,14 +122,27 @@ export default function PacientesPage() {
       setError("");
       return;
     }
-    if (editIdParam && list.length > 0) {
-      const p = list.find((x) => String(x.id) === editIdParam);
-      if (p) {
-        setEditing(p);
-        setForm(patientToForm(p));
-        setError("");
-      }
+    if (!editIdParam) return;
+    const p = list.find((x) => String(x.id) === editIdParam);
+    if (p) {
+      setEditing(p);
+      setForm(patientToForm(p));
+      setError("");
+      return;
     }
+    let cancelled = false;
+    ClinicaBelezaAPI.patients.get(Number(editIdParam))
+      .then((fetched) => {
+        if (!cancelled) {
+          setEditing(fetched as Patient);
+          setForm(patientToForm(fetched as Patient));
+          setError("");
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [isNovo, editIdParam, list]);
 
   useEffect(() => {

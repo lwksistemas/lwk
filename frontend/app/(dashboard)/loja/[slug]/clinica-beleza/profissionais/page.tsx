@@ -5,13 +5,14 @@
  */
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Pencil, Trash2, Clock } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
-import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { ProfissionalFormPageContent } from "@/components/clinica-beleza/ProfissionalFormPageContent";
 import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
 import {
   entityActive,
@@ -50,7 +51,12 @@ interface LojaOwnerInfo {
 export default function ProfissionaisPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const basePath = `/loja/${slug}/clinica-beleza/profissionais`;
+  const isNovo = searchParams.get("novo") === "1";
+  const editIdParam = searchParams.get("id");
+  const isFormView = isNovo || Boolean(editIdParam);
   const { list, setList, loading, load, loadMore, loadingMore, hasMore, totalCount } = useClinicaBelezaEntityList<Professional>({
     path: "/professionals/",
     fetchOffline: buscarProfissionaisOffline,
@@ -62,15 +68,12 @@ export default function ProfissionaisPage() {
   const loadLojaInfo = async () => {
     if (!navigator.onLine) return;
     try {
-      const res = await clinicaBelezaFetch("/loja-info/");
-      if (res.ok) {
-        const data = await res.json();
-        setLojaOwnerInfo({
-          owner_username: data.owner_username ?? "",
-          owner_email: data.owner_email ?? "",
-          owner_telefone: data.owner_telefone ?? "",
-        });
-      }
+      const data = await ClinicaBelezaAPI.loja.info();
+      setLojaOwnerInfo({
+        owner_username: data.owner_username ?? "",
+        owner_email: data.owner_email ?? "",
+        owner_telefone: data.owner_telefone ?? "",
+      });
     } catch {
       setLojaOwnerInfo(null);
     }
@@ -80,12 +83,16 @@ export default function ProfissionaisPage() {
     loadLojaInfo();
   }, []);
 
+  const voltarLista = () => {
+    router.replace(basePath, { scroll: false });
+  };
+
   const openNew = () => {
-    router.push(`/loja/${slug}/clinica-beleza/profissionais/novo`);
+    router.replace(`${basePath}?novo=1`, { scroll: false });
   };
 
   const openEdit = (p: Professional) => {
-    router.push(`/loja/${slug}/clinica-beleza/profissionais/novo?id=${p.id}`);
+    router.replace(`${basePath}?id=${p.id}`, { scroll: false });
   };
 
   const exclude = async (p: Professional) => {
@@ -99,6 +106,19 @@ export default function ProfissionaisPage() {
   };
 
   const activeList = list.filter((p) => entityActive(p));
+
+  if (isFormView) {
+    return (
+      <ProfissionalFormPageContent
+        slug={slug}
+        editId={isNovo ? null : editIdParam}
+        onDone={() => {
+          voltarLista();
+          load();
+        }}
+      />
+    );
+  }
 
   return (
     <>

@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { MessageCircle } from 'lucide-react';
 import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
-import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
+import { ClinicaBelezaAPI } from '@/lib/clinica-beleza-api';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 
 interface WhatsAppConfigData {
@@ -38,19 +38,16 @@ export default function ClinicaBelezaConfiguracoesWhatsappPage() {
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const res = await clinicaBelezaFetch('/whatsapp-config/');
-      if (res.ok) {
-        const data = (await res.json()) as WhatsAppConfigData;
-        setWhatsappNumero((data.whatsapp_numero ?? '').toString());
-        setWhatsappAtivo(!!data.whatsapp_ativo);
-        setWhatsappPhoneId((data.whatsapp_phone_id ?? '').toString());
-        setWhatsappTokenSet(!!data.whatsapp_token_set);
-        setWhatsappToken('');
-        setEnviarConfirmacao(data.enviar_confirmacao ?? true);
-        setEnviarLembrete24h(data.enviar_lembrete_24h ?? true);
-        setEnviarLembrete2h(data.enviar_lembrete_2h ?? true);
-        setEnviarCobranca(data.enviar_cobranca ?? true);
-      }
+      const data = (await ClinicaBelezaAPI.whatsapp.get()) as WhatsAppConfigData;
+      setWhatsappNumero((data.whatsapp_numero ?? '').toString());
+      setWhatsappAtivo(!!data.whatsapp_ativo);
+      setWhatsappPhoneId((data.whatsapp_phone_id ?? '').toString());
+      setWhatsappTokenSet(!!data.whatsapp_token_set);
+      setWhatsappToken('');
+      setEnviarConfirmacao(data.enviar_confirmacao ?? true);
+      setEnviarLembrete24h(data.enviar_lembrete_24h ?? true);
+      setEnviarLembrete2h(data.enviar_lembrete_2h ?? true);
+      setEnviarCobranca(data.enviar_cobranca ?? true);
     } catch {
       /* defaults */
     } finally {
@@ -75,11 +72,7 @@ export default function ClinicaBelezaConfiguracoesWhatsappPage() {
         enviar_cobranca: enviarCobranca,
         ...(whatsappToken.trim() ? { whatsapp_token: whatsappToken.trim() } : {}),
       };
-      const res = await clinicaBelezaFetch('/whatsapp-config/', {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error('save failed');
+      await ClinicaBelezaAPI.whatsapp.save(body);
       setWhatsappTokenSet(!!(whatsappToken.trim() || whatsappTokenSet));
       setWhatsappToken('');
       alert('Configurações WhatsApp salvas.');

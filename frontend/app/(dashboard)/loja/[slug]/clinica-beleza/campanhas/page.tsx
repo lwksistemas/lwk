@@ -12,7 +12,7 @@ import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/Cli
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import {
   CLINICA_BELEZA_ONLINE_ONLY,
   CLINICA_FORM_INPUT,
@@ -130,9 +130,12 @@ export default function CampanhasPage() {
     if (!confirm(`Enviar a campanha "${c.titulo}" para todos os pacientes com WhatsApp ativo?`)) return;
     setSendingId(c.id);
     try {
-      const res = await clinicaBelezaFetch(`/campanhas/${c.id}/enviar/`, { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.sent !== undefined) {
+      const data = await ClinicaBelezaAPI.campanhas.enviar(c.id) as {
+        sent?: number;
+        message?: string;
+        error?: string;
+      };
+      if (data.sent !== undefined) {
         alert(data.message || `Enviado para ${data.sent} paciente(s).`);
         load();
       } else {

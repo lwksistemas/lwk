@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, ClipboardList, Pencil, Save, Trash2 } from 'lucide-react';
-import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
+import { ClinicaBelezaAPI } from '@/lib/clinica-beleza-api';
 import {
   CLINICA_BELEZA_ONLINE_ONLY,
   CLINICA_FORM_INPUT,
@@ -115,12 +115,7 @@ export function ProtocolosPageContent({
 
   const loadProcedures = useCallback(async () => {
     try {
-      const procRes = await clinicaBelezaFetch('/procedures/');
-      if (!procRes.ok) {
-        setProcedures([]);
-        return;
-      }
-      const data = await procRes.json();
+      const data = await ClinicaBelezaAPI.procedures.list();
       const arr = Array.isArray(data) ? data : [];
       setProcedures(
         defaultCategoria

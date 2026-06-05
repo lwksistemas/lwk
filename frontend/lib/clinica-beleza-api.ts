@@ -402,6 +402,19 @@ export class ClinicaBelezaAPI {
     update: (id: number, data: Record<string, unknown>) =>
       ClinicaBelezaAPI.put(`/professionals/${id}/`, data),
     delete: (id: number) => ClinicaBelezaAPI.delete(`/professionals/${id}/`),
+    comissoes: {
+      list: (id: number) => ClinicaBelezaAPI.get(`/professionals/${id}/comissoes/`),
+      save: (id: number, payload: unknown[]) =>
+        ClinicaBelezaAPI.post(`/professionals/${id}/comissoes/`, payload),
+    },
+    horarios: {
+      get: (id: number) => ClinicaBelezaAPI.get(`/professionals/${id}/horarios-trabalho/`),
+      save: (id: number, data: unknown) =>
+        ClinicaBelezaAPI.put(`/professionals/${id}/horarios-trabalho/`, data),
+    },
+    adminStatus: () => ClinicaBelezaAPI.get('/professionals/admin-status/'),
+    toggleAdmin: (data: Record<string, unknown>) =>
+      ClinicaBelezaAPI.post('/professionals/toggle-admin/', data),
     /** Status Memed (Em análise, Ativo, etc.) por id do profissional. */
     memedStatus: () =>
       ClinicaBelezaAPI.get<Record<string, {
@@ -412,6 +425,38 @@ export class ClinicaBelezaAPI {
         tem_token?: boolean;
         environment?: string;
       }>>('/professionals/memed-status/'),
+  };
+
+  static loja = {
+    info: () =>
+      ClinicaBelezaAPI.get<{
+        owner_username?: string;
+        owner_email?: string;
+        owner_telefone?: string;
+      }>('/loja-info/'),
+  };
+
+  static financeiro = {
+    resumo: (params?: { mes?: number; ano?: number }) =>
+      ClinicaBelezaAPI.get('/financeiro/resumo/', params),
+  };
+
+  static estoque = {
+    list: (params?: { categoria?: string; page?: number; page_size?: number }) =>
+      ClinicaBelezaAPI.getList('/estoque/', params),
+    get: (id: number) => ClinicaBelezaAPI.get(`/estoque/${id}/`),
+    create: (data: Record<string, unknown>) => ClinicaBelezaAPI.post('/estoque/', data),
+    update: (id: number, data: Record<string, unknown>) =>
+      ClinicaBelezaAPI.put(`/estoque/${id}/`, data),
+    delete: (id: number) => ClinicaBelezaAPI.delete(`/estoque/${id}/`),
+    resumo: () => ClinicaBelezaAPI.get('/estoque/resumo/'),
+    movimentar: (id: number, data: { tipo: string; quantidade: number; motivo?: string }) =>
+      ClinicaBelezaAPI.post(`/estoque/${id}/movimentar/`, data),
+  };
+
+  static whatsapp = {
+    get: () => ClinicaBelezaAPI.get('/whatsapp-config/'),
+    save: (data: Record<string, unknown>) => ClinicaBelezaAPI.patch('/whatsapp-config/', data),
   };
 
   static memed = {
@@ -430,6 +475,10 @@ export class ClinicaBelezaAPI {
           phone?: string;
         };
       }>('/memed/token/', params as Record<string, string> | undefined),
+
+    timbrado: {
+      get: () => ClinicaBelezaAPI.get('/memed/timbrado/'),
+    },
 
     /** Registra no histórico do paciente uma prescrição emitida na Memed. */
     salvarPrescricao: (

@@ -19,7 +19,7 @@ import {
 } from "@/lib/clinica-beleza-constants";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
-import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
 
@@ -90,11 +90,8 @@ export default function FinanceiroClinicaPage() {
 
   const loadResumo = async () => {
     try {
-      const res = await clinicaBelezaFetch("/financeiro/resumo/");
-      if (res.ok) {
-        const data = await res.json();
-        setResumo(data);
-      }
+      const data = await ClinicaBelezaAPI.financeiro.resumo();
+      setResumo(data);
     } catch {
       setResumo(null);
     }
@@ -102,11 +99,8 @@ export default function FinanceiroClinicaPage() {
 
   const loadProfessionals = async () => {
     try {
-      const res = await clinicaBelezaFetch("/professionals/");
-      if (res.ok) {
-        const data = await res.json();
-        setProfessionals(Array.isArray(data) ? data : []);
-      }
+      const data = await ClinicaBelezaAPI.professionals.list();
+      setProfessionals(Array.isArray(data) ? data : []);
     } catch {
       setProfessionals([]);
     }

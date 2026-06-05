@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 
 interface AdminProfissionalToggleProps {
@@ -29,11 +29,8 @@ export function AdminProfissionalToggle({ onToggled }: AdminProfissionalTogglePr
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await clinicaBelezaFetch("/professionals/admin-status/");
-      if (res.ok) {
-        const data: AdminStatus = await res.json();
-        setEnabled(data.is_enabled);
-      }
+      const data = (await ClinicaBelezaAPI.professionals.adminStatus()) as AdminStatus;
+      setEnabled(data.is_enabled);
     } catch {
       // Silently ignore on mount — component won't break
     } finally {
@@ -52,21 +49,7 @@ export function AdminProfissionalToggle({ onToggled }: AdminProfissionalTogglePr
     setError("");
 
     try {
-      const res = await clinicaBelezaFetch("/professionals/toggle-admin/", {
-        method: "POST",
-        body: JSON.stringify({ enable: newValue }),
-      });
-
-      if (!res.ok) {
-        // Revert on error
-        setEnabled(!newValue);
-        const data = await res.json().catch(() => null);
-        const msg = data?.detail || data?.error || "Erro ao atualizar status de profissional.";
-        setError(typeof msg === "string" ? msg : JSON.stringify(msg));
-        return;
-      }
-
-      // Success — notify parent to reload list
+      await ClinicaBelezaAPI.professionals.toggleAdmin({ enable: newValue });
       onToggled();
     } catch {
       // Revert on network error

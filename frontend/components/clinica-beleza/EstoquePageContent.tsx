@@ -11,7 +11,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { Package, ArrowDown, ArrowUp, AlertTriangle, Search, X } from "lucide-react";
-import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { formatClinicaDataCurta } from "@/lib/clinica-beleza-datetime";
@@ -119,8 +119,8 @@ export function EstoquePageContent({
 
   const loadResumo = useCallback(async () => {
     try {
-      const res = await clinicaBelezaFetch("/estoque/resumo/");
-      if (res.ok) setResumo(await res.json());
+      const data = await ClinicaBelezaAPI.estoque.resumo();
+      setResumo(data);
     } catch {
       setResumo(null);
     }
@@ -152,14 +152,14 @@ export function EstoquePageContent({
       setSaving(true);
       try {
         const payload = { ...form, preco_custo: Number(form.preco_custo) };
-        const url = editingProduto ? `/estoque/${editingProduto.id}/` : "/estoque/";
-        const method = editingProduto ? "PUT" : "POST";
-        const res = await clinicaBelezaFetch(url, { method, body: JSON.stringify(payload) });
-        if (res.ok) {
-          setShowProdutoModal(false);
-          setEditingProduto(null);
-          loadAll();
+        if (editingProduto) {
+          await ClinicaBelezaAPI.estoque.update(editingProduto.id, payload);
+        } else {
+          await ClinicaBelezaAPI.estoque.create(payload);
         }
+        setShowProdutoModal(false);
+        setEditingProduto(null);
+        loadAll();
       } finally {
         setSaving(false);
       }
@@ -233,15 +233,14 @@ export function EstoquePageContent({
       if (!movProduto) return;
       setSaving(true);
       try {
-        const res = await clinicaBelezaFetch(`/estoque/${movProduto.id}/movimentar/`, {
-          method: "POST",
-          body: JSON.stringify({ tipo: movTipo, quantidade, motivo }),
+        await ClinicaBelezaAPI.estoque.movimentar(movProduto.id, {
+          tipo: movTipo,
+          quantidade,
+          motivo,
         });
-        if (res.ok) {
-          setShowMovModal(false);
-          setMovProduto(null);
-          loadAll();
-        }
+        setShowMovModal(false);
+        setMovProduto(null);
+        loadAll();
       } finally {
         setSaving(false);
       }

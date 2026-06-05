@@ -7,7 +7,7 @@ import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBel
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import {
-  clinicaBelezaFetch,
+  ClinicaBelezaAPI,
   getClinicaBelezaBaseUrl,
   getClinicaBelezaHeadersWithLoja,
 } from '@/lib/clinica-beleza-api';
@@ -53,10 +53,8 @@ export default function ClinicaBelezaConfiguracoesMemedPage() {
     setLoading(true);
     setErro('');
     try {
-      const res = await clinicaBelezaFetch('/memed/timbrado/');
-      if (res.ok) {
-        setStatus((await res.json()) as TimbradoStatus);
-      }
+      const data = await ClinicaBelezaAPI.memed.timbrado.get();
+      setStatus(data as TimbradoStatus);
     } catch {
       setErro('Não foi possível carregar o timbrado.');
     } finally {

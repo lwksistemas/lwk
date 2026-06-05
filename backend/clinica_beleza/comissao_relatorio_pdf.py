@@ -247,13 +247,6 @@ def gerar_pdf_comissoes(
             )
             elements.append(Paragraph(info, subtitulo_style))
 
-            regra_c = p.get('comissao_consulta_regra') or {}
-            if regra_c.get('regra'):
-                elements.append(Paragraph(
-                    f'Regra consulta: {regra_c.get("regra", "")}',
-                    subtitulo_style,
-                ))
-
             elements.extend(_tabela_mini(
                 'Consultas',
                 ['Local', 'Pagamento', 'Qtd', 'Valor consulta', 'Regra', 'Comissão consulta'],

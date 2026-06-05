@@ -6,18 +6,6 @@ import { Download, Printer, Search } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 
-interface RegraComissao {
-  modo: string;
-  regra: string;
-  valor: number;
-}
-
-interface RegraConsultaLocal {
-  local_nome: string;
-  modo: string;
-  regra: string;
-}
-
 interface DetalheComissao {
   local_nome: string;
   forma_pagamento?: string;
@@ -45,8 +33,6 @@ interface ProfissionalComissao {
   comissao_consulta: number;
   comissao_procedimento: number;
   comissao_total: number;
-  comissao_consulta_regra: RegraComissao | null;
-  comissao_consulta_regras_por_local?: RegraConsultaLocal[];
   detalhes: DetalheComissao[];
 }
 
@@ -70,17 +56,6 @@ interface ProfessionalOption {
 
 function isLinhaConsulta(d: DetalheComissao) {
   return d.tipo_linha === 'consulta' || d.procedimento_nome === 'Consulta';
-}
-
-function RegraTexto({ modo, regra }: { modo: string; regra: string }) {
-  if (!regra) return <span className="text-gray-400">—</span>;
-  const fixo = modo === 'fixo';
-  return (
-    <span className={fixo ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300'}>
-      {regra}
-      <span className="text-gray-400 font-normal ml-1">{fixo ? ' (fixo)' : ' (%)'}</span>
-    </span>
-  );
 }
 
 function MiniTabela({
@@ -197,21 +172,6 @@ function BlocoProfissional({
             </span>
           )}
         </p>
-        {(p.comissao_consulta_regras_por_local?.length ?? 0) > 0 ? (
-          <ul className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
-            {p.comissao_consulta_regras_por_local!.map((r) => (
-              <li key={r.local_nome}>
-                <span className="font-medium text-gray-600 dark:text-gray-300">{r.local_nome}:</span>{' '}
-                <RegraTexto modo={r.modo} regra={r.regra} />
-              </li>
-            ))}
-          </ul>
-        ) : p.comissao_consulta_regra?.regra ? (
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Regra da consulta:{' '}
-            <RegraTexto modo={p.comissao_consulta_regra.modo} regra={p.comissao_consulta_regra.regra} />
-          </p>
-        ) : null}
       </header>
 
       <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -424,7 +384,7 @@ export default function RelatorioComissoesPage() {
       for (const d of p.detalhes.filter(isLinhaConsulta)) {
         csv +=
           `${p.nome};Consulta;${d.local_nome || 'Consulta'};${d.local_nome || ''};${d.qtd};` +
-          `${d.valor_consulta.toFixed(2)};${d.regra_consulta || p.comissao_consulta_regra?.regra || ''};${d.comissao_consulta.toFixed(2)}\n`;
+          `${d.valor_consulta.toFixed(2)};${d.regra_consulta || ''};${d.comissao_consulta.toFixed(2)}\n`;
       }
       for (const d of p.detalhes.filter((x) => !isLinhaConsulta(x))) {
         csv +=

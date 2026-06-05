@@ -70,7 +70,7 @@ function RegraTexto({ modo, regra }: { modo: string; regra: string }) {
   return (
     <span className={fixo ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300'}>
       {regra}
-      <span className="text-gray-400 font-normal ml-1">{fixo ? 'fixo' : '%'}</span>
+      <span className="text-gray-400 font-normal ml-1">{fixo ? ' (fixo)' : ' (%)'}</span>
     </span>
   );
 }
@@ -97,8 +97,13 @@ function MiniTabela({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50">
-            {colunas.map((c) => (
-              <th key={c} className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+            {colunas.map((c, j) => (
+              <th
+                key={c}
+                className={`px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 ${
+                  j === 0 ? 'text-left' : 'text-right'
+                }`}
+              >
                 {c}
               </th>
             ))}
@@ -194,23 +199,30 @@ function BlocoProfissional({
 
       <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <MiniTabela
-          titulo="Taxa de consulta"
-          colunas={['Local', 'Consultas', 'Valor', 'Comissão']}
+          titulo="Consultas"
+          colunas={['Local', 'Qtd', 'Valor consulta (R$)', 'Regra', 'Comissão consulta (R$)']}
           linhas={linhasConsulta.map((d) => [
             d.local_nome || '—',
             d.qtd,
             formatCurrency(d.valor_consulta),
+            d.regra_consulta || p.comissao_consulta_regra?.regra || '—',
             formatCurrency(d.comissao_consulta),
           ])}
           rodape={
             linhasConsulta.length > 0
-              ? ['Subtotal', p.total_atendimentos, formatCurrency(p.valor_consulta), formatCurrency(p.comissao_consulta)]
+              ? [
+                  'Subtotal',
+                  p.total_atendimentos,
+                  formatCurrency(p.valor_consulta),
+                  '',
+                  formatCurrency(p.comissao_consulta),
+                ]
               : undefined
           }
         />
         <MiniTabela
           titulo="Procedimentos"
-          colunas={['Procedimento', 'Qtd', 'Valor', 'Regra', 'Comissão']}
+          colunas={['Procedimento', 'Qtd', 'Valor procedimento (R$)', 'Regra', 'Comissão procedimento (R$)']}
           linhas={linhasProcedimento.map((d) => [
             d.procedimento_nome,
             d.qtd,
@@ -232,30 +244,44 @@ function BlocoProfissional({
         />
       </div>
 
-      <footer className="px-4 py-3 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 flex flex-wrap items-center justify-end gap-x-8 gap-y-2 text-sm">
-        <div className="text-right">
-          <span className="text-gray-500 dark:text-gray-400">Comissão consulta: </span>
-          <span className="font-semibold tabular-nums text-gray-800 dark:text-gray-200">
+      <footer className="px-4 py-3 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
+        <div>
+          <p className="text-xs text-gray-500 uppercase">Valor consulta</p>
+          <p className="font-semibold tabular-nums text-gray-900 dark:text-white">
+            {formatCurrency(p.valor_consulta)}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 uppercase">Comissão consulta</p>
+          <p className="font-semibold tabular-nums text-gray-900 dark:text-white">
             {formatCurrency(p.comissao_consulta)}
-          </span>
+          </p>
         </div>
-        <div className="text-right">
-          <span className="text-gray-500 dark:text-gray-400">Comissão procedimentos: </span>
-          <span className="font-semibold tabular-nums text-gray-800 dark:text-gray-200">
+        <div>
+          <p className="text-xs text-gray-500 uppercase">Valor procedimentos</p>
+          <p className="font-semibold tabular-nums text-gray-900 dark:text-white">
+            {formatCurrency(p.valor_procedimento)}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 uppercase">Comissão procedimentos</p>
+          <p className="font-semibold tabular-nums text-gray-900 dark:text-white">
             {formatCurrency(p.comissao_procedimento)}
-          </span>
+          </p>
         </div>
-        <div className="text-right">
-          <span className="text-gray-500 dark:text-gray-400">Comissão total: </span>
-          <span className="font-bold tabular-nums" style={{ color: CLINICA_BELEZA_PRIMARY }}>
-            {formatCurrency(p.comissao_total)}
-          </span>
-        </div>
-        <div className="text-right pl-4 border-l border-gray-300 dark:border-gray-600">
-          <span className="text-gray-500 dark:text-gray-400 block text-xs uppercase">Valor total</span>
-          <span className="font-bold text-lg tabular-nums text-gray-900 dark:text-white">
-            {formatCurrency(p.valor_total)}
-          </span>
+        <div className="sm:col-span-3 lg:col-span-1 lg:border-l lg:pl-3 border-gray-300 dark:border-gray-600 flex flex-wrap lg:flex-col justify-end gap-x-4 gap-y-1">
+          <div>
+            <p className="text-xs text-gray-500 uppercase">Comissão total</p>
+            <p className="font-bold tabular-nums" style={{ color: CLINICA_BELEZA_PRIMARY }}>
+              {formatCurrency(p.comissao_total)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 uppercase">Valor total</p>
+            <p className="font-bold text-lg tabular-nums text-gray-900 dark:text-white">
+              {formatCurrency(p.valor_total)}
+            </p>
+          </div>
         </div>
       </footer>
     </article>
@@ -362,8 +388,8 @@ export default function RelatorioComissoesPage() {
     for (const p of data.profissionais) {
       for (const d of p.detalhes.filter(isLinhaConsulta)) {
         csv +=
-          `${p.nome};Consulta;Taxa de consulta;${d.local_nome || ''};${d.qtd};` +
-          `${d.valor_consulta.toFixed(2)};${d.regra_consulta};${d.comissao_consulta.toFixed(2)}\n`;
+          `${p.nome};Consulta;${d.local_nome || 'Consulta'};${d.local_nome || ''};${d.qtd};` +
+          `${d.valor_consulta.toFixed(2)};${d.regra_consulta || p.comissao_consulta_regra?.regra || ''};${d.comissao_consulta.toFixed(2)}\n`;
       }
       for (const d of p.detalhes.filter((x) => !isLinhaConsulta(x))) {
         csv +=
@@ -371,10 +397,18 @@ export default function RelatorioComissoesPage() {
           `${d.valor_procedimento.toFixed(2)};${d.regra_procedimento};${d.comissao_procedimento.toFixed(2)}\n`;
       }
       csv +=
-        `${p.nome};Resumo;TOTAL;;;${p.valor_total.toFixed(2)};;${p.comissao_total.toFixed(2)}\n`;
+        `${p.nome};Resumo consulta;;;${p.total_atendimentos};${p.valor_consulta.toFixed(2)};;${p.comissao_consulta.toFixed(2)}\n`;
+      csv +=
+        `${p.nome};Resumo procedimentos;;;;${p.valor_procedimento.toFixed(2)};;${p.comissao_procedimento.toFixed(2)}\n`;
+      csv +=
+        `${p.nome};Total;;;;${p.valor_total.toFixed(2)};;${p.comissao_total.toFixed(2)}\n`;
     }
     csv +=
-      `TOTAIS;Resumo;TOTAL;${data.totais.total_atendimentos};${data.totais.valor_total.toFixed(2)};;${data.totais.comissao_total.toFixed(2)}\n`;
+      `TOTAIS;Valor consulta;;;;${data.totais.valor_consulta.toFixed(2)};;${data.totais.comissao_consulta.toFixed(2)}\n`;
+    csv +=
+      `TOTAIS;Valor procedimentos;;;;${data.totais.valor_procedimento.toFixed(2)};;${data.totais.comissao_procedimento.toFixed(2)}\n`;
+    csv +=
+      `TOTAIS;Geral;;;;${data.totais.valor_total.toFixed(2)};;${data.totais.comissao_total.toFixed(2)}\n`;
 
     const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -507,15 +541,23 @@ export default function RelatorioComissoesPage() {
                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                   Totais do período
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <p className="text-xs text-gray-500 uppercase">Consultas pagas</p>
-                    <p className="text-lg font-bold">{data.totais.total_atendimentos}</p>
+                    <p className="text-xs text-gray-500 uppercase">Valor consulta</p>
+                    <p className="text-lg font-bold tabular-nums">
+                      {formatCurrency(data.totais.valor_consulta)}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 uppercase">Comissão consultas</p>
+                    <p className="text-xs text-gray-500 uppercase">Comissão consulta</p>
                     <p className="text-lg font-bold tabular-nums">
                       {formatCurrency(data.totais.comissao_consulta)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Valor procedimentos</p>
+                    <p className="text-lg font-bold tabular-nums">
+                      {formatCurrency(data.totais.valor_procedimento)}
                     </p>
                   </div>
                   <div>

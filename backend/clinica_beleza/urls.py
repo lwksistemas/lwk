@@ -44,7 +44,7 @@ from .views_admin_professional import (
 from .views_locais_atendimento import (
     LocalAtendimentoListView, LocalAtendimentoDetailView,
 )
-from .views_relatorios import RelatorioComissoesView
+from .views_relatorios import RelatorioComissoesView, RelatorioComissoesPdfView
 
 app_name = 'clinica_beleza'
 
@@ -134,4 +134,5 @@ urlpatterns = [
     path('documentos/<int:doc_id>/pdf/', DocumentoPDFView.as_view(), name='documento-pdf'),
     # Relatórios
     path('relatorios/comissoes/', RelatorioComissoesView.as_view(), name='relatorio-comissoes'),
+    path('relatorios/comissoes/pdf/', RelatorioComissoesPdfView.as_view(), name='relatorio-comissoes-pdf'),
 ]

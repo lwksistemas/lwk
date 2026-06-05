@@ -3,6 +3,7 @@ Views para Relatórios — Clínica da Beleza.
 """
 from datetime import date, datetime
 
+from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
@@ -60,20 +61,24 @@ def _serialize_profissional(p: dict) -> dict:
     }
 
 
+def _parse_filtros_comissoes(request):
+    data_inicio = RelatorioComissoesView._parse_date(request.query_params.get('data_inicio'))
+    data_fim = RelatorioComissoesView._parse_date(request.query_params.get('data_fim'))
+    professional_id = request.query_params.get('professional_id')
+    if professional_id:
+        try:
+            professional_id = int(professional_id)
+        except (ValueError, TypeError):
+            professional_id = None
+    return data_inicio, data_fim, professional_id
+
+
 class RelatorioComissoesView(APIView):
     """GET /clinica-beleza/relatorios/comissoes/"""
     permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
-        data_inicio = self._parse_date(request.query_params.get('data_inicio'))
-        data_fim = self._parse_date(request.query_params.get('data_fim'))
-        professional_id = request.query_params.get('professional_id')
-
-        if professional_id:
-            try:
-                professional_id = int(professional_id)
-            except (ValueError, TypeError):
-                professional_id = None
+        data_inicio, data_fim, professional_id = _parse_filtros_comissoes(request)
 
         resultado = calcular_comissoes(
             data_inicio=data_inicio,
@@ -103,3 +108,51 @@ class RelatorioComissoesView(APIView):
             return datetime.strptime(value, '%Y-%m-%d').date()
         except (ValueError, TypeError):
             return None
+
+
+class RelatorioComissoesPdfView(APIView):
+    """GET /clinica-beleza/relatorios/comissoes/pdf/ — PDF com logo ou timbrado Memed."""
+    permission_classes = CLINICA_FINANCEIRO
+
+    def get(self, request):
+        from superadmin.models import Loja
+        from tenants.middleware import get_current_loja_id
+        from .comissao_relatorio_pdf import gerar_pdf_comissoes
+        from .models import Professional
+
+        data_inicio, data_fim, professional_id = _parse_filtros_comissoes(request)
+
+        resultado = calcular_comissoes(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            professional_id=professional_id,
+        )
+
+        loja_id = get_current_loja_id()
+        loja = Loja.objects.filter(id=loja_id).first()
+        if not loja:
+            return Response({'error': 'Loja não encontrada.'}, status=404)
+
+        prof_nome = None
+        if professional_id:
+            prof = Professional.objects.filter(pk=professional_id).first()
+            prof_nome = prof.nome if prof else None
+
+        pdf_buffer = gerar_pdf_comissoes(
+            resultado=resultado,
+            loja=loja,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            profissional_filtro_nome=prof_nome,
+        )
+
+        filename = 'comissoes'
+        if prof_nome:
+            safe = ''.join(c if c.isalnum() or c in ' -_' else '' for c in prof_nome)[:40].strip()
+            filename = f'comissoes_{safe.replace(" ", "_")}'
+        if data_inicio and data_fim:
+            filename += f'_{data_inicio}_{data_fim}'
+
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}.pdf"'
+        return response

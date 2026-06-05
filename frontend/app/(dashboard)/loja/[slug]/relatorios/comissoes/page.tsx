@@ -319,6 +319,14 @@ export default function RelatorioComissoesPage() {
   const [professionals, setProfessionals] = useState<ProfessionalOption[]>([]);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [clinicaNome, setClinicaNome] = useState('');
+  const [temTimbrado, setTemTimbrado] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  const profissionalNome = useMemo(() => {
+    if (!professionalId) return null;
+    const p = professionals.find((x) => String(x.id) === professionalId);
+    return p?.nome ?? null;
+  }, [professionalId, professionals]);
 
   useEffect(() => {
     clinicaBelezaFetch('/loja-info/')
@@ -336,6 +344,14 @@ export default function RelatorioComissoesPage() {
           if (info.logo) setLogoUrl(info.logo);
           else if (info.login_logo) setLogoUrl(info.login_logo);
           if (info.nome) setClinicaNome(info.nome);
+        }
+      })
+      .catch(() => {});
+    clinicaBelezaFetch('/memed/timbrado/')
+      .then(async (res) => {
+        if (res.ok) {
+          const t = await res.json();
+          setTemTimbrado(Boolean(t.tem_timbrado));
         }
       })
       .catch(() => {});
@@ -418,18 +434,58 @@ export default function RelatorioComissoesPage() {
     URL.revokeObjectURL(link.href);
   };
 
+  const exportarPDF = async () => {
+    setPdfLoading(true);
+    setError('');
+    try {
+      const qp = new URLSearchParams({ data_inicio: dataInicio, data_fim: dataFim });
+      if (professionalId) qp.set('professional_id', professionalId);
+      const res = await clinicaBelezaFetch(`/relatorios/comissoes/pdf/?${qp.toString()}`);
+      if (!res.ok) {
+        setError('Não foi possível gerar o PDF. Tente novamente.');
+        return;
+      }
+      const blob = await res.blob();
+      const nomeArquivo = profissionalNome
+        ? `comissoes_${profissionalNome.replace(/\s+/g, '_')}_${dataInicio}_${dataFim}.pdf`
+        : `comissoes_${dataInicio}_${dataFim}.pdf`;
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = nomeArquivo;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch {
+      setError('Não foi possível gerar o PDF. Tente novamente.');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const imprimirNavegador = () => {
+    if (!logoUrl && temTimbrado) {
+      void exportarPDF();
+      return;
+    }
+    window.print();
+  };
+
   return (
     <div className="p-4 sm:p-6 print-area max-w-6xl mx-auto">
-      <div className="hidden print:block mb-6">
-        {logoUrl && (
+      <div className="hidden print:block mb-6 text-center">
+        {logoUrl ? (
           <div className="flex justify-center mb-4">
             <img src={logoUrl} alt={clinicaNome} className="max-h-20 object-contain" />
           </div>
-        )}
+        ) : clinicaNome ? (
+          <p className="text-lg font-bold text-gray-800 mb-2">{clinicaNome}</p>
+        ) : null}
         <h1 className="text-2xl font-bold" style={{ color: CLINICA_BELEZA_PRIMARY }}>
           Relatório de Comissões
         </h1>
-        <p className="text-sm text-gray-600">
+        {profissionalNome && (
+          <p className="text-base font-semibold text-gray-800 mt-2">Profissional: {profissionalNome}</p>
+        )}
+        <p className="text-sm text-gray-600 mt-1">
           Período: {dataInicio} a {dataFim}
         </p>
       </div>
@@ -450,12 +506,25 @@ export default function RelatorioComissoesPage() {
             <Download size={16} /> CSV
           </button>
           <button
-            onClick={() => window.print()}
-            disabled={!data?.profissionais.length}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg text-white"
+            onClick={exportarPDF}
+            disabled={!data?.profissionais.length || pdfLoading}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg text-white disabled:opacity-50"
             style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            title={
+              !logoUrl && temTimbrado
+                ? 'Usa o PDF timbrado configurado em Configurações → Memed'
+                : undefined
+            }
           >
-            <Printer size={16} /> PDF
+            <Printer size={16} /> {pdfLoading ? 'Gerando…' : 'PDF'}
+          </button>
+          <button
+            onClick={imprimirNavegador}
+            disabled={!data?.profissionais.length}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200"
+            title={!logoUrl && temTimbrado ? 'Com timbrado, use o botão PDF' : 'Imprimir esta página'}
+          >
+            Imprimir
           </button>
         </div>
       </div>

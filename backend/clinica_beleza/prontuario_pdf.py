@@ -68,6 +68,26 @@ def _resolver_cabecalho(loja_id):
     return ('texto', loja)
 
 
+def _resolver_cabecalho_relatorio(loja_id):
+    """
+    Cabeçalho para relatórios (ex.: comissões): logo da loja; sem logo, timbrado Memed.
+    """
+    from superadmin.models import Loja
+
+    loja = Loja.objects.filter(id=loja_id).first()
+    logo_url = ''
+    if loja:
+        logo_url = (loja.logo or '').strip() or (getattr(loja, 'login_logo', '') or '').strip()
+    if logo_url:
+        return ('logo', logo_url)
+
+    timbrado = MemedTimbrado.objects.filter(loja_id=loja_id).first()
+    if timbrado and timbrado.pdf:
+        return ('timbrado', bytes(timbrado.pdf))
+
+    return ('texto', loja)
+
+
 # ---------------------------------------------------------------------------
 # Estilos
 # ---------------------------------------------------------------------------

@@ -31,6 +31,20 @@ def delete_user_raw(user_id):
                 )
             except Exception:
                 pass  # Tabela pode não existir (ex: app não migrado)
+        # JWT blacklist (rest_framework_simplejwt) — antes de apagar auth_user
+        for sql in (
+            """
+            DELETE FROM token_blacklist_blacklistedtoken
+            WHERE token_id IN (
+                SELECT id FROM token_blacklist_outstandingtoken WHERE user_id = %s
+            )
+            """,
+            'DELETE FROM token_blacklist_outstandingtoken WHERE user_id = %s',
+        ):
+            try:
+                cursor.execute(sql, [user_id])
+            except Exception:
+                pass
         cursor.execute('DELETE FROM auth_user_groups WHERE user_id = %s', [user_id])
         cursor.execute(
             'DELETE FROM auth_user_user_permissions WHERE user_id = %s',

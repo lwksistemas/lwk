@@ -62,17 +62,41 @@ class LojaCleanupService:
     def cleanup_support_tickets(self):
         """Remove chamados de suporte da loja"""
         try:
+            from django.db import connections
+
+            db = 'suporte' if 'suporte' in connections.databases else 'default'
+            chamados_count = 0
+            respostas_count = 0
+
+            with connections[db].cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'suporte_chamado'
+                      AND column_name = 'loja_slug'
+                    LIMIT 1
+                    """
+                )
+                if not cursor.fetchone():
+                    logger.info('   ℹ️ suporte_chamado sem coluna loja_slug — pulando limpeza de chamados')
+                    self.results['suporte'] = {'chamados_removidos': 0, 'pulado': 'coluna loja_slug ausente'}
+                    return
+
             from suporte.models import Chamado
-            
-            with transaction.atomic():
-                chamados = Chamado.objects.filter(loja_slug=self.loja_slug)
+
+            with transaction.atomic(using=db):
+                chamados = Chamado.objects.using(db).filter(loja_slug=self.loja_slug)
                 chamados_count = chamados.count()
-                respostas_count = sum(c.respostas.count() for c in chamados)
-                chamados.delete()
+                if chamados_count:
+                    respostas_count = sum(
+                        c.respostas.using(db).count() for c in chamados.using(db).iterator()
+                    )
+                    chamados.delete()
                 
                 self.results['suporte'] = {
                     'chamados_removidos': chamados_count,
-                    'respostas_removidas': respostas_count
+                    'respostas_removidas': respostas_count,
                 }
                 
                 if chamados_count > 0:

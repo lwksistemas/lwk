@@ -546,35 +546,39 @@ def delete_all_loja_data(sender, instance, **kwargs):
             _delete_servicos(Funcionario, 'funcionários')
             
         elif tipo_loja_nome == 'Clínica da Beleza':
-            from clinica_beleza.models import (
-                Patient, Professional, Procedure, Appointment, BloqueioHorario,
-                HorarioTrabalhoProfissional, Payment, CampanhaPromocao
-            )
-            _db = db_alias
+            if db_alias:
+                from superadmin.tenant_cleanup import delete_clinica_beleza_tenant_data
+                delete_clinica_beleza_tenant_data(db_alias, loja_id)
+            else:
+                from clinica_beleza.models import (
+                    Patient, Professional, Procedure, Appointment, BloqueioHorario,
+                    HorarioTrabalhoProfissional, Payment, CampanhaPromocao,
+                )
 
-            def _delete_clinica_beleza(model, nome):
-                """Sem transaction.atomic() - signal já está na transação do loja.delete()"""
-                try:
-                    if hasattr(model.objects, 'all_without_filter'):
-                        qs = model.objects.all_without_filter().filter(loja_id=loja_id)
-                    else:
-                        qs = model.objects.filter(loja_id=loja_id)
-                    if _db:
-                        qs = qs.using(_db)
-                    count = qs.count()
-                    qs.delete()
-                    logger.info(f"   ✅ {count} {nome} (Clínica da Beleza) deletados")
-                except Exception as e:
-                    logger.warning(f"   ⚠️ Erro ao deletar {nome} Clínica da Beleza: {e}")
-            # Ordem: dependentes primeiro (Payment -> Appointment; BloqueioHorario, HorarioTrabalhoProfissional)
-            _delete_clinica_beleza(Payment, 'pagamentos')
-            _delete_clinica_beleza(Appointment, 'agendamentos')
-            _delete_clinica_beleza(BloqueioHorario, 'bloqueios horário')
-            _delete_clinica_beleza(HorarioTrabalhoProfissional, 'horários trabalho profissional')
-            _delete_clinica_beleza(CampanhaPromocao, 'campanhas promoção')
-            _delete_clinica_beleza(Procedure, 'procedimentos')
-            _delete_clinica_beleza(Professional, 'profissionais')
-            _delete_clinica_beleza(Patient, 'pacientes')
+                def _delete_clinica_beleza(model, nome):
+                    try:
+                        if hasattr(model.objects, 'all_without_filter'):
+                            qs = model.objects.all_without_filter().filter(loja_id=loja_id)
+                        else:
+                            qs = model.objects.filter(loja_id=loja_id)
+                        count = qs.count()
+                        qs.delete()
+                        logger.info(f"   ✅ {count} {nome} (Clínica da Beleza) deletados")
+                    except Exception as e:
+                        err = str(e).lower()
+                        if 'does not exist' in err or 'undefinedcolumn' in err:
+                            logger.debug(f"   ℹ️ {nome}: schema parcial (ok)")
+                        else:
+                            logger.warning(f"   ⚠️ Erro ao deletar {nome} Clínica da Beleza: {e}")
+
+                _delete_clinica_beleza(Payment, 'pagamentos')
+                _delete_clinica_beleza(Appointment, 'agendamentos')
+                _delete_clinica_beleza(BloqueioHorario, 'bloqueios horário')
+                _delete_clinica_beleza(HorarioTrabalhoProfissional, 'horários trabalho profissional')
+                _delete_clinica_beleza(CampanhaPromocao, 'campanhas promoção')
+                _delete_clinica_beleza(Procedure, 'procedimentos')
+                _delete_clinica_beleza(Professional, 'profissionais')
+                _delete_clinica_beleza(Patient, 'pacientes')
             
         elif tipo_loja_nome == 'Cabeleireiro':
             from cabeleireiro.models import (

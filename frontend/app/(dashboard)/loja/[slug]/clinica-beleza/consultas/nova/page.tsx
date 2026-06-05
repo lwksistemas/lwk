@@ -2,22 +2,27 @@
 
 /**
  * Nova Consulta — Página dedicada (full page)
- * Substitui o modal anterior para melhor experiência com formulários grandes.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Search, Trash2, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI, type ConvenioItem, type LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
-import { buildPrecosMap, CONVENIO_PARTICULAR_LABEL, precoProcedimento } from "@/lib/convenio-precos";
+import { ConvenioSelect } from "@/components/clinica-beleza/ConvenioSelect";
+import { PatientSearchField } from "@/components/clinica-beleza/PatientSearchField";
+import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
+import { useConvenioPrecos } from "@/hooks/clinica-beleza/useConvenioPrecos";
+import { useConveniosList } from "@/hooks/clinica-beleza/useConveniosList";
+import { ClinicaBelezaAPI, type LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
+import { entityName } from "@/lib/clinica-beleza-entities";
 import { logger } from "@/lib/logger";
 
 interface Option {
   id: number;
   nome: string;
+  name?: string;
   duracao_minutos?: number;
   preco?: number;
   convenio?: number | null;
@@ -32,8 +37,6 @@ export default function NovaConsultaPage() {
   const [professionals, setProfessionals] = useState<Option[]>([]);
   const [procedures, setProcedures] = useState<Option[]>([]);
   const [locais, setLocais] = useState<LocalAtendimentoItem[]>([]);
-  const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
-  const [precosMap, setPrecosMap] = useState<Record<number, number>>({});
   const [loadingData, setLoadingData] = useState(true);
 
   const [busca, setBusca] = useState("");
@@ -46,6 +49,9 @@ export default function NovaConsultaPage() {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
+  const convenios = useConveniosList();
+  const precosMap = useConvenioPrecos(convenioId);
+
   const voltar = useCallback(() => {
     router.push(`/loja/${slug}/clinica-beleza/consultas`);
   }, [router, slug]);
@@ -53,12 +59,11 @@ export default function NovaConsultaPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [pac, prof, proc, locaisRes, convRes] = await Promise.all([
+        const [pac, prof, proc, locaisRes] = await Promise.all([
           ClinicaBelezaAPI.get<Option[]>("/patients/"),
-          ClinicaBelezaAPI.get<Option[]>("/professionals/"),
+          ClinicaBelezaAPI.professionals.list(),
           ClinicaBelezaAPI.get<Option[]>("/procedures/"),
           ClinicaBelezaAPI.locaisAtendimento.list(),
-          ClinicaBelezaAPI.convenios.list(),
         ]);
         const ativos = (arr: unknown) => (Array.isArray(arr) ? (arr as Option[]) : []);
         setPatients(ativos(pac));
@@ -66,7 +71,6 @@ export default function NovaConsultaPage() {
         setProfessionals(profList);
         setProcedures(ativos(proc));
         setLocais(Array.isArray(locaisRes) ? locaisRes : []);
-        setConvenios(Array.isArray(convRes) ? convRes : []);
         if (profList.length === 1) setProfessionalId(profList[0].id);
       } catch (e) {
         logger.warn("Erro ao carregar dados para nova consulta:", e);
@@ -77,49 +81,11 @@ export default function NovaConsultaPage() {
     })();
   }, []);
 
-  const pacientesFiltrados = useMemo(() => {
-    const q = busca.trim().toLowerCase();
-    if (!q) return [];
-    return patients.filter((p) => (p.nome || "").toLowerCase().includes(q)).slice(0, 50);
-  }, [busca, patients]);
-
-  useEffect(() => {
-    if (pacientesFiltrados.length === 1) {
-      setPatientId(pacientesFiltrados[0].id);
-    }
-  }, [pacientesFiltrados]);
-
   useEffect(() => {
     if (!patientId) return;
     const paciente = patients.find((p) => p.id === patientId);
     setConvenioId(paciente?.convenio ?? "");
   }, [patientId, patients]);
-
-  useEffect(() => {
-    if (!convenioId) {
-      setPrecosMap({});
-      return;
-    }
-    (async () => {
-      try {
-        const rows = await ClinicaBelezaAPI.convenios.precos(Number(convenioId));
-        setPrecosMap(buildPrecosMap(rows));
-      } catch (e) {
-        logger.warn("Erro ao carregar preços do convênio:", e);
-        setPrecosMap({});
-      }
-    })();
-  }, [convenioId]);
-
-  const clienteSelecionado = useMemo(
-    () => patients.find((p) => p.id === patientId) || null,
-    [patients, patientId],
-  );
-
-  const procedimentosDisponiveis = useMemo(
-    () => procedures.filter((p) => !selectedProcedures.includes(p.id)),
-    [procedures, selectedProcedures],
-  );
 
   const adicionarProcedimento = (id: number) => {
     if (id && !selectedProcedures.includes(id)) {
@@ -130,19 +96,6 @@ export default function NovaConsultaPage() {
   const removerProcedimento = (id: number) => {
     setSelectedProcedures((prev) => prev.filter((p) => p !== id));
   };
-
-  const resumo = useMemo(() => {
-    let duracao = 0;
-    let valor = 0;
-    for (const id of selectedProcedures) {
-      const proc = procedures.find((p) => p.id === id);
-      if (proc) {
-        duracao += Number(proc.duracao_minutos) || 0;
-        valor += precoProcedimento(id, Number(proc.preco) || 0, convenioId, precosMap);
-      }
-    }
-    return { duracao, valor };
-  }, [selectedProcedures, procedures, convenioId, precosMap]);
 
   const handleLocalChange = (id: number | "") => {
     setLocalAtendimentoId(id);
@@ -195,6 +148,12 @@ export default function NovaConsultaPage() {
     }
   };
 
+  const patientOptions = patients.map((p) => ({
+    id: p.id,
+    nome: p.nome || entityName(p),
+    convenio: p.convenio,
+  }));
+
   return (
     <>
       <ClinicaBelezaStandardPageHeader
@@ -208,57 +167,15 @@ export default function NovaConsultaPage() {
               <div className="text-center py-16 text-gray-500 text-sm">Carregando cadastros...</div>
             ) : (
               <div className="space-y-6">
-                {/* Cliente */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Cliente *
-                  </label>
-                  <div className="relative mb-2">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      value={busca}
-                      onChange={(e) => setBusca(e.target.value)}
-                      placeholder="Buscar pelo nome..."
-                      className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg dark:bg-neutral-700 focus:ring-2 focus:ring-pink-200 dark:focus:ring-pink-800 focus:border-pink-400 outline-none transition-colors"
-                    />
-                  </div>
-                  {busca.trim() && pacientesFiltrados.length > 0 && (
-                    <div className="border border-gray-200 dark:border-neutral-600 rounded-lg overflow-hidden mb-2 max-h-48 overflow-y-auto">
-                      {pacientesFiltrados.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => { setPatientId(p.id); setBusca(""); }}
-                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors border-b last:border-b-0 border-gray-100 dark:border-neutral-700 ${
-                            patientId === p.id ? "bg-pink-50 dark:bg-pink-900/20 font-medium" : ""
-                          }`}
-                        >
-                          {p.nome}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {busca.trim() && pacientesFiltrados.length === 0 && (
-                    <p className="text-xs text-gray-400 mb-2">Nenhum cliente encontrado</p>
-                  )}
-                  {clienteSelecionado && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                      <span className="text-sm text-green-700 dark:text-green-400">
-                        Selecionado: <strong>{clienteSelecionado.nome}</strong>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setPatientId("")}
-                        className="ml-auto text-xs text-gray-400 hover:text-red-500"
-                      >
-                        Trocar
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <PatientSearchField
+                  patients={patientOptions}
+                  busca={busca}
+                  onBuscaChange={setBusca}
+                  patientId={patientId}
+                  onSelect={setPatientId}
+                  onClear={() => setPatientId("")}
+                />
 
-                {/* Profissional */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Profissional *
@@ -270,32 +187,17 @@ export default function NovaConsultaPage() {
                   >
                     <option value="">Selecione...</option>
                     {professionals.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nome}</option>
+                      <option key={p.id} value={p.id}>{p.nome || entityName(p)}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Convênio */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Convênio
-                  </label>
-                  <select
-                    value={convenioId}
-                    onChange={(e) => setConvenioId(e.target.value ? Number(e.target.value) : "")}
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg dark:bg-neutral-700 focus:ring-2 focus:ring-pink-200 dark:focus:ring-pink-800 focus:border-pink-400 outline-none transition-colors"
-                  >
-                    <option value="">{CONVENIO_PARTICULAR_LABEL}</option>
-                    {convenios.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nome}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-400 mt-1.5">
-                    Define os preços dos procedimentos. Sugerido pelo cadastro do cliente, se houver.
-                  </p>
-                </div>
+                <ConvenioSelect
+                  convenios={convenios}
+                  value={convenioId}
+                  onChange={setConvenioId}
+                />
 
-                {/* Local de Atendimento */}
                 {locais.length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -316,7 +218,6 @@ export default function NovaConsultaPage() {
                   </div>
                 )}
 
-                {/* Valor da Consulta */}
                 {locais.length > 0 && localAtendimentoId && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -337,67 +238,21 @@ export default function NovaConsultaPage() {
                   </div>
                 )}
 
-                {/* Procedimentos */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Procedimentos * <span className="font-normal text-gray-400">(pode adicionar vários)</span>
-                  </label>
-                  <select
-                    className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg dark:bg-neutral-700 focus:ring-2 focus:ring-pink-200 dark:focus:ring-pink-800 focus:border-pink-400 outline-none transition-colors"
-                    defaultValue=""
-                    onChange={(e) => {
-                      const id = Number(e.target.value);
-                      if (id) adicionarProcedimento(id);
-                      e.target.value = "";
-                    }}
-                  >
-                    <option value="">Adicionar procedimento...</option>
-                    {procedimentosDisponiveis.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nome}</option>
-                    ))}
-                  </select>
+                <ProcedureMultiSelect
+                  procedures={procedures}
+                  selectedIds={selectedProcedures}
+                  onAdd={adicionarProcedimento}
+                  onRemove={removerProcedimento}
+                  convenioId={convenioId}
+                  precosMap={precosMap}
+                />
 
-                  {selectedProcedures.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      {selectedProcedures.map((id) => {
-                        const proc = procedures.find((p) => p.id === id);
-                        if (!proc) return null;
-                        const valorProc = precoProcedimento(id, Number(proc.preco) || 0, convenioId, precosMap);
-                        return (
-                          <div key={id} className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-neutral-700/50 rounded-lg">
-                            <div className="text-sm">
-                              <span className="font-medium text-gray-800 dark:text-gray-200">{proc.nome}</span>
-                              <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
-                                {Number(proc.duracao_minutos) || 0}min
-                                {valorProc > 0 ? ` · R$ ${valorProc.toFixed(2)}` : ""}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => removerProcedimento(id)}
-                              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                      <div className="flex items-center justify-between px-4 py-2 text-sm text-gray-600 dark:text-gray-400 border-t dark:border-neutral-600 mt-2 pt-3">
-                        <span>Duração total: <strong>{resumo.duracao} min</strong></span>
-                        {resumo.valor > 0 && <span>Valor: <strong>R$ {resumo.valor.toFixed(2)}</strong></span>}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Erro */}
                 {erro && (
                   <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                     <p className="text-sm text-red-600 dark:text-red-400">{erro}</p>
                   </div>
                 )}
 
-                {/* Botões */}
                 <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-neutral-700">
                   <button
                     type="button"

@@ -77,6 +77,8 @@ export interface ClinicaBelezaStandardPageHeaderProps {
   title: string;
   subtitle?: string;
   backHref?: string;
+  /** Se definido, substitui a navegação padrão do botão voltar (ex.: limpar query params). */
+  onBack?: () => void;
   icon?: LucideIcon;
   newLabel?: string;
   onNew?: () => void;
@@ -89,6 +91,7 @@ export function ClinicaBelezaStandardPageHeader({
   title,
   subtitle,
   backHref,
+  onBack,
   icon: Icon,
   newLabel = 'Novo',
   onNew,
@@ -99,12 +102,20 @@ export function ClinicaBelezaStandardPageHeader({
   const params = useParams();
   const slug = params.slug as string;
 
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    router.push(backHref || `/loja/${slug}/dashboard`);
+  };
+
   return (
     <ClinicaBelezaPageHeader>
       <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full min-w-0">
         <button
           type="button"
-          onClick={() => router.push(backHref || `/loja/${slug}/dashboard`)}
+          onClick={handleBack}
           className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 shrink-0"
           aria-label="Voltar"
         >

@@ -8,6 +8,7 @@ from rest_framework import status
 
 from .models import ProcedureProtocol
 from .serializers import ProcedureProtocolSerializer
+from .pagination import paginate_queryset
 from .views_base import GetObjectMixin
 
 
@@ -32,7 +33,11 @@ class ProtocolListView(APIView):
         categoria = (request.query_params.get('categoria') or '').strip()
         if categoria:
             queryset = queryset.filter(procedure__categoria__icontains=categoria)
-        return Response(ProcedureProtocolSerializer(queryset.order_by('procedure__nome', 'nome'), many=True).data)
+        return paginate_queryset(
+            queryset.order_by('procedure__nome', 'nome'),
+            request,
+            ProcedureProtocolSerializer,
+        )
 
     def post(self, request):
         serializer = ProcedureProtocolSerializer(data=request.data)

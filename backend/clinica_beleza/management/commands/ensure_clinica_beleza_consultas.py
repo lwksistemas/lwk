@@ -6,9 +6,9 @@ Necessário quando migrate_all_lojas falha por histórico legado inconsistente.
 from django.core.management.base import BaseCommand
 from django.db import connections
 
+from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
-
 
 SQL_STATEMENTS = [
     """
@@ -46,7 +46,9 @@ SQL_STATEMENTS = [
         patient_id BIGINT NOT NULL REFERENCES clinica_beleza_patient(id) ON DELETE CASCADE,
         procedure_id BIGINT NOT NULL REFERENCES clinica_beleza_procedure(id) ON DELETE CASCADE,
         professional_id BIGINT NULL REFERENCES clinica_beleza_professional(id) ON DELETE SET NULL,
-        protocol_id BIGINT NULL REFERENCES clinica_beleza_protocolos(id) ON DELETE SET NULL
+        protocol_id BIGINT NULL REFERENCES clinica_beleza_protocolos(id) ON DELETE SET NULL,
+        local_atendimento_id BIGINT NULL REFERENCES clinica_beleza_locais_atendimento(id) ON DELETE SET NULL,
+        convenio_id BIGINT NULL REFERENCES clinica_beleza_convenios(id) ON DELETE SET NULL
     );
     """,
     """
@@ -95,16 +97,32 @@ SQL_STATEMENTS = [
     """,
 ]
 
+COLUMN_PATCHES = [
+    (
+        'clinica_beleza_consultas',
+        'local_atendimento_id',
+        'ALTER TABLE clinica_beleza_consultas ADD COLUMN local_atendimento_id BIGINT NULL '
+        'REFERENCES clinica_beleza_locais_atendimento(id) ON DELETE SET NULL',
+    ),
+    (
+        'clinica_beleza_consultas',
+        'convenio_id',
+        'ALTER TABLE clinica_beleza_consultas ADD COLUMN convenio_id BIGINT NULL '
+        'REFERENCES clinica_beleza_convenios(id) ON DELETE SET NULL',
+    ),
+    (
+        'clinica_beleza_patient',
+        'convenio_id',
+        'ALTER TABLE clinica_beleza_patient ADD COLUMN convenio_id BIGINT NULL '
+        'REFERENCES clinica_beleza_convenios(id) ON DELETE SET NULL',
+    ),
+]
 
-def _table_exists(cursor, table: str) -> bool:
-    cursor.execute(
-        """
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = current_schema() AND table_name = %s LIMIT 1
-        """,
-        [table],
-    )
-    return cursor.fetchone() is not None
+
+def _apply_patches(cursor):
+    for table, column, sql in COLUMN_PATCHES:
+        if table_exists(cursor, table) and not column_exists(cursor, table, column):
+            cursor.execute(sql)
 
 
 class Command(BaseCommand):
@@ -135,7 +153,7 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not _table_exists(cursor, 'clinica_beleza_appointment'):
+                    if not table_exists(cursor, 'clinica_beleza_appointment'):
                         skip += 1
                         self.stdout.write(self.style.WARNING(
                             f'SKIP loja={loja.id} ({loja.nome}): sem tabelas clinica_beleza'
@@ -144,6 +162,7 @@ class Command(BaseCommand):
 
                     for sql in SQL_STATEMENTS:
                         cursor.execute(sql)
+                    _apply_patches(cursor)
 
                 ok += 1
                 self.stdout.write(self.style.SUCCESS(

@@ -16,6 +16,7 @@ from .serializers import (
 )
 from .consulta_service import finalizar_consulta, iniciar_consulta, criar_consulta_avulsa
 from .pagination import paginate_queryset
+from .views_base import GetObjectMixin
 
 
 class ConsultaListView(APIView):
@@ -96,45 +97,44 @@ class ConsultaListView(APIView):
         return Response(ConsultaSerializer(consulta).data, status=status.HTTP_201_CREATED)
 
 
-class ConsultaDetailView(APIView):
+class ConsultaDetailView(GetObjectMixin, APIView):
     """GET / PUT / PATCH /clinica-beleza/consultas/<id>/"""
     permission_classes = CLINICA_MEMBER
-
-    def _get(self, pk):
-        return Consulta.objects.select_related(
-            'patient', 'professional', 'procedure', 'protocol', 'appointment',
-        ).get(pk=pk)
+    model_class = Consulta
+    not_found_message = 'Consulta não encontrada'
+    select_related_fields = (
+        'patient', 'professional', 'procedure', 'protocol', 'appointment',
+        'local_atendimento', 'convenio',
+    )
 
     def get(self, request, pk):
-        try:
-            return Response(ConsultaSerializer(self._get(pk)).data)
-        except Consulta.DoesNotExist:
-            return Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        return Response(ConsultaSerializer(obj).data)
 
     def put(self, request, pk):
-        try:
-            obj = self._get(pk)
-            if obj.status == 'COMPLETED':
-                return Response(
-                    {'error': 'Consulta finalizada não pode ser editada.'},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-            serializer = ConsultaSerializer(obj, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Consulta.DoesNotExist:
-            return Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        if obj.status == 'COMPLETED':
+            return Response(
+                {'error': 'Consulta finalizada não pode ser editada.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = ConsultaSerializer(obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request, pk):
         return self.put(request, pk)
 
     def delete(self, request, pk):
-        try:
-            consulta = self._get(pk)
-        except Consulta.DoesNotExist:
-            return Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        consulta, err = self.object_or_404(pk)
+        if err:
+            return err
 
         # Só permite excluir consultas que ainda não foram concluídas
         if consulta.status == 'COMPLETED':

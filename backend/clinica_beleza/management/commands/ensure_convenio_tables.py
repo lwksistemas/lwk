@@ -8,34 +8,11 @@ Uso:
 from django.core.management.base import BaseCommand
 from django.db import connections
 
+from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
 MIGRATIONS = ('0032_convenio', '0033_convenioprocedimentopreco_modo')
-
-
-def _table_exists(cursor, table: str) -> bool:
-    cursor.execute(
-        """
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = current_schema() AND table_name = %s
-        LIMIT 1
-        """,
-        [table],
-    )
-    return cursor.fetchone() is not None
-
-
-def _column_exists(cursor, table: str, column: str) -> bool:
-    cursor.execute(
-        """
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = current_schema() AND table_name = %s AND column_name = %s
-        LIMIT 1
-        """,
-        [table, column],
-    )
-    return cursor.fetchone() is not None
 
 
 class Command(BaseCommand):
@@ -62,7 +39,7 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not _table_exists(cursor, 'clinica_beleza_convenios'):
+                    if not table_exists(cursor, 'clinica_beleza_convenios'):
                         cursor.execute("""
                             CREATE TABLE clinica_beleza_convenios (
                                 id BIGSERIAL PRIMARY KEY,
@@ -79,7 +56,7 @@ class Command(BaseCommand):
                             'ON clinica_beleza_convenios (loja_id)'
                         )
 
-                    if not _table_exists(cursor, 'clinica_beleza_convenio_procedimento_precos'):
+                    if not table_exists(cursor, 'clinica_beleza_convenio_procedimento_precos'):
                         cursor.execute("""
                             CREATE TABLE clinica_beleza_convenio_procedimento_precos (
                                 id BIGSERIAL PRIMARY KEY,
@@ -94,7 +71,7 @@ class Command(BaseCommand):
                                 CONSTRAINT uniq_convenio_procedure_loja UNIQUE (convenio_id, procedure_id, loja_id)
                             )
                         """)
-                    elif not _column_exists(cursor, 'clinica_beleza_convenio_procedimento_precos', 'modo'):
+                    elif not column_exists(cursor, 'clinica_beleza_convenio_procedimento_precos', 'modo'):
                         cursor.execute("""
                             ALTER TABLE clinica_beleza_convenio_procedimento_precos
                             ADD COLUMN modo VARCHAR(15) NOT NULL DEFAULT 'fixo'
@@ -105,7 +82,7 @@ class Command(BaseCommand):
                         'clinica_beleza_appointment',
                         'clinica_beleza_consultas',
                     ):
-                        if _table_exists(cursor, table) and not _column_exists(cursor, table, 'convenio_id'):
+                        if table_exists(cursor, table) and not column_exists(cursor, table, 'convenio_id'):
                             cursor.execute(f"""
                                 ALTER TABLE {table}
                                 ADD COLUMN convenio_id BIGINT NULL

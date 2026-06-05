@@ -14,7 +14,8 @@ from .serializers import (
     HorarioTrabalhoProfissionalSerializer, ProfessionalCommissionSerializer,
 )
 from .utils import LojaContextHelper
-from .views_base import map_field_names
+from .pagination import paginate_queryset
+from .views_base import GetObjectMixin, map_field_names
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +98,12 @@ class ProfessionalListView(APIView):
         if with_schedule and owner_professional_id is not None:
             queryset = queryset.exclude(id=owner_professional_id)
 
-        return Response(ProfessionalSerializer(
-            queryset, many=True,
-            context={'owner_professional_id': owner_professional_id}
-        ).data)
+        return paginate_queryset(
+            queryset,
+            request,
+            ProfessionalSerializer,
+            serializer_context={'owner_professional_id': owner_professional_id},
+        )
 
     def post(self, request):
         raw = request.data if isinstance(request.data, dict) else dict(request.data)
@@ -144,53 +147,52 @@ class ProfessionalListView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ProfessionalDetailView(APIView):
+class ProfessionalDetailView(GetObjectMixin, APIView):
     """GET /clinica-beleza/professionals/<id>/  PUT  DELETE"""
     permission_classes = CLINICA_ADMIN
+    model_class = Professional
+    not_found_message = 'Profissional não encontrado'
 
     def get(self, request, pk):
-        try:
-            obj = Professional.objects.get(pk=pk)
-            owner_professional_id = LojaContextHelper.get_owner_professional_id()
-            return Response(ProfessionalSerializer(obj, context={'owner_professional_id': owner_professional_id}).data)
-        except Professional.DoesNotExist:
-            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        owner_professional_id = LojaContextHelper.get_owner_professional_id()
+        return Response(ProfessionalSerializer(obj, context={'owner_professional_id': owner_professional_id}).data)
 
     def put(self, request, pk):
         owner_professional_id = LojaContextHelper.get_owner_professional_id()
         if owner_professional_id is not None and int(pk) == owner_professional_id:
             return Response({'error': 'O administrador vinculado à loja não pode ser editado.'}, status=status.HTTP_403_FORBIDDEN)
-        try:
-            obj = Professional.objects.get(pk=pk)
-            data = _map_professional_data(request.data)
-            serializer = ProfessionalSerializer(obj, data=data, partial=True)
-            if serializer.is_valid():
-                professional = serializer.save()
-                _sync_memed(professional)
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Professional.DoesNotExist:
-            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        data = _map_professional_data(request.data)
+        serializer = ProfessionalSerializer(obj, data=data, partial=True)
+        if serializer.is_valid():
+            professional = serializer.save()
+            _sync_memed(professional)
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
         owner_professional_id = LojaContextHelper.get_owner_professional_id()
         if owner_professional_id is not None and int(pk) == owner_professional_id:
             return Response({'error': 'O administrador vinculado à loja não pode ser excluído.'}, status=status.HTTP_403_FORBIDDEN)
-        try:
-            obj = Professional.objects.get(pk=pk)
-            from django.utils import timezone
-            agora = timezone.now()
-            count = Appointment.objects.filter(professional=obj, date__gte=agora).count()
-            Appointment.objects.filter(professional=obj, date__gte=agora).delete()
-            HorarioTrabalhoProfissional.objects.filter(professional=obj).delete()
-            BloqueioHorario.objects.filter(professional=obj).delete()
-            obj.is_active = False
-            obj.save()
-            return Response({
-                'message': f'Profissional desativado. {count} agendamento(s) futuro(s) excluído(s).'
-            }, status=status.HTTP_200_OK)
-        except Professional.DoesNotExist:
-            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        from django.utils import timezone
+        agora = timezone.now()
+        count = Appointment.objects.filter(professional=obj, date__gte=agora).count()
+        Appointment.objects.filter(professional=obj, date__gte=agora).delete()
+        HorarioTrabalhoProfissional.objects.filter(professional=obj).delete()
+        BloqueioHorario.objects.filter(professional=obj).delete()
+        obj.is_active = False
+        obj.save()
+        return Response({
+            'message': f'Profissional desativado. {count} agendamento(s) futuro(s) excluído(s).'
+        }, status=status.HTTP_200_OK)
 
 
 class ProfessionalMemedStatusView(APIView):

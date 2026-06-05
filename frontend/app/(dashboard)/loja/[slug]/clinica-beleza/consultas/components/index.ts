@@ -9,7 +9,8 @@ export type {
 export { EMPTY_ANAMNESE, ANAMNESE_FIELDS } from "./consultas-types";
 export { PreviewBlock } from "./PreviewBlock";
 export { ConsultaFinalizarModal } from "./ConsultaFinalizarModal";
-export { NovaConsultaModal } from "./NovaConsultaModal";
+export { ConsultasListTable } from "./ConsultasListTable";
+export { ConsultaDetailShell } from "./ConsultaDetailShell";
 export { ConsultaAtendimentoTab } from "./ConsultaAtendimentoTab";
 export { ConsultaAnamneseTab } from "./ConsultaAnamneseTab";
 export { ConsultaEvolucaoTab } from "./ConsultaEvolucaoTab";

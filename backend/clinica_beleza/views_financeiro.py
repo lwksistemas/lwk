@@ -11,6 +11,7 @@ from django.db.models import Sum
 from .models import Payment
 from .serializers import PaymentSerializer
 from .pagination import paginate_queryset
+from .views_base import GetObjectMixin
 
 
 class PaymentListView(APIView):
@@ -41,39 +42,38 @@ class PaymentListView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class PaymentDetailView(APIView):
+class PaymentDetailView(GetObjectMixin, APIView):
     """GET /clinica-beleza/payments/<id>/  PUT  DELETE"""
     permission_classes = CLINICA_FINANCEIRO
-
-    def _get(self, pk):
-        return Payment.objects.select_related(
-            'appointment', 'appointment__patient',
-            'appointment__professional', 'appointment__procedure',
-        ).get(pk=pk)
+    model_class = Payment
+    not_found_message = 'Pagamento não encontrado'
+    select_related_fields = (
+        'appointment', 'appointment__patient',
+        'appointment__professional', 'appointment__procedure',
+    )
 
     def get(self, request, pk):
-        try:
-            return Response(PaymentSerializer(self._get(pk)).data)
-        except Payment.DoesNotExist:
-            return Response({'error': 'Pagamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        return Response(PaymentSerializer(obj).data)
 
     def put(self, request, pk):
-        try:
-            payment = Payment.objects.get(pk=pk)
-            serializer = PaymentSerializer(payment, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Payment.DoesNotExist:
-            return Response({'error': 'Pagamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        serializer = PaymentSerializer(obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        try:
-            Payment.objects.get(pk=pk).delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Payment.DoesNotExist:
-            return Response({'error': 'Pagamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class FinanceiroResumoView(APIView):

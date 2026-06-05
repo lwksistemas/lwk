@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, ChevronRight, FileText, Pencil, Save, Trash2 } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
@@ -30,26 +30,29 @@ const EMPTY_LINHA: PrecoLinha = { modo: "fixo", valor: "" };
 
 export default function ConveniosPage() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const basePath = `/loja/${slug}/clinica-beleza/convenios`;
 
   const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
   const [procedures, setProcedures] = useState<ProcedureRow[]>([]);
-  const [selectedId, setSelectedId] = useState<number | "">("");
   const [linhas, setLinhas] = useState<Record<number, PrecoLinha>>({});
   const [novoNome, setNovoNome] = useState("");
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
-  const carregar = useCallback(async () => {
+  const isNovo = searchParams.get("novo") === "1";
+  const editIdParam = searchParams.get("id");
+  const isFormView = isNovo || Boolean(editIdParam);
+  const editId = editIdParam ? Number(editIdParam) : null;
+
+  const carregarLista = useCallback(async () => {
     setLoading(true);
     try {
-      const [conv, proc] = await Promise.all([
-        ClinicaBelezaAPI.convenios.list(),
-        ClinicaBelezaAPI.get<ProcedureRow[]>("/procedures/"),
-      ]);
+      const conv = await ClinicaBelezaAPI.convenios.list();
       setConvenios(Array.isArray(conv) ? conv : []);
-      setProcedures(Array.isArray(proc) ? proc : []);
     } catch (e) {
       logger.warn("Erro ao carregar convênios:", e);
       setErro("Não foi possível carregar os convênios.");
@@ -58,18 +61,37 @@ export default function ConveniosPage() {
     }
   }, []);
 
-  useEffect(() => {
-    carregar();
-  }, [carregar]);
+  const carregarProcedimentos = useCallback(async () => {
+    try {
+      const proc = await ClinicaBelezaAPI.get<ProcedureRow[]>("/procedures/");
+      setProcedures(Array.isArray(proc) ? proc : []);
+    } catch (e) {
+      logger.warn("Erro ao carregar procedimentos:", e);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!selectedId) {
+    carregarLista();
+  }, [carregarLista]);
+
+  useEffect(() => {
+    if (!isFormView) return;
+    setErro("");
+    if (isNovo) {
+      setNovoNome("");
+      return;
+    }
+    carregarProcedimentos();
+  }, [isFormView, isNovo, carregarProcedimentos]);
+
+  useEffect(() => {
+    if (!editId || isNovo) {
       setLinhas({});
       return;
     }
     (async () => {
       try {
-        const rows = await ClinicaBelezaAPI.convenios.precos(Number(selectedId));
+        const rows = await ClinicaBelezaAPI.convenios.precos(editId);
         const map: Record<number, PrecoLinha> = {};
         for (const r of rows as ConvenioPrecoItem[]) {
           map[r.procedure] = {
@@ -80,9 +102,10 @@ export default function ConveniosPage() {
         setLinhas(map);
       } catch (e) {
         logger.warn("Erro ao carregar preços do convênio:", e);
+        setErro("Não foi possível carregar os preços deste convênio.");
       }
     })();
-  }, [selectedId]);
+  }, [editId, isNovo]);
 
   const previewPorProc = useMemo(() => {
     const out: Record<number, number | null> = {};
@@ -99,15 +122,35 @@ export default function ConveniosPage() {
     return out;
   }, [procedures, linhas]);
 
+  const convenioEditando = useMemo(
+    () => (editId ? convenios.find((c) => c.id === editId) : null),
+    [convenios, editId],
+  );
+
+  const voltarLista = () => {
+    setErro("");
+    router.replace(basePath, { scroll: false });
+  };
+
+  const abrirNovo = () => {
+    router.replace(`${basePath}?novo=1`, { scroll: false });
+  };
+
+  const abrirEditar = (c: ConvenioItem) => {
+    router.replace(`${basePath}?id=${c.id}`, { scroll: false });
+  };
+
   const criarConvenio = async () => {
-    if (!novoNome.trim()) return;
+    if (!novoNome.trim()) {
+      setErro("Informe o nome do convênio.");
+      return;
+    }
     setSalvando(true);
     setErro("");
     try {
       const created = await ClinicaBelezaAPI.convenios.create({ nome: novoNome.trim() });
-      setNovoNome("");
-      await carregar();
-      setSelectedId(created.id);
+      await carregarLista();
+      router.replace(`${basePath}?id=${created.id}`, { scroll: false });
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : "Erro ao criar convênio.");
     } finally {
@@ -116,7 +159,7 @@ export default function ConveniosPage() {
   };
 
   const salvarPrecos = async () => {
-    if (!selectedId) return;
+    if (!editId) return;
     setSalvando(true);
     setErro("");
     try {
@@ -131,7 +174,7 @@ export default function ConveniosPage() {
           preco: linha.valor,
         };
       });
-      await ClinicaBelezaAPI.convenios.savePrecos(Number(selectedId), payload);
+      await ClinicaBelezaAPI.convenios.savePrecos(editId, payload);
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : "Erro ao salvar preços.");
     } finally {
@@ -139,15 +182,25 @@ export default function ConveniosPage() {
     }
   };
 
-  const excluirConvenio = async () => {
-    if (!selectedId || !confirm("Desativar este convênio?")) return;
+  const excluirConvenio = async (c: ConvenioItem) => {
+    if (!confirm(`Excluir o convênio "${c.nome}"? Ele deixará de aparecer nas opções de atendimento.`)) {
+      return;
+    }
     setSalvando(true);
+    setErro("");
     try {
-      await ClinicaBelezaAPI.convenios.delete(Number(selectedId));
-      setSelectedId("");
-      await carregar();
+      await ClinicaBelezaAPI.convenios.delete(c.id);
+      await carregarLista();
+      if (editId === c.id) {
+        voltarLista();
+      }
     } catch (e: unknown) {
-      setErro(e instanceof Error ? e.message : "Erro ao desativar convênio.");
+      const msg = e instanceof Error ? e.message : "Erro ao excluir convênio.";
+      if (editId === c.id) {
+        setErro(msg);
+      } else {
+        alert(msg);
+      }
     } finally {
       setSalvando(false);
     }
@@ -160,123 +213,172 @@ export default function ConveniosPage() {
     }));
   };
 
-  const convenioSelecionado = convenios.find((c) => c.id === selectedId);
-
-  return (
-    <>
-      <ClinicaBelezaStandardPageHeader
-        title="Convênios"
-        subtitle="Preço fixo (R$) ou percentual (%) sobre o valor particular"
-        backHref={`/loja/${slug}/clinica-beleza/configuracoes`}
-      />
-      <ClinicaBelezaPageContent>
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-          <ClinicaBelezaPanel className="p-5">
-            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3">Planos</h3>
-            {loading ? (
-              <p className="text-sm text-gray-500">Carregando...</p>
-            ) : (
-              <ul className="space-y-1 mb-4">
-                {convenios.map((c) => (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(c.id)}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        selectedId === c.id
-                          ? "bg-pink-50 dark:bg-pink-900/20 font-medium text-pink-900 dark:text-pink-200"
-                          : "hover:bg-gray-50 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300"
-                      }`}
-                    >
-                      {c.nome}
-                    </button>
-                  </li>
-                ))}
-                {convenios.length === 0 && (
-                  <li className="text-sm text-gray-500">Nenhum convênio cadastrado.</li>
-                )}
-              </ul>
-            )}
-            <div className="flex gap-2">
+  /* ── Novo convênio ── */
+  if (isNovo) {
+    return (
+      <>
+        <ClinicaBelezaStandardPageHeader
+          title="Novo convênio"
+          subtitle="Cadastre um plano e depois defina os preços dos procedimentos"
+          backHref={basePath}
+          icon={FileText}
+        />
+        <ClinicaBelezaPageContent className="flex flex-col flex-1 !p-0">
+          <div className="px-4 md:px-6 lg:px-8 pt-2 pb-3 border-b border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80">
+            <button
+              type="button"
+              onClick={voltarLista}
+              className="inline-flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+            >
+              <ArrowLeft size={16} />
+              Voltar à lista
+            </button>
+          </div>
+          <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
+            <ClinicaBelezaPanel className="p-5 md:p-8 max-w-lg">
+              {erro && (
+                <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+                  {erro}
+                </div>
+              )}
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Nome do convênio *
+              </label>
               <input
                 type="text"
                 value={novoNome}
                 onChange={(e) => setNovoNome(e.target.value)}
-                placeholder="Novo convênio..."
-                className="flex-1 px-3 py-2 text-sm border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                placeholder="Ex.: Unimed, Santa Casa..."
+                autoFocus
+                className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg dark:bg-neutral-700 mb-6"
               />
+              <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-gray-100 dark:border-neutral-700">
+                <button
+                  type="button"
+                  onClick={voltarLista}
+                  className="flex-1 sm:flex-none py-2.5 px-6 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={criarConvenio}
+                  disabled={salvando || !novoNome.trim()}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 py-2.5 px-6 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                  style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                >
+                  <Save size={16} />
+                  {salvando ? "Criando..." : "Criar e definir preços"}
+                </button>
+              </div>
+            </ClinicaBelezaPanel>
+          </div>
+        </ClinicaBelezaPageContent>
+      </>
+    );
+  }
+
+  /* ── Editar preços (tela cheia) ── */
+  if (editIdParam) {
+    if (!loading && convenios.length > 0 && !convenioEditando) {
+      return (
+        <>
+          <ClinicaBelezaStandardPageHeader title="Convênio" backHref={basePath} />
+          <ClinicaBelezaPageContent>
+            <p className="text-center py-16 text-gray-500">Convênio não encontrado.</p>
+          </ClinicaBelezaPageContent>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <ClinicaBelezaStandardPageHeader
+          title={convenioEditando?.nome || "Convênio"}
+          subtitle="Preço fixo (R$) ou percentual (%) sobre o valor particular"
+          backHref={basePath}
+          icon={FileText}
+        />
+        <ClinicaBelezaPageContent className="flex flex-col flex-1 !p-0">
+          <div className="px-4 md:px-6 lg:px-8 pt-2 pb-3 border-b border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80 flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={voltarLista}
+              className="inline-flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+            >
+              <ArrowLeft size={16} />
+              Voltar à lista
+            </button>
+            <div className="flex gap-2">
+              {convenioEditando && (
+                <button
+                  type="button"
+                  onClick={() => excluirConvenio(convenioEditando)}
+                  disabled={salvando}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 size={14} />
+                  Excluir
+                </button>
+              )}
               <button
                 type="button"
-                onClick={criarConvenio}
-                disabled={salvando || !novoNome.trim()}
-                className="p-2 rounded-lg text-white disabled:opacity-50"
+                onClick={salvarPrecos}
+                disabled={salvando}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50"
                 style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-                title="Adicionar"
               >
-                <Plus size={18} />
+                <Save size={14} />
+                {salvando ? "Salvando..." : "Salvar preços"}
               </button>
             </div>
-          </ClinicaBelezaPanel>
+          </div>
 
-          <ClinicaBelezaPanel className="p-5">
-            {!selectedId ? (
-              <p className="text-sm text-gray-500 py-8 text-center">
-                Selecione um convênio para editar os preços dos procedimentos.
-              </p>
-            ) : (
-              <>
-                <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                    {convenioSelecionado?.nome}
-                  </h3>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={excluirConvenio}
-                      disabled={salvando}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-                    >
-                      <Trash2 size={14} />
-                      Desativar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={salvarPrecos}
-                      disabled={salvando}
-                      className="flex items-center gap-1.5 px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50"
-                      style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-                    >
-                      <Save size={14} />
-                      {salvando ? "Salvando..." : "Salvar preços"}
-                    </button>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mb-4">
-                  <strong>Fixo:</strong> valor em R$. <strong>%:</strong> percentual sobre o preço particular.
-                  Deixe em branco para usar o preço particular.
-                </p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[640px]">
-                    <thead>
-                      <tr className="border-b dark:border-neutral-600 text-left text-gray-500">
-                        <th className="py-2 pr-3 font-medium">Procedimento</th>
-                        <th className="py-2 pr-3 font-medium">Particular</th>
-                        <th className="py-2 pr-3 font-medium w-28">Modo</th>
-                        <th className="py-2 pr-3 font-medium w-28">Valor</th>
-                        <th className="py-2 font-medium">Cobrado</th>
+          <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
+            {erro && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+                {erro}
+              </div>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+              <strong>Fixo:</strong> valor em R$. <strong>%:</strong> percentual sobre o preço particular.
+              Deixe em branco para usar o preço particular.
+            </p>
+            <div className="rounded-xl bg-white/80 dark:bg-neutral-800/80 border border-gray-200 dark:border-neutral-700 shadow-sm overflow-hidden w-full">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[720px]">
+                  <thead className="bg-gray-50 dark:bg-neutral-900/80 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-neutral-700">
+                    <tr>
+                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Procedimento</th>
+                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Particular</th>
+                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold w-32">Modo</th>
+                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold w-32">Valor</th>
+                      <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Cobrado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {procedures.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                          Carregando procedimentos...
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {procedures.map((p) => {
+                    ) : (
+                      procedures.map((p) => {
                         const linha = linhas[p.id] || EMPTY_LINHA;
                         const preview = previewPorProc[p.id];
                         return (
-                          <tr key={p.id} className="border-b last:border-0 dark:border-neutral-700">
-                            <td className="py-2.5 pr-3 text-gray-800 dark:text-gray-200">{p.nome}</td>
-                            <td className="py-2.5 pr-3 text-gray-500 whitespace-nowrap">
+                          <tr
+                            key={p.id}
+                            className="border-t border-gray-100 dark:border-neutral-700/80 hover:bg-[#F5E6EA]/20 dark:hover:bg-neutral-700/20"
+                          >
+                            <td className="px-4 md:px-6 py-3.5 font-medium text-gray-900 dark:text-gray-100">
+                              {p.nome}
+                            </td>
+                            <td className="px-4 md:px-6 py-3.5 text-gray-600 dark:text-gray-400 whitespace-nowrap">
                               R$ {Number(p.preco || 0).toFixed(2)}
                             </td>
-                            <td className="py-2.5 pr-3">
+                            <td className="px-4 md:px-6 py-3.5">
                               <select
                                 value={linha.modo}
                                 onChange={(e) =>
@@ -288,19 +390,19 @@ export default function ConveniosPage() {
                                 <option value="percentual">%</option>
                               </select>
                             </td>
-                            <td className="py-2.5 pr-3">
+                            <td className="px-4 md:px-6 py-3.5">
                               <input
                                 type="number"
-                                step={linha.modo === "percentual" ? "0.01" : "0.01"}
+                                step="0.01"
                                 min="0"
                                 max={linha.modo === "percentual" ? "100" : undefined}
                                 value={linha.valor}
                                 onChange={(e) => updateLinha(p.id, { valor: e.target.value })}
                                 placeholder="—"
-                                className="w-full px-2 py-1.5 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                                className="w-full max-w-[120px] px-2 py-1.5 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
                               />
                             </td>
-                            <td className="py-2.5 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                            <td className="px-4 md:px-6 py-3.5 text-gray-700 dark:text-gray-300 whitespace-nowrap">
                               {preview != null ? (
                                 <>
                                   R$ {preview.toFixed(2)}
@@ -314,17 +416,92 @@ export default function ConveniosPage() {
                             </td>
                           </tr>
                         );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-            {erro && (
-              <p className="mt-4 text-sm text-red-600 dark:text-red-400">{erro}</p>
-            )}
-          </ClinicaBelezaPanel>
-        </div>
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </ClinicaBelezaPageContent>
+      </>
+    );
+  }
+
+  /* ── Lista em tela cheia ── */
+  return (
+    <>
+      <ClinicaBelezaStandardPageHeader
+        title="Convênios"
+        subtitle="Planos com preço fixo ou percentual sobre o valor particular"
+        newLabel="Novo convênio"
+        onNew={abrirNovo}
+        icon={FileText}
+      />
+      <ClinicaBelezaPageContent>
+        {loading ? (
+          <div className="text-center py-20 text-gray-500 dark:text-gray-400">Carregando...</div>
+        ) : convenios.length === 0 ? (
+          <div className="rounded-xl bg-white/80 dark:bg-neutral-800/80 border border-gray-200 dark:border-neutral-700 p-12 text-center text-gray-500 dark:text-gray-400 shadow-sm">
+            Nenhum convênio cadastrado. Clique em &quot;Novo convênio&quot; para começar.
+          </div>
+        ) : (
+          <div className="rounded-xl bg-white/80 dark:bg-neutral-800/80 border border-gray-200 dark:border-neutral-700 shadow-sm overflow-hidden w-full">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-neutral-900/80 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-neutral-700">
+                  <tr>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Nome</th>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden sm:table-cell">Código</th>
+                    <th className="text-right px-4 md:px-6 py-3.5 font-semibold w-40">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {convenios.map((c) => (
+                    <tr
+                      key={c.id}
+                      className="border-t border-gray-100 dark:border-neutral-700/80 hover:bg-[#F5E6EA]/40 dark:hover:bg-neutral-700/30 transition-colors cursor-pointer"
+                      onClick={() => abrirEditar(c)}
+                    >
+                      <td className="px-4 md:px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
+                        {c.nome}
+                      </td>
+                      <td className="px-4 md:px-6 py-4 text-gray-600 dark:text-gray-400 hidden sm:table-cell">
+                        {c.codigo || "—"}
+                      </td>
+                      <td className="px-4 md:px-6 py-4">
+                        <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => abrirEditar(c)}
+                            className="p-2 rounded-lg hover:bg-[#F5E6EA] dark:hover:bg-neutral-600 transition-colors"
+                            style={{ color: CLINICA_BELEZA_PRIMARY }}
+                            title="Editar preços"
+                          >
+                            <Pencil size={18} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => excluirConvenio(c)}
+                            disabled={salvando}
+                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            title="Excluir convênio"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                          <ChevronRight size={18} className="text-gray-400 ml-1 hidden md:inline self-center" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        {erro && (
+          <p className="mt-4 text-sm text-red-600 dark:text-red-400">{erro}</p>
+        )}
       </ClinicaBelezaPageContent>
     </>
   );

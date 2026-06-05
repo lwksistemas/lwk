@@ -1,22 +1,26 @@
 "use client";
 
 /**
- * Campanhas de Promoções - Clínica da Beleza
- * Criar promoções e enviar mensagem em massa por WhatsApp aos pacientes
+ * Campanhas de Promoções — lista tela cheia; novo/editar via ?novo=1 / ?id=X
  */
 
-import { useState } from "react";
-import { Pencil, Trash2, X, Send } from "lucide-react";
-import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { ArrowLeft, Megaphone, Pencil, Save, Send, Trash2 } from "lucide-react";
+import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
+import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
+import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import {
   CLINICA_BELEZA_ONLINE_ONLY,
+  CLINICA_FORM_INPUT,
   deleteClinicaBelezaEntity,
   saveClinicaBelezaEntity,
   useClinicaBelezaEntityList,
 } from "@/lib/clinica-beleza-crud";
 import { formatClinicaDataCurta, formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
+import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
 
 interface Campanha {
   id: number;
@@ -30,6 +34,24 @@ interface Campanha {
   created_at: string;
 }
 
+const EMPTY_FORM = {
+  titulo: "",
+  mensagem: "",
+  data_inicio: "",
+  data_fim: "",
+  ativa: true,
+};
+
+function campanhaToForm(c: Campanha) {
+  return {
+    titulo: c.titulo,
+    mensagem: c.mensagem,
+    data_inicio: c.data_inicio ? c.data_inicio.slice(0, 10) : "",
+    data_fim: c.data_fim ? c.data_fim.slice(0, 10) : "",
+    ativa: c.ativa,
+  };
+}
+
 function extractSaveError(e: unknown, fallback: string): string {
   if (e instanceof Error && e.message === "SESSION_ENDED") return "SESSION_ENDED";
   if (e && typeof e === "object" && "error" in e && typeof (e as { error?: string }).error === "string") {
@@ -39,42 +61,38 @@ function extractSaveError(e: unknown, fallback: string): string {
 }
 
 export default function CampanhasPage() {
+  const slug = useParams().slug as string;
+  const basePath = `/loja/${slug}/clinica-beleza/campanhas`;
+  const { isNovo, editId, editIdParam, isFormView, voltarLista, abrirNovo, abrirEditar } =
+    useClinicaBelezaFormRouting(basePath);
+
   const { list, loading, load } = useClinicaBelezaEntityList<Campanha>({
     path: "/campanhas/",
     ...CLINICA_BELEZA_ONLINE_ONLY,
   });
-  const [showModal, setShowModal] = useState(false);
+
   const [editing, setEditing] = useState<Campanha | null>(null);
-  const [form, setForm] = useState({
-    titulo: "",
-    mensagem: "",
-    data_inicio: "",
-    data_fim: "",
-    ativa: true,
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [sendingId, setSendingId] = useState<number | null>(null);
   const [error, setError] = useState("");
 
-  const openNew = () => {
-    setEditing(null);
-    setForm({ titulo: "", mensagem: "", data_inicio: "", data_fim: "", ativa: true });
-    setError("");
-    setShowModal(true);
-  };
-
-  const openEdit = (c: Campanha) => {
-    setEditing(c);
-    setForm({
-      titulo: c.titulo,
-      mensagem: c.mensagem,
-      data_inicio: c.data_inicio ? c.data_inicio.slice(0, 10) : "",
-      data_fim: c.data_fim ? c.data_fim.slice(0, 10) : "",
-      ativa: c.ativa,
-    });
-    setError("");
-    setShowModal(true);
-  };
+  useEffect(() => {
+    if (isNovo) {
+      setEditing(null);
+      setForm(EMPTY_FORM);
+      setError("");
+      return;
+    }
+    if (editIdParam && list.length > 0) {
+      const c = list.find((x) => String(x.id) === editIdParam);
+      if (c) {
+        setEditing(c);
+        setForm(campanhaToForm(c));
+        setError("");
+      }
+    }
+  }, [isNovo, editIdParam, list]);
 
   const save = async () => {
     if (!form.titulo.trim() || !form.mensagem.trim()) {
@@ -96,7 +114,7 @@ export default function CampanhasPage() {
       } else {
         await saveClinicaBelezaEntity("/campanhas/", "POST", body);
       }
-      setShowModal(false);
+      voltarLista();
       load();
     } catch (e: unknown) {
       const msg = extractSaveError(e, "Erro ao salvar");
@@ -131,166 +149,193 @@ export default function CampanhasPage() {
     if (!confirm(`Excluir a campanha "${c.titulo}"?`)) return;
     try {
       await deleteClinicaBelezaEntity(`/campanhas/${c.id}/`, "Erro ao excluir.");
+      if (editId === c.id) voltarLista();
       load();
     } catch {
       alert("Erro ao excluir.");
     }
   };
 
+  if (isFormView) {
+    return (
+      <>
+        <ClinicaBelezaStandardPageHeader
+          title={editing ? "Editar campanha" : "Nova campanha"}
+          subtitle={editing ? editing.titulo : "Crie promoções para enviar por WhatsApp"}
+          backHref={basePath}
+          icon={Megaphone}
+        />
+        <ClinicaBelezaPageContent>
+          <ClinicaBelezaPanel className="p-6 md:p-8 max-w-2xl">
+            {error && (
+              <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg mb-4">{error}</p>
+            )}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título da promoção *</label>
+                <input
+                  value={form.titulo}
+                  onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
+                  className={CLINICA_FORM_INPUT}
+                  placeholder="Ex: Black Friday - 30% off"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mensagem (WhatsApp) *</label>
+                <textarea
+                  value={form.mensagem}
+                  onChange={(e) => setForm((f) => ({ ...f, mensagem: e.target.value }))}
+                  rows={6}
+                  className={`${CLINICA_FORM_INPUT} resize-none`}
+                  placeholder="Texto que será enviado para os pacientes..."
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vigência início</label>
+                  <input
+                    type="date"
+                    value={form.data_inicio}
+                    onChange={(e) => setForm((f) => ({ ...f, data_inicio: e.target.value }))}
+                    className={CLINICA_FORM_INPUT}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vigência fim</label>
+                  <input
+                    type="date"
+                    value={form.data_fim}
+                    onChange={(e) => setForm((f) => ({ ...f, data_fim: e.target.value }))}
+                    className={CLINICA_FORM_INPUT}
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.ativa}
+                  onChange={(e) => setForm((f) => ({ ...f, ativa: e.target.checked }))}
+                  className="rounded border-gray-300 dark:border-neutral-600"
+                  style={{ accentColor: CLINICA_BELEZA_PRIMARY }}
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Campanha ativa</span>
+              </label>
+            </div>
+            <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-neutral-700">
+              <button
+                type="button"
+                onClick={voltarLista}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium"
+              >
+                <ArrowLeft size={16} />
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              >
+                <Save size={16} />
+                {saving ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+          </ClinicaBelezaPanel>
+        </ClinicaBelezaPageContent>
+      </>
+    );
+  }
+
   return (
     <>
       <ClinicaBelezaStandardPageHeader
         title="Campanhas de Promoções"
         subtitle="Crie promoções e envie por WhatsApp para os pacientes"
+        icon={Megaphone}
         newLabel="Nova Campanha"
-        onNew={openNew}
+        onNew={abrirNovo}
       />
       <ClinicaBelezaPageContent>
-
         {loading ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>
+          <div className="text-center py-16 text-gray-500">Carregando...</div>
         ) : list.length === 0 ? (
-          <div className="bg-white dark:bg-neutral-800 rounded-xl p-8 text-center border border-gray-200 dark:border-neutral-700">
-            <p className="text-gray-500 dark:text-gray-400 mb-4">Nenhuma campanha cadastrada.</p>
-            <button
-              onClick={openNew}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-            >
-              Criar primeira campanha
-            </button>
-          </div>
+          <ClinicaBelezaPanel className="p-12 text-center text-gray-500 text-sm">
+            Nenhuma campanha cadastrada. Clique em <strong>Nova Campanha</strong> para começar.
+          </ClinicaBelezaPanel>
         ) : (
-          <ul className="space-y-3">
-            {list.map((c) => (
-              <li
-                key={c.id}
-                className="bg-white dark:bg-neutral-800 rounded-xl p-4 border border-gray-200 dark:border-neutral-700 flex flex-wrap items-center justify-between gap-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{c.titulo}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">{c.mensagem}</p>
-                  <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    {c.data_inicio && <span>De: {formatClinicaDataCurta(new Date(c.data_inicio))}</span>}
-                    {c.data_fim && <span>Até: {formatClinicaDataCurta(new Date(c.data_fim))}</span>}
-                    {c.enviada_em && (
-                      <span className="text-green-600 dark:text-green-400">
-                        Enviada em {formatClinicaDateTime(new Date(c.enviada_em))} — {c.total_enviados} paciente(s)
+          <ClinicaBelezaPanel>
+            <EntityListTable
+              rows={list}
+              rowKey={(c) => c.id}
+              onRowClick={(c) => abrirEditar(c.id)}
+              columns={[
+                {
+                  key: "titulo",
+                  header: "Campanha",
+                  render: (c) => (
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">{c.titulo}</p>
+                      <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">{c.mensagem}</p>
+                    </div>
+                  ),
+                },
+                {
+                  key: "vigencia",
+                  header: "Vigência",
+                  className: "hidden md:table-cell",
+                  render: (c) => (
+                    <span className="text-xs text-gray-500">
+                      {c.data_inicio ? formatClinicaDataCurta(new Date(c.data_inicio)) : "—"}
+                      {c.data_fim ? ` → ${formatClinicaDataCurta(new Date(c.data_fim))}` : ""}
+                    </span>
+                  ),
+                },
+                {
+                  key: "envio",
+                  header: "Envio",
+                  className: "hidden lg:table-cell",
+                  render: (c) =>
+                    c.enviada_em ? (
+                      <span className="text-xs text-green-600 dark:text-green-400">
+                        {formatClinicaDateTime(new Date(c.enviada_em))} · {c.total_enviados} pac.
                       </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
+                    ) : (
+                      <span className="text-xs text-gray-400">Não enviada</span>
+                    ),
+                },
+              ]}
+              trailingCell={(c) => (
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                   <button
+                    type="button"
                     onClick={() => enviarCampanha(c)}
                     disabled={!!sendingId}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
-                    title="Enviar mensagem para todos os pacientes (WhatsApp)"
+                    className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg disabled:opacity-50"
+                    title="Enviar WhatsApp"
                   >
                     <Send size={16} />
-                    {sendingId === c.id ? "Enviando…" : "Enviar WhatsApp"}
                   </button>
                   <button
-                    onClick={() => openEdit(c)}
-                    className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-neutral-700 rounded-lg"
+                    type="button"
+                    onClick={() => abrirEditar(c.id)}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700"
                     title="Editar"
                   >
-                    <Pencil size={18} />
+                    <Pencil size={16} style={{ color: CLINICA_BELEZA_PRIMARY }} />
                   </button>
                   <button
+                    type="button"
                     onClick={() => exclude(c)}
-                    className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-neutral-700 rounded-lg"
+                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                     title="Excluir"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* Modal criar/editar */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-4 border-b dark:border-neutral-700 flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                  {editing ? "Editar campanha" : "Nova campanha"}
-                </h2>
-                <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="p-4 space-y-4">
-                {error && (
-                  <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded">{error}</p>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título da promoção *</label>
-                  <input
-                    value={form.titulo}
-                    onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
-                    className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                    placeholder="Ex: Black Friday - 30% off"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mensagem (WhatsApp) *</label>
-                  <textarea
-                    value={form.mensagem}
-                    onChange={(e) => setForm((f) => ({ ...f, mensagem: e.target.value }))}
-                    rows={5}
-                    className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 resize-none"
-                    placeholder="Texto que será enviado para os pacientes..."
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vigência início</label>
-                    <input
-                      type="date"
-                      value={form.data_inicio}
-                      onChange={(e) => setForm((f) => ({ ...f, data_inicio: e.target.value }))}
-                      className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vigência fim</label>
-                    <input
-                      type="date"
-                      value={form.data_fim}
-                      onChange={(e) => setForm((f) => ({ ...f, data_fim: e.target.value }))}
-                      className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                    />
-                  </div>
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.ativa}
-                    onChange={(e) => setForm((f) => ({ ...f, ativa: e.target.checked }))}
-                    className="rounded border-gray-300 dark:border-neutral-600 text-purple-600"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Campanha ativa</span>
-                </label>
-              </div>
-              <div className="p-4 border-t dark:border-neutral-700 flex gap-2">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={save}
-                  disabled={saving}
-                  className="flex-1 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
-                >
-                  {saving ? "Salvando..." : "Salvar"}
-                </button>
-              </div>
-            </div>
-          </div>
+              )}
+            />
+          </ClinicaBelezaPanel>
         )}
       </ClinicaBelezaPageContent>
     </>

@@ -1,12 +1,8 @@
 "use client";
 
-/**
- * Cadastro de Procedimentos - Clínica da Beleza
- */
-
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Pencil, Trash2, X } from "lucide-react";
+import { useParams } from "next/navigation";
+import { ArrowLeft, Pencil, Save, Stethoscope, Trash2 } from "lucide-react";
 import {
   entityActive,
   entityName,
@@ -17,7 +13,12 @@ import {
 } from "@/lib/clinica-beleza-entities";
 import { formatProcedimentoApiErrors } from "@/lib/clinica-beleza-form-errors";
 import { formatCurrency } from "@/lib/financeiro-helpers";
-import { deleteClinicaBelezaEntity, saveClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
+import {
+  CLINICA_FORM_INPUT,
+  deleteClinicaBelezaEntity,
+  saveClinicaBelezaEntity,
+  useClinicaBelezaEntityList,
+} from "@/lib/clinica-beleza-crud";
 import {
   bloquearCriacaoDuplicadaOffline,
   deveVerificarDuplicataOffline,
@@ -27,9 +28,12 @@ import {
   temDuplicataNaLista,
 } from "@/lib/clinica-beleza-offline";
 import { buscarProcedimentosOffline, salvarProcedimentosOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
-import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
+import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
+import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
+import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
 import { logger } from "@/lib/logger";
 import {
   PROCEDURE_CATEGORIA_OPTIONS,
@@ -52,6 +56,24 @@ interface Procedure {
   categoria?: string;
 }
 
+const EMPTY_FORM = {
+  name: "",
+  description: "",
+  price: "",
+  duration: "30",
+  categoria: "",
+};
+
+function procedureToForm(p: Procedure) {
+  return {
+    name: entityName(p),
+    description: procedureDescription(p) || "",
+    price: String(procedurePrice(p)),
+    duration: String(procedureDuration(p)),
+    categoria: procedureCategoria(p),
+  };
+}
+
 export interface ProcedimentosPageContentProps {
   title?: string;
   subtitle?: string;
@@ -68,8 +90,10 @@ export function ProcedimentosPageContent({
   relatedLinks = [],
 }: ProcedimentosPageContentProps) {
   const params = useParams();
-  const router = useRouter();
   const slug = params.slug as string;
+  const { isNovo, editIdParam, isFormView, voltarLista, abrirNovo, abrirEditar } =
+    useClinicaBelezaFormRouting();
+
   const [showAllCategories, setShowAllCategories] = useState(false);
   const moduleKey = defaultCategoria || "";
   const presetCategoria = defaultCategoriaForModule(moduleKey) || defaultCategoria;
@@ -82,48 +106,80 @@ export function ProcedimentosPageContent({
     saveOffline: salvarProcedimentosOffline,
     reloadDeps: [moduleKey, showAllCategories],
   });
-  const [showModal, setShowModal] = useState(false);
+
   const [editing, setEditing] = useState<Procedure | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    price: "",
-    duration: "30",
-    categoria: "",
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (defaultCategoria) {
+    if (defaultCategoria && isNovo) {
       setForm((f) => ({ ...f, categoria: defaultCategoria }));
     }
-  }, [defaultCategoria]);
+  }, [defaultCategoria, isNovo]);
 
-  const openNew = () => {
-    setEditing(null);
-    setForm({
-      name: "",
-      description: "",
-      price: "",
-      duration: "30",
-      categoria: presetCategoria,
-    });
-    setError("");
-    setShowModal(true);
-  };
+  useEffect(() => {
+    if (!isFormView) return;
+    if (isNovo) {
+      setEditing(null);
+      setForm({
+        ...EMPTY_FORM,
+        categoria: presetCategoria,
+      });
+      setError("");
+      return;
+    }
+    if (editIdParam && list.length > 0) {
+      const p = list.find((x) => String(x.id) === editIdParam);
+      if (p) {
+        setEditing(p);
+        setForm(procedureToForm(p));
+        setError("");
+      }
+    }
+  }, [isFormView, isNovo, editIdParam, list, presetCategoria]);
 
-  const openEdit = (p: Procedure) => {
-    setEditing(p);
-    setForm({
-      name: entityName(p),
-      description: procedureDescription(p) || "",
-      price: String(procedurePrice(p)),
-      duration: String(procedureDuration(p)),
-      categoria: procedureCategoria(p),
-    });
-    setError("");
-    setShowModal(true);
+  const saveOffline = async (body: Record<string, unknown>) => {
+    const lojaSlug = getLojaSlug();
+    if (deveVerificarDuplicataOffline(editing)) {
+      const jaExisteLocal = temDuplicataNaLista(list, (p) =>
+        entityName(p).toLowerCase() === form.name.trim().toLowerCase(),
+      );
+      if (jaExisteLocal) {
+        setError("Este procedimento já foi adicionado. Aguarde a sincronização.");
+        return false;
+      }
+    }
+    if (editing && editing.id > 0) {
+      await adicionarNaFilaSync({
+        tipo: "procedimento",
+        payload: { action: "update", id: editing.id, body },
+        lojaSlug,
+      });
+      const updatedList = list.map((p) =>
+        p.id === editing.id
+          ? { ...p, name: body.name as string, description: body.description as string | null, price: body.price as string, duration: body.duration as number }
+          : p
+      );
+      setList(updatedList);
+      await salvarProcedimentosOffline(updatedList);
+    } else {
+      await adicionarNaFilaSync({ tipo: "procedimento", payload: { action: "create", body }, lojaSlug });
+      const tempId = gerarIdTemporarioOffline();
+      const newProc: Procedure = {
+        id: tempId,
+        name: body.name as string,
+        description: body.description as string | null,
+        price: body.price as string,
+        duration: body.duration as number,
+        categoria: body.category as string,
+        active: true,
+      };
+      const updatedList = [newProc, ...list];
+      setList(updatedList);
+      await salvarProcedimentosOffline(updatedList);
+    }
+    return true;
   };
 
   const save = async () => {
@@ -154,50 +210,11 @@ export function ProcedimentosPageContent({
 
     if (isBrowserOffline()) {
       try {
-        const lojaSlug = getLojaSlug();
-
-        if (deveVerificarDuplicataOffline(editing)) {
-          const jaExisteLocal = temDuplicataNaLista(list, (p) =>
-            entityName(p).toLowerCase() === form.name.trim().toLowerCase(),
-          );
-          if (jaExisteLocal) {
-            setError("Este procedimento já foi adicionado. Aguarde a sincronização.");
-            setSaving(false);
-            return;
-          }
+        const ok = await saveOffline(body);
+        if (ok) {
+          voltarLista();
+          alert("Salvo offline. O procedimento será sincronizado quando você estiver online.");
         }
-
-        if (editing && editing.id > 0) {
-          await adicionarNaFilaSync({
-            tipo: "procedimento",
-            payload: { action: "update", id: editing.id, body },
-            lojaSlug,
-          });
-          const updatedList = list.map((p) =>
-            p.id === editing.id
-              ? { ...p, name: body.name, description: body.description, price: body.price, duration: body.duration }
-              : p
-          );
-          setList(updatedList);
-          await salvarProcedimentosOffline(updatedList);
-        } else {
-          await adicionarNaFilaSync({ tipo: "procedimento", payload: { action: "create", body }, lojaSlug });
-          const tempId = gerarIdTemporarioOffline();
-          const newProc: Procedure = {
-            id: tempId,
-            name: body.name,
-            description: body.description,
-            price: body.price,
-            duration: body.duration,
-            categoria: body.category,
-            active: true,
-          };
-          const updatedList = [newProc, ...list];
-          setList(updatedList);
-          await salvarProcedimentosOffline(updatedList);
-        }
-        setShowModal(false);
-        alert("Salvo offline. O procedimento será sincronizado quando você estiver online.");
       } catch (err) {
         logger.warn("Erro ao salvar offline:", err);
         setError("Erro ao salvar localmente. Tente novamente.");
@@ -212,15 +229,13 @@ export function ProcedimentosPageContent({
       } else {
         await saveClinicaBelezaEntity("/procedures/", "POST", body);
       }
-      setShowModal(false);
+      voltarLista();
       load();
     } catch (e: unknown) {
       const err = e && typeof e === "object" ? (e as Record<string, unknown>) : {};
       const msg = formatProcedimentoApiErrors(err) || (e instanceof Error ? e.message : "Erro ao salvar");
       if (isFetchNetworkError(msg)) {
         try {
-          const lojaSlug = getLojaSlug();
-
           if (bloquearCriacaoDuplicadaOffline(editing, list, (p) =>
             entityName(p).toLowerCase() === form.name.trim().toLowerCase(),
           )) {
@@ -228,37 +243,11 @@ export function ProcedimentosPageContent({
             setSaving(false);
             return;
           }
-          
-          if (editing && editing.id > 0) {
-            await adicionarNaFilaSync({
-              tipo: "procedimento",
-              payload: { action: "update", id: editing.id, body },
-              lojaSlug,
-            });
-            const updatedList = list.map((p) =>
-              p.id === editing.id
-                ? { ...p, name: body.name, description: body.description, price: body.price, duration: body.duration }
-                : p
-            );
-            setList(updatedList);
-            await salvarProcedimentosOffline(updatedList);
-          } else {
-            await adicionarNaFilaSync({ tipo: "procedimento", payload: { action: "create", body }, lojaSlug });
-            const tempId = gerarIdTemporarioOffline();
-            const newProc: Procedure = {
-              id: tempId,
-              name: body.name,
-              description: body.description,
-              price: body.price,
-              duration: body.duration,
-              active: true,
-            };
-            const updatedList = [newProc, ...list];
-            setList(updatedList);
-            await salvarProcedimentosOffline(updatedList);
+          const ok = await saveOffline(body);
+          if (ok) {
+            voltarLista();
+            alert("Sem conexão. Procedimento salvo offline e será sincronizado quando você estiver online.");
           }
-          setShowModal(false);
-          alert("Sem conexão. Procedimento salvo offline e será sincronizado quando você estiver online.");
         } catch (err) {
           logger.warn("Erro ao salvar offline:", err);
           setError("Sem conexão. Não foi possível salvar offline. Tente novamente.");
@@ -289,200 +278,142 @@ export function ProcedimentosPageContent({
   const hiddenByCategoryCount =
     moduleKey && !showAllCategories ? activeList.length - filteredList.length : 0;
 
+  if (isFormView) {
+    return (
+      <>
+        <ClinicaBelezaStandardPageHeader
+          title={editing ? "Editar Procedimento" : "Novo Procedimento"}
+          subtitle={editing ? entityName(editing) : "Cadastre serviços e valores"}
+          onBack={voltarLista}
+          icon={Stethoscope}
+        />
+        <ClinicaBelezaPageContent>
+          <ClinicaBelezaPanel className="p-6 md:p-8 max-w-lg">
+            {error && (
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm mb-4">{error}</div>
+            )}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>
+                <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className={CLINICA_FORM_INPUT} placeholder="Ex.: Limpeza de pele" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Duração (min) *</label>
+                <input type="number" min={1} value={form.duration} onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))} className={CLINICA_FORM_INPUT} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Preço (R$) *</label>
+                <input type="text" inputMode="decimal" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} className={CLINICA_FORM_INPUT} placeholder="0,00" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição</label>
+                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} className={`${CLINICA_FORM_INPUT} resize-none`} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
+                <select value={form.categoria} onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value }))} className={CLINICA_FORM_INPUT}>
+                  <option value="">Selecione...</option>
+                  {PROCEDURE_CATEGORIA_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-neutral-700">
+              <button type="button" onClick={voltarLista} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border text-sm font-medium">
+                <ArrowLeft size={16} />
+                Cancelar
+              </button>
+              <button type="button" onClick={save} disabled={saving} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-white text-sm font-medium disabled:opacity-50" style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}>
+                <Save size={16} />
+                {saving ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+          </ClinicaBelezaPanel>
+        </ClinicaBelezaPageContent>
+      </>
+    );
+  }
+
   return (
     <>
       <ClinicaBelezaStandardPageHeader
         title={title}
         subtitle={subtitle}
         backHref={backHref}
+        icon={Stethoscope}
         newLabel="Novo Procedimento"
-        onNew={openNew}
+        onNew={abrirNovo}
       />
       <ClinicaBelezaPageContent>
-
         {moduleKey && (
           <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
             <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
               Filtro: {moduleKey === 'soroterapia' ? 'Soroterapia' : 'Estética'}
             </span>
             {hiddenByCategoryCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowAllCategories(!showAllCategories)}
-                className="text-purple-700 dark:text-purple-300 underline"
-              >
-                {showAllCategories
-                  ? 'Mostrar só deste módulo'
-                  : `Mostrar todos (${activeList.length} cadastrados, ${hiddenByCategoryCount} em outras categorias)`}
+              <button type="button" onClick={() => setShowAllCategories(!showAllCategories)} className="text-purple-700 dark:text-purple-300 underline">
+                {showAllCategories ? 'Mostrar só deste módulo' : `Mostrar todos (${activeList.length} cadastrados)`}
               </button>
             )}
           </div>
         )}
 
         {loading ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>
+          <div className="text-center py-16 text-gray-500">Carregando...</div>
         ) : filteredList.length === 0 ? (
-          <div className="bg-white/80 dark:bg-neutral-800/70 rounded-xl p-8 text-center text-gray-500 dark:text-gray-400">
+          <ClinicaBelezaPanel className="p-12 text-center text-gray-500 text-sm">
             {activeList.length === 0 ? (
-              <>Nenhum procedimento cadastrado. Clique em &quot;Novo Procedimento&quot; para começar.</>
+              <>Nenhum procedimento cadastrado. Clique em <strong>Novo Procedimento</strong> para começar.</>
             ) : (
-              <>
-                Nenhum procedimento com categoria &quot;{presetCategoria}&quot;.
-                {hiddenByCategoryCount > 0 && (
-                  <>
-                    {' '}
-                    Existem {activeList.length} procedimento(s) em outras categorias —{' '}
-                    <button
-                      type="button"
-                      className="text-purple-600 underline"
-                      onClick={() => setShowAllCategories(true)}
-                    >
-                      ver todos
-                    </button>
-                    .
-                  </>
-                )}
-              </>
+              <>Nenhum procedimento nesta categoria.</>
             )}
-          </div>
+          </ClinicaBelezaPanel>
         ) : (
-          <div className="bg-white/80 dark:bg-neutral-800/70 rounded-xl shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100 dark:bg-neutral-700 text-gray-600 dark:text-gray-300">
-                  <tr>
-                    <th className="text-left p-3">Nome</th>
-                    <th className="text-left p-3">Categoria</th>
-                    <th className="text-left p-3">Duração</th>
-                    <th className="text-left p-3">Preço</th>
-                    <th className="w-24 p-3">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredList.map((p) => (
-                    <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
-                      <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{entityName(p)}</td>
-                      <td className="p-3 text-gray-600 dark:text-gray-400">{procedureCategoria(p) || '—'}</td>
-                      <td className="p-3 text-gray-700 dark:text-gray-300">{procedureDuration(p)} min</td>
-                      <td className="p-3 text-gray-700 dark:text-gray-300">{formatCurrency(procedurePrice(p))}</td>
-                      <td className="p-3">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => openEdit(p)}
-                            className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
-                            title="Editar"
-                          >
-                            <Pencil size={18} />
-                          </button>
-                          <button
-                            onClick={() => exclude(p)}
-                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                            title="Desativar"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <ClinicaBelezaPanel>
+            <EntityListTable
+              rows={filteredList}
+              rowKey={(p) => p.id}
+              onRowClick={(p) => abrirEditar(p.id)}
+              columns={[
+                {
+                  key: 'nome',
+                  header: 'Nome',
+                  render: (p) => <span className="font-medium text-gray-800 dark:text-gray-200">{entityName(p)}</span>,
+                },
+                {
+                  key: 'categoria',
+                  header: 'Categoria',
+                  className: 'hidden sm:table-cell',
+                  render: (p) => <span className="text-gray-600">{procedureCategoria(p) || '—'}</span>,
+                },
+                {
+                  key: 'duracao',
+                  header: 'Duração',
+                  className: 'hidden md:table-cell',
+                  render: (p) => <span>{procedureDuration(p)} min</span>,
+                },
+                {
+                  key: 'preco',
+                  header: 'Preço',
+                  render: (p) => <span>{formatCurrency(procedurePrice(p))}</span>,
+                },
+              ]}
+              trailingCell={(p) => (
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <button type="button" onClick={() => abrirEditar(p.id)} className="p-2 text-purple-600 hover:bg-purple-50 rounded" title="Editar">
+                    <Pencil size={16} />
+                  </button>
+                  <button type="button" onClick={() => exclude(p)} className="p-2 text-red-600 hover:bg-red-50 rounded" title="Desativar">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              )}
+            />
+          </ClinicaBelezaPanel>
         )}
         <ClinicaBelezaRelatedLinks slug={slug} items={relatedLinks} />
       </ClinicaBelezaPageContent>
-
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-md border dark:border-neutral-700">
-            <div className="flex justify-between items-center p-4 border-b dark:border-neutral-700">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                {editing ? "Editar Procedimento" : "Novo Procedimento"}
-              </h2>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-4 space-y-3">
-              {error && (
-                <div className="p-2 rounded bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">{error}</div>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                  placeholder="Ex.: Limpeza de pele"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Duração (min) *</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={form.duration}
-                  onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
-                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Preço (R$) *</label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={form.price}
-                  onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                  placeholder="0,00"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  rows={2}
-                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 resize-none"
-                  placeholder="Descrição opcional"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
-                <select
-                  value={form.categoria}
-                  onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value }))}
-                  className="w-full px-3 py-2 border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="">Selecione...</option>
-                  {PROCEDURE_CATEGORIA_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-2 p-4 border-t dark:border-neutral-700">
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={save}
-                disabled={saving}
-                className="flex-1 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
-              >
-                {saving ? "Salvando..." : "Salvar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </>
   );
 }

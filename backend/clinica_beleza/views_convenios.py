@@ -10,6 +10,7 @@ from rest_framework import status
 from .models import Convenio, ConvenioProcedimentoPreco, Procedure
 from .serializers import ConvenioSerializer, ConvenioListSerializer, ConvenioPrecoSerializer
 from .permissions import CLINICA_MEMBER
+from .pagination import paginate_queryset
 from .views_base import GetObjectMixin
 class ConvenioListView(APIView):
     """
@@ -23,7 +24,7 @@ class ConvenioListView(APIView):
         qs = Convenio.objects.all().order_by('nome')
         if not incluir_inativos:
             qs = qs.filter(is_active=True)
-        return Response(ConvenioListSerializer(qs, many=True).data)
+        return paginate_queryset(qs, request, ConvenioListSerializer)
 
     def post(self, request):
         serializer = ConvenioSerializer(data=request.data)

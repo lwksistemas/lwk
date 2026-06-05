@@ -9,6 +9,7 @@ from rest_framework import status
 
 from .models import Procedure
 from .serializers import ProcedureSerializer
+from .pagination import paginate_queryset
 from .views_base import GetObjectMixin, map_field_names
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ class ProcedureListView(APIView):
             queryset = queryset.filter(is_active=True)
         if categoria:
             queryset = queryset.filter(categoria__icontains=categoria)
-        return Response(ProcedureSerializer(queryset, many=True).data)
+        return paginate_queryset(queryset, request, ProcedureSerializer)
 
     def post(self, request):
         data = _map_procedure_data(request.data)

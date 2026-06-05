@@ -1,24 +1,13 @@
 /** Valor vazio no select = atendimento particular (preço cadastrado do procedimento). */
 export const CONVENIO_PARTICULAR_LABEL = "Particular";
 
-export interface ConvenioItem {
-  id: number;
-  nome: string;
-  codigo?: string;
-  is_active?: boolean;
-}
+export type {
+  ConvenioItem,
+  ConvenioPrecoItem,
+  ConvenioPrecoModo,
+} from "@/lib/clinica-beleza-api";
 
-export type ConvenioPrecoModo = 'fixo' | 'percentual';
-
-export interface ConvenioPrecoItem {
-  id?: number;
-  procedure: number;
-  procedure_name?: string;
-  preco_particular?: string | number;
-  modo?: ConvenioPrecoModo;
-  preco: string | number;
-  preco_efetivo?: string | number;
-}
+import type { ConvenioPrecoItem, ConvenioPrecoModo } from "@/lib/clinica-beleza-api";
 
 export function calcularPrecoEfetivo(
   precoParticular: number,

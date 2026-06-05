@@ -62,47 +62,48 @@ class PatientListView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class PatientDetailView(APIView):
+class PatientDetailView(GetObjectMixin, APIView):
     """GET /clinica-beleza/patients/<id>/  PUT  DELETE"""
     permission_classes = CLINICA_MEMBER
+    model_class = Patient
+    not_found_message = 'Paciente não encontrado'
+    select_related_fields = ('convenio',)
 
     def get(self, request, pk):
-        try:
-            return Response(PatientSerializer(Patient.objects.get(pk=pk)).data)
-        except Patient.DoesNotExist:
-            return Response({'error': 'Paciente não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        return Response(PatientSerializer(obj).data)
 
     def put(self, request, pk):
-        try:
-            obj = Patient.objects.get(pk=pk)
-            data = _map_patient_data(request.data)
-            serializer = PatientSerializer(obj, data=data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        except Patient.DoesNotExist:
-            return Response({'error': 'Paciente não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        data = _map_patient_data(request.data)
+        serializer = PatientSerializer(obj, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        try:
-            from django.utils import timezone
-            from django.db.models import F
+        from django.utils import timezone
+        from django.db.models import F
 
-            obj = Patient.objects.get(pk=pk)
-            agora = timezone.now()
-            # Cancela os agendamentos futuros em aberto, liberando os horários.
-            # O histórico (concluídos/cancelados/faltas) é preservado.
-            canceladas = Appointment.objects.filter(
-                patient=obj,
-                date__gte=agora,
-                status__in=_OPEN_APPOINTMENT_STATUSES,
-            ).update(status='CANCELLED', updated_at=agora, version=F('version') + 1)
-            obj.is_active = False
-            obj.save()
-            return Response(
-                {'message': f'Paciente desativado. {canceladas} agendamento(s) futuro(s) cancelado(s).'},
-                status=status.HTTP_200_OK,
-            )
-        except Patient.DoesNotExist:
-            return Response({'error': 'Paciente não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        agora = timezone.now()
+        # Cancela os agendamentos futuros em aberto, liberando os horários.
+        # O histórico (concluídos/cancelados/faltas) é preservado.
+        canceladas = Appointment.objects.filter(
+            patient=obj,
+            date__gte=agora,
+            status__in=_OPEN_APPOINTMENT_STATUSES,
+        ).update(status='CANCELLED', updated_at=agora, version=F('version') + 1)
+        obj.is_active = False
+        obj.save()
+        return Response(
+            {'message': f'Paciente desativado. {canceladas} agendamento(s) futuro(s) cancelado(s).'},
+            status=status.HTTP_200_OK,
+        )

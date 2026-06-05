@@ -6,6 +6,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import { isBrowserOffline } from '@/lib/clinica-beleza-offline';
 
+/** Normaliza resposta da API: array direto ou envelope paginado { results, count }. */
+export function parseClinicaBelezaListResponse<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (data && typeof data === 'object' && 'results' in data) {
+    const results = (data as { results?: unknown }).results;
+    return Array.isArray(results) ? (results as T[]) : [];
+  }
+  return [];
+}
+
 export async function loadClinicaBelezaList<T>({
   path,
   fetchOffline,
@@ -22,7 +32,7 @@ export async function loadClinicaBelezaList<T>({
   const res = await clinicaBelezaFetch(path);
   const data = await res.json();
   if (!res.ok) return [];
-  const arr = Array.isArray(data) ? (data as T[]) : [];
+  const arr = parseClinicaBelezaListResponse<T>(data);
   await saveOffline(arr);
   return arr;
 }

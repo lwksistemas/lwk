@@ -295,6 +295,14 @@ export class ClinicaBelezaAPI {
   };
 
   static professionals = {
+    list: (params?: { active?: boolean }) =>
+      ClinicaBelezaAPI.get('/professionals/', params),
+    get: (id: number) => ClinicaBelezaAPI.get(`/professionals/${id}/`),
+    create: (data: Record<string, unknown>) =>
+      ClinicaBelezaAPI.post('/professionals/', data),
+    update: (id: number, data: Record<string, unknown>) =>
+      ClinicaBelezaAPI.put(`/professionals/${id}/`, data),
+    delete: (id: number) => ClinicaBelezaAPI.delete(`/professionals/${id}/`),
     /** Status Memed (Em análise, Ativo, etc.) por id do profissional. */
     memedStatus: () =>
       ClinicaBelezaAPI.get<Record<string, {
@@ -385,6 +393,35 @@ export class ClinicaBelezaAPI {
       ClinicaBelezaAPI.put<LocalAtendimentoItem>(`/locais-atendimento/${id}/`, data),
     delete: (id: number) =>
       ClinicaBelezaAPI.delete(`/locais-atendimento/${id}/`),
+  };
+
+  static campanhas = {
+    list: () => ClinicaBelezaAPI.get('/campanhas/'),
+    get: (id: number) => ClinicaBelezaAPI.get(`/campanhas/${id}/`),
+    create: (data: Record<string, unknown>) => ClinicaBelezaAPI.post('/campanhas/', data),
+    update: (id: number, data: Record<string, unknown>) => ClinicaBelezaAPI.put(`/campanhas/${id}/`, data),
+    delete: (id: number) => ClinicaBelezaAPI.delete(`/campanhas/${id}/`),
+    enviar: (id: number) => ClinicaBelezaAPI.post(`/campanhas/${id}/enviar/`, {}),
+  };
+
+  static protocolos = {
+    list: (params?: { categoria?: string; procedure?: number }) =>
+      ClinicaBelezaAPI.get('/protocolos/', params),
+    get: (id: number) => ClinicaBelezaAPI.get(`/protocolos/${id}/`),
+    create: (data: Record<string, unknown>) => ClinicaBelezaAPI.post('/protocolos/', data),
+    update: (id: number, data: Record<string, unknown>) =>
+      ClinicaBelezaAPI.put(`/protocolos/${id}/`, data),
+    delete: (id: number) => ClinicaBelezaAPI.delete(`/protocolos/${id}/`),
+  };
+
+  static procedures = {
+    list: (params?: { categoria?: string; active?: boolean }) =>
+      ClinicaBelezaAPI.get('/procedures/', params),
+    get: (id: number) => ClinicaBelezaAPI.get(`/procedures/${id}/`),
+    create: (data: Record<string, unknown>) => ClinicaBelezaAPI.post('/procedures/', data),
+    update: (id: number, data: Record<string, unknown>) =>
+      ClinicaBelezaAPI.put(`/procedures/${id}/`, data),
+    delete: (id: number) => ClinicaBelezaAPI.delete(`/procedures/${id}/`),
   };
 
   static convenios = {

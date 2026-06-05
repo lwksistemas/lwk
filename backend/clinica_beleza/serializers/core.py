@@ -3,8 +3,8 @@ Serializers para Clínica da Beleza
 """
 from rest_framework import serializers
 
-from .bloqueio_utils import bloqueio_datetime_range, split_datetime_range
-from .models import (
+from ..bloqueio_utils import bloqueio_datetime_range, split_datetime_range
+from ..models import (
     Patient, Professional, Procedure, ProcedureProtocol,
     Appointment, AppointmentProcedure, Payment, BloqueioHorario,
     HorarioTrabalhoProfissional, ProfessionalCommission,
@@ -74,7 +74,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
         )
 
         if criar_acesso:
-            from .professional_service import criar_profissional_com_acesso, ProfessionalAccessError
+            from ..professional_service import criar_profissional_com_acesso, ProfessionalAccessError
             try:
                 criar_profissional_com_acesso(
                     professional,
@@ -317,7 +317,7 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        from .convenio_service import criar_appointment_procedures
+        from ..convenio_service import criar_appointment_procedures
 
         procedures_list = validated_data.pop('_procedures_list', None)
         convenio = validated_data.get('convenio')

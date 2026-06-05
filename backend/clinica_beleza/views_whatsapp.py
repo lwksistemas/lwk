@@ -11,6 +11,7 @@ from rest_framework import status
 from .models import Patient, CampanhaPromocao
 from .utils import LojaContextHelper
 from tenants.middleware import get_current_loja_id
+from .views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
 
@@ -152,21 +153,22 @@ class CampanhaPromocaoListView(APIView):
         return Response(_campanha_to_dict(campanha), status=status.HTTP_201_CREATED)
 
 
-class CampanhaPromocaoDetailView(APIView):
+class CampanhaPromocaoDetailView(GetObjectMixin, APIView):
     """GET /clinica-beleza/campanhas/<id>/  PUT  DELETE"""
     permission_classes = CLINICA_ADMIN
+    model_class = CampanhaPromocao
+    not_found_message = 'Campanha não encontrada'
 
     def get(self, request, pk):
-        try:
-            return Response(_campanha_to_dict(CampanhaPromocao.objects.get(pk=pk)))
-        except CampanhaPromocao.DoesNotExist:
-            return Response({'error': 'Campanha não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        return Response(_campanha_to_dict(obj))
 
     def put(self, request, pk):
-        try:
-            c = CampanhaPromocao.objects.get(pk=pk)
-        except CampanhaPromocao.DoesNotExist:
-            return Response({'error': 'Campanha não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        c, err = self.object_or_404(pk)
+        if err:
+            return err
         if 'titulo' in request.data:
             c.titulo = (request.data.get('titulo') or '').strip()[:200]
         if 'mensagem' in request.data:
@@ -183,11 +185,11 @@ class CampanhaPromocaoDetailView(APIView):
         return Response(_campanha_to_dict(c))
 
     def delete(self, request, pk):
-        try:
-            CampanhaPromocao.objects.get(pk=pk).delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except CampanhaPromocao.DoesNotExist:
-            return Response({'error': 'Campanha não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CampanhaPromocaoEnviarView(APIView):

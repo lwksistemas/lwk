@@ -23,7 +23,7 @@ import re
 import requests
 from django.conf import settings
 
-from .views_memed import _memed_config, _memed_credentials
+from .memed_config import memed_config as _memed_config, memed_credentials as _memed_credentials
 
 logger = logging.getLogger(__name__)
 

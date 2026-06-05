@@ -11,7 +11,6 @@ import logging
 import re
 
 import requests
-from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .permissions import CLINICA_CLINICAL
@@ -19,39 +18,9 @@ from rest_framework import status
 
 from .models import Professional
 
+from .memed_config import MEMED_ENDPOINTS, memed_config as _memed_config, memed_credentials as _memed_credentials
+
 logger = logging.getLogger(__name__)
-
-MEMED_ENDPOINTS = {
-    'integration': {
-        'api': 'https://integrations.api.memed.com.br/v1',
-        'script': 'https://integrations.memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js',
-    },
-    'production': {
-        'api': 'https://api.memed.com.br/v1',
-        'script': 'https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js',
-    },
-}
-
-
-def _memed_config():
-    env = (getattr(settings, 'MEMED_ENVIRONMENT', 'integration') or 'integration').lower()
-    if env not in MEMED_ENDPOINTS:
-        env = 'integration'
-    return env, MEMED_ENDPOINTS[env]
-
-
-def _memed_credentials(env):
-    """
-    Retorna (api_key, secret_key) conforme o ambiente. Em produção, prioriza as
-    chaves *_PROD; se ausentes, faz fallback para as genéricas (homologação).
-    """
-    if env == 'production':
-        api_key = getattr(settings, 'MEMED_API_KEY_PROD', '') or getattr(settings, 'MEMED_API_KEY', '')
-        secret_key = getattr(settings, 'MEMED_SECRET_KEY_PROD', '') or getattr(settings, 'MEMED_SECRET_KEY', '')
-    else:
-        api_key = getattr(settings, 'MEMED_API_KEY', '')
-        secret_key = getattr(settings, 'MEMED_SECRET_KEY', '')
-    return api_key, secret_key
 
 
 def _dados_clinica(request):

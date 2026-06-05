@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, Trash2 } from "lucide-react";
-import { ClinicaBelezaAPI, clinicaBelezaFetch, type ConvenioItem } from "@/lib/clinica-beleza-api";
-import { buildPrecosMap, CONVENIO_PARTICULAR_LABEL, precoProcedimento } from "@/lib/convenio-precos";
+import { X } from "lucide-react";
+import { ConvenioSelect } from "@/components/clinica-beleza/ConvenioSelect";
+import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
+import { useConvenioPrecos } from "@/hooks/clinica-beleza/useConvenioPrecos";
+import { useConveniosList } from "@/hooks/clinica-beleza/useConveniosList";
+import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { entityName, procedureDuration, procedurePrice } from "@/lib/clinica-beleza-entities";
+import { precoProcedimento } from "@/lib/convenio-precos";
 import { adicionarNaFilaSync } from "@/lib/offline-db";
 import { notificarFilaAtualizada } from "@/hooks/useSyncPending";
 import {
@@ -36,16 +41,6 @@ interface Procedure {
   preco?: string;
 }
 
-function gName(o: { name?: string; nome?: string }): string {
-  return o.name || o.nome || "";
-}
-function gDuration(o: { duration?: number; duracao_minutos?: number }): number {
-  return o.duration ?? o.duracao_minutos ?? 30;
-}
-function gPrice(o: { price?: string; preco?: string }): number {
-  return Number(o.price || o.preco) || 0;
-}
-
 function formatTimeFromDate(date: Date): string {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
@@ -75,9 +70,7 @@ export function ModalCriarAgendamento({
 }: ModalCriarAgendamentoProps) {
   const [patientId, setPatientId] = useState("");
   const [professionalId, setProfessionalId] = useState("");
-  const [convenioId, setConvenioId] = useState("");
-  const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
-  const [precosMap, setPrecosMap] = useState<Record<number, number>>({});
+  const [convenioId, setConvenioId] = useState<number | "">("");
   const [selectedProcedures, setSelectedProcedures] = useState<number[]>([]);
   const [time, setTime] = useState("09:00");
   const [notes, setNotes] = useState("");
@@ -85,36 +78,25 @@ export function ModalCriarAgendamento({
   const [createError, setCreateError] = useState("");
   const [horariosProfissional, setHorariosProfissional] = useState<HorarioTrabalho[]>([]);
 
+  const convenios = useConveniosList(open);
+  const precosMap = useConvenioPrecos(convenioId);
+
   useEffect(() => {
     if (!open) return;
     setPatientId("");
     setProfessionalId(defaultProfessionalId);
     setConvenioId("");
-    setPrecosMap({});
     setSelectedProcedures([]);
     setTime(selectedDate ? formatTimeFromDate(selectedDate) : "09:00");
     setNotes("");
     setCreateError("");
-    ClinicaBelezaAPI.convenios.list()
-      .then((rows) => setConvenios(Array.isArray(rows) ? rows : []))
-      .catch(() => setConvenios([]));
   }, [open, selectedDate, defaultProfessionalId]);
 
   useEffect(() => {
     if (!patientId) return;
     const paciente = patients.find((p) => p.id === parseInt(patientId, 10));
-    setConvenioId(paciente?.convenio ? String(paciente.convenio) : "");
+    setConvenioId(paciente?.convenio ?? "");
   }, [patientId, patients]);
-
-  useEffect(() => {
-    if (!convenioId) {
-      setPrecosMap({});
-      return;
-    }
-    ClinicaBelezaAPI.convenios.precos(Number(convenioId))
-      .then((rows) => setPrecosMap(buildPrecosMap(rows)))
-      .catch(() => setPrecosMap({}));
-  }, [convenioId]);
 
   useEffect(() => {
     if (!open || !professionalId) {
@@ -135,12 +117,6 @@ export function ModalCriarAgendamento({
     return () => { cancelled = true; };
   }, [open, professionalId]);
 
-  // Procedimentos disponíveis (exclui os já selecionados)
-  const procedimentosDisponiveis = useMemo(
-    () => procedures.filter((p) => !selectedProcedures.includes(p.id)),
-    [procedures, selectedProcedures],
-  );
-
   const adicionarProcedimento = (id: number) => {
     if (id && !selectedProcedures.includes(id)) {
       setSelectedProcedures((prev) => [...prev, id]);
@@ -151,15 +127,15 @@ export function ModalCriarAgendamento({
     setSelectedProcedures((prev) => prev.filter((p) => p !== id));
   };
 
-  // Duração e valor total
   const resumo = useMemo(() => {
     let duracao = 0;
     let valor = 0;
     for (const id of selectedProcedures) {
       const proc = procedures.find((p) => p.id === id);
       if (proc) {
-        duracao += gDuration(proc);
-        valor += precoProcedimento(id, gPrice(proc), convenioId ? Number(convenioId) : "", precosMap);
+        duracao += procedureDuration(proc);
+        const particular = Number(procedurePrice(proc)) || 0;
+        valor += precoProcedimento(id, particular, convenioId, precosMap);
       }
     }
     return { duracao, valor };
@@ -198,15 +174,14 @@ export function ModalCriarAgendamento({
       notes: notes.trim() || null,
     };
     if (convenioId) {
-      payload.convenio = parseInt(convenioId, 10);
+      payload.convenio = Number(convenioId);
     }
 
-    // Múltiplos procedimentos: envia procedures_ids
     if (selectedProcedures.length === 1) {
       payload.procedure = selectedProcedures[0];
     } else {
       payload.procedures_ids = selectedProcedures;
-      payload.procedure = selectedProcedures[0]; // principal para retrocompatibilidade
+      payload.procedure = selectedProcedures[0];
     }
 
     try {
@@ -216,10 +191,10 @@ export function ModalCriarAgendamento({
         const patient = patients.find((p) => p.id === parseInt(patientId, 10));
         const professional = professionals.find((p) => p.id === parseInt(professionalId, 10));
         const procNames = selectedProcedures
-          .map((id) => gName(procedures.find((p) => p.id === id) || {}))
+          .map((id) => entityName(procedures.find((p) => p.id === id) || {}))
           .filter(Boolean)
           .join(", ");
-        const titulo = [gName(patient || {}), procNames].filter(Boolean).join(" • ") || "Agendamento (offline)";
+        const titulo = [entityName(patient || {}), procNames].filter(Boolean).join(" • ") || "Agendamento (offline)";
         const tempId = `offline-${Date.now()}`;
         const endDate = new Date(date);
         endDate.setMinutes(endDate.getMinutes() + resumo.duracao);
@@ -236,9 +211,9 @@ export function ModalCriarAgendamento({
             extendedProps: {
               dbId: tempId,
               status: "SCHEDULED",
-              patient_name: gName(patient || {}),
+              patient_name: entityName(patient || {}),
               patient_phone: "",
-              professional_name: gName(professional || {}),
+              professional_name: entityName(professional || {}),
               procedure_name: procNames,
               procedure_duration: resumo.duracao,
               procedure_price: resumo.valor,
@@ -270,7 +245,6 @@ export function ModalCriarAgendamento({
     setPatientId("");
     setProfessionalId("");
     setConvenioId("");
-    setPrecosMap({});
     setSelectedProcedures([]);
     setTime("09:00");
     setNotes("");
@@ -278,6 +252,8 @@ export function ModalCriarAgendamento({
     setCreateLoading(false);
     onClose();
   };
+
+  const selectClass = "w-full px-3 py-2 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700";
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -296,7 +272,6 @@ export function ModalCriarAgendamento({
             <div className="p-2 rounded bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">{createError}</div>
           )}
 
-          {/* Data e Horário */}
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data</label>
@@ -310,144 +285,85 @@ export function ModalCriarAgendamento({
                 type="time"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                className="w-full px-3 py-2 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700"
+                className={selectClass}
               />
             </div>
           </div>
 
-          {/* Paciente */}
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Paciente *</label>
             <select
               value={patientId}
               onChange={(e) => setPatientId(e.target.value)}
-              className="w-full px-3 py-2 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700"
+              className={selectClass}
               required
             >
               <option value="">Selecione o paciente</option>
               {patients.map((p) => (
-                <option key={p.id} value={p.id}>{gName(p)}</option>
+                <option key={p.id} value={p.id}>{entityName(p)}</option>
               ))}
             </select>
           </div>
 
-          {/* Profissional */}
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profissional *</label>
             <select
               value={professionalId}
               onChange={(e) => setProfessionalId(e.target.value)}
-              className="w-full px-3 py-2 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700"
+              className={selectClass}
               required
             >
               <option value="">Selecione o profissional</option>
               {professionals.map((p) => (
-                <option key={p.id} value={p.id}>{gName(p)}</option>
+                <option key={p.id} value={p.id}>{entityName(p)}</option>
               ))}
             </select>
           </div>
 
-          {/* Convênio */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Convênio</label>
-            <select
-              value={convenioId}
-              onChange={(e) => setConvenioId(e.target.value)}
-              className="w-full px-3 py-2 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700"
-            >
-              <option value="">{CONVENIO_PARTICULAR_LABEL}</option>
-              {convenios.map((c) => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
-              ))}
-            </select>
-          </div>
+          <ConvenioSelect
+            convenios={convenios}
+            value={convenioId}
+            onChange={setConvenioId}
+            hint=""
+            className={selectClass}
+          />
 
-          {/* Procedimentos (múltiplos) */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Procedimentos * <span className="font-normal text-gray-400">(pode adicionar vários)</span>
-            </label>
-            <select
-              className="w-full px-3 py-2 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700"
-              value=""
-              onChange={(e) => {
-                const id = Number(e.target.value);
-                if (id) adicionarProcedimento(id);
-              }}
-            >
-              <option value="">Adicionar procedimento...</option>
-              {procedimentosDisponiveis.map((p) => (
-                <option key={p.id} value={p.id}>{gName(p)} ({gDuration(p)} min)</option>
-              ))}
-            </select>
+          <ProcedureMultiSelect
+            procedures={procedures}
+            selectedIds={selectedProcedures}
+            onAdd={adicionarProcedimento}
+            onRemove={removerProcedimento}
+            convenioId={convenioId}
+            precosMap={precosMap}
+          />
 
-            {selectedProcedures.length > 0 && (
-              <div className="mt-2 space-y-1.5">
-                {selectedProcedures.map((id) => {
-                  const proc = procedures.find((p) => p.id === id);
-                  if (!proc) return null;
-                  const valorProc = precoProcedimento(
-                    id,
-                    gPrice(proc),
-                    convenioId ? Number(convenioId) : "",
-                    precosMap,
-                  );
-                  return (
-                    <div key={id} className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-neutral-700/50 rounded-lg">
-                      <div className="text-sm">
-                        <span className="font-medium text-gray-800 dark:text-gray-200">{gName(proc)}</span>
-                        <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
-                          {gDuration(proc)}min
-                          {valorProc > 0 ? ` · R$ ${valorProc.toFixed(2)}` : ""}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removerProcedimento(id)}
-                        className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  );
-                })}
-                <div className="flex items-center justify-between px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 border-t dark:border-neutral-600 pt-2">
-                  <span>Duração total: <strong>{resumo.duracao} min</strong></span>
-                  {resumo.valor > 0 && <span>Valor: <strong>R$ {resumo.valor.toFixed(2)}</strong></span>}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Observações */}
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 resize-none"
+              className={`${selectClass} resize-none`}
               placeholder="Opcional"
             />
           </div>
+          <div className="flex gap-3 pt-4 border-t dark:border-neutral-700 shrink-0">
+            <button
+              type="button"
+              onClick={resetAndClose}
+              className="flex-1 py-2.5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={createLoading}
+              className="flex-1 py-2.5 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+            >
+              {createLoading ? "Agendando..." : "Agendar"}
+            </button>
+          </div>
         </form>
-        <div className="flex gap-3 px-5 py-4 border-t dark:border-neutral-700 shrink-0">
-          <button
-            type="button"
-            onClick={resetAndClose}
-            className="flex-1 py-2.5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit as any}
-            disabled={createLoading}
-            className="flex-1 py-2.5 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
-          >
-            {createLoading ? "Agendando..." : "Agendar"}
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Pencil, Trash2, X, ClipboardList } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Pencil, Save, Trash2 } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import {
   CLINICA_BELEZA_ONLINE_ONLY,
+  CLINICA_FORM_INPUT,
   deleteClinicaBelezaEntity,
   saveClinicaBelezaEntity,
   useClinicaBelezaEntityList,
@@ -14,8 +15,10 @@ import { entityName, procedureCategoria } from '@/lib/clinica-beleza-entities';
 import { procedureMatchesModule } from '@/lib/clinica-beleza-categories';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import { ClinicaBelezaRelatedLinks } from '@/components/clinica-beleza/ClinicaBelezaRelatedLinks';
-import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
+import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
+import { EntityListTable } from '@/components/clinica-beleza/EntityListTable';
+import { useClinicaBelezaFormRouting } from '@/hooks/clinica-beleza/useClinicaBelezaFormRouting';
 
 interface Protocol {
   id: number;
@@ -41,7 +44,7 @@ interface Procedure {
   categoria?: string;
 }
 
-const emptyForm = {
+const EMPTY_FORM = {
   nome: '',
   procedure: '',
   descricao: '',
@@ -53,6 +56,21 @@ const emptyForm = {
   contraindicacoes: '',
   cuidados_especiais: '',
 };
+
+function protocolToForm(p: Protocol) {
+  return {
+    nome: p.nome || '',
+    procedure: String(p.procedure),
+    descricao: p.descricao || '',
+    tempo_estimado: String(p.tempo_estimado || 30),
+    materiais_necessarios: p.materiais_necessarios || '',
+    preparacao: p.preparacao || '',
+    execucao: p.execucao || '',
+    pos_procedimento: p.pos_procedimento || '',
+    contraindicacoes: p.contraindicacoes || '',
+    cuidados_especiais: p.cuidados_especiais || '',
+  };
+}
 
 export interface ProtocolosPageContentProps {
   title?: string;
@@ -71,6 +89,9 @@ export function ProtocolosPageContent({
 }: ProtocolosPageContentProps) {
   const params = useParams();
   const slug = params.slug as string;
+  const { isNovo, editIdParam, isFormView, voltarLista, abrirNovo, abrirEditar } =
+    useClinicaBelezaFormRouting();
+
   const protocolosPath = useMemo(
     () =>
       defaultCategoria
@@ -78,15 +99,16 @@ export function ProtocolosPageContent({
         : '/protocolos',
     [defaultCategoria],
   );
+
   const { list, loading, load } = useClinicaBelezaEntityList<Protocol>({
     path: protocolosPath,
     ...CLINICA_BELEZA_ONLINE_ONLY,
     reloadDeps: [defaultCategoria],
   });
+
   const [procedures, setProcedures] = useState<Procedure[]>([]);
-  const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Protocol | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -113,30 +135,23 @@ export function ProtocolosPageContent({
     loadProcedures();
   }, [loadProcedures]);
 
-  const openNew = () => {
-    setEditing(null);
-    setForm(emptyForm);
-    setError('');
-    setShowModal(true);
-  };
-
-  const openEdit = (p: Protocol) => {
-    setEditing(p);
-    setForm({
-      nome: p.nome || '',
-      procedure: String(p.procedure),
-      descricao: p.descricao || '',
-      tempo_estimado: String(p.tempo_estimado || 30),
-      materiais_necessarios: p.materiais_necessarios || '',
-      preparacao: p.preparacao || '',
-      execucao: p.execucao || '',
-      pos_procedimento: p.pos_procedimento || '',
-      contraindicacoes: p.contraindicacoes || '',
-      cuidados_especiais: p.cuidados_especiais || '',
-    });
-    setError('');
-    setShowModal(true);
-  };
+  useEffect(() => {
+    if (!isFormView) return;
+    if (isNovo) {
+      setEditing(null);
+      setForm(EMPTY_FORM);
+      setError('');
+      return;
+    }
+    if (editIdParam && list.length > 0) {
+      const p = list.find((x) => String(x.id) === editIdParam);
+      if (p) {
+        setEditing(p);
+        setForm(protocolToForm(p));
+        setError('');
+      }
+    }
+  }, [isFormView, isNovo, editIdParam, list]);
 
   const save = async () => {
     if (!form.nome.trim() || !form.procedure) {
@@ -163,7 +178,7 @@ export function ProtocolosPageContent({
       } else {
         await saveClinicaBelezaEntity('/protocolos/', 'POST', body);
       }
-      setShowModal(false);
+      voltarLista();
       load();
     } catch (e: unknown) {
       if (e instanceof Error && e.message === 'SESSION_ENDED') return;
@@ -187,6 +202,87 @@ export function ProtocolosPageContent({
     }
   };
 
+  const formFields = (
+    [
+      ['descricao', 'Descrição'],
+      ['materiais_necessarios', 'Materiais necessários'],
+      ['preparacao', 'Preparação'],
+      ['execucao', 'Execução (passos)'],
+      ['pos_procedimento', 'Pós-procedimento'],
+      ['contraindicacoes', 'Contraindicações'],
+      ['cuidados_especiais', 'Cuidados especiais'],
+    ] as const
+  );
+
+  if (isFormView) {
+    return (
+      <>
+        <ClinicaBelezaStandardPageHeader
+          title={editing ? 'Editar protocolo' : 'Novo protocolo'}
+          subtitle={editing ? editing.nome : 'Padronize etapas e cuidados do procedimento'}
+          onBack={voltarLista}
+          icon={ClipboardList}
+        />
+        <ClinicaBelezaPageContent>
+          <ClinicaBelezaPanel className="p-6 md:p-8 max-w-3xl">
+            {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+            <div className="space-y-4">
+              <input
+                className={CLINICA_FORM_INPUT}
+                placeholder="Nome do protocolo *"
+                value={form.nome}
+                onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+              />
+              <select
+                className={CLINICA_FORM_INPUT}
+                value={form.procedure}
+                onChange={(e) => setForm((f) => ({ ...f, procedure: e.target.value }))}
+              >
+                <option value="">Procedimento *</option>
+                {procedures.map((pr) => (
+                  <option key={pr.id} value={pr.id}>{entityName(pr)}</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                className={CLINICA_FORM_INPUT}
+                placeholder="Tempo estimado (min) *"
+                value={form.tempo_estimado}
+                onChange={(e) => setForm((f) => ({ ...f, tempo_estimado: e.target.value }))}
+              />
+              {formFields.map(([key, label]) => (
+                <textarea
+                  key={key}
+                  className={`${CLINICA_FORM_INPUT} resize-none`}
+                  placeholder={label}
+                  rows={key === 'execucao' ? 4 : 2}
+                  value={form[key]}
+                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                />
+              ))}
+            </div>
+            <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-neutral-700">
+              <button type="button" onClick={voltarLista} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border text-sm font-medium">
+                <ArrowLeft size={16} />
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              >
+                <Save size={16} />
+                {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </ClinicaBelezaPanel>
+        </ClinicaBelezaPageContent>
+      </>
+    );
+  }
+
   return (
     <>
       <ClinicaBelezaStandardPageHeader
@@ -195,151 +291,65 @@ export function ProtocolosPageContent({
         backHref={backHref}
         icon={ClipboardList}
         newLabel="Novo protocolo"
-        onNew={openNew}
+        onNew={abrirNovo}
       />
       <ClinicaBelezaPageContent>
-
         {loading ? (
-          <p className="text-center py-12 text-gray-500">Carregando...</p>
+          <p className="text-center py-16 text-gray-500">Carregando...</p>
         ) : list.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-8 text-center text-gray-500 border border-gray-100 dark:border-gray-700">
-            <p className="mb-2">Nenhum protocolo cadastrado.</p>
-            <p className="text-sm mb-4">Protocolos padronizam seus procedimentos e garantem qualidade.</p>
-            <button
-              type="button"
-              onClick={openNew}
-              className="px-5 py-2 text-white rounded-lg text-sm"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-            >
-              Criar primeiro protocolo
-            </button>
-          </div>
+          <ClinicaBelezaPanel className="p-12 text-center text-gray-500 text-sm">
+            Nenhum protocolo cadastrado. Clique em <strong>Novo protocolo</strong> para começar.
+          </ClinicaBelezaPanel>
         ) : (
-          <div className="space-y-3">
-            {list.map((p) => (
-              <div
-                key={p.id}
-                className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700"
-              >
-                <div className="flex justify-between gap-4">
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">{p.nome}</h3>
-                    <p className="text-sm text-gray-500 mt-0.5">
-                      {p.procedure_name}
-                      {p.procedure_categoria ? ` · ${p.procedure_categoria}` : ''}
-                    </p>
-                    {p.descricao && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{p.descricao}</p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-2">⏱ {p.tempo_estimado} min</p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(p)}
-                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                      title="Editar"
-                    >
-                      <Pencil size={18} style={{ color: CLINICA_BELEZA_PRIMARY }} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => exclude(p)}
-                      className="p-2 rounded-lg hover:bg-red-50 text-red-600"
-                      title="Desativar"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+          <ClinicaBelezaPanel>
+            <EntityListTable
+              rows={list}
+              rowKey={(p) => p.id}
+              onRowClick={(p) => abrirEditar(p.id)}
+              columns={[
+                {
+                  key: 'nome',
+                  header: 'Protocolo',
+                  render: (p) => (
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">{p.nome}</p>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {p.procedure_name}
+                        {p.procedure_categoria ? ` · ${p.procedure_categoria}` : ''}
+                      </p>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'tempo',
+                  header: 'Duração',
+                  className: 'hidden sm:table-cell',
+                  render: (p) => <span className="text-gray-600">{p.tempo_estimado} min</span>,
+                },
+                {
+                  key: 'desc',
+                  header: 'Descrição',
+                  className: 'hidden md:table-cell',
+                  render: (p) => (
+                    <span className="text-sm text-gray-500 line-clamp-1">{p.descricao || '—'}</span>
+                  ),
+                },
+              ]}
+              trailingCell={(p) => (
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <button type="button" onClick={() => abrirEditar(p.id)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700" title="Editar">
+                    <Pencil size={16} style={{ color: CLINICA_BELEZA_PRIMARY }} />
+                  </button>
+                  <button type="button" onClick={() => exclude(p)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Desativar">
+                    <Trash2 size={16} />
+                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
+              )}
+            />
+          </ClinicaBelezaPanel>
         )}
         <ClinicaBelezaRelatedLinks slug={slug} items={relatedLinks} />
       </ClinicaBelezaPageContent>
-
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                {editing ? 'Editar protocolo' : 'Novo protocolo'}
-              </h2>
-              <button type="button" onClick={() => setShowModal(false)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-            <div className="space-y-3">
-              <input
-                className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600"
-                placeholder="Nome do protocolo *"
-                value={form.nome}
-                onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
-              />
-              <select
-                className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600"
-                value={form.procedure}
-                onChange={(e) => setForm((f) => ({ ...f, procedure: e.target.value }))}
-              >
-                <option value="">Procedimento *</option>
-                {procedures.map((pr) => (
-                  <option key={pr.id} value={pr.id}>
-                    {entityName(pr)}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="number"
-                className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600"
-                placeholder="Tempo estimado (min) *"
-                value={form.tempo_estimado}
-                onChange={(e) => setForm((f) => ({ ...f, tempo_estimado: e.target.value }))}
-              />
-              {(
-                [
-                  ['descricao', 'Descrição'],
-                  ['materiais_necessarios', 'Materiais necessários'],
-                  ['preparacao', 'Preparação'],
-                  ['execucao', 'Execução (passos)'],
-                  ['pos_procedimento', 'Pós-procedimento'],
-                  ['contraindicacoes', 'Contraindicações'],
-                  ['cuidados_especiais', 'Cuidados especiais'],
-                ] as const
-              ).map(([key, label]) => (
-                <textarea
-                  key={key}
-                  className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600"
-                  placeholder={label}
-                  rows={key === 'execucao' ? 4 : 2}
-                  value={form[key]}
-                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                />
-              ))}
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 border rounded-lg text-sm"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={save}
-                disabled={saving}
-                className="px-4 py-2 text-white rounded-lg text-sm disabled:opacity-50"
-                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-              >
-                {saving ? 'Salvando...' : 'Salvar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </>
   );
 }

@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from django.utils.timezone import now
 
+from .commission_utils import calcular_comissao_payment
 from .models import Appointment, Consulta, Payment
 
 logger = logging.getLogger(__name__)
@@ -261,7 +262,7 @@ def _resolver_comissao(professional, procedure, valor_pagamento, local_atendimen
             is_active=True,
         ).first()
         if comissao:
-            return _calcular_comissao(comissao, valor_pagamento)
+            return calcular_comissao_payment(comissao, valor_pagamento)
 
     # 2. Comissão por consulta no local
     if local_atendimento_id:
@@ -272,19 +273,9 @@ def _resolver_comissao(professional, procedure, valor_pagamento, local_atendimen
             is_active=True,
         ).first()
         if comissao:
-            return _calcular_comissao(comissao, valor_pagamento)
+            return calcular_comissao_payment(comissao, valor_pagamento)
 
     return 0, Decimal('0')
-
-
-def _calcular_comissao(comissao, valor_pagamento):
-    """Calcula percentual e valor da comissão baseado no modo (percentual ou fixo)."""
-    if comissao.modo == 'percentual':
-        pct = int(comissao.valor)
-        val = (valor_pagamento * comissao.valor / Decimal('100')).quantize(Decimal('0.01'))
-        return pct, val
-    else:  # fixo
-        return 0, comissao.valor
 
 
 def iniciar_consulta(consulta):

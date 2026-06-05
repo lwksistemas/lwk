@@ -9,6 +9,7 @@ from decimal import Decimal
 from datetime import date
 from typing import Optional
 
+from .commission_utils import calcular_comissao_decimal
 from .models import Payment, ProfessionalCommission
 
 CHAVE_CONSULTA = '__consulta__'
@@ -29,14 +30,7 @@ def _formatar_regra(comissao: Optional[ProfessionalCommission]) -> tuple[str, st
 
 
 def _calcular_comissao_regra(comissao: Optional[ProfessionalCommission], base: Decimal) -> Decimal:
-    """Percentual sobre a base; valor fixo por atendimento (independente da base)."""
-    if not comissao:
-        return Decimal('0')
-    if comissao.modo == 'fixo':
-        return comissao.valor.quantize(Decimal('0.01'))
-    if base <= 0:
-        return Decimal('0')
-    return (base * comissao.valor / Decimal('100')).quantize(Decimal('0.01'))
+    return calcular_comissao_decimal(comissao, base)
 
 
 def _procedimentos_vinculados_consulta(appt, consulta) -> list[dict]:

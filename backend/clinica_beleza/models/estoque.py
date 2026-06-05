@@ -24,6 +24,7 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
         ('injetavel', 'Injetável'),
         ('soroterapia', 'Soroterapia'),
         ('cosmético', 'Cosmético'),
+        ('medicamentos', 'Medicamentos'),
         ('descartavel', 'Descartável'),
         ('equipamento', 'Equipamento'),
         ('outro', 'Outro'),

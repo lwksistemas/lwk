@@ -13,13 +13,20 @@ class ProdutoEstoqueSerializer(serializers.ModelSerializer):
         model = ProdutoEstoque
         exclude = ['loja_id']
 
+    _CATEGORIA_ALIASES = {
+        'cosmetico': 'cosmético',
+        'Medicamentos': 'medicamentos',
+        'medicamento': 'medicamentos',
+    }
+
     def to_internal_value(self, data):
         mutable = data.copy() if hasattr(data, 'copy') else dict(data)
         if mutable.get('validade') in ('', None):
             mutable['validade'] = None
         cat = mutable.get('categoria')
-        if cat == 'cosmetico':
-            mutable['categoria'] = 'cosmético'
+        if isinstance(cat, str):
+            cat = cat.strip()
+            mutable['categoria'] = self._CATEGORIA_ALIASES.get(cat, cat)
         return super().to_internal_value(mutable)
 
 

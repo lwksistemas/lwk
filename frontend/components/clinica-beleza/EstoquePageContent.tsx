@@ -38,13 +38,24 @@ const CATEGORIAS = [
   { value: "injetavel", label: "Injetável" },
   { value: "soroterapia", label: "Soroterapia" },
   { value: "cosmético", label: "Cosmético" },
+  { value: "medicamentos", label: "Medicamentos" },
   { value: "descartavel", label: "Descartável" },
   { value: "equipamento", label: "Equipamento" },
   { value: "outro", label: "Outro" },
 ];
 
+const CATEGORIA_VALUES = new Set(CATEGORIAS.map((c) => c.value));
+
+const normalizeCategoria = (val?: string | null): string => {
+  if (!val) return "outro";
+  if (val === "cosmetico") return "cosmético";
+  if (val === "Medicamentos" || val === "medicamento") return "medicamentos";
+  if (CATEGORIA_VALUES.has(val)) return val;
+  return "outro";
+};
+
 const categoriaLabel = (val: string) => {
-  const norm = val === "cosmetico" ? "cosmético" : val;
+  const norm = normalizeCategoria(val);
   return CATEGORIAS.find((c) => c.value === norm)?.label ?? val;
 };
 
@@ -169,9 +180,7 @@ export function EstoquePageContent({
   function ProdutoModal() {
     const [form, setForm] = useState({
       nome: editingProduto?.nome ?? "",
-      categoria: editingProduto?.categoria === "cosmetico"
-        ? "cosmético"
-        : (editingProduto?.categoria ?? "outro"),
+      categoria: normalizeCategoria(editingProduto?.categoria),
       quantidade_atual: editingProduto?.quantidade_atual ?? 0,
       quantidade_minima: editingProduto?.quantidade_minima ?? 0,
       preco_custo: editingProduto ? Number(editingProduto.preco_custo) : 0,

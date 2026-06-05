@@ -21,7 +21,7 @@ WORKDIR /app
 # Dependências: backend (base) + raiz (NFS-e, docs, etc.)
 # django-q importa pkg_resources; manter setuptools abaixo da faixa que remove/alerta esse shim.
 ARG PIP_CACHE_BUST=2026-06-04-seguranca-v2
-ARG BUILD_ID=6bf269e6
+ARG BUILD_ID=386b56ef-health
 ENV LWK_BUILD=${BUILD_ID}
 COPY backend/requirements.txt ./requirements-backend.txt
 COPY requirements.txt ./requirements-root.txt

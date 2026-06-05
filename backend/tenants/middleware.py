@@ -180,35 +180,9 @@ class TenantMiddleware:
                 set_current_tenant_db('default')
                 set_current_loja_id(None)
                 if request.method not in ('GET', 'HEAD'):
-                    set_current_tenant_db('default')
                     return JsonResponse({'error': 'Method Not Allowed'}, status=405)
-                try:
-                    with connection.cursor() as cursor:
-                        cursor.execute("SELECT 1")
-                        cursor.fetchone()
-                    db_ok = True
-                except Exception:
-                    db_ok = False
-                loja_count = None
-                if db_ok:
-                    try:
-                        from superadmin.models import Loja
-                        loja_count = Loja.objects.count()
-                    except Exception:
-                        pass
-                # Railway / PaaS: healthcheck HTTP deve ser 2xx; 503 falha o deploy e mantém réplicas antigas.
-                payload = {
-                    'status': 'healthy' if db_ok else 'degraded',
-                    'database': 'connected' if db_ok else 'disconnected',
-                    'lojas_count': loja_count,
-                    'timestamp': timezone.now().isoformat(),
-                    'version': 'v751',
-                    'build': os.environ.get('LWK_BUILD', 'unknown'),
-                }
-                response = JsonResponse(payload, status=200)
-                set_current_loja_id(None)
-                set_current_tenant_db('default')
-                return response
+                from superadmin.views.sistema import health_check
+                return health_check(request)
             # Login / refresh / logout: sem tenant (evita X-Tenant-Slug residual e host da API como slug).
             path_norm = request.path.rstrip('/') or '/'
             if path_norm.startswith('/api/auth'):

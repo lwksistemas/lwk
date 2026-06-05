@@ -15,6 +15,7 @@ export function useClinicaBelezaPaginatedList<T>({
   reloadDeps = [],
   enabled = true,
   paginate = true,
+  loja,
 }: {
   path: string;
   queryParams?: Record<string, string | number | undefined | null>;
@@ -22,6 +23,7 @@ export function useClinicaBelezaPaginatedList<T>({
   reloadDeps?: unknown[];
   enabled?: boolean;
   paginate?: boolean;
+  loja?: { id?: number; slug?: string } | null;
 }) {
   const [list, setList] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +43,7 @@ export function useClinicaBelezaPaginatedList<T>({
         params.page_size = pageSize;
       }
       const url = buildClinicaBelezaListUrl(path, params);
-      const res = await clinicaBelezaFetch(url);
+      const res = await clinicaBelezaFetch(url, {}, loja);
       const data = await res.json();
       if (!res.ok) throw data;
       const result = parseClinicaBelezaPaginatedResponse<T>(data, targetPage, pageSize);
@@ -51,7 +53,7 @@ export function useClinicaBelezaPaginatedList<T>({
       setPage(result.page);
       return result;
     },
-    [path, queryParams, pageSize, paginate],
+    [path, queryParams, pageSize, paginate, loja],
   );
 
   const load = useCallback(async () => {

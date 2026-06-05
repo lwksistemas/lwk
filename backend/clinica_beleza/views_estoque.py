@@ -6,6 +6,7 @@ import logging
 from decimal import Decimal
 
 from django.db.models import F, Sum
+from django.db.utils import OperationalError, ProgrammingError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .permissions import CLINICA_ESTOQUE
@@ -13,10 +14,65 @@ from rest_framework import status
 
 from .models import ProdutoEstoque, MovimentacaoEstoque
 from .serializers import ProdutoEstoqueSerializer, MovimentacaoEstoqueSerializer
-from .pagination import paginate_queryset
+from .pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, paginate_queryset
 from .views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
+
+# Campos legados (sem numero_nota) para schemas que ainda não aplicaram 0034.
+_PRODUTO_VALUES_FIELDS = (
+    'id', 'nome', 'categoria', 'marca', 'unidade_medida',
+    'quantidade_atual', 'quantidade_minima', 'preco_custo', 'preco_venda',
+    'validade', 'lote', 'observacoes', 'is_active', 'created_at', 'updated_at',
+)
+_CATEGORIA_LABELS = dict(ProdutoEstoque.CATEGORIA_CHOICES)
+
+
+def _produto_values_row(row: dict) -> dict:
+    item = dict(row)
+    item['numero_nota'] = ''
+    item['categoria_display'] = _CATEGORIA_LABELS.get(row.get('categoria'), row.get('categoria'))
+    item['estoque_baixo'] = row.get('quantidade_atual', 0) <= row.get('quantidade_minima', 0)
+    return item
+
+
+def _paginate_produtos_values(queryset, request):
+    """Lista produtos via .values() quando a coluna numero_nota ainda não existe no schema."""
+    page_param = request.query_params.get('page')
+    if page_param is None:
+        rows = list(queryset.values(*_PRODUTO_VALUES_FIELDS))
+        return Response([_produto_values_row(r) for r in rows])
+
+    try:
+        page = max(1, int(page_param))
+    except (ValueError, TypeError):
+        page = 1
+    try:
+        page_size = min(
+            MAX_PAGE_SIZE,
+            max(1, int(request.query_params.get('page_size', DEFAULT_PAGE_SIZE))),
+        )
+    except (ValueError, TypeError):
+        page_size = DEFAULT_PAGE_SIZE
+
+    total = queryset.count()
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    offset = (page - 1) * page_size
+    rows = list(queryset.values(*_PRODUTO_VALUES_FIELDS)[offset:offset + page_size])
+    return Response({
+        'count': total,
+        'page': page,
+        'page_size': page_size,
+        'total_pages': total_pages,
+        'results': [_produto_values_row(r) for r in rows],
+    })
+
+
+def _is_missing_numero_nota_error(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return 'numero_nota' in msg or (
+        'column' in msg and 'produtoestoque' in msg.replace('_', '')
+    )
 
 
 class ProdutoEstoqueListView(APIView):
@@ -27,6 +83,9 @@ class ProdutoEstoqueListView(APIView):
     permission_classes = CLINICA_ESTOQUE
 
     def get(self, request):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
         qs = ProdutoEstoque.objects.all().order_by('nome')
         categoria = request.query_params.get('categoria')
         if categoria:
@@ -40,7 +99,22 @@ class ProdutoEstoqueListView(APIView):
         estoque_baixo = request.query_params.get('estoque_baixo')
         if estoque_baixo == 'true':
             qs = qs.filter(quantidade_atual__lte=F('quantidade_minima'))
-        return paginate_queryset(qs, request, ProdutoEstoqueSerializer)
+        try:
+            return paginate_queryset(qs, request, ProdutoEstoqueSerializer)
+        except (OperationalError, ProgrammingError) as exc:
+            if not _is_missing_numero_nota_error(exc):
+                raise
+            logger.warning('Listagem estoque: fallback values() — %s', exc)
+            return _paginate_produtos_values(qs, request)
+        except Exception as exc:
+            if not _is_missing_numero_nota_error(exc):
+                logger.exception('Erro ao listar estoque')
+                return Response(
+                    {'error': 'Erro ao carregar produtos.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+            logger.warning('Listagem estoque: fallback values() — %s', exc)
+            return _paginate_produtos_values(qs, request)
 
     def post(self, request):
         serializer = ProdutoEstoqueSerializer(data=request.data)
@@ -176,6 +250,9 @@ class EstoqueResumoView(APIView):
     permission_classes = CLINICA_ESTOQUE
 
     def get(self, request):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
         produtos = ProdutoEstoque.objects.filter(is_active=True)
         total_produtos = produtos.count()
         estoque_baixo = produtos.filter(quantidade_atual__lte=F('quantidade_minima')).count()

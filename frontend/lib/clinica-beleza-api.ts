@@ -66,16 +66,29 @@ export function getClinicaBelezaHeadersWithLoja(
   }
   let lojaId: string | null = loja?.id != null ? String(loja.id) : null;
   let lojaSlug: string | null = loja?.slug ?? null;
+  const pathLojaMatch =
+    typeof window !== "undefined"
+      ? window.location.pathname.match(/^\/loja\/([^/]+)/)
+      : null;
+  const slugFromPath = pathLojaMatch?.[1] ?? null;
   if (typeof window !== "undefined") {
-    if (!lojaId) lojaId = sessionStorage.getItem("current_loja_id");
+    if (!lojaSlug && slugFromPath) lojaSlug = slugFromPath;
     if (!lojaSlug) lojaSlug = sessionStorage.getItem("loja_slug");
-    if (!lojaSlug) {
-      const match = window.location.pathname.match(/^\/loja\/([^/]+)\//);
-      if (match) lojaSlug = match[1];
+    if (!lojaId) lojaId = sessionStorage.getItem("current_loja_id");
+    // Alinhado ao api-client: slug da URL tem prioridade; ID stale causa listas vazias.
+    if (slugFromPath && token) {
+      const stored = sessionStorage.getItem("loja_slug");
+      if (stored !== slugFromPath) {
+        sessionStorage.setItem("loja_slug", slugFromPath);
+        sessionStorage.removeItem("current_loja_id");
+        lojaId = null;
+        lojaSlug = slugFromPath;
+      }
     }
   }
-  if (lojaId) h["X-Loja-ID"] = lojaId;
-  else if (lojaSlug) h["X-Tenant-Slug"] = lojaSlug;
+  const isLojaDashboardComSlug = Boolean(pathLojaMatch && lojaSlug);
+  if (lojaSlug) h["X-Tenant-Slug"] = lojaSlug;
+  if (lojaId && !isLojaDashboardComSlug) h["X-Loja-ID"] = lojaId;
   return h;
 }
 

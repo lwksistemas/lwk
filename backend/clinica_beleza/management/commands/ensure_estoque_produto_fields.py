@@ -49,28 +49,45 @@ class Command(BaseCommand):
                             ADD COLUMN numero_nota VARCHAR(50) NOT NULL DEFAULT ''
                         """)
                         self.stdout.write(f'  {loja.slug}: coluna numero_nota adicionada')
-
-                    if not table_exists(cursor, 'clinica_beleza_consultaprodutoutilizado'):
                         cursor.execute("""
-                            CREATE TABLE clinica_beleza_consultaprodutoutilizado (
-                                id BIGSERIAL PRIMARY KEY,
-                                loja_id INTEGER NOT NULL,
-                                quantidade NUMERIC(10, 2) NOT NULL,
-                                lote VARCHAR(50) NOT NULL DEFAULT '',
-                                validade DATE NULL,
-                                estoque_baixado BOOLEAN NOT NULL DEFAULT FALSE,
-                                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                consulta_id BIGINT NOT NULL
-                                    REFERENCES clinica_beleza_consulta(id) ON DELETE CASCADE,
-                                produto_id BIGINT NOT NULL
-                                    REFERENCES clinica_beleza_produtoestoque(id) ON DELETE RESTRICT
+                            INSERT INTO django_migrations (app, name, applied)
+                            SELECT 'clinica_beleza', '0034_consulta_produto_numero_nota', NOW()
+                            WHERE NOT EXISTS (
+                                SELECT 1 FROM django_migrations
+                                WHERE app = 'clinica_beleza'
+                                  AND name = '0034_consulta_produto_numero_nota'
                             )
                         """)
-                        cursor.execute(
-                            'CREATE INDEX IF NOT EXISTS clinica_beleza_consultaprodutoutilizado_loja_id_idx '
-                            'ON clinica_beleza_consultaprodutoutilizado (loja_id)'
-                        )
-                        self.stdout.write(f'  {loja.slug}: tabela consulta_produto criada')
+
+                    if (
+                        table_exists(cursor, 'clinica_beleza_consulta')
+                        and not table_exists(cursor, 'clinica_beleza_consultaprodutoutilizado')
+                    ):
+                        try:
+                            cursor.execute("""
+                                CREATE TABLE clinica_beleza_consultaprodutoutilizado (
+                                    id BIGSERIAL PRIMARY KEY,
+                                    loja_id INTEGER NOT NULL,
+                                    quantidade NUMERIC(10, 2) NOT NULL,
+                                    lote VARCHAR(50) NOT NULL DEFAULT '',
+                                    validade DATE NULL,
+                                    estoque_baixado BOOLEAN NOT NULL DEFAULT FALSE,
+                                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                                    consulta_id BIGINT NOT NULL
+                                        REFERENCES clinica_beleza_consulta(id) ON DELETE CASCADE,
+                                    produto_id BIGINT NOT NULL
+                                        REFERENCES clinica_beleza_produtoestoque(id) ON DELETE RESTRICT
+                                )
+                            """)
+                            cursor.execute(
+                                'CREATE INDEX IF NOT EXISTS clinica_beleza_consultaprodutoutilizado_loja_id_idx '
+                                'ON clinica_beleza_consultaprodutoutilizado (loja_id)'
+                            )
+                            self.stdout.write(f'  {loja.slug}: tabela consulta_produto criada')
+                        except Exception as table_err:
+                            self.stdout.write(self.style.WARNING(
+                                f'  {loja.slug}: consulta_produto não criada ({table_err})'
+                            ))
 
                 ok += 1
                 self.stdout.write(self.style.SUCCESS(f'  OK {loja.slug}'))

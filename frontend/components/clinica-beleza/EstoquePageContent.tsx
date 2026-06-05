@@ -94,6 +94,7 @@ export function EstoquePageContent({
     path: "/estoque/",
     queryParams,
     reloadDeps: [categoriaFilter, searchTerm],
+    loja: { slug },
   });
 
   const loading = loadingResumo || loadingProdutos;

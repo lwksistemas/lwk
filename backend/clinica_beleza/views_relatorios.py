@@ -28,6 +28,7 @@ def _serialize_detalhe(d: dict) -> dict:
     return {
         'local_nome': d.get('local_nome', ''),
         'procedimento_nome': d['procedimento_nome'],
+        'tipo_linha': d.get('tipo_linha', 'procedimento'),
         'vinculado_consulta': bool(d.get('vinculado_consulta', True)),
         'qtd': d['qtd'],
         'valor_consulta': _float_or_zero(d.get('valor_consulta')),

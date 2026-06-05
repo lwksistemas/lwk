@@ -236,6 +236,7 @@ def calcular_comissoes(
         if vc > 0 or comissao_consulta > 0 or regra_consulta:
             chave_consulta = f'{local_nome}||{CHAVE_CONSULTA}'
             det_consulta = _obter_ou_criar_detalhe(entry, chave_consulta, {
+                'tipo_linha': 'consulta',
                 'local_nome': local_nome,
                 'procedimento_nome': LABEL_CONSULTA,
                 'procedimento_id': None,
@@ -267,6 +268,7 @@ def calcular_comissoes(
 
             chave_proc = f'{local_nome}||{proc["procedimento_nome"]}'
             det_proc = _obter_ou_criar_detalhe(entry, chave_proc, {
+                'tipo_linha': 'procedimento',
                 'local_nome': local_nome,
                 'procedimento_nome': proc['procedimento_nome'],
                 'procedimento_id': proc_id,
@@ -278,8 +280,8 @@ def calcular_comissoes(
                 'comissao_consulta': Decimal('0'),
                 'comissao_procedimento': Decimal('0'),
                 'comissao': Decimal('0'),
-                'modo_consulta': modo_cc,
-                'regra_consulta': regra_cc,
+                'modo_consulta': '',
+                'regra_consulta': '',
                 'modo_procedimento': modo_pc,
                 'regra_procedimento': regra_pc,
             })

@@ -9,7 +9,7 @@ from io import BytesIO
 
 import requests
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm, mm
@@ -27,10 +27,10 @@ from .prontuario_pdf import _resolver_cabecalho_relatorio
 
 logger = logging.getLogger(__name__)
 
-CHAVE_CONSULTA = '__consulta__'
 LABEL_CONSULTA = 'Consulta'
 _COR_PRIMARIA = colors.HexColor('#8B3D52')
 _CINZA = colors.HexColor('#6b7280')
+_LARGURA_UTIL = 18.4 * cm  # A4 menos margens 1.8 + 1.8
 
 
 def _fmt_brl(valor) -> str:
@@ -48,36 +48,34 @@ def _is_linha_consulta(d: dict) -> bool:
     return d.get('tipo_linha') == 'consulta' or d.get('procedimento_nome') == LABEL_CONSULTA
 
 
-def _clonar_pagina_timbrado(timbrado_page, reader_t):
-    """Cópia independente da página timbrada (merge_page altera o objeto in-place)."""
-    if hasattr(timbrado_page, 'clone'):
-        try:
-            return timbrado_page.clone(reader_t)
-        except TypeError:
-            return timbrado_page.clone()
-    import copy
-    return copy.deepcopy(timbrado_page)
-
-
 def _merge_timbrado_fundo(content_pdf: bytes, timbrado_pdf: bytes) -> bytes:
-    """Coloca o conteúdo sobre o PDF timbrado (fundo)."""
+    """Coloca o timbrado atrás de cada página de conteúdo (sem duplicar folhas)."""
     try:
-        from pypdf import PdfReader, PdfWriter
+        from pypdf import PdfReader, PdfWriter, Transformation
     except ImportError:
         logger.warning('pypdf não instalado; PDF sem fundo timbrado.')
         return content_pdf
 
     try:
-        reader_t = PdfReader(BytesIO(timbrado_pdf))
         reader_c = PdfReader(BytesIO(content_pdf))
-        if not reader_t.pages or not reader_c.pages:
+        if not reader_c.pages:
             return content_pdf
-        timbrado_template = reader_t.pages[0]
+
+        reader_t = PdfReader(BytesIO(timbrado_pdf))
+        if not reader_t.pages:
+            return content_pdf
+
         writer = PdfWriter()
-        for content_page in reader_c.pages:
-            bg = _clonar_pagina_timbrado(timbrado_template, reader_t)
-            bg.merge_page(content_page)
-            writer.add_page(bg)
+        writer.append(reader_c)
+
+        for i in range(len(writer.pages)):
+            timbrado = PdfReader(BytesIO(timbrado_pdf)).pages[0]
+            writer.pages[i].merge_transformed_page(
+                timbrado,
+                Transformation(),
+                over=False,
+            )
+
         out = BytesIO()
         writer.write(out)
         out.seek(0)
@@ -111,52 +109,177 @@ def _logo_image(logo_url: str, max_w=5 * cm, max_h=2.5 * cm):
         return None
 
 
-def _tabela_mini(
-    titulo: str,
+def _make_data_table(
     headers: list,
     rows: list,
     footer: list | None = None,
     col_widths: list | None = None,
-) -> list:
-    """Monta bloco título + tabela compacta."""
-    styles = getSampleStyleSheet()
-    titulo_style = ParagraphStyle(
-        'SubTit',
-        parent=styles['Normal'],
-        fontSize=10,
-        fontName='Helvetica-Bold',
-        textColor=_COR_PRIMARIA,
-        spaceBefore=4 * mm,
-        spaceAfter=2 * mm,
-    )
-    flow = [Paragraph(titulo, titulo_style)]
+    font_size: int = 7,
+) -> Table:
     data = [headers] + rows
     if footer:
         data.append(footer)
     col_count = len(headers)
     if col_widths is None:
-        col_w = [None] + [2.2 * cm] * (col_count - 1) if col_count > 1 else [None]
+        col_w = [None] + [2 * cm] * (col_count - 1) if col_count > 1 else [None]
     else:
         col_w = col_widths
     table = Table(data, colWidths=col_w, repeatRows=1)
     style_cmds = [
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('FONTSIZE', (0, 0), (-1, -1), font_size),
         ('ALIGN', (0, 1), (0, -1), 'LEFT'),
         ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#e5e7eb')),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]
     if footer:
         fr = len(data) - 1
         style_cmds.append(('FONTNAME', (0, fr), (-1, fr), 'Helvetica-Bold'))
         style_cmds.append(('BACKGROUND', (0, fr), (-1, fr), colors.HexColor('#fafafa')))
     table.setStyle(TableStyle(style_cmds))
-    flow.append(table)
+    return table
+
+
+def _titulo_secao(texto: str) -> Paragraph:
+    styles = getSampleStyleSheet()
+    return Paragraph(texto, ParagraphStyle(
+        'SecTit',
+        parent=styles['Normal'],
+        fontSize=9,
+        fontName='Helvetica-Bold',
+        textColor=_COR_PRIMARIA,
+        spaceBefore=2 * mm,
+        spaceAfter=1 * mm,
+    ))
+
+
+def _bloco_tabelas_consulta_procedimento(
+    linhas_c: list,
+    linhas_p: list,
+    p: dict,
+    qtd_proc: int,
+) -> list:
+    """Consultas e procedimentos lado a lado para caber em uma folha."""
+    meia_largura = _LARGURA_UTIL / 2 - 2 * mm
+
+    t_cons = None
+    if linhas_c:
+        t_cons = _make_data_table(
+            ['Local', 'Pag.', 'Qtd', 'Valor', 'Comissão'],
+            [
+                [
+                    (d.get('local_nome') or '—')[:22],
+                    (d.get('forma_pagamento') or '—')[:10],
+                    str(d.get('qtd', 0)),
+                    _fmt_brl(d.get('valor_consulta')),
+                    _fmt_brl(d.get('comissao_consulta')),
+                ]
+                for d in linhas_c
+            ],
+            footer=[
+                'Total consultas',
+                '',
+                str(p.get('total_atendimentos', 0)),
+                _fmt_brl(p.get('valor_consulta')),
+                _fmt_brl(p.get('comissao_consulta')),
+            ],
+            col_widths=[meia_largura * 0.34, meia_largura * 0.18, meia_largura * 0.1,
+                        meia_largura * 0.19, meia_largura * 0.19],
+        )
+
+    t_proc = None
+    if linhas_p:
+        t_proc = _make_data_table(
+            ['Procedimento', 'Qtd', 'Valor total', 'Comissão'],
+            [
+                [
+                    (d.get('procedimento_nome', '') or '')[:28],
+                    str(d.get('qtd', 0)),
+                    _fmt_brl(d.get('valor_procedimento')),
+                    _fmt_brl(d.get('comissao_procedimento')),
+                ]
+                for d in linhas_p
+            ],
+            footer=[
+                'Total procedimentos',
+                str(qtd_proc),
+                _fmt_brl(p.get('valor_procedimento')),
+                _fmt_brl(p.get('comissao_procedimento')),
+            ],
+            col_widths=[meia_largura * 0.46, meia_largura * 0.1,
+                        meia_largura * 0.22, meia_largura * 0.22],
+        )
+
+    if t_cons and t_proc:
+        bloco = Table(
+            [
+                [_titulo_secao('Consultas'), _titulo_secao('Procedimentos')],
+                [t_cons, t_proc],
+            ],
+            colWidths=[meia_largura, meia_largura],
+        )
+        bloco.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        return [bloco]
+
+    flow = []
+    if t_cons:
+        flow.extend([_titulo_secao('Consultas'), t_cons])
+    if t_proc:
+        flow.extend([_titulo_secao('Procedimentos'), t_proc])
     return flow
+
+
+def _bloco_totais_final(styles, totais: dict, multi_prof: bool) -> list:
+    """Totais de consultas e procedimentos fixos ao final do relatório."""
+    titulo = 'Totais do período' if multi_prof else 'Totais'
+    titulo_style = ParagraphStyle(
+        'TotTit',
+        parent=styles['Heading2'],
+        fontSize=10,
+        fontName='Helvetica-Bold',
+        textColor=_COR_PRIMARIA,
+        spaceBefore=4 * mm,
+        spaceAfter=2 * mm,
+    )
+    data = [
+        ['Valor total consultas', _fmt_brl(totais.get('valor_consulta'))],
+        ['Comissão total consultas', _fmt_brl(totais.get('comissao_consulta'))],
+        ['Valor total procedimentos', _fmt_brl(totais.get('valor_procedimento'))],
+        ['Comissão total procedimentos', _fmt_brl(totais.get('comissao_procedimento'))],
+        ['Comissão total', _fmt_brl(totais.get('comissao_total'))],
+        ['Valor total geral', _fmt_brl(totais.get('valor_total'))],
+    ]
+    table = Table(data, colWidths=[8 * cm, None])
+    table.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('FONTNAME', (0, -2), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, -1), (-1, -1), 10),
+        ('TEXTCOLOR', (0, -2), (-1, -1), _COR_PRIMARIA),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('BOX', (0, 0), (-1, -1), 0.5, _COR_PRIMARIA),
+        ('BACKGROUND', (0, 0), (-1, -3), colors.HexColor('#fdf8f9')),
+        ('LINEABOVE', (0, -2), (-1, -2), 0.75, _COR_PRIMARIA),
+    ]))
+    return [
+        Spacer(1, 3 * mm),
+        HRFlowable(width='100%', thickness=0.75, color=_COR_PRIMARIA),
+        Spacer(1, 2 * mm),
+        Paragraph(titulo, titulo_style),
+        table,
+    ]
 
 
 def gerar_pdf_comissoes(
@@ -174,9 +297,9 @@ def gerar_pdf_comissoes(
     loja_id = loja.id
     tipo_cab, dados_cab = _resolver_cabecalho_relatorio(loja_id)
 
-    top_margin = 2.2 * cm
+    top_margin = 2 * cm
     if tipo_cab == 'timbrado':
-        top_margin = 3.8 * cm
+        top_margin = 3.2 * cm
 
     buffer = BytesIO()
     styles = getSampleStyleSheet()
@@ -186,33 +309,33 @@ def gerar_pdf_comissoes(
         leftMargin=1.8 * cm,
         rightMargin=1.8 * cm,
         topMargin=top_margin,
-        bottomMargin=1.8 * cm,
+        bottomMargin=1.5 * cm,
     )
 
     titulo_style = ParagraphStyle(
         'Titulo',
         parent=styles['Heading1'],
-        fontSize=14,
+        fontSize=13,
         textColor=_COR_PRIMARIA,
         alignment=TA_CENTER,
-        spaceAfter=4,
+        spaceAfter=3,
     )
     subtitulo_style = ParagraphStyle(
         'Sub',
         parent=styles['Normal'],
-        fontSize=10,
+        fontSize=9,
         alignment=TA_CENTER,
         textColor=_CINZA,
-        spaceAfter=2,
+        spaceAfter=1,
     )
     prof_style = ParagraphStyle(
         'Prof',
         parent=styles['Normal'],
-        fontSize=12,
+        fontSize=11,
         fontName='Helvetica-Bold',
         alignment=TA_CENTER,
         textColor=colors.HexColor('#111827'),
-        spaceAfter=6,
+        spaceAfter=4,
     )
 
     elements = []
@@ -221,10 +344,10 @@ def gerar_pdf_comissoes(
         img = _logo_image(dados_cab)
         if img:
             elements.append(img)
-            elements.append(Spacer(1, 3 * mm))
+            elements.append(Spacer(1, 2 * mm))
     elif tipo_cab == 'texto' and dados_cab:
         elements.append(Paragraph(getattr(dados_cab, 'nome', '') or 'Clínica', titulo_style))
-        elements.append(Spacer(1, 2 * mm))
+        elements.append(Spacer(1, 1 * mm))
 
     elements.append(Paragraph('Relatório de Comissões', titulo_style))
     periodo = f'Período: {_fmt_data_br(data_inicio)} a {_fmt_data_br(data_fim)}'
@@ -235,9 +358,9 @@ def gerar_pdf_comissoes(
     else:
         elements.append(Paragraph('Profissionais: todos', subtitulo_style))
 
-    elements.append(Spacer(1, 4 * mm))
+    elements.append(Spacer(1, 2 * mm))
     elements.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#e5e7eb')))
-    elements.append(Spacer(1, 4 * mm))
+    elements.append(Spacer(1, 2 * mm))
 
     profissionais = resultado.get('profissionais') or []
     if not profissionais:
@@ -245,15 +368,16 @@ def gerar_pdf_comissoes(
     else:
         for idx, p in enumerate(profissionais):
             if idx > 0:
-                elements.append(Spacer(1, 6 * mm))
+                elements.append(Spacer(1, 4 * mm))
             nome = p.get('nome', '')
             elements.append(Paragraph(nome, ParagraphStyle(
                 'NomeProf',
                 parent=styles['Heading2'],
-                fontSize=11,
+                fontSize=10,
+                fontName='Helvetica-Bold',
                 textColor=_COR_PRIMARIA,
-                spaceBefore=2 * mm,
-                spaceAfter=2 * mm,
+                spaceBefore=1 * mm,
+                spaceAfter=1 * mm,
             )))
 
             detalhes = p.get('detalhes') or []
@@ -266,113 +390,10 @@ def gerar_pdf_comissoes(
                 + (f' · {qtd_proc} procedimento(s)' if qtd_proc else '')
             )
             elements.append(Paragraph(info, subtitulo_style))
+            elements.extend(_bloco_tabelas_consulta_procedimento(linhas_c, linhas_p, p, qtd_proc))
 
-            elements.extend(_tabela_mini(
-                'Consultas',
-                ['Local', 'Pagamento', 'Qtd', 'Valor consulta', 'Regra', 'Comissão consulta'],
-                [
-                    [
-                        d.get('local_nome') or '—',
-                        d.get('forma_pagamento') or '—',
-                        str(d.get('qtd', 0)),
-                        _fmt_brl(d.get('valor_consulta')),
-                        d.get('regra_consulta') or '—',
-                        _fmt_brl(d.get('comissao_consulta')),
-                    ]
-                    for d in linhas_c
-                ],
-                footer=[
-                    'Total consultas',
-                    '',
-                    str(p.get('total_atendimentos', 0)),
-                    _fmt_brl(p.get('valor_consulta')),
-                    '',
-                    _fmt_brl(p.get('comissao_consulta')),
-                ] if linhas_c else None,
-            ))
-
-            elements.extend(_tabela_mini(
-                'Procedimentos',
-                [
-                    'Procedimento',
-                    'Qtd',
-                    'Valor total (R$)',
-                    'Regra',
-                    'Comissão (R$)',
-                ],
-                [
-                    [
-                        d.get('procedimento_nome', ''),
-                        str(d.get('qtd', 0)),
-                        _fmt_brl(d.get('valor_procedimento')),
-                        d.get('regra_procedimento') or '—',
-                        _fmt_brl(d.get('comissao_procedimento')),
-                    ]
-                    for d in linhas_p
-                ],
-                footer=[
-                    'Total procedimentos',
-                    str(qtd_proc),
-                    _fmt_brl(p.get('valor_procedimento')),
-                    '',
-                    _fmt_brl(p.get('comissao_procedimento')),
-                ] if linhas_p else None,
-                col_widths=[6.5 * cm, 1.4 * cm, 2.6 * cm, 3.2 * cm, 2.6 * cm],
-            ))
-
-            resumo_data = [
-                ['Total consultas (valor)', _fmt_brl(p.get('valor_consulta'))],
-                ['Total consultas (comissão)', _fmt_brl(p.get('comissao_consulta'))],
-                ['Total procedimentos (valor)', _fmt_brl(p.get('valor_procedimento'))],
-                ['Total procedimentos (comissão)', _fmt_brl(p.get('comissao_procedimento'))],
-                ['Comissão total', _fmt_brl(p.get('comissao_total'))],
-                ['Valor total geral', _fmt_brl(p.get('valor_total'))],
-            ]
-            resumo_table = Table(resumo_data, colWidths=[5 * cm, None])
-            resumo_table.setStyle(TableStyle([
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
-                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-                ('FONTNAME', (0, -2), (-1, -1), 'Helvetica-Bold'),
-                ('TEXTCOLOR', (0, -2), (0, -1), _COR_PRIMARIA),
-                ('TOPPADDING', (0, 0), (-1, -1), 3),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-            ]))
-            elements.append(Spacer(1, 3 * mm))
-            elements.append(resumo_table)
-
-    if len(profissionais) > 1:
         totais = resultado.get('totais') or {}
-        elements.append(Spacer(1, 8 * mm))
-        elements.append(HRFlowable(width='100%', thickness=1, color=_COR_PRIMARIA))
-        elements.append(Spacer(1, 3 * mm))
-        elements.append(Paragraph('Totais do período', ParagraphStyle(
-            'TotTit',
-            parent=styles['Heading2'],
-            fontSize=11,
-            textColor=_COR_PRIMARIA,
-        )))
-
-        totais_rows = [
-            ['Consultas pagas', str(totais.get('total_atendimentos', 0))],
-            ['Valor consulta', _fmt_brl(totais.get('valor_consulta'))],
-            ['Comissão consulta', _fmt_brl(totais.get('comissao_consulta'))],
-            ['Valor procedimentos', _fmt_brl(totais.get('valor_procedimento'))],
-            ['Comissão procedimentos', _fmt_brl(totais.get('comissao_procedimento'))],
-            ['Comissão total', _fmt_brl(totais.get('comissao_total'))],
-            ['Valor total', _fmt_brl(totais.get('valor_total'))],
-        ]
-        tt = Table(totais_rows, colWidths=[5.5 * cm, None])
-        tt.setStyle(TableStyle([
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-            ('FONTNAME', (0, -2), (-1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, -1), (-1, -1), 11),
-            ('TEXTCOLOR', (0, -1), (-1, -1), _COR_PRIMARIA),
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ]))
-        elements.append(tt)
+        elements.extend(_bloco_totais_final(styles, totais, multi_prof=len(profissionais) > 1))
 
     doc.build(elements)
     buffer.seek(0)

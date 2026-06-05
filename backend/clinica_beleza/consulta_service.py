@@ -13,10 +13,19 @@ logger = logging.getLogger(__name__)
 
 
 def _valor_consulta(appointment):
+    """Valor padrão da taxa de consulta ao criar registro (procedimentos têm valores à parte)."""
+    if appointment.appointment_procedures.exists():
+        return Decimal('0')
     try:
-        return appointment.procedure.preco or 0
+        return appointment.procedure.preco or Decimal('0')
     except Exception:
-        return 0
+        return Decimal('0')
+
+
+def _valor_pagamento_padrao(appointment, consulta):
+    """Total do pagamento = taxa de consulta + soma dos procedimentos vinculados."""
+    vc = Decimal(str(consulta.valor_consulta or 0))
+    return vc + appointment.valor_total
 
 
 def sync_consulta_from_appointment_status(appointment, new_status, old_status=None):
@@ -180,7 +189,7 @@ def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=N
 def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=None, mark_as_paid=False, amount=None):
     """Garante lançamento financeiro do atendimento (cria ou atualiza)."""
     payment = Payment.objects.filter(appointment=appointment).first()
-    valor = amount if amount is not None else (consulta.valor_consulta or _valor_consulta(appointment))
+    valor = amount if amount is not None else _valor_pagamento_padrao(appointment, consulta)
     if isinstance(valor, (int, float, str)):
         valor = Decimal(str(valor))
 

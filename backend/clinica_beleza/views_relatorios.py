@@ -10,6 +10,55 @@ from .permissions import CLINICA_FINANCEIRO
 from .comissao_relatorio_service import calcular_comissoes
 
 
+def _float_or_zero(value) -> float:
+    return float(value) if value is not None else 0.0
+
+
+def _serialize_regra(regra: dict | None) -> dict | None:
+    if not regra:
+        return None
+    return {
+        'modo': regra.get('modo', ''),
+        'regra': regra.get('regra', ''),
+        'valor': _float_or_zero(regra.get('valor')),
+    }
+
+
+def _serialize_detalhe(d: dict) -> dict:
+    return {
+        'local_nome': d.get('local_nome', ''),
+        'procedimento_nome': d['procedimento_nome'],
+        'vinculado_consulta': bool(d.get('vinculado_consulta', True)),
+        'qtd': d['qtd'],
+        'valor_consulta': _float_or_zero(d.get('valor_consulta')),
+        'valor_procedimento': _float_or_zero(d.get('valor_procedimento')),
+        'valor_total': _float_or_zero(d.get('valor_total')),
+        'comissao_consulta': _float_or_zero(d.get('comissao_consulta')),
+        'comissao_procedimento': _float_or_zero(d.get('comissao_procedimento')),
+        'comissao': _float_or_zero(d.get('comissao')),
+        'modo_consulta': d.get('modo_consulta', ''),
+        'regra_consulta': d.get('regra_consulta', ''),
+        'modo_procedimento': d.get('modo_procedimento', ''),
+        'regra_procedimento': d.get('regra_procedimento', ''),
+    }
+
+
+def _serialize_profissional(p: dict) -> dict:
+    return {
+        'professional_id': p['professional_id'],
+        'nome': p['nome'],
+        'total_atendimentos': p['total_atendimentos'],
+        'valor_consulta': _float_or_zero(p.get('valor_consulta')),
+        'valor_procedimento': _float_or_zero(p.get('valor_procedimento')),
+        'valor_total': _float_or_zero(p.get('valor_total')),
+        'comissao_consulta': _float_or_zero(p.get('comissao_consulta')),
+        'comissao_procedimento': _float_or_zero(p.get('comissao_procedimento')),
+        'comissao_total': _float_or_zero(p.get('comissao_total')),
+        'comissao_consulta_regra': _serialize_regra(p.get('comissao_consulta_regra')),
+        'detalhes': [_serialize_detalhe(d) for d in p['detalhes']],
+    }
+
+
 class RelatorioComissoesView(APIView):
     """GET /clinica-beleza/relatorios/comissoes/"""
     permission_classes = CLINICA_FINANCEIRO
@@ -31,39 +80,17 @@ class RelatorioComissoesView(APIView):
             professional_id=professional_id,
         )
 
-        # Serializar Decimal para float no response
+        totais = resultado['totais']
         return Response({
-            'profissionais': [
-                {
-                    'professional_id': p['professional_id'],
-                    'nome': p['nome'],
-                    'total_atendimentos': p['total_atendimentos'],
-                    'valor_total': float(p['valor_total']),
-                    'comissao_total': float(p['comissao_total']),
-                    'comissao_consulta': {
-                        'modo': p['comissao_consulta']['modo'],
-                        'regra': p['comissao_consulta']['regra'],
-                        'valor': float(p['comissao_consulta']['valor']),
-                    } if p.get('comissao_consulta') else None,
-                    'detalhes': [
-                        {
-                            'local_nome': d.get('local_nome', ''),
-                            'procedimento_nome': d['procedimento_nome'],
-                            'qtd': d['qtd'],
-                            'valor_total': float(d['valor_total']),
-                            'comissao': float(d['comissao']),
-                            'modo': d.get('modo', ''),
-                            'regra': d.get('regra', ''),
-                        }
-                        for d in p['detalhes']
-                    ],
-                }
-                for p in resultado['profissionais']
-            ],
+            'profissionais': [_serialize_profissional(p) for p in resultado['profissionais']],
             'totais': {
-                'total_atendimentos': resultado['totais']['total_atendimentos'],
-                'valor_total': float(resultado['totais']['valor_total']),
-                'comissao_total': float(resultado['totais']['comissao_total']),
+                'total_atendimentos': totais['total_atendimentos'],
+                'valor_consulta': _float_or_zero(totais.get('valor_consulta')),
+                'valor_procedimento': _float_or_zero(totais.get('valor_procedimento')),
+                'valor_total': _float_or_zero(totais.get('valor_total')),
+                'comissao_consulta': _float_or_zero(totais.get('comissao_consulta')),
+                'comissao_procedimento': _float_or_zero(totais.get('comissao_procedimento')),
+                'comissao_total': _float_or_zero(totais.get('comissao_total')),
             },
         })
 

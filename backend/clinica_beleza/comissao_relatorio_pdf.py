@@ -48,6 +48,17 @@ def _is_linha_consulta(d: dict) -> bool:
     return d.get('tipo_linha') == 'consulta' or d.get('procedimento_nome') == LABEL_CONSULTA
 
 
+def _clonar_pagina_timbrado(timbrado_page, reader_t):
+    """Cópia independente da página timbrada (merge_page altera o objeto in-place)."""
+    if hasattr(timbrado_page, 'clone'):
+        try:
+            return timbrado_page.clone(reader_t)
+        except TypeError:
+            return timbrado_page.clone()
+    import copy
+    return copy.deepcopy(timbrado_page)
+
+
 def _merge_timbrado_fundo(content_pdf: bytes, timbrado_pdf: bytes) -> bytes:
     """Coloca o conteúdo sobre o PDF timbrado (fundo)."""
     try:
@@ -61,11 +72,11 @@ def _merge_timbrado_fundo(content_pdf: bytes, timbrado_pdf: bytes) -> bytes:
         reader_c = PdfReader(BytesIO(content_pdf))
         if not reader_t.pages or not reader_c.pages:
             return content_pdf
-        timbrado_page = reader_t.pages[0]
+        timbrado_template = reader_t.pages[0]
         writer = PdfWriter()
-        for page in reader_c.pages:
-            bg = timbrado_page
-            bg.merge_page(page)
+        for content_page in reader_c.pages:
+            bg = _clonar_pagina_timbrado(timbrado_template, reader_t)
+            bg.merge_page(content_page)
             writer.add_page(bg)
         out = BytesIO()
         writer.write(out)
@@ -100,7 +111,13 @@ def _logo_image(logo_url: str, max_w=5 * cm, max_h=2.5 * cm):
         return None
 
 
-def _tabela_mini(titulo: str, headers: list, rows: list, footer: list | None = None) -> list:
+def _tabela_mini(
+    titulo: str,
+    headers: list,
+    rows: list,
+    footer: list | None = None,
+    col_widths: list | None = None,
+) -> list:
     """Monta bloco título + tabela compacta."""
     styles = getSampleStyleSheet()
     titulo_style = ParagraphStyle(
@@ -117,7 +134,10 @@ def _tabela_mini(titulo: str, headers: list, rows: list, footer: list | None = N
     if footer:
         data.append(footer)
     col_count = len(headers)
-    col_w = [None] + [2.2 * cm] * (col_count - 1) if col_count > 1 else [None]
+    if col_widths is None:
+        col_w = [None] + [2.2 * cm] * (col_count - 1) if col_count > 1 else [None]
+    else:
+        col_w = col_widths
     table = Table(data, colWidths=col_w, repeatRows=1)
     style_cmds = [
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
@@ -262,7 +282,7 @@ def gerar_pdf_comissoes(
                     for d in linhas_c
                 ],
                 footer=[
-                    'Subtotal',
+                    'Total consultas',
                     '',
                     str(p.get('total_atendimentos', 0)),
                     _fmt_brl(p.get('valor_consulta')),
@@ -273,7 +293,13 @@ def gerar_pdf_comissoes(
 
             elements.extend(_tabela_mini(
                 'Procedimentos',
-                ['Procedimento', 'Qtd', 'Valor proced.', 'Regra', 'Comissão proced.'],
+                [
+                    'Procedimento',
+                    'Qtd',
+                    'Valor total (R$)',
+                    'Regra',
+                    'Comissão (R$)',
+                ],
                 [
                     [
                         d.get('procedimento_nome', ''),
@@ -285,21 +311,22 @@ def gerar_pdf_comissoes(
                     for d in linhas_p
                 ],
                 footer=[
-                    'Subtotal',
+                    'Total procedimentos',
                     str(qtd_proc),
                     _fmt_brl(p.get('valor_procedimento')),
                     '',
                     _fmt_brl(p.get('comissao_procedimento')),
                 ] if linhas_p else None,
+                col_widths=[6.5 * cm, 1.4 * cm, 2.6 * cm, 3.2 * cm, 2.6 * cm],
             ))
 
             resumo_data = [
-                ['Valor consulta', _fmt_brl(p.get('valor_consulta'))],
-                ['Comissão consulta', _fmt_brl(p.get('comissao_consulta'))],
-                ['Valor procedimentos', _fmt_brl(p.get('valor_procedimento'))],
-                ['Comissão procedimentos', _fmt_brl(p.get('comissao_procedimento'))],
+                ['Total consultas (valor)', _fmt_brl(p.get('valor_consulta'))],
+                ['Total consultas (comissão)', _fmt_brl(p.get('comissao_consulta'))],
+                ['Total procedimentos (valor)', _fmt_brl(p.get('valor_procedimento'))],
+                ['Total procedimentos (comissão)', _fmt_brl(p.get('comissao_procedimento'))],
                 ['Comissão total', _fmt_brl(p.get('comissao_total'))],
-                ['Valor total', _fmt_brl(p.get('valor_total'))],
+                ['Valor total geral', _fmt_brl(p.get('valor_total'))],
             ]
             resumo_table = Table(resumo_data, colWidths=[5 * cm, None])
             resumo_table.setStyle(TableStyle([

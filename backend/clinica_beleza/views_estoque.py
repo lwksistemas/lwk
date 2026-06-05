@@ -153,6 +153,9 @@ class ProdutoEstoqueDetailView(GetObjectMixin, APIView):
         return Response(ProdutoEstoqueSerializer(obj).data)
 
     def put(self, request, pk):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
         obj, error = self.object_or_404(pk)
         if error:
             return error

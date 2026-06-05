@@ -7,10 +7,20 @@ from ..models import ConsultaProdutoUtilizado, MovimentacaoEstoque, ProdutoEstoq
 class ProdutoEstoqueSerializer(serializers.ModelSerializer):
     categoria_display = serializers.CharField(source='get_categoria_display', read_only=True)
     estoque_baixo = serializers.BooleanField(read_only=True)
+    validade = serializers.DateField(required=False, allow_null=True)
 
     class Meta:
         model = ProdutoEstoque
         exclude = ['loja_id']
+
+    def to_internal_value(self, data):
+        mutable = data.copy() if hasattr(data, 'copy') else dict(data)
+        if mutable.get('validade') in ('', None):
+            mutable['validade'] = None
+        cat = mutable.get('categoria')
+        if cat == 'cosmetico':
+            mutable['categoria'] = 'cosmético'
+        return super().to_internal_value(mutable)
 
 
 class ConsultaProdutoUtilizadoSerializer(serializers.ModelSerializer):

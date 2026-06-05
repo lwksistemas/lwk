@@ -336,34 +336,52 @@ export class ClinicaBelezaAPI {
   /**
    * POST request
    */
-  static async post<T = any>(path: string, data: any): Promise<T> {
+  static async post<T = any>(
+    path: string,
+    data: any,
+    loja?: { id?: number; slug?: string } | null,
+  ): Promise<T> {
     const res = await clinicaBelezaFetch(path, {
       method: 'POST',
-      body: JSON.stringify(data)
-    });
-    return res.json();
+      body: JSON.stringify(data),
+    }, loja);
+    const body = await res.json();
+    if (!res.ok) throw body;
+    return body;
   }
   
   /**
    * PUT request
    */
-  static async put<T = any>(path: string, data: any): Promise<T> {
+  static async put<T = any>(
+    path: string,
+    data: any,
+    loja?: { id?: number; slug?: string } | null,
+  ): Promise<T> {
     const res = await clinicaBelezaFetch(path, {
       method: 'PUT',
-      body: JSON.stringify(data)
-    });
-    return res.json();
+      body: JSON.stringify(data),
+    }, loja);
+    const body = await res.json();
+    if (!res.ok) throw body;
+    return body;
   }
   
   /**
    * PATCH request
    */
-  static async patch<T = any>(path: string, data: any): Promise<T> {
+  static async patch<T = any>(
+    path: string,
+    data: any,
+    loja?: { id?: number; slug?: string } | null,
+  ): Promise<T> {
     const res = await clinicaBelezaFetch(path, {
       method: 'PATCH',
-      body: JSON.stringify(data)
-    });
-    return res.json();
+      body: JSON.stringify(data),
+    }, loja);
+    const body = await res.json();
+    if (!res.ok) throw body;
+    return body;
   }
   
   /**
@@ -488,9 +506,10 @@ export class ClinicaBelezaAPI {
       loja?: { id?: number; slug?: string } | null,
     ) => ClinicaBelezaAPI.getList('/estoque/', params, loja),
     get: (id: number) => ClinicaBelezaAPI.get(`/estoque/${id}/`),
-    create: (data: Record<string, unknown>) => ClinicaBelezaAPI.post('/estoque/', data),
-    update: (id: number, data: Record<string, unknown>) =>
-      ClinicaBelezaAPI.put(`/estoque/${id}/`, data),
+    create: (data: Record<string, unknown>, loja?: { id?: number; slug?: string } | null) =>
+      ClinicaBelezaAPI.post('/estoque/', data, loja),
+    update: (id: number, data: Record<string, unknown>, loja?: { id?: number; slug?: string } | null) =>
+      ClinicaBelezaAPI.put(`/estoque/${id}/`, data, loja),
     delete: (id: number) => ClinicaBelezaAPI.delete(`/estoque/${id}/`),
     resumo: (loja?: { id?: number; slug?: string } | null) =>
       ClinicaBelezaAPI.get('/estoque/resumo/', undefined, loja),

@@ -37,13 +37,16 @@ interface Resumo {
 const CATEGORIAS = [
   { value: "injetavel", label: "Injetável" },
   { value: "soroterapia", label: "Soroterapia" },
-  { value: "cosmetico", label: "Cosmético" },
+  { value: "cosmético", label: "Cosmético" },
   { value: "descartavel", label: "Descartável" },
   { value: "equipamento", label: "Equipamento" },
   { value: "outro", label: "Outro" },
 ];
 
-const categoriaLabel = (val: string) => CATEGORIAS.find((c) => c.value === val)?.label ?? val;
+const categoriaLabel = (val: string) => {
+  const norm = val === "cosmetico" ? "cosmético" : val;
+  return CATEGORIAS.find((c) => c.value === norm)?.label ?? val;
+};
 
 export interface EstoquePageContentProps {
   title?: string;
@@ -71,6 +74,7 @@ export function EstoquePageContent({
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loadingProdutos, setLoadingProdutos] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState("");
 
@@ -100,14 +104,22 @@ export function EstoquePageContent({
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
-  const extractListError = (err: unknown): string => {
+  const extractApiError = (err: unknown, fallback: string): string => {
     if (err && typeof err === "object" && "error" in err) {
       return String((err as { error: string }).error);
     }
     if (err && typeof err === "object" && "detail" in err) {
       return String((err as { detail: string }).detail);
     }
-    return "Não foi possível carregar a lista.";
+    if (err && typeof err === "object") {
+      const parts = Object.entries(err as Record<string, unknown>).flatMap(([key, val]) => {
+        if (Array.isArray(val)) return val.map((v) => `${key}: ${v}`);
+        if (typeof val === "string") return [`${key}: ${val}`];
+        return [];
+      });
+      if (parts.length) return parts.join("; ");
+    }
+    return fallback;
   };
 
   const loadProdutos = useCallback(async () => {
@@ -121,7 +133,7 @@ export function EstoquePageContent({
       setProdutos(Array.isArray(items) ? items : []);
     } catch (err) {
       setProdutos([]);
-      setListError(extractListError(err));
+      setListError(extractApiError(err, "Não foi possível carregar a lista."));
     } finally {
       setLoadingProdutos(false);
     }
@@ -157,7 +169,9 @@ export function EstoquePageContent({
   function ProdutoModal() {
     const [form, setForm] = useState({
       nome: editingProduto?.nome ?? "",
-      categoria: editingProduto?.categoria ?? "outro",
+      categoria: editingProduto?.categoria === "cosmetico"
+        ? "cosmético"
+        : (editingProduto?.categoria ?? "outro"),
       quantidade_atual: editingProduto?.quantidade_atual ?? 0,
       quantidade_minima: editingProduto?.quantidade_minima ?? 0,
       preco_custo: editingProduto ? Number(editingProduto.preco_custo) : 0,
@@ -169,16 +183,23 @@ export function EstoquePageContent({
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       setSaving(true);
+      setSaveError(null);
       try {
-        const payload = { ...form, preco_custo: Number(form.preco_custo) };
+        const payload = {
+          ...form,
+          preco_custo: Number(form.preco_custo),
+          validade: form.validade || null,
+        };
         if (editingProduto) {
-          await ClinicaBelezaAPI.estoque.update(editingProduto.id, payload);
+          await ClinicaBelezaAPI.estoque.update(editingProduto.id, payload, lojaCtx);
         } else {
-          await ClinicaBelezaAPI.estoque.create(payload);
+          await ClinicaBelezaAPI.estoque.create(payload, lojaCtx);
         }
         setShowProdutoModal(false);
         setEditingProduto(null);
         loadAll();
+      } catch (err) {
+        setSaveError(extractApiError(err, "Não foi possível salvar o produto."));
       } finally {
         setSaving(false);
       }
@@ -246,6 +267,11 @@ export function EstoquePageContent({
                   className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100" />
               </div>
             </div>
+            {saveError && (
+              <div className="px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
+                {saveError}
+              </div>
+            )}
             <button type="submit" disabled={saving}
               className="w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium">
               {saving ? "Salvando..." : editingProduto ? "Salvar Alterações" : "Criar Produto"}

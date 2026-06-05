@@ -566,6 +566,7 @@ export default function RelatorioComissoesPage() {
                 <BlocoProfissional key={p.professional_id} p={p} formatCurrency={formatCurrency} />
               ))}
 
+              {data.profissionais.length > 1 && (
               <div
                 className="rounded-xl border-2 border-gray-300 dark:border-gray-600 p-4"
                 style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}08` }}
@@ -617,6 +618,7 @@ export default function RelatorioComissoesPage() {
                   </div>
                 </div>
               </div>
+              )}
             </>
           )}
         </div>

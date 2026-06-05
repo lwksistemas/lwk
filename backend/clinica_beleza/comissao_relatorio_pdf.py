@@ -314,37 +314,38 @@ def gerar_pdf_comissoes(
             elements.append(Spacer(1, 3 * mm))
             elements.append(resumo_table)
 
-    totais = resultado.get('totais') or {}
-    elements.append(Spacer(1, 8 * mm))
-    elements.append(HRFlowable(width='100%', thickness=1, color=_COR_PRIMARIA))
-    elements.append(Spacer(1, 3 * mm))
-    elements.append(Paragraph('Totais do período', ParagraphStyle(
-        'TotTit',
-        parent=styles['Heading2'],
-        fontSize=11,
-        textColor=_COR_PRIMARIA,
-    )))
+    if len(profissionais) > 1:
+        totais = resultado.get('totais') or {}
+        elements.append(Spacer(1, 8 * mm))
+        elements.append(HRFlowable(width='100%', thickness=1, color=_COR_PRIMARIA))
+        elements.append(Spacer(1, 3 * mm))
+        elements.append(Paragraph('Totais do período', ParagraphStyle(
+            'TotTit',
+            parent=styles['Heading2'],
+            fontSize=11,
+            textColor=_COR_PRIMARIA,
+        )))
 
-    totais_rows = [
-        ['Consultas pagas', str(totais.get('total_atendimentos', 0))],
-        ['Valor consulta', _fmt_brl(totais.get('valor_consulta'))],
-        ['Comissão consulta', _fmt_brl(totais.get('comissao_consulta'))],
-        ['Valor procedimentos', _fmt_brl(totais.get('valor_procedimento'))],
-        ['Comissão procedimentos', _fmt_brl(totais.get('comissao_procedimento'))],
-        ['Comissão total', _fmt_brl(totais.get('comissao_total'))],
-        ['Valor total', _fmt_brl(totais.get('valor_total'))],
-    ]
-    tt = Table(totais_rows, colWidths=[5.5 * cm, None])
-    tt.setStyle(TableStyle([
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-        ('FONTNAME', (0, -2), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, -1), (-1, -1), 11),
-        ('TEXTCOLOR', (0, -1), (-1, -1), _COR_PRIMARIA),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ]))
-    elements.append(tt)
+        totais_rows = [
+            ['Consultas pagas', str(totais.get('total_atendimentos', 0))],
+            ['Valor consulta', _fmt_brl(totais.get('valor_consulta'))],
+            ['Comissão consulta', _fmt_brl(totais.get('comissao_consulta'))],
+            ['Valor procedimentos', _fmt_brl(totais.get('valor_procedimento'))],
+            ['Comissão procedimentos', _fmt_brl(totais.get('comissao_procedimento'))],
+            ['Comissão total', _fmt_brl(totais.get('comissao_total'))],
+            ['Valor total', _fmt_brl(totais.get('valor_total'))],
+        ]
+        tt = Table(totais_rows, colWidths=[5.5 * cm, None])
+        tt.setStyle(TableStyle([
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTNAME', (0, -2), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, -1), (-1, -1), 11),
+            ('TEXTCOLOR', (0, -1), (-1, -1), _COR_PRIMARIA),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        elements.append(tt)
 
     doc.build(elements)
     buffer.seek(0)

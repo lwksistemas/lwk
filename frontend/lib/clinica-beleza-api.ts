@@ -259,6 +259,14 @@ export function parseClinicaBelezaPaginatedResponse<T>(
       hasMore: false,
     };
   }
+  if (
+    data &&
+    typeof data === 'object' &&
+    ('detail' in data || 'error' in data) &&
+    !('results' in data)
+  ) {
+    throw data;
+  }
   if (data && typeof data === 'object' && 'results' in data) {
     const envelope = data as {
       results?: unknown;
@@ -301,18 +309,28 @@ export function parseClinicaBelezaListResponse<T>(data: unknown): T[] {
  */
 export class ClinicaBelezaAPI {
   /** GET que retorna sempre um array (compatível com paginação opcional). */
-  static async getList<T = unknown>(path: string, params?: Record<string, unknown>): Promise<T[]> {
-    const data = await ClinicaBelezaAPI.get(path, params);
+  static async getList<T = unknown>(
+    path: string,
+    params?: Record<string, unknown>,
+    loja?: { id?: number; slug?: string } | null,
+  ): Promise<T[]> {
+    const data = await ClinicaBelezaAPI.get(path, params, loja);
     return parseClinicaBelezaListResponse<T>(data);
   }
 
   /**
    * GET request
    */
-  static async get<T = any>(path: string, params?: Record<string, any>): Promise<T> {
-    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
-    const res = await clinicaBelezaFetch(`${path}${queryString}`);
-    return res.json();
+  static async get<T = any>(
+    path: string,
+    params?: Record<string, any>,
+    loja?: { id?: number; slug?: string } | null,
+  ): Promise<T> {
+    const url = params ? buildClinicaBelezaListUrl(path, params) : path;
+    const res = await clinicaBelezaFetch(url, {}, loja);
+    const data = await res.json();
+    if (!res.ok) throw data;
+    return data;
   }
   
   /**
@@ -465,14 +483,17 @@ export class ClinicaBelezaAPI {
   };
 
   static estoque = {
-    list: (params?: { categoria?: string; page?: number; page_size?: number }) =>
-      ClinicaBelezaAPI.getList('/estoque/', params),
+    list: (
+      params?: { categoria?: string; search?: string; page?: number; page_size?: number },
+      loja?: { id?: number; slug?: string } | null,
+    ) => ClinicaBelezaAPI.getList('/estoque/', params, loja),
     get: (id: number) => ClinicaBelezaAPI.get(`/estoque/${id}/`),
     create: (data: Record<string, unknown>) => ClinicaBelezaAPI.post('/estoque/', data),
     update: (id: number, data: Record<string, unknown>) =>
       ClinicaBelezaAPI.put(`/estoque/${id}/`, data),
     delete: (id: number) => ClinicaBelezaAPI.delete(`/estoque/${id}/`),
-    resumo: () => ClinicaBelezaAPI.get('/estoque/resumo/'),
+    resumo: (loja?: { id?: number; slug?: string } | null) =>
+      ClinicaBelezaAPI.get('/estoque/resumo/', undefined, loja),
     movimentar: (id: number, data: { tipo: string; quantidade: number; motivo?: string }) =>
       ClinicaBelezaAPI.post(`/estoque/${id}/movimentar/`, data),
   };

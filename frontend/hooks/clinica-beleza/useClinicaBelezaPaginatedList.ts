@@ -53,7 +53,7 @@ export function useClinicaBelezaPaginatedList<T>({
       setPage(result.page);
       return result;
     },
-    [path, queryParams, pageSize, paginate, loja],
+    [path, queryParams, pageSize, paginate, loja?.id, loja?.slug],
   );
 
   const load = useCallback(async () => {

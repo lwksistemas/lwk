@@ -6,13 +6,11 @@
  */
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { Package, ArrowDown, ArrowUp, AlertTriangle, Search, X } from "lucide-react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
-import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { formatClinicaDataCurta } from "@/lib/clinica-beleza-datetime";
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
@@ -70,32 +68,13 @@ export function EstoquePageContent({
 
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [loadingResumo, setLoadingResumo] = useState(true);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [loadingProdutos, setLoadingProdutos] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState("");
 
-  const queryParams = useMemo(
-    () => ({
-      categoria: categoriaFilter || undefined,
-      search: searchTerm || undefined,
-    }),
-    [categoriaFilter, searchTerm],
-  );
-
-  const {
-    list: produtos,
-    loading: loadingProdutos,
-    load: loadProdutos,
-    loadMore,
-    loadingMore,
-    hasMore,
-    totalCount,
-    error: listError,
-  } = useClinicaBelezaPaginatedList<Produto>({
-    path: "/estoque/",
-    queryParams,
-    reloadDeps: [categoriaFilter, searchTerm],
-    loja: { slug },
-  });
+  const lojaCtx = useMemo(() => ({ slug }), [slug]);
 
   const loading = loadingResumo || loadingProdutos;
 
@@ -121,14 +100,41 @@ export function EstoquePageContent({
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
+  const extractListError = (err: unknown): string => {
+    if (err && typeof err === "object" && "error" in err) {
+      return String((err as { error: string }).error);
+    }
+    if (err && typeof err === "object" && "detail" in err) {
+      return String((err as { detail: string }).detail);
+    }
+    return "Não foi possível carregar a lista.";
+  };
+
+  const loadProdutos = useCallback(async () => {
+    setLoadingProdutos(true);
+    setListError(null);
+    try {
+      const params: { categoria?: string; search?: string } = {};
+      if (categoriaFilter) params.categoria = categoriaFilter;
+      if (searchTerm.trim()) params.search = searchTerm.trim();
+      const items = await ClinicaBelezaAPI.estoque.list(params, lojaCtx);
+      setProdutos(Array.isArray(items) ? items : []);
+    } catch (err) {
+      setProdutos([]);
+      setListError(extractListError(err));
+    } finally {
+      setLoadingProdutos(false);
+    }
+  }, [categoriaFilter, searchTerm, lojaCtx]);
+
   const loadResumo = useCallback(async () => {
     try {
-      const data = await ClinicaBelezaAPI.estoque.resumo();
+      const data = await ClinicaBelezaAPI.estoque.resumo(lojaCtx);
       setResumo(data);
     } catch {
       setResumo(null);
     }
-  }, []);
+  }, [lojaCtx]);
 
   const loadAll = useCallback(async () => {
     setLoadingResumo(true);
@@ -139,6 +145,13 @@ export function EstoquePageContent({
   useEffect(() => {
     loadResumo();
   }, [loadResumo]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadProdutos();
+    }, searchTerm ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [loadProdutos, searchTerm]);
 
   // --- Product Modal ---
   function ProdutoModal() {
@@ -476,14 +489,15 @@ export function EstoquePageContent({
                   </tbody>
                 </table>
               </div>
-              <EntityListLoadMore
-                hasMore={hasMore}
-                loading={loadingProdutos}
-                loadingMore={loadingMore}
-                onLoadMore={loadMore}
-                loadedCount={produtos.length}
-                totalCount={totalCount}
-              />
+              {produtos.length > 0 && (
+                <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-neutral-700">
+                  {produtos.length} produto{produtos.length !== 1 ? "s" : ""} exibido
+                  {produtos.length !== 1 ? "s" : ""}
+                  {resumo?.total_produtos != null && resumo.total_produtos !== produtos.length
+                    ? ` de ${resumo.total_produtos}`
+                    : ""}
+                </div>
+              )}
             </section>
           </>
         )}

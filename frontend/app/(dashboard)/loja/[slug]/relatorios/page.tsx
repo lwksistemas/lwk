@@ -2,15 +2,21 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, FileText } from 'lucide-react';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 
 const RELATORIOS = [
   {
     titulo: 'Comissões dos Profissionais',
-    descricao: 'Visualize as comissões por profissional com filtros de período.',
+    descricao: 'Resumo consolidado por profissional — consultas e procedimentos no período.',
     href: 'comissoes',
     icon: BarChart3,
+  },
+  {
+    titulo: 'Repasse por Consulta',
+    descricao: 'Cada atendimento com consulta e procedimentos — documento para o profissional receber da clínica.',
+    href: 'repasse-consultas',
+    icon: FileText,
   },
 ];
 

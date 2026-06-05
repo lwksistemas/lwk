@@ -44,7 +44,12 @@ from .views_admin_professional import (
 from .views_locais_atendimento import (
     LocalAtendimentoListView, LocalAtendimentoDetailView,
 )
-from .views_relatorios import RelatorioComissoesView, RelatorioComissoesPdfView
+from .views_relatorios import (
+    RelatorioComissoesView,
+    RelatorioComissoesPdfView,
+    RelatorioRepasseConsultaView,
+    RelatorioRepasseConsultaPdfView,
+)
 
 app_name = 'clinica_beleza'
 
@@ -135,4 +140,6 @@ urlpatterns = [
     # Relatórios
     path('relatorios/comissoes/', RelatorioComissoesView.as_view(), name='relatorio-comissoes'),
     path('relatorios/comissoes/pdf/', RelatorioComissoesPdfView.as_view(), name='relatorio-comissoes-pdf'),
+    path('relatorios/repasse-consultas/', RelatorioRepasseConsultaView.as_view(), name='relatorio-repasse-consultas'),
+    path('relatorios/repasse-consultas/pdf/', RelatorioRepasseConsultaPdfView.as_view(), name='relatorio-repasse-consultas-pdf'),
 ]

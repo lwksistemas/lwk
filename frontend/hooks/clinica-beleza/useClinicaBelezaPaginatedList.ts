@@ -29,6 +29,7 @@ export function useClinicaBelezaPaginatedList<T>({
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchPage = useCallback(
     async (targetPage: number, append: boolean) => {
@@ -55,13 +56,21 @@ export function useClinicaBelezaPaginatedList<T>({
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       await fetchPage(1, false);
-    } catch {
+    } catch (err) {
       setList([]);
       setHasMore(false);
       setTotalCount(null);
       setPage(1);
+      const msg =
+        err && typeof err === 'object' && 'error' in err
+          ? String((err as { error: string }).error)
+          : err && typeof err === 'object' && 'detail' in err
+            ? String((err as { detail: string }).detail)
+            : 'Não foi possível carregar a lista.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -85,5 +94,5 @@ export function useClinicaBelezaPaginatedList<T>({
     if (enabled) load();
   }, [load, enabled]);
 
-  return { list, setList, loading, load, loadMore, loadingMore, hasMore, totalCount };
+  return { list, setList, loading, load, loadMore, loadingMore, hasMore, totalCount, error };
 }

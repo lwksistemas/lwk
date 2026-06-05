@@ -31,6 +31,9 @@ class ProdutoEstoqueListView(APIView):
         categoria = request.query_params.get('categoria')
         if categoria:
             qs = qs.filter(categoria=categoria)
+        search = (request.query_params.get('search') or '').strip()
+        if search:
+            qs = qs.filter(nome__icontains=search)
         apenas_ativos = request.query_params.get('active', 'true').lower() == 'true'
         if apenas_ativos:
             qs = qs.filter(is_active=True)

@@ -89,6 +89,7 @@ export function EstoquePageContent({
     loadingMore,
     hasMore,
     totalCount,
+    error: listError,
   } = useClinicaBelezaPaginatedList<Produto>({
     path: "/estoque/",
     queryParams,
@@ -397,6 +398,12 @@ export function EstoquePageContent({
                 ))}
               </select>
             </div>
+
+            {listError && (
+              <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
+                Erro ao carregar produtos: {listError}
+              </div>
+            )}
 
             {/* Table */}
             <section className="bg-white dark:bg-neutral-800 rounded-xl shadow-md overflow-hidden">

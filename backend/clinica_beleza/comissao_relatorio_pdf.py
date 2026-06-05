@@ -203,103 +203,109 @@ def _titulo_secao(texto: str) -> Paragraph:
     ))
 
 
-def _bloco_tabelas_consulta_procedimento(
-    linhas_c: list,
-    linhas_p: list,
-    p: dict,
-    qtd_proc: int,
-) -> list:
-    """Consultas e procedimentos lado a lado para caber em uma folha."""
-    meia_largura = _LARGURA_UTIL / 2 - 2 * mm
-
-    t_cons = None
-    if linhas_c:
-        t_cons = _make_data_table(
-            ['Local', 'Pag.', 'Qtd', 'Valor', 'Regra', 'Comissão'],
+def _bloco_consultas_pdf(linhas_c: list, p: dict) -> list:
+    """Tabela de consultas em largura total."""
+    if not linhas_c:
+        return []
+    w = _LARGURA_UTIL
+    tabela = _make_data_table(
+        ['Local', 'Pag.', 'Qtd', 'Valor consulta', 'Regra', 'Comissão consulta'],
+        [
             [
-                [
-                    (d.get('local_nome') or '—')[:20],
-                    _codigo_pagamento_pdf(d.get('forma_pagamento', '')),
-                    str(d.get('qtd', 0)),
-                    _fmt_brl(d.get('valor_consulta')),
-                    _fmt_regra_comissao(d.get('modo_consulta', ''), d.get('regra_consulta', '')),
-                    _fmt_brl(d.get('comissao_consulta')),
-                ]
-                for d in linhas_c
-            ],
-            footer=[
-                'Total consultas',
-                '',
-                str(p.get('total_atendimentos', 0)),
-                _fmt_brl(p.get('valor_consulta')),
-                '',
-                _fmt_brl(p.get('comissao_consulta')),
-            ],
-            col_widths=[
-                meia_largura * 0.26,
-                meia_largura * 0.07,
-                meia_largura * 0.07,
-                meia_largura * 0.15,
-                meia_largura * 0.25,
-                meia_largura * 0.20,
-            ],
-            font_size=6,
-        )
+                (d.get('local_nome') or '—')[:32],
+                _codigo_pagamento_pdf(d.get('forma_pagamento', '')),
+                str(d.get('qtd', 0)),
+                _fmt_brl(d.get('valor_consulta')),
+                _fmt_regra_comissao(d.get('modo_consulta', ''), d.get('regra_consulta', '')),
+                _fmt_brl(d.get('comissao_consulta')),
+            ]
+            for d in linhas_c
+        ],
+        footer=[
+            'Total consultas',
+            '',
+            str(p.get('total_atendimentos', 0)),
+            _fmt_brl(p.get('valor_consulta')),
+            '',
+            _fmt_brl(p.get('comissao_consulta')),
+        ],
+        col_widths=[
+            w * 0.28, w * 0.07, w * 0.07, w * 0.14, w * 0.26, w * 0.18,
+        ],
+        font_size=7,
+    )
+    return [_titulo_secao('Consultas'), tabela, _legenda_pagamento_pdf()]
 
-    t_proc = None
-    if linhas_p:
-        t_proc = _make_data_table(
-            ['Procedimento', 'Qtd', 'Valor', 'Regra', 'Comissão'],
+
+def _bloco_procedimentos_pdf(linhas_p: list, p: dict, qtd_proc: int) -> list:
+    """Tabela de procedimentos em largura total."""
+    if not linhas_p:
+        return []
+    w = _LARGURA_UTIL
+    tabela = _make_data_table(
+        ['Procedimento', 'Qtd', 'Valor', 'Regra', 'Comissão'],
+        [
             [
-                [
-                    (d.get('procedimento_nome', '') or '')[:22],
-                    str(d.get('qtd', 0)),
-                    _fmt_brl(d.get('valor_procedimento')),
-                    _fmt_regra_comissao(d.get('modo_procedimento', ''), d.get('regra_procedimento', '')),
-                    _fmt_brl(d.get('comissao_procedimento')),
-                ]
-                for d in linhas_p
-            ],
-            footer=[
-                'Total procedimentos',
-                str(qtd_proc),
-                _fmt_brl(p.get('valor_procedimento')),
-                '',
-                _fmt_brl(p.get('comissao_procedimento')),
-            ],
-            col_widths=[
-                meia_largura * 0.30,
-                meia_largura * 0.08,
-                meia_largura * 0.18,
-                meia_largura * 0.28,
-                meia_largura * 0.16,
-            ],
-            font_size=6,
-        )
+                (d.get('procedimento_nome', '') or '')[:40],
+                str(d.get('qtd', 0)),
+                _fmt_brl(d.get('valor_procedimento')),
+                _fmt_regra_comissao(d.get('modo_procedimento', ''), d.get('regra_procedimento', '')),
+                _fmt_brl(d.get('comissao_procedimento')),
+            ]
+            for d in linhas_p
+        ],
+        footer=[
+            'Total procedimentos',
+            str(qtd_proc),
+            _fmt_brl(p.get('valor_procedimento')),
+            '',
+            _fmt_brl(p.get('comissao_procedimento')),
+        ],
+        col_widths=[
+            w * 0.38, w * 0.08, w * 0.16, w * 0.22, w * 0.16,
+        ],
+        font_size=7,
+    )
+    return [_titulo_secao('Procedimentos'), tabela]
 
-    if t_cons and t_proc:
-        bloco = Table(
-            [
-                [_titulo_secao('Consultas'), _titulo_secao('Procedimentos')],
-                [t_cons, t_proc],
-            ],
-            colWidths=[meia_largura, meia_largura],
-        )
-        bloco.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        return [bloco, _legenda_pagamento_pdf()]
 
-    flow = []
-    if t_cons:
-        flow.extend([_titulo_secao('Consultas'), t_cons, _legenda_pagamento_pdf()])
-    if t_proc:
-        flow.extend([_titulo_secao('Procedimentos'), t_proc])
-    return flow
+def _bloco_resumo_profissional(p: dict) -> list:
+    """Resumo do profissional após consultas e procedimentos."""
+    titulo_style = ParagraphStyle(
+        'ResProf',
+        parent=getSampleStyleSheet()['Normal'],
+        fontSize=9,
+        fontName='Helvetica-Bold',
+        textColor=_COR_PRIMARIA,
+        spaceBefore=3 * mm,
+        spaceAfter=2 * mm,
+    )
+    data = [
+        ['Total consultas — valor', _fmt_brl(p.get('valor_consulta'))],
+        ['Total consultas — comissão', _fmt_brl(p.get('comissao_consulta'))],
+        ['Total procedimentos — valor', _fmt_brl(p.get('valor_procedimento'))],
+        ['Total procedimentos — comissão', _fmt_brl(p.get('comissao_procedimento'))],
+        ['Comissão total', _fmt_brl(p.get('comissao_total'))],
+        ['Valor total geral', _fmt_brl(p.get('valor_total'))],
+    ]
+    table = Table(data, colWidths=[8.5 * cm, None])
+    table.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('FONTNAME', (0, -2), (-1, -1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0, -2), (-1, -1), _COR_PRIMARIA),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('BOX', (0, 0), (-1, -1), 0.4, colors.HexColor('#e5e7eb')),
+        ('BACKGROUND', (0, 0), (-1, -3), colors.HexColor('#fafafa')),
+        ('LINEABOVE', (0, -2), (-1, -2), 0.5, _COR_PRIMARIA),
+    ]))
+    return [
+        Spacer(1, 2 * mm),
+        Paragraph('Resumo', titulo_style),
+        table,
+    ]
 
 
 def _bloco_totais_final(styles, totais: dict, multi_prof: bool) -> list:
@@ -453,10 +459,13 @@ def gerar_pdf_comissoes(
                 + (f' · {qtd_proc} procedimento(s)' if qtd_proc else '')
             )
             elements.append(Paragraph(info, subtitulo_style))
-            elements.extend(_bloco_tabelas_consulta_procedimento(linhas_c, linhas_p, p, qtd_proc))
+            elements.extend(_bloco_consultas_pdf(linhas_c, p))
+            elements.extend(_bloco_procedimentos_pdf(linhas_p, p, qtd_proc))
+            elements.extend(_bloco_resumo_profissional(p))
 
-        totais = resultado.get('totais') or {}
-        elements.extend(_bloco_totais_final(styles, totais, multi_prof=len(profissionais) > 1))
+        if len(profissionais) > 1:
+            totais = resultado.get('totais') or {}
+            elements.extend(_bloco_totais_final(styles, totais, multi_prof=True))
 
     doc.build(elements)
     buffer.seek(0)

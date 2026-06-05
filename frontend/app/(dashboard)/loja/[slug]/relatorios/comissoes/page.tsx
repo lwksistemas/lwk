@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { Download, Printer, Search } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
@@ -15,11 +15,10 @@ interface RegraComissao {
 interface DetalheComissao {
   local_nome: string;
   procedimento_nome: string;
-  vinculado_consulta?: boolean;
+  tipo_linha?: 'consulta' | 'procedimento';
   qtd: number;
   valor_consulta: number;
   valor_procedimento: number;
-  valor_total: number;
   comissao_consulta: number;
   comissao_procedimento: number;
   comissao: number;
@@ -61,22 +60,208 @@ interface ProfessionalOption {
   nome: string;
 }
 
-function RegraBadge({ modo, regra }: { modo: string; regra: string }) {
-  if (!regra) {
-    return <span className="text-xs text-gray-400">—</span>;
-  }
-  const cls =
-    modo === 'percentual'
-      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-      : modo === 'fixo'
-        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-        : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400';
+function isLinhaConsulta(d: DetalheComissao) {
+  return d.tipo_linha === 'consulta' || d.procedimento_nome === 'Consulta';
+}
+
+function RegraTexto({ modo, regra }: { modo: string; regra: string }) {
+  if (!regra) return <span className="text-gray-400">—</span>;
+  const fixo = modo === 'fixo';
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${cls}`}>{regra}</span>
+    <span className={fixo ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300'}>
+      {regra}
+      <span className="text-gray-400 font-normal ml-1">{fixo ? 'fixo' : '%'}</span>
+    </span>
   );
 }
 
-// Estilos para impressão
+function MiniTabela({
+  titulo,
+  colunas,
+  linhas,
+  rodape,
+}: {
+  titulo: string;
+  colunas: string[];
+  linhas: (string | number)[][];
+  rodape?: (string | number)[];
+}) {
+  return (
+    <div className="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+      <div
+        className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300"
+        style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}08` }}
+      >
+        {titulo}
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50">
+            {colunas.map((c) => (
+              <th key={c} className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {linhas.length === 0 ? (
+            <tr>
+              <td colSpan={colunas.length} className="px-3 py-4 text-center text-gray-400 text-sm">
+                Nenhum registro
+              </td>
+            </tr>
+          ) : (
+            linhas.map((row, i) => (
+              <tr key={i} className="border-b border-gray-50 dark:border-gray-700/80 last:border-0">
+                {row.map((cell, j) => (
+                  <td
+                    key={j}
+                    className={`px-3 py-2 text-gray-700 dark:text-gray-300 ${
+                      j > 0 ? 'text-right tabular-nums' : ''
+                    }`}
+                  >
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
+        {rodape && linhas.length > 0 && (
+          <tfoot>
+            <tr className="bg-gray-50 dark:bg-gray-700/40 font-semibold">
+              {rodape.map((cell, j) => (
+                <td
+                  key={j}
+                  className={`px-3 py-2 text-gray-900 dark:text-white ${
+                    j > 0 ? 'text-right tabular-nums' : ''
+                  }`}
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        )}
+      </table>
+    </div>
+  );
+}
+
+function BlocoProfissional({
+  p,
+  formatCurrency,
+}: {
+  p: ProfissionalComissao;
+  formatCurrency: (n: number) => string;
+}) {
+  const linhasConsulta = useMemo(
+    () => p.detalhes.filter(isLinhaConsulta),
+    [p.detalhes],
+  );
+  const linhasProcedimento = useMemo(
+    () => p.detalhes.filter((d) => !isLinhaConsulta(d)),
+    [p.detalhes],
+  );
+
+  const qtdProcedimentos = linhasProcedimento.reduce((s, d) => s + d.qtd, 0);
+
+  return (
+    <article className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden print:break-inside-avoid">
+      <header
+        className="px-4 py-3"
+        style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}12` }}
+      >
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white">{p.nome}</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+          {p.total_atendimentos}{' '}
+          {p.total_atendimentos === 1 ? 'consulta paga' : 'consultas pagas'}
+          {qtdProcedimentos > 0 && (
+            <span className="text-gray-400">
+              {' '}
+              · {qtdProcedimentos} {qtdProcedimentos === 1 ? 'procedimento' : 'procedimentos'}
+            </span>
+          )}
+        </p>
+        {p.comissao_consulta_regra?.regra && (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Regra da consulta:{' '}
+            <RegraTexto modo={p.comissao_consulta_regra.modo} regra={p.comissao_consulta_regra.regra} />
+          </p>
+        )}
+      </header>
+
+      <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <MiniTabela
+          titulo="Taxa de consulta"
+          colunas={['Local', 'Consultas', 'Valor', 'Comissão']}
+          linhas={linhasConsulta.map((d) => [
+            d.local_nome || '—',
+            d.qtd,
+            formatCurrency(d.valor_consulta),
+            formatCurrency(d.comissao_consulta),
+          ])}
+          rodape={
+            linhasConsulta.length > 0
+              ? ['Subtotal', p.total_atendimentos, formatCurrency(p.valor_consulta), formatCurrency(p.comissao_consulta)]
+              : undefined
+          }
+        />
+        <MiniTabela
+          titulo="Procedimentos"
+          colunas={['Procedimento', 'Qtd', 'Valor', 'Regra', 'Comissão']}
+          linhas={linhasProcedimento.map((d) => [
+            d.procedimento_nome,
+            d.qtd,
+            formatCurrency(d.valor_procedimento),
+            d.regra_procedimento || '—',
+            formatCurrency(d.comissao_procedimento),
+          ])}
+          rodape={
+            linhasProcedimento.length > 0
+              ? [
+                  'Subtotal',
+                  qtdProcedimentos,
+                  formatCurrency(p.valor_procedimento),
+                  '',
+                  formatCurrency(p.comissao_procedimento),
+                ]
+              : undefined
+          }
+        />
+      </div>
+
+      <footer className="px-4 py-3 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 flex flex-wrap items-center justify-end gap-x-8 gap-y-2 text-sm">
+        <div className="text-right">
+          <span className="text-gray-500 dark:text-gray-400">Comissão consulta: </span>
+          <span className="font-semibold tabular-nums text-gray-800 dark:text-gray-200">
+            {formatCurrency(p.comissao_consulta)}
+          </span>
+        </div>
+        <div className="text-right">
+          <span className="text-gray-500 dark:text-gray-400">Comissão procedimentos: </span>
+          <span className="font-semibold tabular-nums text-gray-800 dark:text-gray-200">
+            {formatCurrency(p.comissao_procedimento)}
+          </span>
+        </div>
+        <div className="text-right">
+          <span className="text-gray-500 dark:text-gray-400">Comissão total: </span>
+          <span className="font-bold tabular-nums" style={{ color: CLINICA_BELEZA_PRIMARY }}>
+            {formatCurrency(p.comissao_total)}
+          </span>
+        </div>
+        <div className="text-right pl-4 border-l border-gray-300 dark:border-gray-600">
+          <span className="text-gray-500 dark:text-gray-400 block text-xs uppercase">Valor total</span>
+          <span className="font-bold text-lg tabular-nums text-gray-900 dark:text-white">
+            {formatCurrency(p.valor_total)}
+          </span>
+        </div>
+      </footer>
+    </article>
+  );
+}
+
 if (typeof window !== 'undefined') {
   const style = document.createElement('style');
   style.textContent = `
@@ -172,85 +357,68 @@ export default function RelatorioComissoesPage() {
   const exportarCSV = () => {
     if (!data) return;
     const BOM = '\ufeff';
-    const header =
-      'Profissional;Local;Procedimento;Qtd;Valor Consulta (R$);Valor Procedimento (R$);' +
-      'Regra Consulta;Comissão Consulta (R$);Regra Procedimento;Comissão Procedimento (R$);Comissão Total (R$)\n';
-    let csv = header;
+    let csv =
+      'Profissional;Tipo;Item;Local;Qtd;Valor (R$);Regra;Comissão (R$)\n';
     for (const p of data.profissionais) {
-      const regraConsulta = p.comissao_consulta_regra?.regra ?? '';
-      csv +=
-        `${p.nome};;;${p.total_atendimentos};` +
-        `${p.valor_consulta.toFixed(2)};${p.valor_procedimento.toFixed(2)};` +
-        `${regraConsulta};${p.comissao_consulta.toFixed(2)};;${p.comissao_procedimento.toFixed(2)};${p.comissao_total.toFixed(2)}\n`;
-      for (const d of p.detalhes) {
+      for (const d of p.detalhes.filter(isLinhaConsulta)) {
         csv +=
-          `;${d.local_nome || '-'};${d.procedimento_nome};${d.qtd};` +
-          `${d.valor_consulta.toFixed(2)};${d.valor_procedimento.toFixed(2)};` +
-          `${d.regra_consulta};${d.comissao_consulta.toFixed(2)};` +
-          `${d.regra_procedimento};${d.comissao_procedimento.toFixed(2)};${d.comissao.toFixed(2)}\n`;
+          `${p.nome};Consulta;Taxa de consulta;${d.local_nome || ''};${d.qtd};` +
+          `${d.valor_consulta.toFixed(2)};${d.regra_consulta};${d.comissao_consulta.toFixed(2)}\n`;
       }
+      for (const d of p.detalhes.filter((x) => !isLinhaConsulta(x))) {
+        csv +=
+          `${p.nome};Procedimento;${d.procedimento_nome};${d.local_nome || ''};${d.qtd};` +
+          `${d.valor_procedimento.toFixed(2)};${d.regra_procedimento};${d.comissao_procedimento.toFixed(2)}\n`;
+      }
+      csv +=
+        `${p.nome};Resumo;TOTAL;;;${p.valor_total.toFixed(2)};;${p.comissao_total.toFixed(2)}\n`;
     }
     csv +=
-      `TOTAIS;;;${data.totais.total_atendimentos};` +
-      `${data.totais.valor_consulta.toFixed(2)};${data.totais.valor_procedimento.toFixed(2)};;` +
-      `${data.totais.comissao_consulta.toFixed(2)};;${data.totais.comissao_procedimento.toFixed(2)};` +
-      `${data.totais.comissao_total.toFixed(2)}\n`;
+      `TOTAIS;Resumo;TOTAL;${data.totais.total_atendimentos};${data.totais.valor_total.toFixed(2)};;${data.totais.comissao_total.toFixed(2)}\n`;
 
     const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `comissoes_${dataInicio}_${dataFim}.csv`;
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
   };
 
-  const exportarPDF = () => {
-    window.print();
-  };
-
-  const thClass =
-    'px-3 py-3 font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap text-xs sm:text-sm';
-  const tdClass = 'px-3 py-2 text-gray-600 dark:text-gray-400 whitespace-nowrap';
-
   return (
-    <div className="p-4 sm:p-6 print-area">
+    <div className="p-4 sm:p-6 print-area max-w-6xl mx-auto">
       <div className="hidden print:block mb-6">
-        {logoUrl ? (
+        {logoUrl && (
           <div className="flex justify-center mb-4">
             <img src={logoUrl} alt={clinicaNome} className="max-h-20 object-contain" />
           </div>
-        ) : clinicaNome ? (
-          <div className="text-center mb-4">
-            <h2 className="text-lg font-bold text-gray-800">{clinicaNome}</h2>
-          </div>
-        ) : null}
+        )}
         <h1 className="text-2xl font-bold" style={{ color: CLINICA_BELEZA_PRIMARY }}>
           Relatório de Comissões
         </h1>
         <p className="text-sm text-gray-600">
           Período: {dataInicio} a {dataFim}
         </p>
-        <p className="text-xs text-gray-400">Gerado em: {new Date().toLocaleDateString('pt-BR')}</p>
-        <hr className="my-4 border-gray-300" />
       </div>
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 no-print">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Comissões dos Profissionais</h1>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 no-print">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Comissões dos Profissionais</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Consultas e procedimentos em blocos separados — mais fácil de conferir.
+          </p>
+        </div>
         <div className="flex gap-2">
           <button
             onClick={exportarCSV}
-            disabled={!data || data.profissionais.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!data?.profissionais.length}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600"
           >
             <Download size={16} /> CSV
           </button>
           <button
-            onClick={exportarPDF}
-            disabled={!data || data.profissionais.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => window.print()}
+            disabled={!data?.profissionais.length}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg text-white"
             style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
           >
             <Printer size={16} /> PDF
@@ -268,7 +436,7 @@ export default function RelatorioComissoesPage() {
               type="date"
               value={dataInicio}
               onChange={(e) => setDataInicio(e.target.value)}
-              className="w-full px-3 py-2 min-h-[40px] text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           </div>
           <div>
@@ -279,7 +447,7 @@ export default function RelatorioComissoesPage() {
               type="date"
               value={dataFim}
               onChange={(e) => setDataFim(e.target.value)}
-              className="w-full px-3 py-2 min-h-[40px] text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           </div>
           <div>
@@ -289,7 +457,7 @@ export default function RelatorioComissoesPage() {
             <select
               value={professionalId}
               onChange={(e) => setProfessionalId(e.target.value)}
-              className="w-full px-3 py-2 min-h-[40px] text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               <option value="">Todos</option>
               {professionals.map((p) => (
@@ -299,168 +467,83 @@ export default function RelatorioComissoesPage() {
               ))}
             </select>
           </div>
-          <div>
-            <button
-              onClick={buscar}
-              disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-[40px] text-sm font-medium rounded-lg text-white disabled:opacity-50"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-            >
-              <Search size={16} /> Buscar
-            </button>
-          </div>
+          <button
+            onClick={buscar}
+            disabled={loading}
+            className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-[40px] text-sm font-medium rounded-lg text-white"
+            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+          >
+            <Search size={16} /> Buscar
+          </button>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg mb-6 text-sm">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">
           {error}
         </div>
       )}
 
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div
-            className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
-            style={{
-              borderColor: `${CLINICA_BELEZA_PRIMARY} transparent transparent transparent`,
-            }}
-          />
+        <div className="flex justify-center py-12">
+          <div className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
       {!loading && data && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="space-y-6">
           {data.profissionais.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-              <p className="text-base">Nenhum dado encontrado para o período selecionado.</p>
-            </div>
+            <p className="text-center py-12 text-gray-500">Nenhum dado no período.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[960px]">
-                <thead>
-                  <tr
-                    className="border-b border-gray-200 dark:border-gray-700"
-                    style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}10` }}
-                  >
-                    <th className={`${thClass} text-left`}>Profissional / Procedimento</th>
-                    <th className={`${thClass} text-center`}>Qtd</th>
-                    <th className={`${thClass} text-right`}>Valor Consulta</th>
-                    <th className={`${thClass} text-right`}>Valor Procedimento</th>
-                    <th className={`${thClass} text-center`}>Regra Consulta</th>
-                    <th className={`${thClass} text-right`}>Com. Consulta</th>
-                    <th className={`${thClass} text-center`}>Regra Proced.</th>
-                    <th className={`${thClass} text-right`}>Com. Proced.</th>
-                    <th className={`${thClass} text-right`}>Com. Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.profissionais.map((p) => (
-                    <Fragment key={p.professional_id}>
-                      <tr className="border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30">
-                        <td className="px-3 py-3 text-gray-900 dark:text-white font-bold">{p.nome}</td>
-                        <td className="px-3 py-3 text-center font-semibold text-gray-700 dark:text-gray-300">
-                          {p.total_atendimentos}
-                        </td>
-                        <td className="px-3 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
-                          {formatCurrency(p.valor_consulta)}
-                        </td>
-                        <td className="px-3 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
-                          {formatCurrency(p.valor_procedimento)}
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          <RegraBadge
-                            modo={p.comissao_consulta_regra?.modo ?? ''}
-                            regra={p.comissao_consulta_regra?.regra ?? ''}
-                          />
-                        </td>
-                        <td className="px-3 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
-                          {formatCurrency(p.comissao_consulta)}
-                        </td>
-                        <td className="px-3 py-3 text-center text-xs text-gray-400">—</td>
-                        <td className="px-3 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
-                          {formatCurrency(p.comissao_procedimento)}
-                        </td>
-                        <td
-                          className="px-3 py-3 text-right font-bold"
-                          style={{ color: CLINICA_BELEZA_PRIMARY }}
-                        >
-                          {formatCurrency(p.comissao_total)}
-                        </td>
-                      </tr>
-                      {p.detalhes.map((d, idx) => (
-                        <tr
-                          key={`${p.professional_id}-${idx}`}
-                          className="border-b border-gray-100 dark:border-gray-700"
-                        >
-                          <td className="px-3 py-2 pl-8 text-gray-600 dark:text-gray-400 text-sm">
-                            ↳ {d.local_nome ? `[${d.local_nome}] ` : ''}
-                            {d.procedimento_nome === 'Consulta' ? (
-                              <span className="font-medium text-gray-700 dark:text-gray-300">
-                                Consulta (taxa)
-                              </span>
-                            ) : (
-                              <>
-                                <span className="text-gray-400 text-xs">consulta · </span>
-                                {d.procedimento_nome}
-                              </>
-                            )}
-                          </td>
-                          <td className={`${tdClass} text-center`}>{d.qtd}</td>
-                          <td className={`${tdClass} text-right`}>{formatCurrency(d.valor_consulta)}</td>
-                          <td className={`${tdClass} text-right`}>
-                            {formatCurrency(d.valor_procedimento)}
-                          </td>
-                          <td className={`${tdClass} text-center`}>
-                            <RegraBadge modo={d.modo_consulta} regra={d.regra_consulta} />
-                          </td>
-                          <td className={`${tdClass} text-right`}>
-                            {formatCurrency(d.comissao_consulta)}
-                          </td>
-                          <td className={`${tdClass} text-center`}>
-                            <RegraBadge modo={d.modo_procedimento} regra={d.regra_procedimento} />
-                          </td>
-                          <td className={`${tdClass} text-right`}>
-                            {formatCurrency(d.comissao_procedimento)}
-                          </td>
-                          <td className={`${tdClass} text-right text-gray-700 dark:text-gray-300`}>
-                            {formatCurrency(d.comissao)}
-                          </td>
-                        </tr>
-                      ))}
-                    </Fragment>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr
-                    className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"
-                    style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}08` }}
-                  >
-                    <td className="px-3 py-3 text-gray-900 dark:text-white">TOTAIS</td>
-                    <td className="px-3 py-3 text-center text-gray-900 dark:text-white">
-                      {data.totais.total_atendimentos}
-                    </td>
-                    <td className="px-3 py-3 text-right text-gray-900 dark:text-white">
-                      {formatCurrency(data.totais.valor_consulta)}
-                    </td>
-                    <td className="px-3 py-3 text-right text-gray-900 dark:text-white">
-                      {formatCurrency(data.totais.valor_procedimento)}
-                    </td>
-                    <td className="px-3 py-3"></td>
-                    <td className="px-3 py-3 text-right text-gray-900 dark:text-white">
+            <>
+              {data.profissionais.map((p) => (
+                <BlocoProfissional key={p.professional_id} p={p} formatCurrency={formatCurrency} />
+              ))}
+
+              <div
+                className="rounded-xl border-2 border-gray-300 dark:border-gray-600 p-4"
+                style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}08` }}
+              >
+                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Totais do período
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Consultas pagas</p>
+                    <p className="text-lg font-bold">{data.totais.total_atendimentos}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Comissão consultas</p>
+                    <p className="text-lg font-bold tabular-nums">
                       {formatCurrency(data.totais.comissao_consulta)}
-                    </td>
-                    <td className="px-3 py-3"></td>
-                    <td className="px-3 py-3 text-right text-gray-900 dark:text-white">
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Comissão procedimentos</p>
+                    <p className="text-lg font-bold tabular-nums">
                       {formatCurrency(data.totais.comissao_procedimento)}
-                    </td>
-                    <td className="px-3 py-3 text-right" style={{ color: CLINICA_BELEZA_PRIMARY }}>
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-300 dark:border-gray-600 flex flex-wrap justify-end items-end gap-x-10 gap-y-2">
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500 uppercase">Comissão total</p>
+                    <p
+                      className="text-xl font-bold tabular-nums"
+                      style={{ color: CLINICA_BELEZA_PRIMARY }}
+                    >
                       {formatCurrency(data.totais.comissao_total)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                    </p>
+                  </div>
+                  <div className="text-right pl-6 border-l-2 border-gray-400 dark:border-gray-500">
+                    <p className="text-xs text-gray-500 uppercase">Valor total</p>
+                    <p className="text-2xl font-bold tabular-nums text-gray-900 dark:text-white">
+                      {formatCurrency(data.totais.valor_total)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}

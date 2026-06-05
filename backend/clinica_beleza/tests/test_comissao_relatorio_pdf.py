@@ -22,6 +22,21 @@ def _pdf_com_texto(texto: str, paginas: int = 1) -> bytes:
     return buf.getvalue()
 
 
+class FmtRegraComissaoTest(unittest.TestCase):
+    def setUp(self):
+        from clinica_beleza.comissao_relatorio_pdf import _fmt_regra_comissao
+        self.fmt = _fmt_regra_comissao
+
+    def test_percentual(self):
+        self.assertEqual(self.fmt('percentual', '30,00%'), '30,00% (%)')
+
+    def test_fixo(self):
+        self.assertEqual(self.fmt('fixo', 'R$ 188,00'), 'R$ 188,00 (fixo)')
+
+    def test_vazio(self):
+        self.assertEqual(self.fmt('', ''), '—')
+
+
 @unittest.skipUnless(HAS_DEPS, 'pypdf/reportlab não instalados')
 class MergeTimbradoPdfTest(unittest.TestCase):
     def setUp(self):

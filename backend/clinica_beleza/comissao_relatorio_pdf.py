@@ -48,6 +48,17 @@ def _is_linha_consulta(d: dict) -> bool:
     return d.get('tipo_linha') == 'consulta' or d.get('procedimento_nome') == LABEL_CONSULTA
 
 
+def _fmt_regra_comissao(modo: str, regra: str) -> str:
+    """Ex.: R$ 188,00 (fixo) ou 30,00% (%)"""
+    if not regra:
+        return '—'
+    if modo == 'fixo':
+        return f'{regra} (fixo)'
+    if modo == 'percentual':
+        return f'{regra} (%)'
+    return regra
+
+
 def _merge_timbrado_fundo(content_pdf: bytes, timbrado_pdf: bytes) -> bytes:
     """Coloca o timbrado atrás de cada página de conteúdo (sem duplicar folhas)."""
     try:
@@ -169,13 +180,14 @@ def _bloco_tabelas_consulta_procedimento(
     t_cons = None
     if linhas_c:
         t_cons = _make_data_table(
-            ['Local', 'Pag.', 'Qtd', 'Valor', 'Comissão'],
+            ['Local', 'Pag.', 'Qtd', 'Valor', 'Regra', 'Comissão'],
             [
                 [
-                    (d.get('local_nome') or '—')[:22],
-                    (d.get('forma_pagamento') or '—')[:10],
+                    (d.get('local_nome') or '—')[:18],
+                    (d.get('forma_pagamento') or '—')[:8],
                     str(d.get('qtd', 0)),
                     _fmt_brl(d.get('valor_consulta')),
+                    _fmt_regra_comissao(d.get('modo_consulta', ''), d.get('regra_consulta', '')),
                     _fmt_brl(d.get('comissao_consulta')),
                 ]
                 for d in linhas_c
@@ -185,21 +197,30 @@ def _bloco_tabelas_consulta_procedimento(
                 '',
                 str(p.get('total_atendimentos', 0)),
                 _fmt_brl(p.get('valor_consulta')),
+                '',
                 _fmt_brl(p.get('comissao_consulta')),
             ],
-            col_widths=[meia_largura * 0.34, meia_largura * 0.18, meia_largura * 0.1,
-                        meia_largura * 0.19, meia_largura * 0.19],
+            col_widths=[
+                meia_largura * 0.22,
+                meia_largura * 0.12,
+                meia_largura * 0.08,
+                meia_largura * 0.16,
+                meia_largura * 0.24,
+                meia_largura * 0.18,
+            ],
+            font_size=6,
         )
 
     t_proc = None
     if linhas_p:
         t_proc = _make_data_table(
-            ['Procedimento', 'Qtd', 'Valor total', 'Comissão'],
+            ['Procedimento', 'Qtd', 'Valor', 'Regra', 'Comissão'],
             [
                 [
-                    (d.get('procedimento_nome', '') or '')[:28],
+                    (d.get('procedimento_nome', '') or '')[:22],
                     str(d.get('qtd', 0)),
                     _fmt_brl(d.get('valor_procedimento')),
+                    _fmt_regra_comissao(d.get('modo_procedimento', ''), d.get('regra_procedimento', '')),
                     _fmt_brl(d.get('comissao_procedimento')),
                 ]
                 for d in linhas_p
@@ -208,10 +229,17 @@ def _bloco_tabelas_consulta_procedimento(
                 'Total procedimentos',
                 str(qtd_proc),
                 _fmt_brl(p.get('valor_procedimento')),
+                '',
                 _fmt_brl(p.get('comissao_procedimento')),
             ],
-            col_widths=[meia_largura * 0.46, meia_largura * 0.1,
-                        meia_largura * 0.22, meia_largura * 0.22],
+            col_widths=[
+                meia_largura * 0.30,
+                meia_largura * 0.08,
+                meia_largura * 0.18,
+                meia_largura * 0.28,
+                meia_largura * 0.16,
+            ],
+            font_size=6,
         )
 
     if t_cons and t_proc:

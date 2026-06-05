@@ -461,14 +461,6 @@ export default function RelatorioComissoesPage() {
     }
   };
 
-  const imprimirNavegador = () => {
-    if (!logoUrl && temTimbrado) {
-      void exportarPDF();
-      return;
-    }
-    window.print();
-  };
-
   return (
     <div className="p-4 sm:p-6 print-area max-w-6xl mx-auto">
       <div className="hidden print:block mb-6 text-center">
@@ -512,19 +504,11 @@ export default function RelatorioComissoesPage() {
             style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
             title={
               !logoUrl && temTimbrado
-                ? 'Usa o PDF timbrado configurado em Configurações → Memed'
-                : undefined
+                ? 'PDF com papel timbrado (Configurações → Memed). Para imprimir, use o visualizador do PDF.'
+                : 'Baixar relatório em PDF. Para imprimir, use o visualizador do PDF.'
             }
           >
             <Printer size={16} /> {pdfLoading ? 'Gerando…' : 'PDF'}
-          </button>
-          <button
-            onClick={imprimirNavegador}
-            disabled={!data?.profissionais.length}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200"
-            title={!logoUrl && temTimbrado ? 'Com timbrado, use o botão PDF' : 'Imprimir esta página'}
-          >
-            Imprimir
           </button>
         </div>
       </div>

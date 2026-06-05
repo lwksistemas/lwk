@@ -6,7 +6,6 @@ import logging
 from decimal import Decimal
 
 from django.db.models import F, Sum
-from django.db.utils import OperationalError, ProgrammingError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .permissions import CLINICA_ESTOQUE
@@ -14,7 +13,7 @@ from rest_framework import status
 
 from .models import ProdutoEstoque, MovimentacaoEstoque
 from .serializers import ProdutoEstoqueSerializer, MovimentacaoEstoqueSerializer
-from .pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, paginate_queryset
+from .pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from .views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
@@ -28,19 +27,46 @@ _PRODUTO_VALUES_FIELDS = (
 _CATEGORIA_LABELS = dict(ProdutoEstoque.CATEGORIA_CHOICES)
 
 
+def _produto_schema_has_numero_nota() -> bool:
+    """True somente quando a coluna existe no schema tenant atual."""
+    from django.db import connections
+    from tenants.middleware import get_current_tenant_db
+    from clinica_beleza.schema_ensure import column_exists, table_exists
+
+    tenant_db = get_current_tenant_db()
+    if not tenant_db or tenant_db == 'default':
+        return False
+    try:
+        with connections[tenant_db].cursor() as cursor:
+            if not table_exists(cursor, 'clinica_beleza_produtoestoque'):
+                return False
+            return column_exists(cursor, 'clinica_beleza_produtoestoque', 'numero_nota')
+    except Exception as exc:
+        logger.debug('Verificação numero_nota indisponível: %s', exc)
+        return False
+
+
 def _produto_values_row(row: dict) -> dict:
     item = dict(row)
-    item['numero_nota'] = ''
+    item.setdefault('numero_nota', '')
     item['categoria_display'] = _CATEGORIA_LABELS.get(row.get('categoria'), row.get('categoria'))
     item['estoque_baixo'] = row.get('quantidade_atual', 0) <= row.get('quantidade_minima', 0)
     return item
 
 
+def _produto_list_value_fields() -> tuple[str, ...]:
+    fields = list(_PRODUTO_VALUES_FIELDS)
+    if _produto_schema_has_numero_nota():
+        fields.append('numero_nota')
+    return tuple(fields)
+
+
 def _paginate_produtos_values(queryset, request):
-    """Lista produtos via .values() quando a coluna numero_nota ainda não existe no schema."""
+    """Lista produtos via .values() — seguro mesmo sem coluna numero_nota no schema."""
+    value_fields = _produto_list_value_fields()
     page_param = request.query_params.get('page')
     if page_param is None:
-        rows = list(queryset.values(*_PRODUTO_VALUES_FIELDS))
+        rows = list(queryset.values(*value_fields))
         return Response([_produto_values_row(r) for r in rows])
 
     try:
@@ -58,7 +84,7 @@ def _paginate_produtos_values(queryset, request):
     total = queryset.count()
     total_pages = max(1, (total + page_size - 1) // page_size)
     offset = (page - 1) * page_size
-    rows = list(queryset.values(*_PRODUTO_VALUES_FIELDS)[offset:offset + page_size])
+    rows = list(queryset.values(*value_fields)[offset:offset + page_size])
     return Response({
         'count': total,
         'page': page,
@@ -66,32 +92,6 @@ def _paginate_produtos_values(queryset, request):
         'total_pages': total_pages,
         'results': [_produto_values_row(r) for r in rows],
     })
-
-
-def _is_missing_numero_nota_error(exc: BaseException) -> bool:
-    msg = str(exc).lower()
-    return 'numero_nota' in msg or (
-        'column' in msg and 'produtoestoque' in msg.replace('_', '')
-    )
-
-
-def _produto_schema_has_numero_nota() -> bool:
-    """Evita 500 quando migration 0034 ainda não rodou no schema da loja."""
-    from django.db import connections
-    from tenants.middleware import get_current_tenant_db
-    from clinica_beleza.schema_ensure import column_exists, table_exists
-
-    tenant_db = get_current_tenant_db()
-    if not tenant_db or tenant_db == 'default':
-        return True
-    try:
-        with connections[tenant_db].cursor() as cursor:
-            if not table_exists(cursor, 'clinica_beleza_produtoestoque'):
-                return True
-            return column_exists(cursor, 'clinica_beleza_produtoestoque', 'numero_nota')
-    except Exception as exc:
-        logger.debug('Verificação numero_nota indisponível: %s', exc)
-        return True
 
 
 class ProdutoEstoqueListView(APIView):
@@ -118,25 +118,8 @@ class ProdutoEstoqueListView(APIView):
         estoque_baixo = request.query_params.get('estoque_baixo')
         if estoque_baixo == 'true':
             qs = qs.filter(quantidade_atual__lte=F('quantidade_minima'))
-        if not _produto_schema_has_numero_nota():
-            logger.info('Listagem estoque: schema sem numero_nota, usando values()')
-            return _paginate_produtos_values(qs, request)
-        try:
-            return paginate_queryset(qs, request, ProdutoEstoqueSerializer)
-        except (OperationalError, ProgrammingError) as exc:
-            if not _is_missing_numero_nota_error(exc):
-                raise
-            logger.warning('Listagem estoque: fallback values() — %s', exc)
-            return _paginate_produtos_values(qs, request)
-        except Exception as exc:
-            if not _is_missing_numero_nota_error(exc):
-                logger.exception('Erro ao listar estoque')
-                return Response(
-                    {'error': 'Erro ao carregar produtos.'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-            logger.warning('Listagem estoque: fallback values() — %s', exc)
-            return _paginate_produtos_values(qs, request)
+        # Sempre via .values(): evita 500 quando numero_nota ainda não existe no schema da loja.
+        return _paginate_produtos_values(qs, request)
 
     def post(self, request):
         serializer = ProdutoEstoqueSerializer(data=request.data)
@@ -157,7 +140,7 @@ class ProdutoEstoqueDetailView(GetObjectMixin, APIView):
 
         ensure_loja_context(request)
         if not _produto_schema_has_numero_nota():
-            row = ProdutoEstoque.objects.filter(pk=pk).values(*_PRODUTO_VALUES_FIELDS).first()
+            row = ProdutoEstoque.objects.filter(pk=pk).values(*_produto_list_value_fields()).first()
             if not row:
                 return Response(
                     {'error': self.not_found_message},

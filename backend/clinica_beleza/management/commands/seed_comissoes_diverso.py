@@ -1,8 +1,8 @@
 """
 Seed diverso para testes do relatório de comissões:
-- 10 locais de atendimento
-- 30 procedimentos (comissão fixa e percentual)
-- 10 consultas pagas em locais diferentes (3 profissionais, regras fixo/%)
+- 10 locais de atendimento (nomes reais)
+- 30 procedimentos (nomes reais, comissão fixa e percentual)
+- 10 consultas pagas, cada uma com 3 procedimentos (30 linhas no relatório)
 
 Uso:
     python manage.py seed_comissoes_diverso --slug beleza
@@ -16,6 +16,11 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from clinica_beleza.procedimentos_catalogo import (
+    LOCAIS_CATALOGO,
+    LOCAIS_CATALOGO_NOMES,
+    PROCEDIMENTOS_CATALOGO,
+)
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 from tenants.middleware import set_current_loja_id, set_current_tenant_db
@@ -24,55 +29,21 @@ SEED_TAG = '@seed-comissoes-diverso.lwksistemas.com.br'
 SEED_NOTE = 'Seed comissões diverso — teste'
 PROC_DESC = 'Cadastro teste comissões diverso'
 LOCAIS_LEGACY_PREFIX = '[Teste] '
+PROCEDIMENTOS_POR_CONSULTA = 3
 
-# 10 locais com nomes reais (valor da consulta no local)
-LOCAIS_SEED = [
-    ('Consultório Centro — Av. Paulista', Decimal('90.00')),
-    ('Sala VIP — Unidade Norte', Decimal('150.00')),
-    ('Atendimento Domiciliar — Zona Sul', Decimal('120.00')),
-    ('Unidade Jardins', Decimal('200.00')),
-    ('Teleconsulta', Decimal('70.00')),
-    ('Spa Clínico', Decimal('110.00')),
-    ('Cabine de Estética 2', Decimal('95.00')),
-    ('Unidade Moema', Decimal('130.00')),
-    ('Atendimento Externo — Eventos', Decimal('140.00')),
-    ('Consultório Premium — Alphaville', Decimal('180.00')),
-]
-LOCAIS_SEED_NOMES = {nome for nome, _ in LOCAIS_SEED}
 
-# 30 procedimentos com nomes reais: (nome, categoria, preço, duração min)
-PROCEDIMENTOS_SEED = [
-    ('Limpeza de Pele Profunda', 'Facial', Decimal('150.00'), 60),
-    ('Peeling Químico Suave', 'Facial', Decimal('250.00'), 50),
-    ('Microagulhamento Facial', 'Facial', Decimal('300.00'), 60),
-    ('Botox — Testa e Glabela', 'Facial', Decimal('800.00'), 30),
-    ('Preenchimento Labial', 'Facial', Decimal('1200.00'), 45),
-    ('Harmonização Facial', 'Facial', Decimal('2500.00'), 90),
-    ('Laser CO2 Fracionado', 'Facial', Decimal('900.00'), 60),
-    ('Hidratação Facial com Ácido Hialurônico', 'Facial', Decimal('280.00'), 50),
-    ('Tratamento para Melasma', 'Facial', Decimal('350.00'), 55),
-    ('LED Terapia Facial', 'Facial', Decimal('120.00'), 40),
-    ('Drenagem Linfática Manual', 'Corporal', Decimal('120.00'), 60),
-    ('Massagem Modeladora', 'Corporal', Decimal('180.00'), 90),
-    ('Cryolipolysis — Abdômen', 'Corporal', Decimal('450.00'), 75),
-    ('Radiofrequência Corporal', 'Corporal', Decimal('320.00'), 60),
-    ('Intradermoterapia — Celulite', 'Corporal', Decimal('280.00'), 45),
-    ('Carboxiterapia', 'Corporal', Decimal('200.00'), 50),
-    ('Enzimas Corporais', 'Corporal', Decimal('220.00'), 55),
-    ('Bioestimulador de Colágeno', 'Estética', Decimal('1800.00'), 60),
-    ('Skinbooster', 'Estética', Decimal('950.00'), 45),
-    ('Depilação a Laser — Axilas', 'Depilação', Decimal('150.00'), 30),
-    ('Depilação a Laser — Virilha', 'Depilação', Decimal('220.00'), 40),
-    ('Depilação a Laser — Perna Inteira', 'Depilação', Decimal('380.00'), 90),
-    ('Soroterapia — Imunidade', 'Soroterapia', Decimal('350.00'), 60),
-    ('Soroterapia — Energia e Foco', 'Soroterapia', Decimal('320.00'), 60),
-    ('Soroterapia — Detox', 'Soroterapia', Decimal('300.00'), 60),
-    ('Mesoterapia Capilar', 'Capilar', Decimal('280.00'), 45),
-    ('Laser Capilar — Queda de Cabelo', 'Capilar', Decimal('400.00'), 50),
-    ('Design de Sobrancelhas', 'Estética', Decimal('80.00'), 30),
-    ('Lash Lifting', 'Estética', Decimal('150.00'), 60),
-    ('Micropigmentação Labial', 'Estética', Decimal('650.00'), 90),
-]
+def _procedimentos_para_consulta(indice: int, procedimentos: list):
+    """Retorna N procedimentos distintos para uma consulta (nomes reais do catálogo)."""
+    n = len(procedimentos)
+    if n == 0:
+        return []
+    passo = max(1, n // PROCEDIMENTOS_POR_CONSULTA)
+    ids = [(indice + k * passo) % n for k in range(PROCEDIMENTOS_POR_CONSULTA)]
+    vistos = []
+    for j in ids:
+        if procedimentos[j] not in vistos:
+            vistos.append(procedimentos[j])
+    return vistos
 
 
 class Command(BaseCommand):
@@ -154,7 +125,7 @@ class Command(BaseCommand):
         LocalAtendimento.objects.using(db).filter(
             loja_id=lid,
         ).filter(
-            Q(nome__startswith=LOCAIS_LEGACY_PREFIX) | Q(nome__in=LOCAIS_SEED_NOMES),
+            Q(nome__startswith=LOCAIS_LEGACY_PREFIX) | Q(nome__in=LOCAIS_CATALOGO_NOMES),
         ).delete()
         Patient.objects.using(db).filter(loja_id=lid, email__endswith=SEED_TAG).delete()
         Professional.objects.using(db).filter(loja_id=lid, email__endswith=SEED_TAG).delete()
@@ -192,7 +163,7 @@ class Command(BaseCommand):
         # ── 10 locais ──
         locais = []
         self.stdout.write('10 locais de atendimento:')
-        for nome, valor in LOCAIS_SEED:
+        for nome, valor in LOCAIS_CATALOGO:
             local, _ = LocalAtendimento.objects.using(db).update_or_create(
                 nome=nome, loja_id=lid,
                 defaults={'valor_consulta': valor, 'is_active': True},
@@ -273,7 +244,7 @@ class Command(BaseCommand):
                 loja_id=lid, tipo='procedimento', procedure_id__in=proc_ids_existentes,
             ).delete()
         self.stdout.write('\n30 procedimentos (comissão fixa ou %):')
-        for i, (nome, cat, preco, duracao) in enumerate(PROCEDIMENTOS_SEED):
+        for i, (nome, cat, preco, duracao) in enumerate(PROCEDIMENTOS_CATALOGO):
             proc, _ = Procedure.objects.using(db).update_or_create(
                 nome=nome, loja_id=lid,
                 defaults={
@@ -329,7 +300,9 @@ class Command(BaseCommand):
                 '\n   Atendimentos de teste já existem. Use --reset para recriar.'
             ))
         else:
-            self.stdout.write('\n10 consultas pagas (locais e procedimentos diversos):')
+            self.stdout.write(
+                f'\n10 consultas pagas ({PROCEDIMENTOS_POR_CONSULTA} procedimentos em cada):'
+            )
 
             def criar_atendimento(dia_offset, hora, prof, paciente, local, procs):
                 data = inicio_mes + timedelta(days=dia_offset)
@@ -393,7 +366,7 @@ class Command(BaseCommand):
                 prof = prof_dez_locais
                 paciente = pacientes[i % len(pacientes)]
                 local = locais[i]
-                procs = [procedimentos[i % len(procedimentos)]]
+                procs = _procedimentos_para_consulta(i, procedimentos)
                 criar_atendimento(i + 1, horas[i], prof, paciente, local, procs)
 
         url_slug = (loja.atalho or loja.slug or '').strip()

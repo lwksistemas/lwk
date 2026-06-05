@@ -299,10 +299,12 @@ def calcular_comissoes(
             proc_id = proc['procedure_id']
             vp = vp_map.get(proc_id, Decimal('0'))
             regra_proc = regras['procedimentos'].get(proc_id)
+            if not regra_proc:
+                continue
             com_proc = _calcular_comissao_regra(regra_proc, vp)
             modo_pc, regra_pc = _formatar_regra(regra_proc)
 
-            chave_proc = f'{local_nome}||{proc["procedimento_nome"]}'
+            chave_proc = f'proc:{proc_id}'
             det_proc = _obter_ou_criar_detalhe(entry, chave_proc, {
                 'tipo_linha': 'procedimento',
                 'local_nome': local_nome,

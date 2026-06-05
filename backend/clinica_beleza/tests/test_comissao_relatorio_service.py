@@ -24,6 +24,11 @@ class ComissaoRelatorioHelpersTest(TestCase):
         self.assertEqual(modo, 'percentual')
         self.assertEqual(regra, '25%')
 
+    def test_formatar_regra_fixo(self):
+        modo, regra = _formatar_regra(_comissao('fixo', '85'))
+        self.assertEqual(modo, 'fixo')
+        self.assertEqual(regra, 'R$ 85,00')
+
     def test_comissao_fixo_independe_da_base(self):
         val = _calcular_comissao_regra(_comissao('fixo', '100'), Decimal('0'))
         self.assertEqual(val, Decimal('100'))

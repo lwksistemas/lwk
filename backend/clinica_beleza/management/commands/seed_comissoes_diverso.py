@@ -196,6 +196,15 @@ class Command(BaseCommand):
         # ── 30 procedimentos ──
         categorias = ['Facial', 'Corporal', 'Estética', 'Soroterapia', 'Capilar', 'Depilação']
         procedimentos = []
+        proc_ids_existentes = list(
+            Procedure.objects.using(db)
+            .filter(loja_id=lid, descricao=PROC_DESC)
+            .values_list('id', flat=True)
+        )
+        if proc_ids_existentes:
+            ProfessionalCommission.objects.using(db).filter(
+                loja_id=lid, tipo='procedimento', procedure_id__in=proc_ids_existentes,
+            ).delete()
         self.stdout.write('\n30 procedimentos (comissão fixa ou %):')
         for i in range(30):
             cat = categorias[i % len(categorias)]
@@ -215,7 +224,8 @@ class Command(BaseCommand):
             )
             procedimentos.append(proc)
 
-            prof = profissionais[i % len(profissionais)]
+            # Mesmo profissional do atendimento que inclui este procedimento (i//3)
+            prof = profissionais[(i // 3) % len(profissionais)]
             if i < 15:
                 modo, valor = 'percentual', Decimal(str(10 + (i % 6) * 5))
             else:

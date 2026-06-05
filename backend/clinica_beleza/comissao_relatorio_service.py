@@ -15,12 +15,17 @@ CHAVE_CONSULTA = '__consulta__'
 LABEL_CONSULTA = 'Consulta'
 
 
+def _formatar_regra_brl(valor) -> str:
+    v = float(valor or 0)
+    return f'R$ {v:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
+
+
 def _formatar_regra(comissao: Optional[ProfessionalCommission]) -> tuple[str, str]:
     if not comissao:
         return '', ''
     if comissao.modo == 'percentual':
         return comissao.modo, f'{comissao.valor}%'
-    return comissao.modo, f'R$ {comissao.valor}'
+    return comissao.modo, _formatar_regra_brl(comissao.valor)
 
 
 def _calcular_comissao_regra(comissao: Optional[ProfessionalCommission], base: Decimal) -> Decimal:

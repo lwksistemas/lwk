@@ -41,7 +41,7 @@ export function buildPrecosMap(
       map[row.procedure] = Number(row.preco_efetivo) || 0;
       continue;
     }
-    const particular = particularPorId?.[row.procedure] ?? Number(row.preco_particular) || 0;
+    const particular = (particularPorId?.[row.procedure] ?? Number(row.preco_particular)) || 0;
     const modo = row.modo || 'fixo';
     map[row.procedure] = calcularPrecoEfetivo(particular, modo, Number(row.preco) || 0);
   }

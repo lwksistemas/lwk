@@ -41,13 +41,12 @@ import MemedPrescricao, { type MemedPrescricaoHandle } from "./MemedPrescricao";
 
 interface Props {
   consulta: Consulta;
-  slug: string;
   onBack: () => void;
   onSelectConsulta: (c: Consulta) => void;
   onListRefresh: () => void | Promise<void>;
 }
 
-export function ConsultaDetailShell({ consulta, slug, onBack, onSelectConsulta, onListRefresh }: Props) {
+export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onListRefresh }: Props) {
   const [selected, setSelected] = useState(consulta);
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
   const [tab, setTab] = useState<TabId>(consulta.status === "COMPLETED" ? "historico" : "atendimento");

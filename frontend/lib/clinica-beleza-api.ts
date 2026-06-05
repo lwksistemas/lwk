@@ -200,10 +200,26 @@ export interface PrescricaoMemedItem {
   created_at: string;
 }
 
+/** Normaliza resposta da API: array direto ou envelope paginado { results, count }. */
+export function parseClinicaBelezaListResponse<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (data && typeof data === 'object' && 'results' in data) {
+    const results = (data as { results?: unknown }).results;
+    return Array.isArray(results) ? (results as T[]) : [];
+  }
+  return [];
+}
+
 /**
  * Cliente API otimizado com métodos tipados
  */
 export class ClinicaBelezaAPI {
+  /** GET que retorna sempre um array (compatível com paginação opcional). */
+  static async getList<T = unknown>(path: string, params?: Record<string, unknown>): Promise<T[]> {
+    const data = await ClinicaBelezaAPI.get(path, params);
+    return parseClinicaBelezaListResponse<T>(data);
+  }
+
   /**
    * GET request
    */
@@ -294,9 +310,19 @@ export class ClinicaBelezaAPI {
       ClinicaBelezaAPI.put(`/patients/${patientId}/anamnese/`, data),
   };
 
+  static patients = {
+    list: (params?: { active?: boolean; page?: number; page_size?: number }) =>
+      ClinicaBelezaAPI.getList('/patients/', params),
+    get: (id: number) => ClinicaBelezaAPI.get(`/patients/${id}/`),
+    create: (data: Record<string, unknown>) => ClinicaBelezaAPI.post('/patients/', data),
+    update: (id: number, data: Record<string, unknown>) =>
+      ClinicaBelezaAPI.put(`/patients/${id}/`, data),
+    delete: (id: number) => ClinicaBelezaAPI.delete(`/patients/${id}/`),
+  };
+
   static professionals = {
-    list: (params?: { active?: boolean }) =>
-      ClinicaBelezaAPI.get('/professionals/', params),
+    list: (params?: { active?: boolean; with_schedule?: boolean; page?: number; page_size?: number }) =>
+      ClinicaBelezaAPI.getList('/professionals/', params),
     get: (id: number) => ClinicaBelezaAPI.get(`/professionals/${id}/`),
     create: (data: Record<string, unknown>) =>
       ClinicaBelezaAPI.post('/professionals/', data),
@@ -405,8 +431,8 @@ export class ClinicaBelezaAPI {
   };
 
   static protocolos = {
-    list: (params?: { categoria?: string; procedure?: number }) =>
-      ClinicaBelezaAPI.get('/protocolos/', params),
+    list: (params?: { categoria?: string; procedure?: number; page?: number; page_size?: number }) =>
+      ClinicaBelezaAPI.getList('/protocolos/', params),
     get: (id: number) => ClinicaBelezaAPI.get(`/protocolos/${id}/`),
     create: (data: Record<string, unknown>) => ClinicaBelezaAPI.post('/protocolos/', data),
     update: (id: number, data: Record<string, unknown>) =>
@@ -415,8 +441,8 @@ export class ClinicaBelezaAPI {
   };
 
   static procedures = {
-    list: (params?: { categoria?: string; active?: boolean }) =>
-      ClinicaBelezaAPI.get('/procedures/', params),
+    list: (params?: { categoria?: string; active?: boolean; page?: number; page_size?: number }) =>
+      ClinicaBelezaAPI.getList('/procedures/', params),
     get: (id: number) => ClinicaBelezaAPI.get(`/procedures/${id}/`),
     create: (data: Record<string, unknown>) => ClinicaBelezaAPI.post('/procedures/', data),
     update: (id: number, data: Record<string, unknown>) =>
@@ -425,7 +451,8 @@ export class ClinicaBelezaAPI {
   };
 
   static convenios = {
-    list: () => ClinicaBelezaAPI.get<ConvenioItem[]>('/convenios/'),
+    list: (params?: { todos?: boolean; page?: number; page_size?: number }) =>
+      ClinicaBelezaAPI.getList<ConvenioItem>('/convenios/', params),
     get: (id: number) => ClinicaBelezaAPI.get<ConvenioDetailItem>(`/convenios/${id}/`),
     create: (data: { nome: string; codigo?: string }) =>
       ClinicaBelezaAPI.post<ConvenioDetailItem>('/convenios/', data),

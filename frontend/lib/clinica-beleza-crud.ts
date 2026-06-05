@@ -3,18 +3,10 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
+import { clinicaBelezaFetch, parseClinicaBelezaListResponse } from '@/lib/clinica-beleza-api';
 import { isBrowserOffline } from '@/lib/clinica-beleza-offline';
 
-/** Normaliza resposta da API: array direto ou envelope paginado { results, count }. */
-export function parseClinicaBelezaListResponse<T>(data: unknown): T[] {
-  if (Array.isArray(data)) return data as T[];
-  if (data && typeof data === 'object' && 'results' in data) {
-    const results = (data as { results?: unknown }).results;
-    return Array.isArray(results) ? (results as T[]) : [];
-  }
-  return [];
-}
+export { parseClinicaBelezaListResponse };
 
 export async function loadClinicaBelezaList<T>({
   path,

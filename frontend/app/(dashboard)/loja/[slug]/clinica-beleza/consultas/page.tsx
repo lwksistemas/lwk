@@ -77,7 +77,6 @@ export default function ConsultasPage() {
     return (
       <ConsultaDetailShell
         consulta={selected}
-        slug={slug}
         onBack={voltarLista}
         onSelectConsulta={abrirConsulta}
         onListRefresh={loadConsultas}

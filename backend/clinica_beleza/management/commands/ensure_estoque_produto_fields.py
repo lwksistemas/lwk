@@ -90,7 +90,7 @@ class Command(BaseCommand):
                             ))
 
                 ok += 1
-                self.stdout.write(self.style.SUCCESS(f'  OK {loja.slug}'))
+                self.stdout.write(self.style.SUCCESS(f'  OK {loja.slug} ({loja.nome}) db={db_name}'))
             except Exception as e:
                 skip += 1
                 self.stdout.write(self.style.ERROR(f'  ERRO {loja.slug}: {e}'))

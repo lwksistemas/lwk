@@ -48,7 +48,7 @@ class Command(BaseCommand):
             raise CommandError(f'Loja não encontrada para "{ident}".')
         return loja
 
-    def _upsert_comissao(self, db, lid, prof, tipo, proc, modo, valor):
+    def _upsert_comissao(self, db, lid, prof, tipo, proc, modo, valor, local=None):
         from clinica_beleza.models import ProfessionalCommission
 
         defaults = {'modo': modo, 'valor': valor, 'is_active': True}
@@ -58,17 +58,17 @@ class Command(BaseCommand):
                 defaults=defaults,
             )
         else:
-            com = ProfessionalCommission.objects.using(db).filter(
+            lookup = dict(
                 professional=prof, tipo=tipo, procedure__isnull=True, loja_id=lid,
-            ).first()
-            if com:
-                for k, v in defaults.items():
-                    setattr(com, k, v)
-                com.save(using=db)
+            )
+            if local:
+                lookup['local_atendimento'] = local
             else:
-                ProfessionalCommission.objects.using(db).create(
-                    professional=prof, tipo=tipo, procedure=None, loja_id=lid, **defaults,
-                )
+                lookup['local_atendimento__isnull'] = True
+            ProfessionalCommission.objects.using(db).update_or_create(
+                defaults=defaults,
+                **lookup,
+            )
 
     def _limpar_seed(self, db, lid):
         from clinica_beleza.models import (
@@ -119,6 +119,9 @@ class Command(BaseCommand):
         set_current_loja_id(lid)
         set_current_tenant_db(db)
 
+        from django.core.management import call_command
+        call_command('ensure_professional_commission_local', slug=loja.slug or options['slug'])
+
         if options['reset']:
             self.stdout.write(self.style.WARNING('Reset do seed comissões diverso…'))
             self._limpar_seed(db, lid)
@@ -157,14 +160,14 @@ class Command(BaseCommand):
             self.stdout.write(f'   • {nome}: R$ {valor}')
 
         # ── Profissionais (reutiliza existentes ou cria) ──
-        profissionais_cfg = [
-            ('Dra. Teste Fixa Consulta', 'Estética', 'prof.fixa' + SEED_TAG, 'consulta', 'fixo', Decimal('100')),
-            ('Dr. Teste % Consulta', 'Dermatologia', 'prof.pct' + SEED_TAG, 'consulta', 'percentual', Decimal('35')),
-            ('Dra. Teste Mista', 'Biomédica', 'prof.mista' + SEED_TAG, 'consulta', 'fixo', Decimal('80')),
+        profissionais_data = [
+            ('Dra. Teste Fixa Consulta', 'Estética', 'prof.fixa' + SEED_TAG),
+            ('Dr. Teste % Consulta', 'Dermatologia', 'prof.pct' + SEED_TAG),
+            ('Dra. Teste Mista', 'Biomédica', 'prof.mista' + SEED_TAG),
         ]
         profissionais = []
-        self.stdout.write('\nProfissionais (regra de consulta):')
-        for nome, esp, email, tipo_c, modo_c, valor_c in profissionais_cfg:
+        self.stdout.write('\nProfissionais:')
+        for nome, esp, email in profissionais_data:
             prof, _ = Professional.objects.using(db).update_or_create(
                 email=email, loja_id=lid,
                 defaults={
@@ -180,9 +183,8 @@ class Command(BaseCommand):
                         'hora_saida': datetime.strptime('18:00', '%H:%M').time(),
                     },
                 )
-            self._upsert_comissao(db, lid, prof, tipo_c, None, modo_c, valor_c)
             profissionais.append(prof)
-            self.stdout.write(f'   • {nome}: consulta {modo_c} {valor_c}')
+            self.stdout.write(f'   • {nome}')
 
         # Fallback: profissionais já cadastrados na loja
         if len(profissionais) < 3:
@@ -192,6 +194,31 @@ class Command(BaseCommand):
             for p in extras:
                 if p not in profissionais:
                     profissionais.append(p)
+
+        dra_fixa = next((p for p in profissionais if 'Fixa' in p.nome), None)
+        dr_pct = next((p for p in profissionais if '%' in p.nome), None)
+        dra_mista = next((p for p in profissionais if 'Mista' in p.nome), None)
+
+        self.stdout.write('\nRegras de comissão — consulta:')
+        if dra_fixa:
+            self._upsert_comissao(db, lid, dra_fixa, 'consulta', None, 'fixo', Decimal('100'))
+            self.stdout.write('   • Dra. Teste Fixa: consulta geral R$ 100 fixo')
+        if dra_mista:
+            self._upsert_comissao(db, lid, dra_mista, 'consulta', None, 'fixo', Decimal('80'))
+            self.stdout.write('   • Dra. Teste Mista: consulta geral R$ 80 fixo')
+        if dr_pct:
+            ProfessionalCommission.objects.using(db).filter(
+                professional=dr_pct, tipo='consulta', loja_id=lid,
+            ).delete()
+            for idx, local in enumerate(locais):
+                if idx % 2 == 0:
+                    modo, valor = 'percentual', Decimal(str(20 + (idx % 6) * 5))
+                else:
+                    modo, valor = 'fixo', Decimal(str(80 + idx * 12))
+                self._upsert_comissao(
+                    db, lid, dr_pct, 'consulta', None, modo, valor, local,
+                )
+                self.stdout.write(f'   • Dr. Teste % @ {local.nome}: {modo} {valor}')
 
         # ── 30 procedimentos ──
         categorias = ['Facial', 'Corporal', 'Estética', 'Soroterapia', 'Capilar', 'Depilação']
@@ -305,7 +332,7 @@ class Command(BaseCommand):
                     Payment.objects.using(db).create(
                         appointment=appointment,
                         amount=valor_total,
-                        payment_method='PIX' if dia_offset % 2 else 'CARTAO',
+                        payment_method=['PIX', 'CREDIT_CARD', 'DEBIT_CARD', 'CASH'][dia_offset % 4],
                         status='PAID',
                         payment_date=dt + timedelta(minutes=20),
                         comissao_percentual=0,
@@ -319,11 +346,12 @@ class Command(BaseCommand):
                     f'{procs_txt} — total R$ {valor_total}'
                 )
 
+            prof_dez_locais = dr_pct or profissionais[0]
             for i in range(10):
-                prof = profissionais[i % len(profissionais)]
+                prof = prof_dez_locais
                 paciente = pacientes[i % len(pacientes)]
                 local = locais[i]
-                procs = procedimentos[i * 3:(i + 1) * 3]
+                procs = [procedimentos[i % len(procedimentos)]]
                 criar_atendimento(i + 1, horas[i], prof, paciente, local, procs)
 
         url_slug = (loja.atalho or loja.slug or '').strip()

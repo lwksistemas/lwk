@@ -116,16 +116,48 @@ def _alocar_valores_pagamento(
 
 
 def _regras_profissional(professional_id: int) -> dict:
-    consulta = ProfessionalCommission.objects.filter(
+    consulta_geral = None
+    consultas_local = {}
+    for c in ProfessionalCommission.objects.filter(
         professional_id=professional_id, tipo='consulta', is_active=True,
-    ).first()
+    ).select_related('local_atendimento'):
+        if c.local_atendimento_id:
+            consultas_local[c.local_atendimento_id] = c
+        elif consulta_geral is None:
+            consulta_geral = c
     proc_map = {}
     for c in ProfessionalCommission.objects.filter(
         professional_id=professional_id, tipo='procedimento', is_active=True,
     ):
         if c.procedure_id:
             proc_map[c.procedure_id] = c
-    return {'consulta': consulta, 'procedimentos': proc_map}
+    return {
+        'consulta': consulta_geral,
+        'consultas_local': consultas_local,
+        'procedimentos': proc_map,
+    }
+
+
+def _resolver_regra_consulta(regras: dict, local_id: Optional[int]):
+    """Prioridade: regra do local > regra geral de consulta."""
+    if local_id:
+        regra = regras.get('consultas_local', {}).get(local_id)
+        if regra:
+            return regra
+    return regras.get('consulta')
+
+
+def _label_forma_pagamento(method: str) -> str:
+    labels = {
+        'PIX': 'PIX',
+        'CASH': 'Dinheiro',
+        'CREDIT_CARD': 'Cartão de crédito',
+        'DEBIT_CARD': 'Cartão de débito',
+        'TRANSFER': 'Transferência',
+        'CARTAO': 'Cartão',
+        'DINHEIRO': 'Dinheiro',
+    }
+    return labels.get((method or '').upper(), method or '—')
 
 
 def _obter_ou_criar_detalhe(entry: dict, chave: str, defaults: dict) -> dict:
@@ -197,7 +229,9 @@ def calcular_comissoes(
         if prof_id not in regras_cache:
             regras_cache[prof_id] = _regras_profissional(prof_id)
         regras = regras_cache[prof_id]
-        regra_consulta = regras['consulta']
+        local_id = consulta.local_atendimento_id
+        regra_consulta = _resolver_regra_consulta(regras, local_id)
+        forma_pagamento = _label_forma_pagamento(getattr(payment, 'payment_method', '') or '')
 
         comissao_consulta = _calcular_comissao_regra(regra_consulta, vc)
         comissao_procedimentos = Decimal('0')
@@ -209,7 +243,6 @@ def calcular_comissoes(
         comissao_total = comissao_consulta + comissao_procedimentos
 
         if prof_id not in prof_data:
-            modo_c, regra_c = _formatar_regra(regra_consulta)
             prof_data[prof_id] = {
                 'professional_id': prof_id,
                 'nome': prof_nome,
@@ -220,11 +253,8 @@ def calcular_comissoes(
                 'comissao_consulta': Decimal('0'),
                 'comissao_procedimento': Decimal('0'),
                 'comissao_total': Decimal('0'),
-                'comissao_consulta_regra': {
-                    'modo': modo_c,
-                    'regra': regra_c,
-                    'valor': float(regra_consulta.valor) if regra_consulta else 0,
-                } if regra_consulta else None,
+                'comissao_consulta_regra': None,
+                'comissao_consulta_regras_por_local': [],
                 'detalhes': [],
             }
 
@@ -239,10 +269,11 @@ def calcular_comissoes(
 
         modo_cc, regra_cc = _formatar_regra(regra_consulta)
         if vc > 0 or comissao_consulta > 0 or regra_consulta:
-            chave_consulta = f'{local_nome}||{CHAVE_CONSULTA}'
+            chave_consulta = f'{local_nome}||{forma_pagamento}||{CHAVE_CONSULTA}'
             det_consulta = _obter_ou_criar_detalhe(entry, chave_consulta, {
                 'tipo_linha': 'consulta',
                 'local_nome': local_nome,
+                'forma_pagamento': forma_pagamento,
                 'procedimento_nome': LABEL_CONSULTA,
                 'procedimento_id': None,
                 'vinculado_consulta': True,
@@ -298,10 +329,28 @@ def calcular_comissoes(
 
     profissionais = []
     for entry in prof_data.values():
+        regras_por_local = {}
+        for detalhe in entry['detalhes']:
+            if detalhe.get('tipo_linha') == 'consulta' or detalhe.get('procedimento_nome') == LABEL_CONSULTA:
+                ln = detalhe.get('local_nome') or 'Geral'
+                if detalhe.get('regra_consulta'):
+                    regras_por_local[ln] = {
+                        'local_nome': ln,
+                        'modo': detalhe.get('modo_consulta', ''),
+                        'regra': detalhe.get('regra_consulta', ''),
+                    }
+        entry['comissao_consulta_regras_por_local'] = list(regras_por_local.values())
+        if len(regras_por_local) == 1:
+            unica = next(iter(regras_por_local.values()))
+            entry['comissao_consulta_regra'] = {
+                'modo': unica['modo'],
+                'regra': unica['regra'],
+                'valor': 0,
+            }
         for detalhe in entry['detalhes']:
             del detalhe['_chave']
         entry['detalhes'].sort(
-            key=lambda d: (0 if d['procedimento_nome'] == LABEL_CONSULTA else 1, d['procedimento_nome']),
+            key=lambda d: (0 if d['procedimento_nome'] == LABEL_CONSULTA else 1, d['local_nome'], d['procedimento_nome']),
         )
         profissionais.append(entry)
 

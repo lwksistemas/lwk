@@ -256,20 +256,24 @@ def gerar_pdf_comissoes(
 
             elements.extend(_tabela_mini(
                 'Consultas',
-                ['Local', 'Qtd', 'Valor consulta', 'Comissão consulta'],
+                ['Local', 'Pagamento', 'Qtd', 'Valor consulta', 'Regra', 'Comissão consulta'],
                 [
                     [
                         d.get('local_nome') or '—',
+                        d.get('forma_pagamento') or '—',
                         str(d.get('qtd', 0)),
                         _fmt_brl(d.get('valor_consulta')),
+                        d.get('regra_consulta') or '—',
                         _fmt_brl(d.get('comissao_consulta')),
                     ]
                     for d in linhas_c
                 ],
                 footer=[
                     'Subtotal',
+                    '',
                     str(p.get('total_atendimentos', 0)),
                     _fmt_brl(p.get('valor_consulta')),
+                    '',
                     _fmt_brl(p.get('comissao_consulta')),
                 ] if linhas_c else None,
             ))

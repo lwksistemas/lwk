@@ -12,7 +12,7 @@ import { ArrowLeft, Save, Trash2, Plus } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, clinicaBelezaFetch, LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
 import { formatTelefone, formatCpf } from "@/lib/format-br";
 import { formatProfissionalApiErrors } from "@/lib/clinica-beleza-form-errors";
 import { logger } from "@/lib/logger";
@@ -31,7 +31,16 @@ const CONSELHOS = [
 ];
 
 interface Procedure { id: number; nome: string; preco?: number; }
-interface Commission { id?: number; tipo: string; modo: string; valor: string; procedure?: number | null; procedure_name?: string; }
+interface Commission {
+  id?: number;
+  tipo: string;
+  modo: string;
+  valor: string;
+  procedure?: number | null;
+  procedure_name?: string;
+  local_atendimento?: number | null;
+  local_atendimento_nome?: string;
+}
 
 const inputClass = "w-full px-3 py-2 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100";
 const labelClass = "block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1";
@@ -50,7 +59,9 @@ export default function NovoProfissionalPage() {
     criar_acesso: false, perfil: "profissional" as PerfilAcesso,
   });
   const [comissoes, setComissoes] = useState<Commission[]>([]);
-  const [comissaoConsulta, setComissaoConsulta] = useState({ modo: "percentual", valor: "" });
+  const [comissaoConsultaGeral, setComissaoConsultaGeral] = useState({ modo: "percentual", valor: "" });
+  const [comissoesConsultaLocal, setComissoesConsultaLocal] = useState<Commission[]>([]);
+  const [locais, setLocais] = useState<LocalAtendimentoItem[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -62,6 +73,9 @@ export default function NovoProfissionalPage() {
   useEffect(() => {
     ClinicaBelezaAPI.get<Procedure[]>("/procedures/").then((data) => {
       setProcedures(Array.isArray(data) ? data : []);
+    }).catch(() => {});
+    ClinicaBelezaAPI.locaisAtendimento.list().then((data) => {
+      setLocais(Array.isArray(data) ? data : []);
     }).catch(() => {});
   }, []);
 
@@ -100,13 +114,24 @@ export default function NovoProfissionalPage() {
                 }))
             : []
         );
-        // Comissão da consulta (tipo=consulta)
-        const consultaComissao = Array.isArray(comissoesData)
-          ? comissoesData.find((c: any) => c.tipo === "consulta")
-          : null;
-        if (consultaComissao) {
-          setComissaoConsulta({ modo: consultaComissao.modo, valor: String(consultaComissao.valor) });
+        const consultasComissao = Array.isArray(comissoesData)
+          ? comissoesData.filter((c: any) => c.tipo === "consulta")
+          : [];
+        const geral = consultasComissao.find((c: any) => !c.local_atendimento);
+        if (geral) {
+          setComissaoConsultaGeral({ modo: geral.modo, valor: String(geral.valor) });
         }
+        setComissoesConsultaLocal(
+          consultasComissao
+            .filter((c: any) => c.local_atendimento)
+            .map((c: any) => ({
+              tipo: "consulta",
+              modo: c.modo,
+              valor: String(c.valor),
+              local_atendimento: c.local_atendimento,
+              local_atendimento_nome: c.local_atendimento_nome,
+            })),
+        );
       } catch (e) {
         logger.warn("Erro ao carregar profissional:", e);
         setError("Erro ao carregar dados do profissional.");
@@ -119,6 +144,18 @@ export default function NovoProfissionalPage() {
   // Comissões helpers
   const addComissao = () => {
     setComissoes((prev) => [...prev, { tipo: "procedimento", modo: "percentual", valor: "", procedure: null }]);
+  };
+  const addComissaoConsultaLocal = () => {
+    setComissoesConsultaLocal((prev) => [
+      ...prev,
+      { tipo: "consulta", modo: "percentual", valor: "", local_atendimento: null },
+    ]);
+  };
+  const removeComissaoConsultaLocal = (idx: number) => {
+    setComissoesConsultaLocal((prev) => prev.filter((_, i) => i !== idx));
+  };
+  const updateComissaoConsultaLocal = (idx: number, field: string, value: string | number | null) => {
+    setComissoesConsultaLocal((prev) => prev.map((c, i) => (i === idx ? { ...c, [field]: value } : c)));
   };
   const removeComissao = (idx: number) => {
     setComissoes((prev) => prev.filter((_, i) => i !== idx));
@@ -174,14 +211,25 @@ export default function NovoProfissionalPage() {
       // Salvar comissões
       if (profId) {
         const payload: any[] = [];
-        // Comissão da consulta
-        if (comissaoConsulta.valor && Number(comissaoConsulta.valor) > 0) {
+        if (comissaoConsultaGeral.valor && Number(comissaoConsultaGeral.valor) > 0) {
           payload.push({
             tipo: "consulta",
-            modo: comissaoConsulta.modo,
-            valor: comissaoConsulta.valor,
+            modo: comissaoConsultaGeral.modo,
+            valor: comissaoConsultaGeral.valor,
             procedure: null,
+            local_atendimento: null,
           });
+        }
+        for (const c of comissoesConsultaLocal) {
+          if (c.valor && Number(c.valor) > 0 && c.local_atendimento) {
+            payload.push({
+              tipo: "consulta",
+              modo: c.modo,
+              valor: c.valor,
+              procedure: null,
+              local_atendimento: c.local_atendimento,
+            });
+          }
         }
         // Comissões por procedimento
         for (const c of comissoes) {
@@ -303,31 +351,79 @@ export default function NovoProfissionalPage() {
           <section className="bg-white dark:bg-neutral-800 rounded-xl border dark:border-neutral-700 p-5 space-y-5">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Comissões</h3>
 
-            {/* Comissão da consulta (atendimento geral) */}
-            <div className="bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800/40 rounded-lg p-4 space-y-3">
-              <p className="text-xs font-semibold text-purple-800 dark:text-purple-300">Comissão da Consulta (atendimento)</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Valor que o profissional recebe por cada consulta realizada, independente do procedimento.
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-32">
-                  <select value={comissaoConsulta.modo} onChange={(e) => setComissaoConsulta((c) => ({ ...c, modo: e.target.value }))} className={inputClass}>
-                    <option value="percentual">% do valor</option>
-                    <option value="fixo">R$ fixo</option>
-                  </select>
+            <div className="bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800/40 rounded-lg p-4 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-purple-800 dark:text-purple-300">Comissão da consulta — padrão (todos os locais)</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Usada quando não houver regra específica para o local do atendimento.
+                </p>
+                <div className="flex flex-wrap items-center gap-3 mt-2">
+                  <div className="w-32">
+                    <select value={comissaoConsultaGeral.modo} onChange={(e) => setComissaoConsultaGeral((c) => ({ ...c, modo: e.target.value }))} className={inputClass}>
+                      <option value="percentual">% do valor</option>
+                      <option value="fixo">R$ fixo</option>
+                    </select>
+                  </div>
+                  <div className="w-28">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={comissaoConsultaGeral.valor}
+                      onChange={(e) => setComissaoConsultaGeral((c) => ({ ...c, valor: e.target.value }))}
+                      className={inputClass}
+                      placeholder={comissaoConsultaGeral.modo === "percentual" ? "30" : "150.00"}
+                    />
+                  </div>
                 </div>
-                <div className="w-28">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={comissaoConsulta.valor}
-                    onChange={(e) => setComissaoConsulta((c) => ({ ...c, valor: e.target.value }))}
-                    className={inputClass}
-                    placeholder={comissaoConsulta.modo === "percentual" ? "30" : "150.00"}
-                  />
+              </div>
+              <div className="border-t border-purple-200/60 dark:border-purple-800/40 pt-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-purple-800 dark:text-purple-300">Comissão por local de atendimento</p>
+                  <button type="button" onClick={addComissaoConsultaLocal} className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline">
+                    <Plus size={14} /> Adicionar local
+                  </button>
                 </div>
-                <span className="text-xs text-gray-500">{comissaoConsulta.modo === "percentual" ? "% do valor da consulta" : "reais por consulta"}</span>
+                {comissoesConsultaLocal.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">Ex.: Moema 35%, Sala VIP R$ 200 fixo.</p>
+                ) : (
+                  comissoesConsultaLocal.map((c, idx) => (
+                    <div key={idx} className="flex flex-wrap items-center gap-2 bg-white/60 dark:bg-neutral-800/40 rounded-lg px-3 py-2.5">
+                      <div className="flex-1 min-w-[160px]">
+                        <select
+                          value={c.local_atendimento ?? ""}
+                          onChange={(e) => updateComissaoConsultaLocal(idx, "local_atendimento", e.target.value ? Number(e.target.value) : null)}
+                          className={inputClass}
+                        >
+                          <option value="">Local...</option>
+                          {locais.map((l) => (
+                            <option key={l.id} value={l.id}>{l.nome}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="w-28">
+                        <select value={c.modo} onChange={(e) => updateComissaoConsultaLocal(idx, "modo", e.target.value)} className={inputClass}>
+                          <option value="percentual">%</option>
+                          <option value="fixo">R$</option>
+                        </select>
+                      </div>
+                      <div className="w-24">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={c.valor}
+                          onChange={(e) => updateComissaoConsultaLocal(idx, "valor", e.target.value)}
+                          className={inputClass}
+                          placeholder={c.modo === "percentual" ? "35" : "200"}
+                        />
+                      </div>
+                      <button type="button" onClick={() => removeComissaoConsultaLocal(idx)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded" aria-label="Remover">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

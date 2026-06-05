@@ -8,6 +8,7 @@ from clinica_beleza.comissao_relatorio_service import (
     _calcular_comissao_regra,
     _formatar_regra,
     _procedimentos_vinculados_consulta,
+    _resolver_regra_consulta,
 )
 
 
@@ -28,6 +29,17 @@ class ComissaoRelatorioHelpersTest(TestCase):
         modo, regra = _formatar_regra(_comissao('fixo', '85'))
         self.assertEqual(modo, 'fixo')
         self.assertEqual(regra, 'R$ 85,00')
+
+    def test_resolver_regra_consulta_prioriza_local(self):
+        regra_local = _comissao('fixo', '200')
+        regra_geral = _comissao('percentual', '35')
+        regras = {
+            'consulta': regra_geral,
+            'consultas_local': {10: regra_local},
+            'procedimentos': {},
+        }
+        self.assertIs(_resolver_regra_consulta(regras, 10), regra_local)
+        self.assertIs(_resolver_regra_consulta(regras, 99), regra_geral)
 
     def test_comissao_fixo_independe_da_base(self):
         val = _calcular_comissao_regra(_comissao('fixo', '100'), Decimal('0'))

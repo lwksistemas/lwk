@@ -160,19 +160,39 @@ class ProfessionalSerializer(serializers.ModelSerializer):
 class ProfessionalCommissionSerializer(serializers.ModelSerializer):
     """Serializer para comissões dos profissionais."""
     procedure_name = serializers.CharField(source='procedure.nome', read_only=True, default=None)
+    local_atendimento_nome = serializers.CharField(
+        source='local_atendimento.nome', read_only=True, default=None,
+    )
     valor_display = serializers.CharField(read_only=True)
 
     class Meta:
         model = ProfessionalCommission
         fields = [
             'id', 'professional', 'tipo', 'modo', 'valor', 'procedure',
-            'procedure_name', 'valor_display', 'is_active',
+            'procedure_name', 'local_atendimento', 'local_atendimento_nome',
+            'valor_display', 'is_active',
         ]
         read_only_fields = ['id']
         extra_kwargs = {
             'professional': {'required': False},
             'procedure': {'required': False, 'allow_null': True},
+            'local_atendimento': {'required': False, 'allow_null': True},
         }
+
+    def validate(self, attrs):
+        tipo = attrs.get('tipo')
+        procedure = attrs.get('procedure')
+        local = attrs.get('local_atendimento')
+        if tipo == 'procedimento':
+            if not procedure:
+                raise serializers.ValidationError({'procedure': 'Procedimento obrigatório.'})
+            if local:
+                raise serializers.ValidationError(
+                    {'local_atendimento': 'Não use local em comissão de procedimento.'},
+                )
+        elif tipo == 'consulta' and procedure:
+            raise serializers.ValidationError({'procedure': 'Consulta não vincula procedimento.'})
+        return attrs
 
 
 class ProcedureSerializer(serializers.ModelSerializer):

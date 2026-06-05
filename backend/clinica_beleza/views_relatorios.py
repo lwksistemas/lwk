@@ -42,6 +42,7 @@ def _serialize_detalhe(d: dict) -> dict:
         'regra_consulta': d.get('regra_consulta', ''),
         'modo_procedimento': d.get('modo_procedimento', ''),
         'regra_procedimento': d.get('regra_procedimento', ''),
+        'forma_pagamento': d.get('forma_pagamento', ''),
     }
 
 
@@ -57,6 +58,7 @@ def _serialize_profissional(p: dict) -> dict:
         'comissao_procedimento': _float_or_zero(p.get('comissao_procedimento')),
         'comissao_total': _float_or_zero(p.get('comissao_total')),
         'comissao_consulta_regra': _serialize_regra(p.get('comissao_consulta_regra')),
+        'comissao_consulta_regras_por_local': p.get('comissao_consulta_regras_por_local') or [],
         'detalhes': [_serialize_detalhe(d) for d in p['detalhes']],
     }
 

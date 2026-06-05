@@ -194,7 +194,10 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
         valor = Decimal(str(valor))
 
     # Resolver comissão do profissional
-    comissao_pct, comissao_val = _resolver_comissao(appointment.professional, appointment.procedure, valor)
+    local_id = consulta.local_atendimento_id if consulta else None
+    comissao_pct, comissao_val = _resolver_comissao(
+        appointment.professional, appointment.procedure, valor, local_id,
+    )
 
     if not payment:
         return Payment.objects.create(
@@ -224,10 +227,10 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
     return payment
 
 
-def _resolver_comissao(professional, procedure, valor_pagamento):
+def _resolver_comissao(professional, procedure, valor_pagamento, local_atendimento_id=None):
     """
     Resolve a comissão aplicável ao profissional para este atendimento.
-    Prioridade: comissão por procedimento > comissão por consulta (geral).
+    Prioridade: procedimento > consulta por local > consulta geral.
     Retorna (percentual: int, valor: Decimal).
     """
     from .models import ProfessionalCommission
@@ -246,10 +249,22 @@ def _resolver_comissao(professional, procedure, valor_pagamento):
         if comissao:
             return _calcular_comissao(comissao, valor_pagamento)
 
-    # 2. Comissão geral por consulta
+    # 2. Comissão por consulta no local
+    if local_atendimento_id:
+        comissao = ProfessionalCommission.objects.filter(
+            professional=professional,
+            tipo='consulta',
+            local_atendimento_id=local_atendimento_id,
+            is_active=True,
+        ).first()
+        if comissao:
+            return _calcular_comissao(comissao, valor_pagamento)
+
+    # 3. Comissão geral por consulta
     comissao = ProfessionalCommission.objects.filter(
         professional=professional,
         tipo='consulta',
+        local_atendimento__isnull=True,
         is_active=True,
     ).first()
     if comissao:

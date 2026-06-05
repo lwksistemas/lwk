@@ -139,7 +139,15 @@ class ProfessionalCommission(LojaIsolationMixin, models.Model):
         null=True, blank=True,
         related_name='comissoes',
         verbose_name='Procedimento',
-        help_text='Obrigatório quando tipo = procedimento. Vazio = comissão geral por consulta.',
+        help_text='Obrigatório quando tipo = procedimento. Vazio em consulta.',
+    )
+    local_atendimento = models.ForeignKey(
+        'LocalAtendimento',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='comissoes',
+        verbose_name='Local de atendimento',
+        help_text='Quando tipo = consulta: regra só para este local. Vazio = regra geral.',
     )
     is_active = models.BooleanField(default=True, verbose_name='Ativo')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -157,7 +165,9 @@ class ProfessionalCommission(LojaIsolationMixin, models.Model):
     def __str__(self):
         if self.tipo == 'procedimento' and self.procedure:
             return f"{self.professional.nome} — {self.procedure.nome}: {self.valor_display}"
-        return f"{self.professional.nome} — Consulta: {self.valor_display}"
+        if self.local_atendimento_id:
+            return f"{self.professional.nome} — Consulta ({self.local_atendimento.nome}): {self.valor_display}"
+        return f"{self.professional.nome} — Consulta (geral): {self.valor_display}"
 
     @property
     def valor_display(self):

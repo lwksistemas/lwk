@@ -12,8 +12,15 @@ interface RegraComissao {
   valor: number;
 }
 
+interface RegraConsultaLocal {
+  local_nome: string;
+  modo: string;
+  regra: string;
+}
+
 interface DetalheComissao {
   local_nome: string;
+  forma_pagamento?: string;
   procedimento_nome: string;
   tipo_linha?: 'consulta' | 'procedimento';
   qtd: number;
@@ -39,6 +46,7 @@ interface ProfissionalComissao {
   comissao_procedimento: number;
   comissao_total: number;
   comissao_consulta_regra: RegraComissao | null;
+  comissao_consulta_regras_por_local?: RegraConsultaLocal[];
   detalhes: DetalheComissao[];
 }
 
@@ -189,29 +197,40 @@ function BlocoProfissional({
             </span>
           )}
         </p>
-        {p.comissao_consulta_regra?.regra && (
+        {(p.comissao_consulta_regras_por_local?.length ?? 0) > 0 ? (
+          <ul className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
+            {p.comissao_consulta_regras_por_local!.map((r) => (
+              <li key={r.local_nome}>
+                <span className="font-medium text-gray-600 dark:text-gray-300">{r.local_nome}:</span>{' '}
+                <RegraTexto modo={r.modo} regra={r.regra} />
+              </li>
+            ))}
+          </ul>
+        ) : p.comissao_consulta_regra?.regra ? (
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Regra da consulta:{' '}
             <RegraTexto modo={p.comissao_consulta_regra.modo} regra={p.comissao_consulta_regra.regra} />
           </p>
-        )}
+        ) : null}
       </header>
 
       <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <MiniTabela
           titulo="Consultas"
-          colunas={['Local', 'Qtd', 'Valor consulta (R$)', 'Regra', 'Comissão consulta (R$)']}
+          colunas={['Local', 'Pagamento', 'Qtd', 'Valor consulta (R$)', 'Regra', 'Comissão consulta (R$)']}
           linhas={linhasConsulta.map((d) => [
             d.local_nome || '—',
+            d.forma_pagamento || '—',
             d.qtd,
             formatCurrency(d.valor_consulta),
-            d.regra_consulta || p.comissao_consulta_regra?.regra || '—',
+            d.regra_consulta || '—',
             formatCurrency(d.comissao_consulta),
           ])}
           rodape={
             linhasConsulta.length > 0
               ? [
                   'Subtotal',
+                  '',
                   p.total_atendimentos,
                   formatCurrency(p.valor_consulta),
                   '',

@@ -23,7 +23,11 @@ from .documentos import (
     DocumentTemplateSerializer,
     ProntuarioSectionSerializer,
 )
-from .estoque import MovimentacaoEstoqueSerializer, ProdutoEstoqueSerializer
+from .estoque import (
+    ConsultaProdutoUtilizadoSerializer,
+    MovimentacaoEstoqueSerializer,
+    ProdutoEstoqueSerializer,
+)
 from .financeiro import PaymentSerializer
 from .patients import PatientAnamneseSerializer, PatientSerializer
 from .procedures import ProcedureProtocolSerializer, ProcedureSerializer
@@ -50,6 +54,7 @@ __all__ = [
     'DocumentTemplateSerializer',
     'HorarioTrabalhoProfissionalSerializer',
     'LocalAtendimentoSerializer',
+    'ConsultaProdutoUtilizadoSerializer',
     'MovimentacaoEstoqueSerializer',
     'PatientAnamneseSerializer',
     'PatientSerializer',

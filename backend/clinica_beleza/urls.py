@@ -24,6 +24,7 @@ from .views_consultas import (
     ConsultaIniciarView, ConsultaFinalizarView,
     PatientAnamneseView, ConsultaEvolucaoListView, PatientHistoricoConsultasView,
     ConsultaPrescricaoView, PatientPrescricaoView,
+    ConsultaProdutoListView, ConsultaProdutoDetailView,
 )
 from .views_estoque import (
     ProdutoEstoqueListView, ProdutoEstoqueDetailView,
@@ -77,6 +78,8 @@ urlpatterns = [
     path('consultas/<int:pk>/aplicar-protocolo/', ConsultaAplicarProtocoloView.as_view(), name='consultas-aplicar-protocolo'),
     path('consultas/<int:consulta_id>/evolucoes/', ConsultaEvolucaoListView.as_view(), name='consultas-evolucoes'),
     path('consultas/<int:consulta_id>/prescricoes/', ConsultaPrescricaoView.as_view(), name='consultas-prescricoes'),
+    path('consultas/<int:consulta_id>/produtos/', ConsultaProdutoListView.as_view(), name='consultas-produtos'),
+    path('consultas/<int:consulta_id>/produtos/<int:pk>/', ConsultaProdutoDetailView.as_view(), name='consultas-produtos-detail'),
 
     # Locais de atendimento
     path('locais-atendimento/', LocalAtendimentoListView.as_view(), name='locais-atendimento-list'),

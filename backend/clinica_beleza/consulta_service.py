@@ -307,8 +307,11 @@ def iniciar_consulta(consulta):
 def finalizar_consulta(consulta, *, payment_method=None, mark_as_paid=False, amount=None):
     """
     Finaliza consulta clínica: agenda → COMPLETED, consulta concluída e lançamento financeiro.
+    Baixa produtos do estoque registrados na consulta.
     """
+    from django.db import transaction
     from rules.base import MotorRegras
+    from .estoque_service import baixar_produtos_consulta
 
     appointment = consulta.appointment
     old_status = appointment.status
@@ -337,6 +340,9 @@ def finalizar_consulta(consulta, *, payment_method=None, mark_as_paid=False, amo
         raise ValueError('Inicie a consulta antes de finalizar.')
 
     ts = now()
+
+    with transaction.atomic():
+        baixar_produtos_consulta(consulta)
 
     appointment.status = 'COMPLETED'
     appointment.version = (appointment.version or 1) + 1

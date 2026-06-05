@@ -8,7 +8,7 @@ from .patients import Patient, PatientAnamnese
 from .professionals import Professional, ProfessionalCommission, HorarioTrabalhoProfissional
 from .appointments import Appointment, AppointmentProcedure, BloqueioHorario
 from .financeiro import Payment, CampanhaPromocao
-from .estoque import ProdutoEstoque, MovimentacaoEstoque
+from .estoque import ProdutoEstoque, MovimentacaoEstoque, ConsultaProdutoUtilizado
 from .consultas import Consulta, PrescricaoMemed, ConsultaEvolucao, MemedTimbrado
 from .documentos import DocumentTemplate, DocumentoClinico
 
@@ -30,6 +30,7 @@ __all__ = [
     'CampanhaPromocao',
     'ProdutoEstoque',
     'MovimentacaoEstoque',
+    'ConsultaProdutoUtilizado',
     'Consulta',
     'PrescricaoMemed',
     'ConsultaEvolucao',

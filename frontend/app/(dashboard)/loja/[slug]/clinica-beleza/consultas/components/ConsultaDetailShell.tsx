@@ -13,6 +13,7 @@ import {
   Pill,
   FlaskConical,
   Trash2,
+  Package,
 } from "lucide-react";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
@@ -30,6 +31,7 @@ import {
   EMPTY_ANAMNESE,
 } from "./consultas-types";
 import { ConsultaAtendimentoTab } from "./ConsultaAtendimentoTab";
+import { ConsultaProdutosTab } from "./ConsultaProdutosTab";
 import { ConsultaAnamneseTab } from "./ConsultaAnamneseTab";
 import { ConsultaEvolucaoTab } from "./ConsultaEvolucaoTab";
 import { ConsultaHistoricoTab } from "./ConsultaHistoricoTab";
@@ -234,7 +236,8 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
         payment_method: finalizarForm.payment_method,
         mark_as_paid: finalizarForm.mark_as_paid,
         amount: finalizarForm.amount || selected.valor_consulta,
-      });
+      }) as Consulta & { error?: string };
+      if (updated?.error) throw new Error(updated.error);
       setSelected({ ...selected, ...updated });
       setShowFinalizarModal(false);
       await onListRefresh();
@@ -291,13 +294,16 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
 
   const tabs: { id: TabId; label: string; icon: typeof FileText }[] = [
     { id: "atendimento", label: "Atendimento", icon: ClipboardList },
+    { id: "produtos", label: "Produtos", icon: Package },
     { id: "documentos", label: "Documentos", icon: FolderOpen },
     { id: "anamnese", label: "Anamnese", icon: FileText },
     { id: "evolucao", label: "Evolução", icon: Activity },
     { id: "historico", label: "Histórico", icon: History },
   ];
 
-  const visibleTabs = consultaFinalizada ? tabs.filter((t) => t.id === "historico") : tabs;
+  const visibleTabs = consultaFinalizada
+    ? tabs.filter((t) => t.id === "historico" || t.id === "produtos")
+    : tabs;
 
   const resetTabEdits = () => {
     setEditAtendimento(false);
@@ -410,6 +416,12 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
             </div>
           ) : (
             <>
+              {tab === "produtos" && (
+                <ConsultaProdutosTab
+                  consultaId={selected.id}
+                  somenteLeitura={consultaFinalizada}
+                />
+              )}
               {tab === "atendimento" && (
                 <ConsultaAtendimentoTab
                   protocolos={consultaFinalizada ? [] : protocolos}

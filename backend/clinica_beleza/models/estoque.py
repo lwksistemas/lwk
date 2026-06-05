@@ -41,6 +41,9 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
     preco_venda = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Preço de venda (R$)")
     validade = models.DateField(null=True, blank=True, verbose_name="Data de validade")
     lote = models.CharField(max_length=50, blank=True, default='', verbose_name="Lote")
+    numero_nota = models.CharField(
+        max_length=50, blank=True, default='', verbose_name="Número da nota fiscal",
+    )
     observacoes = models.TextField(blank=True, default='', verbose_name="Observações")
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
@@ -93,5 +96,37 @@ class MovimentacaoEstoque(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.produto.nome} ({self.quantidade})"
+
+
+class ConsultaProdutoUtilizado(LojaIsolationMixin, models.Model):
+    """Produto do estoque utilizado em uma consulta (baixa ao finalizar)."""
+    consulta = models.ForeignKey(
+        'Consulta',
+        on_delete=models.CASCADE,
+        related_name='produtos_estoque',
+        verbose_name='Consulta',
+    )
+    produto = models.ForeignKey(
+        ProdutoEstoque,
+        on_delete=models.PROTECT,
+        related_name='uso_em_consultas',
+        verbose_name='Produto',
+    )
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Quantidade utilizada')
+    lote = models.CharField(max_length=50, blank=True, default='', verbose_name='Lote utilizado')
+    validade = models.DateField(null=True, blank=True, verbose_name='Validade do lote')
+    estoque_baixado = models.BooleanField(default=False, verbose_name='Estoque já baixado')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Registrado em')
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        verbose_name = 'Produto utilizado na consulta'
+        verbose_name_plural = 'Produtos utilizados na consulta'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.produto.nome} x{self.quantidade} (consulta {self.consulta_id})'
 
 

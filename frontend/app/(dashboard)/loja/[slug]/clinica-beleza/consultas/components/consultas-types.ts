@@ -68,7 +68,18 @@ export interface Evolucao {
   professional_name?: string;
 }
 
-export type TabId = "atendimento" | "anamnese" | "evolucao" | "historico" | "documentos";
+export type TabId = "atendimento" | "produtos" | "anamnese" | "evolucao" | "historico" | "documentos";
+
+export interface ConsultaProdutoUtilizado {
+  id: number;
+  produto: number;
+  produto_nome: string;
+  quantidade: number | string;
+  lote: string;
+  validade: string | null;
+  unidade_medida?: string;
+  estoque_baixado?: boolean;
+}
 
 export const EMPTY_ANAMNESE: Anamnese = {
   queixa_principal: "",

@@ -375,6 +375,16 @@ export class ClinicaBelezaAPI {
     },
     historicoCliente: (patientId: number) =>
       ClinicaBelezaAPI.get(`/patients/${patientId}/consultas/`),
+    produtos: {
+      list: (consultaId: number) =>
+        ClinicaBelezaAPI.get(`/consultas/${consultaId}/produtos/`),
+      add: (
+        consultaId: number,
+        data: { produto: number; quantidade: number; lote?: string; validade?: string },
+      ) => ClinicaBelezaAPI.post(`/consultas/${consultaId}/produtos/`, data),
+      remove: (consultaId: number, itemId: number) =>
+        ClinicaBelezaAPI.delete(`/consultas/${consultaId}/produtos/${itemId}/`),
+    },
   };
 
   static anamnese = {

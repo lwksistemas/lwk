@@ -25,6 +25,8 @@ interface Produto {
   quantidade_minima: number;
   preco_custo: number | string;
   validade: string | null;
+  lote?: string;
+  numero_nota?: string;
   status?: string;
 }
 
@@ -144,7 +146,9 @@ export function EstoquePageContent({
       quantidade_atual: editingProduto?.quantidade_atual ?? 0,
       quantidade_minima: editingProduto?.quantidade_minima ?? 0,
       preco_custo: editingProduto ? Number(editingProduto.preco_custo) : 0,
-      validade: editingProduto?.validade ?? "",
+      validade: editingProduto?.validade ? String(editingProduto.validade).slice(0, 10) : "",
+      lote: editingProduto?.lote ?? "",
+      numero_nota: editingProduto?.numero_nota ?? "",
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -199,6 +203,20 @@ export function EstoquePageContent({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mínimo</label>
                 <input type="number" min={0} value={form.quantidade_minima} onChange={(e) => setForm({ ...form, quantidade_minima: Number(e.target.value) })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nº da nota fiscal</label>
+                <input type="text" value={form.numero_nota} onChange={(e) => setForm({ ...form, numero_nota: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
+                  placeholder="Ex: 12345" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nº do lote</label>
+                <input type="text" value={form.lote} onChange={(e) => setForm({ ...form, lote: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
+                  placeholder="Lote do produto" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -391,6 +409,8 @@ export function EstoquePageContent({
                       <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Qtd</th>
                       <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Mínimo</th>
                       <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Preço Custo</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 hidden lg:table-cell">Lote</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 hidden xl:table-cell">Nota</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Validade</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Status</th>
                       <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Ações</th>
@@ -399,7 +419,7 @@ export function EstoquePageContent({
                   <tbody>
                     {produtos.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-8 text-center text-gray-500 dark:text-gray-400">
+                        <td colSpan={10} className="py-8 text-center text-gray-500 dark:text-gray-400">
                           Nenhum produto encontrado
                         </td>
                       </tr>
@@ -411,6 +431,8 @@ export function EstoquePageContent({
                           <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-gray-100">{p.quantidade_atual}</td>
                           <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300">{p.quantidade_minima}</td>
                           <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300">{formatCurrency(p.preco_custo)}</td>
+                          <td className="py-3 px-4 text-gray-600 dark:text-gray-300 hidden lg:table-cell">{p.lote || "—"}</td>
+                          <td className="py-3 px-4 text-gray-600 dark:text-gray-300 hidden xl:table-cell">{p.numero_nota || "—"}</td>
                           <td className="py-3 px-4 text-gray-600 dark:text-gray-300">
                             {p.validade ? formatClinicaDataCurta(new Date(p.validade + "T00:00:00")) : "—"}
                           </td>

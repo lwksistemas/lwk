@@ -48,6 +48,26 @@ def _is_linha_consulta(d: dict) -> bool:
     return d.get('tipo_linha') == 'consulta' or d.get('procedimento_nome') == LABEL_CONSULTA
 
 
+def _codigo_pagamento_pdf(forma: str) -> str:
+    """Código curto para caber na coluna Pag. do PDF."""
+    f = (forma or '').strip().lower()
+    if not f or f == '—':
+        return '—'
+    if f == 'pix':
+        return 'PIX'
+    if 'dinheiro' in f:
+        return 'DIN'
+    if 'crédito' in f or 'credito' in f:
+        return 'CC'
+    if 'débito' in f or 'debito' in f:
+        return 'CD'
+    if 'transfer' in f:
+        return 'TRF'
+    if 'cartão' in f or 'cartao' in f:
+        return 'CAR'
+    return (forma or '—')[:4].upper()
+
+
 def _fmt_regra_comissao(modo: str, regra: str) -> str:
     """Ex.: R$ 188,00 (fixo) ou 30,00% (%)"""
     if not regra:
@@ -155,6 +175,21 @@ def _make_data_table(
     return table
 
 
+def _legenda_pagamento_pdf() -> Paragraph:
+    styles = getSampleStyleSheet()
+    return Paragraph(
+        'Pag.: PIX · DIN (dinheiro) · CC (crédito) · CD (débito) · TRF (transferência)',
+        ParagraphStyle(
+            'LegPag',
+            parent=styles['Normal'],
+            fontSize=5,
+            textColor=_CINZA,
+            spaceBefore=0,
+            spaceAfter=1 * mm,
+        ),
+    )
+
+
 def _titulo_secao(texto: str) -> Paragraph:
     styles = getSampleStyleSheet()
     return Paragraph(texto, ParagraphStyle(
@@ -183,8 +218,8 @@ def _bloco_tabelas_consulta_procedimento(
             ['Local', 'Pag.', 'Qtd', 'Valor', 'Regra', 'Comissão'],
             [
                 [
-                    (d.get('local_nome') or '—')[:18],
-                    (d.get('forma_pagamento') or '—')[:8],
+                    (d.get('local_nome') or '—')[:20],
+                    _codigo_pagamento_pdf(d.get('forma_pagamento', '')),
                     str(d.get('qtd', 0)),
                     _fmt_brl(d.get('valor_consulta')),
                     _fmt_regra_comissao(d.get('modo_consulta', ''), d.get('regra_consulta', '')),
@@ -201,12 +236,12 @@ def _bloco_tabelas_consulta_procedimento(
                 _fmt_brl(p.get('comissao_consulta')),
             ],
             col_widths=[
-                meia_largura * 0.22,
-                meia_largura * 0.12,
-                meia_largura * 0.08,
-                meia_largura * 0.16,
-                meia_largura * 0.24,
-                meia_largura * 0.18,
+                meia_largura * 0.26,
+                meia_largura * 0.07,
+                meia_largura * 0.07,
+                meia_largura * 0.15,
+                meia_largura * 0.25,
+                meia_largura * 0.20,
             ],
             font_size=6,
         )
@@ -257,11 +292,11 @@ def _bloco_tabelas_consulta_procedimento(
             ('TOPPADDING', (0, 0), (-1, -1), 0),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ]))
-        return [bloco]
+        return [bloco, _legenda_pagamento_pdf()]
 
     flow = []
     if t_cons:
-        flow.extend([_titulo_secao('Consultas'), t_cons])
+        flow.extend([_titulo_secao('Consultas'), t_cons, _legenda_pagamento_pdf()])
     if t_proc:
         flow.extend([_titulo_secao('Procedimentos'), t_proc])
     return flow

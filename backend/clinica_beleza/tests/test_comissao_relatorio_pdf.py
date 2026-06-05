@@ -22,6 +22,21 @@ def _pdf_com_texto(texto: str, paginas: int = 1) -> bytes:
     return buf.getvalue()
 
 
+class CodigoPagamentoPdfTest(unittest.TestCase):
+    def setUp(self):
+        from clinica_beleza.comissao_relatorio_pdf import _codigo_pagamento_pdf
+        self.cod = _codigo_pagamento_pdf
+
+    def test_pix(self):
+        self.assertEqual(self.cod('PIX'), 'PIX')
+
+    def test_credito(self):
+        self.assertEqual(self.cod('Cartão de crédito'), 'CC')
+
+    def test_debito(self):
+        self.assertEqual(self.cod('Cartão de débito'), 'CD')
+
+
 class FmtRegraComissaoTest(unittest.TestCase):
     def setUp(self):
         from clinica_beleza.comissao_relatorio_pdf import _fmt_regra_comissao

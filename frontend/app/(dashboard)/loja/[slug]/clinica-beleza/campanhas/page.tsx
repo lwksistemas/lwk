@@ -68,6 +68,7 @@ export default function CampanhasPage() {
 
   const { list, loading, load } = useClinicaBelezaEntityList<Campanha>({
     path: "/campanhas/",
+    paginate: false,
     ...CLINICA_BELEZA_ONLINE_ONLY,
   });
 

@@ -32,6 +32,7 @@ import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clini
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
+import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
 import { logger } from "@/lib/logger";
@@ -100,7 +101,7 @@ export function ProcedimentosPageContent({
   const listPath =
     moduleKey && !showAllCategories ? `/procedures/?categoria=${encodeURIComponent(moduleKey)}` : "/procedures/";
 
-  const { list, setList, loading, load } = useClinicaBelezaEntityList<Procedure>({
+  const { list, setList, loading, load, loadMore, loadingMore, hasMore, totalCount } = useClinicaBelezaEntityList<Procedure>({
     path: listPath,
     fetchOffline: buscarProcedimentosOffline,
     saveOffline: salvarProcedimentosOffline,
@@ -409,6 +410,14 @@ export function ProcedimentosPageContent({
                   </button>
                 </div>
               )}
+            />
+            <EntityListLoadMore
+              hasMore={hasMore}
+              loading={loading}
+              loadingMore={loadingMore}
+              onLoadMore={loadMore}
+              loadedCount={filteredList.length}
+              totalCount={totalCount}
             />
           </ClinicaBelezaPanel>
         )}

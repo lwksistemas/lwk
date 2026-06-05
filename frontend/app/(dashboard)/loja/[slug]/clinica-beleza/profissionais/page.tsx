@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Pencil, Trash2, Clock } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
@@ -50,7 +51,7 @@ export default function ProfissionaisPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
-  const { list, setList, loading, load } = useClinicaBelezaEntityList<Professional>({
+  const { list, setList, loading, load, loadMore, loadingMore, hasMore, totalCount } = useClinicaBelezaEntityList<Professional>({
     path: "/professionals/",
     fetchOffline: buscarProfissionaisOffline,
     saveOffline: salvarProfissionaisOffline,
@@ -183,6 +184,14 @@ export default function ProfissionaisPage() {
                 </tbody>
               </table>
             </div>
+            <EntityListLoadMore
+              hasMore={hasMore}
+              loading={loading}
+              loadingMore={loadingMore}
+              onLoadMore={loadMore}
+              loadedCount={activeList.length}
+              totalCount={totalCount}
+            />
           </div>
         )}
       </ClinicaBelezaPageContent>

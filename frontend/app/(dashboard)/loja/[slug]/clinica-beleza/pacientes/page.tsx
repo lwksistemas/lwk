@@ -15,6 +15,7 @@ import {
   useClinicaBelezaEntityList,
 } from "@/lib/clinica-beleza-crud";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
@@ -99,7 +100,7 @@ export default function PacientesPage() {
   const slug = params.slug as string;
   const basePath = `/loja/${slug}/clinica-beleza/pacientes`;
 
-  const { list, setList, loading, load } = useClinicaBelezaEntityList<Patient>({
+  const { list, setList, loading, load, loadMore, loadingMore, hasMore, totalCount } = useClinicaBelezaEntityList<Patient>({
     path: "/patients/",
     fetchOffline: buscarPacientesOffline,
     saveOffline: salvarPacientesOffline,
@@ -553,6 +554,14 @@ export default function PacientesPage() {
                 </tbody>
               </table>
             </div>
+            <EntityListLoadMore
+              hasMore={hasMore}
+              loading={loading}
+              loadingMore={loadingMore}
+              onLoadMore={loadMore}
+              loadedCount={activeList.length}
+              totalCount={totalCount}
+            />
           </div>
         )}
       </ClinicaBelezaPageContent>

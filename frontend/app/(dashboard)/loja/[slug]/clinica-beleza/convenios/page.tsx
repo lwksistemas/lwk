@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronRight, FileText, Pencil, Save, Trash2 } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/lib/clinica-beleza-api";
 import { calcularPrecoEfetivo } from "@/lib/convenio-precos";
 import { logger } from "@/lib/logger";
+import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
 
 interface ProcedureRow {
   id: number;
@@ -35,11 +37,18 @@ export default function ConveniosPage() {
   const slug = params.slug as string;
   const basePath = `/loja/${slug}/clinica-beleza/convenios`;
 
-  const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
+  const {
+    list: convenios,
+    loading,
+    load: carregarLista,
+    loadMore,
+    loadingMore,
+    hasMore,
+    totalCount,
+  } = useClinicaBelezaPaginatedList<ConvenioItem>({ path: "/convenios/" });
   const [procedures, setProcedures] = useState<ProcedureRow[]>([]);
   const [linhas, setLinhas] = useState<Record<number, PrecoLinha>>({});
   const [novoNome, setNovoNome] = useState("");
-  const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -47,19 +56,6 @@ export default function ConveniosPage() {
   const editIdParam = searchParams.get("id");
   const isFormView = isNovo || Boolean(editIdParam);
   const editId = editIdParam ? Number(editIdParam) : null;
-
-  const carregarLista = useCallback(async () => {
-    setLoading(true);
-    try {
-      const conv = await ClinicaBelezaAPI.convenios.list();
-      setConvenios(Array.isArray(conv) ? conv : []);
-    } catch (e) {
-      logger.warn("Erro ao carregar convênios:", e);
-      setErro("Não foi possível carregar os convênios.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const carregarProcedimentos = useCallback(async () => {
     try {
@@ -69,10 +65,6 @@ export default function ConveniosPage() {
       logger.warn("Erro ao carregar procedimentos:", e);
     }
   }, []);
-
-  useEffect(() => {
-    carregarLista();
-  }, [carregarLista]);
 
   useEffect(() => {
     if (!isFormView) return;
@@ -497,6 +489,14 @@ export default function ConveniosPage() {
                 </tbody>
               </table>
             </div>
+            <EntityListLoadMore
+              hasMore={hasMore}
+              loading={loading}
+              loadingMore={loadingMore}
+              onLoadMore={loadMore}
+              loadedCount={convenios.length}
+              totalCount={totalCount}
+            />
           </div>
         )}
         {erro && (

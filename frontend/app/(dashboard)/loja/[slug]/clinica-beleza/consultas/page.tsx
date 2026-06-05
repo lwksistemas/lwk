@@ -6,13 +6,13 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Settings } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
-import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
-import { logger } from "@/lib/logger";
+import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
 import {
   type Consulta,
   ConsultasListTable,
@@ -26,27 +26,17 @@ export default function ConsultasPage() {
   const searchParams = useSearchParams();
   const slug = params.slug as string;
 
-  const [consultas, setConsultas] = useState<Consulta[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    list: consultas,
+    loading,
+    load: loadConsultas,
+    loadMore,
+    loadingMore,
+    hasMore,
+    totalCount,
+  } = useClinicaBelezaPaginatedList<Consulta>({ path: "/consultas/" });
   const [selected, setSelected] = useState<Consulta | null>(null);
   const [showLocaisModal, setShowLocaisModal] = useState(false);
-
-  const loadConsultas = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await ClinicaBelezaAPI.consultas.list();
-      setConsultas(Array.isArray(data) ? data : []);
-    } catch (e) {
-      logger.warn("Erro ao carregar consultas:", e);
-      setConsultas([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadConsultas();
-  }, [loadConsultas]);
 
   const abrirConsulta = useCallback((consulta: Consulta) => {
     setSelected(consulta);
@@ -117,6 +107,14 @@ export default function ConsultasPage() {
               consultas={consultas}
               onSelect={abrirConsulta}
               formatData={formatData}
+            />
+            <EntityListLoadMore
+              hasMore={hasMore}
+              loading={loading}
+              loadingMore={loadingMore}
+              onLoadMore={loadMore}
+              loadedCount={consultas.length}
+              totalCount={totalCount}
             />
           </ClinicaBelezaPanel>
         )}

@@ -18,6 +18,7 @@ import { ClinicaBelezaRelatedLinks } from '@/components/clinica-beleza/ClinicaBe
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { EntityListTable } from '@/components/clinica-beleza/EntityListTable';
+import { EntityListLoadMore } from '@/components/clinica-beleza/EntityListLoadMore';
 import { useClinicaBelezaFormRouting } from '@/hooks/clinica-beleza/useClinicaBelezaFormRouting';
 
 interface Protocol {
@@ -100,7 +101,7 @@ export function ProtocolosPageContent({
     [defaultCategoria],
   );
 
-  const { list, loading, load } = useClinicaBelezaEntityList<Protocol>({
+  const { list, loading, load, loadMore, loadingMore, hasMore, totalCount } = useClinicaBelezaEntityList<Protocol>({
     path: protocolosPath,
     ...CLINICA_BELEZA_ONLINE_ONLY,
     reloadDeps: [defaultCategoria],
@@ -345,6 +346,14 @@ export function ProtocolosPageContent({
                   </button>
                 </div>
               )}
+            />
+            <EntityListLoadMore
+              hasMore={hasMore}
+              loading={loading}
+              loadingMore={loadingMore}
+              onLoadMore={loadMore}
+              loadedCount={list.length}
+              totalCount={totalCount}
             />
           </ClinicaBelezaPanel>
         )}

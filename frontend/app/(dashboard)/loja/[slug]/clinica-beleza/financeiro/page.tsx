@@ -6,7 +6,8 @@
  * Integrado com Pacientes, Procedimentos, Agendamentos, Profissionais
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { useParams, useRouter } from "next/navigation";
 import { DollarSign, Calendar, TrendingUp, Wallet, RefreshCw } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
@@ -20,6 +21,7 @@ import { formatCurrency } from "@/lib/financeiro-helpers";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { entityName } from "@/lib/clinica-beleza-entities";
+import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
 
 interface Resumo {
   caixa_diario: number;
@@ -57,12 +59,34 @@ export default function FinanceiroClinicaPage() {
   const router = useRouter();
   const slug = params.slug as string;
   const [resumo, setResumo] = useState<Resumo | null>(null);
-  const [payments, setPayments] = useState<Payment[]>([]);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingResumo, setLoadingResumo] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [professionalFilter, setProfessionalFilter] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("");
+
+  const paymentQueryParams = useMemo(
+    () => ({
+      status: statusFilter || undefined,
+      professional: professionalFilter || undefined,
+      date: dateFilter || undefined,
+    }),
+    [statusFilter, professionalFilter, dateFilter],
+  );
+
+  const {
+    list: payments,
+    loading: loadingPayments,
+    load: loadPayments,
+    loadMore,
+    loadingMore,
+    hasMore,
+    totalCount,
+  } = useClinicaBelezaPaginatedList<Payment>({
+    path: "/payments/",
+    queryParams: paymentQueryParams,
+    reloadDeps: [statusFilter, professionalFilter, dateFilter],
+  });
 
   const loadResumo = async () => {
     try {
@@ -73,25 +97,6 @@ export default function FinanceiroClinicaPage() {
       }
     } catch {
       setResumo(null);
-    }
-  };
-
-  const loadPayments = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (statusFilter) params.set("status", statusFilter);
-      if (professionalFilter) params.set("professional", professionalFilter);
-      if (dateFilter) params.set("date", dateFilter);
-      const qs = params.toString();
-      const res = await clinicaBelezaFetch(`/payments${qs ? `?${qs}` : ""}`);
-      if (res.ok) {
-        const data = await res.json();
-        setPayments(Array.isArray(data) ? data : []);
-      } else {
-        setPayments([]);
-      }
-    } catch {
-      setPayments([]);
     }
   };
 
@@ -108,22 +113,18 @@ export default function FinanceiroClinicaPage() {
   };
 
   const loadAll = async () => {
-    setLoading(true);
-    await Promise.all([loadResumo(), loadPayments(), loadProfessionals()]);
-    setLoading(false);
+    setLoadingResumo(true);
+    await Promise.all([loadResumo(), loadProfessionals(), loadPayments()]);
+    setLoadingResumo(false);
   };
 
   useEffect(() => {
     loadAll();
-    // loadAll/loadPayments omitidos: execução única ao montar e ao mudar filtros
+    // loadAll omitido: execução única ao montar
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    loadPayments();
-    // loadPayments omitido: depende de vários estados; reexecutar só quando filtros mudam
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, professionalFilter, dateFilter]);
+  const loading = loadingResumo || loadingPayments;
 
   const totalLista = payments.reduce((s, p) => s + (p.status === "PAID" ? Number(p.amount) : 0), 0);
 
@@ -292,6 +293,14 @@ export default function FinanceiroClinicaPage() {
                   </tbody>
                 </table>
               </div>
+              <EntityListLoadMore
+                hasMore={hasMore}
+                loading={loadingPayments}
+                loadingMore={loadingMore}
+                onLoadMore={loadMore}
+                loadedCount={payments.length}
+                totalCount={totalCount}
+              />
             </section>
 
             {payments.length > 0 && (

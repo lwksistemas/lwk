@@ -5,13 +5,15 @@
  * Filtro por tipo: receituário, pedido de exame, atestado, documento personalizado
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { useParams, useRouter } from "next/navigation";
 import { Pencil, Trash2, FileText, X } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type DocumentTemplateItem } from "@/lib/clinica-beleza-api";
+import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
 
 const TIPO_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Todos os tipos" },
@@ -40,33 +42,29 @@ export default function TemplatesPage() {
   const router = useRouter();
   const slug = params.slug as string;
 
-  const [templates, setTemplates] = useState<DocumentTemplateItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DocumentTemplateItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const loadTemplates = useCallback(async () => {
-    setLoading(true);
-    setLoadError("");
-    try {
-      const params: { tipo?: string } = {};
-      if (filtroTipo) params.tipo = filtroTipo;
-      const data = await ClinicaBelezaAPI.templates.list(params);
-      const lista = Array.isArray(data) ? data : data?.results ?? [];
-      setTemplates(lista);
-    } catch {
-      setTemplates([]);
-      setLoadError("Não foi possível carregar os templates. Tente novamente.");
-    } finally {
-      setLoading(false);
-    }
-  }, [filtroTipo]);
+  const queryParams = useMemo(
+    () => ({ tipo: filtroTipo || undefined }),
+    [filtroTipo],
+  );
 
-  useEffect(() => {
-    loadTemplates();
-  }, [loadTemplates]);
+  const {
+    list: templates,
+    loading,
+    load: loadTemplates,
+    loadMore,
+    loadingMore,
+    hasMore,
+    totalCount,
+  } = useClinicaBelezaPaginatedList<DocumentTemplateItem>({
+    path: "/templates/",
+    queryParams,
+    reloadDeps: [filtroTipo],
+  });
 
   const openNew = () => {
     router.push(`/loja/${slug}/clinica-beleza/templates/novo`);
@@ -188,6 +186,14 @@ export default function TemplatesPage() {
                 </tbody>
               </table>
             </div>
+            <EntityListLoadMore
+              hasMore={hasMore}
+              loading={loading}
+              loadingMore={loadingMore}
+              onLoadMore={loadMore}
+              loadedCount={templates.length}
+              totalCount={totalCount}
+            />
           </div>
         )}
       </ClinicaBelezaPageContent>

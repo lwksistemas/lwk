@@ -9,6 +9,7 @@ from .permissions import CLINICA_ADMIN
 from rest_framework import status
 
 from .models import Patient, CampanhaPromocao
+from .pagination import paginate_queryset
 from .utils import LojaContextHelper
 from tenants.middleware import get_current_loja_id
 from .views_base import GetObjectMixin
@@ -135,6 +136,8 @@ class CampanhaPromocaoListView(APIView):
 
     def get(self, request):
         campanhas = CampanhaPromocao.objects.all().order_by('-created_at')
+        if request.query_params.get('page') is not None:
+            return paginate_queryset(campanhas, request, to_representation=_campanha_to_dict)
         return Response([_campanha_to_dict(c) for c in campanhas])
 
     def post(self, request):

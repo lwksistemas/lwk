@@ -16,6 +16,8 @@ from django.db import connections
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
+from clinica_beleza.schema_ensure import column_exists, table_exists
+
 from clinica_beleza.models import DocumentTemplate, DocumentoClinico
 
 MIGRATION_NAME = '0029_document_templates_and_documentos'
@@ -23,15 +25,6 @@ TABLE_TEMPLATE = 'clinica_beleza_document_templates'
 TABLE_DOCUMENTO = 'clinica_beleza_documentos_clinicos'
 
 
-def _table_exists(cursor, table: str) -> bool:
-    cursor.execute(
-        """
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = current_schema() AND table_name = %s LIMIT 1
-        """,
-        [table],
-    )
-    return cursor.fetchone() is not None
 
 
 class Command(BaseCommand):
@@ -63,15 +56,15 @@ class Command(BaseCommand):
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
                     # A tabela base (clinica_beleza_professional) precisa existir.
-                    if not _table_exists(cursor, 'clinica_beleza_professional'):
+                    if not table_exists(cursor, 'clinica_beleza_professional'):
                         skip += 1
                         self.stdout.write(self.style.WARNING(
                             f'SKIP loja={loja.id} ({loja.nome}): tabela clinica_beleza_professional não existe'
                         ))
                         continue
 
-                    template_existia = _table_exists(cursor, TABLE_TEMPLATE)
-                    documento_existia = _table_exists(cursor, TABLE_DOCUMENTO)
+                    template_existia = table_exists(cursor, TABLE_TEMPLATE)
+                    documento_existia = table_exists(cursor, TABLE_DOCUMENTO)
 
                 # Criar tabelas que não existem (ordem importa: template antes de documento por FK)
                 criadas = []

@@ -15,21 +15,14 @@ from django.db import connections
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
+from clinica_beleza.schema_ensure import column_exists, table_exists
+
 from clinica_beleza.models import PrescricaoMemed
 
 MIGRATION_NAME = '0023_prescricao_memed'
 TABLE_NAME = 'clinica_beleza_prescricoes_memed'
 
 
-def _table_exists(cursor, table: str) -> bool:
-    cursor.execute(
-        """
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = current_schema() AND table_name = %s LIMIT 1
-        """,
-        [table],
-    )
-    return cursor.fetchone() is not None
 
 
 class Command(BaseCommand):
@@ -61,10 +54,10 @@ class Command(BaseCommand):
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
                     # A tabela base (clinica_beleza_consultas/patient) precisa existir.
-                    if not _table_exists(cursor, 'clinica_beleza_consultas'):
+                    if not table_exists(cursor, 'clinica_beleza_consultas'):
                         skip += 1
                         continue
-                    ja_existia = _table_exists(cursor, TABLE_NAME)
+                    ja_existia = table_exists(cursor, TABLE_NAME)
 
                 if not ja_existia:
                     with conn.schema_editor() as schema_editor:

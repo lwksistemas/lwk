@@ -16,6 +16,8 @@ from django.db import connections
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
+from clinica_beleza.schema_ensure import column_exists, table_exists
+
 MIGRATION_NAME = '0022_professional_conselho_cpf'
 COLUNAS = (
     ('conselho', 'VARCHAR(10) NULL'),
@@ -24,27 +26,6 @@ COLUNAS = (
 )
 
 
-def _table_exists(cursor, table: str) -> bool:
-    cursor.execute(
-        """
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = current_schema() AND table_name = %s LIMIT 1
-        """,
-        [table],
-    )
-    return cursor.fetchone() is not None
-
-
-def _column_exists(cursor, table: str, column: str) -> bool:
-    cursor.execute(
-        """
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = %s AND column_name = %s LIMIT 1
-        """,
-        [table, column],
-    )
-    return cursor.fetchone() is not None
 
 
 class Command(BaseCommand):
@@ -75,13 +56,13 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not _table_exists(cursor, 'clinica_beleza_professional'):
+                    if not table_exists(cursor, 'clinica_beleza_professional'):
                         skip += 1
                         continue
 
                     adicionadas = []
                     for coluna, tipo in COLUNAS:
-                        if not _column_exists(cursor, 'clinica_beleza_professional', coluna):
+                        if not column_exists(cursor, 'clinica_beleza_professional', coluna):
                             cursor.execute(
                                 f'ALTER TABLE clinica_beleza_professional ADD COLUMN {coluna} {tipo}'
                             )

@@ -11,18 +11,11 @@ from django.db import connections
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
+from clinica_beleza.schema_ensure import column_exists, table_exists
+
 MIGRATION_NAME = '0025_memed_timbrado'
 
 
-def _table_exists(cursor, table: str) -> bool:
-    cursor.execute(
-        """
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = current_schema() AND table_name = %s LIMIT 1
-        """,
-        [table],
-    )
-    return cursor.fetchone() is not None
 
 
 class Command(BaseCommand):
@@ -49,7 +42,7 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not _table_exists(cursor, 'clinica_beleza_memed_timbrado'):
+                    if not table_exists(cursor, 'clinica_beleza_memed_timbrado'):
                         cursor.execute("""
                             CREATE TABLE clinica_beleza_memed_timbrado (
                                 id BIGSERIAL PRIMARY KEY,

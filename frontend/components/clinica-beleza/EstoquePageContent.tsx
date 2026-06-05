@@ -5,12 +5,14 @@
  * Controle de produtos, movimentações (entrada/saída), alertas de estoque baixo
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { Package, ArrowDown, ArrowUp, AlertTriangle, Search, X } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { formatClinicaDataCurta } from "@/lib/clinica-beleza-datetime";
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
@@ -64,11 +66,34 @@ export function EstoquePageContent({
   const searchParams = useSearchParams();
   const slug = params.slug as string;
 
-  const [produtos, setProdutos] = useState<Produto[]>([]);
   const [resumo, setResumo] = useState<Resumo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingResumo, setLoadingResumo] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState("");
+
+  const queryParams = useMemo(
+    () => ({
+      categoria: categoriaFilter || undefined,
+      search: searchTerm || undefined,
+    }),
+    [categoriaFilter, searchTerm],
+  );
+
+  const {
+    list: produtos,
+    loading: loadingProdutos,
+    load: loadProdutos,
+    loadMore,
+    loadingMore,
+    hasMore,
+    totalCount,
+  } = useClinicaBelezaPaginatedList<Produto>({
+    path: "/estoque/",
+    queryParams,
+    reloadDeps: [categoriaFilter, searchTerm],
+  });
+
+  const loading = loadingResumo || loadingProdutos;
 
   // Modal states
   const [showProdutoModal, setShowProdutoModal] = useState(false);
@@ -92,22 +117,6 @@ export function EstoquePageContent({
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
-  const loadProdutos = useCallback(async () => {
-    try {
-      const qp = new URLSearchParams();
-      if (categoriaFilter) qp.set("categoria", categoriaFilter);
-      if (searchTerm) qp.set("search", searchTerm);
-      const qs = qp.toString();
-      const res = await clinicaBelezaFetch(`/estoque/${qs ? `?${qs}` : ""}`);
-      if (res.ok) {
-        const data = await res.json();
-        setProdutos(Array.isArray(data) ? data : data.results ?? []);
-      }
-    } catch {
-      setProdutos([]);
-    }
-  }, [categoriaFilter, searchTerm]);
-
   const loadResumo = useCallback(async () => {
     try {
       const res = await clinicaBelezaFetch("/estoque/resumo/");
@@ -118,14 +127,14 @@ export function EstoquePageContent({
   }, []);
 
   const loadAll = useCallback(async () => {
-    setLoading(true);
+    setLoadingResumo(true);
     await Promise.all([loadProdutos(), loadResumo()]);
-    setLoading(false);
+    setLoadingResumo(false);
   }, [loadProdutos, loadResumo]);
 
   useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+    loadResumo();
+  }, [loadResumo]);
 
   // --- Product Modal ---
   function ProdutoModal() {
@@ -438,6 +447,14 @@ export function EstoquePageContent({
                   </tbody>
                 </table>
               </div>
+              <EntityListLoadMore
+                hasMore={hasMore}
+                loading={loadingProdutos}
+                loadingMore={loadingMore}
+                onLoadMore={loadMore}
+                loadedCount={produtos.length}
+                totalCount={totalCount}
+              />
             </section>
           </>
         )}

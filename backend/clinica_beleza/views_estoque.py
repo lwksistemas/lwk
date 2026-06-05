@@ -13,6 +13,7 @@ from rest_framework import status
 
 from .models import ProdutoEstoque, MovimentacaoEstoque
 from .serializers import ProdutoEstoqueSerializer, MovimentacaoEstoqueSerializer
+from .pagination import paginate_queryset
 from .views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ class ProdutoEstoqueListView(APIView):
         estoque_baixo = request.query_params.get('estoque_baixo')
         if estoque_baixo == 'true':
             qs = qs.filter(quantidade_atual__lte=F('quantidade_minima'))
-        return Response(ProdutoEstoqueSerializer(qs, many=True).data)
+        return paginate_queryset(qs, request, ProdutoEstoqueSerializer)
 
     def post(self, request):
         serializer = ProdutoEstoqueSerializer(data=request.data)

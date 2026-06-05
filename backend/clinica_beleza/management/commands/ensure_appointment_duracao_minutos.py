@@ -9,28 +9,9 @@ from django.db import connections
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
-
-def _table_exists(cursor, table: str) -> bool:
-    cursor.execute(
-        """
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = current_schema() AND table_name = %s LIMIT 1
-        """,
-        [table],
-    )
-    return cursor.fetchone() is not None
+from clinica_beleza.schema_ensure import column_exists, table_exists
 
 
-def _column_exists(cursor, table: str, column: str) -> bool:
-    cursor.execute(
-        """
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = %s AND column_name = %s LIMIT 1
-        """,
-        [table, column],
-    )
-    return cursor.fetchone() is not None
 
 
 class Command(BaseCommand):
@@ -61,14 +42,14 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not _table_exists(cursor, 'clinica_beleza_appointment'):
+                    if not table_exists(cursor, 'clinica_beleza_appointment'):
                         skip += 1
                         self.stdout.write(self.style.WARNING(
                             f'SKIP loja={loja.id} ({loja.nome}): sem clinica_beleza_appointment'
                         ))
                         continue
 
-                    if _column_exists(cursor, 'clinica_beleza_appointment', 'duracao_minutos'):
+                    if column_exists(cursor, 'clinica_beleza_appointment', 'duracao_minutos'):
                         skip += 1
                         self.stdout.write(f'OK (já existe) loja={loja.id} ({loja.nome})')
                         continue

@@ -10,6 +10,7 @@ import { ArrowLeft, Megaphone, Pencil, Save, Send, Trash2 } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
+import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import {
@@ -66,9 +67,8 @@ export default function CampanhasPage() {
   const { isNovo, editId, editIdParam, isFormView, voltarLista, abrirNovo, abrirEditar } =
     useClinicaBelezaFormRouting(basePath);
 
-  const { list, loading, load } = useClinicaBelezaEntityList<Campanha>({
+  const { list, loading, load, loadMore, loadingMore, hasMore, totalCount } = useClinicaBelezaEntityList<Campanha>({
     path: "/campanhas/",
-    paginate: false,
     ...CLINICA_BELEZA_ONLINE_ONLY,
   });
 
@@ -335,6 +335,14 @@ export default function CampanhasPage() {
                   </button>
                 </div>
               )}
+            />
+            <EntityListLoadMore
+              hasMore={hasMore}
+              loading={loading}
+              loadingMore={loadingMore}
+              onLoadMore={loadMore}
+              loadedCount={list.length}
+              totalCount={totalCount}
             />
           </ClinicaBelezaPanel>
         )}

@@ -18,7 +18,7 @@ DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
 
 
-def paginate_queryset(queryset, request, serializer_class, serializer_context=None):
+def paginate_queryset(queryset, request, serializer_class=None, serializer_context=None, *, to_representation=None):
     """
     Pagina o queryset SE o frontend enviar ?page=N.
     Sem ?page → retorna lista completa (retrocompatível).
@@ -32,11 +32,15 @@ def paginate_queryset(queryset, request, serializer_class, serializer_context=No
         "results": [...]
     }
     """
+    def serialize_items(items):
+        if to_representation is not None:
+            return [to_representation(item) for item in items]
+        ctx = serializer_context or {}
+        return serializer_class(items, many=True, context=ctx).data
+
     page_param = request.query_params.get('page')
     if page_param is None:
-        # Sem paginação explícita → retrocompatível
-        ctx = serializer_context or {}
-        return Response(serializer_class(queryset, many=True, context=ctx).data)
+        return Response(serialize_items(queryset))
 
     try:
         page = max(1, int(page_param))
@@ -53,11 +57,10 @@ def paginate_queryset(queryset, request, serializer_class, serializer_context=No
     offset = (page - 1) * page_size
 
     items = queryset[offset:offset + page_size]
-    ctx = serializer_context or {}
     return Response({
         'count': total,
         'page': page,
         'page_size': page_size,
         'total_pages': total_pages,
-        'results': serializer_class(items, many=True, context=ctx).data,
+        'results': serialize_items(items),
     })

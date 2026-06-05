@@ -251,12 +251,19 @@ class Command(BaseCommand):
             )
             procedimentos.append(proc)
 
-            # Mesmo profissional do atendimento que inclui este procedimento (i//3)
-            prof = profissionais[(i // 3) % len(profissionais)]
-            if i < 15:
-                modo, valor = 'percentual', Decimal(str(10 + (i % 6) * 5))
+            # Procedimentos 0–9: comissão no Dr. Teste % (mesmo prof. das 10 consultas de teste)
+            if dr_pct and i < 10:
+                prof = dr_pct
+                if i % 2 == 0:
+                    modo, valor = 'percentual', Decimal(str(15 + (i % 5) * 5))
+                else:
+                    modo, valor = 'fixo', Decimal(str(45 + i * 12))
             else:
-                modo, valor = 'fixo', Decimal(str(25 + (i % 8) * 10))
+                prof = profissionais[(i // 3) % len(profissionais)]
+                if i < 15:
+                    modo, valor = 'percentual', Decimal(str(10 + (i % 6) * 5))
+                else:
+                    modo, valor = 'fixo', Decimal(str(25 + (i % 8) * 10))
             self._upsert_comissao(db, lid, prof, 'procedimento', proc, modo, valor)
             self.stdout.write(
                 f'   • {nome}: R$ {preco} — {prof.nome}: {modo} {valor}'

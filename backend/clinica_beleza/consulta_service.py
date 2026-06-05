@@ -47,6 +47,7 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
                 'procedure_id': appointment.procedure_id,
                 'status': 'SCHEDULED',
                 'valor_consulta': _valor_consulta(appointment),
+                'convenio_id': appointment.convenio_id,
                 'loja_id': appointment.loja_id,
             },
         )
@@ -65,6 +66,7 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
                 'status': 'IN_PROGRESS',
                 'data_inicio': ts,
                 'valor_consulta': _valor_consulta(appointment),
+                'convenio_id': appointment.convenio_id,
                 'loja_id': appointment.loja_id,
             },
         )
@@ -88,6 +90,7 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
                 data_inicio=ts,
                 data_fim=ts,
                 valor_consulta=_valor_consulta(appointment),
+                convenio_id=appointment.convenio_id,
                 loja_id=appointment.loja_id,
             )
             return consulta
@@ -110,7 +113,18 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
     return None
 
 
-def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=None, loja_id=None, iniciar=False, local_atendimento_id=None, valor_consulta=None):
+def criar_consulta_avulsa(
+    *,
+    patient,
+    professional,
+    procedure=None,
+    procedures=None,
+    loja_id=None,
+    iniciar=False,
+    local_atendimento_id=None,
+    valor_consulta=None,
+    convenio_id=None,
+):
     """
     Cria uma consulta "avulsa" (sem agendamento prévio na agenda), a partir do
     cadastro do cliente. Gera o Appointment correspondente e a Consulta vinculada.
@@ -124,7 +138,8 @@ def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=N
 
     Retorna a Consulta criada.
     """
-    from .models import AppointmentProcedure, LocalAtendimento
+    from .models import LocalAtendimento
+    from .convenio_service import resolver_convenio, criar_appointment_procedures
 
     ts = now()
     status_inicial = 'IN_PROGRESS' if iniciar else 'SCHEDULED'
@@ -144,22 +159,20 @@ def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=N
         except LocalAtendimento.DoesNotExist:
             local_atendimento = None
 
+    convenio = resolver_convenio(convenio_id, loja_id=loja_id)
+    if convenio is None and getattr(patient, 'convenio_id', None):
+        convenio = resolver_convenio(patient.convenio_id, loja_id=loja_id)
+
     appointment = Appointment.objects.create(
         date=ts,
         status=status_inicial,
         patient=patient,
         professional=professional,
         procedure=primary_procedure,
+        convenio=convenio,
         loja_id=loja_id,
     )
-    # Criar itens na tabela intermediária
-    for ordem, proc in enumerate(proc_list):
-        AppointmentProcedure.objects.create(
-            appointment=appointment,
-            procedure=proc,
-            ordem=ordem,
-            loja_id=loja_id,
-        )
+    criar_appointment_procedures(appointment, proc_list, convenio=convenio)
 
     # Determinar valor da consulta:
     # 1. Se valor_consulta fornecido explicitamente (override), usar esse
@@ -181,6 +194,7 @@ def criar_consulta_avulsa(*, patient, professional, procedure=None, procedures=N
         data_inicio=ts if iniciar else None,
         valor_consulta=valor_final,
         local_atendimento=local_atendimento,
+        convenio=convenio,
         loja_id=loja_id,
     )
     return consulta
@@ -230,7 +244,7 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
 def _resolver_comissao(professional, procedure, valor_pagamento, local_atendimento_id=None):
     """
     Resolve a comissão aplicável ao profissional para este atendimento.
-    Prioridade: procedimento > consulta por local > consulta geral.
+    Prioridade: procedimento > consulta por local de atendimento.
     Retorna (percentual: int, valor: Decimal).
     """
     from .models import ProfessionalCommission
@@ -259,16 +273,6 @@ def _resolver_comissao(professional, procedure, valor_pagamento, local_atendimen
         ).first()
         if comissao:
             return _calcular_comissao(comissao, valor_pagamento)
-
-    # 3. Comissão geral por consulta
-    comissao = ProfessionalCommission.objects.filter(
-        professional=professional,
-        tipo='consulta',
-        local_atendimento__isnull=True,
-        is_active=True,
-    ).first()
-    if comissao:
-        return _calcular_comissao(comissao, valor_pagamento)
 
     return 0, Decimal('0')
 

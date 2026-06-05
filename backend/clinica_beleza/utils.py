@@ -101,11 +101,28 @@ class LojaContextHelper:
         cache.delete(f'owner_professional_{loja_id}')
         cache.delete(f'loja_owner_info_{loja_id}')
         cache.delete(f'whatsapp_config_{loja_id}')
-        # Invalidar cache do dashboard (versão atual)
-        from django.utils.timezone import now
-        today = now().date()
-        year, month = today.year, today.month
-        for period in ('hoje', 'semana', 'proximos'):
+        invalidate_dashboard_cache(loja_id)
+
+
+DASHBOARD_CACHE_VERSION = 'v9'
+
+
+def invalidate_dashboard_cache(loja_id, *, mes=None, ano=None, professional_id=None):
+    """
+    Limpa cache do dashboard para o mês informado (ou mês atual).
+    Chamado após pagamentos, consultas e agendamentos.
+    """
+    from django.utils.timezone import now
+
+    today = now().date()
+    mes = mes or today.month
+    ano = ano or today.year
+    prof_key = str(professional_id) if professional_id else 'all'
+    for period in ('hoje', 'semana', 'proximos'):
+        cache.delete(
+            f'clinica_beleza_dashboard_{DASHBOARD_CACHE_VERSION}_{loja_id}_{ano}_{mes:02d}_{period}_{prof_key}'
+        )
+        if prof_key != 'all':
             cache.delete(
-                f'clinica_beleza_dashboard_v8_{loja_id}_{year}_{month:02d}_{period}_all'
+                f'clinica_beleza_dashboard_{DASHBOARD_CACHE_VERSION}_{loja_id}_{ano}_{mes:02d}_{period}_all'
             )

@@ -172,6 +172,40 @@ def validate_cpf(cpf):
     return cpf
 
 
+def gerar_cpf_valido(seed: int | None = None) -> str:
+    """
+    Gera CPF válido (11 dígitos) para dados de teste.
+    Use seed fixo para resultados reproduzíveis.
+    """
+    import random
+
+    rng = random.Random(seed)
+
+    def _digito(partial: str) -> int:
+        total = sum(
+            int(d) * w for d, w in zip(partial, range(len(partial) + 1, 1, -1))
+        )
+        r = total % 11
+        return 0 if r < 2 else 11 - r
+
+    for _ in range(200):
+        base = ''.join(str(rng.randint(0, 9)) for _ in range(9))
+        if base == base[0] * 9:
+            continue
+        d1 = _digito(base)
+        d2 = _digito(base + str(d1))
+        return base + str(d1) + str(d2)
+    raise ValueError('Não foi possível gerar CPF válido')
+
+
+def formatar_cpf(cpf: str) -> str:
+    """Formata 11 dígitos como XXX.XXX.XXX-XX."""
+    d = re.sub(r'\D', '', cpf or '')
+    if len(d) != 11:
+        return cpf or ''
+    return f'{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}'
+
+
 # ============================================
 # VALIDADOR DE CNPJ
 # ============================================

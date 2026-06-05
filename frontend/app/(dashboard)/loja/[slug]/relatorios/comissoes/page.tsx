@@ -441,7 +441,7 @@ export default function RelatorioComissoesPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 print-area max-w-6xl mx-auto">
+    <div className="p-4 md:p-6 lg:p-8 print-area w-full min-h-full bg-[#f7f2f4] dark:bg-gray-950">
       <div className="hidden print:block mb-6 text-center">
         {logoUrl ? (
           <div className="flex justify-center mb-4">

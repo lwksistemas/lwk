@@ -39,7 +39,8 @@ class ComissaoRelatorioHelpersTest(TestCase):
             'procedimentos': {},
         }
         self.assertIs(_resolver_regra_consulta(regras, 10), regra_local)
-        self.assertIs(_resolver_regra_consulta(regras, 99), regra_geral)
+        self.assertIsNone(_resolver_regra_consulta(regras, 99))
+        self.assertIsNone(_resolver_regra_consulta(regras, None))
 
     def test_comissao_fixo_independe_da_base(self):
         val = _calcular_comissao_regra(_comissao('fixo', '100'), Decimal('0'))

@@ -298,7 +298,21 @@ class ProfessionalCommissionView(APIView):
         # Desativar comissões existentes e criar novas
         ProfessionalCommission.objects.filter(professional_id=pk).update(is_active=False)
         created = []
+        locais_consulta_vistos = set()
         for item in request.data:
+            if item.get('tipo') == 'consulta':
+                local_id = item.get('local_atendimento')
+                if not local_id:
+                    return Response(
+                        {'local_atendimento': 'Informe o local para cada comissão de consulta.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if local_id in locais_consulta_vistos:
+                    return Response(
+                        {'local_atendimento': 'Não repita o mesmo local de atendimento.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                locais_consulta_vistos.add(local_id)
             data = {**item, 'professional': pk}
             serializer = ProfessionalCommissionSerializer(data=data)
             if serializer.is_valid():

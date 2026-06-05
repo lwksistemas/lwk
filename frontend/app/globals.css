@@ -655,3 +655,45 @@
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
 }
+
+/* ── Tabelas com colunas redimensionáveis (arrastar no cabeçalho) ── */
+.table-cols-resizable {
+  table-layout: fixed;
+}
+
+.table-cols-resizable th.col-resize-th,
+.table-cols-resizable td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 0;
+}
+
+.col-resize-th {
+  position: relative;
+}
+
+.col-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 3;
+  touch-action: none;
+}
+
+.col-resize-handle:hover,
+.col-resize-handle:active {
+  background: rgba(128, 64, 96, 0.18);
+}
+
+body.col-resize-active {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+body.col-resize-active * {
+  cursor: col-resize !important;
+}

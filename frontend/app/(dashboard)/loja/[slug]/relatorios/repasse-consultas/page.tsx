@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Download, Search } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
+import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 
 interface ProcedimentoAtendimento {
   nome: string;
@@ -241,10 +242,10 @@ export default function RelatorioRepasseConsultasPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
+    <ClinicaBelezaPageContent>
       <Link
         href={`/loja/${slug}/relatorios`}
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4 no-print"
+        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-4 no-print"
       >
         <ArrowLeft size={16} /> Voltar aos relatórios
       </Link>
@@ -262,7 +263,7 @@ export default function RelatorioRepasseConsultasPage() {
           type="button"
           onClick={exportarPDF}
           disabled={pdfLoading || !data?.profissionais.length}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50 shrink-0"
           style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
         >
           <Download size={16} />
@@ -270,8 +271,8 @@ export default function RelatorioRepasseConsultasPage() {
         </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <ClinicaBelezaPanel className="p-4 md:p-5 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">De</label>
             <input
@@ -313,7 +314,7 @@ export default function RelatorioRepasseConsultasPage() {
             <Search size={16} /> Buscar
           </button>
         </div>
-      </div>
+      </ClinicaBelezaPanel>
 
       {error && (
         <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">{error}</div>
@@ -341,7 +342,7 @@ export default function RelatorioRepasseConsultasPage() {
                     {p.total_atendimentos} atendimento(s) · Comissão {formatCurrency(p.comissao_total)}
                   </span>
                 </h2>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4">
                   {p.atendimentos.map((at) => (
                     <CardAtendimento
                       key={at.appointment_id}
@@ -368,6 +369,6 @@ export default function RelatorioRepasseConsultasPage() {
           )}
         </div>
       )}
-    </div>
+    </ClinicaBelezaPageContent>
   );
 }

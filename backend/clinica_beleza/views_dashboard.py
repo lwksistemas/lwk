@@ -12,7 +12,8 @@ from rest_framework.response import Response
 from .permissions import CLINICA_MEMBER
 from rest_framework import status
 
-from .models import Patient, Procedure, Appointment, Payment, Consulta
+from .models import Patient, Procedure, Appointment, AppointmentProcedure, Payment, Consulta
+from .utils import DASHBOARD_CACHE_VERSION
 from .serializers import AppointmentListSerializer
 from .utils import LojaContextHelper
 from tenants.middleware import get_current_loja_id
@@ -36,6 +37,13 @@ SOROTERAPIA_CADASTRO_Q = (
     | Q(categoria__icontains='soroterapia')
     | Q(categoria__iexact='injetavel')
     | Q(categoria__icontains='injetavel')
+)
+
+SOROTERAPIA_AP_Q = (
+    Q(procedure__categoria__iexact='soroterapia')
+    | Q(procedure__categoria__icontains='soroterapia')
+    | Q(procedure__categoria__iexact='injetavel')
+    | Q(procedure__categoria__icontains='injetavel')
 )
 
 
@@ -161,6 +169,16 @@ def _top_soroterapia_periodo(period_start, period_end):
         .values('procedure__nome')
         .annotate(count=Count('id'))
     )
+    add_rows(
+        AppointmentProcedure.objects.filter(
+            appointment__date__date__gte=period_start,
+            appointment__date__date__lte=period_end,
+            appointment__status__in=['COMPLETED', 'CONFIRMED', 'SCHEDULED', 'IN_PROGRESS'],
+        )
+        .filter(SOROTERAPIA_AP_Q)
+        .values('procedure__nome')
+        .annotate(count=Count('id'))
+    )
 
     ranked = sorted(
         [{'name': name, 'count': count} for name, count in counts.items() if count > 0],
@@ -235,13 +253,15 @@ class DashboardView(APIView):
         period = (request.query_params.get('period') or 'proximos').strip().lower()
         professional_id = request.query_params.get('professional')
         cache_key = (
-            f'clinica_beleza_dashboard_v8_{loja_id}_{filter_ano}_{filter_mes:02d}'
+            f'clinica_beleza_dashboard_{DASHBOARD_CACHE_VERSION}_{loja_id}_{filter_ano}_{filter_mes:02d}'
             f'_{period}_{professional_id or "all"}'
         )
 
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return Response(cached_data)
+        skip_cache = (request.query_params.get('refresh') or '').strip().lower() in ('1', 'true', 'yes')
+        if not skip_cache:
+            cached_data = cache.get(cache_key)
+            if cached_data:
+                return Response(cached_data)
 
         _backfill_consultas_data_fim()
 
@@ -321,5 +341,5 @@ class DashboardView(APIView):
             'top_procedures_volume': top_procedures_volume,
         }
 
-        cache.set(cache_key, data, 300)
+        cache.set(cache_key, data, 120)
         return Response(data)

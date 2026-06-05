@@ -42,19 +42,23 @@ export default function TemplatesPage() {
 
   const [templates, setTemplates] = useState<DocumentTemplateItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DocumentTemplateItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const loadTemplates = useCallback(async () => {
     setLoading(true);
+    setLoadError("");
     try {
       const params: { tipo?: string } = {};
       if (filtroTipo) params.tipo = filtroTipo;
       const data = await ClinicaBelezaAPI.templates.list(params);
-      setTemplates(data.results ?? []);
+      const lista = Array.isArray(data) ? data : data?.results ?? [];
+      setTemplates(lista);
     } catch {
       setTemplates([]);
+      setLoadError("Não foi possível carregar os templates. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -113,6 +117,12 @@ export default function TemplatesPage() {
             ))}
           </select>
         </div>
+
+        {loadError && (
+          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 text-sm dark:bg-red-900/20 dark:text-red-300">
+            {loadError}
+          </div>
+        )}
 
         {/* Lista */}
         {loading ? (

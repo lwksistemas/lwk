@@ -18,6 +18,15 @@ class Patient(ClienteBase):
         verbose_name="Permitir WhatsApp",
         help_text="Se desmarcado, o paciente não recebe mensagens por WhatsApp (LGPD).",
     )
+    convenio = models.ForeignKey(
+        'Convenio',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pacientes',
+        verbose_name='Convênio padrão',
+        help_text='Convênio sugerido ao agendar ou abrir consulta.',
+    )
 
     # DEPRECATED: aliases inglês→português mantidos apenas para o management command
     # popular_loja_clinica_beleza. O mapeamento real é feito em views_pacientes._map_patient_data.
@@ -147,7 +156,7 @@ class ProfessionalCommission(LojaIsolationMixin, models.Model):
         null=True, blank=True,
         related_name='comissoes',
         verbose_name='Local de atendimento',
-        help_text='Quando tipo = consulta: regra só para este local. Vazio = regra geral.',
+        help_text='Obrigatório quando tipo = consulta: comissão para este local de atendimento.',
     )
     is_active = models.BooleanField(default=True, verbose_name='Ativo')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -250,6 +259,15 @@ class Appointment(LojaIsolationMixin, models.Model):
         verbose_name="Procedimentos",
     )
     notes = models.TextField(blank=True, null=True, verbose_name="Observações")
+    convenio = models.ForeignKey(
+        'Convenio',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='agendamentos',
+        verbose_name='Convênio',
+        help_text='Convênio do atendimento (define preços dos procedimentos).',
+    )
     duracao_minutos = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -645,6 +663,14 @@ class Consulta(LojaIsolationMixin, models.Model):
         related_name='consultas',
         verbose_name='Local de atendimento',
     )
+    convenio = models.ForeignKey(
+        'Convenio',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='consultas',
+        verbose_name='Convênio',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -909,3 +935,66 @@ class LocalAtendimento(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f"{self.nome} - R$ {self.valor_consulta}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONVÊNIOS — Tabelas de preço por plano
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class Convenio(LojaIsolationMixin, models.Model):
+    """Plano de saúde / convênio com tabela de preços por procedimento."""
+    nome = models.CharField(max_length=200, verbose_name='Nome')
+    codigo = models.CharField(max_length=50, blank=True, default='', verbose_name='Código')
+    is_active = models.BooleanField(default=True, verbose_name='Ativo')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_convenios'
+        ordering = ['nome']
+        verbose_name = 'Convênio'
+        verbose_name_plural = 'Convênios'
+
+    def __str__(self):
+        return self.nome
+
+
+class ConvenioProcedimentoPreco(LojaIsolationMixin, models.Model):
+    """Preço de um procedimento para um convênio específico."""
+    convenio = models.ForeignKey(
+        Convenio,
+        on_delete=models.CASCADE,
+        related_name='precos_procedimentos',
+        verbose_name='Convênio',
+    )
+    procedure = models.ForeignKey(
+        Procedure,
+        on_delete=models.CASCADE,
+        related_name='precos_convenio',
+        verbose_name='Procedimento',
+    )
+    preco = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Preço (R$)')
+    is_active = models.BooleanField(default=True, verbose_name='Ativo')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_convenio_procedimento_precos'
+        ordering = ['convenio', 'procedure__nome']
+        verbose_name = 'Preço convênio × procedimento'
+        verbose_name_plural = 'Preços convênio × procedimento'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['convenio', 'procedure', 'loja_id'],
+                name='uniq_convenio_procedure_loja',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.convenio.nome} — {self.procedure.nome}: R$ {self.preco}'

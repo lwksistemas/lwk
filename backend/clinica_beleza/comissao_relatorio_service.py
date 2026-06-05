@@ -139,12 +139,10 @@ def _regras_profissional(professional_id: int) -> dict:
 
 
 def _resolver_regra_consulta(regras: dict, local_id: Optional[int]):
-    """Prioridade: regra do local > regra geral de consulta."""
-    if local_id:
-        regra = regras.get('consultas_local', {}).get(local_id)
-        if regra:
-            return regra
-    return regras.get('consulta')
+    """Regra de consulta vinculada ao local do atendimento."""
+    if not local_id:
+        return None
+    return regras.get('consultas_local', {}).get(local_id)
 
 
 def _label_forma_pagamento(method: str) -> str:

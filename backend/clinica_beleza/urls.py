@@ -44,6 +44,9 @@ from .views_admin_professional import (
 from .views_locais_atendimento import (
     LocalAtendimentoListView, LocalAtendimentoDetailView,
 )
+from .views_convenios import (
+    ConvenioListView, ConvenioDetailView, ConvenioPrecosView,
+)
 from .views_relatorios import (
     RelatorioComissoesView,
     RelatorioComissoesPdfView,
@@ -78,6 +81,11 @@ urlpatterns = [
     # Locais de atendimento
     path('locais-atendimento/', LocalAtendimentoListView.as_view(), name='locais-atendimento-list'),
     path('locais-atendimento/<int:pk>/', LocalAtendimentoDetailView.as_view(), name='locais-atendimento-detail'),
+
+    # Convênios
+    path('convenios/', ConvenioListView.as_view(), name='convenios-list'),
+    path('convenios/<int:pk>/', ConvenioDetailView.as_view(), name='convenios-detail'),
+    path('convenios/<int:pk>/precos/', ConvenioPrecosView.as_view(), name='convenios-precos'),
 
     # Memed — prescrição digital (receituário e exames)
     path('memed/token/', MemedTokenView.as_view(), name='memed-token'),

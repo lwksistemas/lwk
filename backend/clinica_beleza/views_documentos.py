@@ -11,6 +11,7 @@ from .serializers import DocumentoClinicoSerializer, DocumentTemplateSerializer
 from .pagination import paginate_queryset
 from .views_base import GetObjectMixin, resolve_loja_id_from_request
 from .documento_service import criar_documento, render_template
+from .utils import LojaContextHelper
 
 
 def _get_professional_from_request(request):
@@ -37,13 +38,19 @@ def _get_professional_from_request(request):
         if prof:
             return prof
 
-    # 2. Owner da loja — buscar professional pelo email
+    # 2. Owner da loja — profissional vinculado (admin habilitado) ou email
     try:
         loja = Loja.objects.using('default').get(pk=loja_id)
         if loja.owner_id == request.user.id:
-            return Professional.objects.filter(
-                email=request.user.email, is_active=True
-            ).first()
+            owner_prof_id = LojaContextHelper.get_owner_professional_id()
+            if owner_prof_id:
+                prof = Professional.objects.filter(pk=owner_prof_id, is_active=True).first()
+                if prof:
+                    return prof
+            if request.user.email:
+                return Professional.objects.filter(
+                    email=request.user.email, is_active=True,
+                ).first()
     except Loja.DoesNotExist:
         pass
 

@@ -79,6 +79,7 @@ class ConsultaListView(APIView):
         iniciar = request.data.get('iniciar', False)
         local_atendimento_id = request.data.get('local_atendimento')
         valor_consulta_override = request.data.get('valor_consulta')
+        convenio_id = request.data.get('convenio')
         consulta = criar_consulta_avulsa(
             patient=patient,
             professional=professional,
@@ -87,6 +88,7 @@ class ConsultaListView(APIView):
             iniciar=bool(iniciar),
             local_atendimento_id=local_atendimento_id,
             valor_consulta=valor_consulta_override,
+            convenio_id=convenio_id,
         )
         consulta = Consulta.objects.select_related(
             'patient', 'professional', 'procedure', 'protocol', 'appointment',

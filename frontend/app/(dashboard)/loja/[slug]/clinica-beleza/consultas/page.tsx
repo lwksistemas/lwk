@@ -402,6 +402,12 @@ export default function ConsultasPage() {
               {selected.local_atendimento_name && (
                 <span>Local: <strong className="text-gray-800 dark:text-gray-200">{selected.local_atendimento_name}</strong></span>
               )}
+              <span>
+                Convênio:{" "}
+                <strong className="text-gray-800 dark:text-gray-200">
+                  {selected.convenio_name || "Particular"}
+                </strong>
+              </span>
               <div className="ml-auto flex flex-wrap gap-2">
                 {podeIniciar && (
                   <button

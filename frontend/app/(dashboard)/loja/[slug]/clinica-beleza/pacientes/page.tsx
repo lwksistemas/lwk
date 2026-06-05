@@ -39,6 +39,8 @@ import {
   temDuplicataNaLista,
 } from "@/lib/clinica-beleza-offline";
 import { buscarPacientesOffline, salvarPacientesOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
+import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
+import { CONVENIO_PARTICULAR_LABEL } from "@/lib/convenio-precos";
 import { logger } from "@/lib/logger";
 
 interface Patient {
@@ -58,6 +60,8 @@ interface Patient {
   active?: boolean;
   is_active?: boolean;
   allow_whatsapp?: boolean;
+  convenio?: number | null;
+  convenio_name?: string | null;
 }
 
 const EMPTY_FORM = {
@@ -69,6 +73,7 @@ const EMPTY_FORM = {
   address: "",
   notes: "",
   allow_whatsapp: true,
+  convenio: "" as number | "",
 };
 
 const INPUT = CLINICA_FORM_INPUT;
@@ -83,6 +88,7 @@ function patientToForm(p: Patient) {
     address: patientAddress(p) || "",
     notes: patientNotes(p) || "",
     allow_whatsapp: p.allow_whatsapp !== false,
+    convenio: p.convenio ?? "",
   };
 }
 
@@ -102,6 +108,7 @@ export default function PacientesPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
 
   const isNovo = searchParams.get("novo") === "1";
   const editIdParam = searchParams.get("id");
@@ -123,6 +130,13 @@ export default function PacientesPage() {
       }
     }
   }, [isNovo, editIdParam, list]);
+
+  useEffect(() => {
+    if (!isFormView) return;
+    ClinicaBelezaAPI.convenios.list()
+      .then((rows) => setConvenios(Array.isArray(rows) ? rows : []))
+      .catch(() => setConvenios([]));
+  }, [isFormView]);
 
   const voltarLista = () => {
     setEditing(null);
@@ -155,6 +169,7 @@ export default function PacientesPage() {
       notes: form.notes.trim() || null,
       active: true,
       allow_whatsapp: form.allow_whatsapp,
+      convenio: form.convenio ? Number(form.convenio) : null,
     };
 
     const finishSave = () => {
@@ -197,6 +212,7 @@ export default function PacientesPage() {
             notes: body.notes ?? null,
             active: true,
             allow_whatsapp: body.allow_whatsapp ?? true,
+            convenio: body.convenio ?? null,
           };
           const updatedList = [newPatient, ...list];
           setList(updatedList);
@@ -255,6 +271,7 @@ export default function PacientesPage() {
               notes: body.notes ?? null,
               active: true,
               allow_whatsapp: body.allow_whatsapp ?? true,
+              convenio: body.convenio ?? null,
             };
             const updatedList = [newPatient, ...list];
             setList(updatedList);
@@ -368,6 +385,29 @@ export default function PacientesPage() {
                       className={INPUT}
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Convênio padrão
+                    </label>
+                    <select
+                      value={form.convenio}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          convenio: e.target.value ? Number(e.target.value) : "",
+                        }))
+                      }
+                      className={INPUT}
+                    >
+                      <option value="">{CONVENIO_PARTICULAR_LABEL}</option>
+                      {convenios.map((c) => (
+                        <option key={c.id} value={c.id}>{c.nome}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                      Sugerido ao agendar ou abrir consulta. {CONVENIO_PARTICULAR_LABEL} usa o preço cadastrado do procedimento.
+                    </p>
+                  </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Endereço</label>
                     <input
@@ -456,6 +496,7 @@ export default function PacientesPage() {
                     <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Telefone</th>
                     <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden sm:table-cell">E-mail</th>
                     <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden lg:table-cell">CPF</th>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden md:table-cell">Convênio</th>
                     <th className="text-right px-4 md:px-6 py-3.5 font-semibold w-32">Ações</th>
                   </tr>
                 </thead>
@@ -479,6 +520,9 @@ export default function PacientesPage() {
                         <td className="px-4 md:px-6 py-4 text-gray-700 dark:text-gray-300">{formatTelefone(entityPhone(p)) || "—"}</td>
                         <td className="px-4 md:px-6 py-4 hidden sm:table-cell text-gray-700 dark:text-gray-300">{entityEmail(p) || "—"}</td>
                         <td className="px-4 md:px-6 py-4 hidden lg:table-cell text-gray-700 dark:text-gray-300">{formatCpf(patientCpf(p) || "") || "—"}</td>
+                        <td className="px-4 md:px-6 py-4 hidden md:table-cell text-gray-700 dark:text-gray-300">
+                          {p.convenio_name || CONVENIO_PARTICULAR_LABEL}
+                        </td>
                         <td className="px-4 md:px-6 py-4">
                           <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                             <button

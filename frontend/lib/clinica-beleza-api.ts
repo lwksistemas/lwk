@@ -257,7 +257,16 @@ export class ClinicaBelezaAPI {
     list: (params?: { patient?: number; professional?: number; status?: string; appointment?: number }) =>
       ClinicaBelezaAPI.get('/consultas/', params),
     /** Abre uma consulta avulsa (sem agendamento na agenda) a partir do cadastro do cliente. */
-    criar: (data: { patient: number; professional: number; procedure?: number; procedures_ids?: number[]; iniciar?: boolean; local_atendimento?: number; valor_consulta?: number | string }) =>
+    criar: (data: {
+      patient: number;
+      professional: number;
+      procedure?: number;
+      procedures_ids?: number[];
+      iniciar?: boolean;
+      local_atendimento?: number;
+      valor_consulta?: number | string;
+      convenio?: number | null;
+    }) =>
       ClinicaBelezaAPI.post('/consultas/', data),
     get: (id: number) => ClinicaBelezaAPI.get(`/consultas/${id}/`),
     update: (id: number, data: Record<string, unknown>) => ClinicaBelezaAPI.patch(`/consultas/${id}/`, data),
@@ -327,8 +336,15 @@ export class ClinicaBelezaAPI {
   };
 
   static templates = {
-    list: (params?: { tipo?: string; page?: number; page_size?: number }) =>
-      ClinicaBelezaAPI.get<{ results: DocumentTemplateItem[]; count: number }>('/templates/', params),
+    list: async (params?: { tipo?: string; page?: number; page_size?: number }) => {
+      const data = await ClinicaBelezaAPI.get<
+        DocumentTemplateItem[] | { results: DocumentTemplateItem[]; count: number }
+      >('/templates/', params);
+      if (Array.isArray(data)) {
+        return { results: data, count: data.length };
+      }
+      return { results: data?.results ?? [], count: data?.count ?? 0 };
+    },
     get: (id: number) => ClinicaBelezaAPI.get<DocumentTemplateItem>(`/templates/${id}/`),
     create: (data: { nome: string; tipo: string; conteudo: string }) =>
       ClinicaBelezaAPI.post<DocumentTemplateItem>('/templates/', data),
@@ -370,6 +386,40 @@ export class ClinicaBelezaAPI {
     delete: (id: number) =>
       ClinicaBelezaAPI.delete(`/locais-atendimento/${id}/`),
   };
+
+  static convenios = {
+    list: () => ClinicaBelezaAPI.get<ConvenioItem[]>('/convenios/'),
+    get: (id: number) => ClinicaBelezaAPI.get<ConvenioDetailItem>(`/convenios/${id}/`),
+    create: (data: { nome: string; codigo?: string }) =>
+      ClinicaBelezaAPI.post<ConvenioDetailItem>('/convenios/', data),
+    update: (id: number, data: { nome?: string; codigo?: string; is_active?: boolean }) =>
+      ClinicaBelezaAPI.put<ConvenioDetailItem>(`/convenios/${id}/`, data),
+    delete: (id: number) => ClinicaBelezaAPI.delete(`/convenios/${id}/`),
+    precos: (id: number) => ClinicaBelezaAPI.get<ConvenioPrecoItem[]>(`/convenios/${id}/precos/`),
+    savePrecos: (id: number, precos: { procedure: number; preco: number | string | null }[]) =>
+      ClinicaBelezaAPI.put<ConvenioPrecoItem[]>(`/convenios/${id}/precos/`, { precos }),
+  };
+}
+
+/** Convênio (plano) */
+export interface ConvenioItem {
+  id: number;
+  nome: string;
+  codigo?: string;
+  is_active?: boolean;
+}
+
+export interface ConvenioPrecoItem {
+  id?: number;
+  procedure: number;
+  procedure_name?: string;
+  preco: string | number;
+}
+
+export interface ConvenioDetailItem extends ConvenioItem {
+  precos?: ConvenioPrecoItem[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 /** Local de atendimento para consultas */

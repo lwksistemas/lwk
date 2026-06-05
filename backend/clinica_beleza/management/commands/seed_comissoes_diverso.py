@@ -19,7 +19,9 @@ from django.utils import timezone
 from clinica_beleza.procedimentos_catalogo import (
     LOCAIS_CATALOGO,
     LOCAIS_CATALOGO_NOMES,
+    PACIENTES_CATALOGO,
     PROCEDIMENTOS_CATALOGO,
+    PROFISSIONAIS_SEED_DATA,
 )
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
@@ -171,15 +173,13 @@ class Command(BaseCommand):
             locais.append(local)
             self.stdout.write(f'   • {nome}: R$ {valor}')
 
+        self._aplicar_nomes_reais(db, lid)
+
         # ── Profissionais (reutiliza existentes ou cria) ──
-        profissionais_data = [
-            ('Dra. Teste Fixa Consulta', 'Estética', 'prof.fixa' + SEED_TAG),
-            ('Dr. Teste % Consulta', 'Dermatologia', 'prof.pct' + SEED_TAG),
-            ('Dra. Teste Mista', 'Biomédica', 'prof.mista' + SEED_TAG),
-        ]
         profissionais = []
         self.stdout.write('\nProfissionais:')
-        for nome, esp, email in profissionais_data:
+        for nome, esp, email_base in PROFISSIONAIS_SEED_DATA:
+            email = email_base + SEED_TAG
             prof, _ = Professional.objects.using(db).update_or_create(
                 email=email, loja_id=lid,
                 defaults={
@@ -207,17 +207,22 @@ class Command(BaseCommand):
                 if p not in profissionais:
                     profissionais.append(p)
 
-        dra_fixa = next((p for p in profissionais if 'Fixa' in p.nome), None)
-        dr_pct = next((p for p in profissionais if '%' in p.nome), None)
-        dra_mista = next((p for p in profissionais if 'Mista' in p.nome), None)
+        email_fixa = 'prof.fixa' + SEED_TAG
+        email_pct = 'prof.pct' + SEED_TAG
+        email_mista = 'prof.mista' + SEED_TAG
+        dra_fixa = next((p for p in profissionais if p.email == email_fixa), None)
+        dr_pct = next((p for p in profissionais if p.email == email_pct), None)
+        dra_mista = next((p for p in profissionais if p.email == email_mista), None)
 
         self.stdout.write('\nRegras de comissão — consulta:')
         if dra_fixa:
-            self._upsert_comissao(db, lid, dra_fixa, 'consulta', None, 'fixo', Decimal('100'))
-            self.stdout.write('   • Dra. Teste Fixa: consulta geral R$ 100 fixo')
+            for local in locais:
+                self._upsert_comissao(db, lid, dra_fixa, 'consulta', None, 'fixo', Decimal('100'), local)
+            self.stdout.write(f'   • {dra_fixa.nome}: consulta R$ 100 fixo em cada local')
         if dra_mista:
-            self._upsert_comissao(db, lid, dra_mista, 'consulta', None, 'fixo', Decimal('80'))
-            self.stdout.write('   • Dra. Teste Mista: consulta geral R$ 80 fixo')
+            for local in locais:
+                self._upsert_comissao(db, lid, dra_mista, 'consulta', None, 'fixo', Decimal('80'), local)
+            self.stdout.write(f'   • {dra_mista.nome}: consulta R$ 80 fixo em cada local')
         if dr_pct:
             ProfessionalCommission.objects.using(db).filter(
                 professional=dr_pct, tipo='consulta', loja_id=lid,
@@ -230,7 +235,7 @@ class Command(BaseCommand):
                 self._upsert_comissao(
                     db, lid, dr_pct, 'consulta', None, modo, valor, local,
                 )
-                self.stdout.write(f'   • Dr. Teste % @ {local.nome}: {modo} {valor}')
+                self.stdout.write(f'   • {dr_pct.nome} @ {local.nome}: {modo} {valor}')
 
         # ── 30 procedimentos ──
         procedimentos = []
@@ -257,7 +262,7 @@ class Command(BaseCommand):
             )
             procedimentos.append(proc)
 
-            # Procedimentos 0–9: comissão no Dr. Teste % (mesmo prof. das 10 consultas de teste)
+            # Procedimentos 0–9: comissão no prof. pct (mesmo das 10 consultas do seed)
             if dr_pct and i < 10:
                 prof = dr_pct
                 if i % 2 == 0:
@@ -277,18 +282,20 @@ class Command(BaseCommand):
 
         # ── Pacientes ──
         pacientes = []
-        self.stdout.write('\nPacientes de teste:')
-        for i in range(12):
+        self.stdout.write('\nPacientes:')
+        for i, (nome_pac, tel, cpf) in enumerate(PACIENTES_CATALOGO):
             email = f'paciente{i + 1:02d}' + SEED_TAG
             pac, _ = Patient.objects.using(db).update_or_create(
                 email=email, loja_id=lid,
                 defaults={
-                    'nome': f'Paciente Teste {i + 1:02d}',
-                    'telefone': f'(11) 98100-{i + 1:04d}',
+                    'nome': nome_pac,
+                    'telefone': tel,
+                    'cpf': cpf,
                     'is_active': True,
                 },
             )
             pacientes.append(pac)
+            self.stdout.write(f'   • {nome_pac} — CPF {cpf}')
 
         # ── 10 consultas pagas (1 por local, 3 procedimentos cada = 30 linhas de proc) ──
         hoje = timezone.now().date()
@@ -372,5 +379,20 @@ class Command(BaseCommand):
         url_slug = (loja.atalho or loja.slug or '').strip()
         self.stdout.write(self.style.SUCCESS('\n✅ Seed comissões diverso concluído.'))
         self.stdout.write(f'   • Relatório: /loja/{url_slug}/relatorios/comissoes')
-        self.stdout.write('   • Filtre o mês atual e profissionais Dr. Teste % / Dra. Teste Fixa / Dra. Teste Mista.')
+        self.stdout.write('   • Filtre o mês atual e os profissionais do seed (nomes reais no catálogo).')
         self.stdout.write('')
+
+    def _aplicar_nomes_reais(self, db, lid):
+        """Atualiza nomes de seed já existentes sem recriar atendimentos."""
+        from clinica_beleza.models import Patient, Professional
+
+        for nome, esp, email_base in PROFISSIONAIS_SEED_DATA:
+            email = email_base + SEED_TAG
+            Professional.objects.using(db).filter(email=email, loja_id=lid).update(
+                nome=nome, especialidade=esp,
+            )
+        for i, (nome, tel, cpf) in enumerate(PACIENTES_CATALOGO):
+            email = f'paciente{i + 1:02d}' + SEED_TAG
+            Patient.objects.using(db).filter(email=email, loja_id=lid).update(
+                nome=nome, telefone=tel, cpf=cpf,
+            )

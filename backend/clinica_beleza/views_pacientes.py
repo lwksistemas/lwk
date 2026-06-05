@@ -44,7 +44,7 @@ class PatientListView(APIView):
 
     def get(self, request):
         active_only = request.query_params.get('active', 'true').lower() == 'true'
-        queryset = Patient.objects.all().order_by('nome')
+        queryset = Patient.objects.select_related('convenio').order_by('nome')
         if active_only:
             queryset = queryset.filter(is_active=True)
         return paginate_queryset(queryset, request, PatientSerializer)

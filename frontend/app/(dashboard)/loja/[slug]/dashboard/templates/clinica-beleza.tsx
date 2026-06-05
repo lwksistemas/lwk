@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { CalendarDays, Users, TrendingUp, Activity, CalendarRange } from 'lucide-react';
+import { CalendarDays, Users, TrendingUp, Activity, CalendarRange, RefreshCw } from 'lucide-react';
 import { ClinicaBelezaShell } from '@/components/clinica-beleza/ClinicaBelezaShell';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
@@ -174,13 +174,13 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
 
   const mesAnoMax = useMemo(() => currentMesAnoValue(), []);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (forceRefresh = false) => {
     if (!loja?.id && !loja?.slug) return;
     setLoading(true);
     try {
       const { mes, ano } = parseMesAno(mesAno);
       const lojaCtx = loja?.id || loja?.slug ? { id: loja.id, slug: loja.slug || slug } : undefined;
-      const qs = `period=proximos&mes=${mes}&ano=${ano}`;
+      const qs = `period=proximos&mes=${mes}&ano=${ano}${forceRefresh ? '&refresh=1' : ''}`;
       const [dashRes, finRes] = await Promise.all([
         clinicaBelezaFetch(`/dashboard/?${qs}`, {}, lojaCtx),
         clinicaBelezaFetch(`/financeiro/resumo/?mes=${mes}&ano=${ano}`, {}, lojaCtx).catch(() => null),
@@ -205,6 +205,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
   const isCurrentMonth = data?.filter?.is_current_month ?? true;
   const appointments = data?.next_appointments || [];
   const revenueData = data?.revenue_last_7_days || [];
+  const revenueComValor = revenueData.some((d) => d.value > 0);
   const topProcedures = data?.top_procedures || [];
   const topProceduresVolume = data?.top_procedures_volume || [];
   const soroterapiaComMovimento = topProceduresVolume.filter((p) => p.count > 0);
@@ -234,6 +235,16 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
               className="px-3 py-1.5 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100"
               aria-label="Filtrar mês do dashboard"
             />
+            <button
+              type="button"
+              onClick={() => fetchData(true)}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50"
+              title="Atualizar gráficos"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              Atualizar
+            </button>
           </div>
         }
       />
@@ -367,7 +378,7 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ChartCard title={faturamentoChartTitle}>
               <div className="h-56">
-                {revenueData.length > 0 ? (
+                {revenueComValor ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={revenueData}>
                       <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#f0f0f0'} />

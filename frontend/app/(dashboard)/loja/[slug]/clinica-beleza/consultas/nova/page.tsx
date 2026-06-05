@@ -11,7 +11,8 @@ import { Search, Trash2, ArrowLeft } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI, type LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, type ConvenioItem, type LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
+import { buildPrecosMap, CONVENIO_PARTICULAR_LABEL, precoProcedimento } from "@/lib/convenio-precos";
 import { logger } from "@/lib/logger";
 
 interface Option {
@@ -19,6 +20,7 @@ interface Option {
   nome: string;
   duracao_minutos?: number;
   preco?: number;
+  convenio?: number | null;
 }
 
 export default function NovaConsultaPage() {
@@ -30,11 +32,14 @@ export default function NovaConsultaPage() {
   const [professionals, setProfessionals] = useState<Option[]>([]);
   const [procedures, setProcedures] = useState<Option[]>([]);
   const [locais, setLocais] = useState<LocalAtendimentoItem[]>([]);
+  const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
+  const [precosMap, setPrecosMap] = useState<Record<number, number>>({});
   const [loadingData, setLoadingData] = useState(true);
 
   const [busca, setBusca] = useState("");
   const [patientId, setPatientId] = useState<number | "">("");
   const [professionalId, setProfessionalId] = useState<number | "">("");
+  const [convenioId, setConvenioId] = useState<number | "">("");
   const [selectedProcedures, setSelectedProcedures] = useState<number[]>([]);
   const [localAtendimentoId, setLocalAtendimentoId] = useState<number | "">("");
   const [valorConsulta, setValorConsulta] = useState<string>("");
@@ -48,11 +53,12 @@ export default function NovaConsultaPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [pac, prof, proc, locaisRes] = await Promise.all([
+        const [pac, prof, proc, locaisRes, convRes] = await Promise.all([
           ClinicaBelezaAPI.get<Option[]>("/patients/"),
           ClinicaBelezaAPI.get<Option[]>("/professionals/"),
           ClinicaBelezaAPI.get<Option[]>("/procedures/"),
           ClinicaBelezaAPI.locaisAtendimento.list(),
+          ClinicaBelezaAPI.convenios.list(),
         ]);
         const ativos = (arr: unknown) => (Array.isArray(arr) ? (arr as Option[]) : []);
         setPatients(ativos(pac));
@@ -60,6 +66,7 @@ export default function NovaConsultaPage() {
         setProfessionals(profList);
         setProcedures(ativos(proc));
         setLocais(Array.isArray(locaisRes) ? locaisRes : []);
+        setConvenios(Array.isArray(convRes) ? convRes : []);
         if (profList.length === 1) setProfessionalId(profList[0].id);
       } catch (e) {
         logger.warn("Erro ao carregar dados para nova consulta:", e);
@@ -81,6 +88,28 @@ export default function NovaConsultaPage() {
       setPatientId(pacientesFiltrados[0].id);
     }
   }, [pacientesFiltrados]);
+
+  useEffect(() => {
+    if (!patientId) return;
+    const paciente = patients.find((p) => p.id === patientId);
+    setConvenioId(paciente?.convenio ?? "");
+  }, [patientId, patients]);
+
+  useEffect(() => {
+    if (!convenioId) {
+      setPrecosMap({});
+      return;
+    }
+    (async () => {
+      try {
+        const rows = await ClinicaBelezaAPI.convenios.precos(Number(convenioId));
+        setPrecosMap(buildPrecosMap(rows));
+      } catch (e) {
+        logger.warn("Erro ao carregar preços do convênio:", e);
+        setPrecosMap({});
+      }
+    })();
+  }, [convenioId]);
 
   const clienteSelecionado = useMemo(
     () => patients.find((p) => p.id === patientId) || null,
@@ -109,11 +138,11 @@ export default function NovaConsultaPage() {
       const proc = procedures.find((p) => p.id === id);
       if (proc) {
         duracao += Number(proc.duracao_minutos) || 0;
-        valor += Number(proc.preco) || 0;
+        valor += precoProcedimento(id, Number(proc.preco) || 0, convenioId, precosMap);
       }
     }
     return { duracao, valor };
-  }, [selectedProcedures, procedures]);
+  }, [selectedProcedures, procedures, convenioId, precosMap]);
 
   const handleLocalChange = (id: number | "") => {
     setLocalAtendimentoId(id);
@@ -141,11 +170,15 @@ export default function NovaConsultaPage() {
         procedures_ids: number[];
         local_atendimento?: number;
         valor_consulta?: number | string;
+        convenio?: number;
       } = {
         patient: Number(patientId),
         professional: Number(professionalId),
         procedures_ids: selectedProcedures,
       };
+      if (convenioId) {
+        payload.convenio = Number(convenioId);
+      }
       if (localAtendimentoId) {
         payload.local_atendimento = Number(localAtendimentoId);
       }
@@ -242,6 +275,26 @@ export default function NovaConsultaPage() {
                   </select>
                 </div>
 
+                {/* Convênio */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Convênio
+                  </label>
+                  <select
+                    value={convenioId}
+                    onChange={(e) => setConvenioId(e.target.value ? Number(e.target.value) : "")}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg dark:bg-neutral-700 focus:ring-2 focus:ring-pink-200 dark:focus:ring-pink-800 focus:border-pink-400 outline-none transition-colors"
+                  >
+                    <option value="">{CONVENIO_PARTICULAR_LABEL}</option>
+                    {convenios.map((c) => (
+                      <option key={c.id} value={c.id}>{c.nome}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    Define os preços dos procedimentos. Sugerido pelo cadastro do cliente, se houver.
+                  </p>
+                </div>
+
                 {/* Local de Atendimento */}
                 {locais.length > 0 && (
                   <div>
@@ -309,13 +362,14 @@ export default function NovaConsultaPage() {
                       {selectedProcedures.map((id) => {
                         const proc = procedures.find((p) => p.id === id);
                         if (!proc) return null;
+                        const valorProc = precoProcedimento(id, Number(proc.preco) || 0, convenioId, precosMap);
                         return (
                           <div key={id} className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-neutral-700/50 rounded-lg">
                             <div className="text-sm">
                               <span className="font-medium text-gray-800 dark:text-gray-200">{proc.nome}</span>
                               <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
                                 {Number(proc.duracao_minutos) || 0}min
-                                {Number(proc.preco) ? ` · R$ ${Number(proc.preco).toFixed(2)}` : ""}
+                                {valorProc > 0 ? ` · R$ ${valorProc.toFixed(2)}` : ""}
                               </span>
                             </div>
                             <button

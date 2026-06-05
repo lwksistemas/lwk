@@ -25,6 +25,8 @@ export interface Consulta {
   valor_consulta: string | number;
   local_atendimento?: number | null;
   local_atendimento_name?: string | null;
+  convenio?: number | null;
+  convenio_name?: string | null;
   appointment_date?: string;
   appointment_status?: string;
   total_evolucoes: number;

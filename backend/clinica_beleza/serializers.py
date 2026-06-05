@@ -12,6 +12,7 @@ from .models import (
     ProdutoEstoque, MovimentacaoEstoque,
     DocumentTemplate, DocumentoClinico,
     LocalAtendimento,
+    Convenio, ConvenioProcedimentoPreco,
 )
 from core.serializer_mixins import TextNormalizationMixin, CpfNormalizationMixin
 from core.logging_utils import mask_email
@@ -99,7 +100,13 @@ class PatientSerializer(CpfNormalizationMixin, TextNormalizationMixin, serialize
     """Serializer para Pacientes. Aceita phone opcional e birth_date em YYYY-MM-DD ou DD/MM/YYYY."""
     phone = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
     birth_date = serializers.DateField(required=False, allow_null=True, input_formats=['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'])
-    
+    convenio = serializers.PrimaryKeyRelatedField(
+        queryset=Convenio.objects.filter(is_active=True),
+        required=False,
+        allow_null=True,
+    )
+    convenio_name = serializers.SerializerMethodField()
+
     # Campos de telefone a normalizar
     phone_fields = ['phone', 'telefone']
     # Campos de texto para maiúsculas
@@ -122,6 +129,11 @@ class PatientSerializer(CpfNormalizationMixin, TextNormalizationMixin, serialize
             'address': {'required': False, 'allow_blank': True, 'allow_null': True},
             'notes': {'required': False, 'allow_blank': True, 'allow_null': True},
         }
+
+    def get_convenio_name(self, obj):
+        if obj.convenio_id and obj.convenio:
+            return obj.convenio.nome
+        return 'Particular'
 
 
 class HorarioTrabalhoProfissionalSerializer(serializers.ModelSerializer):
@@ -190,8 +202,13 @@ class ProfessionalCommissionSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {'local_atendimento': 'Não use local em comissão de procedimento.'},
                 )
-        elif tipo == 'consulta' and procedure:
-            raise serializers.ValidationError({'procedure': 'Consulta não vincula procedimento.'})
+        elif tipo == 'consulta':
+            if procedure:
+                raise serializers.ValidationError({'procedure': 'Consulta não vincula procedimento.'})
+            if not local:
+                raise serializers.ValidationError({
+                    'local_atendimento': 'Informe o local de atendimento para a comissão da consulta.',
+                })
         return attrs
 
 
@@ -266,10 +283,15 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
         write_only=True,
         help_text="Lista de IDs de procedimentos. Se enviado, substitui o campo 'procedure'.",
     )
+    convenio = serializers.PrimaryKeyRelatedField(
+        queryset=Convenio.objects.filter(is_active=True),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = Appointment
-        fields = ['date', 'status', 'patient', 'professional', 'procedure', 'procedures_ids', 'notes']
+        fields = ['date', 'status', 'patient', 'professional', 'procedure', 'procedures_ids', 'notes', 'convenio']
         extra_kwargs = {
             'procedure': {'required': False, 'allow_null': True},
         }
@@ -287,27 +309,23 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
             # Usa o primeiro como procedure principal (retrocompatibilidade)
             if not procedure:
                 attrs['procedure'] = procedures[0]
+        convenio = attrs.get('convenio')
+        if convenio is None and attrs.get('patient'):
+            patient = attrs['patient']
+            if getattr(patient, 'convenio_id', None) and patient.convenio and patient.convenio.is_active:
+                attrs['convenio'] = patient.convenio
         return attrs
 
     def create(self, validated_data):
+        from .convenio_service import criar_appointment_procedures
+
         procedures_list = validated_data.pop('_procedures_list', None)
+        convenio = validated_data.get('convenio')
         appointment = super().create(validated_data)
         if procedures_list:
-            for ordem, proc in enumerate(procedures_list):
-                AppointmentProcedure.objects.create(
-                    appointment=appointment,
-                    procedure=proc,
-                    ordem=ordem,
-                    loja_id=appointment.loja_id,
-                )
+            criar_appointment_procedures(appointment, procedures_list, convenio=convenio)
         elif appointment.procedure_id:
-            # Cria o item na tabela intermediária para consistência
-            AppointmentProcedure.objects.create(
-                appointment=appointment,
-                procedure=appointment.procedure,
-                ordem=0,
-                loja_id=appointment.loja_id,
-            )
+            criar_appointment_procedures(appointment, [appointment.procedure], convenio=convenio)
         return appointment
 
 
@@ -363,6 +381,8 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     duracao_minutos = serializers.SerializerMethodField()
     procedure_price = serializers.SerializerMethodField()
     procedures_list = serializers.SerializerMethodField()
+    convenio_id = serializers.IntegerField(source='convenio.id', read_only=True, allow_null=True)
+    convenio_name = serializers.SerializerMethodField()
 
     # Sincronização offline: version e updated_at para detecção de conflito
     version = serializers.IntegerField(read_only=True)
@@ -379,6 +399,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
             'professional', 'professional_name', 'professional_id',
             'procedure', 'procedure_name', 'procedure_duration', 'duracao_minutos',
             'procedure_price', 'procedures_list',
+            'convenio', 'convenio_id', 'convenio_name',
             'version', 'updated_at', 'updated_by_id',
         ]
 
@@ -406,6 +427,11 @@ class AgendaEventSerializer(serializers.ModelSerializer):
 
     def get_procedure_price(self, obj):
         return float(obj.valor_total)
+
+    def get_convenio_name(self, obj):
+        if obj.convenio_id and obj.convenio:
+            return obj.convenio.nome
+        return 'Particular'
 
     def get_procedures_list(self, obj):
         """Lista detalhada dos procedimentos para o frontend."""
@@ -587,6 +613,12 @@ class ConsultaSerializer(serializers.ModelSerializer):
     local_atendimento_name = serializers.CharField(
         source='local_atendimento.nome', read_only=True, default=None, allow_null=True,
     )
+    convenio = serializers.PrimaryKeyRelatedField(
+        queryset=Convenio.objects.filter(is_active=True),
+        allow_null=True,
+        required=False,
+    )
+    convenio_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Consulta
@@ -595,6 +627,7 @@ class ConsultaSerializer(serializers.ModelSerializer):
             'procedure', 'procedure_name', 'protocol', 'protocol_name', 'status',
             'data_inicio', 'data_fim', 'duracao_minutos', 'observacoes_gerais', 'protocolo_notas',
             'valor_consulta', 'local_atendimento', 'local_atendimento_name',
+            'convenio', 'convenio_name',
             'appointment_date', 'appointment_status', 'total_evolucoes',
             'created_at', 'updated_at', 'loja_id',
         ]
@@ -603,6 +636,42 @@ class ConsultaSerializer(serializers.ModelSerializer):
     def get_total_evolucoes(self, obj):
         return obj.evolucoes.count()
 
+    def get_convenio_name(self, obj):
+        if obj.convenio_id and obj.convenio:
+            return obj.convenio.nome
+        return 'Particular'
+
+
+class ConvenioListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Convenio
+        fields = ['id', 'nome', 'codigo', 'is_active']
+
+
+class ConvenioPrecoSerializer(serializers.ModelSerializer):
+    procedure_name = serializers.CharField(source='procedure.nome', read_only=True)
+
+    class Meta:
+        model = ConvenioProcedimentoPreco
+        fields = ['id', 'procedure', 'procedure_name', 'preco']
+
+
+class ConvenioSerializer(serializers.ModelSerializer):
+    precos = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Convenio
+        fields = ['id', 'nome', 'codigo', 'is_active', 'precos', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_precos(self, obj):
+        rows = obj.precos_procedimentos.filter(is_active=True).select_related('procedure')
+        return ConvenioPrecoSerializer(rows, many=True).data
+
+    def validate_nome(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError('O nome do convênio é obrigatório.')
+        return value.strip()
 
 
 class LocalAtendimentoSerializer(serializers.ModelSerializer):

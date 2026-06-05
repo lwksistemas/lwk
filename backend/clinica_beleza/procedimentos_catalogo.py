@@ -53,3 +53,26 @@ PROCEDIMENTOS_CATALOGO = [
 
 LOCAIS_CATALOGO_NOMES = {nome for nome, _ in LOCAIS_CATALOGO}
 PROCEDIMENTOS_CATALOGO_NOMES = {nome for nome, *_ in PROCEDIMENTOS_CATALOGO}
+
+# (nome, telefone, cpf) — pacientes de demonstração (CPFs válidos, fictícios)
+PACIENTES_CATALOGO = [
+    ('Ana Carolina Mendes', '(11) 98112-3401', '616.517.286-58'),
+    ('Bruno Ferreira Santos', '(11) 98223-4502', '031.862.659-40'),
+    ('Camila Rodrigues Lima', '(11) 98334-5603', '896.322.472-48'),
+    ('Daniel Oliveira Costa', '(11) 98445-6704', '785.377.876-71'),
+    ('Eduarda Martins Souza', '(11) 98556-7805', '619.883.350-00'),
+    ('Felipe Almeida Ribeiro', '(11) 98667-8906', '768.694.582-00'),
+    ('Gabriela Nunes Pereira', '(11) 98778-9017', '503.703.950-93'),
+    ('Henrique Barbosa Dias', '(11) 98889-0128', '092.423.803-85'),
+    ('Isabela Castro Vieira', '(11) 98990-1239', '875.110.291-91'),
+    ('João Pedro Teixeira', '(11) 99001-2340', '207.187.283-51'),
+    ('Larissa Gomes Araújo', '(11) 99112-3451', '938.166.622-93'),
+    ('Marcos Henrique Silva', '(11) 99223-4562', '540.627.678-64'),
+]
+
+# (nome, especialidade, email_base) — profissionais de demonstração (email recebe sufixo do seed)
+PROFISSIONAIS_SEED_DATA = [
+    ('Dra. Fernanda Oliveira', 'Estética', 'prof.fixa'),
+    ('Dr. Ricardo Almeida', 'Dermatologia', 'prof.pct'),
+    ('Dra. Patrícia Nogueira', 'Biomédica', 'prof.mista'),
+]

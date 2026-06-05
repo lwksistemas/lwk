@@ -13,6 +13,7 @@ from decimal import Decimal
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from core.db_config import ensure_loja_database_config
@@ -22,6 +23,56 @@ from tenants.middleware import set_current_loja_id, set_current_tenant_db
 SEED_TAG = '@seed-comissoes-diverso.lwksistemas.com.br'
 SEED_NOTE = 'Seed comissões diverso — teste'
 PROC_DESC = 'Cadastro teste comissões diverso'
+LOCAIS_LEGACY_PREFIX = '[Teste] '
+
+# 10 locais com nomes reais (valor da consulta no local)
+LOCAIS_SEED = [
+    ('Consultório Centro — Av. Paulista', Decimal('90.00')),
+    ('Sala VIP — Unidade Norte', Decimal('150.00')),
+    ('Atendimento Domiciliar — Zona Sul', Decimal('120.00')),
+    ('Unidade Jardins', Decimal('200.00')),
+    ('Teleconsulta', Decimal('70.00')),
+    ('Spa Clínico', Decimal('110.00')),
+    ('Cabine de Estética 2', Decimal('95.00')),
+    ('Unidade Moema', Decimal('130.00')),
+    ('Atendimento Externo — Eventos', Decimal('140.00')),
+    ('Consultório Premium — Alphaville', Decimal('180.00')),
+]
+LOCAIS_SEED_NOMES = {nome for nome, _ in LOCAIS_SEED}
+
+# 30 procedimentos com nomes reais: (nome, categoria, preço, duração min)
+PROCEDIMENTOS_SEED = [
+    ('Limpeza de Pele Profunda', 'Facial', Decimal('150.00'), 60),
+    ('Peeling Químico Suave', 'Facial', Decimal('250.00'), 50),
+    ('Microagulhamento Facial', 'Facial', Decimal('300.00'), 60),
+    ('Botox — Testa e Glabela', 'Facial', Decimal('800.00'), 30),
+    ('Preenchimento Labial', 'Facial', Decimal('1200.00'), 45),
+    ('Harmonização Facial', 'Facial', Decimal('2500.00'), 90),
+    ('Laser CO2 Fracionado', 'Facial', Decimal('900.00'), 60),
+    ('Hidratação Facial com Ácido Hialurônico', 'Facial', Decimal('280.00'), 50),
+    ('Tratamento para Melasma', 'Facial', Decimal('350.00'), 55),
+    ('LED Terapia Facial', 'Facial', Decimal('120.00'), 40),
+    ('Drenagem Linfática Manual', 'Corporal', Decimal('120.00'), 60),
+    ('Massagem Modeladora', 'Corporal', Decimal('180.00'), 90),
+    ('Cryolipolysis — Abdômen', 'Corporal', Decimal('450.00'), 75),
+    ('Radiofrequência Corporal', 'Corporal', Decimal('320.00'), 60),
+    ('Intradermoterapia — Celulite', 'Corporal', Decimal('280.00'), 45),
+    ('Carboxiterapia', 'Corporal', Decimal('200.00'), 50),
+    ('Enzimas Corporais', 'Corporal', Decimal('220.00'), 55),
+    ('Bioestimulador de Colágeno', 'Estética', Decimal('1800.00'), 60),
+    ('Skinbooster', 'Estética', Decimal('950.00'), 45),
+    ('Depilação a Laser — Axilas', 'Depilação', Decimal('150.00'), 30),
+    ('Depilação a Laser — Virilha', 'Depilação', Decimal('220.00'), 40),
+    ('Depilação a Laser — Perna Inteira', 'Depilação', Decimal('380.00'), 90),
+    ('Soroterapia — Imunidade', 'Soroterapia', Decimal('350.00'), 60),
+    ('Soroterapia — Energia e Foco', 'Soroterapia', Decimal('320.00'), 60),
+    ('Soroterapia — Detox', 'Soroterapia', Decimal('300.00'), 60),
+    ('Mesoterapia Capilar', 'Capilar', Decimal('280.00'), 45),
+    ('Laser Capilar — Queda de Cabelo', 'Capilar', Decimal('400.00'), 50),
+    ('Design de Sobrancelhas', 'Estética', Decimal('80.00'), 30),
+    ('Lash Lifting', 'Estética', Decimal('150.00'), 60),
+    ('Micropigmentação Labial', 'Estética', Decimal('650.00'), 90),
+]
 
 
 class Command(BaseCommand):
@@ -101,7 +152,9 @@ class Command(BaseCommand):
             self.stdout.write(f'   {len(proc_ids)} procedimento(s) de teste removido(s).')
 
         LocalAtendimento.objects.using(db).filter(
-            loja_id=lid, nome__startswith='[Teste] ',
+            loja_id=lid,
+        ).filter(
+            Q(nome__startswith=LOCAIS_LEGACY_PREFIX) | Q(nome__in=LOCAIS_SEED_NOMES),
         ).delete()
         Patient.objects.using(db).filter(loja_id=lid, email__endswith=SEED_TAG).delete()
         Professional.objects.using(db).filter(loja_id=lid, email__endswith=SEED_TAG).delete()
@@ -137,21 +190,9 @@ class Command(BaseCommand):
         ))
 
         # ── 10 locais ──
-        locais_cfg = [
-            ('[Teste] Consultório Centro', Decimal('90.00')),
-            ('[Teste] Sala VIP Norte', Decimal('150.00')),
-            ('[Teste] Home Care Zona Sul', Decimal('120.00')),
-            ('[Teste] Unidade Jardins', Decimal('200.00')),
-            ('[Teste] Telemedicina', Decimal('70.00')),
-            ('[Teste] Spa Interno', Decimal('110.00')),
-            ('[Teste] Cabine 02', Decimal('95.00')),
-            ('[Teste] Unidade Moema', Decimal('130.00')),
-            ('[Teste] Atendimento Externo', Decimal('140.00')),
-            ('[Teste] Consultório Premium', Decimal('180.00')),
-        ]
         locais = []
         self.stdout.write('10 locais de atendimento:')
-        for nome, valor in locais_cfg:
+        for nome, valor in LOCAIS_SEED:
             local, _ = LocalAtendimento.objects.using(db).update_or_create(
                 nome=nome, loja_id=lid,
                 defaults={'valor_consulta': valor, 'is_active': True},
@@ -221,7 +262,6 @@ class Command(BaseCommand):
                 self.stdout.write(f'   • Dr. Teste % @ {local.nome}: {modo} {valor}')
 
         # ── 30 procedimentos ──
-        categorias = ['Facial', 'Corporal', 'Estética', 'Soroterapia', 'Capilar', 'Depilação']
         procedimentos = []
         proc_ids_existentes = list(
             Procedure.objects.using(db)
@@ -233,17 +273,12 @@ class Command(BaseCommand):
                 loja_id=lid, tipo='procedimento', procedure_id__in=proc_ids_existentes,
             ).delete()
         self.stdout.write('\n30 procedimentos (comissão fixa ou %):')
-        for i in range(30):
-            cat = categorias[i % len(categorias)]
-            preco = Decimal('80') + Decimal(i * 37)
-            if i % 5 == 0:
-                preco = Decimal('250') + Decimal(i * 15)
-            nome = f'[Teste] Proc {i + 1:02d} — {cat}'
+        for i, (nome, cat, preco, duracao) in enumerate(PROCEDIMENTOS_SEED):
             proc, _ = Procedure.objects.using(db).update_or_create(
                 nome=nome, loja_id=lid,
                 defaults={
                     'preco': preco,
-                    'duracao_minutos': 45 + (i % 4) * 15,
+                    'duracao_minutos': duracao,
                     'categoria': cat,
                     'is_active': True,
                     'descricao': PROC_DESC,
@@ -347,7 +382,7 @@ class Command(BaseCommand):
                         loja_id=lid,
                         notes=SEED_NOTE,
                     )
-                procs_txt = ', '.join(p.nome.replace('[Teste] ', '') for p in procs)
+                procs_txt = ', '.join(p.nome for p in procs)
                 self.stdout.write(
                     f'   • {data.strftime("%d/%m/%Y")} {hora} — {prof.nome} @ {local.nome}: '
                     f'{procs_txt} — total R$ {valor_total}'
@@ -364,5 +399,5 @@ class Command(BaseCommand):
         url_slug = (loja.atalho or loja.slug or '').strip()
         self.stdout.write(self.style.SUCCESS('\n✅ Seed comissões diverso concluído.'))
         self.stdout.write(f'   • Relatório: /loja/{url_slug}/relatorios/comissoes')
-        self.stdout.write('   • Filtre o mês atual e profissionais com prefixo [Teste] ou Beatriz (se já existia).')
+        self.stdout.write('   • Filtre o mês atual e profissionais Dr. Teste % / Dra. Teste Fixa / Dra. Teste Mista.')
         self.stdout.write('')

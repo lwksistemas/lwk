@@ -963,7 +963,12 @@ class Convenio(LojaIsolationMixin, models.Model):
 
 
 class ConvenioProcedimentoPreco(LojaIsolationMixin, models.Model):
-    """Preço de um procedimento para um convênio específico."""
+    """Preço de um procedimento para um convênio específico (fixo ou % sobre particular)."""
+    MODO_CHOICES = (
+        ('fixo', 'Valor fixo (R$)'),
+        ('percentual', 'Percentual (%)'),
+    )
+
     convenio = models.ForeignKey(
         Convenio,
         on_delete=models.CASCADE,
@@ -976,7 +981,18 @@ class ConvenioProcedimentoPreco(LojaIsolationMixin, models.Model):
         related_name='precos_convenio',
         verbose_name='Procedimento',
     )
-    preco = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Preço (R$)')
+    modo = models.CharField(
+        max_length=15,
+        choices=MODO_CHOICES,
+        default='fixo',
+        verbose_name='Modo',
+    )
+    preco = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name='Valor',
+        help_text='Valor fixo em R$ ou percentual sobre o preço particular (ex: 70 = 70%).',
+    )
     is_active = models.BooleanField(default=True, verbose_name='Ativo')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -996,5 +1012,15 @@ class ConvenioProcedimentoPreco(LojaIsolationMixin, models.Model):
             ),
         ]
 
+    def calcular_preco_efetivo(self, procedure=None):
+        """Retorna o preço cobrado: fixo ou % do preço particular do procedimento."""
+        procedure = procedure or self.procedure
+        base = procedure.preco or Decimal('0')
+        if self.modo == 'percentual':
+            return (base * self.preco / Decimal('100')).quantize(Decimal('0.01'))
+        return self.preco
+
     def __str__(self):
+        if self.modo == 'percentual':
+            return f'{self.convenio.nome} — {self.procedure.nome}: {self.preco}%'
         return f'{self.convenio.nome} — {self.procedure.nome}: R$ {self.preco}'

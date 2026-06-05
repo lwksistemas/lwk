@@ -396,7 +396,10 @@ export class ClinicaBelezaAPI {
       ClinicaBelezaAPI.put<ConvenioDetailItem>(`/convenios/${id}/`, data),
     delete: (id: number) => ClinicaBelezaAPI.delete(`/convenios/${id}/`),
     precos: (id: number) => ClinicaBelezaAPI.get<ConvenioPrecoItem[]>(`/convenios/${id}/precos/`),
-    savePrecos: (id: number, precos: { procedure: number; preco: number | string | null }[]) =>
+    savePrecos: (
+      id: number,
+      precos: { procedure: number; modo?: ConvenioPrecoModo; preco: number | string | null }[],
+    ) =>
       ClinicaBelezaAPI.put<ConvenioPrecoItem[]>(`/convenios/${id}/precos/`, { precos }),
   };
 }
@@ -409,11 +412,16 @@ export interface ConvenioItem {
   is_active?: boolean;
 }
 
+export type ConvenioPrecoModo = 'fixo' | 'percentual';
+
 export interface ConvenioPrecoItem {
   id?: number;
   procedure: number;
   procedure_name?: string;
+  preco_particular?: string | number;
+  modo?: ConvenioPrecoModo;
   preco: string | number;
+  preco_efetivo?: string | number;
 }
 
 export interface ConvenioDetailItem extends ConvenioItem {

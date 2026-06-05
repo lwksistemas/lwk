@@ -70,7 +70,8 @@ class ConvenioPrecosView(GetObjectMixin, APIView):
     """
     GET /clinica-beleza/convenios/<pk>/precos/ — mapa de preços por procedimento
     PUT /clinica-beleza/convenios/<pk>/precos/ — salva preços em lote
-    Body PUT: { "precos": [ { "procedure": 1, "preco": "700.00" }, ... ] }
+    Body PUT: { "precos": [ { "procedure": 1, "modo": "fixo", "preco": "700.00" }, ... ] }
+    modo: "fixo" (R$) ou "percentual" (% sobre particular). preco vazio remove a regra.
     """
     permission_classes = CLINICA_MEMBER
     model_class = Convenio
@@ -109,18 +110,34 @@ class ConvenioPrecosView(GetObjectMixin, APIView):
                     convenio=obj, procedure_id=proc_id,
                 ).update(is_active=False)
                 continue
+            modo = item.get('modo') or 'fixo'
+            if modo not in ('fixo', 'percentual'):
+                return Response(
+                    {'error': f'Modo inválido para procedimento {proc_id}. Use fixo ou percentual.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             try:
                 preco = Decimal(str(preco_raw))
             except (InvalidOperation, TypeError):
                 return Response(
-                    {'error': f'Preço inválido para procedimento {proc_id}.'},
+                    {'error': f'Valor inválido para procedimento {proc_id}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if modo == 'percentual' and (preco <= 0 or preco > 100):
+                return Response(
+                    {'error': f'Percentual deve estar entre 0 e 100 (procedimento {proc_id}).'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if modo == 'fixo' and preco < 0:
+                return Response(
+                    {'error': f'Valor fixo não pode ser negativo (procedimento {proc_id}).'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             ConvenioProcedimentoPreco.objects.update_or_create(
                 convenio=obj,
                 procedure_id=proc_id,
                 loja_id=obj.loja_id,
-                defaults={'preco': preco, 'is_active': True},
+                defaults={'preco': preco, 'modo': modo, 'is_active': True},
             )
         rows = ConvenioProcedimentoPreco.objects.filter(
             convenio=obj, is_active=True,

@@ -17,16 +17,16 @@ def resolver_convenio(convenio_id, *, loja_id=None):
 
 
 def resolver_preco_procedimento(convenio, procedure):
-    """Preço do procedimento: tabela do convênio ou preço particular cadastrado."""
+    """Preço do procedimento: tabela do convênio (fixo ou %) ou preço particular."""
     if not convenio:
         return procedure.preco or Decimal('0')
     row = ConvenioProcedimentoPreco.objects.filter(
         convenio=convenio,
         procedure=procedure,
         is_active=True,
-    ).first()
+    ).select_related('procedure').first()
     if row:
-        return row.preco
+        return row.calcular_preco_efetivo(procedure)
     return procedure.preco or Decimal('0')
 
 
@@ -39,15 +39,16 @@ def aplicar_precos_agendamento(appointment, convenio=None):
 
 
 def mapa_precos_convenio(convenio):
-    """Dict procedure_id → preco para o convênio."""
+    """Dict procedure_id → preço efetivo cobrado para o convênio."""
     if not convenio:
         return {}
+    rows = ConvenioProcedimentoPreco.objects.filter(
+        convenio=convenio,
+        is_active=True,
+    ).select_related('procedure')
     return {
-        row.procedure_id: row.preco
-        for row in ConvenioProcedimentoPreco.objects.filter(
-            convenio=convenio,
-            is_active=True,
-        ).only('procedure_id', 'preco')
+        row.procedure_id: row.calcular_preco_efetivo(row.procedure)
+        for row in rows
     }
 
 

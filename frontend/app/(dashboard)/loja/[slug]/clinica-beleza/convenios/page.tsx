@@ -1,12 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Plus, Save, Trash2 } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI, type ConvenioItem, type ConvenioPrecoItem } from "@/lib/clinica-beleza-api";
+import {
+  ClinicaBelezaAPI,
+  type ConvenioItem,
+  type ConvenioPrecoItem,
+  type ConvenioPrecoModo,
+} from "@/lib/clinica-beleza-api";
+import { calcularPrecoEfetivo } from "@/lib/convenio-precos";
 import { logger } from "@/lib/logger";
 
 interface ProcedureRow {
@@ -15,6 +21,13 @@ interface ProcedureRow {
   preco?: number | string;
 }
 
+interface PrecoLinha {
+  modo: ConvenioPrecoModo;
+  valor: string;
+}
+
+const EMPTY_LINHA: PrecoLinha = { modo: "fixo", valor: "" };
+
 export default function ConveniosPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -22,7 +35,7 @@ export default function ConveniosPage() {
   const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
   const [procedures, setProcedures] = useState<ProcedureRow[]>([]);
   const [selectedId, setSelectedId] = useState<number | "">("");
-  const [precos, setPrecos] = useState<Record<number, string>>({});
+  const [linhas, setLinhas] = useState<Record<number, PrecoLinha>>({});
   const [novoNome, setNovoNome] = useState("");
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -51,22 +64,40 @@ export default function ConveniosPage() {
 
   useEffect(() => {
     if (!selectedId) {
-      setPrecos({});
+      setLinhas({});
       return;
     }
     (async () => {
       try {
         const rows = await ClinicaBelezaAPI.convenios.precos(Number(selectedId));
-        const map: Record<number, string> = {};
+        const map: Record<number, PrecoLinha> = {};
         for (const r of rows as ConvenioPrecoItem[]) {
-          map[r.procedure] = String(Number(r.preco));
+          map[r.procedure] = {
+            modo: r.modo || "fixo",
+            valor: String(Number(r.preco)),
+          };
         }
-        setPrecos(map);
+        setLinhas(map);
       } catch (e) {
         logger.warn("Erro ao carregar preços do convênio:", e);
       }
     })();
   }, [selectedId]);
+
+  const previewPorProc = useMemo(() => {
+    const out: Record<number, number | null> = {};
+    for (const p of procedures) {
+      const linha = linhas[p.id];
+      if (!linha?.valor.trim()) {
+        out[p.id] = null;
+        continue;
+      }
+      const particular = Number(p.preco) || 0;
+      const valor = Number(linha.valor) || 0;
+      out[p.id] = calcularPrecoEfetivo(particular, linha.modo, valor);
+    }
+    return out;
+  }, [procedures, linhas]);
 
   const criarConvenio = async () => {
     if (!novoNome.trim()) return;
@@ -89,10 +120,17 @@ export default function ConveniosPage() {
     setSalvando(true);
     setErro("");
     try {
-      const payload = procedures.map((p) => ({
-        procedure: p.id,
-        preco: precos[p.id]?.trim() ? precos[p.id] : null,
-      }));
+      const payload = procedures.map((p) => {
+        const linha = linhas[p.id];
+        if (!linha?.valor.trim()) {
+          return { procedure: p.id, preco: null };
+        }
+        return {
+          procedure: p.id,
+          modo: linha.modo,
+          preco: linha.valor,
+        };
+      });
       await ClinicaBelezaAPI.convenios.savePrecos(Number(selectedId), payload);
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : "Erro ao salvar preços.");
@@ -115,13 +153,20 @@ export default function ConveniosPage() {
     }
   };
 
+  const updateLinha = (procId: number, patch: Partial<PrecoLinha>) => {
+    setLinhas((prev) => ({
+      ...prev,
+      [procId]: { ...(prev[procId] || EMPTY_LINHA), ...patch },
+    }));
+  };
+
   const convenioSelecionado = convenios.find((c) => c.id === selectedId);
 
   return (
     <>
       <ClinicaBelezaStandardPageHeader
         title="Convênios"
-        subtitle="Tabelas de preço por plano — usadas na Agenda e em Nova consulta"
+        subtitle="Preço fixo (R$) ou percentual (%) sobre o valor particular"
         backHref={`/loja/${slug}/clinica-beleza/configuracoes`}
       />
       <ClinicaBelezaPageContent>
@@ -207,39 +252,69 @@ export default function ConveniosPage() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mb-4">
-                  Deixe em branco para usar o preço particular do procedimento.
+                  <strong>Fixo:</strong> valor em R$. <strong>%:</strong> percentual sobre o preço particular.
+                  Deixe em branco para usar o preço particular.
                 </p>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm min-w-[640px]">
                     <thead>
                       <tr className="border-b dark:border-neutral-600 text-left text-gray-500">
-                        <th className="py-2 pr-4 font-medium">Procedimento</th>
-                        <th className="py-2 pr-4 font-medium">Particular</th>
-                        <th className="py-2 font-medium">Preço convênio (R$)</th>
+                        <th className="py-2 pr-3 font-medium">Procedimento</th>
+                        <th className="py-2 pr-3 font-medium">Particular</th>
+                        <th className="py-2 pr-3 font-medium w-28">Modo</th>
+                        <th className="py-2 pr-3 font-medium w-28">Valor</th>
+                        <th className="py-2 font-medium">Cobrado</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {procedures.map((p) => (
-                        <tr key={p.id} className="border-b last:border-0 dark:border-neutral-700">
-                          <td className="py-2.5 pr-4 text-gray-800 dark:text-gray-200">{p.nome}</td>
-                          <td className="py-2.5 pr-4 text-gray-500">
-                            R$ {Number(p.preco || 0).toFixed(2)}
-                          </td>
-                          <td className="py-2.5">
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={precos[p.id] ?? ""}
-                              onChange={(e) =>
-                                setPrecos((prev) => ({ ...prev, [p.id]: e.target.value }))
-                              }
-                              placeholder="—"
-                              className="w-32 px-2 py-1.5 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
-                            />
-                          </td>
-                        </tr>
-                      ))}
+                      {procedures.map((p) => {
+                        const linha = linhas[p.id] || EMPTY_LINHA;
+                        const preview = previewPorProc[p.id];
+                        return (
+                          <tr key={p.id} className="border-b last:border-0 dark:border-neutral-700">
+                            <td className="py-2.5 pr-3 text-gray-800 dark:text-gray-200">{p.nome}</td>
+                            <td className="py-2.5 pr-3 text-gray-500 whitespace-nowrap">
+                              R$ {Number(p.preco || 0).toFixed(2)}
+                            </td>
+                            <td className="py-2.5 pr-3">
+                              <select
+                                value={linha.modo}
+                                onChange={(e) =>
+                                  updateLinha(p.id, { modo: e.target.value as ConvenioPrecoModo })
+                                }
+                                className="w-full px-2 py-1.5 text-xs border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                              >
+                                <option value="fixo">Fixo R$</option>
+                                <option value="percentual">%</option>
+                              </select>
+                            </td>
+                            <td className="py-2.5 pr-3">
+                              <input
+                                type="number"
+                                step={linha.modo === "percentual" ? "0.01" : "0.01"}
+                                min="0"
+                                max={linha.modo === "percentual" ? "100" : undefined}
+                                value={linha.valor}
+                                onChange={(e) => updateLinha(p.id, { valor: e.target.value })}
+                                placeholder="—"
+                                className="w-full px-2 py-1.5 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                              />
+                            </td>
+                            <td className="py-2.5 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                              {preview != null ? (
+                                <>
+                                  R$ {preview.toFixed(2)}
+                                  {linha.modo === "percentual" && linha.valor && (
+                                    <span className="text-xs text-gray-400 ml-1">({linha.valor}%)</span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-gray-400">Particular</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

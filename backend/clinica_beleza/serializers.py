@@ -650,10 +650,20 @@ class ConvenioListSerializer(serializers.ModelSerializer):
 
 class ConvenioPrecoSerializer(serializers.ModelSerializer):
     procedure_name = serializers.CharField(source='procedure.nome', read_only=True)
+    preco_particular = serializers.DecimalField(
+        source='procedure.preco', max_digits=10, decimal_places=2, read_only=True,
+    )
+    preco_efetivo = serializers.SerializerMethodField()
 
     class Meta:
         model = ConvenioProcedimentoPreco
-        fields = ['id', 'procedure', 'procedure_name', 'preco']
+        fields = [
+            'id', 'procedure', 'procedure_name', 'preco_particular',
+            'modo', 'preco', 'preco_efetivo',
+        ]
+
+    def get_preco_efetivo(self, obj):
+        return float(obj.calcular_preco_efetivo())
 
 
 class ConvenioSerializer(serializers.ModelSerializer):

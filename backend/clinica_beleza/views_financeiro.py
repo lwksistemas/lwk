@@ -33,6 +33,8 @@ class PaymentListView(APIView):
         queryset = Payment.objects.select_related(
             'appointment', 'appointment__patient',
             'appointment__professional', 'appointment__procedure',
+        ).prefetch_related(
+            'appointment__appointment_procedures__procedure',
         ).order_by('-created_at')
         if s := request.query_params.get('status'):
             queryset = queryset.filter(status=s)
@@ -59,6 +61,7 @@ class PaymentDetailView(GetObjectMixin, APIView):
         'appointment', 'appointment__patient',
         'appointment__professional', 'appointment__procedure',
     )
+    prefetch_related_fields = ('appointment__appointment_procedures__procedure',)
 
     def get(self, request, pk):
         obj, err = self.object_or_404(pk)

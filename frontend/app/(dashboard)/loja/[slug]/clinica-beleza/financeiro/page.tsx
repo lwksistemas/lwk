@@ -325,7 +325,7 @@ export default function FinanceiroClinicaPage() {
                           <th className="text-left py-3 px-4 font-semibold">Data</th>
                           <th className="text-left py-3 px-4 font-semibold">Cliente</th>
                           <th className="text-left py-3 px-4 font-semibold">Profissional</th>
-                          <th className="text-left py-3 px-4 font-semibold">Procedimento</th>
+                          <th className="text-left py-3 px-4 font-semibold">Procedimentos</th>
                           <th className="text-right py-3 px-4 font-semibold">Valor</th>
                           <th className="text-left py-3 px-4 font-semibold">Pagamento</th>
                           <th className="text-left py-3 px-4 font-semibold">Status</th>
@@ -347,7 +347,9 @@ export default function FinanceiroClinicaPage() {
                               </td>
                               <td className="py-3 px-4">{p.paciente_nome || "—"}</td>
                               <td className="py-3 px-4">{p.profissional_nome || "—"}</td>
-                              <td className="py-3 px-4">{p.procedimento_nome || "—"}</td>
+                              <td className="py-3 px-4 max-w-[220px] text-sm leading-snug">
+                                {p.procedimento_nome || "—"}
+                              </td>
                               <td className="py-3 px-4 text-right font-medium">{formatCurrency(p.amount)}</td>
                               <td className="py-3 px-4">
                                 {CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}
@@ -357,9 +359,13 @@ export default function FinanceiroClinicaPage() {
                                   {CLINICA_PAGAMENTO_STATUS_LABEL[p.status] || p.status}
                                 </span>
                               </td>
-                              <td className="py-3 px-4 text-right">
+                              <td className="py-3 px-4 text-right whitespace-nowrap">
                                 {formatCurrency(p.comissao_valor || 0)}
-                                {p.comissao_percentual ? ` (${p.comissao_percentual}%)` : ""}
+                                {p.comissao_percentual ? (
+                                  <span className="block text-xs text-gray-500 font-normal">
+                                    ref. {p.comissao_percentual}% do total
+                                  </span>
+                                ) : null}
                               </td>
                             </tr>
                           ))

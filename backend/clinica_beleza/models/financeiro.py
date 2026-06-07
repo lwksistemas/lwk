@@ -1,6 +1,4 @@
 """Models — pagamentos e campanhas."""
-from decimal import Decimal
-
 from django.contrib.auth import get_user_model
 from django.db import models
 
@@ -56,11 +54,6 @@ class Payment(LojaIsolationMixin, models.Model):
             models.Index(fields=['appointment', 'status']),
             models.Index(fields=['loja_id', 'payment_date']),
         ]
-
-    def save(self, *args, **kwargs):
-        if self.amount is not None and self.comissao_percentual is not None:
-            self.comissao_valor = (self.amount * self.comissao_percentual / 100).quantize(Decimal('0.01'))
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Pagamento {self.id} - R$ {self.amount}"

@@ -62,9 +62,10 @@ class Command(BaseCommand):
                     amount=amount,
                 )
                 if payment.comissao_percentual != pct or payment.comissao_valor != val:
-                    payment.comissao_percentual = pct
-                    payment.comissao_valor = val
-                    payment.save(update_fields=['comissao_percentual', 'comissao_valor'])
+                    Payment.objects.filter(pk=payment.pk).update(
+                        comissao_percentual=pct,
+                        comissao_valor=val,
+                    )
                     atualizados += 1
 
             total_atualizados += atualizados

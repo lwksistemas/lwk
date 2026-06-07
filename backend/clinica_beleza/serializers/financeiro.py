@@ -30,13 +30,30 @@ class DespesaSerializer(serializers.ModelSerializer):
         return attrs
 
 
+def _procedimentos_nome_agendamento(appointment) -> str:
+    """Lista todos os procedimentos do atendimento (appointment_procedures ou legado)."""
+    if not appointment:
+        return ''
+    procs = list(
+        appointment.appointment_procedures.select_related('procedure').order_by('ordem', 'id'),
+    )
+    if procs:
+        return ' · '.join(ap.procedure.nome for ap in procs if ap.procedure)
+    if appointment.procedure_id and appointment.procedure:
+        return appointment.procedure.nome
+    return ''
+
+
 class PaymentSerializer(serializers.ModelSerializer):
     """Serializer para Pagamentos (financeiro da clínica)."""
     appointment_details = AppointmentListSerializer(source='appointment', read_only=True)
     paciente_nome = serializers.CharField(source='appointment.patient.nome', read_only=True)
     profissional_nome = serializers.CharField(source='appointment.professional.nome', read_only=True)
-    procedimento_nome = serializers.CharField(source='appointment.procedure.nome', read_only=True)
+    procedimento_nome = serializers.SerializerMethodField()
     data_atendimento = serializers.DateTimeField(source='appointment.date', read_only=True)
+
+    def get_procedimento_nome(self, obj):
+        return _procedimentos_nome_agendamento(obj.appointment)
 
     class Meta:
         model = Payment

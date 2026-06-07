@@ -20,7 +20,14 @@ export function ConsultaPrintButton({
     try {
       await onPrint();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Não foi possível imprimir.";
+      let msg = "Não foi possível imprimir.";
+      if (e instanceof Error) {
+        msg = e.message;
+      } else if (e && typeof e === "object") {
+        const api = e as { error?: string; detail?: string };
+        if (api.error) msg = api.error;
+        else if (typeof api.detail === "string") msg = api.detail;
+      }
       alert(msg);
     } finally {
       setLoading(false);

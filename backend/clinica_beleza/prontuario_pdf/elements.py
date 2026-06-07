@@ -266,14 +266,30 @@ def _build_prescricao_memed_elements(prescricao, styles):
     elements = []
 
     data_str = prescricao.created_at.strftime('%d/%m/%Y %H:%M') if prescricao.created_at else ''
-    elements.append(Paragraph(f'Prescrição Memed — {data_str}', styles['DocTitle']))
+    elements.append(Paragraph(f'Receituário — {data_str}', styles['DocTitle']))
 
     if prescricao.resumo:
-        elements.append(Paragraph(prescricao.resumo, styles['DocBody']))
+        elements.append(Paragraph(prescricao.resumo.replace('\n', '<br/>'), styles['DocBody']))
+    elif prescricao.itens:
+        linhas = []
+        for item in prescricao.itens:
+            if not isinstance(item, dict):
+                continue
+            nome = (item.get('nome') or '').strip()
+            posologia = (item.get('posologia') or '').strip()
+            if nome and posologia:
+                linhas.append(f'• {nome} — {posologia}')
+            elif nome:
+                linhas.append(f'• {nome}')
+        if linhas:
+            elements.append(Paragraph('<br/>'.join(linhas), styles['DocBody']))
 
-    if prescricao.professional:
-        elements.append(Spacer(1, 3 * mm))
-        elements.append(Paragraph(f'Profissional: {prescricao.professional.nome}', styles['DocFooter']))
+    prof_nome = ''
+    if prescricao.professional_id and prescricao.professional:
+        prof_nome = prescricao.professional.nome
+    elements.append(Spacer(1, 6 * mm))
+    if prof_nome:
+        elements.append(Paragraph(f'Profissional: {prof_nome}', styles['DocFooter']))
 
     elements.append(_linha_separadora())
     elements.append(Spacer(1, 3 * mm))

@@ -487,27 +487,33 @@ class PrescricaoMemedPdfView(APIView):
             return Response({'error': 'Loja não encontrada.'}, status=status.HTTP_400_BAD_REQUEST)
 
         prescricao_id = (presc.prescricao_id or '').strip()
-        if not prescricao_id:
-            return Response(
-                {
-                    'error': (
-                        'Esta prescrição não tem ID da Memed. '
-                        'Reemita na aba Documentos com a Memed aberta.'
-                    ),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         professional = presc.professional or (
             presc.consulta.professional if presc.consulta_id else None
         )
-        pdf_url = resolver_pdf_prescricao(loja, professional, prescricao_id, '')
+        pdf_url = ''
+        if prescricao_id:
+            pdf_url = resolver_pdf_prescricao(loja, professional, prescricao_id, '')
+
+        if not pdf_url:
+            from .memed_prescricao_service import arquivar_pdf_bytes_cloudinary
+            from .prontuario_pdf import gerar_pdf_prescricao_memed
+
+            try:
+                buffer = gerar_pdf_prescricao_memed(presc)
+                pdf_url = arquivar_pdf_bytes_cloudinary(loja, buffer.getvalue())
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception(
+                    'Falha ao gerar PDF local da prescrição Memed %s', pk,
+                )
+                pdf_url = ''
+
         if not pdf_url:
             return Response(
                 {
                     'error': (
-                        'PDF não encontrado na Memed. Verifique o certificado BirdID da profissional '
-                        'e reemita a prescrição na aba Documentos.'
+                        'PDF não disponível na Memed. Verifique o certificado BirdID da profissional '
+                        'ou reemita na aba Documentos.'
                     ),
                 },
                 status=status.HTTP_404_NOT_FOUND,

@@ -66,6 +66,14 @@ def _build_pdf(loja_id: int, elements: list) -> BytesIO:
     return _finalize_pdf_bytes(loja_id, buffer)
 
 
+def gerar_pdf_prescricao_memed(prescricao) -> BytesIO:
+    """Gera PDF de uma prescrição Memed com timbrado da clínica (fallback local)."""
+    styles = _get_styles()
+    loja_id = prescricao.loja_id
+    elements = _build_prescricao_memed_elements(prescricao, styles)
+    return _build_pdf(loja_id, elements)
+
+
 def gerar_pdf_documento(documento) -> BytesIO:
     """
     Gera PDF individual de um DocumentoClinico com timbrado da clínica.

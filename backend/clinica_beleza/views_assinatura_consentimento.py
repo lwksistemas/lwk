@@ -1,5 +1,6 @@
 """
 Views públicas e autenticadas — assinatura digital do termo de consentimento.
+Cada procedimento tem termo, e-mail e assinatura independentes.
 """
 import logging
 
@@ -15,9 +16,12 @@ from .consentimento_assinatura_adapter import ConsultaTermoAssinaturaAdapter
 from .consentimento_service import (
     aviso_email_paciente_suspeito,
     consulta_exige_termo_consentimento,
-    montar_conteudo_termo_consentimento,
+    garantir_termos_procedimento,
+    montar_conteudo_termo_procedimento,
+    serializar_termos_procedimento,
+    sincronizar_status_consulta,
 )
-from .models import Consulta
+from .models import Consulta, ConsultaTermoProcedimento
 from .permissions import CLINICA_MEMBER
 from .views_base import GetObjectMixin
 
@@ -45,14 +49,31 @@ def _configurar_tenant(loja_id: int) -> str | None:
     return None
 
 
-def _preencher_termo_se_vazio(consulta):
-    if not (consulta.conteudo_termo_consentimento or '').strip():
-        consulta.conteudo_termo_consentimento = montar_conteudo_termo_consentimento(consulta)
-        consulta.save(update_fields=['conteudo_termo_consentimento', 'updated_at'])
+def _resolver_termo_procedimento(consulta, procedure_id) -> ConsultaTermoProcedimento | None:
+    termos = garantir_termos_procedimento(consulta)
+    for t in termos:
+        if t.procedure_id == int(procedure_id):
+            return t
+    return None
+
+
+def _preencher_termo_se_vazio(termo_proc: ConsultaTermoProcedimento):
+    if not (termo_proc.conteudo_termo or '').strip():
+        termo_proc.conteudo_termo = montar_conteudo_termo_procedimento(
+            termo_proc.consulta, termo_proc.procedure,
+        )
+        termo_proc.save(update_fields=['conteudo_termo', 'updated_at'])
+
+
+def _documento_da_assinatura(adapter, assinatura):
+    try:
+        return adapter.get_documento_da_assinatura(assinatura)
+    except ValueError:
+        return None
 
 
 class ConsultaTermoConsentimentoStatusView(GetObjectMixin, APIView):
-    """GET — verifica se consulta exige termo e status da assinatura."""
+    """GET — status dos termos por procedimento."""
 
     permission_classes = CLINICA_MEMBER
     model_class = Consulta
@@ -64,15 +85,17 @@ class ConsultaTermoConsentimentoStatusView(GetObjectMixin, APIView):
         if err:
             return err
         exige = consulta_exige_termo_consentimento(consulta)
+        termos = serializar_termos_procedimento(consulta) if exige else []
         return Response({
             'exige_termo': exige,
             'status_assinatura_termo': consulta.status_assinatura_termo,
-            'tem_conteudo': bool((consulta.conteudo_termo_consentimento or '').strip()),
+            'termos_procedimentos': termos,
+            'tem_conteudo': any(t['tem_conteudo'] for t in termos),
         })
 
 
 class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
-    """POST — envia termo para assinatura do paciente."""
+    """POST — envia termo(s) para assinatura do paciente (um e-mail por procedimento)."""
 
     permission_classes = CLINICA_MEMBER
     model_class = Consulta
@@ -104,36 +127,77 @@ class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
         if aviso_email:
             return Response({'detail': aviso_email}, status=status.HTTP_400_BAD_REQUEST)
 
-        if consulta.status_assinatura_termo in ('aguardando_paciente', 'aguardando_profissional'):
-            return Response(
-                {'detail': 'Termo já está em processo de assinatura.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        procedure_id = request.data.get('procedure_id')
+        termos = garantir_termos_procedimento(consulta)
+
+        if procedure_id:
+            termo_proc = _resolver_termo_procedimento(consulta, procedure_id)
+            if not termo_proc:
+                return Response({'detail': 'Procedimento não encontrado nesta consulta.'}, status=400)
+            if termo_proc.status_assinatura_termo != 'rascunho':
+                return Response(
+                    {'detail': f'Termo de "{termo_proc.procedure.nome}" já está em processo de assinatura.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            termos_a_enviar = [termo_proc]
+        else:
+            termos_a_enviar = [t for t in termos if t.status_assinatura_termo == 'rascunho']
+            if not termos_a_enviar:
+                return Response(
+                    {'detail': 'Não há termos pendentes de envio. Todos já estão em assinatura ou concluídos.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         loja_id = get_current_loja_id()
         adapter = ConsultaTermoAssinaturaAdapter()
-        consulta.conteudo_termo_consentimento = montar_conteudo_termo_consentimento(consulta)
-        consulta.save(update_fields=['conteudo_termo_consentimento', 'updated_at'])
+        enviados: list[str] = []
+        erros: list[str] = []
 
-        assinatura = criar_assinatura(adapter, consulta, 'paciente', loja_id)
-        consulta.status_assinatura_termo = 'aguardando_paciente'
-        consulta.save(update_fields=['status_assinatura_termo', 'updated_at'])
+        for termo_proc in termos_a_enviar:
+            _preencher_termo_se_vazio(termo_proc)
+            assinatura = criar_assinatura(adapter, termo_proc, 'paciente', loja_id)
+            termo_proc.status_assinatura_termo = 'aguardando_paciente'
+            termo_proc.save(update_fields=['status_assinatura_termo', 'updated_at'])
 
-        ok, email_err = enviar_email_parte1(adapter, consulta, assinatura, loja_id)
-        if ok:
+            ok, email_err = enviar_email_parte1(adapter, termo_proc, assinatura, loja_id)
+            if ok:
+                enviados.append(termo_proc.procedure.nome)
+            else:
+                termo_proc.status_assinatura_termo = 'rascunho'
+                termo_proc.save(update_fields=['status_assinatura_termo', 'updated_at'])
+                assinatura.delete()
+                erros.append(f'{termo_proc.procedure.nome}: {email_err or "erro no e-mail"}')
+
+        sincronizar_status_consulta(consulta)
+        consulta.refresh_from_db(fields=['status_assinatura_termo'])
+
+        if enviados and not erros:
+            plural = 's' if len(enviados) > 1 else ''
             return Response({
-                'message': f'E-mail enviado para {paciente.email}',
-                'status_assinatura_termo': 'aguardando_paciente',
+                'message': (
+                    f'{len(enviados)} termo{plural} enviado{plural} por e-mail para {paciente.email} '
+                    f'({", ".join(enviados)}). O paciente deve ler e assinar cada um separadamente.'
+                ),
+                'status_assinatura_termo': consulta.status_assinatura_termo,
+                'enviados': enviados,
             })
 
-        consulta.status_assinatura_termo = 'rascunho'
-        consulta.save(update_fields=['status_assinatura_termo', 'updated_at'])
-        assinatura.delete()
-        return Response({'detail': email_err or 'Erro ao enviar e-mail.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if enviados:
+            return Response({
+                'message': f'Enviados: {", ".join(enviados)}. Falhas: {"; ".join(erros)}',
+                'status_assinatura_termo': consulta.status_assinatura_termo,
+                'enviados': enviados,
+                'erros': erros,
+            }, status=status.HTTP_207_MULTI_STATUS)
+
+        return Response(
+            {'detail': erros[0] if erros else 'Erro ao enviar e-mail.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 class ConsultaReenviarTermoAssinaturaView(GetObjectMixin, APIView):
-    """POST — reenvia link de assinatura."""
+    """POST — reenvia link de assinatura de um procedimento específico."""
 
     permission_classes = CLINICA_MEMBER
     model_class = Consulta
@@ -148,22 +212,34 @@ class ConsultaReenviarTermoAssinaturaView(GetObjectMixin, APIView):
         if err:
             return err
 
+        procedure_id = request.data.get('procedure_id')
+        if not procedure_id:
+            return Response(
+                {'detail': 'Informe procedure_id do procedimento cujo link deve ser reenviado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        termo_proc = _resolver_termo_procedimento(consulta, procedure_id)
+        if not termo_proc:
+            return Response({'detail': 'Procedimento não encontrado nesta consulta.'}, status=400)
+
         paciente = consulta.patient
         email_paciente = (getattr(paciente, 'email', '') or '').strip() if paciente else ''
-        if consulta.status_assinatura_termo == 'aguardando_paciente' and email_paciente:
+        if termo_proc.status_assinatura_termo == 'aguardando_paciente' and email_paciente:
             aviso_email = aviso_email_paciente_suspeito(email_paciente)
             if aviso_email:
                 return Response({'detail': aviso_email}, status=status.HTTP_400_BAD_REQUEST)
 
         adapter = ConsultaTermoAssinaturaAdapter()
-        ok, msg, email_err = reenviar_link(adapter, consulta, get_current_loja_id())
+        ok, msg, email_err = reenviar_link(adapter, termo_proc, get_current_loja_id())
+        sincronizar_status_consulta(consulta)
         if ok:
-            return Response({'message': msg})
+            return Response({'message': msg, 'procedure_nome': termo_proc.procedure.nome})
         return Response({'detail': email_err or 'Erro ao reenviar.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ConsultaDownloadTermoPdfView(GetObjectMixin, APIView):
-    """GET — baixa PDF do termo."""
+    """GET — baixa PDF do termo de um procedimento (?procedure_id=)."""
 
     permission_classes = CLINICA_MEMBER
     model_class = Consulta
@@ -174,12 +250,25 @@ class ConsultaDownloadTermoPdfView(GetObjectMixin, APIView):
         consulta, err = self.object_or_404(pk)
         if err:
             return err
+
+        procedure_id = request.query_params.get('procedure_id')
+        if not procedure_id:
+            return Response(
+                {'detail': 'Informe procedure_id na URL.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        termo_proc = _resolver_termo_procedimento(consulta, procedure_id)
+        if not termo_proc:
+            return Response({'detail': 'Procedimento não encontrado nesta consulta.'}, status=400)
+
         adapter = ConsultaTermoAssinaturaAdapter()
-        _preencher_termo_se_vazio(consulta)
-        incluir = consulta.status_assinatura_termo == 'concluido'
-        pdf = adapter.gerar_pdf(consulta, incluir_assinaturas=incluir)
+        _preencher_termo_se_vazio(termo_proc)
+        incluir = termo_proc.status_assinatura_termo == 'concluido'
+        pdf = adapter.gerar_pdf(termo_proc, incluir_assinaturas=incluir)
+        nome_proc = termo_proc.procedure.nome.replace(' ', '_')[:40]
         response = HttpResponse(pdf.getvalue(), content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="termo_consentimento_{pk}.pdf"'
+        response['Content-Disposition'] = f'attachment; filename="termo_{nome_proc}_{pk}.pdf"'
         return response
 
 
@@ -210,27 +299,32 @@ class ConsultaAssinaturaPublicaView(View):
         if assinatura.is_expirado:
             return JsonResponse({'error': 'Este link expirou.'}, status=400)
 
-        consulta = assinatura.consulta
-        _preencher_termo_se_vazio(consulta)
+        termo_proc = _documento_da_assinatura(adapter, assinatura)
+        if not termo_proc:
+            return JsonResponse({'error': 'Termo não encontrado. Solicite novo envio à clínica.'}, status=400)
+
+        _preencher_termo_se_vazio(termo_proc)
+        consulta = termo_proc.consulta
         loja_nome = ''
         from superadmin.models import Loja
         loja = Loja.objects.using('default').filter(id=consulta.loja_id).first()
         if loja:
             loja_nome = loja.nome
 
-        from .consentimento_service import nomes_procedimentos_termo
+        nome_proc = termo_proc.procedure.nome
 
         return JsonResponse({
             'tipo_documento': 'termo_consentimento',
-            'titulo': adapter.get_titulo(consulta),
-            'procedimentos_nomes': nomes_procedimentos_termo(consulta),
+            'titulo': nome_proc,
+            'procedimentos_nomes': nome_proc,
+            'procedure_id': termo_proc.procedure_id,
             'nome_assinante': assinatura.nome_assinante,
             'tipo_assinante': assinatura.tipo,
             'tipo_assinante_display': assinatura.get_tipo_display(),
             'paciente_nome': consulta.patient.nome if consulta.patient else '',
             'profissional_nome': consulta.professional.nome if consulta.professional else '',
             'clinica_nome': loja_nome,
-            'conteudo_termo': consulta.conteudo_termo_consentimento or '',
+            'conteudo_termo': termo_proc.conteudo_termo or '',
         })
 
     def post(self, request, token):
@@ -258,25 +352,29 @@ class ConsultaAssinaturaPublicaView(View):
         if assinatura.is_expirado:
             return JsonResponse({'error': 'Este link expirou.'}, status=400)
 
+        termo_proc = _documento_da_assinatura(adapter, assinatura)
+        if not termo_proc:
+            return JsonResponse({'error': 'Termo não encontrado. Solicite novo envio à clínica.'}, status=400)
+
         ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '0.0.0.0'))
         if ',' in ip:
             ip = ip.split(',')[0].strip()
         ua = request.META.get('HTTP_USER_AGENT', '')
 
         novo_status = registrar_assinatura(adapter, assinatura, ip, ua)
-        consulta = assinatura.consulta
 
         if novo_status == 'aguardando_profissional':
-            assinatura_prof = criar_assinatura(adapter, consulta, 'profissional', loja_id)
-            enviar_email_parte2(adapter, consulta, assinatura_prof, loja_id)
+            assinatura_prof = criar_assinatura(adapter, termo_proc, 'profissional', loja_id)
+            enviar_email_parte2(adapter, termo_proc, assinatura_prof, loja_id)
 
         if novo_status == 'concluido':
-            enviar_pdf_final(adapter, consulta, loja_id)
+            enviar_pdf_final(adapter, termo_proc, loja_id)
 
         return JsonResponse({
             'success': True,
             'proximo_status': novo_status,
             'proximo_status_display': STATUS_DISPLAY.get(novo_status, novo_status),
+            'procedimento': termo_proc.procedure.nome,
         })
 
 
@@ -301,9 +399,13 @@ class ConsultaAssinaturaPdfPublicaView(View):
         if not assinatura:
             return JsonResponse({'error': 'Link inválido.'}, status=400)
 
-        consulta = assinatura.consulta
-        _preencher_termo_se_vazio(consulta)
-        pdf = adapter.gerar_pdf(consulta, incluir_assinaturas=False)
+        termo_proc = _documento_da_assinatura(adapter, assinatura)
+        if not termo_proc:
+            return JsonResponse({'error': 'Termo não encontrado.'}, status=400)
+
+        _preencher_termo_se_vazio(termo_proc)
+        pdf = adapter.gerar_pdf(termo_proc, incluir_assinaturas=False)
+        nome_proc = termo_proc.procedure.nome.replace(' ', '_')[:40]
         response = HttpResponse(pdf.getvalue(), content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="termo_consentimento.pdf"'
+        response['Content-Disposition'] = f'attachment; filename="termo_{nome_proc}.pdf"'
         return response

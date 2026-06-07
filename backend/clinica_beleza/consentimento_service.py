@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from django.utils import timezone
 
-from .models import Procedure
+from .models import ConsultaTermoProcedimento, Procedure
 
 # Domínios com erro de digitação frequente — bloqueia envio e orienta correção no cadastro.
 _EMAIL_DOMINIO_TYPO: dict[str, str] = {
@@ -108,23 +108,14 @@ def _renderizar_bloco_termo(template: str, ctx: dict) -> str:
     return texto
 
 
-def montar_conteudo_termo_consentimento(consulta) -> str:
-    """
-    Gera o conteúdo final do termo com dados da clínica, profissional, paciente
-    e blocos de cada procedimento com termo ativo.
-    """
-    procs = _procedimentos_com_termo_ativo(consulta)
-    if not procs:
-        return ''
-
+def _ctx_base_termo(consulta) -> dict:
     loja = _dados_loja(consulta.loja_id)
     paciente = consulta.patient
     prof = consulta.professional
     data_str = timezone.localtime().strftime('%d/%m/%Y')
     if consulta.data_inicio:
         data_str = timezone.localtime(consulta.data_inicio).strftime('%d/%m/%Y')
-
-    ctx_base = {
+    return {
         'paciente_nome': paciente.nome if paciente else '',
         'paciente_cpf': getattr(paciente, 'cpf', '') or '',
         'paciente_email': getattr(paciente, 'email', '') or '',
@@ -137,20 +128,19 @@ def montar_conteudo_termo_consentimento(consulta) -> str:
         'clinica_endereco': loja['endereco'],
         'clinica_telefone': loja['telefone'],
         'clinica_email': loja['email'],
-        'procedimentos': ', '.join(p.nome for p in procs),
         'data': data_str,
     }
 
-    blocos = []
-    for proc in procs:
-        tpl = (proc.termo_consentimento or '').strip()
-        if not tpl:
-            continue
-        ctx = {**ctx_base, 'procedimento': proc.nome}
-        blocos.append(_renderizar_bloco_termo(tpl, ctx))
 
-    if not blocos:
+def montar_conteudo_termo_procedimento(consulta, procedure: Procedure) -> str:
+    """Gera o termo de um único procedimento — leitura e assinatura independentes."""
+    tpl = (procedure.termo_consentimento or '').strip()
+    if not tpl:
         return ''
+
+    ctx_base = _ctx_base_termo(consulta)
+    ctx = {**ctx_base, 'procedimento': procedure.nome, 'procedimentos': procedure.nome}
+    bloco = _renderizar_bloco_termo(tpl, ctx)
 
     cabecalho = (
         f'TERMO DE CONSENTIMENTO ESCLARECIDO\n\n'
@@ -160,7 +150,91 @@ def montar_conteudo_termo_consentimento(consulta) -> str:
         f'Paciente: {ctx_base["paciente_nome"]}\n'
         f'Profissional: {ctx_base["profissional_nome"]}\n'
         f'Data: {ctx_base["data"]}\n'
-        f'Procedimento(s): {ctx_base["procedimentos"]}\n\n'
+        f'Procedimento: {procedure.nome}\n\n'
         f'{"—" * 40}\n\n'
     )
-    return cabecalho + '\n\n'.join(blocos)
+    return cabecalho + bloco
+
+
+def montar_conteudo_termo_consentimento(consulta) -> str:
+    """Legado — concatena todos os procedimentos (preferir termos por procedimento)."""
+    procs = _procedimentos_com_termo_ativo(consulta)
+    blocos = [montar_conteudo_termo_procedimento(consulta, p) for p in procs]
+    blocos = [b for b in blocos if b]
+    return '\n\n'.join(blocos) if blocos else ''
+
+
+def sincronizar_status_consulta(consulta) -> None:
+    """Atualiza status agregado da consulta a partir dos termos por procedimento."""
+    termos = list(
+        ConsultaTermoProcedimento.objects.filter(consulta=consulta).values_list(
+            'status_assinatura_termo', flat=True,
+        ),
+    )
+    if not termos:
+        return
+    if all(s == 'concluido' for s in termos):
+        novo = 'concluido'
+    elif any(s == 'aguardando_profissional' for s in termos):
+        novo = 'aguardando_profissional'
+    elif any(s == 'aguardando_paciente' for s in termos):
+        novo = 'aguardando_paciente'
+    else:
+        novo = 'rascunho'
+    if consulta.status_assinatura_termo != novo:
+        consulta.status_assinatura_termo = novo
+        consulta.save(update_fields=['status_assinatura_termo', 'updated_at'])
+
+
+def garantir_termos_procedimento(consulta) -> list[ConsultaTermoProcedimento]:
+    """Cria/atualiza um registro de termo por procedimento com termo ativo."""
+    procs = _procedimentos_com_termo_ativo(consulta)
+    resultado: list[ConsultaTermoProcedimento] = []
+    for proc in procs:
+        termo, _created = ConsultaTermoProcedimento.objects.get_or_create(
+            consulta=consulta,
+            procedure=proc,
+            defaults={
+                'loja_id': consulta.loja_id,
+                'conteudo_termo': '',
+                'status_assinatura_termo': 'rascunho',
+            },
+        )
+        if termo.status_assinatura_termo == 'rascunho':
+            conteudo = montar_conteudo_termo_procedimento(consulta, proc)
+            if conteudo and termo.conteudo_termo != conteudo:
+                termo.conteudo_termo = conteudo
+                termo.save(update_fields=['conteudo_termo', 'updated_at'])
+        resultado.append(termo)
+    sincronizar_status_consulta(consulta)
+    return list(
+        ConsultaTermoProcedimento.objects.filter(consulta=consulta)
+        .select_related('procedure')
+        .order_by('procedure__nome'),
+    )
+
+
+STATUS_TERMO_DISPLAY = {
+    'rascunho': 'Não enviado',
+    'aguardando_paciente': 'Aguardando paciente',
+    'aguardando_profissional': 'Aguardando profissional',
+    'concluido': 'Assinado',
+}
+
+
+def serializar_termos_procedimento(consulta) -> list[dict]:
+    """Lista termos por procedimento para a API."""
+    termos = garantir_termos_procedimento(consulta)
+    return [
+        {
+            'id': t.id,
+            'procedure_id': t.procedure_id,
+            'procedure_nome': t.procedure.nome,
+            'status': t.status_assinatura_termo,
+            'status_display': STATUS_TERMO_DISPLAY.get(
+                t.status_assinatura_termo, t.status_assinatura_termo,
+            ),
+            'tem_conteudo': bool((t.conteudo_termo or '').strip()),
+        }
+        for t in termos
+    ]

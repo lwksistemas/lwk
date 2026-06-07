@@ -53,10 +53,11 @@ def _watermark_bytes(logo_url: str) -> bytes | None:
         return None
 
 
-def _build_secao_assinaturas(elements, consulta, compact_style, incluir_assinaturas: bool):
+def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assinaturas: bool):
     """Assinaturas Paciente | Profissional — mesmo layout do CRM Vendas."""
     from .models import ConsultaAssinaturaTermo
 
+    consulta = termo_proc.consulta
     elements.append(Spacer(1, 0.3 * cm))
     section = ParagraphStyle(
         'SecAssin', parent=compact_style, fontSize=10, spaceBefore=2, spaceAfter=4,
@@ -71,9 +72,8 @@ def _build_secao_assinaturas(elements, consulta, compact_style, incluir_assinatu
     ass_paciente = None
     ass_profissional = None
     if incluir_assinaturas:
-        for ass in ConsultaAssinaturaTermo.objects.filter(
-            consulta=consulta, assinado=True,
-        ).order_by('assinado_em'):
+        filtro = {'termo_procedimento': termo_proc, 'assinado': True}
+        for ass in ConsultaAssinaturaTermo.objects.filter(**filtro).order_by('assinado_em'):
             if ass.tipo == 'paciente':
                 ass_paciente = ass
             elif ass.tipo == 'profissional':
@@ -178,7 +178,10 @@ def _insert_watermark(elements, wm_bytes: bytes):
         elements.insert(insert_idx, WatermarkFlowable(wm_bytes))
 
 
-def gerar_pdf_termo_consentimento(consulta, incluir_assinaturas: bool = False) -> BytesIO:
+def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False) -> BytesIO:
+    """PDF de um único procedimento — conteúdo e assinaturas isolados."""
+    consulta = termo_proc.consulta
+    procedure = termo_proc.procedure
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4, topMargin=1.5 * cm, bottomMargin=1.5 * cm,
@@ -240,6 +243,7 @@ def gerar_pdf_termo_consentimento(consulta, incluir_assinaturas: bool = False) -
     dados = [
         ['Paciente', paciente.nome if paciente else '—'],
         ['CPF', getattr(paciente, 'cpf', '') or '—'],
+        ['Procedimento', procedure.nome if procedure else '—'],
         ['Profissional', prof.nome if prof else '—'],
         ['Conselho', getattr(prof, 'conselho', '') or '—'],
     ]
@@ -260,7 +264,7 @@ def gerar_pdf_termo_consentimento(consulta, incluir_assinaturas: bool = False) -
 
     elements.append(Spacer(1, 0.5 * cm))
     elements.append(Paragraph('Conteúdo do Termo', section_style))
-    conteudo = (consulta.conteudo_termo_consentimento or '').strip()
+    conteudo = (termo_proc.conteudo_termo or '').strip()
     for line in conteudo.split('\n'):
         stripped = line.strip()
         if not stripped:
@@ -271,11 +275,11 @@ def gerar_pdf_termo_consentimento(consulta, incluir_assinaturas: bool = False) -
     elements.append(Spacer(1, 0.4 * cm))
     elements.append(Paragraph(
         'Ao assinar digitalmente, declaro ter lido e compreendido o termo acima, '
-        'estando ciente dos riscos, benefícios e alternativas do(s) procedimento(s).',
+        'estando ciente dos riscos, benefícios e alternativas deste procedimento.',
         ParagraphStyle('Aceite', parent=body_style, fontSize=9, textColor=colors.HexColor('#555')),
     ))
 
-    ass_p, ass_pr = _build_secao_assinaturas(elements, consulta, compact, incluir_assinaturas)
+    ass_p, ass_pr = _build_secao_assinaturas(elements, termo_proc, compact, incluir_assinaturas)
 
     if (ass_p or ass_pr) and logo_url:
         wm_bytes = _watermark_bytes(logo_url)

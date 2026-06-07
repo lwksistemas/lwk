@@ -112,6 +112,44 @@ class Consulta(LojaIsolationMixin, models.Model):
         return None
 
 
+class ConsultaTermoProcedimento(LojaIsolationMixin, models.Model):
+    """Termo de consentimento de um procedimento específico na consulta — assinatura independente."""
+
+    consulta = models.ForeignKey(
+        Consulta, on_delete=models.CASCADE, related_name='termos_procedimentos',
+    )
+    procedure = models.ForeignKey(
+        Procedure, on_delete=models.CASCADE, related_name='termos_consulta',
+    )
+    conteudo_termo = models.TextField(blank=True, default='', verbose_name='Conteúdo do termo')
+    status_assinatura_termo = models.CharField(
+        max_length=30,
+        choices=Consulta.STATUS_ASSINATURA_TERMO_CHOICES,
+        default='rascunho',
+        verbose_name='Status assinatura',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_consulta_termo_procedimento'
+        ordering = ['procedure__nome']
+        verbose_name = 'Termo de procedimento'
+        verbose_name_plural = 'Termos de procedimentos'
+        constraints = [
+            models.UniqueConstraint(fields=['consulta', 'procedure'], name='clin_cb_termo_cons_proc_uniq'),
+        ]
+        indexes = [
+            models.Index(fields=['consulta', 'status_assinatura_termo'], name='clin_cb_termo_cons_st_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.procedure.nome} — consulta #{self.consulta_id}'
+
+
 class ConsultaAssinaturaTermo(LojaIsolationMixin, models.Model):
     """Assinatura digital do termo de consentimento esclarecido."""
 
@@ -122,6 +160,13 @@ class ConsultaAssinaturaTermo(LojaIsolationMixin, models.Model):
 
     consulta = models.ForeignKey(
         Consulta, on_delete=models.CASCADE, related_name='assinaturas_termo',
+    )
+    termo_procedimento = models.ForeignKey(
+        ConsultaTermoProcedimento,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='assinaturas',
     )
     tipo = models.CharField(max_length=15, choices=TIPO_CHOICES)
     nome_assinante = models.CharField(max_length=200)
@@ -145,6 +190,7 @@ class ConsultaAssinaturaTermo(LojaIsolationMixin, models.Model):
         indexes = [
             models.Index(fields=['loja_id', 'token'], name='clin_cb_assin_loja_tok_idx'),
             models.Index(fields=['consulta', 'tipo'], name='clin_cb_assin_cons_tipo_idx'),
+            models.Index(fields=['termo_procedimento', 'tipo'], name='clin_cb_assin_termo_tipo_idx'),
         ]
 
     def __str__(self):

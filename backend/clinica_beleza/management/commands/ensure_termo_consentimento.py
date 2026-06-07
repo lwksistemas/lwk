@@ -13,7 +13,10 @@ from superadmin.models import Loja
 
 from clinica_beleza.schema_ensure import column_exists, table_exists
 
-MIGRATION_NAME = '0037_termo_consentimento_assinatura'
+MIGRATION_NAMES = (
+    '0037_termo_consentimento_assinatura',
+    '0038_termo_por_procedimento',
+)
 
 
 class Command(BaseCommand):
@@ -97,17 +100,49 @@ class Command(BaseCommand):
                             "CREATE INDEX clin_cb_assin_cons_tipo_idx "
                             "ON clinica_beleza_consulta_assinaturas_termo (consulta_id, tipo)"
                         )
-                    cursor.execute(
-                        """
-                        INSERT INTO django_migrations (app, name, applied)
-                        SELECT 'clinica_beleza', %s, NOW()
-                        WHERE NOT EXISTS (
-                            SELECT 1 FROM django_migrations
-                            WHERE app = 'clinica_beleza' AND name = %s
+                    if not table_exists(cursor, 'clinica_beleza_consulta_termo_procedimento'):
+                        cursor.execute("""
+                            CREATE TABLE clinica_beleza_consulta_termo_procedimento (
+                                id BIGSERIAL PRIMARY KEY,
+                                loja_id INTEGER NOT NULL,
+                                consulta_id BIGINT NOT NULL REFERENCES clinica_beleza_consultas(id) ON DELETE CASCADE,
+                                procedure_id BIGINT NOT NULL REFERENCES clinica_beleza_procedure(id) ON DELETE CASCADE,
+                                conteudo_termo TEXT NOT NULL DEFAULT '',
+                                status_assinatura_termo VARCHAR(30) NOT NULL DEFAULT 'rascunho',
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                                CONSTRAINT clin_cb_termo_cons_proc_uniq UNIQUE (consulta_id, procedure_id)
+                            )
+                        """)
+                        cursor.execute(
+                            "CREATE INDEX clin_cb_termo_cons_st_idx "
+                            "ON clinica_beleza_consulta_termo_procedimento (consulta_id, status_assinatura_termo)"
                         )
-                        """,
-                        [MIGRATION_NAME, MIGRATION_NAME],
-                    )
+                    if table_exists(cursor, 'clinica_beleza_consulta_assinaturas_termo'):
+                        if not column_exists(
+                            cursor, 'clinica_beleza_consulta_assinaturas_termo', 'termo_procedimento_id',
+                        ):
+                            cursor.execute(
+                                "ALTER TABLE clinica_beleza_consulta_assinaturas_termo "
+                                "ADD COLUMN termo_procedimento_id BIGINT NULL "
+                                "REFERENCES clinica_beleza_consulta_termo_procedimento(id) ON DELETE CASCADE"
+                            )
+                            cursor.execute(
+                                "CREATE INDEX clin_cb_assin_termo_tipo_idx "
+                                "ON clinica_beleza_consulta_assinaturas_termo (termo_procedimento_id, tipo)"
+                            )
+                    for mig_name in MIGRATION_NAMES:
+                        cursor.execute(
+                            """
+                            INSERT INTO django_migrations (app, name, applied)
+                            SELECT 'clinica_beleza', %s, NOW()
+                            WHERE NOT EXISTS (
+                                SELECT 1 FROM django_migrations
+                                WHERE app = 'clinica_beleza' AND name = %s
+                            )
+                            """,
+                            [mig_name, mig_name],
+                        )
                 ok += 1
                 self.stdout.write(self.style.SUCCESS(f'   ✓ {loja.slug} ({db_name})'))
             except Exception as e:

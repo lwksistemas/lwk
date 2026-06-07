@@ -233,14 +233,17 @@ export default function AssinarConsentimentoPage() {
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Termo Assinado!</h2>
-          <p className="text-gray-600 text-center mb-4">Sua assinatura foi registrada com sucesso.</p>
+          <p className="text-gray-600 text-center mb-4">
+            Sua assinatura deste procedimento foi registrada com sucesso.
+          </p>
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
             <p className="text-sm text-purple-800 text-center">
               <strong>Status:</strong> {proximoStatus}
             </p>
           </div>
           <p className="text-sm text-gray-500 text-center mb-4">
-            Você receberá uma cópia por e-mail quando o processo for concluído.
+            Você receberá por e-mail o PDF deste procedimento quando paciente e profissional tiverem assinado.
+            Se houver outros procedimentos na consulta, cada um possui termo e link separados.
           </p>
           <button
             onClick={() => window.close()}
@@ -295,8 +298,12 @@ export default function AssinarConsentimentoPage() {
             <div className="flex items-start space-x-3">
               <FileText className="w-5 h-5 text-gray-400 mt-1" />
               <div className="flex-1">
-                <p className="text-sm text-gray-500">Procedimento(s)</p>
+                <p className="text-sm text-gray-500">Procedimento deste termo</p>
                 <p className="text-lg font-semibold text-gray-900">{procedimentos}</p>
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-2">
+                  Leia com atenção apenas as informações deste procedimento. Cada procedimento da consulta
+                  exige termo e assinatura separados.
+                </p>
               </div>
             </div>
 
@@ -343,7 +350,8 @@ export default function AssinarConsentimentoPage() {
           <div className="mt-6 pt-6 border-t">
             <p className="text-sm font-semibold text-gray-800 mb-1">Documento completo (PDF)</p>
             <p className="text-xs text-gray-500 mb-3">
-              Abra ou baixe o PDF antes de assinar. A assinatura só é liberada após a confirmação de leitura.
+              Abra ou baixe o PDF deste procedimento antes de assinar. A assinatura só é liberada após
+              confirmar que leu o termo completo.
             </p>
 
             {pdfInlineLoading && !pdfBlobUrl && (

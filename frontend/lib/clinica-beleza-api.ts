@@ -461,23 +461,37 @@ export class ClinicaBelezaAPI {
           exige_termo: boolean;
           status_assinatura_termo: string;
           tem_conteudo: boolean;
+          termos_procedimentos: Array<{
+            id: number;
+            procedure_id: number;
+            procedure_nome: string;
+            status: string;
+            status_display: string;
+            tem_conteudo: boolean;
+          }>;
         }>(`/consultas/${consultaId}/termo-consentimento/`),
-      enviar: (consultaId: number) =>
-        ClinicaBelezaAPI.post<{ message: string; status_assinatura_termo: string }>(
+      enviar: (consultaId: number, procedureId?: number) =>
+        ClinicaBelezaAPI.post<{
+          message: string;
+          status_assinatura_termo: string;
+          enviados?: string[];
+        }>(
           `/consultas/${consultaId}/termo-consentimento/enviar/`,
-          {},
+          procedureId ? { procedure_id: procedureId } : {},
         ),
-      reenviar: (consultaId: number) =>
-        ClinicaBelezaAPI.post<{ message: string }>(
+      reenviar: (consultaId: number, procedureId: number) =>
+        ClinicaBelezaAPI.post<{ message: string; procedure_nome?: string }>(
           `/consultas/${consultaId}/termo-consentimento/reenviar/`,
-          {},
+          { procedure_id: procedureId },
         ),
-      pdfUrl: (consultaId: number) => {
+      pdfUrl: (consultaId: number, procedureId: number) => {
         const base = getClinicaBelezaBaseUrl();
-        return `${base}/consultas/${consultaId}/termo-consentimento/pdf/`;
+        return `${base}/consultas/${consultaId}/termo-consentimento/pdf/?procedure_id=${procedureId}`;
       },
-      downloadPdf: async (consultaId: number) => {
-        const res = await clinicaBelezaFetch(`/consultas/${consultaId}/termo-consentimento/pdf/`);
+      downloadPdf: async (consultaId: number, procedureId: number) => {
+        const res = await clinicaBelezaFetch(
+          `/consultas/${consultaId}/termo-consentimento/pdf/?procedure_id=${procedureId}`,
+        );
         if (!res.ok) throw new Error('Erro ao baixar PDF do termo.');
         return res.blob();
       },

@@ -13,11 +13,13 @@ from rest_framework.views import APIView
 
 from .foto_paciente_service import (
     FotoCloudinaryInvalida,
+    FotoUploadInvalida,
     cloudinary_upload_config,
     decodificar_token_foto,
     gerar_qr_foto,
     listar_fotos_paciente,
     registrar_foto,
+    upload_foto_cloudinary,
 )
 from .models import Consulta, PacienteFotoAcompanhamento
 from .permissions import CLINICA_MEMBER
@@ -152,21 +154,57 @@ class EnviarFotoPublicaView(View):
             'profissional_nome': consulta.professional.nome if consulta.professional else '',
             'clinica_nome': loja.nome if loja else 'Clínica',
             'consulta_id': consulta.id,
+            'upload_via_api': True,
             **upload_cfg,
         })
+
+    def _validar_consulta_post(self, payload):
+        err = _configurar_tenant(payload['loja_id'])
+        if err:
+            return None, JsonResponse({'error': err}, status=400)
+
+        try:
+            consulta = Consulta.objects.get(id=payload['consulta_id'])
+        except Consulta.DoesNotExist:
+            return None, JsonResponse({'error': 'Consulta não encontrada.'}, status=400)
+
+        if consulta.patient_id != payload.get('patient_id'):
+            return None, JsonResponse({'error': 'Link inválido.'}, status=400)
+
+        if consulta.status != 'IN_PROGRESS':
+            return None, JsonResponse(
+                {'error': 'Consulta já foi finalizada. Gere um novo QR na próxima consulta.'},
+                status=400,
+            )
+        return consulta, None
 
     def post(self, request, token):
         import json
         from core.assinatura_service import normalizar_token_url
+        from superadmin.models import Loja
 
         token = normalizar_token_url(token)
         payload = decodificar_token_foto(token)
         if not payload:
             return JsonResponse({'error': 'Link inválido ou expirado.'}, status=400)
 
-        err = _configurar_tenant(payload['loja_id'])
-        if err:
-            return JsonResponse({'error': err}, status=400)
+        consulta, resp_erro = self._validar_consulta_post(payload)
+        if resp_erro:
+            return resp_erro
+
+        arquivo = request.FILES.get('file')
+        if arquivo:
+            loja = Loja.objects.using('default').filter(id=payload['loja_id']).first()
+            if not loja:
+                return JsonResponse({'error': 'Loja não encontrada.'}, status=400)
+            try:
+                up = upload_foto_cloudinary(loja, arquivo.read())
+                foto = registrar_foto(consulta, up['secure_url'], 'qr', up['public_id'])
+            except FotoUploadInvalida as exc:
+                return JsonResponse({'error': str(exc)}, status=400)
+            except FotoCloudinaryInvalida as exc:
+                return JsonResponse({'error': str(exc)}, status=400)
+            return JsonResponse({'success': True, 'foto': foto})
 
         try:
             body = json.loads(request.body.decode('utf-8') or '{}')
@@ -176,17 +214,6 @@ class EnviarFotoPublicaView(View):
         url = (body.get('cloudinary_url') or '').strip()
         if not url or not url.startswith('https://'):
             return JsonResponse({'error': 'URL da imagem inválida.'}, status=400)
-
-        try:
-            consulta = Consulta.objects.get(id=payload['consulta_id'])
-        except Consulta.DoesNotExist:
-            return JsonResponse({'error': 'Consulta não encontrada.'}, status=400)
-
-        if consulta.patient_id != payload.get('patient_id'):
-            return JsonResponse({'error': 'Link inválido.'}, status=400)
-
-        if consulta.status != 'IN_PROGRESS':
-            return JsonResponse({'error': 'Consulta já foi finalizada. Gere um novo QR na próxima consulta.'}, status=400)
 
         public_id = (body.get('cloudinary_public_id') or '').strip()
         try:

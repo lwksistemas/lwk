@@ -179,45 +179,22 @@ export default function EnviarFotoPage() {
 
   const enviarArquivo = async (file: File): Promise<boolean> => {
     if (!config) return false;
-    let arquivo = await prepararArquivoUpload(file);
-    if (arquivo.size > LIMITE_CLOUDINARY_BYTES) {
-      setErro(
-        'A foto ainda está muito grande após otimização. Tente outra imagem ou use uma resolução menor na câmera.',
-      );
-      return false;
-    }
+    const arquivo = await prepararArquivoUpload(file);
+    const api = getPrimaryApiBaseUrl();
     const formData = new FormData();
     formData.append('file', arquivo);
-    formData.append('upload_preset', config.upload_preset);
-    formData.append('folder', config.folder);
 
-    let up: Response;
+    let res: Response;
     try {
-      up = await fetch(
-        `https://api.cloudinary.com/v1_1/${config.cloud_name}/image/upload`,
-        { method: 'POST', body: formData },
-      );
+      res = await fetch(`${api}/clinica-beleza/enviar-foto/${tokenApiSegment}/`, {
+        method: 'POST',
+        body: formData,
+      });
     } catch {
       setErro('Sem conexão ao enviar a imagem. Verifique a internet do celular.');
       return false;
     }
-    const upData = await up.json().catch(() => ({}));
-    if (!up.ok || !upData.secure_url) {
-      const detalhe = upData.error?.message || upData.error || '';
-      setErro(detalhe ? `Falha no upload: ${detalhe}` : 'Falha no envio da imagem. Tente outra foto ou use a câmera.');
-      return false;
-    }
-
-    const api = getPrimaryApiBaseUrl();
-    const res = await fetch(`${api}/clinica-beleza/enviar-foto/${tokenApiSegment}/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        cloudinary_url: upData.secure_url,
-        cloudinary_public_id: upData.public_id || '',
-      }),
-    });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setErro(data.error || 'Erro ao registrar foto.');
       return false;

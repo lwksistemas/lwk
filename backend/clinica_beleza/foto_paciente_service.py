@@ -1,6 +1,7 @@
 """Fotos de acompanhamento — token QR e upload Cloudinary."""
 from __future__ import annotations
 
+import io
 import logging
 import os
 from datetime import timedelta
@@ -70,6 +71,117 @@ def validar_cloudinary_foto_loja(loja, cloudinary_url: str, public_id: str = '')
 
 MODULO = 'clinica_beleza'
 PATH_PUBLICO = '/enviar-foto/'
+LIMITE_UPLOAD_BYTES = 9 * 1024 * 1024
+MAX_LADO_IMAGEM = 1920
+
+
+class FotoUploadInvalida(ValueError):
+    """Arquivo de imagem inválido ou acima do limite após compressão."""
+
+
+def _configurar_cloudinary_sdk() -> dict | None:
+    """Retorna cloud_name/api_key/api_secret ou None se indisponível."""
+    cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', '').strip()
+    api_key = os.environ.get('CLOUDINARY_API_KEY', '').strip()
+    api_secret = os.environ.get('CLOUDINARY_API_SECRET', '').strip()
+    try:
+        from superadmin.cloudinary_models import CloudinaryConfig
+        cfg = CloudinaryConfig.get_config()
+        if cfg.enabled and cfg.cloud_name and cfg.api_key and cfg.api_secret:
+            cloud_name = cfg.cloud_name.strip()
+            api_key = cfg.api_key.strip()
+            api_secret = cfg.api_secret.strip()
+    except Exception as exc:
+        logger.debug('CloudinaryConfig: %s', exc)
+    if not (cloud_name and api_key and api_secret):
+        return None
+    try:
+        import cloudinary
+        cloudinary.config(
+            cloud_name=cloud_name,
+            api_key=api_key,
+            api_secret=api_secret,
+            secure=True,
+        )
+    except ImportError:
+        return None
+    return {'cloud_name': cloud_name, 'api_key': api_key, 'api_secret': api_secret}
+
+
+def comprimir_imagem_bytes(conteudo: bytes) -> bytes:
+    """Reduz JPEG/PNG/HEIC do celular para ficar abaixo do limite do Cloudinary."""
+    from PIL import Image, ImageOps
+
+    if not conteudo:
+        raise FotoUploadInvalida('Arquivo vazio.')
+
+    try:
+        img = Image.open(io.BytesIO(conteudo))
+        img = ImageOps.exif_transpose(img)
+    except Exception as exc:
+        raise FotoUploadInvalida('Arquivo não é uma imagem válida.') from exc
+
+    if img.mode not in ('RGB', 'L'):
+        img = img.convert('RGB')
+
+    max_lado = MAX_LADO_IMAGEM
+    while max_lado >= 960:
+        copia = img.copy()
+        w, h = copia.size
+        maior = max(w, h)
+        if maior > max_lado:
+            escala = max_lado / maior
+            copia = copia.resize(
+                (max(1, int(w * escala)), max(1, int(h * escala))),
+                Image.Resampling.LANCZOS,
+            )
+
+        qualidade = 88
+        while qualidade >= 45:
+            buf = io.BytesIO()
+            copia.save(buf, format='JPEG', quality=qualidade, optimize=True)
+            dados = buf.getvalue()
+            if len(dados) <= LIMITE_UPLOAD_BYTES:
+                return dados
+            qualidade -= 8
+        max_lado = int(max_lado * 0.75)
+
+    raise FotoUploadInvalida(
+        'Não foi possível reduzir a imagem. Tente outra foto ou menor resolução.',
+    )
+
+
+def upload_foto_cloudinary(loja, conteudo: bytes) -> dict:
+    """Envia bytes comprimidos ao Cloudinary (upload autenticado no servidor)."""
+    if not _configurar_cloudinary_sdk():
+        raise FotoUploadInvalida('Upload de imagem indisponível no momento.')
+
+    import cloudinary.uploader
+
+    cfg = cloudinary_upload_config(loja)
+    folder = (cfg.get('folder') or '').strip()
+    if not folder:
+        raise FotoUploadInvalida('Pasta de upload não configurada.')
+
+    comprimido = comprimir_imagem_bytes(conteudo)
+    try:
+        resultado = cloudinary.uploader.upload(
+            comprimido,
+            folder=folder,
+            resource_type='image',
+            overwrite=True,
+        )
+    except Exception as exc:
+        logger.exception('Erro upload Cloudinary foto paciente')
+        raise FotoUploadInvalida('Falha ao enviar imagem. Tente novamente.') from exc
+
+    url = (resultado.get('secure_url') or '').strip()
+    if not url:
+        raise FotoUploadInvalida('Resposta inválida do serviço de imagens.')
+    return {
+        'secure_url': url,
+        'public_id': (resultado.get('public_id') or '').strip(),
+    }
 
 
 def gerar_token_foto(consulta_id: int, patient_id: int, loja_id: int) -> str:

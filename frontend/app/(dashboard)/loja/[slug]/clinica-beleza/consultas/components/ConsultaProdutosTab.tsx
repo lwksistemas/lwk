@@ -36,10 +36,12 @@ export function ConsultaProdutosTab({
   consultaId,
   somenteLeitura,
   printMeta,
+  onItensChanged,
 }: {
   consultaId: number;
   somenteLeitura: boolean;
   printMeta: ConsultaPrintMeta;
+  onItensChanged?: () => void;
 }) {
   const [itens, setItens] = useState<ConsultaProdutoItem[]>([]);
   const [produtos, setProdutos] = useState<ProdutoEstoque[]>([]);
@@ -132,6 +134,7 @@ export function ConsultaProdutosTab({
       setLote("");
       setValidade("");
       await carregar();
+      onItensChanged?.();
     } catch (e: unknown) {
       setErro(extractApiError(e, "Erro ao registrar produto."));
     } finally {
@@ -145,6 +148,7 @@ export function ConsultaProdutosTab({
     try {
       await ClinicaBelezaAPI.consultas.produtos.remove(consultaId, item.id);
       await carregar();
+      onItensChanged?.();
     } catch {
       alert("Não foi possível remover o produto.");
     } finally {

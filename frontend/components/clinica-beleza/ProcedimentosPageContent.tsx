@@ -58,13 +58,25 @@ interface Procedure {
   active?: boolean;
   is_active?: boolean;
   categoria?: string;
+  termo_consentimento?: string;
+  termo_consentimento_ativo?: boolean;
 }
+
+const DEFAULT_TERMO_CONSENTIMENTO = `TERMO DE CONSENTIMENTO ESCLARECIDO
+
+Eu, {paciente_nome}, inscrito(a) no CPF {paciente_cpf}, declaro ter sido esclarecido(a) sobre o(s) procedimento(s): {procedimentos}, a serem realizados pela profissional {profissional_nome} ({profissional_conselho}) na clínica {clinica_nome}.
+
+Fui informado(a) sobre objetivos, benefícios, riscos, efeitos adversos, contraindicações e alternativas, e tive oportunidade de esclarecer minhas dúvidas.
+
+Declaro que concordo com a realização do(s) procedimento(s) na data {data}.`;
 
 const EMPTY_FORM = {
   name: "",
   description: "",
   duration: "30",
   categoria: "",
+  termo_consentimento: DEFAULT_TERMO_CONSENTIMENTO,
+  termo_consentimento_ativo: false,
 };
 
 function procedureToForm(p: Procedure) {
@@ -73,6 +85,8 @@ function procedureToForm(p: Procedure) {
     description: procedureDescription(p) || "",
     duration: String(procedureDuration(p)),
     categoria: procedureCategoria(p),
+    termo_consentimento: (p.termo_consentimento || "").trim() || DEFAULT_TERMO_CONSENTIMENTO,
+    termo_consentimento_ativo: !!p.termo_consentimento_ativo,
   };
 }
 
@@ -271,6 +285,8 @@ export function ProcedimentosPageContent({
       duration,
       active: true,
       category: categoria,
+      termo_consentimento: form.termo_consentimento_ativo ? form.termo_consentimento.trim() : "",
+      termo_consentimento_ativo: form.termo_consentimento_ativo,
     };
 
     if (isBrowserOffline()) {
@@ -389,6 +405,41 @@ export function ProcedimentosPageContent({
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição</label>
                 <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} className={`${CLINICA_FORM_INPUT} resize-none`} />
+              </div>
+
+              <div className="pt-2 border-t border-gray-200 dark:border-neutral-700">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.termo_consentimento_ativo}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, termo_consentimento_ativo: e.target.checked }))
+                    }
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Exigir termo de consentimento esclarecido (assinatura digital)
+                  </span>
+                </label>
+                {form.termo_consentimento_ativo && (
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Texto do termo
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                      Variáveis: {"{paciente_nome}"}, {"{paciente_cpf}"}, {"{profissional_nome}"},{" "}
+                      {"{profissional_conselho}"}, {"{clinica_nome}"}, {"{procedimentos}"}, {"{data}"}
+                    </p>
+                    <textarea
+                      value={form.termo_consentimento}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, termo_consentimento: e.target.value }))
+                      }
+                      rows={10}
+                      className={`${CLINICA_FORM_INPUT} resize-y font-mono text-xs`}
+                    />
+                  </div>
+                )}
               </div>
 
               {convenios.length > 0 && (

@@ -17,6 +17,7 @@ User = get_user_model()
 
 from .appointments import Appointment
 from .professionals import Professional
+from .procedures import Procedure
 
 class ProdutoEstoque(LojaIsolationMixin, models.Model):
     """Produto do estoque da clínica (botox, ácido hialurônico, soro, etc.)"""
@@ -46,6 +47,15 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
         max_length=50, blank=True, default='', verbose_name="Número da nota fiscal",
     )
     observacoes = models.TextField(blank=True, default='', verbose_name="Observações")
+    procedure = models.ForeignKey(
+        Procedure,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='produtos_estoque',
+        verbose_name='Procedimento vinculado',
+        help_text='Vincula o produto ao procedimento (ex.: termo de consentimento).',
+    )
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")

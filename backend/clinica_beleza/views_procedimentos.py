@@ -24,6 +24,10 @@ _PROCEDURE_FIELD_MAP = {
     'duration_minutes': 'duracao_minutos',
     'active': 'is_active',
     'category': 'categoria',
+    'consent_term': 'termo_consentimento',
+    'termo_consentimento': 'termo_consentimento',
+    'consent_term_active': 'termo_consentimento_ativo',
+    'termo_consentimento_ativo': 'termo_consentimento_ativo',
 }
 
 

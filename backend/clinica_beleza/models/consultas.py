@@ -71,6 +71,21 @@ class Consulta(LojaIsolationMixin, models.Model):
         related_name='consultas',
         verbose_name='Convênio',
     )
+    STATUS_ASSINATURA_TERMO_CHOICES = (
+        ('rascunho', 'Rascunho'),
+        ('aguardando_paciente', 'Aguardando Paciente'),
+        ('aguardando_profissional', 'Aguardando Profissional'),
+        ('concluido', 'Concluído'),
+    )
+    status_assinatura_termo = models.CharField(
+        max_length=30,
+        choices=STATUS_ASSINATURA_TERMO_CHOICES,
+        default='rascunho',
+        verbose_name='Status assinatura termo',
+    )
+    conteudo_termo_consentimento = models.TextField(
+        blank=True, default='', verbose_name='Conteúdo do termo de consentimento',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -97,6 +112,49 @@ class Consulta(LojaIsolationMixin, models.Model):
         return None
 
 
+class ConsultaAssinaturaTermo(LojaIsolationMixin, models.Model):
+    """Assinatura digital do termo de consentimento esclarecido."""
+
+    TIPO_CHOICES = (
+        ('paciente', 'Paciente'),
+        ('profissional', 'Profissional'),
+    )
+
+    consulta = models.ForeignKey(
+        Consulta, on_delete=models.CASCADE, related_name='assinaturas_termo',
+    )
+    tipo = models.CharField(max_length=15, choices=TIPO_CHOICES)
+    nome_assinante = models.CharField(max_length=200)
+    email_assinante = models.EmailField()
+    ip_address = models.GenericIPAddressField(default='0.0.0.0')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    user_agent = models.TextField(blank=True, default='')
+    token = models.CharField(max_length=255, unique=True, db_index=True)
+    token_expira_em = models.DateTimeField()
+    assinado = models.BooleanField(default=False)
+    assinado_em = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_consulta_assinaturas_termo'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['loja_id', 'token'], name='clin_cb_assin_loja_tok_idx'),
+            models.Index(fields=['consulta', 'tipo'], name='clin_cb_assin_cons_tipo_idx'),
+        ]
+
+    def __str__(self):
+        status = 'Assinado' if self.assinado else 'Pendente'
+        return f'{self.get_tipo_display()} — {self.nome_assinante} ({status})'
+
+    @property
+    def is_expirado(self):
+        from django.utils import timezone
+        return timezone.now() > self.token_expira_em
 
 
 class PrescricaoMemed(LojaIsolationMixin, models.Model):

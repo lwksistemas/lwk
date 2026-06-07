@@ -9,7 +9,7 @@ from .professionals import Professional, ProfessionalCommission, HorarioTrabalho
 from .appointments import Appointment, AppointmentProcedure, BloqueioHorario
 from .financeiro import Payment, CampanhaPromocao, CategoriaDespesa, Despesa
 from .estoque import ProdutoEstoque, MovimentacaoEstoque, ConsultaProdutoUtilizado
-from .consultas import Consulta, PrescricaoMemed, ConsultaEvolucao, MemedTimbrado
+from .consultas import Consulta, ConsultaAssinaturaTermo, PrescricaoMemed, ConsultaEvolucao, MemedTimbrado
 from .documentos import DocumentTemplate, DocumentoClinico
 
 __all__ = [

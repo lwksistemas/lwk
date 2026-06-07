@@ -56,6 +56,14 @@ from .views_relatorios import (
     RelatorioRepasseConsultaView,
     RelatorioRepasseConsultaPdfView,
 )
+from .views_assinatura_consentimento import (
+    ConsultaAssinaturaPublicaView,
+    ConsultaAssinaturaPdfPublicaView,
+    ConsultaTermoConsentimentoStatusView,
+    ConsultaEnviarTermoAssinaturaView,
+    ConsultaReenviarTermoAssinaturaView,
+    ConsultaDownloadTermoPdfView,
+)
 
 app_name = 'clinica_beleza'
 
@@ -83,6 +91,12 @@ urlpatterns = [
     path('consultas/<int:consulta_id>/produtos/', ConsultaProdutoListView.as_view(), name='consultas-produtos'),
     path('consultas/<int:consulta_id>/produtos/<int:pk>/', ConsultaProdutoDetailView.as_view(), name='consultas-produtos-detail'),
     path('consultas/<int:consulta_id>/pdf/', ConsultaSecaoPDFView.as_view(), name='consultas-secao-pdf'),
+    path('consultas/<int:pk>/termo-consentimento/', ConsultaTermoConsentimentoStatusView.as_view(), name='consultas-termo-status'),
+    path('consultas/<int:pk>/termo-consentimento/enviar/', ConsultaEnviarTermoAssinaturaView.as_view(), name='consultas-termo-enviar'),
+    path('consultas/<int:pk>/termo-consentimento/reenviar/', ConsultaReenviarTermoAssinaturaView.as_view(), name='consultas-termo-reenviar'),
+    path('consultas/<int:pk>/termo-consentimento/pdf/', ConsultaDownloadTermoPdfView.as_view(), name='consultas-termo-pdf'),
+    path('assinar-consentimento/<path:token>/pdf/', ConsultaAssinaturaPdfPublicaView.as_view(), name='assinar-consentimento-pdf'),
+    path('assinar-consentimento/<path:token>/', ConsultaAssinaturaPublicaView.as_view(), name='assinar-consentimento'),
 
     # Locais de atendimento
     path('locais-atendimento/', LocalAtendimentoListView.as_view(), name='locais-atendimento-list'),

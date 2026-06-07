@@ -59,6 +59,10 @@ class ConsultaSerializer(serializers.ModelSerializer):
     convenio_name = serializers.SerializerMethodField()
     valor_procedimentos = serializers.SerializerMethodField()
     valor_pagamento = serializers.SerializerMethodField()
+    exige_termo_consentimento = serializers.SerializerMethodField()
+    status_assinatura_termo_display = serializers.CharField(
+        source='get_status_assinatura_termo_display', read_only=True,
+    )
 
     class Meta:
         model = Consulta
@@ -70,6 +74,7 @@ class ConsultaSerializer(serializers.ModelSerializer):
             'local_atendimento', 'local_atendimento_name',
             'convenio', 'convenio_name',
             'appointment_date', 'appointment_status', 'total_evolucoes',
+            'status_assinatura_termo', 'status_assinatura_termo_display', 'exige_termo_consentimento',
             'created_at', 'updated_at', 'loja_id',
         ]
         read_only_fields = ['created_at', 'updated_at', 'loja_id', 'appointment']
@@ -129,3 +134,7 @@ class ConsultaSerializer(serializers.ModelSerializer):
         if obj.convenio_id and obj.convenio:
             return obj.convenio.nome
         return 'Particular'
+
+    def get_exige_termo_consentimento(self, obj):
+        from ..consentimento_service import consulta_exige_termo_consentimento
+        return consulta_exige_termo_consentimento(obj)

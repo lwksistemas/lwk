@@ -23,6 +23,10 @@ _CRM_VENDAS_PUBLIC_PREFIXES = (
     '/api/crm-vendas/relatorio-comissao/',
 )
 
+_CLINICA_BELEZA_PUBLIC_PREFIXES = (
+    '/api/clinica-beleza/assinar-consentimento/',
+)
+
 
 class SecurityIsolationMiddleware:
     """
@@ -152,6 +156,8 @@ class SecurityIsolationMiddleware:
 
         # Webhooks e rotas públicas por token (validação nas views)
         if self._is_crm_vendas_public_path(path):
+            return None
+        if self._is_clinica_beleza_public_path(path):
             return None
         if path.startswith('/api/asaas/webhook'):
             return None
@@ -351,6 +357,10 @@ class SecurityIsolationMiddleware:
     @staticmethod
     def _is_crm_vendas_public_path(path):
         return any(path.startswith(prefix) for prefix in _CRM_VENDAS_PUBLIC_PREFIXES)
+
+    @staticmethod
+    def _is_clinica_beleza_public_path(path):
+        return any(path.startswith(prefix) for prefix in _CLINICA_BELEZA_PUBLIC_PREFIXES)
     
     def _get_user_group(self, user):
         """
@@ -409,6 +419,8 @@ class SecurityIsolationMiddleware:
         if not any(path.startswith(route) for route in store_routes):
             return False
         if path.startswith('/api/crm-vendas/') and SecurityIsolationMiddleware._is_crm_vendas_public_path(path):
+            return False
+        if path.startswith('/api/clinica-beleza/') and SecurityIsolationMiddleware._is_clinica_beleza_public_path(path):
             return False
         return True
     

@@ -37,6 +37,7 @@ import { ConsultaEvolucaoTab } from "./ConsultaEvolucaoTab";
 import { ConsultaHistoricoTab } from "./ConsultaHistoricoTab";
 import { ConsultaDocumentosTab } from "./ConsultaDocumentosTab";
 import { ConsultaFinalizarModal } from "./ConsultaFinalizarModal";
+import { ConsultaTermoConsentimentoButton } from "./ConsultaTermoConsentimentoButton";
 import MemedPrescricao, { type MemedPrescricaoHandle } from "./MemedPrescricao";
 
 interface Props {
@@ -147,6 +148,15 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
       setLoadingDetalhe(false);
     }
   }, [onSelectConsulta, consulta.id]);
+
+  const refreshConsulta = useCallback(async () => {
+    try {
+      const fresh = await ClinicaBelezaAPI.consultas.get(selected.id);
+      setSelected((prev) => ({ ...prev, ...fresh }));
+    } catch (e) {
+      logger.warn("Erro ao atualizar consulta:", e);
+    }
+  }, [selected.id]);
 
   useEffect(() => {
     if (lastLoadedIdRef.current === consulta.id) return;
@@ -372,6 +382,12 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
 
   const headerExtraActions = consultaAtiva ? (
     <>
+      <ConsultaTermoConsentimentoButton
+        consultaId={selected.id}
+        exigeTermo={selected.exige_termo_consentimento}
+        statusAssinatura={selected.status_assinatura_termo}
+        onUpdated={refreshConsulta}
+      />
       <button
         type="button"
         onClick={abrirFinalizarModal}
@@ -500,6 +516,7 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                   consultaId={selected.id}
                   somenteLeitura={consultaFinalizada}
                   printMeta={printMeta}
+                  onItensChanged={refreshConsulta}
                 />
               )}
               {tab === "atendimento" && (

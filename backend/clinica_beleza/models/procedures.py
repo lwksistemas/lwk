@@ -17,6 +17,13 @@ User = get_user_model()
 
 class Procedure(ServicoBase):
     """Procedimentos/Serviços oferecidos (herda de ServicoBase)"""
+    termo_consentimento = models.TextField(
+        blank=True, default='', verbose_name='Termo de consentimento esclarecido',
+        help_text='Use {paciente_nome}, {profissional_nome}, {clinica_nome}, {procedimentos}, {data}.',
+    )
+    termo_consentimento_ativo = models.BooleanField(
+        default=False, verbose_name='Exigir termo de consentimento',
+    )
 
     class Meta(ServicoBase.Meta):
         app_label = 'clinica_beleza'

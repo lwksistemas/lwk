@@ -41,6 +41,9 @@ export interface Consulta {
   appointment_date?: string;
   appointment_status?: string;
   total_evolucoes: number;
+  status_assinatura_termo?: string;
+  status_assinatura_termo_display?: string;
+  exige_termo_consentimento?: boolean;
 }
 
 export interface Protocolo {

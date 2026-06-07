@@ -455,6 +455,33 @@ export class ClinicaBelezaAPI {
       remove: (consultaId: number, itemId: number) =>
         ClinicaBelezaAPI.delete(`/consultas/${consultaId}/produtos/${itemId}/`),
     },
+    termoConsentimento: {
+      get: (consultaId: number) =>
+        ClinicaBelezaAPI.get<{
+          exige_termo: boolean;
+          status_assinatura_termo: string;
+          tem_conteudo: boolean;
+        }>(`/consultas/${consultaId}/termo-consentimento/`),
+      enviar: (consultaId: number) =>
+        ClinicaBelezaAPI.post<{ message: string; status_assinatura_termo: string }>(
+          `/consultas/${consultaId}/termo-consentimento/enviar/`,
+          {},
+        ),
+      reenviar: (consultaId: number) =>
+        ClinicaBelezaAPI.post<{ message: string }>(
+          `/consultas/${consultaId}/termo-consentimento/reenviar/`,
+          {},
+        ),
+      pdfUrl: (consultaId: number) => {
+        const base = getClinicaBelezaBaseUrl();
+        return `${base}/consultas/${consultaId}/termo-consentimento/pdf/`;
+      },
+      downloadPdf: async (consultaId: number) => {
+        const res = await clinicaBelezaFetch(`/consultas/${consultaId}/termo-consentimento/pdf/`);
+        if (!res.ok) throw new Error('Erro ao baixar PDF do termo.');
+        return res.blob();
+      },
+    },
   };
 
   static anamnese = {

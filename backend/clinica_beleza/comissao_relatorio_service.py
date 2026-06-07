@@ -11,7 +11,7 @@ from typing import Optional
 
 from .commission_utils import calcular_comissao_decimal
 from .convenio_service import resolver_convenio_atendimento_comissao
-from .models import Payment, ProfessionalCommission
+from .models import Convenio, Payment, ProfessionalCommission
 
 CHAVE_CONSULTA = '__consulta__'
 LABEL_CONSULTA = 'Consulta'
@@ -238,7 +238,7 @@ def _regras_profissional(professional_id: int) -> dict:
     procedimento_ids = set()
     for c in ProfessionalCommission.objects.filter(
         professional_id=professional_id, tipo='procedimento', is_active=True,
-    ):
+    ).select_related('convenio'):
         if c.procedure_id:
             proc_map[(c.procedure_id, c.convenio_id)] = c
             procedimento_ids.add(c.procedure_id)
@@ -256,6 +256,17 @@ def _resolver_regra_procedimento(proc_map: dict, procedure_id: int, convenio_id:
     if regra:
         return regra
     return proc_map.get((procedure_id, None))
+
+
+def _rotulo_convenio_comissao(regra_proc, convenio_id: Optional[int]) -> str:
+    """Nome do convênio exibido na linha de comissão do procedimento."""
+    if regra_proc and getattr(regra_proc, 'convenio', None):
+        return regra_proc.convenio.nome
+    if convenio_id:
+        conv = Convenio.objects.filter(pk=convenio_id, is_active=True).first()
+        if conv:
+            return conv.nome
+    return 'Particular'
 
 
 def _resolver_regra_consulta(regras: dict, local_id: Optional[int]):
@@ -533,6 +544,7 @@ def calcular_comissoes(
                 'local_nome': local_nome,
                 'procedimento_nome': proc['procedimento_nome'],
                 'procedimento_id': proc_id,
+                'convenio_nome': _rotulo_convenio_comissao(regra_proc, convenio_id),
                 'vinculado_consulta': True,
                 'qtd': 0,
                 'valor_consulta': Decimal('0'),
@@ -575,7 +587,11 @@ def calcular_comissoes(
         for detalhe in entry['detalhes']:
             del detalhe['_chave']
         entry['detalhes'].sort(
-            key=lambda d: (0 if d['procedimento_nome'] == LABEL_CONSULTA else 1, d['local_nome'], d['procedimento_nome']),
+            key=lambda d: (
+                0 if d['procedimento_nome'] == LABEL_CONSULTA else 1,
+                d.get('convenio_nome', ''),
+                d['procedimento_nome'],
+            ),
         )
         profissionais.append(entry)
 

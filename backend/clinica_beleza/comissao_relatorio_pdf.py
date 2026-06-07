@@ -243,10 +243,11 @@ def _bloco_procedimentos_pdf(linhas_p: list, p: dict, qtd_proc: int) -> list:
         return []
     w = _LARGURA_UTIL
     tabela = _make_data_table(
-        ['Procedimento', 'Qtd', 'Valor', 'Regra', 'Comissão'],
+        ['Procedimento', 'Convênio', 'Qtd', 'Valor', 'Regra', 'Comissão'],
         [
             [
-                (d.get('procedimento_nome', '') or '')[:40],
+                (d.get('procedimento_nome', '') or '')[:32],
+                (d.get('convenio_nome', '') or '—')[:18],
                 str(d.get('qtd', 0)),
                 _fmt_brl(d.get('valor_procedimento')),
                 _fmt_regra_comissao(d.get('modo_procedimento', ''), d.get('regra_procedimento', '')),
@@ -256,13 +257,14 @@ def _bloco_procedimentos_pdf(linhas_p: list, p: dict, qtd_proc: int) -> list:
         ],
         footer=[
             'Total procedimentos',
+            '',
             str(qtd_proc),
             _fmt_brl(p.get('valor_procedimento')),
             '',
             _fmt_brl(p.get('comissao_procedimento')),
         ],
         col_widths=[
-            w * 0.38, w * 0.08, w * 0.16, w * 0.22, w * 0.16,
+            w * 0.28, w * 0.14, w * 0.07, w * 0.14, w * 0.20, w * 0.17,
         ],
         font_size=7,
     )

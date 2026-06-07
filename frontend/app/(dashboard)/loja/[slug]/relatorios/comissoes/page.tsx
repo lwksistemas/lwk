@@ -23,6 +23,7 @@ interface DetalheComissao {
   regra_consulta: string;
   modo_procedimento: string;
   regra_procedimento: string;
+  convenio_nome?: string;
 }
 
 interface ProfissionalComissao {
@@ -211,9 +212,10 @@ function BlocoProfissional({
         />
         <MiniTabela
           titulo="2. Procedimentos"
-          colunas={['Procedimento', 'Qtd', 'Valor procedimento (R$)', 'Regra', 'Comissão procedimento (R$)']}
+          colunas={['Procedimento', 'Convênio', 'Qtd', 'Valor procedimento (R$)', 'Regra', 'Comissão procedimento (R$)']}
           linhas={linhasProcedimento.map((d) => [
             d.procedimento_nome,
+            d.convenio_nome || '—',
             d.qtd,
             formatCurrency(d.valor_procedimento),
             d.regra_procedimento || '—',
@@ -223,6 +225,7 @@ function BlocoProfissional({
             linhasProcedimento.length > 0
               ? [
                   'Subtotal procedimentos',
+                  '',
                   qtdProcedimentos,
                   formatCurrency(valorProcedimentosVisivel),
                   '',
@@ -395,16 +398,16 @@ export default function RelatorioComissoesPage() {
     if (!data) return;
     const BOM = '\ufeff';
     let csv =
-      'Profissional;Tipo;Item;Local;Qtd;Valor (R$);Regra;Comissão (R$)\n';
+      'Profissional;Tipo;Item;Convênio;Local;Qtd;Valor (R$);Regra;Comissão (R$)\n';
     for (const p of data.profissionais) {
       for (const d of p.detalhes.filter(isLinhaConsulta)) {
         csv +=
-          `${p.nome};Consulta;${d.local_nome || 'Consulta'};${d.local_nome || ''};${d.qtd};` +
+          `${p.nome};Consulta;${d.local_nome || 'Consulta'};;${d.local_nome || ''};${d.qtd};` +
           `${d.valor_consulta.toFixed(2)};${d.regra_consulta || ''};${d.comissao_consulta.toFixed(2)}\n`;
       }
       for (const d of p.detalhes.filter((x) => !isLinhaConsulta(x))) {
         csv +=
-          `${p.nome};Procedimento;${d.procedimento_nome};${d.local_nome || ''};${d.qtd};` +
+          `${p.nome};Procedimento;${d.procedimento_nome};${d.convenio_nome || ''};${d.local_nome || ''};${d.qtd};` +
           `${d.valor_procedimento.toFixed(2)};${d.regra_procedimento};${d.comissao_procedimento.toFixed(2)}\n`;
       }
       csv +=

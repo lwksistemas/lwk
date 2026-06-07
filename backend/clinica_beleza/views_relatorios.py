@@ -43,6 +43,7 @@ def _serialize_detalhe(d: dict) -> dict:
         'regra_consulta': d.get('regra_consulta', ''),
         'modo_procedimento': d.get('modo_procedimento', ''),
         'regra_procedimento': d.get('regra_procedimento', ''),
+        'convenio_nome': d.get('convenio_nome', ''),
         'forma_pagamento': d.get('forma_pagamento', ''),
     }
 

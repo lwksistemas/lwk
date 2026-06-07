@@ -338,11 +338,23 @@ export default function AssinarConsentimentoPage() {
             <div className="flex items-start space-x-3 border-t pt-4">
               <User className="w-5 h-5 text-gray-400 mt-1" />
               <div className="flex-1">
-                <p className="text-sm text-gray-500">Você está assinando como</p>
-                <p className="text-lg font-semibold text-gray-900">{termo.nome_assinante}</p>
-                <span className="inline-block mt-1 px-3 py-1 bg-purple-100 text-purple-800 text-sm font-medium rounded-full">
-                  {termo.tipo_assinante_display}
-                </span>
+                {assinandoComoPaciente ? (
+                  <>
+                    <p className="text-sm text-gray-500">Paciente</p>
+                    <p className="text-lg font-semibold text-gray-900">{termo.nome_assinante}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Este link é exclusivo para você assinar o termo de consentimento deste procedimento.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-500">Profissional responsável pela assinatura</p>
+                    <p className="text-lg font-semibold text-gray-900">{termo.nome_assinante}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      O paciente já assinou. Confirme sua assinatura como profissional do procedimento.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -465,7 +477,9 @@ export default function AssinarConsentimentoPage() {
             ) : (
               <>
                 <CheckCircle className="h-5 w-5" />
-                <span>Assinar documento</span>
+                <span>
+                  {assinandoComoPaciente ? 'Assinar termo de consentimento' : 'Assinar como profissional'}
+                </span>
               </>
             )}
           </button>

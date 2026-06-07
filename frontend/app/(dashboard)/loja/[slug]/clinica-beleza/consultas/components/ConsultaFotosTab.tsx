@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import {
   Camera,
@@ -25,18 +25,19 @@ import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-ap
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 4;
 const ZOOM_STEP = 0.5;
+const MAX_COMPARAR = 3;
 
 export function ConsultaFotosTab({
   consultaId,
-  patientNome,
   permiteEnviar,
   ativa,
+  onToolbarChange,
 }: {
   consultaId: number;
-  patientNome: string;
   /** Só true com consulta em andamento — envio pelo painel ou QR */
   permiteEnviar?: boolean;
   ativa?: boolean;
+  onToolbarChange?: (toolbar: ReactNode | null) => void;
 }) {
   const params = useParams();
   const slug = (params.slug as string) || "loja";
@@ -79,7 +80,7 @@ export function ConsultaFotosTab({
     return () => clearInterval(id);
   }, [ativa, carregar]);
 
-  const abrirQr = async () => {
+  const abrirQr = useCallback(async () => {
     setQrLoading(true);
     try {
       const res = await ClinicaBelezaAPI.consultas.fotos.gerarQr(consultaId);
@@ -90,7 +91,7 @@ export function ConsultaFotosTab({
     } finally {
       setQrLoading(false);
     }
-  };
+  }, [consultaId]);
 
   const salvarUploadPainel = async (url: string) => {
     if (!url) return;
@@ -120,7 +121,7 @@ export function ConsultaFotosTab({
   const toggleSelecao = (id: number) => {
     setSelecionadas((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= 2) return [prev[1], id];
+      if (prev.length >= MAX_COMPARAR) return [...prev.slice(1), id];
       return [...prev, id];
     });
   };
@@ -190,54 +191,57 @@ export function ConsultaFotosTab({
     arrastandoRef.current = false;
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Fotos de acompanhamento
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Histórico de <strong>{patientNome}</strong> em todas as consultas.
-            {permiteEnviar
-              ? " Durante o atendimento, use o QR no seu celular ou envie pelo painel. "
-              : " Consulta finalizada — apenas visualização e comparação. "}
-            Clique na foto para ampliar com zoom. Selecione 2 para comparar em tela cheia.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+  useEffect(() => {
+    if (!onToolbarChange) return;
+    onToolbarChange(
+      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+        <span className="hidden xl:inline text-xs text-gray-500 dark:text-gray-400 max-w-[220px] truncate">
+          Fotos em todas as consultas · zoom · compare 3
+        </span>
+        <button
+          type="button"
+          onClick={() => void carregar()}
+          className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-sm border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800"
+        >
+          <RefreshCw size={14} />
+          <span className="hidden sm:inline">Atualizar</span>
+        </button>
+        {permiteEnviar && (
           <button
             type="button"
-            onClick={() => void carregar()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-gray-300 dark:border-neutral-600"
+            onClick={() => void abrirQr()}
+            disabled={qrLoading}
+            className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-white text-xs sm:text-sm font-medium disabled:opacity-50"
+            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
           >
-            <RefreshCw size={16} />
-            Atualizar
+            <Smartphone size={14} />
+            <span className="hidden md:inline">{qrLoading ? "Gerando…" : "QR — foto no celular"}</span>
+            <span className="md:hidden">{qrLoading ? "…" : "QR"}</span>
           </button>
-          {permiteEnviar && (
-            <button
-              type="button"
-              onClick={() => void abrirQr()}
-              disabled={qrLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-            >
-              <Smartphone size={16} />
-              {qrLoading ? "Gerando…" : "QR — foto no meu celular"}
-            </button>
-          )}
-          {selecionadas.length === 2 && (
-            <button
-              type="button"
-              onClick={() => setComparar(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-900 text-white dark:bg-white dark:text-gray-900"
-            >
-              <Columns2 size={16} />
-              Comparar 2 fotos
-            </button>
-          )}
-        </div>
-      </div>
+        )}
+        {selecionadas.length === MAX_COMPARAR && (
+          <button
+            type="button"
+            onClick={() => setComparar(true)}
+            className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-gray-900 text-white dark:bg-white dark:text-gray-900"
+          >
+            <Columns2 size={14} />
+            <span className="hidden sm:inline">Comparar 3 fotos</span>
+            <span className="sm:hidden">Comparar</span>
+          </button>
+        )}
+      </div>,
+    );
+    return () => onToolbarChange(null);
+  }, [onToolbarChange, permiteEnviar, qrLoading, selecionadas.length, carregar, abrirQr]);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        {permiteEnviar
+          ? "Histórico em todas as consultas. Use o QR no celular ou envie pelo painel. Clique na foto para ampliar; marque até 3 para comparar."
+          : "Histórico em todas as consultas. Consulta finalizada — apenas visualização e comparação."}
+      </p>
 
       {!permiteEnviar && (
         <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
@@ -486,14 +490,14 @@ export function ConsultaFotosTab({
         </div>
       )}
 
-      {comparar && fotosComparar.length === 2 && (
+      {comparar && fotosComparar.length === MAX_COMPARAR && (
         <div
           className="fixed inset-0 z-[60] bg-black flex flex-col"
           role="dialog"
           aria-modal
         >
           <div className="flex items-center justify-between px-4 py-3 bg-black/80 text-white shrink-0">
-            <span className="text-sm font-medium">Comparação — tela cheia</span>
+            <span className="text-sm font-medium">Comparação de 3 fotos — tela cheia</span>
             <button
               type="button"
               onClick={() => setComparar(false)}
@@ -502,7 +506,7 @@ export function ConsultaFotosTab({
               <X size={22} />
             </button>
           </div>
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-0 min-h-0">
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-0 min-h-0">
             {fotosComparar.map((f, i) => (
               <div key={f.id} className="relative flex flex-col min-h-0 border-t md:border-t-0 md:border-l border-white/10">
                 <p className="text-xs text-white/70 px-3 py-2 shrink-0 bg-black/40">

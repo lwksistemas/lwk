@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ClipboardList,
   History,
@@ -79,6 +79,7 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     amount: "",
     local_atendimento: "" as number | "",
   });
+  const [fotosToolbar, setFotosToolbar] = useState<ReactNode | null>(null);
   const [evolucaoForm, setEvolucaoForm] = useState({
     descricao: "",
     procedimento_realizado: "",
@@ -384,6 +385,10 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     setProtocoloPreview(null);
   };
 
+  useEffect(() => {
+    if (tab !== "fotos") setFotosToolbar(null);
+  }, [tab]);
+
   const headerExtraActions = consultaAtiva ? (
     <>
       <button
@@ -415,6 +420,7 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
         title={selected.patient_name}
         subtitle={`${consultaProcedimentosNomes(selected)} · ${selected.professional_name}`}
         onBack={onBack}
+        toolbarActions={tab === "fotos" ? fotosToolbar : undefined}
         extraActions={headerExtraActions}
       />
       <div className="min-h-full bg-[#f7f2f4] dark:bg-gray-950 flex flex-col">
@@ -579,9 +585,9 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
               {tab === "fotos" && (
                 <ConsultaFotosTab
                   consultaId={selected.id}
-                  patientNome={selected.patient_name}
                   permiteEnviar={consultaAtiva}
                   ativa={tab === "fotos" && consultaAtiva}
+                  onToolbarChange={setFotosToolbar}
                 />
               )}
               {tab === "historico" && (

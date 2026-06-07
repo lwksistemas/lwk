@@ -83,6 +83,8 @@ export interface ClinicaBelezaStandardPageHeaderProps {
   newLabel?: string;
   onNew?: () => void;
   showOffline?: boolean;
+  /** Ações à esquerda do indicador Online (ex.: toolbar da aba ativa). */
+  toolbarActions?: ReactNode;
   extraActions?: ReactNode;
 }
 
@@ -96,6 +98,7 @@ export function ClinicaBelezaStandardPageHeader({
   newLabel = 'Novo',
   onNew,
   showOffline = true,
+  toolbarActions,
   extraActions,
 }: ClinicaBelezaStandardPageHeaderProps) {
   const router = useRouter();
@@ -139,7 +142,8 @@ export function ClinicaBelezaStandardPageHeader({
             </p>
           )}
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0 flex-wrap justify-end">
+          {toolbarActions}
           {showOffline && <OfflineIndicator />}
           {extraActions}
           {onNew && (

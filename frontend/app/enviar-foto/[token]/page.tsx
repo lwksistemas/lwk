@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Camera, CheckCircle, AlertCircle, Upload, Stethoscope } from 'lucide-react';
+import {
+  Camera,
+  CheckCircle,
+  AlertCircle,
+  Upload,
+  Stethoscope,
+  Images,
+  X,
+} from 'lucide-react';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 
 interface FotoUploadConfig {
@@ -13,6 +21,14 @@ interface FotoUploadConfig {
   upload_preset: string;
   folder: string;
 }
+
+interface ArquivoPendente {
+  id: string;
+  file: File;
+  preview: string;
+}
+
+const MAX_FOTOS = 20;
 
 export default function EnviarFotoPage() {
   const params = useParams();
@@ -29,9 +45,23 @@ export default function EnviarFotoPage() {
   const [config, setConfig] = useState<FotoUploadConfig | null>(null);
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
-  const [sucesso, setSucesso] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [progressoEnvio, setProgressoEnvio] = useState('');
+  const [fotosEnviadas, setFotosEnviadas] = useState(0);
+  const [pendentes, setPendentes] = useState<ArquivoPendente[]>([]);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galeriaInputRef = useRef<HTMLInputElement>(null);
+
+  const limparPendentes = () => {
+    pendentes.forEach((p) => URL.revokeObjectURL(p.preview));
+    setPendentes([]);
+  };
+
+  useEffect(() => {
+    return () => {
+      pendentes.forEach((p) => URL.revokeObjectURL(p.preview));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -52,57 +82,102 @@ export default function EnviarFotoPage() {
     })();
   }, [tokenApiSegment]);
 
-  const enviarArquivo = async (file: File) => {
-    if (!config) return;
+  const enviarArquivo = async (file: File): Promise<boolean> => {
+    if (!config) return false;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', config.upload_preset);
+    formData.append('folder', config.folder);
+
+    const up = await fetch(
+      `https://api.cloudinary.com/v1_1/${config.cloud_name}/image/upload`,
+      { method: 'POST', body: formData },
+    );
+    const upData = await up.json();
+    if (!up.ok || !upData.secure_url) {
+      setErro(upData.error?.message || 'Falha no envio da imagem.');
+      return false;
+    }
+
+    const api = getPrimaryApiBaseUrl();
+    const res = await fetch(`${api}/clinica-beleza/enviar-foto/${tokenApiSegment}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cloudinary_url: upData.secure_url,
+        cloudinary_public_id: upData.public_id || '',
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setErro(data.error || 'Erro ao registrar foto.');
+      return false;
+    }
+    return true;
+  };
+
+  const confirmarEnvio = async () => {
+    if (!pendentes.length) return;
     setEnviando(true);
     setErro('');
+    let enviadas = 0;
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', config.upload_preset);
-      formData.append('folder', config.folder);
-
-      const up = await fetch(
-        `https://api.cloudinary.com/v1_1/${config.cloud_name}/image/upload`,
-        { method: 'POST', body: formData },
-      );
-      const upData = await up.json();
-      if (!up.ok || !upData.secure_url) {
-        setErro(upData.error?.message || 'Falha no envio da imagem.');
-        return;
+      for (let i = 0; i < pendentes.length; i++) {
+        setProgressoEnvio(`Enviando ${i + 1} de ${pendentes.length}…`);
+        const ok = await enviarArquivo(pendentes[i].file);
+        if (!ok) return;
+        enviadas += 1;
       }
-
-      const api = getPrimaryApiBaseUrl();
-      const res = await fetch(`${api}/clinica-beleza/enviar-foto/${tokenApiSegment}/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cloudinary_url: upData.secure_url,
-          cloudinary_public_id: upData.public_id || '',
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setErro(data.error || 'Erro ao registrar foto.');
-        return;
-      }
-      setSucesso(true);
+      limparPendentes();
+      setFotosEnviadas(enviadas);
     } catch {
       setErro('Erro ao enviar. Tente novamente.');
     } finally {
       setEnviando(false);
+      setProgressoEnvio('');
     }
   };
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setErro('Selecione uma imagem.');
+  const adicionarArquivos = (files: FileList | null) => {
+    if (!files?.length) return;
+    const imagens = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    if (!imagens.length) {
+      setErro('Selecione apenas imagens.');
       return;
     }
-    setPreview(URL.createObjectURL(file));
-    void enviarArquivo(file);
+    const restante = MAX_FOTOS - pendentes.length;
+    if (restante <= 0) {
+      setErro(`Máximo de ${MAX_FOTOS} fotos por envio.`);
+      return;
+    }
+    const novos = imagens.slice(0, restante).map((file) => ({
+      id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    if (imagens.length > restante) {
+      setErro(`Só é possível adicionar mais ${restante} foto(s) neste envio.`);
+    } else {
+      setErro('');
+    }
+    setPendentes((prev) => [...prev, ...novos]);
+  };
+
+  const removerPendente = (id: string) => {
+    setPendentes((prev) => {
+      const item = prev.find((p) => p.id === id);
+      if (item) URL.revokeObjectURL(item.preview);
+      return prev.filter((p) => p.id !== id);
+    });
+  };
+
+  const onCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    adicionarArquivos(e.target.files);
+    e.target.value = '';
+  };
+
+  const onGaleriaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    adicionarArquivos(e.target.files);
     e.target.value = '';
   };
 
@@ -114,24 +189,25 @@ export default function EnviarFotoPage() {
     );
   }
 
-  if (sucesso) {
+  if (fotosEnviadas > 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-green-50 p-4">
         <div className="bg-white rounded-2xl shadow-lg p-8 max-w-sm w-full text-center">
           <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Foto registrada!</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">
+            {fotosEnviadas === 1 ? 'Foto registrada!' : `${fotosEnviadas} fotos registradas!`}
+          </h1>
           <p className="text-gray-600 text-sm">
-            A foto já aparece na aba Fotos da consulta no computador. Você pode tirar outra se precisar.
+            {fotosEnviadas === 1
+              ? 'A foto já aparece na aba Fotos da consulta no computador.'
+              : 'As fotos já aparecem na aba Fotos da consulta no computador.'}
           </p>
           <button
             type="button"
-            onClick={() => {
-              setSucesso(false);
-              setPreview(null);
-            }}
+            onClick={() => setFotosEnviadas(0)}
             className="mt-6 w-full py-3 rounded-lg bg-green-600 text-white font-medium"
           >
-            Tirar outra foto
+            Enviar mais fotos
           </button>
         </div>
       </div>
@@ -148,6 +224,8 @@ export default function EnviarFotoPage() {
       </div>
     );
   }
+
+  const temPendentes = pendentes.length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white p-4 pb-8">
@@ -168,15 +246,43 @@ export default function EnviarFotoPage() {
 
         <div className="bg-white rounded-2xl shadow-lg p-6 space-y-4">
           <p className="text-sm text-gray-600 text-center">
-            Use a câmera do <strong>seu celular</strong> para fotografar o paciente durante o
-            atendimento. A imagem será salva no acompanhamento da consulta.
+            {temPendentes
+              ? 'Confira as fotos selecionadas antes de enviar.'
+              : (
+                <>
+                  Fotografe o paciente ou escolha <strong>várias fotos</strong> da galeria do seu
+                  celular.
+                </>
+              )}
           </p>
 
-          {preview && (
-            <div className="rounded-xl overflow-hidden border border-gray-200">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={preview} alt="Prévia" className="w-full max-h-64 object-contain bg-gray-100" />
+          {temPendentes && (
+            <div className="grid grid-cols-3 gap-2">
+              {pendentes.map((item) => (
+                <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.preview} alt="Prévia" className="w-full h-full object-cover" />
+                  {!enviando && (
+                    <button
+                      type="button"
+                      onClick={() => removerPendente(item.id)}
+                      className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white"
+                      aria-label="Remover foto"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
+          )}
+
+          {temPendentes && (
+            <p className="text-xs text-center text-gray-500">
+              {pendentes.length} foto{pendentes.length !== 1 ? 's' : ''} selecionada
+              {pendentes.length !== 1 ? 's' : ''}
+              {pendentes.length < MAX_FOTOS && ' — você pode adicionar mais'}
+            </p>
           )}
 
           {erro && (
@@ -187,32 +293,85 @@ export default function EnviarFotoPage() {
           )}
 
           <input
-            ref={inputRef}
+            ref={cameraInputRef}
             type="file"
             accept="image/*"
             capture="environment"
             className="hidden"
-            onChange={onFileChange}
+            onChange={onCameraChange}
+          />
+          <input
+            ref={galeriaInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={onGaleriaChange}
           />
 
-          <button
-            type="button"
-            disabled={enviando}
-            onClick={() => inputRef.current?.click()}
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-purple-700 text-white font-semibold text-lg disabled:opacity-50"
-          >
-            {enviando ? (
-              <>
-                <Upload className="animate-pulse" size={22} />
-                Enviando…
-              </>
-            ) : (
-              <>
+          {temPendentes ? (
+            <div className="space-y-3">
+              <button
+                type="button"
+                disabled={enviando}
+                onClick={() => void confirmarEnvio()}
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-green-600 text-white font-semibold text-lg disabled:opacity-50"
+              >
+                {enviando ? (
+                  <>
+                    <Upload className="animate-pulse" size={22} />
+                    {progressoEnvio || 'Enviando…'}
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={22} />
+                    Enviar {pendentes.length} foto{pendentes.length !== 1 ? 's' : ''}
+                  </>
+                )}
+              </button>
+              {!enviando && pendentes.length < MAX_FOTOS && (
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex items-center justify-center gap-2 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
+                  >
+                    <Camera size={18} />
+                    Câmera
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => galeriaInputRef.current?.click()}
+                    className="flex items-center justify-center gap-2 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium text-sm"
+                  >
+                    <Images size={18} />
+                    Galeria
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3">
+              <button
+                type="button"
+                disabled={enviando}
+                onClick={() => cameraInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-purple-700 text-white font-semibold text-lg disabled:opacity-50"
+              >
                 <Camera size={22} />
                 Fotografar paciente
-              </>
-            )}
-          </button>
+              </button>
+              <button
+                type="button"
+                disabled={enviando}
+                onClick={() => galeriaInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-purple-200 text-purple-800 font-semibold disabled:opacity-50"
+              >
+                <Images size={22} />
+                Escolher da galeria
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

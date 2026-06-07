@@ -238,17 +238,33 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
     elements.append(Spacer(1, 0.2 * cm))
     elements.append(Paragraph('Termo de Consentimento Esclarecido', title_style))
 
+    from django.utils import timezone as dj_tz
+
     paciente = consulta.patient
     prof = consulta.professional
+    data_str = dj_tz.localtime().strftime('%d/%m/%Y')
+    if consulta.data_inicio:
+        data_str = dj_tz.localtime(consulta.data_inicio).strftime('%d/%m/%Y')
     dados = [
         ['Paciente', paciente.nome if paciente else '—'],
         ['CPF', getattr(paciente, 'cpf', '') or '—'],
         ['Procedimento', procedure.nome if procedure else '—'],
         ['Profissional', prof.nome if prof else '—'],
         ['Conselho', getattr(prof, 'conselho', '') or '—'],
+        ['Data', data_str],
     ]
     if loja and loja.cpf_cnpj:
         dados.append(['CNPJ Clínica', loja.cpf_cnpj])
+    if loja:
+        endereco = ', '.join(
+            p for p in [
+                getattr(loja, 'endereco', '') or '',
+                getattr(loja, 'cidade', '') or '',
+                getattr(loja, 'estado', '') or '',
+            ] if p
+        )
+        if endereco:
+            dados.append(['Endereço', endereco])
     t = Table(dados, colWidths=[col1, col2])
     t.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
@@ -264,7 +280,8 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
 
     elements.append(Spacer(1, 0.5 * cm))
     elements.append(Paragraph('Conteúdo do Termo', section_style))
-    conteudo = (termo_proc.conteudo_termo or '').strip()
+    from .consentimento_service import limpar_conteudo_termo_exibicao
+    conteudo = limpar_conteudo_termo_exibicao(termo_proc.conteudo_termo or '')
     for line in conteudo.split('\n'):
         stripped = line.strip()
         if not stripped:

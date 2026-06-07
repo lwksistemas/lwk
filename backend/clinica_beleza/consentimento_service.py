@@ -132,28 +132,30 @@ def _ctx_base_termo(consulta) -> dict:
     }
 
 
+def limpar_conteudo_termo_exibicao(conteudo: str) -> str:
+    """Remove cabeçalho legado com metadados duplicados (já exibidos no PDF/tela)."""
+    texto = (conteudo or '').strip()
+    if not texto:
+        return ''
+    if 'Clínica:' in texto and 'Paciente:' in texto and 'Procedimento:' in texto:
+        sep = '—' * 40
+        if sep in texto:
+            _, resto = texto.split(sep, 1)
+            resto = resto.strip()
+            if resto:
+                return resto
+    return texto
+
+
 def montar_conteudo_termo_procedimento(consulta, procedure: Procedure) -> str:
-    """Gera o termo de um único procedimento — leitura e assinatura independentes."""
+    """Gera o texto jurídico do procedimento (metadados ficam no layout do PDF)."""
     tpl = (procedure.termo_consentimento or '').strip()
     if not tpl:
         return ''
 
     ctx_base = _ctx_base_termo(consulta)
     ctx = {**ctx_base, 'procedimento': procedure.nome, 'procedimentos': procedure.nome}
-    bloco = _renderizar_bloco_termo(tpl, ctx)
-
-    cabecalho = (
-        f'TERMO DE CONSENTIMENTO ESCLARECIDO\n\n'
-        f'Clínica: {ctx_base["clinica_nome"]}\n'
-        f'CNPJ: {ctx_base["clinica_cnpj"]}\n'
-        f'Endereço: {ctx_base["clinica_endereco"]}\n\n'
-        f'Paciente: {ctx_base["paciente_nome"]}\n'
-        f'Profissional: {ctx_base["profissional_nome"]}\n'
-        f'Data: {ctx_base["data"]}\n'
-        f'Procedimento: {procedure.nome}\n\n'
-        f'{"—" * 40}\n\n'
-    )
-    return cabecalho + bloco
+    return _renderizar_bloco_termo(tpl, ctx)
 
 
 def montar_conteudo_termo_consentimento(consulta) -> str:
@@ -200,7 +202,14 @@ def garantir_termos_procedimento(consulta) -> list[ConsultaTermoProcedimento]:
                 'status_assinatura_termo': 'rascunho',
             },
         )
-        if termo.status_assinatura_termo == 'rascunho':
+        if termo.status_assinatura_termo == 'concluido':
+            pass
+        elif termo.status_assinatura_termo == 'aguardando_profissional':
+            limpo = limpar_conteudo_termo_exibicao(termo.conteudo_termo)
+            if limpo and limpo != termo.conteudo_termo:
+                termo.conteudo_termo = limpo
+                termo.save(update_fields=['conteudo_termo', 'updated_at'])
+        else:
             conteudo = montar_conteudo_termo_procedimento(consulta, proc)
             if conteudo and termo.conteudo_termo != conteudo:
                 termo.conteudo_termo = conteudo

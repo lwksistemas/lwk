@@ -17,6 +17,7 @@ from .consentimento_service import (
     aviso_email_paciente_suspeito,
     consulta_exige_termo_consentimento,
     garantir_termos_procedimento,
+    limpar_conteudo_termo_exibicao,
     montar_conteudo_termo_procedimento,
     serializar_termos_procedimento,
     sincronizar_status_consulta,
@@ -324,7 +325,7 @@ class ConsultaAssinaturaPublicaView(View):
             'paciente_nome': consulta.patient.nome if consulta.patient else '',
             'profissional_nome': consulta.professional.nome if consulta.professional else '',
             'clinica_nome': loja_nome,
-            'conteudo_termo': termo_proc.conteudo_termo or '',
+            'conteudo_termo': limpar_conteudo_termo_exibicao(termo_proc.conteudo_termo or ''),
         })
 
     def post(self, request, token):

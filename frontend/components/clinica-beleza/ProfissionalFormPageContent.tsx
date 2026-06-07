@@ -11,7 +11,7 @@ import { ArrowLeft, Save, Trash2, Plus } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI, LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, ConvenioItem, LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
 import { formatTelefone, formatCpf } from "@/lib/format-br";
 import { formatProfissionalApiErrors } from "@/lib/clinica-beleza-form-errors";
 import { logger } from "@/lib/logger";
@@ -37,6 +37,9 @@ interface Commission {
   valor: string;
   procedure?: number | null;
   procedure_name?: string;
+  convenio?: number | null;
+  convenio_nome?: string;
+  convenio_codigo?: string;
   local_atendimento?: number | null;
   local_atendimento_nome?: string;
 }
@@ -60,6 +63,7 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
   const [comissoes, setComissoes] = useState<Commission[]>([]);
   const [comissoesConsultaLocal, setComissoesConsultaLocal] = useState<Commission[]>([]);
   const [locais, setLocais] = useState<LocalAtendimentoItem[]>([]);
+  const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -74,6 +78,9 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
     }).catch(() => {});
     ClinicaBelezaAPI.locaisAtendimento.list().then((data) => {
       setLocais(Array.isArray(data) ? data : []);
+    }).catch(() => {});
+    ClinicaBelezaAPI.convenios.list().then((data) => {
+      setConvenios(Array.isArray(data) ? data : []);
     }).catch(() => {});
   }, []);
 
@@ -112,6 +119,9 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
                   id: c.id, tipo: c.tipo, modo: c.modo,
                   valor: String(c.valor), procedure: c.procedure,
                   procedure_name: c.procedure_name,
+                  convenio: c.convenio,
+                  convenio_nome: c.convenio_nome,
+                  convenio_codigo: c.convenio_codigo,
                 }))
             : []
         );
@@ -154,7 +164,10 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
 
   // Comissões helpers
   const addComissao = () => {
-    setComissoes((prev) => [...prev, { tipo: "procedimento", modo: "percentual", valor: "", procedure: null }]);
+    setComissoes((prev) => [
+      ...prev,
+      { tipo: "procedimento", modo: "percentual", valor: "", procedure: null, convenio: null },
+    ]);
   };
   const addComissaoConsultaLocal = () => {
     setComissoesConsultaLocal((prev) => [
@@ -206,6 +219,18 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
       return;
     }
 
+    const paresProcedimento = comissoes
+      .filter((c) => c.valor && Number(c.valor) > 0 && c.procedure)
+      .map((c) => `${c.procedure}:${c.convenio ?? ""}`);
+    if (new Set(paresProcedimento).size !== paresProcedimento.length) {
+      setError("Não repita o mesmo procedimento para o mesmo convênio.");
+      return;
+    }
+    if (comissoes.some((c) => c.valor && Number(c.valor) > 0 && c.procedure && !c.convenio)) {
+      setError("Selecione o convênio em cada comissão de procedimento.");
+      return;
+    }
+
     setSaving(true);
     setError("");
 
@@ -252,12 +277,13 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
         }
         // Comissões por procedimento
         for (const c of comissoes) {
-          if (c.valor && Number(c.valor) > 0 && c.procedure) {
+          if (c.valor && Number(c.valor) > 0 && c.procedure && c.convenio) {
             payload.push({
               tipo: "procedimento",
               modo: c.modo,
               valor: c.valor,
               procedure: c.procedure,
+              convenio: c.convenio,
             });
           }
         }
@@ -438,7 +464,7 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
                 <div>
                   <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Comissão por Procedimento</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Valor que o profissional recebe por cada procedimento realizado.
+                    Defina por procedimento e convênio. Ex.: Botox na Unimed R$ fixo; na Santa Casa percentual.
                   </p>
                 </div>
                 <button type="button" onClick={addComissao} className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline">
@@ -451,14 +477,30 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
                 <div className="space-y-2">
                   {comissoes.map((c, idx) => (
                     <div key={idx} className="flex flex-wrap items-center gap-2 bg-gray-50 dark:bg-neutral-700/30 rounded-lg px-3 py-2.5">
-                      <div className="flex-1 min-w-[140px]">
+                      <div className="flex-1 min-w-[160px]">
+                        <label className="sr-only">Procedimento</label>
                         <select
                           value={c.procedure ?? ""}
                           onChange={(e) => updateComissao(idx, "procedure", e.target.value ? Number(e.target.value) : null)}
                           className={inputClass}
                         >
-                          <option value="">Selecione o procedimento...</option>
+                          <option value="">Procedimento...</option>
                           {procedures.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                        </select>
+                      </div>
+                      <div className="flex-1 min-w-[140px]">
+                        <label className="sr-only">Convênio</label>
+                        <select
+                          value={c.convenio ?? ""}
+                          onChange={(e) => updateComissao(idx, "convenio", e.target.value ? Number(e.target.value) : null)}
+                          className={inputClass}
+                        >
+                          <option value="">Convênio...</option>
+                          {convenios.map((cv) => (
+                            <option key={cv.id} value={cv.id}>
+                              {cv.codigo ? `${cv.codigo} — ${cv.nome}` : cv.nome}
+                            </option>
+                          ))}
                         </select>
                       </div>
                       <div className="w-28">

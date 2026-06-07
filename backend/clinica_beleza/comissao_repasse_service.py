@@ -75,7 +75,13 @@ def calcular_repasse_por_consulta(
 
         amount = payment.amount or Decimal('0')
         valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)
-        proc_com_regra = set(regras['procedimentos'].keys())
+        from .comissao_relatorio_service import (
+            _resolver_convenio_atendimento,
+            _resolver_regra_procedimento,
+        )
+
+        proc_com_regra = regras.get('procedimento_ids') or set()
+        convenio_id = _resolver_convenio_atendimento(appt, consulta)
         vc, vp_map = _alocar_valores_pagamento(
             amount, valor_consulta_cad, procedimentos, proc_com_regra,
         )
@@ -94,7 +100,9 @@ def calcular_repasse_por_consulta(
             proc_id = proc['procedure_id']
             vp = vp_map.get(proc_id, Decimal('0'))
             valor_procedimentos += vp
-            regra_proc = regras['procedimentos'].get(proc_id)
+            regra_proc = _resolver_regra_procedimento(
+                regras['procedimentos'], proc_id, convenio_id,
+            )
             com_proc = _calcular_comissao_regra(regra_proc, vp)
             modo_pc, regra_pc = _formatar_regra(regra_proc)
             comissao_procedimentos += com_proc

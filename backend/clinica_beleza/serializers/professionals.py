@@ -114,19 +114,23 @@ class ProfessionalCommissionSerializer(serializers.ModelSerializer):
     local_atendimento_nome = serializers.CharField(
         source='local_atendimento.nome', read_only=True, default=None,
     )
+    convenio_nome = serializers.CharField(source='convenio.nome', read_only=True, default=None)
+    convenio_codigo = serializers.CharField(source='convenio.codigo', read_only=True, default=None)
     valor_display = serializers.CharField(read_only=True)
 
     class Meta:
         model = ProfessionalCommission
         fields = [
             'id', 'professional', 'tipo', 'modo', 'valor', 'procedure',
-            'procedure_name', 'local_atendimento', 'local_atendimento_nome',
+            'procedure_name', 'convenio', 'convenio_nome', 'convenio_codigo',
+            'local_atendimento', 'local_atendimento_nome',
             'valor_display', 'is_active',
         ]
         read_only_fields = ['id']
         extra_kwargs = {
             'professional': {'required': False},
             'procedure': {'required': False, 'allow_null': True},
+            'convenio': {'required': False, 'allow_null': True},
             'local_atendimento': {'required': False, 'allow_null': True},
         }
 
@@ -134,9 +138,12 @@ class ProfessionalCommissionSerializer(serializers.ModelSerializer):
         tipo = attrs.get('tipo')
         procedure = attrs.get('procedure')
         local = attrs.get('local_atendimento')
+        convenio = attrs.get('convenio')
         if tipo == 'procedimento':
             if not procedure:
                 raise serializers.ValidationError({'procedure': 'Procedimento obrigatório.'})
+            if not convenio:
+                raise serializers.ValidationError({'convenio': 'Convênio obrigatório.'})
             if local:
                 raise serializers.ValidationError(
                     {'local_atendimento': 'Não use local em comissão de procedimento.'},
@@ -144,6 +151,8 @@ class ProfessionalCommissionSerializer(serializers.ModelSerializer):
         elif tipo == 'consulta':
             if procedure:
                 raise serializers.ValidationError({'procedure': 'Consulta não vincula procedimento.'})
+            if convenio:
+                raise serializers.ValidationError({'convenio': 'Consulta não vincula convênio.'})
             if not local:
                 raise serializers.ValidationError({
                     'local_atendimento': 'Informe o local de atendimento para a comissão da consulta.',

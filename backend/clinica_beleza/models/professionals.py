@@ -112,6 +112,14 @@ class ProfessionalCommission(LojaIsolationMixin, models.Model):
         verbose_name='Procedimento',
         help_text='Obrigatório quando tipo = procedimento. Vazio em consulta.',
     )
+    convenio = models.ForeignKey(
+        'Convenio',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='comissoes_profissionais',
+        verbose_name='Convênio',
+        help_text='Opcional em procedimento: regra específica por convênio. Vazio = regra geral.',
+    )
     local_atendimento = models.ForeignKey(
         'LocalAtendimento',
         on_delete=models.CASCADE,
@@ -135,7 +143,8 @@ class ProfessionalCommission(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         if self.tipo == 'procedimento' and self.procedure:
-            return f"{self.professional.nome} — {self.procedure.nome}: {self.valor_display}"
+            conv = f" ({self.convenio.nome})" if self.convenio_id else ''
+            return f"{self.professional.nome} — {self.procedure.nome}{conv}: {self.valor_display}"
         if self.local_atendimento_id:
             return f"{self.professional.nome} — Consulta ({self.local_atendimento.nome}): {self.valor_display}"
         return f"{self.professional.nome} — Consulta (geral): {self.valor_display}"

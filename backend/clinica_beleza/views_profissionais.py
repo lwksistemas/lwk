@@ -281,7 +281,9 @@ class ProfessionalCommissionView(APIView):
             return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
         qs = ProfessionalCommission.objects.filter(
             professional_id=pk, is_active=True
-        ).select_related('procedure').order_by('tipo', 'procedure__nome')
+        ).select_related('procedure', 'convenio', 'local_atendimento').order_by(
+            'tipo', 'procedure__nome', 'convenio__nome',
+        )
         return Response(ProfessionalCommissionSerializer(qs, many=True).data)
 
     def post(self, request, pk):
@@ -301,6 +303,7 @@ class ProfessionalCommissionView(APIView):
         ProfessionalCommission.objects.filter(professional_id=pk).update(is_active=False)
         created = []
         locais_consulta_vistos = set()
+        procedimentos_convenio_vistos = set()
         for item in request.data:
             if item.get('tipo') == 'consulta':
                 local_id = item.get('local_atendimento')
@@ -315,6 +318,21 @@ class ProfessionalCommissionView(APIView):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
                 locais_consulta_vistos.add(local_id)
+            elif item.get('tipo') == 'procedimento':
+                proc_id = item.get('procedure')
+                conv_id = item.get('convenio')
+                if not conv_id:
+                    return Response(
+                        {'convenio': 'Informe o convênio para cada comissão de procedimento.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                chave = (proc_id, conv_id)
+                if chave in procedimentos_convenio_vistos:
+                    return Response(
+                        {'convenio': 'Não repita o mesmo procedimento para o mesmo convênio.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                procedimentos_convenio_vistos.add(chave)
             data = {**item, 'professional': pk}
             serializer = ProfessionalCommissionSerializer(data=data)
             if serializer.is_valid():

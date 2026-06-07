@@ -234,16 +234,36 @@ def _regras_profissional(professional_id: int) -> dict:
         elif consulta_geral is None:
             consulta_geral = c
     proc_map = {}
+    procedimento_ids = set()
     for c in ProfessionalCommission.objects.filter(
         professional_id=professional_id, tipo='procedimento', is_active=True,
     ):
         if c.procedure_id:
-            proc_map[c.procedure_id] = c
+            proc_map[(c.procedure_id, c.convenio_id)] = c
+            procedimento_ids.add(c.procedure_id)
     return {
         'consulta': consulta_geral,
         'consultas_local': consultas_local,
         'procedimentos': proc_map,
+        'procedimento_ids': procedimento_ids,
     }
+
+
+def _resolver_convenio_atendimento(appointment, consulta) -> Optional[int]:
+    """Convênio efetivo do atendimento (agendamento ou consulta)."""
+    if appointment and getattr(appointment, 'convenio_id', None):
+        return appointment.convenio_id
+    if consulta and getattr(consulta, 'convenio_id', None):
+        return consulta.convenio_id
+    return None
+
+
+def _resolver_regra_procedimento(proc_map: dict, procedure_id: int, convenio_id: Optional[int]):
+    """Regra do procedimento: convênio específico ou regra geral (convenio_id nulo)."""
+    regra = proc_map.get((procedure_id, convenio_id))
+    if regra:
+        return regra
+    return proc_map.get((procedure_id, None))
 
 
 def _resolver_regra_consulta(regras: dict, local_id: Optional[int]):
@@ -324,7 +344,8 @@ def calcular_comissao_payment_atendimento(
 
     regras = _regras_profissional(appt.professional_id)
     valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)
-    proc_com_regra = set(regras['procedimentos'].keys())
+    proc_com_regra = regras.get('procedimento_ids') or set()
+    convenio_id = _resolver_convenio_atendimento(appt, consulta)
     vc, vp_map = _alocar_valores_pagamento(
         amount, valor_consulta_cad, procedimentos, proc_com_regra,
     )
@@ -335,7 +356,9 @@ def calcular_comissao_payment_atendimento(
     comissao_procedimentos = Decimal('0')
     for proc in procedimentos:
         vp = vp_map.get(proc['procedure_id'], Decimal('0'))
-        regra_proc = regras['procedimentos'].get(proc['procedure_id'])
+        regra_proc = _resolver_regra_procedimento(
+            regras['procedimentos'], proc['procedure_id'], convenio_id,
+        )
         comissao_procedimentos += _calcular_comissao_regra(regra_proc, vp)
 
     total = (comissao_consulta + comissao_procedimentos).quantize(Decimal('0.01'))
@@ -424,7 +447,8 @@ def calcular_comissoes(
         regras = regras_cache[prof_id]
 
         valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)
-        proc_com_regra = set(regras['procedimentos'].keys())
+        proc_com_regra = regras.get('procedimento_ids') or set()
+        convenio_id = _resolver_convenio_atendimento(appt, consulta)
         vc, vp_map = _alocar_valores_pagamento(
             amount, valor_consulta_cad, procedimentos, proc_com_regra,
         )
@@ -438,7 +462,9 @@ def calcular_comissoes(
         comissao_procedimentos = Decimal('0')
         for proc in procedimentos:
             vp = vp_map.get(proc['procedure_id'], Decimal('0'))
-            regra_proc = regras['procedimentos'].get(proc['procedure_id'])
+            regra_proc = _resolver_regra_procedimento(
+                regras['procedimentos'], proc['procedure_id'], convenio_id,
+            )
             comissao_procedimentos += _calcular_comissao_regra(regra_proc, vp)
 
         comissao_total = comissao_consulta + comissao_procedimentos
@@ -499,13 +525,15 @@ def calcular_comissoes(
         for proc in procedimentos:
             proc_id = proc['procedure_id']
             vp = vp_map.get(proc_id, Decimal('0'))
-            regra_proc = regras['procedimentos'].get(proc_id)
+            regra_proc = _resolver_regra_procedimento(
+                regras['procedimentos'], proc_id, convenio_id,
+            )
             if not regra_proc:
                 continue
             com_proc = _calcular_comissao_regra(regra_proc, vp)
             modo_pc, regra_pc = _formatar_regra(regra_proc)
 
-            chave_proc = f'proc:{proc_id}'
+            chave_proc = f'proc:{proc_id}:{convenio_id or 0}:{regra_proc.id}'
             det_proc = _obter_ou_criar_detalhe(entry, chave_proc, {
                 'tipo_linha': 'procedimento',
                 'local_nome': local_nome,

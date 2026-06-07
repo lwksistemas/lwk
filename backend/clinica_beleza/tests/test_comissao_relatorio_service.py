@@ -9,6 +9,7 @@ from clinica_beleza.comissao_relatorio_service import (
     _formatar_regra,
     _procedimentos_vinculados_consulta,
     _resolver_regra_consulta,
+    _resolver_regra_procedimento,
     _resolver_local_atendimento_efetivo,
     _resolver_valor_consulta_cadastro,
 )
@@ -137,3 +138,14 @@ class ComissaoRelatorioHelpersTest(TestCase):
         items = _procedimentos_vinculados_consulta(appt, consulta)
         self.assertEqual(len(items), 2)
         self.assertEqual(items[0]['procedimento_nome'], 'Imunidade')
+
+    def test_resolver_regra_procedimento_prioriza_convenio(self):
+        regra_unimed = _comissao('fixo', '300')
+        regra_geral = _comissao('percentual', '25')
+        proc_map = {
+            (10, 1): regra_unimed,
+            (10, None): regra_geral,
+        }
+        self.assertIs(_resolver_regra_procedimento(proc_map, 10, 1), regra_unimed)
+        self.assertIs(_resolver_regra_procedimento(proc_map, 10, 2), regra_geral)
+        self.assertIs(_resolver_regra_procedimento(proc_map, 10, None), regra_geral)

@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { FileSignature, Download, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FileSignature, Download, RefreshCw, ChevronDown } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 
@@ -14,6 +14,13 @@ type TermoProcedimento = {
   tem_conteudo: boolean;
 };
 
+const STATUS_BADGE: Record<string, string> = {
+  rascunho: "bg-gray-100 text-gray-600 dark:bg-neutral-700 dark:text-gray-300",
+  aguardando_paciente: "bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
+  aguardando_profissional: "bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200",
+  concluido: "bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-200",
+};
+
 export function ConsultaTermoConsentimentoButton({
   consultaId,
   exigeTermo,
@@ -21,11 +28,12 @@ export function ConsultaTermoConsentimentoButton({
 }: {
   consultaId: number;
   exigeTermo?: boolean;
-  statusAssinatura?: string;
   onUpdated?: () => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [termos, setTermos] = useState<TermoProcedimento[]>([]);
+  const [aberto, setAberto] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const carregar = useCallback(async () => {
     if (!exigeTermo) return;
@@ -41,9 +49,24 @@ export function ConsultaTermoConsentimentoButton({
     carregar();
   }, [carregar]);
 
+  useEffect(() => {
+    if (!aberto) return;
+    const fechar = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setAberto(false);
+      }
+    };
+    document.addEventListener("mousedown", fechar);
+    return () => document.removeEventListener("mousedown", fechar);
+  }, [aberto]);
+
   if (!exigeTermo) return null;
 
   const pendentesEnvio = termos.filter((t) => t.status === "rascunho");
+  const pendentesAssinatura = termos.filter(
+    (t) => t.status === "aguardando_paciente" || t.status === "aguardando_profissional",
+  );
+  const badgeCount = pendentesAssinatura.length || pendentesEnvio.length;
 
   const enviar = async (procedureId?: number) => {
     const msg = procedureId
@@ -57,13 +80,13 @@ export function ConsultaTermoConsentimentoButton({
       await carregar();
       onUpdated?.();
     } catch (e: unknown) {
-      const msg =
+      const errMsg =
         e && typeof e === "object" && "detail" in e
           ? String((e as { detail: string }).detail)
           : e instanceof Error
             ? e.message
             : "Erro ao enviar.";
-      alert(msg);
+      alert(errMsg);
     } finally {
       setLoading(false);
     }
@@ -99,76 +122,117 @@ export function ConsultaTermoConsentimentoButton({
     }
   };
 
-  if (!termos.length) {
-    return (
-      <span className="text-xs text-gray-500 dark:text-gray-400">Carregando termos…</span>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-2 w-full max-w-xl">
-      <p className="text-xs text-gray-600 dark:text-gray-400">
-        Cada procedimento exige leitura e assinatura separadas.
-      </p>
-      {termos.map((t) => (
-        <div
-          key={t.procedure_id}
-          className="flex flex-wrap items-center gap-2 rounded-lg border border-purple-100 dark:border-purple-900/40 bg-purple-50/50 dark:bg-purple-900/10 px-2.5 py-2"
-        >
-          <span className="text-sm font-medium text-gray-800 dark:text-gray-200 min-w-0 flex-1">
-            {t.procedure_nome}
-          </span>
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          aberto
+            ? "text-white"
+            : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
+        }`}
+        style={aberto ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+        title="Termos de consentimento por procedimento"
+      >
+        <FileSignature size={16} />
+        Termos
+        {badgeCount > 0 && (
           <span
-            className="text-xs px-2 py-0.5 rounded-full bg-white dark:bg-neutral-800 text-purple-800 dark:text-purple-200"
-            title="Status da assinatura"
+            className={`min-w-[1.25rem] h-5 px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
+              aberto ? "bg-white/25 text-white" : "text-white"
+            }`}
+            style={aberto ? undefined : { backgroundColor: CLINICA_BELEZA_PRIMARY }}
           >
-            {t.status_display}
+            {badgeCount}
           </span>
-          {t.status === "rascunho" && (
-            <button
-              type="button"
-              onClick={() => enviar(t.procedure_id)}
-              disabled={loading}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-white text-xs font-medium disabled:opacity-50"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-            >
-              <FileSignature size={14} />
-              Enviar
-            </button>
+        )}
+        <ChevronDown size={14} className={`transition-transform ${aberto ? "rotate-180" : ""}`} />
+      </button>
+
+      {aberto && (
+        <div className="absolute left-0 top-full mt-2 z-50 w-[min(100vw-2rem,22rem)] rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-neutral-800">
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Termos de consentimento</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Cada procedimento exige leitura e assinatura separadas.
+            </p>
+          </div>
+
+          <div className="max-h-[min(50vh,16rem)] overflow-y-auto">
+            {!termos.length ? (
+              <p className="px-4 py-6 text-sm text-gray-500 text-center">Carregando…</p>
+            ) : (
+              <ul className="divide-y divide-gray-100 dark:divide-neutral-800">
+                {termos.map((t) => (
+                  <li key={t.procedure_id} className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-tight">
+                        {t.procedure_nome}
+                      </span>
+                      <span
+                        className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                          STATUS_BADGE[t.status] || STATUS_BADGE.rascunho
+                        }`}
+                      >
+                        {t.status_display}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {t.status === "rascunho" && (
+                        <button
+                          type="button"
+                          onClick={() => enviar(t.procedure_id)}
+                          disabled={loading}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-white text-xs font-medium disabled:opacity-50"
+                          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                        >
+                          <FileSignature size={12} />
+                          Enviar
+                        </button>
+                      )}
+                      {(t.status === "aguardando_paciente" || t.status === "aguardando_profissional") && (
+                        <button
+                          type="button"
+                          onClick={() => reenviar(t.procedure_id, t.procedure_nome)}
+                          disabled={loading}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800 disabled:opacity-50"
+                        >
+                          <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+                          Reenviar
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => baixarPdf(t.procedure_id, t.procedure_nome)}
+                        disabled={loading}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800 disabled:opacity-50"
+                      >
+                        <Download size={12} />
+                        PDF
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {pendentesEnvio.length > 1 && (
+            <div className="px-4 py-3 border-t border-gray-100 dark:border-neutral-800 bg-gray-50/80 dark:bg-neutral-800/50">
+              <button
+                type="button"
+                onClick={() => enviar()}
+                disabled={loading}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              >
+                <FileSignature size={14} />
+                {loading ? "Enviando…" : `Enviar todos (${pendentesEnvio.length})`}
+              </button>
+            </div>
           )}
-          {(t.status === "aguardando_paciente" || t.status === "aguardando_profissional") && (
-            <button
-              type="button"
-              onClick={() => reenviar(t.procedure_id, t.procedure_nome)}
-              disabled={loading}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border border-gray-300 dark:border-neutral-600"
-            >
-              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-              Reenviar
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => baixarPdf(t.procedure_id, t.procedure_nome)}
-            disabled={loading}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border border-gray-300 dark:border-neutral-600"
-          >
-            <Download size={14} />
-            PDF
-          </button>
         </div>
-      ))}
-      {pendentesEnvio.length > 1 && (
-        <button
-          type="button"
-          onClick={() => enviar()}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50 self-start"
-          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-        >
-          <FileSignature size={16} />
-          {loading ? "Enviando…" : `Enviar todos (${pendentesEnvio.length})`}
-        </button>
       )}
     </div>
   );

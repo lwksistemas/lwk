@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   ClipboardList,
   History,
@@ -382,12 +382,6 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
 
   const headerExtraActions = consultaAtiva ? (
     <>
-      <ConsultaTermoConsentimentoButton
-        consultaId={selected.id}
-        exigeTermo={selected.exige_termo_consentimento}
-        statusAssinatura={selected.status_assinatura_termo}
-        onUpdated={refreshConsulta}
-      />
       <button
         type="button"
         onClick={abrirFinalizarModal}
@@ -477,17 +471,25 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
             {visibleTabs.map(({ id, label, icon: Icon }) => {
               const disabled = !consultaAtiva && !consultaFinalizada && id !== "historico";
               return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => { if (!disabled) { setTab(id); resetTabEdits(); } }}
-                  disabled={disabled}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${tab === id ? "text-white" : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300"}`}
-                  style={tab === id ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
-                >
-                  <Icon size={16} />
-                  {label}
-                </button>
+                <Fragment key={id}>
+                  <button
+                    type="button"
+                    onClick={() => { if (!disabled) { setTab(id); resetTabEdits(); } }}
+                    disabled={disabled}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${tab === id ? "text-white" : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300"}`}
+                    style={tab === id ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </button>
+                  {id === "evolucao" && consultaAtiva && selected.exige_termo_consentimento && (
+                    <ConsultaTermoConsentimentoButton
+                      consultaId={selected.id}
+                      exigeTermo={selected.exige_termo_consentimento}
+                      onUpdated={refreshConsulta}
+                    />
+                  )}
+                </Fragment>
               );
             })}
           </div>

@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 
 from .consentimento_assinatura_adapter import ConsultaTermoAssinaturaAdapter
 from .consentimento_service import (
+    aviso_email_paciente_suspeito,
     consulta_exige_termo_consentimento,
     montar_conteudo_termo_consentimento,
 )
@@ -93,11 +94,15 @@ class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
             )
 
         paciente = consulta.patient
-        if not paciente or not (getattr(paciente, 'email', '') or '').strip():
+        email_paciente = (getattr(paciente, 'email', '') or '').strip() if paciente else ''
+        if not paciente or not email_paciente:
             return Response(
                 {'detail': 'Paciente não possui e-mail cadastrado.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        aviso_email = aviso_email_paciente_suspeito(email_paciente)
+        if aviso_email:
+            return Response({'detail': aviso_email}, status=status.HTTP_400_BAD_REQUEST)
 
         if consulta.status_assinatura_termo in ('aguardando_paciente', 'aguardando_profissional'):
             return Response(
@@ -133,6 +138,7 @@ class ConsultaReenviarTermoAssinaturaView(GetObjectMixin, APIView):
     permission_classes = CLINICA_MEMBER
     model_class = Consulta
     not_found_message = 'Consulta não encontrada'
+    select_related_fields = ('patient', 'professional')
 
     def post(self, request, pk):
         from core.assinatura_service import reenviar_link
@@ -141,6 +147,13 @@ class ConsultaReenviarTermoAssinaturaView(GetObjectMixin, APIView):
         consulta, err = self.object_or_404(pk)
         if err:
             return err
+
+        paciente = consulta.patient
+        email_paciente = (getattr(paciente, 'email', '') or '').strip() if paciente else ''
+        if consulta.status_assinatura_termo == 'aguardando_paciente' and email_paciente:
+            aviso_email = aviso_email_paciente_suspeito(email_paciente)
+            if aviso_email:
+                return Response({'detail': aviso_email}, status=status.HTTP_400_BAD_REQUEST)
 
         adapter = ConsultaTermoAssinaturaAdapter()
         ok, msg, email_err = reenviar_link(adapter, consulta, get_current_loja_id())

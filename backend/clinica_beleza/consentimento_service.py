@@ -9,6 +9,36 @@ from django.utils import timezone
 
 from .models import Procedure
 
+# Domínios com erro de digitação frequente — bloqueia envio e orienta correção no cadastro.
+_EMAIL_DOMINIO_TYPO: dict[str, str] = {
+    'homail.com': 'hotmail.com',
+    'hotmial.com': 'hotmail.com',
+    'hotmal.com': 'hotmail.com',
+    'gmial.com': 'gmail.com',
+    'gmal.com': 'gmail.com',
+    'gmai.com': 'gmail.com',
+    'outlok.com': 'outlook.com',
+    'outllok.com': 'outlook.com',
+    'yaho.com': 'yahoo.com',
+    'yahooo.com': 'yahoo.com',
+}
+
+
+def aviso_email_paciente_suspeito(email: str) -> str | None:
+    """Retorna mensagem de erro se o domínio do e-mail parece digitado errado."""
+    email = (email or '').strip().lower()
+    if '@' not in email:
+        return None
+    dominio = email.rsplit('@', 1)[-1]
+    sugestao = _EMAIL_DOMINIO_TYPO.get(dominio)
+    if not sugestao:
+        return None
+    corrigido = f'{email.rsplit("@", 1)[0]}@{sugestao}'
+    return (
+        f'E-mail do paciente parece incorreto ({email}). '
+        f'Corrija no cadastro do paciente (sugestão: {corrigido}) e tente novamente.'
+    )
+
 
 def _procedimentos_com_termo_ativo(consulta) -> list[Procedure]:
     """Procedimentos da consulta com termo de consentimento ativo."""

@@ -249,7 +249,7 @@ function BlocoProfissional({
             </span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 py-2.5 bg-white dark:bg-gray-800/80">
-            <span className="text-gray-600 dark:text-gray-400 sm:col-span-2">Procedimentos (com comissão)</span>
+            <span className="text-gray-600 dark:text-gray-400 sm:col-span-2">Procedimentos</span>
             <span className="text-right tabular-nums font-medium text-gray-900 dark:text-white">
               {formatCurrency(valorProcedimentosVisivel)}
             </span>

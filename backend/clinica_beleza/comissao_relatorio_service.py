@@ -533,12 +533,14 @@ def calcular_comissoes(
             regra_proc = _resolver_regra_procedimento(
                 regras['procedimentos'], proc_id, convenio_id,
             )
-            if not regra_proc:
-                continue
             com_proc = _calcular_comissao_regra(regra_proc, vp)
             modo_pc, regra_pc = _formatar_regra(regra_proc)
 
-            chave_proc = f'proc:{proc_id}:{convenio_id or 0}:{regra_proc.id}'
+            chave_proc = (
+                f'proc:{proc_id}:{convenio_id or 0}:{regra_proc.id}'
+                if regra_proc
+                else f'proc:{proc_id}:{convenio_id or 0}:sem_regra'
+            )
             det_proc = _obter_ou_criar_detalhe(entry, chave_proc, {
                 'tipo_linha': 'procedimento',
                 'local_nome': local_nome,

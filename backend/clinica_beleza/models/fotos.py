@@ -11,7 +11,7 @@ class PacienteFotoAcompanhamento(LojaIsolationMixin, models.Model):
     """Foto do paciente vinculada à consulta em que foi enviada; visível em todas as consultas do paciente."""
 
     ORIGEM_CHOICES = (
-        ('qr', 'QR / Celular'),
+        ('qr', 'Celular do profissional'),
         ('painel', 'Painel da consulta'),
     )
 

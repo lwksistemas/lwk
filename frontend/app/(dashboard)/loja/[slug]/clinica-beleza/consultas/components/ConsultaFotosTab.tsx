@@ -10,6 +10,9 @@ import {
   Columns2,
   RefreshCw,
   Check,
+  Copy,
+  ExternalLink,
+  Smartphone,
 } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
@@ -20,11 +23,14 @@ export function ConsultaFotosTab({
   patientNome,
   somenteLeitura,
   ativa,
+  permiteQr,
 }: {
   consultaId: number;
   patientNome: string;
   somenteLeitura?: boolean;
   ativa?: boolean;
+  /** Consulta em andamento — QR para o profissional fotografar no celular */
+  permiteQr?: boolean;
 }) {
   const params = useParams();
   const slug = (params.slug as string) || "loja";
@@ -118,7 +124,8 @@ export function ConsultaFotosTab({
             Fotos de acompanhamento
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Histórico de <strong>{patientNome}</strong> em todas as consultas. Selecione 2 fotos para
+            Histórico de <strong>{patientNome}</strong> em todas as consultas. Durante o atendimento,
+            use o QR no <strong>seu celular</strong> para fotografar o paciente. Selecione 2 fotos para
             comparar em tela cheia.
           </p>
         </div>
@@ -131,7 +138,7 @@ export function ConsultaFotosTab({
             <RefreshCw size={16} />
             Atualizar
           </button>
-          {!somenteLeitura && (
+          {permiteQr && (
             <button
               type="button"
               onClick={() => void abrirQr()}
@@ -139,8 +146,8 @@ export function ConsultaFotosTab({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50"
               style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
             >
-              <QrCode size={16} />
-              {qrLoading ? "Gerando…" : "QR — foto no celular"}
+              <Smartphone size={16} />
+              {qrLoading ? "Gerando…" : "QR — foto no meu celular"}
             </button>
           )}
           {selecionadas.length === 2 && (
@@ -180,7 +187,8 @@ export function ConsultaFotosTab({
         <p className="text-sm text-gray-500 py-8 text-center">Carregando fotos…</p>
       ) : !fotos.length ? (
         <p className="text-sm text-gray-500 py-8 text-center rounded-xl border border-dashed border-gray-300 dark:border-neutral-600">
-          Nenhuma foto ainda. Use o QR para o paciente fotografar no celular ou envie pelo painel.
+          Nenhuma foto ainda. Durante a consulta, escaneie o QR com seu celular para fotografar o paciente
+          ou envie pelo painel do computador.
         </p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -239,22 +247,51 @@ export function ConsultaFotosTab({
             >
               <X size={20} />
             </button>
-            <h3 className="text-lg font-semibold text-center mb-1">Foto pelo celular</h3>
+            <h3 className="text-lg font-semibold text-center mb-1 flex items-center justify-center gap-2">
+              <QrCode size={20} />
+              Foto no celular do profissional
+            </h3>
             <p className="text-xs text-gray-500 text-center mb-4">
-              Paciente escaneia o QR, tira a foto e envia. Válido por 24h. As fotos aparecem aqui
-              automaticamente.
+              1. Deixe este QR visível no computador
+              <br />
+              2. Abra a câmera do <strong>seu celular</strong> e escaneie
+              <br />
+              3. Fotografe o paciente — a imagem entra aqui automaticamente
             </p>
             {qrData.qr_base64 ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={`data:image/png;base64,${qrData.qr_base64}`}
-                alt="QR Code"
-                className="mx-auto w-48 h-48"
+                alt="QR Code para fotografar paciente"
+                className="mx-auto w-52 h-52"
               />
             ) : (
               <p className="text-center text-sm text-amber-700">QR indisponível — use o link abaixo.</p>
             )}
-            <p className="mt-4 text-[10px] text-gray-400 break-all text-center">{qrData.url}</p>
+            <div className="mt-4 flex flex-col gap-2">
+              <a
+                href={qrData.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800"
+              >
+                <ExternalLink size={16} />
+                Abrir link no celular
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard.writeText(qrData.url);
+                  alert("Link copiado! Cole no navegador do seu celular.");
+                }}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium text-white"
+                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              >
+                <Copy size={16} />
+                Copiar link
+              </button>
+            </div>
+            <p className="mt-3 text-[10px] text-gray-400 text-center">Válido por 24h · só durante esta consulta</p>
           </div>
         </div>
       )}

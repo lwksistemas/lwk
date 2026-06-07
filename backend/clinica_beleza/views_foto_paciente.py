@@ -68,9 +68,9 @@ class ConsultaFotoQrView(GetObjectMixin, APIView):
         consulta, err = self.object_or_404(pk)
         if err:
             return err
-        if consulta.status not in ('IN_PROGRESS', 'COMPLETED'):
+        if consulta.status != 'IN_PROGRESS':
             return Response(
-                {'detail': 'QR disponível apenas em consulta iniciada ou finalizada.'},
+                {'detail': 'QR disponível apenas durante a consulta em andamento.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         data = gerar_qr_foto(consulta)
@@ -116,18 +116,24 @@ class EnviarFotoPublicaView(View):
             return JsonResponse({'error': err}, status=400)
 
         try:
-            consulta = Consulta.objects.select_related('patient').get(id=payload['consulta_id'])
+            consulta = Consulta.objects.select_related('patient', 'professional').get(
+                id=payload['consulta_id'],
+            )
         except Consulta.DoesNotExist:
             return JsonResponse({'error': 'Consulta não encontrada.'}, status=400)
 
         if consulta.patient_id != payload.get('patient_id'):
             return JsonResponse({'error': 'Link inválido.'}, status=400)
 
+        if consulta.status != 'IN_PROGRESS':
+            return JsonResponse({'error': 'Este link só vale durante a consulta em andamento.'}, status=400)
+
         loja = Loja.objects.using('default').filter(id=payload['loja_id']).first()
         upload_cfg = cloudinary_upload_config(loja) if loja else {}
 
         return JsonResponse({
             'paciente_nome': consulta.patient.nome if consulta.patient else '',
+            'profissional_nome': consulta.professional.nome if consulta.professional else '',
             'clinica_nome': loja.nome if loja else 'Clínica',
             'consulta_id': consulta.id,
             **upload_cfg,
@@ -162,6 +168,9 @@ class EnviarFotoPublicaView(View):
 
         if consulta.patient_id != payload.get('patient_id'):
             return JsonResponse({'error': 'Link inválido.'}, status=400)
+
+        if consulta.status != 'IN_PROGRESS':
+            return JsonResponse({'error': 'Consulta já foi finalizada. Gere um novo QR na próxima consulta.'}, status=400)
 
         public_id = (body.get('cloudinary_public_id') or '').strip()
         foto = registrar_foto(consulta, url, 'qr', public_id)

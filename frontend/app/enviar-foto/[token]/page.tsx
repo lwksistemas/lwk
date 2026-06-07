@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Camera, CheckCircle, AlertCircle, Upload } from 'lucide-react';
+import { Camera, CheckCircle, AlertCircle, Upload, Stethoscope } from 'lucide-react';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 
 interface FotoUploadConfig {
   paciente_nome: string;
+  profissional_nome?: string;
   clinica_nome: string;
   cloud_name: string;
   upload_preset: string;
@@ -118,9 +119,9 @@ export default function EnviarFotoPage() {
       <div className="min-h-screen flex items-center justify-center bg-green-50 p-4">
         <div className="bg-white rounded-2xl shadow-lg p-8 max-w-sm w-full text-center">
           <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Foto enviada!</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Foto registrada!</h1>
           <p className="text-gray-600 text-sm">
-            A clínica já pode ver a foto no acompanhamento da consulta.
+            A foto já aparece na aba Fotos da consulta no computador. Você pode tirar outra se precisar.
           </p>
           <button
             type="button"
@@ -130,7 +131,7 @@ export default function EnviarFotoPage() {
             }}
             className="mt-6 w-full py-3 rounded-lg bg-green-600 text-white font-medium"
           >
-            Enviar outra foto
+            Tirar outra foto
           </button>
         </div>
       </div>
@@ -153,16 +154,22 @@ export default function EnviarFotoPage() {
       <div className="max-w-md mx-auto">
         <div className="text-center pt-8 pb-6">
           <div className="inline-flex p-3 rounded-full bg-purple-100 mb-3">
-            <Camera className="w-8 h-8 text-purple-700" />
+            <Stethoscope className="w-8 h-8 text-purple-700" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Enviar foto</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Foto do paciente</h1>
           <p className="text-gray-600 mt-1">{config?.clinica_nome}</p>
-          <p className="text-sm text-gray-500 mt-2">Paciente: {config?.paciente_nome}</p>
+          <p className="text-sm font-medium text-gray-800 mt-3">
+            Paciente: {config?.paciente_nome}
+          </p>
+          {config?.profissional_nome && (
+            <p className="text-xs text-gray-500 mt-1">Profissional: {config.profissional_nome}</p>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-6 space-y-4">
           <p className="text-sm text-gray-600 text-center">
-            Tire ou escolha uma foto do paciente para o acompanhamento do tratamento.
+            Use a câmera do <strong>seu celular</strong> para fotografar o paciente durante o
+            atendimento. A imagem será salva no acompanhamento da consulta.
           </p>
 
           {preview && (
@@ -202,7 +209,7 @@ export default function EnviarFotoPage() {
             ) : (
               <>
                 <Camera size={22} />
-                Tirar / escolher foto
+                Fotografar paciente
               </>
             )}
           </button>

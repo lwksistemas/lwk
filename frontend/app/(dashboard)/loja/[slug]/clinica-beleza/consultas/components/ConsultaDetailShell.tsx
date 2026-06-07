@@ -580,8 +580,9 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                 <ConsultaFotosTab
                   consultaId={selected.id}
                   patientNome={selected.patient_name}
-                  somenteLeitura={false}
+                  somenteLeitura={consultaFinalizada}
                   ativa={tab === "fotos"}
+                  permiteQr={consultaAtiva}
                 />
               )}
               {tab === "historico" && (

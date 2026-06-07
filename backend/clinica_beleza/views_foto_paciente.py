@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .foto_paciente_service import (
+    FotoCloudinaryInvalida,
     cloudinary_upload_config,
     decodificar_token_foto,
     gerar_qr_foto,
@@ -52,7 +53,10 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
         if not url or not url.startswith('https://'):
             return Response({'detail': 'URL da imagem inválida.'}, status=status.HTTP_400_BAD_REQUEST)
         public_id = (request.data.get('cloudinary_public_id') or '').strip()
-        foto = registrar_foto(consulta, url, 'painel', public_id)
+        try:
+            foto = registrar_foto(consulta, url, 'painel', public_id)
+        except FotoCloudinaryInvalida as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'message': 'Foto salva.', 'foto': foto}, status=status.HTTP_201_CREATED)
 
 
@@ -173,5 +177,8 @@ class EnviarFotoPublicaView(View):
             return JsonResponse({'error': 'Consulta já foi finalizada. Gere um novo QR na próxima consulta.'}, status=400)
 
         public_id = (body.get('cloudinary_public_id') or '').strip()
-        foto = registrar_foto(consulta, url, 'qr', public_id)
+        try:
+            foto = registrar_foto(consulta, url, 'qr', public_id)
+        except FotoCloudinaryInvalida as exc:
+            return JsonResponse({'error': str(exc)}, status=400)
         return JsonResponse({'success': True, 'foto': foto})

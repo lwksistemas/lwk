@@ -15,6 +15,44 @@ from core.mfa_service import qr_code_base64
 logger = logging.getLogger(__name__)
 
 TOKEN_EXPIRACAO_HORAS = 24
+CLOUDINARY_HOST = 'res.cloudinary.com'
+
+
+class FotoCloudinaryInvalida(ValueError):
+    """URL ou public_id do Cloudinary fora da pasta permitida da loja."""
+
+
+def validar_cloudinary_foto_loja(loja, cloudinary_url: str, public_id: str = '') -> None:
+    """
+    Garante que a imagem pertence à pasta da loja no Cloudinary.
+    Levanta FotoCloudinaryInvalida se a URL/public_id não corresponder.
+    """
+    url = (cloudinary_url or '').strip()
+    if not url.startswith('https://'):
+        raise FotoCloudinaryInvalida('URL da imagem inválida.')
+
+    cfg = cloudinary_upload_config(loja)
+    cloud_name = (cfg.get('cloud_name') or '').strip()
+    folder = (cfg.get('folder') or '').strip().lower()
+    if not cloud_name or not folder:
+        raise FotoCloudinaryInvalida('Configuração de upload indisponível.')
+
+    expected_host = f'https://{CLOUDINARY_HOST}/{cloud_name}/'
+    if not url.lower().startswith(expected_host.lower()):
+        raise FotoCloudinaryInvalida('Imagem deve estar no Cloudinary desta clínica.')
+
+    folder_prefix = f'{folder}/'
+    folder_path = f'/{folder}/'
+    pid = (public_id or '').strip().lower()
+
+    if pid and (pid == folder or pid.startswith(folder_prefix)):
+        return
+
+    url_lower = url.lower()
+    if folder_path in url_lower:
+        return
+
+    raise FotoCloudinaryInvalida('Imagem fora da pasta autorizada desta clínica.')
 MODULO = 'clinica_beleza'
 PATH_PUBLICO = '/enviar-foto/'
 
@@ -118,7 +156,15 @@ def registrar_foto(
     origem: str,
     public_id: str = '',
 ) -> dict:
+    from superadmin.models import Loja
+
     from .models import PacienteFotoAcompanhamento
+
+    loja = Loja.objects.using('default').filter(id=consulta.loja_id, is_active=True).first()
+    if not loja:
+        raise FotoCloudinaryInvalida('Loja não encontrada.')
+    validar_cloudinary_foto_loja(loja, cloudinary_url, public_id)
+
     foto = PacienteFotoAcompanhamento.objects.create(
         patient_id=consulta.patient_id,
         consulta=consulta,

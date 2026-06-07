@@ -82,7 +82,7 @@ export interface Evolucao {
   professional_name?: string;
 }
 
-export type TabId = "atendimento" | "produtos" | "anamnese" | "evolucao" | "historico" | "documentos";
+export type TabId = "atendimento" | "produtos" | "anamnese" | "evolucao" | "historico" | "documentos" | "fotos";
 
 export interface ConsultaProdutoUtilizado {
   id: number;

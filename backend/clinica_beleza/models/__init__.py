@@ -14,6 +14,7 @@ from .consultas import (
     PrescricaoMemed, ConsultaEvolucao, MemedTimbrado,
 )
 from .documentos import DocumentTemplate, DocumentoClinico
+from .fotos import PacienteFotoAcompanhamento
 
 __all__ = [
     'Procedure',
@@ -44,4 +45,5 @@ __all__ = [
     'MemedTimbrado',
     'DocumentTemplate',
     'DocumentoClinico',
+    'PacienteFotoAcompanhamento',
 ]

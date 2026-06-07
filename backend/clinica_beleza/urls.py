@@ -64,6 +64,12 @@ from .views_assinatura_consentimento import (
     ConsultaReenviarTermoAssinaturaView,
     ConsultaDownloadTermoPdfView,
 )
+from .views_foto_paciente import (
+    ConsultaFotosPacienteView,
+    ConsultaFotoQrView,
+    ConsultaFotoDeleteView,
+    EnviarFotoPublicaView,
+)
 
 app_name = 'clinica_beleza'
 
@@ -97,6 +103,10 @@ urlpatterns = [
     path('consultas/<int:pk>/termo-consentimento/pdf/', ConsultaDownloadTermoPdfView.as_view(), name='consultas-termo-pdf'),
     path('assinar-consentimento/<path:token>/pdf/', ConsultaAssinaturaPdfPublicaView.as_view(), name='assinar-consentimento-pdf'),
     path('assinar-consentimento/<path:token>/', ConsultaAssinaturaPublicaView.as_view(), name='assinar-consentimento'),
+    path('consultas/<int:pk>/fotos/', ConsultaFotosPacienteView.as_view(), name='consultas-fotos'),
+    path('consultas/<int:pk>/fotos/qr/', ConsultaFotoQrView.as_view(), name='consultas-fotos-qr'),
+    path('consultas/<int:pk>/fotos/<int:foto_id>/', ConsultaFotoDeleteView.as_view(), name='consultas-fotos-delete'),
+    path('enviar-foto/<path:token>/', EnviarFotoPublicaView.as_view(), name='enviar-foto'),
 
     # Locais de atendimento
     path('locais-atendimento/', LocalAtendimentoListView.as_view(), name='locais-atendimento-list'),

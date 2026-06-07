@@ -191,6 +191,16 @@ export async function clinicaBelezaFetch(
 }
 
 /** Item estruturado de uma prescrição emitida na Memed. */
+export interface PacienteFotoItem {
+  id: number;
+  cloudinary_url: string;
+  origem: string;
+  origem_display: string;
+  consulta_id: number;
+  consulta_data: string;
+  created_at: string;
+}
+
 export interface PrescricaoMemedItemDetalhe {
   nome?: string;
   posologia?: string;
@@ -454,6 +464,27 @@ export class ClinicaBelezaAPI {
       ) => ClinicaBelezaAPI.post(`/consultas/${consultaId}/produtos/`, data),
       remove: (consultaId: number, itemId: number) =>
         ClinicaBelezaAPI.delete(`/consultas/${consultaId}/produtos/${itemId}/`),
+    },
+    fotos: {
+      list: (consultaId: number) =>
+        ClinicaBelezaAPI.get<{
+          patient_id: number;
+          patient_nome: string;
+          fotos: PacienteFotoItem[];
+        }>(`/consultas/${consultaId}/fotos/`),
+      salvar: (consultaId: number, cloudinaryUrl: string, publicId?: string) =>
+        ClinicaBelezaAPI.post<{ message: string; foto: PacienteFotoItem }>(
+          `/consultas/${consultaId}/fotos/`,
+          { cloudinary_url: cloudinaryUrl, cloudinary_public_id: publicId || '' },
+        ),
+      gerarQr: (consultaId: number) =>
+        ClinicaBelezaAPI.post<{
+          url: string;
+          qr_base64: string;
+          expira_em_horas: number;
+        }>(`/consultas/${consultaId}/fotos/qr/`, {}),
+      excluir: (consultaId: number, fotoId: number) =>
+        ClinicaBelezaAPI.delete(`/consultas/${consultaId}/fotos/${fotoId}/`),
     },
     termoConsentimento: {
       get: (consultaId: number) =>

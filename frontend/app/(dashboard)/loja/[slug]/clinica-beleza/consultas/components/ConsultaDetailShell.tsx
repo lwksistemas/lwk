@@ -11,6 +11,7 @@ import {
   Play,
   Trash2,
   Package,
+  Camera,
 } from "lucide-react";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
@@ -38,6 +39,7 @@ import { ConsultaHistoricoTab } from "./ConsultaHistoricoTab";
 import { ConsultaDocumentosTab } from "./ConsultaDocumentosTab";
 import { ConsultaFinalizarModal } from "./ConsultaFinalizarModal";
 import { ConsultaTermoConsentimentoButton } from "./ConsultaTermoConsentimentoButton";
+import { ConsultaFotosTab } from "./ConsultaFotosTab";
 import MemedPrescricao, { type MemedPrescricaoHandle } from "./MemedPrescricao";
 
 interface Props {
@@ -359,6 +361,7 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     { id: "documentos", label: "Documentos", icon: FolderOpen },
     { id: "anamnese", label: "Anamnese", icon: FileText },
     { id: "evolucao", label: "Evolução", icon: Activity },
+    { id: "fotos", label: "Fotos", icon: Camera },
     { id: "historico", label: "Histórico", icon: History },
   ];
 
@@ -368,6 +371,7 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     "documentos",
     "anamnese",
     "evolucao",
+    "fotos",
   ];
   const visibleTabs = consultaFinalizada
     ? tabs.filter((t) => tabsConsultaFinalizada.includes(t.id))
@@ -570,6 +574,14 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                   }}
                   onChangeForm={setEvolucaoForm}
                   onSave={salvarEvolucao}
+                />
+              )}
+              {tab === "fotos" && (
+                <ConsultaFotosTab
+                  consultaId={selected.id}
+                  patientNome={selected.patient_name}
+                  somenteLeitura={false}
+                  ativa={tab === "fotos"}
                 />
               )}
               {tab === "historico" && (

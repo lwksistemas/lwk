@@ -22,6 +22,19 @@ class FotoCloudinaryInvalida(ValueError):
     """URL ou public_id do Cloudinary fora da pasta permitida da loja."""
 
 
+def _pastas_cloudinary_foto_loja(loja) -> list[str]:
+    """Pastas válidas (atalho, slug ou id da loja)."""
+    partes: list[str] = []
+    for attr in ('atalho', 'slug'):
+        valor = (getattr(loja, attr, None) or '').strip().lower()
+        if valor and valor not in partes:
+            partes.append(valor)
+    id_str = str(loja.id).strip()
+    if id_str and id_str not in partes:
+        partes.append(id_str)
+    return [f'lwksistemas/{p}/clinica-beleza/fotos-paciente' for p in partes]
+
+
 def validar_cloudinary_foto_loja(loja, cloudinary_url: str, public_id: str = '') -> None:
     """
     Garante que a imagem pertence à pasta da loja no Cloudinary.
@@ -33,26 +46,28 @@ def validar_cloudinary_foto_loja(loja, cloudinary_url: str, public_id: str = '')
 
     cfg = cloudinary_upload_config(loja)
     cloud_name = (cfg.get('cloud_name') or '').strip()
-    folder = (cfg.get('folder') or '').strip().lower()
-    if not cloud_name or not folder:
+    pastas = _pastas_cloudinary_foto_loja(loja)
+    if not cloud_name or not pastas:
         raise FotoCloudinaryInvalida('Configuração de upload indisponível.')
 
     expected_host = f'https://{CLOUDINARY_HOST}/{cloud_name}/'
     if not url.lower().startswith(expected_host.lower()):
         raise FotoCloudinaryInvalida('Imagem deve estar no Cloudinary desta clínica.')
 
-    folder_prefix = f'{folder}/'
-    folder_path = f'/{folder}/'
     pid = (public_id or '').strip().lower()
-
-    if pid and (pid == folder or pid.startswith(folder_prefix)):
-        return
-
     url_lower = url.lower()
-    if folder_path in url_lower:
-        return
+
+    for folder in pastas:
+        folder_prefix = f'{folder}/'
+        folder_path = f'/{folder}/'
+        if pid and (pid == folder or pid.startswith(folder_prefix)):
+            return
+        if folder_path in url_lower:
+            return
 
     raise FotoCloudinaryInvalida('Imagem fora da pasta autorizada desta clínica.')
+
+
 MODULO = 'clinica_beleza'
 PATH_PUBLICO = '/enviar-foto/'
 

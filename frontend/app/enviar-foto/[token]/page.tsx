@@ -29,6 +29,43 @@ interface ArquivoPendente {
 }
 
 const MAX_FOTOS = 20;
+const EXT_IMAGEM = /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i;
+
+function arquivoEhImagem(file: File): boolean {
+  if (file.type.startsWith('image/')) return true;
+  return EXT_IMAGEM.test(file.name);
+}
+
+/** Reduz fotos grandes do celular antes do upload (evita falha no Cloudinary). */
+async function prepararArquivoUpload(file: File): Promise<File> {
+  const LIMITE_MB = 8;
+  const MAX_LADO = 2400;
+  if (file.size <= LIMITE_MB * 1024 * 1024) return file;
+  if (typeof createImageBitmap !== 'function') return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const escala = Math.min(1, MAX_LADO / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(1, Math.round(bitmap.width * escala));
+    const h = Math.max(1, Math.round(bitmap.height * escala));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.88);
+    });
+    if (!blob) return file;
+    const nome = file.name.replace(EXT_IMAGEM, '.jpg') || 'foto.jpg';
+    return new File([blob], nome, { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
 
 export default function EnviarFotoPage() {
   const params = useParams();
@@ -84,18 +121,26 @@ export default function EnviarFotoPage() {
 
   const enviarArquivo = async (file: File): Promise<boolean> => {
     if (!config) return false;
+    const arquivo = await prepararArquivoUpload(file);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', arquivo);
     formData.append('upload_preset', config.upload_preset);
     formData.append('folder', config.folder);
 
-    const up = await fetch(
-      `https://api.cloudinary.com/v1_1/${config.cloud_name}/image/upload`,
-      { method: 'POST', body: formData },
-    );
-    const upData = await up.json();
+    let up: Response;
+    try {
+      up = await fetch(
+        `https://api.cloudinary.com/v1_1/${config.cloud_name}/image/upload`,
+        { method: 'POST', body: formData },
+      );
+    } catch {
+      setErro('Sem conexão ao enviar a imagem. Verifique a internet do celular.');
+      return false;
+    }
+    const upData = await up.json().catch(() => ({}));
     if (!up.ok || !upData.secure_url) {
-      setErro(upData.error?.message || 'Falha no envio da imagem.');
+      const detalhe = upData.error?.message || upData.error || '';
+      setErro(detalhe ? `Falha no upload: ${detalhe}` : 'Falha no envio da imagem. Tente outra foto ou use a câmera.');
       return false;
     }
 
@@ -140,9 +185,9 @@ export default function EnviarFotoPage() {
 
   const adicionarArquivos = (files: FileList | null) => {
     if (!files?.length) return;
-    const imagens = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    const imagens = Array.from(files).filter(arquivoEhImagem);
     if (!imagens.length) {
-      setErro('Selecione apenas imagens.');
+      setErro('Selecione apenas imagens (JPG, PNG, etc.).');
       return;
     }
     const restante = MAX_FOTOS - pendentes.length;

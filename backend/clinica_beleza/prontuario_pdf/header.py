@@ -1,6 +1,9 @@
 """Resolução e construção de cabeçalho dos PDFs."""
+from io import BytesIO
+
+import requests
 from reportlab.lib import colors
-from reportlab.lib.units import mm
+from reportlab.lib.units import cm, mm
 from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
 
 from .constants import MARGIN, PAGE_WIDTH, logger
@@ -18,8 +21,14 @@ def _resolver_cabecalho(loja_id):
     Retorna tupla:
         ('timbrado', bytes) | ('logo', url_string) | ('texto', loja_instance)
     """
-    # 1. Timbrado PDF (prioridade máxima)
-    timbrado = MemedTimbrado.objects.filter(loja_id=loja_id).first()
+    # 1. Timbrado PDF (prioridade máxima) — schema do tenant
+    from tenants.middleware import get_current_tenant_db
+
+    tenant_db = get_current_tenant_db()
+    timbrado_qs = MemedTimbrado.objects.all_without_filter().filter(loja_id=loja_id)
+    if tenant_db and tenant_db != 'default':
+        timbrado_qs = timbrado_qs.using(tenant_db)
+    timbrado = timbrado_qs.first()
     if timbrado and timbrado.pdf:
         return ('timbrado', bytes(timbrado.pdf))
 
@@ -46,73 +55,37 @@ def _resolver_cabecalho_relatorio(loja_id):
     if logo_url:
         return ('logo', logo_url)
 
-    timbrado = MemedTimbrado.objects.filter(loja_id=loja_id).first()
+    from tenants.middleware import get_current_tenant_db
+
+    tenant_db = get_current_tenant_db()
+    timbrado_qs = MemedTimbrado.objects.all_without_filter().filter(loja_id=loja_id)
+    if tenant_db and tenant_db != 'default':
+        timbrado_qs = timbrado_qs.using(tenant_db)
+    timbrado = timbrado_qs.first()
     if timbrado and timbrado.pdf:
         return ('timbrado', bytes(timbrado.pdf))
 
     return ('texto', loja)
 
 
-# ---------------------------------------------------------------------------
-# Estilos
-# ---------------------------------------------------------------------------
+def get_top_margin(loja_id):
+    """Margem superior conforme tipo de cabeçalho (timbrado precisa de mais espaço)."""
+    tipo, _ = _resolver_cabecalho(loja_id)
+    return 3.2 * cm if tipo == 'timbrado' else MARGIN
 
-def _get_styles():
-    """Retorna estilos customizados para os PDFs do prontuário."""
-    styles = getSampleStyleSheet()
 
-    styles.add(ParagraphStyle(
-        'ClinicaHeader',
-        parent=styles['Normal'],
-        fontSize=14,
-        leading=18,
-        alignment=1,  # center
-        spaceAfter=2 * mm,
-        fontName='Helvetica-Bold',
-    ))
-    styles.add(ParagraphStyle(
-        'ClinicaSubHeader',
-        parent=styles['Normal'],
-        fontSize=9,
-        leading=12,
-        alignment=1,
-        spaceAfter=4 * mm,
-        textColor=colors.grey,
-    ))
-    styles.add(ParagraphStyle(
-        'DocTitle',
-        parent=styles['Normal'],
-        fontSize=12,
-        leading=15,
-        fontName='Helvetica-Bold',
-        spaceAfter=4 * mm,
-    ))
-    styles.add(ParagraphStyle(
-        'DocBody',
-        parent=styles['Normal'],
-        fontSize=10,
-        leading=14,
-        spaceAfter=3 * mm,
-    ))
-    styles.add(ParagraphStyle(
-        'DocFooter',
-        parent=styles['Normal'],
-        fontSize=9,
-        leading=12,
-        spaceAfter=2 * mm,
-        textColor=colors.HexColor('#444444'),
-    ))
-    styles.add(ParagraphStyle(
-        'SectionTitle',
-        parent=styles['Normal'],
-        fontSize=13,
-        leading=16,
-        fontName='Helvetica-Bold',
-        spaceBefore=6 * mm,
-        spaceAfter=3 * mm,
-        textColor=colors.HexColor('#333333'),
-    ))
-    return styles
+def _logo_image_flowable(logo_url: str, max_w=4 * cm, max_h=2.5 * cm):
+    """Carrega logo por URL e retorna flowable ReportLab."""
+    try:
+        resp = requests.get(logo_url, timeout=8)
+        if resp.status_code != 200:
+            return None
+        img = Image(BytesIO(resp.content), width=max_w, height=max_h, kind='proportional')
+        img.hAlign = 'CENTER'
+        return img
+    except Exception as e:
+        logger.warning('Falha ao carregar logo para PDF: %s', e)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -125,28 +98,13 @@ def _build_header_elements(loja_id, styles):
     elements = []
 
     if tipo == 'timbrado':
-        # Para timbrado PDF completo, usamos apenas um espaço reservado
-        # O timbrado é um PDF de fundo — na implementação simplificada,
-        # exibimos o nome da clínica como fallback legível.
-        from superadmin.models import Loja
-        loja = Loja.objects.filter(id=loja_id).first()
-        if loja:
-            elements.append(Paragraph(loja.nome, styles['ClinicaHeader']))
-            endereco = _formatar_endereco(loja)
-            if endereco:
-                elements.append(Paragraph(endereco, styles['ClinicaSubHeader']))
-        elements.append(Spacer(1, 4 * mm))
+        # Fundo timbrado é mesclado após gerar o PDF; apenas reserva espaço no topo.
+        elements.append(Spacer(1, 6 * mm))
 
     elif tipo == 'logo':
-        # Logo da clínica (URL) — tentamos carregar a imagem
-        try:
-            logo_url = dados
-            img = Image(logo_url, width=4 * cm, height=2 * cm)
-            img.hAlign = 'CENTER'
+        img = _logo_image_flowable(dados)
+        if img:
             elements.append(img)
-        except Exception as e:
-            logger.warning('Falha ao carregar logo para PDF: %s', e)
-
         from superadmin.models import Loja
         loja = Loja.objects.filter(id=loja_id).first()
         if loja:

@@ -64,10 +64,14 @@ def queryset_oportunidades_comissao(
     from .models import Oportunidade
     from .relatorios import _filtro_datas_fechamento_ganho
 
+    # Mesmo critério dos PDFs gerar_relatorio_vendas_*: inclui vendas ganhas sem
+    # empresa prestadora definida na oportunidade (evita divergência com o pipeline).
     qs = Oportunidade.objects.filter(
         loja_id=loja_id,
         etapa='closed_won',
-        empresa_prestadora_id=empresa_prestadora_id,
+    ).filter(
+        Q(empresa_prestadora_id=empresa_prestadora_id)
+        | Q(empresa_prestadora_id__isnull=True)
     ).filter(
         _filtro_datas_fechamento_ganho(periodo_inicio, periodo_fim)
     ).select_related('lead', 'lead__conta', 'vendedor')
@@ -94,6 +98,61 @@ def agregar_totais_oportunidades(qs):
         total_comissao=Sum('valor_comissao'),
         qtd=Count('id'),
     )
+
+
+def resumo_relatorio_comissao(
+    loja_id: int,
+    empresa_prestadora_id: int,
+    vendedor_id: int | None,
+    periodo: str = 'mes_atual',
+    data_inicio_str: str | None = None,
+    data_fim_str: str | None = None,
+) -> tuple[dict | None, str | None]:
+    """Resumo das vendas que entrarão no relatório (preview antes do PDF)."""
+    from .models import Conta
+
+    ep = Conta.objects.filter(id=empresa_prestadora_id, loja_id=loja_id).first()
+    if not ep:
+        return None, 'Empresa prestadora não encontrada.'
+
+    periodo_inicio, periodo_fim, periodo_descricao, err = resolver_periodo_relatorio(
+        periodo, data_inicio_str, data_fim_str
+    )
+    if err:
+        return None, err
+
+    qs = queryset_oportunidades_comissao(
+        loja_id, empresa_prestadora_id, vendedor_id, periodo_inicio, periodo_fim
+    )
+    totais = agregar_totais_oportunidades(qs)
+    vendas = []
+    for op in qs.order_by('-data_fechamento_ganho', '-data_fechamento')[:50]:
+        data = op.data_fechamento_ganho or op.data_fechamento
+        cliente = op.lead.conta.nome if op.lead and op.lead.conta_id else (
+            op.lead.nome if op.lead else op.titulo
+        )
+        vendas.append({
+            'id': op.id,
+            'titulo': op.titulo,
+            'cliente': cliente,
+            'data': data.isoformat() if data else None,
+            'valor': float(op.valor or 0),
+            'comissao': float(op.valor_comissao or 0),
+            'empresa_prestadora_id': op.empresa_prestadora_id,
+            'empresa_prestadora_nome': (
+                op.empresa_prestadora.nome if op.empresa_prestadora_id else None
+            ),
+        })
+
+    return {
+        'empresa_prestadora_id': ep.id,
+        'empresa_prestadora_nome': ep.nome,
+        'periodo_descricao': periodo_descricao,
+        'quantidade_vendas': totais['qtd'] or 0,
+        'valor_total_vendas': float(totais['total_vendas'] or 0),
+        'valor_total_comissao': float(totais['total_comissao'] or 0),
+        'vendas': vendas,
+    }, None
 
 
 def montar_dados_oportunidades_snapshot(qs, *, incluir_id: bool = True) -> list[dict]:

@@ -11,6 +11,7 @@ export interface Oportunidade {
   empresa_prestadora_nome?: string | null;
   vendedor?: number | null;
   vendedor_nome?: string;
+  data_fechamento?: string | null;
   data_fechamento_ganho?: string | null;
   data_fechamento_perdido?: string | null;
   valor_comissao?: string | null;
@@ -125,6 +126,7 @@ export default function PipelineBoard({
             <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-600 text-left">
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Título</th>
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Lead</th>
+              <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Prestadora</th>
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 text-right">Valor</th>
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Vendedor</th>
             </tr>
@@ -132,7 +134,7 @@ export default function PipelineBoard({
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                   Nenhuma oportunidade neste filtro.
                 </td>
               </tr>
@@ -153,6 +155,11 @@ export default function PipelineBoard({
                 >
                   <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{o.titulo}</td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{o.lead_nome}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-sm">
+                    {o.empresa_prestadora_nome || (
+                      <span className="text-amber-600 dark:text-amber-400">Não definida</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400 whitespace-nowrap">
                     {formatMoney(o.valor)}
                   </td>
@@ -210,6 +217,11 @@ export default function PipelineBoard({
                   <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
                     {formatMoney(o.valor)}
                   </p>
+                  {o.empresa_prestadora_nome && (
+                    <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 truncate">
+                      {o.empresa_prestadora_nome}
+                    </p>
+                  )}
                   {o.vendedor_nome && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {o.vendedor_nome}

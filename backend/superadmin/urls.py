@@ -7,7 +7,7 @@ from .views import (
     EmailRetryViewSet,
     recuperar_senha_loja, mercadopago_config, mercadopago_test, mercadopago_webhook,
     sync_mercadopago_loja,
-    verificar_storage_loja, listar_storage_lojas,  # ✅ NOVO v738
+    verificar_storage_loja, verificar_storage_todas, listar_storage_lojas,  # ✅ NOVO v738
     health_check,  # ✅ NOVO v750
     TipoLojaPublicoViewSet, PlanoAssinaturaPublicoViewSet,  # ✅ NOVO: ViewSets públicos
     LoginConfigSistemaViewSet, login_config_sistema_publico,  # ✅ NOVO: Configuração de login do sistema
@@ -102,6 +102,7 @@ urlpatterns = [
     
     # ✅ NOVO v738: Rotas de monitoramento de storage
     path('lojas/<int:loja_id>/verificar-storage/', verificar_storage_loja, name='verificar-storage-loja'),
+    path('storage/verificar-todas/', verificar_storage_todas, name='verificar-storage-todas'),
     path('storage/', listar_storage_lojas, name='listar-storage-lojas'),
     
     # Configuração da Homepage (CRUD)

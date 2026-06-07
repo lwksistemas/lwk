@@ -46,7 +46,7 @@ def send_lembretes_24h_whatsapp():
             set_current_loja_id(loja.id)
             set_current_tenant_db(db_name)
             config = _get_whatsapp_config(loja)
-            if config and not config.enviar_lembrete_24h:
+            if not config or not config.whatsapp_ativo or not config.enviar_lembrete_24h:
                 continue
             # Agendamentos de amanhã (status confirmado/agendado)
             qs = Appointment.objects.filter(
@@ -91,7 +91,7 @@ def send_lembretes_2h_whatsapp():
             set_current_loja_id(loja.id)
             set_current_tenant_db(db_name)
             config = _get_whatsapp_config(loja)
-            if config and not config.enviar_lembrete_2h:
+            if not config or not config.whatsapp_ativo or not config.enviar_lembrete_2h:
                 continue
             # Agendamentos na janela 2h
             qs = Appointment.objects.filter(
@@ -112,4 +112,76 @@ def send_lembretes_2h_whatsapp():
             set_current_loja_id(None)
             set_current_tenant_db('default')
     logger.info("WhatsApp lembretes 2h: %d enviados", enviados)
+    return enviados
+
+
+def send_cobrancas_pendentes_whatsapp():
+    """
+    Envia cobrança por WhatsApp para pacientes com pagamento PENDING.
+    Uma mensagem por paciente/dia (agrupa débitos). Só lojas Clínica da Beleza.
+    """
+    from superadmin.models import Loja
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
+    from clinica_beleza.models import Payment
+    from whatsapp.services import enviar_cobranca_whatsapp
+    from whatsapp.models import WhatsAppLog
+
+    hoje = timezone.localtime(timezone.now()).date()
+    lojas = Loja.objects.filter(
+        database_created=True,
+        is_active=True,
+        tipo_loja__slug='clinica-beleza',
+    )
+    enviados = 0
+    for loja in lojas:
+        try:
+            db_name = _ensure_loja_db(loja)
+            set_current_loja_id(loja.id)
+            set_current_tenant_db(db_name)
+            config = _get_whatsapp_config(loja)
+            if not config or not config.whatsapp_ativo or not config.enviar_cobranca:
+                continue
+
+            pendentes = (
+                Payment.objects.filter(status='PENDING')
+                .select_related('appointment__patient')
+                .order_by('-created_at')
+            )
+            por_paciente = {}
+            for pay in pendentes:
+                patient = getattr(pay.appointment, 'patient', None)
+                if not patient or not getattr(patient, 'allow_whatsapp', True):
+                    continue
+                phone = (getattr(patient, 'phone', None) or '').strip()
+                if not phone:
+                    continue
+                pid = patient.id
+                if pid not in por_paciente:
+                    por_paciente[pid] = {'patient': patient, 'total': 0}
+                por_paciente[pid]['total'] += float(pay.amount or 0)
+
+            for item in por_paciente.values():
+                patient = item['patient']
+                phone = (getattr(patient, 'phone', None) or '').strip()
+                ja_enviou = WhatsAppLog.objects.using('default').filter(
+                    loja_id=loja.id,
+                    telefone__icontains=phone[-8:],
+                    created_at__date=hoje,
+                    mensagem__icontains='pagamento pendente',
+                ).exists()
+                if ja_enviou:
+                    continue
+                ok, _ = enviar_cobranca_whatsapp(
+                    patient, item['total'], user=None, config=config
+                )
+                if ok:
+                    enviados += 1
+        except Exception as e:
+            logger.exception(
+                "WhatsApp cobrança loja %s: %s", getattr(loja, 'slug', loja.id), e
+            )
+        finally:
+            set_current_loja_id(None)
+            set_current_tenant_db('default')
+    logger.info("WhatsApp cobranças pendentes: %d enviados", enviados)
     return enviados

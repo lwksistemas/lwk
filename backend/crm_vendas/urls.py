@@ -31,6 +31,7 @@ from .views_relatorio_comissao import (
     criar_relatorio_comissao_view,
     listar_relatorios_comissao_view,
     download_pdf_relatorio_comissao_view,
+    resumo_relatorio_comissao_view,
     preview_relatorio_comissao_view,
     enviar_relatorio_comissao_view,
     excluir_relatorio_comissao_view,
@@ -85,6 +86,7 @@ urlpatterns = [
     path('relatorios/gerar/', gerar_relatorio),
     # Relatórios de Comissão (workflow completo)
     path('relatorios-comissao/', listar_relatorios_comissao_view),
+    path('relatorios-comissao/resumo/', resumo_relatorio_comissao_view),
     path('relatorios-comissao/criar/', criar_relatorio_comissao_view),
     path('relatorios-comissao/preview/', preview_relatorio_comissao_view),
     path('relatorios-comissao/<int:relatorio_id>/pdf/', download_pdf_relatorio_comissao_view),

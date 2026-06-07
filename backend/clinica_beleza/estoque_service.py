@@ -9,6 +9,16 @@ from .models import ConsultaProdutoUtilizado, MovimentacaoEstoque, ProdutoEstoqu
 logger = logging.getLogger(__name__)
 
 
+def tenant_atomic():
+    """atomic() no schema da loja — obrigatório para select_for_update multi-tenant."""
+    from tenants.middleware import get_current_tenant_db
+
+    db = get_current_tenant_db()
+    if db and db != 'default':
+        return transaction.atomic(using=db)
+    return transaction.atomic()
+
+
 def movimentar_saida(
     produto: ProdutoEstoque,
     quantidade: Decimal,
@@ -21,7 +31,7 @@ def movimentar_saida(
     if quantidade <= 0:
         raise ValueError('Quantidade deve ser maior que zero.')
 
-    with transaction.atomic():
+    with tenant_atomic():
         produto = ProdutoEstoque.objects.select_for_update().get(pk=produto.pk)
         if produto.quantidade_atual < quantidade:
             raise ValueError(
@@ -56,7 +66,7 @@ def baixar_produtos_consulta(consulta) -> None:
     appointment_id = consulta.appointment_id
     profissional_id = consulta.professional_id
 
-    with transaction.atomic():
+    with tenant_atomic():
         for item in itens:
             motivo = f'Uso na consulta #{consulta.id}'
             if item.lote:

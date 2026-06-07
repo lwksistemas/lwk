@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
-import { ChevronDown, LogOut, Menu, Moon, Sun } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Moon, Sun, X } from 'lucide-react';
 import { ClinicaBelezaTopBar } from './ClinicaBelezaTopBar';
 import { ClinicaBelezaPageHeaderProvider } from './ClinicaBelezaPageHeaderContext';
 import type { LojaInfo } from '@/types/dashboard';
@@ -174,6 +174,8 @@ function SidebarContent({
   slug,
   pathname,
   sidebarCollapsed,
+  isMobileDrawer = false,
+  onCloseMobile,
   darkMode,
   setDarkMode,
   setSidebarCollapsed,
@@ -184,18 +186,22 @@ function SidebarContent({
   slug: string;
   pathname: string;
   sidebarCollapsed: boolean;
+  isMobileDrawer?: boolean;
+  onCloseMobile?: () => void;
   darkMode: boolean;
   setDarkMode: (v: boolean) => void;
   setSidebarCollapsed: (v: boolean) => void;
   onLogout?: () => void;
   onNavigate: (href: string) => void;
 }) {
+  const collapsed = isMobileDrawer ? false : sidebarCollapsed;
+
   return (
     <>
       <div
-        className={`border-b border-gray-200/80 dark:border-gray-700 ${sidebarCollapsed ? 'p-3 flex justify-center' : 'px-4 py-5'}`}
+        className={`border-b border-gray-200/80 dark:border-gray-700 ${collapsed ? 'p-3 flex justify-center' : 'px-4 py-5'}`}
       >
-        <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
+        <div className={`flex items-center gap-3 w-full ${collapsed ? 'justify-center' : ''}`}>
           {loja?.logo ? (
             <img src={loja.logo} alt={loja.nome} className="w-10 h-10 rounded-lg object-cover shrink-0" />
           ) : (
@@ -206,8 +212,8 @@ function SidebarContent({
               {loja?.nome?.charAt(0) || 'B'}
             </div>
           )}
-          {!sidebarCollapsed && (
-            <div className="min-w-0">
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
               <h2 className="text-xs font-bold text-gray-800 dark:text-white uppercase leading-tight tracking-wide truncate">
                 {loja?.nome || 'Clínica'}
               </h2>
@@ -216,18 +222,28 @@ function SidebarContent({
               </p>
             </div>
           )}
+          {isMobileDrawer && onCloseMobile && (
+            <button
+              type="button"
+              onClick={onCloseMobile}
+              className="ml-auto p-2 rounded-lg text-gray-500 hover:bg-white/80 dark:hover:bg-gray-700/50 shrink-0"
+              aria-label="Fechar menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
       <SidebarNav
         slug={slug}
         pathname={pathname}
-        collapsed={sidebarCollapsed}
+        collapsed={collapsed}
         onNavigate={onNavigate}
       />
 
       <div
-        className={`border-t border-gray-200/80 dark:border-gray-700 space-y-0.5 ${sidebarCollapsed ? 'p-2' : 'px-3 py-2'}`}
+        className={`border-t border-gray-200/80 dark:border-gray-700 space-y-0.5 ${collapsed ? 'p-2' : 'px-3 py-2'}`}
       >
         <button
           type="button"
@@ -236,26 +252,26 @@ function SidebarContent({
           title={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
         >
           <Menu className="w-5 h-5 shrink-0" />
-          {!sidebarCollapsed && 'Recolher menu'}
+          {!collapsed && 'Recolher menu'}
         </button>
         <button
           type="button"
           onClick={() => setDarkMode(!darkMode)}
-          className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-white/80 dark:hover:bg-gray-700/50 transition-colors ${sidebarCollapsed ? 'lg:justify-center' : ''}`}
+          className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-white/80 dark:hover:bg-gray-700/50 transition-colors ${collapsed ? 'lg:justify-center' : ''}`}
           title={darkMode ? 'Modo claro' : 'Modo escuro'}
         >
           {darkMode ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
-          {!sidebarCollapsed && <span>{darkMode ? 'Modo claro' : 'Modo escuro'}</span>}
+          {!collapsed && <span>{darkMode ? 'Modo claro' : 'Modo escuro'}</span>}
         </button>
         {onLogout && (
           <button
             type="button"
             onClick={onLogout}
-            className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors ${sidebarCollapsed ? 'lg:justify-center' : ''}`}
+            className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors ${collapsed ? 'lg:justify-center' : ''}`}
             title="Sair"
           >
             <LogOut className="w-5 h-5 shrink-0" />
-            {!sidebarCollapsed && <span>Sair</span>}
+            {!collapsed && <span>Sair</span>}
           </button>
         )}
       </div>
@@ -275,9 +291,10 @@ export function ClinicaBelezaShell({
   const slug = (params?.slug as string) || loja?.slug || '';
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return true;
+    if (typeof window === 'undefined') return false;
     const stored = sessionStorage.getItem('sidebar-collapsed');
-    return stored !== null ? stored === 'true' : true; // default: collapsed
+    if (stored !== null) return stored === 'true';
+    return typeof window !== 'undefined' && window.innerWidth >= 1024;
   });
   const [darkMode, setDarkMode] = useClinicaBelezaDark();
 
@@ -288,6 +305,22 @@ export function ClinicaBelezaShell({
   useEffect(() => {
     if (slug) syncLojaTenantSlug(slug);
   }, [slug]);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!sidebarOpen) {
+      document.body.style.overflow = '';
+      return;
+    }
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [sidebarOpen]);
 
   const handleNavigate = (href: string) => {
     setSidebarOpen(false);
@@ -324,19 +357,26 @@ export function ClinicaBelezaShell({
       </aside>
 
       <aside
-        className={`lg:hidden fixed inset-y-0 left-0 z-[100] w-64 flex flex-col bg-[#f0eaec] dark:bg-gray-900 border-r border-gray-200 shadow-xl transform transition-transform duration-200 ${
+        className={`lg:hidden fixed inset-y-0 left-0 z-[100] w-[min(18rem,85vw)] max-w-xs flex flex-col bg-[#f0eaec] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl transform transition-transform duration-200 ease-out ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
         }`}
         aria-hidden={!sidebarOpen}
+        role="dialog"
+        aria-modal={sidebarOpen}
+        aria-label="Menu de navegação"
       >
-        <SidebarContent {...sidebarProps} />
+        <SidebarContent
+          {...sidebarProps}
+          isMobileDrawer
+          onCloseMobile={() => setSidebarOpen(false)}
+        />
       </aside>
 
       {sidebarOpen && (
         <button
           type="button"
           aria-label="Fechar menu"
-          className="lg:hidden fixed inset-0 z-[90] bg-black/30"
+          className="lg:hidden fixed inset-0 z-[90] bg-black/40 touch-manipulation"
           onClick={() => setSidebarOpen(false)}
         />
       )}

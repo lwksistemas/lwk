@@ -16,9 +16,25 @@ def resolver_convenio(convenio_id, *, loja_id=None):
     return qs.first()
 
 
+def _preco_particular_tabela(procedure):
+    """Preço particular cadastrado na tabela de convênios (nome contém 'particular')."""
+    row = ConvenioProcedimentoPreco.objects.filter(
+        procedure=procedure,
+        is_active=True,
+        convenio__is_active=True,
+        convenio__nome__icontains='particular',
+    ).select_related('convenio', 'procedure').first()
+    if row:
+        return row.calcular_preco_efetivo(procedure)
+    return None
+
+
 def resolver_preco_procedimento(convenio, procedure):
     """Preço do procedimento: tabela do convênio (fixo ou %) ou preço particular."""
     if not convenio:
+        tabela = _preco_particular_tabela(procedure)
+        if tabela is not None:
+            return tabela
         return procedure.preco or Decimal('0')
     row = ConvenioProcedimentoPreco.objects.filter(
         convenio=convenio,

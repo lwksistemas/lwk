@@ -14,6 +14,19 @@ from .documento_service import criar_documento, render_template
 from .utils import LojaContextHelper
 
 
+def _documentos_da_consulta(consulta):
+    """Lista documentos da consulta no schema correto (evita lista vazia após POST 201)."""
+    from tenants.middleware import get_current_tenant_db
+
+    tenant_db = get_current_tenant_db()
+    qs = DocumentoClinico.objects.all_without_filter().filter(
+        consulta_id=consulta.id,
+    ).select_related('professional', 'template').order_by('-created_at')
+    if tenant_db and tenant_db != 'default':
+        qs = qs.using(tenant_db)
+    return qs
+
+
 def _get_professional_from_request(request):
     """
     Resolve o Professional do usuário logado na loja atual.
@@ -142,6 +155,15 @@ class DocumentTemplateDetailView(GetObjectMixin, APIView):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
+def _get_consulta_or_none(consulta_id):
+    from .consulta_queries import get_consulta_for_tenant
+
+    return get_consulta_for_tenant(
+        consulta_id,
+        select_related=('patient', 'professional', 'procedure'),
+    )
+
+
 class ConsultaDocumentoListView(APIView):
     """
     GET  /clinica-beleza/consultas/<consulta_id>/documentos/ — lista documentos da consulta.
@@ -149,26 +171,17 @@ class ConsultaDocumentoListView(APIView):
     """
     permission_classes = CLINICA_CLINICAL
 
-    def _get_consulta(self, consulta_id):
-        try:
-            return Consulta.objects.select_related('patient', 'professional', 'procedure').get(pk=consulta_id)
-        except Consulta.DoesNotExist:
-            return None
-
     def get(self, request, consulta_id):
-        consulta = self._get_consulta(consulta_id)
+        consulta = _get_consulta_or_none(consulta_id)
         if not consulta:
             return Response({'error': 'Consulta não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
-        documentos = DocumentoClinico.objects.filter(
-            consulta=consulta,
-        ).select_related('professional', 'template').order_by('-created_at')
-
+        documentos = _documentos_da_consulta(consulta)
         serializer = DocumentoClinicoSerializer(documentos, many=True)
         return Response(serializer.data)
 
     def post(self, request, consulta_id):
-        consulta = self._get_consulta(consulta_id)
+        consulta = _get_consulta_or_none(consulta_id)
         if not consulta:
             return Response({'error': 'Consulta não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -228,12 +241,12 @@ class ConsultaDocumentoDeleteView(GetObjectMixin, APIView):
     select_related_fields = ['consulta']
 
     def delete(self, request, consulta_id, doc_id):
-        obj, error = self.object_or_404(doc_id)
-        if error:
-            return error
+        consulta = _get_consulta_or_none(consulta_id)
+        if not consulta:
+            return Response({'error': 'Consulta não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Valida que o documento pertence à consulta da URL
-        if obj.consulta_id != consulta_id:
+        obj = _documentos_da_consulta(consulta).filter(pk=doc_id).first()
+        if not obj:
             return Response({'error': 'Documento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         # Valida que a consulta está IN_PROGRESS

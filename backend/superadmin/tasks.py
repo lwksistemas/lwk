@@ -115,13 +115,18 @@ def executar_backups_automaticos():
             if not (horario_inicio <= hora_atual <= horario_fim):
                 continue
             
-            # Verificar se já executou hoje
-            if config.ultimo_backup:
-                if config.ultimo_backup.date() == hoje:
-                    logger.debug(
-                        f"⏭️ Backup já executado hoje para loja {config.loja.nome}"
-                    )
-                    continue
+            # Só pula se backup AUTOMÁTICO já concluiu hoje (manual não bloqueia o agendado)
+            from .models import HistoricoBackup
+            if HistoricoBackup.objects.filter(
+                loja=config.loja,
+                tipo='automatico',
+                status='concluido',
+                created_at__date=hoje,
+            ).exists():
+                logger.debug(
+                    f"⏭️ Backup automático já executado hoje para loja {config.loja.nome}"
+                )
+                continue
             
             # Agendar backup
             logger.info(
@@ -493,6 +498,22 @@ def _salvar_arquivo_backup(loja, arquivo_nome: str, arquivo_bytes: bytes) -> str
     logger.debug(f"💾 Arquivo salvo: {arquivo_path}")
     
     return str(arquivo_path)
+
+
+# ============================================================================
+# TASK: Detecção de violações de segurança
+# ============================================================================
+
+def detect_security_violations():
+    """Executa SecurityDetector (brute force, rate limit, cross-tenant em lote, etc.)."""
+    from django.core.management import call_command
+
+    logger.info('Iniciando detecção de violações de segurança')
+    try:
+        call_command('detect_security_violations', verbosity=0)
+    except Exception as exc:
+        logger.exception('Falha na detecção de violações: %s', exc)
+        raise
 
 
 # ============================================================================

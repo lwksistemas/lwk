@@ -266,6 +266,19 @@ class WhatsAppConfigView(CRMPermissionMixin, APIView):
         if 'whatsapp_token' in request.data:
             config.whatsapp_token = (request.data.get('whatsapp_token') or '').strip()[:512]
             update_fields.append('whatsapp_token')
+        if config.whatsapp_ativo:
+            phone_ok = bool((config.whatsapp_phone_id or '').strip())
+            token_ok = bool((config.whatsapp_token or '').strip())
+            if not phone_ok or not token_ok:
+                return Response(
+                    {
+                        'error': (
+                            'Cada loja usa seu próprio WhatsApp na Meta. '
+                            'Informe Phone Number ID e token antes de ativar.'
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         config.save(update_fields=update_fields)
         return Response(self._serialize_config(config))
 

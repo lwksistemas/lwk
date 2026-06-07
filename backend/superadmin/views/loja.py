@@ -499,15 +499,31 @@ class LojaViewSet(viewsets.ModelViewSet):
 
         # Caso 1: proprietário da loja
         if user == loja.owner:
+            from superadmin.models import VendedorUsuario
             if loja.senha_foi_alterada:
-                return Response(
-                    {'error': 'A senha já foi alterada anteriormente'},
-                    status=status.HTTP_400_BAD_REQUEST
+                # Sincronizar flags órfãs (owner trocou senha mas vínculo CRM ficou pendente)
+                ProfissionalUsuario.objects.filter(user=user, loja=loja).update(
+                    precisa_trocar_senha=False
                 )
+                VendedorUsuario.objects.filter(user=user, loja=loja).update(
+                    precisa_trocar_senha=False
+                )
+                return Response({
+                    'message': 'Senha já foi alterada anteriormente',
+                    'ja_alterada': True,
+                    'loja': loja.nome,
+                })
             user.set_password(nova_senha)
             user.save()
             loja.senha_foi_alterada = True
-            loja.save()
+            loja.senha_provisoria = ''
+            loja.save(update_fields=['senha_foi_alterada', 'senha_provisoria'])
+            ProfissionalUsuario.objects.filter(user=user, loja=loja).update(
+                precisa_trocar_senha=False
+            )
+            VendedorUsuario.objects.filter(user=user, loja=loja).update(
+                precisa_trocar_senha=False
+            )
             return Response({
                 'message': 'Senha alterada com sucesso!',
                 'loja': loja.nome

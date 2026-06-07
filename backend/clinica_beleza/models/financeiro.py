@@ -96,6 +96,79 @@ class CampanhaPromocao(LojaIsolationMixin, models.Model):
         return self.titulo
 
 
+CATEGORIAS_DESPESA_PADRAO = (
+    'Aluguel',
+    'Salários',
+    'Fornecedores',
+    'Impostos',
+    'Marketing',
+    'Equipamentos',
+    'Outros',
+)
+
+
+class CategoriaDespesa(LojaIsolationMixin, models.Model):
+    """Categoria para organizar despesas da clínica."""
+    nome = models.CharField(max_length=100, verbose_name='Nome')
+    is_active = models.BooleanField(default=True, verbose_name='Ativa')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        verbose_name = 'Categoria de despesa'
+        verbose_name_plural = 'Categorias de despesa'
+        ordering = ['nome']
+
+    def __str__(self):
+        return self.nome
+
+
+class Despesa(LojaIsolationMixin, models.Model):
+    """Despesa operacional da clínica (aluguel, fornecedores, etc.)."""
+    STATUS_CHOICES = Payment.STATUS_CHOICES
+    PAYMENT_METHOD_CHOICES = Payment.PAYMENT_METHOD_CHOICES
+
+    descricao = models.CharField(max_length=200, verbose_name='Descrição')
+    categoria = models.ForeignKey(
+        CategoriaDespesa,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='despesas',
+        verbose_name='Categoria',
+    )
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Valor (R$)')
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='PENDING', verbose_name='Status',
+    )
+    data_vencimento = models.DateField(verbose_name='Vencimento')
+    data_pagamento = models.DateField(null=True, blank=True, verbose_name='Data do pagamento')
+    forma_pagamento = models.CharField(
+        max_length=20, choices=PAYMENT_METHOD_CHOICES, blank=True, default='', verbose_name='Forma de pagamento',
+    )
+    observacoes = models.TextField(blank=True, default='', verbose_name='Observações')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        verbose_name = 'Despesa'
+        verbose_name_plural = 'Despesas'
+        ordering = ['-data_vencimento', '-created_at']
+        indexes = [
+            models.Index(fields=['loja_id', 'status']),
+            models.Index(fields=['loja_id', 'data_vencimento']),
+            models.Index(fields=['loja_id', 'data_pagamento']),
+        ]
+
+    def __str__(self):
+        return f'{self.descricao} — R$ {self.valor}'
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ESTOQUE — Controle de produtos (botox, ácido hialurônico, soros, etc.)
 # ═══════════════════════════════════════════════════════════════════════════════

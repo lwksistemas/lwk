@@ -35,6 +35,7 @@ from .auditoria import (
 )
 from .sistema import (
     verificar_storage_loja,
+    verificar_storage_todas,
     listar_storage_lojas,
     health_check,
     LoginConfigSistemaViewSet,
@@ -69,6 +70,7 @@ __all__ = [
     'EstatisticasAuditoriaViewSet',
     # Sistema
     'verificar_storage_loja',
+    'verificar_storage_todas',
     'listar_storage_lojas',
     'health_check',
     'LoginConfigSistemaViewSet',

@@ -29,8 +29,15 @@ export default function CapturaErrosNavegador() {
     // Só capturar quando estiver em uma rota de loja (/loja/[slug]/...)
     if (!pathname?.startsWith('/loja/')) return;
 
+    const ultimosEnvios = new Map<string, number>();
     const enviar = (mensagem: string, stack?: string, url?: string) => {
       if (!mensagem?.trim()) return;
+      if (/429|rate limit|too many requests/i.test(mensagem)) return;
+      const chave = mensagem.slice(0, 120);
+      const agora = Date.now();
+      const ultimo = ultimosEnvios.get(chave) ?? 0;
+      if (agora - ultimo < 30_000) return;
+      ultimosEnvios.set(chave, agora);
       const lojaSlug = slugFromParams.trim() || getLojaSlugAtSendTime();
       if (!lojaSlug) return; // evita enviar como "sistema" quando estamos numa loja
       const payload = {

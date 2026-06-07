@@ -56,6 +56,8 @@ def build_resend_payload(message: EmailMessage) -> dict:
     if html_body:
         payload['html'] = html_body
         payload['text'] = message.body or ''
+    elif getattr(message, 'content_subtype', 'plain') == 'html':
+        payload['html'] = message.body or ''
     else:
         payload['text'] = message.body or ''
 

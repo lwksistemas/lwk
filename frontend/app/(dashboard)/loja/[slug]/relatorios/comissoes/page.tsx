@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { Download, Printer, Search } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
+import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
+import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 
 interface DetalheComissao {
   local_nome: string;
@@ -154,6 +156,14 @@ function BlocoProfissional({
   );
 
   const qtdProcedimentos = linhasProcedimento.reduce((s, d) => s + d.qtd, 0);
+  const valorProcedimentosVisivel = linhasProcedimento.reduce(
+    (s, d) => s + d.valor_procedimento,
+    0,
+  );
+  const outrosProcedimentos =
+    p.valor_procedimento > valorProcedimentosVisivel + 0.009
+      ? p.valor_procedimento - valorProcedimentosVisivel
+      : 0;
 
   return (
     <article className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden print:break-inside-avoid">
@@ -174,9 +184,9 @@ function BlocoProfissional({
         </p>
       </header>
 
-      <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="p-4 flex flex-col gap-4">
         <MiniTabela
-          titulo="Consultas"
+          titulo="1. Consultas"
           colunas={['Local', 'Pagamento', 'Qtd', 'Valor consulta (R$)', 'Regra', 'Comissão consulta (R$)']}
           linhas={linhasConsulta.map((d) => [
             d.local_nome || '—',
@@ -189,7 +199,7 @@ function BlocoProfissional({
           rodape={
             linhasConsulta.length > 0
               ? [
-                  'Subtotal',
+                  'Subtotal consultas',
                   '',
                   p.total_atendimentos,
                   formatCurrency(p.valor_consulta),
@@ -200,7 +210,7 @@ function BlocoProfissional({
           }
         />
         <MiniTabela
-          titulo="Procedimentos"
+          titulo="2. Procedimentos"
           colunas={['Procedimento', 'Qtd', 'Valor procedimento (R$)', 'Regra', 'Comissão procedimento (R$)']}
           linhas={linhasProcedimento.map((d) => [
             d.procedimento_nome,
@@ -212,9 +222,9 @@ function BlocoProfissional({
           rodape={
             linhasProcedimento.length > 0
               ? [
-                  'Subtotal',
+                  'Subtotal procedimentos',
                   qtdProcedimentos,
-                  formatCurrency(p.valor_procedimento),
+                  formatCurrency(valorProcedimentosVisivel),
                   '',
                   formatCurrency(p.comissao_procedimento),
                 ]
@@ -223,43 +233,49 @@ function BlocoProfissional({
         />
       </div>
 
-      <footer className="px-4 py-3 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
-        <div>
-          <p className="text-xs text-gray-500 uppercase">Valor consulta</p>
-          <p className="font-semibold tabular-nums text-gray-900 dark:text-white">
-            {formatCurrency(p.valor_consulta)}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 uppercase">Comissão consulta</p>
-          <p className="font-semibold tabular-nums text-gray-900 dark:text-white">
-            {formatCurrency(p.comissao_consulta)}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 uppercase">Valor procedimentos</p>
-          <p className="font-semibold tabular-nums text-gray-900 dark:text-white">
-            {formatCurrency(p.valor_procedimento)}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 uppercase">Comissão procedimentos</p>
-          <p className="font-semibold tabular-nums text-gray-900 dark:text-white">
-            {formatCurrency(p.comissao_procedimento)}
-          </p>
-        </div>
-        <div className="sm:col-span-3 lg:col-span-1 lg:border-l lg:pl-3 border-gray-300 dark:border-gray-600 flex flex-wrap lg:flex-col justify-end gap-x-4 gap-y-1">
-          <div>
-            <p className="text-xs text-gray-500 uppercase">Comissão total</p>
-            <p className="font-bold tabular-nums" style={{ color: CLINICA_BELEZA_PRIMARY }}>
-              {formatCurrency(p.comissao_total)}
-            </p>
+      <footer className="px-4 py-4 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 space-y-3 text-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">3. Resumo</p>
+        <div className="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 py-2.5 bg-white dark:bg-gray-800/80">
+            <span className="text-gray-600 dark:text-gray-400 sm:col-span-2">Consultas</span>
+            <span className="text-right tabular-nums font-medium text-gray-900 dark:text-white">
+              {formatCurrency(p.valor_consulta)}
+            </span>
+            <span className="text-right tabular-nums text-gray-700 dark:text-gray-300">
+              Comissão {formatCurrency(p.comissao_consulta)}
+            </span>
           </div>
-          <div>
-            <p className="text-xs text-gray-500 uppercase">Valor total</p>
-            <p className="font-bold text-lg tabular-nums text-gray-900 dark:text-white">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 py-2.5 bg-white dark:bg-gray-800/80">
+            <span className="text-gray-600 dark:text-gray-400 sm:col-span-2">Procedimentos (com comissão)</span>
+            <span className="text-right tabular-nums font-medium text-gray-900 dark:text-white">
+              {formatCurrency(valorProcedimentosVisivel)}
+            </span>
+            <span className="text-right tabular-nums text-gray-700 dark:text-gray-300">
+              Comissão {formatCurrency(p.comissao_procedimento)}
+            </span>
+          </div>
+          {outrosProcedimentos > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 py-2.5 bg-white dark:bg-gray-800/80">
+              <span className="text-gray-500 dark:text-gray-400 sm:col-span-2 text-xs">
+                Outros procedimentos do atendimento (sem comissão cadastrada)
+              </span>
+              <span className="text-right tabular-nums text-gray-600 dark:text-gray-400 text-xs">
+                {formatCurrency(outrosProcedimentos)}
+              </span>
+              <span />
+            </div>
+          )}
+          <div
+            className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 py-3 font-semibold"
+            style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}10` }}
+          >
+            <span className="text-gray-900 dark:text-white sm:col-span-2">Total do período</span>
+            <span className="text-right tabular-nums text-lg text-gray-900 dark:text-white">
               {formatCurrency(p.valor_total)}
-            </p>
+            </span>
+            <span className="text-right tabular-nums text-lg" style={{ color: CLINICA_BELEZA_PRIMARY }}>
+              Comissão {formatCurrency(p.comissao_total)}
+            </span>
           </div>
         </div>
       </footer>
@@ -440,8 +456,45 @@ export default function RelatorioComissoesPage() {
     }
   };
 
+  const exportActions = (
+    <>
+      <button
+        type="button"
+        onClick={exportarCSV}
+        disabled={!data?.profissionais.length}
+        className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 disabled:opacity-50"
+      >
+        <Download size={16} />
+        <span className="hidden sm:inline">CSV</span>
+      </button>
+      <button
+        type="button"
+        onClick={exportarPDF}
+        disabled={!data?.profissionais.length || pdfLoading}
+        className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-white disabled:opacity-50"
+        style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+        title={
+          !logoUrl && temTimbrado
+            ? 'PDF com papel timbrado (Configurações → Memed). Para imprimir, use o visualizador do PDF.'
+            : 'Baixar relatório em PDF. Para imprimir, use o visualizador do PDF.'
+        }
+      >
+        <Printer size={16} />
+        <span className="hidden sm:inline">{pdfLoading ? 'Gerando…' : 'PDF'}</span>
+        <span className="sm:hidden">{pdfLoading ? '…' : 'PDF'}</span>
+      </button>
+    </>
+  );
+
   return (
-    <div className="p-4 md:p-6 lg:p-8 print-area w-full min-h-full bg-[#f7f2f4] dark:bg-gray-950">
+    <>
+      <ClinicaBelezaStandardPageHeader
+        title="Comissões dos Profissionais"
+        subtitle="Consultas, procedimentos e total em sequência"
+        backHref={`/loja/${slug}/relatorios`}
+        extraActions={exportActions}
+      />
+      <ClinicaBelezaPageContent className="print-area">
       <div className="hidden print:block mb-6 text-center">
         {logoUrl ? (
           <div className="flex justify-center mb-4">
@@ -461,38 +514,7 @@ export default function RelatorioComissoesPage() {
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 no-print">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Comissões dos Profissionais</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Consultas e procedimentos em blocos separados — mais fácil de conferir.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={exportarCSV}
-            disabled={!data?.profissionais.length}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600"
-          >
-            <Download size={16} /> CSV
-          </button>
-          <button
-            onClick={exportarPDF}
-            disabled={!data?.profissionais.length || pdfLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg text-white disabled:opacity-50"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-            title={
-              !logoUrl && temTimbrado
-                ? 'PDF com papel timbrado (Configurações → Memed). Para imprimir, use o visualizador do PDF.'
-                : 'Baixar relatório em PDF. Para imprimir, use o visualizador do PDF.'
-            }
-          >
-            <Printer size={16} /> {pdfLoading ? 'Gerando…' : 'PDF'}
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700 mb-6 no-print">
+      <ClinicaBelezaPanel className="p-4 mb-6 no-print">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -542,7 +564,7 @@ export default function RelatorioComissoesPage() {
             <Search size={16} /> Buscar
           </button>
         </div>
-      </div>
+      </ClinicaBelezaPanel>
 
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">
@@ -623,6 +645,7 @@ export default function RelatorioComissoesPage() {
           )}
         </div>
       )}
-    </div>
+      </ClinicaBelezaPageContent>
+    </>
   );
 }

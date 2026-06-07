@@ -27,7 +27,12 @@ from .views_profissionais import (  # noqa: F401
 )
 
 # Procedimentos
-from .views_procedimentos import ProcedureListView, ProcedureDetailView  # noqa: F401
+from .views_procedimentos import (  # noqa: F401
+    ProcedureListView,
+    ProcedureDetailView,
+    ProcedimentoConvenioPrecosMatrixView,
+    ProcedurePrecosConvenioView,
+)
 from .views_protocolos import ProtocolListView, ProtocolDetailView
 from .views_consultas import (
     ConsultaListView, ConsultaDetailView, ConsultaAplicarProtocoloView, ConsultaFinalizarView,
@@ -35,7 +40,10 @@ from .views_consultas import (
 )  # noqa: F401
 
 # Financeiro
-from .views_financeiro import PaymentListView, PaymentDetailView, FinanceiroResumoView  # noqa: F401
+from .views_financeiro import (  # noqa: F401
+    PaymentListView, PaymentDetailView, FinanceiroResumoView,
+    CategoriaDespesaListView, DespesaListView, DespesaDetailView,
+)
 
 # Agenda & Bloqueios
 from .views_agenda import (  # noqa: F401

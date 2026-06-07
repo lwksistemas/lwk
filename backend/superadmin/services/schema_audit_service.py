@@ -36,6 +36,46 @@ def prefixos_tabela_para_app(app_label: str) -> list[str]:
     return [f'{app_label}_']
 
 
+TABELAS_DJANGO_PERMITIDAS = frozenset({'django_migrations', 'django_content_type'})
+
+
+def prefixos_esperados_apps(apps_esperados: list[str]) -> list[str]:
+    """Prefixos de table_name considerados válidos para o tipo da loja."""
+    out: list[str] = []
+    for app in apps_esperados:
+        for p in prefixos_tabela_para_app(app):
+            if p not in out:
+                out.append(p)
+    return out
+
+
+def listar_tabelas_extras_no_schema(
+    conn, schema_name: str, apps_esperados: list[str]
+) -> list[str]:
+    """
+    Tabelas no schema que não pertencem aos apps esperados do tipo da loja.
+    Indica legado (ex.: cabeleireiro_* em loja clinica-beleza) — não invalida o OK.
+    """
+    prefixes = prefixos_esperados_apps(apps_esperados)
+    extras: list[str] = []
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT table_name FROM information_schema.tables
+            WHERE table_schema = %s AND table_type = 'BASE TABLE'
+            ORDER BY table_name
+            """,
+            [schema_name],
+        )
+        for (name,) in cur.fetchall():
+            if name in TABELAS_DJANGO_PERMITIDAS:
+                continue
+            if any(name.startswith(p) for p in prefixes):
+                continue
+            extras.append(name)
+    return extras
+
+
 def contar_tabelas_app_no_schema(conn, schema_name: str, app_label: str) -> int:
     """Quantas tabelas do app existem no schema (por prefixo(s) real(is))."""
     prefixes = prefixos_tabela_para_app(app_label)
@@ -82,6 +122,8 @@ def auditar_loja(loja) -> dict[str, Any]:
         'conexao_ok': False,
         'tabelas_total': 0,
         'tabelas_negocio': 0,
+        'tabelas_extras': [],
+        'tabelas_extras_count': 0,
         'apps_detalhe': [],
         'ok': False,
         'erro': None,
@@ -202,6 +244,17 @@ def auditar_loja(loja) -> dict[str, Any]:
         )
 
     base['ok'] = tudo_ok
+
+    extras = listar_tabelas_extras_no_schema(conn, schema_name, apps_esperados)
+    base['tabelas_extras'] = extras
+    base['tabelas_extras_count'] = len(extras)
+    if extras:
+        amostra = ', '.join(extras[:5])
+        sufixo = f' (+{len(extras) - 5} mais)' if len(extras) > 5 else ''
+        base['aviso_tabelas_extras'] = (
+            f'{len(extras)} tabela(s) legado/não esperada(s) para {tipo_slug}: '
+            f'{amostra}{sufixo}'
+        )
 
     if loja.database_name in connections:
         try:

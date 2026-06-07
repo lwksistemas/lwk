@@ -69,7 +69,7 @@ export default function ConsultasPage() {
     return () => {
       cancelled = true;
     };
-  }, [searchParams, consultas, selected?.id]);
+  }, [searchParams, consultas]);
 
   const voltarLista = () => {
     setSelected(null);

@@ -7,7 +7,7 @@ from .convenios import LocalAtendimento, Convenio, ConvenioProcedimentoPreco
 from .patients import Patient, PatientAnamnese
 from .professionals import Professional, ProfessionalCommission, HorarioTrabalhoProfissional
 from .appointments import Appointment, AppointmentProcedure, BloqueioHorario
-from .financeiro import Payment, CampanhaPromocao
+from .financeiro import Payment, CampanhaPromocao, CategoriaDespesa, Despesa
 from .estoque import ProdutoEstoque, MovimentacaoEstoque, ConsultaProdutoUtilizado
 from .consultas import Consulta, PrescricaoMemed, ConsultaEvolucao, MemedTimbrado
 from .documentos import DocumentTemplate, DocumentoClinico
@@ -28,6 +28,8 @@ __all__ = [
     'BloqueioHorario',
     'Payment',
     'CampanhaPromocao',
+    'CategoriaDespesa',
+    'Despesa',
     'ProdutoEstoque',
     'MovimentacaoEstoque',
     'ConsultaProdutoUtilizado',

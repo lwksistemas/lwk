@@ -317,8 +317,8 @@ class SecureLoginView(APIView):
             pu = ProfissionalUsuario.objects.filter(
                 user=user, loja__is_active=True,
             ).filter(slug_match).first()
+            vu = None
             if pu:
-                response_data['precisa_trocar_senha'] = pu.precisa_trocar_senha
                 response_data['professional_id'] = pu.professional_id
                 response_data['is_professional'] = True
             else:
@@ -326,18 +326,26 @@ class SecureLoginView(APIView):
                     user=user, loja__is_active=True,
                 ).filter(slug_match).first()
                 if vu:
-                    response_data['precisa_trocar_senha'] = vu.precisa_trocar_senha
                     response_data['vendedor_id'] = vu.vendedor_id
                     if loja.owner_id != user.id:
                         response_data['is_vendedor'] = True
                         from django.contrib.auth.models import Group
                         if user.groups.filter(name='Gerente de Vendas').exists():
                             response_data['is_gerente'] = True
-                elif loja.owner_id == user.id:
-                    precisa_trocar_senha = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
-                    response_data['precisa_trocar_senha'] = precisa_trocar_senha
-                else:
-                    response_data['precisa_trocar_senha'] = False
+
+            # Proprietário que já trocou a senha da loja não deve ser bloqueado por
+            # flags órfãs em VendedorUsuario/ProfissionalUsuario (ex.: CRM Vendas).
+            if loja.owner_id == user.id and loja.senha_foi_alterada:
+                response_data['precisa_trocar_senha'] = False
+            elif pu:
+                response_data['precisa_trocar_senha'] = pu.precisa_trocar_senha
+            elif vu:
+                response_data['precisa_trocar_senha'] = vu.precisa_trocar_senha
+            elif loja.owner_id == user.id:
+                precisa_trocar_senha = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
+                response_data['precisa_trocar_senha'] = precisa_trocar_senha
+            else:
+                response_data['precisa_trocar_senha'] = False
 
             if loja:
                 response_data['loja'] = {

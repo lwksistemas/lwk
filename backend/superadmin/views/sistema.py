@@ -16,15 +16,34 @@ from .permissions import IsSuperAdmin
 
 # ✅ Endpoint para verificação de storage
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsSuperAdmin])
+def verificar_storage_todas(request):
+    """Recalcula storage de todas as lojas ativas. Apenas superadmin."""
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+
+        out = StringIO()
+        call_command('verificar_storage_lojas', stdout=out)
+
+        lojas = Loja.objects.filter(is_active=True)
+        return Response({
+            'success': True,
+            'total': lojas.count(),
+            'output': out.getvalue(),
+        })
+    except Exception as e:
+        logger.error(f'Erro ao verificar storage de todas as lojas: {e}', exc_info=True)
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsSuperAdmin])
 def verificar_storage_loja(request, loja_id):
     """Verifica storage de uma loja específica (manual). Apenas superadmin."""
-    if not request.user.is_superuser:
-        return Response(
-            {'error': 'Apenas superadmin pode verificar storage'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
     try:
         loja = Loja.objects.get(id=loja_id)
         

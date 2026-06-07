@@ -4,17 +4,18 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { useLogsList } from '@/hooks/useLogsList';
 import { useLogActions } from '@/hooks/useLogActions';
 import { LogFilters, LogTable, LogDetalhesModal, SalvarBuscaModal } from '@/components/superadmin/logs';
 import type { Log } from '@/hooks/useLogsList';
 
-export default function BuscaLogsPage() {
+function BuscaLogsContent() {
   const router = useRouter();
-  const { logs, loading, filtros, setFiltros, buscarLogs, limparFiltros } = useLogsList();
+  const searchParams = useSearchParams();
+  const { logs, loading, filtros, setFiltros, buscarLogs, buscarComFiltros, limparFiltros } = useLogsList();
   const {
     buscasSalvas,
     contextoTemporal,
@@ -29,12 +30,25 @@ export default function BuscaLogsPage() {
   const [logSelecionado, setLogSelecionado] = useState<Log | null>(null);
   const [mostrarDetalhes, setMostrarDetalhes] = useState(false);
   const [mostrarSalvarBusca, setMostrarSalvarBusca] = useState(false);
+  const urlFiltrosAplicados = useRef(false);
+  const emailParam = searchParams.get('usuario_email');
+  const qParam = searchParams.get('q');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && authService.getUserType() !== 'superadmin') {
       router.push('/superadmin/login');
+      return;
     }
-  }, [router]);
+    if (urlFiltrosAplicados.current || (!emailParam && !qParam)) return;
+
+    urlFiltrosAplicados.current = true;
+    const novosFiltros = {
+      ...(emailParam ? { usuario_email: emailParam } : {}),
+      ...(qParam ? { q: qParam } : {}),
+    };
+    setFiltros(novosFiltros);
+    buscarComFiltros(novosFiltros);
+  }, [router, emailParam, qParam, setFiltros, buscarComFiltros]);
 
   const handleVerDetalhes = async (log: Log) => {
     setLogSelecionado(log);
@@ -116,5 +130,17 @@ export default function BuscaLogsPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function BuscaLogsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200">
+        Carregando logs...
+      </div>
+    }>
+      <BuscaLogsContent />
+    </Suspense>
   );
 }

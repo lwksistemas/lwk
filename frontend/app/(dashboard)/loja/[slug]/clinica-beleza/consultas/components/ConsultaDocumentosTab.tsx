@@ -15,7 +15,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI, DocumentoClinicoItem } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, type DocumentoClinicoItem } from "@/lib/clinica-beleza-api";
+import { imprimirDocumentoPdf } from "@/lib/consulta-print";
+import { logger } from "@/lib/logger";
+import { ConsultaPrintButton } from "./ConsultaPrintButton";
+import { UsarTemplateModal } from "./UsarTemplateModal";
+import { DigitarManualModal } from "./DigitarManualModal";
 
 /**
  * Tipo de documento clínico — mapeia ao DocumentTemplate.TIPO_CHOICES do backend.
@@ -64,36 +69,53 @@ export function ConsultaDocumentosTab({
   consultaId,
   consultaAtiva,
   onUsarMemed,
-  onUsarTemplate,
-  onDigitarManual,
 }: {
   consultaId: number;
   consultaAtiva: boolean;
   /** Callback ao selecionar "Usar Memed" (receituário ou exames). */
   onUsarMemed?: () => void;
-  /** Callback ao selecionar "Usar Template" com o tipo escolhido. */
-  onUsarTemplate?: (tipo: DocumentoTipo) => void;
-  /** Callback ao selecionar "Digitar Manual" com o tipo escolhido. */
-  onDigitarManual?: (tipo: DocumentoTipo) => void;
 }) {
   const [openDropdown, setOpenDropdown] = useState<DocumentoTipo | null>(null);
   const [documentos, setDocumentos] = useState<DocumentoClinicoItem[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [templateModalTipo, setTemplateModalTipo] = useState<DocumentoTipo | null>(null);
+  const [manualModalTipo, setManualModalTipo] = useState<DocumentoTipo | null>(null);
+  const [savingManualDoc, setSavingManualDoc] = useState(false);
+
+  const parseLista = (data: unknown): DocumentoClinicoItem[] => {
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === "object" && Array.isArray((data as { results?: unknown }).results)) {
+      return (data as { results: DocumentoClinicoItem[] }).results;
+    }
+    return [];
+  };
 
   /** Carrega a lista de documentos da consulta */
   const fetchDocumentos = useCallback(async () => {
     try {
       setLoadingDocs(true);
       const data = await ClinicaBelezaAPI.documentos.list(consultaId);
-      setDocumentos(Array.isArray(data) ? data : []);
-    } catch {
+      setDocumentos(parseLista(data));
+    } catch (e) {
+      logger.warn("Erro ao listar documentos da consulta:", e);
       setDocumentos([]);
     } finally {
       setLoadingDocs(false);
     }
   }, [consultaId]);
+
+  const registrarDocumentoCriado = useCallback(
+    async (created: DocumentoClinicoItem) => {
+      setDocumentos((prev) => {
+        if (prev.some((d) => d.id === created.id)) return prev;
+        return [created, ...prev];
+      });
+      await fetchDocumentos();
+    },
+    [fetchDocumentos],
+  );
 
   useEffect(() => {
     fetchDocumentos();
@@ -124,10 +146,10 @@ export function ConsultaDocumentosTab({
         onUsarMemed?.();
         break;
       case "template":
-        onUsarTemplate?.(tipo);
+        setTemplateModalTipo(tipo);
         break;
       case "manual":
-        onDigitarManual?.(tipo);
+        setManualModalTipo(tipo);
         break;
     }
   };
@@ -268,9 +290,13 @@ export function ConsultaDocumentosTab({
                   )}
                 </div>
 
-                {/* Botão excluir — só se consulta ativa */}
-                {consultaAtiva && (
-                  <div className="flex-shrink-0">
+                <div className="flex-shrink-0 flex items-center gap-1">
+                  <ConsultaPrintButton
+                    onPrint={() => imprimirDocumentoPdf(doc)}
+                  />
+                  {/* Botão excluir — só se consulta ativa */}
+                  {consultaAtiva && (
+                    <>
                     {confirmDeleteId === doc.id ? (
                       <div className="flex items-center gap-1">
                         <button
@@ -303,13 +329,54 @@ export function ConsultaDocumentosTab({
                         <Trash2 size={15} />
                       </button>
                     )}
-                  </div>
-                )}
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {templateModalTipo && (
+        <UsarTemplateModal
+          open={!!templateModalTipo}
+          tipo={templateModalTipo}
+          consultaId={consultaId}
+          onClose={() => setTemplateModalTipo(null)}
+          onSuccess={async (created) => {
+            setTemplateModalTipo(null);
+            if (created) await registrarDocumentoCriado(created);
+            else await fetchDocumentos();
+          }}
+        />
+      )}
+
+      {manualModalTipo && (
+        <DigitarManualModal
+          open={!!manualModalTipo}
+          tipo={manualModalTipo}
+          saving={savingManualDoc}
+          onClose={() => setManualModalTipo(null)}
+          onSave={async (data) => {
+            setSavingManualDoc(true);
+            try {
+              const created = await ClinicaBelezaAPI.documentos.create(consultaId, {
+                tipo: data.tipo,
+                conteudo: data.conteudo,
+                titulo: data.titulo || undefined,
+              });
+              setManualModalTipo(null);
+              await registrarDocumentoCriado(created);
+            } catch (e) {
+              logger.warn("Erro ao salvar documento manual:", e);
+              alert("Erro ao salvar documento. Tente novamente.");
+            } finally {
+              setSavingManualDoc(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

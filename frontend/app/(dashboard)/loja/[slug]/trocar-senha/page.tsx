@@ -22,6 +22,12 @@ export default function TrocarSenhaLojaComSlugPage() {
   });
   const [erro, setErro] = useState('');
 
+  const getDestinoAposTroca = useCallback(() => {
+    return tipoLojaNome && isTipoCRMVendas(tipoLojaNome)
+      ? `/loja/${slug}/crm-vendas`
+      : `/loja/${slug}/dashboard`;
+  }, [slug, tipoLojaNome]);
+
   const loadLojaInfo = useCallback(async () => {
     if (!slug) {
       setErro('Informações da loja não encontradas. Faça login novamente.');
@@ -31,9 +37,20 @@ export default function TrocarSenhaLojaComSlugPage() {
     }
     try {
       setLoadingInfo(true);
-      const response = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
-      setLojaId(response.data.id);
-      setTipoLojaNome(response.data.tipo_loja_nome || '');
+      const [infoRes, verificarRes] = await Promise.all([
+        apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`),
+        apiClient.get('/superadmin/lojas/verificar_senha_provisoria/').catch(() => null),
+      ]);
+      const tipo = infoRes.data.tipo_loja_nome || '';
+      setLojaId(infoRes.data.id);
+      setTipoLojaNome(tipo);
+
+      if (verificarRes?.data?.precisa_trocar_senha === false) {
+        const destino = tipo && isTipoCRMVendas(tipo)
+          ? `/loja/${slug}/crm-vendas`
+          : `/loja/${slug}/dashboard`;
+        router.replace(destino);
+      }
     } catch (error) {
       logger.warn('Erro ao carregar informações da loja:', error);
       setErro('Erro ao carregar informações. Faça login novamente.');
@@ -71,19 +88,26 @@ export default function TrocarSenhaLojaComSlugPage() {
     setLoading(true);
 
     try {
-      await apiClient.post(`/superadmin/lojas/${lojaId}/alterar_senha_primeiro_acesso/`, {
+      const res = await apiClient.post(`/superadmin/lojas/${lojaId}/alterar_senha_primeiro_acesso/`, {
         nova_senha: formData.nova_senha,
         confirmar_senha: formData.confirmar_senha,
       });
 
+      if (res.data?.ja_alterada) {
+        router.replace(getDestinoAposTroca());
+        return;
+      }
+
       alert('✅ Senha alterada com sucesso!');
-      const destino = tipoLojaNome && isTipoCRMVendas(tipoLojaNome)
-        ? `/loja/${slug}/crm-vendas`
-        : `/loja/${slug}/dashboard`;
-      router.push(destino);
+      router.push(getDestinoAposTroca());
     } catch (error: any) {
       logger.warn('Erro ao alterar senha:', error);
-      setErro(error.response?.data?.error || 'Erro ao alterar senha');
+      const msg = error.response?.data?.error || 'Erro ao alterar senha';
+      if (typeof msg === 'string' && msg.toLowerCase().includes('já foi alterada')) {
+        router.replace(getDestinoAposTroca());
+        return;
+      }
+      setErro(msg);
     } finally {
       setLoading(false);
     }

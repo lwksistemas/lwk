@@ -75,7 +75,10 @@ def criar_documento(
             'Documentos clínicos só podem ser criados durante uma consulta em atendimento (IN_PROGRESS).'
         )
 
-    documento = DocumentoClinico.objects.create(
+    from tenants.middleware import get_current_tenant_db
+
+    tenant_db = get_current_tenant_db()
+    documento = DocumentoClinico(
         consulta=consulta,
         patient=consulta.patient,
         professional=professional,
@@ -85,6 +88,10 @@ def criar_documento(
         conteudo=conteudo,
         loja_id=consulta.loja_id,
     )
+    if tenant_db and tenant_db != 'default':
+        documento.save(using=tenant_db)
+    else:
+        documento.save()
     return documento
 
 

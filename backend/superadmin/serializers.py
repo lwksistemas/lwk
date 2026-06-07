@@ -617,6 +617,9 @@ class ViolacaoSegurancaListSerializer(serializers.ModelSerializer):
     criticidade_color = serializers.CharField(source='get_criticidade_color', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     data_hora = serializers.SerializerMethodField()
+    logs_relacionados_count = serializers.SerializerMethodField()
+    resolvido_por_nome = serializers.SerializerMethodField()
+    data_resolucao_formatada = serializers.SerializerMethodField()
     
     class Meta:
         model = ViolacaoSeguranca
@@ -633,11 +636,30 @@ class ViolacaoSegurancaListSerializer(serializers.ModelSerializer):
             'usuario_email',
             'loja_nome',
             'descricao',
+            'detalhes_tecnicos',
             'ip_address',
+            'logs_relacionados_count',
+            'resolvido_por_nome',
+            'data_resolucao_formatada',
+            'notas',
             'created_at',
             'data_hora',
         ]
     
+    def get_logs_relacionados_count(self, obj):
+        return obj.logs_relacionados.count()
+
+    def get_resolvido_por_nome(self, obj):
+        if obj.resolvido_por:
+            return obj.resolvido_por.get_full_name() or obj.resolvido_por.username
+        return None
+
+    def get_data_resolucao_formatada(self, obj):
+        if not obj.resolvido_em:
+            return None
+        from django.utils import timezone
+        return timezone.localtime(obj.resolvido_em).strftime('%d/%m/%Y %H:%M:%S')
+
     def get_data_hora(self, obj):
         """Formata data e hora para exibição (timezone local)"""
         from django.utils import timezone

@@ -18,6 +18,11 @@ interface ProdutoServicoOption {
   categoria_nome?: string;
 }
 
+interface ContaPrestadoraOption {
+  id: number;
+  nome: string;
+}
+
 interface Props {
   oportunidade: Oportunidade;
   onClose: () => void;
@@ -40,6 +45,10 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
   const [enviando, setEnviando] = useState(false);
   const [enviandoEnvio, setEnviandoEnvio] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
+  const [empresaPrestadoraId, setEmpresaPrestadoraId] = useState(
+    oportunidade.empresa_prestadora ? String(oportunidade.empresa_prestadora) : ''
+  );
+  const [prestadoras, setPrestadoras] = useState<ContaPrestadoraOption[]>([]);
 
   // Carregar itens e produtos ao montar
   useEffect(() => {
@@ -60,6 +69,11 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
       .get<ProdutoServicoOption[] | { results: ProdutoServicoOption[] }>('/crm-vendas/produtos-servicos/?ativo=true')
       .then((res) => setProdutosServicos(normalizeListResponse(res.data)))
       .catch(() => setProdutosServicos([]));
+
+    apiClient
+      .get<ContaPrestadoraOption[] | { results: ContaPrestadoraOption[] }>('/crm-vendas/contas/?tipo=prestadora')
+      .then((res) => setPrestadoras(normalizeListResponse(res.data)))
+      .catch(() => setPrestadoras([]));
   }, [oportunidade.id]);
 
   // Carregar propostas e contratos quando closed_won
@@ -129,7 +143,26 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
     setEnviando(true);
     
     try {
-      const payload: Record<string, unknown> = { etapa: etapaSelecionada };
+      if (!empresaPrestadoraId) {
+        setFormErro('Selecione a empresa prestadora.');
+        setEnviando(false);
+        return;
+      }
+
+      const prestadoraSelecionada = prestadoras.find(
+        (c) => String(c.id) === empresaPrestadoraId
+      );
+      const prestadoraMudou = String(oportunidade.empresa_prestadora || '') !== empresaPrestadoraId;
+
+      const payload: Record<string, unknown> = {
+        etapa: etapaSelecionada,
+        empresa_prestadora: parseInt(empresaPrestadoraId, 10),
+      };
+
+      // Alinha título ao nome da prestadora (mesmo padrão da criação de oportunidade)
+      if (prestadoraMudou && prestadoraSelecionada?.nome) {
+        payload.titulo = prestadoraSelecionada.nome;
+      }
       
       // Adiciona valor_comissao se preenchido
       if (valorComissaoEdit) {
@@ -239,6 +272,11 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
               Comissão: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(String(oportunidade.valor_comissao)))}
             </p>
           )}
+          {oportunidade.empresa_prestadora_nome && (
+            <p className="text-sm text-indigo-600 dark:text-indigo-400 mt-1">
+              Prestadora atual: {oportunidade.empresa_prestadora_nome}
+            </p>
+          )}
         </div>
         <form id="form-editar-oportunidade" onSubmit={handleSalvarEtapa} className="overflow-y-auto flex-1">
           <div className="p-4 pt-0 space-y-4">
@@ -247,6 +285,25 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
               {formErro}
             </p>
           )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Empresa prestadora *
+            </label>
+            <select
+              value={empresaPrestadoraId}
+              onChange={(e) => setEmpresaPrestadoraId(e.target.value)}
+              required
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="">Selecione...</option>
+              {prestadoras.map((c) => (
+                <option key={c.id} value={c.id}>{c.nome}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Define em qual relatório de comissão esta venda aparece.
+            </p>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Etapa (mudar para &quot;Fechado ganho&quot; = registrar venda)

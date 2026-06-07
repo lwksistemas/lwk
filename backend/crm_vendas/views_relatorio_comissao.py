@@ -81,6 +81,34 @@ def criar_relatorio_comissao_view(request):
     })
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def resumo_relatorio_comissao_view(request):
+    """GET /crm-vendas/relatorios-comissao/resumo/ — vendas que entrarão no relatório."""
+    from .services_relatorio_comissao import resumo_relatorio_comissao
+
+    loja_id, err_resp = _loja_id_ou_erro()
+    if err_resp:
+        return err_resp
+
+    empresa_prestadora_id = request.query_params.get('empresa_prestadora_id')
+    if not empresa_prestadora_id:
+        return Response({'detail': 'empresa_prestadora_id é obrigatório.'}, status=400)
+
+    vendedor_id = request.query_params.get('vendedor_id')
+    resumo, err = resumo_relatorio_comissao(
+        loja_id,
+        int(empresa_prestadora_id),
+        int(vendedor_id) if vendedor_id else None,
+        periodo=request.query_params.get('periodo', 'mes_atual'),
+        data_inicio_str=request.query_params.get('data_inicio'),
+        data_fim_str=request.query_params.get('data_fim'),
+    )
+    if err:
+        return Response({'detail': err}, status=400)
+    return Response(resumo)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def preview_relatorio_comissao_view(request):

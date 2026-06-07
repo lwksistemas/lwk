@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft,
   ClipboardList,
   History,
   FileText,
@@ -10,20 +9,21 @@ import {
   FolderOpen,
   CheckCircle2,
   Play,
-  Pill,
-  FlaskConical,
   Trash2,
   Package,
 } from "lucide-react";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, type LocalAtendimentoItem, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { CLINICA_CONSULTA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
+import type { ConsultaPrintMeta } from "@/lib/consulta-print";
 import { logger } from "@/lib/logger";
 import {
   type Consulta,
+  consultaProcedimentos,
+  consultaProcedimentosNomes,
   type Protocolo,
   type Anamnese,
   type Evolucao,
@@ -35,10 +35,8 @@ import { ConsultaProdutosTab } from "./ConsultaProdutosTab";
 import { ConsultaAnamneseTab } from "./ConsultaAnamneseTab";
 import { ConsultaEvolucaoTab } from "./ConsultaEvolucaoTab";
 import { ConsultaHistoricoTab } from "./ConsultaHistoricoTab";
-import { ConsultaDocumentosTab, type DocumentoTipo } from "./ConsultaDocumentosTab";
+import { ConsultaDocumentosTab } from "./ConsultaDocumentosTab";
 import { ConsultaFinalizarModal } from "./ConsultaFinalizarModal";
-import { UsarTemplateModal } from "./UsarTemplateModal";
-import { DigitarManualModal } from "./DigitarManualModal";
 import MemedPrescricao, { type MemedPrescricaoHandle } from "./MemedPrescricao";
 
 interface Props {
@@ -51,7 +49,7 @@ interface Props {
 export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onListRefresh }: Props) {
   const [selected, setSelected] = useState(consulta);
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
-  const [tab, setTab] = useState<TabId>(consulta.status === "COMPLETED" ? "historico" : "atendimento");
+  const [tab, setTab] = useState<TabId>("atendimento");
   const [protocolos, setProtocolos] = useState<Protocolo[]>([]);
   const [anamnese, setAnamnese] = useState<Anamnese>(EMPTY_ANAMNESE);
   const [anamneseDraft, setAnamneseDraft] = useState<Anamnese>(EMPTY_ANAMNESE);
@@ -67,17 +65,16 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
   const [protocoloPreview, setProtocoloPreview] = useState<Protocolo | null>(null);
   const [protocoloPendingId, setProtocoloPendingId] = useState<number | null>(null);
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
-  const [templateModalTipo, setTemplateModalTipo] = useState<DocumentoTipo | null>(null);
-  const [manualModalTipo, setManualModalTipo] = useState<DocumentoTipo | null>(null);
-  const [savingManualDoc, setSavingManualDoc] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [iniciando, setIniciando] = useState(false);
   const memedRef = useRef<MemedPrescricaoHandle>(null);
   const [memedBusy, setMemedBusy] = useState(false);
+  const [locaisAtendimento, setLocaisAtendimento] = useState<LocalAtendimentoItem[]>([]);
   const [finalizarForm, setFinalizarForm] = useState({
     payment_method: "CASH",
     mark_as_paid: false,
     amount: "",
+    local_atendimento: "" as number | "",
   });
   const [evolucaoForm, setEvolucaoForm] = useState({
     descricao: "",
@@ -90,10 +87,27 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
   const formatData = (d?: string | null) =>
     d ? formatClinicaDateTime(new Date(d)) : "—";
 
+  const procedimentosRealizados = consultaProcedimentos(selected);
+
+  const printMeta: ConsultaPrintMeta = {
+    patientName: selected.patient_name,
+    professionalName: selected.professional_name,
+    procedureName: consultaProcedimentosNomes(selected),
+    consultaId: selected.id,
+    dataConsulta: formatData(selected.data_inicio),
+  };
+
+  const lastLoadedIdRef = useRef<number | null>(null);
+  const loadingDetalheRef = useRef(false);
+
   const loadDetalhes = useCallback(async (c: Consulta) => {
+    if (loadingDetalheRef.current && lastLoadedIdRef.current === c.id) return;
+    loadingDetalheRef.current = true;
+    lastLoadedIdRef.current = c.id;
+
     setLoadingDetalhe(true);
     setSelected(c);
-    setTab(c.status === "COMPLETED" ? "historico" : "atendimento");
+    setTab(c.status === "SCHEDULED" ? "historico" : "atendimento");
     setEditAtendimento(false);
     setEditAnamnese(false);
     setEditEvolucao(false);
@@ -102,9 +116,16 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     const obs = c.observacoes_gerais || c.protocolo_notas || "";
     setObservacoes(obs);
     setObservacoesDraft(obs);
-    onSelectConsulta(c);
+
+    if (c.id !== consulta.id) {
+      onSelectConsulta(c);
+    }
 
     try {
+      const fresh = await ClinicaBelezaAPI.consultas.get(c.id).catch(() => null);
+      const consultaAtual = fresh ? { ...c, ...fresh } : c;
+      setSelected(consultaAtual);
+
       const [anam, evol, hist, prots, presc] = await Promise.all([
         ClinicaBelezaAPI.anamnese.get(c.patient),
         ClinicaBelezaAPI.consultas.evolucoes.list(c.id),
@@ -122,13 +143,15 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     } catch (e) {
       logger.warn("Erro ao carregar detalhes da consulta:", e);
     } finally {
+      loadingDetalheRef.current = false;
       setLoadingDetalhe(false);
     }
-  }, [onSelectConsulta]);
+  }, [onSelectConsulta, consulta.id]);
 
   useEffect(() => {
+    if (lastLoadedIdRef.current === consulta.id) return;
     loadDetalhes(consulta);
-  }, [consulta.id, loadDetalhes, consulta]);
+  }, [consulta.id, loadDetalhes]);
 
   const salvarObservacoes = async () => {
     setSaving(true);
@@ -220,11 +243,35 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     }
   };
 
-  const abrirFinalizarModal = () => {
+  const valorPagamentoConsulta = (c: Consulta) => {
+    const total = Number(c.valor_pagamento ?? 0);
+    if (total > 0) return total;
+    const taxa = Number(c.valor_consulta ?? 0);
+    const procs = Number(c.valor_procedimentos ?? 0);
+    return taxa + procs;
+  };
+
+  useEffect(() => {
+    ClinicaBelezaAPI.locaisAtendimento.list()
+      .then(setLocaisAtendimento)
+      .catch((e) => logger.warn("Erro ao carregar locais de atendimento:", e));
+  }, []);
+
+  const abrirFinalizarModal = async () => {
+    let consultaAtual = selected;
+    try {
+      const fresh = await ClinicaBelezaAPI.consultas.get(selected.id);
+      consultaAtual = { ...selected, ...fresh };
+      setSelected(consultaAtual);
+    } catch (e) {
+      logger.warn("Erro ao atualizar valor da consulta:", e);
+    }
+    const total = valorPagamentoConsulta(consultaAtual);
     setFinalizarForm({
       payment_method: "CASH",
       mark_as_paid: false,
-      amount: String(selected.valor_consulta ?? ""),
+      amount: total > 0 ? String(total) : "",
+      local_atendimento: consultaAtual.local_atendimento ?? "",
     });
     setShowFinalizarModal(true);
   };
@@ -235,11 +282,15 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
       const updated = await ClinicaBelezaAPI.consultas.finalizar(selected.id, {
         payment_method: finalizarForm.payment_method,
         mark_as_paid: finalizarForm.mark_as_paid,
-        amount: finalizarForm.amount || selected.valor_consulta,
+        amount: finalizarForm.amount || valorPagamentoConsulta(selected) || undefined,
+        local_atendimento: finalizarForm.local_atendimento || undefined,
       }) as Consulta & { error?: string };
       if (updated?.error) throw new Error(updated.error);
-      setSelected({ ...selected, ...updated });
+      const consultaAtualizada = { ...selected, ...updated };
+      setSelected(consultaAtualizada);
       setShowFinalizarModal(false);
+      setTab("atendimento");
+      await loadDetalhes(consultaAtualizada);
       await onListRefresh();
       alert(
         finalizarForm.mark_as_paid
@@ -301,8 +352,15 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     { id: "historico", label: "Histórico", icon: History },
   ];
 
+  const tabsConsultaFinalizada: TabId[] = [
+    "atendimento",
+    "produtos",
+    "documentos",
+    "anamnese",
+    "evolucao",
+  ];
   const visibleTabs = consultaFinalizada
-    ? tabs.filter((t) => t.id === "historico" || t.id === "produtos")
+    ? tabs.filter((t) => tabsConsultaFinalizada.includes(t.id))
     : tabs;
 
   const resetTabEdits = () => {
@@ -312,61 +370,94 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     setProtocoloPreview(null);
   };
 
+  const headerExtraActions = consultaAtiva ? (
+    <>
+      <button
+        type="button"
+        onClick={abrirFinalizarModal}
+        className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-white text-xs sm:text-sm font-medium"
+        style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+      >
+        <CheckCircle2 size={15} />
+        <span className="hidden sm:inline">Finalizar consulta</span>
+        <span className="sm:hidden">Finalizar</span>
+      </button>
+      {podeExcluir && (
+        <button
+          type="button"
+          onClick={excluirConsulta}
+          className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+        >
+          <Trash2 size={15} />
+          <span className="hidden sm:inline">Excluir</span>
+        </button>
+      )}
+    </>
+  ) : null;
+
   return (
     <>
       <ClinicaBelezaStandardPageHeader
         title={selected.patient_name}
-        subtitle={`${selected.procedure_name} · ${selected.professional_name}`}
+        subtitle={`${consultaProcedimentosNomes(selected)} · ${selected.professional_name}`}
+        onBack={onBack}
+        extraActions={headerExtraActions}
       />
       <div className="min-h-full bg-[#f7f2f4] dark:bg-gray-950 flex flex-col">
         <div className="px-4 md:px-6 pt-2 pb-4 border-b border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mb-3"
-          >
-            <ArrowLeft size={16} />
-            Voltar à lista
-          </button>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
-            <span>Agendado: {formatData(selected.appointment_date)}</span>
-            <span>Início: {formatData(selected.data_inicio)}</span>
-            <span>Fim: {formatData(selected.data_fim)}</span>
-            <span>{formatCurrency(Number(selected.valor_consulta))}</span>
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300">
-              {CLINICA_CONSULTA_STATUS_LABEL[selected.status] || selected.status}
-            </span>
-            {selected.protocol_name && (
-              <span>Protocolo: <strong className="text-gray-800 dark:text-gray-200">{selected.protocol_name}</strong></span>
-            )}
-            {selected.local_atendimento_name && (
-              <span>Local: <strong className="text-gray-800 dark:text-gray-200">{selected.local_atendimento_name}</strong></span>
-            )}
-            <span>
-              Convênio: <strong className="text-gray-800 dark:text-gray-200">{selected.convenio_name || "Particular"}</strong>
-            </span>
-            <div className="ml-auto flex flex-wrap gap-2">
-              {podeIniciar && (
-                <button type="button" onClick={iniciarConsulta} disabled={iniciando} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50" style={{ backgroundColor: "#2563eb" }}>
-                  <Play size={16} />
-                  {iniciando ? "Iniciando…" : "Iniciar consulta"}
-                </button>
-              )}
-              {podeFinalizar && (
-                <button type="button" onClick={abrirFinalizarModal} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}>
-                  <CheckCircle2 size={16} />
-                  Finalizar consulta
-                </button>
-              )}
-              {podeExcluir && (
-                <button type="button" onClick={excluirConsulta} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-                  <Trash2 size={16} />
-                  Excluir
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2 mt-4">
+          {!consultaAtiva && (
+            <>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <span>Agendado: {formatData(selected.appointment_date)}</span>
+                <span>Início: {formatData(selected.data_inicio)}</span>
+                <span>Fim: {formatData(selected.data_fim)}</span>
+                <span>Total: {formatCurrency(valorPagamentoConsulta(selected))}</span>
+                {procedimentosRealizados.length > 0 && (
+                  <span>
+                    Procedimentos:{" "}
+                    <strong className="text-gray-800 dark:text-gray-200">
+                      {procedimentosRealizados
+                        .map((p) => `${p.nome} (${formatCurrency(p.valor)})`)
+                        .join(" · ")}
+                    </strong>
+                  </span>
+                )}
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300">
+                  {CLINICA_CONSULTA_STATUS_LABEL[selected.status] || selected.status}
+                </span>
+                {selected.protocol_name && (
+                  <span>Protocolo: <strong className="text-gray-800 dark:text-gray-200">{selected.protocol_name}</strong></span>
+                )}
+                {selected.local_atendimento_name && (
+                  <span>Local: <strong className="text-gray-800 dark:text-gray-200">{selected.local_atendimento_name}</strong></span>
+                )}
+                <span>
+                  Convênio: <strong className="text-gray-800 dark:text-gray-200">{selected.convenio_name || "Particular"}</strong>
+                </span>
+                <div className="ml-auto flex flex-wrap gap-2">
+                  {podeIniciar && (
+                    <button type="button" onClick={iniciarConsulta} disabled={iniciando} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50" style={{ backgroundColor: "#2563eb" }}>
+                      <Play size={16} />
+                      {iniciando ? "Iniciando…" : "Iniciar consulta"}
+                    </button>
+                  )}
+                  {podeFinalizar && (
+                    <button type="button" onClick={abrirFinalizarModal} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}>
+                      <CheckCircle2 size={16} />
+                      Finalizar consulta
+                    </button>
+                  )}
+                  {podeExcluir && (
+                    <button type="button" onClick={excluirConsulta} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+                      <Trash2 size={16} />
+                      Excluir
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+          <div className={`flex flex-wrap gap-2 ${consultaAtiva ? "mt-0" : "mt-4"}`}>
             {visibleTabs.map(({ id, label, icon: Icon }) => {
               const disabled = !consultaAtiva && !consultaFinalizada && id !== "historico";
               return (
@@ -383,18 +474,6 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                 </button>
               );
             })}
-            {consultaAtiva && (
-              <>
-                <button type="button" onClick={abrirMemed} disabled={memedBusy} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50">
-                  <Pill size={16} />
-                  {memedBusy ? "Carregando..." : "Receituário"}
-                </button>
-                <button type="button" onClick={abrirMemed} disabled={memedBusy} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50">
-                  <FlaskConical size={16} />
-                  {memedBusy ? "Carregando..." : "Exames"}
-                </button>
-              </>
-            )}
           </div>
         </div>
         <MemedPrescricao
@@ -420,6 +499,7 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                 <ConsultaProdutosTab
                   consultaId={selected.id}
                   somenteLeitura={consultaFinalizada}
+                  printMeta={printMeta}
                 />
               )}
               {tab === "atendimento" && (
@@ -430,6 +510,10 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                   observacoes={observacoes}
                   observacoesDraft={observacoesDraft}
                   saving={saving}
+                  printMeta={printMeta}
+                  protocolName={selected.protocol_name}
+                  procedimentosRealizados={procedimentosRealizados}
+                  consultaFinalizada={consultaFinalizada}
                   onSelectProtocolo={consultaFinalizada ? () => {} : selecionarProtocolo}
                   onConfirmProtocolo={confirmarProtocolo}
                   onCancelProtocolo={() => { setProtocoloPreview(null); setProtocoloPendingId(null); }}
@@ -445,6 +529,7 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                   anamneseDraft={anamneseDraft}
                   editAnamnese={consultaFinalizada ? false : editAnamnese}
                   saving={saving}
+                  printMeta={printMeta}
                   onStartEdit={consultaFinalizada ? () => {} : () => { setAnamneseDraft(anamnese); setEditAnamnese(true); }}
                   onCancelEdit={() => { setAnamneseDraft(anamnese); setEditAnamnese(false); }}
                   onChangeDraft={setAnamneseDraft}
@@ -458,6 +543,7 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                   evolucaoForm={evolucaoForm}
                   saving={saving}
                   formatData={formatData}
+                  printMeta={printMeta}
                   onStartEdit={consultaFinalizada ? () => {} : () => setEditEvolucao(true)}
                   onCancelEdit={() => {
                     setEditEvolucao(false);
@@ -472,7 +558,10 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                   historico={historico}
                   selectedId={selected.id}
                   prescricoes={prescricoes}
+                  observacoesAtual={observacoes}
+                  protocoloNotasAtual={selected.protocolo_notas}
                   formatData={formatData}
+                  printMeta={printMeta}
                   onSelect={loadDetalhes}
                 />
               )}
@@ -481,8 +570,6 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                   consultaId={selected.id}
                   consultaAtiva={consultaAtiva}
                   onUsarMemed={abrirMemed}
-                  onUsarTemplate={(tipo) => setTemplateModalTipo(tipo)}
-                  onDigitarManual={(tipo) => setManualModalTipo(tipo)}
                 />
               )}
             </>
@@ -494,45 +581,14 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
         open={showFinalizarModal}
         finalizando={finalizando}
         form={finalizarForm}
+        valorConsulta={selected.valor_consulta}
+        valorProcedimentos={selected.valor_procedimentos}
+        locais={locaisAtendimento}
         onClose={() => setShowFinalizarModal(false)}
         onChange={setFinalizarForm}
         onConfirm={finalizarConsulta}
       />
 
-      {templateModalTipo && (
-        <UsarTemplateModal
-          open={!!templateModalTipo}
-          tipo={templateModalTipo}
-          consultaId={selected.id}
-          onClose={() => setTemplateModalTipo(null)}
-          onSuccess={() => setTemplateModalTipo(null)}
-        />
-      )}
-
-      {manualModalTipo && (
-        <DigitarManualModal
-          open={!!manualModalTipo}
-          tipo={manualModalTipo}
-          saving={savingManualDoc}
-          onClose={() => setManualModalTipo(null)}
-          onSave={async (data) => {
-            setSavingManualDoc(true);
-            try {
-              await ClinicaBelezaAPI.documentos.create(selected.id, {
-                tipo: data.tipo,
-                conteudo: data.conteudo,
-                titulo: data.titulo || undefined,
-              });
-              setManualModalTipo(null);
-            } catch (e) {
-              logger.warn("Erro ao salvar documento manual:", e);
-              alert("Erro ao salvar documento. Tente novamente.");
-            } finally {
-              setSavingManualDoc(false);
-            }
-          }}
-        />
-      )}
     </>
   );
 }

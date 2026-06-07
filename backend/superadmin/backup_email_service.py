@@ -71,30 +71,31 @@ class BackupEmailService:
             corpo_html = self._criar_corpo_html(loja, historico)
             corpo_texto = self._criar_corpo_texto(loja, historico)
             
-            # Criar email
-            from core.email_delivery import create_email_message, send_prepared
-            email = create_email_message(
+            # Multipart texto + HTML (Resend API exige alternatives, não content_subtype)
+            from core.email_delivery import create_email_multipart, send_prepared
+            email = create_email_multipart(
                 subject=assunto,
                 body=corpo_texto,
                 to=[destinatario],
+                html=corpo_html.strip(),
             )
-            
-            # Adicionar versão HTML
-            email.content_subtype = "html"
-            email.body = corpo_html
-            
-            # Anexar arquivo de backup (se existir)
+
             if historico.arquivo_path:
                 try:
                     self._anexar_arquivo(email, historico)
                 except Exception as e:
                     logger.warning(f"⚠️ Não foi possível anexar arquivo: {e}")
-            
-            # Enviar
-            email.send(fail_silently=False)
+
+            send_prepared(email, fail_silently=False)
             
             # Marcar como enviado
             historico.marcar_email_enviado(destinatario)
+
+            from django.utils import timezone
+            from .models import ConfiguracaoBackup
+            ConfiguracaoBackup.objects.filter(loja=loja).update(
+                ultimo_envio_email=timezone.now()
+            )
             
             logger.info(f"✅ Backup enviado por email para {destinatario} (loja {loja.nome})")
             return True

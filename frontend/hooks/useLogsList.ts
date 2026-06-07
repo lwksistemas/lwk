@@ -33,46 +33,55 @@ export interface FiltrosBusca {
   sucesso?: string;
 }
 
+function extrairLogsDaResposta(data: unknown, comBuscaTexto: boolean): Log[] {
+  if (!data || typeof data !== 'object') return [];
+
+  const body = data as Record<string, unknown>;
+
+  if (comBuscaTexto) {
+    if (Array.isArray(body.resultados)) return body.resultados as Log[];
+    const paginado = body.results;
+    if (paginado && typeof paginado === 'object' && !Array.isArray(paginado)) {
+      const nested = (paginado as Record<string, unknown>).resultados;
+      if (Array.isArray(nested)) return nested as Log[];
+    }
+  }
+
+  if (Array.isArray(body.results)) return body.results as Log[];
+  if (Array.isArray(body)) return body as Log[];
+  return [];
+}
+
 export function useLogsList() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosBusca>({});
 
-  const buscarLogs = useCallback(async () => {
+  const buscarComFiltros = useCallback(async (filtrosAtivos: FiltrosBusca) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      Object.entries(filtros).forEach(([key, value]) => {
+      Object.entries(filtrosAtivos).forEach(([key, value]) => {
         if (value) params.append(key, value);
       });
 
-      const endpoint = filtros.q 
+      const endpoint = filtrosAtivos.q
         ? `/superadmin/historico-acessos/busca_avancada/?${params}`
         : `/superadmin/historico-acessos/?${params}`;
 
       const response = await apiClient.get(endpoint);
-      
-      // Busca avançada retorna formato diferente: { resultados: [...] }
-      // Busca normal retorna: { results: [...] } ou array direto
-      let data;
-      if (filtros.q && response.data.resultados) {
-        data = response.data.resultados;
-      } else if (response.data.results) {
-        data = response.data.results;
-      } else if (Array.isArray(response.data)) {
-        data = response.data;
-      } else {
-        data = [];
-      }
-      
-      setLogs(data);
+      setLogs(extrairLogsDaResposta(response.data, Boolean(filtrosAtivos.q)));
     } catch (error) {
       logger.warn('Erro ao buscar logs:', error);
       setLogs([]);
     } finally {
       setLoading(false);
     }
-  }, [filtros]);
+  }, []);
+
+  const buscarLogs = useCallback(async () => {
+    await buscarComFiltros(filtros);
+  }, [filtros, buscarComFiltros]);
 
   const limparFiltros = useCallback(() => {
     setFiltros({});
@@ -85,6 +94,7 @@ export function useLogsList() {
     filtros,
     setFiltros,
     buscarLogs,
+    buscarComFiltros,
     limparFiltros
   };
 }

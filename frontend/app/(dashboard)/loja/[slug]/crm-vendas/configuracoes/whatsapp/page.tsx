@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, MessageCircle } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { WhatsAppConfigHelp, WhatsAppConfigStatus } from '@/components/whatsapp/WhatsAppConfigHelp';
 
 interface WhatsAppConfigData {
   enviar_confirmacao: boolean;
@@ -117,6 +118,8 @@ export default function ConfiguracoesWhatsappPage() {
           <p className="text-sm text-gray-500">Carregando...</p>
         ) : (
           <div className="space-y-6">
+            <WhatsAppConfigHelp variant="crm" />
+
             {/* Integração API Meta */}
             <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/20 px-4 py-3 space-y-3">
               <p className="text-sm font-medium text-purple-800 dark:text-purple-200">
@@ -201,21 +204,13 @@ export default function ConfiguracoesWhatsappPage() {
               </p>
             </div>
 
-            {/* Status */}
-            <div className="rounded-lg border border-gray-200 dark:border-neutral-600 bg-gray-50 dark:bg-neutral-700/50 px-4 py-4">
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-0.5">Status</p>
-              <p className="text-sm text-gray-800 dark:text-gray-200">
-                {whatsappAtivo && (whatsappPhoneId || '').trim() && whatsappTokenSet ? (
-                  <>✅ Integração ativa — lembretes de tarefas podem ser enviados.</>
-                ) : whatsappAtivo && ((whatsappPhoneId || '').trim() || whatsappTokenSet) ? (
-                  <>⚠️ Preencha Phone ID e Token e marque &quot;WhatsApp ativo&quot; para enviar.</>
-                ) : (whatsappNumero || '').trim() ? (
-                  <>Número definido. Ative a integração acima para enviar lembretes de tarefas.</>
-                ) : (
-                  <>Configure o número e a integração (Phone ID + Token) para enviar mensagens.</>
-                )}
-              </p>
-            </div>
+            <WhatsAppConfigStatus
+              whatsappAtivo={whatsappAtivo}
+              whatsappPhoneId={whatsappPhoneId}
+              whatsappTokenSet={whatsappTokenSet}
+              whatsappNumero={whatsappNumero}
+              variant="crm"
+            />
 
             <div className="flex justify-end">
               <button

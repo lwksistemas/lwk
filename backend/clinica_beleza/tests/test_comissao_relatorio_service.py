@@ -9,6 +9,8 @@ from clinica_beleza.comissao_relatorio_service import (
     _formatar_regra,
     _procedimentos_vinculados_consulta,
     _resolver_regra_consulta,
+    _resolver_local_atendimento_efetivo,
+    _resolver_valor_consulta_cadastro,
 )
 
 
@@ -39,8 +41,8 @@ class ComissaoRelatorioHelpersTest(TestCase):
             'procedimentos': {},
         }
         self.assertIs(_resolver_regra_consulta(regras, 10), regra_local)
-        self.assertIsNone(_resolver_regra_consulta(regras, 99))
-        self.assertIsNone(_resolver_regra_consulta(regras, None))
+        self.assertIs(_resolver_regra_consulta(regras, 99), regra_geral)
+        self.assertIs(_resolver_regra_consulta(regras, None), regra_geral)
 
     def test_comissao_fixo_independe_da_base(self):
         val = _calcular_comissao_regra(_comissao('fixo', '100'), Decimal('0'))
@@ -56,6 +58,65 @@ class ComissaoRelatorioHelpersTest(TestCase):
         self.assertEqual(vp_map[1], Decimal('900'))
         self.assertEqual(vp_map[2], Decimal('1924'))
         self.assertEqual(vc + vp_map[1] + vp_map[2], Decimal('2924'))
+
+    def test_resolver_local_prioriza_vinculo_na_consulta(self):
+        consulta = MagicMock(local_atendimento_id=3)
+        consulta.local_atendimento = MagicMock(nome='Consultório Principal')
+        regras = {'consultas_local': {1: _comissao('fixo', '300'), 2: _comissao('percentual', '30')}}
+        local_id, nome = _resolver_local_atendimento_efetivo(consulta, regras, Decimal('800'))
+        self.assertEqual(local_id, 3)
+        self.assertEqual(nome, 'Consultório Principal')
+
+    def test_resolver_valor_consulta_usa_local_quando_cadastro_zerado(self):
+        consulta = MagicMock(valor_consulta=Decimal('0'))
+        consulta.local_atendimento = MagicMock(valor_consulta=Decimal('800'))
+        procs = [{'procedure_id': 1, 'procedimento_nome': 'Radio', 'valor': Decimal('276')}]
+        vc = _resolver_valor_consulta_cadastro(consulta, Decimal('1076'), procs)
+        self.assertEqual(vc, Decimal('800'))
+
+    def test_resolver_valor_consulta_infere_restante_do_pagamento(self):
+        consulta = MagicMock(valor_consulta=Decimal('0'), local_atendimento=None)
+        procs = [{'procedure_id': 1, 'procedimento_nome': 'Radio', 'valor': Decimal('276')}]
+        vc = _resolver_valor_consulta_cadastro(consulta, Decimal('1076'), procs)
+        self.assertEqual(vc, Decimal('800'))
+
+    def test_resolver_valor_consulta_reserva_taxa_local_com_multiplos_procedimentos(self):
+        consulta = MagicMock(valor_consulta=Decimal('0'), local_atendimento=None, local_atendimento_id=None)
+        regras = {
+            'consulta': None,
+            'consultas_local': {3: _comissao('percentual', '30')},
+            'procedimentos': {},
+        }
+        procs = [
+            {'procedure_id': 1, 'procedimento_nome': 'Botox', 'valor': Decimal('800')},
+            {'procedure_id': 2, 'procedimento_nome': 'Radiofrequência', 'valor': Decimal('276')},
+        ]
+        with self.subTest('sem regra não reserva taxa'):
+            self.assertEqual(
+                _resolver_valor_consulta_cadastro(consulta, Decimal('1076'), procs),
+                Decimal('0'),
+            )
+        with self.subTest('com regra e local vinculado usa taxa do local'):
+            consulta_local = MagicMock(
+                valor_consulta=Decimal('0'),
+                local_atendimento_id=3,
+                local_atendimento=MagicMock(valor_consulta=Decimal('300')),
+            )
+            taxa = _resolver_valor_consulta_cadastro(consulta_local, Decimal('1076'), procs, regras)
+            self.assertEqual(taxa, Decimal('300'))
+
+    def test_alocar_prioriza_taxa_consulta_e_mantem_procedimento_com_regra(self):
+        procs = [
+            {'procedure_id': 1, 'procedimento_nome': 'Botox', 'valor': Decimal('800')},
+            {'procedure_id': 2, 'procedimento_nome': 'Radiofrequência', 'valor': Decimal('276')},
+        ]
+        vc, vp_map = _alocar_valores_pagamento(
+            Decimal('1076'), Decimal('300'), procs, proc_ids_com_regra={2},
+        )
+        self.assertEqual(vc, Decimal('300'))
+        self.assertEqual(vp_map[2], Decimal('276'))
+        self.assertEqual(vp_map[1], Decimal('500'))
+        self.assertEqual(vc + vp_map[1] + vp_map[2], Decimal('1076'))
 
     def test_procedimentos_vinculados_via_appointment_procedure(self):
         appt = MagicMock()

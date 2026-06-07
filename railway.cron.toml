@@ -1,0 +1,10 @@
+# Serviço cron Railway: backups automáticos por email (executa e encerra).
+# Deploy: railway up --service lwks-cron -c railway.cron.toml
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.railway"
+
+[deploy]
+startCommand = "python manage.py executar_backups_automaticos"
+cronSchedule = "0 * * * *"
+restartPolicyType = "ON_FAILURE"

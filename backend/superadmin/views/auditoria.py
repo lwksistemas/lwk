@@ -408,6 +408,22 @@ class ViolacaoSegurancaViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(created_at__lt=data_fim_dt)
             except ValueError:
                 pass
+
+        created_at_gte = params.get('created_at__gte')
+        if created_at_gte:
+            try:
+                from django.utils.dateparse import parse_datetime
+                dt = parse_datetime(created_at_gte)
+                if dt:
+                    queryset = queryset.filter(created_at__gte=dt)
+            except (ValueError, TypeError):
+                pass
+
+        criticidade_in = params.get('criticidade__in')
+        if criticidade_in:
+            queryset = queryset.filter(
+                criticidade__in=[c.strip() for c in criticidade_in.split(',') if c.strip()]
+            )
         
         queryset = queryset.annotate(
             criticidade_ordem=Case(
@@ -444,6 +460,21 @@ class ViolacaoSegurancaViewSet(viewsets.ModelViewSet):
         })
     
     @action(detail=True, methods=['post'])
+    def investigar(self, request, pk=None):
+        """Marca violação como em investigação"""
+        violacao = self.get_object()
+        if violacao.status in ('resolvida', 'falso_positivo'):
+            return Response(
+                {'error': 'Violação já encerrada'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        violacao.status = 'investigando'
+        violacao.save(update_fields=['status', 'updated_at'])
+        logger.info("Violação %s em investigação por %s", violacao.id, request.user.email)
+        serializer = ViolacaoSegurancaSerializer(violacao)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
     def marcar_falso_positivo(self, request, pk=None):
         """Marca violação como falso positivo"""
         from django.utils import timezone
@@ -464,32 +495,71 @@ class ViolacaoSegurancaViewSet(viewsets.ModelViewSet):
             'notas': violacao.notas
         })
     
+    def _stats_queryset(self):
+        """Estatísticas globais (ignora filtros de lista, mantém só período opcional)."""
+        from datetime import datetime, timedelta
+        from django.utils import timezone
+
+        queryset = ViolacaoSeguranca.objects.all()
+        params = self.request.query_params
+        data_inicio = params.get('data_inicio')
+        data_fim = params.get('data_fim')
+        if data_inicio:
+            try:
+                queryset = queryset.filter(created_at__gte=datetime.strptime(data_inicio, '%Y-%m-%d'))
+            except ValueError:
+                pass
+        if data_fim:
+            try:
+                data_fim_dt = datetime.strptime(data_fim, '%Y-%m-%d') + timedelta(days=1)
+                queryset = queryset.filter(created_at__lt=data_fim_dt)
+            except ValueError:
+                pass
+        return queryset
+
+    @staticmethod
+    def _counts_to_dict(rows, key_field):
+        return {row[key_field]: row['count'] for row in rows}
+
     @action(detail=False, methods=['get'])
     def estatisticas(self, request):
-        """Estatísticas de violações"""
+        """Estatísticas de violações (formato dict para o dashboard de alertas)."""
         from django.db.models import Count
         from datetime import timedelta
         from django.utils import timezone
-        
-        queryset = self.filter_queryset(self.get_queryset())
-        
+
+        queryset = self._stats_queryset()
+
         total = queryset.count()
         nao_resolvidas = queryset.filter(status__in=['nova', 'investigando']).count()
-        
-        por_status = queryset.values('status').annotate(count=Count('id')).order_by('-count')
-        por_criticidade = queryset.values('criticidade').annotate(count=Count('id')).order_by('-count')
-        por_tipo = queryset.values('tipo').annotate(count=Count('id')).order_by('-count')
-        
+
+        por_status_rows = list(
+            queryset.values('status').annotate(count=Count('id')).order_by('-count')
+        )
+        por_criticidade_rows = list(
+            queryset.values('criticidade').annotate(count=Count('id')).order_by('-count')
+        )
+        por_tipo_rows = list(
+            queryset.values('tipo').annotate(count=Count('id')).order_by('-count')
+        )
+
         cutoff_24h = timezone.now() - timedelta(hours=24)
         ultimas_24h = queryset.filter(created_at__gte=cutoff_24h).count()
-        
+
+        por_status = self._counts_to_dict(por_status_rows, 'status')
+        por_criticidade = self._counts_to_dict(por_criticidade_rows, 'criticidade')
+        por_tipo = self._counts_to_dict(por_tipo_rows, 'tipo')
+
         return Response({
             'total': total,
             'nao_resolvidas': nao_resolvidas,
-            'por_status': list(por_status),
-            'por_criticidade': list(por_criticidade),
-            'por_tipo': list(por_tipo),
-            'ultimas_24h': ultimas_24h
+            'por_status': por_status,
+            'por_criticidade': por_criticidade,
+            'por_tipo': por_tipo,
+            'por_status_list': por_status_rows,
+            'por_criticidade_list': por_criticidade_rows,
+            'por_tipo_list': por_tipo_rows,
+            'ultimas_24h': ultimas_24h,
         })
 
 

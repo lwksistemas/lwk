@@ -15,6 +15,8 @@ from .comissao_relatorio_service import (
     _procedimentos_vinculados_consulta,
     _regras_profissional,
     _resolver_regra_consulta,
+    _resolver_local_atendimento_efetivo,
+    _resolver_valor_consulta_cadastro,
 )
 from .models import Payment
 
@@ -72,11 +74,15 @@ def calcular_repasse_por_consulta(
         regras = regras_cache[prof_id]
 
         amount = payment.amount or Decimal('0')
-        valor_consulta_cad = Decimal(str(consulta.valor_consulta or 0))
-        vc, vp_map = _alocar_valores_pagamento(amount, valor_consulta_cad, procedimentos)
+        valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)
+        proc_com_regra = set(regras['procedimentos'].keys())
+        vc, vp_map = _alocar_valores_pagamento(
+            amount, valor_consulta_cad, procedimentos, proc_com_regra,
+        )
 
-        local_id = consulta.local_atendimento_id
-        local_nome = consulta.local_atendimento.nome if consulta.local_atendimento else ''
+        local_id, local_nome = _resolver_local_atendimento_efetivo(
+            consulta, regras, valor_consulta_cad,
+        )
         regra_consulta = _resolver_regra_consulta(regras, local_id)
         modo_cc, regra_cc = _formatar_regra(regra_consulta)
         comissao_consulta = _calcular_comissao_regra(regra_consulta, vc)

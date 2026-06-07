@@ -1,6 +1,9 @@
 import { Pencil, Save, X } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import type { Protocolo } from "./consultas-types";
+import { imprimirConsultaPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
+import { formatCurrency } from "@/lib/financeiro-helpers";
+import type { ConsultaProcedimento, Protocolo } from "./consultas-types";
+import { ConsultaPrintButton } from "./ConsultaPrintButton";
 import { PreviewBlock } from "./PreviewBlock";
 
 export function ConsultaAtendimentoTab({
@@ -17,6 +20,10 @@ export function ConsultaAtendimentoTab({
   onCancelEdit,
   onChangeDraft,
   onSave,
+  printMeta,
+  protocolName,
+  procedimentosRealizados = [],
+  consultaFinalizada = false,
 }: {
   protocolos: Protocolo[];
   protocoloPreview: Protocolo | null;
@@ -24,6 +31,10 @@ export function ConsultaAtendimentoTab({
   observacoes: string;
   observacoesDraft: string;
   saving: boolean;
+  printMeta: ConsultaPrintMeta;
+  protocolName?: string | null;
+  procedimentosRealizados?: ConsultaProcedimento[];
+  consultaFinalizada?: boolean;
   onSelectProtocolo: (id: number) => void;
   onConfirmProtocolo: () => void;
   onCancelProtocolo: () => void;
@@ -34,6 +45,19 @@ export function ConsultaAtendimentoTab({
 }) {
   return (
     <div className="space-y-5">
+      {consultaFinalizada && procedimentosRealizados.length > 0 && (
+        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4">
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Procedimentos realizados</h3>
+          <ul className="divide-y divide-gray-100 dark:divide-neutral-700">
+            {procedimentosRealizados.map((p) => (
+              <li key={p.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 text-sm">
+                <span className="font-medium text-gray-800 dark:text-gray-200">{p.nome}</span>
+                <span className="tabular-nums text-gray-600 dark:text-gray-400">{formatCurrency(p.valor)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {protocolos.length > 0 && !editAtendimento && (
         <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4">
           <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Protocolo cadastrado</p>
@@ -86,14 +110,21 @@ export function ConsultaAtendimentoTab({
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100">Notas do atendimento</h3>
           {!editAtendimento ? (
-            <button
-              type="button"
-              onClick={onStartEdit}
-              className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-700"
-            >
-              <Pencil size={14} />
-              Editar
-            </button>
+            <div className="flex items-center gap-2">
+              {observacoes.trim() && (
+                <ConsultaPrintButton
+                  onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "atendimento")}
+                />
+              )}
+              <button
+                type="button"
+                onClick={onStartEdit}
+                className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-700"
+              >
+                <Pencil size={14} />
+                Editar
+              </button>
+            </div>
           ) : (
             <button type="button" onClick={onCancelEdit} className="inline-flex items-center gap-1.5 text-sm text-gray-500">
               <X size={14} />

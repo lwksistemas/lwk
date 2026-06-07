@@ -11,8 +11,9 @@ from .views import (
     HorarioTrabalhoProfissionalView,
     ProfessionalCommissionView,
     ProcedureListView, ProcedureDetailView,
+    ProcedimentoConvenioPrecosMatrixView, ProcedurePrecosConvenioView,
     PaymentListView, PaymentDetailView,
-    FinanceiroResumoView,
+    FinanceiroResumoView, CategoriaDespesaListView, DespesaListView, DespesaDetailView,
     AgendaView, AgendaHojeView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView,
     AgendaReenviarMensagemView,
     BloqueioHorarioListView, BloqueioHorarioDetailView,
@@ -25,6 +26,7 @@ from .views_consultas import (
     PatientAnamneseView, ConsultaEvolucaoListView, PatientHistoricoConsultasView,
     ConsultaPrescricaoView, PatientPrescricaoView,
     ConsultaProdutoListView, ConsultaProdutoDetailView,
+    ConsultaSecaoPDFView,
 )
 from .views_estoque import (
     ProdutoEstoqueListView, ProdutoEstoqueDetailView,
@@ -80,6 +82,7 @@ urlpatterns = [
     path('consultas/<int:consulta_id>/prescricoes/', ConsultaPrescricaoView.as_view(), name='consultas-prescricoes'),
     path('consultas/<int:consulta_id>/produtos/', ConsultaProdutoListView.as_view(), name='consultas-produtos'),
     path('consultas/<int:consulta_id>/produtos/<int:pk>/', ConsultaProdutoDetailView.as_view(), name='consultas-produtos-detail'),
+    path('consultas/<int:consulta_id>/pdf/', ConsultaSecaoPDFView.as_view(), name='consultas-secao-pdf'),
 
     # Locais de atendimento
     path('locais-atendimento/', LocalAtendimentoListView.as_view(), name='locais-atendimento-list'),
@@ -104,7 +107,17 @@ urlpatterns = [
     path('professionals/<int:pk>/comissoes/', ProfessionalCommissionView.as_view(), name='professional-comissoes'),
     
     # Procedimentos
+    path(
+        'procedures/convenio-precos-matrix/',
+        ProcedimentoConvenioPrecosMatrixView.as_view(),
+        name='procedures-convenio-precos-matrix',
+    ),
     path('procedures/', ProcedureListView.as_view(), name='procedures-list'),
+    path(
+        'procedures/<int:pk>/precos-convenio/',
+        ProcedurePrecosConvenioView.as_view(),
+        name='procedures-precos-convenio',
+    ),
     path('procedures/<int:pk>/', ProcedureDetailView.as_view(), name='procedures-detail'),
     # Protocolos de procedimentos
     path('protocolos/', ProtocolListView.as_view(), name='protocolos-list'),
@@ -114,6 +127,9 @@ urlpatterns = [
     path('payments/', PaymentListView.as_view(), name='payments-list'),
     path('payments/<int:pk>/', PaymentDetailView.as_view(), name='payments-detail'),
     path('financeiro/resumo/', FinanceiroResumoView.as_view(), name='financeiro-resumo'),
+    path('despesas/categorias/', CategoriaDespesaListView.as_view(), name='despesas-categorias'),
+    path('despesas/', DespesaListView.as_view(), name='despesas-list'),
+    path('despesas/<int:pk>/', DespesaDetailView.as_view(), name='despesas-detail'),
     
     # Agenda/Calendário
     path('agenda/', AgendaView.as_view(), name='agenda'),

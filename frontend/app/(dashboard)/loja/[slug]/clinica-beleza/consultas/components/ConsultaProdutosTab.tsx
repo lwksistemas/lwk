@@ -5,6 +5,8 @@ import { Plus, Trash2 } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatClinicaDataCurta } from "@/lib/clinica-beleza-datetime";
+import { imprimirConsultaPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
+import { ConsultaPrintButton } from "./ConsultaPrintButton";
 
 export interface ConsultaProdutoItem {
   id: number;
@@ -33,9 +35,11 @@ const inputClass =
 export function ConsultaProdutosTab({
   consultaId,
   somenteLeitura,
+  printMeta,
 }: {
   consultaId: number;
   somenteLeitura: boolean;
+  printMeta: ConsultaPrintMeta;
 }) {
   const [itens, setItens] = useState<ConsultaProdutoItem[]>([]);
   const [produtos, setProdutos] = useState<ProdutoEstoque[]>([]);
@@ -46,22 +50,43 @@ export function ConsultaProdutosTab({
   const [lote, setLote] = useState("");
   const [validade, setValidade] = useState("");
   const [erro, setErro] = useState("");
+  const [erroEstoque, setErroEstoque] = useState("");
+
+  const extractApiError = (err: unknown, fallback: string) => {
+    if (err && typeof err === "object" && "error" in err) {
+      return String((err as { error: string }).error);
+    }
+    if (err && typeof err === "object" && "detail" in err) {
+      return String((err as { detail: string }).detail);
+    }
+    return fallback;
+  };
 
   const carregar = useCallback(async () => {
     setLoading(true);
-    try {
-      const [lista, estoque] = await Promise.all([
-        ClinicaBelezaAPI.consultas.produtos.list(consultaId),
-        ClinicaBelezaAPI.estoque.list(),
-      ]);
-      setItens(Array.isArray(lista) ? lista : []);
-      setProdutos(Array.isArray(estoque) ? estoque : []);
-    } catch {
-      setItens([]);
-      setProdutos([]);
-    } finally {
-      setLoading(false);
-    }
+    setErroEstoque("");
+
+    const listaPromise = ClinicaBelezaAPI.consultas.produtos
+      .list(consultaId)
+      .then((lista) => {
+        setItens(Array.isArray(lista) ? lista : []);
+      })
+      .catch(() => {
+        setItens([]);
+      });
+
+    const estoquePromise = ClinicaBelezaAPI.estoque
+      .list()
+      .then((estoque) => {
+        setProdutos(Array.isArray(estoque) ? (estoque as ProdutoEstoque[]) : []);
+      })
+      .catch((err: unknown) => {
+        setProdutos([]);
+        setErroEstoque(extractApiError(err, "Não foi possível carregar os produtos do estoque."));
+      });
+
+    await Promise.all([listaPromise, estoquePromise]);
+    setLoading(false);
   }, [consultaId]);
 
   useEffect(() => {
@@ -108,11 +133,7 @@ export function ConsultaProdutosTab({
       setValidade("");
       await carregar();
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "error" in e
-          ? String((e as { error: string }).error)
-          : "Erro ao registrar produto.";
-      setErro(msg);
+      setErro(extractApiError(e, "Erro ao registrar produto."));
     } finally {
       setSaving(false);
     }
@@ -148,12 +169,22 @@ export function ConsultaProdutosTab({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Produto *</label>
+              {erroEstoque && (
+                <p className="text-sm text-red-600 dark:text-red-400 mb-2">{erroEstoque}</p>
+              )}
               <select
                 value={produtoId}
                 onChange={(e) => onProdutoChange(e.target.value ? Number(e.target.value) : "")}
                 className={inputClass}
+                disabled={!!erroEstoque || produtos.length === 0}
               >
-                <option value="">Selecione...</option>
+                <option value="">
+                  {erroEstoque
+                    ? "Estoque indisponível"
+                    : produtos.length === 0
+                      ? "Nenhum produto cadastrado no estoque"
+                      : "Selecione..."}
+                </option>
                 {produtos.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.nome} — disp. {Number(p.quantidade_atual)} {p.unidade_medida || "un"}
@@ -201,6 +232,12 @@ export function ConsultaProdutosTab({
         </div>
       ) : (
         <div className="rounded-xl border border-gray-200 dark:border-neutral-700 overflow-hidden">
+          <div className="flex justify-end p-3 border-b border-gray-100 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/50">
+            <ConsultaPrintButton
+              label="Imprimir lista"
+              onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "produtos")}
+            />
+          </div>
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-neutral-800 text-gray-600 dark:text-gray-300">
               <tr>

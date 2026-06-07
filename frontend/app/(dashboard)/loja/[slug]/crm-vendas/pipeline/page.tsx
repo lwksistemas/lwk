@@ -28,7 +28,7 @@ function oportunidadeNoPeriodo(
   // - Abertas: created_at (data de criação)
   let dataRef = '';
   if (op.etapa === 'closed_won') {
-    dataRef = op.data_fechamento_ganho || op.created_at || '';
+    dataRef = op.data_fechamento_ganho || op.data_fechamento || op.created_at || '';
   } else if (op.etapa === 'closed_lost') {
     dataRef = op.data_fechamento_perdido || op.created_at || '';
   } else {

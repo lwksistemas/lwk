@@ -1,4 +1,6 @@
 """Serializers de consultas, evoluções e prescrições Memed."""
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from ..models import Consulta, ConsultaEvolucao, Convenio, LocalAtendimento, PrescricaoMemed
@@ -34,7 +36,8 @@ class PrescricaoMemedSerializer(serializers.ModelSerializer):
 class ConsultaSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source='patient.nome', read_only=True)
     professional_name = serializers.CharField(source='professional.nome', read_only=True, default=None)
-    procedure_name = serializers.CharField(source='procedure.nome', read_only=True)
+    procedure_name = serializers.SerializerMethodField()
+    procedures_list = serializers.SerializerMethodField()
     protocol_name = serializers.CharField(source='protocol.nome', read_only=True, default=None)
     appointment_date = serializers.DateTimeField(source='appointment.date', read_only=True)
     appointment_status = serializers.CharField(source='appointment.status', read_only=True)
@@ -54,14 +57,17 @@ class ConsultaSerializer(serializers.ModelSerializer):
         required=False,
     )
     convenio_name = serializers.SerializerMethodField()
+    valor_procedimentos = serializers.SerializerMethodField()
+    valor_pagamento = serializers.SerializerMethodField()
 
     class Meta:
         model = Consulta
         fields = [
             'id', 'appointment', 'patient', 'patient_name', 'professional', 'professional_name',
-            'procedure', 'procedure_name', 'protocol', 'protocol_name', 'status',
+            'procedure', 'procedure_name', 'procedures_list', 'protocol', 'protocol_name', 'status',
             'data_inicio', 'data_fim', 'duracao_minutos', 'observacoes_gerais', 'protocolo_notas',
-            'valor_consulta', 'local_atendimento', 'local_atendimento_name',
+            'valor_consulta', 'valor_procedimentos', 'valor_pagamento',
+            'local_atendimento', 'local_atendimento_name',
             'convenio', 'convenio_name',
             'appointment_date', 'appointment_status', 'total_evolucoes',
             'created_at', 'updated_at', 'loja_id',
@@ -70,6 +76,54 @@ class ConsultaSerializer(serializers.ModelSerializer):
 
     def get_total_evolucoes(self, obj):
         return obj.evolucoes.count()
+
+    def _appointment_procedures(self, obj):
+        appointment = getattr(obj, 'appointment', None)
+        if not appointment:
+            return []
+        return list(
+            appointment.appointment_procedures.select_related('procedure').order_by('ordem', 'id'),
+        )
+
+    def get_procedure_name(self, obj):
+        procs = self._appointment_procedures(obj)
+        if procs:
+            return ', '.join(ap.procedure.nome for ap in procs)
+        if obj.procedure_id and obj.procedure:
+            return obj.procedure.nome
+        return ''
+
+    def get_procedures_list(self, obj):
+        procs = self._appointment_procedures(obj)
+        if procs:
+            return [
+                {
+                    'id': ap.procedure_id,
+                    'nome': ap.procedure.nome,
+                    'valor': float(ap.get_valor()),
+                }
+                for ap in procs
+            ]
+        if obj.procedure_id and obj.procedure:
+            return [{
+                'id': obj.procedure_id,
+                'nome': obj.procedure.nome,
+                'valor': float(obj.procedure.preco or 0),
+            }]
+        return []
+
+    def _appointment_valor_procedimentos(self, obj) -> Decimal:
+        appointment = getattr(obj, 'appointment', None)
+        if not appointment:
+            return Decimal('0')
+        return Decimal(str(appointment.valor_total or 0))
+
+    def get_valor_procedimentos(self, obj):
+        return float(self._appointment_valor_procedimentos(obj))
+
+    def get_valor_pagamento(self, obj):
+        vc = Decimal(str(obj.valor_consulta or 0))
+        return float(vc + self._appointment_valor_procedimentos(obj))
 
     def get_convenio_name(self, obj):
         if obj.convenio_id and obj.convenio:

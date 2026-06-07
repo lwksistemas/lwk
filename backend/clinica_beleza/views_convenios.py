@@ -9,6 +9,7 @@ from rest_framework import status
 
 from .models import Convenio, ConvenioProcedimentoPreco, Procedure
 from .serializers import ConvenioSerializer, ConvenioListSerializer, ConvenioPrecoSerializer
+from .serializers.convenios import gerar_codigo_convenio
 from .permissions import CLINICA_MEMBER
 from .pagination import paginate_queryset
 from .views_base import GetObjectMixin
@@ -24,13 +25,20 @@ class ConvenioListView(APIView):
         qs = Convenio.objects.all().order_by('nome')
         if not incluir_inativos:
             qs = qs.filter(is_active=True)
+        for c in Convenio.objects.filter(codigo='').only('id', 'codigo')[:100]:
+            c.codigo = gerar_codigo_convenio(c)
+            c.save(update_fields=['codigo', 'updated_at'])
         return paginate_queryset(qs, request, ConvenioListSerializer)
 
     def post(self, request):
-        serializer = ConvenioSerializer(data=request.data)
+        data = {k: v for k, v in request.data.items() if k != 'codigo'}
+        serializer = ConvenioSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            convenio = serializer.save()
+            if not convenio.codigo:
+                convenio.codigo = gerar_codigo_convenio(convenio)
+                convenio.save(update_fields=['codigo', 'updated_at'])
+            return Response(ConvenioSerializer(convenio).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

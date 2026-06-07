@@ -179,6 +179,88 @@ def _build_anamnese_elements(anamnese, styles):
     return elements
 
 
+def _build_consulta_meta_elements(consulta, titulo: str, styles):
+    """Cabeçalho com dados da consulta (paciente, profissional, procedimento)."""
+    elements = []
+    elements.append(Paragraph(titulo, styles['SectionTitle']))
+
+    linhas = []
+    if getattr(consulta, 'patient', None):
+        linhas.append(f'<b>Paciente:</b> {consulta.patient.nome}')
+    prof = getattr(consulta, 'professional', None)
+    if prof:
+        linhas.append(f'<b>Profissional:</b> {prof.nome}')
+    proc = getattr(consulta, 'procedure', None)
+    if proc:
+        linhas.append(f'<b>Procedimento:</b> {proc.nome}')
+    if consulta.data_inicio:
+        linhas.append(f'<b>Data:</b> {consulta.data_inicio.strftime("%d/%m/%Y %H:%M")}')
+    linhas.append(f'<b>Consulta:</b> #{consulta.id}')
+
+    protocol = getattr(consulta, 'protocol', None)
+    if protocol and getattr(protocol, 'nome', None):
+        linhas.append(f'<b>Protocolo:</b> {protocol.nome}')
+
+    for linha in linhas:
+        elements.append(Paragraph(linha, styles['DocBody']))
+    elements.append(Spacer(1, 4 * mm))
+    return elements
+
+
+def _build_atendimento_elements(consulta, styles):
+    """Notas do atendimento da consulta."""
+    elements = []
+    conteudo = (consulta.observacoes_gerais or consulta.protocolo_notas or '').strip()
+    if not conteudo:
+        elements.append(Paragraph('Nenhuma anotação registrada.', styles['DocBody']))
+        return elements
+
+    elements.append(Paragraph('Notas do atendimento', styles['DocTitle']))
+    for frag_type, texto in _formatar_conteudo_rich_text(conteudo):
+        if frag_type == 'spacer':
+            elements.append(Spacer(1, 2 * mm))
+        elif frag_type == 'bullet':
+            elements.append(Paragraph(f'• {texto}', styles['DocBody']))
+        else:
+            elements.append(Paragraph(texto, styles['DocBody']))
+    return elements
+
+
+def _build_produtos_consulta_elements(produtos, styles):
+    """Lista de produtos utilizados na consulta."""
+    elements = []
+    elements.append(Paragraph('Produtos utilizados', styles['DocTitle']))
+    if not produtos:
+        elements.append(Paragraph('Nenhum produto registrado nesta consulta.', styles['DocBody']))
+        return elements
+
+    from reportlab.platypus import Table, TableStyle
+
+    rows = [['Produto', 'Quantidade', 'Lote', 'Validade']]
+    for item in produtos:
+        nome = item.produto.nome if getattr(item, 'produto', None) else '—'
+        unidade = getattr(item.produto, 'unidade_medida', '') or ''
+        qtd = f'{item.quantidade} {unidade}'.strip()
+        lote = item.lote or '—'
+        validade = '—'
+        if item.validade:
+            validade = item.validade.strftime('%d/%m/%Y')
+        rows.append([nome, qtd, lote, validade])
+
+    table = Table(rows, colWidths=[200, 80, 80, 80])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('GRID', (0, 0), (-1, -1), 0.25, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(table)
+    return elements
+
+
 def _build_prescricao_memed_elements(prescricao, styles):
     """Constrói elementos para uma prescrição Memed."""
     elements = []

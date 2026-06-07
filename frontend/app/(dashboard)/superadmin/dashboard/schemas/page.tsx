@@ -23,6 +23,8 @@ interface AuditResult {
   schema_existe?: boolean | null;
   tabelas_total?: number;
   tabelas_negocio?: number;
+  tabelas_extras_count?: number;
+  aviso_tabelas_extras?: string | null;
   apps_detalhe?: AppDetalhe[];
 }
 
@@ -314,9 +316,19 @@ export default function SchemasPage() {
                         <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{a.tipo_slug}</td>
                         <td className="py-3 px-4 text-center">
                           {(a.tabelas_total ?? 0) > 0 ? (
-                            <span className="text-blue-600 dark:text-blue-400">
-                              {a.tabelas_total} <span className="text-xs text-gray-500">({a.tabelas_negocio ?? 0} negócio)</span>
-                            </span>
+                            <div>
+                              <span className="text-blue-600 dark:text-blue-400">
+                                {a.tabelas_total}{' '}
+                                <span className="text-xs text-gray-500">
+                                  ({a.tabelas_negocio ?? 0} negócio)
+                                </span>
+                              </span>
+                              {(a.tabelas_extras_count ?? 0) > 0 && (
+                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                                  +{a.tabelas_extras_count} legado
+                                </p>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-gray-400">—</span>
                           )}
@@ -361,6 +373,11 @@ export default function SchemasPage() {
                           {a.erro && <span className="text-red-500">{a.erro}</span>}
                           {badApps.length > 0 && !a.erro && (
                             <span className="text-red-500">Apps com falha: {badApps.map((x) => x.app).join(', ')}</span>
+                          )}
+                          {!a.erro && badApps.length === 0 && a.aviso_tabelas_extras && (
+                            <span className="text-amber-600 dark:text-amber-400">
+                              ⚠️ {a.aviso_tabelas_extras}
+                            </span>
                           )}
                           {row.correcao?.mensagem && (
                             <span className={row.correcao.sucesso ? 'text-green-600' : 'text-amber-600'}>

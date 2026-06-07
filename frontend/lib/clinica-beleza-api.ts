@@ -165,8 +165,8 @@ export async function clinicaBelezaFetch(
     );
     throw new Error("SESSION_ENDED");
   }
-  // Reportar erros de API ao suporte (4xx/5xx) para aparecer no painel "Erros no navegador"
-  if (!response.ok) {
+  // Reportar erros de API ao suporte (exceto 429/401 — evita loop ao atingir rate limit)
+  if (!response.ok && response.status !== 429 && response.status !== 401) {
     const clone = response.clone();
     (async () => {
       try {
@@ -415,7 +415,12 @@ export class ClinicaBelezaAPI {
     iniciar: (id: number) => ClinicaBelezaAPI.post(`/consultas/${id}/iniciar/`, {}),
     finalizar: (
       id: number,
-      data?: { payment_method?: string; mark_as_paid?: boolean; amount?: number | string },
+      data?: {
+        payment_method?: string;
+        mark_as_paid?: boolean;
+        amount?: number | string;
+        local_atendimento?: number;
+      },
     ) => ClinicaBelezaAPI.post(`/consultas/${id}/finalizar/`, data ?? {}),
     evolucoes: {
       list: (consultaId: number) => ClinicaBelezaAPI.get(`/consultas/${consultaId}/evolucoes/`),
@@ -498,6 +503,16 @@ export class ClinicaBelezaAPI {
   static financeiro = {
     resumo: (params?: { mes?: number; ano?: number }) =>
       ClinicaBelezaAPI.get('/financeiro/resumo/', params),
+    despesas: {
+      list: (params?: { status?: string; categoria?: number; date?: string; page?: number; page_size?: number }) =>
+        ClinicaBelezaAPI.getList('/despesas/', params),
+      create: (data: Record<string, unknown>) =>
+        ClinicaBelezaAPI.post('/despesas/', data),
+      update: (id: number, data: Record<string, unknown>) =>
+        ClinicaBelezaAPI.put(`/despesas/${id}/`, data),
+      delete: (id: number) => ClinicaBelezaAPI.delete(`/despesas/${id}/`),
+      categorias: () => ClinicaBelezaAPI.getList<{ id: number; nome: string }>('/despesas/categorias/'),
+    },
   };
 
   static estoque = {
@@ -601,7 +616,7 @@ export class ClinicaBelezaAPI {
     create: (data: { nome: string; valor_consulta: number | string }) =>
       ClinicaBelezaAPI.post<LocalAtendimentoItem>('/locais-atendimento/', data),
     update: (id: number, data: { nome?: string; valor_consulta?: number | string }) =>
-      ClinicaBelezaAPI.put<LocalAtendimentoItem>(`/locais-atendimento/${id}/`, data),
+      ClinicaBelezaAPI.patch<LocalAtendimentoItem>(`/locais-atendimento/${id}/`, data),
     delete: (id: number) =>
       ClinicaBelezaAPI.delete(`/locais-atendimento/${id}/`),
   };
@@ -633,6 +648,15 @@ export class ClinicaBelezaAPI {
     update: (id: number, data: Record<string, unknown>) =>
       ClinicaBelezaAPI.put(`/procedures/${id}/`, data),
     delete: (id: number) => ClinicaBelezaAPI.delete(`/procedures/${id}/`),
+    convenioPrecosMatrix: () =>
+      ClinicaBelezaAPI.get<ProcedimentoConvenioPrecosMatrix>('/procedures/convenio-precos-matrix/'),
+    precosConvenio: (id: number) =>
+      ClinicaBelezaAPI.get<ProcedureConvenioPrecoItem[]>(`/procedures/${id}/precos-convenio/`),
+    savePrecosConvenio: (
+      id: number,
+      precos: { convenio: number; preco: number | string | null }[],
+    ) =>
+      ClinicaBelezaAPI.put<ConvenioPrecoItem[]>(`/procedures/${id}/precos-convenio/`, { precos }),
   };
 
   static convenios = {
@@ -677,6 +701,20 @@ export interface ConvenioDetailItem extends ConvenioItem {
   precos?: ConvenioPrecoItem[];
   created_at?: string;
   updated_at?: string;
+}
+
+export interface ProcedimentoConvenioPrecosMatrix {
+  convenios: ConvenioItem[];
+  precos: { procedure: number; convenio: number; preco: string }[];
+}
+
+export interface ProcedureConvenioPrecoItem {
+  convenio: number;
+  convenio_codigo?: string;
+  convenio_nome?: string;
+  modo?: ConvenioPrecoModo;
+  preco: string | number | null;
+  preco_efetivo?: number | null;
 }
 
 /** Local de atendimento para consultas */

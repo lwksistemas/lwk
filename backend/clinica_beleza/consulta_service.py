@@ -7,20 +7,55 @@ from decimal import Decimal
 
 from django.utils.timezone import now
 
-from .commission_utils import calcular_comissao_payment
+from .comissao_relatorio_service import calcular_comissao_payment_atendimento
 from .models import Appointment, Consulta, Payment
 
 logger = logging.getLogger(__name__)
 
 
-def _valor_consulta(appointment):
+def _valor_consulta(appointment, consulta=None):
     """Valor padrão da taxa de consulta ao criar registro (procedimentos têm valores à parte)."""
+    if consulta is not None:
+        local = getattr(consulta, 'local_atendimento', None)
+        if local is not None:
+            return Decimal(str(local.valor_consulta or 0))
     if appointment.appointment_procedures.exists():
         return Decimal('0')
     try:
         return appointment.procedure.preco or Decimal('0')
     except Exception:
         return Decimal('0')
+
+
+def _garantir_valor_consulta_consulta(consulta) -> None:
+    """Persiste taxa de consulta a partir do local quando ainda está zerada."""
+    if Decimal(str(consulta.valor_consulta or 0)) > 0:
+        return
+    local = getattr(consulta, 'local_atendimento', None)
+    if local is None:
+        return
+    local_vc = Decimal(str(local.valor_consulta or 0))
+    if local_vc <= 0:
+        return
+    consulta.valor_consulta = local_vc
+    consulta.save(update_fields=['valor_consulta', 'updated_at'])
+
+
+def _aplicar_local_na_consulta(consulta, local_atendimento_id=None) -> None:
+    """Associa local de atendimento à consulta antes do lançamento financeiro."""
+    if not local_atendimento_id or consulta.local_atendimento_id:
+        return
+    from .models import LocalAtendimento
+
+    try:
+        local = LocalAtendimento.objects.get(pk=local_atendimento_id, is_active=True)
+    except LocalAtendimento.DoesNotExist:
+        raise ValueError('Local de atendimento inválido.')
+
+    consulta.local_atendimento = local
+    if Decimal(str(consulta.valor_consulta or 0)) <= 0:
+        consulta.valor_consulta = Decimal(str(local.valor_consulta or 0))
+    consulta.save(update_fields=['local_atendimento', 'valor_consulta', 'updated_at'])
 
 
 def _valor_pagamento_padrao(appointment, consulta):
@@ -203,15 +238,16 @@ def criar_consulta_avulsa(
 
 def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=None, mark_as_paid=False, amount=None):
     """Garante lançamento financeiro do atendimento (cria ou atualiza)."""
+    _garantir_valor_consulta_consulta(consulta)
     payment = Payment.objects.filter(appointment=appointment).first()
     valor = amount if amount is not None else _valor_pagamento_padrao(appointment, consulta)
     if isinstance(valor, (int, float, str)):
         valor = Decimal(str(valor))
 
-    # Resolver comissão do profissional
-    local_id = consulta.local_atendimento_id if consulta else None
-    comissao_pct, comissao_val = _resolver_comissao(
-        appointment.professional, appointment.procedure, valor, local_id,
+    comissao_pct, comissao_val = calcular_comissao_payment_atendimento(
+        appointment=appointment,
+        consulta=consulta,
+        amount=valor,
     )
 
     if not payment:
@@ -234,48 +270,10 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
         payment.status = 'PAID'
         if not payment.payment_date:
             payment.payment_date = now()
-    # Atualizar comissão se ainda era 0
-    if payment.comissao_percentual == 0 and payment.comissao_valor == 0:
-        payment.comissao_percentual = comissao_pct
-        payment.comissao_valor = comissao_val
+    payment.comissao_percentual = comissao_pct
+    payment.comissao_valor = comissao_val
     payment.save()
     return payment
-
-
-def _resolver_comissao(professional, procedure, valor_pagamento, local_atendimento_id=None):
-    """
-    Resolve a comissão aplicável ao profissional para este atendimento.
-    Prioridade: procedimento > consulta por local de atendimento.
-    Retorna (percentual: int, valor: Decimal).
-    """
-    from .models import ProfessionalCommission
-
-    if not professional:
-        return 0, Decimal('0')
-
-    # 1. Comissão por procedimento específico
-    if procedure:
-        comissao = ProfessionalCommission.objects.filter(
-            professional=professional,
-            tipo='procedimento',
-            procedure=procedure,
-            is_active=True,
-        ).first()
-        if comissao:
-            return calcular_comissao_payment(comissao, valor_pagamento)
-
-    # 2. Comissão por consulta no local
-    if local_atendimento_id:
-        comissao = ProfessionalCommission.objects.filter(
-            professional=professional,
-            tipo='consulta',
-            local_atendimento_id=local_atendimento_id,
-            is_active=True,
-        ).first()
-        if comissao:
-            return calcular_comissao_payment(comissao, valor_pagamento)
-
-    return 0, Decimal('0')
 
 
 def iniciar_consulta(consulta):
@@ -304,17 +302,24 @@ def iniciar_consulta(consulta):
     return consulta
 
 
-def finalizar_consulta(consulta, *, payment_method=None, mark_as_paid=False, amount=None):
+def finalizar_consulta(
+    consulta,
+    *,
+    payment_method=None,
+    mark_as_paid=False,
+    amount=None,
+    local_atendimento_id=None,
+):
     """
     Finaliza consulta clínica: agenda → COMPLETED, consulta concluída e lançamento financeiro.
     Baixa produtos do estoque registrados na consulta.
     """
-    from django.db import transaction
     from rules.base import MotorRegras
-    from .estoque_service import baixar_produtos_consulta
+    from .estoque_service import baixar_produtos_consulta, tenant_atomic
 
     appointment = consulta.appointment
     old_status = appointment.status
+    _aplicar_local_na_consulta(consulta, local_atendimento_id)
 
     if consulta.status == 'COMPLETED':
         if appointment.status != 'COMPLETED':
@@ -341,7 +346,7 @@ def finalizar_consulta(consulta, *, payment_method=None, mark_as_paid=False, amo
 
     ts = now()
 
-    with transaction.atomic():
+    with tenant_atomic():
         baixar_produtos_consulta(consulta)
 
     appointment.status = 'COMPLETED'

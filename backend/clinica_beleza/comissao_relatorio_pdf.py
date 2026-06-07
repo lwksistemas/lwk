@@ -1,7 +1,7 @@
 """
 PDF do relatório de comissões — Clínica da Beleza.
 
-Cabeçalho: logo da loja ou PDF timbrado (Memed), conforme configurado.
+Cabeçalho: PDF timbrado (Memed), logo da loja ou texto, conforme configurado.
 """
 import logging
 from datetime import date
@@ -23,7 +23,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from .prontuario_pdf import _resolver_cabecalho_relatorio
+from .prontuario_pdf import _resolver_cabecalho
 
 logger = logging.getLogger(__name__)
 
@@ -364,7 +364,7 @@ def gerar_pdf_comissoes(
     resultado: retorno de calcular_comissoes (dict com profissionais e totais).
     """
     loja_id = loja.id
-    tipo_cab, dados_cab = _resolver_cabecalho_relatorio(loja_id)
+    tipo_cab, dados_cab = _resolver_cabecalho(loja_id)
 
     top_margin = 2 * cm
     if tipo_cab == 'timbrado':

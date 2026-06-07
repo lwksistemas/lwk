@@ -7,6 +7,12 @@ export interface LocalAtendimento {
   updated_at: string;
 }
 
+export interface ConsultaProcedimento {
+  id: number;
+  nome: string;
+  valor: number;
+}
+
 export interface Consulta {
   id: number;
   patient: number;
@@ -15,6 +21,7 @@ export interface Consulta {
   patient_name: string;
   professional_name: string;
   procedure_name: string;
+  procedures_list?: ConsultaProcedimento[];
   protocol?: number | null;
   protocol_name?: string | null;
   status: string;
@@ -23,6 +30,10 @@ export interface Consulta {
   observacoes_gerais?: string;
   protocolo_notas?: string;
   valor_consulta: string | number;
+  /** Soma dos procedimentos do agendamento. */
+  valor_procedimentos?: string | number;
+  /** Total a cobrar: taxa de consulta + procedimentos. */
+  valor_pagamento?: string | number;
   local_atendimento?: number | null;
   local_atendimento_name?: string | null;
   convenio?: number | null;
@@ -79,6 +90,23 @@ export interface ConsultaProdutoUtilizado {
   validade: string | null;
   unidade_medida?: string;
   estoque_baixado?: boolean;
+}
+
+export function consultaProcedimentos(c: Consulta): ConsultaProcedimento[] {
+  if (c.procedures_list?.length) return c.procedures_list;
+  if (c.procedure_name) {
+    return [{
+      id: c.procedure,
+      nome: c.procedure_name,
+      valor: Number(c.valor_procedimentos ?? 0),
+    }];
+  }
+  return [];
+}
+
+export function consultaProcedimentosNomes(c: Consulta): string {
+  const nomes = consultaProcedimentos(c).map((p) => p.nome);
+  return nomes.length ? nomes.join(" · ") : "—";
 }
 
 export const EMPTY_ANAMNESE: Anamnese = {

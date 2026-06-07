@@ -3,9 +3,10 @@ Views de Consultas — Clínica da Beleza
 """
 from decimal import Decimal
 
+from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .permissions import CLINICA_MEMBER
+from .permissions import CLINICA_MEMBER, CLINICA_CLINICAL
 from rest_framework import status
 
 from .models import (
@@ -33,6 +34,8 @@ class ConsultaListView(APIView):
     def get(self, request):
         qs = Consulta.objects.select_related(
             'patient', 'professional', 'procedure', 'protocol', 'appointment',
+        ).prefetch_related(
+            'appointment__appointment_procedures__procedure',
         ).order_by('-data_inicio', '-created_at')
         if patient_id := request.query_params.get('patient'):
             qs = qs.filter(patient_id=patient_id)
@@ -109,6 +112,7 @@ class ConsultaDetailView(GetObjectMixin, APIView):
         'patient', 'professional', 'procedure', 'protocol', 'appointment',
         'local_atendimento', 'convenio',
     )
+    prefetch_related_fields = ('appointment__appointment_procedures__procedure',)
 
     def get(self, request, pk):
         obj, err = self.object_or_404(pk)
@@ -195,6 +199,7 @@ class ConsultaFinalizarView(APIView):
         mark_as_paid = bool(request.data.get('mark_as_paid'))
         payment_method = (request.data.get('payment_method') or request.data.get('forma_pagamento') or '').strip() or None
         amount = request.data.get('amount') or request.data.get('valor')
+        local_atendimento_id = request.data.get('local_atendimento')
 
         try:
             finalizar_consulta(
@@ -202,6 +207,7 @@ class ConsultaFinalizarView(APIView):
                 payment_method=payment_method,
                 mark_as_paid=mark_as_paid,
                 amount=amount,
+                local_atendimento_id=local_atendimento_id,
             )
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -313,6 +319,43 @@ class ConsultaEvolucaoListView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ConsultaSecaoPDFView(APIView):
+    """
+    GET /clinica-beleza/consultas/<consulta_id>/pdf/?secao=atendimento|produtos|anamnese|evolucao
+    Gera PDF da seção com logo ou papel timbrado da clínica.
+    """
+    permission_classes = CLINICA_MEMBER
+
+    def get(self, request, consulta_id):
+        from .consulta_queries import get_consulta_for_tenant
+
+        consulta = get_consulta_for_tenant(
+            consulta_id,
+            select_related=('patient', 'professional', 'procedure', 'protocol'),
+        )
+        if not consulta:
+            return Response({'error': 'Consulta não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        secao = request.query_params.get('secao', 'atendimento')
+        try:
+            from .prontuario_pdf import gerar_pdf_consulta_secao
+            buffer = gerar_pdf_consulta_secao(consulta, secao)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception('Erro PDF consulta %s secao %s', consulta_id, secao)
+            return Response(
+                {'error': f'Erro ao gerar PDF: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        filename = f'consulta_{consulta_id}_{secao}.pdf'
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+
+
 class PatientHistoricoConsultasView(APIView):
     """GET /clinica-beleza/patients/<patient_id>/consultas/ — histórico do cliente."""
     permission_classes = CLINICA_MEMBER
@@ -386,10 +429,23 @@ class ConsultaProdutoListView(APIView):
         except Consulta.DoesNotExist:
             return None, Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
 
+    def _ensure_consulta_produto_table(self):
+        from .schema_ensure import ensure_consulta_produto_utilizado_for_tenant
+
+        if not ensure_consulta_produto_utilizado_for_tenant():
+            return Response(
+                {'error': 'Estrutura de produtos da consulta indisponível. Contate o suporte.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return None
+
     def get(self, request, consulta_id):
         consulta, error = self._get_consulta(consulta_id)
         if error:
             return error
+        table_error = self._ensure_consulta_produto_table()
+        if table_error:
+            return Response([])
         qs = ConsultaProdutoUtilizado.objects.filter(
             consulta=consulta,
         ).select_related('produto').order_by('created_at')
@@ -399,6 +455,9 @@ class ConsultaProdutoListView(APIView):
         consulta, error = self._get_consulta(consulta_id)
         if error:
             return error
+        table_error = self._ensure_consulta_produto_table()
+        if table_error:
+            return table_error
         if consulta.status != 'IN_PROGRESS':
             return Response(
                 {'error': 'Só é possível registrar produtos com a consulta em atendimento.'},

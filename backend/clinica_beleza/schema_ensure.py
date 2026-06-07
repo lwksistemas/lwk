@@ -1,12 +1,20 @@
 """
 Utilitários compartilhados para comandos ensure_* (schemas multi-tenant).
 """
+import logging
 from typing import Callable, Iterable, Optional
 
 from django.db import connections
 
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
+
+logger = logging.getLogger(__name__)
+
+CONSULTA_TABLE = 'clinica_beleza_consultas'
+PRODUTO_ESTOQUE_TABLE = 'clinica_beleza_produtoestoque'
+CONSULTA_PRODUTO_TABLE = 'clinica_beleza_consultaprodutoutilizado'
+MIGRATION_CONSULTA_PRODUTO = '0034_consulta_produto_numero_nota'
 
 
 def table_exists(cursor, table: str) -> bool:
@@ -30,6 +38,69 @@ def column_exists(cursor, table: str, column: str) -> bool:
         [table, column],
     )
     return cursor.fetchone() is not None
+
+
+def ensure_consulta_produto_utilizado_table(cursor) -> bool:
+    """
+    Cria clinica_beleza_consultaprodutoutilizado se ausente no schema atual.
+    Retorna True quando a tabela existe ou foi criada com sucesso.
+    """
+    if table_exists(cursor, CONSULTA_PRODUTO_TABLE):
+        return True
+    if not table_exists(cursor, CONSULTA_TABLE):
+        logger.warning('ensure_consulta_produto: tabela %s ausente', CONSULTA_TABLE)
+        return False
+    if not table_exists(cursor, PRODUTO_ESTOQUE_TABLE):
+        logger.warning('ensure_consulta_produto: tabela %s ausente', PRODUTO_ESTOQUE_TABLE)
+        return False
+
+    cursor.execute(f"""
+        CREATE TABLE {CONSULTA_PRODUTO_TABLE} (
+            id BIGSERIAL PRIMARY KEY,
+            loja_id INTEGER NOT NULL,
+            quantidade NUMERIC(10, 2) NOT NULL,
+            lote VARCHAR(50) NOT NULL DEFAULT '',
+            validade DATE NULL,
+            estoque_baixado BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            consulta_id BIGINT NOT NULL
+                REFERENCES {CONSULTA_TABLE}(id) ON DELETE CASCADE,
+            produto_id BIGINT NOT NULL
+                REFERENCES {PRODUTO_ESTOQUE_TABLE}(id) ON DELETE RESTRICT
+        )
+    """)
+    cursor.execute(
+        f'CREATE INDEX IF NOT EXISTS {CONSULTA_PRODUTO_TABLE}_loja_id_idx '
+        f'ON {CONSULTA_PRODUTO_TABLE} (loja_id)'
+    )
+    cursor.execute(
+        """
+        INSERT INTO django_migrations (app, name, applied)
+        SELECT 'clinica_beleza', %s, NOW()
+        WHERE NOT EXISTS (
+            SELECT 1 FROM django_migrations
+            WHERE app = 'clinica_beleza' AND name = %s
+        )
+        """,
+        [MIGRATION_CONSULTA_PRODUTO, MIGRATION_CONSULTA_PRODUTO],
+    )
+    return True
+
+
+def ensure_consulta_produto_utilizado_for_tenant() -> bool:
+    """Garante a tabela no schema tenant da requisição atual."""
+    from tenants.middleware import get_current_tenant_db
+
+    tenant_db = get_current_tenant_db()
+    if not tenant_db or tenant_db == 'default':
+        return True
+    try:
+        conn = connections[tenant_db]
+        with conn.cursor() as cursor:
+            return ensure_consulta_produto_utilizado_table(cursor)
+    except Exception as exc:
+        logger.exception('ensure_consulta_produto_for_tenant falhou: %s', exc)
+        return False
 
 
 def iter_lojas(slug_filter: str = '') -> Iterable[Loja]:

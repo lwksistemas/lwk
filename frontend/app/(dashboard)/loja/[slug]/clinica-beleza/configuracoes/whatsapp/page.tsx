@@ -7,6 +7,7 @@ import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBel
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { ClinicaBelezaAPI } from '@/lib/clinica-beleza-api';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
+import { WhatsAppConfigHelp, WhatsAppConfigStatus } from '@/components/whatsapp/WhatsAppConfigHelp';
 
 interface WhatsAppConfigData {
   enviar_confirmacao: boolean;
@@ -103,6 +104,8 @@ export default function ClinicaBelezaConfiguracoesWhatsappPage() {
           <p className="text-sm text-gray-500">Carregando...</p>
         ) : (
           <div className="space-y-6">
+            <WhatsAppConfigHelp variant="clinica" />
+
             <div className="rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40 px-4 py-3 space-y-3">
               <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                 Integração WhatsApp Business (Meta)
@@ -129,6 +132,9 @@ export default function ClinicaBelezaConfiguracoesWhatsappPage() {
                   placeholder="Ex: 123456789012345"
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm"
                 />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Meta → seu app → WhatsApp → API Setup → <strong>Phone number ID</strong>
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
@@ -182,6 +188,14 @@ export default function ClinicaBelezaConfiguracoesWhatsappPage() {
                 </label>
               ))}
             </div>
+
+            <WhatsAppConfigStatus
+              whatsappAtivo={whatsappAtivo}
+              whatsappPhoneId={whatsappPhoneId}
+              whatsappTokenSet={whatsappTokenSet}
+              whatsappNumero={whatsappNumero}
+              variant="clinica"
+            />
 
             <div className="flex justify-end">
               <button

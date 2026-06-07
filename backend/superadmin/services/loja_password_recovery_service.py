@@ -8,11 +8,9 @@ import random
 import string
 from typing import Any, Dict, Tuple
 
-from django.conf import settings
-from django.core.mail import send_mail
 from rest_framework import status as http_status
 
-from ..models import Loja
+from ..loja_utils import resolve_loja_by_slug_or_atalho
 from .provisional_password_helpers import loja_login_absolute_url
 
 logger = logging.getLogger(__name__)
@@ -32,9 +30,17 @@ class LojaPasswordRecoveryService:
                 http_status.HTTP_400_BAD_REQUEST,
             )
 
-        loja = Loja.objects.filter(slug=slug, is_active=True).select_related('owner', 'tipo_loja', 'plano').first()
+        loja = resolve_loja_by_slug_or_atalho(
+            slug,
+            is_active=True,
+            select_related=('owner', 'tipo_loja', 'plano'),
+        )
         if not loja or not loja.owner_id or (loja.owner.email or '').strip().lower() != email.strip().lower():
-            logger.info('Recuperação de senha loja: solicitação ignorada (slug=%s)', slug)
+            logger.info(
+                'Recuperação de senha loja: solicitação ignorada (identificador=%s, loja_encontrada=%s)',
+                slug,
+                bool(loja),
+            )
             return ({'message': _RECOVERY_OK_MESSAGE}, http_status.HTTP_200_OK)
 
         nova_senha = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%', k=10))
@@ -53,8 +59,8 @@ class LojaPasswordRecoveryService:
         
         info_adicional = {
             "Nome da Loja": loja.nome,
-            "Tipo de Sistema": loja.tipo_loja.nome,
-            "Plano Contratado": loja.plano.nome,
+            "Tipo de Sistema": loja.tipo_loja.nome if loja.tipo_loja_id else 'Loja',
+            "Plano Contratado": loja.plano.nome if loja.plano_id else '—',
         }
         
         html_content, texto_plano = email_senha_provisoria_html(
@@ -69,7 +75,7 @@ class LojaPasswordRecoveryService:
         )
 
         try:
-            from core.email_delivery import create_email_multipart
+            from core.email_delivery import create_email_multipart, send_prepared
 
             email_msg = create_email_multipart(
                 assunto,
@@ -77,7 +83,12 @@ class LojaPasswordRecoveryService:
                 [email],
                 html=html_content,
             )
-            email_msg.send(fail_silently=False)
+            send_prepared(email_msg, fail_silently=False)
+            logger.info(
+                'Recuperação de senha loja: email enviado (loja=%s, identificador=%s)',
+                loja.slug,
+                slug,
+            )
         except Exception as e:
             logger.exception('Erro ao enviar email de recuperação de senha: %s', e)
             return (

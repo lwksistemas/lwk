@@ -62,19 +62,133 @@ def _procedimentos_vinculados_consulta(appt, consulta) -> list[dict]:
     return []
 
 
+def _escolher_local_consulta_comissao(consulta, regras: dict) -> tuple[Optional[int], str]:
+    """Escolhe o local de atendimento para aplicar a regra de comissão da consulta."""
+    if consulta.local_atendimento_id:
+        nome = consulta.local_atendimento.nome if consulta.local_atendimento else ''
+        return consulta.local_atendimento_id, nome
+
+    locais_regra_ids = list(regras.get('consultas_local', {}).keys())
+    if not locais_regra_ids:
+        return None, ''
+
+    from .models import LocalAtendimento
+
+    qs = LocalAtendimento.objects.filter(pk__in=locais_regra_ids, is_active=True).order_by('nome')
+    consultorio = qs.filter(nome__icontains='consult').first()
+    if consultorio:
+        return consultorio.id, consultorio.nome
+
+    local = qs.first()
+    if local:
+        return local.id, local.nome
+    return None, ''
+
+
+def _taxa_consulta_do_local(local_id: Optional[int]) -> Decimal:
+    if not local_id:
+        return Decimal('0')
+    from .models import LocalAtendimento
+
+    local = LocalAtendimento.objects.filter(pk=local_id, is_active=True).first()
+    if not local:
+        return Decimal('0')
+    return Decimal(str(local.valor_consulta or 0))
+
+
+def _resolver_valor_consulta_cadastro(
+    consulta,
+    amount: Decimal | None = None,
+    procedimentos: list[dict] | None = None,
+    regras: dict | None = None,
+) -> Decimal:
+    """
+    Valor da taxa de consulta usado no relatório de comissões.
+
+    Consultas criadas pela agenda costumam gravar valor_consulta=0 quando há
+    procedimentos; usa o local de atendimento, o restante do pagamento ou a
+    taxa do local quando o profissional tem comissão de consulta cadastrada.
+    """
+    vc = Decimal(str(getattr(consulta, 'valor_consulta', None) or 0))
+    if vc > 0:
+        return vc
+
+    local = getattr(consulta, 'local_atendimento', None)
+    if local is not None:
+        local_vc = Decimal(str(getattr(local, 'valor_consulta', None) or 0))
+        if local_vc > 0:
+            return local_vc
+
+    if amount is not None and amount > 0 and procedimentos:
+        soma_proc = sum(Decimal(str(p.get('valor') or 0)) for p in procedimentos)
+        restante = amount - soma_proc
+        if restante > 0:
+            return restante.quantize(Decimal('0.01'))
+
+        if regras and regras.get('consultas_local') and soma_proc >= amount:
+            local_id, _ = _escolher_local_consulta_comissao(consulta, regras)
+            taxa = _taxa_consulta_do_local(local_id)
+            if taxa > 0 and amount >= taxa:
+                return taxa
+
+    return Decimal('0')
+
+
 def _alocar_valores_pagamento(
     amount: Decimal,
     valor_consulta: Decimal,
     procedimentos: list[dict],
+    proc_ids_com_regra: set[int] | None = None,
 ) -> tuple[Decimal, dict[int, Decimal]]:
     """
     Distribui o valor pago entre consulta e cada procedimento.
     Retorna (valor_consulta_alocado, {procedure_id: valor_procedimento}).
+
+    Procedimentos com regra de comissão mantêm o valor cadastrado; a taxa de
+    consulta e o ajuste proporcional incidem nos demais.
     """
     if amount <= 0:
         return Decimal('0'), {p['procedure_id']: Decimal('0') for p in procedimentos}
 
     soma_proc = sum(p['valor'] for p in procedimentos)
+    com_regra = proc_ids_com_regra or set()
+
+    if valor_consulta > 0 and soma_proc > 0 and amount >= valor_consulta:
+        protegidos = [p for p in procedimentos if p['procedure_id'] in com_regra]
+        outros = [p for p in procedimentos if p['procedure_id'] not in com_regra]
+        soma_protegida = sum(p['valor'] for p in protegidos)
+
+        if protegidos and valor_consulta + soma_protegida <= amount:
+            proc_map = {p['procedure_id']: p['valor'] for p in protegidos}
+            restante_outros = amount - valor_consulta - soma_protegida
+            if outros:
+                soma_outros = sum(p['valor'] for p in outros)
+                if soma_outros > 0:
+                    ratio = restante_outros / soma_outros
+                    for p in outros:
+                        proc_map[p['procedure_id']] = (p['valor'] * ratio).quantize(Decimal('0.01'))
+                    ajuste = restante_outros - sum(
+                        proc_map[p['procedure_id']] for p in outros
+                    )
+                    if ajuste:
+                        proc_map[outros[-1]['procedure_id']] += ajuste
+            return valor_consulta, proc_map
+
+        restante_proc = amount - valor_consulta
+        ratio = restante_proc / soma_proc
+        proc_map = {
+            p['procedure_id']: (p['valor'] * ratio).quantize(Decimal('0.01'))
+            for p in procedimentos
+        }
+        ajuste = restante_proc - sum(proc_map.values())
+        if proc_map:
+            ultimo_id = procedimentos[-1]['procedure_id']
+            proc_map[ultimo_id] += ajuste
+        return valor_consulta, proc_map
+
+    if valor_consulta > 0 and amount < valor_consulta:
+        return amount, {p['procedure_id']: Decimal('0') for p in procedimentos}
+
     esperado = valor_consulta + soma_proc
 
     if esperado <= 0:
@@ -133,10 +247,100 @@ def _regras_profissional(professional_id: int) -> dict:
 
 
 def _resolver_regra_consulta(regras: dict, local_id: Optional[int]):
-    """Regra de consulta vinculada ao local do atendimento."""
-    if not local_id:
-        return None
-    return regras.get('consultas_local', {}).get(local_id)
+    """Regra de consulta: local específico ou regra geral (sem local)."""
+    if local_id:
+        local_rule = regras.get('consultas_local', {}).get(local_id)
+        if local_rule:
+            return local_rule
+    return regras.get('consulta')
+
+
+def _resolver_local_atendimento_efetivo(
+    consulta,
+    regras: dict,
+    taxa: Decimal,
+) -> tuple[Optional[int], str]:
+    """
+    Local usado no relatório de comissões.
+
+    Consultas da agenda costumam não gravar local_atendimento; tenta inferir
+    pela taxa de consulta entre os locais com regra cadastrada do profissional.
+    """
+    if consulta.local_atendimento_id:
+        nome = consulta.local_atendimento.nome if consulta.local_atendimento else ''
+        return consulta.local_atendimento_id, nome
+
+    locais_regra_ids = list(regras.get('consultas_local', {}).keys())
+    if not locais_regra_ids:
+        return None, ''
+
+    from .models import LocalAtendimento
+
+    if taxa > 0:
+        matches = [
+            local for local in LocalAtendimento.objects.filter(pk__in=locais_regra_ids, is_active=True)
+            if Decimal(str(local.valor_consulta or 0)) == taxa
+        ]
+        if len(matches) == 1:
+            return matches[0].id, matches[0].nome
+
+    return _escolher_local_consulta_comissao(consulta, regras)
+
+
+def calcular_comissao_payment_atendimento(
+    *,
+    appointment,
+    consulta,
+    amount: Decimal,
+) -> tuple[int, Decimal]:
+    """
+    Comissão total de um atendimento (taxa consulta + cada procedimento).
+    Mesma lógica do relatório de comissões; usada ao gravar Payment.
+    """
+    if not appointment or not appointment.professional_id or amount <= 0:
+        return 0, Decimal('0')
+
+    from .models import Consulta
+
+    if consulta is None and appointment.id:
+        consulta = Consulta.objects.filter(appointment_id=appointment.id).select_related(
+            'local_atendimento', 'procedure',
+        ).first()
+
+    if not consulta:
+        return 0, Decimal('0')
+
+    appt = appointment
+    if not hasattr(appt, '_prefetched_objects_cache') or 'appointment_procedures' not in getattr(
+        appt, '_prefetched_objects_cache', {},
+    ):
+        appt = type(appointment).objects.prefetch_related(
+            'appointment_procedures__procedure',
+        ).select_related('procedure', 'professional').get(pk=appointment.pk)
+
+    procedimentos = _procedimentos_vinculados_consulta(appt, consulta)
+    if not procedimentos:
+        return 0, Decimal('0')
+
+    regras = _regras_profissional(appt.professional_id)
+    valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)
+    proc_com_regra = set(regras['procedimentos'].keys())
+    vc, vp_map = _alocar_valores_pagamento(
+        amount, valor_consulta_cad, procedimentos, proc_com_regra,
+    )
+    local_id, _ = _resolver_local_atendimento_efetivo(consulta, regras, valor_consulta_cad)
+    regra_consulta = _resolver_regra_consulta(regras, local_id)
+
+    comissao_consulta = _calcular_comissao_regra(regra_consulta, vc)
+    comissao_procedimentos = Decimal('0')
+    for proc in procedimentos:
+        vp = vp_map.get(proc['procedure_id'], Decimal('0'))
+        regra_proc = regras['procedimentos'].get(proc['procedure_id'])
+        comissao_procedimentos += _calcular_comissao_regra(regra_proc, vp)
+
+    total = (comissao_consulta + comissao_procedimentos).quantize(Decimal('0.01'))
+    pct = int((total / amount * Decimal('100')).quantize(Decimal('1'))) if total > 0 else 0
+    return pct, total
 
 
 def _label_forma_pagamento(method: str) -> str:
@@ -212,16 +416,21 @@ def calcular_comissoes(
 
         prof_id = appt.professional_id
         prof_nome = appt.professional.nome
-        local_nome = consulta.local_atendimento.nome if consulta.local_atendimento else ''
 
         amount = payment.amount or Decimal('0')
-        valor_consulta_cad = Decimal(str(consulta.valor_consulta or 0))
-        vc, vp_map = _alocar_valores_pagamento(amount, valor_consulta_cad, procedimentos)
 
         if prof_id not in regras_cache:
             regras_cache[prof_id] = _regras_profissional(prof_id)
         regras = regras_cache[prof_id]
-        local_id = consulta.local_atendimento_id
+
+        valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)
+        proc_com_regra = set(regras['procedimentos'].keys())
+        vc, vp_map = _alocar_valores_pagamento(
+            amount, valor_consulta_cad, procedimentos, proc_com_regra,
+        )
+        local_id, local_nome = _resolver_local_atendimento_efetivo(
+            consulta, regras, valor_consulta_cad,
+        )
         regra_consulta = _resolver_regra_consulta(regras, local_id)
         forma_pagamento = _label_forma_pagamento(getattr(payment, 'payment_method', '') or '')
 
@@ -260,7 +469,7 @@ def calcular_comissoes(
         entry['comissao_total'] += comissao_total
 
         modo_cc, regra_cc = _formatar_regra(regra_consulta)
-        if vc > 0 or comissao_consulta > 0 or regra_consulta:
+        if vc > 0 or comissao_consulta > 0 or regra_consulta or local_id:
             chave_consulta = f'{local_nome}||{forma_pagamento}||{CHAVE_CONSULTA}'
             det_consulta = _obter_ou_criar_detalhe(entry, chave_consulta, {
                 'tipo_linha': 'consulta',

@@ -1,6 +1,8 @@
 import { Pencil, X } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
+import { imprimirConsultaPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
 import type { Evolucao } from "./consultas-types";
+import { ConsultaPrintButton } from "./ConsultaPrintButton";
 import { PreviewBlock } from "./PreviewBlock";
 
 interface EvolucaoForm {
@@ -21,12 +23,14 @@ export function ConsultaEvolucaoTab({
   onCancelEdit,
   onChangeForm,
   onSave,
+  printMeta,
 }: {
   evolucoes: Evolucao[];
   editEvolucao: boolean;
   evolucaoForm: EvolucaoForm;
   saving: boolean;
   formatData: (d?: string | null) => string;
+  printMeta: ConsultaPrintMeta;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onChangeForm: React.Dispatch<React.SetStateAction<EvolucaoForm>>;
@@ -36,13 +40,24 @@ export function ConsultaEvolucaoTab({
     <div className="space-y-5">
       {evolucoes.length > 0 && (
         <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4 md:p-6 space-y-4">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Registros desta consulta</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Registros desta consulta</h3>
+            <ConsultaPrintButton
+              label="Imprimir todas"
+              onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "evolucao")}
+            />
+          </div>
           {evolucoes.map((ev) => (
             <div key={ev.id} className="rounded-lg border border-gray-100 dark:border-neutral-700 p-4 space-y-2">
-              <p className="text-xs text-gray-500">
-                {formatData(ev.created_at)}
-                {ev.professional_name ? ` · ${ev.professional_name}` : ""}
-              </p>
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs text-gray-500">
+                  {formatData(ev.created_at)}
+                  {ev.professional_name ? ` · ${ev.professional_name}` : ""}
+                </p>
+                <ConsultaPrintButton
+                  onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "evolucao")}
+                />
+              </div>
               {ev.descricao && <PreviewBlock label="Evolução" value={ev.descricao} />}
               {ev.procedimento_realizado && <PreviewBlock label="Procedimento" value={ev.procedimento_realizado} />}
               {ev.produtos_utilizados && <PreviewBlock label="Produtos" value={ev.produtos_utilizados} />}

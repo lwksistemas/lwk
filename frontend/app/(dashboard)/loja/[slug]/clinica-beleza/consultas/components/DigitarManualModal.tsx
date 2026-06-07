@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, PenLine } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import type { DocumentoTipo } from "./ConsultaDocumentosTab";
@@ -33,6 +33,13 @@ export function DigitarManualModal({
 }: DigitarManualModalProps) {
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setTitulo("");
+      setConteudo("");
+    }
+  }, [open, tipo]);
 
   if (!open) return null;
 

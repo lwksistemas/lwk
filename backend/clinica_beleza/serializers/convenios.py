@@ -28,13 +28,18 @@ class ConvenioPrecoSerializer(serializers.ModelSerializer):
         return float(obj.calcular_preco_efetivo())
 
 
+def gerar_codigo_convenio(convenio):
+    """Código único gerado após criar o convênio (ex.: CV00042)."""
+    return f'CV{convenio.id:05d}'
+
+
 class ConvenioSerializer(serializers.ModelSerializer):
     precos = serializers.SerializerMethodField()
 
     class Meta:
         model = Convenio
         fields = ['id', 'nome', 'codigo', 'is_active', 'precos', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'codigo', 'created_at', 'updated_at']
 
     def get_precos(self, obj):
         rows = obj.precos_procedimentos.filter(is_active=True).select_related('procedure')
@@ -44,6 +49,12 @@ class ConvenioSerializer(serializers.ModelSerializer):
         if not value or not value.strip():
             raise serializers.ValidationError('O nome do convênio é obrigatório.')
         return value.strip()
+
+    def create(self, validated_data):
+        convenio = super().create(validated_data)
+        convenio.codigo = gerar_codigo_convenio(convenio)
+        convenio.save(update_fields=['codigo', 'updated_at'])
+        return convenio
 
 
 class LocalAtendimentoSerializer(serializers.ModelSerializer):

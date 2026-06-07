@@ -31,6 +31,7 @@ export default function MonitoramentoStoragePage() {
   const [ordenacao, setOrdenacao] = useState<'percentual' | 'uso' | 'nome'>('percentual');
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'ok' | 'warning' | 'critical'>('todos');
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [verificando, setVerificando] = useState(false);
 
   useEffect(() => {
     // Verificar autenticação
@@ -88,6 +89,19 @@ export default function MonitoramentoStoragePage() {
     } catch (err: any) {
       logger.warn('Erro ao verificar storage:', err);
       alert(err.response?.data?.error || 'Erro ao verificar storage');
+    }
+  };
+
+  const verificarTodas = async () => {
+    try {
+      setVerificando(true);
+      await apiClient.post('/superadmin/storage/verificar-todas/');
+      await carregarLojas(true);
+    } catch (err: any) {
+      logger.warn('Erro ao verificar storage de todas as lojas:', err);
+      setError(err.response?.data?.error || 'Erro ao recalcular storage das lojas');
+    } finally {
+      setVerificando(false);
     }
   };
 
@@ -214,10 +228,11 @@ export default function MonitoramentoStoragePage() {
               </label>
             </div>
             <button
-              onClick={() => carregarLojas()}
-              className="ml-auto px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              onClick={verificarTodas}
+              disabled={verificando}
+              className="ml-auto px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-60"
             >
-              🔄 Atualizar Agora
+              {verificando ? '⏳ Calculando...' : '🔄 Atualizar Agora'}
             </button>
           </div>
         </div>
@@ -362,8 +377,9 @@ export default function MonitoramentoStoragePage() {
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 className="text-sm font-medium text-blue-900 mb-2">ℹ️ Informações</h3>
           <ul className="text-sm text-blue-800 space-y-1">
-            <li>• Os dados são atualizados automaticamente a cada 6 horas pelo sistema</li>
-            <li>• Você pode verificar uma loja específica clicando no botão 🔄</li>
+            <li>• Os dados são recalculados automaticamente a cada 6 horas (ou ao subir o servidor)</li>
+            <li>• &quot;Atualizar Agora&quot; recalcula o uso de todas as lojas no PostgreSQL</li>
+            <li>• Você pode verificar uma loja específica clicando no botão 🔄 na linha</li>
             <li>• Alertas são enviados quando o uso atinge 80% do limite</li>
             <li>• Lojas são bloqueadas automaticamente quando atingem 100% do limite</li>
             <li>• Esta página atualiza automaticamente a cada 30 segundos (pode desativar)</li>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Pencil, Save, Stethoscope, Trash2 } from "lucide-react";
 import {
@@ -9,7 +9,6 @@ import {
   procedureCategoria,
   procedureDescription,
   procedureDuration,
-  procedurePrice,
 } from "@/lib/clinica-beleza-entities";
 import { formatProcedimentoApiErrors } from "@/lib/clinica-beleza-form-errors";
 import { formatCurrency } from "@/lib/financeiro-helpers";
@@ -31,7 +30,6 @@ import { buscarProcedimentosOffline, salvarProcedimentosOffline, adicionarNaFila
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
-import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
@@ -41,6 +39,11 @@ import {
   defaultCategoriaForModule,
   procedureMatchesModule,
 } from "@/lib/clinica-beleza-categories";
+import {
+  ClinicaBelezaAPI,
+  type ConvenioItem,
+  type ProcedureConvenioPrecoItem,
+} from "@/lib/clinica-beleza-api";
 
 interface Procedure {
   id: number;
@@ -60,7 +63,6 @@ interface Procedure {
 const EMPTY_FORM = {
   name: "",
   description: "",
-  price: "",
   duration: "30",
   categoria: "",
 };
@@ -69,7 +71,6 @@ function procedureToForm(p: Procedure) {
   return {
     name: entityName(p),
     description: procedureDescription(p) || "",
-    price: String(procedurePrice(p)),
     duration: String(procedureDuration(p)),
     categoria: procedureCategoria(p),
   };
@@ -85,7 +86,7 @@ export interface ProcedimentosPageContentProps {
 
 export function ProcedimentosPageContent({
   title = 'Procedimentos',
-  subtitle = 'Serviços e procedimentos oferecidos',
+  subtitle = 'Serviços e valores praticados por convênio',
   defaultCategoria = '',
   backHref,
   relatedLinks = [],
@@ -108,10 +109,37 @@ export function ProcedimentosPageContent({
     reloadDeps: [moduleKey, showAllCategories],
   });
 
+  const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
+  const [precosMap, setPrecosMap] = useState<Record<string, string>>({});
+  const [matrixLoading, setMatrixLoading] = useState(false);
+
   const [editing, setEditing] = useState<Procedure | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [precosConvenio, setPrecosConvenio] = useState<Record<number, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const carregarMatrix = useCallback(async () => {
+    if (isBrowserOffline()) return;
+    setMatrixLoading(true);
+    try {
+      const data = await ClinicaBelezaAPI.procedures.convenioPrecosMatrix();
+      setConvenios(data.convenios || []);
+      const map: Record<string, string> = {};
+      for (const row of data.precos || []) {
+        map[`${row.procedure}:${row.convenio}`] = row.preco;
+      }
+      setPrecosMap(map);
+    } catch (e) {
+      logger.warn("Erro ao carregar matriz de preços:", e);
+    } finally {
+      setMatrixLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    carregarMatrix();
+  }, [carregarMatrix, list.length]);
 
   useEffect(() => {
     if (defaultCategoria && isNovo) {
@@ -127,6 +155,7 @@ export function ProcedimentosPageContent({
         ...EMPTY_FORM,
         categoria: presetCategoria,
       });
+      setPrecosConvenio({});
       setError("");
       return;
     }
@@ -136,9 +165,39 @@ export function ProcedimentosPageContent({
         setEditing(p);
         setForm(procedureToForm(p));
         setError("");
+        if (!isBrowserOffline() && p.id > 0) {
+          ClinicaBelezaAPI.procedures.precosConvenio(p.id)
+            .then((rows: ProcedureConvenioPrecoItem[]) => {
+              const map: Record<number, string> = {};
+              for (const r of rows) {
+                if (r.preco != null && r.preco !== "") {
+                  map[r.convenio] = String(r.preco);
+                }
+              }
+              setPrecosConvenio(map);
+            })
+            .catch((e) => logger.warn("Erro ao carregar preços do procedimento:", e));
+        }
       }
     }
   }, [isFormView, isNovo, editIdParam, list, presetCategoria]);
+
+  const precoCelula = useMemo(() => {
+    return (procId: number, convId: number) => {
+      const key = `${procId}:${convId}`;
+      const val = precosMap[key];
+      return val != null && val !== "" ? formatCurrency(Number(val)) : "—";
+    };
+  }, [precosMap]);
+
+  const buildPrecosPayload = () =>
+    convenios.map((c) => {
+      const raw = precosConvenio[c.id]?.trim();
+      return {
+        convenio: c.id,
+        preco: raw ? raw.replace(",", ".") : null,
+      };
+    });
 
   const saveOffline = async (body: Record<string, unknown>) => {
     const lojaSlug = getLojaSlug();
@@ -159,7 +218,7 @@ export function ProcedimentosPageContent({
       });
       const updatedList = list.map((p) =>
         p.id === editing.id
-          ? { ...p, name: body.name as string, description: body.description as string | null, price: body.price as string, duration: body.duration as number }
+          ? { ...p, name: body.name as string, description: body.description as string | null, duration: body.duration as number }
           : p
       );
       setList(updatedList);
@@ -171,7 +230,7 @@ export function ProcedimentosPageContent({
         id: tempId,
         name: body.name as string,
         description: body.description as string | null,
-        price: body.price as string,
+        price: "0",
         duration: body.duration as number,
         categoria: body.category as string,
         active: true,
@@ -188,14 +247,19 @@ export function ProcedimentosPageContent({
       setError("Nome é obrigatório.");
       return;
     }
+    const categoria = form.categoria.trim() || presetCategoria;
+    if (!categoria) {
+      setError("Categoria é obrigatória.");
+      return;
+    }
     const duration = parseInt(form.duration, 10);
-    const price = parseFloat(form.price.replace(",", "."));
     if (isNaN(duration) || duration < 1) {
       setError("Duração deve ser um número positivo (minutos).");
       return;
     }
-    if (isNaN(price) || price < 0) {
-      setError("Preço inválido.");
+    const temAlgumPreco = convenios.some((c) => precosConvenio[c.id]?.trim());
+    if (convenios.length > 0 && !temAlgumPreco) {
+      setError("Informe o valor praticado em pelo menos um convênio.");
       return;
     }
     setSaving(true);
@@ -203,10 +267,10 @@ export function ProcedimentosPageContent({
     const body = {
       name: form.name.trim(),
       description: form.description.trim() || null,
-      price: price.toFixed(2),
+      price: "0.00",
       duration,
       active: true,
-      category: (form.categoria.trim() || presetCategoria || "geral"),
+      category: categoria,
     };
 
     if (isBrowserOffline()) {
@@ -225,13 +289,20 @@ export function ProcedimentosPageContent({
     }
 
     try {
+      let procedureId: number;
       if (editing) {
         await saveClinicaBelezaEntity(`/procedures/${editing.id}/`, "PUT", body);
+        procedureId = editing.id;
       } else {
-        await saveClinicaBelezaEntity("/procedures/", "POST", body);
+        const created = await saveClinicaBelezaEntity("/procedures/", "POST", body) as { id?: number };
+        procedureId = created?.id ?? 0;
+      }
+      if (procedureId > 0 && convenios.length > 0) {
+        await ClinicaBelezaAPI.procedures.savePrecosConvenio(procedureId, buildPrecosPayload());
       }
       voltarLista();
       load();
+      carregarMatrix();
     } catch (e: unknown) {
       const err = e && typeof e === "object" ? (e as Record<string, unknown>) : {};
       const msg = formatProcedimentoApiErrors(err) || (e instanceof Error ? e.message : "Erro ao salvar");
@@ -266,6 +337,7 @@ export function ProcedimentosPageContent({
     try {
       await deleteClinicaBelezaEntity(`/procedures/${p.id}/`);
       load();
+      carregarMatrix();
     } catch {
       alert("Erro ao desativar.");
     }
@@ -284,34 +356,25 @@ export function ProcedimentosPageContent({
       <>
         <ClinicaBelezaStandardPageHeader
           title={editing ? "Editar Procedimento" : "Novo Procedimento"}
-          subtitle={editing ? entityName(editing) : "Cadastre serviços e valores"}
+          subtitle={editing ? entityName(editing) : "Nome, categoria, duração e valores por convênio"}
           onBack={voltarLista}
           icon={Stethoscope}
         />
         <ClinicaBelezaPageContent>
-          <ClinicaBelezaPanel className="p-6 md:p-8 max-w-lg">
+          <ClinicaBelezaPanel className="p-6 md:p-8 max-w-2xl">
             {error && (
               <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm mb-4">{error}</div>
             )}
             <div className="space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Dados do procedimento
+              </p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>
                 <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className={CLINICA_FORM_INPUT} placeholder="Ex.: Limpeza de pele" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Duração (min) *</label>
-                <input type="number" min={1} value={form.duration} onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))} className={CLINICA_FORM_INPUT} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Preço (R$) *</label>
-                <input type="text" inputMode="decimal" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} className={CLINICA_FORM_INPUT} placeholder="0,00" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição</label>
-                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} className={`${CLINICA_FORM_INPUT} resize-none`} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria *</label>
                 <select value={form.categoria} onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value }))} className={CLINICA_FORM_INPUT}>
                   <option value="">Selecione...</option>
                   {PROCEDURE_CATEGORIA_OPTIONS.map((opt) => (
@@ -319,6 +382,48 @@ export function ProcedimentosPageContent({
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Duração (min) *</label>
+                <input type="number" min={1} value={form.duration} onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))} className={CLINICA_FORM_INPUT} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição</label>
+                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} className={`${CLINICA_FORM_INPUT} resize-none`} />
+              </div>
+
+              {convenios.length > 0 && (
+                <div className="pt-2">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Valor praticado por convênio (R$)
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {convenios.map((c) => (
+                      <div key={c.id}>
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 font-mono">
+                          {c.codigo || c.nome}
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={precosConvenio[c.id] ?? ""}
+                          onChange={(e) =>
+                            setPrecosConvenio((prev) => ({ ...prev, [c.id]: e.target.value }))
+                          }
+                          className={CLINICA_FORM_INPUT}
+                          placeholder="0,00"
+                        />
+                        <span className="text-xs text-gray-400 mt-0.5 block">{c.nome}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {convenios.length === 0 && (
+                <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg">
+                  Cadastre convênios antes de definir os valores praticados.
+                </p>
+              )}
             </div>
             <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-neutral-700">
               <button type="button" onClick={voltarLista} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border text-sm font-medium">
@@ -360,7 +465,7 @@ export function ProcedimentosPageContent({
           </div>
         )}
 
-        {loading ? (
+        {loading || matrixLoading ? (
           <div className="text-center py-16 text-gray-500">Carregando...</div>
         ) : filteredList.length === 0 ? (
           <ClinicaBelezaPanel className="p-12 text-center text-gray-500 text-sm">
@@ -371,46 +476,56 @@ export function ProcedimentosPageContent({
             )}
           </ClinicaBelezaPanel>
         ) : (
-          <ClinicaBelezaPanel>
-            <EntityListTable
-              rows={filteredList}
-              rowKey={(p) => p.id}
-              onRowClick={(p) => abrirEditar(p.id)}
-              columns={[
-                {
-                  key: 'nome',
-                  header: 'Nome',
-                  render: (p) => <span className="font-medium text-gray-800 dark:text-gray-200">{entityName(p)}</span>,
-                },
-                {
-                  key: 'categoria',
-                  header: 'Categoria',
-                  className: 'hidden sm:table-cell',
-                  render: (p) => <span className="text-gray-600">{procedureCategoria(p) || '—'}</span>,
-                },
-                {
-                  key: 'duracao',
-                  header: 'Duração',
-                  className: 'hidden md:table-cell',
-                  render: (p) => <span>{procedureDuration(p)} min</span>,
-                },
-                {
-                  key: 'preco',
-                  header: 'Preço',
-                  render: (p) => <span>{formatCurrency(procedurePrice(p))}</span>,
-                },
-              ]}
-              trailingCell={(p) => (
-                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                  <button type="button" onClick={() => abrirEditar(p.id)} className="p-2 text-purple-600 hover:bg-purple-50 rounded" title="Editar">
-                    <Pencil size={16} />
-                  </button>
-                  <button type="button" onClick={() => exclude(p)} className="p-2 text-red-600 hover:bg-red-50 rounded" title="Desativar">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              )}
-            />
+          <ClinicaBelezaPanel className="overflow-hidden p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[480px]">
+                <thead className="bg-gray-50 dark:bg-neutral-900/80 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-neutral-700">
+                  <tr>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold sticky left-0 bg-gray-50 dark:bg-neutral-900/80 z-10">
+                      Procedimento
+                    </th>
+                    {convenios.map((c) => (
+                      <th
+                        key={c.id}
+                        className="text-left px-4 md:px-6 py-3.5 font-semibold whitespace-nowrap font-mono text-xs"
+                        title={c.nome}
+                      >
+                        {c.codigo || c.nome}
+                      </th>
+                    ))}
+                    <th className="text-right px-4 md:px-6 py-3.5 font-semibold w-24">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredList.map((p) => (
+                    <tr
+                      key={p.id}
+                      className="border-t border-gray-100 dark:border-neutral-700/80 hover:bg-[#F5E6EA]/30 dark:hover:bg-neutral-700/20 cursor-pointer"
+                      onClick={() => abrirEditar(p.id)}
+                    >
+                      <td className="px-4 md:px-6 py-3.5 font-medium text-gray-800 dark:text-gray-200 sticky left-0 bg-white/90 dark:bg-neutral-800/90">
+                        {entityName(p)}
+                      </td>
+                      {convenios.map((c) => (
+                        <td key={c.id} className="px-4 md:px-6 py-3.5 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                          {precoCelula(p.id, c.id)}
+                        </td>
+                      ))}
+                      <td className="px-4 md:px-6 py-3.5" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end gap-1">
+                          <button type="button" onClick={() => abrirEditar(p.id)} className="p-2 text-purple-600 hover:bg-purple-50 rounded" title="Editar">
+                            <Pencil size={16} />
+                          </button>
+                          <button type="button" onClick={() => exclude(p)} className="p-2 text-red-600 hover:bg-red-50 rounded" title="Desativar">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <EntityListLoadMore
               hasMore={hasMore}
               loading={loading}

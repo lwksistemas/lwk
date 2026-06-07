@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, Layers, Eye, Loader2 } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI, type DocumentTemplateItem } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, type DocumentTemplateItem, type DocumentoClinicoItem } from "@/lib/clinica-beleza-api";
 import { logger } from "@/lib/logger";
 import type { DocumentoTipo } from "./ConsultaDocumentosTab";
 
@@ -36,7 +36,7 @@ export function UsarTemplateModal({
   consultaId: number;
   onClose: () => void;
   /** Chamado após criação com sucesso — para recarregar lista de documentos. */
-  onSuccess?: () => void;
+  onSuccess?: (created?: DocumentoClinicoItem) => void | Promise<void>;
 }) {
   const [templates, setTemplates] = useState<DocumentTemplateItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,15 +69,19 @@ export function UsarTemplateModal({
     setCriando(true);
     setErro("");
     try {
-      await ClinicaBelezaAPI.documentos.create(consultaId, {
+      const created = await ClinicaBelezaAPI.documentos.create(consultaId, {
         tipo,
         template_id: selectedTemplate.id,
       });
-      onSuccess?.();
       onClose();
-    } catch (e: any) {
+      await onSuccess?.(created);
+    } catch (e: unknown) {
       logger.warn("Erro ao criar documento a partir de template:", e);
-      setErro("Erro ao criar documento. Tente novamente.");
+      const msg =
+        e && typeof e === "object" && "error" in e && typeof (e as { error: unknown }).error === "string"
+          ? (e as { error: string }).error
+          : "Erro ao criar documento. Tente novamente.";
+      setErro(msg);
     } finally {
       setCriando(false);
     }

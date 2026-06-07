@@ -1,8 +1,17 @@
 import { Pencil, Save, X } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
+import { imprimirConsultaPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
 import type { Anamnese } from "./consultas-types";
 import { ANAMNESE_FIELDS } from "./consultas-types";
+import { ConsultaPrintButton } from "./ConsultaPrintButton";
 import { PreviewBlock } from "./PreviewBlock";
+
+function anamneseTemConteudo(a: Anamnese): boolean {
+  if (ANAMNESE_FIELDS.some(([field]) => String(a[field] ?? "").trim())) return true;
+  if (a.peso != null && a.peso !== "") return true;
+  if (a.altura != null && a.altura !== "") return true;
+  return false;
+}
 
 export function ConsultaAnamneseTab({
   anamnese,
@@ -13,11 +22,13 @@ export function ConsultaAnamneseTab({
   onCancelEdit,
   onChangeDraft,
   onSave,
+  printMeta,
 }: {
   anamnese: Anamnese;
   anamneseDraft: Anamnese;
   editAnamnese: boolean;
   saving: boolean;
+  printMeta: ConsultaPrintMeta;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onChangeDraft: React.Dispatch<React.SetStateAction<Anamnese>>;
@@ -28,14 +39,21 @@ export function ConsultaAnamneseTab({
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-gray-900 dark:text-gray-100">Anamnese do cliente</h3>
         {!editAnamnese ? (
-          <button
-            type="button"
-            onClick={onStartEdit}
-            className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-700"
-          >
-            <Pencil size={14} />
-            Editar
-          </button>
+          <div className="flex items-center gap-2">
+            {anamneseTemConteudo(anamnese) && (
+              <ConsultaPrintButton
+                onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "anamnese")}
+              />
+            )}
+            <button
+              type="button"
+              onClick={onStartEdit}
+              className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-700"
+            >
+              <Pencil size={14} />
+              Editar
+            </button>
+          </div>
         ) : (
           <button type="button" onClick={onCancelEdit} className="inline-flex items-center gap-1.5 text-sm text-gray-500">
             <X size={14} />

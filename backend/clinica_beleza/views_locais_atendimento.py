@@ -44,7 +44,7 @@ class LocalAtendimentoDetailView(GetObjectMixin, APIView):
             return error
         return Response(LocalAtendimentoSerializer(obj).data)
 
-    def put(self, request, pk):
+    def _update(self, request, pk):
         obj, error = self.object_or_404(pk)
         if error:
             return error
@@ -53,6 +53,12 @@ class LocalAtendimentoDetailView(GetObjectMixin, APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, pk):
+        return self._update(request, pk)
+
+    def patch(self, request, pk):
+        return self._update(request, pk)
 
     def delete(self, request, pk):
         obj, error = self.object_or_404(pk)

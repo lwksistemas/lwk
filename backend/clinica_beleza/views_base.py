@@ -16,11 +16,14 @@ class GetObjectMixin:
     model_class = None
     not_found_message = 'Registro não encontrado'
     select_related_fields = None
+    prefetch_related_fields = None
 
     def get_object(self, pk):
         qs = self.model_class.objects
         if self.select_related_fields:
             qs = qs.select_related(*self.select_related_fields)
+        if self.prefetch_related_fields:
+            qs = qs.prefetch_related(*self.prefetch_related_fields)
         try:
             return qs.get(pk=pk)
         except self.model_class.DoesNotExist:

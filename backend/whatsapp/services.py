@@ -42,6 +42,49 @@ def _normalize_phone(telefone):
     return digits[:15]
 
 
+def _resolve_whatsapp_credentials(config):
+    """
+    Credenciais Meta por loja (modelo oficial LWK).
+    Com config ativo, exige Phone ID + token da loja — sem fallback para número central.
+    """
+    api_url = getattr(settings, 'WHATSAPP_API_URL', None) or 'https://graph.facebook.com/v19.0'
+    if config and getattr(config, 'whatsapp_ativo', False):
+        phone_id = (getattr(config, 'whatsapp_phone_id', None) or '').strip()
+        token = (getattr(config, 'whatsapp_token', None) or '').strip()
+        if not phone_id or not token:
+            return None, None, api_url, (
+                'Cada loja usa seu próprio WhatsApp na Meta. '
+                'Preencha Phone Number ID e token em Configurações → WhatsApp.'
+            )
+        return phone_id, token, api_url, None
+    phone_id = (getattr(settings, 'WHATSAPP_PHONE_ID', None) or '').strip()
+    token = (getattr(settings, 'WHATSAPP_TOKEN', None) or '').strip()
+    if not phone_id or not token:
+        return None, None, api_url, (
+            'Phone Number ID e Token não configurados. Configure em Configurações → WhatsApp.'
+        )
+    return phone_id, token, api_url, None
+
+
+def _loja_plano_permite_whatsapp(loja):
+    """Bloqueia envio se o plano da loja não inclui integração WhatsApp."""
+    if not loja:
+        return True, None
+    try:
+        from superadmin.models import Loja
+        loja_ref = Loja.objects.using('default').select_related('plano').filter(pk=loja.pk).first()
+        if not loja_ref or not loja_ref.plano_id:
+            return True, None
+        if loja_ref.plano.tem_whatsapp_integration:
+            return True, None
+        return False, (
+            'Seu plano não inclui integração WhatsApp. '
+            'Entre em contato com o suporte LWK para habilitar.'
+        )
+    except Exception:
+        return True, None
+
+
 def send_whatsapp_document(telefone, document_url, filename, caption=None, user=None, config=None):
     """
     Envia documento (PDF) via WhatsApp Cloud API.
@@ -52,6 +95,9 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
     """
     phone = _normalize_phone(telefone)
     loja = config.loja if config else None
+    ok_plano, err_plano = _loja_plano_permite_whatsapp(loja)
+    if not ok_plano:
+        return False, err_plano
     if not phone:
         logger.warning("WhatsApp documento: telefone inválido: %s", telefone)
         WhatsAppLog.objects.using('default').create(
@@ -64,17 +110,8 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
         )
         return False, "Telefone inválido ou incompleto."
 
-    api_url = getattr(settings, 'WHATSAPP_API_URL', None) or 'https://graph.facebook.com/v19.0'
-    phone_id = None
-    token = None
-    if config and getattr(config, 'whatsapp_ativo', False):
-        phone_id = (getattr(config, 'whatsapp_phone_id', None) or '').strip()
-        token = (getattr(config, 'whatsapp_token', None) or '').strip()
-    if not phone_id or not token:
-        phone_id = phone_id or getattr(settings, 'WHATSAPP_PHONE_ID', None)
-        token = token or getattr(settings, 'WHATSAPP_TOKEN', None)
-
-    if not phone_id or not token:
+    phone_id, token, api_url, cred_err = _resolve_whatsapp_credentials(config)
+    if cred_err:
         WhatsAppLog.objects.using('default').create(
             loja=loja,
             user_id=user.id if user else None,
@@ -83,7 +120,7 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
             status='falhou',
             response={'error': 'config_missing'},
         )
-        return False, "Phone Number ID e Token não configurados. Configure em Configurações → WhatsApp."
+        return False, cred_err
 
     url = f"{api_url.rstrip('/')}/{phone_id}/messages"
     doc_payload = {"link": document_url, "filename": filename}
@@ -134,13 +171,15 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
 def send_whatsapp(telefone, mensagem, user=None, config=None):
     """
     Envia mensagem de texto via WhatsApp Cloud API.
-    Se config (WhatsAppConfig da loja) for passado e estiver ativo, usa número/token da loja.
-    Caso contrário usa variáveis globais WHATSAPP_PHONE_ID/WHATSAPP_TOKEN (fallback).
+    Loja ativa: obrigatório Phone ID + token próprios da loja (sem número central LWK).
     Registra em WhatsAppLog (auditoria por loja).
     Retorna (True, None) se enviou com sucesso; (False, mensagem_erro) em caso de falha.
     """
     phone = _normalize_phone(telefone)
     loja = config.loja if config else None
+    ok_plano, err_plano = _loja_plano_permite_whatsapp(loja)
+    if not ok_plano:
+        return False, err_plano
     if not phone:
         logger.warning("WhatsApp: telefone inválido ou vazio: %s", telefone)
         WhatsAppLog.objects.using('default').create(
@@ -153,21 +192,9 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
         )
         return False, "Telefone inválido ou incompleto (use DDD + número com código do país)."
 
-    api_url = getattr(settings, 'WHATSAPP_API_URL', None) or 'https://graph.facebook.com/v19.0'
-    phone_id = None
-    token = None
-    if config and getattr(config, 'whatsapp_ativo', False):
-        phone_id = (getattr(config, 'whatsapp_phone_id', None) or '').strip()
-        token = (getattr(config, 'whatsapp_token', None) or '').strip()
-    if not phone_id or not token:
-        phone_id = phone_id or getattr(settings, 'WHATSAPP_PHONE_ID', None)
-        token = token or getattr(settings, 'WHATSAPP_TOKEN', None)
-
-    if not phone_id or not token:
-        logger.warning(
-            "WhatsApp: phone_id/token não configurados (loja nem WHATSAPP_PHONE_ID/WHATSAPP_TOKEN). "
-            "Configure a API do WhatsApp Business (Meta) para enviar mensagens."
-        )
+    phone_id, token, api_url, cred_err = _resolve_whatsapp_credentials(config)
+    if cred_err:
+        logger.warning("WhatsApp loja %s: %s", getattr(loja, 'slug', loja), cred_err)
         WhatsAppLog.objects.using('default').create(
             loja=loja,
             user_id=user.id if user else None,
@@ -176,7 +203,7 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
             status='falhou',
             response={'error': 'config_missing'},
         )
-        return False, "Phone Number ID e Token não configurados. Preencha em Configurações → WhatsApp."
+        return False, cred_err
 
     url = f"{api_url.rstrip('/')}/{phone_id}/messages"
     payload = {

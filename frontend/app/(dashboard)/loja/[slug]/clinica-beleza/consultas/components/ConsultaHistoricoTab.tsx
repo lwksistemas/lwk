@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ChevronRight,
   ChevronDown,
-  Pill,
-  FlaskConical,
   ClipboardList,
   Activity,
   FolderOpen,
@@ -17,6 +15,7 @@ import { imprimirConsultaPdf, imprimirDocumentoPdf, type ConsultaPrintMeta } fro
 import type { Anamnese, Consulta, Evolucao } from "./consultas-types";
 import { ANAMNESE_FIELDS } from "./consultas-types";
 import type { PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
+import { abrirPdfPrescricaoMemed } from "@/lib/memed-prescricao-pdf";
 import { ConsultaPrintButton } from "./ConsultaPrintButton";
 import { PacienteFotoZoomModal } from "./PacienteFotoZoomModal";
 
@@ -24,8 +23,6 @@ type HistoricoSection =
   | "atendimentos"
   | "anamnese"
   | "fotos"
-  | "receituarios"
-  | "exames"
   | "documentos"
   | "evolucoes";
 
@@ -138,10 +135,8 @@ export function ConsultaHistoricoTab({
     };
   }, [consultaId]);
 
-  const totalDocumentos = Object.values(documentosPorConsulta).reduce((sum, docs) => sum + docs.length, 0);
-
-  const receituarios = prescricoes.filter((p) => !p.itens?.every((it) => it.tipo === "exame"));
-  const exames = prescricoes.filter((p) => p.itens?.some((it) => it.tipo === "exame"));
+  const totalDocumentos =
+    Object.values(documentosPorConsulta).reduce((sum, docs) => sum + docs.length, 0) + prescricoes.length;
 
   const consultaAtual = historicoEnriquecido.find((h) => h.id === selectedId);
   const totalEvolucoes = historicoEnriquecido.reduce((sum, h) => sum + (h.total_evolucoes || 0), 0);
@@ -150,12 +145,10 @@ export function ConsultaHistoricoTab({
     return val != null && String(val).trim() !== "";
   }).length;
 
-  const sections: { id: HistoricoSection; label: string; icon: typeof Pill; count: number }[] = [
+  const sections: { id: HistoricoSection; label: string; icon: typeof FolderOpen; count: number }[] = [
     { id: "atendimentos", label: "Atendimentos", icon: ClipboardList, count: historicoEnriquecido.length },
     { id: "anamnese", label: "Anamnese", icon: FileText, count: camposAnamnesePreenchidos },
     { id: "fotos", label: "Fotos", icon: Camera, count: fotos.length },
-    { id: "receituarios", label: "Receituários", icon: Pill, count: receituarios.length },
-    { id: "exames", label: "Exames", icon: FlaskConical, count: exames.length },
     { id: "documentos", label: "Documentos", icon: FolderOpen, count: totalDocumentos },
     { id: "evolucoes", label: "Evoluções", icon: Activity, count: totalEvolucoes },
   ];
@@ -172,20 +165,6 @@ export function ConsultaHistoricoTab({
             {consultaAtual.professional_name ? ` · ${consultaAtual.professional_name}` : ""}
             {consultaAtual.protocol_name ? ` · ${consultaAtual.protocol_name}` : ""}
           </p>
-          <div className="flex flex-wrap gap-2 mt-3">
-            {sections.map(({ id, label, count }) => (
-              count > 0 ? (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setSection(id)}
-                  className="text-xs px-2.5 py-1 rounded-full bg-white dark:bg-neutral-700 border border-gray-200 dark:border-neutral-600 text-gray-700 dark:text-gray-300 hover:border-[#8B3D52]"
-                >
-                  {label} ({count})
-                </button>
-              ) : null
-            ))}
-          </div>
         </div>
       )}
 
@@ -234,29 +213,12 @@ export function ConsultaHistoricoTab({
             onZoom={setZoomFoto}
           />
         )}
-        {section === "receituarios" && (
-          <HistoricoPrescricoes
-            items={receituarios}
-            formatData={formatData}
-            emptyMsg="Nenhum receituário no histórico do paciente."
-            titulo="Receituário"
-            printMeta={printMeta}
-          />
-        )}
-        {section === "exames" && (
-          <HistoricoPrescricoes
-            items={exames}
-            formatData={formatData}
-            emptyMsg="Nenhum exame no histórico do paciente."
-            titulo="Pedido de exame"
-            printMeta={printMeta}
-          />
-        )}
         {section === "documentos" && (
           <HistoricoDocumentos
             historico={historicoEnriquecido}
             selectedId={selectedId}
             documentosPorConsulta={documentosPorConsulta}
+            prescricoes={prescricoes}
             loading={loadingDocumentos}
             formatData={formatData}
           />
@@ -451,61 +413,16 @@ function HistoricoAtendimentos({
   );
 }
 
-function HistoricoPrescricoes({
-  items, formatData, emptyMsg, titulo, printMeta,
-}: {
-  items: PrescricaoMemedItem[];
-  formatData: (d?: string | null) => string;
-  emptyMsg: string;
-  titulo: string;
-  printMeta: ConsultaPrintMeta;
-}) {
-  if (items.length === 0) return <p className="text-gray-500 text-sm">{emptyMsg}</p>;
-  return (
-    <div className="space-y-3">
-      {items.map((p) => (
-        <div key={p.id} className="p-3 rounded-lg border border-gray-200 dark:border-neutral-600">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs text-gray-500">
-              {formatData(p.created_at)}
-              {p.professional_name ? ` · ${p.professional_name}` : ""}
-            </p>
-            <div className="flex items-center gap-2 shrink-0">
-              <ConsultaPrintButton
-                onPrint={() => {
-                  if (p.pdf_url) {
-                    window.open(p.pdf_url, "_blank");
-                    return;
-                  }
-                  alert(
-                    "PDF desta prescrição ainda não foi salvo. Emita novamente na Memed ou aguarde o processamento.",
-                  );
-                }}
-              />
-            </div>
-          </div>
-          {p.itens && p.itens.length > 0 ? (
-            <ul className="mt-1.5 space-y-1">
-              {p.itens.map((it, idx) => (
-                <li key={idx} className="text-sm text-gray-800 dark:text-gray-200">
-                  <span className="font-medium">{it.nome}</span>
-                  {it.posologia ? <span className="text-gray-500"> — {it.posologia}</span> : null}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            p.resumo && <p className="mt-1.5 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">{p.resumo}</p>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+function labelPrescricaoMemed(p: PrescricaoMemedItem): string {
+  const ehExame = p.itens?.some((it) => it.tipo === "exame");
+  return ehExame ? "Exames (Memed)" : "Receituário (Memed)";
 }
 
 function HistoricoDocumentos({
   historico,
   selectedId,
   documentosPorConsulta,
+  prescricoes,
   loading,
   formatData,
   somenteConsultaAtual = false,
@@ -513,14 +430,26 @@ function HistoricoDocumentos({
   historico: Consulta[];
   selectedId: number;
   documentosPorConsulta: Record<number, DocumentoClinicoItem[]>;
+  prescricoes: PrescricaoMemedItem[];
   loading: boolean;
   formatData: (d?: string | null) => string;
   somenteConsultaAtual?: boolean;
 }) {
+  const prescricoesPorConsulta = prescricoes.reduce<Record<number, PrescricaoMemedItem[]>>((acc, p) => {
+    if (p.consulta == null) return acc;
+    if (!acc[p.consulta]) acc[p.consulta] = [];
+    acc[p.consulta].push(p);
+    return acc;
+  }, {});
+
   const lista = somenteConsultaAtual
     ? historico.filter((h) => h.id === selectedId)
     : historico;
-  const consultasComDocs = lista.filter((h) => (documentosPorConsulta[h.id]?.length ?? 0) > 0);
+  const consultasComDocs = lista.filter(
+    (h) =>
+      (documentosPorConsulta[h.id]?.length ?? 0) > 0 ||
+      (prescricoesPorConsulta[h.id]?.length ?? 0) > 0,
+  );
 
   if (loading) return <p className="text-gray-500 text-sm">Carregando documentos…</p>;
   if (consultasComDocs.length === 0) {
@@ -528,7 +457,7 @@ function HistoricoDocumentos({
       <p className="text-gray-500 text-sm">
         {somenteConsultaAtual
           ? "Nenhum documento registrado nesta consulta."
-          : "Nenhum documento registrado nas consultas."}
+          : "Nenhum documento registrado nas consultas (receituários, exames, atestados ou Memed)."}
       </p>
     );
   }
@@ -537,6 +466,7 @@ function HistoricoDocumentos({
     <div className="space-y-4">
       {consultasComDocs.map((h) => {
         const docs = documentosPorConsulta[h.id] ?? [];
+        const memed = prescricoesPorConsulta[h.id] ?? [];
         return (
           <div
             key={h.id}
@@ -554,6 +484,35 @@ function HistoricoDocumentos({
               </p>
             </div>
             <div className="p-3 space-y-3">
+              {memed.map((p) => (
+                <div
+                  key={`memed-${p.id}`}
+                  className="p-3 rounded-lg border border-purple-100 dark:border-purple-900/40 bg-purple-50/50 dark:bg-purple-950/20"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-purple-200 dark:bg-purple-900/50 text-purple-900 dark:text-purple-200">
+                          {labelPrescricaoMemed(p)}
+                        </span>
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                          {p.resumo?.split("\n")[0]?.replace(/^- /, "") || "Prescrição Memed"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {formatData(p.created_at)}
+                        {p.professional_name ? ` · ${p.professional_name}` : ""}
+                      </p>
+                      {p.resumo && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 whitespace-pre-wrap line-clamp-4">
+                          {p.resumo}
+                        </p>
+                      )}
+                    </div>
+                    <ConsultaPrintButton onPrint={() => abrirPdfPrescricaoMemed(p)} />
+                  </div>
+                </div>
+              ))}
               {docs.map((doc) => (
                 <div
                   key={doc.id}

@@ -24,7 +24,7 @@ from .views_consultas import (
     ConsultaListView, ConsultaDetailView, ConsultaAplicarProtocoloView,
     ConsultaIniciarView, ConsultaFinalizarView,
     PatientAnamneseView, ConsultaEvolucaoListView, PatientHistoricoConsultasView,
-    ConsultaPrescricaoView, PatientPrescricaoView,
+    ConsultaPrescricaoView, PatientPrescricaoView, PrescricaoMemedPdfView,
     ConsultaProdutoListView, ConsultaProdutoDetailView,
     ConsultaSecaoPDFView,
 )
@@ -94,6 +94,7 @@ urlpatterns = [
     path('consultas/<int:pk>/aplicar-protocolo/', ConsultaAplicarProtocoloView.as_view(), name='consultas-aplicar-protocolo'),
     path('consultas/<int:consulta_id>/evolucoes/', ConsultaEvolucaoListView.as_view(), name='consultas-evolucoes'),
     path('consultas/<int:consulta_id>/prescricoes/', ConsultaPrescricaoView.as_view(), name='consultas-prescricoes'),
+    path('prescricoes-memed/<int:pk>/pdf/', PrescricaoMemedPdfView.as_view(), name='prescricoes-memed-pdf'),
     path('consultas/<int:consulta_id>/produtos/', ConsultaProdutoListView.as_view(), name='consultas-produtos'),
     path('consultas/<int:consulta_id>/produtos/<int:pk>/', ConsultaProdutoDetailView.as_view(), name='consultas-produtos-detail'),
     path('consultas/<int:consulta_id>/pdf/', ConsultaSecaoPDFView.as_view(), name='consultas-secao-pdf'),

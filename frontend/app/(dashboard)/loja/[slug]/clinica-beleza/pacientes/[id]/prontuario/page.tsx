@@ -272,9 +272,17 @@ function DocumentoCard({ doc }: { doc: ProntuarioDocItem }) {
   const handlePrintDocument = async () => {
     if (printing) return;
 
-    // Memed docs may have an external pdf_url
-    if (doc.source === "memed" && doc.pdf_url) {
-      window.open(doc.pdf_url, "_blank");
+    if (doc.source === "memed") {
+      setPrinting(true);
+      try {
+        const { abrirPdfPrescricaoMemed } = await import("@/lib/memed-prescricao-pdf");
+        await abrirPdfPrescricaoMemed({ id: doc.id, pdf_url: doc.pdf_url });
+      } catch (e) {
+        logger.warn("Erro ao imprimir prescrição Memed:", e);
+        throw e;
+      } finally {
+        setPrinting(false);
+      }
       return;
     }
 

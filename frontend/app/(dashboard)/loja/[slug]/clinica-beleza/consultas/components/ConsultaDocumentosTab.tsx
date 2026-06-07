@@ -18,6 +18,7 @@ import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-bele
 import { ClinicaBelezaAPI, type DocumentoClinicoItem, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
 import { imprimirDocumentoPdf } from "@/lib/consulta-print";
 import { logger } from "@/lib/logger";
+import { abrirPdfPrescricaoMemed } from "@/lib/memed-prescricao-pdf";
 import { ConsultaPrintButton } from "./ConsultaPrintButton";
 import { UsarTemplateModal } from "./UsarTemplateModal";
 import { DigitarManualModal } from "./DigitarManualModal";
@@ -302,12 +303,11 @@ export function ConsultaDocumentosTab({
                   </div>
                   <div className="flex-shrink-0 flex items-center gap-1">
                     <ConsultaPrintButton
-                      onPrint={() => {
-                        if (p.pdf_url) {
-                          window.open(p.pdf_url, "_blank");
-                          return;
-                        }
-                        alert("PDF ainda não disponível. Aguarde alguns segundos e atualize a página.");
+                      onPrint={async () => {
+                        const url = await abrirPdfPrescricaoMemed(p);
+                        setPrescricoesMemed((prev) =>
+                          prev.map((item) => (item.id === p.id ? { ...item, pdf_url: url } : item)),
+                        );
                       }}
                     />
                   </div>

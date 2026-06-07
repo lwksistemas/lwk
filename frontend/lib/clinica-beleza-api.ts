@@ -659,6 +659,10 @@ export class ClinicaBelezaAPI {
     /** Lista as prescrições registradas para um paciente (histórico). */
     listarPrescricoesPaciente: (patientId: number) =>
       ClinicaBelezaAPI.getList<PrescricaoMemedItem>(`/patients/${patientId}/prescricoes/`),
+
+    /** Busca/salva PDF da prescrição na Memed e retorna URL para impressão. */
+    obterPdf: (prescricaoId: number) =>
+      ClinicaBelezaAPI.post<{ pdf_url: string }>(`/prescricoes-memed/${prescricaoId}/pdf/`, {}),
   };
 
   static templates = {

@@ -402,7 +402,7 @@ class ConsultaPrescricaoView(APIView):
 
         loja = Loja.objects.using('default').filter(id=consulta.loja_id).first()
         pdf_url = ''
-        if loja:
+        if loja and prescricao_id:
             pdf_url = resolver_pdf_prescricao(
                 loja,
                 professional,
@@ -430,6 +430,10 @@ class ConsultaPrescricaoView(APIView):
                 existente.itens = itens or existente.itens
                 if pdf_url:
                     existente.pdf_url = pdf_url
+                elif not existente.pdf_url and loja and prescricao_id:
+                    novo_pdf = resolver_pdf_prescricao(loja, professional, prescricao_id, '')
+                    if novo_pdf:
+                        existente.pdf_url = novo_pdf
                 if prof_id:
                     existente.professional_id = prof_id
                 existente.save()
@@ -454,6 +458,64 @@ class PatientPrescricaoView(APIView):
             'professional', 'consulta',
         ).order_by('-created_at')
         return Response(PrescricaoMemedSerializer(qs, many=True).data)
+
+
+class PrescricaoMemedPdfView(APIView):
+    """
+    POST /clinica-beleza/prescricoes-memed/<pk>/pdf/
+    Busca o PDF na Memed (se ainda não salvo), arquiva no Cloudinary e retorna a URL.
+    """
+    permission_classes = CLINICA_MEMBER
+
+    def post(self, request, pk):
+        from superadmin.models import Loja
+
+        from .memed_prescricao_service import resolver_pdf_prescricao
+
+        try:
+            presc = PrescricaoMemed.objects.select_related(
+                'professional', 'consulta', 'consulta__professional',
+            ).get(pk=pk)
+        except PrescricaoMemed.DoesNotExist:
+            return Response({'error': 'Prescrição não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if presc.pdf_url:
+            return Response({'pdf_url': presc.pdf_url})
+
+        loja = Loja.objects.using('default').filter(id=presc.loja_id).first()
+        if not loja:
+            return Response({'error': 'Loja não encontrada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        prescricao_id = (presc.prescricao_id or '').strip()
+        if not prescricao_id:
+            return Response(
+                {
+                    'error': (
+                        'Esta prescrição não tem ID da Memed. '
+                        'Reemita na aba Documentos com a Memed aberta.'
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        professional = presc.professional or (
+            presc.consulta.professional if presc.consulta_id else None
+        )
+        pdf_url = resolver_pdf_prescricao(loja, professional, prescricao_id, '')
+        if not pdf_url:
+            return Response(
+                {
+                    'error': (
+                        'PDF não encontrado na Memed. Verifique o certificado BirdID da profissional '
+                        'e reemita a prescrição na aba Documentos.'
+                    ),
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        presc.pdf_url = pdf_url
+        presc.save(update_fields=['pdf_url'])
+        return Response({'pdf_url': pdf_url})
 
 
 class ConsultaProdutoListView(APIView):

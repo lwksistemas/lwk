@@ -34,20 +34,58 @@ export function ConsultaTermoConsentimentoButton({
   const [termos, setTermos] = useState<TermoProcedimento[]>([]);
   const [aberto, setAberto] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const termosRef = useRef<TermoProcedimento[]>([]);
+
+  const snapshotStatus = (lista: TermoProcedimento[]) =>
+    lista.map((t) => `${t.procedure_id}:${t.status}`).join("|");
 
   const carregar = useCallback(async () => {
     if (!exigeTermo) return;
     try {
       const res = await ClinicaBelezaAPI.consultas.termoConsentimento.get(consultaId);
-      setTermos(res.termos_procedimentos || []);
+      const novos = res.termos_procedimentos || [];
+      const anterior = termosRef.current;
+      const mudou =
+        anterior.length > 0 && snapshotStatus(novos) !== snapshotStatus(anterior);
+      termosRef.current = novos;
+      setTermos(novos);
+      if (mudou) onUpdated?.();
     } catch {
+      termosRef.current = [];
       setTermos([]);
     }
-  }, [consultaId, exigeTermo]);
+  }, [consultaId, exigeTermo, onUpdated]);
 
   useEffect(() => {
-    carregar();
+    void carregar();
   }, [carregar]);
+
+  const aguardandoAssinatura = termos.some(
+    (t) => t.status === "aguardando_paciente" || t.status === "aguardando_profissional",
+  );
+
+  useEffect(() => {
+    if (!exigeTermo || !aguardandoAssinatura) return;
+
+    const atualizar = () => {
+      if (document.visibilityState !== "hidden") void carregar();
+    };
+
+    const intervalo = window.setInterval(atualizar, aberto ? 3000 : 5000);
+    const onVisivel = () => atualizar();
+    document.addEventListener("visibilitychange", onVisivel);
+    window.addEventListener("focus", onVisivel);
+
+    return () => {
+      clearInterval(intervalo);
+      document.removeEventListener("visibilitychange", onVisivel);
+      window.removeEventListener("focus", onVisivel);
+    };
+  }, [exigeTermo, aguardandoAssinatura, aberto, carregar]);
+
+  useEffect(() => {
+    if (aberto) void carregar();
+  }, [aberto, carregar]);
 
   useEffect(() => {
     if (!aberto) return;

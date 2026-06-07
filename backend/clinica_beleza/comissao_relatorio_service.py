@@ -382,6 +382,44 @@ def _label_forma_pagamento(method: str) -> str:
     return labels.get((method or '').upper(), method or '—')
 
 
+def _combinar_formas_pagamento(payments: list) -> str:
+    """Une métodos quando o mesmo atendimento foi pago em mais de uma forma."""
+    labels: list[str] = []
+    for payment in payments:
+        label = _label_forma_pagamento(getattr(payment, 'payment_method', '') or '')
+        if label and label != '—' and label not in labels:
+            labels.append(label)
+    if not labels:
+        return '—'
+    if len(labels) == 1:
+        return labels[0]
+    return ' + '.join(labels)
+
+
+def _agrupar_pagamentos_por_agendamento(payments) -> list[dict]:
+    """
+    Consolida pagamentos do mesmo agendamento (ex.: parte no débito e parte no crédito).
+    Evita contar a mesma consulta duas vezes no relatório.
+    """
+    grupos: dict[int, dict] = {}
+    ordem: list[int] = []
+    for payment in payments:
+        appt = getattr(payment, 'appointment', None)
+        if not appt:
+            continue
+        appt_id = appt.id
+        if appt_id not in grupos:
+            grupos[appt_id] = {
+                'appointment': appt,
+                'payments': [],
+                'total_amount': Decimal('0'),
+            }
+            ordem.append(appt_id)
+        grupos[appt_id]['payments'].append(payment)
+        grupos[appt_id]['total_amount'] += payment.amount or Decimal('0')
+    return [grupos[aid] for aid in ordem]
+
+
 def _obter_ou_criar_detalhe(entry: dict, chave: str, defaults: dict) -> dict:
     detalhe = next((d for d in entry['detalhes'] if d['_chave'] == chave), None)
     if detalhe:
@@ -429,8 +467,9 @@ def calcular_comissoes(
     prof_data = {}
     regras_cache = {}
 
-    for payment in qs.prefetch_related('appointment__appointment_procedures__procedure'):
-        appt = payment.appointment
+    payments_list = list(qs.prefetch_related('appointment__appointment_procedures__procedure'))
+    for grupo in _agrupar_pagamentos_por_agendamento(payments_list):
+        appt = grupo['appointment']
         if not appt or not appt.professional:
             continue
 
@@ -445,7 +484,7 @@ def calcular_comissoes(
         prof_id = appt.professional_id
         prof_nome = appt.professional.nome
 
-        amount = payment.amount or Decimal('0')
+        amount = grupo['total_amount']
 
         if prof_id not in regras_cache:
             regras_cache[prof_id] = _regras_profissional(prof_id)
@@ -461,7 +500,7 @@ def calcular_comissoes(
             consulta, regras, valor_consulta_cad,
         )
         regra_consulta = _resolver_regra_consulta(regras, local_id)
-        forma_pagamento = _label_forma_pagamento(getattr(payment, 'payment_method', '') or '')
+        forma_pagamento = _combinar_formas_pagamento(grupo['payments'])
 
         comissao_consulta = _calcular_comissao_regra(regra_consulta, vc)
         comissao_procedimentos = Decimal('0')
@@ -501,7 +540,7 @@ def calcular_comissoes(
 
         modo_cc, regra_cc = _formatar_regra(regra_consulta)
         if vc > 0 or comissao_consulta > 0 or regra_consulta or local_id:
-            chave_consulta = f'{local_nome}||{forma_pagamento}||{CHAVE_CONSULTA}'
+            chave_consulta = f'{local_nome}||{CHAVE_CONSULTA}'
             det_consulta = _obter_ou_criar_detalhe(entry, chave_consulta, {
                 'tipo_linha': 'consulta',
                 'local_nome': local_nome,
@@ -526,6 +565,15 @@ def calcular_comissoes(
             det_consulta['valor_total'] += vc
             det_consulta['comissao_consulta'] += comissao_consulta
             det_consulta['comissao'] += comissao_consulta
+            if forma_pagamento and forma_pagamento != '—':
+                pagamentos_atuais = [
+                    p.strip() for p in (det_consulta.get('forma_pagamento') or '').split(' + ')
+                    if p.strip() and p.strip() != '—'
+                ]
+                for label in forma_pagamento.split(' + '):
+                    if label and label not in pagamentos_atuais:
+                        pagamentos_atuais.append(label)
+                det_consulta['forma_pagamento'] = ' + '.join(pagamentos_atuais) if pagamentos_atuais else forma_pagamento
 
         for proc in procedimentos:
             proc_id = proc['procedure_id']

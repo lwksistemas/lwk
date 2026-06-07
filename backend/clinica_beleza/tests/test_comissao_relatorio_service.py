@@ -3,10 +3,11 @@ from decimal import Decimal
 from unittest import TestCase
 from unittest.mock import MagicMock
 
-from clinica_beleza.convenio_service import inferir_convenio_por_valores_procedimentos
 from clinica_beleza.comissao_relatorio_service import (
+    _agrupar_pagamentos_por_agendamento,
     _alocar_valores_pagamento,
     _calcular_comissao_regra,
+    _combinar_formas_pagamento,
     _formatar_regra,
     _procedimentos_vinculados_consulta,
     _resolver_regra_consulta,
@@ -139,6 +140,28 @@ class ComissaoRelatorioHelpersTest(TestCase):
         items = _procedimentos_vinculados_consulta(appt, consulta)
         self.assertEqual(len(items), 2)
         self.assertEqual(items[0]['procedimento_nome'], 'Imunidade')
+
+    def test_combinar_formas_pagamento_unica(self):
+        p = MagicMock(payment_method='DEBIT_CARD')
+        self.assertEqual(_combinar_formas_pagamento([p]), 'Cartão de débito')
+
+    def test_combinar_formas_pagamento_mista(self):
+        p1 = MagicMock(payment_method='DEBIT_CARD')
+        p2 = MagicMock(payment_method='CREDIT_CARD')
+        self.assertEqual(
+            _combinar_formas_pagamento([p1, p2]),
+            'Cartão de débito + Cartão de crédito',
+        )
+
+    def test_agrupar_pagamentos_por_agendamento_soma_valores(self):
+        appt = MagicMock(id=42, professional=MagicMock())
+        p1 = MagicMock(appointment=appt, appointment_id=42, amount=Decimal('300'))
+        p2 = MagicMock(appointment=appt, appointment_id=42, amount=Decimal('300'))
+        p3 = MagicMock(appointment=MagicMock(id=99), appointment_id=99, amount=Decimal('100'))
+        grupos = _agrupar_pagamentos_por_agendamento([p1, p2, p3])
+        self.assertEqual(len(grupos), 2)
+        self.assertEqual(grupos[0]['total_amount'], Decimal('600'))
+        self.assertEqual(len(grupos[0]['payments']), 2)
 
     def test_resolver_regra_procedimento_prioriza_convenio(self):
         regra_unimed = _comissao('fixo', '300')

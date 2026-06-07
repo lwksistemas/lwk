@@ -36,6 +36,12 @@ class CodigoPagamentoPdfTest(unittest.TestCase):
     def test_debito(self):
         self.assertEqual(self.cod('Cartão de débito'), 'CD')
 
+    def test_pagamento_misto(self):
+        self.assertEqual(
+            self.cod('Cartão de débito + Cartão de crédito'),
+            'CD+CC',
+        )
+
 
 class FmtRegraComissaoTest(unittest.TestCase):
     def setUp(self):

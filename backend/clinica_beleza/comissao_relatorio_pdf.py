@@ -51,6 +51,10 @@ def _is_linha_consulta(d: dict) -> bool:
 def _codigo_pagamento_pdf(forma: str) -> str:
     """Código curto para caber na coluna Pag. do PDF."""
     f = (forma or '').strip().lower()
+    if ' + ' in f:
+        partes = [_codigo_pagamento_pdf(p.strip()) for p in f.split(' + ')]
+        partes = [p for p in partes if p and p != '—']
+        return '+'.join(partes) if partes else '—'
     if not f or f == '—':
         return '—'
     if f == 'pix':

@@ -8,10 +8,11 @@ from decimal import Decimal
 from typing import Optional
 
 from .comissao_relatorio_service import (
+    _agrupar_pagamentos_por_agendamento,
     _alocar_valores_pagamento,
     _calcular_comissao_regra,
+    _combinar_formas_pagamento,
     _formatar_regra,
-    _label_forma_pagamento,
     _procedimentos_vinculados_consulta,
     _regras_profissional,
     _resolver_regra_consulta,
@@ -56,10 +57,13 @@ def calcular_repasse_por_consulta(
     prof_map: dict[int, dict] = {}
     regras_cache: dict[int, dict] = {}
 
-    for payment in qs.prefetch_related('appointment__appointment_procedures__procedure').order_by(
-        'payment_date', 'id',
-    ):
-        appt = payment.appointment
+    payments_list = list(
+        qs.prefetch_related('appointment__appointment_procedures__procedure').order_by(
+            'payment_date', 'id',
+        ),
+    )
+    for grupo in _agrupar_pagamentos_por_agendamento(payments_list):
+        appt = grupo['appointment']
         if not appt or not appt.professional:
             continue
 
@@ -76,7 +80,8 @@ def calcular_repasse_por_consulta(
             regras_cache[prof_id] = _regras_profissional(prof_id)
         regras = regras_cache[prof_id]
 
-        amount = payment.amount or Decimal('0')
+        amount = grupo['total_amount']
+        payment_ref = grupo['payments'][0]
         valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)
         proc_com_regra = regras.get('procedimento_ids') or set()
         convenio_id = resolver_convenio_atendimento_comissao(appt, consulta, procedimentos)
@@ -113,7 +118,7 @@ def calcular_repasse_por_consulta(
                 'regra': regra_pc,
             })
 
-        dt = payment.payment_date or appt.date
+        dt = payment_ref.payment_date or appt.date
         if dt:
             data_str = dt.strftime('%d/%m/%Y')
             hora_str = dt.strftime('%H:%M')
@@ -128,9 +133,7 @@ def calcular_repasse_por_consulta(
                 appt.patient.nome if appt.patient else '—'
             ),
             'local_nome': local_nome or '—',
-            'forma_pagamento': _label_forma_pagamento(
-                getattr(payment, 'payment_method', '') or '',
-            ),
+            'forma_pagamento': _combinar_formas_pagamento(grupo['payments']),
             'valor_consulta': vc,
             'comissao_consulta': comissao_consulta,
             'modo_consulta': modo_cc,

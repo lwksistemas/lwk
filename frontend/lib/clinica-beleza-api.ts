@@ -304,6 +304,22 @@ export function parseClinicaBelezaListResponse<T>(data: unknown): T[] {
   return parseClinicaBelezaPaginatedResponse<T>(data).items;
 }
 
+/** Evita "Unexpected token '<'" quando o servidor retorna HTML (erro 500/502). */
+export async function parseClinicaBelezaResponseBody(res: Response): Promise<unknown> {
+  const text = await res.text();
+  if (!text.trim()) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (text.trimStart().toLowerCase().startsWith("<!doctype") || text.trimStart().startsWith("<html")) {
+      throw {
+        detail: `Erro no servidor (${res.status}). Tente novamente em instantes.`,
+      };
+    }
+    throw { detail: text.slice(0, 400) };
+  }
+}
+
 /**
  * Cliente API otimizado com métodos tipados
  */
@@ -328,9 +344,9 @@ export class ClinicaBelezaAPI {
   ): Promise<T> {
     const url = params ? buildClinicaBelezaListUrl(path, params) : path;
     const res = await clinicaBelezaFetch(url, {}, loja);
-    const data = await res.json();
+    const data = await parseClinicaBelezaResponseBody(res);
     if (!res.ok) throw data;
-    return data;
+    return data as T;
   }
   
   /**
@@ -345,9 +361,9 @@ export class ClinicaBelezaAPI {
       method: 'POST',
       body: JSON.stringify(data),
     }, loja);
-    const body = await res.json();
+    const body = await parseClinicaBelezaResponseBody(res);
     if (!res.ok) throw body;
-    return body;
+    return body as T;
   }
   
   /**
@@ -362,9 +378,9 @@ export class ClinicaBelezaAPI {
       method: 'PUT',
       body: JSON.stringify(data),
     }, loja);
-    const body = await res.json();
+    const body = await parseClinicaBelezaResponseBody(res);
     if (!res.ok) throw body;
-    return body;
+    return body as T;
   }
   
   /**
@@ -379,9 +395,9 @@ export class ClinicaBelezaAPI {
       method: 'PATCH',
       body: JSON.stringify(data),
     }, loja);
-    const body = await res.json();
+    const body = await parseClinicaBelezaResponseBody(res);
     if (!res.ok) throw body;
-    return body;
+    return body as T;
   }
   
   /**

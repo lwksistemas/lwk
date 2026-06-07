@@ -279,12 +279,19 @@ class ProfessionalCommissionView(APIView):
             Professional.objects.get(pk=pk)
         except Professional.DoesNotExist:
             return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-        qs = ProfessionalCommission.objects.filter(
-            professional_id=pk, is_active=True
-        ).select_related('procedure', 'convenio', 'local_atendimento').order_by(
-            'tipo', 'procedure__nome', 'convenio__nome',
-        )
-        return Response(ProfessionalCommissionSerializer(qs, many=True).data)
+        try:
+            qs = ProfessionalCommission.objects.filter(
+                professional_id=pk, is_active=True
+            ).select_related('procedure', 'convenio', 'local_atendimento').order_by(
+                'tipo', 'procedure__nome', 'convenio__nome',
+            )
+            return Response(ProfessionalCommissionSerializer(qs, many=True).data)
+        except Exception:
+            logger.exception('Erro ao listar comissões do profissional %s', pk)
+            return Response(
+                {'error': 'Erro ao carregar comissões do profissional.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     def post(self, request, pk):
         """Recebe uma lista de comissões. Substitui todas as existentes."""
@@ -299,12 +306,21 @@ class ProfessionalCommissionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Desativar comissões existentes e criar novas
+        try:
+            return self._salvar_comissoes(pk, professional, request.data)
+        except Exception:
+            logger.exception('Erro ao salvar comissões do profissional %s', pk)
+            return Response(
+                {'error': 'Erro ao salvar comissões. Verifique os dados e tente novamente.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def _salvar_comissoes(self, pk, professional, itens):
         ProfessionalCommission.objects.filter(professional_id=pk).update(is_active=False)
         created = []
         locais_consulta_vistos = set()
         procedimentos_convenio_vistos = set()
-        for item in request.data:
+        for item in itens:
             if item.get('tipo') == 'consulta':
                 local_id = item.get('local_atendimento')
                 if not local_id:

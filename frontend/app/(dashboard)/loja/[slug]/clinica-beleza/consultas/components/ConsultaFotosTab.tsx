@@ -21,16 +21,14 @@ import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-ap
 export function ConsultaFotosTab({
   consultaId,
   patientNome,
-  somenteLeitura,
+  permiteEnviar,
   ativa,
-  permiteQr,
 }: {
   consultaId: number;
   patientNome: string;
-  somenteLeitura?: boolean;
+  /** Só true com consulta em andamento — envio pelo painel ou QR */
+  permiteEnviar?: boolean;
   ativa?: boolean;
-  /** Consulta em andamento — QR para o profissional fotografar no celular */
-  permiteQr?: boolean;
 }) {
   const params = useParams();
   const slug = (params.slug as string) || "loja";
@@ -124,9 +122,11 @@ export function ConsultaFotosTab({
             Fotos de acompanhamento
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Histórico de <strong>{patientNome}</strong> em todas as consultas. Durante o atendimento,
-            use o QR no <strong>seu celular</strong> para fotografar o paciente. Selecione 2 fotos para
-            comparar em tela cheia.
+            Histórico de <strong>{patientNome}</strong> em todas as consultas.
+            {permiteEnviar
+              ? " Durante o atendimento, use o QR no seu celular ou envie pelo painel. "
+              : " Consulta finalizada — apenas visualização e comparação. "}
+            Selecione 2 fotos para comparar em tela cheia.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -138,7 +138,7 @@ export function ConsultaFotosTab({
             <RefreshCw size={16} />
             Atualizar
           </button>
-          {permiteQr && (
+          {permiteEnviar && (
             <button
               type="button"
               onClick={() => void abrirQr()}
@@ -163,7 +163,13 @@ export function ConsultaFotosTab({
         </div>
       </div>
 
-      {!somenteLeitura && (
+      {!permiteEnviar && (
+        <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+          Esta consulta já foi finalizada. Não é possível enviar ou remover fotos — apenas visualizar e comparar.
+        </p>
+      )}
+
+      {permiteEnviar && (
         <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
           <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
             <Camera size={16} />
@@ -187,8 +193,9 @@ export function ConsultaFotosTab({
         <p className="text-sm text-gray-500 py-8 text-center">Carregando fotos…</p>
       ) : !fotos.length ? (
         <p className="text-sm text-gray-500 py-8 text-center rounded-xl border border-dashed border-gray-300 dark:border-neutral-600">
-          Nenhuma foto ainda. Durante a consulta, escaneie o QR com seu celular para fotografar o paciente
-          ou envie pelo painel do computador.
+          {permiteEnviar
+            ? "Nenhuma foto ainda. Durante a consulta, escaneie o QR com seu celular ou envie pelo painel."
+            : "Nenhuma foto registrada neste acompanhamento."}
         </p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -221,7 +228,7 @@ export function ConsultaFotosTab({
                 <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[10px] px-2 py-1">
                   {f.consulta_data || "—"} · {f.origem_display}
                 </div>
-                {!somenteLeitura && (
+                {permiteEnviar && (
                   <button
                     type="button"
                     onClick={() => void excluir(f.id)}

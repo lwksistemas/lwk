@@ -26,6 +26,14 @@ from .views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
 
+MSG_APENAS_EM_ANDAMENTO = 'Envio de fotos permitido apenas com a consulta em andamento.'
+
+
+def _consulta_permite_envio_foto(consulta) -> Response | None:
+    if consulta.status != 'IN_PROGRESS':
+        return Response({'detail': MSG_APENAS_EM_ANDAMENTO}, status=status.HTTP_400_BAD_REQUEST)
+    return None
+
 
 class ConsultaFotosPacienteView(GetObjectMixin, APIView):
     """GET — fotos do paciente (todas as consultas). POST — registrar foto do painel."""
@@ -49,6 +57,9 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
         consulta, err = self.object_or_404(pk)
         if err:
             return err
+        bloqueio = _consulta_permite_envio_foto(consulta)
+        if bloqueio:
+            return bloqueio
         url = (request.data.get('cloudinary_url') or '').strip()
         if not url or not url.startswith('https://'):
             return Response({'detail': 'URL da imagem inválida.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -72,11 +83,9 @@ class ConsultaFotoQrView(GetObjectMixin, APIView):
         consulta, err = self.object_or_404(pk)
         if err:
             return err
-        if consulta.status != 'IN_PROGRESS':
-            return Response(
-                {'detail': 'QR disponível apenas durante a consulta em andamento.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        bloqueio = _consulta_permite_envio_foto(consulta)
+        if bloqueio:
+            return bloqueio
         data = gerar_qr_foto(consulta)
         return Response(data)
 
@@ -92,6 +101,9 @@ class ConsultaFotoDeleteView(GetObjectMixin, APIView):
         consulta, err = self.object_or_404(pk)
         if err:
             return err
+        bloqueio = _consulta_permite_envio_foto(consulta)
+        if bloqueio:
+            return bloqueio
         try:
             foto = PacienteFotoAcompanhamento.objects.get(
                 id=foto_id, patient_id=consulta.patient_id,

@@ -10,6 +10,7 @@ from datetime import date
 from typing import Optional
 
 from .commission_utils import calcular_comissao_decimal
+from .convenio_service import resolver_convenio_atendimento_comissao
 from .models import Payment, ProfessionalCommission
 
 CHAVE_CONSULTA = '__consulta__'
@@ -249,15 +250,6 @@ def _regras_profissional(professional_id: int) -> dict:
     }
 
 
-def _resolver_convenio_atendimento(appointment, consulta) -> Optional[int]:
-    """Convênio efetivo do atendimento (agendamento ou consulta)."""
-    if appointment and getattr(appointment, 'convenio_id', None):
-        return appointment.convenio_id
-    if consulta and getattr(consulta, 'convenio_id', None):
-        return consulta.convenio_id
-    return None
-
-
 def _resolver_regra_procedimento(proc_map: dict, procedure_id: int, convenio_id: Optional[int]):
     """Regra do procedimento: convênio específico ou regra geral (convenio_id nulo)."""
     regra = proc_map.get((procedure_id, convenio_id))
@@ -345,7 +337,7 @@ def calcular_comissao_payment_atendimento(
     regras = _regras_profissional(appt.professional_id)
     valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)
     proc_com_regra = regras.get('procedimento_ids') or set()
-    convenio_id = _resolver_convenio_atendimento(appt, consulta)
+    convenio_id = resolver_convenio_atendimento_comissao(appt, consulta, procedimentos)
     vc, vp_map = _alocar_valores_pagamento(
         amount, valor_consulta_cad, procedimentos, proc_com_regra,
     )
@@ -402,6 +394,8 @@ def calcular_comissoes(
     qs = Payment.objects.filter(status='PAID').select_related(
         'appointment__professional',
         'appointment__procedure',
+        'appointment__patient',
+        'appointment__convenio',
     )
 
     if data_inicio:
@@ -417,7 +411,7 @@ def calcular_comissoes(
     consulta_ids = qs.values_list('appointment_id', flat=True)
     consultas = Consulta.objects.filter(
         appointment_id__in=consulta_ids,
-    ).select_related('local_atendimento', 'procedure')
+    ).select_related('local_atendimento', 'procedure', 'convenio')
     for c in consultas:
         consulta_map[c.appointment_id] = c
 
@@ -448,7 +442,7 @@ def calcular_comissoes(
 
         valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)
         proc_com_regra = regras.get('procedimento_ids') or set()
-        convenio_id = _resolver_convenio_atendimento(appt, consulta)
+        convenio_id = resolver_convenio_atendimento_comissao(appt, consulta, procedimentos)
         vc, vp_map = _alocar_valores_pagamento(
             amount, valor_consulta_cad, procedimentos, proc_com_regra,
         )

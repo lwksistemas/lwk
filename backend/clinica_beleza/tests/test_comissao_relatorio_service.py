@@ -3,6 +3,7 @@ from decimal import Decimal
 from unittest import TestCase
 from unittest.mock import MagicMock
 
+from clinica_beleza.convenio_service import inferir_convenio_por_valores_procedimentos
 from clinica_beleza.comissao_relatorio_service import (
     _alocar_valores_pagamento,
     _calcular_comissao_regra,

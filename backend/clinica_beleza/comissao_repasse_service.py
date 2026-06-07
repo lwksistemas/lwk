@@ -15,9 +15,11 @@ from .comissao_relatorio_service import (
     _procedimentos_vinculados_consulta,
     _regras_profissional,
     _resolver_regra_consulta,
+    _resolver_regra_procedimento,
     _resolver_local_atendimento_efetivo,
     _resolver_valor_consulta_cadastro,
 )
+from .convenio_service import resolver_convenio_atendimento_comissao
 from .models import Payment
 
 
@@ -31,6 +33,7 @@ def calcular_repasse_por_consulta(
         'appointment__professional',
         'appointment__patient',
         'appointment__procedure',
+        'appointment__convenio',
     )
 
     if data_inicio:
@@ -46,7 +49,7 @@ def calcular_repasse_por_consulta(
     consulta_ids = qs.values_list('appointment_id', flat=True)
     consultas = Consulta.objects.filter(
         appointment_id__in=consulta_ids,
-    ).select_related('local_atendimento', 'patient', 'procedure')
+    ).select_related('local_atendimento', 'patient', 'procedure', 'convenio')
     for c in consultas:
         consulta_map[c.appointment_id] = c
 
@@ -75,13 +78,8 @@ def calcular_repasse_por_consulta(
 
         amount = payment.amount or Decimal('0')
         valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)
-        from .comissao_relatorio_service import (
-            _resolver_convenio_atendimento,
-            _resolver_regra_procedimento,
-        )
-
         proc_com_regra = regras.get('procedimento_ids') or set()
-        convenio_id = _resolver_convenio_atendimento(appt, consulta)
+        convenio_id = resolver_convenio_atendimento_comissao(appt, consulta, procedimentos)
         vc, vp_map = _alocar_valores_pagamento(
             amount, valor_consulta_cad, procedimentos, proc_com_regra,
         )

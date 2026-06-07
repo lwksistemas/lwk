@@ -16,8 +16,10 @@ from .foto_paciente_service import (
     FotoUploadInvalida,
     cloudinary_upload_config,
     decodificar_token_foto,
+    extrair_bytes_upload_request,
     gerar_qr_foto,
     listar_fotos_paciente,
+    parse_json_body_seguro,
     registrar_foto,
     upload_foto_cloudinary,
 )
@@ -179,7 +181,6 @@ class EnviarFotoPublicaView(View):
         return consulta, None
 
     def post(self, request, token):
-        import json
         from core.assinatura_service import normalizar_token_url
         from superadmin.models import Loja
 
@@ -192,13 +193,14 @@ class EnviarFotoPublicaView(View):
         if resp_erro:
             return resp_erro
 
-        arquivo = request.FILES.get('file')
-        if arquivo:
-            loja = Loja.objects.using('default').filter(id=payload['loja_id']).first()
-            if not loja:
-                return JsonResponse({'error': 'Loja não encontrada.'}, status=400)
+        loja = Loja.objects.using('default').filter(id=payload['loja_id']).first()
+        if not loja:
+            return JsonResponse({'error': 'Loja não encontrada.'}, status=400)
+
+        conteudo = extrair_bytes_upload_request(request)
+        if conteudo:
             try:
-                up = upload_foto_cloudinary(loja, arquivo.read())
+                up = upload_foto_cloudinary(loja, conteudo)
                 foto = registrar_foto(consulta, up['secure_url'], 'qr', up['public_id'])
             except FotoUploadInvalida as exc:
                 return JsonResponse({'error': str(exc)}, status=400)
@@ -206,14 +208,13 @@ class EnviarFotoPublicaView(View):
                 return JsonResponse({'error': str(exc)}, status=400)
             return JsonResponse({'success': True, 'foto': foto})
 
-        try:
-            body = json.loads(request.body.decode('utf-8') or '{}')
-        except json.JSONDecodeError:
-            body = {}
-
+        body = parse_json_body_seguro(request)
         url = (body.get('cloudinary_url') or '').strip()
         if not url or not url.startswith('https://'):
-            return JsonResponse({'error': 'URL da imagem inválida.'}, status=400)
+            return JsonResponse(
+                {'error': 'Não foi possível ler a imagem. Tente enviar novamente.'},
+                status=400,
+            )
 
         public_id = (body.get('cloudinary_public_id') or '').strip()
         try:

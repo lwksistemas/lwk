@@ -79,6 +79,91 @@ class FotoUploadInvalida(ValueError):
     """Arquivo de imagem inválido ou acima do limite após compressão."""
 
 
+def _parece_imagem_bytes(conteudo: bytes) -> bool:
+    if len(conteudo) < 4:
+        return False
+    if conteudo[:3] == b'\xff\xd8\xff':
+        return True
+    if conteudo[:8] == b'\x89PNG\r\n\x1a\n':
+        return True
+    if len(conteudo) > 12 and conteudo[:4] == b'RIFF' and conteudo[8:12] == b'WEBP':
+        return True
+    return False
+
+
+def _extrair_arquivo_multipart_bruto(body: bytes, content_type: str) -> bytes | None:
+    """Fallback quando o Django não populou request.FILES (ex.: proxy ou iOS)."""
+    import re
+
+    match = re.search(r'boundary=([^;\s]+)', content_type or '', re.I)
+    if not match or not body:
+        return None
+    boundary = match.group(1).strip().strip('"').encode()
+    separador = b'--' + boundary
+    for parte in body.split(separador):
+        if b'filename=' not in parte:
+            continue
+        if b'\r\n\r\n' not in parte:
+            continue
+        _, conteudo = parte.split(b'\r\n\r\n', 1)
+        conteudo = conteudo.rstrip(b'\r\n')
+        if conteudo.endswith(b'--'):
+            conteudo = conteudo[:-2].rstrip(b'\r\n')
+        if conteudo and _parece_imagem_bytes(conteudo):
+            return conteudo
+    return None
+
+
+def extrair_bytes_upload_request(request) -> bytes | None:
+    """Lê bytes da imagem enviada pelo celular (multipart, campo file ou corpo binário)."""
+    for campo in ('file', 'image', 'foto', 'photo'):
+        arquivo = request.FILES.get(campo)
+        if arquivo:
+            return arquivo.read()
+
+    if request.FILES:
+        arquivo = next(iter(request.FILES.values()))
+        return arquivo.read()
+
+    content_type = (getattr(request, 'content_type', None) or '').lower()
+    body = request.body or b''
+
+    if body and _parece_imagem_bytes(body):
+        return body
+
+    if 'multipart/form-data' in content_type and body:
+        extraido = _extrair_arquivo_multipart_bruto(body, content_type)
+        if extraido:
+            return extraido
+
+    return None
+
+
+def parse_json_body_seguro(request) -> dict:
+    """Evita UnicodeDecodeError quando o corpo é binário (multipart/imagem)."""
+    import json
+
+    body = request.body or b''
+    if not body:
+        return {}
+
+    content_type = (getattr(request, 'content_type', None) or '').lower()
+    if 'application/json' not in content_type:
+        inicio = body.lstrip()[:1]
+        if inicio not in (b'{', b'['):
+            return {}
+
+    try:
+        texto = body.decode('utf-8')
+    except UnicodeDecodeError:
+        return {}
+
+    try:
+        return json.loads(texto or '{}')
+    except json.JSONDecodeError:
+        return {}
+
+
 def _configurar_cloudinary_sdk() -> dict | None:
     """Retorna cloud_name/api_key/api_secret ou None se indisponível."""
     cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', '').strip()

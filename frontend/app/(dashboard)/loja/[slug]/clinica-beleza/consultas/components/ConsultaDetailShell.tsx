@@ -130,12 +130,13 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
       const consultaAtual = fresh ? { ...c, ...fresh } : c;
       setSelected(consultaAtual);
 
+      const patientId = consultaAtual.patient ?? c.patient;
       const [anam, evol, hist, prots, presc] = await Promise.all([
-        ClinicaBelezaAPI.anamnese.get(c.patient),
-        ClinicaBelezaAPI.consultas.evolucoes.list(c.id),
-        ClinicaBelezaAPI.consultas.historicoCliente(c.patient),
-        ClinicaBelezaAPI.get("/protocolos/", { procedure: c.procedure }),
-        ClinicaBelezaAPI.memed.listarPrescricoesPaciente(c.patient).catch(() => []),
+        ClinicaBelezaAPI.anamnese.get(patientId).catch(() => EMPTY_ANAMNESE),
+        ClinicaBelezaAPI.consultas.evolucoes.list(c.id).catch(() => []),
+        ClinicaBelezaAPI.consultas.historicoCliente(patientId).catch(() => []),
+        ClinicaBelezaAPI.getList<Protocolo>("/protocolos/", { procedure: c.procedure }).catch(() => []),
+        ClinicaBelezaAPI.memed.listarPrescricoesPaciente(patientId).catch(() => []),
       ]);
       const anamMerged = { ...EMPTY_ANAMNESE, ...anam };
       setAnamnese(anamMerged);
@@ -594,6 +595,8 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                 <ConsultaHistoricoTab
                   historico={historico}
                   selectedId={selected.id}
+                  consultaId={selected.id}
+                  anamnese={anamnese}
                   prescricoes={prescricoes}
                   observacoesAtual={observacoes}
                   protocoloNotasAtual={selected.protocolo_notas}

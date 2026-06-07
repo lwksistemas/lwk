@@ -1,14 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronRight, ChevronDown, Pill, FlaskConical, ClipboardList, Activity, FolderOpen } from "lucide-react";
-import { ClinicaBelezaAPI, type DocumentoClinicoItem } from "@/lib/clinica-beleza-api";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ChevronRight,
+  ChevronDown,
+  Pill,
+  FlaskConical,
+  ClipboardList,
+  Activity,
+  FolderOpen,
+  FileText,
+  Camera,
+} from "lucide-react";
+import { ClinicaBelezaAPI, type DocumentoClinicoItem, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
 import { imprimirConsultaPdf, imprimirDocumentoPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
-import type { Consulta, Evolucao } from "./consultas-types";
+import type { Anamnese, Consulta, Evolucao } from "./consultas-types";
+import { ANAMNESE_FIELDS } from "./consultas-types";
 import type { PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
 import { ConsultaPrintButton } from "./ConsultaPrintButton";
+import { PacienteFotoZoomModal } from "./PacienteFotoZoomModal";
 
-type HistoricoSection = "atendimentos" | "receituarios" | "exames" | "documentos" | "evolucoes";
+type HistoricoSection =
+  | "atendimentos"
+  | "anamnese"
+  | "fotos"
+  | "receituarios"
+  | "exames"
+  | "documentos"
+  | "evolucoes";
 
 const TIPO_LABELS: Record<string, string> = {
   receituario: "Receituário",
@@ -28,6 +47,8 @@ function parseListaDocumentos(data: unknown): DocumentoClinicoItem[] {
 export function ConsultaHistoricoTab({
   historico,
   selectedId,
+  consultaId,
+  anamnese,
   prescricoes = [],
   observacoesAtual = "",
   protocoloNotasAtual,
@@ -37,6 +58,8 @@ export function ConsultaHistoricoTab({
 }: {
   historico: Consulta[];
   selectedId: number;
+  consultaId: number;
+  anamnese: Anamnese;
   prescricoes?: PrescricaoMemedItem[];
   observacoesAtual?: string;
   protocoloNotasAtual?: string | null;
@@ -45,6 +68,9 @@ export function ConsultaHistoricoTab({
   printMeta: ConsultaPrintMeta;
 }) {
   const [section, setSection] = useState<HistoricoSection>("atendimentos");
+  const [fotos, setFotos] = useState<PacienteFotoItem[]>([]);
+  const [loadingFotos, setLoadingFotos] = useState(false);
+  const [zoomFoto, setZoomFoto] = useState<PacienteFotoItem | null>(null);
 
   const historicoEnriquecido = useMemo(
     () =>
@@ -92,28 +118,46 @@ export function ConsultaHistoricoTab({
     };
   }, [historicoEnriquecido, selectedId]);
 
+  useEffect(() => {
+    if (!consultaId) return;
+    let cancelled = false;
+    setLoadingFotos(true);
+    ClinicaBelezaAPI.consultas.fotos
+      .list(consultaId)
+      .then((res) => {
+        if (!cancelled) setFotos(res.fotos || []);
+      })
+      .catch(() => {
+        if (!cancelled) setFotos([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingFotos(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [consultaId]);
+
   const totalDocumentos = Object.values(documentosPorConsulta).reduce((sum, docs) => sum + docs.length, 0);
-  const documentosDestaConsulta = documentosPorConsulta[selectedId]?.length ?? 0;
 
-  const prescricoesDestaConsulta = prescricoes.filter((p) => p.consulta === selectedId);
-
-  // Separar prescrições em receituários e exames (prioriza desta consulta)
-  const receituarios = prescricoesDestaConsulta.filter(
-    (p) => !p.itens?.every((it) => it.tipo === "exame"),
-  );
-  const exames = prescricoesDestaConsulta.filter(
-    (p) => p.itens?.some((it) => it.tipo === "exame"),
-  );
+  const receituarios = prescricoes.filter((p) => !p.itens?.every((it) => it.tipo === "exame"));
+  const exames = prescricoes.filter((p) => p.itens?.some((it) => it.tipo === "exame"));
 
   const consultaAtual = historicoEnriquecido.find((h) => h.id === selectedId);
-  const evolucoesDestaConsulta = consultaAtual?.total_evolucoes ?? 0;
+  const totalEvolucoes = historicoEnriquecido.reduce((sum, h) => sum + (h.total_evolucoes || 0), 0);
+  const camposAnamnesePreenchidos = ANAMNESE_FIELDS.filter(([key]) => {
+    const val = anamnese[key as keyof Anamnese];
+    return val != null && String(val).trim() !== "";
+  }).length;
 
   const sections: { id: HistoricoSection; label: string; icon: typeof Pill; count: number }[] = [
     { id: "atendimentos", label: "Atendimentos", icon: ClipboardList, count: historicoEnriquecido.length },
+    { id: "anamnese", label: "Anamnese", icon: FileText, count: camposAnamnesePreenchidos },
+    { id: "fotos", label: "Fotos", icon: Camera, count: fotos.length },
     { id: "receituarios", label: "Receituários", icon: Pill, count: receituarios.length },
     { id: "exames", label: "Exames", icon: FlaskConical, count: exames.length },
-    { id: "documentos", label: "Documentos", icon: FolderOpen, count: documentosDestaConsulta || totalDocumentos },
-    { id: "evolucoes", label: "Evoluções", icon: Activity, count: evolucoesDestaConsulta || historicoEnriquecido.reduce((sum, h) => sum + (h.total_evolucoes || 0), 0) },
+    { id: "documentos", label: "Documentos", icon: FolderOpen, count: totalDocumentos },
+    { id: "evolucoes", label: "Evoluções", icon: Activity, count: totalEvolucoes },
   ];
 
   return (
@@ -182,11 +226,19 @@ export function ConsultaHistoricoTab({
             printMeta={printMeta}
           />
         )}
+        {section === "anamnese" && <HistoricoAnamnese anamnese={anamnese} printMeta={printMeta} />}
+        {section === "fotos" && (
+          <HistoricoFotos
+            fotos={fotos}
+            loading={loadingFotos}
+            onZoom={setZoomFoto}
+          />
+        )}
         {section === "receituarios" && (
           <HistoricoPrescricoes
             items={receituarios}
             formatData={formatData}
-            emptyMsg="Nenhum receituário nesta consulta."
+            emptyMsg="Nenhum receituário no histórico do paciente."
             titulo="Receituário"
             printMeta={printMeta}
           />
@@ -195,7 +247,7 @@ export function ConsultaHistoricoTab({
           <HistoricoPrescricoes
             items={exames}
             formatData={formatData}
-            emptyMsg="Nenhum exame nesta consulta."
+            emptyMsg="Nenhum exame no histórico do paciente."
             titulo="Pedido de exame"
             printMeta={printMeta}
           />
@@ -207,18 +259,103 @@ export function ConsultaHistoricoTab({
             documentosPorConsulta={documentosPorConsulta}
             loading={loadingDocumentos}
             formatData={formatData}
-            somenteConsultaAtual
           />
         )}
         {section === "evolucoes" && (
           <HistoricoEvolucoes
-            historico={historicoEnriquecido.filter((h) => h.id === selectedId)}
+            historico={historicoEnriquecido}
             formatData={formatData}
             printMeta={printMeta}
-            emptyMsg="Nenhuma evolução nesta consulta."
+            emptyMsg="Nenhuma evolução registrada no histórico."
           />
         )}
       </div>
+
+      {zoomFoto && (
+        <PacienteFotoZoomModal
+          foto={zoomFoto}
+          fotos={fotos}
+          onClose={() => setZoomFoto(null)}
+          onChangeFoto={setZoomFoto}
+        />
+      )}
+    </div>
+  );
+}
+
+function HistoricoAnamnese({
+  anamnese,
+  printMeta,
+}: {
+  anamnese: Anamnese;
+  printMeta: ConsultaPrintMeta;
+}) {
+  const preenchidos = ANAMNESE_FIELDS.filter(([key]) => {
+    const val = anamnese[key as keyof Anamnese];
+    return val != null && String(val).trim() !== "";
+  });
+
+  if (preenchidos.length === 0) {
+    return <p className="text-gray-500 text-sm">Nenhum dado de anamnese registrado para este paciente.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <ConsultaPrintButton onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "anamnese")} />
+      </div>
+      {preenchidos.map(([key, label]) => (
+        <div key={key}>
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
+          <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap mt-0.5">
+            {String(anamnese[key as keyof Anamnese])}
+          </p>
+        </div>
+      ))}
+      {(anamnese.peso || anamnese.altura) && (
+        <div className="flex gap-6 text-sm text-gray-700 dark:text-gray-300">
+          {anamnese.peso ? <span><strong>Peso:</strong> {anamnese.peso} kg</span> : null}
+          {anamnese.altura ? <span><strong>Altura:</strong> {anamnese.altura} m</span> : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HistoricoFotos({
+  fotos,
+  loading,
+  onZoom,
+}: {
+  fotos: PacienteFotoItem[];
+  loading: boolean;
+  onZoom: (foto: PacienteFotoItem) => void;
+}) {
+  if (loading) return <p className="text-gray-500 text-sm">Carregando fotos…</p>;
+  if (fotos.length === 0) {
+    return <p className="text-gray-500 text-sm">Nenhuma foto de acompanhamento registrada.</p>;
+  }
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+      {fotos.map((foto) => (
+        <button
+          key={foto.id}
+          type="button"
+          onClick={() => onZoom(foto)}
+          className="text-left rounded-lg border border-gray-200 dark:border-neutral-600 overflow-hidden hover:border-[#8B3D52] transition-colors"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={foto.cloudinary_url}
+            alt={`Foto ${foto.consulta_data}`}
+            className="w-full aspect-square object-cover cursor-zoom-in"
+          />
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 px-2 py-1.5 truncate">
+            {foto.consulta_data || "—"} · {foto.origem_display}
+          </p>
+        </button>
+      ))}
     </div>
   );
 }
@@ -233,7 +370,9 @@ function HistoricoAtendimentos({
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  if (historico.length === 0) return <p className="text-gray-500 text-sm">Nenhuma consulta anterior.</p>;
+  if (historico.length === 0) {
+    return <p className="text-gray-500 text-sm">Nenhuma consulta encontrada para este paciente.</p>;
+  }
   return (
     <div className="space-y-2">
       {historico.map((h) => {

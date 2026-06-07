@@ -454,7 +454,7 @@ export class ClinicaBelezaAPI {
         ClinicaBelezaAPI.post(`/consultas/${consultaId}/evolucoes/`, data),
     },
     historicoCliente: (patientId: number) =>
-      ClinicaBelezaAPI.get(`/patients/${patientId}/consultas/`),
+      ClinicaBelezaAPI.getList(`/patients/${patientId}/consultas/`),
     produtos: {
       list: (consultaId: number) =>
         ClinicaBelezaAPI.get(`/consultas/${consultaId}/produtos/`),

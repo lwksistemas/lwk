@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import {
   Camera,
@@ -13,18 +13,12 @@ import {
   Copy,
   ExternalLink,
   Smartphone,
-  ZoomIn,
-  ZoomOut,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
+import { PacienteFotoZoomModal } from "./PacienteFotoZoomModal";
 
-const ZOOM_MIN = 1;
-const ZOOM_MAX = 4;
-const ZOOM_STEP = 0.5;
 const MAX_COMPARAR = 3;
 
 export function ConsultaFotosTab({
@@ -52,10 +46,6 @@ export function ConsultaFotosTab({
   const [uploadUrl, setUploadUrl] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [zoomFoto, setZoomFoto] = useState<PacienteFotoItem | null>(null);
-  const [zoomScale, setZoomScale] = useState(1);
-  const [zoomPan, setZoomPan] = useState({ x: 0, y: 0 });
-  const arrastandoRef = useRef(false);
-  const ultimoPontoRef = useRef({ x: 0, y: 0 });
 
   const carregar = useCallback(async () => {
     try {
@@ -127,69 +117,6 @@ export function ConsultaFotosTab({
   };
 
   const fotosComparar = fotos.filter((f) => selecionadas.includes(f.id));
-
-  const abrirZoom = (foto: PacienteFotoItem) => {
-    setZoomFoto(foto);
-    setZoomScale(1);
-    setZoomPan({ x: 0, y: 0 });
-  };
-
-  const fecharZoom = () => {
-    setZoomFoto(null);
-    setZoomScale(1);
-    setZoomPan({ x: 0, y: 0 });
-  };
-
-  const ajustarZoom = (delta: number) => {
-    setZoomScale((s) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(s + delta).toFixed(2))));
-    if (zoomScale + delta <= 1) setZoomPan({ x: 0, y: 0 });
-  };
-
-  const navegarZoom = (dir: -1 | 1) => {
-    if (!zoomFoto) return;
-    const idx = fotos.findIndex((f) => f.id === zoomFoto.id);
-    if (idx < 0) return;
-    const next = fotos[idx + dir];
-    if (next) abrirZoom(next);
-  };
-
-  useEffect(() => {
-    if (!zoomFoto) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        fecharZoom();
-        return;
-      }
-      const idx = fotos.findIndex((f) => f.id === zoomFoto.id);
-      if (e.key === "ArrowLeft" && idx > 0) abrirZoom(fotos[idx - 1]);
-      if (e.key === "ArrowRight" && idx >= 0 && idx < fotos.length - 1) abrirZoom(fotos[idx + 1]);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [zoomFoto, fotos]);
-
-  const onZoomWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    ajustarZoom(e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP);
-  };
-
-  const iniciarArraste = (clientX: number, clientY: number) => {
-    if (zoomScale <= 1) return;
-    arrastandoRef.current = true;
-    ultimoPontoRef.current = { x: clientX, y: clientY };
-  };
-
-  const moverArraste = (clientX: number, clientY: number) => {
-    if (!arrastandoRef.current || zoomScale <= 1) return;
-    const dx = clientX - ultimoPontoRef.current.x;
-    const dy = clientY - ultimoPontoRef.current.y;
-    ultimoPontoRef.current = { x: clientX, y: clientY };
-    setZoomPan((p) => ({ x: p.x + dx, y: p.y + dy }));
-  };
-
-  const pararArraste = () => {
-    arrastandoRef.current = false;
-  };
 
   useEffect(() => {
     if (!onToolbarChange) return;
@@ -290,7 +217,7 @@ export function ConsultaFotosTab({
               >
                 <button
                   type="button"
-                  onClick={() => abrirZoom(f)}
+                  onClick={() => setZoomFoto(f)}
                   className="block w-full aspect-square cursor-zoom-in"
                   title="Ampliar foto"
                 >
@@ -392,102 +319,12 @@ export function ConsultaFotosTab({
       )}
 
       {zoomFoto && (
-        <div
-          className="fixed inset-0 z-[55] bg-black/95 flex flex-col"
-          role="dialog"
-          aria-modal
-          aria-label="Visualização ampliada da foto"
-        >
-          <div className="flex items-center justify-between px-3 py-2 bg-black/80 text-white shrink-0 gap-2">
-            <div className="min-w-0 text-xs sm:text-sm truncate">
-              {zoomFoto.consulta_data || "—"} · {zoomFoto.origem_display}
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => navegarZoom(-1)}
-                disabled={fotos.findIndex((f) => f.id === zoomFoto.id) <= 0}
-                className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30"
-                title="Foto anterior"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <button
-                type="button"
-                onClick={() => ajustarZoom(-ZOOM_STEP)}
-                disabled={zoomScale <= ZOOM_MIN}
-                className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30"
-                title="Diminuir zoom"
-              >
-                <ZoomOut size={20} />
-              </button>
-              <span className="text-xs w-12 text-center tabular-nums">{Math.round(zoomScale * 100)}%</span>
-              <button
-                type="button"
-                onClick={() => ajustarZoom(ZOOM_STEP)}
-                disabled={zoomScale >= ZOOM_MAX}
-                className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30"
-                title="Aumentar zoom"
-              >
-                <ZoomIn size={20} />
-              </button>
-              <button
-                type="button"
-                onClick={() => navegarZoom(1)}
-                disabled={fotos.findIndex((f) => f.id === zoomFoto.id) >= fotos.length - 1}
-                className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-30"
-                title="Próxima foto"
-              >
-                <ChevronRight size={20} />
-              </button>
-              <button
-                type="button"
-                onClick={fecharZoom}
-                className="p-2 rounded-lg hover:bg-white/10 ml-1"
-                title="Fechar"
-              >
-                <X size={22} />
-              </button>
-            </div>
-          </div>
-          <div
-            className="flex-1 overflow-hidden flex items-center justify-center touch-none select-none"
-            onWheel={onZoomWheel}
-            onMouseDown={(e) => iniciarArraste(e.clientX, e.clientY)}
-            onMouseMove={(e) => moverArraste(e.clientX, e.clientY)}
-            onMouseUp={pararArraste}
-            onMouseLeave={pararArraste}
-            onTouchStart={(e) => {
-              const t = e.touches[0];
-              if (t) iniciarArraste(t.clientX, t.clientY);
-            }}
-            onTouchMove={(e) => {
-              const t = e.touches[0];
-              if (t) moverArraste(t.clientX, t.clientY);
-            }}
-            onTouchEnd={pararArraste}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={zoomFoto.cloudinary_url}
-              alt={`Foto ampliada ${zoomFoto.consulta_data}`}
-              className="max-w-none transition-transform duration-100"
-              style={{
-                transform: `translate(${zoomPan.x}px, ${zoomPan.y}px) scale(${zoomScale})`,
-                maxHeight: zoomScale === 1 ? "90vh" : "none",
-                maxWidth: zoomScale === 1 ? "100%" : "none",
-                cursor: zoomScale > 1 ? "grab" : "zoom-in",
-              }}
-              draggable={false}
-              onDoubleClick={() => {
-                if (zoomScale < ZOOM_MAX) ajustarZoom(ZOOM_STEP);
-              }}
-            />
-          </div>
-          <p className="text-[10px] text-white/50 text-center py-2 shrink-0">
-            Scroll ou botões para zoom · arraste para mover · duplo clique para ampliar · Esc para fechar
-          </p>
-        </div>
+        <PacienteFotoZoomModal
+          foto={zoomFoto}
+          fotos={fotos}
+          onClose={() => setZoomFoto(null)}
+          onChangeFoto={setZoomFoto}
+        />
       )}
 
       {comparar && fotosComparar.length === MAX_COMPARAR && (

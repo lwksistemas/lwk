@@ -8,6 +8,7 @@ import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 interface TermoData {
   tipo_documento: string;
   titulo: string;
+  procedimentos_nomes?: string;
   nome_assinante: string;
   tipo_assinante: string;
   tipo_assinante_display: string;
@@ -272,6 +273,10 @@ export default function AssinarConsentimentoPage() {
 
   if (!termo) return null;
 
+  const procedimentos = termo.procedimentos_nomes || termo.titulo;
+  const assinandoComoPaciente = termo.tipo_assinante === 'paciente';
+  const assinandoComoProfissional = termo.tipo_assinante === 'profissional';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-12 px-4">
       <div className="max-w-3xl mx-auto">
@@ -290,8 +295,8 @@ export default function AssinarConsentimentoPage() {
             <div className="flex items-start space-x-3">
               <FileText className="w-5 h-5 text-gray-400 mt-1" />
               <div className="flex-1">
-                <p className="text-sm text-gray-500">Documento</p>
-                <p className="text-lg font-semibold text-gray-900">{termo.titulo}</p>
+                <p className="text-sm text-gray-500">Procedimento(s)</p>
+                <p className="text-lg font-semibold text-gray-900">{procedimentos}</p>
               </div>
             </div>
 
@@ -303,21 +308,25 @@ export default function AssinarConsentimentoPage() {
               </div>
             </div>
 
-            <div className="flex items-start space-x-3 border-t pt-4">
-              <User className="w-5 h-5 text-gray-400 mt-1" />
-              <div className="flex-1">
-                <p className="text-sm text-gray-500">Paciente</p>
-                <p className="text-lg font-semibold text-gray-900">{termo.paciente_nome || '—'}</p>
+            {assinandoComoProfissional && termo.paciente_nome && (
+              <div className="flex items-start space-x-3 border-t pt-4">
+                <User className="w-5 h-5 text-gray-400 mt-1" />
+                <div className="flex-1">
+                  <p className="text-sm text-gray-500">Paciente</p>
+                  <p className="text-lg font-semibold text-gray-900">{termo.paciente_nome}</p>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="flex items-start space-x-3 border-t pt-4">
-              <User className="w-5 h-5 text-gray-400 mt-1" />
-              <div className="flex-1">
-                <p className="text-sm text-gray-500">Profissional</p>
-                <p className="text-lg font-semibold text-gray-900">{termo.profissional_nome || '—'}</p>
+            {assinandoComoPaciente && termo.profissional_nome && (
+              <div className="flex items-start space-x-3 border-t pt-4">
+                <User className="w-5 h-5 text-gray-400 mt-1" />
+                <div className="flex-1">
+                  <p className="text-sm text-gray-500">Profissional responsável</p>
+                  <p className="text-lg font-semibold text-gray-900">{termo.profissional_nome}</p>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex items-start space-x-3 border-t pt-4">
               <User className="w-5 h-5 text-gray-400 mt-1" />

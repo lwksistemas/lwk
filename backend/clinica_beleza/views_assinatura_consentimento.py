@@ -218,9 +218,12 @@ class ConsultaAssinaturaPublicaView(View):
         if loja:
             loja_nome = loja.nome
 
+        from .consentimento_service import nomes_procedimentos_termo
+
         return JsonResponse({
             'tipo_documento': 'termo_consentimento',
             'titulo': adapter.get_titulo(consulta),
+            'procedimentos_nomes': nomes_procedimentos_termo(consulta),
             'nome_assinante': assinatura.nome_assinante,
             'tipo_assinante': assinatura.tipo,
             'tipo_assinante_display': assinatura.get_tipo_display(),

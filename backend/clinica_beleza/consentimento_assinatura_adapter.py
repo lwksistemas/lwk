@@ -8,7 +8,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from core.assinatura_service import AssinaturaAdapter
-from .consentimento_service import montar_conteudo_termo_consentimento
+from .consentimento_service import montar_conteudo_termo_consentimento, nomes_procedimentos_termo
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +16,23 @@ logger = logging.getLogger(__name__)
 class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
 
     def get_titulo(self, consulta) -> str:
-        paciente = consulta.patient.nome if consulta.patient else 'Paciente'
-        return f'Termo de Consentimento — {paciente}'
+        return nomes_procedimentos_termo(consulta)
 
     def get_valor_display(self, consulta) -> str:
-        return '—'
+        return ''
+
+    def incluir_valor_no_email(self) -> bool:
+        return False
+
+    def get_rotulo_titulo_email(self) -> str:
+        return 'Procedimento(s)'
+
+    def get_assunto_email_parte1(self, consulta, loja_nome: str) -> str:
+        return f'📄 Termo de Consentimento — {nomes_procedimentos_termo(consulta)}'
+
+    def get_assunto_email_parte2(self, consulta, loja_nome: str) -> str:
+        paciente = consulta.patient.nome if consulta.patient else 'Paciente'
+        return f'✅ Paciente assinou — {nomes_procedimentos_termo(consulta)} ({paciente})'
 
     def get_destinatario_parte1(self, consulta) -> tuple[str, str]:
         paciente = consulta.patient
@@ -45,13 +57,12 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
         return 'Termo de Consentimento Esclarecido'
 
     def get_info_extra_email(self, consulta) -> dict:
+        """Resumo do e-mail — sem repetir nome do paciente (já está no cumprimento)."""
         info = {}
-        if consulta.patient:
-            info['Paciente'] = consulta.patient.nome
         if consulta.professional:
             info['Profissional'] = consulta.professional.nome
         if consulta.data_inicio:
-            info['Data'] = timezone.localtime(consulta.data_inicio).strftime('%d/%m/%Y')
+            info['Data do atendimento'] = timezone.localtime(consulta.data_inicio).strftime('%d/%m/%Y')
         return info
 
     def criar_registro_assinatura(self, consulta, tipo, nome, email, token, loja_id):

@@ -73,6 +73,12 @@ def consulta_exige_termo_consentimento(consulta) -> bool:
     return bool(_procedimentos_com_termo_ativo(consulta))
 
 
+def nomes_procedimentos_termo(consulta) -> str:
+    """Nomes dos procedimentos com termo ativo, para título do e-mail e tela de assinatura."""
+    nomes = [p.nome for p in _procedimentos_com_termo_ativo(consulta)]
+    return ', '.join(nomes) if nomes else 'Procedimento clínico'
+
+
 def _dados_loja(loja_id: int) -> dict:
     from superadmin.models import Loja
 

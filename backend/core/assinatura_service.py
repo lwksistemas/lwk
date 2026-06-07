@@ -146,6 +146,19 @@ class AssinaturaAdapter:
         """Hook chamado quando ambas as partes assinaram (ex: mudar status da reserva)."""
         pass
 
+    def incluir_valor_no_email(self) -> bool:
+        """Documentos comerciais exibem valor; termos clínicos geralmente não."""
+        return True
+
+    def get_rotulo_titulo_email(self) -> str:
+        return 'Título'
+
+    def get_assunto_email_parte1(self, documento, loja_nome: str) -> str | None:
+        return None
+
+    def get_assunto_email_parte2(self, documento, loja_nome: str) -> str | None:
+        return None
+
 
 # ---------------------------------------------------------------------------
 # Funções genéricas de workflow
@@ -261,16 +274,21 @@ def enviar_email_parte1(adapter: AssinaturaAdapter, documento, assinatura, loja_
     for label, val in info.items():
         info_extra_html += f'<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>{label}:</strong></td></tr><tr><td style="color:#333;font-size:15px;padding-bottom:12px;">{val}</td></tr>'
 
+    rotulo_titulo = adapter.get_rotulo_titulo_email()
+    valor_html = ''
+    if adapter.incluir_valor_no_email() and (valor or '').strip() and valor.strip() != '—':
+        valor_html = f"""<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>Valor:</strong></td></tr>
+<tr><td style="color:#10b981;font-size:20px;font-weight:700;">{valor}</td></tr>"""
+
     corpo = f"""
 <p style="color:#333;font-size:16px;line-height:1.6;margin:0 0 20px;">Olá <strong>{nome}</strong>,</p>
 <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 30px;">Você recebeu um(a) <strong>{tipo_doc.lower()}</strong> de <strong>{loja_nome}</strong> para assinatura digital.</p>
 <table width="100%" style="background:#f8f9fa;border-left:4px solid #667eea;border-radius:4px;margin-bottom:30px;"><tr><td style="padding:20px;">
 <table width="100%">
-<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>Título:</strong></td></tr>
+<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>{rotulo_titulo}:</strong></td></tr>
 <tr><td style="color:#333;font-size:16px;font-weight:600;padding-bottom:12px;">{titulo}</td></tr>
 {info_extra_html}
-<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>Valor:</strong></td></tr>
-<tr><td style="color:#10b981;font-size:20px;font-weight:700;">{valor}</td></tr>
+{valor_html}
 </table></td></tr></table>
 <table width="100%" style="margin-bottom:30px;"><tr><td align="center">
 <!--[if mso]>
@@ -287,7 +305,7 @@ def enviar_email_parte1(adapter: AssinaturaAdapter, documento, assinatura, loja_
 </td></tr></table>"""
 
     html = _render_email_html(f'📄 Assinatura Digital', '#667eea 0%, #764ba2 100%', corpo, loja_nome)
-    subject = f'📄 Assinatura Digital - {tipo_doc}: {titulo}'
+    subject = adapter.get_assunto_email_parte1(documento, loja_nome) or f'📄 Assinatura Digital - {tipo_doc}: {titulo}'
 
     return _enviar_email(subject, html, f'Assinatura digital: {titulo}', email, loja_nome)
 
@@ -305,17 +323,22 @@ def enviar_email_parte2(adapter: AssinaturaAdapter, documento, assinatura, loja_
     valor = adapter.get_valor_display(documento)
     label1 = adapter.get_label_parte1().title()
 
+    rotulo_titulo = adapter.get_rotulo_titulo_email()
+    valor_html = ''
+    if adapter.incluir_valor_no_email() and (valor or '').strip() and valor.strip() != '—':
+        valor_html = f"""<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>Valor:</strong></td></tr>
+<tr><td style="color:#10b981;font-size:20px;font-weight:700;">{valor}</td></tr>"""
+
     corpo = f"""
 <p style="color:#333;font-size:16px;line-height:1.6;margin:0 0 20px;">Olá <strong>{assinatura.nome_assinante}</strong>,</p>
 <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 30px;">O(a) {label1.lower()} <strong>{nome_parte1}</strong> assinou o(a) {tipo_doc.lower()}. Agora é sua vez.</p>
 <table width="100%" style="background:#f0fdf4;border-left:4px solid #10b981;border-radius:4px;margin-bottom:30px;"><tr><td style="padding:20px;">
 <table width="100%">
-<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>Título:</strong></td></tr>
+<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>{rotulo_titulo}:</strong></td></tr>
 <tr><td style="color:#333;font-size:16px;font-weight:600;padding-bottom:12px;">{titulo}</td></tr>
-<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>{label1}:</strong></td></tr>
+<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>{label1.title()}:</strong></td></tr>
 <tr><td style="color:#333;font-size:15px;padding-bottom:12px;">{nome_parte1}</td></tr>
-<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>Valor:</strong></td></tr>
-<tr><td style="color:#10b981;font-size:20px;font-weight:700;">{valor}</td></tr>
+{valor_html}
 </table></td></tr></table>
 <table width="100%" style="margin-bottom:30px;"><tr><td align="center">
 <!--[if mso]>
@@ -329,7 +352,7 @@ def enviar_email_parte2(adapter: AssinaturaAdapter, documento, assinatura, loja_
 </td></tr></table>"""
 
     html = _render_email_html(f'✅ {label1} Assinou!', '#10b981 0%, #059669 100%', corpo, loja_nome)
-    subject = f'✅ {label1} Assinou - {tipo_doc}: {titulo}'
+    subject = adapter.get_assunto_email_parte2(documento, loja_nome) or f'✅ {label1} Assinou - {tipo_doc}: {titulo}'
 
     return _enviar_email(subject, html, f'{label1} assinou: {titulo}', assinatura.email_assinante, loja_nome)
 

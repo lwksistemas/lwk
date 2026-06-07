@@ -440,16 +440,16 @@ def gerar_pdf_comissoes(
         for idx, p in enumerate(profissionais):
             if idx > 0:
                 elements.append(Spacer(1, 4 * mm))
-            nome = p.get('nome', '')
-            elements.append(Paragraph(nome, ParagraphStyle(
-                'NomeProf',
-                parent=styles['Heading2'],
-                fontSize=10,
-                fontName='Helvetica-Bold',
-                textColor=_COR_PRIMARIA,
-                spaceBefore=1 * mm,
-                spaceAfter=1 * mm,
-            )))
+            if len(profissionais) > 1 or not profissional_filtro_nome:
+                elements.append(Paragraph(p.get('nome', ''), ParagraphStyle(
+                    'NomeProf',
+                    parent=styles['Heading2'],
+                    fontSize=10,
+                    fontName='Helvetica-Bold',
+                    textColor=_COR_PRIMARIA,
+                    spaceBefore=2 * mm if idx > 0 else 0,
+                    spaceAfter=1 * mm,
+                )))
 
             detalhes = p.get('detalhes') or []
             linhas_c = [d for d in detalhes if _is_linha_consulta(d)]

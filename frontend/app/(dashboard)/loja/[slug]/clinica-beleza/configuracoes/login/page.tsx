@@ -118,6 +118,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
               onChange={setLogo}
               maxSize={2}
               aspectRatio="16:9"
+              folder={`lwksistemas/${slug}`}
             />
             <ImageUpload
               label="Imagem de fundo da tela de login"
@@ -126,6 +127,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
               onChange={setLoginBackground}
               maxSize={5}
               aspectRatio="16:9"
+              folder={`lwksistemas/${slug}`}
             />
             <ImageUpload
               label="Logo da tela de login"
@@ -134,6 +136,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
               onChange={setLoginLogo}
               maxSize={2}
               aspectRatio="1:1"
+              folder={`lwksistemas/${slug}`}
             />
 
             <div>

@@ -27,6 +27,16 @@ const CLOUDINARY_WIDGET_SRC = 'https://upload-widget.cloudinary.com/global/all.j
 /** Uma única carga do script para todos os ImageUpload (evita corrida e duplicados). */
 let cloudinaryScriptPromise: Promise<void> | null = null;
 
+export function resetCloudinaryWidgetScript(): void {
+  cloudinaryScriptPromise = null;
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('script[data-lwk-cloudinary-widget="1"]').forEach((el) => el.remove());
+  }
+  if (typeof window !== 'undefined') {
+    delete window.cloudinary;
+  }
+}
+
 function loadCloudinaryWidgetScript(): Promise<void> {
   if (typeof window === 'undefined') {
     return Promise.resolve();
@@ -97,23 +107,39 @@ export function ImageUpload({
   const [widgetReady, setWidgetReady] = useState(
     () => typeof window !== 'undefined' && Boolean(window.cloudinary?.createUploadWidget)
   );
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  const prepareWidget = (force = false) => {
+    if (force) {
+      resetCloudinaryWidgetScript();
+      setWidgetReady(false);
+    }
+    return loadCloudinaryWidgetScript()
+      .then(() => {
+        setWidgetReady(true);
+        setError(null);
+      })
+      .catch((e: unknown) => {
+        logger.warn('Erro ao carregar widget Cloudinary:', e);
+        setWidgetReady(false);
+        setError('Não foi possível carregar o upload de imagens (Cloudinary).');
+        throw e;
+      });
+  };
 
   useEffect(() => {
     let cancelled = false;
-    loadCloudinaryWidgetScript()
-      .then(() => {
-        if (!cancelled) setWidgetReady(true);
+    prepareWidget()
+      .catch(() => {
+        /* erro já tratado em prepareWidget */
       })
-      .catch((e: unknown) => {
-        if (!cancelled) {
-          logger.warn('Erro ao carregar widget Cloudinary:', e);
-          setError('Não foi possível carregar o upload de imagens (Cloudinary).');
-        }
+      .finally(() => {
+        if (cancelled) return;
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAttempt]);
 
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dzrdbw74w';
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'lwk_padrao';
@@ -361,9 +387,16 @@ export function ImageUpload({
           )}
 
           {error && (
-            <p className="text-xs text-red-600 dark:text-red-400">
-              {error}
-            </p>
+            <div className="space-y-2">
+              <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+              <button
+                type="button"
+                onClick={() => setLoadAttempt((n) => n + 1)}
+                className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+              >
+                Tentar carregar novamente
+              </button>
+            </div>
           )}
         </div>
       </div>

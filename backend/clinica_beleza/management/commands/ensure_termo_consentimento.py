@@ -40,15 +40,15 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if table_exists(cursor, 'clinica_beleza_procedures'):
-                        if not column_exists(cursor, 'clinica_beleza_procedures', 'termo_consentimento'):
+                    if table_exists(cursor, 'clinica_beleza_procedure'):
+                        if not column_exists(cursor, 'clinica_beleza_procedure', 'termo_consentimento'):
                             cursor.execute(
-                                "ALTER TABLE clinica_beleza_procedures "
+                                "ALTER TABLE clinica_beleza_procedure "
                                 "ADD COLUMN termo_consentimento TEXT NOT NULL DEFAULT ''"
                             )
-                        if not column_exists(cursor, 'clinica_beleza_procedures', 'termo_consentimento_ativo'):
+                        if not column_exists(cursor, 'clinica_beleza_procedure', 'termo_consentimento_ativo'):
                             cursor.execute(
-                                "ALTER TABLE clinica_beleza_procedures "
+                                "ALTER TABLE clinica_beleza_procedure "
                                 "ADD COLUMN termo_consentimento_ativo BOOLEAN NOT NULL DEFAULT FALSE"
                             )
                     if table_exists(cursor, 'clinica_beleza_produtoestoque'):
@@ -56,7 +56,7 @@ class Command(BaseCommand):
                             cursor.execute(
                                 "ALTER TABLE clinica_beleza_produtoestoque "
                                 "ADD COLUMN procedure_id BIGINT NULL "
-                                "REFERENCES clinica_beleza_procedures(id) ON DELETE SET NULL"
+                                "REFERENCES clinica_beleza_procedure(id) ON DELETE SET NULL"
                             )
                     if table_exists(cursor, 'clinica_beleza_consultas'):
                         if not column_exists(cursor, 'clinica_beleza_consultas', 'status_assinatura_termo'):

@@ -515,7 +515,7 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
         <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
           {loadingDetalhe ? (
             <div className="text-center py-16 text-gray-500">Carregando consulta...</div>
-          ) : !consultaAtiva && !consultaFinalizada ? (
+          ) : !consultaAtiva && !consultaFinalizada && tab !== "historico" ? (
             <div className="text-center py-16">
               <p className="text-gray-500 dark:text-gray-400 text-sm">
                 Consulta aguardando início. O profissional deve clicar em <strong>&quot;Iniciar consulta&quot;</strong> para habilitar o atendimento.

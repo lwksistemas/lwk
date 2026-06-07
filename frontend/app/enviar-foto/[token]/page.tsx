@@ -36,32 +36,89 @@ function arquivoEhImagem(file: File): boolean {
   return EXT_IMAGEM.test(file.name);
 }
 
-/** Reduz fotos grandes do celular antes do upload (evita falha no Cloudinary). */
+const LIMITE_CLOUDINARY_BYTES = 9 * 1024 * 1024;
+const MAX_LADO_INICIAL = 1920;
+
+type FonteImagem = ImageBitmap | HTMLImageElement;
+
+async function carregarFonteImagem(file: File): Promise<FonteImagem | null> {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      return await createImageBitmap(file);
+    } catch {
+      /* fallback abaixo */
+    }
+  }
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('imagem inválida'));
+    };
+    img.src = url;
+  });
+}
+
+function liberarFonteImagem(fonte: FonteImagem) {
+  if ('close' in fonte && typeof fonte.close === 'function') fonte.close();
+}
+
+function dimensoesFonte(fonte: FonteImagem) {
+  return { w: fonte.width, h: fonte.height };
+}
+
+async function canvasParaJpeg(
+  canvas: HTMLCanvasElement,
+  qualidade: number,
+): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    canvas.toBlob((b) => resolve(b), 'image/jpeg', qualidade);
+  });
+}
+
+/** Reduz fotos do celular antes do upload (limite Cloudinary: 10 MB). */
 async function prepararArquivoUpload(file: File): Promise<File> {
-  const LIMITE_MB = 8;
-  const MAX_LADO = 2400;
-  if (file.size <= LIMITE_MB * 1024 * 1024) return file;
-  if (typeof createImageBitmap !== 'function') return file;
-
   try {
-    const bitmap = await createImageBitmap(file);
-    const escala = Math.min(1, MAX_LADO / Math.max(bitmap.width, bitmap.height));
-    const w = Math.max(1, Math.round(bitmap.width * escala));
-    const h = Math.max(1, Math.round(bitmap.height * escala));
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return file;
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    bitmap.close();
+    const fonte = await carregarFonteImagem(file);
+    if (!fonte) return file;
 
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.88);
-    });
-    if (!blob) return file;
-    const nome = file.name.replace(EXT_IMAGEM, '.jpg') || 'foto.jpg';
-    return new File([blob], nome, { type: 'image/jpeg' });
+    const { w: iw, h: ih } = dimensoesFonte(fonte);
+    let maxLado = MAX_LADO_INICIAL;
+    let resultado: File | null = null;
+
+    while (maxLado >= 960) {
+      const escala = Math.min(1, maxLado / Math.max(iw, ih));
+      const w = Math.max(1, Math.round(iw * escala));
+      const h = Math.max(1, Math.round(ih * escala));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) break;
+      ctx.drawImage(fonte, 0, 0, w, h);
+
+      let qualidade = 0.88;
+      let blob: Blob | null = null;
+      while (qualidade >= 0.45) {
+        blob = await canvasParaJpeg(canvas, qualidade);
+        if (blob && blob.size <= LIMITE_CLOUDINARY_BYTES) break;
+        qualidade -= 0.08;
+      }
+      if (blob && blob.size <= LIMITE_CLOUDINARY_BYTES) {
+        const nome = file.name.replace(EXT_IMAGEM, '.jpg') || 'foto.jpg';
+        resultado = new File([blob], nome, { type: 'image/jpeg' });
+        break;
+      }
+      maxLado = Math.round(maxLado * 0.75);
+    }
+
+    liberarFonteImagem(fonte);
+    return resultado ?? file;
   } catch {
     return file;
   }
@@ -82,6 +139,7 @@ export default function EnviarFotoPage() {
   const [config, setConfig] = useState<FotoUploadConfig | null>(null);
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [preparando, setPreparando] = useState(false);
   const [progressoEnvio, setProgressoEnvio] = useState('');
   const [fotosEnviadas, setFotosEnviadas] = useState(0);
   const [pendentes, setPendentes] = useState<ArquivoPendente[]>([]);
@@ -121,7 +179,13 @@ export default function EnviarFotoPage() {
 
   const enviarArquivo = async (file: File): Promise<boolean> => {
     if (!config) return false;
-    const arquivo = await prepararArquivoUpload(file);
+    let arquivo = await prepararArquivoUpload(file);
+    if (arquivo.size > LIMITE_CLOUDINARY_BYTES) {
+      setErro(
+        'A foto ainda está muito grande após otimização. Tente outra imagem ou use uma resolução menor na câmera.',
+      );
+      return false;
+    }
     const formData = new FormData();
     formData.append('file', arquivo);
     formData.append('upload_preset', config.upload_preset);
@@ -183,7 +247,7 @@ export default function EnviarFotoPage() {
     }
   };
 
-  const adicionarArquivos = (files: FileList | null) => {
+  const adicionarArquivos = async (files: FileList | null) => {
     if (!files?.length) return;
     const imagens = Array.from(files).filter(arquivoEhImagem);
     if (!imagens.length) {
@@ -195,17 +259,29 @@ export default function EnviarFotoPage() {
       setErro(`Máximo de ${MAX_FOTOS} fotos por envio.`);
       return;
     }
-    const novos = imagens.slice(0, restante).map((file) => ({
-      id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
-      file,
-      preview: URL.createObjectURL(file),
-    }));
-    if (imagens.length > restante) {
-      setErro(`Só é possível adicionar mais ${restante} foto(s) neste envio.`);
-    } else {
-      setErro('');
+
+    setPreparando(true);
+    setErro('');
+    try {
+      const selecionadas = imagens.slice(0, restante);
+      const novos: ArquivoPendente[] = [];
+      for (const original of selecionadas) {
+        const file = await prepararArquivoUpload(original);
+        novos.push({
+          id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
+          file,
+          preview: URL.createObjectURL(file),
+        });
+      }
+      if (imagens.length > restante) {
+        setErro(`Só é possível adicionar mais ${restante} foto(s) neste envio.`);
+      }
+      setPendentes((prev) => [...prev, ...novos]);
+    } catch {
+      setErro('Não foi possível preparar a imagem. Tente outra foto.');
+    } finally {
+      setPreparando(false);
     }
-    setPendentes((prev) => [...prev, ...novos]);
   };
 
   const removerPendente = (id: string) => {
@@ -217,12 +293,12 @@ export default function EnviarFotoPage() {
   };
 
   const onCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    adicionarArquivos(e.target.files);
+    void adicionarArquivos(e.target.files);
     e.target.value = '';
   };
 
   const onGaleriaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    adicionarArquivos(e.target.files);
+    void adicionarArquivos(e.target.files);
     e.target.value = '';
   };
 
@@ -291,14 +367,11 @@ export default function EnviarFotoPage() {
 
         <div className="bg-white rounded-2xl shadow-lg p-6 space-y-4">
           <p className="text-sm text-gray-600 text-center">
-            {temPendentes
-              ? 'Confira as fotos selecionadas antes de enviar.'
-              : (
-                <>
-                  Fotografe o paciente ou escolha <strong>várias fotos</strong> da galeria do seu
-                  celular.
-                </>
-              )}
+            {preparando
+              ? 'Otimizando foto para envio…'
+              : temPendentes
+                ? 'Confira as fotos selecionadas e toque em Enviar.'
+                : 'Use a câmera do celular ou o botão Galeria para escolher fotos já salvas.'}
           </p>
 
           {temPendentes && (
@@ -341,7 +414,7 @@ export default function EnviarFotoPage() {
             ref={cameraInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
+            capture="user"
             className="hidden"
             onChange={onCameraChange}
           />
@@ -399,22 +472,25 @@ export default function EnviarFotoPage() {
             <div className="grid grid-cols-1 gap-3">
               <button
                 type="button"
-                disabled={enviando}
+                disabled={enviando || preparando}
                 onClick={() => cameraInputRef.current?.click()}
                 className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-purple-700 text-white font-semibold text-lg disabled:opacity-50"
               >
                 <Camera size={22} />
-                Fotografar paciente
+                Tirar foto (câmera)
               </button>
               <button
                 type="button"
-                disabled={enviando}
+                disabled={enviando || preparando}
                 onClick={() => galeriaInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-purple-200 text-purple-800 font-semibold disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-purple-300 bg-purple-50 text-purple-900 font-semibold text-lg disabled:opacity-50"
               >
                 <Images size={22} />
-                Escolher da galeria
+                Galeria — escolher fotos salvas
               </button>
+              <p className="text-xs text-center text-gray-500 px-2">
+                Na galeria você pode marcar várias fotos de uma vez antes de confirmar o envio.
+              </p>
             </div>
           )}
         </div>

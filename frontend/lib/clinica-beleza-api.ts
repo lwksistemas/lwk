@@ -652,9 +652,13 @@ export class ClinicaBelezaAPI {
       data: { prescricao_id?: string; resumo?: string; itens?: unknown[]; pdf_url?: string; professional?: number | null },
     ) => ClinicaBelezaAPI.post(`/consultas/${consultaId}/prescricoes/`, data),
 
+    /** Lista prescrições Memed registradas nesta consulta. */
+    listarPrescricoesConsulta: (consultaId: number) =>
+      ClinicaBelezaAPI.get<PrescricaoMemedItem[]>(`/consultas/${consultaId}/prescricoes/`),
+
     /** Lista as prescrições registradas para um paciente (histórico). */
     listarPrescricoesPaciente: (patientId: number) =>
-      ClinicaBelezaAPI.get<PrescricaoMemedItem[]>(`/patients/${patientId}/prescricoes/`),
+      ClinicaBelezaAPI.getList<PrescricaoMemedItem>(`/patients/${patientId}/prescricoes/`),
   };
 
   static templates = {

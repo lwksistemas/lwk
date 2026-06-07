@@ -477,7 +477,9 @@ function HistoricoPrescricoes({
                     window.open(p.pdf_url, "_blank");
                     return;
                   }
-                  alert("Receituário sem PDF. Use a aba Documentos ou Memed para imprimir com timbrado.");
+                  alert(
+                    "PDF desta prescrição ainda não foi salvo. Emita novamente na Memed ou aguarde o processamento.",
+                  );
                 }}
               />
             </div>

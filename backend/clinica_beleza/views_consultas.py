@@ -382,22 +382,62 @@ class ConsultaPrescricaoView(APIView):
         return Response(PrescricaoMemedSerializer(qs, many=True).data)
 
     def post(self, request, consulta_id):
+        from superadmin.models import Loja
+
+        from .memed_prescricao_service import resolver_pdf_prescricao
+
         try:
-            consulta = Consulta.objects.get(pk=consulta_id)
+            consulta = Consulta.objects.select_related('professional').get(pk=consulta_id)
         except Consulta.DoesNotExist:
             return Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
 
         itens = request.data.get('itens') or []
         if not isinstance(itens, list):
             itens = []
+        prescricao_id = str(request.data.get('prescricao_id') or '')[:64]
+        prof_id = request.data.get('professional') or consulta.professional_id
+        professional = consulta.professional
+        if prof_id and (not professional or professional.id != prof_id):
+            professional = Professional.objects.filter(pk=prof_id).first() or professional
+
+        loja = Loja.objects.using('default').filter(id=consulta.loja_id).first()
+        pdf_url = ''
+        if loja:
+            pdf_url = resolver_pdf_prescricao(
+                loja,
+                professional,
+                prescricao_id,
+                str(request.data.get('pdf_url') or ''),
+            )
+
         data = {
             'consulta': consulta.id,
             'patient': consulta.patient_id,
-            'professional': request.data.get('professional') or consulta.professional_id,
-            'prescricao_id': str(request.data.get('prescricao_id') or '')[:64],
+            'professional': prof_id,
+            'prescricao_id': prescricao_id,
             'resumo': request.data.get('resumo') or '',
             'itens': itens,
+            'pdf_url': pdf_url,
         }
+
+        if prescricao_id:
+            existente = PrescricaoMemed.objects.filter(
+                consulta_id=consulta.id,
+                prescricao_id=prescricao_id,
+            ).first()
+            if existente:
+                existente.resumo = data['resumo'] or existente.resumo
+                existente.itens = itens or existente.itens
+                if pdf_url:
+                    existente.pdf_url = pdf_url
+                if prof_id:
+                    existente.professional_id = prof_id
+                existente.save()
+                return Response(
+                    PrescricaoMemedSerializer(existente).data,
+                    status=status.HTTP_200_OK,
+                )
+
         serializer = PrescricaoMemedSerializer(data=data)
         if serializer.is_valid():
             serializer.save(loja_id=consulta.loja_id)

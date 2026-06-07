@@ -15,7 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI, type DocumentoClinicoItem } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, type DocumentoClinicoItem, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
 import { imprimirDocumentoPdf } from "@/lib/consulta-print";
 import { logger } from "@/lib/logger";
 import { ConsultaPrintButton } from "./ConsultaPrintButton";
@@ -69,14 +69,18 @@ export function ConsultaDocumentosTab({
   consultaId,
   consultaAtiva,
   onUsarMemed,
+  refreshPrescricoes = 0,
 }: {
   consultaId: number;
   consultaAtiva: boolean;
   /** Callback ao selecionar "Usar Memed" (receituário ou exames). */
   onUsarMemed?: () => void;
+  /** Incrementar após nova prescrição Memed para atualizar a lista. */
+  refreshPrescricoes?: number;
 }) {
   const [openDropdown, setOpenDropdown] = useState<DocumentoTipo | null>(null);
   const [documentos, setDocumentos] = useState<DocumentoClinicoItem[]>([]);
+  const [prescricoesMemed, setPrescricoesMemed] = useState<PrescricaoMemedItem[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
@@ -92,15 +96,20 @@ export function ConsultaDocumentosTab({
     return [];
   };
 
-  /** Carrega a lista de documentos da consulta */
+  /** Carrega documentos manuais e prescrições Memed da consulta */
   const fetchDocumentos = useCallback(async () => {
     try {
       setLoadingDocs(true);
-      const data = await ClinicaBelezaAPI.documentos.list(consultaId);
+      const [data, presc] = await Promise.all([
+        ClinicaBelezaAPI.documentos.list(consultaId).catch(() => []),
+        ClinicaBelezaAPI.memed.listarPrescricoesConsulta(consultaId).catch(() => []),
+      ]);
       setDocumentos(parseLista(data));
+      setPrescricoesMemed(Array.isArray(presc) ? presc : []);
     } catch (e) {
       logger.warn("Erro ao listar documentos da consulta:", e);
       setDocumentos([]);
+      setPrescricoesMemed([]);
     } finally {
       setLoadingDocs(false);
     }
@@ -119,7 +128,7 @@ export function ConsultaDocumentosTab({
 
   useEffect(() => {
     fetchDocumentos();
-  }, [fetchDocumentos]);
+  }, [fetchDocumentos, refreshPrescricoes]);
 
   /** Exclui um documento após confirmação */
   const handleDelete = async (docId: number) => {
@@ -250,12 +259,61 @@ export function ConsultaDocumentosTab({
             <Loader2 size={16} className="animate-spin" />
             <span className="text-sm">Carregando documentos…</span>
           </div>
-        ) : documentos.length === 0 ? (
+        ) : documentos.length === 0 && prescricoesMemed.length === 0 ? (
           <p className="text-sm text-gray-400 dark:text-gray-500 italic">
             Nenhum documento criado nesta consulta.
           </p>
         ) : (
           <div className="space-y-3">
+            {prescricoesMemed.map((p) => {
+              const ehExame = p.itens?.some((it) => it.tipo === "exame");
+              const tipoLabel = ehExame ? "Exames (Memed)" : "Receituário (Memed)";
+              return (
+                <div
+                  key={`memed-${p.id}`}
+                  className="flex items-start gap-3 p-3 rounded-lg border border-purple-100 dark:border-purple-900/40 bg-purple-50/50 dark:bg-purple-950/20"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-purple-200 dark:bg-purple-900/50 text-purple-900 dark:text-purple-200">
+                        {tipoLabel}
+                      </span>
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                        {p.resumo?.split("\n")[0]?.replace(/^- /, "") || "Prescrição Memed"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {p.created_at
+                        ? new Date(p.created_at).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "—"}
+                      {p.professional_name ? ` · ${p.professional_name}` : ""}
+                    </p>
+                    {p.resumo && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2 whitespace-pre-line">
+                        {p.resumo}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0 flex items-center gap-1">
+                    <ConsultaPrintButton
+                      onPrint={() => {
+                        if (p.pdf_url) {
+                          window.open(p.pdf_url, "_blank");
+                          return;
+                        }
+                        alert("PDF ainda não disponível. Aguarde alguns segundos e atualize a página.");
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
             {documentos.map((doc) => (
               <div
                 key={doc.id}

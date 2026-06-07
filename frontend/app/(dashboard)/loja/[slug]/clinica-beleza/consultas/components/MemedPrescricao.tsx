@@ -69,6 +69,34 @@ interface ItemPrescricao {
   receituario?: string;
 }
 
+function extrairUrlPdf(obj: unknown, profundidade = 0): string {
+  if (profundidade > 6 || obj == null) return "";
+  if (typeof obj === "string") {
+    const s = obj.trim();
+    if (/^https?:\/\//i.test(s)) return s;
+    return "";
+  }
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      const u = extrairUrlPdf(item, profundidade + 1);
+      if (u) return u;
+    }
+    return "";
+  }
+  if (typeof obj === "object") {
+    const o = obj as Record<string, unknown>;
+    for (const key of ["url_pdf", "pdf_url", "link_pdf", "pdf", "url", "link", "secure_url"]) {
+      const val = o[key];
+      if (typeof val === "string" && /^https?:\/\//i.test(val.trim())) return val.trim();
+    }
+    for (const val of Object.values(o)) {
+      const u = extrairUrlPdf(val, profundidade + 1);
+      if (u) return u;
+    }
+  }
+  return "";
+}
+
 /** Extrai (de forma defensiva) os dados úteis do payload do evento prescricaoImpressa. */
 function parsePrescricao(data: unknown): { prescricaoId: string; itens: ItemPrescricao[]; resumo: string; pdfUrl: string } {
   const d = (data ?? {}) as Record<string, any>;
@@ -77,17 +105,15 @@ function parsePrescricao(data: unknown): { prescricaoId: string; itens: ItemPres
     ? d.medicamentos
     : Array.isArray(prescricao?.medicamentos)
       ? prescricao.medicamentos
-      : [];
-  const prescricaoId = String(prescricao?.id ?? d.id ?? "");
+      : Array.isArray(prescricao?.itens)
+        ? prescricao.itens
+        : [];
+  const prescricaoId = String(prescricao?.id ?? d.prescricao_id ?? d.id ?? "");
 
-  // URL do PDF gerado pela Memed (já com timbrado)
-  const pdfUrl = String(
-    d.url_pdf ?? d.pdf_url ?? prescricao?.url_pdf ?? prescricao?.pdf_url
-    ?? d.url ?? prescricao?.url ?? ""
-  );
+  const pdfUrl = extrairUrlPdf(d) || extrairUrlPdf(prescricao);
 
   const itens: ItemPrescricao[] = meds.map((m) => ({
-    nome: m?.nome ?? m?.descricao ?? "",
+    nome: m?.nome ?? m?.descricao ?? m?.titulo ?? "",
     posologia: m?.sanitized_posology ?? stripHtml(m?.posologia),
     tipo: m?.tipo ?? "",
     receituario: m?.receituario ?? "",
@@ -95,6 +121,7 @@ function parsePrescricao(data: unknown): { prescricaoId: string; itens: ItemPres
 
   const resumo = itens
     .map((it) => (it.posologia ? `- ${it.nome} — ${it.posologia}` : `- ${it.nome}`))
+    .filter((line) => line.replace(/^- /, "").trim())
     .join("\n");
 
   return { prescricaoId, itens, resumo, pdfUrl };
@@ -289,16 +316,29 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
     useEffect(() => {
       prescricaoImpressaHandler = (data: unknown) => {
         const { prescricaoId, itens, resumo, pdfUrl } = parsePrescricao(data);
-        ClinicaBelezaAPI.memed
-          .salvarPrescricao(consultaId, {
-            prescricao_id: prescricaoId,
-            resumo,
-            itens,
-            pdf_url: pdfUrl,
-            professional: professionalId ?? null,
-          })
-          .then(() => onPrescricaoRegistrada?.())
-          .catch((e) => logger.warn("Memed: falha ao registrar prescrição no histórico:", e));
+        if (!prescricaoId && !itens.length) {
+          logger.warn("Memed: evento prescricaoImpressa sem dados utilizáveis.", data);
+          return;
+        }
+        const payload = {
+          prescricao_id: prescricaoId,
+          resumo,
+          itens,
+          pdf_url: pdfUrl,
+          professional: professionalId ?? null,
+        };
+        const salvar = () =>
+          ClinicaBelezaAPI.memed.salvarPrescricao(consultaId, payload).then(() => {
+            onPrescricaoRegistrada?.();
+          });
+
+        void salvar().catch((e) => logger.warn("Memed: falha ao registrar prescrição no histórico:", e));
+
+        if (!pdfUrl && prescricaoId) {
+          window.setTimeout(() => {
+            void salvar().catch(() => {});
+          }, 4000);
+        }
       };
       return () => {
         prescricaoImpressaHandler = null;

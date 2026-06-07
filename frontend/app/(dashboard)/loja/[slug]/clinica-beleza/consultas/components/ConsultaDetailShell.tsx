@@ -80,6 +80,7 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     local_atendimento: "" as number | "",
   });
   const [fotosToolbar, setFotosToolbar] = useState<ReactNode | null>(null);
+  const [prescricoesRefresh, setPrescricoesRefresh] = useState(0);
   const [evolucaoForm, setEvolucaoForm] = useState({
     descricao: "",
     procedimento_realizado: "",
@@ -322,6 +323,7 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     try {
       const presc = await ClinicaBelezaAPI.memed.listarPrescricoesPaciente(selected.patient);
       setPrescricoes(Array.isArray(presc) ? presc : []);
+      setPrescricoesRefresh((n) => n + 1);
     } catch (e) {
       logger.warn("Erro ao recarregar prescrições:", e);
     }
@@ -610,6 +612,7 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                   consultaId={selected.id}
                   consultaAtiva={consultaAtiva}
                   onUsarMemed={abrirMemed}
+                  refreshPrescricoes={prescricoesRefresh}
                 />
               )}
             </>

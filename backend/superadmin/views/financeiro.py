@@ -417,5 +417,9 @@ class PagamentoLojaViewSet(viewsets.ModelViewSet):
         financeiro.ultimo_pagamento = timezone.now()
         financeiro.total_pago += pagamento.valor
         financeiro.save()
+
+        from superadmin.sync_service import tentar_emitir_nfse_assinatura
+        payment_id = (pagamento.asaas_payment_id or financeiro.asaas_payment_id or '').strip()
+        tentar_emitir_nfse_assinatura(pagamento, payment_id)
         
         return Response({'message': 'Pagamento confirmado com sucesso'})

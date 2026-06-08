@@ -331,23 +331,31 @@ class FinanceiroLojaViewSet(viewsets.ReadOnlyModelViewSet):
             resultado = asaas_service.consultar_status_pagamento(financeiro.asaas_payment_id)
             
             if resultado.get('success'):
-                # Atualizar status local baseado no Asaas
                 asaas_status = resultado.get('status', '')
                 
                 if asaas_status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
-                    financeiro.status_pagamento = 'ativo'
-                    financeiro.ultimo_pagamento = resultado.get('payment_date')
+                    from superadmin.sync_service import AsaasSyncService
+                    sync = AsaasSyncService()
+                    payment_data = resultado.get('raw_payment') or {}
+                    sync._process_payment_confirmed(
+                        financeiro.loja,
+                        financeiro,
+                        financeiro.asaas_payment_id,
+                        payment_data,
+                    )
+                    financeiro.refresh_from_db()
                 elif asaas_status == 'OVERDUE':
                     financeiro.status_pagamento = 'atrasado'
+                    financeiro.save()
                 else:
                     financeiro.status_pagamento = 'pendente'
-                
-                financeiro.save()
+                    financeiro.save()
                 
                 return Response({
                     'message': 'Status atualizado com sucesso',
                     'status_asaas': asaas_status,
-                    'status_local': financeiro.status_pagamento
+                    'status_local': financeiro.status_pagamento,
+                    'senha_enviada': financeiro.senha_enviada,
                 })
             else:
                 return Response(

@@ -50,6 +50,47 @@ class AsaasSyncService:
     def __init__(self):
         self.asaas_service = LojaAsaasService()
         self.DAYS_TO_BLOCK = 5  # Dias de atraso para bloquear
+
+    def _resolver_financeiro_por_payment_id(self, payment_id: str, payment_data: dict | None = None):
+        """Localiza FinanceiroLoja pelo payment_id (financeiro, PagamentoLoja ou externalReference)."""
+        payment_id = (payment_id or '').strip()
+        if not payment_id:
+            return None, None
+
+        financeiro = FinanceiroLoja.objects.filter(asaas_payment_id=payment_id).select_related('loja').first()
+        if financeiro:
+            return financeiro, financeiro.loja
+
+        pagamento = PagamentoLoja.objects.filter(
+            asaas_payment_id=payment_id,
+        ).select_related('financeiro', 'loja').first()
+        if pagamento:
+            financeiro = pagamento.financeiro
+            if financeiro and not (financeiro.asaas_payment_id or '').strip():
+                financeiro.asaas_payment_id = payment_id
+                financeiro.save(update_fields=['asaas_payment_id'])
+            return financeiro, pagamento.loja
+
+        financeiro = FinanceiroLoja.objects.filter(
+            link_pagamento_cartao__contains=payment_id,
+        ).select_related('loja').first()
+        if financeiro:
+            return financeiro, financeiro.loja
+
+        payment_data = payment_data or {}
+        external_ref = (payment_data.get('externalReference') or '').strip()
+        if external_ref.startswith('loja_'):
+            slug_part = external_ref[len('loja_'):]
+            slug = slug_part.rsplit('_', 1)[0] if '_assinatura' in slug_part else slug_part
+            loja = Loja.objects.filter(slug=slug).first()
+            if loja and hasattr(loja, 'financeiro'):
+                financeiro = loja.financeiro
+                if not (financeiro.asaas_payment_id or '').strip():
+                    financeiro.asaas_payment_id = payment_id
+                    financeiro.save(update_fields=['asaas_payment_id'])
+                return financeiro, loja
+
+        return None, None
         
     def sync_all_payments(self):
         """Sincroniza todos os pagamentos de todas as lojas"""
@@ -181,45 +222,48 @@ class AsaasSyncService:
             
             # Mapear status do Asaas para nosso sistema
             if asaas_status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
-                novo_status = 'pago'
-                pagamento.data_pagamento = timezone.now()
-                
-                # Atualizar financeiro
+                loja = pagamento.loja
                 financeiro = pagamento.financeiro
-                financeiro.ultimo_pagamento = timezone.now()
-                financeiro.status_pagamento = 'ativo'
-                financeiro.save()
-                
+                payment_data = resultado.get('raw_payment') or {}
+                self._process_payment_confirmed(
+                    loja,
+                    financeiro,
+                    pagamento.asaas_payment_id,
+                    payment_data,
+                )
+                pagamento.refresh_from_db()
+                return {
+                    'updated': pagamento.status == 'pago',
+                    'status': pagamento.status,
+                    'previous_status': status_anterior,
+                }
             elif asaas_status == 'OVERDUE':
                 novo_status = 'atrasado'
             else:
                 novo_status = 'pendente'
-            
-            # Atualizar apenas se mudou
+
             if novo_status != status_anterior:
                 pagamento.status = novo_status
                 pagamento.save()
-                
                 logger.info(f"Pagamento {pagamento.id} atualizado: {status_anterior} -> {novo_status}")
-                
                 return {
                     'updated': True,
                     'status': novo_status,
-                    'previous_status': status_anterior
+                    'previous_status': status_anterior,
                 }
-            
+
             return {
                 'updated': False,
-                'status': novo_status
+                'status': novo_status,
             }
-            
+
         except Exception as e:
             logger.error(f"Erro ao sincronizar pagamento {pagamento.id}: {e}")
             return {
                 'updated': False,
-                'error': str(e)
+                'error': str(e),
             }
-    
+
     def update_loja_status(self, loja, pagamento_pago=False):
         """Atualiza status da loja baseado nos pagamentos"""
         try:
@@ -323,32 +367,23 @@ class AsaasSyncService:
                 }
             
             logger.info(f"Processando webhook: payment_id={payment_id}, event={event}, status={status_asaas}")
+
+            financeiro_cartao = FinanceiroLoja.objects.filter(
+                link_pagamento_cartao__contains=payment_id,
+            ).select_related('loja').first()
+            if financeiro_cartao:
+                logger.info(f"Financeiro encontrado via link de cartão: {payment_id}")
+                return self._process_card_registration(financeiro_cartao, payment_data)
             
-            # Buscar financeiro pela payment_id
-            financeiro = FinanceiroLoja.objects.filter(
-                asaas_payment_id=payment_id
-            ).first()
-            
-            if not financeiro:
-                # Tentar buscar pelo link de pagamento de cartão
-                financeiro = FinanceiroLoja.objects.filter(
-                    link_pagamento_cartao__contains=payment_id
-                ).first()
-                
-                if financeiro:
-                    logger.info(f"Financeiro encontrado via link de cartão: {payment_id}")
-                    # Este é um pagamento de cadastro de cartão
-                    return self._process_card_registration(financeiro, payment_data)
+            financeiro, loja = self._resolver_financeiro_por_payment_id(payment_id, payment_data)
             
             if not financeiro:
                 logger.warning(f"Financeiro não encontrado para payment_id: {payment_id}")
                 return {
                     'success': True,
                     'status': 'ignored',
-                    'reason': 'Pagamento não vinculado a nenhuma loja'
+                    'reason': 'Pagamento não vinculado a nenhuma loja',
                 }
-            
-            loja = financeiro.loja
             
             # Processar baseado no status
             if status_asaas in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:

@@ -15,6 +15,11 @@ class AsaasConfig(models.Model):
     
     # Configurações da API
     api_key = models.TextField(verbose_name="Chave da API Asaas")
+    webhook_token = models.TextField(
+        blank=True,
+        default='',
+        verbose_name="Token de autenticação do webhook",
+    )
     sandbox = models.BooleanField(default=True, verbose_name="Ambiente Sandbox")
     enabled = models.BooleanField(default=False, verbose_name="Integração Habilitada")
     
@@ -39,7 +44,13 @@ class AsaasConfig(models.Model):
                 raise ValidationError('Chave API deve começar com $aact_')
             # Criptografar antes de salvar
             self.api_key = encrypt_value(raw_key)
-        
+
+        raw_webhook = self.webhook_token or ''
+        if raw_webhook and not is_encrypted(raw_webhook):
+            if len(raw_webhook) < 32:
+                raise ValidationError('Token do webhook deve ter pelo menos 32 caracteres')
+            self.webhook_token = encrypt_value(raw_webhook)
+
         super().save(*args, **kwargs)
 
     @property
@@ -47,6 +58,11 @@ class AsaasConfig(models.Model):
         """Retorna a API key descriptografada para uso."""
         from core.encryption import decrypt_value
         return decrypt_value(self.api_key) if self.api_key else ''
+
+    @property
+    def webhook_token_decrypted(self):
+        from core.encryption import decrypt_value
+        return decrypt_value(self.webhook_token) if self.webhook_token else ''
     
     def __str__(self):
         env = "Sandbox" if self.sandbox else "Produção"
@@ -76,6 +92,10 @@ class AsaasConfig(models.Model):
             config.api_key = env_key  # save() vai criptografar
             config.enabled = bool(getattr(settings, 'ASAAS_INTEGRATION_ENABLED', True))
             config.save()
+        env_webhook = (getattr(settings, 'ASAAS_WEBHOOK_TOKEN', None) or '').strip()
+        if env_webhook and not config.webhook_token_decrypted:
+            config.webhook_token = env_webhook
+            config.save(update_fields=['webhook_token', 'updated_at'])
         return config
     
     @property
@@ -87,7 +107,32 @@ class AsaasConfig(models.Model):
         if len(key) <= 14:
             return key
         return f"{key[:10]}...{key[-4:]}"
-    
+
+    @property
+    def webhook_token_masked(self):
+        token = self.webhook_token_decrypted
+        if not token:
+            return ''
+        if len(token) <= 10:
+            return '•' * len(token)
+        return f"{token[:6]}...{token[-4:]}"
+
+    @classmethod
+    def resolve_webhook_token(cls) -> str:
+        """Token efetivo: banco (superadmin) ou variáveis de ambiente."""
+        try:
+            db_token = cls.get_config().webhook_token_decrypted.strip()
+            if db_token:
+                return db_token
+        except Exception:
+            pass
+        from django.conf import settings
+
+        env_token = (getattr(settings, 'ASAAS_WEBHOOK_TOKEN', None) or '').strip()
+        if env_token:
+            return env_token
+        return (getattr(settings, 'ASAAS_LOJA_WEBHOOK_TOKEN', None) or '').strip()
+
     @property
     def environment_name(self):
         """Nome do ambiente"""

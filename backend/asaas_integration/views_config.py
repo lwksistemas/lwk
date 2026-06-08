@@ -49,6 +49,10 @@ class IsSuperAdmin(permissions.BasePermission):
         return request.user and request.user.is_superuser
 
 
+def _asaas_webhook_url(request) -> str:
+    return request.build_absolute_uri('/api/asaas/webhook/')
+
+
 @api_view(['GET', 'POST'])
 @permission_classes([IsSuperAdmin])
 def asaas_config(request):
@@ -63,44 +67,68 @@ def asaas_config(request):
     if request.method == 'GET':
         # Retornar configurações atuais do banco de dados
         config = AsaasConfig.get_config()
+        webhook_token = config.webhook_token_decrypted or AsaasConfig.resolve_webhook_token()
         
         return Response({
             'api_key': config.api_key_masked,
             'sandbox': config.sandbox,
             'enabled': config.enabled,
-            'last_sync': config.last_sync.isoformat() if config.last_sync else None
+            'last_sync': config.last_sync.isoformat() if config.last_sync else None,
+            'webhook_url': _asaas_webhook_url(request),
+            'webhook_token': config.webhook_token_masked,
+            'webhook_token_configured': bool(webhook_token),
+            'webhook_token_length': len(webhook_token) if webhook_token else 0,
         })
     
     elif request.method == 'POST':
         # Salvar novas configurações no banco de dados
         api_key = request.data.get('api_key', '').strip()
         enabled = request.data.get('enabled', False)
-        
-        if not api_key:
+        webhook_token = request.data.get('webhook_token')
+
+        if api_key and '...' in api_key:
+            api_key = ''
+
+        config = AsaasConfig.get_config()
+        webhook_incoming = webhook_token.strip() if isinstance(webhook_token, str) else ''
+
+        if not api_key and not config.api_key_decrypted and not webhook_incoming:
             return Response(
-                {'detail': 'Chave da API é obrigatória'},
+                {'detail': 'Chave da API é obrigatória na primeira configuração'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validar formato da chave
-        if not api_key.startswith('$aact_'):
+        if api_key and not api_key.startswith('$aact_'):
             return Response(
                 {'detail': 'Formato da chave API inválido. Deve começar com $aact_'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        if webhook_incoming and len(webhook_incoming) < 32:
+            return Response(
+                {'detail': 'Token do webhook deve ter pelo menos 32 caracteres (requisito Asaas)'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         # Salvar configuração no banco
         try:
-            config = AsaasConfig.get_config()
-            config.api_key = api_key
+            if api_key:
+                config.api_key = api_key
             config.enabled = enabled
+            if webhook_incoming:
+                config.webhook_token = webhook_incoming
             config.save()  # O sandbox será detectado automaticamente no save()
             
+            effective_webhook = config.webhook_token_decrypted or AsaasConfig.resolve_webhook_token()
             return Response({
                 'message': 'Configuração salva com sucesso no banco de dados.',
                 'api_key': config.api_key_masked,
                 'sandbox': config.sandbox,
-                'enabled': config.enabled
+                'enabled': config.enabled,
+                'webhook_url': _asaas_webhook_url(request),
+                'webhook_token': config.webhook_token_masked,
+                'webhook_token_configured': bool(effective_webhook),
+                'webhook_token_length': len(effective_webhook) if effective_webhook else 0,
             })
             
         except Exception as e:

@@ -32,6 +32,10 @@ interface AsaasConfig {
   sandbox: boolean
   enabled: boolean
   last_sync: string | null
+  webhook_url?: string
+  webhook_token?: string
+  webhook_token_configured?: boolean
+  webhook_token_length?: number
 }
 
 interface AsaasStats {
@@ -76,6 +80,11 @@ export default function AsaasConfigPage() {
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
+  const [showWebhookToken, setShowWebhookToken] = useState(false)
+  const [webhookToken, setWebhookToken] = useState('')
+  const [webhookUrl, setWebhookUrl] = useState('')
+  const [webhookConfigured, setWebhookConfigured] = useState(false)
+  const [webhookTokenLength, setWebhookTokenLength] = useState(0)
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null)
 
   // Carregar configurações (execução única ao montar)
@@ -90,6 +99,10 @@ export default function AsaasConfigPage() {
     try {
       const { data } = await apiClient.get('/asaas/config/')
       setConfig(data)
+      setWebhookUrl(data.webhook_url || '')
+      setWebhookConfigured(Boolean(data.webhook_token_configured))
+      setWebhookTokenLength(data.webhook_token_length || 0)
+      setWebhookToken('')
     } catch (error) {
       logger.warn('Erro ao carregar configuração Asaas:', error)
     }
@@ -116,8 +129,23 @@ export default function AsaasConfigPage() {
   const saveConfig = async () => {
     setSaving(true)
     try {
-      const { data } = await apiClient.post('/asaas/config/', config)
+      const payload: Record<string, unknown> = {
+        api_key: config.api_key,
+        enabled: config.enabled,
+        sandbox: config.sandbox,
+      }
+      if (webhookToken.trim()) {
+        payload.webhook_token = webhookToken.trim()
+      }
+      const { data } = await apiClient.post('/asaas/config/', payload)
       setMessage({ type: 'success', text: data.message || 'Configuração salva com sucesso!' })
+      setWebhookUrl(data.webhook_url || webhookUrl)
+      setWebhookConfigured(Boolean(data.webhook_token_configured))
+      setWebhookTokenLength(data.webhook_token_length || 0)
+      setWebhookToken('')
+      if (data.api_key) {
+        setConfig(prev => ({ ...prev, api_key: data.api_key }))
+      }
       checkStatus()
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } }
@@ -142,6 +170,32 @@ export default function AsaasConfigPage() {
       setStatus(prev => ({ ...prev, api_connected: false, error_message: err.response?.data?.detail || null }))
     } finally {
       setLoading(false)
+    }
+  }
+
+  const copyWebhookUrl = async () => {
+    if (!webhookUrl) return
+    try {
+      await navigator.clipboard.writeText(webhookUrl)
+      setMessage({ type: 'success', text: 'URL do webhook copiada!' })
+    } catch {
+      setMessage({ type: 'error', text: 'Não foi possível copiar a URL' })
+    }
+  }
+
+  const copyWebhookToken = async () => {
+    if (!webhookToken.trim()) {
+      setMessage({
+        type: 'error',
+        text: 'Digite o token completo no campo abaixo para copiar e colar no painel Asaas.',
+      })
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(webhookToken.trim())
+      setMessage({ type: 'success', text: 'Token copiado! Cole no painel Asaas → Integrações → Webhooks.' })
+    } catch {
+      setMessage({ type: 'error', text: 'Não foi possível copiar o token' })
     }
   }
 
@@ -303,6 +357,96 @@ export default function AsaasConfigPage() {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Webhook de pagamentos</CardTitle>
+              <CardDescription>
+                Confirmação automática de PIX/boleto após cadastro (senha provisória + NFS-e)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={webhookConfigured ? 'default' : 'destructive'}>
+                  {webhookConfigured ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                      Token configurado ({webhookTokenLength} caracteres)
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-4 h-4 mr-1" />
+                      Token não configurado
+                    </>
+                  )}
+                </Badge>
+              </div>
+
+              <div className="space-y-2">
+                <Label>URL do webhook (cole no painel Asaas)</Label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    readOnly
+                    value={webhookUrl}
+                    className="font-mono text-sm"
+                  />
+                  <Button type="button" variant="outline" onClick={copyWebhookUrl} disabled={!webhookUrl}>
+                    Copiar URL
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="webhook_token">Token de autenticação</Label>
+                <div className="relative">
+                  <Input
+                    id="webhook_token"
+                    type={showWebhookToken ? 'text' : 'password'}
+                    autoComplete="off"
+                    value={webhookToken}
+                    onChange={(e) => setWebhookToken(e.target.value)}
+                    placeholder={
+                      webhookConfigured
+                        ? 'Deixe vazio para manter o token atual — ou cole um novo (mín. 32 caracteres)'
+                        : 'Cole o token do Asaas ou gere um novo e salve aqui'
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => setShowWebhookToken(!showWebhookToken)}
+                  >
+                    {showWebhookToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                {config.webhook_token && (
+                  <p className="text-xs text-muted-foreground">
+                    Token salvo: {config.webhook_token}
+                  </p>
+                )}
+              </div>
+
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm space-y-2">
+                  <p>
+                    No <strong>Asaas</strong> → Integrações → Webhooks → <strong>LWK Sistemas</strong>:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1">
+                    <li>URL: use a URL acima</li>
+                    <li>Token: o mesmo valor salvo aqui (copie o token completo — Asaas exige 32+ caracteres)</li>
+                    <li>Ative o webhook e aguarde a fila de sincronização retomar</li>
+                  </ol>
+                </AlertDescription>
+              </Alert>
+
+              <Button type="button" variant="outline" onClick={copyWebhookToken}>
+                Copiar token para o Asaas
+              </Button>
             </CardContent>
           </Card>
 

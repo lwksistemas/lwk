@@ -32,13 +32,17 @@ def _reject_unconfigured(provider: str) -> bool:
 def verify_asaas_access_token(request, expected_token: Optional[str] = None) -> bool:
     """
     Valida header asaas-access-token (documentação Asaas).
-    expected_token: override; senão usa ASAAS_WEBHOOK_TOKEN ou ASAAS_LOJA_WEBHOOK_TOKEN.
+    expected_token: override; senão usa token do banco, ASAAS_WEBHOOK_TOKEN ou ASAAS_LOJA_WEBHOOK_TOKEN.
     """
     token = (expected_token or '').strip()
     if not token:
-        token = (getattr(settings, 'ASAAS_WEBHOOK_TOKEN', None) or '').strip()
-    if not token:
-        token = (getattr(settings, 'ASAAS_LOJA_WEBHOOK_TOKEN', None) or '').strip()
+        try:
+            from asaas_integration.models import AsaasConfig
+            token = AsaasConfig.resolve_webhook_token()
+        except Exception:
+            token = (getattr(settings, 'ASAAS_WEBHOOK_TOKEN', None) or '').strip()
+            if not token:
+                token = (getattr(settings, 'ASAAS_LOJA_WEBHOOK_TOKEN', None) or '').strip()
 
     if not token:
         return not _reject_unconfigured('Asaas')

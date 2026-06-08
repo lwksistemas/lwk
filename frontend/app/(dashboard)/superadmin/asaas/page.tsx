@@ -33,6 +33,9 @@ import { logger } from '@/lib/logger'
 
 interface AsaasConfig {
   api_key: string
+  api_key_masked?: string
+  api_key_configured?: boolean
+  api_key_length?: number
   sandbox: boolean
   enabled: boolean
   last_sync: string | null
@@ -82,6 +85,7 @@ export default function AsaasConfigPage() {
     enabled: false,
     last_sync: null
   })
+  const [apiKeyInput, setApiKeyInput] = useState('')
   
   const [stats, setStats] = useState<AsaasStats>({
     total_customers: 0,
@@ -124,6 +128,7 @@ export default function AsaasConfigPage() {
     try {
       const { data } = await apiClient.get('/asaas/config/')
       setConfig(data)
+      setApiKeyInput('')
       setWebhookUrl(data.webhook_url || '')
       setWebhookConfigured(Boolean(data.webhook_token_configured))
       setWebhookTokenLength(data.webhook_token_length || 0)
@@ -186,9 +191,11 @@ export default function AsaasConfigPage() {
     setSaving(true)
     try {
       const payload: Record<string, unknown> = {
-        api_key: config.api_key,
         enabled: config.enabled,
         sandbox: config.sandbox,
+      }
+      if (apiKeyInput.trim()) {
+        payload.api_key = apiKeyInput.trim()
       }
       if (webhookToken.trim()) {
         payload.webhook_token = webhookToken.trim()
@@ -199,9 +206,18 @@ export default function AsaasConfigPage() {
       setWebhookConfigured(Boolean(data.webhook_token_configured))
       setWebhookTokenLength(data.webhook_token_length || 0)
       setWebhookToken('')
-      if (data.api_key) {
-        setConfig(prev => ({ ...prev, api_key: data.api_key }))
+      if (data.api_key_masked !== undefined) {
+        setConfig(prev => ({
+          ...prev,
+          api_key: '',
+          api_key_masked: data.api_key_masked,
+          api_key_configured: data.api_key_configured,
+          api_key_length: data.api_key_length,
+          sandbox: data.sandbox,
+          enabled: data.enabled,
+        }))
       }
+      setApiKeyInput('')
       checkStatus()
       loadDiagnostico()
     } catch (error: unknown) {
@@ -354,9 +370,9 @@ export default function AsaasConfigPage() {
                         name="api_key"
                         type={showApiKey ? 'text' : 'password'}
                         autoComplete="off"
-                        value={config.api_key}
-                        onChange={(e) => setConfig(prev => ({ ...prev, api_key: e.target.value }))}
-                        placeholder="$aact_YTU5YjRlM2..."
+                        value={apiKeyInput}
+                        onChange={(e) => setApiKeyInput(e.target.value)}
+                        placeholder="Cole a chave completa de Asaas → Integrações → API"
                       />
                       <Button
                         type="button"
@@ -368,25 +384,27 @@ export default function AsaasConfigPage() {
                         {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
+                    {config.api_key_configured && config.api_key_masked && (
+                      <p className="text-xs text-muted-foreground">
+                        Chave salva: {config.api_key_masked}
+                        {config.api_key_length ? ` (${config.api_key_length} caracteres)` : ''}
+                        {' — deixe o campo vazio para manter'}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Sandbox: chave contém <code>hmlg</code>. Produção: sem <code>hmlg</code>.
+                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Ambiente</Label>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant={config.sandbox ? 'default' : 'outline'}
-                        onClick={() => setConfig(prev => ({ ...prev, sandbox: true }))}
-                      >
-                        Sandbox
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={!config.sandbox ? 'default' : 'outline'}
-                        onClick={() => setConfig(prev => ({ ...prev, sandbox: false }))}
-                      >
-                        Produção
-                      </Button>
+                    <Label>Ambiente detectado</Label>
+                    <div className="flex gap-2 items-center">
+                      <Badge variant={config.sandbox ? 'secondary' : 'default'}>
+                        {config.sandbox ? 'Sandbox' : 'Produção'}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        Definido automaticamente pela chave salva
+                      </span>
                     </div>
                   </div>
                 </div>

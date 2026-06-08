@@ -436,7 +436,9 @@ class AsaasPaymentService:
         try:
             from .models import AsaasConfig
             config = AsaasConfig.get_config()
-            self.client = AsaasClient(api_key=config.api_key_decrypted, sandbox=config.sandbox)
+            api_key = AsaasConfig.resolve_api_key()
+            sandbox = AsaasConfig.effective_sandbox(api_key)
+            self.client = AsaasClient(api_key=api_key, sandbox=sandbox)
         except Exception as e:
             logger.error(f"Erro ao obter configuração Asaas: {e}")
             # Fallback para configuração vazia

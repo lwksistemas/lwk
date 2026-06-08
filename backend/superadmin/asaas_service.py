@@ -107,7 +107,7 @@ class LojaAsaasService:
         try:
             # Verificar se Asaas está configurado
             config = self.AsaasConfig.get_config()
-            if not config.api_key or not config.enabled:
+            if not self.AsaasConfig.resolve_api_key() or not config.enabled:
                 logger.warning("Asaas não configurado ou desabilitado")
                 return {
                     'success': False,
@@ -229,7 +229,7 @@ class LojaAsaasService:
         
         try:
             config = self.AsaasConfig.get_config()
-            if not config.api_key or not config.enabled:
+            if not self.AsaasConfig.resolve_api_key() or not config.enabled:
                 return None
             
             service = self.AsaasPaymentService()
@@ -254,7 +254,7 @@ class LojaAsaasService:
         
         try:
             config = self.AsaasConfig.get_config()
-            if not config.api_key or not config.enabled:
+            if not self.AsaasConfig.resolve_api_key() or not config.enabled:
                 return {'success': False, 'error': 'Asaas não configurado'}
             
             service = self.AsaasPaymentService()

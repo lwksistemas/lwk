@@ -70,6 +70,39 @@ class AsaasConfig(models.Model):
         return f"Configuração Asaas - {env} - {status}"
     
     @classmethod
+    def is_valid_api_key(cls, key: str) -> bool:
+        key = (key or '').strip()
+        return (
+            key.startswith('$aact_')
+            and '...' not in key
+            and len(key) >= 40
+        )
+
+    @classmethod
+    def resolve_api_key(cls) -> str:
+        """Chave efetiva: banco se válida, senão variável ASAAS_API_KEY."""
+        from django.conf import settings
+
+        try:
+            db_key = cls.get_config().api_key_decrypted.strip()
+            if cls.is_valid_api_key(db_key):
+                return db_key
+        except Exception:
+            pass
+        env_key = (getattr(settings, 'ASAAS_API_KEY', None) or '').strip()
+        if cls.is_valid_api_key(env_key):
+            return env_key
+        return ''
+
+    @classmethod
+    def effective_sandbox(cls, api_key: str | None = None) -> bool:
+        from django.conf import settings as dj_settings
+        key = (api_key or cls.resolve_api_key() or '').strip()
+        if not key:
+            return bool(getattr(dj_settings, 'ASAAS_SANDBOX', True))
+        return 'hmlg' in key
+
+    @classmethod
     def get_config(cls):
         """Obter ou criar configuração única.
 
@@ -88,8 +121,13 @@ class AsaasConfig(models.Model):
             }
         )
         env_key = (getattr(settings, 'ASAAS_API_KEY', None) or '').strip()
-        if env_key.startswith('$aact_') and not config.api_key_decrypted:
+        db_key = config.api_key_decrypted.strip()
+        if cls.is_valid_api_key(env_key) and not cls.is_valid_api_key(db_key):
             config.api_key = env_key  # save() vai criptografar
+            config.enabled = bool(getattr(settings, 'ASAAS_INTEGRATION_ENABLED', True))
+            config.save()
+        elif env_key.startswith('$aact_') and not db_key:
+            config.api_key = env_key
             config.enabled = bool(getattr(settings, 'ASAAS_INTEGRATION_ENABLED', True))
             config.save()
         env_webhook = (getattr(settings, 'ASAAS_WEBHOOK_TOKEN', None) or '').strip()

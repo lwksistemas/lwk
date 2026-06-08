@@ -67,11 +67,17 @@ def asaas_config(request):
     if request.method == 'GET':
         # Retornar configurações atuais do banco de dados
         config = AsaasConfig.get_config()
+        resolved_key = AsaasConfig.resolve_api_key()
         webhook_token = config.webhook_token_decrypted or AsaasConfig.resolve_webhook_token()
         
         return Response({
-            'api_key': config.api_key_masked,
-            'sandbox': config.sandbox,
+            'api_key': '',
+            'api_key_masked': config.api_key_masked if config.api_key_decrypted else (
+                f"{resolved_key[:10]}...{resolved_key[-4:]}" if len(resolved_key) > 14 else ''
+            ),
+            'api_key_configured': bool(resolved_key),
+            'api_key_length': len(resolved_key),
+            'sandbox': AsaasConfig.effective_sandbox(resolved_key),
             'enabled': config.enabled,
             'last_sync': config.last_sync.isoformat() if config.last_sync else None,
             'webhook_url': _asaas_webhook_url(request),
@@ -91,8 +97,9 @@ def asaas_config(request):
 
         config = AsaasConfig.get_config()
         webhook_incoming = webhook_token.strip() if isinstance(webhook_token, str) else ''
+        resolved_key = AsaasConfig.resolve_api_key()
 
-        if not api_key and not config.api_key_decrypted and not webhook_incoming:
+        if not api_key and not resolved_key and not webhook_incoming:
             return Response(
                 {'detail': 'Chave da API é obrigatória na primeira configuração'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -101,6 +108,12 @@ def asaas_config(request):
         if api_key and not api_key.startswith('$aact_'):
             return Response(
                 {'detail': 'Formato da chave API inválido. Deve começar com $aact_'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if api_key and (len(api_key) < 40 or '...' in api_key):
+            return Response(
+                {'detail': 'Cole a chave API completa do painel Asaas (não use o valor mascarado da tela)'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -122,7 +135,10 @@ def asaas_config(request):
             effective_webhook = config.webhook_token_decrypted or AsaasConfig.resolve_webhook_token()
             return Response({
                 'message': 'Configuração salva com sucesso no banco de dados.',
-                'api_key': config.api_key_masked,
+                'api_key': '',
+                'api_key_masked': config.api_key_masked,
+                'api_key_configured': bool(AsaasConfig.resolve_api_key()),
+                'api_key_length': len(AsaasConfig.resolve_api_key()),
                 'sandbox': config.sandbox,
                 'enabled': config.enabled,
                 'webhook_url': _asaas_webhook_url(request),
@@ -150,28 +166,38 @@ def asaas_test(request):
     
     try:
         config = AsaasConfig.get_config()
-        if not config.api_key:
+        api_key = AsaasConfig.resolve_api_key()
+        if not api_key:
             return Response(
-                {'detail': 'Chave da API não configurada'},
+                {'detail': 'Chave da API não configurada. Cole a chave completa do Asaas e salve.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
-        
+
+        sandbox = AsaasConfig.effective_sandbox(api_key)
+        client = AsaasClient(api_key=api_key, sandbox=sandbox)
+
         # Testar com uma requisição simples
-        result = client._make_request('GET', 'customers?limit=1')
-        
+        client._make_request('GET', 'customers?limit=1')
+
         return Response({
             'message': 'Conexão testada com sucesso',
-            'environment': config.environment_name,
+            'environment': 'Sandbox' if sandbox else 'Produção',
             'api_status': 'Conectado',
             'test_time': timezone.now().isoformat()
         })
-        
+
     except Exception as e:
         logger.error(f"Erro ao testar API Asaas: {e}")
+        err_text = str(e)
+        detail = f'Erro na conexão: {err_text}'
+        if '401' in err_text:
+            detail = (
+                'Chave API rejeitada pelo Asaas (401). '
+                'Gere uma nova chave em Asaas → Integrações → API e cole o valor completo. '
+                'Chave Sandbox contém "hmlg"; Produção não.'
+            )
         return Response(
-            {'detail': f'Erro na conexão: {str(e)}'},
+            {'detail': detail},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -188,15 +214,23 @@ def asaas_status(request):
         
         if not REQUESTS_AVAILABLE:
             error_message = 'Biblioteca requests não disponível'
-        elif config.api_key and config.enabled and AsaasClient:
+        elif config.enabled and AsaasClient:
             try:
-                client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
-                client._make_request('GET', 'customers?limit=1')
-                api_connected = True
+                api_key = AsaasConfig.resolve_api_key()
+                if not api_key:
+                    error_message = 'Chave da API inválida ou incompleta no banco'
+                else:
+                    sandbox = AsaasConfig.effective_sandbox(api_key)
+                    client = AsaasClient(api_key=api_key, sandbox=sandbox)
+                    client._make_request('GET', 'customers?limit=1')
+                    api_connected = True
             except Exception as e:
                 error_message = str(e)
-        elif not config.api_key:
-            error_message = 'Chave da API não configurada'
+                if '401' in str(e):
+                    error_message = (
+                        'Chave API rejeitada pelo Asaas. Cole a chave completa de '
+                        'Integrações → API (Sandbox com "hmlg", Produção sem).'
+                    )
         elif not config.enabled:
             error_message = 'Integração desabilitada'
         
@@ -204,7 +238,7 @@ def asaas_status(request):
             'api_connected': api_connected,
             'last_check': timezone.now().isoformat(),
             'error_message': error_message,
-            'environment': config.environment_name,
+            'environment': 'Sandbox' if AsaasConfig.effective_sandbox() else 'Produção',
             'enabled': config.enabled,
             'requests_available': REQUESTS_AVAILABLE
         })
@@ -236,32 +270,38 @@ def _build_cadastro_diagnostico(request):
 
     # --- API Asaas ---
     asaas_cfg = AsaasConfig.get_config()
+    api_key = AsaasConfig.resolve_api_key()
     api_details = []
     api_level = 'ok'
     api_ok = False
 
-    if not asaas_cfg.api_key_decrypted:
+    if not api_key:
         api_level = 'error'
-        api_details.append('Chave da API não configurada')
+        api_details.append('Chave da API não configurada ou inválida (cole o valor completo do Asaas)')
     elif not asaas_cfg.enabled:
         api_level = 'error'
         api_details.append('Integração desabilitada — marque "Habilitar integração Asaas"')
     else:
-        if asaas_cfg.sandbox:
+        sandbox = AsaasConfig.effective_sandbox(api_key)
+        if sandbox:
             api_level = 'warn'
-            api_details.append('Ambiente Sandbox — cadastros reais devem usar chave de Produção')
+            api_details.append('Ambiente Sandbox (chave contém "hmlg") — cadastros reais usam Produção')
         if not REQUESTS_AVAILABLE or not AsaasClient:
             api_level = 'error'
             api_details.append('Biblioteca/cliente Asaas indisponível')
         else:
             try:
-                client = AsaasClient(api_key=asaas_cfg.api_key_decrypted, sandbox=asaas_cfg.sandbox)
+                client = AsaasClient(api_key=api_key, sandbox=sandbox)
                 client._make_request('GET', 'customers?limit=1')
                 api_ok = True
-                api_details.append(f'Conexão OK ({asaas_cfg.environment_name})')
+                api_details.append(f'Conexão OK ({"Sandbox" if sandbox else "Produção"})')
             except Exception as exc:
                 api_level = 'error'
-                api_details.append(f'Falha na API: {exc}')
+                msg = str(exc)
+                if '401' in msg:
+                    api_details.append('Asaas rejeitou a chave (401) — gere/cole nova chave em Integrações → API')
+                else:
+                    api_details.append(f'Falha na API: {exc}')
 
     checks.append(_diag_item(
         'asaas_api', 'API Asaas (criar cobrança no cadastro)',

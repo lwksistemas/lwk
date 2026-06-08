@@ -392,7 +392,7 @@ export default function AsaasConfigPage() {
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      Sandbox: chave contém <code>hmlg</code>. Produção: sem <code>hmlg</code>.
+                    Sandbox: chave <code>$aact_hmlg_...</code>. Produção: <code>$aact_prod_...</code> (com <code>$</code>).
                     </p>
                   </div>
 

@@ -45,10 +45,12 @@ class AsaasClient:
             return ''
         try:
             from core.encryption import decrypt_value
-            return decrypt_value(api_key)
+            from .api_key_utils import normalize_asaas_api_key
+            return normalize_asaas_api_key(decrypt_value(api_key))
         except Exception:
             logger.exception("Erro ao preparar chave Asaas para uso")
-            return api_key
+            from .api_key_utils import normalize_asaas_api_key
+            return normalize_asaas_api_key(api_key)
     
     def _make_request(self, method: str, endpoint: str, data: Dict = None) -> Dict[str, Any]:
         """Faz requisição para API do Asaas"""

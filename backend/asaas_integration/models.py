@@ -35,14 +35,16 @@ class AsaasConfig(models.Model):
     
     def save(self, *args, **kwargs):
         from core.encryption import encrypt_value, is_encrypted
+        from .api_key_utils import normalize_asaas_api_key, is_valid_asaas_api_key, asaas_key_is_sandbox
         # Auto-detectar sandbox baseado na chave (antes de criptografar)
         raw_key = self.api_key or ''
         if raw_key and not is_encrypted(raw_key):
-            self.sandbox = 'hmlg' in raw_key
-            # Validar formato da chave
-            if not raw_key.startswith('$aact_'):
-                raise ValidationError('Chave API deve começar com $aact_')
-            # Criptografar antes de salvar
+            raw_key = normalize_asaas_api_key(raw_key)
+            self.sandbox = asaas_key_is_sandbox(raw_key)
+            if not is_valid_asaas_api_key(raw_key):
+                raise ValidationError(
+                    'Chave API inválida. Use $aact_prod_... (Produção) ou $aact_hmlg_... (Sandbox)'
+                )
             self.api_key = encrypt_value(raw_key)
 
         raw_webhook = self.webhook_token or ''
@@ -71,12 +73,13 @@ class AsaasConfig(models.Model):
     
     @classmethod
     def is_valid_api_key(cls, key: str) -> bool:
-        key = (key or '').strip()
-        return (
-            key.startswith('$aact_')
-            and '...' not in key
-            and len(key) >= 40
-        )
+        from .api_key_utils import is_valid_asaas_api_key
+        return is_valid_asaas_api_key(key)
+
+    @classmethod
+    def normalize_api_key(cls, key: str) -> str:
+        from .api_key_utils import normalize_asaas_api_key
+        return normalize_asaas_api_key(key)
 
     @classmethod
     def resolve_api_key(cls) -> str:
@@ -97,10 +100,11 @@ class AsaasConfig(models.Model):
     @classmethod
     def effective_sandbox(cls, api_key: str | None = None) -> bool:
         from django.conf import settings as dj_settings
-        key = (api_key or cls.resolve_api_key() or '').strip()
+        from .api_key_utils import normalize_asaas_api_key, asaas_key_is_sandbox
+        key = normalize_asaas_api_key(api_key or cls.resolve_api_key() or '')
         if not key:
             return bool(getattr(dj_settings, 'ASAAS_SANDBOX', True))
-        return 'hmlg' in key
+        return asaas_key_is_sandbox(key)
 
     @classmethod
     def get_config(cls):
@@ -120,13 +124,13 @@ class AsaasConfig(models.Model):
                 'enabled': False
             }
         )
-        env_key = (getattr(settings, 'ASAAS_API_KEY', None) or '').strip()
+        env_key = cls.normalize_api_key((getattr(settings, 'ASAAS_API_KEY', None) or '').strip())
         db_key = config.api_key_decrypted.strip()
         if cls.is_valid_api_key(env_key) and not cls.is_valid_api_key(db_key):
             config.api_key = env_key  # save() vai criptografar
             config.enabled = bool(getattr(settings, 'ASAAS_INTEGRATION_ENABLED', True))
             config.save()
-        elif env_key.startswith('$aact_') and not db_key:
+        elif cls.is_valid_api_key(env_key) and not db_key:
             config.api_key = env_key
             config.enabled = bool(getattr(settings, 'ASAAS_INTEGRATION_ENABLED', True))
             config.save()

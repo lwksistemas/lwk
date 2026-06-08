@@ -95,6 +95,10 @@ def asaas_config(request):
         if api_key and '...' in api_key:
             api_key = ''
 
+        from asaas_integration.api_key_utils import normalize_asaas_api_key, is_valid_asaas_api_key
+        if api_key:
+            api_key = normalize_asaas_api_key(api_key)
+
         config = AsaasConfig.get_config()
         webhook_incoming = webhook_token.strip() if isinstance(webhook_token, str) else ''
         resolved_key = AsaasConfig.resolve_api_key()
@@ -105,9 +109,9 @@ def asaas_config(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        if api_key and not api_key.startswith('$aact_'):
+        if api_key and not is_valid_asaas_api_key(api_key):
             return Response(
-                {'detail': 'Formato da chave API inválido. Deve começar com $aact_'},
+                {'detail': 'Chave API inválida. Use $aact_prod_... (Produção) ou $aact_hmlg_... (Sandbox)'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -285,7 +289,7 @@ def _build_cadastro_diagnostico(request):
         sandbox = AsaasConfig.effective_sandbox(api_key)
         if sandbox:
             api_level = 'warn'
-            api_details.append('Ambiente Sandbox (chave contém "hmlg") — cadastros reais usam Produção')
+                    api_details.append('Ambiente Sandbox ($aact_hmlg_) — cadastros reais usam $aact_prod_')
         if not REQUESTS_AVAILABLE or not AsaasClient:
             api_level = 'error'
             api_details.append('Biblioteca/cliente Asaas indisponível')

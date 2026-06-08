@@ -20,7 +20,7 @@ from .serializers import (
 )
 from .consulta_service import finalizar_consulta, iniciar_consulta, criar_consulta_avulsa
 from .pagination import paginate_queryset
-from .views_base import GetObjectMixin
+from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
 
 class ConsultaListView(APIView):
@@ -67,6 +67,12 @@ class ConsultaListView(APIView):
             patient = Patient.objects.get(pk=patient_id)
         except Patient.DoesNotExist:
             return Response({'error': 'Cliente não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Validação de pertencimento à loja
+        loja_id = resolve_loja_id_from_request(request)
+        if patient.loja_id != loja_id:
+            return Response({'error': 'Paciente não pertence a esta loja.'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             professional = Professional.objects.get(pk=professional_id)
         except Professional.DoesNotExist:

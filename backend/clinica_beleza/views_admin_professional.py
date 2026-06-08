@@ -23,32 +23,41 @@ from .admin_professional_service import (
 logger = logging.getLogger(__name__)
 
 
+def _require_owner(request):
+    """
+    Resolve loja do request e verifica que o usuário é o owner.
+    Retorna (loja_id, None) em caso de sucesso, ou (None, Response de erro).
+    """
+    loja_id = resolve_loja_id_from_request(request)
+    if not loja_id:
+        return None, Response(
+            {'error': 'Loja não identificada.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        loja = Loja.objects.get(id=loja_id)
+    except Loja.DoesNotExist:
+        return None, Response(
+            {'error': 'Loja não encontrada.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    if loja.owner_id != request.user.id:
+        return None, Response(
+            {'error': 'Apenas o administrador da loja pode acessar este recurso.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return loja_id, None
+
+
 class AdminProfessionalStatusView(APIView):
     """GET /professionals/admin-status/ — retorna estado do toggle admin-profissional."""
 
     permission_classes = CLINICA_ADMIN
 
     def get(self, request):
-        loja_id = resolve_loja_id_from_request(request)
-        if not loja_id:
-            return Response(
-                {'error': 'Loja não identificada.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            loja = Loja.objects.get(id=loja_id)
-        except Loja.DoesNotExist:
-            return Response(
-                {'error': 'Loja não encontrada.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if loja.owner_id != request.user.id:
-            return Response(
-                {'error': 'Apenas o administrador da loja pode acessar este recurso.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        loja_id, error = _require_owner(request)
+        if error:
+            return error
 
         resultado = obter_status_admin_profissional(loja_id, request.user)
         return Response(resultado)
@@ -60,26 +69,9 @@ class AdminProfessionalToggleView(APIView):
     permission_classes = CLINICA_ADMIN
 
     def post(self, request):
-        loja_id = resolve_loja_id_from_request(request)
-        if not loja_id:
-            return Response(
-                {'error': 'Loja não identificada.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            loja = Loja.objects.get(id=loja_id)
-        except Loja.DoesNotExist:
-            return Response(
-                {'error': 'Loja não encontrada.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if loja.owner_id != request.user.id:
-            return Response(
-                {'error': 'Apenas o administrador da loja pode acessar este recurso.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        loja_id, error = _require_owner(request)
+        if error:
+            return error
 
         enable = request.data.get('enable')
         if enable is None:

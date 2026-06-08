@@ -62,7 +62,7 @@ def _get_professional_from_request(request):
                     return prof
             if request.user.email:
                 return Professional.objects.filter(
-                    email=request.user.email, is_active=True,
+                    email=request.user.email, is_active=True, loja_id=loja_id,
                 ).first()
     except Loja.DoesNotExist:
         pass

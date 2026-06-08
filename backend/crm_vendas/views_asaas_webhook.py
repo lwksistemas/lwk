@@ -66,15 +66,15 @@ def asaas_loja_webhook(request, loja_slug: str):
             status=status.HTTP_200_OK,
         )
 
-    from core.webhook_security import verify_asaas_access_token, webhook_auth_failed_response
-    from django.conf import settings
-
-    loja_token = (getattr(settings, 'ASAAS_LOJA_WEBHOOK_TOKEN', None) or '').strip()
-    if not verify_asaas_access_token(request, expected_token=loja_token or None):
-        return webhook_auth_failed_response()
-
     if not _configure_tenant_db_for_loja(loja, request):
         logger.warning('asaas_loja_webhook: falha ao configurar tenant loja_id=%s', loja.id)
+
+    from core.webhook_security import verify_asaas_access_token, webhook_auth_failed_response
+    from crm_vendas.models_config import CRMConfig
+
+    loja_token = CRMConfig.resolve_asaas_webhook_token(loja.id)
+    if not verify_asaas_access_token(request, expected_token=loja_token or None):
+        return webhook_auth_failed_response()
 
     payload = request.data if isinstance(request.data, dict) else {}
     event = payload.get('event') or payload.get('type')

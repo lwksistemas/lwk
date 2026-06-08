@@ -118,6 +118,10 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
             "ALTER TABLE crm_vendas_config "
             "ADD COLUMN IF NOT EXISTS asaas_sandbox boolean NOT NULL DEFAULT false;"
         )
+        cursor.execute(
+            "ALTER TABLE crm_vendas_config "
+            "ADD COLUMN IF NOT EXISTS asaas_webhook_token text NOT NULL DEFAULT '';"
+        )
         # Migration 0046: campos do Portal Emissor
         columns_0046 = [
             ("inscricao_municipal", "VARCHAR(20) NOT NULL DEFAULT ''"),
@@ -167,6 +171,7 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
             '0047_certificado_binary',
             '0049_crmconfig_issnet_ambiente_homologacao',
             '0056_atividade_conta',
+            '0059_crmconfig_asaas_webhook_token',
         ]:
             cursor.execute(
                 "INSERT INTO django_migrations (app, name, applied) "

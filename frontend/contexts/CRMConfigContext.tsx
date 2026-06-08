@@ -37,6 +37,8 @@ interface CRMConfig {
   asaas_api_key_configured?: boolean;
   asaas_webhook_url?: string;
   asaas_webhook_token_configured?: boolean;
+  asaas_webhook_token_masked?: string;
+  asaas_webhook_token_length?: number;
   /** Senhas ISSNet + certificado já salvas no servidor (teste sem redigitar) */
   issnet_senhas_salvas?: boolean;
 }

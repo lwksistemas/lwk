@@ -23,6 +23,7 @@ export default function ConfiguracaoAsaasPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [asaasApiKey, setAsaasApiKey] = useState('');
+  const [asaasWebhookToken, setAsaasWebhookToken] = useState('');
   const [asaasSandbox, setAsaasSandbox] = useState(false);
   const [asaasTestLoading, setAsaasTestLoading] = useState(false);
   const [asaasTestMessage, setAsaasTestMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
@@ -30,6 +31,7 @@ export default function ConfiguracaoAsaasPage() {
   useEffect(() => {
     if (config) {
       setAsaasApiKey('');
+      setAsaasWebhookToken('');
       setAsaasSandbox(config.asaas_sandbox ?? false);
     }
   }, [config]);
@@ -44,6 +46,9 @@ export default function ConfiguracaoAsaasPage() {
       if (asaasApiKey.trim()) {
         data.append('asaas_api_key', asaasApiKey.trim());
       }
+      if (asaasWebhookToken.trim()) {
+        data.append('asaas_webhook_token', asaasWebhookToken.trim());
+      }
       data.append('asaas_sandbox', asaasSandbox ? 'true' : 'false');
 
       await apiClient.patch('/crm-vendas/config/', data, {
@@ -52,12 +57,16 @@ export default function ConfiguracaoAsaasPage() {
 
       setMessage({ type: 'success', text: 'Configurações Asaas salvas com sucesso!' });
       setAsaasApiKey('');
+      setAsaasWebhookToken('');
       await recarregar();
     } catch (error: unknown) {
-      const ax = error as { response?: { data?: { detail?: string; asaas_api_key?: string[] } } };
+      const ax = error as {
+        response?: { data?: { detail?: string; asaas_api_key?: string[]; asaas_webhook_token?: string[] } };
+      };
       const detail =
         ax.response?.data?.detail ||
         ax.response?.data?.asaas_api_key?.[0] ||
+        ax.response?.data?.asaas_webhook_token?.[0] ||
         'Erro ao salvar configurações Asaas';
       logger.warn('Erro ao salvar config Asaas:', error);
       setMessage({ type: 'error', text: String(detail) });
@@ -144,11 +153,15 @@ export default function ConfiguracaoAsaasPage() {
             sandbox={asaasSandbox}
             apiKeyConfigured={config?.asaas_api_key_configured}
             webhookUrl={asaasWebhookUrl}
+            webhookToken={asaasWebhookToken}
             webhookTokenConfigured={config?.asaas_webhook_token_configured}
+            webhookTokenMasked={config?.asaas_webhook_token_masked}
+            webhookTokenLength={config?.asaas_webhook_token_length}
             testLoading={asaasTestLoading}
             testMessage={asaasTestMessage}
             onApiKeyChange={setAsaasApiKey}
             onSandboxChange={setAsaasSandbox}
+            onWebhookTokenChange={setAsaasWebhookToken}
             onTest={() => void testarComunicacaoAsaas()}
           />
         </div>

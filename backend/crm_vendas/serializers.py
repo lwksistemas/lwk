@@ -627,6 +627,8 @@ class CRMConfigSerializer(serializers.ModelSerializer):
     asaas_api_key_configured = serializers.SerializerMethodField()
     asaas_webhook_url = serializers.SerializerMethodField()
     asaas_webhook_token_configured = serializers.SerializerMethodField()
+    asaas_webhook_token_masked = serializers.SerializerMethodField()
+    asaas_webhook_token_length = serializers.SerializerMethodField()
     issnet_senhas_salvas = serializers.SerializerMethodField()
     issnet_certificado = serializers.SerializerMethodField()
 
@@ -650,8 +652,22 @@ class CRMConfigSerializer(serializers.ModelSerializer):
         return f'{base}/api/crm-vendas/webhooks/asaas/{slug}/'
 
     def get_asaas_webhook_token_configured(self, obj):
-        from django.conf import settings
-        return bool((getattr(settings, 'ASAAS_LOJA_WEBHOOK_TOKEN', None) or '').strip())
+        loja = self.context.get('loja')
+        if loja:
+            from .models_config import CRMConfig
+            return bool(CRMConfig.resolve_asaas_webhook_token(loja.id))
+        token = obj.asaas_webhook_token_decrypted() if hasattr(obj, 'asaas_webhook_token_decrypted') else ''
+        return bool(token)
+
+    def get_asaas_webhook_token_masked(self, obj):
+        return getattr(obj, 'asaas_webhook_token_masked', '') or ''
+
+    def get_asaas_webhook_token_length(self, obj):
+        loja = self.context.get('loja')
+        if loja:
+            from .models_config import CRMConfig
+            return len(CRMConfig.resolve_asaas_webhook_token(loja.id))
+        return len(obj.asaas_webhook_token_decrypted()) if hasattr(obj, 'asaas_webhook_token_decrypted') else 0
 
     def get_issnet_senhas_salvas(self, obj):
         return bool(
@@ -712,6 +728,23 @@ class CRMConfigSerializer(serializers.ModelSerializer):
                 if 'asaas_sandbox' not in validated_data:
                     validated_data['asaas_sandbox'] = asaas_key_is_sandbox(norm)
 
+        webhook_token = validated_data.get('asaas_webhook_token')
+        if webhook_token is not None:
+            from core.encryption import encrypt_value
+            raw = (webhook_token or '').strip()
+            if not raw:
+                validated_data['asaas_webhook_token'] = ''
+            elif '...' in raw:
+                validated_data.pop('asaas_webhook_token', None)
+            else:
+                if len(raw) < 32:
+                    raise serializers.ValidationError({
+                        'asaas_webhook_token': (
+                            'Token do webhook deve ter pelo menos 32 caracteres (requisito Asaas).'
+                        ),
+                    })
+                validated_data['asaas_webhook_token'] = encrypt_value(raw)
+
         request = self.context.get('request')
         if request and hasattr(request, 'FILES'):
             cert_file = request.FILES.get('issnet_certificado')
@@ -736,17 +769,20 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             'codigo_servico_municipal', 'descricao_servico_padrao',
             'aliquota_iss', 'emitir_nf_automaticamente',
             'asaas_api_key', 'asaas_sandbox', 'asaas_api_key_configured',
-            'asaas_webhook_url', 'asaas_webhook_token_configured',
+            'asaas_webhook_token', 'asaas_webhook_url',
+            'asaas_webhook_token_configured', 'asaas_webhook_token_masked', 'asaas_webhook_token_length',
             'issnet_senhas_salvas',
             'created_at', 'updated_at',
         ]
         read_only_fields = [
             'created_at', 'updated_at', 'asaas_api_key_configured',
             'asaas_webhook_url', 'asaas_webhook_token_configured',
+            'asaas_webhook_token_masked', 'asaas_webhook_token_length',
             'issnet_senhas_salvas', 'issnet_certificado',
         ]
         extra_kwargs = {
             'issnet_senha': {'write_only': True},
             'issnet_senha_certificado': {'write_only': True},
             'asaas_api_key': {'write_only': True, 'required': False, 'allow_blank': True},
+            'asaas_webhook_token': {'write_only': True, 'required': False, 'allow_blank': True},
         }

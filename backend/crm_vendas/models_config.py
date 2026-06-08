@@ -220,6 +220,12 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         verbose_name='Asaas sandbox (homologação)',
         help_text='Se True, usa api sandbox.asaas.com (chave de testes).',
     )
+    asaas_webhook_token = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Token webhook Asaas (loja)',
+        help_text='Token de autenticação do webhook Asaas desta loja (header asaas-access-token).',
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -236,6 +242,37 @@ class CRMConfig(LojaIsolationMixin, models.Model):
     
     def __str__(self):
         return f'Config CRM - Loja {self.loja_id}'
+
+    def asaas_webhook_token_decrypted(self) -> str:
+        from core.encryption import decrypt_value, is_encrypted
+        raw = (self.asaas_webhook_token or '').strip()
+        if not raw:
+            return ''
+        if is_encrypted(raw):
+            return (decrypt_value(raw) or '').strip()
+        return raw
+
+    @property
+    def asaas_webhook_token_masked(self) -> str:
+        token = self.asaas_webhook_token_decrypted()
+        if not token:
+            return ''
+        if len(token) <= 10:
+            return '•' * len(token)
+        return f'{token[:6]}...{token[-4:]}'
+
+    @classmethod
+    def resolve_asaas_webhook_token(cls, loja_id: int) -> str:
+        """Token efetivo: CRMConfig da loja ou fallback ASAAS_LOJA_WEBHOOK_TOKEN."""
+        from django.conf import settings
+        try:
+            cfg = cls.get_or_create_for_loja(loja_id)
+            token = cfg.asaas_webhook_token_decrypted()
+            if token:
+                return token
+        except Exception:
+            pass
+        return (getattr(settings, 'ASAAS_LOJA_WEBHOOK_TOKEN', None) or '').strip()
     
     @classmethod
     def get_or_create_for_loja(cls, loja_id):

@@ -625,11 +625,33 @@ class ContratoSerializer(serializers.ModelSerializer):
 class CRMConfigSerializer(serializers.ModelSerializer):
     provedor_nf_display = serializers.CharField(source='get_provedor_nf_display', read_only=True)
     asaas_api_key_configured = serializers.SerializerMethodField()
+    asaas_webhook_url = serializers.SerializerMethodField()
+    asaas_webhook_token_configured = serializers.SerializerMethodField()
     issnet_senhas_salvas = serializers.SerializerMethodField()
     issnet_certificado = serializers.SerializerMethodField()
 
     def get_asaas_api_key_configured(self, obj):
         return bool((getattr(obj, 'asaas_api_key', None) or '').strip())
+
+    def get_asaas_webhook_url(self, obj):
+        loja = self.context.get('loja')
+        if not loja:
+            return ''
+        slug = (getattr(loja, 'atalho', None) or loja.slug or '').strip()
+        if not slug:
+            return ''
+        request = self.context.get('request')
+        base = ''
+        if request:
+            base = request.build_absolute_uri('/').rstrip('/')
+        if not base:
+            from django.conf import settings
+            base = (getattr(settings, 'API_BASE_URL', None) or 'https://api.lwksistemas.com.br').rstrip('/')
+        return f'{base}/api/crm-vendas/webhooks/asaas/{slug}/'
+
+    def get_asaas_webhook_token_configured(self, obj):
+        from django.conf import settings
+        return bool((getattr(settings, 'ASAAS_LOJA_WEBHOOK_TOKEN', None) or '').strip())
 
     def get_issnet_senhas_salvas(self, obj):
         return bool(
@@ -664,7 +686,32 @@ class CRMConfigSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
     def update(self, instance, validated_data):
-        """Trata upload do certificado .pfx como bytes no banco."""
+        """Trata upload do certificado .pfx e normalização da API Key Asaas."""
+        api_key = validated_data.get('asaas_api_key')
+        if api_key is not None:
+            from asaas_integration.api_key_utils import (
+                normalize_asaas_api_key,
+                is_valid_asaas_api_key,
+                asaas_key_is_sandbox,
+            )
+            raw = (api_key or '').strip()
+            if not raw:
+                validated_data['asaas_api_key'] = ''
+            elif '...' in raw:
+                validated_data.pop('asaas_api_key', None)
+            else:
+                norm = normalize_asaas_api_key(raw)
+                if not is_valid_asaas_api_key(norm):
+                    raise serializers.ValidationError({
+                        'asaas_api_key': (
+                            'Chave API inválida. Cole a chave completa do painel Asaas '
+                            '($aact_prod_... produção ou $aact_hmlg_... sandbox).'
+                        ),
+                    })
+                validated_data['asaas_api_key'] = norm
+                if 'asaas_sandbox' not in validated_data:
+                    validated_data['asaas_sandbox'] = asaas_key_is_sandbox(norm)
+
         request = self.context.get('request')
         if request and hasattr(request, 'FILES'):
             cert_file = request.FILES.get('issnet_certificado')
@@ -689,10 +736,15 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             'codigo_servico_municipal', 'descricao_servico_padrao',
             'aliquota_iss', 'emitir_nf_automaticamente',
             'asaas_api_key', 'asaas_sandbox', 'asaas_api_key_configured',
+            'asaas_webhook_url', 'asaas_webhook_token_configured',
             'issnet_senhas_salvas',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'asaas_api_key_configured', 'issnet_senhas_salvas', 'issnet_certificado']
+        read_only_fields = [
+            'created_at', 'updated_at', 'asaas_api_key_configured',
+            'asaas_webhook_url', 'asaas_webhook_token_configured',
+            'issnet_senhas_salvas', 'issnet_certificado',
+        ]
         extra_kwargs = {
             'issnet_senha': {'write_only': True},
             'issnet_senha_certificado': {'write_only': True},

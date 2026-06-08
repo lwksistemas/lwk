@@ -35,6 +35,8 @@ interface CRMConfig {
   emitir_nf_automaticamente: boolean;
   asaas_sandbox?: boolean;
   asaas_api_key_configured?: boolean;
+  asaas_webhook_url?: string;
+  asaas_webhook_token_configured?: boolean;
   /** Senhas ISSNet + certificado já salvas no servidor (teste sem redigitar) */
   issnet_senhas_salvas?: boolean;
 }

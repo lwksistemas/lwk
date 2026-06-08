@@ -14,6 +14,7 @@ import {
   Sliders,
   Database,
   FileText,
+  Landmark,
 } from 'lucide-react';
 import { authService } from '@/lib/auth';
 import apiClient from '@/lib/api-client';
@@ -75,11 +76,18 @@ export default function CrmVendasConfiguracoesPage() {
       itens: ['Integração WhatsApp', 'Lembretes do calendário'],
     },
     {
+      titulo: 'Asaas (banco)',
+      descricao: 'API Key e webhook da conta Asaas da loja para boletos de comissão',
+      href: `${base}/asaas`,
+      icon: Landmark,
+      itens: ['API Key v3', 'Webhook de cobrança', 'Ambiente produção/sandbox'],
+    },
+    {
       titulo: 'Nota Fiscal (NFS-e)',
-      descricao: 'Configure como as notas fiscais serão emitidas',
+      descricao: 'Escolha o provedor e configure a emissão de NFS-e para seus clientes',
       href: `${base}/nota-fiscal`,
       icon: FileText,
-      itens: ['Provedor de NF', 'Certificado digital', 'Emissão automática'],
+      itens: ['Provedor de NF', 'ISSNet / Asaas / Manual', 'Emissão automática'],
     },
     {
       titulo: 'Backup',

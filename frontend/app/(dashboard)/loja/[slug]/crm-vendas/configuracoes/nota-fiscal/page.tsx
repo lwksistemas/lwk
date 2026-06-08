@@ -1,21 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import apiClient from '@/lib/api-client';
-import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 import { logger } from '@/lib/logger';
-import { FileText, Upload, AlertCircle, CheckCircle2, Info, Loader2 } from 'lucide-react';
-import { AsaasConfigSection } from './components/AsaasConfigSection';
+import { FileText, Upload, AlertCircle, CheckCircle2, Info, Loader2, ArrowLeft } from 'lucide-react';
 
 export default function ConfiguracaoNotaFiscalPage() {
   const router = useRouter();
   const params = useParams();
   const lojaSlug = typeof params?.slug === 'string' ? params.slug : '';
-  const asaasWebhookUrl = lojaSlug
-    ? `${getPrimaryApiBaseUrl()}/crm-vendas/webhooks/asaas/${encodeURIComponent(lojaSlug)}/`
-    : '';
+  const configBase = `/loja/${lojaSlug}/crm-vendas/configuracoes`;
   const { config, recarregar } = useCRMConfig();
   
   const [loading, setLoading] = useState(false);
@@ -23,8 +20,6 @@ export default function ConfiguracaoNotaFiscalPage() {
   
   const [formData, setFormData] = useState({
     provedor_nf: 'asaas' as 'asaas' | 'issnet' | 'nacional' | 'manual',
-    asaas_api_key: '',
-    asaas_sandbox: false,
     issnet_usuario: '',
     issnet_senha: '',
     issnet_senha_certificado: '',
@@ -46,10 +41,6 @@ export default function ConfiguracaoNotaFiscalPage() {
   });
   
   const [certificadoFile, setCertificadoFile] = useState<File | null>(null);
-  const [asaasTestLoading, setAsaasTestLoading] = useState(false);
-  const [asaasTestMessage, setAsaasTestMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(
-    null
-  );
   const [issnetTestLoading, setIssnetTestLoading] = useState(false);
   const [issnetTestMessage, setIssnetTestMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(
     null
@@ -59,8 +50,6 @@ export default function ConfiguracaoNotaFiscalPage() {
     if (config) {
       setFormData({
         provedor_nf: config.provedor_nf || 'asaas',
-        asaas_api_key: '',
-        asaas_sandbox: config.asaas_sandbox ?? false,
         issnet_usuario: config.issnet_usuario || '',
         issnet_senha: '',
         issnet_senha_certificado: '',
@@ -101,7 +90,6 @@ export default function ConfiguracaoNotaFiscalPage() {
       // Campos que podem ser limpos (string vazia deve ser enviada para limpar no backend)
       const clearableFields = ['codigo_cnae', 'codigo_nbs', 'item_lista_servico', 'inscricao_municipal'];
       Object.entries(formData).forEach(([key, value]) => {
-        if (key === 'asaas_sandbox') return;
         if (value === null || value === undefined) return;
         // Campos limpaveis: enviar string vazia para o backend poder limpar
         if (value === '' && !clearableFields.includes(key)) return;
@@ -111,7 +99,6 @@ export default function ConfiguracaoNotaFiscalPage() {
         }
         data.append(key, String(value));
       });
-      data.append('asaas_sandbox', formData.asaas_sandbox ? 'true' : 'false');
 
       // Adicionar certificado se houver
       if (certificadoFile) {
@@ -130,7 +117,6 @@ export default function ConfiguracaoNotaFiscalPage() {
       // Limpar senhas após salvar
       setFormData(prev => ({
         ...prev,
-        asaas_api_key: '',
         issnet_senha: '',
         issnet_senha_certificado: '',
       }));
@@ -143,46 +129,6 @@ export default function ConfiguracaoNotaFiscalPage() {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const testarComunicacaoAsaas = async () => {
-    setAsaasTestLoading(true);
-    setAsaasTestMessage(null);
-    try {
-      const payload: { api_key?: string; asaas_sandbox: boolean } = {
-        asaas_sandbox: formData.asaas_sandbox,
-      };
-      const key = formData.asaas_api_key.trim();
-      if (key) {
-        payload.api_key = key;
-      }
-      const res = await apiClient.post<{
-        success?: boolean;
-        message?: string;
-        detail?: string;
-        environment?: string;
-      }>('/crm-vendas/config/test-asaas/', payload);
-      if (res.data?.success) {
-        setAsaasTestMessage({
-          type: 'ok',
-          text: res.data.message || 'Conexão com o Asaas OK.',
-        });
-      } else {
-        setAsaasTestMessage({
-          type: 'error',
-          text: res.data?.detail || 'Não foi possível validar a chave.',
-        });
-      }
-    } catch (err: unknown) {
-      const ax = err as { response?: { data?: { detail?: string; message?: string } } };
-      const detail =
-        ax.response?.data?.detail ||
-        ax.response?.data?.message ||
-        (err instanceof Error ? err.message : 'Erro ao testar comunicação.');
-      setAsaasTestMessage({ type: 'error', text: String(detail) });
-    } finally {
-      setAsaasTestLoading(false);
     }
   };
 
@@ -249,7 +195,7 @@ export default function ConfiguracaoNotaFiscalPage() {
     asaas: {
       titulo: 'Asaas (conta da sua loja)',
       descricao:
-        'Usa a API v3 da conta Asaas da sua empresa. Cadastre a chave em Integrações no Asaas (permissão de notas fiscais).',
+        'Emissão de NFS-e pela conta Asaas da loja. A API Key é configurada em Configurações → Asaas (banco).',
     },
     issnet: {
       titulo: 'ISSNet - Ribeirão Preto (Direto)',
@@ -267,13 +213,21 @@ export default function ConfiguracaoNotaFiscalPage() {
 
   return (
     <div className="space-y-6">
+      <Link
+        href={configBase}
+        className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-[#0176d3]"
+      >
+        <ArrowLeft size={16} />
+        Voltar para Configurações
+      </Link>
+
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <FileText size={28} />
-          Configuração de Nota Fiscal da Loja
+          Provedor de Nota Fiscal
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Configure como sua loja emitirá notas fiscais para seus clientes
+          Escolha como sua loja emitirá NFS-e para seus clientes (independente do Asaas para boletos)
         </p>
         
         <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
@@ -361,6 +315,19 @@ export default function ConfiguracaoNotaFiscalPage() {
               );
             })}
           </div>
+          {formData.provedor_nf === 'asaas' && (
+            <p className="mt-4 text-sm text-gray-700 dark:text-gray-300 border-t border-gray-200 dark:border-[#0d1f3c] pt-4">
+              <strong>Asaas:</strong> configure a API Key da loja em{' '}
+              <Link href={`${configBase}/asaas`} className="text-[#0176d3] underline font-medium">
+                Configurações → Asaas (banco)
+              </Link>
+              {config?.asaas_api_key_configured ? (
+                <span className="text-green-700 dark:text-green-300"> — chave já cadastrada.</span>
+              ) : (
+                <span className="text-amber-700 dark:text-amber-300"> — chave ainda não configurada.</span>
+              )}
+            </p>
+          )}
           {formData.provedor_nf === 'issnet' && (
             <p className="mt-4 text-sm text-gray-700 dark:text-gray-300 border-t border-gray-200 dark:border-[#0d1f3c] pt-4">
               <strong>ISSNet:</strong> preencha inscrição municipal, série do RPS e último RPS em{' '}
@@ -369,21 +336,6 @@ export default function ConfiguracaoNotaFiscalPage() {
             </p>
           )}
         </div>
-
-        {/* Conta Asaas da loja */}
-        {formData.provedor_nf === 'asaas' && (
-          <AsaasConfigSection
-            apiKey={formData.asaas_api_key}
-            sandbox={formData.asaas_sandbox}
-            apiKeyConfigured={config?.asaas_api_key_configured}
-            webhookUrl={asaasWebhookUrl}
-            testLoading={asaasTestLoading}
-            testMessage={asaasTestMessage}
-            onApiKeyChange={(v) => setFormData({ ...formData, asaas_api_key: v })}
-            onSandboxChange={(v) => setFormData({ ...formData, asaas_sandbox: v })}
-            onTest={() => void testarComunicacaoAsaas()}
-          />
-        )}
 
         {/* Configurações ISSNet */}
         {formData.provedor_nf === 'issnet' && (

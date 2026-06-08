@@ -533,12 +533,18 @@ def crm_config(request):
             logger.exception('Erro ao buscar config CRM: %s', e)
             raise
     
+    from superadmin.models import Loja
+    loja = Loja.objects.filter(id=loja_id).first()
+    serializer_context = {'request': request, 'loja': loja}
+
     if request.method == 'GET':
-        serializer = CRMConfigSerializer(config)
+        serializer = CRMConfigSerializer(config, context=serializer_context)
         return Response(serializer.data)
     
     elif request.method == 'PATCH':
-        serializer = CRMConfigSerializer(config, data=request.data, partial=True, context={'request': request})
+        serializer = CRMConfigSerializer(
+            config, data=request.data, partial=True, context=serializer_context,
+        )
         if serializer.is_valid():
             serializer.save()
             # Invalidar cache do dashboard quando configurações mudarem
@@ -580,13 +586,16 @@ def crm_config_asaas_test(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+    from asaas_integration.api_key_utils import normalize_asaas_api_key, asaas_key_is_sandbox
+
     body = request.data if isinstance(request.data, dict) else {}
     api_key = (body.get('api_key') or '').strip()
     if not api_key:
         api_key = (getattr(cfg, 'asaas_api_key', None) or '').strip()
+    api_key = normalize_asaas_api_key(api_key)
 
     if body.get('asaas_sandbox') is None:
-        sandbox = bool(getattr(cfg, 'asaas_sandbox', False))
+        sandbox = asaas_key_is_sandbox(api_key) if api_key else bool(getattr(cfg, 'asaas_sandbox', False))
     else:
         sb = body.get('asaas_sandbox')
         sandbox = bool(sb) if isinstance(sb, bool) else str(sb).lower() in ('true', '1', 'yes', 'on')

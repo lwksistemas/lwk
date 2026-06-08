@@ -39,13 +39,6 @@ SOROTERAPIA_CADASTRO_Q = (
     | Q(categoria__icontains='injetavel')
 )
 
-SOROTERAPIA_AP_Q = (
-    Q(procedure__categoria__iexact='soroterapia')
-    | Q(procedure__categoria__icontains='soroterapia')
-    | Q(procedure__categoria__iexact='injetavel')
-    | Q(procedure__categoria__icontains='injetavel')
-)
-
 
 def _parse_dashboard_period(request, today: date):
     """Intervalo do filtro mensal (mes/ano). No mês atual, termina em today."""
@@ -110,18 +103,10 @@ def _consulta_realizada_no_periodo_q(period_start, period_end):
     )
 
 
-def _consulta_realizada_no_mes_q(first_day_month, today):
-    return _consulta_realizada_no_periodo_q(first_day_month, today)
-
-
 def _consultas_concluidas_no_periodo(period_start, period_end):
     return Consulta.objects.filter(status='COMPLETED').filter(
         _consulta_realizada_no_periodo_q(period_start, period_end),
     )
-
-
-def _consultas_concluidas_no_mes(first_day_month, today):
-    return _consultas_concluidas_no_periodo(first_day_month, today)
 
 
 def _top_procedures_realizados_periodo(period_start, period_end):
@@ -135,10 +120,6 @@ def _top_procedures_realizados_periodo(period_start, period_end):
         {'name': item['procedure__nome'] or 'Sem nome', 'count': item['count']}
         for item in rows
     ]
-
-
-def _top_procedures_realizados_mes(first_day_month, today):
-    return _top_procedures_realizados_periodo(first_day_month, today)
 
 
 def _top_soroterapia_periodo(period_start, period_end):
@@ -175,7 +156,7 @@ def _top_soroterapia_periodo(period_start, period_end):
             appointment__date__date__lte=period_end,
             appointment__status__in=['COMPLETED', 'CONFIRMED', 'SCHEDULED', 'IN_PROGRESS'],
         )
-        .filter(SOROTERAPIA_AP_Q)
+        .filter(SOROTERAPIA_PROCEDURE_Q)
         .values('procedure__nome')
         .annotate(count=Count('id'))
     )
@@ -196,30 +177,6 @@ def _top_soroterapia_periodo(period_start, period_end):
         .values_list('nome', flat=True)[:5]
     )
     return [{'name': nome, 'count': 0} for nome in cadastros]
-
-
-def _top_soroterapia_mes(first_day_month, today):
-    return _top_soroterapia_periodo(first_day_month, today)
-
-
-def _top_procedures_qs(*, first_day_month, today, soroterapia_only: bool, completed_only: bool):
-    status_filter = ['COMPLETED'] if completed_only else ['COMPLETED', 'CONFIRMED', 'SCHEDULED', 'IN_PROGRESS']
-    qs = Appointment.objects.filter(
-        date__date__gte=first_day_month,
-        date__date__lte=today,
-        status__in=status_filter,
-    )
-    if soroterapia_only:
-        qs = qs.filter(SOROTERAPIA_PROCEDURE_Q)
-    rows = (
-        qs.values('procedure__nome')
-        .annotate(count=Count('id'))
-        .order_by('-count')[:5]
-    )
-    return [
-        {'name': item['procedure__nome'] or 'Sem nome', 'count': item['count']}
-        for item in rows
-    ]
 
 
 class LojaInfoView(APIView):

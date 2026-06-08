@@ -23,6 +23,31 @@ from .pagination import paginate_queryset
 from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
 
+# ---------------------------------------------------------------------------
+# Helpers de lookup — eliminam try/except repetido
+# ---------------------------------------------------------------------------
+
+def _get_consulta_or_404(pk, select_related=None):
+    """Busca consulta com select_related padrão ou retorna (None, Response 404)."""
+    if select_related is None:
+        select_related = (
+            'patient', 'professional', 'procedure', 'protocol', 'appointment',
+        )
+    try:
+        consulta = Consulta.objects.select_related(*select_related).get(pk=pk)
+        return consulta, None
+    except Consulta.DoesNotExist:
+        return None, Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+
+
+def _get_patient_or_404(patient_id):
+    """Busca paciente ou retorna (None, Response 404)."""
+    try:
+        return Patient.objects.get(pk=patient_id), None
+    except Patient.DoesNotExist:
+        return None, Response({'error': 'Cliente não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+
 class ConsultaListView(APIView):
     """
     GET  /clinica-beleza/consultas/ — lista consultas.
@@ -172,12 +197,11 @@ class ConsultaIniciarView(APIView):
     permission_classes = CLINICA_MEMBER
 
     def post(self, request, pk):
-        try:
-            consulta = Consulta.objects.select_related(
-                'patient', 'professional', 'procedure', 'protocol', 'appointment', 'appointment__procedure',
-            ).get(pk=pk)
-        except Consulta.DoesNotExist:
-            return Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        consulta, error = _get_consulta_or_404(pk, select_related=(
+            'patient', 'professional', 'procedure', 'protocol', 'appointment', 'appointment__procedure',
+        ))
+        if error:
+            return error
 
         try:
             iniciar_consulta(consulta)
@@ -195,12 +219,11 @@ class ConsultaFinalizarView(APIView):
     permission_classes = CLINICA_MEMBER
 
     def post(self, request, pk):
-        try:
-            consulta = Consulta.objects.select_related(
-                'patient', 'professional', 'procedure', 'protocol', 'appointment', 'appointment__procedure',
-            ).get(pk=pk)
-        except Consulta.DoesNotExist:
-            return Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        consulta, error = _get_consulta_or_404(pk, select_related=(
+            'patient', 'professional', 'procedure', 'protocol', 'appointment', 'appointment__procedure',
+        ))
+        if error:
+            return error
 
         mark_as_paid = bool(request.data.get('mark_as_paid'))
         payment_method = (request.data.get('payment_method') or request.data.get('forma_pagamento') or '').strip() or None
@@ -229,10 +252,9 @@ class ConsultaAplicarProtocoloView(APIView):
     permission_classes = CLINICA_MEMBER
 
     def post(self, request, pk):
-        try:
-            consulta = Consulta.objects.select_related('procedure').get(pk=pk)
-        except Consulta.DoesNotExist:
-            return Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        consulta, error = _get_consulta_or_404(pk, select_related=('procedure',))
+        if error:
+            return error
 
         protocol_id = request.data.get('protocol_id')
         if not protocol_id:
@@ -264,10 +286,9 @@ class PatientAnamneseView(APIView):
     permission_classes = CLINICA_MEMBER
 
     def get(self, request, patient_id):
-        try:
-            patient = Patient.objects.get(pk=patient_id)
-        except Patient.DoesNotExist:
-            return Response({'error': 'Cliente não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        patient, error = _get_patient_or_404(patient_id)
+        if error:
+            return error
         obj, _ = PatientAnamnese.objects.get_or_create(
             patient_id=patient_id,
             defaults={'loja_id': patient.loja_id},
@@ -275,10 +296,9 @@ class PatientAnamneseView(APIView):
         return Response(PatientAnamneseSerializer(obj).data)
 
     def put(self, request, patient_id):
-        try:
-            patient = Patient.objects.get(pk=patient_id)
-        except Patient.DoesNotExist:
-            return Response({'error': 'Cliente não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        patient, error = _get_patient_or_404(patient_id)
+        if error:
+            return error
         obj, _ = PatientAnamnese.objects.get_or_create(
             patient_id=patient_id,
             defaults={'loja_id': patient.loja_id},

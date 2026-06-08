@@ -20,6 +20,18 @@ from .views_base import GetObjectMixin, map_field_names
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Helper de lookup — elimina try/except repetido
+# ---------------------------------------------------------------------------
+
+def _get_professional_or_404(pk):
+    """Busca profissional ou retorna (None, Response 404)."""
+    try:
+        return Professional.objects.get(pk=pk), None
+    except Professional.DoesNotExist:
+        return None, Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+
 def _sync_memed(professional):
     """Dispara o auto-cadastro do prescritor na Memed (best-effort; nunca quebra o save)."""
     try:
@@ -238,18 +250,16 @@ class HorarioTrabalhoProfissionalView(APIView):
     permission_classes = CLINICA_ADMIN
 
     def get(self, request, pk):
-        try:
-            Professional.objects.get(pk=pk)
-        except Professional.DoesNotExist:
-            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        professional, error = _get_professional_or_404(pk)
+        if error:
+            return error
         queryset = HorarioTrabalhoProfissional.objects.filter(professional_id=pk).order_by('dia_semana')
         return Response(HorarioTrabalhoProfissionalSerializer(queryset, many=True).data)
 
     def put(self, request, pk):
-        try:
-            professional = Professional.objects.get(pk=pk)
-        except Professional.DoesNotExist:
-            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        professional, error = _get_professional_or_404(pk)
+        if error:
+            return error
         if not isinstance(request.data, list):
             return Response(
                 {'error': 'Envie uma lista de horários. Ex.: [{"dia_semana": 0, "hora_entrada": "08:00", "hora_saida": "18:00", "ativo": true}]'},
@@ -275,10 +285,9 @@ class ProfessionalCommissionView(APIView):
     permission_classes = CLINICA_ADMIN
 
     def get(self, request, pk):
-        try:
-            Professional.objects.get(pk=pk)
-        except Professional.DoesNotExist:
-            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        professional, error = _get_professional_or_404(pk)
+        if error:
+            return error
         try:
             qs = ProfessionalCommission.objects.filter(
                 professional_id=pk, is_active=True
@@ -295,10 +304,9 @@ class ProfessionalCommissionView(APIView):
 
     def post(self, request, pk):
         """Recebe uma lista de comissões. Substitui todas as existentes."""
-        try:
-            professional = Professional.objects.get(pk=pk)
-        except Professional.DoesNotExist:
-            return Response({'error': 'Profissional não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        professional, error = _get_professional_or_404(pk)
+        if error:
+            return error
 
         if not isinstance(request.data, list):
             return Response(

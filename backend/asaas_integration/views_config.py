@@ -289,7 +289,7 @@ def _build_cadastro_diagnostico(request):
         sandbox = AsaasConfig.effective_sandbox(api_key)
         if sandbox:
             api_level = 'warn'
-                    api_details.append('Ambiente Sandbox ($aact_hmlg_) — cadastros reais usam $aact_prod_')
+            api_details.append('Ambiente Sandbox ($aact_hmlg_) — cadastros reais usam $aact_prod_')
         if not REQUESTS_AVAILABLE or not AsaasClient:
             api_level = 'error'
             api_details.append('Biblioteca/cliente Asaas indisponível')

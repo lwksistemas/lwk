@@ -15,6 +15,7 @@ from .views_config import (  # noqa: F401
     asaas_config,
     asaas_test,
     asaas_status,
+    asaas_diagnostico,
     asaas_stats,
     asaas_sync,
     asaas_sync_stats,

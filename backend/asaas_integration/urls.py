@@ -28,6 +28,7 @@ urlpatterns = [
     path('test/', views.asaas_test, name='asaas-test'),
     path('test-public/', views.asaas_test_public, name='asaas-test-public'),
     path('status/', views.asaas_status, name='asaas-status'),
+    path('diagnostico/', views.asaas_diagnostico, name='asaas-diagnostico'),
     path('stats/', views.asaas_stats, name='asaas-stats'),
     path('sync/', views.asaas_sync, name='asaas-sync'),
     path('sync/stats/', views.asaas_sync_stats, name='asaas-sync-stats'),

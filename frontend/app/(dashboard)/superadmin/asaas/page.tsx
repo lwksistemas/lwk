@@ -20,7 +20,11 @@ import {
   CreditCard,
   Eye,
   EyeOff,
-  ArrowLeft
+  ArrowLeft,
+  ClipboardCheck,
+  Mail,
+  FileText,
+  Webhook,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatCurrency, formatDateTime } from '@/lib/financeiro-helpers'
@@ -51,6 +55,24 @@ interface AsaasStatus {
   api_connected: boolean
   last_check: string
   error_message: string | null
+}
+
+interface DiagnosticoCheck {
+  id: string
+  label: string
+  ok: boolean
+  level: 'ok' | 'warn' | 'error'
+  message: string
+  details: string[]
+  action_path: string
+}
+
+interface DiagnosticoResponse {
+  ready: boolean
+  summary: string
+  cadastro_fluxo: { ok: boolean; message: string }
+  checks: DiagnosticoCheck[]
+  checked_at: string
 }
 
 export default function AsaasConfigPage() {
@@ -86,12 +108,15 @@ export default function AsaasConfigPage() {
   const [webhookConfigured, setWebhookConfigured] = useState(false)
   const [webhookTokenLength, setWebhookTokenLength] = useState(0)
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null)
+  const [diagnostico, setDiagnostico] = useState<DiagnosticoResponse | null>(null)
+  const [diagLoading, setDiagLoading] = useState(false)
 
   // Carregar configurações (execução única ao montar)
   useEffect(() => {
     loadConfig()
     loadStats()
     checkStatus()
+    loadDiagnostico()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -126,6 +151,37 @@ export default function AsaasConfigPage() {
     }
   }
 
+  const loadDiagnostico = async () => {
+    setDiagLoading(true)
+    try {
+      const { data } = await apiClient.get('/asaas/diagnostico/')
+      setDiagnostico(data)
+    } catch (error) {
+      logger.warn('Erro ao carregar diagnóstico:', error)
+    } finally {
+      setDiagLoading(false)
+    }
+  }
+
+  const checkIconForLevel = (level: DiagnosticoCheck['level']) => {
+    if (level === 'ok') return <CheckCircle className="h-5 w-5 text-green-600" />
+    if (level === 'warn') return <AlertCircle className="h-5 w-5 text-amber-600" />
+    return <XCircle className="h-5 w-5 text-destructive" />
+  }
+
+  const badgeVariantForLevel = (level: DiagnosticoCheck['level']) => {
+    if (level === 'ok') return 'default' as const
+    if (level === 'warn') return 'secondary' as const
+    return 'destructive' as const
+  }
+
+  const iconForCheck = (id: string) => {
+    if (id === 'email') return <Mail className="h-4 w-4" />
+    if (id === 'nfse') return <FileText className="h-4 w-4" />
+    if (id === 'asaas_webhook') return <Webhook className="h-4 w-4" />
+    return <CreditCard className="h-4 w-4" />
+  }
+
   const saveConfig = async () => {
     setSaving(true)
     try {
@@ -147,6 +203,7 @@ export default function AsaasConfigPage() {
         setConfig(prev => ({ ...prev, api_key: data.api_key }))
       }
       checkStatus()
+      loadDiagnostico()
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } }
       setMessage({
@@ -265,6 +322,10 @@ export default function AsaasConfigPage() {
           <TabsTrigger value="monitoring">
             <Activity className="w-4 h-4 mr-2" />
             Monitoramento
+          </TabsTrigger>
+          <TabsTrigger value="diagnostico">
+            <ClipboardCheck className="w-4 h-4 mr-2" />
+            Diagnóstico
           </TabsTrigger>
         </TabsList>
 
@@ -563,6 +624,93 @@ export default function AsaasConfigPage() {
                   </Badge>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="diagnostico" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Diagnóstico do cadastro (PIX → senha + NFS-e)</CardTitle>
+                <CardDescription>
+                  Verifica se o fluxo automático após pagamento está pronto
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={loadDiagnostico} disabled={diagLoading}>
+                {diagLoading ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Atualizar
+                  </>
+                )}
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {diagnostico ? (
+                <>
+                  <Alert variant={diagnostico.ready ? 'default' : 'destructive'}>
+                    {diagnostico.ready ? (
+                      <CheckCircle className="h-4 w-4" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    <AlertDescription>
+                      <p className="font-medium">{diagnostico.cadastro_fluxo.message}</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {diagnostico.summary} · verificado em{' '}
+                        {formatDateTime(diagnostico.checked_at, '—')}
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="space-y-3">
+                    {diagnostico.checks.map((check) => (
+                      <div
+                        key={check.id}
+                        className="rounded-lg border p-4 space-y-2"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="flex items-start gap-3">
+                            {checkIconForLevel(check.level)}
+                            <div>
+                              <div className="flex items-center gap-2 font-medium">
+                                {iconForCheck(check.id)}
+                                {check.label}
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">{check.message}</p>
+                            </div>
+                          </div>
+                          <Badge variant={badgeVariantForLevel(check.level)}>
+                            {check.level === 'ok' ? 'OK' : check.level === 'warn' ? 'Aviso' : 'Pendente'}
+                          </Badge>
+                        </div>
+                        {check.details.length > 0 && (
+                          <ul className="text-sm text-muted-foreground list-disc list-inside ml-8 space-y-1">
+                            {check.details.map((detail, idx) => (
+                              <li key={idx} className="break-all">{detail}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {check.action_path && check.level !== 'ok' && (
+                          <Link
+                            href={check.action_path}
+                            className="inline-block text-sm text-blue-600 hover:underline ml-8"
+                          >
+                            Ir para configuração →
+                          </Link>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {diagLoading ? 'Carregando diagnóstico…' : 'Não foi possível carregar o diagnóstico.'}
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

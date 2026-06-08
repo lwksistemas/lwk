@@ -256,11 +256,17 @@ export default function AsaasConfigPage() {
     }
   }
 
+  const gerarTokenWebhook = () => {
+    const part1 = crypto.randomUUID().replace(/-/g, '')
+    const part2 = crypto.randomUUID().replace(/-/g, '').slice(0, 11)
+    setWebhookToken(`${part1}${part2}`)
+  }
+
   const copyWebhookToken = async () => {
     if (!webhookToken.trim()) {
       setMessage({
         type: 'error',
-        text: 'Digite o token completo no campo abaixo para copiar e colar no painel Asaas.',
+        text: 'Gere ou digite o token no campo abaixo, salve e depois copie para o painel Asaas.',
       })
       return
     }
@@ -523,9 +529,14 @@ export default function AsaasConfigPage() {
                 </AlertDescription>
               </Alert>
 
-              <Button type="button" variant="outline" onClick={copyWebhookToken}>
-                Copiar token para o Asaas
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={gerarTokenWebhook}>
+                  Gerar token
+                </Button>
+                <Button type="button" variant="outline" onClick={copyWebhookToken} disabled={!webhookToken.trim()}>
+                  Copiar token para o Asaas
+                </Button>
+              </div>
             </CardContent>
           </Card>
 

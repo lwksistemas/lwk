@@ -38,6 +38,30 @@ def prefixos_tabela_para_app(app_label: str) -> list[str]:
 
 TABELAS_DJANGO_PERMITIDAS = frozenset({'django_migrations', 'django_content_type'})
 
+# Tabelas que migrations/ensure devem criar; ausência = falha na auditoria.
+TABELAS_OBRIGATORIAS_POR_TIPO: dict[str, list[str]] = {
+    'clinica-beleza': [
+        'clinica_beleza_consulta_assinaturas_termo',
+        'clinica_beleza_consulta_termo_procedimento',
+    ],
+}
+
+# Comandos ensure_* executados após migrate (mesma ordem do releaseCommand Railway).
+ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
+    'clinica-beleza': [
+        'ensure_clinica_beleza_consultas',
+        'ensure_appointment_duracao_minutos',
+        'ensure_professional_nascimento_sexo',
+        'ensure_memed_timbrado_table',
+        'ensure_professional_commission_local',
+        'ensure_professional_commission_convenio',
+        'ensure_convenio_tables',
+        'ensure_estoque_produto_fields',
+        'ensure_termo_consentimento',
+        'ensure_paciente_fotos_table',
+    ],
+}
+
 
 def prefixos_esperados_apps(apps_esperados: list[str]) -> list[str]:
     """Prefixos de table_name considerados válidos para o tipo da loja."""
@@ -74,6 +98,18 @@ def listar_tabelas_extras_no_schema(
                 continue
             extras.append(name)
     return extras
+
+
+def tabela_existe_no_schema(conn, schema_name: str, table_name: str) -> bool:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = %s AND table_name = %s AND table_type = 'BASE TABLE'
+            """,
+            [schema_name, table_name],
+        )
+        return cur.fetchone() is not None
 
 
 def contar_tabelas_app_no_schema(conn, schema_name: str, app_label: str) -> int:
@@ -125,6 +161,7 @@ def auditar_loja(loja) -> dict[str, Any]:
         'tabelas_extras': [],
         'tabelas_extras_count': 0,
         'apps_detalhe': [],
+        'tabelas_faltando': [],
         'ok': False,
         'erro': None,
     }
@@ -243,6 +280,18 @@ def auditar_loja(loja) -> dict[str, Any]:
             }
         )
 
+    tabelas_obrigatorias = TABELAS_OBRIGATORIAS_POR_TIPO.get(tipo_slug, [])
+    tabelas_faltando = [
+        tbl
+        for tbl in tabelas_obrigatorias
+        if not tabela_existe_no_schema(conn, schema_name, tbl)
+    ]
+    base['tabelas_faltando'] = tabelas_faltando
+    if tabelas_faltando:
+        tudo_ok = False
+        faltando_txt = ', '.join(tabelas_faltando)
+        base['erro'] = base.get('erro') or f'Tabelas obrigatórias faltando: {faltando_txt}'
+
     base['ok'] = tudo_ok
 
     extras = listar_tabelas_extras_no_schema(conn, schema_name, apps_esperados)
@@ -265,9 +314,36 @@ def auditar_loja(loja) -> dict[str, Any]:
     return base
 
 
+def _loja_identificador_ensure(loja) -> str:
+    return (loja.slug or getattr(loja, 'atalho', None) or '').strip()
+
+
+def _aplicar_ensure_comandos_por_tipo(loja) -> list[str]:
+    """Executa ensure_* do tipo da loja (idempotente). Retorna mensagens de erro."""
+    from django.core.management import call_command
+
+    tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip()
+    comandos = ENSURE_COMANDOS_POR_TIPO.get(tipo_slug, [])
+    if not comandos:
+        return []
+
+    slug = _loja_identificador_ensure(loja)
+    erros: list[str] = []
+    for cmd in comandos:
+        try:
+            if slug:
+                call_command(cmd, slug=slug)
+            else:
+                call_command(cmd)
+        except Exception as e:
+            logger.warning('ensure %s loja %s: %s', cmd, slug or loja.id, e)
+            erros.append(f'{cmd}: {e}')
+    return erros
+
+
 def corrigir_loja(loja) -> dict[str, Any]:
     """
-    Garante schema e aplica migrations esperadas para o tipo da loja.
+    Garante schema, aplica migrations e comandos ensure_* do tipo da loja.
     """
     out: dict[str, Any] = {'loja_id': loja.id, 'slug': loja.slug, 'sucesso': False, 'mensagem': ''}
     if not _usando_postgresql() or not os.environ.get('DATABASE_URL'):
@@ -281,9 +357,19 @@ def corrigir_loja(loja) -> dict[str, Any]:
         if not loja.database_created:
             loja.database_created = True
             loja.save(update_fields=['database_created'])
-        ok = DatabaseSchemaService.aplicar_migrations(loja)
-        out['sucesso'] = bool(ok)
-        out['mensagem'] += 'Migrations aplicadas.' if ok else 'Falha parcial ao aplicar migrations.'
+        ok_mig = DatabaseSchemaService.aplicar_migrations(loja)
+        if ok_mig:
+            out['mensagem'] += 'Migrations aplicadas. '
+        else:
+            out['mensagem'] += 'Falha parcial ao aplicar migrations. '
+
+        ensure_erros = _aplicar_ensure_comandos_por_tipo(loja)
+        if ensure_erros:
+            out['mensagem'] += 'Ensure: ' + '; '.join(ensure_erros)
+        elif ENSURE_COMANDOS_POR_TIPO.get((loja.tipo_loja.slug if loja.tipo_loja else '').strip()):
+            out['mensagem'] += 'Ensure commands executados.'
+
+        out['sucesso'] = bool(ok_mig) and not ensure_erros
     except Exception as e:
         logger.exception('corrigir_loja')
         out['mensagem'] = str(e)

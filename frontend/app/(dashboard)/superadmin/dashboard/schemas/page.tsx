@@ -25,6 +25,7 @@ interface AuditResult {
   tabelas_negocio?: number;
   tabelas_extras_count?: number;
   aviso_tabelas_extras?: string | null;
+  tabelas_faltando?: string[];
   apps_detalhe?: AppDetalhe[];
 }
 
@@ -89,6 +90,12 @@ export default function SchemasPage() {
 
     if (ids.length === 0) {
       setProgressText(null);
+      setResult((prev) => ({
+        ...inicial,
+        mensagem: 'Nenhuma loja com falha detectada — nada a corrigir.',
+        resultados: prev?.resultados ?? inicial.resultados,
+        resumo: prev?.resumo ?? inicial.resumo,
+      }));
       return;
     }
 
@@ -112,7 +119,7 @@ export default function SchemasPage() {
 
   const corrigirUmaLoja = async (lojaId: number) => {
     const ok = window.confirm(
-      `Aplicar migrations apenas nesta loja (id ${lojaId})? Pode levar até um minuto.`
+      `Aplicar migrations e ensure nesta loja (id ${lojaId})? Pode levar até um minuto.`
     );
     if (!ok) return;
     try {
@@ -143,7 +150,7 @@ export default function SchemasPage() {
   const executar = async (aplicarCorrecao: boolean) => {
     if (aplicarCorrecao) {
       const ok = window.confirm(
-        'Serão aplicadas migrations nos schemas das lojas com falha. Em produção (Heroku) a correção é feita em várias requisições curtas para evitar timeout. Continuar?'
+        'Serão aplicadas migrations e correções estruturais (ensure) nos schemas das lojas com falha ou tabelas obrigatórias faltando. Em produção a correção é feita em várias requisições curtas para evitar timeout. Continuar?'
       );
       if (!ok) return;
     }
@@ -305,8 +312,9 @@ export default function SchemasPage() {
                     const a = row.audit;
                     const badApps = a.apps_detalhe?.filter((x) => !x.ok) || [];
                     const lojaId = a.loja_id;
-                    const podeCorrigirLoja =
-                      typeof lojaId === 'number' && !row.ok_final && !loading;
+                    const temFalha =
+                      !row.ok_final || (a.tabelas_faltando != null && a.tabelas_faltando.length > 0);
+                    const podeCorrigirLoja = typeof lojaId === 'number' && temFalha && !loading;
                     return (
                       <tr key={i} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30">
                         <td className="py-3 px-4">
@@ -371,7 +379,12 @@ export default function SchemasPage() {
                         </td>
                         <td className="py-3 px-4 text-xs text-gray-600 dark:text-gray-400 max-w-xs break-words">
                           {a.erro && <span className="text-red-500">{a.erro}</span>}
-                          {badApps.length > 0 && !a.erro && (
+                          {(a.tabelas_faltando?.length ?? 0) > 0 && !a.erro && (
+                            <span className="text-red-500">
+                              Tabelas faltando: {a.tabelas_faltando!.join(', ')}
+                            </span>
+                          )}
+                          {badApps.length > 0 && !a.erro && (a.tabelas_faltando?.length ?? 0) === 0 && (
                             <span className="text-red-500">Apps com falha: {badApps.map((x) => x.app).join(', ')}</span>
                           )}
                           {!a.erro && badApps.length === 0 && a.aviso_tabelas_extras && (

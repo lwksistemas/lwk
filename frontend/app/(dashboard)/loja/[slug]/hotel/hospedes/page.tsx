@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import PaginationBar from '@/components/PaginationBar';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Modal } from '@/components/ui/Modal';
@@ -10,21 +11,21 @@ import { Label } from '@/components/ui/label';
 import { useHotelCrud } from '@/hooks/useHotelCrud';
 import type { Hospede } from '@/lib/hotel-types';
 import { Users, Plus, Edit2, Trash2, ArrowLeft } from 'lucide-react';
-import { formatTelefone, toUpperCase } from '@/lib/format-br';
+import { formatCpfCnpj, formatTelefone, toUpperCase } from '@/lib/format-br';
 
 export default function HotelHospedesPage() {
   const params = useParams();
   const slug = params.slug as string;
-  const { items, loading, error, saving, setError, load, save, remove } = useHotelCrud<Hospede>({ endpoint: '/hotel/hospedes/' });
+  const { items, page, setPage, totalCount, totalPages, pageSize, loading, error, saving, setError, save, remove } = useHotelCrud<Hospede>({ endpoint: '/hotel/hospedes/' });
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Hospede | null>(null);
   const [form, setForm] = useState({ nome: '', documento: '', telefone: '', email: '', observacoes: '' });
   const resetForm = () => setForm({ nome: '', documento: '', telefone: '', email: '', observacoes: '' });
-  useEffect(() => { load(); }, [load]);
   const openNew = () => { setEditing(null); resetForm(); setModalOpen(true); };
   const openEdit = (h: Hospede) => { setEditing(h); setForm({ nome: h.nome || '', documento: h.documento || '', telefone: h.telefone || '', email: h.email || '', observacoes: h.observacoes || '' }); setModalOpen(true); };
   const submit = async () => { const ok = await save({ nome: form.nome.trim(), documento: form.documento.trim(), telefone: form.telefone.trim(), email: form.email.trim(), observacoes: form.observacoes.trim() }, editing?.id); if (ok) { setModalOpen(false); setEditing(null); resetForm(); } };
   const setNome = (v: string) => setForm((f) => ({ ...f, nome: toUpperCase(v) }));
+  const setDocumento = (v: string) => setForm((f) => ({ ...f, documento: formatCpfCnpj(v) }));
   const setTelefone = (v: string) => setForm((f) => ({ ...f, telefone: formatTelefone(v) }));
 
   return (
@@ -34,7 +35,7 @@ export default function HotelHospedesPage() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/15 rounded-lg hidden sm:block"><Users className="w-6 h-6" /></div>
-              <div><h1 className="text-xl sm:text-2xl font-bold">Hóspedes</h1><p className="text-white/80 text-xs sm:text-sm">Cadastro de hóspedes ({items.length})</p></div>
+              <div><h1 className="text-xl sm:text-2xl font-bold">Hóspedes</h1><p className="text-white/80 text-xs sm:text-sm">Cadastro de hóspedes ({totalCount})</p></div>
             </div>
             <div className="flex items-center gap-2">
               <Link href={`/loja/${slug}/hotel`} className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md transition-colors text-sm flex items-center gap-1 active:scale-95"><ArrowLeft className="w-4 h-4" /> Voltar</Link>
@@ -93,6 +94,15 @@ export default function HotelHospedesPage() {
                 </tbody>
               </table>
             </div>
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              loading={loading}
+              onPageChange={setPage}
+              itemLabel="hóspedes"
+            />
           </div>
           </>
         )}
@@ -103,7 +113,7 @@ export default function HotelHospedesPage() {
           {error && <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">{error}</div>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2 md:col-span-2"><Label>Nome *</Label><Input value={form.nome} onChange={(e) => setNome(e.target.value)} /></div>
-            <div className="space-y-2"><Label>Documento</Label><Input value={form.documento} onChange={(e) => setForm((f) => ({ ...f, documento: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>Documento</Label><Input value={form.documento} onChange={(e) => setDocumento(e.target.value)} placeholder="CPF ou CNPJ" maxLength={18} /></div>
             <div className="space-y-2"><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(00) 00000-0000" /></div>
             <div className="space-y-2 md:col-span-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></div>
             <div className="space-y-2 md:col-span-2"><Label>Observações</Label><textarea className="w-full min-h-[96px] px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100" value={form.observacoes} onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))} /></div>

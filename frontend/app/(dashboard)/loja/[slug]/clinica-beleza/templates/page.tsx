@@ -56,9 +56,10 @@ export default function TemplatesPage() {
     list: templates,
     loading,
     load: loadTemplates,
-    loadMore,
-    loadingMore,
-    hasMore,
+    page,
+    setPage,
+    totalPages,
+    pageSize,
     totalCount,
   } = useClinicaBelezaPaginatedList<DocumentTemplateItem>({
     path: "/templates/",
@@ -187,12 +188,13 @@ export default function TemplatesPage() {
               </table>
             </div>
             <EntityListLoadMore
-              hasMore={hasMore}
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount ?? 0}
+              pageSize={pageSize}
               loading={loading}
-              loadingMore={loadingMore}
-              onLoadMore={loadMore}
-              loadedCount={templates.length}
-              totalCount={totalCount}
+              onPageChange={setPage}
+              itemLabel="templates"
             />
           </div>
         )}

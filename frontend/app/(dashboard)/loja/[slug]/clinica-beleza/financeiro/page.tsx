@@ -90,9 +90,10 @@ export default function FinanceiroClinicaPage() {
     list: payments,
     loading: loadingPayments,
     load: loadPayments,
-    loadMore: loadMorePayments,
-    loadingMore: loadingMorePayments,
-    hasMore: hasMorePayments,
+    page: paymentsPage,
+    setPage: setPaymentsPage,
+    totalPages: paymentsTotalPages,
+    pageSize: paymentsPageSize,
     totalCount: totalPayments,
   } = useClinicaBelezaPaginatedList<Payment>({
     path: "/payments/",
@@ -104,9 +105,10 @@ export default function FinanceiroClinicaPage() {
     list: despesas,
     loading: loadingDespesas,
     load: loadDespesas,
-    loadMore: loadMoreDespesas,
-    loadingMore: loadingMoreDespesas,
-    hasMore: hasMoreDespesas,
+    page: despesasPage,
+    setPage: setDespesasPage,
+    totalPages: despesasTotalPages,
+    pageSize: despesasPageSize,
     totalCount: totalDespesas,
   } = useClinicaBelezaPaginatedList<DespesaItem>({
     path: "/despesas/",
@@ -374,12 +376,13 @@ export default function FinanceiroClinicaPage() {
                     </table>
                   </div>
                   <EntityListLoadMore
-                    hasMore={hasMorePayments}
+                    page={paymentsPage}
+                    totalPages={paymentsTotalPages}
+                    totalCount={totalPayments ?? 0}
+                    pageSize={paymentsPageSize}
                     loading={loadingPayments}
-                    loadingMore={loadingMorePayments}
-                    onLoadMore={loadMorePayments}
-                    loadedCount={payments.length}
-                    totalCount={totalPayments}
+                    onPageChange={setPaymentsPage}
+                    itemLabel="pagamentos"
                   />
                 </section>
                 {payments.length > 0 && (
@@ -474,12 +477,13 @@ export default function FinanceiroClinicaPage() {
                     </table>
                   </div>
                   <EntityListLoadMore
-                    hasMore={hasMoreDespesas}
+                    page={despesasPage}
+                    totalPages={despesasTotalPages}
+                    totalCount={totalDespesas ?? 0}
+                    pageSize={despesasPageSize}
                     loading={loadingDespesas}
-                    loadingMore={loadingMoreDespesas}
-                    onLoadMore={loadMoreDespesas}
-                    loadedCount={despesas.length}
-                    totalCount={totalDespesas}
+                    onPageChange={setDespesasPage}
+                    itemLabel="despesas"
                   />
                 </section>
                 {despesas.length > 0 && (

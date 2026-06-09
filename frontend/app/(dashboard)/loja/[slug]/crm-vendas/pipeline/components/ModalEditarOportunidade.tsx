@@ -149,20 +149,10 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
         return;
       }
 
-      const prestadoraSelecionada = prestadoras.find(
-        (c) => String(c.id) === empresaPrestadoraId
-      );
-      const prestadoraMudou = String(oportunidade.empresa_prestadora || '') !== empresaPrestadoraId;
-
       const payload: Record<string, unknown> = {
         etapa: etapaSelecionada,
         empresa_prestadora: parseInt(empresaPrestadoraId, 10),
       };
-
-      // Alinha título ao nome da prestadora (mesmo padrão da criação de oportunidade)
-      if (prestadoraMudou && prestadoraSelecionada?.nome) {
-        payload.titulo = prestadoraSelecionada.nome;
-      }
       
       // Adiciona valor_comissao se preenchido
       if (valorComissaoEdit) {

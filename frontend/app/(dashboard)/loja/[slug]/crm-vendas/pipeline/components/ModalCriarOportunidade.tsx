@@ -5,12 +5,13 @@ import Link from 'next/link';
 import { X } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
-import { normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { normalizeListResponse, getCrmApiErrorDetail, gerarTituloOportunidade } from '@/lib/crm-utils';
 import ProdutoSeletorCategoria from '@/components/crm-vendas/ProdutoSeletorCategoria';
 
 interface LeadOption {
   id: number;
   nome: string;
+  empresa?: string;
   conta?: number | null;
 }
 
@@ -134,13 +135,13 @@ export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug,
       setFormErro('Selecione um lead.');
       return;
     }
-    if (!formCriar.titulo.trim()) {
-      // Título gerado automaticamente pelo nome da empresa prestadora
-      const conta = contas.find((c) => String(c.id) === formCriar.empresa_prestadora_id);
-      if (conta) {
-        setFormCriar((f) => ({ ...f, titulo: conta.nome }));
+    const lead = leads.find((l) => l.id === leadId);
+    let titulo = formCriar.titulo.trim();
+    if (!titulo) {
+      if (lead) {
+        titulo = gerarTituloOportunidade(lead);
       } else {
-        setFormErro('Selecione a empresa prestadora.');
+        setFormErro('Selecione um lead.');
         return;
       }
     }
@@ -164,7 +165,7 @@ export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug,
     setEnviando(true);
     const payload: Record<string, unknown> = {
       lead: leadId,
-      titulo: formCriar.titulo.trim() || contas.find((c) => String(c.id) === formCriar.empresa_prestadora_id)?.nome || 'Oportunidade',
+      titulo,
       valor,
       etapa: formCriar.etapa,
       valor_comissao,
@@ -276,7 +277,11 @@ export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug,
                     key={l.id}
                     type="button"
                     onClick={() => {
-                      setFormCriar((f) => ({ ...f, lead_id: String(l.id) }));
+                      setFormCriar((f) => ({
+                        ...f,
+                        lead_id: String(l.id),
+                        titulo: gerarTituloOportunidade(l),
+                      }));
                       setLeadBusca(l.nome);
                     }}
                     className="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-100 dark:border-gray-600 last:border-b-0"
@@ -300,7 +305,7 @@ export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug,
               </p>
             )}
           </div>
-          {/* Empresa Prestadora — obrigatória, título gerado automaticamente */}
+          {/* Empresa Prestadora — obrigatória */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Empresa Prestadora *
@@ -310,11 +315,9 @@ export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug,
                 value={formCriar.empresa_prestadora_id}
                 onChange={(e) => {
                   const id = e.target.value;
-                  const conta = contas.find((c) => String(c.id) === id);
                   setFormCriar((f) => ({
                     ...f,
                     empresa_prestadora_id: id,
-                    titulo: conta ? conta.nome : f.titulo,
                   }));
                 }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"

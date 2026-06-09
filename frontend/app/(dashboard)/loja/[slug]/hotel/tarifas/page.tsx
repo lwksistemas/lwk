@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import PaginationBar from '@/components/PaginationBar';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Modal } from '@/components/ui/Modal';
@@ -10,16 +11,16 @@ import { Label } from '@/components/ui/label';
 import { useHotelCrud } from '@/hooks/useHotelCrud';
 import type { Tarifa } from '@/lib/hotel-types';
 import { Tag, Plus, Edit2, Trash2, ArrowLeft } from 'lucide-react';
+import { toUpperCase } from '@/lib/format-br';
 
 export default function HotelTarifasPage() {
   const params = useParams();
   const slug = params.slug as string;
-  const { items, loading, error, saving, load, save, remove } = useHotelCrud<Tarifa>({ endpoint: '/hotel/tarifas/' });
+  const { items, page, setPage, totalCount, totalPages, pageSize, loading, error, saving, save, remove } = useHotelCrud<Tarifa>({ endpoint: '/hotel/tarifas/' });
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Tarifa | null>(null);
   const [form, setForm] = useState({ nome: '', tipo_quarto: '', valor_diaria: '' });
   const resetForm = () => setForm({ nome: '', tipo_quarto: '', valor_diaria: '' });
-  useEffect(() => { load(); }, [load]);
   const openNew = () => { setEditing(null); resetForm(); setModalOpen(true); };
   const openEdit = (t: Tarifa) => { setEditing(t); setForm({ nome: t.nome || '', tipo_quarto: t.tipo_quarto || '', valor_diaria: String(t.valor_diaria ?? '') }); setModalOpen(true); };
   const submit = async () => { const ok = await save({ nome: form.nome.trim(), tipo_quarto: form.tipo_quarto.trim(), valor_diaria: Number(String(form.valor_diaria).replace(',', '.')) }, editing?.id); if (ok) { setModalOpen(false); setEditing(null); resetForm(); } };
@@ -31,7 +32,7 @@ export default function HotelTarifasPage() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/15 rounded-lg hidden sm:block"><Tag className="w-6 h-6" /></div>
-              <div><h1 className="text-xl sm:text-2xl font-bold">Tarifas</h1><p className="text-white/80 text-xs sm:text-sm">Tarifário base ({items.length})</p></div>
+              <div><h1 className="text-xl sm:text-2xl font-bold">Tarifas</h1><p className="text-white/80 text-xs sm:text-sm">Tarifário base ({totalCount})</p></div>
             </div>
             <div className="flex items-center gap-2">
               <Link href={`/loja/${slug}/hotel`} className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md transition-colors text-sm flex items-center gap-1 active:scale-95"><ArrowLeft className="w-4 h-4" /> Voltar</Link>
@@ -87,6 +88,15 @@ export default function HotelTarifasPage() {
                 </tbody>
               </table>
             </div>
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              loading={loading}
+              onPageChange={setPage}
+              itemLabel="tarifas"
+            />
           </div>
           </>
         )}
@@ -96,8 +106,8 @@ export default function HotelTarifasPage() {
           <div className="flex items-start justify-between gap-4"><h2 className="text-xl font-bold text-gray-900 dark:text-white">{editing ? 'Editar tarifa' : 'Nova tarifa'}</h2><button onClick={() => setModalOpen(false)} className="px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-sm">Fechar</button></div>
           {error && <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">{error}</div>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2 md:col-span-2"><Label>Nome *</Label><Input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>Tipo quarto</Label><Input value={form.tipo_quarto} onChange={(e) => setForm((f) => ({ ...f, tipo_quarto: e.target.value }))} placeholder="Ex.: Standard" /></div>
+            <div className="space-y-2 md:col-span-2"><Label>Nome *</Label><Input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: toUpperCase(e.target.value) }))} /></div>
+            <div className="space-y-2"><Label>Tipo quarto</Label><Input value={form.tipo_quarto} onChange={(e) => setForm((f) => ({ ...f, tipo_quarto: toUpperCase(e.target.value) }))} placeholder="Ex.: STANDARD" /></div>
             <div className="space-y-2"><Label>Valor diária (R$) *</Label><Input value={form.valor_diaria} onChange={(e) => setForm((f) => ({ ...f, valor_diaria: e.target.value }))} placeholder="Ex.: 285.00" /></div>
           </div>
           <div className="flex justify-end gap-2 pt-2">

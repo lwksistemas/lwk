@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
+import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import {
   useProdutosServicos,
   useCategorias,
@@ -24,6 +25,11 @@ type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
 export default function CrmVendasProdutosServicosPage() {
   const {
     itens,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
+    pageSize,
     loading: loadingItens,
     error,
     loadItens,
@@ -273,12 +279,23 @@ export default function CrmVendasProdutosServicosPage() {
       ) : loadingItens ? (
         <SkeletonTable rows={5} columns={5} />
       ) : (
-        <ProdutoServicoTable
-          itens={itens}
-          onView={(item) => openModal('view', item)}
-          onEdit={(item) => openModal('edit', item)}
-          onDelete={(item) => openModal('delete', item)}
-        />
+        <>
+          <ProdutoServicoTable
+            itens={itens}
+            onView={(item) => openModal('view', item)}
+            onEdit={(item) => openModal('edit', item)}
+            onDelete={(item) => openModal('delete', item)}
+          />
+          <CrmPaginationBar
+            page={page}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            loading={loadingItens}
+            itemLabel="itens"
+            onPageChange={setPage}
+          />
+        </>
       )}
 
       <ProdutoServicoModal

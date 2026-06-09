@@ -12,13 +12,14 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Save, X } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
-import { normalizeListResponse } from '@/lib/crm-utils';
+import { normalizeListResponse, gerarTituloOportunidade } from '@/lib/crm-utils';
 import ProdutoSeletorCategoria from '@/components/crm-vendas/ProdutoSeletorCategoria';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 
 interface LeadOption {
   id: number;
   nome: string;
+  empresa?: string;
   conta?: number | null;
 }
 
@@ -99,6 +100,11 @@ export default function NovaOportunidadePage() {
         const lead = leadsData.find((l) => String(l.id) === initialLeadId);
         if (lead) {
           setLeadBusca(lead.nome);
+          setForm((f) => ({
+            ...f,
+            lead_id: initialLeadId,
+            titulo: gerarTituloOportunidade(lead),
+          }));
         }
       }
       setLoading(false);
@@ -156,14 +162,13 @@ export default function NovaOportunidadePage() {
       return;
     }
 
-    // Título gerado automaticamente pelo nome da empresa prestadora
+    const lead = leads.find((l) => String(l.id) === form.lead_id);
     let titulo = form.titulo.trim();
     if (!titulo) {
-      const conta = contas.find((c) => String(c.id) === form.empresa_prestadora_id);
-      if (conta) {
-        titulo = conta.nome;
+      if (lead) {
+        titulo = gerarTituloOportunidade(lead);
       } else {
-        setFormErro('Selecione a empresa prestadora.');
+        setFormErro('Selecione um lead.');
         return;
       }
     }
@@ -300,7 +305,11 @@ export default function NovaOportunidadePage() {
                     key={l.id}
                     type="button"
                     onClick={() => {
-                      setForm((f) => ({ ...f, lead_id: String(l.id) }));
+                      setForm((f) => ({
+                        ...f,
+                        lead_id: String(l.id),
+                        titulo: gerarTituloOportunidade(l),
+                      }));
                       setLeadBusca(l.nome);
                     }}
                     className="w-full text-left px-3 py-2.5 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-[#264a73] border-b border-gray-100 dark:border-gray-600 last:border-b-0 transition"

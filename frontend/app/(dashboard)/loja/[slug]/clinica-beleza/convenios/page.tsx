@@ -22,9 +22,10 @@ export default function ConveniosPage() {
     list: convenios,
     loading,
     load: carregarLista,
-    loadMore,
-    loadingMore,
-    hasMore,
+    page,
+    setPage,
+    totalPages,
+    pageSize,
     totalCount,
   } = useClinicaBelezaPaginatedList<ConvenioItem>({ path: "/convenios/" });
 
@@ -202,12 +203,13 @@ export default function ConveniosPage() {
               </table>
             </div>
             <EntityListLoadMore
-              hasMore={hasMore}
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount ?? 0}
+              pageSize={pageSize}
               loading={loading}
-              loadingMore={loadingMore}
-              onLoadMore={loadMore}
-              loadedCount={convenios.length}
-              totalCount={totalCount}
+              onPageChange={setPage}
+              itemLabel="convênios"
             />
           </div>
         )}

@@ -4,6 +4,7 @@
  * Responsabilidade única: Renderizar formulário de criação/edição.
  */
 import { FormData, Categoria } from '@/hooks/useProdutosServicos';
+import { toUpperCase } from '@/lib/format-br';
 
 interface ProdutoServicoFormProps {
   formData: FormData;
@@ -82,7 +83,7 @@ export function ProdutoServicoForm({
         <input
           type="text"
           value={formData.nome}
-          onChange={(e) => onChange({ nome: e.target.value })}
+          onChange={(e) => onChange({ nome: toUpperCase(e.target.value) })}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
           placeholder="Ex: Consultoria"
           required

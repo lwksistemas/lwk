@@ -90,6 +90,32 @@ def somente_digitos_documento(valor) -> str:
     return re.sub(r"\D", "", str(valor))
 
 
+def eh_cpf(valor) -> bool:
+    """True se o documento tiver exatamente 11 dígitos (CPF)."""
+    return len(somente_digitos_documento(valor)) == 11
+
+
+def eh_cnpj(valor) -> bool:
+    """True se o documento tiver exatamente 14 dígitos (CNPJ)."""
+    return len(somente_digitos_documento(valor)) == 14
+
+
+def label_empresa_lead(cpf_cnpj, empresa=None, conta_nome=None) -> str | None:
+    """
+    Rótulo da coluna Empresa em oportunidades/leads.
+    CPF → PESSOA FISICA; CNPJ → empresa do lead ou conta vinculada.
+    """
+    if eh_cpf(cpf_cnpj):
+        return "PESSOA FISICA"
+    empresa_txt = (empresa or "").strip()
+    if empresa_txt:
+        return empresa_txt
+    conta_txt = (conta_nome or "").strip()
+    if conta_txt:
+        return conta_txt
+    return None
+
+
 def documento_preenchido(valor, min_digitos: int = 11) -> bool:
     """True se o documento tem dígitos suficientes para validar unicidade."""
     return len(somente_digitos_documento(valor)) >= min_digitos

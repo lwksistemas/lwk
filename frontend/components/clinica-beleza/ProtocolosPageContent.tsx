@@ -20,6 +20,7 @@ import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/Cli
 import { EntityListTable } from '@/components/clinica-beleza/EntityListTable';
 import { EntityListLoadMore } from '@/components/clinica-beleza/EntityListLoadMore';
 import { useClinicaBelezaFormRouting } from '@/hooks/clinica-beleza/useClinicaBelezaFormRouting';
+import { toUpperCase } from '@/lib/format-br';
 
 interface Protocol {
   id: number;
@@ -101,7 +102,7 @@ export function ProtocolosPageContent({
     [defaultCategoria],
   );
 
-  const { list, loading, load, loadMore, loadingMore, hasMore, totalCount } = useClinicaBelezaEntityList<Protocol>({
+  const { list, loading, load, page, setPage, totalPages, pageSize, totalCount } = useClinicaBelezaEntityList<Protocol>({
     path: protocolosPath,
     ...CLINICA_BELEZA_ONLINE_ONLY,
     reloadDeps: [defaultCategoria],
@@ -227,7 +228,7 @@ export function ProtocolosPageContent({
                 className={CLINICA_FORM_INPUT}
                 placeholder="Nome do protocolo *"
                 value={form.nome}
-                onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, nome: toUpperCase(e.target.value) }))}
               />
               <select
                 className={CLINICA_FORM_INPUT}
@@ -343,12 +344,13 @@ export function ProtocolosPageContent({
               )}
             />
             <EntityListLoadMore
-              hasMore={hasMore}
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount ?? 0}
+              pageSize={pageSize}
               loading={loading}
-              loadingMore={loadingMore}
-              onLoadMore={loadMore}
-              loadedCount={list.length}
-              totalCount={totalCount}
+              onPageChange={setPage}
+              itemLabel="protocolos"
             />
           </ClinicaBelezaPanel>
         )}

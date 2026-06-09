@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
-import { normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { normalizeListResponse, getCrmApiErrorDetail, fetchAllPaginatedResults } from '@/lib/crm-utils';
 import { DollarSign, LayoutDashboard, LayoutGrid, List, Plus, Printer } from 'lucide-react';
 import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
@@ -58,13 +58,20 @@ function filtrarOportunidadesPipeline(
   });
 }
 
+function dataReferenciaOportunidade(op: Oportunidade): string {
+  if (op.etapa === 'closed_won') {
+    return (op.data_fechamento_ganho || op.data_fechamento || op.created_at || '').slice(0, 10);
+  }
+  if (op.etapa === 'closed_lost') {
+    return (op.data_fechamento_perdido || op.created_at || '').slice(0, 10);
+  }
+  return (op.created_at || '').slice(0, 10);
+}
+
 function loadOportunidades(setOportunidades: (o: Oportunidade[]) => void, setError: (e: string | null) => void) {
-  // Adicionar timestamp para evitar cache
-  const timestamp = new Date().getTime();
-  apiClient
-    .get<Oportunidade[] | { results: Oportunidade[] }>(`/crm-vendas/oportunidades/?_t=${timestamp}`)
-    .then((res) => {
-      setOportunidades(normalizeListResponse(res.data));
+  fetchAllPaginatedResults<Oportunidade>('/crm-vendas/oportunidades/', { _t: Date.now() })
+    .then((items) => {
+      setOportunidades(items);
       setError(null);
     })
     .catch((err: unknown) => {
@@ -77,6 +84,7 @@ export default function CrmVendasPipelinePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
+  const verParam = searchParams.get('ver');
   const { etapasAtivas } = useCRMConfig();
   
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
@@ -90,15 +98,9 @@ export default function CrmVendasPipelinePage() {
   const [filtroEtapaPipeline, setFiltroEtapaPipeline] = useState('');
   const [filtroVendedor, setFiltroVendedor] = useState('');
   const [vendedores, setVendedores] = useState<{ id: number; nome: string }[]>([]);
-  const [dataInicio, setDataInicio] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  });
-  const [dataFim, setDataFim] = useState(() => {
-    const now = new Date();
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-  });
+  // Sem filtro de período por padrão — o mês corrente ocultava oportunidades de meses anteriores
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
   const [imprimindo, setImprimindo] = useState(false);
 
   // Sincronizar vendedor_id com backend ao montar componente
@@ -129,11 +131,10 @@ export default function CrmVendasPipelinePage() {
     setLoading(true);
     setError(null);
     let cancelled = false;
-    apiClient
-      .get<Oportunidade[] | { results: Oportunidade[] }>('/crm-vendas/oportunidades/')
-      .then((res) => {
+    fetchAllPaginatedResults<Oportunidade>('/crm-vendas/oportunidades/')
+      .then((items) => {
         if (cancelled) return;
-        setOportunidades(normalizeListResponse(res.data));
+        setOportunidades(items);
         setError(null);
       })
       .catch((err) => {
@@ -156,6 +157,35 @@ export default function CrmVendasPipelinePage() {
       .then((res) => setVendedores(normalizeListResponse(res.data)))
       .catch(() => setVendedores([]));
   }, []);
+
+  // Abrir modal ao clicar em oportunidade na busca global (?ver=ID)
+  useEffect(() => {
+    if (!verParam) return;
+    const id = parseInt(verParam, 10);
+    if (isNaN(id)) return;
+
+    const abrirOportunidade = (op: Oportunidade) => {
+      const dataRef = dataReferenciaOportunidade(op);
+      if (dataRef) {
+        setDataInicio((ini) => (!ini || dataRef < ini ? dataRef : ini));
+        setDataFim((fim) => (!fim || dataRef > fim ? dataRef : fim));
+      }
+      setOportunidadeEditar(op);
+      router.replace(`/loja/${slug}/crm-vendas/pipeline`, { scroll: false });
+    };
+
+    const found = oportunidades.find((o) => o.id === id);
+    if (found) {
+      abrirOportunidade(found);
+      return;
+    }
+    if (!loading) {
+      apiClient
+        .get<Oportunidade>(`/crm-vendas/oportunidades/${id}/`)
+        .then((res) => abrirOportunidade(res.data))
+        .catch(() => {});
+    }
+  }, [verParam, oportunidades, loading, router, slug]);
 
   useEffect(() => {
     const leadIdParam = searchParams.get('lead_id');

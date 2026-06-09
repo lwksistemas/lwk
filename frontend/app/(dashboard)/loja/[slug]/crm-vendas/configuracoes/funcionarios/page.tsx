@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse } from '@/lib/crm-utils';
+import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { authService } from '@/lib/auth';
+import { formatTelefone, toUpperCase } from '@/lib/format-br';
 import { ArrowLeft, Users, Plus, X, Mail, Trash2 } from 'lucide-react';
 
 interface Vendedor {
@@ -33,10 +35,21 @@ export default function ConfiguracoesFuncionariosPage() {
   const slug = (params?.slug as string) ?? '';
   const base = `/loja/${slug}/crm-vendas/configuracoes`;
 
-  const [vendedores, setVendedores] = useState<Vendedor[]>([]);
+  const {
+    items: vendedores,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
+    pageSize,
+    loading,
+    error,
+    reload: carregar,
+  } = usePaginatedList<Vendedor>('/crm-vendas/vendedores/', {
+    errorFallback: 'Erro ao carregar.',
+  });
+
   const [grupos, setGrupos] = useState<Grupo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Vendedor | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -54,25 +67,11 @@ export default function ConfiguracoesFuncionariosPage() {
   const [excluindo, setExcluindo] = useState<number | string | null>(null);
   const [confirmarExcluir, setConfirmarExcluir] = useState<Vendedor | null>(null);
 
-  const carregar = async () => {
-    try {
-      setLoading(true);
-      const [resVendedores, resGrupos] = await Promise.all([
-        apiClient.get<Vendedor[] | { results: Vendedor[] }>('/crm-vendas/vendedores/'),
-        apiClient.get<Grupo[]>('/crm-vendas/vendedores/grupos_disponiveis/'),
-      ]);
-      setVendedores(normalizeListResponse(resVendedores.data));
-      setGrupos(resGrupos.data || []);
-      setError(null);
-    } catch (err) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Erro ao carregar.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    carregar();
+    apiClient
+      .get<Grupo[]>('/crm-vendas/vendedores/grupos_disponiveis/')
+      .then((res) => setGrupos(res.data || []))
+      .catch(() => setGrupos([]));
   }, []);
 
   const abrirNovo = () => {
@@ -310,6 +309,15 @@ export default function ConfiguracoesFuncionariosPage() {
             )}
           </div>
         )}
+        <CrmPaginationBar
+          page={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          loading={loading}
+          itemLabel="funcionários"
+          onPageChange={setPage}
+        />
       </div>
 
       {modalAberto && (
@@ -346,7 +354,7 @@ export default function ConfiguracoesFuncionariosPage() {
                   <input
                     type="text"
                     value={form.nome}
-                    onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                    onChange={(e) => setForm((f) => ({ ...f, nome: toUpperCase(e.target.value) }))}
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Nome do vendedor"
                   />
@@ -370,7 +378,7 @@ export default function ConfiguracoesFuncionariosPage() {
                   <input
                     type="text"
                     value={form.telefone}
-                    onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))}
+                    onChange={(e) => setForm((f) => ({ ...f, telefone: formatTelefone(e.target.value) }))}
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="(11) 99999-9999"
                   />
@@ -382,7 +390,7 @@ export default function ConfiguracoesFuncionariosPage() {
                   <input
                     type="text"
                     value={form.cargo}
-                    onChange={(e) => setForm((f) => ({ ...f, cargo: e.target.value }))}
+                    onChange={(e) => setForm((f) => ({ ...f, cargo: toUpperCase(e.target.value) }))}
                     className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Vendedor"
                   />

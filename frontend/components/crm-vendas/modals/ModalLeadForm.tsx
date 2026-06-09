@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { consultaCep } from '@/lib/consulta-cep';
 import { consultaCnpj, formatCpfCnpj } from '@/lib/consulta-cnpj';
+import { formatCep, formatTelefone, toUpperCase } from '@/lib/format-br';
 
 export interface FormDataLead {
   nome: string;
@@ -120,9 +121,7 @@ export default function ModalLeadForm({
   };
 
   const handleCepChange = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 8);
-    const formatted = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
-    onFormChange((f) => ({ ...f, cep: formatted }));
+    onFormChange((f) => ({ ...f, cep: formatCep(value) }));
   };
 
   return (
@@ -162,7 +161,7 @@ export default function ModalLeadForm({
               <input
                 type="text"
                 value={form.nome}
-                onChange={(e) => onFormChange((f) => ({ ...f, nome: e.target.value }))}
+                onChange={(e) => onFormChange((f) => ({ ...f, nome: toUpperCase(e.target.value) }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="Nome do lead"
                 required
@@ -195,7 +194,7 @@ export default function ModalLeadForm({
                 <input
                   type="text"
                   value={form.empresa}
-                  onChange={(e) => onFormChange((f) => ({ ...f, empresa: e.target.value }))}
+                  onChange={(e) => onFormChange((f) => ({ ...f, empresa: toUpperCase(e.target.value) }))}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   placeholder="Empresa"
                 />
@@ -216,7 +215,7 @@ export default function ModalLeadForm({
               <input
                 type="text"
                 value={form.telefone}
-                onChange={(e) => onFormChange((f) => ({ ...f, telefone: e.target.value }))}
+                onChange={(e) => onFormChange((f) => ({ ...f, telefone: formatTelefone(e.target.value) }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="(00) 00000-0000"
               />
@@ -293,7 +292,7 @@ export default function ModalLeadForm({
               <input
                 type="text"
                 value={form.logradouro}
-                onChange={(e) => onFormChange((f) => ({ ...f, logradouro: e.target.value }))}
+                onChange={(e) => onFormChange((f) => ({ ...f, logradouro: toUpperCase(e.target.value) }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 placeholder="Rua, avenida..."
               />
@@ -314,7 +313,7 @@ export default function ModalLeadForm({
                 <input
                   type="text"
                   value={form.complemento}
-                  onChange={(e) => onFormChange((f) => ({ ...f, complemento: e.target.value }))}
+                  onChange={(e) => onFormChange((f) => ({ ...f, complemento: toUpperCase(e.target.value) }))}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   placeholder="Apto, sala..."
                 />
@@ -326,7 +325,7 @@ export default function ModalLeadForm({
                 <input
                   type="text"
                   value={form.bairro}
-                  onChange={(e) => onFormChange((f) => ({ ...f, bairro: e.target.value }))}
+                  onChange={(e) => onFormChange((f) => ({ ...f, bairro: toUpperCase(e.target.value) }))}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   placeholder="Bairro"
                 />
@@ -336,7 +335,7 @@ export default function ModalLeadForm({
                 <input
                   type="text"
                   value={form.cidade}
-                  onChange={(e) => onFormChange((f) => ({ ...f, cidade: e.target.value }))}
+                  onChange={(e) => onFormChange((f) => ({ ...f, cidade: toUpperCase(e.target.value) }))}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   placeholder="Cidade"
                 />

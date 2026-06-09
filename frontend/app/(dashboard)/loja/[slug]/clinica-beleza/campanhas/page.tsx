@@ -22,6 +22,7 @@ import {
 } from "@/lib/clinica-beleza-crud";
 import { formatClinicaDataCurta, formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
+import { toUpperCase } from "@/lib/format-br";
 
 interface Campanha {
   id: number;
@@ -67,7 +68,7 @@ export default function CampanhasPage() {
   const { isNovo, editId, editIdParam, isFormView, voltarLista, abrirNovo, abrirEditar } =
     useClinicaBelezaFormRouting(basePath);
 
-  const { list, loading, load, loadMore, loadingMore, hasMore, totalCount } = useClinicaBelezaEntityList<Campanha>({
+  const { list, loading, load, page, setPage, totalPages, pageSize, totalCount } = useClinicaBelezaEntityList<Campanha>({
     path: "/campanhas/",
     ...CLINICA_BELEZA_ONLINE_ONLY,
   });
@@ -179,7 +180,7 @@ export default function CampanhasPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título da promoção *</label>
                 <input
                   value={form.titulo}
-                  onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
+                  onChange={(e) => setForm((f) => ({ ...f, titulo: toUpperCase(e.target.value) }))}
                   className={CLINICA_FORM_INPUT}
                   placeholder="Ex: Black Friday - 30% off"
                 />
@@ -340,12 +341,13 @@ export default function CampanhasPage() {
               )}
             />
             <EntityListLoadMore
-              hasMore={hasMore}
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount ?? 0}
+              pageSize={pageSize}
               loading={loading}
-              loadingMore={loadingMore}
-              onLoadMore={loadMore}
-              loadedCount={list.length}
-              totalCount={totalCount}
+              onPageChange={setPage}
+              itemLabel="campanhas"
             />
           </ClinicaBelezaPanel>
         )}

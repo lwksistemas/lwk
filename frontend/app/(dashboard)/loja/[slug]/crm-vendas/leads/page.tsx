@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
-import { normalizeListResponse } from '@/lib/crm-utils';
+import { fetchCrmPaginatedPage, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { Plus, Download } from 'lucide-react';
 import LeadsTable, { type Lead } from '@/components/crm-vendas/LeadsTable';
@@ -17,17 +18,28 @@ const ModalLeadForm = dynamic(() => import('@/components/crm-vendas/modals/Modal
 const ModalLeadExcluir = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadExcluir'), { ssr: false });
 const ModalLeadMudarStatus = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadMudarStatus'), { ssr: false });
 
-function loadLeads(setLeads: (l: Lead[]) => void, setError: (e: string | null) => void) {
-  const timestamp = new Date().getTime();
-  apiClient
-    .get<Lead[] | { results: Lead[] }>(`/crm-vendas/leads/?_t=${timestamp}`)
-    .then((res) => {
-      setLeads(normalizeListResponse(res.data));
+const LEADS_PAGE_SIZE = 50;
+
+function loadLeadsPage(
+  page: number,
+  setLeads: (l: Lead[]) => void,
+  setTotalCount: (n: number) => void,
+  setTotalPages: (n: number) => void,
+  setError: (e: string | null) => void,
+  setLoading: (v: boolean) => void,
+) {
+  setLoading(true);
+  fetchCrmPaginatedPage<Lead>('/crm-vendas/leads/', page, LEADS_PAGE_SIZE, { _t: Date.now() })
+    .then((data) => {
+      setLeads(data.results);
+      setTotalCount(data.count);
+      setTotalPages(data.totalPages);
       setError(null);
     })
     .catch((err) => {
-      setError(err.response?.data?.detail || 'Erro ao carregar leads.');
-    });
+      setError(getCrmApiErrorDetail(err, 'Erro ao carregar leads.'));
+    })
+    .finally(() => setLoading(false));
 }
 
 function formatarData(s: string) {
@@ -48,6 +60,9 @@ export default function CrmVendasLeadsPage() {
   const verParam = searchParams.get('ver');
   const { colunasLeadsVisiveis, origensAtivas } = useCRMConfig();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [leadVer, setLeadVer] = useState<Lead | null>(null);
@@ -77,13 +92,12 @@ export default function CrmVendasLeadsPage() {
   });
 
   useEffect(() => {
-    const timestamp = new Date().getTime();
-    apiClient
-      .get<Lead[] | { results: Lead[] }>(`/crm-vendas/leads/?_t=${timestamp}`)
-      .then((res) => setLeads(normalizeListResponse(res.data)))
-      .catch((err) => setError(err.response?.data?.detail || 'Erro ao carregar leads.'))
-      .finally(() => setLoading(false));
-  }, []);
+    loadLeadsPage(page, setLeads, setTotalCount, setTotalPages, setError, setLoading);
+  }, [page, slug]);
+
+  const reloadLeads = () => {
+    loadLeadsPage(page, setLeads, setTotalCount, setTotalPages, setError, setLoading);
+  };
 
   useEffect(() => {
     if (searchParams.get('novo') === '1') {
@@ -165,7 +179,7 @@ export default function CrmVendasLeadsPage() {
       })
       .then(() => {
         setLeadEditar(null);
-        loadLeads(setLeads, setError);
+        reloadLeads();
       })
       .catch((err) => {
         setFormErro(
@@ -182,7 +196,7 @@ export default function CrmVendasLeadsPage() {
       .delete(`/crm-vendas/leads/${leadExcluir.id}/`)
       .then(() => {
         setLeadExcluir(null);
-        loadLeads(setLeads, setError);
+        reloadLeads();
       })
       .catch((err) => {
         setError(err.response?.data?.detail || 'Erro ao excluir lead.');
@@ -206,7 +220,7 @@ export default function CrmVendasLeadsPage() {
       .patch(`/crm-vendas/leads/${leadMudarStatus.id}/`, { status: novoStatus })
       .then(() => {
         setLeadMudarStatus(null);
-        loadLeads(setLeads, setError);
+        reloadLeads();
       })
       .catch((err) => {
         setFormErro(err.response?.data?.detail || 'Erro ao atualizar status.');
@@ -269,6 +283,16 @@ export default function CrmVendasLeadsPage() {
         onEditarLead={handleEditarLead}
         onExcluirLead={setLeadExcluir}
         onMudarStatus={handleMudarStatus}
+      />
+
+      <CrmPaginationBar
+        page={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        pageSize={LEADS_PAGE_SIZE}
+        loading={loading}
+        itemLabel="leads"
+        onPageChange={setPage}
       />
 
       {leadVer && (

@@ -6,9 +6,10 @@
  * - Promove reutilização
  * - Facilita testes
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse } from '@/lib/crm-utils';
+import { fetchCrmPaginatedPage, normalizeListResponse } from '@/lib/crm-utils';
+import { DEFAULT_PAGE_SIZE } from '@/hooks/usePaginatedList';
 import { logger } from '@/lib/logger';
 
 export interface ProdutoServico {
@@ -62,36 +63,58 @@ export interface Filtros {
  */
 export function useProdutosServicos() {
   const [itens, setItens] = useState<ProdutoServico[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = DEFAULT_PAGE_SIZE;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const filtrosRef = useRef<Filtros | undefined>(undefined);
+
+  const buildQueryParams = (filtros?: Filtros): Record<string, string> => {
+    const params: Record<string, string> = {};
+    if (filtros?.tipo) params.tipo = filtros.tipo;
+    if (filtros?.semCategoria) params.sem_categoria = 'true';
+    else if (filtros?.categoria) params.categoria = filtros.categoria;
+    return params;
+  };
 
   /**
-   * Carrega lista de produtos/serviços com filtros opcionais.
+   * Carrega lista de produtos/serviços com filtros opcionais e paginação.
    */
-  const loadItens = useCallback(async (filtros?: Filtros) => {
+  const loadItens = useCallback(async (filtros?: Filtros, targetPage?: number) => {
     try {
       setLoading(true);
       setError(null);
-      
-      const params: Record<string, string> = {};
-      if (filtros?.tipo) params.tipo = filtros.tipo;
-      if (filtros?.semCategoria) params.sem_categoria = 'true';
-      else if (filtros?.categoria) params.categoria = filtros.categoria;
 
-      const query = new URLSearchParams(params).toString();
-      const url = query 
-        ? `/crm-vendas/produtos-servicos/?${query}` 
-        : '/crm-vendas/produtos-servicos/';
-      
-      const res = await apiClient.get<ProdutoServico[] | { results: ProdutoServico[] }>(url);
-      setItens(normalizeListResponse(res.data));
+      let pageToLoad = targetPage ?? page;
+      if (filtros !== undefined) {
+        filtrosRef.current = filtros;
+        pageToLoad = targetPage ?? 1;
+      }
+
+      const data = await fetchCrmPaginatedPage<ProdutoServico>(
+        '/crm-vendas/produtos-servicos/',
+        pageToLoad,
+        pageSize,
+        buildQueryParams(filtros ?? filtrosRef.current),
+      );
+      setItens(data.results);
+      setTotalCount(data.count);
+      setTotalPages(data.totalPages);
+      setPage(data.page);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setError(e.response?.data?.detail || 'Erro ao carregar produtos e serviços.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize]);
+
+  const goToPage = useCallback(
+    (targetPage: number) => loadItens(undefined, targetPage),
+    [loadItens],
+  );
 
   /**
    * Cria um novo produto/serviço.
@@ -127,6 +150,11 @@ export function useProdutosServicos() {
 
   return {
     itens,
+    page,
+    setPage: goToPage,
+    totalCount,
+    totalPages,
+    pageSize,
     loading,
     error,
     loadItens,

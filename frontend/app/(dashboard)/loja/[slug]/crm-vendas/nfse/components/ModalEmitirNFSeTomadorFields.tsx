@@ -1,5 +1,6 @@
 'use client';
 
+import { formatCpfCnpj, toUpperCase } from '@/lib/format-br';
 import { NFSE_EMISSAO_INPUT_CLASS } from '@/lib/nfse-emissao-form';
 
 export function ModalEmitirNFSeTomadorFields({
@@ -18,10 +19,11 @@ export function ModalEmitirNFSeTomadorFields({
           <input
             type="text"
             value={formData.tomador_cpf_cnpj}
-            onChange={(e) => onChange('tomador_cpf_cnpj', e.target.value)}
+            onChange={(e) => onChange('tomador_cpf_cnpj', formatCpfCnpj(e.target.value))}
             required
             className={NFSE_EMISSAO_INPUT_CLASS}
-            placeholder="000.000.000-00"
+            placeholder="000.000.000-00 ou 00.000.000/0001-00"
+            maxLength={18}
           />
         </div>
         <div>
@@ -29,7 +31,7 @@ export function ModalEmitirNFSeTomadorFields({
           <input
             type="text"
             value={formData.tomador_nome}
-            onChange={(e) => onChange('tomador_nome', e.target.value)}
+            onChange={(e) => onChange('tomador_nome', toUpperCase(e.target.value))}
             required
             className={NFSE_EMISSAO_INPUT_CLASS}
           />

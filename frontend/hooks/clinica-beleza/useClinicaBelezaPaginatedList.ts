@@ -27,14 +27,13 @@ export function useClinicaBelezaPaginatedList<T>({
 }) {
   const [list, setList] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPage = useCallback(
-    async (targetPage: number, append: boolean) => {
+    async (targetPage: number) => {
       const params: Record<string, string | number | undefined | null> = {
         ...(queryParams ?? {}),
       };
@@ -47,9 +46,9 @@ export function useClinicaBelezaPaginatedList<T>({
       const data = await res.json();
       if (!res.ok) throw data;
       const result = parseClinicaBelezaPaginatedResponse<T>(data, targetPage, pageSize);
-      setList((prev) => (append ? [...prev, ...result.items] : result.items));
-      setHasMore(result.hasMore);
+      setList(result.items);
       setTotalCount(result.count);
+      setTotalPages(result.totalPages);
       setPage(result.page);
       return result;
     },
@@ -60,11 +59,11 @@ export function useClinicaBelezaPaginatedList<T>({
     setLoading(true);
     setError(null);
     try {
-      await fetchPage(1, false);
+      await fetchPage(1);
     } catch (err) {
       setList([]);
-      setHasMore(false);
       setTotalCount(null);
+      setTotalPages(1);
       setPage(1);
       const msg =
         err && typeof err === 'object' && 'error' in err
@@ -76,25 +75,42 @@ export function useClinicaBelezaPaginatedList<T>({
     } finally {
       setLoading(false);
     }
-    // queryParams é objeto recriado pelo caller quando filtros mudam
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchPage, ...reloadDeps]);
 
-  const loadMore = useCallback(async () => {
-    if (!hasMore || loadingMore || loading) return;
-    setLoadingMore(true);
-    try {
-      await fetchPage(page + 1, true);
-    } catch {
-      // mantém lista atual
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [hasMore, loadingMore, loading, page, fetchPage]);
+  const goToPage = useCallback(
+    async (targetPage: number) => {
+      if (targetPage < 1 || targetPage > totalPages || loading) return;
+      setLoading(true);
+      try {
+        await fetchPage(targetPage);
+      } catch {
+        // mantém lista atual
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchPage, totalPages, loading],
+  );
 
   useEffect(() => {
     if (enabled) load();
   }, [load, enabled]);
 
-  return { list, setList, loading, load, loadMore, loadingMore, hasMore, totalCount, error };
+  return {
+    list,
+    setList,
+    loading,
+    load,
+    page,
+    setPage: goToPage,
+    totalPages,
+    totalCount,
+    pageSize,
+    error,
+    /** @deprecated use setPage */
+    loadMore: () => goToPage(page + 1),
+    loadingMore: false,
+    hasMore: page < totalPages,
+  };
 }

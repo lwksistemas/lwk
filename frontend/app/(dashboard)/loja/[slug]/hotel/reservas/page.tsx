@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import PaginationBar from '@/components/PaginationBar';
 import { useHotelCrud } from '@/hooks/useHotelCrud';
 import type { Reserva, Hospede, Quarto, Tarifa } from '@/lib/hotel-types';
 import { RESERVA_STATUS_LABEL, RESERVA_STATUS_BADGE, ASSINATURA_STATUS_LABEL, ASSINATURA_STATUS_BADGE, formatDateBR } from '@/lib/hotel-types';
@@ -22,7 +23,7 @@ export default function HotelReservasPage() {
   const searchParams = useSearchParams();
   const slug = params.slug as string;
 
-  const { items, loading, error, saving, setError, load, save, remove, postAction } =
+  const { items, page, setPage, totalCount, totalPages, pageSize, loading, error, saving, setError, load, save, remove, postAction } =
     useHotelCrud<Reserva>({ endpoint: '/hotel/reservas/' });
 
   const [hospedes, setHospedes] = useState<HospedeOption[]>([]);
@@ -58,7 +59,7 @@ export default function HotelReservasPage() {
     } catch { /* best-effort */ }
   }, []);
 
-  useEffect(() => { loadBase(); load(); }, [loadBase, load]);
+  useEffect(() => { loadBase(); }, [loadBase]);
   useEffect(() => { if (searchParams.get('novo') === '1') openNew(); }, []);
 
   const openNew = () => { setEditing(null); resetForm(); setModalOpen(true); };
@@ -215,10 +216,10 @@ export default function HotelReservasPage() {
   const noites = calcNoites(form.data_checkin, form.data_checkout);
 
   const resumo = useMemo(() => ({
-    total: items.length,
+    total: totalCount,
     checkin: items.filter((i) => i.status === 'checkin').length,
     confirmadas: items.filter((i) => i.status === 'confirmada').length,
-  }), [items]);
+  }), [items, totalCount]);
 
   const selectClass = 'w-full h-10 px-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100';
 
@@ -377,6 +378,15 @@ export default function HotelReservasPage() {
                 </table>
               </div>
             </div>
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              loading={loading}
+              onPageChange={setPage}
+              itemLabel="reservas"
+            />
           </>
         )}
       </div>

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import PaginationBar from '@/components/PaginationBar';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Modal } from '@/components/ui/Modal';
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useHotelCrud } from '@/hooks/useHotelCrud';
+import { toUpperCase } from '@/lib/format-br';
 import type { Quarto } from '@/lib/hotel-types';
 import { QUARTO_STATUS_LABEL, QUARTO_STATUS_BADGE } from '@/lib/hotel-types';
 import { BedDouble, Plus, Edit2, Trash2, ArrowLeft } from 'lucide-react';
@@ -16,7 +18,7 @@ export default function HotelQuartosPage() {
   const params = useParams();
   const slug = params.slug as string;
 
-  const { items, loading, error, saving, load, save, remove } =
+  const { items, page, setPage, totalCount, totalPages, pageSize, loading, error, saving, save, remove } =
     useHotelCrud<Quarto>({ endpoint: '/hotel/quartos/' });
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -24,8 +26,6 @@ export default function HotelQuartosPage() {
   const [form, setForm] = useState({ numero: '', nome: '', tipo: '', capacidade: 2, status: 'disponivel' as Quarto['status'], observacoes: '' });
 
   const resetForm = () => setForm({ numero: '', nome: '', tipo: '', capacidade: 2, status: 'disponivel', observacoes: '' });
-
-  useEffect(() => { load(); }, [load]);
 
   const openNew = () => { setEditing(null); resetForm(); setModalOpen(true); };
   const openEdit = (q: Quarto) => {
@@ -44,7 +44,7 @@ export default function HotelQuartosPage() {
 
   const summary = useMemo(() => {
     const byStatus = items.reduce((acc, it) => { acc[it.status] = (acc[it.status] || 0) + 1; return acc; }, {} as Record<string, number>);
-    return { total: items.length, byStatus };
+    return { total: totalCount, byStatus };
   }, [items]);
 
   return (
@@ -136,6 +136,15 @@ export default function HotelQuartosPage() {
                 </tbody>
               </table>
             </div>
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              loading={loading}
+              onPageChange={setPage}
+              itemLabel="quartos"
+            />
           </div>
           </>
         )}
@@ -150,8 +159,8 @@ export default function HotelQuartosPage() {
           {error && <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">{error}</div>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2"><Label>Número *</Label><Input value={form.numero} onChange={(e) => setForm((f) => ({ ...f, numero: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} placeholder="Ex.: Suíte 203" /></div>
-            <div className="space-y-2"><Label>Tipo</Label><Input value={form.tipo} onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))} placeholder="Ex.: Standard" /></div>
+            <div className="space-y-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: toUpperCase(e.target.value) }))} placeholder="Ex.: SUÍTE 203" /></div>
+            <div className="space-y-2"><Label>Tipo</Label><Input value={form.tipo} onChange={(e) => setForm((f) => ({ ...f, tipo: toUpperCase(e.target.value) }))} placeholder="Ex.: STANDARD" /></div>
             <div className="space-y-2"><Label>Capacidade</Label><Input type="number" value={form.capacidade} onChange={(e) => setForm((f) => ({ ...f, capacidade: Number(e.target.value || 0) }))} min={1} /></div>
             <div className="space-y-2">
               <Label>Status</Label>

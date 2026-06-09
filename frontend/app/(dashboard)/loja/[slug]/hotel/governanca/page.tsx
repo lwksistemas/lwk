@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import PaginationBar from '@/components/PaginationBar';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
@@ -16,14 +17,14 @@ import { Wrench, Plus, Edit2, Trash2, CheckCircle, ArrowLeft } from 'lucide-reac
 export default function HotelGovernancaPage() {
   const params = useParams();
   const slug = params.slug as string;
-  const { items, loading, error, saving, load, save, remove, postAction } = useHotelCrud<GovernancaTarefa>({ endpoint: '/hotel/governanca-tarefas/' });
+  const { items, page, setPage, totalCount, totalPages, pageSize, loading, error, saving, save, remove, postAction } = useHotelCrud<GovernancaTarefa>({ endpoint: '/hotel/governanca-tarefas/' });
   const [quartos, setQuartos] = useState<Pick<Quarto, 'id' | 'numero' | 'nome'>[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<GovernancaTarefa | null>(null);
   const [form, setForm] = useState({ quarto: '', tipo: 'limpeza' as GovernancaTarefa['tipo'], status: 'aberta' as GovernancaTarefa['status'], descricao: '', prioridade: 2 });
   const resetForm = () => setForm({ quarto: '', tipo: 'limpeza', status: 'aberta', descricao: '', prioridade: 2 });
   const loadQuartos = useCallback(async () => { try { const q = await apiClient.get<Quarto[] | { results?: Quarto[] }>('/hotel/quartos/'); setQuartos(Array.isArray(q.data) ? q.data : (q.data.results ?? [])); } catch { setQuartos([]); } }, []);
-  useEffect(() => { loadQuartos(); load(); }, [loadQuartos, load]);
+  useEffect(() => { loadQuartos(); }, [loadQuartos]);
   const openNew = () => { setEditing(null); resetForm(); setModalOpen(true); };
   const openEdit = (t: GovernancaTarefa) => { setEditing(t); setForm({ quarto: String(t.quarto ?? ''), tipo: t.tipo, status: t.status, descricao: t.descricao || '', prioridade: Number(t.prioridade ?? 2) }); setModalOpen(true); };
   const submit = async () => { const ok = await save({ quarto: Number(form.quarto), tipo: form.tipo, status: form.status, descricao: (form.descricao || '').trim(), prioridade: Number(form.prioridade || 2) }, editing?.id); if (ok) { setModalOpen(false); setEditing(null); resetForm(); } };
@@ -37,7 +38,7 @@ export default function HotelGovernancaPage() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/15 rounded-lg hidden sm:block"><Wrench className="w-6 h-6" /></div>
-              <div><h1 className="text-xl sm:text-2xl font-bold">Governança</h1><p className="text-white/80 text-xs sm:text-sm">Pendências por quarto ({items.length})</p></div>
+              <div><h1 className="text-xl sm:text-2xl font-bold">Governança</h1><p className="text-white/80 text-xs sm:text-sm">Pendências por quarto ({totalCount})</p></div>
             </div>
             <div className="flex items-center gap-2">
               <Link href={`/loja/${slug}/hotel`} className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md transition-colors text-sm flex items-center gap-1 active:scale-95"><ArrowLeft className="w-4 h-4" /> Voltar</Link>
@@ -107,6 +108,15 @@ export default function HotelGovernancaPage() {
                 </tbody>
               </table>
             </div>
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              loading={loading}
+              onPageChange={setPage}
+              itemLabel="tarefas"
+            />
           </div>
           </>
         )}

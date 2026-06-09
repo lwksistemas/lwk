@@ -11,6 +11,8 @@ import {
   crmMensagemEnvioCanalSucesso,
   downloadCrmDocumento,
 } from '@/lib/crm-utils';
+import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { reenviarAssinaturaAposEdicaoSeNecessario } from '@/lib/crm-reenviar-assinatura';
@@ -61,11 +63,35 @@ type ModalType = 'create' | 'edit' | 'view' | 'delete' | 'cancelar' | null;
 export default function CrmVendasPropostasPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
-  const [propostas, setPropostas] = useState<Proposta[]>([]);
+  const [filtroStatus, setFiltroStatus] = useState('');
+
+  const statusParam =
+    filtroStatus === 'pedido' ? 'aceita' : filtroStatus || undefined;
+
+  const {
+    items: propostas,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
+    pageSize,
+    loading,
+    error,
+    reload: loadPropostas,
+  } = usePaginatedList<Proposta>('/crm-vendas/propostas/', {
+    params: { status: statusParam },
+    errorFallback: 'Erro ao carregar propostas.',
+  });
+
+  const propostasFiltradas = propostas.filter(
+    (p) =>
+      !filtroStatus ||
+      p.status === filtroStatus ||
+      (filtroStatus === 'pedido' && p.status === 'aceita'),
+  );
+
   const [oportunidades, setOportunidades] = useState<CrmPropostaOportunidadeOption[]>([]);
   const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selected, setSelected] = useState<Proposta | null>(null);
   const [formData, setFormData] = useState<FormDataProposta>({
@@ -86,7 +112,6 @@ export default function CrmVendasPropostasPage() {
   const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
   const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
   const [menuAberto, setMenuAberto] = useState<number | null>(null);
-  const [filtroStatus, setFiltroStatus] = useState('');
 
   const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
   const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
@@ -122,20 +147,6 @@ export default function CrmVendasPropostasPage() {
       alert(getCrmApiErrorDetail(err, 'Erro ao baixar Word.'));
     }
   };
-
-  /** silent: não ativa loading em tela cheia (evita sumir a lista após salvar/excluir). */
-  const loadPropostas = useCallback(async (silent = false) => {
-    try {
-      if (!silent) setLoading(true);
-      const res = await apiClient.get<Proposta[] | { results: Proposta[] }>('/crm-vendas/propostas/');
-      setPropostas(normalizeListResponse(res.data));
-      setError(null);
-    } catch (err: unknown) {
-      setError(getCrmApiErrorDetail(err, 'Erro ao carregar propostas.'));
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, []);
 
   const loadOportunidades = useCallback(async () => {
     try {
@@ -243,10 +254,6 @@ export default function CrmVendasPropostasPage() {
       setAlterandoStatus(null);
     }
   };
-
-  useEffect(() => {
-    loadPropostas();
-  }, [loadPropostas]);
 
   useEffect(() => {
     if (modalType === 'edit') {
@@ -471,7 +478,7 @@ export default function CrmVendasPropostasPage() {
                   </td>
                 </tr>
               ) : (
-                propostas.filter(p => !filtroStatus || p.status === filtroStatus || (filtroStatus === 'pedido' && p.status === 'aceita')).map((p) => (
+                propostasFiltradas.map((p) => (
                   <tr key={p.id} className="border-b border-gray-100 dark:border-[#0d1f3c] hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/30">
                     <td className="py-3 px-4 font-mono text-sm text-gray-600 dark:text-gray-400">#{p.numero || '---'}</td>
                     <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{p.titulo}</td>
@@ -636,6 +643,15 @@ export default function CrmVendasPropostasPage() {
             </tbody>
           </table>
         </div>
+        <CrmPaginationBar
+          page={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          loading={loading}
+          itemLabel="propostas"
+          onPageChange={setPage}
+        />
       </div>
 
       <div className="px-4 py-3 bg-gray-50 dark:bg-[#0d1f3c]/30 rounded-lg border border-gray-200 dark:border-[#0d1f3c]">

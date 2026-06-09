@@ -398,24 +398,28 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
         read_only_fields = ['created_at', 'updated_at']
 
     def get_lead_nome(self, obj):
-        """Retorna nome da empresa (Conta) se vinculada, senão nome do lead."""
+        """Nome da pessoa (lead), não da empresa vinculada."""
         if obj.lead:
-            if obj.lead.conta_id:
-                try:
-                    return obj.lead.conta.nome
-                except Exception:
-                    pass
-            return obj.lead.nome
+            return obj.lead.nome or ''
         return ''
 
     def get_conta_nome(self, obj):
-        """Retorna nome da empresa (Conta) se vinculada ao lead."""
-        if obj.lead and obj.lead.conta_id:
+        """Empresa do lead: PESSOA FISICA (CPF), campo empresa ou conta vinculada."""
+        if not obj.lead:
+            return None
+        from core.cpf_utils import label_empresa_lead
+
+        conta_nome = None
+        if obj.lead.conta_id:
             try:
-                return obj.lead.conta.nome
+                conta_nome = obj.lead.conta.nome
             except Exception:
                 pass
-        return None
+        return label_empresa_lead(
+            obj.lead.cpf_cnpj,
+            empresa=obj.lead.empresa,
+            conta_nome=conta_nome,
+        )
 
     def get_empresa_prestadora_nome(self, obj):
         """Retorna nome da empresa prestadora de serviço vinculada à oportunidade."""

@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { CLINICA_FORMA_PAGAMENTO_LABEL, CLINICA_PAGAMENTO_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { toUpperCase } from "@/lib/format-br";
 
 export interface CategoriaDespesa {
   id: number;
@@ -146,7 +147,7 @@ export function DespesaFormModal({
             <input
               type="text"
               value={form.descricao}
-              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+              onChange={(e) => setForm({ ...form, descricao: toUpperCase(e.target.value) })}
               className={inputClass}
               placeholder="Ex: Aluguel, conta de luz..."
             />

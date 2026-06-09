@@ -14,6 +14,7 @@ import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { formatClinicaDataCurta } from "@/lib/clinica-beleza-datetime";
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
+import { toUpperCase } from "@/lib/format-br";
 
 interface Produto {
   id: number;
@@ -228,7 +229,7 @@ export function EstoquePageContent({
           <form onSubmit={handleSubmit} className="p-4 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome</label>
-              <input type="text" required value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })}
+              <input type="text" required value={form.nome} onChange={(e) => setForm({ ...form, nome: toUpperCase(e.target.value) })}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100" />
             </div>
             <div>

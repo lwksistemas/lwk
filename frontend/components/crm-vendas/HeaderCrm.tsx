@@ -271,12 +271,15 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
                       {searchResults!.oportunidades.map((o) => (
                         <Link
                           key={`opp-${o.id}`}
-                          href={slug ? `/loja/${slug}/crm-vendas/pipeline` : '#'}
+                          href={slug ? `/loja/${slug}/crm-vendas/pipeline?ver=${o.id}` : '#'}
                           onClick={handleSearchSelect}
                           className="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] text-sm text-gray-900 dark:text-white"
                         >
                           <DollarSign size={14} className="text-[#e287b2] shrink-0" />
-                          <span className="truncate">{o.titulo}</span>
+                          <span className="truncate">{o.lead_nome || o.titulo}</span>
+                          {o.lead_nome && o.titulo && o.titulo !== o.lead_nome && (
+                            <span className="text-gray-500 dark:text-gray-400 truncate text-xs">• {o.titulo}</span>
+                          )}
                           <span className="text-gray-500 dark:text-gray-400 shrink-0">
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(o.valor))}
                           </span>

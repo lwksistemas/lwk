@@ -100,7 +100,7 @@ export default function PacientesPage() {
   const slug = params.slug as string;
   const basePath = `/loja/${slug}/clinica-beleza/pacientes`;
 
-  const { list, setList, loading, load, loadMore, loadingMore, hasMore, totalCount } = useClinicaBelezaEntityList<Patient>({
+  const { list, setList, loading, load, page, setPage, totalPages, pageSize, totalCount } = useClinicaBelezaEntityList<Patient>({
     path: "/patients/",
     fetchOffline: buscarPacientesOffline,
     saveOffline: salvarPacientesOffline,
@@ -426,7 +426,7 @@ export default function PacientesPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Endereço</label>
                     <input
                       value={form.address}
-                      onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, address: toUpperCase(e.target.value) }))}
                       className={INPUT}
                       placeholder="Rua, número, bairro, cidade"
                     />
@@ -568,12 +568,13 @@ export default function PacientesPage() {
               </table>
             </div>
             <EntityListLoadMore
-              hasMore={hasMore}
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount ?? 0}
+              pageSize={pageSize}
               loading={loading}
-              loadingMore={loadingMore}
-              onLoadMore={loadMore}
-              loadedCount={activeList.length}
-              totalCount={totalCount}
+              onPageChange={setPage}
+              itemLabel="pacientes"
             />
           </div>
         )}

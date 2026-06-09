@@ -1,16 +1,24 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
+import { fetchCrmPaginatedPage, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { DEFAULT_PAGE_SIZE } from '@/hooks/usePaginatedList';
 
 interface UseHotelCrudOptions<T> {
   endpoint: string;
+  pageSize?: number;
 }
 
 /**
- * Hook genérico para operações CRUD do módulo Hotel.
- * Elimina duplicação de load/submit/remove entre as páginas.
+ * Hook genérico para operações CRUD do módulo Hotel com paginação padrão.
  */
-export function useHotelCrud<T extends { id: number }>({ endpoint }: UseHotelCrudOptions<T>) {
+export function useHotelCrud<T extends { id: number }>({
+  endpoint,
+  pageSize = DEFAULT_PAGE_SIZE,
+}: UseHotelCrudOptions<T>) {
   const [items, setItems] = useState<T[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -19,16 +27,20 @@ export function useHotelCrud<T extends { id: number }>({ endpoint }: UseHotelCru
     setLoading(true);
     setError(null);
     try {
-      const r = await apiClient.get<T[] | { results?: T[] }>(endpoint);
-      const data = Array.isArray(r.data) ? r.data : (r.data.results ?? []);
-      setItems(data);
+      const data = await fetchCrmPaginatedPage<T>(endpoint, page, pageSize);
+      setItems(data.results);
+      setTotalCount(data.count);
+      setTotalPages(data.totalPages);
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } };
-      setError(err?.response?.data?.detail || 'Erro ao carregar dados.');
+      setError(getCrmApiErrorDetail(e, 'Erro ao carregar dados.'));
     } finally {
       setLoading(false);
     }
-  }, [endpoint]);
+  }, [endpoint, page, pageSize]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const save = useCallback(async (payload: Record<string, unknown>, editingId?: number) => {
     setSaving(true);
@@ -83,5 +95,20 @@ export function useHotelCrud<T extends { id: number }>({ endpoint }: UseHotelCru
     }
   }, [endpoint, load]);
 
-  return { items, loading, error, saving, setError, load, save, remove, postAction };
+  return {
+    items,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
+    pageSize,
+    loading,
+    error,
+    saving,
+    setError,
+    load,
+    save,
+    remove,
+    postAction,
+  };
 }

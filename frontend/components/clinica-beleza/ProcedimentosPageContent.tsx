@@ -34,6 +34,7 @@ import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMo
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
 import { logger } from "@/lib/logger";
+import { toUpperCase } from "@/lib/format-br";
 import {
   PROCEDURE_CATEGORIA_OPTIONS,
   defaultCategoriaForModule,
@@ -116,7 +117,7 @@ export function ProcedimentosPageContent({
   const listPath =
     moduleKey && !showAllCategories ? `/procedures/?categoria=${encodeURIComponent(moduleKey)}` : "/procedures/";
 
-  const { list, setList, loading, load, loadMore, loadingMore, hasMore, totalCount } = useClinicaBelezaEntityList<Procedure>({
+  const { list, setList, loading, load, page, setPage, totalPages, pageSize, totalCount } = useClinicaBelezaEntityList<Procedure>({
     path: listPath,
     fetchOffline: buscarProcedimentosOffline,
     saveOffline: salvarProcedimentosOffline,
@@ -387,7 +388,7 @@ export function ProcedimentosPageContent({
               </p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>
-                <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className={CLINICA_FORM_INPUT} placeholder="Ex.: Limpeza de pele" />
+                <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: toUpperCase(e.target.value) }))} className={CLINICA_FORM_INPUT} placeholder="Ex.: Limpeza de pele" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria *</label>
@@ -578,12 +579,13 @@ export function ProcedimentosPageContent({
               </table>
             </div>
             <EntityListLoadMore
-              hasMore={hasMore}
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount ?? 0}
+              pageSize={pageSize}
               loading={loading}
-              loadingMore={loadingMore}
-              onLoadMore={loadMore}
-              loadedCount={filteredList.length}
-              totalCount={totalCount}
+              onPageChange={setPage}
+              itemLabel="procedimentos"
             />
           </ClinicaBelezaPanel>
         )}

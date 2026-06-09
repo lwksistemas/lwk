@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
+import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { Plus, Eye, Edit2, Trash2, User } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import { ContatoFormModal } from './components/ContatoFormModal';
@@ -27,29 +29,24 @@ export default function CrmVendasContatosPage() {
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
 
-  const [contatos, setContatos] = useState<Contato[]>([]);
-  const [contas, setContas] = useState<Conta[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [modalType, setModalType] = useState<ModalType>(null);
-  const [selectedContato, setSelectedContato] = useState<Contato | null>(null);
-  const [formData, setFormData] = useState(EMPTY_FORM);
-  const [submitting, setSubmitting] = useState(false);
   const [contaFiltro, setContaFiltro] = useState<number | null>(null);
 
-  const loadContatos = async (contaId?: number | null, silent = false) => {
-    try {
-      if (!silent) setLoading(true);
-      const url = contaId ? `/crm-vendas/contatos/?conta_id=${contaId}` : '/crm-vendas/contatos/';
-      const res = await apiClient.get<Contato[] | { results: Contato[] }>(url);
-      setContatos(normalizeListResponse(res.data));
-      setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Erro ao carregar contatos.');
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
+  const {
+    items: contatos,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
+    pageSize,
+    loading,
+    error,
+    reload: reloadContatos,
+  } = usePaginatedList<Contato>('/crm-vendas/contatos/', {
+    params: { conta_id: contaFiltro ?? undefined },
+    errorFallback: 'Erro ao carregar contatos.',
+  });
+
+  const [contas, setContas] = useState<Conta[]>([]);
 
   const loadContas = async () => {
     try {
@@ -63,14 +60,20 @@ export default function CrmVendasContatosPage() {
   const contaIdNaUrl = searchParams.get('conta_id');
   const verParam = searchParams.get('ver');
 
+  const [modalType, setModalType] = useState<ModalType>(null);
+  const [selectedContato, setSelectedContato] = useState<Contato | null>(null);
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
+
   useEffect(() => {
     if (contaIdNaUrl) {
       const id = parseInt(contaIdNaUrl, 10);
-      if (!isNaN(id)) { setContaFiltro(id); loadContatos(id); loadContas(); return; }
+      if (!isNaN(id)) { setContaFiltro(id); return; }
     }
-    setContaFiltro(null); loadContatos(null); loadContas();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setContaFiltro(null);
   }, [contaIdNaUrl]);
+
+  useEffect(() => { loadContas(); }, []);
 
   useEffect(() => {
     if (searchParams.get('criar') === '1' && contas.length > 0) {
@@ -134,7 +137,7 @@ export default function CrmVendasContatosPage() {
       } else if (modalType === 'edit' && selectedContato) {
         await apiClient.put(`/crm-vendas/contatos/${selectedContato.id}/`, payload);
       }
-      await loadContatos(contaFiltro, true);
+      await reloadContatos(true);
       closeModal();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Erro ao salvar contato.');
@@ -148,7 +151,7 @@ export default function CrmVendasContatosPage() {
     try {
       setSubmitting(true);
       await apiClient.delete(`/crm-vendas/contatos/${selectedContato.id}/`);
-      await loadContatos(contaFiltro, true);
+      await reloadContatos(true);
       closeModal();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Erro ao excluir contato.');
@@ -181,7 +184,7 @@ export default function CrmVendasContatosPage() {
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                 {contas.find((c) => c.id === contaFiltro)?.nome || `ID ${contaFiltro}`}
               </span>
-              <button type="button" onClick={() => { setContaFiltro(null); loadContatos(null); router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false }); }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+              <button type="button" onClick={() => { setContaFiltro(null); router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false }); }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
                 Limpar filtro
               </button>
             </div>
@@ -237,6 +240,15 @@ export default function CrmVendasContatosPage() {
             </tbody>
           </table>
         </div>
+        <CrmPaginationBar
+          page={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          loading={loading}
+          itemLabel="contatos"
+          onPageChange={setPage}
+        />
       </div>
 
       {/* Modals */}

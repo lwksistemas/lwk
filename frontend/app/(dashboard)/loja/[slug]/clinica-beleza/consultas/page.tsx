@@ -34,9 +34,10 @@ export default function ConsultasPage() {
     list: consultas,
     loading,
     load: loadConsultas,
-    loadMore,
-    loadingMore,
-    hasMore,
+    page,
+    setPage,
+    totalPages,
+    pageSize,
     totalCount,
   } = useClinicaBelezaPaginatedList<Consulta>({ path: "/consultas/" });
   const [selected, setSelected] = useState<Consulta | null>(null);
@@ -137,12 +138,13 @@ export default function ConsultasPage() {
               formatData={formatData}
             />
             <EntityListLoadMore
-              hasMore={hasMore}
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount ?? 0}
+              pageSize={pageSize}
               loading={loading}
-              loadingMore={loadingMore}
-              onLoadMore={loadMore}
-              loadedCount={consultas.length}
-              totalCount={totalCount}
+              onPageChange={setPage}
+              itemLabel="consultas"
             />
           </ClinicaBelezaPanel>
         )}

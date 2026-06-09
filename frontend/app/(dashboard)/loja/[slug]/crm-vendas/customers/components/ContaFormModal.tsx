@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { formatTelefone, toUpperCase } from '@/lib/format-br';
+import { formatCpfCnpj, formatCep, formatTelefone, toUpperCase } from '@/lib/format-br';
 
 export interface ContaFormData {
   nome: string; razao_social: string; cnpj: string; inscricao_estadual: string;
@@ -27,6 +27,8 @@ const inputClass = "w-full px-3 py-2 border border-gray-300 dark:border-gray-600
 export function ContaFormModal({ title, formData, submitting, consultingCNPJ, onChange, onSubmit, onClose, onConsultarCNPJ, onConsultarCEP }: Props) {
   const set = (field: keyof ContaFormData, value: string) => onChange({ ...formData, [field]: value });
   const setUpper = (field: keyof ContaFormData, value: string) => onChange({ ...formData, [field]: toUpperCase(value) });
+  const setCnpj = (value: string) => onChange({ ...formData, cnpj: formatCpfCnpj(value) });
+  const setCep = (value: string) => onChange({ ...formData, cep: formatCep(value) });
   const setPhone = (field: keyof ContaFormData, value: string) => onChange({ ...formData, [field]: formatTelefone(value) });
 
   return (
@@ -37,7 +39,7 @@ export function ContaFormModal({ title, formData, submitting, consultingCNPJ, on
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CNPJ</label>
-              <input type="text" value={formData.cnpj} onChange={(e) => set('cnpj', e.target.value)} className={inputClass} placeholder="00.000.000/0000-00" maxLength={18} />
+              <input type="text" value={formData.cnpj} onChange={(e) => setCnpj(e.target.value)} className={inputClass} placeholder="00.000.000/0000-00" maxLength={18} />
             </div>
             <div className="flex items-end">
               <button type="button" onClick={onConsultarCNPJ} disabled={consultingCNPJ || !formData.cnpj} className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors disabled:opacity-50">
@@ -90,7 +92,7 @@ export function ContaFormModal({ title, formData, submitting, consultingCNPJ, on
           <div className="md:col-span-2"><hr className="border-gray-200 dark:border-gray-700 my-2" /><h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Endereço</h3></div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CEP</label>
-            <input type="text" value={formData.cep} onChange={(e) => set('cep', e.target.value)} onBlur={onConsultarCEP} className={inputClass} placeholder="00000-000" maxLength={9} />
+            <input type="text" value={formData.cep} onChange={(e) => setCep(e.target.value)} onBlur={onConsultarCEP} className={inputClass} placeholder="00000-000" maxLength={9} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">UF</label>

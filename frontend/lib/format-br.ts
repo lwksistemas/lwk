@@ -1,7 +1,9 @@
 /**
- * Formatadores brasileiros reutilizáveis (telefone, CPF e texto).
+ * Formatadores brasileiros reutilizáveis (telefone, CPF/CNPJ, CEP e texto).
  * Usados para padronizar a exibição e as máscaras de digitação.
  */
+
+export { formatCpfCnpj } from '@/lib/consulta-cnpj';
 
 /** Mantém apenas os dígitos de uma string. */
 export function apenasDigitos(valor?: string | null): string {
@@ -29,6 +31,13 @@ export function formatCpf(valor?: string | null): string {
   if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
   if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+/** Formata CEP no padrão XXXXX-XXX (progressivo, até 8 dígitos). */
+export function formatCep(valor?: string | null): string {
+  const d = apenasDigitos(valor).slice(0, 8);
+  if (d.length <= 5) return d;
+  return `${d.slice(0, 5)}-${d.slice(5)}`;
 }
 
 /**

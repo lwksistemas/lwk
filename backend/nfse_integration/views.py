@@ -75,10 +75,12 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(status=status_filter)
 
         tomador = self.request.query_params.get('tomador')
-        if tomador:
+        busca = (self.request.query_params.get('busca') or tomador or '').strip()
+        if busca:
             queryset = queryset.filter(
-                models.Q(tomador_nome__icontains=tomador)
-                | models.Q(tomador_cpf_cnpj__icontains=tomador)
+                models.Q(tomador_nome__icontains=busca)
+                | models.Q(tomador_cpf_cnpj__icontains=busca)
+                | models.Q(numero_nf__icontains=busca)
             )
 
         return queryset

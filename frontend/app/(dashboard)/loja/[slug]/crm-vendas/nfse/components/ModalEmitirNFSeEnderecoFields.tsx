@@ -1,5 +1,6 @@
 'use client';
 
+import { formatCep, toUpperCase } from '@/lib/format-br';
 import { NFSE_EMISSAO_INPUT_CLASS } from '@/lib/nfse-emissao-form';
 
 type EnderecoForm = {
@@ -28,9 +29,10 @@ export function ModalEmitirNFSeEnderecoFields({
           <input
             type="text"
             value={formData.tomador_cep}
-            onChange={(e) => onChange('tomador_cep', e.target.value)}
+            onChange={(e) => onChange('tomador_cep', formatCep(e.target.value))}
             className={NFSE_EMISSAO_INPUT_CLASS}
             placeholder="00000-000"
+            maxLength={9}
           />
         </div>
         <div>
@@ -38,7 +40,7 @@ export function ModalEmitirNFSeEnderecoFields({
           <input
             type="text"
             value={formData.tomador_logradouro}
-            onChange={(e) => onChange('tomador_logradouro', e.target.value)}
+            onChange={(e) => onChange('tomador_logradouro', toUpperCase(e.target.value))}
             className={NFSE_EMISSAO_INPUT_CLASS}
           />
         </div>
@@ -56,7 +58,7 @@ export function ModalEmitirNFSeEnderecoFields({
           <input
             type="text"
             value={formData.tomador_complemento}
-            onChange={(e) => onChange('tomador_complemento', e.target.value)}
+            onChange={(e) => onChange('tomador_complemento', toUpperCase(e.target.value))}
             className={NFSE_EMISSAO_INPUT_CLASS}
           />
         </div>
@@ -65,7 +67,7 @@ export function ModalEmitirNFSeEnderecoFields({
           <input
             type="text"
             value={formData.tomador_bairro}
-            onChange={(e) => onChange('tomador_bairro', e.target.value)}
+            onChange={(e) => onChange('tomador_bairro', toUpperCase(e.target.value))}
             className={NFSE_EMISSAO_INPUT_CLASS}
           />
         </div>
@@ -74,7 +76,7 @@ export function ModalEmitirNFSeEnderecoFields({
           <input
             type="text"
             value={formData.tomador_cidade}
-            onChange={(e) => onChange('tomador_cidade', e.target.value)}
+            onChange={(e) => onChange('tomador_cidade', toUpperCase(e.target.value))}
             required
             className={NFSE_EMISSAO_INPUT_CLASS}
           />
@@ -85,7 +87,7 @@ export function ModalEmitirNFSeEnderecoFields({
             type="text"
             maxLength={2}
             value={formData.tomador_uf}
-            onChange={(e) => onChange('tomador_uf', e.target.value.toUpperCase())}
+            onChange={(e) => onChange('tomador_uf', e.target.value.toUpperCase().slice(0, 2))}
             required
             className={NFSE_EMISSAO_INPUT_CLASS}
             placeholder="SP"

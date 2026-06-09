@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
-import { ensureArray } from '@/lib/array-helpers';
-import { logger } from '@/lib/logger';
+import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 import {
-  filtrarNfsesPorBusca,
   nfseIdentificador,
   nfseSyncEndpoint,
   nfUsaIssnet,
@@ -26,34 +25,34 @@ import { useCRMConfig } from '@/contexts/CRMConfigContext';
 export default function NFSePage() {
   const { config } = useCRMConfig();
   const lojaProvedor = config?.provedor_nf;
-  const [nfses, setNfses] = useState<NFSe[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState('');
   const [busca, setBusca] = useState('');
+  const [buscaDebounced, setBuscaDebounced] = useState('');
   const [syncingId, setSyncingId] = useState<number | null>(null);
   const [syncMsg, setSyncMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
-    carregarNFSes();
-  }, [filtroStatus]);
+    const timer = setTimeout(() => setBuscaDebounced(busca.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [busca]);
 
-  const carregarNFSes = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (filtroStatus) params.append('status', filtroStatus);
-      const res = await apiClient.get(`/nfse/?${params.toString()}`);
-      setNfses(ensureArray<NFSe>(res.data));
-    } catch (error) {
-      logger.warn('Erro ao carregar NFS-e:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const nfsesFiltradas = filtrarNfsesPorBusca(nfses, busca);
+  const {
+    items: nfses,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
+    pageSize,
+    loading,
+    reload: carregarNFSes,
+  } = usePaginatedList<NFSe>('/nfse/', {
+    params: {
+      status: filtroStatus || undefined,
+      busca: buscaDebounced || undefined,
+    },
+  });
 
   const sincronizarStatus = async (e: React.MouseEvent, nf: NFSe) => {
     e.preventDefault();
@@ -73,7 +72,7 @@ export default function NFSePage() {
           ? 'Status atualizado conforme o ISSNet.'
           : 'Status atualizado conforme o Asaas.');
       setSyncMsg({ type: 'ok', text: msg });
-      await carregarNFSes();
+      await carregarNFSes(true);
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { error?: string } } };
       setSyncMsg({ type: 'err', text: ax.response?.data?.error || 'Não foi possível sincronizar.' });
@@ -90,7 +89,7 @@ export default function NFSePage() {
     try {
       await apiClient.delete(`/nfse/${nf.id}/`);
       setSyncMsg({ type: 'ok', text: 'NFS-e excluída com sucesso.' });
-      await carregarNFSes();
+      await carregarNFSes(true);
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { error?: string } } };
       setSyncMsg({ type: 'err', text: ax.response?.data?.error || 'Não foi possível excluir.' });
@@ -109,7 +108,7 @@ export default function NFSePage() {
         if (nfUsaIssnet(nf, lojaProvedor)) {
           try {
             await apiClient.post(`/nfse/${nf.id}/sincronizar-issnet/`);
-            await carregarNFSes();
+            await carregarNFSes(true);
           } catch {
             // silencioso: download do PDF não deve falhar por causa da sincronização
           }
@@ -135,7 +134,7 @@ export default function NFSePage() {
         codigo_cancelamento: escolha.codigo,
       });
       alert('Cancelamento enviado. Se aprovado pela prefeitura, o status será atualizado.');
-      window.location.reload();
+      await carregarNFSes(true);
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { error?: string } } };
       alert(ax.response?.data?.error || 'Erro ao cancelar NFS-e');
@@ -174,20 +173,31 @@ export default function NFSePage() {
 
       {loading ? (
         <NfseLojaLoading />
-      ) : nfsesFiltradas.length === 0 ? (
+      ) : nfses.length === 0 ? (
         <NfseLojaEmptyState hasFiltros={!!busca || !!filtroStatus} onEmitir={() => setShowModal(true)} />
       ) : (
-        <NfseLojaTable
-          nfses={nfsesFiltradas}
-          lojaProvedor={lojaProvedor}
-          syncingId={syncingId}
-          deletingId={deletingId}
-          onSync={sincronizarStatus}
-          onDelete={excluirNFSe}
-          onDownloadPdf={baixarPdfNFSe}
-          onReenviarEmail={reenviarEmailNFSe}
-          onCancelar={cancelarNFSe}
-        />
+        <>
+          <NfseLojaTable
+            nfses={nfses}
+            lojaProvedor={lojaProvedor}
+            syncingId={syncingId}
+            deletingId={deletingId}
+            onSync={sincronizarStatus}
+            onDelete={excluirNFSe}
+            onDownloadPdf={baixarPdfNFSe}
+            onReenviarEmail={reenviarEmailNFSe}
+            onCancelar={cancelarNFSe}
+          />
+          <CrmPaginationBar
+            page={page}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            loading={loading}
+            itemLabel="notas"
+            onPageChange={setPage}
+          />
+        </>
       )}
 
       {showModal && (
@@ -195,9 +205,8 @@ export default function NFSePage() {
           onClose={() => setShowModal(false)}
           onSuccess={() => {
             setShowModal(false);
-            carregarNFSes();
+            carregarNFSes(true);
           }}
-          onRefreshList={carregarNFSes}
         />
       )}
     </div>

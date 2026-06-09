@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse } from '@/lib/crm-utils';
+import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { Plus, Eye, Edit2, Trash2, Building2, Download } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import { ContaFormModal, type ContaFormData } from './components/ContaFormModal';
@@ -32,29 +33,24 @@ export default function CrmVendasCustomersPage() {
   const slug = (params?.slug as string) ?? '';
   const verParam = searchParams.get('ver');
 
-  const [contas, setContas] = useState<Conta[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    items: contas,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
+    pageSize,
+    loading,
+    error,
+    reload: loadContas,
+  } = usePaginatedList<Conta>('/crm-vendas/contas/', {
+    errorFallback: 'Erro ao carregar clientes.',
+  });
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selectedConta, setSelectedConta] = useState<Conta | null>(null);
   const [formData, setFormData] = useState<ContaFormData>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [consultingCNPJ, setConsultingCNPJ] = useState(false);
-
-  const loadContas = async (silent = false) => {
-    try {
-      if (!silent) setLoading(true);
-      const res = await apiClient.get<Conta[] | { results: Conta[] }>('/crm-vendas/contas/');
-      setContas(normalizeListResponse(res.data));
-      setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Erro ao carregar clientes.');
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
-
-  useEffect(() => { loadContas(); }, []);
 
   useEffect(() => {
     if (!verParam) return;
@@ -233,6 +229,15 @@ export default function CrmVendasCustomersPage() {
             </tbody>
           </table>
         </div>
+        <CrmPaginationBar
+          page={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          loading={loading}
+          itemLabel="contas"
+          onPageChange={setPage}
+        />
       </div>
 
       {(modalType === 'create' || modalType === 'edit') && (

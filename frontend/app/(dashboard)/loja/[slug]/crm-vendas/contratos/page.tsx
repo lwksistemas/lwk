@@ -11,6 +11,8 @@ import {
   crmMensagemEnvioCanalSucesso,
   downloadCrmDocumento,
 } from '@/lib/crm-utils';
+import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { reenviarAssinaturaAposEdicaoSeNecessario } from '@/lib/crm-reenviar-assinatura';
@@ -65,10 +67,28 @@ type ModalType = 'create' | 'edit' | 'view' | 'delete' | 'cancelar' | null;
 export default function CrmVendasContratosPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
-  const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [filtroStatus, setFiltroStatus] = useState('');
+
+  const {
+    items: contratos,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
+    pageSize,
+    loading,
+    error,
+    reload: loadContratos,
+  } = usePaginatedList<Contrato>('/crm-vendas/contratos/', {
+    params: { status: filtroStatus || undefined },
+    errorFallback: 'Erro ao carregar contratos.',
+  });
+
+  const contratosFiltrados = contratos.filter(
+    (c) => !filtroStatus || c.status === filtroStatus,
+  );
+
   const [oportunidades, setOportunidades] = useState<OportunidadeOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selected, setSelected] = useState<Contrato | null>(null);
   const [formData, setFormData] = useState<FormDataContrato>({
@@ -87,7 +107,6 @@ export default function CrmVendasContratosPage() {
   const [enviandoId, setEnviandoId] = useState<number | null>(null);
   const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
   const [menuAberto, setMenuAberto] = useState<number | null>(null);
-  const [filtroStatus, setFiltroStatus] = useState('');
 
   const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
   const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
@@ -157,19 +176,6 @@ export default function CrmVendasContratosPage() {
     }
   };
 
-  const loadContratos = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await apiClient.get<Contrato[] | { results: Contrato[] }>('/crm-vendas/contratos/');
-      setContratos(normalizeListResponse(res.data));
-      setError(null);
-    } catch (err: unknown) {
-      setError(getCrmApiErrorDetail(err, 'Erro ao carregar contratos.'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   const loadOportunidades = useCallback(async () => {
     try {
       const res = await apiClient.get<OportunidadeOption[] | { results: OportunidadeOption[] }>(
@@ -180,10 +186,6 @@ export default function CrmVendasContratosPage() {
       setOportunidades([]);
     }
   }, []);
-
-  useEffect(() => {
-    loadContratos();
-  }, [loadContratos]);
 
   useEffect(() => {
     if (modalType === 'create' || modalType === 'edit') {
@@ -398,7 +400,7 @@ export default function CrmVendasContratosPage() {
                   </td>
                 </tr>
               ) : (
-                contratos.filter(c => !filtroStatus || c.status === filtroStatus).map((c) => (
+                contratosFiltrados.map((c) => (
                   <tr key={c.id} className="border-b border-gray-100 dark:border-[#0d1f3c] hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/30">
                     <td className="py-3 px-4 font-mono text-sm text-gray-600 dark:text-gray-400">#{c.numero || '---'}</td>
                     <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{c.titulo || `Contrato #${c.id}`}</td>
@@ -522,6 +524,15 @@ export default function CrmVendasContratosPage() {
             </tbody>
           </table>
         </div>
+        <CrmPaginationBar
+          page={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          loading={loading}
+          itemLabel="contratos"
+          onPageChange={setPage}
+        />
       </div>
 
       <div className="px-4 py-3 bg-gray-50 dark:bg-[#0d1f3c]/30 rounded-lg border border-gray-200 dark:border-[#0d1f3c]">

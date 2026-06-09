@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import apiClient from '@/lib/api-client';
+import { formatTelefone, toUpperCase } from '@/lib/format-br';
 
 interface Funcionario {
   id: number;
@@ -180,10 +181,10 @@ export default function HotelFuncionariosPage() {
           <h2 className="text-xl font-bold">{editing ? 'Editar funcionário' : 'Novo funcionário'}</h2>
           {error && <div className="text-sm text-red-600">{error}</div>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2 md:col-span-2"><Label>Nome *</Label><Input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} /></div>
+            <div className="space-y-2 md:col-span-2"><Label>Nome *</Label><Input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: toUpperCase(e.target.value) }))} /></div>
             <div className="space-y-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>Cargo</Label><Input value={form.cargo} onChange={(e) => setForm((f) => ({ ...f, cargo: e.target.value }))} placeholder="Ex.: Recepcionista" /></div>
-            <div className="space-y-2"><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>Cargo</Label><Input value={form.cargo} onChange={(e) => setForm((f) => ({ ...f, cargo: toUpperCase(e.target.value) }))} placeholder="Ex.: Recepcionista" /></div>
+            <div className="space-y-2"><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm((f) => ({ ...f, telefone: formatTelefone(e.target.value) }))} placeholder="(00) 00000-0000" /></div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setModalOpen(false)} className="min-h-[40px]" disabled={saving}>Cancelar</Button>

@@ -128,17 +128,16 @@ export function useClinicaBelezaEntityList<T>({
 }) {
   const [list, setList] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [totalCount, setTotalCount] = useState<number | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
+  const fetchPage = useCallback(
+    async (targetPage: number) => {
       const result = await loadClinicaBelezaListPage<T>({
         path,
-        page: 1,
+        page: targetPage,
         pageSize,
         fetchOffline,
         saveOffline,
@@ -147,41 +146,44 @@ export function useClinicaBelezaEntityList<T>({
       setList(result.items);
       setHasMore(result.hasMore);
       setTotalCount(result.count);
-      setPage(1);
+      setTotalPages(result.totalPages);
+      setPage(result.page);
+      return result;
+    },
+    [path, pageSize, fetchOffline, saveOffline, paginate],
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      await fetchPage(1);
     } catch {
       setList([]);
       setHasMore(false);
       setTotalCount(null);
+      setTotalPages(1);
       setPage(1);
     } finally {
       setLoading(false);
     }
-    // fetchOffline/saveOffline são imports estáveis do módulo
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, pageSize, paginate, ...reloadDeps]);
+  }, [fetchPage, ...reloadDeps]);
 
-  const loadMore = useCallback(async () => {
-    if (!paginate || !hasMore || loadingMore || loading || isBrowserOffline()) return;
-    setLoadingMore(true);
-    try {
-      const result = await loadClinicaBelezaListPage<T>({
-        path,
-        page: page + 1,
-        pageSize,
-        fetchOffline,
-        saveOffline,
-        paginate: true,
-      });
-      setList((prev) => [...prev, ...result.items]);
-      setHasMore(result.hasMore);
-      setTotalCount(result.count);
-      setPage(result.page);
-    } catch {
-      // mantém lista atual
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [paginate, hasMore, loadingMore, loading, page, path, pageSize, fetchOffline, saveOffline]);
+  const goToPage = useCallback(
+    async (targetPage: number) => {
+      if (!paginate || targetPage < 1 || targetPage > totalPages || loading) return;
+      if (isBrowserOffline()) return;
+      setLoading(true);
+      try {
+        await fetchPage(targetPage);
+      } catch {
+        // mantém lista atual
+      } finally {
+        setLoading(false);
+      }
+    },
+    [paginate, totalPages, loading, fetchPage],
+  );
 
   useEffect(() => {
     load();
@@ -195,7 +197,20 @@ export function useClinicaBelezaEntityList<T>({
     return () => window.removeEventListener('offline-sync-done', onSyncDone);
   }, [load]);
 
-  return { list, setList, loading, load, loadMore, loadingMore, hasMore, totalCount };
+  return {
+    list,
+    setList,
+    loading,
+    load,
+    page,
+    setPage: goToPage,
+    totalPages,
+    pageSize,
+    loadMore: () => goToPage(page + 1),
+    loadingMore: false,
+    hasMore,
+    totalCount,
+  };
 }
 
 /** Entidades sem cache offline (campanhas, protocolos, etc.). */

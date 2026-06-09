@@ -14,6 +14,73 @@ export function normalizeListResponse<T>(data: T[] | { results: T[] } | null | u
   return (data as { results: T[] }).results ?? [];
 }
 
+export type CrmPaginatedResponse<T> = {
+  results: T[];
+  count: number;
+  page: number;
+  pageSize: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+  totalPages: number;
+};
+
+/** Uma página de listagem paginada do DRF. */
+export async function fetchCrmPaginatedPage<T>(
+  path: string,
+  page: number,
+  pageSize = 50,
+  params: Record<string, string | number> = {},
+): Promise<CrmPaginatedResponse<T>> {
+  const res = await apiClient.get<
+    T[] | { results: T[]; count: number; next: string | null; previous: string | null }
+  >(path, {
+    params: { ...params, page, page_size: pageSize },
+  });
+  const data = res.data;
+  if (Array.isArray(data)) {
+    return {
+      results: data,
+      count: data.length,
+      page: 1,
+      pageSize: data.length || pageSize,
+      hasNext: false,
+      hasPrevious: false,
+      totalPages: 1,
+    };
+  }
+  const count = data.count ?? (data.results?.length ?? 0);
+  const totalPages = Math.max(1, Math.ceil(count / pageSize));
+  return {
+    results: data.results ?? [],
+    count,
+    page,
+    pageSize,
+    hasNext: Boolean(data.next),
+    hasPrevious: Boolean(data.previous),
+    totalPages,
+  };
+}
+
+/** Busca todas as páginas de um endpoint paginado do DRF (até maxPages). */
+export async function fetchAllPaginatedResults<T>(
+  path: string,
+  params: Record<string, string | number> = {},
+  pageSize = 100,
+  maxPages = 20,
+): Promise<T[]> {
+  const items: T[] = [];
+  for (let page = 1; page <= maxPages; page += 1) {
+    const res = await apiClient.get<T[] | { results: T[]; next: string | null }>(path, {
+      params: { ...params, page, page_size: pageSize },
+    });
+    const data = res.data;
+    if (Array.isArray(data)) return data;
+    items.push(...(data.results ?? []));
+    if (!data.next) break;
+  }
+  return items;
+}
+
 /** Extrai mensagem de erro de respostas DRF/axios (uso comum em páginas CRM). */
 export function getCrmApiErrorDetail(err: unknown, fallback: string): string {
   const e = err as { response?: { data?: { detail?: string } } };
@@ -69,6 +136,31 @@ export async function downloadCrmDocumento(
   });
   const blob = response.data instanceof Blob ? response.data : new Blob([response.data]);
   downloadBlobAsFile(blob, crmDocumentoDownloadFilename(tipo, id, titulo, formato));
+}
+
+/** Título padrão da oportunidade: nome do lead (cliente), não da prestadora. */
+export function gerarTituloOportunidade(lead: { nome: string; empresa?: string | null }): string {
+  const nome = (lead.nome || '').trim();
+  const empresa = (lead.empresa || '').trim();
+  if (!nome) return 'Oportunidade';
+  if (empresa && empresa.toLowerCase() !== nome.toLowerCase()) {
+    return `${nome} — ${empresa}`;
+  }
+  return nome;
+}
+
+/** Rótulo no quadro Kanban — pessoa (lead) em destaque, senão título legível. */
+export function rotuloExibicaoOportunidade(o: {
+  titulo: string;
+  lead_nome?: string;
+  empresa_prestadora_nome?: string | null;
+}): string {
+  const lead = (o.lead_nome || '').trim();
+  if (lead) return lead;
+  const titulo = (o.titulo || '').trim();
+  const prestadora = (o.empresa_prestadora_nome || '').trim();
+  if (titulo && titulo !== prestadora) return titulo;
+  return titulo || '—';
 }
 
 export function formatCrmBrl(valor: string | number | null | undefined): string {

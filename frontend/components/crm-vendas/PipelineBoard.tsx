@@ -1,5 +1,7 @@
 'use client';
 
+import { rotuloExibicaoOportunidade } from '@/lib/crm-utils';
+
 export interface Oportunidade {
   id: number;
   titulo: string;
@@ -114,18 +116,18 @@ export default function PipelineBoard({
 
   if (viewMode === 'list') {
     const sorted = [...oportunidadesLista].sort((a, b) => {
-      const la = labelEtapa(etapasVisiveis, a.etapa);
-      const lb = labelEtapa(etapasVisiveis, b.etapa);
-      if (la !== lb) return la.localeCompare(lb, 'pt-BR');
-      return a.titulo.localeCompare(b.titulo, 'pt-BR');
+      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (da !== db) return db - da;
+      return rotuloExibicaoOportunidade(a).localeCompare(rotuloExibicaoOportunidade(b), 'pt-BR');
     });
     return (
       <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-600">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-600 text-left">
-              <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Título</th>
-              <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Lead</th>
+              <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Cliente</th>
+              <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Empresa</th>
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Prestadora</th>
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 text-right">Valor</th>
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Vendedor</th>
@@ -153,8 +155,8 @@ export default function PipelineBoard({
                   role="button"
                   tabIndex={0}
                 >
-                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{o.titulo}</td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{o.lead_nome}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{o.lead_nome || rotuloExibicaoOportunidade(o)}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{o.conta_nome || '—'}</td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-sm">
                     {o.empresa_prestadora_nome || (
                       <span className="text-amber-600 dark:text-amber-400">Não definida</span>
@@ -209,10 +211,10 @@ export default function PipelineBoard({
                   className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
                 >
                   <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
-                    {o.titulo}
+                    {rotuloExibicaoOportunidade(o)}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {o.lead_nome}
+                    {o.empresa_prestadora_nome || o.lead_nome}
                   </p>
                   <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
                     {formatMoney(o.valor)}

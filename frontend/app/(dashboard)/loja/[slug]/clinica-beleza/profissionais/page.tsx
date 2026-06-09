@@ -57,7 +57,7 @@ export default function ProfissionaisPage() {
   const isNovo = searchParams.get("novo") === "1";
   const editIdParam = searchParams.get("id");
   const isFormView = isNovo || Boolean(editIdParam);
-  const { list, setList, loading, load, loadMore, loadingMore, hasMore, totalCount } = useClinicaBelezaEntityList<Professional>({
+  const { list, setList, loading, load, page, setPage, totalPages, pageSize, totalCount } = useClinicaBelezaEntityList<Professional>({
     path: "/professionals/",
     fetchOffline: buscarProfissionaisOffline,
     saveOffline: salvarProfissionaisOffline,
@@ -205,12 +205,13 @@ export default function ProfissionaisPage() {
               </table>
             </div>
             <EntityListLoadMore
-              hasMore={hasMore}
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount ?? 0}
+              pageSize={pageSize}
               loading={loading}
-              loadingMore={loadingMore}
-              onLoadMore={loadMore}
-              loadedCount={activeList.length}
-              totalCount={totalCount}
+              onPageChange={setPage}
+              itemLabel="profissionais"
             />
           </div>
         )}

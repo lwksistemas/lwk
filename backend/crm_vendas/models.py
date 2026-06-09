@@ -183,7 +183,7 @@ class Lead(LojaIsolationMixin, models.Model):
 
     class Meta:
         db_table = 'crm_vendas_lead'
-        ordering = ['-created_at']
+        ordering = ['nome']
         verbose_name = 'Lead'
         verbose_name_plural = 'Leads'
         indexes = [

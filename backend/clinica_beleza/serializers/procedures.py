@@ -1,10 +1,14 @@
 """Serializers de procedimentos e protocolos."""
 from rest_framework import serializers
+from core.serializer_mixins import TextNormalizationMixin
 
 from ..models import Procedure, ProcedureProtocol
 
 
-class ProcedureSerializer(serializers.ModelSerializer):
+class ProcedureSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['nome', 'categoria']
+    phone_fields = []
+
     class Meta:
         model = Procedure
         exclude = ['loja_id']

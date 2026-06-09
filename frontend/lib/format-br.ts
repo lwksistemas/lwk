@@ -1,5 +1,5 @@
 /**
- * Formatadores brasileiros reutilizáveis (telefone e CPF).
+ * Formatadores brasileiros reutilizáveis (telefone, CPF e texto).
  * Usados para padronizar a exibição e as máscaras de digitação.
  */
 
@@ -29,4 +29,12 @@ export function formatCpf(valor?: string | null): string {
   if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
   if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+/**
+ * Converte texto para MAIÚSCULAS (usado em campos de cadastro como nome, empresa, cidade).
+ * Retorna string vazia se valor for nulo/undefined.
+ */
+export function toUpperCase(valor?: string | null): string {
+  return (valor || "").toUpperCase();
 }

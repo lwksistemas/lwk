@@ -1,16 +1,22 @@
 from rest_framework import serializers
+from core.serializer_mixins import TextNormalizationMixin
 from .models import Categoria, Produto, Cliente, Pedido, ItemPedido, Cupom
 
 
-class CategoriaSerializer(serializers.ModelSerializer):
+class CategoriaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['nome']
+    phone_fields = []
+
     class Meta:
         model = Categoria
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
 
 
-class ProdutoSerializer(serializers.ModelSerializer):
+class ProdutoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     categoria_nome = serializers.CharField(source='categoria.nome', read_only=True)
+    uppercase_fields = ['nome']
+    phone_fields = []
 
     class Meta:
         model = Produto
@@ -18,7 +24,10 @@ class ProdutoSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
 
-class ClienteSerializer(serializers.ModelSerializer):
+class ClienteSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['nome', 'cidade', 'estado', 'bairro']
+    phone_fields = ['telefone']
+
     class Meta:
         model = Cliente
         fields = '__all__'

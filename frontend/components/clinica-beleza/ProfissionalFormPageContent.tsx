@@ -12,7 +12,7 @@ import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBel
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, ConvenioItem, LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
-import { formatTelefone, formatCpf } from "@/lib/format-br";
+import { formatTelefone, formatCpf, toUpperCase } from "@/lib/format-br";
 import { formatProfissionalApiErrors } from "@/lib/clinica-beleza-form-errors";
 import { logger } from "@/lib/logger";
 
@@ -330,11 +330,11 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Nome *</label>
-                <input value={form.name} onChange={(e) => set("name", e.target.value)} className={inputClass} placeholder="Nome completo" />
+                <input value={form.name} onChange={(e) => set("name", toUpperCase(e.target.value))} className={inputClass} placeholder="Nome completo" />
               </div>
               <div>
                 <label className={labelClass}>Especialidade *</label>
-                <input value={form.specialty} onChange={(e) => set("specialty", e.target.value)} className={inputClass} placeholder="Ex.: Esteticista" />
+                <input value={form.specialty} onChange={(e) => set("specialty", toUpperCase(e.target.value))} className={inputClass} placeholder="Ex.: Esteticista" />
               </div>
               <div>
                 <label className={labelClass}>Telefone</label>

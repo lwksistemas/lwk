@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from core.serializer_mixins import TextNormalizationMixin
 from .models import (
     Categoria, ItemCardapio, Mesa, Cliente, Reserva, Pedido, ItemPedido, Funcionario,
     Fornecedor, NotaFiscalEntrada, ItemNotaFiscalEntrada, EstoqueItem, MovimentoEstoque,
@@ -6,15 +7,20 @@ from .models import (
 )
 
 
-class CategoriaSerializer(serializers.ModelSerializer):
+class CategoriaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['nome']
+    phone_fields = []
+
     class Meta:
         model = Categoria
         fields = ['id', 'nome', 'descricao', 'ordem', 'is_active', 'created_at', 'updated_at', 'loja_id']
         read_only_fields = ['id', 'created_at', 'updated_at', 'loja_id']
 
 
-class ItemCardapioSerializer(serializers.ModelSerializer):
+class ItemCardapioSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     categoria_nome = serializers.CharField(source='categoria.nome', read_only=True)
+    uppercase_fields = ['nome']
+    phone_fields = []
 
     class Meta:
         model = ItemCardapio
@@ -36,7 +42,10 @@ class MesaSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'loja_id']
 
 
-class ClienteSerializer(serializers.ModelSerializer):
+class ClienteSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['nome', 'cidade', 'estado', 'bairro']
+    phone_fields = ['telefone']
+
     class Meta:
         model = Cliente
         fields = [
@@ -90,7 +99,10 @@ class PedidoSerializer(serializers.ModelSerializer):
         ]
 
 
-class FuncionarioSerializer(serializers.ModelSerializer):
+class FuncionarioSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['nome', 'cargo']
+    phone_fields = ['telefone']
+
     class Meta:
         model = Funcionario
         fields = [
@@ -100,7 +112,10 @@ class FuncionarioSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'loja_id']
 
 
-class FornecedorSerializer(serializers.ModelSerializer):
+class FornecedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['nome']
+    phone_fields = ['telefone']
+
     class Meta:
         model = Fornecedor
         fields = [
@@ -144,7 +159,10 @@ class NotaFiscalEntradaSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'fornecedor_nome', 'itens', 'created_at', 'updated_at', 'loja_id']
 
 
-class EstoqueItemSerializer(serializers.ModelSerializer):
+class EstoqueItemSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['nome']
+    phone_fields = []
+
     class Meta:
         model = EstoqueItem
         fields = [

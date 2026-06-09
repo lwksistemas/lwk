@@ -12,7 +12,7 @@ class Store(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        ordering = ['-created_at']
+        ordering = ['name']
     
     def __str__(self):
         return self.name

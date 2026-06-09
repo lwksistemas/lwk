@@ -9,6 +9,7 @@ import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/Cli
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
+import { toUpperCase } from "@/lib/format-br";
 
 export default function ConveniosPage() {
   const params = useParams();
@@ -109,7 +110,7 @@ export default function ConveniosPage() {
               <input
                 type="text"
                 value={novoNome}
-                onChange={(e) => setNovoNome(e.target.value)}
+                onChange={(e) => setNovoNome(toUpperCase(e.target.value))}
                 placeholder="Ex.: Unimed, Particular, Santa Casa..."
                 autoFocus
                 className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg dark:bg-neutral-700 mb-6"

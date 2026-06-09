@@ -84,7 +84,7 @@ class Cliente(LojaIsolationMixin, BaseCliente):
 
     class Meta:
         db_table = 'restaurante_clientes'
-        ordering = ['-created_at']
+        ordering = ['nome']
         verbose_name = 'Cliente'
         verbose_name_plural = 'Clientes'
 

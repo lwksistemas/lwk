@@ -30,7 +30,7 @@ class Produto(LojaIsolationMixin, BaseProduto):
 
     class Meta:
         db_table = 'ecommerce_produtos'
-        ordering = ['-created_at']
+        ordering = ['nome']
         verbose_name = 'Produto'
         verbose_name_plural = 'Produtos'
         constraints = [
@@ -49,7 +49,7 @@ class Cliente(LojaIsolationMixin, BaseCliente):
 
     class Meta:
         db_table = 'ecommerce_clientes'
-        ordering = ['-created_at']
+        ordering = ['nome']
         verbose_name = 'Cliente'
         verbose_name_plural = 'Clientes'
 

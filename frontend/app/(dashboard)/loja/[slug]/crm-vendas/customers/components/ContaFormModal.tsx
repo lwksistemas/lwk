@@ -1,6 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { formatTelefone, toUpperCase } from '@/lib/format-br';
 
 export interface ContaFormData {
   nome: string; razao_social: string; cnpj: string; inscricao_estadual: string;
@@ -25,6 +26,8 @@ const inputClass = "w-full px-3 py-2 border border-gray-300 dark:border-gray-600
 
 export function ContaFormModal({ title, formData, submitting, consultingCNPJ, onChange, onSubmit, onClose, onConsultarCNPJ, onConsultarCEP }: Props) {
   const set = (field: keyof ContaFormData, value: string) => onChange({ ...formData, [field]: value });
+  const setUpper = (field: keyof ContaFormData, value: string) => onChange({ ...formData, [field]: toUpperCase(value) });
+  const setPhone = (field: keyof ContaFormData, value: string) => onChange({ ...formData, [field]: formatTelefone(value) });
 
   return (
     <ModalShell title={title} onClose={onClose}>
@@ -56,11 +59,11 @@ export function ContaFormModal({ title, formData, submitting, consultingCNPJ, on
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Razão Social</label>
-            <input type="text" value={formData.razao_social} onChange={(e) => set('razao_social', e.target.value)} className={inputClass} />
+            <input type="text" value={formData.razao_social} onChange={(e) => setUpper('razao_social', e.target.value)} className={inputClass} />
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Fantasia <span className="text-red-500">*</span></label>
-            <input type="text" value={formData.nome} onChange={(e) => set('nome', e.target.value)} className={inputClass} required />
+            <input type="text" value={formData.nome} onChange={(e) => setUpper('nome', e.target.value)} className={inputClass} required />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Inscrição Estadual</label>
@@ -68,11 +71,11 @@ export function ContaFormModal({ title, formData, submitting, consultingCNPJ, on
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Segmento</label>
-            <input type="text" value={formData.segmento} onChange={(e) => set('segmento', e.target.value)} className={inputClass} placeholder="Ex: Tecnologia, Varejo" />
+            <input type="text" value={formData.segmento} onChange={(e) => setUpper('segmento', e.target.value)} className={inputClass} placeholder="Ex: Tecnologia, Varejo" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone</label>
-            <input type="tel" value={formData.telefone} onChange={(e) => set('telefone', e.target.value)} className={inputClass} placeholder="(00) 00000-0000" />
+            <input type="tel" value={formData.telefone} onChange={(e) => setPhone('telefone', e.target.value)} className={inputClass} placeholder="(00) 00000-0000" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
@@ -95,7 +98,7 @@ export function ContaFormModal({ title, formData, submitting, consultingCNPJ, on
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Logradouro</label>
-            <input type="text" value={formData.logradouro} onChange={(e) => set('logradouro', e.target.value)} className={inputClass} />
+            <input type="text" value={formData.logradouro} onChange={(e) => setUpper('logradouro', e.target.value)} className={inputClass} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Número</label>
@@ -103,15 +106,15 @@ export function ContaFormModal({ title, formData, submitting, consultingCNPJ, on
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Complemento</label>
-            <input type="text" value={formData.complemento} onChange={(e) => set('complemento', e.target.value)} className={inputClass} placeholder="Apto, Sala" />
+            <input type="text" value={formData.complemento} onChange={(e) => setUpper('complemento', e.target.value)} className={inputClass} placeholder="Apto, Sala" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bairro</label>
-            <input type="text" value={formData.bairro} onChange={(e) => set('bairro', e.target.value)} className={inputClass} />
+            <input type="text" value={formData.bairro} onChange={(e) => setUpper('bairro', e.target.value)} className={inputClass} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cidade</label>
-            <input type="text" value={formData.cidade} onChange={(e) => set('cidade', e.target.value)} className={inputClass} />
+            <input type="text" value={formData.cidade} onChange={(e) => setUpper('cidade', e.target.value)} className={inputClass} />
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>

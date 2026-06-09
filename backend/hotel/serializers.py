@@ -1,10 +1,14 @@
 from django.db.models import Q
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
+from core.serializer_mixins import TextNormalizationMixin
 from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario, ReservaTemplate, ReservaAssinatura, ConfiguracaoHotel
 
 
-class HospedeSerializer(BaseLojaSerializer):
+class HospedeSerializer(TextNormalizationMixin, BaseLojaSerializer):
+    uppercase_fields = ['nome']
+    phone_fields = ['telefone']
+
     class Meta:
         model = Hospede
         fields = [
@@ -36,7 +40,10 @@ class QuartoSerializer(BaseLojaSerializer):
         return value
 
 
-class TarifaSerializer(BaseLojaSerializer):
+class TarifaSerializer(TextNormalizationMixin, BaseLojaSerializer):
+    uppercase_fields = ['nome']
+    phone_fields = []
+
     class Meta:
         model = Tarifa
         fields = [
@@ -106,7 +113,10 @@ class GovernancaTarefaSerializer(BaseLojaSerializer):
         read_only_fields = ['created_at', 'updated_at', 'concluido_em', 'loja_id']
 
 
-class FuncionarioSerializer(BaseLojaSerializer):
+class FuncionarioSerializer(TextNormalizationMixin, BaseLojaSerializer):
+    uppercase_fields = ['nome', 'cargo']
+    phone_fields = ['telefone']
+
     class Meta:
         model = Funcionario
         fields = [

@@ -1,6 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { formatTelefone, toUpperCase } from '@/lib/format-br';
 
 interface Conta {
   id: number;
@@ -30,6 +31,8 @@ const inputClass = "w-full px-3 py-2 border border-gray-300 dark:border-gray-600
 
 export function ContatoFormModal({ title, formData, contas, submitting, onChange, onSubmit, onClose }: ContatoFormModalProps) {
   const set = (field: keyof ContatoFormData, value: string) => onChange({ ...formData, [field]: value });
+  const setUpper = (field: keyof ContatoFormData, value: string) => onChange({ ...formData, [field]: toUpperCase(value) });
+  const setPhone = (field: keyof ContatoFormData, value: string) => onChange({ ...formData, [field]: formatTelefone(value) });
 
   return (
     <ModalWrapper title={title} onClose={onClose}>
@@ -39,7 +42,7 @@ export function ContatoFormModal({ title, formData, contas, submitting, onChange
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Nome <span className="text-red-500">*</span>
             </label>
-            <input type="text" value={formData.nome} onChange={(e) => set('nome', e.target.value)} className={inputClass} required />
+            <input type="text" value={formData.nome} onChange={(e) => setUpper('nome', e.target.value)} className={inputClass} required />
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -52,11 +55,11 @@ export function ContatoFormModal({ title, formData, contas, submitting, onChange
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cargo</label>
-            <input type="text" value={formData.cargo} onChange={(e) => set('cargo', e.target.value)} className={inputClass} placeholder="Ex: Gerente de Compras" />
+            <input type="text" value={formData.cargo} onChange={(e) => setUpper('cargo', e.target.value)} className={inputClass} placeholder="Ex: Gerente de Compras" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone</label>
-            <input type="tel" value={formData.telefone} onChange={(e) => set('telefone', e.target.value)} className={inputClass} />
+            <input type="tel" value={formData.telefone} onChange={(e) => setPhone('telefone', e.target.value)} className={inputClass} placeholder="(00) 00000-0000" />
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>

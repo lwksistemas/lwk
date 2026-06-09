@@ -1,10 +1,14 @@
 """Serializers de convênios e locais de atendimento."""
 from rest_framework import serializers
+from core.serializer_mixins import TextNormalizationMixin
 
 from ..models import Convenio, ConvenioProcedimentoPreco, LocalAtendimento
 
 
-class ConvenioListSerializer(serializers.ModelSerializer):
+class ConvenioListSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['nome']
+    phone_fields = []
+
     class Meta:
         model = Convenio
         fields = ['id', 'nome', 'codigo', 'is_active']
@@ -33,8 +37,10 @@ def gerar_codigo_convenio(convenio):
     return f'CV{convenio.id:05d}'
 
 
-class ConvenioSerializer(serializers.ModelSerializer):
+class ConvenioSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     precos = serializers.SerializerMethodField()
+    uppercase_fields = ['nome']
+    phone_fields = []
 
     class Meta:
         model = Convenio
@@ -57,7 +63,9 @@ class ConvenioSerializer(serializers.ModelSerializer):
         return convenio
 
 
-class LocalAtendimentoSerializer(serializers.ModelSerializer):
+class LocalAtendimentoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['nome']
+    phone_fields = []
     class Meta:
         model = LocalAtendimento
         fields = ['id', 'nome', 'valor_consulta', 'is_active', 'created_at', 'updated_at']

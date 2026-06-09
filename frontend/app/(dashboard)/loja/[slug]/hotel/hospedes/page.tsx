@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useHotelCrud } from '@/hooks/useHotelCrud';
 import type { Hospede } from '@/lib/hotel-types';
 import { Users, Plus, Edit2, Trash2, ArrowLeft } from 'lucide-react';
+import { formatTelefone, toUpperCase } from '@/lib/format-br';
 
 export default function HotelHospedesPage() {
   const params = useParams();
@@ -23,6 +24,8 @@ export default function HotelHospedesPage() {
   const openNew = () => { setEditing(null); resetForm(); setModalOpen(true); };
   const openEdit = (h: Hospede) => { setEditing(h); setForm({ nome: h.nome || '', documento: h.documento || '', telefone: h.telefone || '', email: h.email || '', observacoes: h.observacoes || '' }); setModalOpen(true); };
   const submit = async () => { const ok = await save({ nome: form.nome.trim(), documento: form.documento.trim(), telefone: form.telefone.trim(), email: form.email.trim(), observacoes: form.observacoes.trim() }, editing?.id); if (ok) { setModalOpen(false); setEditing(null); resetForm(); } };
+  const setNome = (v: string) => setForm((f) => ({ ...f, nome: toUpperCase(v) }));
+  const setTelefone = (v: string) => setForm((f) => ({ ...f, telefone: formatTelefone(v) }));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -99,9 +102,9 @@ export default function HotelHospedesPage() {
           <div className="flex items-start justify-between gap-4"><h2 className="text-xl font-bold text-gray-900 dark:text-white">{editing ? 'Editar hóspede' : 'Novo hóspede'}</h2><button onClick={() => setModalOpen(false)} className="px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-sm">Fechar</button></div>
           {error && <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">{error}</div>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2 md:col-span-2"><Label>Nome *</Label><Input value={form.nome} onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))} /></div>
+            <div className="space-y-2 md:col-span-2"><Label>Nome *</Label><Input value={form.nome} onChange={(e) => setNome(e.target.value)} /></div>
             <div className="space-y-2"><Label>Documento</Label><Input value={form.documento} onChange={(e) => setForm((f) => ({ ...f, documento: e.target.value }))} /></div>
-            <div className="space-y-2"><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))} /></div>
+            <div className="space-y-2"><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(00) 00000-0000" /></div>
             <div className="space-y-2 md:col-span-2"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></div>
             <div className="space-y-2 md:col-span-2"><Label>Observações</Label><textarea className="w-full min-h-[96px] px-3 py-2 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100" value={form.observacoes} onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))} /></div>
           </div>

@@ -29,7 +29,7 @@ import {
   patientNotes,
 } from "@/lib/clinica-beleza-entities";
 import { formatClinicaApiValidationErrors } from "@/lib/clinica-beleza-form-errors";
-import { formatTelefone, formatCpf } from "@/lib/format-br";
+import { formatTelefone, formatCpf, toUpperCase } from "@/lib/format-br";
 import {
   bloquearCriacaoDuplicadaOffline,
   deveVerificarDuplicataOffline,
@@ -352,7 +352,7 @@ export default function PacientesPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Nome *</label>
                     <input
                       value={form.name}
-                      onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, name: toUpperCase(e.target.value) }))}
                       className={INPUT}
                       placeholder="Nome completo"
                       autoFocus

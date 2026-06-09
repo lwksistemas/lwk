@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
+from core.serializer_mixins import TextNormalizationMixin
 from .models import (
     Cliente, Profissional, Procedimento, Agendamento, Funcionario,
     ProtocoloProcedimento, EvolucaoPaciente, AnamnesesTemplate, Anamnese,
@@ -8,7 +9,7 @@ from .models import (
 )
 
 
-class ClienteSerializer(BaseLojaSerializer):
+class ClienteSerializer(TextNormalizationMixin, BaseLojaSerializer):
     """
     Serializer de Cliente.
     Herda de BaseLojaSerializer para adicionar loja_id automaticamente.
@@ -16,6 +17,8 @@ class ClienteSerializer(BaseLojaSerializer):
 
     total_agendamentos = serializers.SerializerMethodField()
     ultima_visita = serializers.SerializerMethodField()
+    uppercase_fields = ['nome', 'cidade', 'estado', 'bairro']
+    phone_fields = ['telefone']
 
     class Meta:
         model = Cliente
@@ -68,10 +71,12 @@ class HorarioTrabalhoProfissionalSerializer(serializers.ModelSerializer):
         read_only_fields = ['profissional']
 
 
-class ProfissionalSerializer(BaseLojaSerializer):
+class ProfissionalSerializer(TextNormalizationMixin, BaseLojaSerializer):
     """Serializer de Profissional."""
     total_agendamentos = serializers.SerializerMethodField()
     horarios_trabalho = HorarioTrabalhoProfissionalSerializer(many=True, read_only=True, required=False)
+    uppercase_fields = ['nome', 'especialidade']
+    phone_fields = ['telefone']
 
     class Meta:
         model = Profissional

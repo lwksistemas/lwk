@@ -9,6 +9,7 @@ import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { ArrowLeft } from 'lucide-react';
 import { consultaCep } from '@/lib/consulta-cep';
 import { consultaCnpj, formatCpfCnpj } from '@/lib/consulta-cnpj';
+import { formatTelefone, toUpperCase } from '@/lib/format-br';
 
 const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
 const labelClass = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1';
@@ -187,7 +188,7 @@ export default function NovoLeadPage() {
               <input
                 type="text"
                 value={form.nome}
-                onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, nome: toUpperCase(e.target.value) }))}
                 className={inputClass}
                 placeholder="Nome completo do lead"
                 required
@@ -220,7 +221,7 @@ export default function NovoLeadPage() {
                 <input
                   type="text"
                   value={form.empresa}
-                  onChange={(e) => setForm((f) => ({ ...f, empresa: e.target.value }))}
+                  onChange={(e) => setForm((f) => ({ ...f, empresa: toUpperCase(e.target.value) }))}
                   className={inputClass}
                   placeholder="Nome da empresa"
                 />
@@ -241,7 +242,7 @@ export default function NovoLeadPage() {
               <input
                 type="text"
                 value={form.telefone}
-                onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, telefone: formatTelefone(e.target.value) }))}
                 className={inputClass}
                 placeholder="(00) 00000-0000"
               />
@@ -307,7 +308,7 @@ export default function NovoLeadPage() {
               <input
                 type="text"
                 value={form.logradouro}
-                onChange={(e) => setForm((f) => ({ ...f, logradouro: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, logradouro: toUpperCase(e.target.value) }))}
                 className={inputClass}
                 placeholder="Rua, avenida..."
               />
@@ -327,7 +328,7 @@ export default function NovoLeadPage() {
               <input
                 type="text"
                 value={form.complemento}
-                onChange={(e) => setForm((f) => ({ ...f, complemento: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, complemento: toUpperCase(e.target.value) }))}
                 className={inputClass}
                 placeholder="Apto, sala..."
               />
@@ -337,7 +338,7 @@ export default function NovoLeadPage() {
               <input
                 type="text"
                 value={form.bairro}
-                onChange={(e) => setForm((f) => ({ ...f, bairro: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, bairro: toUpperCase(e.target.value) }))}
                 className={inputClass}
                 placeholder="Bairro"
               />
@@ -347,7 +348,7 @@ export default function NovoLeadPage() {
               <input
                 type="text"
                 value={form.cidade}
-                onChange={(e) => setForm((f) => ({ ...f, cidade: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, cidade: toUpperCase(e.target.value) }))}
                 className={inputClass}
                 placeholder="Cidade"
               />

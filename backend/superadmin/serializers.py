@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User, Group
 from django.db import IntegrityError
+from core.serializer_mixins import TextNormalizationMixin
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, 
     PagamentoLoja, UsuarioSistema, HistoricoAcessoGlobal,
@@ -219,7 +220,7 @@ class PagamentoLojaSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class LojaSerializer(serializers.ModelSerializer):
+class LojaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     tipo_loja_nome = serializers.CharField(source='tipo_loja.nome', read_only=True)
     plano_nome = serializers.CharField(source='plano.nome', read_only=True)
     owner_username = serializers.CharField(source='owner.username', read_only=True)
@@ -230,6 +231,8 @@ class LojaSerializer(serializers.ModelSerializer):
     owner_name_edit = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=200)
     financeiro = FinanceiroLojaSerializer(read_only=True)
     tipo_assinatura_display = serializers.CharField(source='get_tipo_assinatura_display', read_only=True)
+    uppercase_fields = ['nome', 'cidade', 'bairro']
+    phone_fields = ['owner_telefone']
     
     class Meta:
         model = Loja
@@ -269,7 +272,7 @@ class LojaSerializer(serializers.ModelSerializer):
         return ''
 
 
-class LojaCreateSerializer(serializers.ModelSerializer):
+class LojaCreateSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     """Serializer para criar loja com banco isolado"""
     owner_full_name = serializers.CharField(write_only=True, required=True, help_text='Nome completo do administrador')
     owner_username = serializers.CharField(write_only=True, help_text='Nome de acesso (login) à loja')
@@ -277,6 +280,8 @@ class LojaCreateSerializer(serializers.ModelSerializer):
     owner_email = serializers.EmailField(write_only=True)
     owner_telefone = serializers.CharField(write_only=True, required=False, allow_blank=True, help_text='Telefone do administrador')
     dia_vencimento = serializers.IntegerField(write_only=True, default=10, min_value=1, max_value=28)
+    uppercase_fields = ['nome', 'cidade', 'bairro']
+    phone_fields = ['owner_telefone']
     
     class Meta:
         model = Loja

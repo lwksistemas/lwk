@@ -290,7 +290,7 @@ class Loja(models.Model):
     class Meta:
         verbose_name = 'Loja'
         verbose_name_plural = 'Lojas'
-        ordering = ['-created_at']
+        ordering = ['nome']
         # ✅ OTIMIZAÇÃO: Índices para queries comuns
         indexes = [
             models.Index(fields=['is_active', '-created_at'], name='loja_active_created_idx'),
@@ -835,6 +835,7 @@ class UsuarioSistema(models.Model):
     class Meta:
         verbose_name = 'Usuário do Sistema'
         verbose_name_plural = 'Usuários do Sistema'
+        ordering = ['user__first_name', 'user__username']
         # ✅ OTIMIZAÇÃO: Índices para queries comuns
         indexes = [
             models.Index(fields=['tipo', 'is_active'], name='usuario_tipo_active_idx'),

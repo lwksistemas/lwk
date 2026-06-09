@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
-import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Moon, Sun, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { ClinicaBelezaTopBar } from './ClinicaBelezaTopBar';
 import { ClinicaBelezaPageHeaderProvider } from './ClinicaBelezaPageHeaderContext';
 import type { LojaInfo } from '@/types/dashboard';
@@ -176,10 +176,7 @@ function SidebarContent({
   sidebarCollapsed,
   isMobileDrawer = false,
   onCloseMobile,
-  darkMode,
-  setDarkMode,
   setSidebarCollapsed,
-  onLogout,
   onNavigate,
 }: {
   loja: LojaInfo;
@@ -188,10 +185,7 @@ function SidebarContent({
   sidebarCollapsed: boolean;
   isMobileDrawer?: boolean;
   onCloseMobile?: () => void;
-  darkMode: boolean;
-  setDarkMode: (v: boolean) => void;
   setSidebarCollapsed: (v: boolean) => void;
-  onLogout?: () => void;
   onNavigate: (href: string) => void;
 }) {
   const collapsed = isMobileDrawer ? false : sidebarCollapsed;
@@ -249,31 +243,6 @@ function SidebarContent({
         collapsed={collapsed}
         onNavigate={onNavigate}
       />
-
-      <div
-        className={`border-t border-gray-200/80 dark:border-gray-700 space-y-0.5 ${collapsed ? 'p-2' : 'px-3 py-2'}`}
-      >
-        <button
-          type="button"
-          onClick={() => setDarkMode(!darkMode)}
-          className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-white/80 dark:hover:bg-gray-700/50 transition-colors ${collapsed ? 'lg:justify-center' : ''}`}
-          title={darkMode ? 'Modo claro' : 'Modo escuro'}
-        >
-          {darkMode ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
-          {!collapsed && <span>{darkMode ? 'Modo claro' : 'Modo escuro'}</span>}
-        </button>
-        {onLogout && (
-          <button
-            type="button"
-            onClick={onLogout}
-            className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors ${collapsed ? 'lg:justify-center' : ''}`}
-            title="Sair"
-          >
-            <LogOut className="w-5 h-5 shrink-0" />
-            {!collapsed && <span>Sair</span>}
-          </button>
-        )}
-      </div>
     </>
   );
 }
@@ -335,19 +304,13 @@ export function ClinicaBelezaShell({
     slug,
     pathname,
     sidebarCollapsed,
-    darkMode,
-    setDarkMode,
     setSidebarCollapsed,
-    onLogout,
     onNavigate: handleNavigate,
   };
 
   const sidebarClass = `flex flex-col shrink-0 sticky top-0 h-screen z-20 bg-[#f0eaec] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${
     sidebarCollapsed ? 'w-16' : 'w-64'
   }`;
-
-  const isDashboard =
-    pathname === `/loja/${slug}/dashboard` || pathname === `/loja/${slug}/dashboard/`;
 
   return (
     <div className="flex min-h-screen bg-[#f7f2f4] dark:bg-gray-950">
@@ -381,10 +344,11 @@ export function ClinicaBelezaShell({
       )}
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <ClinicaBelezaPageHeaderProvider>
+        <ClinicaBelezaPageHeaderProvider
+          shellActions={{ loja, darkMode, setDarkMode, onLogout }}
+        >
           <ClinicaBelezaTopBar
             loja={loja}
-            isDashboard={isDashboard}
             onOpenMobileMenu={() => setSidebarOpen(true)}
           />
           <main className={`relative flex-1 min-h-0 min-w-0 overflow-y-auto ${mainClassName}`}>{children}</main>

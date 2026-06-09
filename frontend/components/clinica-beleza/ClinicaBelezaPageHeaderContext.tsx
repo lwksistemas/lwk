@@ -10,22 +10,41 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, LogOut, Plus, type LucideIcon } from 'lucide-react';
+import type { LojaInfo } from '@/types/dashboard';
 import { CLINICA_BELEZA_PRIMARY } from './clinica-beleza-nav';
 import { OfflineIndicator } from './OfflineIndicator';
 
 type PortalTarget = HTMLElement | null;
 
+export interface ClinicaBelezaShellActions {
+  loja: LojaInfo;
+  darkMode: boolean;
+  setDarkMode: (value: boolean) => void;
+  onLogout?: () => void;
+}
+
 interface ClinicaBelezaPageHeaderContextValue {
   setMainTarget: (el: PortalTarget) => void;
   setSecondaryTarget: (el: PortalTarget) => void;
+  shellActions: ClinicaBelezaShellActions | null;
 }
 
 const ClinicaBelezaPageHeaderContext = createContext<ClinicaBelezaPageHeaderContextValue | null>(
   null,
 );
 
-export function ClinicaBelezaPageHeaderProvider({ children }: { children: ReactNode }) {
+export function useClinicaBelezaShellActions() {
+  return useContext(ClinicaBelezaPageHeaderContext)?.shellActions ?? null;
+}
+
+export function ClinicaBelezaPageHeaderProvider({
+  children,
+  shellActions = null,
+}: {
+  children: ReactNode;
+  shellActions?: ClinicaBelezaShellActions | null;
+}) {
   const [mainTarget, setMainTargetState] = useState<PortalTarget>(null);
   const [secondaryTarget, setSecondaryTargetState] = useState<PortalTarget>(null);
 
@@ -38,7 +57,7 @@ export function ClinicaBelezaPageHeaderProvider({ children }: { children: ReactN
   }, []);
 
   return (
-    <ClinicaBelezaPageHeaderContext.Provider value={{ setMainTarget, setSecondaryTarget }}>
+    <ClinicaBelezaPageHeaderContext.Provider value={{ setMainTarget, setSecondaryTarget, shellActions }}>
       <ClinicaBelezaPageHeaderPortalContext.Provider value={mainTarget}>
         <ClinicaBelezaPageHeaderFooterPortalContext.Provider value={secondaryTarget}>
           {children}
@@ -104,6 +123,7 @@ export function ClinicaBelezaStandardPageHeader({
   const router = useRouter();
   const params = useParams();
   const slug = params.slug as string;
+  const shellActions = useClinicaBelezaShellActions();
 
   const handleBack = () => {
     if (onBack) {
@@ -145,6 +165,17 @@ export function ClinicaBelezaStandardPageHeader({
         <div className="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0 flex-wrap justify-end">
           {toolbarActions}
           {showOffline && <OfflineIndicator />}
+          {shellActions?.onLogout && (
+            <button
+              type="button"
+              onClick={shellActions.onLogout}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              title="Sair"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">Sair</span>
+            </button>
+          )}
           {extraActions}
           {onNew && (
             <button

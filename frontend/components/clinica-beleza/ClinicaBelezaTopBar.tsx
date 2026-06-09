@@ -1,42 +1,40 @@
 'use client';
 
 import { useCallback } from 'react';
-import { Menu } from 'lucide-react';
+import { Menu, Moon, Sun } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
-import { CLINICA_BELEZA_PRIMARY } from './clinica-beleza-nav';
-import { useClinicaBelezaPageHeaderMount } from './ClinicaBelezaPageHeaderContext';
+import { useClinicaBelezaPageHeaderMount, useClinicaBelezaShellActions } from './ClinicaBelezaPageHeaderContext';
 
-function DashboardTopBarRight({ loja }: { loja: LojaInfo }) {
-  const displayName = loja?.nome?.split(' ')[0] || 'Usuária';
+function ClinicaBelezaUserTopBarActions({ loja }: { loja: LojaInfo }) {
+  const shellActions = useClinicaBelezaShellActions();
+  const darkMode = shellActions?.darkMode ?? false;
+  const setDarkMode = shellActions?.setDarkMode;
+
   return (
-    <div className="flex items-center gap-2 sm:gap-3">
-      <div className="flex items-center gap-2">
-        <div className="text-right hidden md:block">
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">Administrador(a)</p>
-          <p className="text-xs text-gray-400 truncate max-w-[140px]">{loja?.nome}</p>
-        </div>
-        <div
-          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
-          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-        >
-          {displayName.charAt(0).toUpperCase()}
-        </div>
+    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div className="text-right hidden md:block">
+        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">Administrador(a)</p>
+        <p className="text-xs text-gray-400 truncate max-w-[140px]">{loja?.nome}</p>
       </div>
+      <button
+        type="button"
+        onClick={() => setDarkMode?.(!darkMode)}
+        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shrink-0 transition-colors"
+        title={darkMode ? 'Modo claro' : 'Modo escuro'}
+        aria-label={darkMode ? 'Ativar modo claro' : 'Ativar modo escuro'}
+      >
+        {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      </button>
     </div>
   );
 }
 
 interface ClinicaBelezaTopBarProps {
   loja: LojaInfo;
-  isDashboard?: boolean;
   onOpenMobileMenu?: () => void;
 }
 
-export function ClinicaBelezaTopBar({
-  loja,
-  isDashboard = false,
-  onOpenMobileMenu,
-}: ClinicaBelezaTopBarProps) {
+export function ClinicaBelezaTopBar({ loja, onOpenMobileMenu }: ClinicaBelezaTopBarProps) {
   const { setMainTarget, setSecondaryTarget } = useClinicaBelezaPageHeaderMount();
 
   const mainRef = useCallback(
@@ -69,17 +67,7 @@ export function ClinicaBelezaTopBar({
 
         <div ref={mainRef} className="flex-1 min-w-0 flex items-center" />
 
-        {!isDashboard && (
-          <span className="lg:hidden text-xs font-medium text-gray-500 truncate max-w-[80px] shrink-0">
-            {loja?.nome}
-          </span>
-        )}
-
-        {isDashboard && (
-          <div className="shrink-0">
-            <DashboardTopBarRight loja={loja} />
-          </div>
-        )}
+        <ClinicaBelezaUserTopBarActions loja={loja} />
       </div>
 
       <div

@@ -105,6 +105,9 @@ export interface ClinicaBelezaStandardPageHeaderProps {
   /** Ações à esquerda do indicador Online (ex.: toolbar da aba ativa). */
   toolbarActions?: ReactNode;
   extraActions?: ReactNode;
+  /** Oculta voltar, ícone e título — só exibe Online, Sair e ações extras (ex.: dashboard). */
+  actionsOnly?: boolean;
+  showBack?: boolean;
 }
 
 /** Cabeçalho padrão: voltar, título, offline e botão de ação. */
@@ -119,6 +122,8 @@ export function ClinicaBelezaStandardPageHeader({
   showOffline = true,
   toolbarActions,
   extraActions,
+  actionsOnly = false,
+  showBack = true,
 }: ClinicaBelezaStandardPageHeaderProps) {
   const router = useRouter();
   const params = useParams();
@@ -133,17 +138,60 @@ export function ClinicaBelezaStandardPageHeader({
     router.push(backHref || `/loja/${slug}/dashboard`);
   };
 
+  const actions = (
+    <>
+      {toolbarActions}
+      {showOffline && <OfflineIndicator />}
+      {shellActions?.onLogout && (
+        <button
+          type="button"
+          onClick={shellActions.onLogout}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          title="Sair"
+        >
+          <LogOut className="w-4 h-4 shrink-0" />
+          <span className="hidden sm:inline">Sair</span>
+        </button>
+      )}
+      {extraActions}
+      {onNew && (
+        <button
+          type="button"
+          onClick={onNew}
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-white rounded-lg hover:opacity-90 text-xs sm:text-sm font-medium"
+          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+        >
+          <Plus className="w-4 h-4 shrink-0" />
+          <span className="hidden sm:inline">{newLabel}</span>
+          <span className="sm:hidden">Novo</span>
+        </button>
+      )}
+    </>
+  );
+
+  if (actionsOnly) {
+    return (
+      <ClinicaBelezaPageHeader>
+        <div className="flex items-center gap-1.5 sm:gap-2 w-full min-w-0 flex-wrap justify-end">
+          {actions}
+        </div>
+      </ClinicaBelezaPageHeader>
+    );
+  }
+
   return (
     <ClinicaBelezaPageHeader>
       <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full min-w-0">
-        <button
-          type="button"
-          onClick={handleBack}
-          className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 shrink-0"
-          aria-label="Voltar"
-        >
-          <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-        </button>
+        {showBack && (
+          <button
+            type="button"
+            onClick={handleBack}
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 shrink-0"
+            aria-label="Voltar"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+          </button>
+        )}
         {Icon && (
           <div
             className="hidden sm:flex w-9 h-9 rounded-lg items-center justify-center shrink-0"
@@ -163,32 +211,7 @@ export function ClinicaBelezaStandardPageHeader({
           )}
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0 flex-wrap justify-end">
-          {toolbarActions}
-          {showOffline && <OfflineIndicator />}
-          {shellActions?.onLogout && (
-            <button
-              type="button"
-              onClick={shellActions.onLogout}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-              title="Sair"
-            >
-              <LogOut className="w-4 h-4 shrink-0" />
-              <span className="hidden sm:inline">Sair</span>
-            </button>
-          )}
-          {extraActions}
-          {onNew && (
-            <button
-              type="button"
-              onClick={onNew}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-white rounded-lg hover:opacity-90 text-xs sm:text-sm font-medium"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-            >
-              <Plus className="w-4 h-4 shrink-0" />
-              <span className="hidden sm:inline">{newLabel}</span>
-              <span className="sm:hidden">Novo</span>
-            </button>
-          )}
+          {actions}
         </div>
       </div>
     </ClinicaBelezaPageHeader>

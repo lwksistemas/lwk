@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { CalendarDays, Users, TrendingUp, Activity, CalendarRange, RefreshCw } from 'lucide-react';
+import { CalendarDays, Users, TrendingUp, Activity, RefreshCw } from 'lucide-react';
 import { ClinicaBelezaShell } from '@/components/clinica-beleza/ClinicaBelezaShell';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
@@ -222,11 +222,10 @@ export default function DashboardClinicaBeleza({ loja, onLogout }: { loja: LojaI
   return (
     <ClinicaBelezaShell loja={loja} onLogout={onLogout}>
       <ClinicaBelezaStandardPageHeader
-        title="Dashboard"
-        icon={CalendarDays}
+        title=""
+        actionsOnly
         extraActions={
           <div className="flex items-center gap-2">
-            <CalendarRange className="w-4 h-4 text-gray-400 hidden sm:block" aria-hidden />
             <input
               type="month"
               value={mesAno}

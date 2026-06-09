@@ -46,7 +46,7 @@ function NavItemButton({
       type="button"
       onClick={onClick}
       title={collapsed ? label : undefined}
-      className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
         collapsed ? 'justify-center px-2' : ''
       } ${
         isActive
@@ -163,7 +163,9 @@ function SidebarNav({
   };
 
   return (
-    <nav className={`flex-1 overflow-y-auto space-y-0.5 ${collapsed ? 'p-2' : 'px-3 py-2'}`}>
+    <nav
+      className={`space-y-0.5 shrink-0 ${collapsed ? 'p-2' : 'px-3 py-2'} max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-y-auto lg:overflow-visible`}
+    >
       {CLINICA_BELEZA_NAV_ITEMS.map(renderItem)}
     </nav>
   );
@@ -193,7 +195,7 @@ function SidebarContent({
   return (
     <>
       <div
-        className={`border-b border-gray-200/80 dark:border-gray-700 ${collapsed ? 'p-3' : 'px-4 py-5'}`}
+        className={`border-b border-gray-200/80 dark:border-gray-700 shrink-0 ${collapsed ? 'p-3' : 'px-4 py-4'}`}
       >
         <div
           className={`flex items-center gap-2 w-full ${collapsed ? 'justify-center' : ''}`}
@@ -308,7 +310,7 @@ export function ClinicaBelezaShell({
     onNavigate: handleNavigate,
   };
 
-  const sidebarClass = `flex flex-col shrink-0 sticky top-0 h-screen z-20 bg-[#f0eaec] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${
+  const sidebarClass = `flex flex-col shrink-0 sticky top-0 h-screen z-20 overflow-hidden bg-[#f0eaec] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${
     sidebarCollapsed ? 'w-16' : 'w-64'
   }`;
 

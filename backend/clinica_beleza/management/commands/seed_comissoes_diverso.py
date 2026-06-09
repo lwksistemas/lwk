@@ -249,16 +249,14 @@ class Command(BaseCommand):
                 loja_id=lid, tipo='procedimento', procedure_id__in=proc_ids_existentes,
             ).delete()
         self.stdout.write('\n30 procedimentos (comissão fixa ou %):')
-        for i, (nome, cat, preco, duracao) in enumerate(PROCEDIMENTOS_CATALOGO):
+        from clinica_beleza.procedimentos_catalogo import procedimento_catalogo_defaults
+
+        for i, item in enumerate(PROCEDIMENTOS_CATALOGO):
+            defaults = procedimento_catalogo_defaults(item)
+            defaults['descricao'] = PROC_DESC
             proc, _ = Procedure.objects.using(db).update_or_create(
-                nome=nome, loja_id=lid,
-                defaults={
-                    'preco': preco,
-                    'duracao_minutos': duracao,
-                    'categoria': cat,
-                    'is_active': True,
-                    'descricao': PROC_DESC,
-                },
+                nome=item.nome, loja_id=lid,
+                defaults=defaults,
             )
             procedimentos.append(proc)
 

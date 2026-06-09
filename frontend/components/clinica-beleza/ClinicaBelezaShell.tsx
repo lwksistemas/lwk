@@ -202,30 +202,18 @@ function SidebarContent({
         className={`border-b border-gray-200/80 dark:border-gray-700 ${collapsed ? 'p-3' : 'px-4 py-5'}`}
       >
         <div
-          className={`flex items-center gap-2 w-full ${collapsed ? 'flex-col justify-center' : ''}`}
+          className={`flex items-center gap-2 w-full ${collapsed ? 'justify-center' : ''}`}
         >
-          <div className={`flex items-center gap-3 min-w-0 ${collapsed ? '' : 'flex-1'}`}>
-            {loja?.logo ? (
-              <img src={loja.logo} alt={loja.nome} className="w-10 h-10 rounded-lg object-cover shrink-0" />
-            ) : (
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-lg font-bold shrink-0"
-                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-              >
-                {loja?.nome?.charAt(0) || 'B'}
-              </div>
-            )}
-            {!collapsed && (
-              <div className="min-w-0 flex-1">
-                <h2 className="text-xs font-bold text-gray-800 dark:text-white uppercase leading-tight tracking-wide truncate">
-                  {loja?.nome || 'Clínica'}
-                </h2>
-                <p className="text-[10px] text-gray-500 leading-snug mt-0.5">
-                  Clínica de Estética Avançada
-                </p>
-              </div>
-            )}
-          </div>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xs font-bold text-gray-800 dark:text-white uppercase leading-tight tracking-wide truncate">
+                {loja?.nome || 'Clínica'}
+              </h2>
+              <p className="text-[10px] text-gray-500 leading-snug mt-0.5">
+                Clínica de Estética Avançada
+              </p>
+            </div>
+          )}
           {!isMobileDrawer && (
             <button
               type="button"

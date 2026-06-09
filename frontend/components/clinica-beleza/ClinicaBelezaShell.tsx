@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
-import { ChevronDown, LogOut, Menu, Moon, Sun, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Moon, Sun, X } from 'lucide-react';
 import { ClinicaBelezaTopBar } from './ClinicaBelezaTopBar';
 import { ClinicaBelezaPageHeaderProvider } from './ClinicaBelezaPageHeaderContext';
 import type { LojaInfo } from '@/types/dashboard';
@@ -199,28 +199,48 @@ function SidebarContent({
   return (
     <>
       <div
-        className={`border-b border-gray-200/80 dark:border-gray-700 ${collapsed ? 'p-3 flex justify-center' : 'px-4 py-5'}`}
+        className={`border-b border-gray-200/80 dark:border-gray-700 ${collapsed ? 'p-3' : 'px-4 py-5'}`}
       >
-        <div className={`flex items-center gap-3 w-full ${collapsed ? 'justify-center' : ''}`}>
-          {loja?.logo ? (
-            <img src={loja.logo} alt={loja.nome} className="w-10 h-10 rounded-lg object-cover shrink-0" />
-          ) : (
-            <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-lg font-bold shrink-0"
+        <div
+          className={`flex items-center gap-2 w-full ${collapsed ? 'flex-col justify-center' : ''}`}
+        >
+          <div className={`flex items-center gap-3 min-w-0 ${collapsed ? '' : 'flex-1'}`}>
+            {loja?.logo ? (
+              <img src={loja.logo} alt={loja.nome} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+            ) : (
+              <div
+                className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-lg font-bold shrink-0"
+                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              >
+                {loja?.nome?.charAt(0) || 'B'}
+              </div>
+            )}
+            {!collapsed && (
+              <div className="min-w-0 flex-1">
+                <h2 className="text-xs font-bold text-gray-800 dark:text-white uppercase leading-tight tracking-wide truncate">
+                  {loja?.nome || 'Clínica'}
+                </h2>
+                <p className="text-[10px] text-gray-500 leading-snug mt-0.5">
+                  Clínica de Estética Avançada
+                </p>
+              </div>
+            )}
+          </div>
+          {!isMobileDrawer && (
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden lg:flex w-8 h-8 rounded-lg items-center justify-center text-white shrink-0 hover:opacity-90 transition-opacity"
               style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              title={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
+              aria-label={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
             >
-              {loja?.nome?.charAt(0) || 'B'}
-            </div>
-          )}
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xs font-bold text-gray-800 dark:text-white uppercase leading-tight tracking-wide truncate">
-                {loja?.nome || 'Clínica'}
-              </h2>
-              <p className="text-[10px] text-gray-500 leading-snug mt-0.5">
-                Clínica de Estética Avançada
-              </p>
-            </div>
+              {sidebarCollapsed ? (
+                <ChevronRight className="w-5 h-5" strokeWidth={2.5} />
+              ) : (
+                <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+              )}
+            </button>
           )}
           {isMobileDrawer && onCloseMobile && (
             <button
@@ -245,15 +265,6 @@ function SidebarContent({
       <div
         className={`border-t border-gray-200/80 dark:border-gray-700 space-y-0.5 ${collapsed ? 'p-2' : 'px-3 py-2'}`}
       >
-        <button
-          type="button"
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="hidden lg:flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-white/80 dark:hover:bg-gray-700/50 transition-colors"
-          title={sidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
-        >
-          <Menu className="w-5 h-5 shrink-0" />
-          {!collapsed && 'Recolher menu'}
-        </button>
         <button
           type="button"
           onClick={() => setDarkMode(!darkMode)}

@@ -138,21 +138,22 @@ export function ClinicaBelezaStandardPageHeader({
     router.push(backHref || `/loja/${slug}/dashboard`);
   };
 
-  const actions = (
+  const logoutButton = shellActions?.onLogout ? (
+    <button
+      type="button"
+      onClick={shellActions.onLogout}
+      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0"
+      title="Sair"
+    >
+      <LogOut className="w-4 h-4 shrink-0" />
+      <span className="hidden sm:inline">Sair</span>
+    </button>
+  ) : null;
+
+  const rightActions = (
     <>
       {toolbarActions}
       {showOffline && <OfflineIndicator />}
-      {shellActions?.onLogout && (
-        <button
-          type="button"
-          onClick={shellActions.onLogout}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-          title="Sair"
-        >
-          <LogOut className="w-4 h-4 shrink-0" />
-          <span className="hidden sm:inline">Sair</span>
-        </button>
-      )}
       {extraActions}
       {onNew && (
         <button
@@ -172,8 +173,11 @@ export function ClinicaBelezaStandardPageHeader({
   if (actionsOnly) {
     return (
       <ClinicaBelezaPageHeader>
-        <div className="flex items-center gap-1.5 sm:gap-2 w-full min-w-0 flex-wrap justify-end">
-          {actions}
+        <div className="flex items-center gap-2 sm:gap-3 w-full min-w-0">
+          <div className="flex items-center shrink-0">{logoutButton}</div>
+          <div className="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0 flex-wrap justify-end">
+            {rightActions}
+          </div>
         </div>
       </ClinicaBelezaPageHeader>
     );
@@ -210,8 +214,9 @@ export function ClinicaBelezaStandardPageHeader({
             </p>
           )}
         </div>
+        {logoutButton}
         <div className="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0 flex-wrap justify-end">
-          {actions}
+          {rightActions}
         </div>
       </div>
     </ClinicaBelezaPageHeader>

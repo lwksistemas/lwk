@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from core.serializer_mixins import TextNormalizationMixin
+from core.serializer_mixins import TextNormalizationMixin, CpfCnpjNormalizationMixin
 from .models import Categoria, Servico, Cliente, Profissional, Agendamento, OrdemServico, Orcamento, Funcionario
 
 
@@ -24,9 +24,10 @@ class ServicoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
 
-class ClienteSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+class ClienteSerializer(CpfCnpjNormalizationMixin, TextNormalizationMixin, serializers.ModelSerializer):
     uppercase_fields = ['nome', 'cidade', 'estado', 'bairro']
     phone_fields = ['telefone']
+    cpf_cnpj_fields = ['cpf_cnpj']
 
     class Meta:
         model = Cliente

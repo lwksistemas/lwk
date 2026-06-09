@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.conf import settings
-from core.serializer_mixins import TextNormalizationMixin
+from core.serializer_mixins import TextNormalizationMixin, CpfCnpjNormalizationMixin
 
 from .models import (
     Vendedor, Conta, Lead, Contato, Oportunidade, Atividade,
@@ -312,7 +312,7 @@ class ContaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         return value
 
 
-class LeadSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+class LeadSerializer(CpfCnpjNormalizationMixin, TextNormalizationMixin, serializers.ModelSerializer):
     conta_info = serializers.SerializerMethodField()
     contato_info = serializers.SerializerMethodField()
     phone_fields = ['telefone']
@@ -363,7 +363,7 @@ class LeadSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         return None
 
 
-class LeadListSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+class LeadListSerializer(CpfCnpjNormalizationMixin, TextNormalizationMixin, serializers.ModelSerializer):
     conta_nome = serializers.CharField(source='conta.nome', read_only=True)
     contato_nome = serializers.CharField(source='contato.nome', read_only=True)
     phone_fields = ['telefone']

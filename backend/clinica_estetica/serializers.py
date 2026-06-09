@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
-from core.serializer_mixins import TextNormalizationMixin
+from core.serializer_mixins import TextNormalizationMixin, CpfNormalizationMixin
 from .models import (
     Cliente, Profissional, Procedimento, Agendamento, Funcionario,
     ProtocoloProcedimento, EvolucaoPaciente, AnamnesesTemplate, Anamnese,
@@ -9,7 +9,7 @@ from .models import (
 )
 
 
-class ClienteSerializer(TextNormalizationMixin, BaseLojaSerializer):
+class ClienteSerializer(CpfNormalizationMixin, TextNormalizationMixin, BaseLojaSerializer):
     """
     Serializer de Cliente.
     Herda de BaseLojaSerializer para adicionar loja_id automaticamente.

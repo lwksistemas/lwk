@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User, Group
 from django.db import IntegrityError
-from core.serializer_mixins import TextNormalizationMixin
+from core.serializer_mixins import TextNormalizationMixin, CpfCnpjNormalizationMixin
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, 
     PagamentoLoja, UsuarioSistema, HistoricoAcessoGlobal,
@@ -220,7 +220,7 @@ class PagamentoLojaSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class LojaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+class LojaSerializer(CpfCnpjNormalizationMixin, TextNormalizationMixin, serializers.ModelSerializer):
     tipo_loja_nome = serializers.CharField(source='tipo_loja.nome', read_only=True)
     plano_nome = serializers.CharField(source='plano.nome', read_only=True)
     owner_username = serializers.CharField(source='owner.username', read_only=True)
@@ -233,6 +233,7 @@ class LojaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     tipo_assinatura_display = serializers.CharField(source='get_tipo_assinatura_display', read_only=True)
     uppercase_fields = ['nome', 'cidade', 'bairro']
     phone_fields = ['owner_telefone']
+    cpf_cnpj_fields = ['cpf_cnpj']
     
     class Meta:
         model = Loja
@@ -272,7 +273,7 @@ class LojaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         return ''
 
 
-class LojaCreateSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+class LojaCreateSerializer(CpfCnpjNormalizationMixin, TextNormalizationMixin, serializers.ModelSerializer):
     """Serializer para criar loja com banco isolado"""
     owner_full_name = serializers.CharField(write_only=True, required=True, help_text='Nome completo do administrador')
     owner_username = serializers.CharField(write_only=True, help_text='Nome de acesso (login) à loja')
@@ -282,6 +283,7 @@ class LojaCreateSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     dia_vencimento = serializers.IntegerField(write_only=True, default=10, min_value=1, max_value=28)
     uppercase_fields = ['nome', 'cidade', 'bairro']
     phone_fields = ['owner_telefone']
+    cpf_cnpj_fields = ['cpf_cnpj']
     
     class Meta:
         model = Loja

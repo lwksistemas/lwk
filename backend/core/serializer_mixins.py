@@ -2,7 +2,7 @@
 Mixins reutilizáveis para serializers
 """
 from .phone_utils import normalizar_telefone
-from .cpf_utils import normalizar_cpf
+from .cpf_utils import normalizar_cpf, normalizar_cpf_cnpj
 
 
 class PhoneNormalizationMixin:
@@ -93,6 +93,35 @@ class CpfNormalizationMixin:
         for field_name in fields_to_normalize:
             if field_name in data and data[field_name]:
                 data[field_name] = normalizar_cpf(data[field_name])
+        return data
+
+
+class CpfCnpjNormalizationMixin:
+    """
+    Mixin para padronizar campos de CPF/CNPJ automaticamente.
+    - CPF (11 dígitos): XXX.XXX.XXX-XX
+    - CNPJ (14 dígitos): XX.XXX.XXX/XXXX-XX
+
+    Uso:
+        class MeuSerializer(CpfCnpjNormalizationMixin, serializers.ModelSerializer):
+            cpf_cnpj_fields = ['cpf_cnpj']  # Campos a normalizar (padrão: ['cpf_cnpj'])
+    """
+
+    cpf_cnpj_fields = ['cpf_cnpj']
+
+    def validate(self, attrs):
+        fields_to_normalize = getattr(self, 'cpf_cnpj_fields', self.cpf_cnpj_fields)
+        for field_name in fields_to_normalize:
+            if field_name in attrs and attrs[field_name]:
+                attrs[field_name] = normalizar_cpf_cnpj(attrs[field_name])
+        return super().validate(attrs)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        fields_to_normalize = getattr(self, 'cpf_cnpj_fields', self.cpf_cnpj_fields)
+        for field_name in fields_to_normalize:
+            if field_name in data and data[field_name]:
+                data[field_name] = normalizar_cpf_cnpj(data[field_name])
         return data
 
 

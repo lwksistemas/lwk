@@ -138,3 +138,18 @@ class ConsultaSerializer(serializers.ModelSerializer):
     def get_exige_termo_consentimento(self, obj):
         from ..consentimento_service import consulta_exige_termo_consentimento
         return consulta_exige_termo_consentimento(obj)
+
+
+class ConsultaListSerializer(ConsultaSerializer):
+    """
+    Serializer leve para listagens — evita N+1 em total_evolucoes e consultas de termo.
+    Requer queryset com annotate(total_evolucoes_count=Count('evolucoes')).
+    """
+
+    total_evolucoes = serializers.IntegerField(source='total_evolucoes_count', read_only=True)
+
+    class Meta(ConsultaSerializer.Meta):
+        fields = [
+            f for f in ConsultaSerializer.Meta.fields
+            if f not in ('exige_termo_consentimento',)
+        ]

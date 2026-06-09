@@ -104,15 +104,72 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
 
   const lastLoadedIdRef = useRef<number | null>(null);
   const loadingDetalheRef = useRef(false);
+  const loadedTabsRef = useRef<Set<TabId>>(new Set());
+  const [tabLoading, setTabLoading] = useState(false);
+
+  const loadTabData = useCallback(async (tabId: TabId, c: Consulta, force = false) => {
+    if (!force && loadedTabsRef.current.has(tabId)) return;
+
+    if (tabId === "produtos" || tabId === "documentos" || tabId === "fotos") {
+      loadedTabsRef.current.add(tabId);
+      return;
+    }
+
+    setTabLoading(true);
+    const patientId = c.patient;
+    try {
+      switch (tabId) {
+        case "atendimento": {
+          const prots = await ClinicaBelezaAPI.getList<Protocolo>("/protocolos/", {
+            procedure: c.procedure,
+          }).catch(() => []);
+          setProtocolos(Array.isArray(prots) ? prots : []);
+          break;
+        }
+        case "anamnese": {
+          const anam = await ClinicaBelezaAPI.anamnese.get(patientId).catch(() => EMPTY_ANAMNESE);
+          const anamMerged = { ...EMPTY_ANAMNESE, ...anam };
+          setAnamnese(anamMerged);
+          setAnamneseDraft(anamMerged);
+          break;
+        }
+        case "evolucao": {
+          const evol = await ClinicaBelezaAPI.consultas.evolucoes.list(c.id).catch(() => []);
+          setEvolucoes(Array.isArray(evol) ? evol : []);
+          break;
+        }
+        case "historico": {
+          const [hist, anam, presc] = await Promise.all([
+            ClinicaBelezaAPI.consultas.historicoCliente(patientId).catch(() => []),
+            ClinicaBelezaAPI.anamnese.get(patientId).catch(() => EMPTY_ANAMNESE),
+            ClinicaBelezaAPI.memed.listarPrescricoesPaciente(patientId).catch(() => []),
+          ]);
+          setHistorico(Array.isArray(hist) ? hist : []);
+          const anamMerged = { ...EMPTY_ANAMNESE, ...anam };
+          setAnamnese(anamMerged);
+          setAnamneseDraft(anamMerged);
+          setPrescricoes(Array.isArray(presc) ? presc : []);
+          break;
+        }
+      }
+      loadedTabsRef.current.add(tabId);
+    } catch (e) {
+      logger.warn(`Erro ao carregar aba ${tabId}:`, e);
+    } finally {
+      setTabLoading(false);
+    }
+  }, []);
 
   const loadDetalhes = useCallback(async (c: Consulta) => {
     if (loadingDetalheRef.current && lastLoadedIdRef.current === c.id) return;
     loadingDetalheRef.current = true;
     lastLoadedIdRef.current = c.id;
+    loadedTabsRef.current = new Set();
 
     setLoadingDetalhe(true);
     setSelected(c);
-    setTab(c.status === "SCHEDULED" ? "historico" : "atendimento");
+    const initialTab: TabId = c.status === "SCHEDULED" ? "historico" : "atendimento";
+    setTab(initialTab);
     setEditAtendimento(false);
     setEditAnamnese(false);
     setEditEvolucao(false);
@@ -130,29 +187,14 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
       const fresh = await ClinicaBelezaAPI.consultas.get(c.id).catch(() => null);
       const consultaAtual = fresh ? { ...c, ...fresh } : c;
       setSelected(consultaAtual);
-
-      const patientId = consultaAtual.patient ?? c.patient;
-      const [anam, evol, hist, prots, presc] = await Promise.all([
-        ClinicaBelezaAPI.anamnese.get(patientId).catch(() => EMPTY_ANAMNESE),
-        ClinicaBelezaAPI.consultas.evolucoes.list(c.id).catch(() => []),
-        ClinicaBelezaAPI.consultas.historicoCliente(patientId).catch(() => []),
-        ClinicaBelezaAPI.getList<Protocolo>("/protocolos/", { procedure: c.procedure }).catch(() => []),
-        ClinicaBelezaAPI.memed.listarPrescricoesPaciente(patientId).catch(() => []),
-      ]);
-      const anamMerged = { ...EMPTY_ANAMNESE, ...anam };
-      setAnamnese(anamMerged);
-      setAnamneseDraft(anamMerged);
-      setEvolucoes(Array.isArray(evol) ? evol : []);
-      setHistorico(Array.isArray(hist) ? hist : []);
-      setProtocolos(Array.isArray(prots) ? prots : []);
-      setPrescricoes(Array.isArray(presc) ? presc : []);
+      await loadTabData(initialTab, consultaAtual, true);
     } catch (e) {
       logger.warn("Erro ao carregar detalhes da consulta:", e);
     } finally {
       loadingDetalheRef.current = false;
       setLoadingDetalhe(false);
     }
-  }, [onSelectConsulta, consulta.id]);
+  }, [onSelectConsulta, consulta.id, loadTabData]);
 
   const refreshConsulta = useCallback(async () => {
     try {
@@ -167,6 +209,11 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     if (lastLoadedIdRef.current === consulta.id) return;
     loadDetalhes(consulta);
   }, [consulta.id, loadDetalhes]);
+
+  useEffect(() => {
+    if (loadingDetalhe) return;
+    void loadTabData(tab, selected);
+  }, [tab, selected.id, loadingDetalhe, loadTabData, selected]);
 
   const salvarObservacoes = async () => {
     setSaving(true);
@@ -516,8 +563,10 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
           onPrescricaoRegistrada={recarregarPrescricoes}
         />
         <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
-          {loadingDetalhe ? (
-            <div className="text-center py-16 text-gray-500">Carregando consulta...</div>
+          {loadingDetalhe || tabLoading ? (
+            <div className="text-center py-16 text-gray-500">
+              {loadingDetalhe ? "Carregando consulta..." : "Carregando aba..."}
+            </div>
           ) : !consultaAtiva && !consultaFinalizada && tab !== "historico" ? (
             <div className="text-center py-16">
               <p className="text-gray-500 dark:text-gray-400 text-sm">

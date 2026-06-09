@@ -81,3 +81,84 @@ def normalizar_cpf(cpf):
     if not cpf:
         return ""
     return formatar_cpf(cpf)
+
+
+def somente_digitos_documento(valor) -> str:
+    """Retorna apenas dígitos de CPF, CNPJ ou documento genérico."""
+    if not valor:
+        return ""
+    return re.sub(r"\D", "", str(valor))
+
+
+def documento_preenchido(valor, min_digitos: int = 11) -> bool:
+    """True se o documento tem dígitos suficientes para validar unicidade."""
+    return len(somente_digitos_documento(valor)) >= min_digitos
+
+
+def label_documento_campo(field_name: str) -> str:
+    """Rótulo amigável para mensagens de erro."""
+    return {
+        "cpf": "CPF",
+        "cnpj": "CNPJ",
+        "cpf_cnpj": "CPF/CNPJ",
+        "documento": "documento",
+    }.get(field_name, field_name.upper())
+
+
+def existe_documento_duplicado(
+    *,
+    model,
+    field_name: str,
+    value: str,
+    loja_id=None,
+    exclude_pk=None,
+    escopo_global: bool = False,
+    apenas_ativos: bool = False,
+) -> bool:
+    """
+    Verifica duplicata comparando somente dígitos (ignora máscara).
+    Por padrão escopo por loja_id; escopo_global=True para tabelas globais (ex.: Loja).
+    """
+    digits = somente_digitos_documento(value)
+    if len(digits) < 11:
+        return False
+
+    qs = model.objects.all()
+    if not escopo_global:
+        if loja_id is None:
+            return False
+        if hasattr(model, "loja_id"):
+            qs = qs.filter(loja_id=loja_id)
+
+    if exclude_pk is not None:
+        qs = qs.exclude(pk=exclude_pk)
+    if apenas_ativos and hasattr(model, "is_active"):
+        qs = qs.filter(is_active=True)
+
+    for _pk, stored in qs.values_list("pk", field_name):
+        if somente_digitos_documento(stored) == digits:
+            return True
+    return False
+
+
+def mensagem_documento_duplicado(
+    field_name: str,
+    *,
+    escopo_global: bool = False,
+    entidade: str = "cadastro",
+) -> str:
+    """Mensagem padrão em português para documento já cadastrado."""
+    label = label_documento_campo(field_name)
+    if escopo_global and field_name in ("cpf_cnpj", "cpf", "cnpj"):
+        if entidade == "usuário":
+            return "Já existe um usuário cadastrado com este CPF."
+        return f"Já existe uma loja cadastrada com este {label}."
+    if field_name == "cnpj" and entidade == "empresa":
+        return "Já existe uma empresa cadastrada com este CNPJ nesta loja."
+    if field_name == "cnpj" and entidade == "fornecedor":
+        return "Já existe um fornecedor cadastrado com este CNPJ nesta loja."
+    if field_name == "cpf" and entidade in ("paciente", "cliente"):
+        return f"Já existe um {entidade} cadastrado com este CPF nesta loja."
+    if field_name == "cpf_cnpj":
+        return f"Já existe um {entidade} cadastrado com este CPF/CNPJ nesta loja."
+    return f"Já existe um {entidade} com este {label} nesta loja."

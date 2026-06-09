@@ -4,7 +4,11 @@ from django.contrib.auth import get_user_model
 from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.conf import settings
-from core.serializer_mixins import TextNormalizationMixin, CpfCnpjNormalizationMixin
+from core.serializer_mixins import (
+    CpfCnpjNormalizationMixin,
+    TextNormalizationMixin,
+    UniqueDocumentoPerLojaMixin,
+)
 
 from .models import (
     Vendedor, Conta, Lead, Contato, Oportunidade, Atividade,
@@ -268,7 +272,9 @@ def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso
         logger.warning('Envio de e-mail ao criar vendedor falhou: %s', mail_err)
 
 
-class ContaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+class ContaSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin, serializers.ModelSerializer):
+    unique_documento_fields = ['cnpj']
+    unique_documento_entidade = 'empresa'
     phone_fields = ['telefone']
     uppercase_fields = ['nome', 'razao_social', 'segmento', 'cidade', 'bairro', 'uf']
     
@@ -281,38 +287,16 @@ class ContaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
             'endereco', 'observacoes', 'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
-    
-    def validate_cnpj(self, value):
-        """Impede duplicata na mesma loja comparando CNPJ só pelos dígitos (formatos diferentes)."""
-        import re
-
-        if not value or not str(value).strip():
-            return value
-
-        digits = re.sub(r'\D', '', str(value))
-        if len(digits) < 11:
-            return value
-
-        from tenants.middleware import get_current_loja_id
-
-        loja_id = get_current_loja_id()
-        if not loja_id:
-            return value
-
-        qs = Conta.objects.filter(loja_id=loja_id).only('id', 'cnpj')
-        if self.instance:
-            qs = qs.exclude(pk=self.instance.pk)
-
-        for _pk, other_cnpj in qs.values_list('id', 'cnpj'):
-            if re.sub(r'\D', '', other_cnpj or '') == digits:
-                raise serializers.ValidationError(
-                    'Já existe uma empresa cadastrada com este CNPJ nesta loja.'
-                )
-
-        return value
 
 
-class LeadSerializer(CpfCnpjNormalizationMixin, TextNormalizationMixin, serializers.ModelSerializer):
+class LeadSerializer(
+    UniqueDocumentoPerLojaMixin,
+    CpfCnpjNormalizationMixin,
+    TextNormalizationMixin,
+    serializers.ModelSerializer,
+):
+    unique_documento_fields = ['cpf_cnpj']
+    unique_documento_entidade = 'lead'
     conta_info = serializers.SerializerMethodField()
     contato_info = serializers.SerializerMethodField()
     phone_fields = ['telefone']

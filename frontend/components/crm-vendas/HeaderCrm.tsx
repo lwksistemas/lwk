@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCRMUIStore } from '@/store/crm-ui';
-import { Menu, Search, Grid, Plus, Bell, HelpCircle, User, Users, DollarSign, Building2, MessageCircle } from 'lucide-react';
+import { Menu, Search, Grid, Plus, Bell, HelpCircle, User, Users, DollarSign, Building2, MessageCircle, FileText } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
 import ModalChamado from '@/components/suporte/ModalChamado';
@@ -13,6 +13,7 @@ interface BuscaResult {
   leads: { id: number; nome: string; empresa: string; status: string; cpf_cnpj?: string }[];
   oportunidades: { id: number; titulo: string; valor: string; etapa: string; lead_nome: string; lead_empresa: string }[];
   contas: { id: number; nome: string; segmento: string; cnpj?: string }[];
+  propostas?: { id: number; titulo: string; numero: string; status: string; oportunidade_titulo: string; lead_nome: string }[];
 }
 
 interface HeaderCrmProps {
@@ -104,7 +105,7 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
       });
       setSearchResults(res.data);
     } catch {
-      setSearchResults({ leads: [], oportunidades: [], contas: [] });
+      setSearchResults({ leads: [], oportunidades: [], contas: [], propostas: [] });
     } finally {
       setSearchLoading(false);
     }
@@ -161,7 +162,8 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
   const hasResults = searchResults && (
     searchResults.leads.length > 0 ||
     searchResults.oportunidades.length > 0 ||
-    searchResults.contas.length > 0
+    searchResults.contas.length > 0 ||
+    (searchResults.propostas?.length ?? 0) > 0
   );
 
   return (
@@ -301,6 +303,30 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
                           )}
                           {!c.cnpj && c.segmento && (
                             <span className="text-gray-500 dark:text-gray-400 truncate">• {c.segmento}</span>
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  {(searchResults!.propostas?.length ?? 0) > 0 && (
+                    <div className="px-3 py-1">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                        Propostas
+                      </p>
+                      {searchResults!.propostas!.map((p) => (
+                        <Link
+                          key={`prop-${p.id}`}
+                          href={slug ? `/loja/${slug}/crm-vendas/propostas` : '#'}
+                          onClick={handleSearchSelect}
+                          className="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] text-sm text-gray-900 dark:text-white"
+                        >
+                          <FileText size={14} className="text-[#fe9339] shrink-0" />
+                          <span className="truncate">{p.titulo}</span>
+                          {p.lead_nome && (
+                            <span className="text-gray-500 dark:text-gray-400 truncate">• {p.lead_nome}</span>
+                          )}
+                          {p.numero && (
+                            <span className="text-gray-400 dark:text-gray-500 text-xs shrink-0">#{p.numero}</span>
                           )}
                         </Link>
                       ))}

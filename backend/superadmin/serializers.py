@@ -1,7 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User, Group
 from django.db import IntegrityError
-from core.serializer_mixins import TextNormalizationMixin, CpfCnpjNormalizationMixin
+from core.serializer_mixins import (
+    CpfCnpjNormalizationMixin,
+    TextNormalizationMixin,
+    UniqueDocumentoPerLojaMixin,
+)
 from .models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, 
     PagamentoLoja, UsuarioSistema, HistoricoAcessoGlobal,
@@ -27,7 +31,10 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 
-class UsuarioSistemaSerializer(serializers.ModelSerializer):
+class UsuarioSistemaSerializer(UniqueDocumentoPerLojaMixin, serializers.ModelSerializer):
+    unique_documento_fields = ['cpf']
+    unique_documento_entidade = 'usuário'
+    unique_documento_global = True
     user = UserSerializer()
     tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
     
@@ -220,7 +227,14 @@ class PagamentoLojaSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class LojaSerializer(CpfCnpjNormalizationMixin, TextNormalizationMixin, serializers.ModelSerializer):
+class LojaSerializer(
+    UniqueDocumentoPerLojaMixin,
+    CpfCnpjNormalizationMixin,
+    TextNormalizationMixin,
+    serializers.ModelSerializer,
+):
+    unique_documento_fields = ['cpf_cnpj']
+    unique_documento_global = True
     tipo_loja_nome = serializers.CharField(source='tipo_loja.nome', read_only=True)
     plano_nome = serializers.CharField(source='plano.nome', read_only=True)
     owner_username = serializers.CharField(source='owner.username', read_only=True)
@@ -273,8 +287,15 @@ class LojaSerializer(CpfCnpjNormalizationMixin, TextNormalizationMixin, serializ
         return ''
 
 
-class LojaCreateSerializer(CpfCnpjNormalizationMixin, TextNormalizationMixin, serializers.ModelSerializer):
+class LojaCreateSerializer(
+    UniqueDocumentoPerLojaMixin,
+    CpfCnpjNormalizationMixin,
+    TextNormalizationMixin,
+    serializers.ModelSerializer,
+):
     """Serializer para criar loja com banco isolado"""
+    unique_documento_fields = ['cpf_cnpj']
+    unique_documento_global = True
     owner_full_name = serializers.CharField(write_only=True, required=True, help_text='Nome completo do administrador')
     owner_username = serializers.CharField(write_only=True, help_text='Nome de acesso (login) à loja')
     owner_password = serializers.CharField(write_only=True, required=False, allow_blank=True)

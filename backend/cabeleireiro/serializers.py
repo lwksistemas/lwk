@@ -1,13 +1,21 @@
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
+from core.serializer_mixins import CpfNormalizationMixin, UniqueDocumentoPerLojaMixin
 from .models import (
     Cliente, Profissional, Servico, Agendamento, Produto, Venda,
     Funcionario, HorarioFuncionamento, BloqueioAgenda
 )
 
 
-class ClienteSerializer(BaseLojaSerializer):
+class ClienteSerializer(
+    UniqueDocumentoPerLojaMixin,
+    CpfNormalizationMixin,
+    BaseLojaSerializer,
+):
     """Serializer de Cliente - herda BaseLojaSerializer para adicionar loja_id automaticamente"""
+    unique_documento_fields = ['cpf']
+    unique_documento_entidade = 'cliente'
+    unique_documento_apenas_ativos = True
     total_agendamentos = serializers.SerializerMethodField()
     ultima_visita = serializers.SerializerMethodField()
 

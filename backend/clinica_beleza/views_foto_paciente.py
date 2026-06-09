@@ -16,6 +16,7 @@ from .foto_paciente_service import (
     FotoUploadInvalida,
     cloudinary_upload_config,
     decodificar_token_foto,
+    excluir_foto_paciente,
     extrair_bytes_upload_request,
     gerar_qr_foto,
     listar_fotos_paciente,
@@ -24,7 +25,7 @@ from .foto_paciente_service import (
     upload_foto_cloudinary,
 )
 from .models import Consulta, PacienteFotoAcompanhamento
-from .permissions import CLINICA_MEMBER
+from .permissions import CLINICA_CLINICAL
 from .views_assinatura_consentimento import _configurar_tenant
 from .views_base import GetObjectMixin
 
@@ -42,7 +43,7 @@ def _consulta_permite_envio_foto(consulta) -> Response | None:
 class ConsultaFotosPacienteView(GetObjectMixin, APIView):
     """GET — fotos do paciente (todas as consultas). POST — registrar foto do painel."""
 
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
     model_class = Consulta
     not_found_message = 'Consulta não encontrada'
     select_related_fields = ('patient',)
@@ -78,7 +79,7 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
 class ConsultaFotoQrView(GetObjectMixin, APIView):
     """POST — gera link e QR para o paciente enviar foto pelo celular."""
 
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
     model_class = Consulta
     not_found_message = 'Consulta não encontrada'
     select_related_fields = ('patient',)
@@ -97,7 +98,7 @@ class ConsultaFotoQrView(GetObjectMixin, APIView):
 class ConsultaFotoDeleteView(GetObjectMixin, APIView):
     """DELETE — remove foto do acompanhamento."""
 
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
     model_class = Consulta
     not_found_message = 'Consulta não encontrada'
 
@@ -114,7 +115,7 @@ class ConsultaFotoDeleteView(GetObjectMixin, APIView):
             )
         except PacienteFotoAcompanhamento.DoesNotExist:
             return Response({'detail': 'Foto não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
-        foto.delete()
+        excluir_foto_paciente(foto)
         return Response({'message': 'Foto removida.'})
 
 

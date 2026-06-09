@@ -1,8 +1,16 @@
 """
 Mixins reutilizáveis para serializers
 """
+from rest_framework import serializers
+
 from .phone_utils import normalizar_telefone
-from .cpf_utils import normalizar_cpf, normalizar_cpf_cnpj
+from .cpf_utils import (
+    documento_preenchido,
+    existe_documento_duplicado,
+    mensagem_documento_duplicado,
+    normalizar_cpf,
+    normalizar_cpf_cnpj,
+)
 
 
 class PhoneNormalizationMixin:
@@ -197,6 +205,66 @@ class UpperCaseNormalizationMixin:
                     data[field_name] = value.upper()
         
         return data
+
+
+class UniqueDocumentoPerLojaMixin:
+    """
+    Impede CPF/CNPJ/documento duplicado no mesmo cadastro (por loja ou global).
+
+    Uso:
+        class PatientSerializer(UniqueDocumentoPerLojaMixin, ...):
+            unique_documento_fields = ['cpf']
+            unique_documento_entidade = 'paciente'
+    """
+
+    unique_documento_fields: list[str] = []
+    unique_documento_entidade: str = "cadastro"
+    unique_documento_global: bool = False
+    unique_documento_apenas_ativos: bool = False
+
+    def _validar_documento_unico(self, field_name: str, value):
+        if not documento_preenchido(value):
+            return value
+
+        model = getattr(getattr(self, "Meta", None), "model", None)
+        if model is None:
+            return value
+
+        loja_id = None
+        if not self.unique_documento_global:
+            from tenants.middleware import get_current_loja_id
+
+            loja_id = get_current_loja_id()
+            if not loja_id:
+                return value
+
+        exclude_pk = self.instance.pk if self.instance else None
+        if existe_documento_duplicado(
+            model=model,
+            field_name=field_name,
+            value=value,
+            loja_id=loja_id,
+            exclude_pk=exclude_pk,
+            escopo_global=self.unique_documento_global,
+            apenas_ativos=self.unique_documento_apenas_ativos,
+        ):
+            raise serializers.ValidationError(
+                mensagem_documento_duplicado(
+                    field_name,
+                    escopo_global=self.unique_documento_global,
+                    entidade=self.unique_documento_entidade,
+                )
+            )
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        fields = getattr(self, "unique_documento_fields", None) or []
+        for field_name in fields:
+            if field_name not in attrs:
+                continue
+            self._validar_documento_unico(field_name, attrs[field_name])
+        return attrs
 
 
 class TextNormalizationMixin(PhoneNormalizationMixin, UpperCaseNormalizationMixin):

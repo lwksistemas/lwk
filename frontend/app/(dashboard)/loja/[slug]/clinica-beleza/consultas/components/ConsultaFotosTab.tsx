@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import {
-  Camera,
   QrCode,
   X,
   Trash2,
@@ -19,6 +18,7 @@ import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-bele
 import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
 import { PacienteFotoZoomModal } from "./PacienteFotoZoomModal";
 
+const MIN_COMPARAR = 2;
 const MAX_COMPARAR = 3;
 
 export function ConsultaFotosTab({
@@ -146,14 +146,14 @@ export function ConsultaFotosTab({
             <span className="md:hidden">{qrLoading ? "…" : "QR"}</span>
           </button>
         )}
-        {selecionadas.length === MAX_COMPARAR && (
+        {selecionadas.length >= MIN_COMPARAR && (
           <button
             type="button"
             onClick={() => setComparar(true)}
             className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-gray-900 text-white dark:bg-white dark:text-gray-900"
           >
             <Columns2 size={14} />
-            <span className="hidden sm:inline">Comparar 3 fotos</span>
+            <span className="hidden sm:inline">Comparar lado a lado</span>
             <span className="sm:hidden">Comparar</span>
           </button>
         )}
@@ -162,39 +162,67 @@ export function ConsultaFotosTab({
     return () => onToolbarChange(null);
   }, [onToolbarChange, permiteEnviar, qrLoading, selecionadas.length, carregar, abrirQr]);
 
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        {permiteEnviar
-          ? "Histórico em todas as consultas. Use o QR no celular ou envie pelo painel. Clique na foto para ampliar; marque até 3 para comparar."
-          : "Histórico em todas as consultas. Consulta finalizada — apenas visualização e comparação."}
-      </p>
+  const podeComparar = selecionadas.length >= MIN_COMPARAR;
+  const colsComparacao =
+    fotosComparar.length >= MAX_COMPARAR
+      ? "md:grid-cols-3"
+      : fotosComparar.length === MIN_COMPARAR
+        ? "md:grid-cols-2"
+        : "md:grid-cols-1";
 
+  return (
+    <div className="space-y-3">
       {!permiteEnviar && (
         <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
-          Esta consulta já foi finalizada. Não é possível enviar ou remover fotos — apenas visualizar e comparar.
+          Consulta finalizada — apenas visualizar e comparar fotos.
         </p>
       )}
 
-      {permiteEnviar && (
-        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
-          <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
-            <Camera size={16} />
-            Enviar foto pelo painel
-          </p>
-          <ImageUpload
-            value={uploadUrl}
-            onChange={(url) => {
-              setUploadUrl(url);
-              if (url) void salvarUploadPainel(url);
-            }}
-            label="Adicionar foto"
-            description="A foto ficará no histórico do paciente."
-            folder={`lwksistemas/${slug}/clinica-beleza/fotos-paciente`}
-            disabled={salvando}
-          />
-        </div>
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {permiteEnviar ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <ImageUpload
+              compact
+              buttonLabel={salvando ? "Salvando…" : "Adicionar foto"}
+              value={uploadUrl}
+              onChange={(url) => {
+                setUploadUrl(url);
+                if (url) void salvarUploadPainel(url);
+              }}
+              folder={`lwksistemas/${slug}/clinica-beleza/fotos-paciente`}
+              disabled={salvando}
+            />
+            <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">
+              ou QR no topo da página
+            </span>
+          </div>
+        ) : (
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            Histórico do paciente em todas as consultas
+          </span>
+        )}
+
+        {fotos.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 ml-auto">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {selecionadas.length === 0
+                ? "Marque ✓ em 2 ou 3 fotos para comparar"
+                : `${selecionadas.length} selecionada${selecionadas.length !== 1 ? "s" : ""}`}
+            </span>
+            {podeComparar && (
+              <button
+                type="button"
+                onClick={() => setComparar(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-white"
+                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              >
+                <Columns2 size={15} />
+                Comparar lado a lado
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <p className="text-sm text-gray-500 py-8 text-center">Carregando fotos…</p>
@@ -327,14 +355,16 @@ export function ConsultaFotosTab({
         />
       )}
 
-      {comparar && fotosComparar.length === MAX_COMPARAR && (
+      {comparar && fotosComparar.length >= MIN_COMPARAR && (
         <div
           className="fixed inset-0 z-[60] bg-black flex flex-col"
           role="dialog"
           aria-modal
         >
           <div className="flex items-center justify-between px-4 py-3 bg-black/80 text-white shrink-0">
-            <span className="text-sm font-medium">Comparação de 3 fotos — tela cheia</span>
+            <span className="text-sm font-medium">
+              Comparação de {fotosComparar.length} foto{fotosComparar.length !== 1 ? "s" : ""} — tela cheia
+            </span>
             <button
               type="button"
               onClick={() => setComparar(false)}
@@ -343,7 +373,7 @@ export function ConsultaFotosTab({
               <X size={22} />
             </button>
           </div>
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-0 min-h-0">
+          <div className={`flex-1 grid grid-cols-1 ${colsComparacao} gap-0 min-h-0`}>
             {fotosComparar.map((f, i) => (
               <div key={f.id} className="relative flex flex-col min-h-0 border-t md:border-t-0 md:border-l border-white/10">
                 <p className="text-xs text-white/70 px-3 py-2 shrink-0 bg-black/40">

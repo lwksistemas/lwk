@@ -14,6 +14,9 @@ interface ImageUploadProps {
   maxSize?: number; // em MB
   aspectRatio?: string; // ex: '16:9', '1:1', '4:3'
   folder?: string; // pasta no Cloudinary (ex: 'lwksistemas/22239255889')
+  /** Botão inline, sem área de preview — para barras de ação compactas */
+  compact?: boolean;
+  buttonLabel?: string;
 }
 
 declare global {
@@ -101,6 +104,8 @@ export function ImageUpload({
   maxSize = 5,
   aspectRatio,
   folder = 'lwksistemas',
+  compact = false,
+  buttonLabel,
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -296,6 +301,36 @@ export function ImageUpload({
   const previewImgClass = isWideHero
     ? 'max-w-full max-h-full w-full h-full object-contain object-center'
     : 'w-full h-full object-cover';
+
+  const uploadButtonLabel =
+    buttonLabel ||
+    (!widgetReady ? 'A carregar…' : uploading ? 'Enviando...' : value ? 'Alterar Imagem' : 'Escolher Imagem');
+
+  if (compact) {
+    return (
+      <div className="inline-flex flex-col gap-1">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            handleUpload().catch((e) => {
+              logger.warn('Erro ao abrir upload:', e);
+              setError(String(e?.message || 'Erro ao abrir upload'));
+            });
+          }}
+          disabled={disabled || uploading}
+          className="h-9"
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          {uploadButtonLabel}
+        </Button>
+        {error && (
+          <p className="text-xs text-red-600 dark:text-red-400 max-w-xs">{error}</p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">

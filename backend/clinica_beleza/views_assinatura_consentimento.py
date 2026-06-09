@@ -399,6 +399,10 @@ class ConsultaAssinaturaPdfPublicaView(View):
         assinatura = adapter.buscar_assinatura_por_token(token)
         if not assinatura:
             return JsonResponse({'error': 'Link inválido.'}, status=400)
+        if assinatura.assinado:
+            return JsonResponse({'error': 'Este documento já foi assinado.'}, status=400)
+        if assinatura.is_expirado:
+            return JsonResponse({'error': 'Este link expirou.'}, status=400)
 
         termo_proc = _documento_da_assinatura(adapter, assinatura)
         if not termo_proc:

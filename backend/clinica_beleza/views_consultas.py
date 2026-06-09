@@ -57,10 +57,16 @@ class ConsultaListView(APIView):
     permission_classes = CLINICA_MEMBER
 
     def get(self, request):
+        from django.db.models import Count
+
+        from .serializers import ConsultaListSerializer
+
         qs = Consulta.objects.select_related(
             'patient', 'professional', 'procedure', 'protocol', 'appointment',
         ).prefetch_related(
             'appointment__appointment_procedures__procedure',
+        ).annotate(
+            total_evolucoes_count=Count('evolucoes'),
         ).order_by('-data_inicio', '-created_at')
         if patient_id := request.query_params.get('patient'):
             qs = qs.filter(patient_id=patient_id)
@@ -70,7 +76,7 @@ class ConsultaListView(APIView):
             qs = qs.filter(status=st)
         if appointment_id := request.query_params.get('appointment'):
             qs = qs.filter(appointment_id=appointment_id)
-        return paginate_queryset(qs, request, ConsultaSerializer)
+        return paginate_queryset(qs, request, ConsultaListSerializer)
 
     def post(self, request):
         patient_id = request.data.get('patient')
@@ -283,7 +289,7 @@ class ConsultaAplicarProtocoloView(APIView):
 
 class PatientAnamneseView(APIView):
     """GET / PUT /clinica-beleza/patients/<patient_id>/anamnese/"""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def get(self, request, patient_id):
         patient, error = _get_patient_or_404(patient_id)
@@ -312,7 +318,7 @@ class PatientAnamneseView(APIView):
 
 class ConsultaEvolucaoListView(APIView):
     """GET / POST /clinica-beleza/consultas/<consulta_id>/evolucoes/"""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def get(self, request, consulta_id):
         qs = ConsultaEvolucao.objects.filter(consulta_id=consulta_id).select_related(
@@ -350,7 +356,7 @@ class ConsultaSecaoPDFView(APIView):
     GET /clinica-beleza/consultas/<consulta_id>/pdf/?secao=atendimento|produtos|anamnese|evolucao
     Gera PDF da seção com logo ou papel timbrado da clínica.
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def get(self, request, consulta_id):
         from .consulta_queries import get_consulta_for_tenant
@@ -384,13 +390,21 @@ class ConsultaSecaoPDFView(APIView):
 
 class PatientHistoricoConsultasView(APIView):
     """GET /clinica-beleza/patients/<patient_id>/consultas/ — histórico do cliente."""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def get(self, request, patient_id):
+        from django.db.models import Count
+
+        from .serializers import ConsultaListSerializer
+
         qs = Consulta.objects.filter(patient_id=patient_id).select_related(
             'professional', 'procedure', 'protocol', 'appointment',
+        ).prefetch_related(
+            'appointment__appointment_procedures__procedure',
+        ).annotate(
+            total_evolucoes_count=Count('evolucoes'),
         ).order_by('-data_inicio', '-created_at')
-        return Response(ConsultaSerializer(qs, many=True).data)
+        return Response(ConsultaListSerializer(qs, many=True).data)
 
 
 class ConsultaPrescricaoView(APIView):
@@ -399,7 +413,7 @@ class ConsultaPrescricaoView(APIView):
     POST /clinica-beleza/consultas/<consulta_id>/prescricoes/ — registra uma prescrição emitida
          na Memed (a partir do evento prescricaoImpressa).
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def get(self, request, consulta_id):
         qs = PrescricaoMemed.objects.filter(consulta_id=consulta_id).select_related(
@@ -477,7 +491,7 @@ class ConsultaPrescricaoView(APIView):
 
 class PatientPrescricaoView(APIView):
     """GET /clinica-beleza/patients/<patient_id>/prescricoes/ — prescrições do cliente (histórico)."""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def get(self, request, patient_id):
         qs = PrescricaoMemed.objects.filter(patient_id=patient_id).select_related(
@@ -491,7 +505,7 @@ class PrescricaoMemedPdfView(APIView):
     POST /clinica-beleza/prescricoes-memed/<pk>/pdf/
     Busca o PDF na Memed (se ainda não salvo), arquiva no Cloudinary e retorna a URL.
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def post(self, request, pk):
         from superadmin.models import Loja

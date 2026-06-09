@@ -412,14 +412,13 @@ def crm_busca(request):
     term_digits = ''.join(c for c in q if c.isdigit())
     vendedor_id = get_current_vendedor_id(request)
 
-    from .models import Lead, Oportunidade, Conta
+    from core.text_search import q_icontains_sem_acento
+    from .models import Conta, Lead, Oportunidade, Proposta
 
     q_filter = (
-        Q(nome__icontains=term) |
-        Q(empresa__icontains=term) |
-        Q(email__icontains=term) |
-        Q(telefone__icontains=term) |
-        Q(cpf_cnpj__icontains=term)
+        q_icontains_sem_acento(term, 'nome', 'empresa', 'email')
+        | Q(telefone__icontains=term)
+        | Q(cpf_cnpj__icontains=term)
     )
     # Buscar CPF/CNPJ sem formatação (dígitos puros)
     if term_digits and len(term_digits) >= 3:
@@ -432,12 +431,16 @@ def crm_busca(request):
     leads_qs = list(leads_qs.values('id', 'nome', 'empresa', 'status', 'cpf_cnpj')[:limit])
 
     opp_filter = (
-        Q(titulo__icontains=term) |
-        Q(lead__nome__icontains=term) |
-        Q(lead__empresa__icontains=term) |
-        Q(lead__cpf_cnpj__icontains=term) |
-        Q(lead__conta__nome__icontains=term) |
-        Q(lead__conta__cnpj__icontains=term)
+        q_icontains_sem_acento(
+            term,
+            'titulo',
+            'lead__nome',
+            'lead__empresa',
+            'lead__conta__nome',
+            'lead__conta__razao_social',
+        )
+        | Q(lead__cpf_cnpj__icontains=term)
+        | Q(lead__conta__cnpj__icontains=term)
     )
     if term_digits and len(term_digits) >= 3:
         opp_filter |= Q(lead__cpf_cnpj__icontains=term_digits)
@@ -448,11 +451,9 @@ def crm_busca(request):
     opp_qs = list(opp_qs.values('id', 'titulo', 'valor', 'etapa', 'lead__nome', 'lead__empresa')[:limit])
 
     conta_filter = (
-        Q(nome__icontains=term) |
-        Q(email__icontains=term) |
-        Q(telefone__icontains=term) |
-        Q(cnpj__icontains=term) |
-        Q(razao_social__icontains=term)
+        q_icontains_sem_acento(term, 'nome', 'razao_social', 'email')
+        | Q(telefone__icontains=term)
+        | Q(cnpj__icontains=term)
     )
     if term_digits and len(term_digits) >= 3:
         conta_filter |= Q(cnpj__icontains=term_digits)
@@ -460,6 +461,29 @@ def crm_busca(request):
     if vendedor_id is not None and not is_owner(request):
         contas_qs = contas_qs.filter(vendedor_id=vendedor_id)
     contas_qs = list(contas_qs.values('id', 'nome', 'segmento', 'cnpj')[:limit])
+
+    prop_filter = (
+        q_icontains_sem_acento(
+            term,
+            'titulo',
+            'numero',
+            'oportunidade__titulo',
+            'oportunidade__lead__nome',
+            'oportunidade__lead__empresa',
+        )
+        | Q(oportunidade__lead__cpf_cnpj__icontains=term)
+    )
+    if term_digits and len(term_digits) >= 3:
+        prop_filter |= Q(oportunidade__lead__cpf_cnpj__icontains=term_digits)
+    prop_qs = Proposta.objects.filter(prop_filter)
+    if vendedor_id is not None and not is_owner(request):
+        prop_qs = prop_qs.filter(oportunidade__vendedor_id=vendedor_id)
+    prop_qs = list(
+        prop_qs.values(
+            'id', 'titulo', 'numero', 'status',
+            'oportunidade__titulo', 'oportunidade__lead__nome',
+        )[:limit]
+    )
 
     def lead_item(r):
         return {'id': r['id'], 'nome': r['nome'], 'empresa': r['empresa'] or '', 'status': r['status'], 'cpf_cnpj': r.get('cpf_cnpj') or ''}
@@ -477,10 +501,22 @@ def crm_busca(request):
     def conta_item(r):
         return {'id': r['id'], 'nome': r['nome'], 'segmento': r['segmento'] or '', 'cnpj': r.get('cnpj') or ''}
 
+    def prop_item(r):
+        lead_nome = r.get('oportunidade__lead__nome') or ''
+        return {
+            'id': r['id'],
+            'titulo': r['titulo'],
+            'numero': r.get('numero') or '',
+            'status': r.get('status') or '',
+            'oportunidade_titulo': r.get('oportunidade__titulo') or '',
+            'lead_nome': lead_nome,
+        }
+
     return Response({
         'leads': [lead_item(r) for r in leads_qs],
         'oportunidades': [opp_item(r) for r in opp_qs],
         'contas': [conta_item(r) for r in contas_qs],
+        'propostas': [prop_item(r) for r in prop_qs],
     })
 
 

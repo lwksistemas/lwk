@@ -362,6 +362,60 @@ def listar_fotos_paciente(patient_id: int) -> list[dict]:
     return [serializar_foto(f) for f in fotos]
 
 
+def excluir_foto_cloudinary(loja, cloudinary_url: str, public_id: str = '') -> bool:
+    """Remove imagem do Cloudinary. Retorna True se removida ou já inexistente."""
+    url = (cloudinary_url or '').strip()
+    pid = (public_id or '').strip()
+    if not url and not pid:
+        return False
+
+    try:
+        validar_cloudinary_foto_loja(loja, url, pid)
+    except FotoCloudinaryInvalida:
+        logger.warning(
+            'Tentativa de excluir foto fora da pasta da loja %s: %s',
+            getattr(loja, 'slug', loja.id),
+            url or pid,
+        )
+        return False
+
+    if not _configurar_cloudinary_sdk():
+        logger.error('Cloudinary indisponível para exclusão de foto do paciente')
+        return False
+
+    from superadmin.cloudinary_utils import extract_public_id_from_url
+
+    import cloudinary.uploader
+
+    target_pid = pid or extract_public_id_from_url(url)
+    if not target_pid:
+        logger.error('Não foi possível obter public_id para exclusão: %s', url)
+        return False
+
+    try:
+        result = cloudinary.uploader.destroy(target_pid)
+    except Exception:
+        logger.exception('Exceção ao remover foto do Cloudinary: %s', target_pid)
+        return False
+
+    if result.get('result') in ('ok', 'not found'):
+        logger.info('Foto removida do Cloudinary: %s', target_pid)
+        return True
+
+    logger.error('Erro ao remover foto do Cloudinary: %s', result)
+    return False
+
+
+def excluir_foto_paciente(foto) -> None:
+    """Remove foto do banco e do Cloudinary."""
+    from superadmin.models import Loja
+
+    loja = Loja.objects.using('default').filter(id=foto.loja_id, is_active=True).first()
+    if loja:
+        excluir_foto_cloudinary(loja, foto.cloudinary_url, foto.cloudinary_public_id)
+    foto.delete()
+
+
 def registrar_foto(
     consulta,
     cloudinary_url: str,

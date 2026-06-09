@@ -1,6 +1,8 @@
 """Serializers de profissionais, horários e comissões."""
 from rest_framework import serializers
-from core.serializer_mixins import TextNormalizationMixin
+from core.serializer_mixins import TextNormalizationMixin, UniqueDocumentoPerLojaMixin
+from core.cpf_utils import documento_preenchido, existe_documento_duplicado, mensagem_documento_duplicado
+from tenants.middleware import get_current_loja_id
 
 from ..models import HorarioTrabalhoProfissional, Professional, ProfessionalCommission
 
@@ -29,6 +31,22 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
         required=False,
         write_only=True,
     )
+
+    def validate(self, attrs):
+        cpf = attrs.get('cpf')
+        if documento_preenchido(cpf):
+            loja_id = get_current_loja_id()
+            if loja_id and existe_documento_duplicado(
+                model=Professional,
+                field_name='cpf',
+                value=cpf,
+                loja_id=loja_id,
+                apenas_ativos=True,
+            ):
+                raise serializers.ValidationError({
+                    'cpf': mensagem_documento_duplicado('cpf', entidade='profissional'),
+                })
+        return attrs
 
     def create(self, validated_data):
         criar_acesso = validated_data.pop('criar_acesso', False)
@@ -91,7 +109,10 @@ class HorarioTrabalhoProfissionalSerializer(serializers.ModelSerializer):
         read_only_fields = ['professional']
 
 
-class ProfessionalSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin, serializers.ModelSerializer):
+    unique_documento_fields = ['cpf']
+    unique_documento_entidade = 'profissional'
+    unique_documento_apenas_ativos = True
     is_administrador_vinculado = serializers.SerializerMethodField(read_only=True)
     horarios_trabalho = HorarioTrabalhoProfissionalSerializer(many=True, read_only=True, required=False)
     uppercase_fields = ['nome', 'especialidade']

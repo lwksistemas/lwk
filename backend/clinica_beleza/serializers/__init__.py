@@ -11,7 +11,12 @@ from .appointments import (
     AppointmentProcedureSerializer,
     BloqueioHorarioSerializer,
 )
-from .consultas import ConsultaEvolucaoSerializer, ConsultaSerializer, PrescricaoMemedSerializer
+from .consultas import (
+    ConsultaEvolucaoSerializer,
+    ConsultaListSerializer,
+    ConsultaSerializer,
+    PrescricaoMemedSerializer,
+)
 from .convenios import (
     ConvenioListSerializer,
     ConvenioPrecoSerializer,
@@ -46,6 +51,7 @@ __all__ = [
     'AppointmentProcedureSerializer',
     'BloqueioHorarioSerializer',
     'ConsultaEvolucaoSerializer',
+    'ConsultaListSerializer',
     'ConsultaSerializer',
     'ConvenioListSerializer',
     'ConvenioPrecoSerializer',

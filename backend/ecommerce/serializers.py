@@ -1,5 +1,9 @@
 from rest_framework import serializers
-from core.serializer_mixins import TextNormalizationMixin, CpfCnpjNormalizationMixin
+from core.serializer_mixins import (
+    CpfCnpjNormalizationMixin,
+    TextNormalizationMixin,
+    UniqueDocumentoPerLojaMixin,
+)
 from .models import Categoria, Produto, Cliente, Pedido, ItemPedido, Cupom
 
 
@@ -24,7 +28,15 @@ class ProdutoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
 
-class ClienteSerializer(CpfCnpjNormalizationMixin, TextNormalizationMixin, serializers.ModelSerializer):
+class ClienteSerializer(
+    UniqueDocumentoPerLojaMixin,
+    CpfCnpjNormalizationMixin,
+    TextNormalizationMixin,
+    serializers.ModelSerializer,
+):
+    unique_documento_fields = ['cpf_cnpj']
+    unique_documento_entidade = 'cliente'
+    unique_documento_apenas_ativos = True
     uppercase_fields = ['nome', 'cidade', 'estado', 'bairro']
     phone_fields = ['telefone']
     cpf_cnpj_fields = ['cpf_cnpj']

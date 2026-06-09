@@ -1,11 +1,14 @@
 from django.db.models import Q
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
-from core.serializer_mixins import TextNormalizationMixin
+from core.serializer_mixins import TextNormalizationMixin, UniqueDocumentoPerLojaMixin
 from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario, ReservaTemplate, ReservaAssinatura, ConfiguracaoHotel
 
 
-class HospedeSerializer(TextNormalizationMixin, BaseLojaSerializer):
+class HospedeSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin, BaseLojaSerializer):
+    unique_documento_fields = ['documento']
+    unique_documento_entidade = 'hóspede'
+    unique_documento_apenas_ativos = True
     uppercase_fields = ['nome']
     phone_fields = ['telefone']
 

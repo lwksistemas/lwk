@@ -115,6 +115,19 @@ class DocumentTemplateListView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+def _verificar_template_do_profissional(request, obj):
+    """Garante que o template pertence ao profissional logado (evita IDOR)."""
+    professional = _get_professional_from_request(request)
+    if not professional:
+        return Response(
+            {'error': 'Profissional não encontrado para o usuário logado.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    if obj.professional_id != professional.id:
+        return Response({'error': 'Template não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+    return None
+
+
 class DocumentTemplateDetailView(GetObjectMixin, APIView):
     """
     GET    /clinica-beleza/templates/<id>/ — detalhe do template
@@ -129,12 +142,18 @@ class DocumentTemplateDetailView(GetObjectMixin, APIView):
         obj, error = self.object_or_404(pk)
         if error:
             return error
+        erro_owner = _verificar_template_do_profissional(request, obj)
+        if erro_owner:
+            return erro_owner
         return Response(DocumentTemplateSerializer(obj).data)
 
     def put(self, request, pk):
         obj, error = self.object_or_404(pk)
         if error:
             return error
+        erro_owner = _verificar_template_do_profissional(request, obj)
+        if erro_owner:
+            return erro_owner
         serializer = DocumentTemplateSerializer(obj, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -145,6 +164,9 @@ class DocumentTemplateDetailView(GetObjectMixin, APIView):
         obj, error = self.object_or_404(pk)
         if error:
             return error
+        erro_owner = _verificar_template_do_profissional(request, obj)
+        if erro_owner:
+            return erro_owner
         obj.is_active = False
         obj.save(update_fields=['is_active', 'updated_at'])
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -29,6 +29,38 @@ def dict_admin_loja(loja) -> dict[str, Any]:
     }
 
 
+def sincronizar_vendedor_admin_owner(loja, owner=None) -> bool:
+    """
+    Alinha nome/e-mail/telefone do vendedor CRM ao administrador (User owner).
+    Evita nome errado na auditoria e na listagem de funcionários.
+    """
+    from superadmin.models import Loja, VendedorUsuario
+    from .models import Vendedor
+
+    if owner is None:
+        owner = loja.owner
+    if not owner or not getattr(loja, 'database_name', None) or not loja.database_created:
+        return False
+
+    vu = VendedorUsuario.objects.using('default').filter(user=owner, loja_id=loja.id).first()
+    if not vu:
+        return False
+
+    nome = (owner.get_full_name() or owner.username or (owner.email or '').split('@')[0]).strip()
+    if not nome:
+        return False
+
+    updated = Vendedor.objects.using(loja.database_name).filter(
+        pk=vu.vendedor_id,
+        loja_id=loja.id,
+    ).update(
+        nome=nome,
+        email=(owner.email or '').strip(),
+        telefone=(getattr(loja, 'owner_telefone', '') or '').strip(),
+    )
+    return updated > 0
+
+
 def aplicar_cache_control_sem_store(response) -> None:
     from .views_common import aplicar_cache_control_sem_store as _aplicar
 

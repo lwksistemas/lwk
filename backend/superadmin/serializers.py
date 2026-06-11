@@ -278,6 +278,11 @@ class LojaSerializer(
                 update_fields.extend(['first_name', 'last_name'])
             if update_fields:
                 instance.owner.save(update_fields=update_fields)
+            try:
+                from crm_vendas.vendedor_admin_service import sincronizar_vendedor_admin_owner
+                sincronizar_vendedor_admin_owner(instance, instance.owner)
+            except Exception:
+                logger.exception('Falha ao sincronizar vendedor admin após editar loja %s', instance.slug)
         return instance
 
     def get_owner_full_name(self, obj):

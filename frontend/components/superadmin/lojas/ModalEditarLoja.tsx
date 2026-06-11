@@ -12,6 +12,7 @@ interface Loja {
   plano_nome: string;
   owner_username: string;
   owner_email: string;
+  owner_full_name?: string;
   owner_telefone?: string;
   is_active: boolean;
   database_created: boolean;
@@ -25,12 +26,13 @@ interface ModalEditarLojaProps {
 }
 
 export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaProps) {
+  const nomeAdminInicial = (loja.owner_full_name || '').trim();
   const [formData, setFormData] = useState({
     nome: loja.nome,
     is_active: loja.is_active,
     owner_email_edit: loja.owner_email || '',
     owner_username_edit: loja.owner_username || '',
-    owner_name_edit: (loja as any).owner_full_name || '',
+    owner_name_edit: nomeAdminInicial,
   });
   const [loading, setLoading] = useState(false);
 
@@ -51,9 +53,10 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
       if (formData.owner_username_edit.trim() && formData.owner_username_edit.trim() !== loja.owner_username) {
         payload.owner_username_edit = formData.owner_username_edit.trim();
       }
-      // Só envia owner_name_edit se preenchido
-      if (formData.owner_name_edit.trim()) {
-        payload.owner_name_edit = formData.owner_name_edit.trim();
+      // Só envia owner_name_edit se o nome mudou
+      const nomeNovo = formData.owner_name_edit.trim();
+      if (nomeNovo && nomeNovo !== nomeAdminInicial) {
+        payload.owner_name_edit = nomeNovo;
       }
       await apiClient.patch(`/superadmin/lojas/${loja.id}/`, payload);
       alert('✅ Loja atualizada com sucesso!');

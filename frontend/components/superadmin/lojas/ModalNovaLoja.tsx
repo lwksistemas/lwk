@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
 import { formatCurrency } from '@/lib/financeiro-helpers';
+import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
 import { logger } from '@/lib/logger';
 
 export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
@@ -124,6 +125,10 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
       const digits = value.replace(/\D/g, '').slice(0, 8);
       const formatted = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
       setFormData(prev => ({ ...prev, cep: formatted }));
+      return;
+    }
+    if (name === 'owner_telefone') {
+      setFormData(prev => ({ ...prev, owner_telefone: formatTelefone(value) }));
       return;
     }
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -269,10 +274,10 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
     setLoading(true);
 
     try {
-      const payload = {
+      const payload = applyTelefoneInternacionalPayload({
         ...formData,
         provedor_boleto_preferido: formData.provedor_boleto_preferido || 'asaas',
-      };
+      }, ['owner_telefone']);
       const response = await apiClient.post('/superadmin/lojas/', payload);
       const loja = response.data;
       setCreatedLoja(loja);
@@ -798,7 +803,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nome de Usuário *
+                  Nome Completo do Administrador *
                 </label>
                 <input
                   type="text"
@@ -824,17 +829,13 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                   required
                   autoComplete="username"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
-                  placeholder="Ex: maria.silva ou admin_loja"
+                  placeholder="Ex: maria.silva"
                 />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Login usado para entrar no painel da loja</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Login usado para entrar no sistema</p>
               </div>
-
-              {/* Campo de senha provisória oculto - gerada automaticamente */}
-              <input type="hidden" name="owner_password" value={formData.owner_password} />
-
-              <div className="md:col-span-2">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  E-mail *
+                  Email do Administrador *
                 </label>
                 <input
                   type="email"
@@ -842,22 +843,35 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                   value={formData.owner_email}
                   onChange={handleChange}
                   required
+                  autoComplete="email"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
-                  placeholder="admin@loja.com"
+                  placeholder="email@exemplo.com"
                 />
               </div>
-
-              <div className="md:col-span-2">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Telefone do administrador
+                  Telefone do Administrador
                 </label>
                 <input
                   type="tel"
                   name="owner_telefone"
                   value={formData.owner_telefone}
                   onChange={handleChange}
+                  autoComplete="tel"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                   placeholder="(00) 00000-0000"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Senha Provisória (gerada automaticamente)
+                </label>
+                <input
+                  type="text"
+                  name="owner_password"
+                  value={formData.owner_password}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md font-mono"
                 />
               </div>
             </div>

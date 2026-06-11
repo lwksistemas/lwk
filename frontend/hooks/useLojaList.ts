@@ -15,6 +15,7 @@ export interface Loja {
   plano_nome: string;
   owner_username: string;
   owner_email: string;
+  owner_full_name?: string;
   owner_telefone?: string;
   senha_provisoria: string;
   is_active: boolean;

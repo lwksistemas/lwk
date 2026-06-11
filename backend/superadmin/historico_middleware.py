@@ -46,6 +46,8 @@ class HistoricoAcessoMiddleware:
             '/api/auth/token/refresh/',  # Refresh token (muito frequente)
             '/api/superadmin/lojas/heartbeat/',  # Heartbeat (muito frequente)
         ]
+        # Raiz do site: bots fazem POST / — não poluir auditoria
+        self.ignore_exact_paths = {'/'}
         
         # Métodos que devem ser registrados
         self.track_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
@@ -84,6 +86,9 @@ class HistoricoAcessoMiddleware:
         for ignore_url in self.ignore_urls:
             if request.path.startswith(ignore_url):
                 return False
+
+        if request.path in getattr(self, 'ignore_exact_paths', set()):
+            return False
         
         # Ignorar OPTIONS (CORS preflight)
         if request.method == 'OPTIONS':
@@ -110,45 +115,17 @@ class HistoricoAcessoMiddleware:
         from .models import HistoricoAcessoGlobal
         from superadmin.models import Loja
         
-        # Extrair informações do usuário
-        user = request.user if hasattr(request, 'user') and not isinstance(request.user, AnonymousUser) else None
-        if user:
-            usuario_email = user.email or ''
-            usuario_nome = user.get_full_name() or user.username or ''
-            loja_id = getattr(request, '_historico_loja_id', None)
-            if loja_id and (not usuario_nome or usuario_nome == user.username):
-                try:
-                    from superadmin.models import VendedorUsuario, Loja
-                    vu = VendedorUsuario.objects.using('default').filter(
-                        user=user, loja_id=loja_id
-                    ).first()
-                    if vu:
-                        loja = Loja.objects.using('default').filter(id=loja_id).first()
-                        if loja and getattr(loja, 'database_name', None):
-                            from crm_vendas.models import Vendedor
-                            vendedor = Vendedor.objects.using(loja.database_name).filter(
-                                id=vu.vendedor_id
-                            ).values_list('nome', flat=True).first()
-                            if vendedor:
-                                usuario_nome = vendedor
-                except Exception:
-                    pass
-        elif request.path.startswith('/api/asaas/'):
-            # Webhook e chamadas da API Asaas: identificar como sistema, não Anônimo
-            usuario_email = 'api@asaas.sistema'
-            usuario_nome = 'API Asaas'
-        else:
-            usuario_email = 'Anônimo'
-            usuario_nome = 'Anônimo'
-        
+        from .historico_usuario import resolver_identidade_historico
+
+        user, usuario_email, usuario_nome, loja_id_sugerida = resolver_identidade_historico(request)
+
         # Extrair informações da loja (se aplicável)
         loja = None
         loja_nome = ''
         loja_slug = ''
-        
+
         # 🔒 IMPORTANTE: Usar loja_id capturado ANTES da resposta
-        # O contexto pode ter sido limpo pelo TenantMiddleware após a resposta
-        loja_id = getattr(request, '_historico_loja_id', None)
+        loja_id = getattr(request, '_historico_loja_id', None) or loja_id_sugerida
         
         if loja_id:
             try:
@@ -250,12 +227,19 @@ class HistoricoAcessoMiddleware:
         /api/clinica/procedimentos/123/ -> Procedimento
         /api/crm/vendas/ -> Venda
         """
+        if '/whatsapp/evolution/webhook' in path:
+            return 'Webhook Evolution'
+        if '/whatsapp/config/connect' in path:
+            return 'WhatsApp (conectar)'
+        if '/whatsapp/config/disconnect' in path:
+            return 'WhatsApp (desconectar)'
+
         # Remover /api/ do início
         path = path.replace('/api/', '')
-        
+
         # Dividir por /
         parts = [p for p in path.split('/') if p]
-        
+
         if len(parts) >= 2:
             # Pegar o segundo elemento (recurso)
             recurso = parts[1]

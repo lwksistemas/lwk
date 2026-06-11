@@ -90,6 +90,10 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
                 Q(loja_nome__icontains=search) |
                 Q(loja_slug__icontains=search)
             )
+
+        if params.get('incluir_integracoes', '').lower() not in ('1', 'true', 'yes'):
+            from ..historico_auditoria_filters import queryset_excluir_integracoes
+            queryset = queryset_excluir_integracoes(queryset)
         
         return queryset.order_by('-created_at')
     
@@ -121,27 +125,29 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
             created_at__gte=data_inicio_dt,
             created_at__lt=data_fim_dt
         )
+        from ..historico_auditoria_filters import queryset_excluir_integracoes
+        qs_humanos = queryset_excluir_integracoes(qs)
         
         stats = {
             'periodo': {'inicio': data_inicio, 'fim': data_fim},
-            'total_acessos': qs.count(),
-            'total_logins': qs.filter(acao='login').count(),
-            'total_sucesso': qs.filter(sucesso=True).count(),
-            'total_erros': qs.filter(sucesso=False).count(),
+            'total_acessos': qs_humanos.count(),
+            'total_logins': qs_humanos.filter(acao='login').count(),
+            'total_sucesso': qs_humanos.filter(sucesso=True).count(),
+            'total_erros': qs_humanos.filter(sucesso=False).count(),
             'acoes_por_tipo': list(
-                qs.values('acao').annotate(total=Count('id')).order_by('-total')
+                qs_humanos.values('acao').annotate(total=Count('id')).order_by('-total')
             ),
             'usuarios_mais_ativos': list(
-                qs.values('usuario_email', 'usuario_nome')
+                qs_humanos.values('usuario_email', 'usuario_nome')
                 .annotate(total=Count('id')).order_by('-total')[:10]
             ),
             'lojas_mais_ativas': list(
-                qs.filter(loja__isnull=False)
+                qs_humanos.filter(loja__isnull=False)
                 .values('loja_id', 'loja_nome', 'loja_slug')
                 .annotate(total=Count('id')).order_by('-total')[:10]
             ),
             'ips_mais_frequentes': list(
-                qs.values('ip_address').annotate(total=Count('id')).order_by('-total')[:10]
+                qs_humanos.values('ip_address').annotate(total=Count('id')).order_by('-total')[:10]
             ),
         }
         
@@ -596,6 +602,8 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
             created_at__gte=data_inicio,
             created_at__lte=data_fim
         )
+        from ..historico_auditoria_filters import queryset_excluir_integracoes
+        qs = queryset_excluir_integracoes(qs)
         acoes = qs.annotate(dia=TruncDate('created_at')).values('dia').annotate(
             total=Count('id'),
             sucessos=Count('id', filter=Q(sucesso=True)),
@@ -618,9 +626,12 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     def acoes_por_tipo(self, request):
         """Distribuição de ações por tipo"""
         from ..models import HistoricoAcessoGlobal
+        from ..historico_auditoria_filters import queryset_excluir_integracoes
         from django.db.models import Count
         
-        acoes = HistoricoAcessoGlobal.objects.values('acao').annotate(
+        acoes = queryset_excluir_integracoes(
+            HistoricoAcessoGlobal.objects.all()
+        ).values('acao').annotate(
             total=Count('id')
         ).order_by('-total')
         
@@ -631,12 +642,13 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     def lojas_mais_ativas(self, request):
         """Ranking de lojas mais ativas"""
         from ..models import HistoricoAcessoGlobal
+        from ..historico_auditoria_filters import queryset_excluir_integracoes
         from django.db.models import Count
         
         limit = int(request.query_params.get('limit', 10))
         
-        lojas = HistoricoAcessoGlobal.objects.exclude(
-            loja__isnull=True
+        lojas = queryset_excluir_integracoes(
+            HistoricoAcessoGlobal.objects.exclude(loja__isnull=True)
         ).values('loja_id', 'loja_nome').annotate(
             total=Count('id')
         ).order_by('-total')[:limit]
@@ -650,11 +662,14 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     def usuarios_mais_ativos(self, request):
         """Ranking de usuários mais ativos"""
         from ..models import HistoricoAcessoGlobal
+        from ..historico_auditoria_filters import queryset_excluir_integracoes
         from django.db.models import Count
         
         limit = int(request.query_params.get('limit', 10))
         
-        usuarios = HistoricoAcessoGlobal.objects.values(
+        usuarios = queryset_excluir_integracoes(
+            HistoricoAcessoGlobal.objects.all()
+        ).values(
             'usuario_email', 'usuario_nome'
         ).annotate(total=Count('id')).order_by('-total')[:limit]
         

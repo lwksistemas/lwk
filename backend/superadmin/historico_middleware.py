@@ -45,6 +45,8 @@ class HistoricoAcessoMiddleware:
             '/api/superadmin/historico-acessos/',  # Evitar loop infinito
             '/api/auth/token/refresh/',  # Refresh token (muito frequente)
             '/api/superadmin/lojas/heartbeat/',  # Heartbeat (muito frequente)
+            '/api/whatsapp/evolution/webhook/',  # Webhook Evolution (muito frequente)
+            '/api/asaas/',  # Webhooks Asaas
         ]
         # Raiz do site: bots fazem POST / — não poluir auditoria
         self.ignore_exact_paths = {'/'}

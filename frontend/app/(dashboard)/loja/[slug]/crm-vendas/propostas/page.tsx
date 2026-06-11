@@ -15,6 +15,7 @@ import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
+import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import { reenviarAssinaturaAposEdicaoSeNecessario } from '@/lib/crm-reenviar-assinatura';
 import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import {
@@ -43,6 +44,10 @@ interface Proposta {
   oportunidade_titulo: string;
   lead_nome: string;
   lead_email?: string;
+  lead_telefone?: string;
+  vendedor_nome?: string;
+  vendedor_email?: string;
+  vendedor_telefone?: string;
   numero: string;
   titulo: string;
   conteudo: string;
@@ -114,6 +119,7 @@ export default function CrmVendasPropostasPage() {
   const [menuAberto, setMenuAberto] = useState<number | null>(null);
 
   const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
+  const { proposta: propostaWhatsappHabilitada } = useWhatsappEnvioFlags();
   const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
     formData,
     setFormData
@@ -573,20 +579,26 @@ export default function CrmVendasPropostasPage() {
                                     >
                                       <Mail size={15} className="text-blue-500" /> Enviar por E-mail
                                     </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => { handleEnviarCliente(p.id, 'whatsapp'); setMenuAberto(null); }}
-                                      disabled={enviandoId !== null}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
-                                    >
-                                      <MessageCircle size={15} className="text-green-500" /> Enviar por WhatsApp
-                                    </button>
+                                    {propostaWhatsappHabilitada && (
+                                      <button
+                                        type="button"
+                                        onClick={() => { handleEnviarCliente(p.id, 'whatsapp'); setMenuAberto(null); }}
+                                        disabled={enviandoId !== null}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                                      >
+                                        <MessageCircle size={15} className="text-green-500" /> Enviar por WhatsApp
+                                      </button>
+                                    )}
                                     <BotaoAssinaturaDigital
                                       variant="menuItem"
                                       tipoDocumento="proposta"
                                       documentoId={p.id}
                                       statusAssinatura={p.status_assinatura}
                                       leadEmail={p.lead_email}
+                                      leadTelefone={p.lead_telefone}
+                                      vendedorNome={p.vendedor_nome}
+                                      vendedorEmail={p.vendedor_email}
+                                      vendedorTelefone={p.vendedor_telefone}
                                       onSucesso={() => {
                                         loadPropostas(true);
                                         setMenuAberto(null);

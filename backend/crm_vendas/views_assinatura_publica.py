@@ -152,8 +152,7 @@ class AssinaturaPublicaView(View):
         from .assinatura_digital_service import (
             verificar_token_assinatura,
             registrar_assinatura,
-            criar_token_assinatura,
-            enviar_email_assinatura_vendedor,
+            notificar_vendedor_apos_assinatura_cliente,
             enviar_pdf_final,
             normalizar_token_assinatura_url,
         )
@@ -200,16 +199,19 @@ class AssinaturaPublicaView(View):
         # Se cliente assinou, criar token e enviar para vendedor
         if proximo_status == 'aguardando_vendedor':
             try:
-                assinatura_vendedor = criar_token_assinatura(documento, 'vendedor', loja_id)
-                enviar_email_assinatura_vendedor(documento, assinatura_vendedor, request)
-                
-                logger.info(
-                    f'Cliente assinou, email enviado para vendedor: '
-                    f'documento={documento.__class__.__name__}#{documento.id}'
-                )
+                ok_v, err_v = notificar_vendedor_apos_assinatura_cliente(documento, loja_id, request)
+                if ok_v:
+                    logger.info(
+                        'Cliente assinou, link enviado ao vendedor (%s): %s#%s',
+                        getattr(documento, 'canal_assinatura_vendedor', 'email'),
+                        documento.__class__.__name__,
+                        documento.id,
+                    )
+                else:
+                    logger.warning('Falha ao enviar link ao vendedor: %s', err_v)
             except Exception as e:
-                logger.exception(f'Erro ao enviar email para vendedor: {e}')
-                # Não falha a assinatura do cliente se email do vendedor falhar
+                logger.exception(f'Erro ao enviar link para vendedor: {e}')
+                # Não falha a assinatura do cliente se envio ao vendedor falhar
         
         # Se vendedor assinou, enviar PDF final
         elif proximo_status == 'concluido':

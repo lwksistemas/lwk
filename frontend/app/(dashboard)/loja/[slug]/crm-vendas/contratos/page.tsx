@@ -15,6 +15,7 @@ import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
+import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import { reenviarAssinaturaAposEdicaoSeNecessario } from '@/lib/crm-reenviar-assinatura';
 import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import {
@@ -38,6 +39,10 @@ interface Contrato {
   oportunidade_titulo: string;
   lead_nome: string;
   lead_email?: string;
+  lead_telefone?: string;
+  vendedor_nome?: string;
+  vendedor_email?: string;
+  vendedor_telefone?: string;
   numero: string;
   titulo: string;
   conteudo: string;
@@ -109,6 +114,7 @@ export default function CrmVendasContratosPage() {
   const [menuAberto, setMenuAberto] = useState<number | null>(null);
 
   const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
+  const { contrato: contratoWhatsappHabilitado } = useWhatsappEnvioFlags();
   const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
     formData,
     setFormData
@@ -487,6 +493,10 @@ export default function CrmVendasContratosPage() {
                               documentoId={c.id}
                               statusAssinatura={c.status_assinatura}
                               leadEmail={c.lead_email}
+                              leadTelefone={c.lead_telefone}
+                              vendedorNome={c.vendedor_nome}
+                              vendedorEmail={c.vendedor_email}
+                              vendedorTelefone={c.vendedor_telefone}
                               onSucesso={loadContratos}
                             />
                             {c.status_assinatura !== 'concluido' && (
@@ -501,7 +511,9 @@ export default function CrmVendasContratosPage() {
                               </button>
                             )}
                             <button type="button" onClick={() => handleEnviarCliente(c.id, 'email')} disabled={enviandoId !== null} className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50" title="Enviar por e-mail"><Mail size={16} /></button>
-                            <button type="button" onClick={() => handleEnviarCliente(c.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar por WhatsApp"><MessageCircle size={16} /></button>
+                            {contratoWhatsappHabilitado && (
+                              <button type="button" onClick={() => handleEnviarCliente(c.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar por WhatsApp"><MessageCircle size={16} /></button>
+                            )}
                             <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>
                             <button type="button" onClick={() => openModal('edit', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>
                             <button

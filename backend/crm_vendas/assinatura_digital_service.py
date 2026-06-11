@@ -304,7 +304,9 @@ def _notificar_cliente_assinou(documento, assinatura):
         Notification.objects.using('default').create(
             user_id=loja.owner_id,
             titulo=f'📝 {tipo_doc} aguardando sua assinatura',
-            mensagem=f'{titulo_doc} foi assinada por {cliente_nome}. Verifique seu e-mail para assinar.',
+            canal_v = (getattr(documento, 'canal_assinatura_vendedor', None) or 'email').strip().lower()
+        canal_txt = 'WhatsApp' if canal_v == 'whatsapp' else 'e-mail'
+        mensagem=f'{titulo_doc} foi assinada por {cliente_nome}. Verifique seu {canal_txt} para assinar.',
             tipo='sistema',
             canal='in_app',
             status='pendente',
@@ -314,7 +316,161 @@ def _notificar_cliente_assinou(documento, assinatura):
         logger.warning(f'Erro ao criar notificação de assinatura cliente: {e}')
 
 
-def reenviar_link_assinatura_pendente(documento, loja_id, request):
+def _telefone_vendedor_documento(documento) -> str:
+    oportunidade = getattr(documento, 'oportunidade', None)
+    vendedor = getattr(oportunidade, 'vendedor', None) if oportunidade else None
+    return (getattr(vendedor, 'telefone', None) or '').strip()
+
+
+def _email_vendedor_documento(documento) -> str:
+    oportunidade = getattr(documento, 'oportunidade', None)
+    vendedor = getattr(oportunidade, 'vendedor', None) if oportunidade else None
+    return (getattr(vendedor, 'email', None) or '').strip()
+
+
+def enviar_whatsapp_assinatura_vendedor(documento, assinatura, request, user=None):
+    """
+    Envia link de assinatura digital ao vendedor por WhatsApp.
+    Returns: (sucesso, erro)
+    """
+    from whatsapp.models import WhatsAppConfig
+    from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
+    from whatsapp.services import send_whatsapp
+
+    telefone = _telefone_vendedor_documento(documento)
+    if not telefone:
+        return False, 'Vendedor não possui telefone cadastrado.'
+
+    is_proposta = documento.__class__.__name__ == 'Proposta'
+    config = WhatsAppConfig.objects.filter(loja_id=assinatura.loja_id).first()
+    ok_cfg, err_cfg = whatsapp_envio_permitido(
+        config,
+        proposta=is_proposta,
+        contrato=not is_proposta,
+    )
+    if not ok_cfg:
+        return False, err_cfg
+
+    from superadmin.models import Loja
+    loja = Loja.objects.using('default').filter(id=assinatura.loja_id).first()
+    loja_nome = loja.nome if loja else 'Sistema'
+    tipo_doc = 'Proposta' if is_proposta else 'Contrato'
+    titulo = (getattr(documento, 'titulo', None) or getattr(documento, 'numero', None) or tipo_doc).strip()
+    nome_vendedor = (assinatura.nome_assinante or 'Vendedor').strip()
+
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')
+    link = f'{frontend_url}/assinar/{quote(assinatura.token, safe="")}'
+    mensagem = (
+        f'Olá {nome_vendedor}!\n\n'
+        f'O cliente já assinou a *{tipo_doc}*'
+        f'{f" — {titulo}" if titulo else ""} '
+        f'de *{loja_nome}*.\n\n'
+        f'Finalize com sua assinatura pelo link:\n{link}\n\n'
+        f'Link válido por {TOKEN_EXPIRACAO_DIAS} dias.'
+    )
+
+    ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, user=user, config=config)
+    if ok:
+        logger.info(
+            'WhatsApp assinatura vendedor CRM: %s#%s vendedor=%s',
+            documento.__class__.__name__,
+            documento.id,
+            nome_vendedor,
+        )
+    return ok, err
+
+
+def enviar_link_assinatura_vendedor(documento, assinatura, request, canal='email', user=None):
+    """Envia link de assinatura ao vendedor por e-mail ou WhatsApp."""
+    canal = (canal or 'email').strip().lower()
+    if canal == 'whatsapp':
+        return enviar_whatsapp_assinatura_vendedor(documento, assinatura, request, user=user)
+    if not (assinatura.email_assinante or '').strip() and not _email_vendedor_documento(documento):
+        return False, 'Vendedor não possui e-mail cadastrado.'
+    return enviar_email_assinatura_vendedor(documento, assinatura, request)
+
+
+def notificar_vendedor_apos_assinatura_cliente(documento, loja_id, request):
+    """Cria token do vendedor e envia pelo canal escolhido na proposta/contrato."""
+    canal = (getattr(documento, 'canal_assinatura_vendedor', None) or 'email').strip().lower()
+    if canal not in ('email', 'whatsapp'):
+        canal = 'email'
+
+    assinatura_vendedor = criar_token_assinatura(documento, 'vendedor', loja_id)
+    ok, err = enviar_link_assinatura_vendedor(
+        documento,
+        assinatura_vendedor,
+        request,
+        canal=canal,
+        user=getattr(request, 'user', None),
+    )
+    if ok:
+        logger.info(
+            'Link vendedor enviado (%s): documento=%s#%s',
+            canal,
+            documento.__class__.__name__,
+            documento.id,
+        )
+        return True, None
+
+    assinatura_vendedor.delete()
+    return False, err or f'Erro ao enviar link ao vendedor por {canal}.'
+
+
+def enviar_whatsapp_assinatura_cliente(documento, assinatura, request, user=None):
+    """
+    Envia link de assinatura digital ao cliente por WhatsApp.
+    Returns: (sucesso, erro)
+    """
+    from urllib.parse import quote
+    from whatsapp.models import WhatsAppConfig
+    from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
+    from whatsapp.services import send_whatsapp
+
+    lead = documento.oportunidade.lead
+    telefone = (getattr(lead, 'telefone', None) or '').strip()
+    if not telefone:
+        return False, 'Lead não possui telefone cadastrado.'
+
+    is_proposta = documento.__class__.__name__ == 'Proposta'
+    config = WhatsAppConfig.objects.filter(loja_id=assinatura.loja_id).first()
+    ok_cfg, err_cfg = whatsapp_envio_permitido(
+        config,
+        proposta=is_proposta,
+        contrato=not is_proposta,
+    )
+    if not ok_cfg:
+        return False, err_cfg
+
+    from superadmin.models import Loja
+    loja = Loja.objects.using('default').filter(id=assinatura.loja_id).first()
+    loja_nome = loja.nome if loja else 'Sistema'
+    tipo_doc = 'Proposta' if is_proposta else 'Contrato'
+    titulo = (getattr(documento, 'titulo', None) or getattr(documento, 'numero', None) or tipo_doc).strip()
+
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')
+    link = f'{frontend_url}/assinar/{quote(assinatura.token, safe="")}'
+    mensagem = (
+        f'Olá {lead.nome}!\n\n'
+        f'Você recebeu *{tipo_doc}*'
+        f'{f" — {titulo}" if titulo else ""} '
+        f'de *{loja_nome}* para assinatura digital.\n\n'
+        f'Leia e assine pelo link:\n{link}\n\n'
+        f'Link válido por {TOKEN_EXPIRACAO_DIAS} dias.'
+    )
+
+    ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, user=user, config=config)
+    if ok:
+        logger.info(
+            'WhatsApp assinatura CRM enviado: %s#%s lead=%s',
+            documento.__class__.__name__,
+            documento.id,
+            lead.nome,
+        )
+    return ok, err
+
+
+def reenviar_link_assinatura_pendente(documento, loja_id, request, canal='email'):
     """
     Gera novo token e reenvia o e-mail quando o documento está em
     aguardando_cliente ou aguardando_vendedor. Remove assinaturas pendentes
@@ -333,27 +489,61 @@ def reenviar_link_assinatura_pendente(documento, loja_id, request):
         if not documento.oportunidade or not documento.oportunidade.lead:
             return False, None, 'Documento sem oportunidade ou lead vinculado.'
         lead = documento.oportunidade.lead
-        if not lead.email:
+        canal = (canal or 'email').strip().lower()
+        if canal not in ('email', 'whatsapp'):
+            return False, None, 'Canal inválido. Use email ou whatsapp.'
+
+        if canal == 'email' and not lead.email:
             return False, None, 'Lead não possui email cadastrado.'
+        if canal == 'whatsapp' and not (getattr(lead, 'telefone', None) or '').strip():
+            return False, None, 'Lead não possui telefone cadastrado.'
 
         filt = {fk_field: documento, 'tipo': 'cliente', 'assinado': False}
         AssinaturaDigital.objects.filter(**filt).delete()
         assinatura = criar_token_assinatura(documento, 'cliente', loja_id)
-        ok, err = enviar_email_assinatura_cliente(documento, assinatura, request)
-        if ok:
-            return True, f'Novo link de assinatura enviado para {lead.email}', None
+
+        if canal == 'whatsapp':
+            ok, err = enviar_whatsapp_assinatura_cliente(
+                documento, assinatura, request, user=getattr(request, 'user', None),
+            )
+            if ok:
+                dest = (lead.telefone or '').strip()
+                return True, f'Novo link de assinatura enviado por WhatsApp para {dest}', None
+        else:
+            ok, err = enviar_email_assinatura_cliente(documento, assinatura, request)
+            if ok:
+                return True, f'Novo link de assinatura enviado para {lead.email}', None
+
         assinatura.delete()
-        return False, None, err or 'Erro ao enviar email.'
+        return False, None, err or 'Erro ao reenviar.'
 
     if sa == 'aguardando_vendedor':
+        canal = (canal or getattr(documento, 'canal_assinatura_vendedor', None) or 'email').strip().lower()
+        if canal not in ('email', 'whatsapp'):
+            return False, None, 'Canal inválido. Use email ou whatsapp.'
+        if canal == 'email' and not _email_vendedor_documento(documento):
+            return False, None, 'Vendedor não possui e-mail cadastrado.'
+        if canal == 'whatsapp' and not _telefone_vendedor_documento(documento):
+            return False, None, 'Vendedor não possui telefone cadastrado.'
+
+        documento.canal_assinatura_vendedor = canal
+        documento.save(update_fields=['canal_assinatura_vendedor', 'updated_at'])
+
         filt = {fk_field: documento, 'tipo': 'vendedor', 'assinado': False}
         AssinaturaDigital.objects.filter(**filt).delete()
         assinatura = criar_token_assinatura(documento, 'vendedor', loja_id)
-        ok, err = enviar_email_assinatura_vendedor(documento, assinatura, request)
+        ok, err = enviar_link_assinatura_vendedor(
+            documento,
+            assinatura,
+            request,
+            canal=canal,
+            user=getattr(request, 'user', None),
+        )
         if ok:
-            return True, 'Novo link de assinatura enviado ao vendedor.', None
+            canal_label = 'WhatsApp' if canal == 'whatsapp' else 'e-mail'
+            return True, f'Novo link de assinatura enviado ao vendedor por {canal_label}.', None
         assinatura.delete()
-        return False, None, err or 'Erro ao enviar email.'
+        return False, None, err or 'Erro ao enviar link ao vendedor.'
 
     return False, None, (
         'Reenvio só é possível quando a assinatura está aguardando cliente ou vendedor.'

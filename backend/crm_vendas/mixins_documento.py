@@ -22,7 +22,12 @@ class DocumentoQuerysetMixin:
     Requer:
         - documento_select_related: tuple de campos para select_related
     """
-    documento_select_related = ('oportunidade', 'oportunidade__lead', 'oportunidade__lead__conta')
+    documento_select_related = (
+        'oportunidade',
+        'oportunidade__lead',
+        'oportunidade__lead__conta',
+        'oportunidade__vendedor',
+    )
     documento_prefetch_related = ('oportunidade__itens__produto_servico',)
 
     def get_queryset(self):

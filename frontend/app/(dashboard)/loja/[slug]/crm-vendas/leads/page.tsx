@@ -11,6 +11,7 @@ import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { Plus, Download } from 'lucide-react';
 import LeadsTable, { type Lead } from '@/components/crm-vendas/LeadsTable';
+import { formatTelefone, telefoneInternacionalBr } from '@/lib/format-br';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 
 const ModalLeadVer = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadVer'), { ssr: false });
@@ -135,7 +136,7 @@ export default function CrmVendasLeadsPage() {
       empresa: lead.empresa || '',
       cpf_cnpj: lead.cpf_cnpj || '',
       email: lead.email || '',
-      telefone: lead.telefone || '',
+      telefone: formatTelefone(lead.telefone || ''),
       origem: lead.origem,
       status: lead.status,
       cep: lead.cep || '',
@@ -165,7 +166,7 @@ export default function CrmVendasLeadsPage() {
         empresa: form.empresa.trim() || undefined,
         cpf_cnpj: form.cpf_cnpj.trim() || undefined,
         email: form.email.trim() || undefined,
-        telefone: form.telefone.trim() || undefined,
+        telefone: form.telefone.trim() ? telefoneInternacionalBr(form.telefone) : undefined,
         origem: form.origem,
         status: form.status,
         cep: form.cep.trim() || undefined,

@@ -558,6 +558,12 @@ class Proposta(LojaIsolationMixin, models.Model):
         default='rascunho',
         help_text='Status do processo de assinatura digital'
     )
+    canal_assinatura_vendedor = models.CharField(
+        max_length=20,
+        choices=[('email', 'E-mail'), ('whatsapp', 'WhatsApp')],
+        default='email',
+        help_text='Canal para enviar link de assinatura ao vendedor após o cliente assinar',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -673,6 +679,12 @@ class Contrato(LojaIsolationMixin, models.Model):
         choices=STATUS_ASSINATURA_CHOICES,
         default='rascunho',
         help_text='Status do processo de assinatura digital'
+    )
+    canal_assinatura_vendedor = models.CharField(
+        max_length=20,
+        choices=[('email', 'E-mail'), ('whatsapp', 'WhatsApp')],
+        default='email',
+        help_text='Canal para enviar link de assinatura ao vendedor após o cliente assinar',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

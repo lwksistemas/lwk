@@ -22,6 +22,7 @@ def _run_startup_ensures():
         from superadmin.models import Loja
 
         call_command('ensure_estoque_produto_fields', verbosity=1)
+        call_command('ensure_procedimentos_catalogo', '--all-clinica-beleza', verbosity=1)
 
         stale_cutoff = timezone.now() - timedelta(hours=6)
         needs_storage_check = Loja.objects.filter(is_active=True).filter(
@@ -29,7 +30,9 @@ def _run_startup_ensures():
             | Q(storage_ultima_verificacao__lt=stale_cutoff)
         ).exists()
         if needs_storage_check:
-            call_command('verificar_storage_lojas', verbosity=1)
+            from django.core.management import get_commands
+            if 'verificar_storage_lojas' in get_commands():
+                call_command('verificar_storage_lojas', verbosity=1)
     except Exception as exc:
         print(f'[wsgi] startup ensures falhou: {exc}', file=sys.stderr)
 
@@ -100,6 +103,12 @@ def _start_whatsapp_scheduler():
                 if cache.add(f'lwk_wa_2h:{slot_key}', 1, timeout=2000):
                     from whatsapp.tasks import send_lembretes_2h_whatsapp
                     send_lembretes_2h_whatsapp()
+                    from crm_vendas.atividade_lembrete_tasks import send_lembretes_atividade_crm_2h
+                    send_lembretes_atividade_crm_2h()
+
+                if cache.add(f'lwk_crm_ativ_24h:{slot_key}', 1, timeout=2000):
+                    from crm_vendas.atividade_lembrete_tasks import send_lembretes_atividade_crm_24h
+                    send_lembretes_atividade_crm_24h()
 
                 if 7 <= hour <= 9:
                     day_key = now.strftime('%Y%m%d')

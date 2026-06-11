@@ -16,6 +16,53 @@ logger = logging.getLogger(__name__)
 ETAPAS_EM_ANDAMENTO = ['prospecting', 'qualification', 'proposal', 'negotiation']
 ETAPAS_PIPELINE = ['prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost']
 
+_ATIVIDADE_VALUES = (
+    'id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes', 'lead__nome',
+)
+
+
+def _filtro_atividades_vendedor(vendedor_id):
+    """Mesma visibilidade do calendário: oportunidade, lead ou atividade avulsa do vendedor."""
+    return (
+        Q(oportunidade__vendedor_id=vendedor_id)
+        | Q(lead__oportunidades__vendedor_id=vendedor_id)
+        | Q(lead__vendedor_id=vendedor_id)
+        | Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vendedor_id)
+    )
+
+
+def _serializar_atividades_dashboard(rows):
+    out = []
+    for a in rows:
+        item = dict(a)
+        item['lead_nome'] = (item.pop('lead__nome', None) or '').strip()
+        if item.get('data'):
+            data_val = item['data']
+            item['data'] = data_val.isoformat() if hasattr(data_val, 'isoformat') else str(data_val)
+        out.append(item)
+    return out
+
+
+def _fetch_proximas_atividades(atividades_qs, limit=10):
+    """
+    Próximas tarefas pendentes a partir de hoje (mesma lógica do calendário).
+    Não inclui tarefas antigas nem fallback sem filtro de data.
+    """
+    agora = timezone.now()
+    inicio_hoje = agora.replace(hour=0, minute=0, second=0, microsecond=0)
+    fim_janela = inicio_hoje + timedelta(days=60)
+
+    proximas = list(
+        atividades_qs.filter(
+            concluido=False,
+            data__gte=inicio_hoje,
+            data__lte=fim_janela,
+        )
+        .order_by('data')
+        .values(*_ATIVIDADE_VALUES)[:limit]
+    )
+    return _serializar_atividades_dashboard(proximas)
+
 
 def empty_dashboard_response():
     return {
@@ -116,11 +163,7 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
             Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)
         ).distinct()
         opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
-        atividades_qs = atividades_qs.filter(
-            Q(oportunidade__vendedor_id=vendedor_id)
-            | Q(lead__oportunidades__vendedor_id=vendedor_id)
-            | Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vendedor_id)
-        ).distinct()
+        atividades_qs = atividades_qs.filter(_filtro_atividades_vendedor(vendedor_id)).distinct()
         vendedores_qs = vendedores_qs.filter(id=vendedor_id)
 
     # Filtro por vendedor específico (owner filtrando por vendedor)
@@ -131,11 +174,7 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
                 Q(oportunidades__vendedor_id=vid) | Q(vendedor_id=vid)
             ).distinct()
             opp_qs = opp_qs.filter(vendedor_id=vid)
-            atividades_qs = atividades_qs.filter(
-                Q(oportunidade__vendedor_id=vid)
-                | Q(lead__oportunidades__vendedor_id=vid)
-                | Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vid)
-            ).distinct()
+            atividades_qs = atividades_qs.filter(_filtro_atividades_vendedor(vid)).distinct()
             vendedores_qs = vendedores_qs.filter(id=vid)
         except (ValueError, TypeError):
             pass
@@ -197,23 +236,16 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
         for e in ETAPAS_PIPELINE
     ]
 
-    # Atividades próximas (apenas não concluídas)
-    hoje_inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    proximos_7_dias = hoje_inicio + timedelta(days=7)
-    atividades_pendentes = atividades_qs.filter(
-        data__gte=hoje_inicio, data__lt=proximos_7_dias, concluido=False
-    ).order_by('data').values('id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes')[:10]
-    if not atividades_pendentes:
-        # Fallback: todas as atividades não concluídas (incluindo atrasadas)
-        atividades_pendentes = atividades_qs.filter(
-            concluido=False
-        ).order_by('data').values(
-            'id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes'
-        )[:5]
-    atividades_data = list(atividades_pendentes)
-    for a in atividades_data:
-        if a.get('data'):
-            a['data'] = a['data'].isoformat() if hasattr(a['data'], 'isoformat') else str(a['data'])
+    try:
+        from tenants.middleware import get_current_tenant_db
+        db_name = get_current_tenant_db()
+        if db_name and db_name != 'default':
+            from .schema_service import patch_atividade_lembrete_columns_if_missing
+            patch_atividade_lembrete_columns_if_missing(db_name)
+    except Exception:
+        logger.exception('patch lembrete atividades no dashboard')
+
+    atividades_data = _fetch_proximas_atividades(atividades_qs, limit=10)
 
     # Performance vendedores (usa período selecionado pelo filtro)
     filtro_perf = _filtro_fechamento_no_periodo(data_inicio, data_fim, prefix='oportunidades')

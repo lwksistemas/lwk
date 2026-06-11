@@ -335,6 +335,17 @@ class Atividade(LojaIsolationMixin, models.Model):
         help_text='Duração estimada da atividade em minutos'
     )
     concluido = models.BooleanField(default=False)
+    lembrete_whatsapp = models.BooleanField(
+        default=False,
+        help_text='Enviar lembretes automáticos por WhatsApp 24h e 2h antes da atividade',
+    )
+    lembrete_whatsapp_telefone = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text='Número para lembretes automáticos (ex: 5511999999999)',
+    )
+    lembrete_24h_enviado_em = models.DateTimeField(null=True, blank=True)
+    lembrete_2h_enviado_em = models.DateTimeField(null=True, blank=True)
     observacoes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

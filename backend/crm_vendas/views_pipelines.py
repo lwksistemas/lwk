@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from core.views import BaseModelViewSet
@@ -14,6 +15,7 @@ from .activities_google_sync import (
     sync_atividade_delete,
     sync_atividade_update,
 )
+from .atividade_whatsapp_service import enviar_atividade_whatsapp
 from .cache import CRMCacheManager
 from .decorators import cache_list_response
 from .mixins import CacheInvalidationMixin, VendedorFilterMixin
@@ -134,6 +136,19 @@ class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelVie
     vendedor_filter_related = ['lead__oportunidades__vendedor_id']
     cache_keys = ['atividades', 'dashboard']
 
+    def _ensure_atividade_schema(self):
+        db_name = get_current_tenant_db()
+        if db_name and db_name != 'default':
+            from .schema_service import patch_atividade_lembrete_columns_if_missing
+            patch_atividade_lembrete_columns_if_missing(db_name)
+
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            self._ensure_atividade_schema()
+        except Exception:
+            logger.exception('Falha ao aplicar patch de lembrete em atividades')
+        return super().dispatch(request, *args, **kwargs)
+
     def filter_by_vendedor(self, queryset):
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is None:
@@ -142,6 +157,7 @@ class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelVie
         filters = (
             Q(oportunidade__vendedor_id=vendedor_id)
             | Q(lead__oportunidades__vendedor_id=vendedor_id)
+            | Q(lead__vendedor_id=vendedor_id)
             | Q(
                 oportunidade__isnull=True,
                 lead__isnull=True,
@@ -196,22 +212,59 @@ class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelVie
                 pass
 
             sync_atividade_create(self.request, atividade)
+        self._disparar_lembretes_atividade(atividade)
         self._invalidate_caches()
+
+    def _disparar_lembretes_atividade(self, atividade):
+        loja_id = get_current_loja_id()
+        if not loja_id or not atividade:
+            return
+        try:
+            from .atividade_lembrete_service import tentar_lembretes_imediatos
+            tentar_lembretes_imediatos(loja_id, atividade)
+        except Exception:
+            logger.exception('Falha ao disparar lembretes imediatos atividade %s', atividade.pk)
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
             return AtividadeSerializer
         return AtividadeListSerializer
 
-    @cache_list_response(CRMCacheManager.ATIVIDADES, ttl=30, extra_keys=['data_inicio', 'data_fim'])
+    @cache_list_response(
+        CRMCacheManager.ATIVIDADES,
+        ttl=30,
+        extra_keys=['data_inicio', 'data_fim', 'concluido'],
+    )
     def list(self, request, *args, **kwargs):
+        self._ensure_atividade_schema()
         return aplicar_cache_control_sem_store(super().list(request, *args, **kwargs))
+
+    @action(detail=True, methods=['post'], url_path='enviar-whatsapp')
+    def enviar_whatsapp(self, request, pk=None):
+        atividade = self.get_object()
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response({'error': 'Contexto de loja não encontrado.'}, status=status.HTTP_400_BAD_REQUEST)
+        telefone = (request.data.get('telefone') or '').strip()
+        ok, result = enviar_atividade_whatsapp(
+            loja_id,
+            atividade,
+            telefone,
+            user=getattr(request, 'user', None),
+        )
+        if not ok:
+            return Response({'error': result}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'success': True,
+            'message': f'Lembrete enviado por WhatsApp para {result}',
+        })
 
     def perform_update(self, serializer):
         super().perform_update(serializer)
         atividade = serializer.instance
         if atividade and getattr(atividade, 'loja_id', None):
             sync_atividade_update(self.request, atividade)
+            self._disparar_lembretes_atividade(atividade)
 
     def perform_destroy(self, instance):
         try:

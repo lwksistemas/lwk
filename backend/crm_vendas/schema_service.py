@@ -190,3 +190,46 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
             "CREATE INDEX IF NOT EXISTS crm_ativ_loja_conta_idx "
             "ON crm_vendas_atividade (loja_id, conta_id);"
         )
+
+
+def patch_atividade_lembrete_columns_if_missing(db_name: str) -> None:
+    """Garante colunas da migration 0061 (lembretes WhatsApp) no schema do tenant."""
+    from django.db import connections
+    from django.utils import timezone
+    from core.db_config import ensure_loja_database_config
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        raise RuntimeError(f'Não foi possível configurar o banco {db_name}')
+
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "ALTER TABLE crm_vendas_atividade "
+            "ADD COLUMN IF NOT EXISTS lembrete_whatsapp boolean NOT NULL DEFAULT false;"
+        )
+        cursor.execute(
+            "ALTER TABLE crm_vendas_atividade "
+            "ADD COLUMN IF NOT EXISTS lembrete_whatsapp_telefone VARCHAR(20) NOT NULL DEFAULT '';"
+        )
+        cursor.execute(
+            "ALTER TABLE crm_vendas_atividade "
+            "ADD COLUMN IF NOT EXISTS lembrete_24h_enviado_em TIMESTAMP WITH TIME ZONE NULL;"
+        )
+        cursor.execute(
+            "ALTER TABLE crm_vendas_atividade "
+            "ADD COLUMN IF NOT EXISTS lembrete_2h_enviado_em TIMESTAMP WITH TIME ZONE NULL;"
+        )
+        cursor.execute(
+            "INSERT INTO django_migrations (app, name, applied) "
+            "SELECT %s, %s, %s "
+            "WHERE NOT EXISTS ("
+            "  SELECT 1 FROM django_migrations WHERE app = %s AND name = %s"
+            ");",
+            [
+                'crm_vendas',
+                '0061_atividade_lembrete_whatsapp',
+                timezone.now(),
+                'crm_vendas',
+                '0061_atividade_lembrete_whatsapp',
+            ],
+        )

@@ -19,9 +19,16 @@ from .mixins import CRMPermissionMixin
 from .cache import CRMCacheManager
 from .decorators import require_admin_access
 
-logger = logging.getLogger(__name__)
+from whatsapp.config_helpers import apply_whatsapp_config_patch, serialize_whatsapp_config
+from whatsapp.views_connection import (
+    WhatsAppConnectView as BaseWhatsAppConnectView,
+    WhatsAppConnectionStatusView as BaseWhatsAppConnectionStatusView,
+    WhatsAppDisconnectView as BaseWhatsAppDisconnectView,
+)
+from .crm_config_helpers import get_crm_config_for_loja as _get_crm_config_for_loja
 
-from .crm_config_helpers import get_crm_config_for_loja as _get_crm_config_for_loja  # noqa: F401
+
+logger = logging.getLogger(__name__)
 
 
 def _empty_dashboard_response():
@@ -162,6 +169,14 @@ def dashboard_data(request):
         except Exception as e:
             from django.db.utils import ProgrammingError, OperationalError
             if isinstance(e, (ProgrammingError, OperationalError)) and attempt == 0:
+                err_txt = str(e).lower()
+                if 'lembrete_whatsapp' in err_txt:
+                    from tenants.middleware import get_current_tenant_db
+                    from .schema_service import patch_atividade_lembrete_columns_if_missing
+                    db_name = get_current_tenant_db()
+                    if db_name and db_name != 'default':
+                        patch_atividade_lembrete_columns_if_missing(db_name)
+                        continue
                 from .schema_service import configurar_schema_crm_loja
                 loja_obj = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
                 if loja_obj and configurar_schema_crm_loja(loja_obj):
@@ -214,22 +229,8 @@ class WhatsAppConfigView(CRMPermissionMixin, APIView):
             logger.exception("WhatsAppConfigView._get_config erro: %s", e)
             return None
 
-    def _serialize_config(self, config):
-        """Serializa config para response (DRY — usado em get e patch)."""
-        loja = config.loja
-        owner_telefone = (getattr(loja, 'owner_telefone', None) or '').strip()
-        return {
-            'enviar_confirmacao': config.enviar_confirmacao,
-            'enviar_lembrete_24h': config.enviar_lembrete_24h,
-            'enviar_lembrete_2h': config.enviar_lembrete_2h,
-            'enviar_cobranca': config.enviar_cobranca,
-            'enviar_lembrete_tarefas': getattr(config, 'enviar_lembrete_tarefas', True),
-            'owner_telefone': owner_telefone,
-            'whatsapp_numero': (config.whatsapp_numero or '').strip(),
-            'whatsapp_ativo': getattr(config, 'whatsapp_ativo', False),
-            'whatsapp_phone_id': (getattr(config, 'whatsapp_phone_id', None) or '').strip(),
-            'whatsapp_token_set': bool((getattr(config, 'whatsapp_token', None) or '').strip()),
-        }
+    def _serialize_config(self, config, *, sync_evolution=False):
+        return serialize_whatsapp_config(config, loja=config.loja, sync_evolution=sync_evolution)
 
     @require_admin_access()
     def get(self, request):
@@ -239,7 +240,7 @@ class WhatsAppConfigView(CRMPermissionMixin, APIView):
                 {'error': 'Contexto de loja não encontrado'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        return Response(self._serialize_config(config))
+        return Response(self._serialize_config(config, sync_evolution=True))
 
     @require_admin_access()
     def patch(self, request):
@@ -249,38 +250,44 @@ class WhatsAppConfigView(CRMPermissionMixin, APIView):
                 {'error': 'Contexto de loja não encontrado'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        update_fields = ['updated_at']
-        for key in ('enviar_confirmacao', 'enviar_lembrete_24h', 'enviar_lembrete_2h', 'enviar_cobranca', 'enviar_lembrete_tarefas'):
-            if key in request.data:
-                setattr(config, key, bool(request.data[key]))
-                update_fields.append(key)
-        if 'whatsapp_numero' in request.data:
-            config.whatsapp_numero = (request.data.get('whatsapp_numero') or '').strip()[:20]
-            update_fields.append('whatsapp_numero')
-        if 'whatsapp_ativo' in request.data:
-            config.whatsapp_ativo = bool(request.data['whatsapp_ativo'])
-            update_fields.append('whatsapp_ativo')
-        if 'whatsapp_phone_id' in request.data:
-            config.whatsapp_phone_id = (request.data.get('whatsapp_phone_id') or '').strip()[:64]
-            update_fields.append('whatsapp_phone_id')
-        if 'whatsapp_token' in request.data:
-            config.whatsapp_token = (request.data.get('whatsapp_token') or '').strip()[:512]
-            update_fields.append('whatsapp_token')
-        if config.whatsapp_ativo:
-            phone_ok = bool((config.whatsapp_phone_id or '').strip())
-            token_ok = bool((config.whatsapp_token or '').strip())
-            if not phone_ok or not token_ok:
-                return Response(
-                    {
-                        'error': (
-                            'Cada loja usa seu próprio WhatsApp na Meta. '
-                            'Informe Phone Number ID e token antes de ativar.'
-                        )
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        update_fields, err = apply_whatsapp_config_patch(config, request.data)
+        if err:
+            return err
         config.save(update_fields=update_fields)
         return Response(self._serialize_config(config))
+
+
+class CRMWhatsAppConnectionStatusView(CRMPermissionMixin, BaseWhatsAppConnectionStatusView):
+    permission_classes = [IsAuthenticated]
+
+    @require_admin_access()
+    def get(self, request):
+        return super().get(request)
+
+    def _get_config(self, request):
+        return WhatsAppConfigView()._get_config(request)
+
+
+class CRMWhatsAppConnectView(CRMPermissionMixin, BaseWhatsAppConnectView):
+    permission_classes = [IsAuthenticated]
+
+    @require_admin_access()
+    def post(self, request):
+        return super().post(request)
+
+    def _get_config(self, request):
+        return WhatsAppConfigView()._get_config(request)
+
+
+class CRMWhatsAppDisconnectView(CRMPermissionMixin, BaseWhatsAppDisconnectView):
+    permission_classes = [IsAuthenticated]
+
+    @require_admin_access()
+    def post(self, request):
+        return super().post(request)
+
+    def _get_config(self, request):
+        return WhatsAppConfigView()._get_config(request)
 
 
 class LoginConfigView(CRMPermissionMixin, APIView):

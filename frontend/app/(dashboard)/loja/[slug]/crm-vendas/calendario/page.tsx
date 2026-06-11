@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse } from '@/lib/crm-utils';
+import { fetchAllPaginatedResults, getCrmApiErrorDetail, normalizeListResponse } from '@/lib/crm-utils';
+import { formatTelefone, telefoneInternacionalBr } from '@/lib/format-br';
 import { obterFeriadosBrasil } from '@/lib/feriados-brasil';
+import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import { AtividadeModal } from './components/AtividadeModal';
 
 const MOBILE_BREAKPOINT = 640;
@@ -33,11 +35,14 @@ export interface Atividade {
   tipo: 'call' | 'meeting' | 'email' | 'task';
   oportunidade: number | null;
   lead: number | null;
+  lead_nome?: string;
   conta: number | null;
   data: string;
   duracao_minutos?: number;
   concluido: boolean;
   observacoes: string;
+  lembrete_whatsapp?: boolean;
+  lembrete_whatsapp_telefone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -98,11 +103,25 @@ export default function CalendarioCrmPage() {
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [modalAtividade, setModalAtividade] = useState<Atividade | null>(null);
-  const [form, setForm] = useState({ titulo: '', tipo: 'task' as Atividade['tipo'], data: '', duracao_minutos: 60, observacoes: '', conta: null as number | null, lead: null as number | null });
+  const [form, setForm] = useState({
+    titulo: '',
+    tipo: 'task' as Atividade['tipo'],
+    data: '',
+    duracao_minutos: 60,
+    observacoes: '',
+    conta: null as number | null,
+    lead: null as number | null,
+    lembrete_whatsapp: false,
+    lembrete_whatsapp_telefone: '',
+  });
+  const patchForm = useCallback((patch: Partial<typeof form>) => {
+    setForm((prev) => ({ ...prev, ...patch }));
+  }, []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contas, setContas] = useState<{ id: number; nome: string }[]>([]);
-  const [leads, setLeads] = useState<{ id: number; nome: string }[]>([]);
+  const [leads, setLeads] = useState<{ id: number; nome: string; empresa?: string; telefone?: string }[]>([]);
+  const { whatsappAtivo } = useWhatsappEnvioFlags();
   const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email: string | null }>({ connected: false, email: null });
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleSyncResult, setGoogleSyncResult] = useState<{ pushed: number; pulled: number } | null>(null);
@@ -156,16 +175,21 @@ export default function CalendarioCrmPage() {
   }, [loadGoogleStatus]);
 
   useEffect(() => {
-    // Carregar contas para o seletor de empresa na atividade
-    apiClient.get(`${API_CRM}/contas/`).then((res) => {
-      const list = normalizeListResponse(res.data);
-      setContas(list.map((c: any) => ({ id: c.id, nome: c.nome })));
-    }).catch(() => {});
-    // Carregar leads para o seletor de lead na atividade
-    apiClient.get(`${API_CRM}/leads/`).then((res) => {
-      const list = normalizeListResponse(res.data);
-      setLeads(list.map((l: any) => ({ id: l.id, nome: l.nome })));
-    }).catch(() => {});
+    fetchAllPaginatedResults<{ id: number; nome: string }>(`${API_CRM}/contas/`)
+      .then((list) => setContas(list.map((c) => ({ id: c.id, nome: c.nome }))))
+      .catch(() => setContas([]));
+    fetchAllPaginatedResults<{ id: number; nome: string; empresa?: string; telefone?: string }>(
+      `${API_CRM}/leads/`,
+    )
+      .then((list) =>
+        setLeads(list.map((l) => ({
+          id: l.id,
+          nome: l.nome,
+          empresa: l.empresa,
+          telefone: l.telefone,
+        }))),
+      )
+      .catch(() => setLeads([]));
   }, []);
 
   useEffect(() => {
@@ -302,10 +326,12 @@ export default function CalendarioCrmPage() {
       observacoes: '',
       conta: null,
       lead: null,
+      lembrete_whatsapp: whatsappAtivo,
+      lembrete_whatsapp_telefone: '',
     });
     setModalOpen(true);
     setError(null);
-  }, []);
+  }, [whatsappAtivo]);
 
   const handleDateClick = useCallback((arg: { date: Date; dateStr: string; allDay: boolean }) => {
     // Função para criar tarefa ao clicar em um dia/horário vazio
@@ -334,10 +360,12 @@ export default function CalendarioCrmPage() {
       observacoes: '',
       conta: null,
       lead: null,
+      lembrete_whatsapp: whatsappAtivo,
+      lembrete_whatsapp_telefone: '',
     });
     setModalOpen(true);
     setError(null);
-  }, []);
+  }, [whatsappAtivo]);
 
   const handleSelect = useCallback((arg: { start: Date; end: Date }) => {
     // Corrigir timezone: FullCalendar retorna em UTC, precisamos converter para local
@@ -351,10 +379,12 @@ export default function CalendarioCrmPage() {
       observacoes: '',
       conta: null,
       lead: null,
+      lembrete_whatsapp: whatsappAtivo,
+      lembrete_whatsapp_telefone: '',
     });
     setModalOpen(true);
     setError(null);
-  }, []);
+  }, [whatsappAtivo]);
 
   const handleEventClick = useCallback((arg: { event: { extendedProps?: { atividade?: Atividade; tipo?: string } }; jsEvent: MouseEvent }) => {
     arg.jsEvent.preventDefault();
@@ -380,6 +410,10 @@ export default function CalendarioCrmPage() {
       observacoes: a.observacoes || '',
       conta: (a as any).conta ?? null,
       lead: (a as any).lead ?? null,
+      lembrete_whatsapp: a.lembrete_whatsapp ?? false,
+      lembrete_whatsapp_telefone: a.lembrete_whatsapp_telefone
+        ? formatTelefone(a.lembrete_whatsapp_telefone)
+        : '',
     });
     setModalOpen(true);
     setError(null);
@@ -391,7 +425,64 @@ export default function CalendarioCrmPage() {
     setError(null);
   }, []);
 
+  const buildAtividadePayload = useCallback(() => ({
+    titulo: form.titulo.trim(),
+    tipo: form.tipo,
+    data: new Date(form.data).toISOString(),
+    duracao_minutos: form.duracao_minutos,
+    observacoes: form.observacoes.trim(),
+    conta: form.conta || null,
+    lead: form.lead || null,
+    lembrete_whatsapp: form.lembrete_whatsapp,
+    lembrete_whatsapp_telefone: form.lembrete_whatsapp
+      ? telefoneInternacionalBr(form.lembrete_whatsapp_telefone)
+      : '',
+  }), [form]);
+
+  const persistAtividade = useCallback(async (): Promise<number> => {
+    const payload = buildAtividadePayload();
+    if (modalAtividade) {
+      await apiClient.patch(`${API_CRM}/atividades/${modalAtividade.id}/`, payload);
+      return modalAtividade.id;
+    }
+    const res = await apiClient.post<{ id: number }>(`${API_CRM}/atividades/`, payload);
+    return res.data.id;
+  }, [buildAtividadePayload, modalAtividade]);
+
+  const afterSaveSuccess = useCallback(async () => {
+    if (range) {
+      await fetchAtividades(range.start, range.end);
+    }
+    handleCloseModal();
+    if (googleStatus.connected && !syncingRef.current) {
+      setTimeout(() => {
+        handleSyncGoogle('push_only').catch(() => {});
+      }, 100);
+    }
+  }, [range, fetchAtividades, handleCloseModal, googleStatus.connected, handleSyncGoogle]);
+
   const handleSave = useCallback(async () => {
+    if (!form.titulo.trim()) {
+      setError('Preencha o título.');
+      return;
+    }
+    if (form.lembrete_whatsapp && form.lembrete_whatsapp_telefone.replace(/\D/g, '').length < 10) {
+      setError('Informe um WhatsApp válido para os lembretes automáticos.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await persistAtividade();
+      await afterSaveSuccess();
+    } catch (e: unknown) {
+      setError(getCrmApiErrorDetail(e, 'Erro ao salvar.'));
+    } finally {
+      setSaving(false);
+    }
+  }, [form.titulo, form.lembrete_whatsapp, form.lembrete_whatsapp_telefone, persistAtividade, afterSaveSuccess]);
+
+  const handleSaveAndWhatsapp = useCallback(async (telefone: string) => {
     if (!form.titulo.trim()) {
       setError('Preencha o título.');
       return;
@@ -399,42 +490,41 @@ export default function CalendarioCrmPage() {
     setSaving(true);
     setError(null);
     try {
-      const payload = {
-        titulo: form.titulo.trim(),
-        tipo: form.tipo,
-        data: new Date(form.data).toISOString(),
-        duracao_minutos: form.duracao_minutos,
-        observacoes: form.observacoes.trim(),
-        conta: form.conta || null,
-        lead: form.lead || null,
-      };
-      
-      if (modalAtividade) {
-        await apiClient.patch(`${API_CRM}/atividades/${modalAtividade.id}/`, payload);
-      } else {
-        await apiClient.post(`${API_CRM}/atividades/`, payload);
+      const id = await persistAtividade();
+      const res = await apiClient.post<{ message?: string }>(
+        `${API_CRM}/atividades/${id}/enviar-whatsapp/`,
+        { telefone },
+      );
+      await afterSaveSuccess();
+      if (typeof window !== 'undefined') {
+        window.alert(res.data.message || 'Atividade salva e lembrete enviado por WhatsApp.');
       }
-      
-      // ESPERAR recarregar antes de fechar o modal
-      if (range) {
-        await fetchAtividades(range.start, range.end);
-      }
-      
-      handleCloseModal();
-      
-      // Sincronizar com Google em background (não esperar)
-      if (googleStatus.connected && !syncingRef.current) {
-        setTimeout(() => {
-          handleSyncGoogle('push_only').catch(() => {});
-        }, 100);
-      }
-      
-    } catch (e: any) {
-      setError(e.response?.data?.titulo?.[0] || e.response?.data?.detail || 'Erro ao salvar.');
+    } catch (e: unknown) {
+      setError(getCrmApiErrorDetail(e, 'Erro ao salvar ou enviar WhatsApp.'));
     } finally {
       setSaving(false);
     }
-  }, [form, modalAtividade, range, fetchAtividades, handleCloseModal, googleStatus.connected, handleSyncGoogle]);
+  }, [form.titulo, persistAtividade, afterSaveSuccess]);
+
+  const handleEnviarWhatsapp = useCallback(async (telefone: string) => {
+    if (!modalAtividade) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await apiClient.post<{ message?: string }>(
+        `${API_CRM}/atividades/${modalAtividade.id}/enviar-whatsapp/`,
+        { telefone },
+      );
+      if (typeof window !== 'undefined') {
+        window.alert(res.data.message || 'Lembrete enviado por WhatsApp.');
+      }
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string; detail?: string } } };
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Erro ao enviar WhatsApp.');
+    } finally {
+      setSaving(false);
+    }
+  }, [modalAtividade]);
 
   const handleToggleConcluido = useCallback(async () => {
     if (!modalAtividade) return;
@@ -758,8 +848,11 @@ export default function CalendarioCrmPage() {
           error={error}
           contas={contas}
           leads={leads}
-          onChange={setForm}
+          whatsappHabilitado={whatsappAtivo}
+          onChange={patchForm}
           onSave={handleSave}
+          onSaveAndWhatsapp={whatsappAtivo ? handleSaveAndWhatsapp : undefined}
+          onEnviarWhatsapp={whatsappAtivo && modalAtividade ? handleEnviarWhatsapp : undefined}
           onClose={handleCloseModal}
           onToggleConcluido={modalAtividade ? handleToggleConcluido : undefined}
           onDelete={modalAtividade ? handleDelete : undefined}

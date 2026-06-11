@@ -403,7 +403,7 @@ export default function CrmVendasPropostasPage() {
     return (
       <div className="space-y-4">
         <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse" />
-        <SkeletonTable rows={5} columns={5} />
+        <SkeletonTable rows={5} columns={6} />
       </div>
     );
   }
@@ -464,13 +464,14 @@ export default function CrmVendasPropostasPage() {
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Título</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Oportunidade</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Status</th>
+                <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase w-24">Enviar</th>
                 <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Ações</th>
               </tr>
             </thead>
             <tbody>
               {propostas.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} className="py-12 text-center text-gray-500 dark:text-gray-400">
                     <ClipboardList size={48} className="mx-auto mb-3 opacity-30" />
                     <p className="font-medium">Nenhuma proposta cadastrada</p>
                     <p className="text-sm mt-1">Clique em &quot;Nova Proposta&quot; ou vá ao Pipeline para criar</p>
@@ -497,6 +498,34 @@ export default function CrmVendasPropostasPage() {
                         labelsAssinatura={STATUS_ASSINATURA_LABEL}
                         variante="proposta"
                       />
+                    </td>
+                    <td className="py-3 px-4">
+                      {p.status === 'cancelada' ? (
+                        <span className="text-gray-300 dark:text-gray-600 text-center block">—</span>
+                      ) : (
+                        <div className="flex justify-center items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleEnviarCliente(p.id, 'email')}
+                            disabled={enviandoId !== null}
+                            className="p-1.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 disabled:opacity-50"
+                            title="Enviar por e-mail"
+                          >
+                            <Mail size={16} />
+                          </button>
+                          {propostaWhatsappHabilitada && (
+                            <button
+                              type="button"
+                              onClick={() => handleEnviarCliente(p.id, 'whatsapp')}
+                              disabled={enviandoId !== null}
+                              className="p-1.5 rounded hover:bg-green-50 dark:hover:bg-green-900/30 text-green-600 dark:text-green-400 disabled:opacity-50"
+                              title="Enviar por WhatsApp"
+                            >
+                              <MessageCircle size={16} />
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-end items-center gap-1">
@@ -571,24 +600,6 @@ export default function CrmVendasPropostasPage() {
                                     >
                                       <FileText size={15} className="text-blue-600" /> Baixar Word
                                     </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => { handleEnviarCliente(p.id, 'email'); setMenuAberto(null); }}
-                                      disabled={enviandoId !== null}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
-                                    >
-                                      <Mail size={15} className="text-blue-500" /> Enviar por E-mail
-                                    </button>
-                                    {propostaWhatsappHabilitada && (
-                                      <button
-                                        type="button"
-                                        onClick={() => { handleEnviarCliente(p.id, 'whatsapp'); setMenuAberto(null); }}
-                                        disabled={enviandoId !== null}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
-                                      >
-                                        <MessageCircle size={15} className="text-green-500" /> Enviar por WhatsApp
-                                      </button>
-                                    )}
                                     <BotaoAssinaturaDigital
                                       variant="menuItem"
                                       tipoDocumento="proposta"

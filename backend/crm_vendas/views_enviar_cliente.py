@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 import logging
 
+from core.public_urls import get_public_api_base_url
 from tenants.middleware import set_current_loja_id, set_current_tenant_db, get_current_loja_id
 from .models import Proposta, Contrato
 from .pdf_proposta_contrato import gerar_pdf_proposta, gerar_pdf_contrato
@@ -159,10 +160,20 @@ def _enviar_proposta_contrato_cliente(instance, canal: str, request) -> tuple[bo
 
         try:
             from whatsapp.models import WhatsAppConfig
+            from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
+
             config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+            ok_cfg, err_cfg = whatsapp_envio_permitido(
+                config,
+                proposta=is_proposta,
+                contrato=not is_proposta,
+            )
+            if not ok_cfg:
+                return False, err_cfg
+
             token_str = _criar_token(tipo, instance.id, loja_id)
-            base_url = request.build_absolute_uri('/').rstrip('/')
-            doc_url = f'{base_url}api/crm-vendas/documento-pdf/?token={token_str}'
+            base_url = get_public_api_base_url(request)
+            doc_url = f'{base_url}/api/crm-vendas/documento-pdf/?token={token_str}'
             caption = f'Olá {lead.nome}! Segue o documento solicitado.'
             ok, err = send_whatsapp_document(
                 telefone=telefone,

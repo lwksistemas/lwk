@@ -475,7 +475,15 @@ SECURITY_NOTIFICATION_EMAILS = os.environ.get(
 ).split(',') if os.environ.get('SECURITY_NOTIFICATION_EMAILS') else []
 SITE_URL = os.environ.get('SITE_URL', '').rstrip('/')
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://lwksistemas.com.br')
+API_BASE_URL = os.environ.get('API_BASE_URL', 'https://api.lwksistemas.com.br').rstrip('/')
 
 # Google Calendar (OAuth2 + API) - CRM Vendas
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+
+# WhatsApp Meta Cloud API + Evolution (WhatsApp Web)
+WHATSAPP_API_URL = os.environ.get('WHATSAPP_API_URL', 'https://graph.facebook.com/v19.0')
+WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')
+WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', '')
+EVOLUTION_API_URL = os.environ.get('EVOLUTION_API_URL', '').rstrip('/')
+EVOLUTION_API_KEY = os.environ.get('EVOLUTION_API_KEY', '')

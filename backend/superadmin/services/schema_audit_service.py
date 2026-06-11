@@ -63,6 +63,12 @@ ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
 }
 
 
+# Tabelas com prefixo fora do padrão do app, mas válidas para o tipo.
+TABELAS_PERMITIDAS_EXTRA_POR_TIPO: dict[str, frozenset[str]] = {
+    'crm-vendas': frozenset({'crm_relatorio_comissao'}),
+}
+
+
 def prefixos_esperados_apps(apps_esperados: list[str]) -> list[str]:
     """Prefixos de table_name considerados válidos para o tipo da loja."""
     out: list[str] = []
@@ -74,13 +80,14 @@ def prefixos_esperados_apps(apps_esperados: list[str]) -> list[str]:
 
 
 def listar_tabelas_extras_no_schema(
-    conn, schema_name: str, apps_esperados: list[str]
+    conn, schema_name: str, apps_esperados: list[str], *, tipo_slug: str = ''
 ) -> list[str]:
     """
     Tabelas no schema que não pertencem aos apps esperados do tipo da loja.
     Indica legado (ex.: cabeleireiro_* em loja clinica-beleza) — não invalida o OK.
     """
     prefixes = prefixos_esperados_apps(apps_esperados)
+    permitidas = TABELAS_PERMITIDAS_EXTRA_POR_TIPO.get(tipo_slug, frozenset())
     extras: list[str] = []
     with conn.cursor() as cur:
         cur.execute(
@@ -92,12 +99,74 @@ def listar_tabelas_extras_no_schema(
             [schema_name],
         )
         for (name,) in cur.fetchall():
-            if name in TABELAS_DJANGO_PERMITIDAS:
+            if name in TABELAS_DJANGO_PERMITIDAS or name in permitidas:
                 continue
             if any(name.startswith(p) for p in prefixes):
                 continue
             extras.append(name)
     return extras
+
+
+def limpar_tabelas_extras_loja(loja) -> dict[str, Any]:
+    """Remove tabelas legado/não esperadas do schema da loja."""
+    from django.db import connections
+
+    out: dict[str, Any] = {
+        'loja_id': loja.id,
+        'slug': loja.slug,
+        'removidas': [],
+        'sucesso': False,
+        'mensagem': '',
+    }
+    if not loja.database_name or not loja.database_created:
+        out['mensagem'] = 'Loja sem schema.'
+        return out
+    if not ensure_loja_database_config(loja.database_name, conn_max_age=0):
+        out['mensagem'] = 'Não foi possível conectar ao schema.'
+        return out
+
+    schema = loja.database_name.replace('-', '_')
+    tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip()
+    apps_esperados = get_apps_esperados_para_loja(loja)
+    conn = connections[loja.database_name]
+    extras = listar_tabelas_extras_no_schema(conn, schema, apps_esperados, tipo_slug=tipo_slug)
+    if not extras:
+        out['sucesso'] = True
+        out['mensagem'] = 'Nenhuma tabela extra.'
+        return out
+
+    apps_removidos: set[str] = set()
+    for table in extras:
+        if table.startswith('cabeleireiro_'):
+            apps_removidos.add('cabeleireiro')
+        elif table.startswith('asaas_'):
+            apps_removidos.add('asaas_integration')
+        elif table.startswith('clinica_beleza_'):
+            apps_removidos.add('clinica_beleza')
+        elif table.startswith('clinica_'):
+            apps_removidos.add('clinica_estetica')
+        elif table.startswith('crm_vendas_') or table == 'crm_relatorio_comissao':
+            apps_removidos.add('crm_vendas')
+        elif table.startswith('whatsapp_'):
+            apps_removidos.add('whatsapp')
+        elif table == 'django_admin_log':
+            apps_removidos.add('admin')
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute('SET search_path TO %s, public', [schema])
+            for table in extras:
+                cur.execute(f'DROP TABLE IF EXISTS "{table}" CASCADE')
+            for app in sorted(apps_removidos):
+                cur.execute('DELETE FROM django_migrations WHERE app = %s', [app])
+        out['removidas'] = extras
+        out['sucesso'] = True
+        out['mensagem'] = f'{len(extras)} tabela(s) legado removida(s).'
+        logger.info('limpar_tabelas_extras loja=%s removidas=%s', loja.slug, extras)
+    except Exception as exc:
+        logger.exception('limpar_tabelas_extras loja=%s', loja.slug)
+        out['mensagem'] = str(exc)
+    return out
 
 
 def tabela_existe_no_schema(conn, schema_name: str, table_name: str) -> bool:
@@ -294,7 +363,7 @@ def auditar_loja(loja) -> dict[str, Any]:
 
     base['ok'] = tudo_ok
 
-    extras = listar_tabelas_extras_no_schema(conn, schema_name, apps_esperados)
+    extras = listar_tabelas_extras_no_schema(conn, schema_name, apps_esperados, tipo_slug=tipo_slug)
     base['tabelas_extras'] = extras
     base['tabelas_extras_count'] = len(extras)
     if extras:
@@ -368,6 +437,10 @@ def corrigir_loja(loja) -> dict[str, Any]:
             out['mensagem'] += 'Ensure: ' + '; '.join(ensure_erros)
         elif ENSURE_COMANDOS_POR_TIPO.get((loja.tipo_loja.slug if loja.tipo_loja else '').strip()):
             out['mensagem'] += 'Ensure commands executados.'
+
+        limpeza = limpar_tabelas_extras_loja(loja)
+        if limpeza.get('removidas'):
+            out['mensagem'] += ' ' + limpeza['mensagem']
 
         out['sucesso'] = bool(ok_mig) and not ensure_erros
     except Exception as e:
@@ -528,12 +601,19 @@ def auditar_e_opcionalmente_corrigir(
         audit_pos: dict[str, Any] | None = None
         ok_final = bool(audit.get('ok'))
 
-        if aplicar_correcao and not ok_final:
-            correcao = corrigir_loja(loja)
-            if correcao.get('sucesso'):
-                resumo['corrigidos'] += 1
-            audit_pos = auditar_loja(loja)
-            ok_final = bool(audit_pos.get('ok'))
+        if aplicar_correcao:
+            if not ok_final:
+                correcao = corrigir_loja(loja)
+                if correcao.get('sucesso'):
+                    resumo['corrigidos'] += 1
+                audit_pos = auditar_loja(loja)
+                ok_final = bool(audit_pos.get('ok'))
+            elif audit.get('tabelas_extras_count', 0) > 0:
+                correcao = limpar_tabelas_extras_loja(loja)
+                if correcao.get('sucesso') and correcao.get('removidas'):
+                    resumo['corrigidos'] += 1
+                audit_pos = auditar_loja(loja)
+                ok_final = bool(audit_pos.get('ok'))
 
         resultados.append(
             {

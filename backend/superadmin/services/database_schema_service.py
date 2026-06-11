@@ -95,7 +95,7 @@ TIPO_LOJA_EXTRA_APPS = {
     'restaurante': ['restaurante'],
     'servicos': ['servicos'],
     'cabeleireiro': ['cabeleireiro'],
-    'crm-vendas': ['crm_vendas', 'nfse_integration'],
+    'crm-vendas': ['crm_vendas', 'nfse_integration', 'whatsapp'],
     'hotel-pousada': ['hotel'],
     'hotel': ['hotel'],
 }
@@ -577,6 +577,19 @@ class DatabaseSchemaService:
                     f"Falha ao aplicar migrations no schema da loja (tipo: {tipo_slug}). "
                     "O cadastro não pode ser concluído sem as tabelas do app."
                 )
+
+            # Catálogo padrão (locais + procedimentos) para novas lojas Clínica da Beleza
+            try:
+                from clinica_beleza.catalogo_service import aplicar_catalogo_padrao, is_clinica_beleza_loja
+                if is_clinica_beleza_loja(loja):
+                    aplicar_catalogo_padrao(loja)
+            except Exception as catalogo_exc:
+                logger.warning(
+                    'Catálogo padrão Clínica da Beleza não aplicado em %s: %s',
+                    loja.slug,
+                    catalogo_exc,
+                )
+
             return True
         except Exception:
             logger.exception("configurar_schema_completo")

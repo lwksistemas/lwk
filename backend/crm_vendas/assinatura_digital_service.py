@@ -301,12 +301,12 @@ def _notificar_cliente_assinou(documento, assinatura):
         tipo_doc = documento.__class__.__name__
         titulo_doc = getattr(documento, 'titulo', '') or f'{tipo_doc} #{documento.id}'
         cliente_nome = assinatura.nome_assinante or 'Cliente'
+        canal_v = (getattr(documento, 'canal_assinatura_vendedor', None) or 'email').strip().lower()
+        canal_txt = 'WhatsApp' if canal_v == 'whatsapp' else 'e-mail'
         Notification.objects.using('default').create(
             user_id=loja.owner_id,
             titulo=f'📝 {tipo_doc} aguardando sua assinatura',
-            canal_v = (getattr(documento, 'canal_assinatura_vendedor', None) or 'email').strip().lower()
-        canal_txt = 'WhatsApp' if canal_v == 'whatsapp' else 'e-mail'
-        mensagem=f'{titulo_doc} foi assinada por {cliente_nome}. Verifique seu {canal_txt} para assinar.',
+            mensagem=f'{titulo_doc} foi assinada por {cliente_nome}. Verifique seu {canal_txt} para assinar.',
             tipo='sistema',
             canal='in_app',
             status='pendente',

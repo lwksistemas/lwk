@@ -19,11 +19,24 @@ Repositório: `https://github.com/lwksistemas/lwk` — branch **`main`**.
 
 1. [Vercel Dashboard](https://vercel.com) → projeto **frontend**.
 2. **Settings** → **Git** → conectar repositório `lwksistemas/lwk`.
-3. **Root Directory:** `frontend`
+3. **Root Directory:** `frontend` (obrigatório — monorepo com código em `frontend/`)
 4. **Production Branch:** `main`
-5. (Opcional) **Ignored Build Step:** só buildar se mudou `frontend/` — reduz deploys desnecessários.
+5. **Require Verified Commits:** **desligado** — commits via Cursor/CLI chegam como *unverified* no GitHub; com essa opção ativa a Vercel **cancela** o deploy (status `CANCELED`, motivo *unverified commit*).
+6. (Opcional) **Ignored Build Step:** só buildar se mudou algo em `frontend/` — use caminho `.` (não `frontend/`), pois o comando roda **dentro** do Root Directory:
+
+```bash
+git diff HEAD^ HEAD --quiet -- .
+```
 
 Cada push na `main` que altera o front gera deploy de produção. PRs podem gerar **Preview** para testar antes.
+
+**Erro comum — deploy cancelado (0 ms, sem build):**
+
+| Sintoma | Causa | Correção |
+|---------|--------|----------|
+| Status `CANCELED`, *unverified commit* | **Require Verified Commits** ativo | Vercel → Settings → Git → desmarcar *Require Verified Commits* |
+| Status `CANCELED`, build ignorado | *Ignored Build Step* com path errado (`frontend/` em vez de `.`) | Ajustar script ou remover ignore step |
+| Root Directory vazio | Build aponta para raiz do repo (sem `package.json`) | Definir Root Directory = `frontend` |
 
 ### 1.2 Railway (backend)
 
@@ -32,6 +45,32 @@ Cada push na `main` que altera o front gera deploy de produção. PRs podem gera
 3. (Opcional) **Watch paths:** `backend/`, `Dockerfile.railway`, `railway.toml`, `requirements.txt`
 
 O `railway.toml` já define `releaseCommand` com `migrate` e tarefas de schema — **sempre rode deploy pelo Railway após mudanças de migration**, nunca só subir código sem release.
+
+### 1.2.1 Railway — serviço `lwks-cron` (backups automáticos)
+
+Serviço **cron** separado (`railway.cron.toml`): roda `python manage.py executar_backups_automaticos` **a cada hora** (`0 * * * *`).
+
+**Erro comum:** deploy/cron falha com `ValueError: SECRET_KEY deve estar configurada` — o `lwks-cron` **não herda** variáveis do `lwks-backend` automaticamente.
+
+No painel Railway → **lwks-cron** → **Variables**, adicione referências ao backend (exemplo):
+
+```env
+SECRET_KEY=${{lwks-backend.SECRET_KEY}}
+ALLOWED_HOSTS=${{lwks-backend.ALLOWED_HOSTS}}
+DATABASE_URL=${{lwks-backend.DATABASE_URL}}
+DJANGO_SETTINGS_MODULE=config.settings_production
+RESEND_API_KEY=${{lwks-backend.RESEND_API_KEY}}
+DEFAULT_FROM_EMAIL=${{lwks-backend.DEFAULT_FROM_EMAIL}}
+FIELD_ENCRYPTION_KEY=${{lwks-backend.FIELD_ENCRYPTION_KEY}}
+```
+
+Deploy manual do cron (se necessário):
+
+```bash
+railway up --service lwks-cron -c railway.cron.toml
+```
+
+**Não** faça `railway up` no serviço `lwks-cron` com `evolution-api` ou `lwks-backend` linkado por engano.
 
 ### 1.3 Deploy manual (emergência / quando Git não dispara)
 

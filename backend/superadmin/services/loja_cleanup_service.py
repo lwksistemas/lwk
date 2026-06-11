@@ -116,6 +116,7 @@ class LojaCleanupService:
                 # Logs de auditoria (ações dentro da loja + ações sobre a loja)
                 logs = HistoricoAcessoGlobal.objects.filter(
                     Q(loja_slug=self.loja_slug) |
+                    Q(loja_id=self.loja_id) |
                     Q(recurso='Loja', recurso_id=self.loja_id)
                 )
                 logs_count = logs.count()

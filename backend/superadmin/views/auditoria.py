@@ -91,9 +91,15 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
                 Q(loja_slug__icontains=search)
             )
 
-        if params.get('incluir_integracoes', '').lower() not in ('1', 'true', 'yes'):
-            from ..historico_auditoria_filters import queryset_excluir_integracoes
-            queryset = queryset_excluir_integracoes(queryset)
+        incluir_integracoes = params.get('incluir_integracoes', '').lower() in ('1', 'true', 'yes')
+        incluir_lojas_removidas = params.get('incluir_lojas_removidas', '').lower() in ('1', 'true', 'yes')
+        if not incluir_integracoes or not incluir_lojas_removidas:
+            from ..historico_auditoria_filters import queryset_auditoria_visivel
+            queryset = queryset_auditoria_visivel(
+                queryset,
+                incluir_integracoes=incluir_integracoes,
+                incluir_lojas_removidas=incluir_lojas_removidas,
+            )
         
         return queryset.order_by('-created_at')
     
@@ -125,29 +131,44 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
             created_at__gte=data_inicio_dt,
             created_at__lt=data_fim_dt
         )
-        from ..historico_auditoria_filters import queryset_excluir_integracoes
-        qs_humanos = queryset_excluir_integracoes(qs)
+        from ..historico_auditoria_filters import (
+            queryset_auditoria_visivel,
+            queryset_ranking_lojas,
+            queryset_ranking_usuarios,
+        )
+        qs_visivel = queryset_auditoria_visivel(qs)
+        qs_lojas = queryset_ranking_lojas(qs)
+        qs_usuarios = queryset_ranking_usuarios(qs)
         
         stats = {
             'periodo': {'inicio': data_inicio, 'fim': data_fim},
-            'total_acessos': qs_humanos.count(),
-            'total_logins': qs_humanos.filter(acao='login').count(),
-            'total_sucesso': qs_humanos.filter(sucesso=True).count(),
-            'total_erros': qs_humanos.filter(sucesso=False).count(),
+            'total_acessos': qs_visivel.count(),
+            'total_logins': qs_visivel.filter(acao='login').count(),
+            'total_sucesso': qs_visivel.filter(sucesso=True).count(),
+            'total_erros': qs_visivel.filter(sucesso=False).count(),
             'acoes_por_tipo': list(
-                qs_humanos.values('acao').annotate(total=Count('id')).order_by('-total')
+                qs_visivel.values('acao').annotate(total=Count('id')).order_by('-total')
             ),
-            'usuarios_mais_ativos': list(
-                qs_humanos.values('usuario_email', 'usuario_nome')
+            'usuarios_mais_ativos': [
+                {
+                    'usuario_nome': item['usuario_nome'],
+                    'usuario_email': item['usuario_email'],
+                    'total': item['total'],
+                }
+                for item in qs_usuarios.values('usuario_email', 'usuario_nome')
                 .annotate(total=Count('id')).order_by('-total')[:10]
-            ),
-            'lojas_mais_ativas': list(
-                qs_humanos.filter(loja__isnull=False)
-                .values('loja_id', 'loja_nome', 'loja_slug')
+            ],
+            'lojas_mais_ativas': [
+                {
+                    'loja_nome': item['loja__nome'],
+                    'loja_id': item['loja_id'],
+                    'total': item['total'],
+                }
+                for item in qs_lojas.values('loja_id', 'loja__nome')
                 .annotate(total=Count('id')).order_by('-total')[:10]
-            ),
+            ],
             'ips_mais_frequentes': list(
-                qs_humanos.values('ip_address').annotate(total=Count('id')).order_by('-total')[:10]
+                qs_visivel.values('ip_address').annotate(total=Count('id')).order_by('-total')[:10]
             ),
         }
         
@@ -598,12 +619,13 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
             data_inicio = timezone.now() - timedelta(days=dias)
             data_fim = timezone.now()
         
-        qs = HistoricoAcessoGlobal.objects.filter(
-            created_at__gte=data_inicio,
-            created_at__lte=data_fim
+        from ..historico_auditoria_filters import queryset_auditoria_visivel
+        qs = queryset_auditoria_visivel(
+            HistoricoAcessoGlobal.objects.filter(
+                created_at__gte=data_inicio,
+                created_at__lte=data_fim
+            )
         )
-        from ..historico_auditoria_filters import queryset_excluir_integracoes
-        qs = queryset_excluir_integracoes(qs)
         acoes = qs.annotate(dia=TruncDate('created_at')).values('dia').annotate(
             total=Count('id'),
             sucessos=Count('id', filter=Q(sucesso=True)),
@@ -626,10 +648,10 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     def acoes_por_tipo(self, request):
         """Distribuição de ações por tipo"""
         from ..models import HistoricoAcessoGlobal
-        from ..historico_auditoria_filters import queryset_excluir_integracoes
+        from ..historico_auditoria_filters import queryset_auditoria_visivel
         from django.db.models import Count
         
-        acoes = queryset_excluir_integracoes(
+        acoes = queryset_auditoria_visivel(
             HistoricoAcessoGlobal.objects.all()
         ).values('acao').annotate(
             total=Count('id')
@@ -642,19 +664,19 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     def lojas_mais_ativas(self, request):
         """Ranking de lojas mais ativas"""
         from ..models import HistoricoAcessoGlobal
-        from ..historico_auditoria_filters import queryset_excluir_integracoes
+        from ..historico_auditoria_filters import queryset_ranking_lojas
         from django.db.models import Count
         
         limit = int(request.query_params.get('limit', 10))
         
-        lojas = queryset_excluir_integracoes(
-            HistoricoAcessoGlobal.objects.exclude(loja__isnull=True)
-        ).values('loja_id', 'loja_nome').annotate(
+        lojas = queryset_ranking_lojas(
+            HistoricoAcessoGlobal.objects.all()
+        ).values('loja_id', 'loja__nome').annotate(
             total=Count('id')
         ).order_by('-total')[:limit]
         
         return Response({
-            'lojas': [{'loja_nome': item['loja_nome'], 'total': item['total']} for item in lojas]
+            'lojas': [{'loja_nome': item['loja__nome'], 'total': item['total']} for item in lojas]
         })
     
     @action(detail=False, methods=['get'])
@@ -662,12 +684,12 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     def usuarios_mais_ativos(self, request):
         """Ranking de usuários mais ativos"""
         from ..models import HistoricoAcessoGlobal
-        from ..historico_auditoria_filters import queryset_excluir_integracoes
+        from ..historico_auditoria_filters import queryset_ranking_usuarios
         from django.db.models import Count
         
         limit = int(request.query_params.get('limit', 10))
         
-        usuarios = queryset_excluir_integracoes(
+        usuarios = queryset_ranking_usuarios(
             HistoricoAcessoGlobal.objects.all()
         ).values(
             'usuario_email', 'usuario_nome'
@@ -685,7 +707,11 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
         from django.db.models import Count
         from django.db.models.functions import ExtractHour
         
-        acoes = HistoricoAcessoGlobal.objects.annotate(
+        from ..historico_auditoria_filters import queryset_auditoria_visivel
+        
+        acoes = queryset_auditoria_visivel(
+            HistoricoAcessoGlobal.objects.all()
+        ).annotate(
             hora=ExtractHour('created_at')
         ).values('hora').annotate(total=Count('id')).order_by('hora')
         
@@ -698,9 +724,11 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     def taxa_sucesso(self, request):
         """Taxa de sucesso vs falha"""
         from ..models import HistoricoAcessoGlobal
+        from ..historico_auditoria_filters import queryset_auditoria_visivel
         
-        total = HistoricoAcessoGlobal.objects.count()
-        sucessos = HistoricoAcessoGlobal.objects.filter(sucesso=True).count()
+        qs = queryset_auditoria_visivel(HistoricoAcessoGlobal.objects.all())
+        total = qs.count()
+        sucessos = qs.filter(sucesso=True).count()
         falhas = total - sucessos
         
         taxa_sucesso = (sucessos / total * 100) if total > 0 else 0

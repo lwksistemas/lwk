@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
+import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
 import {
   API,
   HeroData,
@@ -115,7 +116,7 @@ export function useHomepageConfig() {
           nome_empresa: emp.nome_empresa || 'LWK Sistemas',
           cnpj: emp.cnpj || '',
           endereco: emp.endereco || '',
-          telefone_whatsapp: emp.telefone_whatsapp || '',
+          telefone_whatsapp: formatTelefone(emp.telefone_whatsapp || ''),
           mensagem_whatsapp: emp.mensagem_whatsapp || 'Olá! Gostaria de saber mais sobre o LWK Sistemas.',
           email_contato: emp.email_contato || '',
         });
@@ -160,7 +161,7 @@ export function useHomepageConfig() {
   const saveEmpresa = async () => {
     setSaving(true);
     try {
-      await apiClient.post(API.empresa, empresaForm);
+      await apiClient.post(API.empresa, applyTelefoneInternacionalPayload(empresaForm, ['telefone_whatsapp']));
       showMsg('success', 'Dados da empresa salvos!');
       loadData();
     } catch (err: unknown) {

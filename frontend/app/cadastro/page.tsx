@@ -7,7 +7,7 @@ import { useLojaForm } from '@/hooks/useLojaForm';
 import { CadastroFundo } from '@/components/cadastro/CadastroFundo';
 import { FormularioCadastroLoja } from '@/components/cadastro/FormularioCadastroLoja';
 import { SucessoCadastro } from '@/components/cadastro/SucessoCadastro';
-import { logger } from '@/lib/logger';
+import { applyTelefoneInternacionalPayload } from '@/lib/format-br';
 
 export default function CadastroPublicoPage() {
   const [loading, setLoading] = useState(false);
@@ -22,10 +22,10 @@ export default function CadastroPublicoPage() {
     setLoading(true);
 
     try {
-      const payload = {
+      const payload = applyTelefoneInternacionalPayload({
         ...lojaForm.formData,
         provedor_boleto_preferido: lojaForm.formData.provedor_boleto_preferido || 'asaas',
-      };
+      }, ['owner_telefone']);
       
       const response = await apiClient.post('/superadmin/lojas/', payload);
       const loja = response.data;

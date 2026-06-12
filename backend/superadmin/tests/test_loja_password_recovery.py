@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework import status as http_status
 
-from superadmin.models import Loja, PlanoAssinatura, TipoLoja
+from superadmin.models import Loja, PlanoAssinatura, ProfissionalUsuario, TipoLoja
 from superadmin.services.loja_password_recovery_service import LojaPasswordRecoveryService
 
 
@@ -47,6 +47,20 @@ class LojaPasswordRecoveryServiceTest(TestCase):
         self.loja.refresh_from_db()
         self.assertFalse(self.loja.senha_foi_alterada)
         self.assertTrue(self.loja.senha_provisoria)
+
+    @patch('core.email_delivery.send_prepared')
+    def test_recuperacao_marca_profissional_usuario_trocar_senha(self, mock_send):
+        ProfissionalUsuario.objects.create(
+            user=self.owner,
+            loja=self.loja,
+            professional_id=1,
+            perfil=ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+            precisa_trocar_senha=False,
+        )
+        LojaPasswordRecoveryService().execute('owner@felix.test', 'felix')
+        pu = ProfissionalUsuario.objects.get(user=self.owner, loja=self.loja)
+        self.assertTrue(pu.precisa_trocar_senha)
+        mock_send.assert_called_once()
 
     def test_email_incorreto_nao_envia(self):
         with patch('core.email_delivery.send_prepared') as mock_send:

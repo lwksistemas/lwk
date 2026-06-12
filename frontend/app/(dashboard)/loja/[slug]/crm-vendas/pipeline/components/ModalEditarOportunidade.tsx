@@ -6,6 +6,7 @@ import { X, Mail, MessageCircle } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
 import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
+import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import ProdutoSeletorCategoria from '@/components/crm-vendas/ProdutoSeletorCategoria';
 
@@ -49,6 +50,7 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
     oportunidade.empresa_prestadora ? String(oportunidade.empresa_prestadora) : ''
   );
   const [prestadoras, setPrestadoras] = useState<ContaPrestadoraOption[]>([]);
+  const { proposta: propostaWhatsappHabilitada, contrato: contratoWhatsappHabilitado } = useWhatsappEnvioFlags();
 
   // Carregar itens e produtos ao montar
   useEffect(() => {
@@ -114,8 +116,9 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
   const handleEnviarCliente = async (tipo: 'proposta' | 'contrato', id: number, canal: 'email' | 'whatsapp') => {
     setEnviandoEnvio(true);
     try {
-      await crmEnviarCliente(tipo === 'proposta' ? 'propostas' : 'contratos', id, canal);
-      alert(crmMensagemEnvioCanalSucesso(canal));
+      const segment = tipo === 'proposta' ? 'propostas' : 'contratos';
+      const msg = await crmEnviarCliente(segment, id, canal);
+      alert(msg || crmMensagemEnvioCanalSucesso(canal));
     } catch (err: unknown) {
       alert(getCrmApiErrorDetail(err, 'Erro ao enviar.'));
     } finally {
@@ -436,15 +439,17 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
                         >
                           <Mail size={16} />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleEnviarCliente('proposta', p.id, 'whatsapp')}
-                          disabled={enviandoEnvio}
-                          className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50"
-                          title="Enviar por WhatsApp"
-                        >
-                          <MessageCircle size={16} />
-                        </button>
+                        {propostaWhatsappHabilitada && (
+                          <button
+                            type="button"
+                            onClick={() => handleEnviarCliente('proposta', p.id, 'whatsapp')}
+                            disabled={enviandoEnvio}
+                            className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50"
+                            title="Enviar link ao cliente por WhatsApp — vendedor receberá por WhatsApp após assinar"
+                          >
+                            <MessageCircle size={16} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -461,15 +466,17 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
                         >
                           <Mail size={16} />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleEnviarCliente('contrato', contratoOportunidade.id, 'whatsapp')}
-                          disabled={enviandoEnvio}
-                          className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50"
-                          title="Enviar por WhatsApp"
-                        >
-                          <MessageCircle size={16} />
-                        </button>
+                        {contratoWhatsappHabilitado && (
+                          <button
+                            type="button"
+                            onClick={() => handleEnviarCliente('contrato', contratoOportunidade.id, 'whatsapp')}
+                            disabled={enviandoEnvio}
+                            className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50"
+                            title="Enviar link ao cliente por WhatsApp — vendedor receberá por WhatsApp após assinar"
+                          >
+                            <MessageCircle size={16} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}

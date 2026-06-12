@@ -131,12 +131,31 @@ class AssinaturaPublicaView(View):
         lead = getattr(oportunidade, 'lead', None) if oportunidade else None
         vendedor = getattr(oportunidade, 'vendedor', None) if oportunidade else None
 
+        desconto_valor = getattr(documento, 'desconto_valor', None) or 0
+        tem_desconto = float(desconto_valor) > 0
+        desconto_tipo = getattr(documento, 'desconto_tipo', 'percentual') or 'percentual'
+        if tem_desconto and desconto_tipo == 'percentual':
+            desconto_display = f'{desconto_valor}%'
+        elif tem_desconto:
+            desconto_display = str(desconto_valor)
+        else:
+            desconto_display = ''
+
+        valor_com_desconto = getattr(documento, 'valor_com_desconto', None)
+        if valor_com_desconto is None:
+            valor_com_desconto = documento.valor_total or 0
+
         return JsonResponse({
             'tipo_documento': tipo_documento,
             'titulo': documento.titulo,
             'valor_total': str(documento.valor_total or '0.00'),
             'valor_adesao': str(self._calcular_valor_por_recorrencia(oportunidade, 'unico')),
             'valor_mensal': str(self._calcular_valor_por_recorrencia(oportunidade, 'mensal')),
+            'tem_desconto': tem_desconto,
+            'desconto_tipo': desconto_tipo,
+            'desconto_valor': str(desconto_valor),
+            'desconto_display': desconto_display,
+            'valor_com_desconto': str(valor_com_desconto),
             'nome_assinante': assinatura.nome_assinante,
             'tipo_assinante': assinatura.tipo,
             'tipo_assinante_display': assinatura.get_tipo_display(),

@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { useHotelCrud } from '@/hooks/useHotelCrud';
 import type { Hospede } from '@/lib/hotel-types';
 import { Users, Plus, Edit2, Trash2, ArrowLeft } from 'lucide-react';
-import { formatCpfCnpj, formatTelefone, toUpperCase } from '@/lib/format-br';
+import { formatCpfCnpj, formatTelefone, telefoneInternacionalBr, toUpperCase } from '@/lib/format-br';
 
 export default function HotelHospedesPage() {
   const params = useParams();
@@ -22,8 +22,8 @@ export default function HotelHospedesPage() {
   const [form, setForm] = useState({ nome: '', documento: '', telefone: '', email: '', observacoes: '' });
   const resetForm = () => setForm({ nome: '', documento: '', telefone: '', email: '', observacoes: '' });
   const openNew = () => { setEditing(null); resetForm(); setModalOpen(true); };
-  const openEdit = (h: Hospede) => { setEditing(h); setForm({ nome: h.nome || '', documento: h.documento || '', telefone: h.telefone || '', email: h.email || '', observacoes: h.observacoes || '' }); setModalOpen(true); };
-  const submit = async () => { const ok = await save({ nome: form.nome.trim(), documento: form.documento.trim(), telefone: form.telefone.trim(), email: form.email.trim(), observacoes: form.observacoes.trim() }, editing?.id); if (ok) { setModalOpen(false); setEditing(null); resetForm(); } };
+  const openEdit = (h: Hospede) => { setEditing(h); setForm({ nome: h.nome || '', documento: h.documento || '', telefone: formatTelefone(h.telefone || ''), email: h.email || '', observacoes: h.observacoes || '' }); setModalOpen(true); };
+  const submit = async () => { const ok = await save({ nome: form.nome.trim(), documento: form.documento.trim(), telefone: form.telefone.trim() ? telefoneInternacionalBr(form.telefone) : '', email: form.email.trim(), observacoes: form.observacoes.trim() }, editing?.id); if (ok) { setModalOpen(false); setEditing(null); resetForm(); } };
   const setNome = (v: string) => setForm((f) => ({ ...f, nome: toUpperCase(v) }));
   const setDocumento = (v: string) => setForm((f) => ({ ...f, documento: formatCpfCnpj(v) }));
   const setTelefone = (v: string) => setForm((f) => ({ ...f, telefone: formatTelefone(v) }));

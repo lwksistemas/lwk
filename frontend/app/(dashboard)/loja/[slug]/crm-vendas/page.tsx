@@ -31,6 +31,11 @@ import {
 } from 'lucide-react';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { authService } from '@/lib/auth';
+import { normalizeListResponse } from '@/lib/crm-utils';
+
+function toISO(date: Date): string {
+  return date.toISOString().slice(0, 19) + 'Z';
+}
 
 interface DashboardData {
   leads: number;
@@ -85,6 +90,9 @@ export default function CrmVendasDashboardPage() {
   const { etapasAtivas } = useCRMConfig();
   const isVendedor = authService.isVendedor();
   const [data, setData] = useState<DashboardData | null>(null);
+  const [proximasAtividades, setProximasAtividades] = useState<
+    { id: number; titulo: string; tipo: string; data: string; lead_nome?: string; concluido?: boolean }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFiltro, setShowFiltro] = useState(false);
@@ -114,15 +122,6 @@ export default function CrmVendasDashboardPage() {
     }))
   , [etapasComValor]);
 
-  const atividades = useMemo(() => 
-    (data?.atividades_hoje || []) as {
-      id: number;
-      titulo: string;
-      tipo: string;
-      data: string;
-    }[]
-  , [data?.atividades_hoje]);
-
   // useCallback para event handlers
   const handleClickOutside = useCallback((e: MouseEvent) => {
     if (filtroRef.current && !filtroRef.current.contains(e.target as Node)) {
@@ -146,11 +145,45 @@ export default function CrmVendasDashboardPage() {
 
   useEffect(() => {
     setLoading(true);
-    apiClient
-      .get<DashboardData>(`/crm-vendas/dashboard/?periodo=${periodoFiltro}`)
-      .then((res) => setData(res.data))
-      .catch((err) => {
-        setError(err.response?.data?.detail || 'Erro ao carregar dashboard.');
+    const inicio = new Date();
+    inicio.setHours(0, 0, 0, 0);
+    const fim = new Date(inicio);
+    fim.setDate(fim.getDate() + 60);
+
+    Promise.allSettled([
+      apiClient.get<DashboardData>(`/crm-vendas/dashboard/?periodo=${periodoFiltro}`),
+      apiClient.get('/crm-vendas/atividades/', {
+        params: {
+          data_inicio: toISO(inicio),
+          data_fim: toISO(fim),
+          concluido: 'false',
+          page_size: 10,
+        },
+      }),
+    ])
+      .then(([dashResult, ativResult]) => {
+        if (dashResult.status === 'rejected') {
+          const err = dashResult.reason as { response?: { data?: { detail?: string } } };
+          throw new Error(err.response?.data?.detail || 'Erro ao carregar dashboard.');
+        }
+        setData(dashResult.value.data);
+        if (ativResult.status === 'fulfilled') {
+          const list = normalizeListResponse<{
+            id: number;
+            titulo: string;
+            tipo: string;
+            data: string;
+            concluido?: boolean;
+          }>(ativResult.value.data);
+          list.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+          setProximasAtividades(list.slice(0, 5));
+        } else {
+          setProximasAtividades([]);
+        }
+      })
+      .catch((err: Error) => {
+        setError(err.message || 'Erro ao carregar dashboard.');
+        setProximasAtividades([]);
       })
       .finally(() => setLoading(false));
   }, [periodoFiltro]);
@@ -364,13 +397,13 @@ export default function CrmVendasDashboardPage() {
               Ver todas
             </Link>
           </div>
-          {atividades.length === 0 ? (
+          {proximasAtividades.length === 0 ? (
             <div className="text-center py-8">
               <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 dark:bg-[#0d1f3c] flex items-center justify-center">
                 <Calendar size={24} className="text-gray-400" />
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Nenhuma atividade cadastrada
+                Nenhuma tarefa pendente no calendário
               </p>
               <Link
                 href={`/loja/${slug}/crm-vendas/calendario`}
@@ -381,53 +414,58 @@ export default function CrmVendasDashboardPage() {
             </div>
           ) : (
             <ul className="space-y-3">
-              {atividades.slice(0, 5).map((a) => {
+              {proximasAtividades.map((a) => {
                 const Icon = iconPorTipo(a.tipo);
-                // Formatar data/hora
                 let dataFormatada = '';
+                let atrasada = false;
                 if (a.data) {
                   try {
                     const date = new Date(a.data);
+                    const agora = new Date();
                     const hoje = new Date();
                     const amanha = new Date(hoje);
                     amanha.setDate(amanha.getDate() + 1);
-                    
-                    // Verificar se é hoje, amanhã ou outra data
+                    atrasada = date.getTime() < agora.getTime();
                     const isHoje = date.toDateString() === hoje.toDateString();
                     const isAmanha = date.toDateString() === amanha.toDateString();
-                    
                     const hora = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    
-                    if (isHoje) {
+                    if (atrasada) {
+                      const dia = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                      dataFormatada = `Atrasada — ${dia} às ${hora}`;
+                    } else if (isHoje) {
                       dataFormatada = `Hoje às ${hora}`;
                     } else if (isAmanha) {
                       dataFormatada = `Amanhã às ${hora}`;
                     } else {
-                      const dia = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                      const dia = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
                       dataFormatada = `${dia} às ${hora}`;
                     }
-                  } catch (e) {
+                  } catch {
                     dataFormatada = a.data;
                   }
                 }
-                
+
                 return (
-                  <li
-                    key={a.id}
-                    className="flex items-center gap-3 py-2.5 border-b border-gray-100 dark:border-[#0d1f3c] last:border-0 hover:bg-gray-50 dark:hover:bg-[#0d1f3c] -mx-2 px-2 rounded transition-colors"
-                  >
-                    <div className="p-2 rounded bg-[#e3f3ff] dark:bg-opacity-20 text-[#0176d3]">
-                      <Icon size={16} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {a.titulo}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {TIPO_LABEL_DASHBOARD[a.tipo] || a.tipo}
-                        {dataFormatada && ` • ${dataFormatada}`}
-                      </p>
-                    </div>
+                  <li key={a.id}>
+                    <Link
+                      href={`/loja/${slug}/crm-vendas/calendario`}
+                      className="flex items-center gap-3 py-2.5 border-b border-gray-100 dark:border-[#0d1f3c] last:border-0 hover:bg-gray-50 dark:hover:bg-[#0d1f3c] -mx-2 px-2 rounded transition-colors"
+                    >
+                      <div className="p-2 rounded bg-[#e3f3ff] dark:bg-opacity-20 text-[#0176d3]">
+                        <Icon size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {a.titulo}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {TIPO_LABEL_DASHBOARD[a.tipo] || a.tipo}
+                          {a.lead_nome ? ` • ${a.lead_nome}` : ''}
+                          {dataFormatada ? ` • ${dataFormatada}` : ''}
+                        </p>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-400 shrink-0" />
+                    </Link>
                   </li>
                 );
               })}

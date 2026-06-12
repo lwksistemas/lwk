@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from core.serializer_mixins import PhoneNormalizationMixin
 from .models import HeroSection, Funcionalidade, ModuloSistema, WhyUsBenefit, EmpresaConfig
 
 
@@ -57,7 +58,9 @@ class WhyUsBenefitSerializer(serializers.ModelSerializer):
         }
 
 
-class EmpresaConfigSerializer(serializers.ModelSerializer):
+class EmpresaConfigSerializer(PhoneNormalizationMixin, serializers.ModelSerializer):
+    phone_fields = ['telefone_whatsapp']
+
     class Meta:
         model = EmpresaConfig
         fields = ['id', 'nome_empresa', 'cnpj', 'endereco', 'telefone_whatsapp', 'mensagem_whatsapp', 'email_contato', 'created_at', 'updated_at']

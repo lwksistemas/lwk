@@ -9,7 +9,7 @@ import { Plus, Eye, Edit2, Trash2, Building2, Download } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import { ContaFormModal, type ContaFormData } from './components/ContaFormModal';
 import { ContaViewModal } from './components/ContaViewModal';
-import { ContaDeleteModal } from './components/ContaDeleteModal';
+import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
 
 interface Conta {
   id: number; nome: string; razao_social?: string; cnpj?: string; inscricao_estadual?: string;
@@ -72,7 +72,7 @@ export default function CrmVendasCustomersPage() {
       setFormData({
         nome: conta.nome || '', razao_social: conta.razao_social || '', cnpj: conta.cnpj || '',
         inscricao_estadual: conta.inscricao_estadual || '', tipo: conta.tipo || 'cliente', segmento: conta.segmento || '',
-        telefone: conta.telefone || '', email: conta.email || '', site: conta.site || '',
+        telefone: formatTelefone(conta.telefone || ''), email: conta.email || '', site: conta.site || '',
         cep: conta.cep || '', logradouro: conta.logradouro || '', numero: conta.numero || '',
         complemento: conta.complemento || '', bairro: conta.bairro || '',
         cidade: conta.cidade || '', uf: conta.uf || '', observacoes: conta.observacoes || '',
@@ -119,8 +119,8 @@ export default function CrmVendasCustomersPage() {
     if (!formData.nome.trim()) { alert('Nome é obrigatório'); return; }
     try {
       setSubmitting(true);
-      if (modalType === 'create') await apiClient.post('/crm-vendas/contas/', formData);
-      else if (modalType === 'edit' && selectedConta) await apiClient.put(`/crm-vendas/contas/${selectedConta.id}/`, formData);
+      if (modalType === 'create') await apiClient.post('/crm-vendas/contas/', applyTelefoneInternacionalPayload(formData));
+      else if (modalType === 'edit' && selectedConta) await apiClient.put(`/crm-vendas/contas/${selectedConta.id}/`, applyTelefoneInternacionalPayload(formData));
       await loadContas(true); closeModal();
     } catch (err: any) { alert(err.response?.data?.detail || 'Erro ao salvar.'); } finally { setSubmitting(false); }
   };

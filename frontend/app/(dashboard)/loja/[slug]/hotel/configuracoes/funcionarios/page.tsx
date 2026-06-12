@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import apiClient from '@/lib/api-client';
-import { formatTelefone, toUpperCase } from '@/lib/format-br';
+import { formatTelefone, telefoneInternacionalBr, toUpperCase } from '@/lib/format-br';
 
 interface Funcionario {
   id: number;
@@ -58,7 +58,7 @@ export default function HotelFuncionariosPage() {
   const openNew = () => { setEditing(null); resetForm(); setModalOpen(true); };
   const openEdit = (f: Funcionario) => {
     setEditing(f);
-    setForm({ nome: f.nome || '', email: f.email || '', cargo: f.cargo || '', telefone: f.telefone || '' });
+    setForm({ nome: f.nome || '', email: f.email || '', cargo: f.cargo || '', telefone: formatTelefone(f.telefone || '') });
     setModalOpen(true);
   };
 
@@ -66,7 +66,7 @@ export default function HotelFuncionariosPage() {
     setSaving(true);
     setError(null);
     try {
-      const payload = { nome: form.nome.trim(), email: form.email.trim(), cargo: form.cargo.trim(), telefone: form.telefone.trim() };
+      const payload = { nome: form.nome.trim(), email: form.email.trim(), cargo: form.cargo.trim(), telefone: form.telefone.trim() ? telefoneInternacionalBr(form.telefone) : '' };
       if (editing) {
         await apiClient.put(`/hotel/funcionarios/${editing.id}/`, payload);
       } else {

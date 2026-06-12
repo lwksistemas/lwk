@@ -16,7 +16,13 @@ from .serializers import (
     LeadListSerializer,
     LeadSerializer,
 )
-from .views_common import CRMNoCacheListMixin, CRMPagination, filtrar_queryset_por_query_params
+from .views_common import (
+    CRMNoCacheListMixin,
+    CRMPagination,
+    filtrar_leads_por_documento,
+    filtrar_queryset_por_documento,
+    filtrar_queryset_por_query_params,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +49,7 @@ class ContaViewSet(
                 qs = qs.filter(tipo__in=['cliente', 'ambos'])
             else:
                 qs = qs.filter(tipo=tipo)
-        return qs
+        return filtrar_queryset_por_documento(qs, self.request, 'cnpj')
 
     vendedor_create_entity_label = 'conta'
 
@@ -99,11 +105,12 @@ class LeadViewSet(
                     pass
 
         qs = self.filter_by_vendedor(qs)
-        return filtrar_queryset_por_query_params(
+        qs = filtrar_queryset_por_query_params(
             qs,
             self.request,
             {'status': 'status', 'origem': 'origem'},
         )
+        return filtrar_leads_por_documento(qs, self.request)
 
     vendedor_create_entity_label = 'lead'
 

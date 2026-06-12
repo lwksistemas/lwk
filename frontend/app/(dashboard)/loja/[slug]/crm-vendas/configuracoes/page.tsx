@@ -71,7 +71,7 @@ export default function CrmVendasConfiguracoesPage() {
     {
       titulo: 'Configurar WhatsApp',
       descricao: 'Enviar lembretes de tarefas do calendário por WhatsApp',
-      href: `${base}/whatsapp`,
+      href: `/loja/${slug}/configuracoes/whatsapp`,
       icon: MessageCircle,
       itens: ['Integração WhatsApp', 'Lembretes do calendário'],
     },

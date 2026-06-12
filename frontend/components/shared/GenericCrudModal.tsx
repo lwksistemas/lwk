@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import apiClient from '@/lib/api-client';
-import { extractArrayData, formatApiError } from '@/lib/api-helpers';
+import { formatTelefone, applyTelefoneFormatPayload, applyTelefoneInternacionalPayload, isTelefoneField } from '@/lib/format-br';
 import { logger } from '@/lib/logger';
 
 export interface FieldConfig {
@@ -96,7 +96,8 @@ export function GenericCrudModal<T extends { id: number }>({
 
   const handleEdit = (item: T) => {
     setEditingItem(item);
-    const data = transformDataAfterLoad ? transformDataAfterLoad(item) : item;
+    let data = transformDataAfterLoad ? transformDataAfterLoad(item) : item;
+    data = applyTelefoneFormatPayload(data as Record<string, unknown>) as T;
     setFormData({ ...data });
     setShowForm(true);
   };
@@ -121,9 +122,10 @@ export function GenericCrudModal<T extends { id: number }>({
     setSaving(true);
 
     try {
-      const dataToSave = transformDataBeforeSave 
-        ? transformDataBeforeSave(formData) 
-        : formData;
+      let dataToSave = applyTelefoneInternacionalPayload({ ...formData });
+      if (transformDataBeforeSave) {
+        dataToSave = transformDataBeforeSave(dataToSave);
+      }
 
       if (editingItem) {
         await apiClient.put(`${endpoint}${editingItem.id}/`, dataToSave);
@@ -141,8 +143,11 @@ export function GenericCrudModal<T extends { id: number }>({
     }
   };
 
-  const handleChange = (name: string, value: any) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const handleChange = (name: string, value: unknown) => {
+    const next = isTelefoneField(name) && typeof value === 'string'
+      ? formatTelefone(value)
+      : value;
+    setFormData(prev => ({ ...prev, [name]: next }));
   };
 
   const renderField = (field: FieldConfig) => {
@@ -265,7 +270,7 @@ export function GenericCrudModal<T extends { id: number }>({
                     <div className="flex-1">
                       <p className="font-medium">{item.nome || item.name || item.titulo || `#${item.id}`}</p>
                       {item.email && <p className="text-sm text-gray-600">{item.email}</p>}
-                      {item.telefone && <p className="text-sm text-gray-600">{item.telefone}</p>}
+                      {item.telefone && <p className="text-sm text-gray-600">{formatTelefone(item.telefone)}</p>}
                     </div>
                     <div className="flex gap-2">
                       <button

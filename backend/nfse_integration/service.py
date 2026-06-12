@@ -46,9 +46,26 @@ class NFSeService:
         enviar_email: bool = True,
         codigo_cnae: Optional[str] = None,
         codigo_servico: Optional[str] = None,
+        item_lista_servico: Optional[str] = None,
+        empresa_prestadora_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Emite NFS-e com roteamento automático por provedor."""
         try:
+            from nfse_integration.prestador_loja import (
+                PrestadorNFSeNaoEncontradoError,
+                resolver_prestador_emissao_loja,
+            )
+
+            try:
+                prestador = resolver_prestador_emissao_loja(
+                    self.loja,
+                    self.config,
+                    self.loja.id,
+                    empresa_prestadora_id,
+                )
+            except PrestadorNFSeNaoEncontradoError as exc:
+                return {'success': False, 'error': str(exc)}
+
             provedor = getattr(self.config, 'provedor_nf', 'issnet')
 
             if provedor == 'manual':
@@ -60,17 +77,28 @@ class NFSeService:
             if provedor == 'desabilitado':
                 return {'success': False, 'error': 'Emissão de NFS-e desabilitada'}
 
+            from nfse_integration.nfse_geo import preparar_endereco_tomador_emissao
+
+            tomador_endereco_final, erro_endereco = preparar_endereco_tomador_emissao(
+                tomador_endereco,
+                email=tomador_email,
+            )
+            if erro_endereco:
+                return {'success': False, 'error': erro_endereco}
+
             kwargs = dict(
                 tomador_cpf_cnpj=tomador_cpf_cnpj,
                 tomador_nome=tomador_nome,
                 tomador_email=tomador_email,
-                tomador_endereco=tomador_endereco,
+                tomador_endereco=tomador_endereco_final,
                 servico_descricao=servico_descricao,
                 valor_servicos=valor_servicos,
                 enviar_email=enviar_email,
                 enviar_email_fn=self._enviar_email_nfse,
                 codigo_cnae_override=codigo_cnae,
                 codigo_servico_override=codigo_servico,
+                item_lista_override=item_lista_servico,
+                prestador=prestador,
             )
 
             if provedor == 'issnet':

@@ -43,6 +43,13 @@ class NFSeSerializer(serializers.ModelSerializer):
 class EmitirNFSeSerializer(serializers.Serializer):
     """Serializer para emissão de NFS-e."""
     
+    # Empresa prestadora (emissão em nome de Conta tipo prestadora)
+    empresa_prestadora_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text='ID da Conta prestadora que emitirá a NFS-e',
+    )
+
     # Opção 1: Selecionar conta cadastrada
     conta_id = serializers.IntegerField(
         required=False,
@@ -108,6 +115,12 @@ class EmitirNFSeSerializer(serializers.Serializer):
         required=False,
         allow_blank=True,
         help_text='Código de serviço municipal para esta emissão (sobrescreve config da loja)'
+    )
+    item_lista_servico = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True,
+        help_text='Item da lista LC 116 (ex.: 17.06) para esta emissão'
     )
     
     def validate(self, data):

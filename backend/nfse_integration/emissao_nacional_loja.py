@@ -7,8 +7,9 @@ from typing import Any, Callable, Dict, Optional
 
 from django.utils import timezone
 
-from nfse_integration.nfse_geo import buscar_codigo_ibge_por_cep
+from nfse_integration.nfse_geo import preparar_endereco_tomador_emissao
 from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps, salvar_nfse_emitida
+from nfse_integration.prestador_loja import DadosPrestadorNFSe
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ def emitir_via_nacional_loja(
     enviar_email_fn: Callable[..., None],
     codigo_cnae_override: Optional[str] = None,
     codigo_servico_override: Optional[str] = None,
+    prestador: Optional[DadosPrestadorNFSe] = None,
 ) -> Dict[str, Any]:
     """Emite NFS-e via ADN Nacional usando certificado da loja."""
     try:
@@ -60,18 +62,25 @@ def emitir_via_nacional_loja(
             ambiente=ambiente,
         )
 
-        cep_tomador = (tomador_endereco.get('cep') or '').strip()
-        codigo_municipio_tomador = (tomador_endereco.get('codigo_municipio') or '').strip()
-        if not codigo_municipio_tomador and cep_tomador:
-            codigo_municipio_tomador = buscar_codigo_ibge_por_cep(cep_tomador)
-        tomador_endereco_final = {**tomador_endereco, 'codigo_municipio': codigo_municipio_tomador}
-
-        cnpj_prestador = re.sub(r'\D', '', loja.cpf_cnpj or '')
-        im_prestador = (
-            getattr(config, 'inscricao_municipal', '')
-            or getattr(loja, 'inscricao_municipal', '')
-            or ''
+        tomador_endereco_final, erro_endereco = preparar_endereco_tomador_emissao(
+            tomador_endereco,
+            email=tomador_email,
         )
+        if erro_endereco:
+            return {'success': False, 'error': erro_endereco}
+
+        if prestador:
+            cnpj_prestador = prestador.cnpj
+            im_prestador = prestador.inscricao_municipal
+            razao_prestador = prestador.razao_social
+        else:
+            cnpj_prestador = re.sub(r'\D', '', loja.cpf_cnpj or '')
+            im_prestador = (
+                getattr(config, 'inscricao_municipal', '')
+                or getattr(loja, 'inscricao_municipal', '')
+                or ''
+            )
+            razao_prestador = loja.nome or ''
         codigo_servico_final = (
             codigo_servico_override
             or getattr(config, 'codigo_servico_municipal', '14.01')
@@ -91,7 +100,7 @@ def emitir_via_nacional_loja(
             codigo_municipio_prestador=codigo_municipio,
             prestador_cnpj=cnpj_prestador,
             prestador_inscricao_municipal=im_prestador,
-            prestador_razao_social=loja.nome or '',
+            prestador_razao_social=razao_prestador,
             prestador_email=getattr(loja, 'email', '') or '',
             tomador_cpf_cnpj=tomador_cpf_cnpj,
             tomador_nome=tomador_nome,

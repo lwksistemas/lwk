@@ -158,6 +158,9 @@ def criar_consulta_avulsa(
     local_atendimento_id=None,
     valor_consulta=None,
     convenio_id=None,
+    nome_agenda_id=None,
+    appointment_date=None,
+    notes=None,
 ):
     """
     Cria uma consulta "avulsa" (sem agendamento prévio na agenda), a partir do
@@ -172,10 +175,10 @@ def criar_consulta_avulsa(
 
     Retorna a Consulta criada.
     """
-    from .models import LocalAtendimento
+    from .models import LocalAtendimento, NomeAgenda
     from .convenio_service import resolver_convenio, criar_appointment_procedures
 
-    ts = now()
+    ts = appointment_date or now()
     status_inicial = 'IN_PROGRESS' if iniciar else 'SCHEDULED'
     loja_id = loja_id or getattr(patient, 'loja_id', None)
 
@@ -197,6 +200,10 @@ def criar_consulta_avulsa(
     if convenio is None and getattr(patient, 'convenio_id', None):
         convenio = resolver_convenio(patient.convenio_id, loja_id=loja_id)
 
+    nome_agenda = None
+    if nome_agenda_id:
+        nome_agenda = NomeAgenda.objects.filter(pk=nome_agenda_id, is_active=True).first()
+
     appointment = Appointment.objects.create(
         date=ts,
         status=status_inicial,
@@ -205,6 +212,8 @@ def criar_consulta_avulsa(
         procedure=primary_procedure,
         convenio=convenio,
         local_atendimento=local_atendimento,
+        nome_agenda=nome_agenda,
+        notes=(notes or '').strip() or None,
         loja_id=loja_id,
     )
     criar_appointment_procedures(appointment, proc_list, convenio=convenio)

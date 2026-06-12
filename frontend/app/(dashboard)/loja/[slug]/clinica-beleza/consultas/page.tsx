@@ -11,9 +11,10 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Settings, CalendarDays } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
+import { ModalCriarAgendamento } from "@/components/clinica-beleza/ModalCriarAgendamento";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
-import { NovaConsultaPageContent } from "@/components/clinica-beleza/NovaConsultaPageContent";
+import { useAgendamentoCadastros } from "@/hooks/clinica-beleza/useAgendamentoCadastros";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import {
   type Consulta,
@@ -29,7 +30,6 @@ export default function ConsultasPage() {
   const searchParams = useSearchParams();
   const slug = params.slug as string;
   const basePath = `/loja/${slug}/clinica-beleza/consultas`;
-  const isNovo = searchParams.get("novo") === "1";
 
   const {
     list: consultas,
@@ -44,11 +44,43 @@ export default function ConsultasPage() {
   const [selected, setSelected] = useState<Consulta | null>(null);
   const [showLocaisModal, setShowLocaisModal] = useState(false);
   const [showNomesAgendaModal, setShowNomesAgendaModal] = useState(false);
+  const [showNovaConsultaModal, setShowNovaConsultaModal] = useState(false);
+  const [novaConsultaDate, setNovaConsultaDate] = useState<Date | null>(null);
+
+  const {
+    patients,
+    professionals,
+    procedures,
+    nomesAgenda,
+    locaisAtendimento,
+    setPatients,
+    reload: reloadCadastros,
+  } = useAgendamentoCadastros(showNovaConsultaModal);
 
   const abrirConsulta = useCallback((consulta: Consulta) => {
     setSelected(consulta);
     router.replace(`/loja/${slug}/clinica-beleza/consultas?id=${consulta.id}`, { scroll: false });
   }, [router, slug]);
+
+  const abrirNovaConsulta = useCallback(() => {
+    setNovaConsultaDate(new Date());
+    setShowNovaConsultaModal(true);
+    router.replace(`${basePath}?novo=1`, { scroll: false });
+  }, [basePath, router]);
+
+  const fecharNovaConsulta = useCallback(() => {
+    setShowNovaConsultaModal(false);
+    if (searchParams.get("novo") === "1") {
+      router.replace(basePath, { scroll: false });
+    }
+  }, [basePath, router, searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get("novo") === "1") {
+      setNovaConsultaDate(new Date());
+      setShowNovaConsultaModal(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const idParam = searchParams.get("id");
@@ -72,7 +104,7 @@ export default function ConsultasPage() {
     return () => {
       cancelled = true;
     };
-  }, [searchParams, consultas]);
+  }, [searchParams, consultas, selected?.id]);
 
   const voltarLista = () => {
     setSelected(null);
@@ -81,18 +113,6 @@ export default function ConsultasPage() {
 
   const formatData = (d?: string | null) =>
     d ? formatClinicaDateTime(new Date(d)) : "—";
-
-  if (isNovo) {
-    return (
-      <NovaConsultaPageContent
-        slug={slug}
-        onDone={() => {
-          router.replace(basePath, { scroll: false });
-          loadConsultas();
-        }}
-      />
-    );
-  }
 
   if (selected) {
     return (
@@ -110,7 +130,7 @@ export default function ConsultasPage() {
       <ClinicaBelezaStandardPageHeader
         title="Consultas"
         subtitle="Confirme na Agenda · inicie e finalize aqui"
-        onNew={() => router.replace(`${basePath}?novo=1`, { scroll: false })}
+        onNew={abrirNovaConsulta}
         newLabel="Nova consulta"
         extraActions={
           <>
@@ -162,6 +182,26 @@ export default function ConsultasPage() {
           </ClinicaBelezaPanel>
         )}
       </ClinicaBelezaPageContent>
+
+      <ModalCriarAgendamento
+        open={showNovaConsultaModal}
+        onClose={fecharNovaConsulta}
+        mode="consulta"
+        selectedDate={novaConsultaDate}
+        professionals={professionals}
+        patients={patients}
+        procedures={procedures}
+        nomesAgenda={nomesAgenda}
+        locaisAtendimento={locaisAtendimento}
+        onPatientsChange={setPatients}
+        onSuccess={() => {
+          loadConsultas();
+          reloadCadastros();
+        }}
+        onConsultaCreated={(consultaId) => {
+          ClinicaBelezaAPI.consultas.get(consultaId).then((c) => abrirConsulta(c as Consulta)).catch(() => {});
+        }}
+      />
 
       <LocaisAtendimentoModal
         open={showLocaisModal}

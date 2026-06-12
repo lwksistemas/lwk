@@ -125,6 +125,14 @@ class ConsultaListView(APIView):
         local_atendimento_id = request.data.get('local_atendimento')
         valor_consulta_override = request.data.get('valor_consulta')
         convenio_id = request.data.get('convenio')
+        nome_agenda_id = request.data.get('nome_agenda')
+        notes = request.data.get('notes')
+        appointment_date = None
+        if date_raw := request.data.get('date'):
+            from django.utils.dateparse import parse_datetime
+            appointment_date = parse_datetime(str(date_raw))
+            if appointment_date is None:
+                return Response({'error': 'Data/hora inválida.'}, status=status.HTTP_400_BAD_REQUEST)
         consulta = criar_consulta_avulsa(
             patient=patient,
             professional=professional,
@@ -134,6 +142,9 @@ class ConsultaListView(APIView):
             local_atendimento_id=local_atendimento_id,
             valor_consulta=valor_consulta_override,
             convenio_id=convenio_id,
+            nome_agenda_id=nome_agenda_id,
+            appointment_date=appointment_date,
+            notes=notes,
         )
         consulta = Consulta.objects.select_related(
             'patient', 'professional', 'procedure', 'protocol', 'appointment',

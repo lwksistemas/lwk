@@ -3,6 +3,50 @@
  * Centraliza helpers de tratamento de respostas da API.
  */
 import apiClient from '@/lib/api-client';
+import { formatApiErrorBody } from '@/lib/api-errors';
+import { applyTelefoneInternacionalPayload } from '@/lib/format-br';
+
+export type CrmLeadFormPayloadInput = {
+  nome: string;
+  empresa: string;
+  cpf_cnpj: string;
+  email: string;
+  telefone: string;
+  origem: string;
+  status: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+  observacoes: string;
+};
+
+/** Monta payload JSON para POST/PATCH de leads (telefone em 55...). */
+export function buildCrmLeadPayload(form: CrmLeadFormPayloadInput): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    nome: form.nome.trim(),
+    origem: form.origem,
+    status: form.status,
+    empresa: form.empresa.trim() || undefined,
+    cpf_cnpj: form.cpf_cnpj.trim() || undefined,
+    email: form.email.trim() || undefined,
+    cep: form.cep.trim() || undefined,
+    logradouro: form.logradouro.trim() || undefined,
+    numero: form.numero.trim() || undefined,
+    complemento: form.complemento.trim() || undefined,
+    bairro: form.bairro.trim() || undefined,
+    cidade: form.cidade.trim() || undefined,
+    uf: form.uf.trim().toUpperCase() || undefined,
+    observacoes: form.observacoes.trim() || undefined,
+  };
+  if (form.telefone.trim()) {
+    payload.telefone = form.telefone.trim();
+  }
+  return applyTelefoneInternacionalPayload(payload);
+}
 
 /**
  * Normaliza resposta paginada ou array da API para um array de itens.
@@ -83,21 +127,21 @@ export async function fetchAllPaginatedResults<T>(
 
 /** Extrai mensagem de erro de respostas DRF/axios (uso comum em páginas CRM). */
 export function getCrmApiErrorDetail(err: unknown, fallback: string): string {
-  const e = err as { response?: { data?: { detail?: string } } };
-  return e.response?.data?.detail ?? fallback;
+  const e = err as { response?: { data?: unknown }; code?: string; message?: string };
+  const fromBody = formatApiErrorBody(e.response?.data);
+  if (fromBody) return fromBody;
+  if (e.code === 'ECONNABORTED') {
+    return 'Tempo esgotado. Verifique sua conexão e tente novamente.';
+  }
+  if (e.message && !e.response) {
+    return e.message;
+  }
+  return fallback;
 }
 
-/** Dispara download de um blob no navegador (PDF, etc.). */
-export function downloadBlobAsFile(blob: Blob, filename: string): void {
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
-}
+import { downloadBlobAsFile } from '@/lib/download-blob';
+
+export { downloadBlobAsFile };
 
 /** Mensagem de sucesso após enviar documento ao cliente por canal. */
 export function crmMensagemEnvioCanalSucesso(canal: 'email' | 'whatsapp'): string {

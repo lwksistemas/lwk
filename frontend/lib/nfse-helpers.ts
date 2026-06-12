@@ -3,6 +3,10 @@
  * Evita duplicar motivos de cancelamento, detecção de provedor e download de blobs.
  */
 
+import { downloadBlobFile } from '@/lib/download-blob';
+
+export { downloadBlobFile };
+
 /** Opções exibidas no prompt de cancelamento (subset alinhado ao backend ISSNet). */
 export const NFSE_CANCELAMENTO_OPCOES: Record<string, string> = {
   '1': 'Erro na emissão',
@@ -78,17 +82,6 @@ export function solicitarCancelamentoNFSe(
   return { codigo: opcao, motivo };
 }
 
-export function downloadBlobFile(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
 export function openBlobInNewTab(blob: Blob, mime = 'application/pdf'): void {
   const typed = blob.type ? blob : new Blob([blob], { type: mime });
   const url = window.URL.createObjectURL(typed);
@@ -142,7 +135,11 @@ export function nfsePodeBaixar(status: string): boolean {
 }
 
 export function nfsePodeSincronizar(status: string): boolean {
-  return status === 'emitida' || status === 'erro';
+  return status !== 'emitida' && status !== 'cancelada';
+}
+
+export function nfsePodeEnviarWhatsapp(status: string): boolean {
+  return status === 'emitida';
 }
 
 export function nfsePodeCancelar(status: string): boolean {

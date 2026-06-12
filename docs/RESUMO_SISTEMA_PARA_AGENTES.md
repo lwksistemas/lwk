@@ -177,8 +177,8 @@ export PATH="$HOME/.local/npm-global/bin:$PATH"
 # Backend (raiz do repo)
 npx railway up --service lwks-backend --detach
 
-# Frontend
-cd frontend && npx vercel --prod --yes
+# Frontend (raiz do repo — Root Directory = frontend/ no painel Vercel)
+npx vercel --prod --yes
 ```
 
 Conta deploy: `lwksistemas@gmail.com`.

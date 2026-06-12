@@ -1,157 +1,98 @@
 # LWK Sistemas - Sistema Multi-Tenant SaaS
 
-Sistema multi-tenant completo para gestão de diferentes tipos de negócios (clínicas, CRM, e-commerce, etc).
+Sistema multi-tenant completo para gestão de diferentes tipos de negócios (clínicas, CRM, hotel, etc).
 
-## 🚀 Stack Tecnológica
+> **Contexto completo para desenvolvimento:** [`docs/RESUMO_SISTEMA_PARA_AGENTES.md`](docs/RESUMO_SISTEMA_PARA_AGENTES.md)
+
+## Stack Tecnológica
 
 ### Backend
-- **Django 4.2** - Framework web Python
-- **Django REST Framework** - API REST
-- **PostgreSQL** - Banco de dados (Heroku Postgres)
-- **Redis** - Cache e sessões
-- **Heroku** - Hospedagem backend
+- **Django 5** + Django REST Framework
+- **PostgreSQL** (schemas por loja)
+- **Redis** (cache, opcional)
+- **Railway** — hospedagem backend (`lwks-backend`)
 
 ### Frontend
-- **Next.js 14** - Framework React
-- **TypeScript** - Tipagem estática
-- **Tailwind CSS** - Estilização
-- **Zustand** - Gerenciamento de estado
-- **Vercel** - Hospedagem frontend
+- **Next.js 15** (App Router)
+- **TypeScript** + **Tailwind CSS**
+- **Vercel** — hospedagem frontend (projeto `frontend`, Root Directory `frontend/`)
 
-## 📦 Tipos de App Disponíveis
+## Tipos de App Disponíveis
 
-1. **Clínica de Estética** - Sistema para clínicas de estética com agendamentos e prontuários
-2. **CRM Vendas** - Gestão de vendas, leads e pipeline comercial
-3. **Clínica da Beleza** - Sistema para clínicas de beleza com profissionais e serviços
+1. **Clínica da Beleza** — consultas, pacientes, profissionais, WhatsApp
+2. **CRM Vendas** — pipeline, propostas, Asaas, NFS-e
+3. **Clínica de Estética** — agendamentos e prontuários
+4. **Hotel / Cabeleireiro** — módulos específicos por tipo de loja
 
-## 🔧 Configuração Local
+## Configuração Local
 
 ### Backend
 
 ```bash
-# Criar ambiente virtual
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate  # Windows
-
-# Instalar dependências
+source venv/bin/activate
 pip install -r requirements.txt
-
-# Configurar variáveis de ambiente
 cp .env.example .env
-
-# Executar migrations
-python backend/manage.py migrate
-
-# Criar superusuário
-python backend/manage.py createsuperuser
-
-# Iniciar servidor
-python backend/manage.py runserver
+cd backend && python manage.py migrate
+python manage.py runserver
 ```
 
 ### Frontend
 
 ```bash
-# Instalar dependências
 cd frontend
 npm install
-
-# Configurar variáveis de ambiente
 cp .env.example .env.local
-
-# Iniciar servidor de desenvolvimento
 npm run dev
 ```
 
-## 🌐 URLs
+## URLs de Produção
 
-- **Frontend**: https://lwksistemas.com.br/
-- **Backend API**: https://lwksistemas-38ad47519238.herokuapp.com/api/
-- **Documentação API**: https://lwksistemas-38ad47519238.herokuapp.com/api/docs/
+| Serviço | URL |
+|---------|-----|
+| Site | https://lwksistemas.com.br |
+| API | https://api.lwksistemas.com.br |
+| Health | https://api.lwksistemas.com.br/api/superadmin/health |
 
-## 🔐 Credenciais de Acesso (Desenvolvimento)
+## Documentação
 
-- **Superusuário**: `admin`
-- **CPF**: `00000000000`
-- **Senha**: (definida no setup)
+- [Resumo do sistema (agentes/devs)](docs/RESUMO_SISTEMA_PARA_AGENTES.md)
+- [Deploy e rollback](docs/DEPLOY_E_ROLLBACK.md)
+- [Refatoração e limpeza](docs/REFATORACAO-LIMPEZA-SISTEMA.md)
 
-## 📚 Documentação
-
-- [Deploy, GitHub e rollback (~2 min)](docs/DEPLOY_E_ROLLBACK.md) - Integração Vercel/Railway, deploy manual e como reverter versão bugada
-- [Migração Heroku Postgres](MIGRACAO_HEROKU_POSTGRES_v917.md) - Migração do RDS AWS para Heroku Postgres
-- [Tipos de App](TIPOS_APP_CRIADOS_v922.md) - Tipos de app disponíveis no sistema
-
-## 🛠️ Comandos Úteis
-
-### Backend
+## Deploy Manual (emergência)
 
 ```bash
-# Criar tipos de app iniciais
-heroku run python backend/manage.py criar_tipos_app_iniciais --app lwksistemas
+export PATH="$HOME/.local/npm-global/bin:$PATH"
 
-# Criar UsuarioSistema para admin
-heroku run python backend/manage.py criar_usuario_sistema_admin --app lwksistemas
+# Backend (raiz do repo)
+npx railway up --service lwks-backend --detach
 
-# Migrations
-heroku run python backend/manage.py migrate --app lwksistemas
-
-# Logs
-heroku logs --tail --app lwksistemas
+# Frontend (raiz do repo — Root Directory = frontend/ no painel Vercel)
+npx vercel --prod --yes
 ```
 
-### Frontend
+Conta deploy: `lwksistemas@gmail.com`. Guia completo: [`docs/DEPLOY_E_ROLLBACK.md`](docs/DEPLOY_E_ROLLBACK.md).
 
-```bash
-# Build de produção
-npm run build
-
-# Deploy Vercel
-vercel --prod
-```
-
-## 📊 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 lwksistemas/
-├── backend/              # Django backend
-│   ├── config/          # Configurações Django
-│   ├── superadmin/      # App de super admin
-│   ├── stores/          # App de lojas
-│   ├── products/        # App de produtos
-│   ├── crm_vendas/      # App CRM Vendas
-│   ├── clinica_estetica/# App Clínica Estética
-│   ├── clinica_beleza/  # App Clínica Beleza
+├── backend/              # Django (Railway)
+│   ├── config/           # settings, urls, db_router
+│   ├── superadmin/       # gestão global
+│   ├── clinica_beleza/   # app clínica beleza
+│   ├── crm_vendas/       # CRM + Asaas
 │   └── ...
-├── frontend/            # Next.js frontend
-│   ├── app/            # App Router (Next.js 14)
-│   ├── components/     # Componentes React
-│   ├── store/          # Zustand stores
-│   └── ...
-├── requirements.txt    # Dependências Python
-└── README.md          # Este arquivo
+├── frontend/             # Next.js (Vercel)
+│   ├── app/              # App Router
+│   └── lib/              # api-client, módulos por app
+├── railway.toml          # release/start commands Railway
+├── Dockerfile.railway
+└── docs/
 ```
 
-## 🔄 Deploy
-
-### Backend (Heroku)
-
-```bash
-git push heroku master
-```
-
-### Frontend (Vercel)
-
-```bash
-vercel --prod
-```
-
-## 📝 Licença
-
-Propriedade de LWK Sistemas. Todos os direitos reservados.
-
-## 📧 Contato
+## Contato
 
 - Email: lwksistemas@gmail.com
 - Site: https://lwksistemas.com.br/

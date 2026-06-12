@@ -8,23 +8,22 @@ import apiClient from '@/lib/api-client';
 import {
   normalizeListResponse,
   getCrmApiErrorDetail,
-  crmMensagemEnvioCanalSucesso,
-  downloadCrmDocumento,
 } from '@/lib/crm-utils';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
+import { useCrmDocumentoActions } from '@/hooks/useCrmDocumentoActions';
 import { reenviarAssinaturaAposEdicaoSeNecessario } from '@/lib/crm-reenviar-assinatura';
-import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import {
   CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL,
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
 } from '@/lib/crm-constants';
-import { Plus, Eye, Edit2, Trash2, ClipboardList, ArrowRight, Mail, MessageCircle, FileText, FileSignature, Ban, MoreVertical, ShoppingCart } from 'lucide-react';
+import { formatDate } from '@/lib/financeiro-helpers';
+import { Plus, Eye, Edit2, Trash2, ClipboardList, ArrowRight, FileText, FileSignature, Ban, MoreVertical, ShoppingCart } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
-import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
+import CrmEnviarAssinaturaColuna from '@/components/crm-vendas/CrmEnviarAssinaturaColuna';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
 import CrmCancelarModal from '@/components/crm-vendas/CrmCancelarModal';
 import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
@@ -111,12 +110,16 @@ export default function CrmVendasPropostasPage() {
     nome_cliente_assinatura: '',
   });
   const [submitting, setSubmitting] = useState(false);
-  const [enviandoId, setEnviandoId] = useState<number | null>(null);
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
   const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
   const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
   const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
   const [menuAberto, setMenuAberto] = useState<number | null>(null);
+
+  const { enviandoId, handleEnviarCliente, handleDownloadPdf, handleDownloadDocx } = useCrmDocumentoActions(
+    'propostas',
+    loadPropostas,
+  );
 
   const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
   const { proposta: propostaWhatsappHabilitada } = useWhatsappEnvioFlags();
@@ -124,35 +127,6 @@ export default function CrmVendasPropostasPage() {
     formData,
     setFormData
   );
-
-  const handleEnviarCliente = async (propostaId: number, canal: 'email' | 'whatsapp') => {
-    setEnviandoId(propostaId);
-    try {
-      await crmEnviarCliente('propostas', propostaId, canal);
-      alert(crmMensagemEnvioCanalSucesso(canal));
-      await loadPropostas(true);
-    } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao enviar.'));
-    } finally {
-      setEnviandoId(null);
-    }
-  };
-
-  const handleDownloadPdf = async (propostaId: number, titulo: string) => {
-    try {
-      await downloadCrmDocumento('propostas', propostaId, titulo, 'pdf');
-    } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao baixar PDF.'));
-    }
-  };
-
-  const handleDownloadDocx = async (propostaId: number, titulo: string) => {
-    try {
-      await downloadCrmDocumento('propostas', propostaId, titulo, 'docx');
-    } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao baixar Word.'));
-    }
-  };
 
   const loadOportunidades = useCallback(async () => {
     try {
@@ -403,7 +377,7 @@ export default function CrmVendasPropostasPage() {
     return (
       <div className="space-y-4">
         <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse" />
-        <SkeletonTable rows={5} columns={6} />
+        <SkeletonTable rows={5} columns={7} />
       </div>
     );
   }
@@ -464,14 +438,18 @@ export default function CrmVendasPropostasPage() {
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Título</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Oportunidade</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase w-24">Enviar</th>
+                <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase w-28">
+                  <span className="block">Assinatura</span>
+                  <span className="block text-[9px] font-normal normal-case text-gray-500 dark:text-gray-400">Cliente / vendedor</span>
+                </th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase whitespace-nowrap">Emissão</th>
                 <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Ações</th>
               </tr>
             </thead>
             <tbody>
               {propostas.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={7} className="py-12 text-center text-gray-500 dark:text-gray-400">
                     <ClipboardList size={48} className="mx-auto mb-3 opacity-30" />
                     <p className="font-medium">Nenhuma proposta cadastrada</p>
                     <p className="text-sm mt-1">Clique em &quot;Nova Proposta&quot; ou vá ao Pipeline para criar</p>
@@ -503,29 +481,16 @@ export default function CrmVendasPropostasPage() {
                       {p.status === 'cancelada' ? (
                         <span className="text-gray-300 dark:text-gray-600 text-center block">—</span>
                       ) : (
-                        <div className="flex justify-center items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleEnviarCliente(p.id, 'email')}
-                            disabled={enviandoId !== null}
-                            className="p-1.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 disabled:opacity-50"
-                            title="Enviar por e-mail"
-                          >
-                            <Mail size={16} />
-                          </button>
-                          {propostaWhatsappHabilitada && (
-                            <button
-                              type="button"
-                              onClick={() => handleEnviarCliente(p.id, 'whatsapp')}
-                              disabled={enviandoId !== null}
-                              className="p-1.5 rounded hover:bg-green-50 dark:hover:bg-green-900/30 text-green-600 dark:text-green-400 disabled:opacity-50"
-                              title="Enviar por WhatsApp"
-                            >
-                              <MessageCircle size={16} />
-                            </button>
-                          )}
-                        </div>
+                        <CrmEnviarAssinaturaColuna
+                          statusAssinatura={p.status_assinatura}
+                          whatsappHabilitado={propostaWhatsappHabilitada}
+                          enviando={enviandoId === p.id}
+                          onEnviar={(canal) => handleEnviarCliente(p, canal)}
+                        />
                       )}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                      {formatDate(p.created_at)}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-end items-center gap-1">
@@ -600,21 +565,6 @@ export default function CrmVendasPropostasPage() {
                                     >
                                       <FileText size={15} className="text-blue-600" /> Baixar Word
                                     </button>
-                                    <BotaoAssinaturaDigital
-                                      variant="menuItem"
-                                      tipoDocumento="proposta"
-                                      documentoId={p.id}
-                                      statusAssinatura={p.status_assinatura}
-                                      leadEmail={p.lead_email}
-                                      leadTelefone={p.lead_telefone}
-                                      vendedorNome={p.vendedor_nome}
-                                      vendedorEmail={p.vendedor_email}
-                                      vendedorTelefone={p.vendedor_telefone}
-                                      onSucesso={() => {
-                                        loadPropostas(true);
-                                        setMenuAberto(null);
-                                      }}
-                                    />
                                     <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
                                     {p.status_assinatura !== 'concluido' && (
                                       <button

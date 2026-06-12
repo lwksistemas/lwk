@@ -1,32 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Database, Download, Upload, ArrowLeft, HardDrive, Shield } from 'lucide-react';
 import Link from 'next/link';
 import BackupButton from '@/components/loja/BackupButton';
-import apiClient from '@/lib/api-client';
+import { useLojaInfoPublica } from '@/hooks/useLojaInfoPublica';
 
 export default function HotelBackupPage() {
-  const params = useParams();
-  const slug = (params?.slug as string) ?? '';
-  const [lojaId, setLojaId] = useState<number | null>(null);
-  const [lojaNome, setLojaNome] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
-        if (data?.id) {
-          setLojaId(data.id);
-          setLojaNome(data.nome || slug);
-          sessionStorage.setItem('current_loja_id', String(data.id));
-        }
-      } catch { /* fallback */ }
-      setLoading(false);
-    })();
-  }, [slug]);
+  const slug = (useParams()?.slug as string) ?? '';
+  const { loja, loading } = useLojaInfoPublica(slug);
 
   if (loading) {
     return (
@@ -38,7 +20,6 @@ export default function HotelBackupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
-      {/* Header */}
       <div className="bg-gradient-to-r from-sky-600 to-cyan-600 text-white shadow-lg">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex items-center justify-between gap-4">
@@ -51,16 +32,17 @@ export default function HotelBackupPage() {
                 <p className="text-white/80 text-sm">Exportar e importar dados do hotel</p>
               </div>
             </div>
-            <Link href={`/loja/${slug}/hotel/configuracoes`} className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md transition-colors text-sm flex items-center gap-1">
+            <Link
+              href={`/loja/${slug}/hotel/configuracoes`}
+              className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md transition-colors text-sm flex items-center gap-1"
+            >
               <ArrowLeft className="w-4 h-4" /> Voltar
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Exportar */}
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
           <div className="h-1.5 bg-gradient-to-r from-emerald-500 to-teal-600" />
           <div className="p-6">
@@ -74,8 +56,8 @@ export default function HotelBackupPage() {
                   Baixe um arquivo com todos os dados do hotel: reservas, hóspedes, quartos, tarifas e governança.
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
-                  {lojaId ? (
-                    <BackupButton lojaId={lojaId} lojaNome={lojaNome} />
+                  {loja ? (
+                    <BackupButton lojaId={loja.id} lojaNome={loja.nome} />
                   ) : (
                     <p className="text-sm text-red-600">Não foi possível identificar a loja.</p>
                   )}
@@ -91,7 +73,6 @@ export default function HotelBackupPage() {
           </div>
         </div>
 
-        {/* Importar */}
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
           <div className="h-1.5 bg-gradient-to-r from-blue-500 to-indigo-600" />
           <div className="p-6">
@@ -104,7 +85,10 @@ export default function HotelBackupPage() {
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-4">
                   Restaurar dados a partir de um arquivo de backup exportado anteriormente.
                 </p>
-                <button disabled className="px-5 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed text-sm font-medium">
+                <button
+                  disabled
+                  className="px-5 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed text-sm font-medium"
+                >
                   Em breve
                 </button>
               </div>
@@ -112,7 +96,6 @@ export default function HotelBackupPage() {
           </div>
         </div>
 
-        {/* Info */}
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
           <div className="h-1.5 bg-gradient-to-r from-amber-500 to-orange-600" />
           <div className="p-6">
@@ -123,9 +106,17 @@ export default function HotelBackupPage() {
               <div className="flex-1">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Sobre os Backups</h2>
                 <ul className="mt-2 space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                  <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" /> Recomendamos fazer backup regularmente</li>
-                  <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" /> O arquivo contém dados de todas as tabelas do hotel</li>
-                  <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" /> Guarde o arquivo em local seguro</li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" /> Recomendamos fazer backup
+                    regularmente
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" /> O arquivo contém dados de todas
+                    as tabelas do hotel
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" /> Guarde o arquivo em local seguro
+                  </li>
                 </ul>
               </div>
             </div>

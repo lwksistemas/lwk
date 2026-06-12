@@ -1,0 +1,14 @@
+/** Dispara download de um blob no navegador (PDF, XML, etc.). */
+export function downloadBlobFile(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/** @deprecated Use downloadBlobFile */
+export const downloadBlobAsFile = downloadBlobFile;

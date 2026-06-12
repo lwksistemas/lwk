@@ -2,8 +2,6 @@
 
 import { BookOpen, ExternalLink } from 'lucide-react';
 
-const MANUAL_CLIENTE_PDF = '/docs/manual-cliente-whatsapp-meta.pdf';
-const MANUAL_TECNICO_PDF = '/docs/manual-whatsapp-meta.pdf';
 const META_DEV = 'https://developers.facebook.com/apps/';
 const META_API_SETUP = 'https://developers.facebook.com/docs/whatsapp/cloud-api/get-started';
 
@@ -19,26 +17,15 @@ export function WhatsAppConfigHelp({ variant = 'clinica' }: WhatsAppConfigHelpPr
           <BookOpen size={16} />
           Como configurar na Meta
         </p>
-        <div className="flex flex-col items-end gap-1">
-          <a
-            href={MANUAL_CLIENTE_PDF}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:underline"
-          >
-            Manual: liberar na Meta (PDF)
-            <ExternalLink size={12} />
-          </a>
-          <a
-            href={MANUAL_TECNICO_PDF}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 hover:text-emerald-700 dark:hover:text-emerald-300"
-          >
-            Referência técnica
-            <ExternalLink size={10} />
-          </a>
-        </div>
+        <a
+          href={META_API_SETUP}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:underline"
+        >
+          Documentação oficial Meta
+          <ExternalLink size={12} />
+        </a>
       </div>
 
       <p className="text-xs text-emerald-800 dark:text-emerald-200 font-medium">
@@ -66,10 +53,7 @@ export function WhatsAppConfigHelp({ variant = 'clinica' }: WhatsAppConfigHelpPr
       {variant === 'clinica' ? (
         <p className="text-xs text-gray-600 dark:text-gray-400">
           Confirmações saem ao confirmar agendamento. Lembretes 24h e 2h e <strong>cobranças de débitos pendentes</strong>{' '}
-          rodam automaticamente no servidor LWK. Campanhas em massa podem exigir <strong>template aprovado</strong> na Meta.{' '}
-          <a href="/docs/manual-cobranca-centralizada.pdf" target="_blank" rel="noopener noreferrer" className="text-emerald-700 dark:text-emerald-300 hover:underline">
-            Manual cobrança por loja (PDF)
-          </a>
+          rodam automaticamente no servidor LWK. Campanhas em massa podem exigir <strong>template aprovado</strong> na Meta.
         </p>
       ) : (
         <p className="text-xs text-gray-600 dark:text-gray-400">
@@ -78,15 +62,6 @@ export function WhatsAppConfigHelp({ variant = 'clinica' }: WhatsAppConfigHelpPr
         </p>
       )}
 
-      <a
-        href={META_API_SETUP}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-emerald-700 dark:hover:text-emerald-300"
-      >
-        Documentação oficial Meta Cloud API
-        <ExternalLink size={11} />
-      </a>
     </div>
   );
 }
@@ -96,6 +71,9 @@ interface WhatsAppConfigStatusProps {
   whatsappPhoneId: string;
   whatsappTokenSet: boolean;
   whatsappNumero?: string;
+  whatsappProvider?: 'meta' | 'evolution';
+  whatsappConnectionStatus?: 'disconnected' | 'qr_pending' | 'connected' | 'error';
+  whatsappConnectedPhone?: string;
   variant?: 'clinica' | 'crm';
 }
 
@@ -104,10 +82,19 @@ export function WhatsAppConfigStatus({
   whatsappPhoneId,
   whatsappTokenSet,
   whatsappNumero = '',
+  whatsappProvider = 'meta',
+  whatsappConnectionStatus = 'disconnected',
+  whatsappConnectedPhone = '',
   variant = 'clinica',
 }: WhatsAppConfigStatusProps) {
-  const ready = whatsappAtivo && whatsappPhoneId.trim() && whatsappTokenSet;
-  const partial = whatsappAtivo && (whatsappPhoneId.trim() || whatsappTokenSet);
+  const ready =
+    whatsappProvider === 'evolution'
+      ? whatsappAtivo && whatsappConnectionStatus === 'connected'
+      : whatsappAtivo && whatsappPhoneId.trim() && whatsappTokenSet;
+  const partial =
+    whatsappProvider === 'evolution'
+      ? whatsappAtivo || whatsappConnectionStatus === 'qr_pending'
+      : whatsappAtivo && (whatsappPhoneId.trim() || whatsappTokenSet);
 
   let message: string;
   if (ready) {
@@ -118,7 +105,18 @@ export function WhatsAppConfigStatus({
         <>Integração ativa — confirmações, lembretes e campanhas podem ser enviados.</>
       );
   } else if (partial) {
-    message = <>Preencha Phone ID e Token e mantenha &quot;WhatsApp ativo&quot; marcado.</>;
+    message =
+      whatsappProvider === 'evolution' ? (
+        <>Conecte via QR Code e marque &quot;WhatsApp ativo&quot; para enviar.</>
+      ) : (
+        <>Preencha Phone ID e Token e mantenha &quot;WhatsApp ativo&quot; marcado.</>
+      );
+  } else if (whatsappProvider === 'evolution' && whatsappConnectionStatus === 'connected') {
+    message = (
+      <>
+        WhatsApp Web conectado{whatsappConnectedPhone ? ` (${whatsappConnectedPhone})` : ''}. Ative acima para enviar.
+      </>
+    );
   } else if (whatsappNumero.trim()) {
     message = <>Número definido. Ative a integração acima para enviar mensagens.</>;
   } else {

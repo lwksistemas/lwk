@@ -59,6 +59,7 @@ htmlcov/
 .pytest_cache/
 
 # Backups e utilitários
+backend/backups/
 backup_dbs/
 utils/scripts_antigos/
 backend/utils/scripts_antigos/
@@ -89,3 +90,7 @@ fix_*.py
 verificar_*.py
 monitorar_*.sh
 COMMIT_MESSAGE_*.txt
+
+# Binários PHP e artefatos gerados
+*.phar
+whatsapp_evolution_php/output/

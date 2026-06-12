@@ -8,23 +8,21 @@ import apiClient from '@/lib/api-client';
 import {
   normalizeListResponse,
   getCrmApiErrorDetail,
-  crmMensagemEnvioCanalSucesso,
-  downloadCrmDocumento,
 } from '@/lib/crm-utils';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
+import { useCrmDocumentoActions } from '@/hooks/useCrmDocumentoActions';
 import { reenviarAssinaturaAposEdicaoSeNecessario } from '@/lib/crm-reenviar-assinatura';
-import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import {
   CRM_CONTRATO_STATUS_LABEL as STATUS_LABEL,
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
 } from '@/lib/crm-constants';
-import { Plus, Eye, Edit2, Trash2, FileSignature, ArrowRight, Mail, MessageCircle, Ban, MoreVertical, FileText } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, FileSignature, ArrowRight, Ban, MoreVertical, FileText } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
-import BotaoAssinaturaDigital from '@/components/crm-vendas/BotaoAssinaturaDigital';
+import CrmEnviarAssinaturaColuna from '@/components/crm-vendas/CrmEnviarAssinaturaColuna';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
 import CrmCancelarModal from '@/components/crm-vendas/CrmCancelarModal';
 import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
@@ -109,9 +107,13 @@ export default function CrmVendasContratosPage() {
     nome_cliente_assinatura: '',
   });
   const [submitting, setSubmitting] = useState(false);
-  const [enviandoId, setEnviandoId] = useState<number | null>(null);
   const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
   const [menuAberto, setMenuAberto] = useState<number | null>(null);
+
+  const { enviandoId, handleEnviarCliente, handleDownloadPdf, handleDownloadDocx } = useCrmDocumentoActions(
+    'contratos',
+    loadContratos,
+  );
 
   const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
   const { contrato: contratoWhatsappHabilitado } = useWhatsappEnvioFlags();
@@ -119,35 +121,6 @@ export default function CrmVendasContratosPage() {
     formData,
     setFormData
   );
-
-  const handleEnviarCliente = async (contratoId: number, canal: 'email' | 'whatsapp') => {
-    setEnviandoId(contratoId);
-    try {
-      await crmEnviarCliente('contratos', contratoId, canal);
-      alert(crmMensagemEnvioCanalSucesso(canal));
-      await loadContratos();
-    } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao enviar.'));
-    } finally {
-      setEnviandoId(null);
-    }
-  };
-
-  const handleDownloadPdf = async (contratoId: number, titulo: string) => {
-    try {
-      await downloadCrmDocumento('contratos', contratoId, titulo, 'pdf');
-    } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao baixar PDF.'));
-    }
-  };
-
-  const handleDownloadDocx = async (contratoId: number, titulo: string) => {
-    try {
-      await downloadCrmDocumento('contratos', contratoId, titulo, 'docx');
-    } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao baixar Word.'));
-    }
-  };
 
   const handleMarcarComoAssinado = async (contratoId: number) => {
     if (!confirm('Marcar este contrato como assinado manualmente?\n\nUse esta opção quando o cliente assinar de outra forma (manual, gov.br, etc).')) {
@@ -386,13 +359,17 @@ export default function CrmVendasContratosPage() {
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Título</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Oportunidade</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Status</th>
+                <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase w-28">
+                  <span className="block">Assinatura</span>
+                  <span className="block text-[9px] font-normal normal-case text-gray-500 dark:text-gray-400">Cliente / vendedor</span>
+                </th>
                 <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Ações</th>
               </tr>
             </thead>
             <tbody>
               {contratos.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} className="py-12 text-center text-gray-500 dark:text-gray-400">
                     <FileSignature size={48} className="mx-auto mb-3 opacity-30" />
                     <p className="font-medium">Nenhum contrato cadastrado</p>
                     <p className="text-sm mt-1">Crie contratos a partir de oportunidades fechadas como ganhas</p>
@@ -419,6 +396,18 @@ export default function CrmVendasContratosPage() {
                         labelsAssinatura={STATUS_ASSINATURA_LABEL}
                         variante="contrato"
                       />
+                    </td>
+                    <td className="py-3 px-4">
+                      {c.status === 'cancelado' ? (
+                        <span className="text-gray-300 dark:text-gray-600 text-center block">—</span>
+                      ) : (
+                        <CrmEnviarAssinaturaColuna
+                          statusAssinatura={c.status_assinatura}
+                          whatsappHabilitado={contratoWhatsappHabilitado}
+                          enviando={enviandoId === c.id}
+                          onEnviar={(canal) => handleEnviarCliente(c, canal)}
+                        />
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex justify-end gap-1 flex-wrap items-center">
@@ -488,17 +477,6 @@ export default function CrmVendasContratosPage() {
                                 </>
                               )}
                             </div>
-                            <BotaoAssinaturaDigital
-                              tipoDocumento="contrato"
-                              documentoId={c.id}
-                              statusAssinatura={c.status_assinatura}
-                              leadEmail={c.lead_email}
-                              leadTelefone={c.lead_telefone}
-                              vendedorNome={c.vendedor_nome}
-                              vendedorEmail={c.vendedor_email}
-                              vendedorTelefone={c.vendedor_telefone}
-                              onSucesso={loadContratos}
-                            />
                             {c.status_assinatura !== 'concluido' && (
                               <button
                                 type="button"
@@ -509,10 +487,6 @@ export default function CrmVendasContratosPage() {
                               >
                                 <FileSignature size={16} />
                               </button>
-                            )}
-                            <button type="button" onClick={() => handleEnviarCliente(c.id, 'email')} disabled={enviandoId !== null} className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50" title="Enviar por e-mail"><Mail size={16} /></button>
-                            {contratoWhatsappHabilitado && (
-                              <button type="button" onClick={() => handleEnviarCliente(c.id, 'whatsapp')} disabled={enviandoId !== null} className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50" title="Enviar por WhatsApp"><MessageCircle size={16} /></button>
                             )}
                             <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>
                             <button type="button" onClick={() => openModal('edit', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>

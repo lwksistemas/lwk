@@ -6,7 +6,7 @@ from ..models import Procedure, ProcedureProtocol
 
 
 class ProcedureSerializer(TextNormalizationMixin, serializers.ModelSerializer):
-    uppercase_fields = ['nome', 'categoria']
+    uppercase_fields = ['nome']
     phone_fields = []
 
     class Meta:

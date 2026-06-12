@@ -12,7 +12,7 @@ import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBel
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, ConvenioItem, LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
-import { formatTelefone, formatCpf, toUpperCase } from "@/lib/format-br";
+import { formatTelefone, formatCpf, telefoneInternacionalBr, toUpperCase } from "@/lib/format-br";
 import { formatProfissionalApiErrors } from "@/lib/clinica-beleza-form-errors";
 import { logger } from "@/lib/logger";
 
@@ -237,7 +237,7 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
     const body: Record<string, unknown> = {
       name: form.name.trim(),
       specialty: form.specialty.trim(),
-      phone: form.phone.trim() || null,
+      phone: form.phone.trim() ? telefoneInternacionalBr(form.phone) : null,
       email: form.email.trim() || null,
       registro_profissional: form.registro.trim() || null,
       conselho: form.conselho || null,

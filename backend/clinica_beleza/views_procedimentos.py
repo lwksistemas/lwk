@@ -2,8 +2,10 @@
 Views de Procedimentos — Clínica da Beleza
 """
 import logging
+import unicodedata
 from decimal import Decimal, InvalidOperation
 
+from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .permissions import CLINICA_MEMBER
@@ -35,6 +37,36 @@ def _map_procedure_data(raw_data):
     return map_field_names(raw_data, _PROCEDURE_FIELD_MAP)
 
 
+def _normalize_categoria(value: str) -> str:
+    value = (value or '').lower()
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', value) if unicodedata.category(c) != 'Mn'
+    )
+
+
+# Aliases alinhados ao frontend (clinica-beleza-categories.ts)
+_MODULE_CATEGORIA_ALIASES: dict[str, list[str]] = {
+    'soroterapia': ['soroterapia', 'soro'],
+    'estetica': ['estetica', 'estética', 'facial', 'corporal', 'capilar'],
+    'facial': ['facial'],
+    'corporal': ['corporal'],
+    'capilar': ['capilar'],
+    'depilacao': ['depilacao', 'depilação'],
+}
+
+
+def _filter_procedures_by_categoria(queryset, categoria: str):
+    categoria = (categoria or '').strip()
+    if not categoria:
+        return queryset
+    key = _normalize_categoria(categoria)
+    aliases = _MODULE_CATEGORIA_ALIASES.get(key, [categoria])
+    q = Q()
+    for alias in aliases:
+        q |= Q(categoria__icontains=alias)
+    return queryset.filter(q)
+
+
 class ProcedureListView(APIView):
     """
     GET /clinica-beleza/procedures/
@@ -49,7 +81,7 @@ class ProcedureListView(APIView):
         if active_only:
             queryset = queryset.filter(is_active=True)
         if categoria:
-            queryset = queryset.filter(categoria__icontains=categoria)
+            queryset = _filter_procedures_by_categoria(queryset, categoria)
         return paginate_queryset(queryset, request, ProcedureSerializer)
 
     def post(self, request):

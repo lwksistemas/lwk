@@ -38,6 +38,8 @@ export interface Consulta {
   local_atendimento_name?: string | null;
   convenio?: number | null;
   convenio_name?: string | null;
+  nome_agenda_id?: number | null;
+  nome_agenda_name?: string | null;
   appointment_date?: string;
   appointment_status?: string;
   total_evolucoes: number;

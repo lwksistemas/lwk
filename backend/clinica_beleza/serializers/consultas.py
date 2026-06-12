@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from core.serializer_mixins import TenantQuerysetMixin
 from ..models import Consulta, ConsultaEvolucao, Convenio, LocalAtendimento, PrescricaoMemed
 
 
@@ -33,7 +34,7 @@ class PrescricaoMemedSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'loja_id']
 
 
-class ConsultaSerializer(serializers.ModelSerializer):
+class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     patient_name = serializers.CharField(source='patient.nome', read_only=True)
     professional_name = serializers.CharField(source='professional.nome', read_only=True, default=None)
     procedure_name = serializers.SerializerMethodField()
@@ -44,7 +45,7 @@ class ConsultaSerializer(serializers.ModelSerializer):
     duracao_minutos = serializers.ReadOnlyField()
     total_evolucoes = serializers.SerializerMethodField()
     local_atendimento = serializers.PrimaryKeyRelatedField(
-        queryset=LocalAtendimento.objects.all(),
+        queryset=LocalAtendimento.objects.none(),
         allow_null=True,
         required=False,
     )
@@ -52,11 +53,21 @@ class ConsultaSerializer(serializers.ModelSerializer):
         source='local_atendimento.nome', read_only=True, default=None, allow_null=True,
     )
     convenio = serializers.PrimaryKeyRelatedField(
-        queryset=Convenio.objects.filter(is_active=True),
+        queryset=Convenio.objects.none(),
         allow_null=True,
         required=False,
     )
     convenio_name = serializers.SerializerMethodField()
+    nome_agenda_id = serializers.IntegerField(
+        source='appointment.nome_agenda.id', read_only=True, allow_null=True, default=None,
+    )
+    nome_agenda_name = serializers.CharField(
+        source='appointment.nome_agenda.nome', read_only=True, allow_null=True, default=None,
+    )
+
+    def apply_tenant_querysets(self):
+        self.bind_tenant_queryset('local_atendimento', LocalAtendimento.objects.all())
+        self.bind_tenant_queryset('convenio', Convenio.objects.filter(is_active=True))
     valor_procedimentos = serializers.SerializerMethodField()
     valor_pagamento = serializers.SerializerMethodField()
     exige_termo_consentimento = serializers.SerializerMethodField()
@@ -73,6 +84,7 @@ class ConsultaSerializer(serializers.ModelSerializer):
             'valor_consulta', 'valor_procedimentos', 'valor_pagamento',
             'local_atendimento', 'local_atendimento_name',
             'convenio', 'convenio_name',
+            'nome_agenda_id', 'nome_agenda_name',
             'appointment_date', 'appointment_status', 'total_evolucoes',
             'status_assinatura_termo', 'status_assinatura_termo_display', 'exige_termo_consentimento',
             'created_at', 'updated_at', 'loja_id',

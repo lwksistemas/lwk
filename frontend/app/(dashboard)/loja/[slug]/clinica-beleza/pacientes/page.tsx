@@ -29,7 +29,8 @@ import {
   patientNotes,
 } from "@/lib/clinica-beleza-entities";
 import { formatClinicaApiValidationErrors } from "@/lib/clinica-beleza-form-errors";
-import { formatTelefone, formatCpf, toUpperCase } from "@/lib/format-br";
+import { formatTelefone, formatCpf, formatCep, applyTelefoneInternacionalPayload, toUpperCase } from "@/lib/format-br";
+import { consultaCep } from "@/lib/consulta-cep";
 import {
   bloquearCriacaoDuplicadaOffline,
   deveVerificarDuplicataOffline,
@@ -41,7 +42,12 @@ import {
 } from "@/lib/clinica-beleza-offline";
 import { buscarPacientesOffline, salvarPacientesOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
 import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
-import { CONVENIO_PARTICULAR_LABEL } from "@/lib/convenio-precos";
+import {
+  CONVENIO_PARTICULAR_LABEL,
+  findConvenioParticular,
+  isConvenioParticularNome,
+  ordenarConveniosComParticularPrimeiro,
+} from "@/lib/convenio-precos";
 import { logger } from "@/lib/logger";
 
 interface Patient {
@@ -56,6 +62,10 @@ interface Patient {
   data_nascimento?: string | null;
   address?: string | null;
   endereco?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  city?: string | null;
+  state?: string | null;
   notes?: string | null;
   observacoes?: string | null;
   active?: boolean;
@@ -71,7 +81,13 @@ const EMPTY_FORM = {
   email: "",
   cpf: "",
   birth_date: "",
-  address: "",
+  cep: "",
+  logradouro: "",
+  numero: "",
+  complemento: "",
+  bairro: "",
+  cidade: "",
+  uf: "",
   notes: "",
   allow_whatsapp: true,
   convenio: "" as number | "",
@@ -79,14 +95,52 @@ const EMPTY_FORM = {
 
 const INPUT = CLINICA_FORM_INPUT;
 
+function montarEnderecoPaciente(form: typeof EMPTY_FORM): string {
+  const partes: string[] = [];
+  if (form.logradouro.trim()) partes.push(form.logradouro.trim());
+  if (form.numero.trim()) partes.push(`Nº ${form.numero.trim()}`);
+  if (form.complemento.trim()) partes.push(form.complemento.trim());
+  if (form.bairro.trim()) partes.push(form.bairro.trim());
+  if (form.cep.trim()) partes.push(`CEP ${form.cep.trim()}`);
+  return partes.join(", ");
+}
+
 function patientToForm(p: Patient) {
+  const endereco = patientAddress(p) || "";
+  const cepMatch = endereco.match(/CEP\s*(\d{5}-?\d{3})/i);
+  const enderecoSemCep = endereco.replace(/,?\s*CEP\s*\d{5}-?\d{3}/i, "").trim();
+  const partes = enderecoSemCep.split(",").map((s) => s.trim()).filter(Boolean);
+  let logradouro = partes[0] || "";
+  let numero = "";
+  let complemento = "";
+  let bairro = "";
+  for (let i = 1; i < partes.length; i += 1) {
+    const parte = partes[i];
+    const numMatch = parte.match(/^N[º°o\.]?\s*(.+)$/i);
+    if (numMatch && !numero) {
+      numero = numMatch[1].trim();
+    } else if (!bairro) {
+      bairro = parte;
+    } else if (!complemento) {
+      complemento = parte;
+    }
+  }
+  if (!logradouro && enderecoSemCep) {
+    logradouro = enderecoSemCep;
+  }
   return {
     name: entityName(p),
     phone: formatTelefone(entityPhone(p)),
     email: entityEmail(p) || "",
     cpf: formatCpf(patientCpf(p) || ""),
     birth_date: patientBirthDate(p) ? patientBirthDate(p)!.slice(0, 10) : "",
-    address: patientAddress(p) || "",
+    cep: cepMatch ? formatCep(cepMatch[1]) : "",
+    logradouro,
+    numero,
+    complemento,
+    bairro,
+    cidade: (p.cidade || p.city || "").trim(),
+    uf: (p.estado || p.state || "").trim(),
     notes: patientNotes(p) || "",
     allow_whatsapp: p.allow_whatsapp !== false,
     convenio: p.convenio ?? "",
@@ -109,6 +163,7 @@ export default function PacientesPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [buscarCepLoading, setBuscarCepLoading] = useState(false);
   const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
 
   const isNovo = searchParams.get("novo") === "1";
@@ -152,6 +207,17 @@ export default function PacientesPage() {
       .catch(() => setConvenios([]));
   }, [isFormView]);
 
+  useEffect(() => {
+    if (!isFormView) return;
+    const particular = findConvenioParticular(convenios);
+    if (!particular) return;
+    setForm((f) => {
+      if (isNovo) return { ...f, convenio: particular.id };
+      if (f.convenio === "") return { ...f, convenio: particular.id };
+      return f;
+    });
+  }, [isFormView, isNovo, convenios]);
+
   const voltarLista = () => {
     setEditing(null);
     setError("");
@@ -166,6 +232,36 @@ export default function PacientesPage() {
     router.replace(`${basePath}?id=${p.id}`, { scroll: false });
   };
 
+  const handleCepChange = (value: string) => {
+    setForm((f) => ({ ...f, cep: formatCep(value) }));
+  };
+
+  const handleBuscarCep = async () => {
+    const cep = form.cep.replace(/\D/g, "");
+    if (cep.length !== 8) {
+      setError("Informe um CEP válido com 8 dígitos.");
+      return;
+    }
+    setBuscarCepLoading(true);
+    setError("");
+    try {
+      const endereco = await consultaCep(form.cep);
+      if (endereco) {
+        setForm((f) => ({
+          ...f,
+          logradouro: toUpperCase(endereco.logradouro),
+          bairro: toUpperCase(endereco.bairro),
+          cidade: toUpperCase(endereco.cidade),
+          uf: endereco.uf.toUpperCase(),
+        }));
+      } else {
+        setError("CEP não encontrado. Verifique o número ou tente novamente.");
+      }
+    } finally {
+      setBuscarCepLoading(false);
+    }
+  };
+
   const save = async () => {
     if (!form.name.trim()) {
       setError("Nome é obrigatório.");
@@ -173,18 +269,20 @@ export default function PacientesPage() {
     }
     setSaving(true);
     setError("");
-    const body = {
+    const body = applyTelefoneInternacionalPayload({
       name: form.name.trim(),
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
       cpf: form.cpf.trim() || null,
       birth_date: form.birth_date || null,
-      address: form.address.trim() || null,
+      address: montarEnderecoPaciente(form) || null,
+      cidade: form.cidade.trim() || null,
+      estado: form.uf.trim().toUpperCase() || null,
       notes: form.notes.trim() || null,
       active: true,
       allow_whatsapp: form.allow_whatsapp,
       convenio: form.convenio ? Number(form.convenio) : null,
-    };
+    });
 
     const finishSave = () => {
       voltarLista();
@@ -223,6 +321,8 @@ export default function PacientesPage() {
             cpf: body.cpf ?? null,
             birth_date: body.birth_date ?? null,
             address: body.address ?? null,
+            cidade: body.cidade ?? null,
+            estado: body.estado ?? null,
             notes: body.notes ?? null,
             active: true,
             allow_whatsapp: body.allow_whatsapp ?? true,
@@ -282,6 +382,8 @@ export default function PacientesPage() {
               cpf: body.cpf ?? null,
               birth_date: body.birth_date ?? null,
               address: body.address ?? null,
+            cidade: body.cidade ?? null,
+            estado: body.estado ?? null,
               notes: body.notes ?? null,
               active: true,
               allow_whatsapp: body.allow_whatsapp ?? true,
@@ -368,6 +470,9 @@ export default function PacientesPage() {
                       inputMode="tel"
                       maxLength={15}
                     />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Salvo automaticamente com código do país (55) para WhatsApp.
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">E-mail</label>
@@ -413,23 +518,109 @@ export default function PacientesPage() {
                       }
                       className={INPUT}
                     >
-                      <option value="">{CONVENIO_PARTICULAR_LABEL}</option>
-                      {convenios.map((c) => (
-                        <option key={c.id} value={c.id}>{c.nome}</option>
+                      {!findConvenioParticular(convenios) && (
+                        <option value="">{CONVENIO_PARTICULAR_LABEL}</option>
+                      )}
+                      {ordenarConveniosComParticularPrimeiro(convenios).map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nome}
+                          {isConvenioParticularNome(c.nome) ? " (padrão)" : ""}
+                        </option>
                       ))}
                     </select>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                      Sugerido ao agendar ou abrir consulta. {CONVENIO_PARTICULAR_LABEL} usa o preço cadastrado do procedimento.
+                      Sugerido ao agendar ou abrir consulta. O convênio{" "}
+                      <strong>{CONVENIO_PARTICULAR_LABEL}</strong> usa os preços cadastrados nos procedimentos.
                     </p>
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Endereço</label>
-                    <input
-                      value={form.address}
-                      onChange={(e) => setForm((f) => ({ ...f, address: toUpperCase(e.target.value) }))}
-                      className={INPUT}
-                      placeholder="Rua, número, bairro, cidade"
-                    />
+                  <div className="md:col-span-2 space-y-4 pt-1">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Endereço</p>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                      <div className="min-w-0 flex-1">
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">CEP</label>
+                        <input
+                          type="text"
+                          value={form.cep}
+                          onChange={(e) => handleCepChange(e.target.value)}
+                          onBlur={() => form.cep.replace(/\D/g, "").length === 8 && handleBuscarCep()}
+                          maxLength={9}
+                          className={INPUT}
+                          placeholder="00000-000"
+                          inputMode="numeric"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleBuscarCep}
+                        disabled={buscarCepLoading || form.cep.replace(/\D/g, "").length !== 8}
+                        className="shrink-0 px-4 py-2.5 rounded-lg border text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap w-full sm:w-auto"
+                        style={{ borderColor: CLINICA_BELEZA_PRIMARY, color: CLINICA_BELEZA_PRIMARY }}
+                        title="Consultar endereço pelo CEP"
+                      >
+                        {buscarCepLoading ? "Consultando..." : "Consultar CEP"}
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Logradouro</label>
+                      <input
+                        value={form.logradouro}
+                        onChange={(e) => setForm((f) => ({ ...f, logradouro: toUpperCase(e.target.value) }))}
+                        className={INPUT}
+                        placeholder="Rua, avenida..."
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Número</label>
+                        <input
+                          value={form.numero}
+                          onChange={(e) => setForm((f) => ({ ...f, numero: e.target.value }))}
+                          className={INPUT}
+                          placeholder="Nº"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Complemento</label>
+                        <input
+                          value={form.complemento}
+                          onChange={(e) => setForm((f) => ({ ...f, complemento: toUpperCase(e.target.value) }))}
+                          className={INPUT}
+                          placeholder="Apto, sala, bloco..."
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Bairro</label>
+                        <input
+                          value={form.bairro}
+                          onChange={(e) => setForm((f) => ({ ...f, bairro: toUpperCase(e.target.value) }))}
+                          className={INPUT}
+                          placeholder="Bairro"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Cidade</label>
+                        <input
+                          value={form.cidade}
+                          onChange={(e) => setForm((f) => ({ ...f, cidade: toUpperCase(e.target.value) }))}
+                          className={INPUT}
+                          placeholder="Cidade"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">UF</label>
+                        <input
+                          value={form.uf}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, uf: e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 2) }))
+                          }
+                          className={INPUT}
+                          placeholder="SP"
+                          maxLength={2}
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Observações</label>

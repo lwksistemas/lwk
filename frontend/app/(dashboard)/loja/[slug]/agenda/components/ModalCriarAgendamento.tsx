@@ -4,8 +4,14 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ConvenioSelect } from "@/components/clinica-beleza/ConvenioSelect";
 import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
-import { useNovaConsultaForm, type ConsultaFormPatient, type ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
+import {
+  PatientQuickRegisterField,
+  type PatientQuickOption,
+} from "@/components/clinica-beleza/PatientQuickRegisterField";
+import { useNovaConsultaForm, type ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
+import { formatApiErrorBody } from "@/lib/api-errors";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import type { NomeAgendaItem } from "@/lib/clinica-beleza-api";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { adicionarNaFilaSync } from "@/lib/offline-db";
 import { notificarFilaAtualizada } from "@/hooks/useSyncPending";
@@ -33,9 +39,11 @@ interface ModalCriarAgendamentoProps {
   selectedDate: Date | null;
   defaultProfessionalId?: string;
   professionals: Professional[];
-  patients: ConsultaFormPatient[];
+  patients: PatientQuickOption[];
   procedures: ConsultaFormProcedure[];
-  onOfflineEventCreated?: (event: any) => void;
+  nomesAgenda: NomeAgendaItem[];
+  onPatientsChange: (patients: PatientQuickOption[]) => void;
+  onOfflineEventCreated?: (event: unknown) => void;
 }
 
 export function ModalCriarAgendamento({
@@ -47,10 +55,13 @@ export function ModalCriarAgendamento({
   professionals,
   patients,
   procedures,
+  nomesAgenda,
+  onPatientsChange,
   onOfflineEventCreated,
 }: ModalCriarAgendamentoProps) {
   const [time, setTime] = useState("09:00");
   const [notes, setNotes] = useState("");
+  const [nomeAgendaId, setNomeAgendaId] = useState<number | "">("");
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
   const [horariosProfissional, setHorariosProfissional] = useState<HorarioTrabalho[]>([]);
@@ -77,6 +88,7 @@ export function ModalCriarAgendamento({
     resetForm();
     setConvenioId("");
     setProfessionalId(defaultProfessionalId ? Number(defaultProfessionalId) : "");
+    setNomeAgendaId("");
     setTime(selectedDate ? formatTimeFromDate(selectedDate) : "09:00");
     setNotes("");
     setCreateError("");
@@ -103,11 +115,30 @@ export function ModalCriarAgendamento({
 
   if (!open) return null;
 
+  const handleCreatePatient = async (data: { nome: string; telefone: string; cpf: string }) => {
+    const body: Record<string, string> = { nome: data.nome };
+    if (data.telefone) body.telefone = data.telefone.replace(/\D/g, "");
+    if (data.cpf) body.cpf = data.cpf.replace(/\D/g, "");
+    const res = await clinicaBelezaFetch("/patients/", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(formatApiErrorBody(err) || "Erro ao cadastrar paciente");
+    }
+    return res.json();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationError = validateBase();
     if (validationError) {
       setCreateError(validationError.replace("cliente", "paciente"));
+      return;
+    }
+    if (!nomeAgendaId) {
+      setCreateError("Selecione o nome da agenda.");
       return;
     }
     if (!selectedDate) {
@@ -132,6 +163,7 @@ export function ModalCriarAgendamento({
       status: "SCHEDULED",
       patient: Number(patientId),
       professional: Number(professionalId),
+      nome_agenda: Number(nomeAgendaId),
       notes: notes.trim() || null,
     };
     if (convenioId) payload.convenio = Number(convenioId);
@@ -188,7 +220,7 @@ export function ModalCriarAgendamento({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Erro ao criar agendamento");
+        throw new Error(formatApiErrorBody(data) || "Erro ao criar agendamento");
       }
       resetAndClose();
       onSuccess();
@@ -203,93 +235,136 @@ export function ModalCriarAgendamento({
     resetForm();
     setTime("09:00");
     setNotes("");
+    setNomeAgendaId("");
     setCreateError("");
     setCreateLoading(false);
     onClose();
   };
 
-  const selectClass = "w-full px-3 py-2 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700";
+  const inputClass =
+    "w-full px-3 py-2.5 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[44px]";
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col">
-        <div className="flex justify-between items-center px-5 py-4 border-b dark:border-neutral-700 shrink-0">
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 overflow-y-auto">
+      <div
+        className="bg-white dark:bg-neutral-800 rounded-t-xl sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-neutral-700 w-full max-w-md sm:max-w-4xl sm:w-[calc(100vw-2rem)] max-h-[95vh] sm:max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b dark:border-neutral-700 shrink-0">
           <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">Novo Agendamento</h2>
-          <button onClick={resetAndClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
+          <button onClick={resetAndClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg" aria-label="Fechar">
             <X size={20} />
           </button>
         </div>
-        <form className="flex-1 overflow-y-auto px-5 py-4 space-y-3" onSubmit={handleSubmit}>
+
+        <form className="flex-1 overflow-y-auto px-4 sm:px-6 py-4" onSubmit={handleSubmit}>
           {createError && (
-            <div className="p-2 rounded bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">{createError}</div>
+            <div className="mb-4 p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
+              {createError}
+            </div>
           )}
 
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data</label>
-              <p className="text-sm text-gray-800 dark:text-gray-200 font-medium py-2">
-                {selectedDate ? selectedDate.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" }) : "—"}
-              </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+            {/* Coluna esquerda: data/hora, paciente, nome da agenda */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data</label>
+                  <p className="text-sm text-gray-800 dark:text-gray-200 font-medium py-2.5 px-3 rounded-lg bg-gray-50 dark:bg-neutral-700/50">
+                    {selectedDate
+                      ? selectedDate.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })
+                      : "—"}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Horário *</label>
+                  <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} required />
+                </div>
+              </div>
+
+              <PatientQuickRegisterField
+                patients={patients}
+                patientId={patientId}
+                onSelect={setPatientId}
+                onClear={() => setPatientId("")}
+                onPatientCreated={(p) => onPatientsChange([...patients, p])}
+                onCreatePatient={handleCreatePatient}
+                disabled={createLoading}
+              />
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da agenda *</label>
+                <select
+                  value={nomeAgendaId}
+                  onChange={(e) => setNomeAgendaId(e.target.value ? Number(e.target.value) : "")}
+                  className={inputClass}
+                  required
+                >
+                  <option value="">Selecione a agenda</option>
+                  {nomesAgenda.map((a) => (
+                    <option key={a.id} value={a.id}>{a.nome}</option>
+                  ))}
+                </select>
+                {nomesAgenda.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    Cadastre nomes de agenda em Consultas → ícone de configurações.
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Horário</label>
-              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={selectClass} />
+
+            {/* Coluna direita: profissional, convênio, procedimentos */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profissional *</label>
+                <select
+                  value={professionalId}
+                  onChange={(e) => setProfessionalId(e.target.value ? Number(e.target.value) : "")}
+                  className={inputClass}
+                  required
+                >
+                  <option value="">Selecione o profissional</option>
+                  {professionals.map((p) => (
+                    <option key={p.id} value={p.id}>{entityName(p)}</option>
+                  ))}
+                </select>
+                {professionalId && horariosProfissional.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    Profissional sem horário de trabalho cadastrado — o agendamento não será validado por expediente.
+                  </p>
+                )}
+              </div>
+
+              <ConvenioSelect convenios={convenios} value={convenioId} onChange={setConvenioId} hint="" className={inputClass} />
+
+              <ProcedureMultiSelect
+                procedures={procedures}
+                selectedIds={selectedProcedures}
+                onAdd={adicionarProcedimento}
+                onRemove={removerProcedimento}
+                convenioId={convenioId}
+                precosMap={precosMap}
+              />
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  className={`${inputClass} resize-none min-h-[80px]`}
+                  placeholder="Opcional"
+                />
+              </div>
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Paciente *</label>
-            <select
-              value={patientId}
-              onChange={(e) => setPatientId(e.target.value ? Number(e.target.value) : "")}
-              className={selectClass}
-              required
+          <div className="flex gap-3 pt-5 mt-2 border-t dark:border-neutral-700 shrink-0">
+            <button
+              type="button"
+              onClick={resetAndClose}
+              className="flex-1 py-2.5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium"
             >
-              <option value="">Selecione o paciente</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>{entityName(p)}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profissional *</label>
-            <select
-              value={professionalId}
-              onChange={(e) => setProfessionalId(e.target.value ? Number(e.target.value) : "")}
-              className={selectClass}
-              required
-            >
-              <option value="">Selecione o profissional</option>
-              {professionals.map((p) => (
-                <option key={p.id} value={p.id}>{entityName(p)}</option>
-              ))}
-            </select>
-          </div>
-
-          <ConvenioSelect convenios={convenios} value={convenioId} onChange={setConvenioId} hint="" className={selectClass} />
-
-          <ProcedureMultiSelect
-            procedures={procedures}
-            selectedIds={selectedProcedures}
-            onAdd={adicionarProcedimento}
-            onRemove={removerProcedimento}
-            convenioId={convenioId}
-            precosMap={precosMap}
-          />
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              className={`${selectClass} resize-none`}
-              placeholder="Opcional"
-            />
-          </div>
-          <div className="flex gap-3 pt-4 border-t dark:border-neutral-700 shrink-0">
-            <button type="button" onClick={resetAndClose} className="flex-1 py-2.5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium">
               Cancelar
             </button>
             <button

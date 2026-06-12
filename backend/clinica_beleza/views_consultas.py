@@ -63,6 +63,7 @@ class ConsultaListView(APIView):
 
         qs = Consulta.objects.select_related(
             'patient', 'professional', 'procedure', 'protocol', 'appointment',
+            'appointment__nome_agenda',
         ).prefetch_related(
             'appointment__appointment_procedures__procedure',
         ).annotate(

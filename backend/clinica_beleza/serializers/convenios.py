@@ -2,7 +2,7 @@
 from rest_framework import serializers
 from core.serializer_mixins import TextNormalizationMixin
 
-from ..models import Convenio, ConvenioProcedimentoPreco, LocalAtendimento
+from ..models import Convenio, ConvenioProcedimentoPreco, LocalAtendimento, NomeAgenda
 
 
 class ConvenioListSerializer(TextNormalizationMixin, serializers.ModelSerializer):
@@ -80,3 +80,18 @@ class LocalAtendimentoSerializer(TextNormalizationMixin, serializers.ModelSerial
         if value is None or value < 0:
             raise serializers.ValidationError('O valor deve ser maior ou igual a zero.')
         return value
+
+
+class NomeAgendaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ['nome']
+    phone_fields = []
+
+    class Meta:
+        model = NomeAgenda
+        fields = ['id', 'nome', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_active', 'created_at', 'updated_at']
+
+    def validate_nome(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError('O nome da agenda é obrigatório.')
+        return value.strip()

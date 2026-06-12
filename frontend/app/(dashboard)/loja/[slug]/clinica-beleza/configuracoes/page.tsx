@@ -46,7 +46,7 @@ export default function ClinicaBelezaConfiguracoesPage() {
     {
       titulo: 'Configurar WhatsApp',
       descricao: 'Confirmações e lembretes de agendamento por WhatsApp',
-      href: `${base}/whatsapp`,
+      href: `/loja/${slug}/configuracoes/whatsapp`,
       icon: MessageCircle,
       itens: ['Integração WhatsApp', 'Lembretes de consultas'],
     },

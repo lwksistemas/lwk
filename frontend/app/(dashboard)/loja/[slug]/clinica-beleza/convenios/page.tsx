@@ -10,6 +10,7 @@ import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-bele
 import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
 import { toUpperCase } from "@/lib/format-br";
+import { isConvenioParticularNome, ordenarConveniosComParticularPrimeiro } from "@/lib/convenio-precos";
 
 export default function ConveniosPage() {
   const params = useParams();
@@ -63,6 +64,10 @@ export default function ConveniosPage() {
   };
 
   const excluirConvenio = async (c: ConvenioItem) => {
+    if (isConvenioParticularNome(c.nome)) {
+      alert("O convênio Particular é padrão do sistema e não pode ser excluído.");
+      return;
+    }
     if (!confirm(`Excluir o convênio "${c.nome}"? Os preços vinculados nos procedimentos serão removidos.`)) {
       return;
     }
@@ -173,19 +178,29 @@ export default function ConveniosPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {convenios.map((c) => (
+                  {ordenarConveniosComParticularPrimeiro(convenios).map((c) => {
+                    const padrao = isConvenioParticularNome(c.nome);
+                    return (
                     <tr
                       key={c.id}
                       className="border-t border-gray-100 dark:border-neutral-700/80 hover:bg-[#F5E6EA]/40 dark:hover:bg-neutral-700/30 transition-colors"
                     >
                       <td className="px-4 md:px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
-                        {c.nome}
+                        <span className="inline-flex items-center gap-2">
+                          {c.nome}
+                          {padrao && (
+                            <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
+                              Padrão
+                            </span>
+                          )}
+                        </span>
                       </td>
                       <td className="px-4 md:px-6 py-4 text-gray-600 dark:text-gray-400 font-mono text-xs">
                         {c.codigo || "—"}
                       </td>
                       <td className="px-4 md:px-6 py-4">
                         <div className="flex justify-end">
+                          {!padrao && (
                           <button
                             type="button"
                             onClick={() => excluirConvenio(c)}
@@ -195,10 +210,12 @@ export default function ConveniosPage() {
                           >
                             <Trash2 size={18} />
                           </button>
+                          )}
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

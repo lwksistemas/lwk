@@ -49,6 +49,13 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
         email = (getattr(paciente, 'email', '') or '').strip()
         return (paciente.nome, email)
 
+    def get_telefone_parte1(self, termo_proc) -> str:
+        consulta = self._consulta(termo_proc)
+        paciente = consulta.patient
+        if not paciente:
+            return ''
+        return (getattr(paciente, 'telefone', '') or getattr(paciente, 'phone', '') or '').strip()
+
     def get_destinatario_parte2(self, termo_proc, loja_id: int) -> tuple[str, str]:
         consulta = self._consulta(termo_proc)
         prof = consulta.professional

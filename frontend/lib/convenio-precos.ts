@@ -1,5 +1,28 @@
-/** Valor vazio no select = atendimento particular (preço cadastrado do procedimento). */
+/** Nome do convênio padrão cadastrado na loja. */
 export const CONVENIO_PARTICULAR_LABEL = "Particular";
+
+export function isConvenioParticularNome(nome: string | undefined | null): boolean {
+  return (nome || '').trim().toLowerCase() === 'particular';
+}
+
+export function findConvenioParticular<T extends { id: number; nome: string }>(
+  convenios: T[],
+): T | undefined {
+  return convenios.find((c) => isConvenioParticularNome(c.nome));
+}
+
+/** Ordena convênios com Particular primeiro. */
+export function ordenarConveniosComParticularPrimeiro<T extends { nome: string }>(
+  convenios: T[],
+): T[] {
+  return [...convenios].sort((a, b) => {
+    const ap = isConvenioParticularNome(a.nome);
+    const bp = isConvenioParticularNome(b.nome);
+    if (ap && !bp) return -1;
+    if (!ap && bp) return 1;
+    return a.nome.localeCompare(b.nome, 'pt-BR');
+  });
+}
 
 export type {
   ConvenioItem,

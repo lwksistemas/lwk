@@ -64,6 +64,18 @@ class Professional(ProfissionalBase):
         verbose_name_plural = "Profissionais"
         ordering = ['nome']
 
+    def formatar_conselho(self) -> str:
+        """Conselho com UF e número de registro — ex.: COREN-SP 123456."""
+        conselho = (self.conselho or '').strip().upper()
+        registro = (self.registro_profissional or '').strip()
+        uf = (self.conselho_uf or '').strip().upper()
+        if not conselho and not registro:
+            return ''
+        label = f'{conselho}-{uf}' if conselho and uf else conselho
+        if label and registro:
+            return f'{label} {registro}'
+        return label or registro
+
     def __str__(self):
         return f"{self.nome} - {self.especialidade}"
 

@@ -31,6 +31,7 @@ import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioH
 import { ModalConflitoAgenda } from "@/components/clinica-beleza/ModalConflitoAgenda";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import type { NomeAgendaItem } from "@/lib/clinica-beleza-api";
 import {
   salvarPacientesOffline, buscarPacientesOffline,
   salvarProfissionaisOffline, buscarProfissionaisOffline,
@@ -85,6 +86,7 @@ export default function AgendaPage() {
   const [selectedEvent, setSelectedEvent] = useState<AgendaEventData | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
+  const [nomesAgenda, setNomesAgenda] = useState<NomeAgendaItem[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [bloqueios, setBloqueios] = useState<BloqueioHorario[]>([]);
@@ -156,6 +158,36 @@ export default function AgendaPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Atualiza agenda automaticamente quando o cliente confirma/cancela pelo WhatsApp
+  useEffect(() => {
+    if (!calendarPlugins.length) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    const aguardando =
+      showModal &&
+      (selectedEvent?.extendedProps.status === "SCHEDULED" ||
+        selectedEvent?.extendedProps.status === "PENDING");
+    const intervalMs = aguardando ? 5000 : 15000;
+    const timer = window.setInterval(() => {
+      carregarDados();
+    }, intervalMs);
+    return () => window.clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calendarPlugins.length, selectedProfessional, showModal, selectedEvent?.extendedProps.status]);
+
+  // Sincroniza modal aberto quando o status muda no servidor (ex.: confirmação WhatsApp)
+  useEffect(() => {
+    if (!showModal || !selectedEvent?.extendedProps?.dbId) return;
+    const dbId = String(selectedEvent.extendedProps.dbId);
+    const atualizado = eventos.find((e) => String(e.extendedProps.dbId) === dbId);
+    if (!atualizado) return;
+    if (
+      atualizado.extendedProps.status !== selectedEvent.extendedProps.status ||
+      atualizado.backgroundColor !== selectedEvent.backgroundColor
+    ) {
+      setSelectedEvent(atualizado);
+    }
+  }, [eventos, showModal, selectedEvent?.extendedProps?.dbId, selectedEvent?.extendedProps.status, selectedEvent?.backgroundColor]);
+
   const temHorarioExpediente = selectedProfessional && horariosTrabalho.some((h) => h.ativo);
 
   const formatarEvento = (e: any, comRestricaoExpediente = temHorarioExpediente): AgendaEventData => {
@@ -205,15 +237,18 @@ export default function AgendaPage() {
         const horariosReq = selectedProfessional
           ? clinicaBelezaFetch(`/professionals/${selectedProfessional}/horarios-trabalho/`)
           : Promise.resolve(null);
-        const [resEv, resBl, resProf, resPat, resProc, resHor] = await Promise.all([
+        const [resEv, resBl, resProf, resPat, resProc, resHor, resAgendas] = await Promise.all([
           clinicaBelezaFetch(agendaPath), clinicaBelezaFetch(bloqueiosPath),
-          clinicaBelezaFetch("/professionals/?with_schedule=true"),
+          clinicaBelezaFetch("/professionals/"),
           clinicaBelezaFetch("/patients/"), clinicaBelezaFetch("/procedures/"),
           horariosReq,
+          clinicaBelezaFetch("/nomes-agenda/"),
         ]);
         const profs: Professional[] = resProf.ok ? await resProf.json() : [];
         const pacs: Patient[] = resPat.ok ? await resPat.json() : [];
         const procs: Procedure[] = resProc.ok ? await resProc.json() : [];
+        const agendas: NomeAgendaItem[] = resAgendas.ok ? await resAgendas.json() : [];
+        setNomesAgenda(Array.isArray(agendas) ? agendas : []);
         let horariosAtivos: HorarioTrabalhoRow[] = [];
         if (resHor?.ok) {
           horariosAtivos = await resHor.json();
@@ -362,18 +397,19 @@ export default function AgendaPage() {
     });
   };
 
-  const handleDateClick = (info: any) => {
+  const handleDateClick = (info: { date: Date }) => {
     const date = info.date as Date;
-    if (!selectedProfessional) {
-      alert("Selecione um profissional no filtro acima para agendar dentro do horário de trabalho.");
-      return;
+    if (selectedProfessional) {
+      const msg = workHoursRejectionMessage(date, 30, horariosTrabalho as HorarioTrabalho[]);
+      if (msg) {
+        alert(msg);
+        return;
+      }
+      if (conflitoComBloqueio(date)) {
+        alert("Horário bloqueado. Escolha outro horário ou gerencie bloqueios no botão \"Bloquear horário\".");
+        return;
+      }
     }
-    const msg = workHoursRejectionMessage(date, 30, horariosTrabalho as HorarioTrabalho[]);
-    if (msg) {
-      alert(msg);
-      return;
-    }
-    if (conflitoComBloqueio(date)) { alert("Horário bloqueado. Escolha outro horário ou gerencie bloqueios no botão \"Bloquear horário\"."); return; }
     setSelectedDate(date);
     setShowCreateModal(true);
   };
@@ -474,7 +510,7 @@ export default function AgendaPage() {
               editable
               eventStartEditable={true}
               eventDurationEditable
-              selectable={!!selectedProfessional}
+              selectable
               selectMirror
               selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
               dayMaxEvents={isMobile ? 6 : true}
@@ -511,6 +547,8 @@ export default function AgendaPage() {
         open={showCreateModal} onClose={() => setShowCreateModal(false)} onSuccess={carregarDados}
         selectedDate={selectedDate} defaultProfessionalId={selectedProfessional}
         professionals={professionals} patients={patients} procedures={procedures}
+        nomesAgenda={nomesAgenda}
+        onPatientsChange={setPatients}
         onOfflineEventCreated={(evt) => setEventos((prev) => [...prev, evt as AgendaEventData])}
       />
       <ModalBloqueioHorario isOpen={showModalBloqueio} onClose={() => setShowModalBloqueio(false)} onSuccess={() => carregarDados()} professionals={professionals as any} defaultProfessionalId={selectedProfessional} />

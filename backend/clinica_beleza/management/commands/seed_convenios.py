@@ -133,5 +133,5 @@ class Command(BaseCommand):
             f'\n✅ {len(CONVENIOS_CATALOGO)} convênios, {precos_criados} regras cadastradas.'
         ))
         self.stdout.write(
-            '   Particular = sem convênio (usa preço do procedimento no cadastro).\n'
+            '   O convênio Particular é criado pelo catálogo padrão (ensure_procedimentos_catalogo).\n'
         )

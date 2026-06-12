@@ -38,7 +38,9 @@ import { toUpperCase } from "@/lib/format-br";
 import {
   PROCEDURE_CATEGORIA_OPTIONS,
   defaultCategoriaForModule,
+  procedureCategoriaLabel,
   procedureMatchesModule,
+  resolveProcedureCategoriaSlug,
 } from "@/lib/clinica-beleza-categories";
 import {
   ClinicaBelezaAPI,
@@ -85,7 +87,7 @@ function procedureToForm(p: Procedure) {
     name: entityName(p),
     description: procedureDescription(p) || "",
     duration: String(procedureDuration(p)),
-    categoria: procedureCategoria(p),
+    categoria: resolveProcedureCategoriaSlug(procedureCategoria(p)),
     termo_consentimento: (p.termo_consentimento || "").trim() || DEFAULT_TERMO_CONSENTIMENTO,
     termo_consentimento_ativo: !!p.termo_consentimento_ativo,
   };
@@ -114,8 +116,8 @@ export function ProcedimentosPageContent({
   const [showAllCategories, setShowAllCategories] = useState(false);
   const moduleKey = defaultCategoria || "";
   const presetCategoria = defaultCategoriaForModule(moduleKey) || defaultCategoria;
-  const listPath =
-    moduleKey && !showAllCategories ? `/procedures/?categoria=${encodeURIComponent(moduleKey)}` : "/procedures/";
+  // Lista completa na API; filtro por módulo (estética/soroterapia) só no cliente (aliases + acentos).
+  const listPath = "/procedures/";
 
   const { list, setList, loading, load, page, setPage, totalPages, pageSize, totalCount } = useClinicaBelezaEntityList<Procedure>({
     path: listPath,
@@ -556,7 +558,12 @@ export function ProcedimentosPageContent({
                       onClick={() => abrirEditar(p.id)}
                     >
                       <td className="px-4 md:px-6 py-3.5 font-medium text-gray-800 dark:text-gray-200 sticky left-0 bg-white/90 dark:bg-neutral-800/90">
-                        {entityName(p)}
+                        <span>{entityName(p)}</span>
+                        {procedureCategoria(p) ? (
+                          <span className="block text-xs font-normal text-gray-500 dark:text-gray-400 mt-0.5">
+                            {procedureCategoriaLabel(procedureCategoria(p))}
+                          </span>
+                        ) : null}
                       </td>
                       {convenios.map((c) => (
                         <td key={c.id} className="px-4 md:px-6 py-3.5 text-gray-600 dark:text-gray-400 whitespace-nowrap">

@@ -168,8 +168,6 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
 
     setLoadingDetalhe(true);
     setSelected(c);
-    const initialTab: TabId = c.status === "SCHEDULED" ? "historico" : "atendimento";
-    setTab(initialTab);
     setEditAtendimento(false);
     setEditAnamnese(false);
     setEditEvolucao(false);
@@ -187,6 +185,17 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
       const fresh = await ClinicaBelezaAPI.consultas.get(c.id).catch(() => null);
       const consultaAtual = fresh ? { ...c, ...fresh } : c;
       setSelected(consultaAtual);
+
+      const hist = await ClinicaBelezaAPI.consultas.historicoCliente(consultaAtual.patient).catch(() => []);
+      const histList = Array.isArray(hist) ? hist : [];
+      setHistorico(histList);
+      const temHistoricoAnterior = histList.length > 1;
+      const initialTab: TabId =
+        consultaAtual.status === "SCHEDULED" && temHistoricoAnterior ? "historico" : "atendimento";
+      setTab(initialTab);
+      if (initialTab === "historico") {
+        loadedTabsRef.current.add("historico");
+      }
       await loadTabData(initialTab, consultaAtual, true);
     } catch (e) {
       logger.warn("Erro ao carregar detalhes da consulta:", e);
@@ -424,9 +433,11 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     "evolucao",
     "fotos",
   ];
-  const visibleTabs = consultaFinalizada
+  const temHistoricoAnterior = historico.length > 1;
+  const visibleTabs = (consultaFinalizada
     ? tabs.filter((t) => tabsConsultaFinalizada.includes(t.id))
-    : tabs;
+    : tabs
+  ).filter((t) => t.id !== "historico" || temHistoricoAnterior);
 
   const resetTabEdits = () => {
     setEditAtendimento(false);
@@ -438,6 +449,12 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
   useEffect(() => {
     if (tab !== "fotos") setFotosToolbar(null);
   }, [tab]);
+
+  useEffect(() => {
+    if (tab === "historico" && !temHistoricoAnterior) {
+      setTab("atendimento");
+    }
+  }, [tab, temHistoricoAnterior]);
 
   const headerExtraActions = consultaAtiva ? (
     <>

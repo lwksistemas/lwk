@@ -22,6 +22,7 @@ from .convenios import (
     ConvenioPrecoSerializer,
     ConvenioSerializer,
     LocalAtendimentoSerializer,
+    NomeAgendaSerializer,
 )
 from .documentos import (
     DocumentoClinicoSerializer,
@@ -60,6 +61,7 @@ __all__ = [
     'DocumentTemplateSerializer',
     'HorarioTrabalhoProfissionalSerializer',
     'LocalAtendimentoSerializer',
+    'NomeAgendaSerializer',
     'ConsultaProdutoUtilizadoSerializer',
     'MovimentacaoEstoqueSerializer',
     'PatientAnamneseSerializer',

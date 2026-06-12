@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Settings } from "lucide-react";
+import { Settings, CalendarDays } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
@@ -20,6 +20,7 @@ import {
   ConsultasListTable,
   ConsultaDetailShell,
   LocaisAtendimentoModal,
+  NomesAgendaModal,
 } from "./components";
 
 export default function ConsultasPage() {
@@ -42,6 +43,7 @@ export default function ConsultasPage() {
   } = useClinicaBelezaPaginatedList<Consulta>({ path: "/consultas/" });
   const [selected, setSelected] = useState<Consulta | null>(null);
   const [showLocaisModal, setShowLocaisModal] = useState(false);
+  const [showNomesAgendaModal, setShowNomesAgendaModal] = useState(false);
 
   const abrirConsulta = useCallback((consulta: Consulta) => {
     setSelected(consulta);
@@ -111,15 +113,26 @@ export default function ConsultasPage() {
         onNew={() => router.replace(`${basePath}?novo=1`, { scroll: false })}
         newLabel="Nova consulta"
         extraActions={
-          <button
-            type="button"
-            onClick={() => setShowLocaisModal(true)}
-            className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-            aria-label="Configurar locais de atendimento"
-            title="Locais de atendimento"
-          >
-            <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => setShowNomesAgendaModal(true)}
+              className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              aria-label="Configurar nomes de agenda"
+              title="Nomes de agenda"
+            >
+              <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowLocaisModal(true)}
+              className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              aria-label="Configurar locais de atendimento"
+              title="Locais de atendimento"
+            >
+              <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
+            </button>
+          </>
         }
       />
       <ClinicaBelezaPageContent>
@@ -153,6 +166,10 @@ export default function ConsultasPage() {
       <LocaisAtendimentoModal
         open={showLocaisModal}
         onClose={() => setShowLocaisModal(false)}
+      />
+      <NomesAgendaModal
+        open={showNomesAgendaModal}
+        onClose={() => setShowNomesAgendaModal(false)}
       />
     </>
   );

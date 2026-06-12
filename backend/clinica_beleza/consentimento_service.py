@@ -121,7 +121,7 @@ def _ctx_base_termo(consulta) -> dict:
         'paciente_email': getattr(paciente, 'email', '') or '',
         'paciente_telefone': getattr(paciente, 'telefone', '') or '',
         'profissional_nome': prof.nome if prof else '',
-        'profissional_conselho': getattr(prof, 'conselho', '') or '',
+        'profissional_conselho': prof.formatar_conselho() if prof else '',
         'profissional_cpf': getattr(prof, 'cpf', '') or '',
         'clinica_nome': loja['nome'],
         'clinica_cnpj': loja['cnpj'],

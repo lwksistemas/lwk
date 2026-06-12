@@ -144,7 +144,7 @@ def _top_soroterapia_periodo(period_start, period_end):
         Appointment.objects.filter(
             date__date__gte=period_start,
             date__date__lte=period_end,
-            status__in=['COMPLETED', 'CONFIRMED', 'SCHEDULED', 'IN_PROGRESS'],
+            status__in=['COMPLETED', 'CONFIRMED', 'CLIENT_CONFIRMED', 'PHONE_CONFIRMED', 'SCHEDULED', 'IN_PROGRESS'],
         )
         .filter(SOROTERAPIA_PROCEDURE_Q)
         .values('procedure__nome')
@@ -154,7 +154,7 @@ def _top_soroterapia_periodo(period_start, period_end):
         AppointmentProcedure.objects.filter(
             appointment__date__date__gte=period_start,
             appointment__date__date__lte=period_end,
-            appointment__status__in=['COMPLETED', 'CONFIRMED', 'SCHEDULED', 'IN_PROGRESS'],
+            appointment__status__in=['COMPLETED', 'CONFIRMED', 'CLIENT_CONFIRMED', 'PHONE_CONFIRMED', 'SCHEDULED', 'IN_PROGRESS'],
         )
         .filter(SOROTERAPIA_PROCEDURE_Q)
         .values('procedure__nome')
@@ -263,7 +263,7 @@ class DashboardView(APIView):
             )
 
         next_qs = next_qs.filter(
-            status__in=['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS'],
+            status__in=['SCHEDULED', 'CLIENT_CONFIRMED', 'PHONE_CONFIRMED', 'CONFIRMED', 'IN_PROGRESS'],
         ).select_related('patient', 'professional', 'procedure').order_by('date')
 
         if professional_id:

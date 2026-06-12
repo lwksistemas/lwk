@@ -203,10 +203,10 @@ def processar_resposta_confirmacao(token: str, acao: str) -> RespostaConfirmacao
     if not appointment:
         return RespostaConfirmacao(False, 'Agendamento não encontrado.')
 
-    novo_status = 'CONFIRMED' if acao == 'confirmar' else 'CANCELLED'
+    novo_status = 'CLIENT_CONFIRMED' if acao == 'confirmar' else 'CANCELLED'
 
     if appointment.status == novo_status:
-        label = 'confirmado' if novo_status == 'CONFIRMED' else 'cancelado'
+        label = 'confirmado' if novo_status == 'CLIENT_CONFIRMED' else 'cancelado'
         return RespostaConfirmacao(
             True,
             f'Este agendamento já estava {label}.',
@@ -233,7 +233,7 @@ def processar_resposta_confirmacao(token: str, acao: str) -> RespostaConfirmacao
 
     msg = (
         'Consulta confirmada! Aguardamos você no horário marcado.'
-        if novo_status == 'CONFIRMED'
+        if novo_status == 'CLIENT_CONFIRMED'
         else 'Agendamento cancelado. Se precisar remarcar, entre em contato conosco.'
     )
     _enviar_ack_whatsapp(loja_id, result.appointment, msg)

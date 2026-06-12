@@ -15,7 +15,7 @@ from django.db import connections
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
-_OPEN_STATUSES = ('PENDING', 'SCHEDULED', 'CONFIRMED', 'IN_PROGRESS')
+_OPEN_STATUSES = ('PENDING', 'SCHEDULED', 'CLIENT_CONFIRMED', 'PHONE_CONFIRMED', 'CONFIRMED', 'IN_PROGRESS')
 
 
 def _table_exists(cursor, table: str) -> bool:

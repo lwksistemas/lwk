@@ -230,13 +230,15 @@ class AgendaEventSerializer(serializers.ModelSerializer):
 
     def get_backgroundColor(self, obj):
         colors = {
-            'CONFIRMED': '#10b981',
+            'CONFIRMED': '#22c55e',
+            'CLIENT_CONFIRMED': '#06b6d4',
+            'PHONE_CONFIRMED': '#3b82f6',
             'PENDING': '#f59e0b',
-            'SCHEDULED': '#3b82f6',
+            'SCHEDULED': '#a855f7',
             'IN_PROGRESS': '#8b5cf6',
-            'COMPLETED': '#6b7280',
-            'CANCELLED': '#ef4444',
-            'NO_SHOW': '#dc2626',
+            'COMPLETED': '#0d9488',
+            'CANCELLED': '#dc2626',
+            'NO_SHOW': '#b45309',
         }
         return colors.get(obj.status, '#3b82f6')
 

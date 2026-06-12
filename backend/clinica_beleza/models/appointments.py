@@ -23,7 +23,9 @@ from .professionals import Professional
 class Appointment(LojaIsolationMixin, models.Model):
     """Agendamentos"""
     STATUS_CHOICES = (
-        ('CONFIRMED', 'Confirmado'),
+        ('CONFIRMED', 'Cliente presente'),
+        ('CLIENT_CONFIRMED', 'Confirmado pelo cliente'),
+        ('PHONE_CONFIRMED', 'Confirmado por telefone'),
         ('PENDING', 'Pendente'),
         ('SCHEDULED', 'Agendado'),
         ('IN_PROGRESS', 'Em Atendimento'),

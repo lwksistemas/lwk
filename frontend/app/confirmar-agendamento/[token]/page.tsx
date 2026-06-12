@@ -109,7 +109,10 @@ export default function ConfirmarAgendamentoPage() {
 
   if (!agendamento) return null;
 
-  const confirmado = agendamento.status === 'CONFIRMED';
+  const confirmado =
+    agendamento.status === 'CLIENT_CONFIRMED' ||
+    agendamento.status === 'PHONE_CONFIRMED' ||
+    agendamento.status === 'CONFIRMED';
   const cancelado = agendamento.status === 'CANCELLED';
 
   return (

@@ -132,9 +132,17 @@ export function ModalDetalheAgendamento({
               <p className="text-xs text-amber-700 dark:text-amber-400 mt-1.5">
                 Aguardando resposta do cliente no WhatsApp. A agenda atualiza sozinha em alguns segundos.
               </p>
+            ) : status === "CLIENT_CONFIRMED" ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                Cliente confirmou pelo WhatsApp ou link. Registre a chegada como &quot;Cliente presente&quot; para abrir a consulta.
+              </p>
+            ) : status === "PHONE_CONFIRMED" ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                Confirmado pela recepção por telefone. Quando o cliente chegar, altere para &quot;Cliente presente&quot;.
+              </p>
             ) : status === "CONFIRMED" ? (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                Cliente confirmou pelo WhatsApp ou manualmente. Inicie o atendimento em Consultas.
+                Cliente presente na clínica. Inicie o atendimento em Consultas.
               </p>
             ) : status === "CANCELLED" ? (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">

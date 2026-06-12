@@ -51,7 +51,7 @@ def send_lembretes_24h_whatsapp():
             # Agendamentos de amanhã (status confirmado/agendado)
             qs = Appointment.objects.filter(
                 date__date=amanha,
-                status__in=['CONFIRMED', 'SCHEDULED'],
+                status__in=['CONFIRMED', 'CLIENT_CONFIRMED', 'PHONE_CONFIRMED', 'SCHEDULED'],
             ).select_related('patient', 'procedure')
             for ag in qs:
                 if not getattr(ag.patient, 'allow_whatsapp', True):
@@ -97,7 +97,7 @@ def send_lembretes_2h_whatsapp():
             qs = Appointment.objects.filter(
                 date__gte=inicio,
                 date__lte=fim,
-                status__in=['CONFIRMED', 'SCHEDULED'],
+                status__in=['CONFIRMED', 'CLIENT_CONFIRMED', 'PHONE_CONFIRMED', 'SCHEDULED'],
             ).select_related('patient', 'procedure')
             for ag in qs:
                 if not getattr(ag.patient, 'allow_whatsapp', True):

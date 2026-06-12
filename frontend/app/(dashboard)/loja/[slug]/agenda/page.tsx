@@ -541,7 +541,7 @@ export default function AgendaPage() {
               slotMaxTime={getSlotMaxTime()}
               allDaySlot={false}
               slotDuration="00:05:00"
-              slotLabelInterval="00:30:00"
+              slotLabelInterval="00:15:00"
               snapDuration="00:05:00"
               businessHours={getBusinessHours()}
               hiddenDays={getHiddenDays()}

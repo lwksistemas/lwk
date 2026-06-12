@@ -103,6 +103,9 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
             consulta.save(update_fields=['status', 'updated_at'])
         return consulta
 
+    if new_status in ('CLIENT_CONFIRMED', 'PHONE_CONFIRMED'):
+        return None
+
     if new_status == 'IN_PROGRESS':
         consulta, created = Consulta.objects.get_or_create(
             appointment=appointment,
@@ -291,8 +294,8 @@ def iniciar_consulta(consulta):
     appointment = consulta.appointment
     if consulta.status != 'SCHEDULED':
         raise ValueError('A consulta precisa estar agendada para ser iniciada.')
-    if appointment.status not in ('CONFIRMED', 'SCHEDULED'):
-        raise ValueError('Confirme o agendamento na agenda antes de iniciar a consulta.')
+    if appointment.status != 'CONFIRMED':
+        raise ValueError('Registre a chegada do cliente na agenda (status Cliente presente) antes de iniciar a consulta.')
 
     old_status = appointment.status
     ts = now()

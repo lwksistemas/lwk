@@ -54,7 +54,7 @@ export function ConsultasListTable({ consultas, onSelect, formatData }: Props) {
           className: "hidden sm:table-cell",
           render: (c) => (
             <span className="text-gray-600 dark:text-gray-400 text-xs">
-              {formatData(c.data_inicio || c.appointment_date)}
+              {formatData(c.appointment_date || c.data_inicio)}
             </span>
           ),
         },

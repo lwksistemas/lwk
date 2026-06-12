@@ -13,7 +13,7 @@ from .views_base import GetObjectMixin, map_field_names
 from .pagination import paginate_queryset
 
 # Status de agendamento ainda "em aberto" (não terminais)
-_OPEN_APPOINTMENT_STATUSES = ('PENDING', 'SCHEDULED', 'CONFIRMED', 'IN_PROGRESS')
+_OPEN_APPOINTMENT_STATUSES = ('PENDING', 'SCHEDULED', 'CLIENT_CONFIRMED', 'PHONE_CONFIRMED', 'CONFIRMED', 'IN_PROGRESS')
 
 logger = logging.getLogger(__name__)
 

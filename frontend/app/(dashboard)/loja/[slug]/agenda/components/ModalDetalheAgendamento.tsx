@@ -6,6 +6,7 @@ import {
   CLINICA_AGENDA_STATUS_LABEL,
   getAgendaStatusLabel,
   getAgendaStatusOpcoesModal,
+  normalizeAgendaStatus,
 } from "@/lib/clinica-beleza-constants";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 
@@ -114,7 +115,7 @@ export function ModalDetalheAgendamento({
                   aria-hidden
                 />
                 <select
-                  value={status}
+                  value={normalizeAgendaStatus(status)}
                   onChange={(e) => onUpdateStatus(e.target.value)}
                   disabled={updatingStatus}
                   className="flex-1 px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-70"

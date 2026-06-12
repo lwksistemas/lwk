@@ -54,17 +54,19 @@ export const CLINICA_AGENDA_LEGEND_ITEMS: { key: string; label: string; bg: stri
   { key: 'INTERVALO', label: 'Intervalo', bg: '#f59e0b' },
 ];
 
-/** Status que a secretaria pode definir manualmente na agenda. */
-export const CLINICA_AGENDA_STATUS_OPCOES_SECRETARIA = [
+/** Opções de status no modal Detalhes do Agendamento (mesma ordem da legenda). */
+export const CLINICA_AGENDA_STATUS_OPCOES_MODAL = [
   { value: 'SCHEDULED', label: '🟣 Aguardando confirmação' },
+  { value: 'CLIENT_CONFIRMED', label: '💬 Confirmado pelo WhatsApp' },
   { value: 'PHONE_CONFIRMED', label: '📞 Confirmado por ligação' },
   { value: 'CONFIRMED', label: '🟢 Cliente presente' },
-  { value: 'CANCELLED', label: '🔴 Cancelado' },
   { value: 'NO_SHOW', label: '⬜ Faltou' },
+  { value: 'CANCELLED', label: '🔴 Cancelado' },
 ] as const;
 
-/** @deprecated Use CLINICA_AGENDA_STATUS_OPCOES_SECRETARIA + getAgendaStatusOpcoesModal */
-export const CLINICA_AGENDA_STATUS_OPCOES = CLINICA_AGENDA_STATUS_OPCOES_SECRETARIA;
+/** @deprecated Use CLINICA_AGENDA_STATUS_OPCOES_MODAL */
+export const CLINICA_AGENDA_STATUS_OPCOES_SECRETARIA = CLINICA_AGENDA_STATUS_OPCOES_MODAL;
+export const CLINICA_AGENDA_STATUS_OPCOES = CLINICA_AGENDA_STATUS_OPCOES_MODAL;
 
 /** PENDING legado equivale a SCHEDULED na exibição. */
 export function normalizeAgendaStatus(status: string): string {
@@ -75,23 +77,16 @@ export function getAgendaStatusLabel(status: string): string {
   return CLINICA_AGENDA_STATUS_LABEL[normalizeAgendaStatus(status)] || status;
 }
 
-/** Opções do select da agenda: secretaria + status atual quando definido só pelo WhatsApp. */
+/** Opções do select — lista completa + status atual se for só leitura (ex.: em atendimento). */
 export function getAgendaStatusOpcoesModal(currentStatus: string) {
-  const normalized = normalizeAgendaStatus(currentStatus);
-  const base = [...CLINICA_AGENDA_STATUS_OPCOES_SECRETARIA];
-  if (currentStatus === 'CLIENT_CONFIRMED') {
-    return [
-      { value: 'CLIENT_CONFIRMED', label: `💬 ${CLINICA_AGENDA_STATUS_LABEL.CLIENT_CONFIRMED}` },
-      ...base.filter((o) => o.value !== 'SCHEDULED'),
-    ];
+  const base = [...CLINICA_AGENDA_STATUS_OPCOES_MODAL];
+  if (base.some((o) => o.value === currentStatus)) {
+    return base;
   }
-  if (normalized !== currentStatus && !base.some((o) => o.value === currentStatus)) {
-    return [
-      { value: currentStatus, label: getAgendaStatusLabel(currentStatus) },
-      ...base,
-    ];
-  }
-  return base;
+  return [
+    { value: currentStatus, label: getAgendaStatusLabel(currentStatus) },
+    ...base,
+  ];
 }
 
 /** Status da consulta clínica (fluxo em Consultas). */

@@ -238,10 +238,6 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
                 'Em atendimento e concluído são alterados em Consultas '
                 '(iniciar / finalizar consulta).'
             )
-        if new_status == 'CLIENT_CONFIRMED' and user is not None:
-            raise AgendaValidationError(
-                'Confirmado pelo WhatsApp só pode ser definido pelo cliente (link ou resposta no WhatsApp).'
-            )
         appointment.status = new_status
 
     # Salvar

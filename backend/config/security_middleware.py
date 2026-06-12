@@ -26,6 +26,12 @@ _CRM_VENDAS_PUBLIC_PREFIXES = (
 _CLINICA_BELEZA_PUBLIC_PREFIXES = (
     '/api/clinica-beleza/assinar-consentimento/',
     '/api/clinica-beleza/enviar-foto/',
+    '/api/clinica-beleza/confirmar-agendamento/',
+)
+
+
+_NFSE_PUBLIC_PREFIXES = (
+    '/api/nfse/documento-pdf/',
 )
 
 
@@ -164,6 +170,8 @@ class SecurityIsolationMiddleware:
         if self._is_crm_vendas_public_path(path):
             return None
         if self._is_clinica_beleza_public_path(path):
+            return None
+        if self._is_nfse_public_path(path):
             return None
         if self._is_whatsapp_public_path(path):
             return None
@@ -369,6 +377,10 @@ class SecurityIsolationMiddleware:
     @staticmethod
     def _is_clinica_beleza_public_path(path):
         return any(path.startswith(prefix) for prefix in _CLINICA_BELEZA_PUBLIC_PREFIXES)
+
+    @staticmethod
+    def _is_nfse_public_path(path):
+        return any(path.startswith(prefix) for prefix in _NFSE_PUBLIC_PREFIXES)
 
     @staticmethod
     def _is_whatsapp_public_path(path):

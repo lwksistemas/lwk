@@ -254,9 +254,6 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
     if new_status == 'COMPLETED':
         _executar_regra_finalizacao(appointment)
 
-    if new_status == 'CONFIRMED':
-        _enviar_whatsapp_confirmacao(appointment, request=request, user=user)
-
     return result
 
 

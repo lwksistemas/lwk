@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
+from core.cpf_utils import normalizar_cpf_cnpj
 from django.db.models import Max
 from django.utils import timezone
 
@@ -48,7 +49,7 @@ def salvar_nfse_emitida(
             valor_iss=valor_iss,
             tomador_email=tomador_email,
             tomador_nome=resultado.get('tomador_nome', ''),
-            tomador_cpf_cnpj=resultado.get('tomador_cpf_cnpj', ''),
+            tomador_cpf_cnpj=normalizar_cpf_cnpj(resultado.get('tomador_cpf_cnpj', '')),
             servico_descricao=(resultado.get('servico_descricao') or '')[:500],
             xml_nfse=resultado.get('xml_nfse', ''),
             pdf_url=(resultado.get('pdf_url', '') or '')[:500],
@@ -82,7 +83,7 @@ def registrar_falha_emissao_loja(
             codigo_verificacao='',
             data_emissao=timezone.now(),
             valor=valor_servicos,
-            tomador_cpf_cnpj=(tomador_cpf_cnpj or '')[:18],
+            tomador_cpf_cnpj=normalizar_cpf_cnpj(tomador_cpf_cnpj or '')[:18],
             tomador_nome=(tomador_nome or '')[:200],
             tomador_email=tomador_email or '',
             servico_descricao=(servico_descricao or '')[:500],

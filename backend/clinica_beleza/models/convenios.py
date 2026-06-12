@@ -38,6 +38,26 @@ class LocalAtendimento(LojaIsolationMixin, models.Model):
         return f"{self.nome} - R$ {self.valor_consulta}"
 
 
+class NomeAgenda(LojaIsolationMixin, models.Model):
+    """Nome/categoria de agenda exibida no calendário e nas consultas (ex: Estética, Dermatologia)."""
+    nome = models.CharField(max_length=200, verbose_name="Nome da agenda")
+    is_active = models.BooleanField(default=True, verbose_name="Ativo")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        db_table = 'clinica_beleza_nomes_agenda'
+        ordering = ['nome']
+        verbose_name = 'Nome da agenda'
+        verbose_name_plural = 'Nomes de agenda'
+
+    def __str__(self):
+        return self.nome
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONVÊNIOS — Tabelas de preço por plano
 # ═══════════════════════════════════════════════════════════════════════════════

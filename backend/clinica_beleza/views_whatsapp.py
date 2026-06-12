@@ -13,6 +13,12 @@ from .pagination import paginate_queryset
 from .utils import LojaContextHelper
 from tenants.middleware import get_current_loja_id
 from .views_base import GetObjectMixin
+from whatsapp.config_helpers import apply_whatsapp_config_patch, serialize_whatsapp_config
+from whatsapp.views_connection import (
+    WhatsAppConnectView as BaseWhatsAppConnectView,
+    WhatsAppConnectionStatusView as BaseWhatsAppConnectionStatusView,
+    WhatsAppDisconnectView as BaseWhatsAppDisconnectView,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,25 +61,13 @@ class WhatsAppConfigView(APIView):
             logger.exception('WhatsAppConfigView._get_config erro loja_id=%s: %s', loja_id, e)
             return None
 
-    def _serialize(self, config):
+    def _serialize(self, config, *, sync_evolution=False):
         loja = getattr(config, '_loja_cache', None)
-        owner_telefone = (getattr(loja, 'owner_telefone', None) or '').strip() if loja else ''
-        return {
-            'enviar_confirmacao': config.enviar_confirmacao,
-            'enviar_lembrete_24h': config.enviar_lembrete_24h,
-            'enviar_lembrete_2h': config.enviar_lembrete_2h,
-            'enviar_cobranca': config.enviar_cobranca,
-            'owner_telefone': owner_telefone,
-            'whatsapp_numero': (config.whatsapp_numero or '').strip(),
-            'whatsapp_ativo': getattr(config, 'whatsapp_ativo', False),
-            'whatsapp_phone_id': (getattr(config, 'whatsapp_phone_id', None) or '').strip(),
-            'whatsapp_token_set': bool((getattr(config, 'whatsapp_token', None) or '').strip()),
-        }
+        return serialize_whatsapp_config(config, loja=loja, sync_evolution=sync_evolution)
 
     def get(self, request):
         config = self._get_config(request)
         if config is None:
-            # Retornar config padrão em vez de 404 (tabela pode não existir ainda)
             return Response({
                 'enviar_confirmacao': True,
                 'enviar_lembrete_24h': True,
@@ -84,46 +78,44 @@ class WhatsAppConfigView(APIView):
                 'whatsapp_ativo': False,
                 'whatsapp_phone_id': '',
                 'whatsapp_token_set': False,
+                'whatsapp_provider': 'meta',
+                'whatsapp_connection_status': 'disconnected',
+                'whatsapp_connected_phone': '',
+                'whatsapp_connected_at': None,
+                'evolution_available': False,
             })
-        return Response(self._serialize(config))
+        return Response(self._serialize(config, sync_evolution=True))
 
     def patch(self, request):
         config = self._get_config(request)
         if config is None:
             return Response({'error': 'Contexto de loja não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-        update_fields = ['updated_at']
-        for key in ('enviar_confirmacao', 'enviar_lembrete_24h', 'enviar_lembrete_2h', 'enviar_cobranca'):
-            if key in request.data:
-                setattr(config, key, bool(request.data[key]))
-                update_fields.append(key)
-        if 'whatsapp_numero' in request.data:
-            config.whatsapp_numero = (request.data.get('whatsapp_numero') or '').strip()[:20]
-            update_fields.append('whatsapp_numero')
-        if 'whatsapp_ativo' in request.data:
-            config.whatsapp_ativo = bool(request.data['whatsapp_ativo'])
-            update_fields.append('whatsapp_ativo')
-        if 'whatsapp_phone_id' in request.data:
-            config.whatsapp_phone_id = (request.data.get('whatsapp_phone_id') or '').strip()[:64]
-            update_fields.append('whatsapp_phone_id')
-        if 'whatsapp_token' in request.data:
-            config.whatsapp_token = (request.data.get('whatsapp_token') or '').strip()[:512]
-            update_fields.append('whatsapp_token')
-
-        ativo = config.whatsapp_ativo
-        phone_ok = bool((config.whatsapp_phone_id or '').strip())
-        token_ok = bool((config.whatsapp_token or '').strip())
-        if ativo and (not phone_ok or not token_ok):
-            return Response(
-                {
-                    'error': (
-                        'Cada loja usa seu próprio WhatsApp na Meta. '
-                        'Informe Phone Number ID e token antes de ativar.'
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        update_fields, err = apply_whatsapp_config_patch(config, request.data)
+        if err:
+            return err
         config.save(update_fields=update_fields)
         return Response(self._serialize(config))
+
+
+class ClinicaWhatsAppConnectionStatusView(BaseWhatsAppConnectionStatusView):
+    permission_classes = CLINICA_ADMIN
+
+    def _get_config(self, request):
+        return WhatsAppConfigView()._get_config(request)
+
+
+class ClinicaWhatsAppConnectView(BaseWhatsAppConnectView):
+    permission_classes = CLINICA_ADMIN
+
+    def _get_config(self, request):
+        return WhatsAppConfigView()._get_config(request)
+
+
+class ClinicaWhatsAppDisconnectView(BaseWhatsAppDisconnectView):
+    permission_classes = CLINICA_ADMIN
+
+    def _get_config(self, request):
+        return WhatsAppConfigView()._get_config(request)
 
 
 # ---------------------------------------------------------------------------

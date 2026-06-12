@@ -501,19 +501,19 @@ export class ClinicaBelezaAPI {
             tem_conteudo: boolean;
           }>;
         }>(`/consultas/${consultaId}/termo-consentimento/`),
-      enviar: (consultaId: number, procedureId?: number) =>
+      enviar: (consultaId: number, procedureId?: number, canal: 'email' | 'whatsapp' = 'email') =>
         ClinicaBelezaAPI.post<{
           message: string;
           status_assinatura_termo: string;
           enviados?: string[];
         }>(
           `/consultas/${consultaId}/termo-consentimento/enviar/`,
-          procedureId ? { procedure_id: procedureId } : {},
+          { ...(procedureId ? { procedure_id: procedureId } : {}), canal },
         ),
-      reenviar: (consultaId: number, procedureId: number) =>
+      reenviar: (consultaId: number, procedureId: number, canal: 'email' | 'whatsapp' = 'email') =>
         ClinicaBelezaAPI.post<{ message: string; procedure_nome?: string }>(
           `/consultas/${consultaId}/termo-consentimento/reenviar/`,
-          { procedure_id: procedureId },
+          { procedure_id: procedureId, canal },
         ),
       pdfUrl: (consultaId: number, procedureId: number) => {
         const base = getClinicaBelezaBaseUrl();
@@ -623,6 +623,10 @@ export class ClinicaBelezaAPI {
   static whatsapp = {
     get: () => ClinicaBelezaAPI.get('/whatsapp-config/'),
     save: (data: Record<string, unknown>) => ClinicaBelezaAPI.patch('/whatsapp-config/', data),
+    connection: (withQr = false) =>
+      ClinicaBelezaAPI.get(withQr ? '/whatsapp-config/connection/?qr=1' : '/whatsapp-config/connection/'),
+    connect: () => ClinicaBelezaAPI.post('/whatsapp-config/connect/', {}),
+    disconnect: () => ClinicaBelezaAPI.post('/whatsapp-config/disconnect/', {}),
   };
 
   static memed = {
@@ -715,6 +719,17 @@ export class ClinicaBelezaAPI {
       ClinicaBelezaAPI.patch<LocalAtendimentoItem>(`/locais-atendimento/${id}/`, data),
     delete: (id: number) =>
       ClinicaBelezaAPI.delete(`/locais-atendimento/${id}/`),
+  };
+
+  static nomesAgenda = {
+    list: () =>
+      ClinicaBelezaAPI.get<NomeAgendaItem[]>('/nomes-agenda/'),
+    create: (data: { nome: string }) =>
+      ClinicaBelezaAPI.post<NomeAgendaItem>('/nomes-agenda/', data),
+    update: (id: number, data: { nome?: string }) =>
+      ClinicaBelezaAPI.patch<NomeAgendaItem>(`/nomes-agenda/${id}/`, data),
+    delete: (id: number) =>
+      ClinicaBelezaAPI.delete(`/nomes-agenda/${id}/`),
   };
 
   static campanhas = {
@@ -818,6 +833,15 @@ export interface LocalAtendimentoItem {
   id: number;
   nome: string;
   valor_consulta: string | number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Nome de agenda (categoria do calendário) */
+export interface NomeAgendaItem {
+  id: number;
+  nome: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;

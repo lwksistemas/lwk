@@ -41,6 +41,25 @@ def _salvar_pdf_url(nfse: Any, url: str) -> None:
         logger.debug('Nao foi possivel salvar pdf_url da NFS-e id=%s: %s', getattr(nfse, 'id', None), exc)
 
 
+def obter_url_visualizacao_nfse_loja(
+    nfse: Any,
+    loja: Any,
+    loja_id: int,
+) -> str:
+    """
+    URL oficial para visualizar/baixar a NFS-e (portal da prefeitura ou provedor).
+    Mesma fonte usada no e-mail ao tomador — não usa PDF interno do sistema.
+    """
+    pdf_url = (getattr(nfse, 'pdf_url', '') or '').strip()
+    if url_danfe_valida(pdf_url):
+        return pdf_url
+
+    provedor = (getattr(nfse, 'provedor', '') or 'issnet').strip().lower()
+    if provedor == 'issnet':
+        return buscar_url_danfe_issnet(nfse, loja_id=loja_id, loja=loja)
+    return ''
+
+
 def buscar_url_danfe_issnet(
     nfse: Any | None = None,
     *,

@@ -3,7 +3,7 @@
 Importe via ``from clinica_beleza.models import X``.
 """
 from .procedures import Procedure, ProcedureProtocol
-from .convenios import LocalAtendimento, Convenio, ConvenioProcedimentoPreco
+from .convenios import LocalAtendimento, NomeAgenda, Convenio, ConvenioProcedimentoPreco
 from .patients import Patient, PatientAnamnese
 from .professionals import Professional, ProfessionalCommission, HorarioTrabalhoProfissional
 from .appointments import Appointment, AppointmentProcedure, BloqueioHorario
@@ -20,6 +20,7 @@ __all__ = [
     'Procedure',
     'ProcedureProtocol',
     'LocalAtendimento',
+    'NomeAgenda',
     'Convenio',
     'ConvenioProcedimentoPreco',
     'Patient',

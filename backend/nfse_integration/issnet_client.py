@@ -192,6 +192,7 @@ class ISSNetClient:
         tipo_rps: int,
         data_emissao: datetime,
         codigo_cnae: Optional[str] = None,
+        item_lista_servico: Optional[str] = None,
     ) -> str:
         return construir_xml_enviar_lote_rps(
             prestador_cnpj=prestador_cnpj,
@@ -208,6 +209,7 @@ class ISSNetClient:
             tipo_rps=tipo_rps,
             data_emissao=data_emissao,
             codigo_cnae=codigo_cnae,
+            item_lista_servico=item_lista_servico,
             opts=self._emissao_opts(),
         )
 
@@ -231,6 +233,7 @@ class ISSNetClient:
         tipo_rps: int = 1,
         data_emissao: Optional[datetime] = None,
         codigo_cnae: Optional[str] = None,
+        item_lista_servico: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Emite NFS-e (1 RPS): tenta ``RecepcionarLoteRpsSincrono`` com raiz ABRASF correta; se falha de
@@ -255,6 +258,7 @@ class ISSNetClient:
                 tipo_rps=tipo_rps,
                 data_emissao=data_emissao,
                 codigo_cnae=codigo_cnae,
+                item_lista_servico=item_lista_servico,
             )
 
             xml_sinc_u = xml_envio_para_raiz_sincrono_sem_assinar(xml_rps)

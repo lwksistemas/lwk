@@ -1,18 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import {
   NFSE_EMISSAO_INITIAL_FORM,
-  carregarContasLeadsParaNfse,
-  type NfseEmissaoContaOption,
+  buscarTomadorCadastroPorDocumento,
+  defaultsServicoFromCrmConfig,
+  preencherFormTomador,
+  somenteDigitosDocumento,
 } from '@/lib/nfse-emissao-form';
+import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { ServicoFields } from './ServicoFields';
 import { ModalFormButtons } from './ModalFormButtons';
-import { ModalEmitirNFSeStepEscolha } from './ModalEmitirNFSeStepEscolha';
-import { ModalEmitirNFSeContaSelector } from './ModalEmitirNFSeContaSelector';
+import { ModalEmitirNFSeStepInicio } from './ModalEmitirNFSeStepInicio';
 import { ModalEmitirNFSeTomadorFields } from './ModalEmitirNFSeTomadorFields';
 import { ModalEmitirNFSeEnderecoFields } from './ModalEmitirNFSeEnderecoFields';
 
@@ -23,54 +25,61 @@ interface ModalEmitirNFSeProps {
 }
 
 export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmitirNFSeProps) {
-  const [step, setStep] = useState<'escolha' | 'manual' | 'conta'>('escolha');
+  const { config } = useCRMConfig();
+  const defaultsServico = defaultsServicoFromCrmConfig(config);
+  const [step, setStep] = useState<'inicio' | 'formulario'>('inicio');
+  const [modoTomador, setModoTomador] = useState<'cadastrado' | 'manual'>('manual');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [contas, setContas] = useState<NfseEmissaoContaOption[]>([]);
-  const [loadingContas, setLoadingContas] = useState(false);
+  const [erroInicio, setErroInicio] = useState('');
+  const [buscandoTomador, setBuscandoTomador] = useState(false);
+  const [fonteTomador, setFonteTomador] = useState<'conta' | 'lead' | 'nfse' | 'brasilapi' | null>(null);
+  const [documentoTomador, setDocumentoTomador] = useState('');
   const [formData, setFormData] = useState(NFSE_EMISSAO_INITIAL_FORM);
-  const [selectedId, setSelectedId] = useState('');
-
-  useEffect(() => {
-    if (step === 'conta') {
-      carregarContas();
-    }
-  }, [step]);
-
-  const carregarContas = async () => {
-    try {
-      setLoadingContas(true);
-      setContas(await carregarContasLeadsParaNfse());
-    } catch (err) {
-      logger.warn('Erro ao carregar contas para NFS-e:', err);
-    } finally {
-      setLoadingContas(false);
-    }
-  };
-
-  const handleContaChange = (contaId: number | string) => {
-    setSelectedId(String(contaId));
-    const conta = contas.find((c) => String(c.id) === String(contaId));
-    if (conta) {
-      setFormData({
-        ...formData,
-        conta_id: conta._tipo === 'conta' ? Number(conta.id) : null,
-        tomador_cpf_cnpj: conta.cnpj || '',
-        tomador_nome: conta.razao_social || conta.nome || '',
-        tomador_email: conta.email || '',
-        tomador_logradouro: conta.logradouro || '',
-        tomador_numero: conta.numero || '',
-        tomador_complemento: conta.complemento || '',
-        tomador_bairro: conta.bairro || '',
-        tomador_cidade: conta.cidade || '',
-        tomador_uf: conta.uf || '',
-        tomador_cep: conta.cep || '',
-      });
-    }
-  };
 
   const handleFieldChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleContinuarInicio = async () => {
+    setErroInicio('');
+    const docDigits = somenteDigitosDocumento(documentoTomador);
+    if (docDigits.length !== 11 && docDigits.length !== 14) {
+      setErroInicio('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.');
+      return;
+    }
+
+    setBuscandoTomador(true);
+    try {
+      const encontrado = await buscarTomadorCadastroPorDocumento(documentoTomador);
+
+      if (encontrado) {
+        const temConta = encontrado._tipo === 'conta' && typeof encontrado.id === 'number';
+        setFonteTomador(encontrado._fonte ?? (temConta ? 'conta' : 'lead'));
+        setModoTomador(temConta ? 'cadastrado' : 'manual');
+        setFormData({
+          ...NFSE_EMISSAO_INITIAL_FORM,
+          ...defaultsServico,
+          ...preencherFormTomador(encontrado),
+          tomador_cpf_cnpj: documentoTomador,
+        });
+      } else {
+        setFonteTomador(null);
+        setModoTomador('manual');
+        setFormData({
+          ...NFSE_EMISSAO_INITIAL_FORM,
+          ...defaultsServico,
+          tomador_cpf_cnpj: documentoTomador,
+        });
+      }
+      setStep('formulario');
+      setError('');
+    } catch (err) {
+      logger.warn('Erro ao buscar cliente para NFS-e:', err);
+      setErroInicio('Erro ao buscar cliente no cadastro. Tente novamente.');
+    } finally {
+      setBuscandoTomador(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,17 +87,20 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
     setError('');
     setLoading(true);
     try {
+      const basePayload = {
+        servico_descricao: formData.servico_descricao,
+        valor_servicos: formData.valor_servicos,
+        enviar_email: formData.enviar_email,
+        codigo_cnae: formData.codigo_cnae || undefined,
+        codigo_servico: formData.codigo_servico || undefined,
+        item_lista_servico: formData.item_lista_servico || undefined,
+      };
+
       const payload =
-        step === 'conta' && formData.conta_id
-          ? {
-              conta_id: formData.conta_id,
-              servico_descricao: formData.servico_descricao,
-              valor_servicos: formData.valor_servicos,
-              enviar_email: formData.enviar_email,
-              codigo_cnae: formData.codigo_cnae || undefined,
-              codigo_servico: formData.codigo_servico || undefined,
-            }
+        modoTomador === 'cadastrado' && formData.conta_id
+          ? { ...basePayload, conta_id: formData.conta_id }
           : {
+              ...basePayload,
               tomador_cpf_cnpj: formData.tomador_cpf_cnpj,
               tomador_nome: formData.tomador_nome,
               tomador_email: formData.tomador_email,
@@ -99,12 +111,8 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
               tomador_cidade: formData.tomador_cidade,
               tomador_uf: formData.tomador_uf,
               tomador_cep: formData.tomador_cep,
-              servico_descricao: formData.servico_descricao,
-              valor_servicos: formData.valor_servicos,
-              enviar_email: formData.enviar_email,
-              codigo_cnae: formData.codigo_cnae || undefined,
-              codigo_servico: formData.codigo_servico || undefined,
             };
+
       await apiClient.post('/nfse/emitir/', payload);
       onSuccess();
     } catch (err: unknown) {
@@ -128,54 +136,82 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
             </button>
           </div>
 
-          {error && (
+          {error && step === 'formulario' && (
             <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
               <AlertCircle size={20} className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
               <span className="text-sm text-red-800 dark:text-red-200">{error}</span>
             </div>
           )}
 
-          {step === 'escolha' && (
-            <ModalEmitirNFSeStepEscolha
-              onSelectConta={() => setStep('conta')}
-              onSelectManual={() => setStep('manual')}
+          {step === 'inicio' && (
+            <ModalEmitirNFSeStepInicio
+              documentoTomador={documentoTomador}
+              onDocumentoChange={setDocumentoTomador}
+              erro={erroInicio}
+              buscandoTomador={buscandoTomador}
+              onContinuar={handleContinuarInicio}
               onClose={onClose}
             />
           )}
 
-          {step === 'conta' && (
+          {step === 'formulario' && (
             <form onSubmit={handleSubmit} className="space-y-6">
-              <ModalEmitirNFSeContaSelector
-                contas={contas}
-                loading={loadingContas}
-                value={selectedId}
-                onChange={handleContaChange}
-              />
-              <ServicoFields
-                servico_descricao={formData.servico_descricao}
-                valor_servicos={formData.valor_servicos}
-                enviar_email={formData.enviar_email}
-                codigo_cnae={formData.codigo_cnae}
-                codigo_servico={formData.codigo_servico}
-                onChange={handleFieldChange}
-              />
-              <ModalFormButtons loading={loading} onBack={() => setStep('escolha')} onClose={onClose} />
-            </form>
-          )}
+              <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3 text-sm">
+                <span className="font-medium text-blue-900 dark:text-blue-100">Emissor: </span>
+                <span className="text-blue-800 dark:text-blue-200">Felix Representações</span>
+              </div>
 
-          {step === 'manual' && (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <ModalEmitirNFSeTomadorFields formData={formData} onChange={handleFieldChange} />
-              <ModalEmitirNFSeEnderecoFields formData={formData} onChange={handleFieldChange} />
+              {modoTomador === 'cadastrado' ? (
+                <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4 text-sm space-y-1">
+                  <p className="font-medium text-green-900 dark:text-green-100">Cliente encontrado no cadastro</p>
+                  <p className="text-green-800 dark:text-green-200">{formData.tomador_nome}</p>
+                  <p className="text-green-700 dark:text-green-300">{formData.tomador_cpf_cnpj}</p>
+                  {formData.tomador_email && (
+                    <p className="text-green-700 dark:text-green-300">{formData.tomador_email}</p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {formData.tomador_nome ? (
+                    <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3 text-sm text-green-900 dark:text-green-100">
+                      {fonteTomador === 'conta'
+                        ? 'Cliente encontrado no cadastro (Clientes).'
+                        : fonteTomador === 'lead'
+                          ? 'Cliente encontrado no cadastro (Leads).'
+                          : fonteTomador === 'brasilapi'
+                            ? 'Dados obtidos da Receita Federal. Confira abaixo e informe o e-mail do cliente.'
+                            : fonteTomador === 'nfse'
+                              ? 'Dados recuperados de nota fiscal anterior. Confira e complete o endereço se necessário.'
+                              : 'Dados do cliente encontrados. Confira abaixo e complete o endereço se necessário.'}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm text-amber-900 dark:text-amber-100">
+                      Cliente não encontrado no cadastro. Preencha os dados manualmente.
+                    </div>
+                  )}
+                  <ModalEmitirNFSeTomadorFields formData={formData} onChange={handleFieldChange} />
+                  <ModalEmitirNFSeEnderecoFields formData={formData} onChange={handleFieldChange} />
+                </>
+              )}
+
               <ServicoFields
                 servico_descricao={formData.servico_descricao}
                 valor_servicos={formData.valor_servicos}
                 enviar_email={formData.enviar_email}
                 codigo_cnae={formData.codigo_cnae}
                 codigo_servico={formData.codigo_servico}
+                item_lista_servico={formData.item_lista_servico}
                 onChange={handleFieldChange}
               />
-              <ModalFormButtons loading={loading} onBack={() => setStep('escolha')} onClose={onClose} />
+              <ModalFormButtons
+                loading={loading}
+                onBack={() => {
+                  setStep('inicio');
+                  setFonteTomador(null);
+                  setError('');
+                }}
+                onClose={onClose}
+              />
             </form>
           )}
         </div>

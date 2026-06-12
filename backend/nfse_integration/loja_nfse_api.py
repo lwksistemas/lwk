@@ -85,15 +85,71 @@ def enviar_email_pos_emissao_loja(
     )
 
 
+def enviar_whatsapp_nfse_loja(
+    nfse: Any,
+    loja: Any,
+    loja_id: int,
+    telefone: str,
+    request: Any,
+) -> str:
+    """Envia link oficial da NFS-e (portal da prefeitura) por WhatsApp."""
+    from nfse_integration.danfe import obter_url_visualizacao_nfse_loja
+    from nfse_integration.email_nfse import montar_corpo_email_nfse
+    from whatsapp.models import WhatsAppConfig
+    from whatsapp.services import send_whatsapp
+
+    if nfse.status != 'emitida':
+        raise ReenvioNFSeLojaError('Só é possível enviar por WhatsApp NFS-e com status emitida.')
+
+    telefone = (telefone or '').strip()
+    if not telefone:
+        raise ReenvioNFSeLojaError('Informe o número de WhatsApp.')
+
+    config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+    if not config or not config.whatsapp_ativo:
+        raise ReenvioNFSeLojaError(
+            'WhatsApp não está ativo. Configure em Configurações → WhatsApp.'
+        )
+
+    url_danfe = obter_url_visualizacao_nfse_loja(nfse, loja, loja_id)
+    if not url_danfe:
+        raise ReenvioNFSeLojaError(
+            'Link da nota fiscal não disponível no momento. '
+            'Tente novamente em alguns instantes ou use Reenviar e-mail.'
+        )
+
+    mensagem = montar_corpo_email_nfse(
+        loja=loja,
+        tomador_nome=nfse.tomador_nome or 'Cliente',
+        numero_nf=nfse.numero_nf,
+        valor=nfse.valor,
+        descricao=nfse.servico_descricao,
+        url_danfe=url_danfe,
+        intro='A nota fiscal de serviço foi emitida.',
+        codigo_verificacao=nfse.codigo_verificacao,
+        incluir_codigo_verificacao=bool(nfse.codigo_verificacao),
+    )
+
+    ok, err = send_whatsapp(
+        telefone=telefone,
+        mensagem=mensagem,
+        user=getattr(request, 'user', None),
+        config=config,
+    )
+    if not ok:
+        raise ReenvioNFSeLojaError(err or 'Erro ao enviar WhatsApp.')
+    return telefone
+
+
 def reenviar_email_nfse_loja(nfse: Any, loja: Any, loja_id: int) -> str:
     """Reenvia e-mail da NFS-e ao tomador (formato loja/CRM). Retorna o e-mail enviado."""
-    from nfse_integration.danfe import buscar_url_danfe_issnet
+    from nfse_integration.danfe import obter_url_visualizacao_nfse_loja
     from nfse_integration.email_nfse import enviar_email_nfse_tomador
 
     if not nfse.tomador_email:
         raise ReenvioNFSeLojaError('NFS-e não possui email do tomador')
 
-    url_danfe = buscar_url_danfe_issnet(nfse, loja_id=loja_id, loja=loja)
+    url_danfe = obter_url_visualizacao_nfse_loja(nfse, loja, loja_id)
     enviar_email_nfse_tomador(
         loja=loja,
         tomador_email=nfse.tomador_email,
@@ -310,6 +366,11 @@ def processar_emissao_nfse_loja(
 
     codigo_cnae = (validated_data.get('codigo_cnae') or '').strip() or None
     codigo_servico = (validated_data.get('codigo_servico') or '').strip() or None
+    item_lista_servico = (validated_data.get('item_lista_servico') or '').strip() or None
+
+    empresa_prestadora_id = validated_data.get('empresa_prestadora_id')
+    if empresa_prestadora_id is not None:
+        empresa_prestadora_id = int(empresa_prestadora_id)
 
     resultado = service.emitir_nfse(
         tomador_cpf_cnpj=tomador.cpf_cnpj,
@@ -321,6 +382,8 @@ def processar_emissao_nfse_loja(
         enviar_email=validated_data.get('enviar_email', True),
         codigo_cnae=codigo_cnae,
         codigo_servico=codigo_servico,
+        item_lista_servico=item_lista_servico,
+        empresa_prestadora_id=empresa_prestadora_id,
     )
 
     if resultado['success']:

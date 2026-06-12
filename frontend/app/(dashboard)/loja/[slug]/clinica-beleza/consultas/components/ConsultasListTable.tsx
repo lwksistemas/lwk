@@ -27,6 +27,14 @@ export function ConsultasListTable({ consultas, onSelect, formatData }: Props) {
           ),
         },
         {
+          key: "agenda",
+          header: "Agenda",
+          className: "hidden sm:table-cell",
+          render: (c) => (
+            <span className="text-gray-600 dark:text-gray-400 text-xs">{c.nome_agenda_name || "—"}</span>
+          ),
+        },
+        {
           key: "procedure",
           header: "Procedimento",
           render: (c) => (

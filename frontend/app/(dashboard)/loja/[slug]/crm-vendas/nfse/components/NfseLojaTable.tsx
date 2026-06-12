@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, FileText, Mail, RefreshCw, Trash2, X } from 'lucide-react';
+import { Download, FileText, Mail, MessageCircle, RefreshCw, Trash2, X } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { formatDateTime } from '@/lib/financeiro-helpers';
 import { NfseStatusPill } from '@/components/nfse/NfseStatusPill';
@@ -8,6 +8,7 @@ import {
   downloadNfseXmlBlob,
   nfsePodeBaixar,
   nfsePodeCancelar,
+  nfsePodeEnviarWhatsapp,
   nfsePodeExcluirLoja,
   nfsePodeSincronizar,
   nfseSyncEndpoint,
@@ -31,7 +32,9 @@ export function NfseLojaTable({
   onDelete,
   onDownloadPdf,
   onReenviarEmail,
+  onEnviarWhatsapp,
   onCancelar,
+  whatsappHabilitado = false,
 }: NfseLojaTableProps) {
   return (
     <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] overflow-hidden">
@@ -65,7 +68,9 @@ export function NfseLojaTable({
                 onDelete={onDelete}
                 onDownloadPdf={onDownloadPdf}
                 onReenviarEmail={onReenviarEmail}
+                onEnviarWhatsapp={onEnviarWhatsapp}
                 onCancelar={onCancelar}
+                whatsappHabilitado={whatsappHabilitado}
               />
             ))}
           </tbody>
@@ -84,7 +89,9 @@ function NfseLojaRow({
   onDelete,
   onDownloadPdf,
   onReenviarEmail,
+  onEnviarWhatsapp,
   onCancelar,
+  whatsappHabilitado = false,
 }: {
   nf: NFSe;
   lojaProvedor?: string;
@@ -153,6 +160,16 @@ function NfseLojaRow({
               >
                 <Mail size={16} />
               </button>
+              {whatsappHabilitado && nfsePodeEnviarWhatsapp(nf.status) && (
+                <button
+                  type="button"
+                  title="Enviar PDF por WhatsApp"
+                  onClick={(e) => onEnviarWhatsapp(e, nf)}
+                  className="p-1.5 text-gray-600 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                >
+                  <MessageCircle size={16} />
+                </button>
+              )}
             </>
           )}
           {nfsePodeCancelar(nf.status) && (

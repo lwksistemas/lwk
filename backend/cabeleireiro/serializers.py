@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
-from core.serializer_mixins import CpfNormalizationMixin, UniqueDocumentoPerLojaMixin
+from core.serializer_mixins import CpfNormalizationMixin, TextNormalizationMixin, UniqueDocumentoPerLojaMixin
 from .models import (
     Cliente, Profissional, Servico, Agendamento, Produto, Venda,
     Funcionario, HorarioFuncionamento, BloqueioAgenda
@@ -10,12 +10,14 @@ from .models import (
 class ClienteSerializer(
     UniqueDocumentoPerLojaMixin,
     CpfNormalizationMixin,
+    TextNormalizationMixin,
     BaseLojaSerializer,
 ):
     """Serializer de Cliente - herda BaseLojaSerializer para adicionar loja_id automaticamente"""
     unique_documento_fields = ['cpf']
     unique_documento_entidade = 'cliente'
     unique_documento_apenas_ativos = True
+    phone_fields = ['telefone']
     total_agendamentos = serializers.SerializerMethodField()
     ultima_visita = serializers.SerializerMethodField()
 
@@ -108,8 +110,9 @@ class VendaSerializer(BaseLojaSerializer):
         read_only_fields = ['data_venda', 'valor_total', 'loja_id']
 
 
-class FuncionarioSerializer(BaseLojaSerializer):
+class FuncionarioSerializer(TextNormalizationMixin, BaseLojaSerializer):
     """Serializer de Funcionário"""
+    phone_fields = ['telefone']
     tempo_empresa = serializers.SerializerMethodField()
     is_admin = serializers.SerializerMethodField()
     funcao_display = serializers.CharField(source='get_funcao_display', read_only=True)

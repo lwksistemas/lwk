@@ -8,10 +8,28 @@ export const PROCEDURE_CATEGORIA_OPTIONS = [
   { value: 'facial', label: 'Facial' },
   { value: 'corporal', label: 'Corporal' },
   { value: 'capilar', label: 'Capilar' },
+  { value: 'depilacao', label: 'Depilação' },
   { value: 'injetavel', label: 'Injetável' },
   { value: 'geral', label: 'Geral' },
   { value: 'outro', label: 'Outro' },
 ] as const;
+
+/** Normaliza categoria vinda da API (legado maiúsculo/título) para o value do select. */
+export function resolveProcedureCategoriaSlug(raw: string | undefined | null): string {
+  const norm = normalizeCategoria(raw || '');
+  if (!norm) return '';
+  const exact = PROCEDURE_CATEGORIA_OPTIONS.find((o) => o.value === norm);
+  if (exact) return exact.value;
+  const byLabel = PROCEDURE_CATEGORIA_OPTIONS.find((o) => normalizeCategoria(o.label) === norm);
+  if (byLabel) return byLabel.value;
+  if (norm.startsWith('depil')) return 'depilacao';
+  return norm;
+}
+
+export function procedureCategoriaLabel(slug: string | undefined | null): string {
+  const resolved = resolveProcedureCategoriaSlug(slug);
+  return PROCEDURE_CATEGORIA_OPTIONS.find((o) => o.value === resolved)?.label ?? slug ?? '';
+}
 
 /** Palavras-chave que identificam procedimentos de cada módulo */
 const MODULE_ALIASES: Record<string, string[]> = {

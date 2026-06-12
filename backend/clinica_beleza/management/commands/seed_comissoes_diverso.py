@@ -162,9 +162,9 @@ class Command(BaseCommand):
             f'\n=== Seed comissões diverso — {loja.nome} ({loja.slug}) ===\n'
         ))
 
-        # ── 10 locais ──
+        # ── Locais padrão do catálogo ──
         locais = []
-        self.stdout.write('10 locais de atendimento:')
+        self.stdout.write(f'{len(LOCAIS_CATALOGO)} local(is) de atendimento:')
         for nome, valor in LOCAIS_CATALOGO:
             local, _ = LocalAtendimento.objects.using(db).update_or_create(
                 nome=nome, loja_id=lid,

@@ -13,6 +13,7 @@ from nfse_integration.issnet_loja import (
     senha_certificado_configurada_loja,
 )
 from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps, salvar_nfse_emitida
+from nfse_integration.prestador_loja import DadosPrestadorNFSe
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,8 @@ def emitir_via_issnet_loja(
     enviar_email_fn: Callable[..., None],
     codigo_cnae_override: Optional[str] = None,
     codigo_servico_override: Optional[str] = None,
+    item_lista_override: Optional[str] = None,
+    prestador: Optional[DadosPrestadorNFSe] = None,
 ) -> Dict[str, Any]:
     """Emite NFS-e via WebService ISSNet municipal."""
     try:
@@ -39,18 +42,29 @@ def emitir_via_issnet_loja(
         if not senha_certificado_configurada_loja(config):
             return {'success': False, 'error': 'Senha do certificado não configurada'}
 
-        cnpj_prestador = re.sub(r'\D', '', loja.cpf_cnpj or '')
-        im_prestador = (
-            getattr(config, 'inscricao_municipal', '')
-            or getattr(loja, 'inscricao_municipal', '')
-            or ''
-        )
+        if prestador:
+            cnpj_prestador = prestador.cnpj
+            im_prestador = prestador.inscricao_municipal
+            razao_prestador = prestador.razao_social
+        else:
+            cnpj_prestador = re.sub(r'\D', '', loja.cpf_cnpj or '')
+            im_prestador = (
+                getattr(config, 'inscricao_municipal', '')
+                or getattr(loja, 'inscricao_municipal', '')
+                or ''
+            )
+            razao_prestador = loja.nome or ''
         codigo_servico_final = (
             codigo_servico_override
             or getattr(config, 'codigo_servico_municipal', '1401')
             or '1401'
         )
         codigo_cnae_final = codigo_cnae_override or (getattr(config, 'codigo_cnae', '') or '').strip()
+        item_lista_final = (
+            item_lista_override
+            or (getattr(config, 'item_lista_servico', '') or '').strip()
+            or None
+        )
         aliquota = Decimal(str(getattr(config, 'aliquota_iss', 2.00) or 0))
         valor_iss = (Decimal(str(valor_servicos)) * aliquota / Decimal('100')).quantize(
             Decimal('0.01'),
@@ -62,7 +76,7 @@ def emitir_via_issnet_loja(
             resultado = client.emitir_nfse(
                 prestador_cnpj=cnpj_prestador,
                 prestador_inscricao_municipal=im_prestador,
-                prestador_razao_social=loja.nome or '',
+                prestador_razao_social=razao_prestador,
                 tomador_cpf_cnpj=tomador_cpf_cnpj,
                 tomador_nome=tomador_nome,
                 tomador_endereco=tomador_endereco,
@@ -73,6 +87,7 @@ def emitir_via_issnet_loja(
                 numero_rps=numero_rps,
                 serie_rps=getattr(config, 'issnet_serie_rps', '1') or '1',
                 codigo_cnae=codigo_cnae_final or None,
+                item_lista_servico=item_lista_final,
             )
 
         if resultado.get('success'):

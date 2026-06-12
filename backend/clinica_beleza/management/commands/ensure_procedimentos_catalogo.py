@@ -7,16 +7,8 @@ Uso:
 """
 from django.core.management.base import BaseCommand, CommandError
 
-from clinica_beleza.procedimentos_catalogo import (
-    LOCAIS_CATALOGO,
-    PROCEDIMENTOS_CATALOGO,
-    procedimento_catalogo_defaults,
-)
-from core.db_config import ensure_loja_database_config
+from clinica_beleza.catalogo_service import aplicar_catalogo_padrao, lojas_clinica_beleza_com_schema
 from superadmin.models import Loja
-from tenants.middleware import set_current_loja_id, set_current_tenant_db
-
-TIPO_CLINICA_BELEZA = 'Clínica da Beleza'
 
 
 class Command(BaseCommand):
@@ -48,55 +40,11 @@ class Command(BaseCommand):
 
     def _lojas_alvo(self, options) -> list[Loja]:
         if options.get('all_clinica_beleza'):
-            return list(
-                Loja.objects.using('default')
-                .filter(is_active=True, database_created=True, tipo_loja__nome=TIPO_CLINICA_BELEZA)
-                .select_related('tipo_loja')
-                .order_by('slug')
-            )
+            return list(lojas_clinica_beleza_com_schema(apenas_ativas=True))
         slug = (options.get('slug') or '').strip()
         if not slug:
             raise CommandError('Informe --slug ou --all-clinica-beleza.')
         return [self._resolver_loja(slug)]
-
-    def _aplicar_catalogo(self, loja: Loja) -> None:
-        if not loja.database_created or not loja.database_name:
-            self.stdout.write(self.style.WARNING(f'  skip {loja.slug}: schema não criado'))
-            return
-
-        db = loja.database_name
-        lid = loja.id
-        if not ensure_loja_database_config(db, conn_max_age=0):
-            self.stdout.write(self.style.WARNING(f'  skip {loja.slug}: banco inacessível'))
-            return
-
-        set_current_loja_id(lid)
-        set_current_tenant_db(db)
-
-        from clinica_beleza.models import LocalAtendimento, Procedure
-
-        self.stdout.write(self.style.SUCCESS(f'\n=== Catálogo — {loja.nome} ({loja.slug}) ==='))
-
-        for nome, valor in LOCAIS_CATALOGO:
-            LocalAtendimento.objects.using(db).update_or_create(
-                nome=nome, loja_id=lid,
-                defaults={'valor_consulta': valor, 'is_active': True},
-            )
-        self.stdout.write(f'   {len(LOCAIS_CATALOGO)} locais de atendimento')
-
-        com_termo = 0
-        for item in PROCEDIMENTOS_CATALOGO:
-            defaults = procedimento_catalogo_defaults(item)
-            if defaults['termo_consentimento_ativo']:
-                com_termo += 1
-            Procedure.objects.using(db).update_or_create(
-                nome=item.nome, loja_id=lid,
-                defaults=defaults,
-            )
-        self.stdout.write(
-            f'   {len(PROCEDIMENTOS_CATALOGO)} procedimentos '
-            f'({com_termo} com termo de consentimento)'
-        )
 
     def handle(self, *args, **options):
         lojas = self._lojas_alvo(options)
@@ -104,7 +52,15 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('Nenhuma loja Clínica da Beleza encontrada.'))
             return
 
+        total_proc = 0
         for loja in lojas:
-            self._aplicar_catalogo(loja)
+            stats = aplicar_catalogo_padrao(loja, log=self.stdout.write)
+            if stats:
+                total_proc += stats['procedimentos']
 
-        self.stdout.write(self.style.SUCCESS('\n✅ Catálogo padrão de estética atualizado.'))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f'\n✅ Catálogo padrão aplicado em {len(lojas)} loja(s) '
+                f'({total_proc} procedimentos por loja quando concluído).'
+            )
+        )

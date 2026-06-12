@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileSignature, Download, RefreshCw, ChevronDown } from "lucide-react";
+import { FileSignature, Download, RefreshCw, ChevronDown, Mail, MessageCircle } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { useWhatsappEnvioFlags } from "@/hooks/useWhatsappEnvioFlags";
 
 type TermoProcedimento = {
   id: number;
@@ -35,6 +36,7 @@ export function ConsultaTermoConsentimentoButton({
   const [aberto, setAberto] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const termosRef = useRef<TermoProcedimento[]>([]);
+  const { termo: termoWhatsappHabilitado } = useWhatsappEnvioFlags();
 
   const snapshotStatus = (lista: TermoProcedimento[]) =>
     lista.map((t) => `${t.procedure_id}:${t.status}`).join("|");
@@ -106,15 +108,16 @@ export function ConsultaTermoConsentimentoButton({
   );
   const badgeCount = pendentesAssinatura.length || pendentesEnvio.length;
 
-  const enviar = async (procedureId?: number) => {
+  const enviar = async (procedureId?: number, canal: "email" | "whatsapp" = "email") => {
+    const canalLabel = canal === "whatsapp" ? "WhatsApp" : "e-mail";
     const msg = procedureId
-      ? "Enviar termo deste procedimento por e-mail para o paciente assinar?"
-      : `Enviar ${pendentesEnvio.length} termo(s) por e-mail? O paciente deve ler e assinar cada procedimento separadamente.`;
+      ? `Enviar termo deste procedimento por ${canalLabel} para o paciente assinar?`
+      : `Enviar ${pendentesEnvio.length} termo(s) por ${canalLabel}? O paciente deve ler e assinar cada procedimento separadamente.`;
     if (!confirm(msg)) return;
     setLoading(true);
     try {
-      const res = await ClinicaBelezaAPI.consultas.termoConsentimento.enviar(consultaId, procedureId);
-      alert(res.message || "E-mail enviado.");
+      const res = await ClinicaBelezaAPI.consultas.termoConsentimento.enviar(consultaId, procedureId, canal);
+      alert(res.message || `${canalLabel} enviado.`);
       await carregar();
       onUpdated?.();
     } catch (e: unknown) {
@@ -130,10 +133,10 @@ export function ConsultaTermoConsentimentoButton({
     }
   };
 
-  const reenviar = async (procedureId: number, nome: string) => {
+  const reenviar = async (procedureId: number, nome: string, canal: "email" | "whatsapp" = "email") => {
     setLoading(true);
     try {
-      const res = await ClinicaBelezaAPI.consultas.termoConsentimento.reenviar(consultaId, procedureId);
+      const res = await ClinicaBelezaAPI.consultas.termoConsentimento.reenviar(consultaId, procedureId, canal);
       alert(res.message || `Link reenviado — ${nome}.`);
       await carregar();
       onUpdated?.();
@@ -218,27 +221,53 @@ export function ConsultaTermoConsentimentoButton({
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {t.status === "rascunho" && (
-                        <button
-                          type="button"
-                          onClick={() => enviar(t.procedure_id)}
-                          disabled={loading}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-white text-xs font-medium disabled:opacity-50"
-                          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-                        >
-                          <FileSignature size={12} />
-                          Enviar
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => enviar(t.procedure_id, "email")}
+                            disabled={loading}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-white text-xs font-medium disabled:opacity-50"
+                            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                          >
+                            <Mail size={12} />
+                            E-mail
+                          </button>
+                          {termoWhatsappHabilitado && (
+                            <button
+                              type="button"
+                              onClick={() => enviar(t.procedure_id, "whatsapp")}
+                              disabled={loading}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-green-200 text-green-700 dark:border-green-800 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50"
+                            >
+                              <MessageCircle size={12} />
+                              WhatsApp
+                            </button>
+                          )}
+                        </>
                       )}
                       {(t.status === "aguardando_paciente" || t.status === "aguardando_profissional") && (
-                        <button
-                          type="button"
-                          onClick={() => reenviar(t.procedure_id, t.procedure_nome)}
-                          disabled={loading}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800 disabled:opacity-50"
-                        >
-                          <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-                          Reenviar
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => reenviar(t.procedure_id, t.procedure_nome, "email")}
+                            disabled={loading}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800 disabled:opacity-50"
+                          >
+                            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+                            Reenviar e-mail
+                          </button>
+                          {termoWhatsappHabilitado && t.status === "aguardando_paciente" && (
+                            <button
+                              type="button"
+                              onClick={() => reenviar(t.procedure_id, t.procedure_nome, "whatsapp")}
+                              disabled={loading}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-green-200 text-green-700 dark:border-green-800 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50"
+                            >
+                              <MessageCircle size={12} />
+                              Reenviar WhatsApp
+                            </button>
+                          )}
+                        </>
                       )}
                       <button
                         type="button"
@@ -257,17 +286,28 @@ export function ConsultaTermoConsentimentoButton({
           </div>
 
           {pendentesEnvio.length > 1 && (
-            <div className="px-4 py-3 border-t border-gray-100 dark:border-neutral-800 bg-gray-50/80 dark:bg-neutral-800/50">
+            <div className="px-4 py-3 border-t border-gray-100 dark:border-neutral-800 bg-gray-50/80 dark:bg-neutral-800/50 space-y-2">
               <button
                 type="button"
-                onClick={() => enviar()}
+                onClick={() => enviar(undefined, "email")}
                 disabled={loading}
                 className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
                 style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
               >
-                <FileSignature size={14} />
-                {loading ? "Enviando…" : `Enviar todos (${pendentesEnvio.length})`}
+                <Mail size={14} />
+                {loading ? "Enviando…" : `Enviar todos por e-mail (${pendentesEnvio.length})`}
               </button>
+              {termoWhatsappHabilitado && (
+                <button
+                  type="button"
+                  onClick={() => enviar(undefined, "whatsapp")}
+                  disabled={loading}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-green-200 text-green-700 dark:border-green-800 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50"
+                >
+                  <MessageCircle size={14} />
+                  {loading ? "Enviando…" : `Enviar todos por WhatsApp (${pendentesEnvio.length})`}
+                </button>
+              )}
             </div>
           )}
         </div>

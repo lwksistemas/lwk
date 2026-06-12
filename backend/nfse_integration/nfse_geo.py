@@ -235,3 +235,24 @@ def enriquecer_endereco_por_cep(endereco: dict[str, str]) -> bool:
         uf,
     )
     return False
+
+
+def preparar_endereco_tomador_emissao(
+    endereco: dict[str, str],
+    *,
+    email: str = '',
+) -> tuple[dict[str, str], str | None]:
+    """
+    Alinha CEP, cidade, UF e codigo IBGE do tomador (ISSNet E058/E061).
+    Retorna (endereco_pronto, mensagem_erro).
+    """
+    endereco_final = {k: (v or '') for k, v in (endereco or {}).items()}
+    if email:
+        endereco_final['email'] = email.strip()
+    if enriquecer_endereco_por_cep(endereco_final):
+        return endereco_final, None
+    cep = endereco_final.get('cep') or 'vazio'
+    return endereco_final, (
+        f'CEP do tomador inválido ou código do município não encontrado ({cep}). '
+        'Corrija o CEP, cidade e UF do cliente antes de emitir (erro ISSNet E058).'
+    )

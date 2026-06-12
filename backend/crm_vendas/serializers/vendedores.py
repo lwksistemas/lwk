@@ -1,0 +1,271 @@
+"""Serializers de vendedores CRM."""
+import logging
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
+from django.utils.crypto import get_random_string
+from rest_framework import serializers
+
+from core.serializer_mixins import (
+    CpfCnpjNormalizationMixin,
+    TextNormalizationMixin,
+    UniqueDocumentoPerLojaMixin,
+)
+
+from ..models import Vendedor
+
+logger = logging.getLogger(__name__)
+
+class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    criar_acesso = serializers.BooleanField(write_only=True, default=False, required=False)
+    tem_acesso = serializers.SerializerMethodField(read_only=True)
+    grupo_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    grupo_nome = serializers.SerializerMethodField(read_only=True)
+    
+    phone_fields = ['telefone']
+    uppercase_fields = ['nome', 'cargo']
+
+    class Meta:
+        model = Vendedor
+        fields = [
+            'id', 'nome', 'email', 'telefone', 'cargo', 'comissao_padrao', 'is_admin', 'is_active',
+            'criar_acesso', 'tem_acesso', 'grupo_id', 'grupo_nome',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_tem_acesso(self, obj):
+        """✅ OTIMIZAÇÃO: Usa anotação do queryset para evitar N+1"""
+        # Se tem anotação (vem do ViewSet otimizado), usa ela
+        if hasattr(obj, 'tem_acesso_anotado'):
+            return obj.tem_acesso_anotado
+        
+        # Fallback para casos sem anotação (detail view, etc)
+        if not obj or not obj.email:
+            return False
+        from tenants.middleware import get_current_loja_id
+        from superadmin.models import VendedorUsuario
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return False
+        return VendedorUsuario.objects.filter(
+            loja_id=loja_id,
+            vendedor_id=obj.id,
+        ).exists()
+
+    def get_grupo_nome(self, obj):
+        """Retorna o nome do grupo do vendedor, se houver."""
+        if not obj or not obj.email:
+            return None
+        from tenants.middleware import get_current_loja_id
+        from superadmin.models import VendedorUsuario
+        from django.contrib.auth.models import Group
+        
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return None
+        
+        try:
+            vu = VendedorUsuario.objects.using('default').select_related('user').get(
+                loja_id=loja_id,
+                vendedor_id=obj.id,
+            )
+            # Pegar o primeiro grupo relacionado ao CRM
+            grupo = vu.user.groups.filter(name__in=['Gerente de Vendas', 'Vendedor']).first()
+            return grupo.name if grupo else None
+        except VendedorUsuario.DoesNotExist:
+            return None
+
+    def create(self, validated_data):
+        criar_acesso = validated_data.pop('criar_acesso', False)
+        grupo_id = validated_data.pop('grupo_id', None)
+        vendedor = super().create(validated_data)
+        if criar_acesso and vendedor.email:
+            try:
+                self._criar_acesso_e_enviar_email(vendedor, grupo_id)
+            except serializers.ValidationError:
+                vendedor.delete()
+                raise
+        return vendedor
+
+    def update(self, instance, validated_data):
+        criar_acesso = validated_data.pop('criar_acesso', False)
+        grupo_id = validated_data.pop('grupo_id', None)
+        vendedor = super().update(instance, validated_data)
+        if criar_acesso and vendedor.email:
+            try:
+                self._criar_acesso_e_enviar_email(vendedor, grupo_id)
+            except serializers.ValidationError:
+                raise
+        elif grupo_id is not None:
+            # Atualizar grupo mesmo sem criar acesso (se já tem acesso)
+            self._atualizar_grupo(vendedor, grupo_id)
+        return vendedor
+
+    def _criar_acesso_e_enviar_email(self, vendedor, grupo_id=None):
+        User = get_user_model()
+        from superadmin.models import Loja, VendedorUsuario
+        from tenants.middleware import get_current_loja_id
+        from django.contrib.auth.models import Group
+
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return
+        try:
+            loja = Loja.objects.using('default').get(id=loja_id)
+        except Loja.DoesNotExist:
+            return
+
+        email = vendedor.email.strip().lower()
+        senha_provisoria = get_random_string(8)
+
+        # Se já tem VendedorUsuario: apenas reenviar senha e atualizar grupo
+        vu_existente = VendedorUsuario.objects.using('default').filter(
+            loja_id=loja_id,
+            vendedor_id=vendedor.id,
+        ).select_related('user').first()
+        if vu_existente:
+            user = vu_existente.user
+            user.set_password(senha_provisoria)
+            user.first_name = vendedor.nome or user.first_name or ''
+            user.save(update_fields=['password', 'first_name'])
+            vu_existente.precisa_trocar_senha = True
+            vu_existente.save(update_fields=['precisa_trocar_senha'])
+            
+            # Atualizar grupo se fornecido
+            if grupo_id:
+                self._atualizar_grupo_usuario(user, grupo_id)
+            
+            _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Nova senha provisória - CRM Vendas', reenviar=True)
+            return
+
+        existing_user = User.objects.using('default').filter(username=email).first()
+        if existing_user:
+            if VendedorUsuario.objects.using('default').filter(
+                user=existing_user,
+                loja_id=loja_id,
+            ).exists():
+                raise serializers.ValidationError({
+                    'email': 'Este e-mail já possui acesso a esta loja. Use outro ou cadastre sem "Criar acesso".',
+                    'detail': 'Este e-mail já possui acesso a esta loja.',
+                })
+            if existing_user.lojas_owned.exists():
+                raise serializers.ValidationError({
+                    'email': 'Já existe um usuário (proprietário de loja) com este e-mail. Use outro ou não marque "Criar acesso".',
+                    'detail': 'E-mail já utilizado como proprietário.',
+                })
+            existing_user.set_password(senha_provisoria)
+            existing_user.first_name = vendedor.nome or existing_user.first_name or ''
+            existing_user.save(update_fields=['password', 'first_name'])
+            VendedorUsuario.objects.using('default').create(
+                user=existing_user,
+                loja=loja,
+                vendedor_id=vendedor.id,
+                precisa_trocar_senha=True,
+            )
+            
+            # Adicionar ao grupo se fornecido
+            if grupo_id:
+                self._atualizar_grupo_usuario(existing_user, grupo_id)
+        else:
+            user = User.objects.db_manager('default').create_user(
+                username=email,
+                email=email,
+                password=senha_provisoria,
+                first_name=vendedor.nome or '',
+            )
+            VendedorUsuario.objects.using('default').create(
+                user=user,
+                loja=loja,
+                vendedor_id=vendedor.id,
+                precisa_trocar_senha=True,
+            )
+            
+            # Adicionar ao grupo se fornecido
+            if grupo_id:
+                self._atualizar_grupo_usuario(user, grupo_id)
+
+        _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso ao sistema - CRM Vendas')
+
+    def _atualizar_grupo(self, vendedor, grupo_id):
+        """Atualiza o grupo de um vendedor que já tem acesso."""
+        from tenants.middleware import get_current_loja_id
+        from superadmin.models import VendedorUsuario
+        
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return
+        
+        try:
+            vu = VendedorUsuario.objects.using('default').select_related('user').get(
+                loja_id=loja_id,
+                vendedor_id=vendedor.id,
+            )
+            self._atualizar_grupo_usuario(vu.user, grupo_id)
+        except VendedorUsuario.DoesNotExist:
+            pass
+
+    def _atualizar_grupo_usuario(self, user, grupo_id):
+        """Atualiza o grupo de um usuário, removendo grupos CRM anteriores."""
+        from django.contrib.auth.models import Group
+        
+        if not grupo_id:
+            return
+        
+        try:
+            grupo = Group.objects.using('default').get(id=grupo_id)
+            
+            # Remover grupos CRM anteriores
+            user.groups.remove(*Group.objects.using('default').filter(
+                name__in=['Gerente de Vendas', 'Vendedor']
+            ))
+            
+            # Adicionar novo grupo
+            user.groups.add(grupo)
+        except Group.DoesNotExist:
+            pass
+
+
+def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso ao Sistema - CRM Vendas', reenviar=False):
+    site_url = getattr(settings, 'SITE_URL', 'https://lwksistemas.com.br').rstrip('/')
+    login_url = f"{site_url}/loja/{loja.slug}/login"
+    if reenviar:
+        titulo = "Senha Redefinida"
+        subtitulo = "Sua senha foi redefinida com sucesso"
+    else:
+        titulo = "Bem-vindo ao CRM"
+        subtitulo = "Seu acesso foi criado com sucesso!"
+    
+    try:
+        from core.email_templates import email_senha_provisoria_html
+        from core.email_delivery import create_email_multipart
+        
+        info_adicional = {
+            "Loja": loja.nome,
+            "Sistema": "CRM de Vendas",
+            "Seu Cargo": vendedor.cargo,
+            "Comissão Padrão": f"{vendedor.comissao_padrao}%",
+        }
+        
+        html_content, texto_plano = email_senha_provisoria_html(
+            nome_destinatario=vendedor.nome or 'Vendedor',
+            usuario=email,
+            senha=senha_provisoria,
+            url_login=login_url,
+            titulo_principal=titulo,
+            subtitulo=subtitulo,
+            info_adicional=info_adicional,
+            nome_sistema=loja.nome
+        )
+        
+        email_msg = create_email_multipart(
+            assunto,
+            texto_plano,
+            [email],
+            html=html_content,
+        )
+        email_msg.send(fail_silently=True)
+    except Exception as mail_err:
+        logger.warning('Envio de e-mail ao criar vendedor falhou: %s', mail_err)
+

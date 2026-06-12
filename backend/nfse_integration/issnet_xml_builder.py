@@ -108,6 +108,7 @@ def construir_xml_enviar_lote_rps(
     tipo_rps: int,
     data_emissao: datetime,
     codigo_cnae: Optional[str] = None,
+    item_lista_servico: Optional[str] = None,
     opts: Optional[IssnetEmissaoOpts] = None,
 ) -> str:
     """Monta EnviarLoteRpsEnvio (ABRASF 2.04) para RecepcionarLoteRps."""
@@ -167,7 +168,10 @@ def construir_xml_enviar_lote_rps(
     etree.SubElement(valores, '{%s}DescontoCondicionado' % ns).text = '0.00'
 
     etree.SubElement(servico, '{%s}IssRetido' % ns).text = '2'
-    item_lista = normalizar_item_lista_servico_abrasf(servico_codigo)
+    if item_lista_servico and str(item_lista_servico).strip():
+        item_lista = normalizar_item_lista_servico_abrasf(item_lista_servico)
+    else:
+        item_lista = normalizar_item_lista_servico_abrasf(servico_codigo)
     cod_tributacao = codigo_tributacao_municipio_xml(servico_codigo, item_lista)
     if (servico_codigo or '').strip() and (
         (servico_codigo or '').strip() != item_lista
@@ -216,7 +220,13 @@ def construir_xml_enviar_lote_rps(
         etree.SubElement(end, '{%s}Complemento' % ns).text = compl
     bairro = (tomador_endereco.get('bairro') or '').strip() or 'Nao informado'
     etree.SubElement(end, '{%s}Bairro' % ns).text = bairro[:60]
-    cod_mun_tomador = (tomador_endereco.get('codigo_municipio') or '').strip() or COD_MUNICIPIO_RP
+    cod_mun_tomador = (tomador_endereco.get('codigo_municipio') or '').strip()
+    if not cod_mun_tomador:
+        from nfse_integration.nfse_geo import buscar_codigo_ibge_por_cep
+
+        cod_mun_tomador = buscar_codigo_ibge_por_cep(tomador_endereco.get('cep', ''))
+    if not cod_mun_tomador:
+        cod_mun_tomador = COD_MUNICIPIO_RP
     etree.SubElement(end, '{%s}CodigoMunicipio' % ns).text = cod_mun_tomador
     etree.SubElement(end, '{%s}Uf' % ns).text = (
         (tomador_endereco.get('uf') or 'SP').strip()[:2] or 'SP'

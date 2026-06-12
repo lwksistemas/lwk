@@ -12,7 +12,10 @@ import {
   openPdfFromJsonUrl,
   solicitarCancelamentoNFSe,
 } from '@/lib/nfse-helpers';
+import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
+import { telefoneInternacionalBr } from '@/lib/format-br';
 import { ModalEmitirNFSe } from './components/ModalEmitirNFSe';
+import ModalNfseEnviarWhatsapp from './components/ModalNfseEnviarWhatsapp';
 import { NfseLojaEmptyState } from './components/NfseLojaEmptyState';
 import { NfseLojaFilters } from './components/NfseLojaFilters';
 import { NfseLojaHeader } from './components/NfseLojaHeader';
@@ -32,6 +35,8 @@ export default function NFSePage() {
   const [syncingId, setSyncingId] = useState<number | null>(null);
   const [syncMsg, setSyncMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [nfWhatsapp, setNfWhatsapp] = useState<NFSe | null>(null);
+  const { whatsappAtivo } = useWhatsappEnvioFlags();
 
   useEffect(() => {
     const timer = setTimeout(() => setBuscaDebounced(busca.trim()), 400);
@@ -141,6 +146,21 @@ export default function NFSePage() {
     }
   };
 
+  const abrirModalWhatsapp = (e: React.MouseEvent, nf: NFSe) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setNfWhatsapp(nf);
+  };
+
+  const enviarWhatsappNFSe = async (telefone: string) => {
+    if (!nfWhatsapp) return;
+    const res = await apiClient.post<{ message?: string }>(`/nfse/${nfWhatsapp.id}/enviar_whatsapp/`, {
+      telefone: telefoneInternacionalBr(telefone),
+    });
+    setSyncMsg({ type: 'ok', text: res.data.message || 'NFS-e enviada por WhatsApp.' });
+    setNfWhatsapp(null);
+  };
+
   const reenviarEmailNFSe = async (e: React.MouseEvent, nf: NFSe) => {
     e.preventDefault();
     e.stopPropagation();
@@ -186,7 +206,9 @@ export default function NFSePage() {
             onDelete={excluirNFSe}
             onDownloadPdf={baixarPdfNFSe}
             onReenviarEmail={reenviarEmailNFSe}
+            onEnviarWhatsapp={abrirModalWhatsapp}
             onCancelar={cancelarNFSe}
+            whatsappHabilitado={whatsappAtivo}
           />
           <CrmPaginationBar
             page={page}
@@ -198,6 +220,14 @@ export default function NFSePage() {
             onPageChange={setPage}
           />
         </>
+      )}
+
+      {nfWhatsapp && (
+        <ModalNfseEnviarWhatsapp
+          nf={nfWhatsapp}
+          onClose={() => setNfWhatsapp(null)}
+          onEnviar={enviarWhatsappNFSe}
+        />
       )}
 
       {showModal && (

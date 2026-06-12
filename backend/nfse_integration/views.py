@@ -18,12 +18,14 @@ from .loja_nfse_api import (
     ReenvioNFSeLojaError,
     processar_cancelamento_nfse_loja,
     processar_emissao_nfse_loja,
+    enviar_whatsapp_nfse_loja,
     reenviar_email_nfse_loja,
     sincronizar_nfse_issnet_loja,
     sincronizar_nfse_asaas_loja,
     validar_exclusao_nfse_loja,
     xml_nfse_conteudo,
 )
+from .tomador_busca import buscar_tomador_nfse_loja
 from .pdf_download import resolver_download_pdf_loja
 from tenants.middleware import get_current_loja_id, get_current_tenant_db
 from superadmin.models import Loja
@@ -41,6 +43,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
     - POST /api/nfse/emitir/ - Emitir nova NFS-e
     - POST /api/nfse/{id}/cancelar/ - Cancelar NFS-e
     - POST /api/nfse/{id}/reenviar_email/ - Reenviar email da NFS-e
+    - POST /api/nfse/{id}/enviar_whatsapp/ - Enviar link oficial da NFS-e por WhatsApp
     - DELETE /api/nfse/{id}/ - Excluir NFS-e (apenas da loja atual)
     """
 
@@ -84,6 +87,38 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         return queryset
+
+    @action(detail=False, methods=['get'], url_path='buscar-tomador')
+    def buscar_tomador(self, request):
+        """Busca tomador por CPF/CNPJ no CRM ou em NFS-e já emitidas."""
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response(
+                {'encontrado': False, 'error': 'Loja não identificada'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        documento = (request.query_params.get('documento') or '').strip()
+        if not documento:
+            return Response(
+                {'encontrado': False, 'error': 'Informe o CPF ou CNPJ do tomador.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            resultado = buscar_tomador_nfse_loja(loja_id, documento)
+            if resultado:
+                return Response(resultado)
+            return Response({'encontrado': False})
+        except Exception as e:
+            logger.exception('Erro ao buscar tomador NFS-e: %s', e)
+            return Response(
+                {'encontrado': False, 'error': 'Erro ao buscar cliente no cadastro.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     def _obter_loja_atual(self):
         loja_id = get_current_loja_id()
@@ -205,6 +240,23 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
 
         except Exception as e:
             logger.exception('Erro ao baixar XML da NFS-e: %s', e)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def enviar_whatsapp(self, request, pk=None):
+        try:
+            nfse = self.get_object()
+            loja_id, loja = self._obter_loja_atual()
+            telefone = (request.data.get('telefone') or '').strip()
+            destino = enviar_whatsapp_nfse_loja(nfse, loja, loja_id, telefone, request)
+            return Response({
+                'success': True,
+                'message': f'NFS-e enviada por WhatsApp para {destino}',
+            })
+        except ReenvioNFSeLojaError as exc:
+            return Response({'error': exc.message}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception('Erro ao enviar NFS-e por WhatsApp: %s', e)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'])

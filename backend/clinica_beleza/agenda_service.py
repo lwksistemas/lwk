@@ -139,6 +139,9 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
         total_duration = sum(p.duracao_minutos for p in procedures_list)
     elif validated_data.get('procedure'):
         total_duration = validated_data['procedure'].duracao_minutos
+    elif validated_data.get('local_atendimento'):
+        local = validated_data['local_atendimento']
+        total_duration = getattr(local, 'tempo_consulta_minutos', None) or 30
     else:
         total_duration = 30
 

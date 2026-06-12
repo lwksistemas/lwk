@@ -76,8 +76,6 @@ class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializ
     def validate(self, attrs):
         procedures_ids = attrs.pop('procedures_ids', None)
         procedure = attrs.get('procedure')
-        if not procedures_ids and not procedure:
-            raise serializers.ValidationError({'procedure': 'Informe pelo menos um procedimento.'})
         if procedures_ids:
             procedures = list(Procedure.objects.filter(id__in=procedures_ids, is_active=True))
             if len(procedures) != len(procedures_ids):
@@ -102,6 +100,12 @@ class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializ
             criar_appointment_procedures(appointment, procedures_list, convenio=convenio)
         elif appointment.procedure_id:
             criar_appointment_procedures(appointment, [appointment.procedure], convenio=convenio)
+        elif not appointment.duracao_minutos:
+            local = validated_data.get('local_atendimento')
+            tempo = getattr(local, 'tempo_consulta_minutos', None) if local else None
+            if tempo and tempo > 0:
+                appointment.duracao_minutos = tempo
+                appointment.save(update_fields=['duracao_minutos'])
         return appointment
 
 

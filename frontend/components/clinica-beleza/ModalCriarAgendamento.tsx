@@ -101,7 +101,7 @@ export function ModalCriarAgendamento({
     resumo,
     resetForm,
     validateBase,
-  } = useNovaConsultaForm({ patients, procedures, enabled: open, requireProcedure: !isConsulta });
+  } = useNovaConsultaForm({ patients, procedures, enabled: open, requireProcedure: false });
 
   useEffect(() => {
     if (!open) return;
@@ -235,7 +235,10 @@ export function ModalCriarAgendamento({
           .map((id) => entityName(procedures.find((p) => p.id === id) || {}))
           .filter(Boolean)
           .join(", ");
-        const titulo = [entityName(patient || {}), procNames].filter(Boolean).join(" • ") || "Agendamento (offline)";
+        const nomeAgenda = nomesAgenda.find((a) => a.id === nomeAgendaId)?.nome;
+        const titulo = [entityName(patient || {}), procNames || nomeAgenda || "Atendimento"]
+          .filter(Boolean)
+          .join(" • ") || "Agendamento (offline)";
         const tempId = `offline-${Date.now()}`;
         const endDate = new Date(date);
         endDate.setMinutes(endDate.getMinutes() + resumo.duracao);
@@ -441,9 +444,9 @@ export function ModalCriarAgendamento({
                 onRemove={removerProcedimento}
                 convenioId={convenioId}
                 precosMap={precosMap}
-                optional={isConsulta}
+                optional
               />
-              {isConsulta && selectedProcedures.length === 0 && (
+              {selectedProcedures.length === 0 && (
                 <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
                   Opcional — use para orçamento ou atendimento de representante.
                 </p>

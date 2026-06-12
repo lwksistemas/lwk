@@ -21,7 +21,7 @@ WORKDIR /app
 # Dependências: backend (base) + raiz (NFS-e, docs, etc.)
 # django-q importa pkg_resources; manter setuptools abaixo da faixa que remove/alerta esse shim.
 ARG PIP_CACHE_BUST=2026-06-12-agenda-client-confirmed
-ARG BUILD_ID=f62d2275-consulta-sem-procedimento
+ARG BUILD_ID=21a03d02-agenda-sem-procedimento
 ENV LWK_BUILD=${BUILD_ID}
 COPY backend/requirements.txt ./requirements-backend.txt
 COPY requirements.txt ./requirements-root.txt

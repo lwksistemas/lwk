@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useParams } from 'next/navigation';
-import { Calendar, Clock, User, CheckCircle, XCircle, AlertCircle, Stethoscope } from 'lucide-react';
+import { Calendar, Clock, User, CheckCircle, XCircle, AlertCircle, Stethoscope, X } from 'lucide-react';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 
 interface AgendamentoData {
@@ -18,26 +18,83 @@ interface AgendamentoData {
   pode_responder: boolean;
 }
 
-/** Mobile: página cheia. Desktop (md+): modal compacto centralizado. */
-function ConfirmacaoShell({ children }: { children: ReactNode }) {
+const MOBILE_MAX_WIDTH = 639;
+
+function useIsMobileViewport() {
+  const [isMobile, setIsMobile] = useState(true);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_MAX_WIDTH}px)`);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  return isMobile;
+}
+
+function fecharPagina() {
+  window.close();
+  setTimeout(() => {
+    if (typeof window.history.length === 'number' && window.history.length > 1) {
+      window.history.back();
+    }
+  }, 150);
+}
+
+/** Mobile: página cheia. Desktop: só o modal sobre fundo escuro. */
+function ConfirmacaoShell({ isMobile, children }: { isMobile: boolean; children: ReactNode }) {
+  if (isMobile) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-gradient-to-br from-pink-50 to-purple-50">
+        {children}
+      </div>
+    );
+  }
   return (
-    <div className="min-h-[100dvh] md:min-h-0 md:fixed md:inset-0 md:z-50 flex items-center justify-center p-4 bg-gradient-to-br from-pink-50 to-purple-50 md:bg-black/50 md:backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {children}
     </div>
   );
 }
 
-function ConfirmacaoCard({ children, className = '' }: { children: ReactNode; className?: string }) {
+function ConfirmacaoCard({
+  isMobile,
+  children,
+  className = '',
+  onFechar,
+}: {
+  isMobile: boolean;
+  children: ReactNode;
+  className?: string;
+  onFechar?: () => void;
+}) {
   return (
     <div
-      className={`bg-white rounded-2xl md:rounded-xl shadow-lg md:shadow-2xl w-full max-w-md md:max-w-sm p-6 md:p-5 md:max-h-[min(90dvh,480px)] md:overflow-y-auto ${className}`}
+      className={`relative bg-white shadow-2xl w-full ${
+        isMobile
+          ? 'rounded-2xl shadow-lg max-w-md p-6'
+          : 'rounded-xl max-w-sm p-5 max-h-[min(90dvh,440px)] overflow-y-auto'
+      } ${className}`}
     >
+      {onFechar && (
+        <button
+          type="button"
+          onClick={onFechar}
+          className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          aria-label="Fechar"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
       {children}
     </div>
   );
 }
 
 export default function ConfirmarAgendamentoPage() {
+  const isMobile = useIsMobileViewport();
   const params = useParams();
   const tokenRaw = params.token as string;
   let token: string;
@@ -53,6 +110,12 @@ export default function ConfirmarAgendamentoPage() {
   const [erro, setErro] = useState('');
   const [processando, setProcessando] = useState(false);
   const [resultado, setResultado] = useState<{ ok: boolean; message: string } | null>(null);
+  const [fechando, setFechando] = useState(false);
+
+  const tentarFechar = useCallback(() => {
+    setFechando(true);
+    fecharPagina();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -72,6 +135,12 @@ export default function ConfirmarAgendamentoPage() {
       }
     })();
   }, [tokenApiSegment]);
+
+  useEffect(() => {
+    if (!resultado?.ok) return;
+    const timer = window.setTimeout(() => tentarFechar(), 2200);
+    return () => window.clearTimeout(timer);
+  }, [resultado, tentarFechar]);
 
   const responder = async (acao: 'confirmar' | 'cancelar') => {
     setProcessando(true);
@@ -106,10 +175,12 @@ export default function ConfirmarAgendamentoPage() {
     }
   };
 
+  const mostrarDetalhes = !resultado?.ok;
+
   if (loading) {
     return (
-      <ConfirmacaoShell>
-        <ConfirmacaoCard className="text-center text-gray-600 py-8 md:py-6">
+      <ConfirmacaoShell isMobile={isMobile}>
+        <ConfirmacaoCard isMobile={isMobile} className="text-center text-gray-600 py-8 md:py-6">
           Carregando...
         </ConfirmacaoCard>
       </ConfirmacaoShell>
@@ -118,11 +189,20 @@ export default function ConfirmarAgendamentoPage() {
 
   if (erro && !agendamento) {
     return (
-      <ConfirmacaoShell>
-        <ConfirmacaoCard className="text-center">
+      <ConfirmacaoShell isMobile={isMobile}>
+        <ConfirmacaoCard isMobile={isMobile} className="text-center" onFechar={!isMobile ? tentarFechar : undefined}>
           <AlertCircle className="w-10 h-10 md:w-9 md:h-9 text-red-500 mx-auto mb-3" />
           <h1 className="text-xl md:text-lg font-semibold text-gray-800 mb-2">Link indisponível</h1>
           <p className="text-gray-600 text-sm">{erro}</p>
+          {!isMobile && (
+            <button
+              type="button"
+              onClick={tentarFechar}
+              className="mt-4 w-full py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50"
+            >
+              Fechar
+            </button>
+          )}
         </ConfirmacaoCard>
       </ConfirmacaoShell>
     );
@@ -135,48 +215,66 @@ export default function ConfirmarAgendamentoPage() {
     agendamento.status === 'PHONE_CONFIRMED' ||
     agendamento.status === 'CONFIRMED';
   const cancelado = agendamento.status === 'CANCELLED';
+  const jaRespondido = (confirmado || cancelado) && !agendamento.pode_responder;
 
   return (
-    <ConfirmacaoShell>
-      <ConfirmacaoCard>
-        {agendamento.clinica_nome && (
-          <p className="text-sm md:text-xs text-purple-600 font-medium text-center mb-1">
-            {agendamento.clinica_nome}
-          </p>
-        )}
-        <h1 className="text-2xl md:text-lg font-bold text-gray-800 text-center mb-5 md:mb-4">
-          Confirmação de consulta
-        </h1>
+    <ConfirmacaoShell isMobile={isMobile}>
+      <ConfirmacaoCard
+        isMobile={isMobile}
+        onFechar={!isMobile && (resultado?.ok || jaRespondido) ? tentarFechar : undefined}
+      >
+        {mostrarDetalhes && (
+          <>
+            {agendamento.clinica_nome && (
+              <p className="text-sm md:text-xs text-purple-600 font-medium text-center mb-1 pr-6">
+                {agendamento.clinica_nome}
+              </p>
+            )}
+            <h1 className="text-2xl md:text-base font-bold text-gray-800 text-center mb-5 md:mb-3 pr-6">
+              Confirmação de consulta
+            </h1>
 
-        <div className="space-y-2.5 md:space-y-2 mb-5 md:mb-4 text-sm md:text-[13px]">
-          <div className="flex items-center gap-2.5 text-gray-700">
-            <User className="w-4 h-4 text-purple-500 shrink-0" />
-            <span>{agendamento.paciente_nome}</span>
-          </div>
-          <div className="flex items-center gap-2.5 text-gray-700">
-            <Calendar className="w-4 h-4 text-purple-500 shrink-0" />
-            <span>{agendamento.data}</span>
-          </div>
-          <div className="flex items-center gap-2.5 text-gray-700">
-            <Clock className="w-4 h-4 text-purple-500 shrink-0" />
-            <span>{agendamento.hora}</span>
-          </div>
-          <div className="flex items-center gap-2.5 text-gray-700">
-            <Stethoscope className="w-4 h-4 text-purple-500 shrink-0" />
-            <span>{agendamento.procedimento}</span>
-          </div>
-          {agendamento.profissional_nome && (
-            <div className="flex items-center gap-2.5 text-gray-700">
-              <User className="w-4 h-4 text-purple-500 shrink-0" />
-              <span>Profissional: {agendamento.profissional_nome}</span>
+            <div className="space-y-2.5 md:space-y-2 mb-5 md:mb-4 text-sm md:text-[13px]">
+              <div className="flex items-center gap-2.5 text-gray-700">
+                <User className="w-4 h-4 text-purple-500 shrink-0" />
+                <span>{agendamento.paciente_nome}</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-gray-700">
+                <Calendar className="w-4 h-4 text-purple-500 shrink-0" />
+                <span>{agendamento.data}</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-gray-700">
+                <Clock className="w-4 h-4 text-purple-500 shrink-0" />
+                <span>{agendamento.hora}</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-gray-700">
+                <Stethoscope className="w-4 h-4 text-purple-500 shrink-0" />
+                <span>{agendamento.procedimento}</span>
+              </div>
+              {agendamento.profissional_nome && (
+                <div className="flex items-center gap-2.5 text-gray-700">
+                  <User className="w-4 h-4 text-purple-500 shrink-0" />
+                  <span>Profissional: {agendamento.profissional_nome}</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
 
         {resultado?.ok && (
-          <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-200 flex items-start gap-2.5 text-sm">
-            <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-            <p className="text-green-800">{resultado.message}</p>
+          <div className="p-3 md:p-4 rounded-xl bg-green-50 border border-green-200 text-center">
+            <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+            <p className="text-green-800 text-sm font-medium">{resultado.message}</p>
+            <p className="text-green-700/80 text-xs mt-2">
+              {fechando ? 'Fechando…' : 'Esta janela fechará em instantes.'}
+            </p>
+            <button
+              type="button"
+              onClick={tentarFechar}
+              className="mt-3 w-full py-2 text-sm font-medium text-green-800 border border-green-300 rounded-xl hover:bg-green-100 transition"
+            >
+              Fechar agora
+            </button>
           </div>
         )}
 
@@ -210,13 +308,22 @@ export default function ConfirmarAgendamentoPage() {
           </div>
         )}
 
-        {(confirmado || cancelado) && !agendamento.pode_responder && !resultado && (
+        {jaRespondido && !resultado && (
           <div
             className={`p-3 rounded-xl text-center text-sm ${
               confirmado ? 'bg-green-50 text-green-800' : 'bg-gray-50 text-gray-700'
             }`}
           >
-            Status: <strong>{agendamento.status_display}</strong>
+            <p className="mb-2">
+              Status: <strong>{agendamento.status_display}</strong>
+            </p>
+            <button
+              type="button"
+              onClick={tentarFechar}
+              className="w-full py-2 text-sm font-medium border border-gray-300 rounded-xl hover:bg-white/80 transition"
+            >
+              Fechar
+            </button>
           </div>
         )}
       </ConfirmacaoCard>

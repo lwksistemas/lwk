@@ -445,8 +445,36 @@ def _procedure_label(agendamento):
     return 'Atendimento'
 
 
-def msg_confirmacao(agendamento, *, link_confirmacao=None):
+def _render_mensagem_template(template: str, context: dict) -> str:
+    msg = template
+    for key, value in context.items():
+        msg = msg.replace(f'{{{key}}}', value or '')
+    return msg
+
+
+def _contexto_confirmacao_agenda(agendamento, *, link_confirmacao=None) -> dict:
+    from clinica_beleza.agenda_display import format_agenda_data, format_agenda_hora
+
+    prof = getattr(agendamento.professional, 'nome', '') or ''
+    return {
+        'nome': getattr(agendamento.patient, 'name', '') or 'Cliente',
+        'data': format_agenda_data(agendamento),
+        'hora': format_agenda_hora(agendamento),
+        'procedimento': _procedure_label(agendamento),
+        'profissional': prof,
+        'link': (link_confirmacao or '').strip(),
+    }
+
+
+def msg_confirmacao(agendamento, *, link_confirmacao=None, config=None):
     """Solicitação de confirmação de agendamento."""
+    custom = ''
+    if config is not None:
+        custom = (getattr(config, 'mensagem_confirmacao_agenda', None) or '').strip()
+    if custom:
+        ctx = _contexto_confirmacao_agenda(agendamento, link_confirmacao=link_confirmacao)
+        return _render_mensagem_template(custom, ctx)
+
     from clinica_beleza.agenda_display import format_agenda_data, format_agenda_hora
 
     data = format_agenda_data(agendamento)
@@ -522,7 +550,7 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
         token = gerar_token_confirmacao(loja_id, agendamento.id)
         link = url_confirmacao_frontend(token)
 
-    msg = msg_confirmacao(agendamento, link_confirmacao=link)
+    msg = msg_confirmacao(agendamento, link_confirmacao=link, config=config)
     provider = _get_provider(config)
 
     if provider == WhatsAppConfig.PROVIDER_EVOLUTION:

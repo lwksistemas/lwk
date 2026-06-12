@@ -82,6 +82,15 @@ class WhatsAppConfig(models.Model):
         default=True,
         verbose_name='Permitir envio de termo de consentimento por WhatsApp',
     )
+    mensagem_confirmacao_agenda = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Mensagem personalizada de confirmação de agendamento',
+        help_text=(
+            'Placeholders: {nome}, {data}, {hora}, {procedimento}, {profissional}, {link}. '
+            'Deixe em branco para usar a mensagem padrão.'
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

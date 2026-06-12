@@ -37,6 +37,13 @@ const NomesAgendaModal = dynamic(
   () => import("./components/NomesAgendaModal").then((m) => ({ default: m.NomesAgendaModal })),
 );
 
+const MensagensWhatsAppAgendaModal = dynamic(
+  () =>
+    import("./components/MensagensWhatsAppAgendaModal").then((m) => ({
+      default: m.MensagensWhatsAppAgendaModal,
+    })),
+);
+
 const ConfiguracaoAgendaMenuModal = dynamic(
   () => import("./components/ConfiguracaoAgendaMenuModal").then((m) => ({ default: m.ConfiguracaoAgendaMenuModal })),
 );
@@ -67,6 +74,7 @@ export default function ConsultasPage() {
   const [showConfigAgendaMenu, setShowConfigAgendaMenu] = useState(false);
   const [showLocaisModal, setShowLocaisModal] = useState(false);
   const [showNomesAgendaModal, setShowNomesAgendaModal] = useState(false);
+  const [showMensagensWhatsAppModal, setShowMensagensWhatsAppModal] = useState(false);
   const [showNovoConvenioModal, setShowNovoConvenioModal] = useState(false);
   const [showNovaConsultaModal, setShowNovaConsultaModal] = useState(false);
   const [novaConsultaDate, setNovaConsultaDate] = useState<Date | null>(null);
@@ -233,6 +241,7 @@ export default function ConsultasPage() {
           onClose={() => setShowConfigAgendaMenu(false)}
           onLocais={() => setShowLocaisModal(true)}
           onNomesAgenda={() => setShowNomesAgendaModal(true)}
+          onMensagensWhatsApp={() => setShowMensagensWhatsAppModal(true)}
           onNovoConvenio={() => setShowNovoConvenioModal(true)}
         />
       )}
@@ -246,6 +255,12 @@ export default function ConsultasPage() {
         <NomesAgendaModal
           open={showNomesAgendaModal}
           onClose={() => setShowNomesAgendaModal(false)}
+        />
+      )}
+      {showMensagensWhatsAppModal && (
+        <MensagensWhatsAppAgendaModal
+          open={showMensagensWhatsAppModal}
+          onClose={() => setShowMensagensWhatsAppModal(false)}
         />
       )}
       {showNovoConvenioModal && (

@@ -31,6 +31,7 @@ def serialize_whatsapp_config(config, loja=None, *, sync_evolution=False):
         'enviar_proposta_whatsapp': getattr(config, 'enviar_proposta_whatsapp', True),
         'enviar_contrato_whatsapp': getattr(config, 'enviar_contrato_whatsapp', True),
         'enviar_termo_consentimento_whatsapp': getattr(config, 'enviar_termo_consentimento_whatsapp', True),
+        'mensagem_confirmacao_agenda': (getattr(config, 'mensagem_confirmacao_agenda', None) or '').strip(),
         'owner_telefone': telefone_exibicao_brasileiro(owner_telefone) if owner_telefone else '',
         'whatsapp_numero': telefone_exibicao_brasileiro((config.whatsapp_numero or '').strip()),
         'whatsapp_ativo': getattr(config, 'whatsapp_ativo', False),
@@ -88,6 +89,9 @@ def apply_whatsapp_config_patch(config, data):
             return update_fields, Response({'error': 'Provedor WhatsApp inválido.'}, status=status.HTTP_400_BAD_REQUEST)
         config.whatsapp_provider = provider
         update_fields.append('whatsapp_provider')
+    if 'mensagem_confirmacao_agenda' in data:
+        config.mensagem_confirmacao_agenda = (data.get('mensagem_confirmacao_agenda') or '').strip()
+        update_fields.append('mensagem_confirmacao_agenda')
 
     err = validate_whatsapp_activation(config)
     if err:

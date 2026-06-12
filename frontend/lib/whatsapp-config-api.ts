@@ -25,6 +25,7 @@ export interface WhatsAppConfigData extends WhatsAppConnectionState {
   enviar_proposta_whatsapp?: boolean;
   enviar_contrato_whatsapp?: boolean;
   enviar_termo_consentimento_whatsapp?: boolean;
+  mensagem_confirmacao_agenda?: string;
   whatsapp_numero: string;
   whatsapp_ativo: boolean;
   whatsapp_phone_id: string;

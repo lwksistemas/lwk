@@ -63,6 +63,7 @@ def default_whatsapp_config_payload(loja=None):
         'enviar_proposta_whatsapp': True,
         'enviar_contrato_whatsapp': True,
         'enviar_termo_consentimento_whatsapp': True,
+        'mensagem_confirmacao_agenda': '',
         'owner_telefone': telefone_exibicao_brasileiro(owner_tel) if owner_tel else '',
         'whatsapp_numero': telefone_exibicao_brasileiro(owner_tel) if owner_tel else '',
         'whatsapp_ativo': False,

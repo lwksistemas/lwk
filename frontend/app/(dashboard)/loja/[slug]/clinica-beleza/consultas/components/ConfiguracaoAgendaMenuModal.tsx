@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, FileText, MapPin, X } from "lucide-react";
+import { CalendarDays, FileText, MapPin, MessageCircle, X } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 
 interface ConfiguracaoAgendaMenuModalProps {
@@ -8,6 +8,7 @@ interface ConfiguracaoAgendaMenuModalProps {
   onClose: () => void;
   onLocais: () => void;
   onNomesAgenda: () => void;
+  onMensagensWhatsApp: () => void;
   onNovoConvenio: () => void;
 }
 
@@ -25,6 +26,12 @@ const OPTIONS = [
     icon: CalendarDays,
   },
   {
+    id: "whatsapp",
+    label: "Mensagem WhatsApp",
+    description: "Texto personalizado enviado com o link de confirmação do agendamento",
+    icon: MessageCircle,
+  },
+  {
     id: "convenio",
     label: "Cadastrar convênio",
     description: "Novo convênio — informe o nome; o código será gerado automaticamente",
@@ -37,6 +44,7 @@ export function ConfiguracaoAgendaMenuModal({
   onClose,
   onLocais,
   onNomesAgenda,
+  onMensagensWhatsApp,
   onNovoConvenio,
 }: ConfiguracaoAgendaMenuModalProps) {
   if (!open) return null;
@@ -44,6 +52,7 @@ export function ConfiguracaoAgendaMenuModal({
   const handlers: Record<(typeof OPTIONS)[number]["id"], () => void> = {
     locais: onLocais,
     nomes: onNomesAgenda,
+    whatsapp: onMensagensWhatsApp,
     convenio: onNovoConvenio,
   };
 

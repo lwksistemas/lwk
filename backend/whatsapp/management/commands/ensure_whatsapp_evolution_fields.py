@@ -23,6 +23,7 @@ COLUMNS = (
     ('enviar_proposta_whatsapp', 'BOOLEAN NOT NULL DEFAULT TRUE'),
     ('enviar_contrato_whatsapp', 'BOOLEAN NOT NULL DEFAULT TRUE'),
     ('enviar_termo_consentimento_whatsapp', 'BOOLEAN NOT NULL DEFAULT TRUE'),
+    ('mensagem_confirmacao_agenda', 'TEXT NOT NULL DEFAULT \'\'' ),
 )
 
 

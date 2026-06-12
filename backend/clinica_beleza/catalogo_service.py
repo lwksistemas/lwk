@@ -21,6 +21,64 @@ from tenants.middleware import set_current_loja_id, set_current_tenant_db
 logger = logging.getLogger(__name__)
 
 TIPO_CLINICA_BELEZA_NOME = 'Clínica da Beleza'
+
+
+def _normalizar_nome_local(nome: str) -> str:
+    return (nome or '').strip().upper()
+
+
+def _desativar_locais_catalogo_duplicados(db, lid) -> int:
+    """
+    Desativa cópias automáticas do catálogo (ex.: Consultório R$ 0) quando já existe
+    local ativo com o mesmo nome (ignorando maiúsculas/minúsculas).
+    """
+    from clinica_beleza.models import LocalAtendimento
+
+    catalog_defaults = {
+        _normalizar_nome_local(nome): valor
+        for nome, valor, _tempo in LOCAIS_CATALOGO
+    }
+    locais = list(
+        LocalAtendimento.objects.using(db).filter(loja_id=lid, is_active=True)
+    )
+    by_norm: dict[str, list] = {}
+    for loc in locais:
+        by_norm.setdefault(_normalizar_nome_local(loc.nome), []).append(loc)
+
+    desativados = 0
+    for nome_norm, grupo in by_norm.items():
+        if len(grupo) <= 1 or nome_norm not in catalog_defaults:
+            continue
+        valor_cat = catalog_defaults[nome_norm]
+        fantasmas = [loc for loc in grupo if loc.valor_consulta == valor_cat]
+        if not fantasmas or len(fantasmas) >= len(grupo):
+            continue
+        for loc in fantasmas:
+            loc.is_active = False
+            loc.save(update_fields=['is_active', 'updated_at'])
+            desativados += 1
+    return desativados
+
+
+def _aplicar_locais_catalogo(db, lid, emit) -> int:
+    """Só cria locais padrão se a loja ainda não tiver nenhum ativo."""
+    from clinica_beleza.models import LocalAtendimento
+
+    if LocalAtendimento.objects.using(db).filter(loja_id=lid, is_active=True).exists():
+        emit('  locais: mantidos (já cadastrados)')
+        return 0
+
+    for nome, valor, tempo in LOCAIS_CATALOGO:
+        LocalAtendimento.objects.using(db).update_or_create(
+            nome=_normalizar_nome_local(nome),
+            loja_id=lid,
+            defaults={
+                'valor_consulta': valor,
+                'tempo_consulta_minutos': tempo,
+                'is_active': True,
+            },
+        )
+    return len(LOCAIS_CATALOGO)
 TIPO_CLINICA_BELEZA_SLUG = 'clinica-beleza'
 
 
@@ -76,16 +134,10 @@ def aplicar_catalogo_padrao(loja, *, log: Callable[[str], None] | None = None) -
 
     emit(f'Catálogo padrão — {loja.nome} ({loja.slug})')
 
-    for nome, valor, tempo in LOCAIS_CATALOGO:
-        LocalAtendimento.objects.using(db).update_or_create(
-            nome=nome,
-            loja_id=lid,
-            defaults={
-                'valor_consulta': valor,
-                'tempo_consulta_minutos': tempo,
-                'is_active': True,
-            },
-        )
+    locais_aplicados = _aplicar_locais_catalogo(db, lid, emit)
+    duplicados = _desativar_locais_catalogo_duplicados(db, lid)
+    if duplicados:
+        emit(f'  {duplicados} local(is) duplicado(s) do catálogo desativado(s)')
 
     if LOCAIS_CATALOGO_LEGADO:
         desativados = (
@@ -134,7 +186,7 @@ def aplicar_catalogo_padrao(loja, *, log: Callable[[str], None] | None = None) -
     stats = {
         'loja_id': lid,
         'slug': loja.slug,
-        'locais': len(LOCAIS_CATALOGO),
+        'locais': locais_aplicados,
         'procedimentos': len(PROCEDIMENTOS_CATALOGO),
         'com_termo': com_termo,
         'convenio_particular_id': particular.id,

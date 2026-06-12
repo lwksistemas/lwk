@@ -21,5 +21,7 @@ export { UsarTemplateModal } from "./UsarTemplateModal";
 export { DigitarManualModal } from "./DigitarManualModal";
 export { LocaisAtendimentoModal } from "./LocaisAtendimentoModal";
 export { NomesAgendaModal } from "./NomesAgendaModal";
+export { ConfiguracaoAgendaMenuModal } from "./ConfiguracaoAgendaMenuModal";
+export { NovoConvenioModal } from "./NovoConvenioModal";
 export { default as MemedPrescricao } from "./MemedPrescricao";
 export type { MemedPrescricaoHandle } from "./MemedPrescricao";

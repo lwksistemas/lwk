@@ -9,7 +9,8 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Settings, CalendarDays } from "lucide-react";
+import { CalendarCog } from "lucide-react";
+import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalCriarAgendamento } from "@/components/clinica-beleza/ModalCriarAgendamento";
@@ -36,6 +37,14 @@ const NomesAgendaModal = dynamic(
   () => import("./components/NomesAgendaModal").then((m) => ({ default: m.NomesAgendaModal })),
 );
 
+const ConfiguracaoAgendaMenuModal = dynamic(
+  () => import("./components/ConfiguracaoAgendaMenuModal").then((m) => ({ default: m.ConfiguracaoAgendaMenuModal })),
+);
+
+const NovoConvenioModal = dynamic(
+  () => import("./components/NovoConvenioModal").then((m) => ({ default: m.NovoConvenioModal })),
+);
+
 export default function ConsultasPage() {
   const params = useParams();
   const router = useRouter();
@@ -55,8 +64,10 @@ export default function ConsultasPage() {
   } = useClinicaBelezaPaginatedList<Consulta>({ path: "/consultas/" });
   const [selected, setSelected] = useState<Consulta | null>(null);
   const [detailPreloaded, setDetailPreloaded] = useState(false);
+  const [showConfigAgendaMenu, setShowConfigAgendaMenu] = useState(false);
   const [showLocaisModal, setShowLocaisModal] = useState(false);
   const [showNomesAgendaModal, setShowNomesAgendaModal] = useState(false);
+  const [showNovoConvenioModal, setShowNovoConvenioModal] = useState(false);
   const [showNovaConsultaModal, setShowNovaConsultaModal] = useState(false);
   const [novaConsultaDate, setNovaConsultaDate] = useState<Date | null>(null);
 
@@ -156,26 +167,15 @@ export default function ConsultasPage() {
         onNew={abrirNovaConsulta}
         newLabel="Nova consulta"
         extraActions={
-          <>
-            <button
-              type="button"
-              onClick={() => setShowNomesAgendaModal(true)}
-              className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-              aria-label="Configurar nomes de agenda"
-              title="Nomes de agenda"
-            >
-              <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowLocaisModal(true)}
-              className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-              aria-label="Configurar locais de atendimento"
-              title="Locais de atendimento"
-            >
-              <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={() => setShowConfigAgendaMenu(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+            title="Configuração da Agenda"
+          >
+            <CalendarCog className="w-4 h-4 shrink-0" style={{ color: CLINICA_BELEZA_PRIMARY }} />
+            <span className="hidden sm:inline text-gray-700 dark:text-gray-300">Configuração da Agenda</span>
+          </button>
         }
       />
       <ClinicaBelezaPageContent>
@@ -227,6 +227,15 @@ export default function ConsultasPage() {
         }}
       />
 
+      {showConfigAgendaMenu && (
+        <ConfiguracaoAgendaMenuModal
+          open={showConfigAgendaMenu}
+          onClose={() => setShowConfigAgendaMenu(false)}
+          onLocais={() => setShowLocaisModal(true)}
+          onNomesAgenda={() => setShowNomesAgendaModal(true)}
+          onNovoConvenio={() => setShowNovoConvenioModal(true)}
+        />
+      )}
       {showLocaisModal && (
         <LocaisAtendimentoModal
           open={showLocaisModal}
@@ -237,6 +246,12 @@ export default function ConsultasPage() {
         <NomesAgendaModal
           open={showNomesAgendaModal}
           onClose={() => setShowNomesAgendaModal(false)}
+        />
+      )}
+      {showNovoConvenioModal && (
+        <NovoConvenioModal
+          open={showNovoConvenioModal}
+          onClose={() => setShowNovoConvenioModal(false)}
         />
       )}
     </>

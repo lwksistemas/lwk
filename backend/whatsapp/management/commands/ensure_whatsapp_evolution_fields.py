@@ -8,6 +8,7 @@ Uso:
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from django.db import connections
+from django.db.utils import OperationalError, ProgrammingError
 
 from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
@@ -65,7 +66,7 @@ class Command(BaseCommand):
                             )
                             self.stdout.write(f'{loja.slug}: coluna {col} adicionada')
                 try:
-                    call_command('migrate', 'whatsapp', '0005_whatsapp_evolution_web', database=db_name, verbosity=0)
+                    call_command('migrate', 'whatsapp', '0007_mensagem_confirmacao_agenda', database=db_name, verbosity=0)
                 except Exception:
                     pass
                 ok += 1

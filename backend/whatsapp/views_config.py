@@ -56,7 +56,24 @@ class WhatsAppConfigView(APIView):
             return Response({'error': 'Sem permissão para configurar WhatsApp desta loja.'}, status=status.HTTP_403_FORBIDDEN)
         if config is None:
             return Response(default_whatsapp_config_payload())
-        return Response(serialize_whatsapp_config(config, loja=loja, sync_evolution=True))
+        try:
+            return Response(serialize_whatsapp_config(config, loja=loja, sync_evolution=False))
+        except Exception as exc:
+            logger.exception('WhatsAppConfigView.get loja=%s: %s', getattr(loja, 'id', '?'), exc)
+            payload = default_whatsapp_config_payload(loja)
+            try:
+                payload.update({
+                    'whatsapp_ativo': getattr(config, 'whatsapp_ativo', False),
+                    'whatsapp_provider': getattr(config, 'whatsapp_provider', 'meta') or 'meta',
+                    'whatsapp_connection_status': getattr(config, 'whatsapp_connection_status', 'disconnected'),
+                    'connection_status': getattr(config, 'whatsapp_connection_status', 'disconnected'),
+                    'whatsapp_connected_phone': (getattr(config, 'whatsapp_connected_phone', None) or '').strip(),
+                    'connected_phone': (getattr(config, 'whatsapp_connected_phone', None) or '').strip(),
+                    'enviar_confirmacao': getattr(config, 'enviar_confirmacao', True),
+                })
+            except Exception:
+                pass
+            return Response(payload)
 
     def patch(self, request):
         config, loja = self._get_config(request)

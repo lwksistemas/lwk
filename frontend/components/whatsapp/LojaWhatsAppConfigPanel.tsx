@@ -53,7 +53,7 @@ export function LojaWhatsAppConfigPanel({
     setWhatsappProvider(data.whatsapp_provider === 'evolution' ? 'evolution' : 'meta');
     setConnectionStatus(data.connection_status ?? data.whatsapp_connection_status ?? 'disconnected');
     setConnectedPhone((data.connected_phone ?? data.whatsapp_connected_phone ?? '').toString());
-    setEvolutionAvailable(!!data.evolution_available);
+    // evolutionAvailable é definido em loadConfig (health + API)
     setEnviarConfirmacao(data.enviar_confirmacao ?? true);
     setEnviarLembrete24h(data.enviar_lembrete_24h ?? true);
     setEnviarLembrete2h(data.enviar_lembrete_2h ?? true);
@@ -67,18 +67,28 @@ export function LojaWhatsAppConfigPanel({
   const loadConfig = async () => {
     setLoading(true);
     setLoadError('');
+    const evolutionFromHealth = await fetchEvolutionAvailableFromHealth();
+    if (evolutionFromHealth) {
+      setEvolutionAvailable(true);
+    }
     try {
-      const [data, evolutionFromHealth] = await Promise.all([
-        whatsappConfigApi.get(),
-        fetchEvolutionAvailableFromHealth(),
-      ]);
+      const data = await whatsappConfigApi.get();
       applyConfig(data);
       setEvolutionAvailable(!!data.evolution_available || evolutionFromHealth);
       setWhatsappToken('');
-    } catch {
-      const evolutionFromHealth = await fetchEvolutionAvailableFromHealth();
-      setEvolutionAvailable(evolutionFromHealth);
-      setLoadError('Não foi possível carregar todas as configurações. Recarregue a página ou tente salvar novamente.');
+    } catch (err) {
+      if (evolutionFromHealth) {
+        setEvolutionAvailable(true);
+      }
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: string; detail?: string } } }).response?.data?.error ||
+            (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : null;
+      setLoadError(
+        msg ||
+          'Não foi possível carregar as configurações salvas. Você ainda pode conectar o WhatsApp Web abaixo e salvar.',
+      );
     } finally {
       setLoading(false);
     }

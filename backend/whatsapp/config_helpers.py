@@ -1,4 +1,6 @@
 """Helpers compartilhados para serialização e validação de WhatsAppConfig."""
+import logging
+
 from core.phone_utils import telefone_exibicao_brasileiro, telefone_internacional_br
 from rest_framework import status
 from rest_framework.response import Response
@@ -6,6 +8,8 @@ from rest_framework.response import Response
 from .connection_service import sync_evolution_connection
 from .evolution_client import evolution_configured
 from .models import WhatsAppConfig
+
+logger = logging.getLogger(__name__)
 
 
 def serialize_whatsapp_config(config, loja=None, *, sync_evolution=False):
@@ -17,7 +21,14 @@ def serialize_whatsapp_config(config, loja=None, *, sync_evolution=False):
         and provider == WhatsAppConfig.PROVIDER_EVOLUTION
         and evolution_configured()
     ):
-        sync_evolution_connection(config, fetch_qr=False)
+        try:
+            sync_evolution_connection(config, fetch_qr=False)
+        except Exception as exc:
+            logger.warning(
+                'Evolution sync ignorado loja_id=%s: %s',
+                getattr(config, 'loja_id', '?'),
+                exc,
+            )
     connection_status = getattr(config, 'whatsapp_connection_status', WhatsAppConfig.CONNECTION_DISCONNECTED)
     connected_phone = (getattr(config, 'whatsapp_connected_phone', None) or '').strip()
     evolution_ready = evolution_configured()

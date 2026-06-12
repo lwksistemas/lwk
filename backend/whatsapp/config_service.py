@@ -9,6 +9,17 @@ from .models import WhatsAppConfig
 logger = logging.getLogger(__name__)
 
 
+def _ensure_whatsapp_schema(loja):
+    """Best-effort: garante colunas novas no schema da loja."""
+    try:
+        from django.core.management import call_command
+        slug = (getattr(loja, 'slug', None) or '').strip()
+        if slug:
+            call_command('ensure_whatsapp_evolution_fields', slug=slug, verbosity=0)
+    except Exception as exc:
+        logger.warning('ensure_whatsapp_schema loja %s: %s', getattr(loja, 'id', '?'), exc)
+
+
 def resolve_loja_from_request(request):
     """Retorna Loja do contexto tenant ou None."""
     loja_id = get_current_loja_id()
@@ -28,7 +39,12 @@ def get_or_create_whatsapp_config(loja):
     if not loja:
         return None
     owner_tel = (getattr(loja, 'owner_telefone', None) or '').strip()
-    config = WhatsAppConfig.objects.filter(loja_id=loja.id).first()
+    try:
+        config = WhatsAppConfig.objects.filter(loja_id=loja.id).first()
+    except (OperationalError, ProgrammingError) as exc:
+        logger.warning('WhatsAppConfig schema loja %s: %s — tentando ensure colunas', loja.id, exc)
+        _ensure_whatsapp_schema(loja)
+        config = WhatsAppConfig.objects.filter(loja_id=loja.id).first()
     if config:
         if not (config.whatsapp_numero or '').strip() and owner_tel:
             config.whatsapp_numero = owner_tel

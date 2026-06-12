@@ -1,3 +1,4 @@
+import axios from 'axios';
 import apiClient from '@/lib/api-client';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 import {
@@ -40,11 +41,9 @@ const BASE = '/whatsapp/config';
 /** Consulta health público — evolution_available não depende de login/tenant. */
 export async function fetchEvolutionAvailableFromHealth(): Promise<boolean> {
   try {
-    const base = getPrimaryApiBaseUrl();
-    const res = await fetch(`${base}/superadmin/health/`, { cache: 'no-store' });
-    if (!res.ok) return false;
-    const data = (await res.json()) as { evolution_available?: boolean };
-    return !!data.evolution_available;
+    const healthUrl = `${getPrimaryApiBaseUrl()}/superadmin/health/`;
+    const response = await axios.get<{ evolution_available?: boolean }>(healthUrl, { timeout: 8000 });
+    return !!response.data?.evolution_available;
   } catch {
     return false;
   }

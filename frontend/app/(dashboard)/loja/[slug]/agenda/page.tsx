@@ -13,6 +13,9 @@ import apiClient from "@/lib/api-client";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import {
   CLINICA_AGENDA_BLOQUEIO_COLORS,
+  CLINICA_AGENDA_SLOT_DURATION,
+  CLINICA_AGENDA_SLOT_LABEL_INTERVAL,
+  CLINICA_AGENDA_SNAP_DURATION,
   CLINICA_AGENDA_STATUS_COLORS,
 } from "@/lib/clinica-beleza-constants";
 import { parseEventDate } from "@/lib/clinica-beleza-datetime";
@@ -540,9 +543,9 @@ export default function AgendaPage() {
               slotMinTime={getSlotMinTime()}
               slotMaxTime={getSlotMaxTime()}
               allDaySlot={false}
-              slotDuration="00:05:00"
-              slotLabelInterval="00:15:00"
-              snapDuration="00:05:00"
+              slotDuration={CLINICA_AGENDA_SLOT_DURATION}
+              slotLabelInterval={CLINICA_AGENDA_SLOT_LABEL_INTERVAL}
+              snapDuration={CLINICA_AGENDA_SNAP_DURATION}
               businessHours={getBusinessHours()}
               hiddenDays={getHiddenDays()}
             />

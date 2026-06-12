@@ -75,4 +75,16 @@ export const CLINICA_CONSULTA_STATUS_LABEL: Record<string, string> = {
 
 export const CLINICA_AGENDA_DURACAO_MIN_MIN = 5;
 export const CLINICA_AGENDA_DURACAO_SNAP_MIN = 5;
+/** Intervalo visual da grade e dos rótulos de horário (apenas exibição). */
 export const CLINICA_AGENDA_SLOT_LABEL_MIN = 15;
+export const CLINICA_AGENDA_SLOT_VISUAL_MIN = 15;
+
+function padDurationMinutes(min: number): string {
+  return `00:${String(min).padStart(2, '0')}:00`;
+}
+
+/** Grade/labels da agenda (visual mais limpa — a cada 15 min). */
+export const CLINICA_AGENDA_SLOT_DURATION = padDurationMinutes(CLINICA_AGENDA_SLOT_VISUAL_MIN);
+export const CLINICA_AGENDA_SLOT_LABEL_INTERVAL = padDurationMinutes(CLINICA_AGENDA_SLOT_LABEL_MIN);
+/** Snap ao clicar, arrastar e redimensionar (mínimo 5 min). */
+export const CLINICA_AGENDA_SNAP_DURATION = padDurationMinutes(CLINICA_AGENDA_DURACAO_SNAP_MIN);

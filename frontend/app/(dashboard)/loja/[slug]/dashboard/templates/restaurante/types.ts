@@ -140,3 +140,11 @@ export const CARGO_FUNCIONARIO = [
   { value: 'caixa', label: 'Caixa' },
   { value: 'outro', label: 'Outro' },
 ] as const;
+
+export const UNIDADES_ESTOQUE = [
+  { value: 'UN', label: 'Unidade' },
+  { value: 'KG', label: 'Quilograma (kg)' },
+  { value: 'L', label: 'Litro (L)' },
+  { value: 'CX', label: 'Caixa' },
+  { value: 'PCT', label: 'Pacote' },
+] as const;

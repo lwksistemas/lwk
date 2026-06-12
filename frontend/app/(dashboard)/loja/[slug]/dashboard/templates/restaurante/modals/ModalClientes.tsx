@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { clinicaApiClient } from '@/lib/api-client';
 import { formatApiError } from '@/lib/api-errors';
 import { useToast } from '@/components/ui/Toast';
-import type { LojaInfo, Cliente } from '../types';
+import { formatTelefone } from '@/lib/format-br';
+import type { Cliente, LojaInfo } from '../types';
 
 export function ModalClientes({ loja, onClose }: { loja: LojaInfo; onClose: () => void }) {
   const toast = useToast();
@@ -81,7 +82,7 @@ export function ModalClientes({ loja, onClose }: { loja: LojaInfo; onClose: () =
           <form onSubmit={handleSubmit} className="space-y-3">
             <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label><input type="text" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" placeholder="Nome do cliente" /></div>
             <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone</label><input type="tel" value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" placeholder="(00) 00000-0000" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefone</label><input type="tel" value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: formatTelefone(e.target.value) }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" placeholder="(00) 00000-0000" /></div>
             <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Endereço</label><input type="text" value={form.endereco} onChange={e => setForm(f => ({ ...f, endereco: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" /></div>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} disabled={saving} className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">Voltar</button>

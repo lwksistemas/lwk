@@ -15,39 +15,39 @@ import { logger } from '@/lib/logger';
 
 // Lazy load dos modais: cada um só é baixado quando o usuário abre (dashboard mais rápido)
 const ModalCardapio = dynamic(
-  () => import('./restaurante/ModalsAll').then((m) => ({ default: m.ModalCardapio })),
+  () => import('./restaurante/modals/ModalCardapio').then((m) => ({ default: m.ModalCardapio })),
   { ssr: false }
 );
 const ModalMesas = dynamic(
-  () => import('./restaurante/ModalsAll').then((m) => ({ default: m.ModalMesas })),
+  () => import('./restaurante/modals/ModalMesas').then((m) => ({ default: m.ModalMesas })),
   { ssr: false }
 );
 const ModalPedidos = dynamic(
-  () => import('./restaurante/ModalsAll').then((m) => ({ default: m.ModalPedidos })),
+  () => import('./restaurante/modals/ModalPedidos').then((m) => ({ default: m.ModalPedidos })),
   { ssr: false }
 );
 const ModalDelivery = dynamic(
-  () => import('./restaurante/ModalsAll').then((m) => ({ default: m.ModalDelivery })),
+  () => import('./restaurante/modals/ModalDelivery').then((m) => ({ default: m.ModalDelivery })),
   { ssr: false }
 );
 const ModalPDV = dynamic(
-  () => import('./restaurante/ModalsAll').then((m) => ({ default: m.ModalPDV })),
+  () => import('./restaurante/modals/ModalPDV').then((m) => ({ default: m.ModalPDV })),
   { ssr: false }
 );
 const ModalNotaFiscal = dynamic(
-  () => import('./restaurante/ModalsAll').then((m) => ({ default: m.ModalNotaFiscal })),
+  () => import('./restaurante/modals/ModalNotaFiscal').then((m) => ({ default: m.ModalNotaFiscal })),
   { ssr: false }
 );
 const ModalEstoque = dynamic(
-  () => import('./restaurante/ModalsAll').then((m) => ({ default: m.ModalEstoque })),
+  () => import('./restaurante/modals/ModalEstoque').then((m) => ({ default: m.ModalEstoque })),
   { ssr: false }
 );
 const ModalBalanca = dynamic(
-  () => import('./restaurante/ModalsAll').then((m) => ({ default: m.ModalBalanca })),
+  () => import('./restaurante/modals/ModalBalanca').then((m) => ({ default: m.ModalBalanca })),
   { ssr: false }
 );
 const ModalFuncionarios = dynamic(
-  () => import('./restaurante/ModalsAll').then((m) => ({ default: m.ModalFuncionarios })),
+  () => import('./restaurante/modals/ModalFuncionarios').then((m) => ({ default: m.ModalFuncionarios })),
   { ssr: false }
 );
 const ModalClientes = dynamic(

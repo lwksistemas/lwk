@@ -24,7 +24,11 @@ PLACEHOLDERS = {
     '{{paciente_data_nascimento}}': lambda ctx: str(ctx['patient'].data_nascimento or ''),
     '{{profissional_nome}}': lambda ctx: ctx['professional'].nome,
     '{{profissional_registro}}': lambda ctx: ctx['professional'].registro_profissional or '',
-    '{{profissional_conselho}}': lambda ctx: ctx['professional'].conselho or '',
+    '{{profissional_conselho}}': lambda ctx: (
+        ctx['professional'].formatar_conselho()
+        if hasattr(ctx['professional'], 'formatar_conselho')
+        else (ctx['professional'].conselho or '')
+    ),
     '{{data_atual}}': lambda ctx: ctx['now'].strftime('%d/%m/%Y'),
     '{{consulta_procedimento}}': lambda ctx: ctx['consulta'].procedure.nome if ctx['consulta'].procedure else '',
 }

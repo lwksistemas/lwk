@@ -28,7 +28,7 @@ const PLACEHOLDERS = [
   { tag: "{{paciente_data_nascimento}}", desc: "Data de nascimento" },
   { tag: "{{profissional_nome}}", desc: "Nome do profissional" },
   { tag: "{{profissional_registro}}", desc: "Nº registro profissional" },
-  { tag: "{{profissional_conselho}}", desc: "Conselho (CRM, COREN, etc.)" },
+  { tag: "{{profissional_conselho}}", desc: "Conselho com UF e nº (ex.: COREN-SP 123456)" },
   { tag: "{{data_atual}}", desc: "Data do dia (DD/MM/AAAA)" },
   { tag: "{{consulta_procedimento}}", desc: "Procedimento da consulta" },
 ];

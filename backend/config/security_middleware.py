@@ -26,6 +26,7 @@ _CRM_VENDAS_PUBLIC_PREFIXES = (
 _CLINICA_BELEZA_PUBLIC_PREFIXES = (
     '/api/clinica-beleza/assinar-consentimento/',
     '/api/clinica-beleza/enviar-foto/',
+    '/api/clinica-beleza/confirmar-agendamento/',
 )
 
 

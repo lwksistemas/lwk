@@ -128,9 +128,17 @@ export function ModalDetalheAgendamento({
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
                 Início e conclusão do atendimento são feitos em Consultas.
               </p>
+            ) : status === "SCHEDULED" || status === "PENDING" ? (
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1.5">
+                Aguardando resposta do cliente no WhatsApp. A agenda atualiza sozinha em alguns segundos.
+              </p>
             ) : status === "CONFIRMED" ? (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                Após confirmar, a profissional inicia o atendimento em Consultas.
+                Cliente confirmou pelo WhatsApp ou manualmente. Inicie o atendimento em Consultas.
+              </p>
+            ) : status === "CANCELLED" ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                Cancelado pelo cliente (WhatsApp) ou pela recepção.
               </p>
             ) : null}
           </div>
@@ -149,10 +157,10 @@ export function ModalDetalheAgendamento({
             onClick={onReenviarWhatsApp}
             disabled={reenviandoMensagem || !event.extendedProps.patient_phone}
             className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            title="Reenviar confirmação por WhatsApp ao cliente"
+            title="Reenviar solicitação de confirmação por WhatsApp"
           >
             <MessageCircle size={18} />
-            {reenviandoMensagem ? "Enviando…" : "Reenviar mensagem WhatsApp"}
+            {reenviandoMensagem ? "Enviando…" : "Reenviar confirmação WhatsApp"}
           </button>
           {!event.extendedProps.patient_phone && (
             <p className="text-xs text-gray-500 dark:text-gray-400">Cliente sem telefone; não é possível reenviar.</p>

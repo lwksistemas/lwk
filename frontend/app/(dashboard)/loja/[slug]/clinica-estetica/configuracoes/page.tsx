@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Sliders,
   ArrowLeft,
+  MessageCircle,
 } from 'lucide-react';
 
 export default function ClinicaEsteticaConfiguracoesPage() {
@@ -16,6 +17,13 @@ export default function ClinicaEsteticaConfiguracoesPage() {
   const base = `/loja/${slug}/clinica-estetica/configuracoes`;
 
   const opcoes = [
+    {
+      titulo: 'Configurar WhatsApp',
+      descricao: 'Confirmações e lembretes por WhatsApp (Meta ou Evolution)',
+      href: `/loja/${slug}/configuracoes/whatsapp`,
+      icon: MessageCircle,
+      itens: ['WhatsApp Web (QR)', 'Meta Cloud API', 'Lembretes de agenda'],
+    },
     {
       titulo: 'Configurar tela de login',
       descricao: 'Personalize a aparência da tela de login da sua clínica',

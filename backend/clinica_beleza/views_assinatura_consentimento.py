@@ -96,15 +96,61 @@ class ConsultaTermoConsentimentoStatusView(GetObjectMixin, APIView):
 
 
 class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
-    """POST — envia termo(s) para assinatura do paciente (um e-mail por procedimento)."""
+    """POST — envia termo(s) para assinatura do paciente (e-mail ou WhatsApp)."""
 
     permission_classes = CLINICA_MEMBER
     model_class = Consulta
     not_found_message = 'Consulta não encontrada'
     select_related_fields = ('patient', 'professional', 'appointment')
 
-    def post(self, request, pk):
+    def _enviar_um_termo(self, *, termo_proc, consulta, adapter, loja_id, canal, request):
         from core.assinatura_service import criar_assinatura, enviar_email_parte1
+        from whatsapp.assinatura_whatsapp import enviar_whatsapp_link_assinatura, whatsapp_envio_permitido
+        from whatsapp.models import WhatsAppConfig
+
+        _preencher_termo_se_vazio(termo_proc)
+        paciente = consulta.patient
+        nome_proc = termo_proc.procedure.nome
+
+        if canal == 'whatsapp':
+            config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+            ok_cfg, err_cfg = whatsapp_envio_permitido(config, termo=True)
+            if not ok_cfg:
+                return False, err_cfg or 'WhatsApp indisponível.'
+            telefone = adapter.get_telefone_parte1(termo_proc)
+            if not telefone:
+                return False, 'Paciente não possui telefone cadastrado.'
+        else:
+            email_paciente = (getattr(paciente, 'email', '') or '').strip() if paciente else ''
+            if not paciente or not email_paciente:
+                return False, 'Paciente não possui e-mail cadastrado.'
+            aviso_email = aviso_email_paciente_suspeito(email_paciente)
+            if aviso_email:
+                return False, aviso_email
+
+        assinatura = criar_assinatura(adapter, termo_proc, 'paciente', loja_id)
+        termo_proc.status_assinatura_termo = 'aguardando_paciente'
+        termo_proc.save(update_fields=['status_assinatura_termo', 'updated_at'])
+
+        if canal == 'whatsapp':
+            ok, err = enviar_whatsapp_link_assinatura(
+                adapter, termo_proc, assinatura, loja_id,
+                telefone=adapter.get_telefone_parte1(termo_proc),
+                user=request.user,
+            )
+        else:
+            ok, err = enviar_email_parte1(adapter, termo_proc, assinatura, loja_id)
+            err = err or 'erro no e-mail'
+
+        if ok:
+            return True, nome_proc
+
+        termo_proc.status_assinatura_termo = 'rascunho'
+        termo_proc.save(update_fields=['status_assinatura_termo', 'updated_at'])
+        assinatura.delete()
+        return False, f'{nome_proc}: {err}'
+
+    def post(self, request, pk):
         from tenants.middleware import get_current_loja_id
 
         consulta, err = self.object_or_404(pk)
@@ -117,16 +163,9 @@ class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        paciente = consulta.patient
-        email_paciente = (getattr(paciente, 'email', '') or '').strip() if paciente else ''
-        if not paciente or not email_paciente:
-            return Response(
-                {'detail': 'Paciente não possui e-mail cadastrado.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        aviso_email = aviso_email_paciente_suspeito(email_paciente)
-        if aviso_email:
-            return Response({'detail': aviso_email}, status=status.HTTP_400_BAD_REQUEST)
+        canal = (request.data.get('canal') or 'email').strip().lower()
+        if canal not in ('email', 'whatsapp'):
+            return Response({'detail': 'Informe o canal: email ou whatsapp.'}, status=status.HTTP_400_BAD_REQUEST)
 
         procedure_id = request.data.get('procedure_id')
         termos = garantir_termos_procedimento(consulta)
@@ -153,21 +192,26 @@ class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
         adapter = ConsultaTermoAssinaturaAdapter()
         enviados: list[str] = []
         erros: list[str] = []
+        canal_label = 'WhatsApp' if canal == 'whatsapp' else 'e-mail'
+        destino = (
+            adapter.get_telefone_parte1(termos_a_enviar[0])
+            if canal == 'whatsapp'
+            else (getattr(consulta.patient, 'email', '') or '')
+        )
 
         for termo_proc in termos_a_enviar:
-            _preencher_termo_se_vazio(termo_proc)
-            assinatura = criar_assinatura(adapter, termo_proc, 'paciente', loja_id)
-            termo_proc.status_assinatura_termo = 'aguardando_paciente'
-            termo_proc.save(update_fields=['status_assinatura_termo', 'updated_at'])
-
-            ok, email_err = enviar_email_parte1(adapter, termo_proc, assinatura, loja_id)
+            ok, resultado = self._enviar_um_termo(
+                termo_proc=termo_proc,
+                consulta=consulta,
+                adapter=adapter,
+                loja_id=loja_id,
+                canal=canal,
+                request=request,
+            )
             if ok:
-                enviados.append(termo_proc.procedure.nome)
+                enviados.append(resultado)
             else:
-                termo_proc.status_assinatura_termo = 'rascunho'
-                termo_proc.save(update_fields=['status_assinatura_termo', 'updated_at'])
-                assinatura.delete()
-                erros.append(f'{termo_proc.procedure.nome}: {email_err or "erro no e-mail"}')
+                erros.append(resultado)
 
         sincronizar_status_consulta(consulta)
         consulta.refresh_from_db(fields=['status_assinatura_termo'])
@@ -176,11 +220,12 @@ class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
             plural = 's' if len(enviados) > 1 else ''
             return Response({
                 'message': (
-                    f'{len(enviados)} termo{plural} enviado{plural} por e-mail para {paciente.email} '
+                    f'{len(enviados)} termo{plural} enviado{plural} por {canal_label} para {destino} '
                     f'({", ".join(enviados)}). O paciente deve ler e assinar cada um separadamente.'
                 ),
                 'status_assinatura_termo': consulta.status_assinatura_termo,
                 'enviados': enviados,
+                'canal': canal,
             })
 
         if enviados:
@@ -189,10 +234,11 @@ class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
                 'status_assinatura_termo': consulta.status_assinatura_termo,
                 'enviados': enviados,
                 'erros': erros,
+                'canal': canal,
             }, status=status.HTTP_207_MULTI_STATUS)
 
         return Response(
-            {'detail': erros[0] if erros else 'Erro ao enviar e-mail.'},
+            {'detail': erros[0] if erros else f'Erro ao enviar {canal_label}.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
@@ -206,7 +252,9 @@ class ConsultaReenviarTermoAssinaturaView(GetObjectMixin, APIView):
     select_related_fields = ('patient', 'professional')
 
     def post(self, request, pk):
-        from core.assinatura_service import reenviar_link
+        from core.assinatura_service import criar_assinatura, enviar_email_parte1, reenviar_link
+        from whatsapp.assinatura_whatsapp import enviar_whatsapp_link_assinatura, whatsapp_envio_permitido
+        from whatsapp.models import WhatsAppConfig
         from tenants.middleware import get_current_loja_id
 
         consulta, err = self.object_or_404(pk)
@@ -220,19 +268,55 @@ class ConsultaReenviarTermoAssinaturaView(GetObjectMixin, APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        canal = (request.data.get('canal') or 'email').strip().lower()
+        if canal not in ('email', 'whatsapp'):
+            return Response({'detail': 'Informe o canal: email ou whatsapp.'}, status=status.HTTP_400_BAD_REQUEST)
+
         termo_proc = _resolver_termo_procedimento(consulta, procedure_id)
         if not termo_proc:
             return Response({'detail': 'Procedimento não encontrado nesta consulta.'}, status=400)
 
         paciente = consulta.patient
         email_paciente = (getattr(paciente, 'email', '') or '').strip() if paciente else ''
-        if termo_proc.status_assinatura_termo == 'aguardando_paciente' and email_paciente:
+        if termo_proc.status_assinatura_termo == 'aguardando_paciente' and canal == 'email' and email_paciente:
             aviso_email = aviso_email_paciente_suspeito(email_paciente)
             if aviso_email:
                 return Response({'detail': aviso_email}, status=status.HTTP_400_BAD_REQUEST)
 
+        loja_id = get_current_loja_id()
         adapter = ConsultaTermoAssinaturaAdapter()
-        ok, msg, email_err = reenviar_link(adapter, termo_proc, get_current_loja_id())
+
+        if (
+            canal == 'whatsapp'
+            and termo_proc.status_assinatura_termo == 'aguardando_paciente'
+        ):
+            config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+            ok_cfg, err_cfg = whatsapp_envio_permitido(config, termo=True)
+            if not ok_cfg:
+                return Response({'detail': err_cfg}, status=status.HTTP_400_BAD_REQUEST)
+            telefone = adapter.get_telefone_parte1(termo_proc)
+            if not telefone:
+                return Response({'detail': 'Paciente não possui telefone cadastrado.'}, status=status.HTTP_400_BAD_REQUEST)
+            from .models import ConsultaAssinaturaTermo
+            assinatura = ConsultaAssinaturaTermo.objects.filter(
+                termo_procedimento=termo_proc, tipo='paciente', assinado=False,
+            ).order_by('-created_at').first()
+            if not assinatura:
+                adapter.deletar_assinaturas_pendentes(termo_proc, 'paciente')
+                assinatura = criar_assinatura(adapter, termo_proc, 'paciente', loja_id)
+            ok, err = enviar_whatsapp_link_assinatura(
+                adapter, termo_proc, assinatura, loja_id, telefone=telefone, user=request.user,
+            )
+            sincronizar_status_consulta(consulta)
+            if ok:
+                return Response({
+                    'message': f'Link reenviado por WhatsApp para {telefone}.',
+                    'procedure_nome': termo_proc.procedure.nome,
+                    'canal': canal,
+                })
+            return Response({'detail': err or 'Erro ao reenviar.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ok, msg, email_err = reenviar_link(adapter, termo_proc, loja_id)
         sincronizar_status_consulta(consulta)
         if ok:
             return Response({'message': msg, 'procedure_nome': termo_proc.procedure.nome})

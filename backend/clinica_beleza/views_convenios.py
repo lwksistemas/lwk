@@ -70,6 +70,11 @@ class ConvenioDetailView(GetObjectMixin, APIView):
         obj, error = self.object_or_404(pk)
         if error:
             return error
+        if (obj.nome or '').strip().lower() == 'particular':
+            return Response(
+                {'error': 'O convênio Particular é padrão do sistema e não pode ser excluído.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         obj.is_active = False
         obj.save(update_fields=['is_active', 'updated_at'])
         return Response(status=status.HTTP_204_NO_CONTENT)

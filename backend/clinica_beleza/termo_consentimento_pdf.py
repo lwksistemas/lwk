@@ -250,7 +250,7 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
         ['CPF', getattr(paciente, 'cpf', '') or '—'],
         ['Procedimento', procedure.nome if procedure else '—'],
         ['Profissional', prof.nome if prof else '—'],
-        ['Conselho', getattr(prof, 'conselho', '') or '—'],
+        ['Conselho', (prof.formatar_conselho() if prof else '') or '—'],
         ['Data', data_str],
     ]
     if loja and loja.cpf_cnpj:
@@ -280,8 +280,15 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
 
     elements.append(Spacer(1, 0.5 * cm))
     elements.append(Paragraph('Conteúdo do Termo', section_style))
-    from .consentimento_service import limpar_conteudo_termo_exibicao
-    conteudo = limpar_conteudo_termo_exibicao(termo_proc.conteudo_termo or '')
+    from .consentimento_service import limpar_conteudo_termo_exibicao, montar_conteudo_termo_procedimento
+    if termo_proc.status_assinatura_termo == 'concluido':
+        conteudo = limpar_conteudo_termo_exibicao(termo_proc.conteudo_termo or '')
+    else:
+        conteudo = limpar_conteudo_termo_exibicao(
+            montar_conteudo_termo_procedimento(consulta, procedure)
+            or termo_proc.conteudo_termo
+            or '',
+        )
     for line in conteudo.split('\n'):
         stripped = line.strip()
         if not stripped:

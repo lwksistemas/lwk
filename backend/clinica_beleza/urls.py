@@ -18,6 +18,9 @@ from .views import (
     AgendaReenviarMensagemView,
     BloqueioHorarioListView, BloqueioHorarioDetailView,
     WhatsAppConfigView,
+    ClinicaWhatsAppConnectionStatusView,
+    ClinicaWhatsAppConnectView,
+    ClinicaWhatsAppDisconnectView,
     CampanhaPromocaoListView, CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView,
 )
 from .views_consultas import (
@@ -47,6 +50,9 @@ from .views_admin_professional import (
 from .views_locais_atendimento import (
     LocalAtendimentoListView, LocalAtendimentoDetailView,
 )
+from .views_nomes_agenda import (
+    NomeAgendaListView, NomeAgendaDetailView,
+)
 from .views_convenios import (
     ConvenioListView, ConvenioDetailView, ConvenioPrecosView,
 )
@@ -70,6 +76,7 @@ from .views_foto_paciente import (
     ConsultaFotoDeleteView,
     EnviarFotoPublicaView,
 )
+from .views_agenda_confirmacao import ConfirmarAgendamentoPublicaView
 
 app_name = 'clinica_beleza'
 
@@ -112,6 +119,10 @@ urlpatterns = [
     # Locais de atendimento
     path('locais-atendimento/', LocalAtendimentoListView.as_view(), name='locais-atendimento-list'),
     path('locais-atendimento/<int:pk>/', LocalAtendimentoDetailView.as_view(), name='locais-atendimento-detail'),
+
+    # Nomes de agenda
+    path('nomes-agenda/', NomeAgendaListView.as_view(), name='nomes-agenda-list'),
+    path('nomes-agenda/<int:pk>/', NomeAgendaDetailView.as_view(), name='nomes-agenda-detail'),
 
     # Convênios
     path('convenios/', ConvenioListView.as_view(), name='convenios-list'),
@@ -163,11 +174,15 @@ urlpatterns = [
     path('agenda/<int:pk>/update/', AgendaUpdateView.as_view(), name='agenda-update'),
     path('agenda/<int:pk>/delete/', AgendaDeleteView.as_view(), name='agenda-delete'),
     path('agenda/<int:pk>/reenviar-mensagem/', AgendaReenviarMensagemView.as_view(), name='agenda-reenviar-mensagem'),
+    path('confirmar-agendamento/<path:token>/', ConfirmarAgendamentoPublicaView.as_view(), name='confirmar-agendamento'),
     # Bloqueio de Horários
     path('bloqueios/', BloqueioHorarioListView.as_view(), name='bloqueios-list'),
     path('bloqueios/<int:pk>/', BloqueioHorarioDetailView.as_view(), name='bloqueios-detail'),
     # Configuração WhatsApp (ETAPA 4)
     path('whatsapp-config/', WhatsAppConfigView.as_view(), name='whatsapp-config'),
+    path('whatsapp-config/connection/', ClinicaWhatsAppConnectionStatusView.as_view(), name='whatsapp-connection'),
+    path('whatsapp-config/connect/', ClinicaWhatsAppConnectView.as_view(), name='whatsapp-connect'),
+    path('whatsapp-config/disconnect/', ClinicaWhatsAppDisconnectView.as_view(), name='whatsapp-disconnect'),
     # Campanhas de promoções
     path('campanhas/', CampanhaPromocaoListView.as_view(), name='campanhas-list'),
     path('campanhas/<int:pk>/', CampanhaPromocaoDetailView.as_view(), name='campanhas-detail'),

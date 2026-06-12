@@ -1,9 +1,10 @@
 """Serializers de agendamentos, agenda e bloqueios."""
 from rest_framework import serializers
 
+from core.serializer_mixins import TenantQuerysetMixin
 from ..bloqueio_utils import bloqueio_datetime_range, split_datetime_range
 from ..models import (
-    Appointment, AppointmentProcedure, BloqueioHorario, Convenio, Procedure,
+    Appointment, AppointmentProcedure, BloqueioHorario, Convenio, NomeAgenda, Procedure,
 )
 from .patients import PatientSerializer
 from .procedures import ProcedureSerializer
@@ -47,7 +48,7 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
         exclude = ['loja_id']
 
 
-class AppointmentCreateSerializer(serializers.ModelSerializer):
+class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     """Serializer para criação de agendamentos (suporta múltiplos procedimentos)."""
     procedures_ids = serializers.ListField(
         child=serializers.IntegerField(),
@@ -56,16 +57,25 @@ class AppointmentCreateSerializer(serializers.ModelSerializer):
         help_text="Lista de IDs de procedimentos. Se enviado, substitui o campo 'procedure'.",
     )
     convenio = serializers.PrimaryKeyRelatedField(
-        queryset=Convenio.objects.filter(is_active=True),
+        queryset=Convenio.objects.none(),
         required=False,
         allow_null=True,
     )
+    nome_agenda = serializers.PrimaryKeyRelatedField(
+        queryset=NomeAgenda.objects.none(),
+        required=False,
+        allow_null=True,
+    )
+
+    def apply_tenant_querysets(self):
+        self.bind_tenant_queryset('convenio', Convenio.objects.filter(is_active=True))
+        self.bind_tenant_queryset('nome_agenda', NomeAgenda.objects.filter(is_active=True))
 
     class Meta:
         model = Appointment
         fields = [
             'date', 'status', 'patient', 'professional', 'procedure',
-            'procedures_ids', 'notes', 'convenio',
+            'procedures_ids', 'notes', 'convenio', 'nome_agenda',
         ]
         extra_kwargs = {
             'procedure': {'required': False, 'allow_null': True},
@@ -143,6 +153,8 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     procedures_list = serializers.SerializerMethodField()
     convenio_id = serializers.IntegerField(source='convenio.id', read_only=True, allow_null=True)
     convenio_name = serializers.SerializerMethodField()
+    nome_agenda_id = serializers.IntegerField(source='nome_agenda.id', read_only=True, allow_null=True)
+    nome_agenda_name = serializers.CharField(source='nome_agenda.nome', read_only=True, allow_null=True, default=None)
 
     version = serializers.IntegerField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
@@ -159,6 +171,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
             'procedure', 'procedure_name', 'procedure_duration', 'duracao_minutos',
             'procedure_price', 'procedures_list',
             'convenio', 'convenio_id', 'convenio_name',
+            'nome_agenda', 'nome_agenda_id', 'nome_agenda_name',
             'version', 'updated_at', 'updated_by_id',
         ]
 

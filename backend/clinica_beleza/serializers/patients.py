@@ -4,12 +4,14 @@ from rest_framework import serializers
 from ..models import Convenio, Patient, PatientAnamnese
 from core.serializer_mixins import (
     CpfNormalizationMixin,
+    TenantQuerysetMixin,
     TextNormalizationMixin,
     UniqueDocumentoPerLojaMixin,
 )
 
 
 class PatientSerializer(
+    TenantQuerysetMixin,
     UniqueDocumentoPerLojaMixin,
     CpfNormalizationMixin,
     TextNormalizationMixin,
@@ -22,11 +24,14 @@ class PatientSerializer(
     phone = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
     birth_date = serializers.DateField(required=False, allow_null=True, input_formats=['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'])
     convenio = serializers.PrimaryKeyRelatedField(
-        queryset=Convenio.objects.filter(is_active=True),
+        queryset=Convenio.objects.none(),
         required=False,
         allow_null=True,
     )
     convenio_name = serializers.SerializerMethodField()
+
+    def apply_tenant_querysets(self):
+        self.bind_tenant_queryset('convenio', Convenio.objects.filter(is_active=True))
 
     phone_fields = ['phone', 'telefone']
     uppercase_fields = ['name', 'nome', 'cidade', 'estado', 'address', 'endereco']

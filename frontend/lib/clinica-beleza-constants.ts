@@ -18,7 +18,7 @@ export const CLINICA_PAGAMENTO_STATUS_LABEL: Record<string, string> = {
 
 /** Status de agendamento na agenda (calendário, lista, conflito offline). */
 export const CLINICA_AGENDA_STATUS_LABEL: Record<string, string> = {
-  SCHEDULED: 'Agendado',
+  SCHEDULED: 'Aguardando confirmação',
   CONFIRMED: 'Confirmado',
   PENDING: 'Pendente',
   IN_PROGRESS: 'Em atendimento',
@@ -50,7 +50,7 @@ export const CLINICA_AGENDA_LEGEND_ITEMS: { key: string; label: string; bg: stri
 
 /** Opções de status editáveis na agenda (recepção). */
 export const CLINICA_AGENDA_STATUS_OPCOES = [
-  { value: 'SCHEDULED', label: '🟣 Agendado' },
+  { value: 'SCHEDULED', label: '🟣 Aguardando confirmação' },
   { value: 'CONFIRMED', label: '🟢 Confirmado' },
   { value: 'PENDING', label: '🟠 Pendente' },
   { value: 'CANCELLED', label: '🔴 Cancelado' },

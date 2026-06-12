@@ -55,5 +55,8 @@ from .views_agenda import (  # noqa: F401
 # WhatsApp & Campanhas
 from .views_whatsapp import (  # noqa: F401
     WhatsAppConfigView,
+    ClinicaWhatsAppConnectionStatusView,
+    ClinicaWhatsAppConnectView,
+    ClinicaWhatsAppDisconnectView,
     CampanhaPromocaoListView, CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView,
 )

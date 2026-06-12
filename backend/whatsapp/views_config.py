@@ -68,6 +68,11 @@ class WhatsAppConfigView(APIView):
         if err:
             return err
         config.save(update_fields=update_fields)
+        try:
+            from clinica_beleza.utils import LojaContextHelper
+            LojaContextHelper.invalidate_cache(loja.id)
+        except Exception:
+            pass
         return Response(serialize_whatsapp_config(config, loja=loja))
 
 

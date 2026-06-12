@@ -85,10 +85,12 @@ class LojaContextHelper:
         
         try:
             from superadmin.models import Loja
-            from whatsapp.models import WhatsAppConfig
+            from whatsapp.config_service import get_or_create_whatsapp_config
+
             loja = Loja.objects.using('default').get(id=lid)
-            config = getattr(loja, 'whatsapp_config', None) or \
-                     WhatsAppConfig.objects.filter(loja=loja).first()
+            config = get_or_create_whatsapp_config(loja)
+            if config:
+                config._loja_cache = loja
             result = (config, loja)
             cache.set(cache_key, result, 600)  # 10 minutos
             return result

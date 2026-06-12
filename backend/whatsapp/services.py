@@ -551,15 +551,7 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
         link = url_confirmacao_frontend(token)
 
     msg = msg_confirmacao(agendamento, link_confirmacao=link, config=config)
-    provider = _get_provider(config)
-
-    if provider == WhatsAppConfig.PROVIDER_EVOLUTION:
-        ok, err = _send_confirmacao_evolution(phone, msg, agendamento, user=user, config=config)
-        if ok:
-            return True, None
-        # Fallback texto simples se botões falharem
-        return send_whatsapp(telefone=phone, mensagem=msg, user=user, config=config)
-
+    # Sempre texto com link (Meta ou Evolution). Botões Evolution não incluíam o link.
     return send_whatsapp(telefone=phone, mensagem=msg, user=user, config=config)
 
 

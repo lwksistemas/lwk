@@ -166,13 +166,19 @@ class AgendaReenviarMensagemView(APIView):
 
         if not getattr(appointment.patient, 'allow_whatsapp', True):
             return Response({'sent': False, 'message': 'Paciente não permite receber WhatsApp.'})
-        telefone = getattr(appointment.patient, 'telefone', '') or ''
+        telefone = (
+            getattr(appointment.patient, 'telefone', '')
+            or getattr(appointment.patient, 'phone', '')
+            or ''
+        )
         if not telefone.strip():
             return Response({'sent': False, 'message': 'Paciente sem telefone cadastrado.'})
 
         config, _ = LojaContextHelper.get_whatsapp_config(request=request)
         if not config or not config.enviar_confirmacao:
             return Response({'sent': False, 'message': 'Envio de confirmação desativado nas Configurações.'})
+        if not getattr(config, 'whatsapp_ativo', False):
+            return Response({'sent': False, 'message': 'WhatsApp não está ativo. Ative em Configurações → WhatsApp.'})
 
         from whatsapp.services import enviar_confirmacao_agendamento
         try:

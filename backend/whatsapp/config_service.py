@@ -1,6 +1,8 @@
 """Obter ou criar WhatsAppConfig por loja (qualquer tipo de app)."""
 import logging
 
+from django.db.utils import OperationalError, ProgrammingError
+
 from superadmin.models import Loja
 from tenants.middleware import ensure_loja_context, get_current_loja_id
 
@@ -11,11 +13,25 @@ logger = logging.getLogger(__name__)
 
 def _ensure_whatsapp_schema(loja):
     """Best-effort: garante colunas novas no schema da loja."""
+    from django.db import connections
+
+    from clinica_beleza.schema_ensure import column_exists, table_exists
+    from core.db_config import ensure_loja_database_config
+    from whatsapp.management.commands.ensure_whatsapp_evolution_fields import COLUMNS
+
+    db_name = getattr(loja, 'database_name', None)
+    if not db_name or not ensure_loja_database_config(db_name, conn_max_age=0):
+        return
     try:
-        from django.core.management import call_command
-        slug = (getattr(loja, 'slug', None) or '').strip()
-        if slug:
-            call_command('ensure_whatsapp_evolution_fields', slug=slug, verbosity=0)
+        with connections[db_name].cursor() as cursor:
+            if not table_exists(cursor, 'whatsapp_whatsappconfig'):
+                return
+            for col, ddl in COLUMNS:
+                if not column_exists(cursor, 'whatsapp_whatsappconfig', col):
+                    cursor.execute(
+                        f'ALTER TABLE whatsapp_whatsappconfig ADD COLUMN {col} {ddl}'
+                    )
+                    logger.info('WhatsApp schema loja %s: coluna %s adicionada', loja.id, col)
     except Exception as exc:
         logger.warning('ensure_whatsapp_schema loja %s: %s', getattr(loja, 'id', '?'), exc)
 

@@ -59,10 +59,10 @@ export const CLINICA_AGENDA_STATUS_OPCOES = [
 
 /** Status da consulta clínica (fluxo em Consultas). */
 export const CLINICA_CONSULTA_STATUS_LABEL: Record<string, string> = {
-  SCHEDULED: 'Aguardando início',
-  IN_PROGRESS: 'Em atendimento',
-  COMPLETED: 'Concluída',
-  CANCELLED: 'Cancelada',
+  SCHEDULED: 'AGUARDANDO INÍCIO',
+  IN_PROGRESS: 'EM ATENDIMENTO',
+  COMPLETED: 'CONCLUÍDA',
+  CANCELLED: 'CANCELADA',
 };
 
 export const CLINICA_AGENDA_DURACAO_MIN_MIN = 5;

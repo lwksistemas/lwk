@@ -3,7 +3,8 @@
 import { ChevronRight } from "lucide-react";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
 import { CLINICA_CONSULTA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
-import type { Consulta } from "./consultas-types";
+import { toUpperCase } from "@/lib/format-br";
+import { consultaProcedimentosNomes, type Consulta } from "./consultas-types";
 
 interface Props {
   consultas: Consulta[];
@@ -21,29 +22,35 @@ export function ConsultasListTable({ consultas, onSelect, formatData }: Props) {
       columns={[
         {
           key: "patient",
-          header: "Cliente",
+          header: "CLIENTE",
           render: (c) => (
-            <span className="font-medium text-gray-900 dark:text-gray-100">{c.patient_name}</span>
+            <span className="font-medium text-gray-900 dark:text-gray-100 uppercase">
+              {toUpperCase(c.patient_name)}
+            </span>
           ),
         },
         {
           key: "agenda",
-          header: "Agenda",
+          header: "AGENDA",
           className: "hidden sm:table-cell",
           render: (c) => (
-            <span className="text-gray-600 dark:text-gray-400 text-xs">{c.nome_agenda_name || "—"}</span>
+            <span className="text-gray-600 dark:text-gray-400 text-xs uppercase">
+              {c.nome_agenda_name ? toUpperCase(c.nome_agenda_name) : "—"}
+            </span>
           ),
         },
         {
           key: "procedure",
-          header: "Procedimento",
+          header: "PROCEDIMENTO",
           render: (c) => (
-            <span className="text-gray-700 dark:text-gray-300">{c.procedure_name}</span>
+            <span className="text-gray-700 dark:text-gray-300 uppercase">
+              {consultaProcedimentosNomes(c)}
+            </span>
           ),
         },
         {
           key: "date",
-          header: "Data",
+          header: "DATA",
           className: "hidden sm:table-cell",
           render: (c) => (
             <span className="text-gray-600 dark:text-gray-400 text-xs">
@@ -53,19 +60,21 @@ export function ConsultasListTable({ consultas, onSelect, formatData }: Props) {
         },
         {
           key: "professional",
-          header: "Profissional",
+          header: "PROFISSIONAL",
           className: "hidden md:table-cell",
           render: (c) => (
-            <span className="text-gray-600 dark:text-gray-400">{c.professional_name || "—"}</span>
+            <span className="text-gray-600 dark:text-gray-400 uppercase">
+              {c.professional_name ? toUpperCase(c.professional_name) : "—"}
+            </span>
           ),
         },
         {
           key: "status",
-          header: "Status",
+          header: "STATUS",
           className: "hidden lg:table-cell",
           render: (c) => (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-400">
-              {CLINICA_CONSULTA_STATUS_LABEL[c.status] || c.status}
+            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-400 uppercase">
+              {CLINICA_CONSULTA_STATUS_LABEL[c.status] || toUpperCase(c.status)}
             </span>
           ),
         },

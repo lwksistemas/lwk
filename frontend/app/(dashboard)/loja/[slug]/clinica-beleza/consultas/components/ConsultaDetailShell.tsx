@@ -17,6 +17,7 @@ import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/Cli
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type LocalAtendimentoItem, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
 import { formatCurrency } from "@/lib/financeiro-helpers";
+import { toUpperCase } from "@/lib/format-br";
 import { CLINICA_CONSULTA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import type { ConsultaPrintMeta } from "@/lib/consulta-print";
@@ -484,8 +485,8 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
   return (
     <>
       <ClinicaBelezaStandardPageHeader
-        title={selected.patient_name}
-        subtitle={`${consultaProcedimentosNomes(selected)} · ${selected.professional_name}`}
+        title={toUpperCase(selected.patient_name)}
+        subtitle={`${consultaProcedimentosNomes(selected)} · ${toUpperCase(selected.professional_name)}`}
         onBack={onBack}
         toolbarActions={tab === "fotos" ? fotosToolbar : undefined}
         extraActions={headerExtraActions}
@@ -502,24 +503,24 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
                 {procedimentosRealizados.length > 0 && (
                   <span>
                     Procedimentos:{" "}
-                    <strong className="text-gray-800 dark:text-gray-200">
+                    <strong className="text-gray-800 dark:text-gray-200 uppercase">
                       {procedimentosRealizados
-                        .map((p) => `${p.nome} (${formatCurrency(p.valor)})`)
+                        .map((p) => `${toUpperCase(p.nome)} (${formatCurrency(p.valor)})`)
                         .join(" · ")}
                     </strong>
                   </span>
                 )}
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300">
-                  {CLINICA_CONSULTA_STATUS_LABEL[selected.status] || selected.status}
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 uppercase">
+                  {CLINICA_CONSULTA_STATUS_LABEL[selected.status] || toUpperCase(selected.status)}
                 </span>
                 {selected.protocol_name && (
-                  <span>Protocolo: <strong className="text-gray-800 dark:text-gray-200">{selected.protocol_name}</strong></span>
+                  <span>Protocolo: <strong className="text-gray-800 dark:text-gray-200 uppercase">{toUpperCase(selected.protocol_name)}</strong></span>
                 )}
                 {selected.local_atendimento_name && (
-                  <span>Local: <strong className="text-gray-800 dark:text-gray-200">{selected.local_atendimento_name}</strong></span>
+                  <span>Local: <strong className="text-gray-800 dark:text-gray-200 uppercase">{toUpperCase(selected.local_atendimento_name)}</strong></span>
                 )}
                 <span>
-                  Convênio: <strong className="text-gray-800 dark:text-gray-200">{selected.convenio_name || "Particular"}</strong>
+                  Convênio: <strong className="text-gray-800 dark:text-gray-200 uppercase">{toUpperCase(selected.convenio_name || "Particular")}</strong>
                 </span>
                 <div className="ml-auto flex flex-wrap gap-2">
                   {podeIniciar && (

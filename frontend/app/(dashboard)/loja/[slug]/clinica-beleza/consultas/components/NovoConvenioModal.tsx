@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2, Save, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, Plus, Trash2, X } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
+import {
+  CONVENIO_PARTICULAR_LABEL,
+  findConvenioParticular,
+  isConvenioParticularNome,
+  ordenarConveniosComParticularPrimeiro,
+} from "@/lib/convenio-precos";
 import { toUpperCase } from "@/lib/format-br";
 
 interface NovoConvenioModalProps {
@@ -12,17 +18,61 @@ interface NovoConvenioModalProps {
   onSuccess?: () => void;
 }
 
+function extractApiError(err: unknown, fallback: string): string {
+  if (!err || typeof err !== "object") return fallback;
+  const body = err as Record<string, unknown>;
+  if (typeof body.error === "string") return body.error;
+  if (typeof body.detail === "string") return body.detail;
+  for (const val of Object.values(body)) {
+    if (Array.isArray(val) && typeof val[0] === "string") return val[0];
+    if (typeof val === "string") return val;
+  }
+  return fallback;
+}
+
 export function NovoConvenioModal({ open, onClose, onSuccess }: NovoConvenioModalProps) {
-  const [nome, setNome] = useState("");
+  const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
+  const [loading, setLoading] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [nome, setNome] = useState("");
   const [erro, setErro] = useState("");
+
+  const loadConvenios = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await ClinicaBelezaAPI.convenios.list();
+      setConvenios(Array.isArray(data) ? data : []);
+    } catch {
+      setErro("Erro ao carregar convênios.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (open) {
+      loadConvenios();
+      setIsCreating(false);
       setNome("");
       setErro("");
     }
-  }, [open]);
+  }, [open, loadConvenios]);
+
+  const listaExibida = useMemo(() => {
+    const ordenados = ordenarConveniosComParticularPrimeiro(convenios);
+    if (findConvenioParticular(convenios)) return ordenados;
+    return [
+      { id: 0, nome: CONVENIO_PARTICULAR_LABEL, codigo: "PARTICULAR", is_active: true },
+      ...ordenados,
+    ];
+  }, [convenios]);
+
+  const resetForm = () => {
+    setNome("");
+    setIsCreating(false);
+    setErro("");
+  };
 
   const handleClose = () => {
     if (salvando) return;
@@ -38,10 +88,32 @@ export function NovoConvenioModal({ open, onClose, onSuccess }: NovoConvenioModa
     setErro("");
     try {
       await ClinicaBelezaAPI.convenios.create({ nome: nome.trim() });
+      resetForm();
+      await loadConvenios();
       onSuccess?.();
-      onClose();
     } catch (e: unknown) {
-      setErro(e instanceof Error ? e.message : "Erro ao criar convênio.");
+      setErro(extractApiError(e, e instanceof Error ? e.message : "Erro ao criar convênio."));
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const excluirConvenio = async (c: ConvenioItem) => {
+    if (isConvenioParticularNome(c.nome)) {
+      setErro("O convênio Particular é padrão do sistema e não pode ser excluído.");
+      return;
+    }
+    if (!confirm(`Excluir o convênio "${c.nome}"? Os preços vinculados nos procedimentos serão removidos.`)) {
+      return;
+    }
+    setSalvando(true);
+    setErro("");
+    try {
+      await ClinicaBelezaAPI.convenios.delete(c.id);
+      await loadConvenios();
+      onSuccess?.();
+    } catch (e: unknown) {
+      setErro(extractApiError(e, e instanceof Error ? e.message : "Erro ao excluir convênio."));
     } finally {
       setSalvando(false);
     }
@@ -51,12 +123,12 @@ export function NovoConvenioModal({ open, onClose, onSuccess }: NovoConvenioModa
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full max-w-lg">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-700">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-700 shrink-0">
           <div>
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Novo convênio</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Convênios</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Informe o nome; o código será gerado automaticamente
+              Novo convênio — informe o nome; o código será gerado automaticamente
             </p>
           </div>
           <button
@@ -66,50 +138,126 @@ export function NovoConvenioModal({ open, onClose, onSuccess }: NovoConvenioModa
             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-500 disabled:opacity-40"
             aria-label="Fechar"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
 
-        <div className="px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
           {erro && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+            <div className="mb-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
               {erro}
             </div>
           )}
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Nome do convênio *
-          </label>
-          <input
-            type="text"
-            value={nome}
-            onChange={(e) => setNome(toUpperCase(e.target.value))}
-            placeholder="Ex.: Unimed, Particular, Santa Casa..."
-            autoFocus
-            className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg dark:bg-neutral-700"
-          />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-            Os valores praticados por convênio são definidos na página de Procedimentos.
-          </p>
+
+          {isCreating && (
+            <div className="mb-4 p-4 rounded-lg border-2 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Novo convênio</p>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Nome do convênio *
+              </label>
+              <input
+                type="text"
+                value={nome}
+                onChange={(e) => setNome(toUpperCase(e.target.value))}
+                placeholder="Ex.: Unimed, Santa Casa..."
+                autoFocus
+                className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg dark:bg-neutral-700 mb-3"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Os valores praticados por convênio são definidos na página de Procedimentos.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={criarConvenio}
+                  disabled={salvando || !nome.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                  style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                >
+                  {salvando ? <Loader2 size={14} className="animate-spin" /> : null}
+                  {salvando ? "Criando..." : "Criar convênio"}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  disabled={salvando}
+                  className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">
+              <Loader2 size={24} className="animate-spin mx-auto mb-2" />
+              Carregando...
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {listaExibida.map((c) => {
+                const padrao = isConvenioParticularNome(c.nome);
+                const sintetico = c.id === 0;
+                return (
+                  <li
+                    key={sintetico ? "particular-sistema" : c.id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50 dark:bg-neutral-800"
+                  >
+                    <div className="min-w-0">
+                      <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{c.nome}</span>
+                      {padrao && (
+                        <span className="ml-2 text-xs font-normal px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
+                          Padrão
+                        </span>
+                      )}
+                      {c.codigo && (
+                        <span className="block text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">
+                          {c.codigo}
+                        </span>
+                      )}
+                    </div>
+                    {!padrao && !sintetico && (
+                      <button
+                        type="button"
+                        onClick={() => excluirConvenio(c)}
+                        disabled={salvando || isCreating}
+                        className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40 shrink-0"
+                        title="Excluir convênio"
+                      >
+                        <Trash2 size={14} className="text-red-500" />
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-neutral-700 flex flex-col-reverse sm:flex-row gap-3 justify-end">
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-neutral-700 flex justify-between shrink-0">
+          {!isCreating && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsCreating(true);
+                setNome("");
+                setErro("");
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
+              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            >
+              <Plus size={14} />
+              Novo convênio
+            </button>
+          )}
           <button
             type="button"
             onClick={handleClose}
             disabled={salvando}
-            className="py-2.5 px-6 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium disabled:opacity-50"
+            className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-neutral-800 ml-auto"
           >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={criarConvenio}
-            disabled={salvando || !nome.trim()}
-            className="flex items-center justify-center gap-2 py-2.5 px-6 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-          >
-            {salvando ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {salvando ? "Criando..." : "Criar convênio"}
+            Fechar
           </button>
         </div>
       </div>

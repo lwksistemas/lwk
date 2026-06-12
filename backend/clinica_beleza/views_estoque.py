@@ -250,28 +250,6 @@ class MovimentacaoEstoqueView(GetObjectMixin, APIView):
         })
 
 
-class HistoricoEstoqueView(GetObjectMixin, APIView):
-    """
-    GET /clinica-beleza/estoque/<id>/historico/
-    Retorna histórico de movimentações do produto.
-    """
-    permission_classes = CLINICA_ESTOQUE
-    model_class = ProdutoEstoque
-    not_found_message = 'Produto não encontrado'
-
-    def get(self, request, pk):
-        produto, error = self.object_or_404(pk)
-        if error:
-            return error
-        movs = MovimentacaoEstoque.objects.filter(
-            produto=produto
-        ).select_related('profissional').order_by('-created_at')[:50]
-        return Response({
-            'produto': produto.nome,
-            'movimentacoes': MovimentacaoEstoqueSerializer(movs, many=True).data,
-        })
-
-
 class EstoqueResumoView(APIView):
     """
     GET /clinica-beleza/estoque/resumo/

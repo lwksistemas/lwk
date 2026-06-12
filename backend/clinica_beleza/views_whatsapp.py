@@ -1,5 +1,7 @@
 """
-Views de WhatsApp Config e Campanhas de Promoção — Clínica da Beleza
+Views de Campanhas de Promoção — Clínica da Beleza.
+
+Configuração WhatsApp: /api/whatsapp/config/ (app whatsapp centralizado).
 """
 import logging
 from django.utils import timezone
@@ -11,116 +13,10 @@ from rest_framework import status
 from .models import Patient, CampanhaPromocao
 from .pagination import paginate_queryset
 from .utils import LojaContextHelper
-from tenants.middleware import get_current_loja_id
 from .views_base import GetObjectMixin
-from whatsapp.config_helpers import apply_whatsapp_config_patch, serialize_whatsapp_config
-from whatsapp.views_connection import (
-    WhatsAppConnectView as BaseWhatsAppConnectView,
-    WhatsAppConnectionStatusView as BaseWhatsAppConnectionStatusView,
-    WhatsAppDisconnectView as BaseWhatsAppDisconnectView,
-)
 
 logger = logging.getLogger(__name__)
 
-
-class WhatsAppConfigView(APIView):
-    """
-    GET /clinica-beleza/whatsapp-config/
-    PATCH /clinica-beleza/whatsapp-config/
-    """
-    permission_classes = CLINICA_ADMIN
-
-    def _get_config(self, request=None):
-        from .views_base import resolve_loja_id_from_request
-        loja_id = resolve_loja_id_from_request(request) if request else get_current_loja_id()
-        if not loja_id:
-            logger.warning('WhatsAppConfigView: contexto de loja não encontrado')
-            return None
-        from whatsapp.models import WhatsAppConfig
-        from superadmin.models import Loja
-        try:
-            loja = Loja.objects.using('default').get(id=loja_id)
-            owner_tel = (getattr(loja, 'owner_telefone', None) or '').strip()
-            config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
-            if not config:
-                config = WhatsAppConfig(
-                    loja_id=loja_id,
-                    enviar_confirmacao=True,
-                    enviar_lembrete_24h=True,
-                    enviar_lembrete_2h=True,
-                    enviar_cobranca=True,
-                    whatsapp_numero=owner_tel or '',
-                )
-                config.save()
-            elif not (config.whatsapp_numero or '').strip() and owner_tel:
-                config.whatsapp_numero = owner_tel
-                config.save(update_fields=['whatsapp_numero', 'updated_at'])
-            config._loja_cache = loja
-            return config
-        except Exception as e:
-            logger.exception('WhatsAppConfigView._get_config erro loja_id=%s: %s', loja_id, e)
-            return None
-
-    def _serialize(self, config, *, sync_evolution=False):
-        loja = getattr(config, '_loja_cache', None)
-        return serialize_whatsapp_config(config, loja=loja, sync_evolution=sync_evolution)
-
-    def get(self, request):
-        config = self._get_config(request)
-        if config is None:
-            return Response({
-                'enviar_confirmacao': True,
-                'enviar_lembrete_24h': True,
-                'enviar_lembrete_2h': True,
-                'enviar_cobranca': True,
-                'owner_telefone': '',
-                'whatsapp_numero': '',
-                'whatsapp_ativo': False,
-                'whatsapp_phone_id': '',
-                'whatsapp_token_set': False,
-                'whatsapp_provider': 'meta',
-                'whatsapp_connection_status': 'disconnected',
-                'whatsapp_connected_phone': '',
-                'whatsapp_connected_at': None,
-                'evolution_available': False,
-            })
-        return Response(self._serialize(config, sync_evolution=True))
-
-    def patch(self, request):
-        config = self._get_config(request)
-        if config is None:
-            return Response({'error': 'Contexto de loja não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-        update_fields, err = apply_whatsapp_config_patch(config, request.data)
-        if err:
-            return err
-        config.save(update_fields=update_fields)
-        return Response(self._serialize(config))
-
-
-class ClinicaWhatsAppConnectionStatusView(BaseWhatsAppConnectionStatusView):
-    permission_classes = CLINICA_ADMIN
-
-    def _get_config(self, request):
-        return WhatsAppConfigView()._get_config(request)
-
-
-class ClinicaWhatsAppConnectView(BaseWhatsAppConnectView):
-    permission_classes = CLINICA_ADMIN
-
-    def _get_config(self, request):
-        return WhatsAppConfigView()._get_config(request)
-
-
-class ClinicaWhatsAppDisconnectView(BaseWhatsAppDisconnectView):
-    permission_classes = CLINICA_ADMIN
-
-    def _get_config(self, request):
-        return WhatsAppConfigView()._get_config(request)
-
-
-# ---------------------------------------------------------------------------
-# Campanhas de Promoção (envio em massa WhatsApp)
-# ---------------------------------------------------------------------------
 
 def _campanha_to_dict(c):
     return {

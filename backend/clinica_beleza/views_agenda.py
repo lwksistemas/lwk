@@ -4,7 +4,6 @@ Views de Agenda, Bloqueios de Horário e Agendamentos — Clínica da Beleza
 import logging
 
 from django.db.models import Q
-from django.utils.timezone import now
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .permissions import CLINICA_MEMBER
@@ -46,20 +45,6 @@ class AgendaView(APIView):
         if p := request.query_params.get('professional'):
             qs = qs.filter(professional_id=p)
         return Response(AgendaEventSerializer(qs.order_by('date'), many=True).data)
-
-
-class AgendaHojeView(APIView):
-    """GET /clinica-beleza/agenda/hoje/"""
-    permission_classes = CLINICA_MEMBER
-
-    def get(self, request):
-        qs = (
-            Appointment.objects
-            .select_related('patient', 'professional', 'procedure')
-            .filter(patient__is_active=True, professional__is_active=True, date__date=now().date())
-            .order_by('date')
-        )
-        return Response(AgendaEventSerializer(qs, many=True).data)
 
 
 class AgendaUpdateView(APIView):

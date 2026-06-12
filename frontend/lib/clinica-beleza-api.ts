@@ -567,16 +567,6 @@ export class ClinicaBelezaAPI {
     adminStatus: () => ClinicaBelezaAPI.get('/professionals/admin-status/'),
     toggleAdmin: (data: Record<string, unknown>) =>
       ClinicaBelezaAPI.post('/professionals/toggle-admin/', data),
-    /** Status Memed (Em análise, Ativo, etc.) por id do profissional. */
-    memedStatus: () =>
-      ClinicaBelezaAPI.get<Record<string, {
-        state: string;
-        label: string;
-        status?: string;
-        terms_accepted?: boolean;
-        tem_token?: boolean;
-        environment?: string;
-      }>>('/professionals/memed-status/'),
   };
 
   static loja = {
@@ -618,15 +608,6 @@ export class ClinicaBelezaAPI {
       ClinicaBelezaAPI.get('/estoque/resumo/', undefined, loja),
     movimentar: (id: number, data: { tipo: string; quantidade: number; motivo?: string }) =>
       ClinicaBelezaAPI.post(`/estoque/${id}/movimentar/`, data),
-  };
-
-  static whatsapp = {
-    get: () => ClinicaBelezaAPI.get('/whatsapp-config/'),
-    save: (data: Record<string, unknown>) => ClinicaBelezaAPI.patch('/whatsapp-config/', data),
-    connection: (withQr = false) =>
-      ClinicaBelezaAPI.get(withQr ? '/whatsapp-config/connection/?qr=1' : '/whatsapp-config/connection/'),
-    connect: () => ClinicaBelezaAPI.post('/whatsapp-config/connect/', {}),
-    disconnect: () => ClinicaBelezaAPI.post('/whatsapp-config/disconnect/', {}),
   };
 
   static memed = {

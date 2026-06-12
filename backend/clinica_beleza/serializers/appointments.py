@@ -6,9 +6,6 @@ from ..bloqueio_utils import bloqueio_datetime_range, split_datetime_range
 from ..models import (
     Appointment, AppointmentProcedure, BloqueioHorario, Convenio, LocalAtendimento, NomeAgenda, Procedure,
 )
-from .patients import PatientSerializer
-from .procedures import ProcedureSerializer
-from .professionals import ProfessionalSerializer
 
 
 class AppointmentListSerializer(serializers.ModelSerializer):
@@ -35,17 +32,6 @@ class AppointmentListSerializer(serializers.ModelSerializer):
             'procedure', 'procedure_name', 'procedure_price',
             'notes', 'created_at', 'updated_at',
         ]
-
-
-class AppointmentDetailSerializer(serializers.ModelSerializer):
-    """Serializer detalhado para agendamentos."""
-    patient = PatientSerializer(read_only=True)
-    professional = ProfessionalSerializer(read_only=True)
-    procedure = ProcedureSerializer(read_only=True)
-
-    class Meta:
-        model = Appointment
-        exclude = ['loja_id']
 
 
 class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializer):

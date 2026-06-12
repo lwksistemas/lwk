@@ -7,20 +7,15 @@ from .views import (
     LojaInfoView,
     PatientListView, PatientDetailView,
     ProfessionalListView, ProfessionalDetailView,
-    ProfessionalMemedStatusView,
     HorarioTrabalhoProfissionalView,
     ProfessionalCommissionView,
     ProcedureListView, ProcedureDetailView,
     ProcedimentoConvenioPrecosMatrixView, ProcedurePrecosConvenioView,
     PaymentListView, PaymentDetailView,
     FinanceiroResumoView, CategoriaDespesaListView, DespesaListView, DespesaDetailView,
-    AgendaView, AgendaHojeView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView,
+    AgendaView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView,
     AgendaReenviarMensagemView,
     BloqueioHorarioListView, BloqueioHorarioDetailView,
-    WhatsAppConfigView,
-    ClinicaWhatsAppConnectionStatusView,
-    ClinicaWhatsAppConnectView,
-    ClinicaWhatsAppDisconnectView,
     CampanhaPromocaoListView, CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView,
 )
 from .views_consultas import (
@@ -33,7 +28,7 @@ from .views_consultas import (
 )
 from .views_estoque import (
     ProdutoEstoqueListView, ProdutoEstoqueDetailView,
-    MovimentacaoEstoqueView, HistoricoEstoqueView, EstoqueResumoView,
+    MovimentacaoEstoqueView, EstoqueResumoView,
 )
 from .views_protocolos import ProtocolListView, ProtocolDetailView
 from .views_memed import MemedTokenView, MemedTimbradoView
@@ -136,7 +131,6 @@ urlpatterns = [
     # Profissionais
     path('professionals/admin-status/', AdminProfessionalStatusView.as_view(), name='admin-professional-status'),
     path('professionals/toggle-admin/', AdminProfessionalToggleView.as_view(), name='admin-professional-toggle'),
-    path('professionals/memed-status/', ProfessionalMemedStatusView.as_view(), name='professionals-memed-status'),
     path('professionals/', ProfessionalListView.as_view(), name='professionals-list'),
     path('professionals/<int:pk>/', ProfessionalDetailView.as_view(), name='professionals-detail'),
     path('professionals/<int:pk>/horarios-trabalho/', HorarioTrabalhoProfissionalView.as_view(), name='horarios-trabalho'),
@@ -169,7 +163,6 @@ urlpatterns = [
     
     # Agenda/Calendário
     path('agenda/', AgendaView.as_view(), name='agenda'),
-    path('agenda/hoje/', AgendaHojeView.as_view(), name='agenda-hoje'),
     path('agenda/create/', AgendaCreateView.as_view(), name='agenda-create'),
     path('agenda/<int:pk>/update/', AgendaUpdateView.as_view(), name='agenda-update'),
     path('agenda/<int:pk>/delete/', AgendaDeleteView.as_view(), name='agenda-delete'),
@@ -178,11 +171,6 @@ urlpatterns = [
     # Bloqueio de Horários
     path('bloqueios/', BloqueioHorarioListView.as_view(), name='bloqueios-list'),
     path('bloqueios/<int:pk>/', BloqueioHorarioDetailView.as_view(), name='bloqueios-detail'),
-    # Configuração WhatsApp (ETAPA 4)
-    path('whatsapp-config/', WhatsAppConfigView.as_view(), name='whatsapp-config'),
-    path('whatsapp-config/connection/', ClinicaWhatsAppConnectionStatusView.as_view(), name='whatsapp-connection'),
-    path('whatsapp-config/connect/', ClinicaWhatsAppConnectView.as_view(), name='whatsapp-connect'),
-    path('whatsapp-config/disconnect/', ClinicaWhatsAppDisconnectView.as_view(), name='whatsapp-disconnect'),
     # Campanhas de promoções
     path('campanhas/', CampanhaPromocaoListView.as_view(), name='campanhas-list'),
     path('campanhas/<int:pk>/', CampanhaPromocaoDetailView.as_view(), name='campanhas-detail'),
@@ -192,7 +180,6 @@ urlpatterns = [
     path('estoque/resumo/', EstoqueResumoView.as_view(), name='estoque-resumo'),
     path('estoque/<int:pk>/', ProdutoEstoqueDetailView.as_view(), name='estoque-detail'),
     path('estoque/<int:pk>/movimentar/', MovimentacaoEstoqueView.as_view(), name='estoque-movimentar'),
-    path('estoque/<int:pk>/historico/', HistoricoEstoqueView.as_view(), name='estoque-historico'),
     # Templates de documentos clínicos
     path('templates/', DocumentTemplateListView.as_view(), name='templates-list'),
     path('templates/<int:pk>/', DocumentTemplateDetailView.as_view(), name='templates-detail'),

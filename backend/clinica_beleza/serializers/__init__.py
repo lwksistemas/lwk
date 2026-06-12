@@ -6,7 +6,6 @@ Importe sempre via ``from clinica_beleza.serializers import X`` ou ``from .seria
 from .appointments import (
     AgendaEventSerializer,
     AppointmentCreateSerializer,
-    AppointmentDetailSerializer,
     AppointmentListSerializer,
     AppointmentProcedureSerializer,
     BloqueioHorarioSerializer,
@@ -47,7 +46,6 @@ from .professionals import (
 __all__ = [
     'AgendaEventSerializer',
     'AppointmentCreateSerializer',
-    'AppointmentDetailSerializer',
     'AppointmentListSerializer',
     'AppointmentProcedureSerializer',
     'BloqueioHorarioSerializer',

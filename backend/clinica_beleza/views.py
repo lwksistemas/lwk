@@ -7,10 +7,10 @@ Cada domínio está em seu próprio arquivo:
 - views_profissionais.py → ProfessionalListView, ProfessionalDetailView, HorarioTrabalhoProfissionalView
 - views_procedimentos.py → ProcedureListView, ProcedureDetailView
 - views_financeiro.py  → PaymentListView, PaymentDetailView, FinanceiroResumoView
-- views_agenda.py      → AgendaView, AgendaHojeView, AgendaUpdateView, AgendaCreateView,
+- views_agenda.py      → AgendaView, AgendaUpdateView, AgendaCreateView,
                           AgendaDeleteView, AgendaReenviarMensagemView,
                           BloqueioHorarioListView, BloqueioHorarioDetailView
-- views_whatsapp.py    → WhatsAppConfigView, CampanhaPromocaoListView,
+- views_whatsapp.py    → CampanhaPromocaoListView,
                           CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView
 """
 
@@ -22,7 +22,7 @@ from .views_pacientes import PatientListView, PatientDetailView  # noqa: F401
 
 # Profissionais
 from .views_profissionais import (  # noqa: F401
-    ProfessionalListView, ProfessionalDetailView, ProfessionalMemedStatusView,
+    ProfessionalListView, ProfessionalDetailView,
     HorarioTrabalhoProfissionalView, ProfessionalCommissionView,
 )
 
@@ -47,16 +47,12 @@ from .views_financeiro import (  # noqa: F401
 
 # Agenda & Bloqueios
 from .views_agenda import (  # noqa: F401
-    AgendaView, AgendaHojeView, AgendaUpdateView, AgendaCreateView,
+    AgendaView, AgendaUpdateView, AgendaCreateView,
     AgendaDeleteView, AgendaReenviarMensagemView,
     BloqueioHorarioListView, BloqueioHorarioDetailView,
 )
 
-# WhatsApp & Campanhas
+# Campanhas WhatsApp
 from .views_whatsapp import (  # noqa: F401
-    WhatsAppConfigView,
-    ClinicaWhatsAppConnectionStatusView,
-    ClinicaWhatsAppConnectView,
-    ClinicaWhatsAppDisconnectView,
     CampanhaPromocaoListView, CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView,
 )

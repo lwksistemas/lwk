@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ClipboardList,
@@ -36,21 +37,40 @@ import { ConsultaAtendimentoTab } from "./ConsultaAtendimentoTab";
 import { ConsultaProdutosTab } from "./ConsultaProdutosTab";
 import { ConsultaAnamneseTab } from "./ConsultaAnamneseTab";
 import { ConsultaEvolucaoTab } from "./ConsultaEvolucaoTab";
-import { ConsultaHistoricoTab } from "./ConsultaHistoricoTab";
-import { ConsultaDocumentosTab } from "./ConsultaDocumentosTab";
-import { ConsultaFinalizarModal } from "./ConsultaFinalizarModal";
 import { ConsultaTermoConsentimentoButton } from "./ConsultaTermoConsentimentoButton";
-import { ConsultaFotosTab } from "./ConsultaFotosTab";
-import MemedPrescricao, { type MemedPrescricaoHandle } from "./MemedPrescricao";
+import type { MemedPrescricaoHandle } from "./MemedPrescricao";
+
+const ConsultaHistoricoTab = dynamic(
+  () => import("./ConsultaHistoricoTab").then((m) => ({ default: m.ConsultaHistoricoTab })),
+  { loading: () => <div className="text-center py-12 text-gray-500 text-sm">Carregando histórico...</div> },
+);
+
+const ConsultaDocumentosTab = dynamic(
+  () => import("./ConsultaDocumentosTab").then((m) => ({ default: m.ConsultaDocumentosTab })),
+  { loading: () => <div className="text-center py-12 text-gray-500 text-sm">Carregando documentos...</div> },
+);
+
+const ConsultaFotosTab = dynamic(
+  () => import("./ConsultaFotosTab").then((m) => ({ default: m.ConsultaFotosTab })),
+  { loading: () => <div className="text-center py-12 text-gray-500 text-sm">Carregando fotos...</div> },
+);
+
+const ConsultaFinalizarModal = dynamic(
+  () => import("./ConsultaFinalizarModal").then((m) => ({ default: m.ConsultaFinalizarModal })),
+);
+
+const MemedPrescricao = dynamic(() => import("./MemedPrescricao"), { ssr: false });
 
 interface Props {
   consulta: Consulta;
+  /** true quando page.tsx já chamou consultas.get (evita GET duplicado). */
+  detailPreloaded?: boolean;
   onBack: () => void;
   onSelectConsulta: (c: Consulta) => void;
   onListRefresh: () => void | Promise<void>;
 }
 
-export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onListRefresh }: Props) {
+export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack, onSelectConsulta, onListRefresh }: Props) {
   const [selected, setSelected] = useState(consulta);
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
   const [tab, setTab] = useState<TabId>("atendimento");
@@ -140,8 +160,12 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
           break;
         }
         case "historico": {
+          const histPromise =
+            historico.length > 0 && !force
+              ? Promise.resolve(historico)
+              : ClinicaBelezaAPI.consultas.historicoCliente(patientId).catch(() => []);
           const [hist, anam, presc] = await Promise.all([
-            ClinicaBelezaAPI.consultas.historicoCliente(patientId).catch(() => []),
+            histPromise,
             ClinicaBelezaAPI.anamnese.get(patientId).catch(() => EMPTY_ANAMNESE),
             ClinicaBelezaAPI.memed.listarPrescricoesPaciente(patientId).catch(() => []),
           ]);
@@ -159,9 +183,9 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     } finally {
       setTabLoading(false);
     }
-  }, []);
+  }, [historico]);
 
-  const loadDetalhes = useCallback(async (c: Consulta) => {
+  const loadDetalhes = useCallback(async (c: Consulta, opts?: { detailPreloaded?: boolean }) => {
     if (loadingDetalheRef.current && lastLoadedIdRef.current === c.id) return;
     loadingDetalheRef.current = true;
     lastLoadedIdRef.current = c.id;
@@ -183,9 +207,12 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
     }
 
     try {
-      const fresh = await ClinicaBelezaAPI.consultas.get(c.id).catch(() => null);
-      const consultaAtual = fresh ? { ...c, ...fresh } : c;
-      setSelected(consultaAtual);
+      let consultaAtual = c;
+      if (!opts?.detailPreloaded) {
+        const fresh = await ClinicaBelezaAPI.consultas.get(c.id).catch(() => null);
+        consultaAtual = fresh ? { ...c, ...fresh } : c;
+        setSelected(consultaAtual);
+      }
 
       const hist = await ClinicaBelezaAPI.consultas.historicoCliente(consultaAtual.patient).catch(() => []);
       const histList = Array.isArray(hist) ? hist : [];
@@ -194,10 +221,20 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
       const initialTab: TabId =
         consultaAtual.status === "SCHEDULED" && temHistoricoAnterior ? "historico" : "atendimento";
       setTab(initialTab);
+
       if (initialTab === "historico") {
         loadedTabsRef.current.add("historico");
+        const [anam, presc] = await Promise.all([
+          ClinicaBelezaAPI.anamnese.get(consultaAtual.patient).catch(() => EMPTY_ANAMNESE),
+          ClinicaBelezaAPI.memed.listarPrescricoesPaciente(consultaAtual.patient).catch(() => []),
+        ]);
+        const anamMerged = { ...EMPTY_ANAMNESE, ...anam };
+        setAnamnese(anamMerged);
+        setAnamneseDraft(anamMerged);
+        setPrescricoes(Array.isArray(presc) ? presc : []);
+      } else {
+        await loadTabData(initialTab, consultaAtual, true);
       }
-      await loadTabData(initialTab, consultaAtual, true);
     } catch (e) {
       logger.warn("Erro ao carregar detalhes da consulta:", e);
     } finally {
@@ -217,8 +254,8 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
 
   useEffect(() => {
     if (lastLoadedIdRef.current === consulta.id) return;
-    loadDetalhes(consulta);
-  }, [consulta.id, loadDetalhes]);
+    loadDetalhes(consulta, { detailPreloaded });
+  }, [consulta.id, detailPreloaded, loadDetalhes, consulta]);
 
   useEffect(() => {
     if (loadingDetalhe) return;
@@ -572,14 +609,16 @@ export function ConsultaDetailShell({ consulta, onBack, onSelectConsulta, onList
             })}
           </div>
         </div>
-        <MemedPrescricao
-          ref={memedRef}
-          consultaId={selected.id}
-          professionalId={selected.professional ?? null}
-          patientId={selected.patient}
-          patientName={selected.patient_name}
-          onPrescricaoRegistrada={recarregarPrescricoes}
-        />
+        {consultaAtiva && (
+          <MemedPrescricao
+            ref={memedRef}
+            consultaId={selected.id}
+            professionalId={selected.professional ?? null}
+            patientId={selected.patient}
+            patientName={selected.patient_name}
+            onPrescricaoRegistrada={recarregarPrescricoes}
+          />
+        )}
         <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
           {loadingDetalhe || tabLoading ? (
             <div className="text-center py-16 text-gray-500">

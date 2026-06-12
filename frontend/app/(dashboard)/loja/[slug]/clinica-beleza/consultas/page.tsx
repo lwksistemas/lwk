@@ -5,6 +5,7 @@
  * Lista em tela cheia; detalhe da consulta selecionada em shell dedicado.
  */
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -16,13 +17,24 @@ import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
 import { useAgendamentoCadastros } from "@/hooks/clinica-beleza/useAgendamentoCadastros";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
-import {
-  type Consulta,
-  ConsultasListTable,
-  ConsultaDetailShell,
-  LocaisAtendimentoModal,
-  NomesAgendaModal,
-} from "./components";
+import type { Consulta } from "./components/consultas-types";
+import { ConsultasListTable } from "./components/ConsultasListTable";
+
+const ConsultaDetailShell = dynamic(
+  () => import("./components/ConsultaDetailShell").then((m) => ({ default: m.ConsultaDetailShell })),
+  {
+    ssr: false,
+    loading: () => <div className="text-center py-16 text-gray-500">Carregando consulta...</div>,
+  },
+);
+
+const LocaisAtendimentoModal = dynamic(
+  () => import("./components/LocaisAtendimentoModal").then((m) => ({ default: m.LocaisAtendimentoModal })),
+);
+
+const NomesAgendaModal = dynamic(
+  () => import("./components/NomesAgendaModal").then((m) => ({ default: m.NomesAgendaModal })),
+);
 
 export default function ConsultasPage() {
   const params = useParams();
@@ -42,6 +54,7 @@ export default function ConsultasPage() {
     totalCount,
   } = useClinicaBelezaPaginatedList<Consulta>({ path: "/consultas/" });
   const [selected, setSelected] = useState<Consulta | null>(null);
+  const [detailPreloaded, setDetailPreloaded] = useState(false);
   const [showLocaisModal, setShowLocaisModal] = useState(false);
   const [showNomesAgendaModal, setShowNomesAgendaModal] = useState(false);
   const [showNovaConsultaModal, setShowNovaConsultaModal] = useState(false);
@@ -57,7 +70,8 @@ export default function ConsultasPage() {
     reload: reloadCadastros,
   } = useAgendamentoCadastros(showNovaConsultaModal);
 
-  const abrirConsulta = useCallback((consulta: Consulta) => {
+  const abrirConsulta = useCallback((consulta: Consulta, preloaded = false) => {
+    setDetailPreloaded(preloaded);
     setSelected(consulta);
     router.replace(`/loja/${slug}/clinica-beleza/consultas?id=${consulta.id}`, { scroll: false });
   }, [router, slug]);
@@ -90,13 +104,19 @@ export default function ConsultasPage() {
     }
     const found = consultas.find((c) => String(c.id) === idParam);
     if (found) {
-      if (found.id !== selected?.id) setSelected(found);
+      if (found.id !== selected?.id) {
+        setDetailPreloaded(false);
+        setSelected(found);
+      }
       return;
     }
     let cancelled = false;
     ClinicaBelezaAPI.consultas.get(Number(idParam))
       .then((c) => {
-        if (!cancelled) setSelected(c as Consulta);
+        if (!cancelled) {
+          setDetailPreloaded(true);
+          setSelected(c as Consulta);
+        }
       })
       .catch(() => {
         if (!cancelled) setSelected(null);
@@ -108,6 +128,7 @@ export default function ConsultasPage() {
 
   const voltarLista = () => {
     setSelected(null);
+    setDetailPreloaded(false);
     router.replace(basePath, { scroll: false });
   };
 
@@ -118,8 +139,9 @@ export default function ConsultasPage() {
     return (
       <ConsultaDetailShell
         consulta={selected}
+        detailPreloaded={detailPreloaded}
         onBack={voltarLista}
-        onSelectConsulta={abrirConsulta}
+        onSelectConsulta={(c) => abrirConsulta(c, false)}
         onListRefresh={loadConsultas}
       />
     );
@@ -167,7 +189,7 @@ export default function ConsultasPage() {
           <ClinicaBelezaPanel>
             <ConsultasListTable
               consultas={consultas}
-              onSelect={abrirConsulta}
+              onSelect={(c) => abrirConsulta(c, false)}
               formatData={formatData}
             />
             <EntityListLoadMore
@@ -199,18 +221,22 @@ export default function ConsultasPage() {
           reloadCadastros();
         }}
         onConsultaCreated={(consultaId) => {
-          ClinicaBelezaAPI.consultas.get(consultaId).then((c) => abrirConsulta(c as Consulta)).catch(() => {});
+          ClinicaBelezaAPI.consultas.get(consultaId).then((c) => abrirConsulta(c as Consulta, true)).catch(() => {});
         }}
       />
 
-      <LocaisAtendimentoModal
-        open={showLocaisModal}
-        onClose={() => setShowLocaisModal(false)}
-      />
-      <NomesAgendaModal
-        open={showNomesAgendaModal}
-        onClose={() => setShowNomesAgendaModal(false)}
-      />
+      {showLocaisModal && (
+        <LocaisAtendimentoModal
+          open={showLocaisModal}
+          onClose={() => setShowLocaisModal(false)}
+        />
+      )}
+      {showNomesAgendaModal && (
+        <NomesAgendaModal
+          open={showNomesAgendaModal}
+          onClose={() => setShowNomesAgendaModal(false)}
+        />
+      )}
     </>
   );
 }

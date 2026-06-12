@@ -87,6 +87,7 @@ export function ConsultaHistoricoTab({
   const [loadingDocumentos, setLoadingDocumentos] = useState(false);
 
   useEffect(() => {
+    if (section !== "documentos") return;
     if (historicoEnriquecido.length === 0) {
       setDocumentosPorConsulta({});
       return;
@@ -113,7 +114,7 @@ export function ConsultaHistoricoTab({
     return () => {
       cancelled = true;
     };
-  }, [historicoEnriquecido, selectedId]);
+  }, [section, historicoEnriquecido]);
 
   useEffect(() => {
     if (!consultaId) return;

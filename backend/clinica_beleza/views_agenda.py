@@ -24,6 +24,18 @@ from .agenda_service import (
 logger = logging.getLogger(__name__)
 
 
+def _agenda_events_queryset():
+    """Queryset otimizado para AgendaEventSerializer (evita N+1 em appointment_procedures)."""
+    return (
+        Appointment.objects
+        .select_related(
+            'patient', 'professional', 'procedure',
+            'convenio', 'nome_agenda', 'local_atendimento',
+        )
+        .prefetch_related('appointment_procedures__procedure')
+    )
+
+
 # ---------------------------------------------------------------------------
 # Agenda (calendário FullCalendar)
 # ---------------------------------------------------------------------------
@@ -34,8 +46,7 @@ class AgendaView(APIView):
 
     def get(self, request):
         qs = (
-            Appointment.objects
-            .select_related('patient', 'professional', 'procedure')
+            _agenda_events_queryset()
             .filter(patient__is_active=True, professional__is_active=True)
         )
         if s := request.query_params.get('start'):
@@ -53,9 +64,10 @@ class AgendaUpdateView(APIView):
 
     def patch(self, request, pk):
         try:
-            appointment = Appointment.objects.select_related(
-                'procedure', 'professional', 'patient'
-            ).get(pk=pk)
+            appointment = (
+                _agenda_events_queryset()
+                .get(pk=pk)
+            )
         except Appointment.DoesNotExist:
             return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 

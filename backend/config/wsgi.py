@@ -8,7 +8,7 @@ application = get_wsgi_application()
 
 
 def _run_startup_ensures():
-    """Garante schema de estoque e storage desatualizado ao subir o worker (idempotente)."""
+    """Verificações leves ao subir worker. Schema ensures ficam só no releaseCommand (Railway)."""
     if os.environ.get('LWK_SKIP_STARTUP_ENSURE') == '1':
         return
     settings_module = os.environ.get('DJANGO_SETTINGS_MODULE', '')
@@ -20,9 +20,6 @@ def _run_startup_ensures():
         from django.db.models import Q
         from django.utils import timezone
         from superadmin.models import Loja
-
-        call_command('ensure_estoque_produto_fields', verbosity=1)
-        call_command('ensure_procedimentos_catalogo', '--all-clinica-beleza', verbosity=1)
 
         stale_cutoff = timezone.now() - timedelta(hours=6)
         needs_storage_check = Loja.objects.filter(is_active=True).filter(

@@ -183,7 +183,8 @@ export function WhatsAppWebConnect({
         </div>
         {!evolutionAvailable && (
           <p className="text-xs text-amber-700 dark:text-amber-300">
-            WhatsApp Web indisponível: Evolution API ainda não configurada no servidor LWK.
+            WhatsApp Web indisponível no servidor LWK. Use a Meta Cloud API abaixo ou peça ao suporte LWK para
+            habilitar a Evolution API.
           </p>
         )}
       </div>

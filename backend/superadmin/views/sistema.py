@@ -194,6 +194,11 @@ def health_check(request):
         'email_backend': getattr(settings, 'EMAIL_BACKEND', ''),
         'migrations_pending': pending,
     }
+    try:
+        from whatsapp.evolution_client import evolution_configured
+        payload['evolution_available'] = evolution_configured()
+    except Exception:
+        payload['evolution_available'] = False
     if pending:
         payload['status'] = 'degraded'
         return JsonResponse(payload, status=503)

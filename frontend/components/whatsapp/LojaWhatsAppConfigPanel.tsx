@@ -8,6 +8,7 @@ import {
 } from '@/components/whatsapp/WhatsAppWebConnect';
 import { formatTelefone, telefoneInternacionalBr } from '@/lib/format-br';
 import {
+  fetchEvolutionAvailableFromHealth,
   whatsappConfigApi,
   type WhatsAppConfigData,
   type WhatsAppFeatureFlags,
@@ -42,6 +43,7 @@ export function LojaWhatsAppConfigPanel({
   const [enviarPropostaWhatsapp, setEnviarPropostaWhatsapp] = useState(true);
   const [enviarContratoWhatsapp, setEnviarContratoWhatsapp] = useState(true);
   const [enviarTermoConsentimentoWhatsapp, setEnviarTermoConsentimentoWhatsapp] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const applyConfig = (data: WhatsAppConfigData) => {
     setWhatsappNumero(formatTelefone((data.whatsapp_numero ?? '').toString()));
@@ -64,12 +66,19 @@ export function LojaWhatsAppConfigPanel({
 
   const loadConfig = async () => {
     setLoading(true);
+    setLoadError('');
     try {
-      const data = await whatsappConfigApi.get();
+      const [data, evolutionFromHealth] = await Promise.all([
+        whatsappConfigApi.get(),
+        fetchEvolutionAvailableFromHealth(),
+      ]);
       applyConfig(data);
+      setEvolutionAvailable(!!data.evolution_available || evolutionFromHealth);
       setWhatsappToken('');
     } catch {
-      /* defaults */
+      const evolutionFromHealth = await fetchEvolutionAvailableFromHealth();
+      setEvolutionAvailable(evolutionFromHealth);
+      setLoadError('Não foi possível carregar todas as configurações. Recarregue a página ou tente salvar novamente.');
     } finally {
       setLoading(false);
     }
@@ -167,6 +176,11 @@ export function LojaWhatsAppConfigPanel({
         <p className="text-sm text-gray-500">Carregando...</p>
       ) : (
         <div className="space-y-6">
+          {loadError && (
+            <p className="text-sm text-amber-700 dark:text-amber-300 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+              {loadError}
+            </p>
+          )}
           <WhatsAppWebConnect
             provider={whatsappProvider}
             connectionStatus={connectionStatus}

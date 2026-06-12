@@ -4,6 +4,7 @@ Cron central LWK (serviço Railway lwks-cron).
 Executa a cada 15 minutos:
 - Lembretes WhatsApp de atividades CRM (24h e 2h antes)
 - Lembretes WhatsApp de agendamentos clínica (2h; 24h entre 7h–9h)
+- Marca Faltou (NO_SHOW) 2h após horário sem chegada
 - Backups automáticos por email (no minuto :00)
 
 Deploy:
@@ -26,12 +27,14 @@ class Command(BaseCommand):
             send_lembretes_atividade_crm_2h,
         )
         from whatsapp.tasks import send_lembretes_2h_whatsapp
+        from clinica_beleza.agenda_no_show_service import marcar_faltas_agenda_automatico
 
         crm_24h = send_lembretes_atividade_crm_24h()
         crm_2h = send_lembretes_atividade_crm_2h()
         clin_2h = send_lembretes_2h_whatsapp()
+        no_show = marcar_faltas_agenda_automatico()
         self.stdout.write(f'  CRM atividades: 24h={crm_24h} | 2h={crm_2h}')
-        self.stdout.write(f'  Clínica 2h: {clin_2h}')
+        self.stdout.write(f'  Clínica 2h: {clin_2h} | NO_SHOW auto: {no_show}')
 
         if 7 <= now.hour <= 9:
             from whatsapp.tasks import send_lembretes_24h_whatsapp

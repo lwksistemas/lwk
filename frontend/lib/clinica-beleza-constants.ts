@@ -19,10 +19,10 @@ export const CLINICA_PAGAMENTO_STATUS_LABEL: Record<string, string> = {
 /** Status de agendamento na agenda (calendário, lista, conflito offline). */
 export const CLINICA_AGENDA_STATUS_LABEL: Record<string, string> = {
   SCHEDULED: 'Aguardando confirmação',
-  CLIENT_CONFIRMED: 'Confirmado pelo cliente',
-  PHONE_CONFIRMED: 'Confirmado por telefone',
+  CLIENT_CONFIRMED: 'Confirmado pelo WhatsApp',
+  PHONE_CONFIRMED: 'Confirmado por ligação',
   CONFIRMED: 'Cliente presente',
-  PENDING: 'Pendente',
+  PENDING: 'Aguardando confirmação',
   IN_PROGRESS: 'Em atendimento',
   COMPLETED: 'Concluído',
   CANCELLED: 'Cancelado',
@@ -34,7 +34,7 @@ export const CLINICA_AGENDA_STATUS_COLORS: Record<string, { bg: string; border: 
   CLIENT_CONFIRMED: { bg: '#06b6d4', border: '#0891b2' },
   PHONE_CONFIRMED: { bg: '#3b82f6', border: '#2563eb' },
   CONFIRMED: { bg: '#22c55e', border: '#16a34a' },
-  PENDING: { bg: '#f59e0b', border: '#d97706' },
+  PENDING: { bg: '#a855f7', border: '#9333ea' },
   IN_PROGRESS: { bg: '#8b5cf6', border: '#7c3aed' },
   COMPLETED: { bg: '#0d9488', border: '#0f766e' },
   CANCELLED: { bg: '#dc2626', border: '#b91c1c' },
@@ -54,16 +54,45 @@ export const CLINICA_AGENDA_LEGEND_ITEMS: { key: string; label: string; bg: stri
   { key: 'INTERVALO', label: 'Intervalo', bg: '#f59e0b' },
 ];
 
-/** Opções de status editáveis na agenda (recepção). */
-export const CLINICA_AGENDA_STATUS_OPCOES = [
+/** Status que a secretaria pode definir manualmente na agenda. */
+export const CLINICA_AGENDA_STATUS_OPCOES_SECRETARIA = [
   { value: 'SCHEDULED', label: '🟣 Aguardando confirmação' },
-  { value: 'CLIENT_CONFIRMED', label: '🔵 Confirmado pelo cliente' },
-  { value: 'PHONE_CONFIRMED', label: '📞 Confirmado por telefone' },
+  { value: 'PHONE_CONFIRMED', label: '📞 Confirmado por ligação' },
   { value: 'CONFIRMED', label: '🟢 Cliente presente' },
-  { value: 'PENDING', label: '🟠 Pendente' },
   { value: 'CANCELLED', label: '🔴 Cancelado' },
   { value: 'NO_SHOW', label: '⬜ Faltou' },
 ] as const;
+
+/** @deprecated Use CLINICA_AGENDA_STATUS_OPCOES_SECRETARIA + getAgendaStatusOpcoesModal */
+export const CLINICA_AGENDA_STATUS_OPCOES = CLINICA_AGENDA_STATUS_OPCOES_SECRETARIA;
+
+/** PENDING legado equivale a SCHEDULED na exibição. */
+export function normalizeAgendaStatus(status: string): string {
+  return status === 'PENDING' ? 'SCHEDULED' : status;
+}
+
+export function getAgendaStatusLabel(status: string): string {
+  return CLINICA_AGENDA_STATUS_LABEL[normalizeAgendaStatus(status)] || status;
+}
+
+/** Opções do select da agenda: secretaria + status atual quando definido só pelo WhatsApp. */
+export function getAgendaStatusOpcoesModal(currentStatus: string) {
+  const normalized = normalizeAgendaStatus(currentStatus);
+  const base = [...CLINICA_AGENDA_STATUS_OPCOES_SECRETARIA];
+  if (currentStatus === 'CLIENT_CONFIRMED') {
+    return [
+      { value: 'CLIENT_CONFIRMED', label: `💬 ${CLINICA_AGENDA_STATUS_LABEL.CLIENT_CONFIRMED}` },
+      ...base.filter((o) => o.value !== 'SCHEDULED'),
+    ];
+  }
+  if (normalized !== currentStatus && !base.some((o) => o.value === currentStatus)) {
+    return [
+      { value: currentStatus, label: getAgendaStatusLabel(currentStatus) },
+      ...base,
+    ];
+  }
+  return base;
+}
 
 /** Status da consulta clínica (fluxo em Consultas). */
 export const CLINICA_CONSULTA_STATUS_LABEL: Record<string, string> = {

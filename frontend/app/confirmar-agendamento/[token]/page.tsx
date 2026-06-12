@@ -75,7 +75,7 @@ export default function ConfirmarAgendamentoPage() {
           ? {
               ...prev,
               status: data.status,
-              status_display: acao === 'confirmar' ? 'Confirmado' : 'Cancelado',
+              status_display: data.status_display || prev.status_display,
               pode_responder: false,
             }
           : prev

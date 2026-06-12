@@ -44,9 +44,17 @@ class ConfirmarAgendamentoPublicaView(View):
         if not result.ok:
             return JsonResponse({'error': result.message, 'status': result.status}, status=400)
 
+        status_display = None
+        if result.status:
+            from .models import Appointment
+            appt = Appointment.objects.filter(pk=result.appointment_id).first()
+            if appt:
+                status_display = appt.get_status_display()
+
         return JsonResponse({
             'ok': True,
             'message': result.message,
             'status': result.status,
+            'status_display': status_display,
             'already_done': result.already_done,
         })

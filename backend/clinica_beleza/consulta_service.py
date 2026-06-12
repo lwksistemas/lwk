@@ -12,6 +12,24 @@ from .models import Appointment, Consulta, Payment
 
 logger = logging.getLogger(__name__)
 
+MSG_CONSULTA_CONCLUIDA_NAO_EXCLUI = 'Consultas concluídas não podem ser excluídas.'
+
+
+def consulta_esta_concluida(consulta) -> bool:
+    """True se a consulta já foi finalizada (status, data_fim ou agenda concluída)."""
+    if consulta.status == 'COMPLETED':
+        return True
+    if consulta.data_fim:
+        return True
+    appointment = getattr(consulta, 'appointment', None)
+    return bool(appointment and appointment.status == 'COMPLETED')
+
+
+def motivo_bloqueio_exclusao_consulta(consulta) -> str | None:
+    if consulta_esta_concluida(consulta):
+        return MSG_CONSULTA_CONCLUIDA_NAO_EXCLUI
+    return None
+
 
 def _consulta_defaults_from_appointment(appointment, **extra):
     """Campos comuns ao criar Consulta a partir de um Appointment."""
@@ -142,9 +160,14 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
         try:
             consulta = appointment.consulta
         except Consulta.DoesNotExist:
-            return None
-        consulta.status = 'CANCELLED'
-        consulta.save(update_fields=['status', 'updated_at'])
+            consulta = Consulta.objects.create(
+                appointment=appointment,
+                **_consulta_defaults_from_appointment(appointment, status='CANCELLED'),
+            )
+            return consulta
+        if consulta.status not in ('IN_PROGRESS', 'COMPLETED'):
+            consulta.status = 'CANCELLED'
+            consulta.save(update_fields=['status', 'updated_at'])
         return consulta
 
     return None

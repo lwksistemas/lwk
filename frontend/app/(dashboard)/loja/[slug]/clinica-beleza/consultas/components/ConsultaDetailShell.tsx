@@ -23,9 +23,11 @@ import { CLINICA_CONSULTA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { fetchHistoricoPaciente } from "@/lib/clinica-beleza-cadastros-api";
 import type { ConsultaPrintMeta } from "@/lib/consulta-print";
+import { formatApiErrorBody } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
 import {
   type Consulta,
+  consultaEstaConcluida,
   consultaProcedimentos,
   consultaProcedimentosNomes,
   type Protocolo,
@@ -438,21 +440,26 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
   };
 
   const excluirConsulta = async () => {
+    if (consultaEstaConcluida(selected)) {
+      alert("Consultas concluídas não podem ser excluídas.");
+      return;
+    }
     if (!confirm("Excluir esta consulta? O agendamento vinculado será cancelado.")) return;
     try {
       await ClinicaBelezaAPI.consultas.excluir(selected.id);
       await onListRefresh();
       onBack();
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Erro ao excluir consulta.");
+      alert(formatApiErrorBody(e) || "Erro ao excluir consulta.");
     }
   };
 
   const podeIniciar = selected.status === "SCHEDULED";
   const podeFinalizar = selected.status === "IN_PROGRESS";
-  const podeExcluir = selected.status !== "COMPLETED";
+  const consultaConcluida = consultaEstaConcluida(selected);
+  const podeExcluir = !consultaConcluida;
   const consultaAtiva = selected.status === "IN_PROGRESS";
-  const consultaFinalizada = selected.status === "COMPLETED";
+  const consultaFinalizada = consultaConcluida;
 
   const tabs: { id: TabId; label: string; icon: typeof FileText }[] = [
     { id: "atendimento", label: "Atendimento", icon: ClipboardList },

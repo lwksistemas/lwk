@@ -98,6 +98,14 @@ export interface ConsultaProdutoUtilizado {
   estoque_baixado?: boolean;
 }
 
+/** Consulta finalizada — não pode ser excluída. */
+export function consultaEstaConcluida(c: Pick<Consulta, "status" | "data_fim" | "appointment_status">): boolean {
+  if (c.status === "COMPLETED") return true;
+  if (c.data_fim) return true;
+  if (c.appointment_status === "COMPLETED") return true;
+  return false;
+}
+
 export function consultaProcedimentos(c: Consulta): ConsultaProcedimento[] {
   if (c.procedures_list?.length) return c.procedures_list;
   if (c.procedure_name) {

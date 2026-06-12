@@ -4,7 +4,8 @@ import { X, MessageCircle } from "lucide-react";
 import {
   CLINICA_AGENDA_STATUS_COLORS,
   CLINICA_AGENDA_STATUS_LABEL,
-  CLINICA_AGENDA_STATUS_OPCOES,
+  getAgendaStatusLabel,
+  getAgendaStatusOpcoesModal,
 } from "@/lib/clinica-beleza-constants";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 
@@ -36,6 +37,8 @@ export function ModalDetalheAgendamento({
 
   const status = event.extendedProps.status;
   const statusSomenteLeitura = status === "IN_PROGRESS" || status === "COMPLETED";
+  const statusLabel = getAgendaStatusLabel(status);
+  const opcoesStatus = getAgendaStatusOpcoesModal(status);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -97,7 +100,7 @@ export function ModalDetalheAgendamento({
                   aria-hidden
                 />
                 <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                  {CLINICA_AGENDA_STATUS_LABEL[status] || status}
+                  {statusLabel}
                 </span>
               </div>
             ) : (
@@ -116,7 +119,7 @@ export function ModalDetalheAgendamento({
                   disabled={updatingStatus}
                   className="flex-1 px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-70"
                 >
-                  {CLINICA_AGENDA_STATUS_OPCOES.map((opt) => (
+                  {opcoesStatus.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
@@ -130,15 +133,15 @@ export function ModalDetalheAgendamento({
               </p>
             ) : status === "SCHEDULED" || status === "PENDING" ? (
               <p className="text-xs text-amber-700 dark:text-amber-400 mt-1.5">
-                Aguardando resposta do cliente no WhatsApp. A agenda atualiza sozinha em alguns segundos.
+                Aguardando resposta do cliente no WhatsApp ou pelo link. A agenda atualiza sozinha em alguns segundos.
               </p>
             ) : status === "CLIENT_CONFIRMED" ? (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                Cliente confirmou pelo WhatsApp ou link. Registre a chegada como &quot;Cliente presente&quot; para abrir a consulta.
+                Confirmado pelo WhatsApp ou link. Não abre consulta — registre &quot;Cliente presente&quot; quando chegar.
               </p>
             ) : status === "PHONE_CONFIRMED" ? (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                Confirmado pela recepção por telefone. Quando o cliente chegar, altere para &quot;Cliente presente&quot;.
+                Confirmado por ligação (recepção). Quando o cliente chegar, altere para &quot;Cliente presente&quot;.
               </p>
             ) : status === "CONFIRMED" ? (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">

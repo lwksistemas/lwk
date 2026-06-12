@@ -18,7 +18,13 @@ from .serializers import (
     PatientAnamneseSerializer, ConsultaEvolucaoSerializer,
     PrescricaoMemedSerializer,
 )
-from .consulta_service import finalizar_consulta, iniciar_consulta, criar_consulta_avulsa
+from .consulta_service import (
+    consulta_esta_concluida,
+    criar_consulta_avulsa,
+    finalizar_consulta,
+    iniciar_consulta,
+    motivo_bloqueio_exclusao_consulta,
+)
 from .pagination import paginate_queryset
 from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
@@ -68,6 +74,8 @@ class ConsultaListView(APIView):
             'appointment__appointment_procedures__procedure',
         ).annotate(
             total_evolucoes_count=Count('evolucoes'),
+        ).exclude(
+            status='CANCELLED',
         ).order_by('-data_inicio', '-created_at')
         if patient_id := request.query_params.get('patient'):
             qs = qs.filter(patient_id=patient_id)
@@ -173,7 +181,7 @@ class ConsultaDetailView(GetObjectMixin, APIView):
         obj, err = self.object_or_404(pk)
         if err:
             return err
-        if obj.status == 'COMPLETED':
+        if consulta_esta_concluida(obj):
             return Response(
                 {'error': 'Consulta finalizada não pode ser editada.'},
                 status=status.HTTP_403_FORBIDDEN,
@@ -192,12 +200,8 @@ class ConsultaDetailView(GetObjectMixin, APIView):
         if err:
             return err
 
-        # Só permite excluir consultas que ainda não foram concluídas
-        if consulta.status == 'COMPLETED':
-            return Response(
-                {'error': 'Consultas concluídas não podem ser excluídas.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if motivo := motivo_bloqueio_exclusao_consulta(consulta):
+            return Response({'error': motivo}, status=status.HTTP_403_FORBIDDEN)
 
         # Cancela o agendamento vinculado (se existir e estiver aberto)
         appointment = consulta.appointment

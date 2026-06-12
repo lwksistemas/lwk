@@ -232,7 +232,7 @@ def processar_resposta_confirmacao(token: str, acao: str) -> RespostaConfirmacao
         return RespostaConfirmacao(False, 'Erro ao registrar sua resposta. Tente novamente.')
 
     msg = (
-        'Consulta confirmada! Aguardamos você no horário marcado.'
+        'Agendamento confirmado pelo WhatsApp! Aguardamos você no horário marcado.'
         if novo_status == 'CLIENT_CONFIRMED'
         else 'Agendamento cancelado. Se precisar remarcar, entre em contato conosco.'
     )

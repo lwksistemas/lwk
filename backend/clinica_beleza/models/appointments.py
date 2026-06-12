@@ -24,10 +24,10 @@ class Appointment(LojaIsolationMixin, models.Model):
     """Agendamentos"""
     STATUS_CHOICES = (
         ('CONFIRMED', 'Cliente presente'),
-        ('CLIENT_CONFIRMED', 'Confirmado pelo cliente'),
-        ('PHONE_CONFIRMED', 'Confirmado por telefone'),
-        ('PENDING', 'Pendente'),
-        ('SCHEDULED', 'Agendado'),
+        ('CLIENT_CONFIRMED', 'Confirmado pelo WhatsApp'),
+        ('PHONE_CONFIRMED', 'Confirmado por ligação'),
+        ('PENDING', 'Aguardando confirmação'),  # legado — migrar para SCHEDULED
+        ('SCHEDULED', 'Aguardando confirmação'),
         ('IN_PROGRESS', 'Em Atendimento'),
         ('COMPLETED', 'Concluído'),
         ('CANCELLED', 'Cancelado'),

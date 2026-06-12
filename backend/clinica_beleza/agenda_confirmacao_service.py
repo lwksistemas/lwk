@@ -11,6 +11,7 @@ from django.core.signing import BadSignature, dumps, loads
 from django.utils import timezone
 
 from core.assinatura_service import normalizar_token_url
+from .agenda_display import format_agenda_data, format_agenda_hora
 
 logger = logging.getLogger(__name__)
 
@@ -133,8 +134,8 @@ def serializar_agendamento_publico(appointment, loja_nome: str = '') -> dict:
         'paciente_nome': getattr(appointment.patient, 'name', '') or getattr(appointment.patient, 'nome', ''),
         'profissional_nome': getattr(appointment.professional, 'nome', '') if appointment.professional else '',
         'procedimento': _procedure_label(appointment),
-        'data': appointment.date.strftime('%d/%m/%Y'),
-        'hora': appointment.date.strftime('%H:%M'),
+        'data': format_agenda_data(appointment),
+        'hora': format_agenda_hora(appointment),
         'status': appointment.status,
         'status_display': appointment.get_status_display(),
         'clinica_nome': loja_nome,

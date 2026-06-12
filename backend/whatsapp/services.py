@@ -447,8 +447,10 @@ def _procedure_label(agendamento):
 
 def msg_confirmacao(agendamento, *, link_confirmacao=None):
     """Solicitação de confirmação de agendamento."""
-    data = agendamento.date.strftime('%d/%m/%Y')
-    hora = agendamento.date.strftime('%H:%M')
+    from clinica_beleza.agenda_display import format_agenda_data, format_agenda_hora
+
+    data = format_agenda_data(agendamento)
+    hora = format_agenda_hora(agendamento)
     nome = getattr(agendamento.patient, 'name', '') or 'Cliente'
     procedimento = _procedure_label(agendamento)
     prof = getattr(agendamento.professional, 'nome', '') or ''
@@ -477,7 +479,9 @@ def msg_confirmacao(agendamento, *, link_confirmacao=None):
 
 def msg_lembrete(agendamento):
     """Lembrete de atendimento (ex.: dia do atendimento)."""
-    hora = agendamento.date.strftime('%H:%M')
+    from clinica_beleza.agenda_display import format_agenda_hora
+
+    hora = format_agenda_hora(agendamento)
     return (
         f"Lembrete ⏰\n\n"
         f"Você tem atendimento hoje às {hora}.\n"
@@ -546,8 +550,10 @@ def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, conf
     if not ok:
         return False, instance_or_err
 
-    data_fmt = agendamento.date.strftime('%d/%m/%Y')
-    hora_fmt = agendamento.date.strftime('%H:%M')
+    from clinica_beleza.agenda_display import format_agenda_data, format_agenda_hora
+
+    data_fmt = format_agenda_data(agendamento)
+    hora_fmt = format_agenda_hora(agendamento)
     ap_id = agendamento.id
     proc = _procedure_label(agendamento)
     title = 'Confirmação de consulta'

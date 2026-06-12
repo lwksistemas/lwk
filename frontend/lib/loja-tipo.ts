@@ -43,3 +43,16 @@ export function isTipoHotel(tipoLojaNome: string): boolean {
   const s = normalizarTipo(tipoLojaNome);
   return s.includes('hotel') || s.includes('pousada') || s.includes('hospedagem');
 }
+
+/** Rota de configurações do app (para voltar da tela de WhatsApp). */
+export function configuracoesPathForTipo(slug: string, tipoLojaNome: string): string {
+  if (isTipoClinicaBeleza(tipoLojaNome)) return `/loja/${slug}/clinica-beleza/configuracoes`;
+  if (isTipoCRMVendas(tipoLojaNome)) return `/loja/${slug}/crm-vendas/configuracoes`;
+  if (isTipoClinicaEstetica(tipoLojaNome)) return `/loja/${slug}/clinica-estetica/configuracoes`;
+  if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/configuracoes`;
+  if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/dashboard`;
+  if (isTipoRestaurante(tipoLojaNome)) return `/loja/${slug}/dashboard`;
+  if (isTipoCommerce(tipoLojaNome)) return `/loja/${slug}/dashboard`;
+  if (isTipoServicos(tipoLojaNome)) return `/loja/${slug}/dashboard`;
+  return `/loja/${slug}/dashboard`;
+}

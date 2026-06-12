@@ -84,6 +84,52 @@ def formatar_telefone_brasileiro(telefone):
     return numeros
 
 
+def telefone_internacional_br(telefone):
+    """
+    Normaliza telefone brasileiro com código do país (55) — apenas dígitos.
+    Usado no cadastro de pacientes para envio WhatsApp (Evolution/Meta).
+    """
+    if not telefone:
+        return ''
+
+    digits = limpar_telefone(telefone)
+    if not digits:
+        return ''
+
+    if len(digits) >= 12 and digits.startswith('55'):
+        out = digits[:15]
+        if out.startswith('55') and len(out) > 12 and out[2] == '0':
+            out = '55' + out[3:].lstrip('0')
+        return out
+
+    if len(digits) == 11 and not digits.startswith('1'):
+        return '55' + digits.lstrip('0')
+
+    if len(digits) == 11:
+        ddd = int(digits[:2])
+        if 11 <= ddd <= 99 and digits[2] == '9':
+            return '55' + digits
+
+    if len(digits) == 10:
+        return '55' + digits.lstrip('0')
+
+    return digits[:15]
+
+
+def telefone_exibicao_brasileiro(telefone):
+    """Exibe telefone armazenado com 55 no formato (DD) XXXXX-XXXX."""
+    if not telefone:
+        return ''
+
+    digits = limpar_telefone(telefone)
+    if digits.startswith('55') and len(digits) >= 12:
+        local = digits[2:].lstrip('0')
+        if len(local) >= 8:
+            return formatar_telefone_brasileiro(local)
+
+    return formatar_telefone_brasileiro(telefone)
+
+
 def validar_telefone_brasileiro(telefone):
     """
     Valida se telefone está no formato brasileiro válido

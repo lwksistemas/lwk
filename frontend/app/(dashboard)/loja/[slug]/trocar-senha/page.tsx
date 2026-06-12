@@ -39,7 +39,7 @@ export default function TrocarSenhaLojaComSlugPage() {
       setLoadingInfo(true);
       const [infoRes, verificarRes] = await Promise.all([
         apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`),
-        apiClient.get('/superadmin/lojas/verificar_senha_provisoria/').catch(() => null),
+        apiClient.get(`/superadmin/lojas/verificar_senha_provisoria/?slug=${encodeURIComponent(slug)}`).catch(() => null),
       ]);
       const tipo = infoRes.data.tipo_loja_nome || '';
       setLojaId(infoRes.data.id);

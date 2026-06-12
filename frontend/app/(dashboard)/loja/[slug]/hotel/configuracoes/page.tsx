@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { CreditCard, LogIn, Users, ChevronRight, Database, Settings, ArrowLeft, Clock } from 'lucide-react';
+import { CreditCard, LogIn, Users, ChevronRight, Database, Settings, ArrowLeft, Clock, MessageCircle } from 'lucide-react';
 import { authService } from '@/lib/auth';
 import apiClient from '@/lib/api-client';
 
@@ -29,6 +29,15 @@ export default function HotelConfiguracoesPage() {
   }, []);
 
   const opcoes = [
+    {
+      titulo: 'Configurar WhatsApp',
+      descricao: 'Envio de mensagens por WhatsApp (Meta ou Evolution)',
+      href: `/loja/${slug}/configuracoes/whatsapp`,
+      icon: MessageCircle,
+      color: 'from-emerald-500 to-green-600',
+      iconBg: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+      itens: ['WhatsApp Web (QR)', 'Meta Cloud API', 'Mensagens automáticas'],
+    },
     {
       titulo: 'Configurações Gerais',
       descricao: 'Horários de check-in, check-out e políticas do hotel',

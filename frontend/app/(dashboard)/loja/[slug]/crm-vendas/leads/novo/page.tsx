@@ -9,7 +9,8 @@ import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { ArrowLeft } from 'lucide-react';
 import { consultaCep } from '@/lib/consulta-cep';
 import { consultaCnpj, formatCpfCnpj } from '@/lib/consulta-cnpj';
-import { formatTelefone, toUpperCase } from '@/lib/format-br';
+import { buildCrmLeadPayload } from '@/lib/crm-utils';
+import { formatCep, formatTelefone, toUpperCase } from '@/lib/format-br';
 
 const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
 const labelClass = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1';
@@ -123,23 +124,7 @@ export default function NovoLeadPage() {
     }
     setEnviando(true);
     apiClient
-      .post('/crm-vendas/leads/', {
-        nome: form.nome.trim(),
-        empresa: form.empresa.trim() || undefined,
-        cpf_cnpj: form.cpf_cnpj.trim() || undefined,
-        email: form.email.trim() || undefined,
-        telefone: form.telefone.trim() || undefined,
-        origem: form.origem,
-        status: form.status,
-        cep: form.cep.trim() || undefined,
-        logradouro: form.logradouro.trim() || undefined,
-        numero: form.numero.trim() || undefined,
-        complemento: form.complemento.trim() || undefined,
-        bairro: form.bairro.trim() || undefined,
-        cidade: form.cidade.trim() || undefined,
-        uf: form.uf.trim().toUpperCase() || undefined,
-        observacoes: form.observacoes.trim() || undefined,
-      })
+      .post('/crm-vendas/leads/', buildCrmLeadPayload(form))
       .then(() => {
         router.push(`/loja/${slug}/crm-vendas/leads`);
       })

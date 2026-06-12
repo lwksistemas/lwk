@@ -11,6 +11,11 @@ interface DocumentoData {
   valor_total: string;
   valor_adesao?: string;
   valor_mensal?: string;
+  tem_desconto?: boolean;
+  desconto_tipo?: string;
+  desconto_valor?: string;
+  desconto_display?: string;
+  valor_com_desconto?: string;
   nome_assinante: string;
   tipo_assinante: string;
   tipo_assinante_display: string;
@@ -18,6 +23,94 @@ interface DocumentoData {
   lead_email?: string;
   lead_empresa: string;
   vendedor_email?: string;
+}
+
+function formatarMoeda(valor: string | number | undefined): string {
+  return parseFloat(String(valor || '0')).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+}
+
+function formatarDesconto(doc: DocumentoData): string {
+  if (!doc.tem_desconto) return '';
+  if (doc.desconto_tipo === 'percentual') {
+    return doc.desconto_display || `${doc.desconto_valor || '0'}%`;
+  }
+  return formatarMoeda(doc.desconto_valor);
+}
+
+function BlocoValores({ documento }: { documento: DocumentoData }) {
+  const valorTotal = formatarMoeda(documento.valor_total);
+  const valorComDesconto = formatarMoeda(documento.valor_com_desconto || documento.valor_total);
+  const adesao = parseFloat(documento.valor_adesao || '0');
+  const mensal = parseFloat(documento.valor_mensal || '0');
+  const temDesconto = Boolean(documento.tem_desconto);
+
+  const linhaDesconto = temDesconto ? (
+    <>
+      <div>
+        <p className="text-sm text-gray-500">Desconto</p>
+        <p className="text-lg font-bold text-red-600">{formatarDesconto(documento)}</p>
+      </div>
+      <div className="rounded-lg bg-blue-50 px-3 py-2">
+        <p className="text-sm text-blue-700">Valor com Desconto</p>
+        <p className="text-2xl font-bold text-blue-700">{valorComDesconto}</p>
+      </div>
+    </>
+  ) : null;
+
+  if (adesao > 0 && mensal > 0) {
+    return (
+      <div className="space-y-2">
+        <div>
+          <p className="text-sm text-gray-500">Adesão/Implantação</p>
+          <p className="text-lg font-bold text-gray-800">{formatarMoeda(adesao)}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-500">Valor Mensal</p>
+          <p className="text-lg font-bold text-blue-600">{formatarMoeda(mensal)}/mês</p>
+        </div>
+        <div className="pt-1 border-t">
+          <p className="text-sm text-gray-500">Valor Total</p>
+          <p className={`text-2xl font-bold ${temDesconto ? 'text-gray-700 line-through decoration-red-400' : 'text-green-600'}`}>
+            {valorTotal}
+          </p>
+        </div>
+        {linhaDesconto}
+      </div>
+    );
+  }
+
+  if (mensal > 0) {
+    return (
+      <div className="space-y-2">
+        <div>
+          <p className="text-sm text-gray-500">Valor Mensal</p>
+          <p className="text-2xl font-bold text-blue-600">{formatarMoeda(mensal)}/mês</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-500">Valor Total</p>
+          <p className={`text-lg font-bold ${temDesconto ? 'text-gray-700 line-through decoration-red-400' : 'text-green-600'}`}>
+            {valorTotal}
+          </p>
+        </div>
+        {linhaDesconto}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <p className="text-sm text-gray-500">Valor Total</p>
+        <p className={`text-2xl font-bold ${temDesconto ? 'text-gray-700 line-through decoration-red-400' : 'text-green-600'}`}>
+          {valorTotal}
+        </p>
+      </div>
+      {linhaDesconto}
+    </div>
+  );
 }
 
 export default function AssinaturaPage() {
@@ -316,10 +409,10 @@ export default function AssinaturaPage() {
   
   // Main form
   const tipoDocumento = documento?.tipo_documento === 'proposta' ? 'Proposta' : 'Contrato';
-  const valorFormatado = parseFloat(documento?.valor_total || '0').toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  });
+  const assinanteEhCliente = documento?.tipo_assinante === 'cliente';
+  const mostrarBlocoClienteSeparado = Boolean(
+    documento?.lead_nome && !assinanteEhCliente,
+  );
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
@@ -360,58 +453,21 @@ export default function AssinaturaPage() {
             <div className="flex items-start space-x-3 border-t pt-4">
               <DollarSign className="w-5 h-5 text-gray-400 mt-1" />
               <div className="flex-1">
-                {parseFloat(documento?.valor_adesao || '0') > 0 && parseFloat(documento?.valor_mensal || '0') > 0 ? (
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-sm text-gray-500">Adesão/Implantação</p>
-                      <p className="text-lg font-bold text-gray-800">
-                        {parseFloat(documento!.valor_adesao || '0').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Valor Mensal</p>
-                      <p className="text-lg font-bold text-blue-600">
-                        {parseFloat(documento!.valor_mensal || '0').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
-                      </p>
-                    </div>
-                    <div className="pt-1 border-t">
-                      <p className="text-sm text-gray-500">Valor Total</p>
-                      <p className="text-2xl font-bold text-green-600">{valorFormatado}</p>
-                    </div>
-                  </div>
-                ) : parseFloat(documento?.valor_mensal || '0') > 0 ? (
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-sm text-gray-500">Valor Mensal</p>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {parseFloat(documento!.valor_mensal || '0').toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Valor Total</p>
-                      <p className="text-lg font-bold text-green-600">{valorFormatado}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-sm text-gray-500">Valor Total</p>
-                    <p className="text-2xl font-bold text-green-600">{valorFormatado}</p>
-                  </div>
-                )}
+                {documento && <BlocoValores documento={documento} />}
               </div>
             </div>
             
-            {/* Cliente */}
-            {documento?.lead_nome && (
+            {/* Cliente (somente quando quem assina é o vendedor) */}
+            {mostrarBlocoClienteSeparado && (
               <div className="flex items-start space-x-3 border-t pt-4">
                 <User className="w-5 h-5 text-gray-400 mt-1" />
                 <div className="flex-1">
                   <p className="text-sm text-gray-500">Cliente</p>
-                  <p className="text-lg font-semibold text-gray-900">{documento.lead_nome}</p>
-                  {documento.lead_email && (
+                  <p className="text-lg font-semibold text-gray-900">{documento!.lead_nome}</p>
+                  {documento!.lead_email && (
                     <p className="text-sm text-gray-600">{documento.lead_email}</p>
                   )}
-                  {documento.lead_empresa && (
+                  {documento!.lead_empresa && (
                     <p className="text-sm text-gray-600">{documento.lead_empresa}</p>
                   )}
                 </div>
@@ -427,6 +483,12 @@ export default function AssinaturaPage() {
                 <span className="inline-block mt-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
                   {documento?.tipo_assinante_display}
                 </span>
+                {assinanteEhCliente && documento?.lead_email && (
+                  <p className="mt-2 text-sm text-gray-600">{documento.lead_email}</p>
+                )}
+                {assinanteEhCliente && documento?.lead_empresa && (
+                  <p className="text-sm text-gray-600">{documento.lead_empresa}</p>
+                )}
                 {documento?.vendedor_email && (
                   <p className="mt-2 text-xs text-gray-500">
                     E-mail do vendedor: <span className="font-medium text-gray-700">{documento.vendedor_email}</span>

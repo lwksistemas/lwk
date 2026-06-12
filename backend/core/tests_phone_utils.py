@@ -7,6 +7,8 @@ from .phone_utils import (
     formatar_telefone_brasileiro,
     validar_telefone_brasileiro,
     normalizar_telefone,
+    telefone_internacional_br,
+    telefone_exibicao_brasileiro,
 )
 
 
@@ -139,4 +141,19 @@ class PhoneUtilsTestCase(TestCase):
         self.assertEqual(
             normalizar_telefone(None),
             ""
+        )
+
+    def test_telefone_internacional_br(self):
+        self.assertEqual(telefone_internacional_br('(16) 99962-1823'), '5516999621823')
+        self.assertEqual(telefone_internacional_br('5516999621823'), '5516999621823')
+        self.assertEqual(telefone_internacional_br(''), '')
+
+    def test_telefone_exibicao_brasileiro(self):
+        self.assertEqual(
+            telefone_exibicao_brasileiro('5516999621823'),
+            '(16) 99962-1823',
+        )
+        self.assertEqual(
+            telefone_exibicao_brasileiro('(16) 99962-1823'),
+            '(16) 99962-1823',
         )

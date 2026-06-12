@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Save } from 'lucide-react';
+import { formatTelefone, telefoneInternacionalBr } from '@/lib/format-br';
 import { EmpresaFormData } from './types';
 
 interface EmpresaTabProps {
@@ -53,7 +53,7 @@ export function EmpresaTab({ empresaForm, setEmpresaForm, onSave, saving }: Empr
             <Label>Telefone WhatsApp</Label>
             <Input
               value={empresaForm.telefone_whatsapp}
-              onChange={(e) => setEmpresaForm((f) => ({ ...f, telefone_whatsapp: e.target.value }))}
+              onChange={(e) => setEmpresaForm((f) => ({ ...f, telefone_whatsapp: formatTelefone(e.target.value) }))}
               placeholder="5511999999999 (código país + DDD + número)"
             />
             <p className="text-xs text-gray-500 mt-1">

@@ -1,6 +1,7 @@
 'use client';
 
 import { formatCurrency } from '@/lib/financeiro-helpers';
+import { formatTelefone } from '@/lib/format-br';
 
 interface FormularioCadastroLojaProps {
   lojaForm: any;
@@ -37,6 +38,11 @@ export function FormularioCadastroLoja({
       const digits = value.replace(/\D/g, '').slice(0, 8);
       const formatted = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
       setFormData((prev: any) => ({ ...prev, cep: formatted }));
+      return;
+    }
+
+    if (name === 'owner_telefone') {
+      setFormData((prev: any) => ({ ...prev, owner_telefone: formatTelefone(value) }));
       return;
     }
     

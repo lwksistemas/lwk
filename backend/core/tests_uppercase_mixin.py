@@ -116,7 +116,7 @@ class TextNormalizationMixinTestCase(TestCase):
         })
         self.assertTrue(serializer.is_valid())
         self.assertEqual(serializer.validated_data['nome'], 'LUCAS SANTOS')
-        self.assertEqual(serializer.validated_data['telefone'], '(11) 98765-4321')
+        self.assertEqual(serializer.validated_data['telefone'], '5511987654321')
         self.assertEqual(serializer.validated_data['cidade'], 'SÃO PAULO')
     
     def test_telefone_formatado_e_nome_maiusculo(self):

@@ -1,5 +1,6 @@
 """Utilitários compartilhados entre ViewSets do CRM."""
 import logging
+import re
 
 from rest_framework.pagination import PageNumberPagination
 
@@ -29,6 +30,79 @@ def filtrar_queryset_por_query_params(queryset, request, param_field_map: dict[s
         if value:
             queryset = queryset.filter(**{field: value})
     return queryset
+
+
+def _documento_digitos_match(stored: str | None, documento: str) -> bool:
+    a = re.sub(r'\D', '', stored or '')
+    if not a:
+        return False
+    if a == documento:
+        return True
+    if len(a) in (11, 14) and len(documento) in (11, 14):
+        pad = 14 if max(len(a), len(documento)) == 14 else 11
+        return a.zfill(pad) == documento.zfill(pad)
+    return False
+
+
+def filtrar_queryset_por_documento(queryset, request, campo_documento: str):
+    """
+    Filtra ?documento= (CPF/CNPJ só dígitos) comparando o campo após remover formatação.
+    Usado na emissão NFS-e para localizar tomador sem carregar toda a lista paginada.
+    """
+    documento = re.sub(r'\D', '', request.query_params.get('documento') or '')
+    if not documento or len(documento) not in (11, 14):
+        return queryset
+
+    suffix = documento[-4:]
+    candidatos = queryset.filter(**{f'{campo_documento}__icontains': suffix}).values('pk', campo_documento)
+    matching_ids = [
+        row['pk']
+        for row in candidatos
+        if _documento_digitos_match(row.get(campo_documento), documento)
+    ]
+    if matching_ids:
+        return queryset.filter(pk__in=matching_ids)
+
+    # Fallback: varredura completa (cadastros por loja são pequenos)
+    matching_ids = [
+        row['pk']
+        for row in queryset.exclude(**{f'{campo_documento}__isnull': True}).values('pk', campo_documento)
+        if _documento_digitos_match(row.get(campo_documento), documento)
+    ]
+    return queryset.filter(pk__in=matching_ids) if matching_ids else queryset.none()
+
+
+def filtrar_leads_por_documento(queryset, request):
+    """Filtra leads por ?documento= no cpf_cnpj do lead ou CNPJ da conta vinculada."""
+    from django.db.models import Q
+
+    documento = re.sub(r'\D', '', request.query_params.get('documento') or '')
+    if not documento or len(documento) not in (11, 14):
+        return queryset
+
+    qs = queryset.select_related('conta')
+    suffix = documento[-4:]
+    candidatos = qs.filter(
+        Q(cpf_cnpj__icontains=suffix) | Q(conta__cnpj__icontains=suffix)
+    ).distinct()
+
+    matching_ids: list[int] = []
+    for lead in candidatos.iterator():
+        if _documento_digitos_match(lead.cpf_cnpj, documento):
+            matching_ids.append(lead.pk)
+        elif lead.conta_id and lead.conta and _documento_digitos_match(lead.conta.cnpj, documento):
+            matching_ids.append(lead.pk)
+
+    if matching_ids:
+        return queryset.filter(pk__in=matching_ids)
+
+    for lead in qs.iterator():
+        if _documento_digitos_match(lead.cpf_cnpj, documento):
+            matching_ids.append(lead.pk)
+        elif lead.conta_id and lead.conta and _documento_digitos_match(lead.conta.cnpj, documento):
+            matching_ids.append(lead.pk)
+
+    return queryset.filter(pk__in=matching_ids) if matching_ids else queryset.none()
 
 
 class CRMNoCacheListMixin:

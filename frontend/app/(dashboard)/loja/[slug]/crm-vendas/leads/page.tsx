@@ -5,13 +5,12 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { authService } from '@/lib/auth';
-import { fetchCrmPaginatedPage, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { buildCrmLeadPayload, fetchCrmPaginatedPage, getCrmApiErrorDetail } from '@/lib/crm-utils';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { Plus, Download } from 'lucide-react';
 import LeadsTable, { type Lead } from '@/components/crm-vendas/LeadsTable';
-import { formatTelefone, telefoneInternacionalBr } from '@/lib/format-br';
+import { formatTelefone } from '@/lib/format-br';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 
 const ModalLeadVer = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadVer'), { ssr: false });
@@ -71,7 +70,8 @@ export default function CrmVendasLeadsPage() {
   const [leadExcluir, setLeadExcluir] = useState<Lead | null>(null);
   const [leadMudarStatus, setLeadMudarStatus] = useState<Lead | null>(null);
   const [novoStatus, setNovoStatus] = useState('');
-  const [enviando, setEnviando] = useState(false);
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [salvandoStatus, setSalvandoStatus] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -151,43 +151,27 @@ export default function CrmVendasLeadsPage() {
     setFormErro(null);
   };
 
-  const handleSalvarEdicao = (e: React.FormEvent) => {
+  const handleSalvarEdicao = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!leadEditar) return;
+    if (!leadEditar || salvandoEdicao) return;
     setFormErro(null);
     if (!form.nome.trim()) {
       setFormErro('Informe o nome.');
       return;
     }
-    setEnviando(true);
-    apiClient
-      .patch(`/crm-vendas/leads/${leadEditar.id}/`, {
-        nome: form.nome.trim(),
-        empresa: form.empresa.trim() || undefined,
-        cpf_cnpj: form.cpf_cnpj.trim() || undefined,
-        email: form.email.trim() || undefined,
-        telefone: form.telefone.trim() ? telefoneInternacionalBr(form.telefone) : undefined,
-        origem: form.origem,
-        status: form.status,
-        cep: form.cep.trim() || undefined,
-        logradouro: form.logradouro.trim() || undefined,
-        numero: form.numero.trim() || undefined,
-        complemento: form.complemento.trim() || undefined,
-        bairro: form.bairro.trim() || undefined,
-        cidade: form.cidade.trim() || undefined,
-        uf: form.uf.trim().toUpperCase() || undefined,
-        observacoes: form.observacoes.trim() || undefined,
-      })
-      .then(() => {
-        setLeadEditar(null);
-        reloadLeads();
-      })
-      .catch((err) => {
-        setFormErro(
-          err.response?.data?.nome?.[0] || err.response?.data?.detail || 'Erro ao salvar.'
-        );
-      })
-      .finally(() => setEnviando(false));
+    setSalvandoEdicao(true);
+    try {
+      await apiClient.patch(
+        `/crm-vendas/leads/${leadEditar.id}/`,
+        buildCrmLeadPayload(form),
+      );
+      setLeadEditar(null);
+      reloadLeads();
+    } catch (err) {
+      setFormErro(getCrmApiErrorDetail(err, 'Erro ao salvar lead.'));
+    } finally {
+      setSalvandoEdicao(false);
+    }
   };
 
   const confirmarExcluir = () => {
@@ -210,23 +194,23 @@ export default function CrmVendasLeadsPage() {
     setNovoStatus(lead.status);
   };
 
-  const salvarNovoStatus = () => {
+  const salvarNovoStatus = async () => {
     if (!leadMudarStatus || novoStatus === leadMudarStatus.status) {
       setLeadMudarStatus(null);
       return;
     }
+    if (salvandoStatus) return;
     setFormErro(null);
-    setEnviando(true);
-    apiClient
-      .patch(`/crm-vendas/leads/${leadMudarStatus.id}/`, { status: novoStatus })
-      .then(() => {
-        setLeadMudarStatus(null);
-        reloadLeads();
-      })
-      .catch((err) => {
-        setFormErro(err.response?.data?.detail || 'Erro ao atualizar status.');
-      })
-      .finally(() => setEnviando(false));
+    setSalvandoStatus(true);
+    try {
+      await apiClient.patch(`/crm-vendas/leads/${leadMudarStatus.id}/`, { status: novoStatus });
+      setLeadMudarStatus(null);
+      reloadLeads();
+    } catch (err) {
+      setFormErro(getCrmApiErrorDetail(err, 'Erro ao atualizar status.'));
+    } finally {
+      setSalvandoStatus(false);
+    }
   };
 
   if (error) {
@@ -316,12 +300,12 @@ export default function CrmVendasLeadsPage() {
           title="Editar lead"
           form={form}
           formErro={formErro}
-          enviando={enviando}
+          enviando={salvandoEdicao}
           origensAtivas={origensAtivas}
           statusOpcoes={[...STATUS_LEAD_OPCOES]}
-          onFormChange={setForm}
+          onFormChange={(updater) => setForm(updater)}
           onSubmit={handleSalvarEdicao}
-          onClose={() => !enviando && setLeadEditar(null)}
+          onClose={() => !salvandoEdicao && setLeadEditar(null)}
         />
       )}
 
@@ -339,11 +323,11 @@ export default function CrmVendasLeadsPage() {
           lead={leadMudarStatus}
           novoStatus={novoStatus}
           formErro={formErro}
-          enviando={enviando}
+          enviando={salvandoStatus}
           statusOpcoes={[...STATUS_LEAD_OPCOES]}
           onNovoStatusChange={setNovoStatus}
           onSalvar={salvarNovoStatus}
-          onClose={() => { if (!enviando) setLeadMudarStatus(null); setFormErro(null); }}
+          onClose={() => { if (!salvandoStatus) setLeadMudarStatus(null); setFormErro(null); }}
         />
       )}
 

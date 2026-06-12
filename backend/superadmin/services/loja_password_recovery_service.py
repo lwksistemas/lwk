@@ -50,7 +50,17 @@ class LojaPasswordRecoveryService:
 
         loja.senha_provisoria = nova_senha
         loja.senha_foi_alterada = False
-        loja.save()
+        loja.save(update_fields=['senha_provisoria', 'senha_foi_alterada'])
+
+        # Sincronizar vínculos CRM/Clínica para forçar troca no próximo login
+        from ..models import ProfissionalUsuario, VendedorUsuario
+
+        ProfissionalUsuario.objects.filter(user=loja.owner, loja=loja).update(
+            precisa_trocar_senha=True,
+        )
+        VendedorUsuario.objects.filter(user=loja.owner, loja=loja).update(
+            precisa_trocar_senha=True,
+        )
 
         assunto = f'Recuperação de Senha - {loja.nome}'
         login_url = loja_login_absolute_url(loja)

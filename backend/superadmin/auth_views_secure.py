@@ -333,17 +333,24 @@ class SecureLoginView(APIView):
                         if user.groups.filter(name='Gerente de Vendas').exists():
                             response_data['is_gerente'] = True
 
-            # Proprietário que já trocou a senha da loja não deve ser bloqueado por
-            # flags órfãs em VendedorUsuario/ProfissionalUsuario (ex.: CRM Vendas).
-            if loja.owner_id == user.id and loja.senha_foi_alterada:
+            # Recuperação de senha da loja: senha provisória no model Loja tem prioridade
+            # sobre flags antigas em ProfissionalUsuario/VendedorUsuario (ex.: owner já
+            # tinha trocado senha antes e pu.precisa_trocar_senha ficou False).
+            precisa_senha_loja = (
+                loja.owner_id == user.id
+                and not loja.senha_foi_alterada
+                and bool(loja.senha_provisoria)
+            )
+            if precisa_senha_loja:
+                response_data['precisa_trocar_senha'] = True
+            elif loja.owner_id == user.id and loja.senha_foi_alterada:
                 response_data['precisa_trocar_senha'] = False
             elif pu:
                 response_data['precisa_trocar_senha'] = pu.precisa_trocar_senha
             elif vu:
                 response_data['precisa_trocar_senha'] = vu.precisa_trocar_senha
             elif loja.owner_id == user.id:
-                precisa_trocar_senha = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
-                response_data['precisa_trocar_senha'] = precisa_trocar_senha
+                response_data['precisa_trocar_senha'] = False
             else:
                 response_data['precisa_trocar_senha'] = False
 

@@ -17,8 +17,8 @@ class CRMCacheManager:
     """
     
     # Prefixos de cache
-    # v5: destino da mescla = is_admin ou e-mail do owner (não só is_admin)
-    DASHBOARD = 'crm_dashboard_v5'
+    # v6: próximas atividades alinhadas ao calendário (janela 30d atrás + 90d à frente)
+    DASHBOARD = 'crm_dashboard_v7'
     CONTAS = 'crm_contas_list'
     LEADS = 'crm_leads_list'
     CONTATOS = 'crm_contatos_list'

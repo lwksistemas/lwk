@@ -7,7 +7,7 @@ import apiClient from '@/lib/api-client';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { authService } from '@/lib/auth';
-import { formatTelefone, toUpperCase } from '@/lib/format-br';
+import { formatTelefone, telefoneInternacionalBr, toUpperCase } from '@/lib/format-br';
 import { ArrowLeft, Users, Plus, X, Mail, Trash2 } from 'lucide-react';
 
 interface Vendedor {
@@ -87,7 +87,7 @@ export default function ConfiguracoesFuncionariosPage() {
     setForm({
       nome: v.nome,
       email: v.email || '',
-      telefone: v.telefone || '',
+      telefone: formatTelefone(v.telefone || ''),
       cargo: v.cargo || 'Vendedor',
       comissao_padrao: v.comissao_padrao?.toString() || '0',
       grupo_id: '',
@@ -149,7 +149,7 @@ export default function ConfiguracoesFuncionariosPage() {
       const payload: Record<string, unknown> = { 
         nome: form.nome, 
         email: form.email, 
-        telefone: form.telefone, 
+        telefone: form.telefone.trim() ? telefoneInternacionalBr(form.telefone) : '', 
         cargo: form.cargo, 
         comissao_padrao: parseFloat(form.comissao_padrao) || 0,
         criar_acesso: form.criar_acesso 

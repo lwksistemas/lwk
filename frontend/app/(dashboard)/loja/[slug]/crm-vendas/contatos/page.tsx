@@ -11,6 +11,7 @@ import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import { ContatoFormModal } from './components/ContatoFormModal';
 import { ContatoViewModal } from './components/ContatoViewModal';
 import { ContatoDeleteModal } from './components/ContatoDeleteModal';
+import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
 import { logger } from '@/lib/logger';
 
 interface Conta { id: number; nome: string; }
@@ -101,7 +102,7 @@ export default function CrmVendasContatosPage() {
     setModalType(type);
     setSelectedContato(contato || null);
     if (type === 'edit' && contato) {
-      setFormData({ nome: contato.nome || '', email: contato.email || '', telefone: contato.telefone || '', cargo: contato.cargo || '', conta: String(contato.conta) || '', observacoes: contato.observacoes || '' });
+      setFormData({ nome: contato.nome || '', email: contato.email || '', telefone: formatTelefone(contato.telefone || ''), cargo: contato.cargo || '', conta: String(contato.conta) || '', observacoes: contato.observacoes || '' });
     } else if (type === 'create') {
       setFormData(EMPTY_FORM);
     }
@@ -115,7 +116,7 @@ export default function CrmVendasContatosPage() {
     if (!formData.conta) { alert('Conta é obrigatória'); return; }
     try {
       setSubmitting(true);
-      const payload = { ...formData, conta: parseInt(formData.conta, 10) };
+      const payload = applyTelefoneInternacionalPayload({ ...formData, conta: parseInt(formData.conta, 10) });
       if (modalType === 'create') {
         const res = await apiClient.post('/crm-vendas/contatos/', payload);
         const novoContato = res.data;

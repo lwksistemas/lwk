@@ -3,7 +3,7 @@ Mixins reutilizáveis para serializers
 """
 from rest_framework import serializers
 
-from .phone_utils import normalizar_telefone
+from .phone_utils import telefone_exibicao_brasileiro, telefone_internacional_br
 from .cpf_utils import (
     documento_preenchido,
     existe_documento_duplicado,
@@ -32,6 +32,9 @@ class PhoneNormalizationMixin:
     - whatsapp
     - telefone_comercial
     - telefone_residencial
+    - owner_telefone
+    - whatsapp_numero
+    - telefone_whatsapp
     """
     
     # Campos padrão a normalizar (pode ser sobrescrito na classe)
@@ -43,36 +46,33 @@ class PhoneNormalizationMixin:
         'telefone_comercial',
         'telefone_residencial',
         'owner_telefone',
+        'whatsapp_numero',
+        'telefone_whatsapp',
     ]
     
     def validate(self, attrs):
         """
-        Normaliza todos os campos de telefone antes de validar
+        Normaliza telefones para formato internacional BR (55 + DDD + número).
         """
-        # Obter lista de campos de telefone (da classe ou padrão)
         fields_to_normalize = getattr(self, 'phone_fields', self.phone_fields)
         
-        # Normalizar cada campo de telefone presente nos dados
         for field_name in fields_to_normalize:
             if field_name in attrs and attrs[field_name]:
-                attrs[field_name] = normalizar_telefone(attrs[field_name])
+                attrs[field_name] = telefone_internacional_br(attrs[field_name])
         
-        # Chamar validação pai
         return super().validate(attrs)
     
     def to_representation(self, instance):
         """
-        Garante que telefones sejam formatados na resposta também
+        Exibe telefones no formato brasileiro (DD) XXXXX-XXXX.
         """
         data = super().to_representation(instance)
         
-        # Obter lista de campos de telefone
         fields_to_normalize = getattr(self, 'phone_fields', self.phone_fields)
         
-        # Normalizar cada campo de telefone na resposta
         for field_name in fields_to_normalize:
             if field_name in data and data[field_name]:
-                data[field_name] = normalizar_telefone(data[field_name])
+                data[field_name] = telefone_exibicao_brasileiro(data[field_name])
         
         return data
 
@@ -265,6 +265,26 @@ class UniqueDocumentoPerLojaMixin:
                 continue
             self._validar_documento_unico(field_name, attrs[field_name])
         return attrs
+
+
+class TenantQuerysetMixin:
+    """
+    Reatribui querysets de PrimaryKeyRelatedField na instanciação do serializer.
+
+    Querysets definidos no corpo da classe são avaliados na importação do módulo,
+    sem contexto de tenant — LojaIsolationManager retorna vazio e a validação de PK falha.
+    """
+
+    def bind_tenant_queryset(self, field_name, queryset):
+        field = self.fields.get(field_name)
+        if field is not None:
+            field.queryset = queryset
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        apply = getattr(self, 'apply_tenant_querysets', None)
+        if callable(apply):
+            apply()
 
 
 class TextNormalizationMixin(PhoneNormalizationMixin, UpperCaseNormalizationMixin):

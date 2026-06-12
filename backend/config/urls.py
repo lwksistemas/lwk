@@ -78,6 +78,7 @@ urlpatterns = [
     path('api/hotel/', include('hotel.urls')),
     path('api/cabeleireiro/', include('cabeleireiro.urls')),
     path('api/clinica-beleza/', include('clinica_beleza.urls')),
+    path('api/whatsapp/', include('whatsapp.urls')),
     path('api/notificacoes/', include('notificacoes.urls')),
     path('api/push/', include('push.urls')),
     path('api/crm-vendas/', include('crm_vendas.urls')),

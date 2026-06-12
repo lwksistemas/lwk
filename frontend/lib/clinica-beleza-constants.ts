@@ -79,8 +79,9 @@ export function getAgendaStatusLabel(status: string): string {
 
 /** Opções do select — lista completa + status atual se for só leitura (ex.: em atendimento). */
 export function getAgendaStatusOpcoesModal(currentStatus: string) {
+  const normalized = normalizeAgendaStatus(currentStatus);
   const base = [...CLINICA_AGENDA_STATUS_OPCOES_MODAL];
-  if (base.some((o) => o.value === currentStatus)) {
+  if (base.some((o) => o.value === normalized)) {
     return base;
   }
   return [

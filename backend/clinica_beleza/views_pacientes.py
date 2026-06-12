@@ -51,10 +51,14 @@ class PatientListView(APIView):
         if search:
             from django.db.models import Q
             digits = ''.join(c for c in search if c.isdigit())
-            q_filter = Q(nome__icontains=search)
-            if digits:
-                q_filter |= Q(telefone__icontains=digits) | Q(cpf__icontains=digits)
-            queryset = queryset.filter(q_filter)
+            if len(digits) >= 3:
+                queryset = queryset.filter(
+                    Q(nome__icontains=search)
+                    | Q(telefone__icontains=digits)
+                    | Q(cpf__icontains=digits)
+                )
+            else:
+                queryset = queryset.filter(nome__icontains=search)
         return paginate_queryset(queryset, request, PatientSerializer)
 
     def post(self, request):

@@ -18,6 +18,33 @@ export function entityName(e: BilingualName): string {
   return e.name || e.nome || '';
 }
 
+/** Filtra pacientes por nome, telefone ou CPF conforme o usuário digita. */
+export function matchesPatientSearchQuery(
+  p: BilingualName & BilingualPhone & { cpf?: string | null },
+  rawQuery: string,
+): boolean {
+  const q = rawQuery.trim().toLowerCase();
+  if (!q) return false;
+  const nome = (entityName(p) || '').toLowerCase();
+  const qDigits = q.replace(/\D/g, '');
+  const tel = (p.phone || p.telefone || '').replace(/\D/g, '');
+  const cpf = (p.cpf || '').replace(/\D/g, '');
+  if (nome.includes(q)) return true;
+  if (qDigits.length >= 3 && (tel.includes(qDigits) || cpf.includes(qDigits))) return true;
+  return false;
+}
+
+export function dedupePatientsById<T extends { id: number }>(rows: T[]): T[] {
+  const seen = new Set<number>();
+  const out: T[] = [];
+  for (const row of rows) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    out.push(row);
+  }
+  return out;
+}
+
 export function entityPhone(e: BilingualPhone): string {
   return e.phone || e.telefone || '';
 }

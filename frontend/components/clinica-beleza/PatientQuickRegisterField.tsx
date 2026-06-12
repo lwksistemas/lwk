@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, UserPlus } from "lucide-react";
 import { formatCpf, formatTelefone } from "@/lib/format-br";
-import { entityName } from "@/lib/clinica-beleza-entities";
+import { entityName, dedupePatientsById, matchesPatientSearchQuery } from "@/lib/clinica-beleza-entities";
 
 export interface PatientQuickOption {
   id: number;
@@ -55,16 +55,14 @@ export function PatientQuickRegisterField({
     null;
 
   const filtrados = useMemo(() => {
-    if (onSearchPatients) return serverResults;
-    const q = busca.trim().toLowerCase();
-    if (!q) return patients.slice(0, 40);
-    return patients.filter((p) => {
-      const nome = (entityName(p) || "").toLowerCase();
-      const tel = (p.telefone || p.phone || "").replace(/\D/g, "");
-      const cpf = (p.cpf || "").replace(/\D/g, "");
-      const qDigits = q.replace(/\D/g, "");
-      return nome.includes(q) || (qDigits && (tel.includes(qDigits) || cpf.includes(qDigits)));
-    }).slice(0, 40);
+    const q = busca.trim();
+    if (!q) {
+      return onSearchPatients ? [] : patients.slice(0, 40);
+    }
+    const pool = onSearchPatients
+      ? dedupePatientsById([...serverResults, ...patients])
+      : patients;
+    return pool.filter((p) => matchesPatientSearchQuery(p, q)).slice(0, 40);
   }, [busca, patients, onSearchPatients, serverResults]);
 
   useEffect(() => {
@@ -80,7 +78,7 @@ export function PatientQuickRegisterField({
     const timer = window.setTimeout(() => {
       onSearchPatients(q)
         .then((rows) => {
-          if (!cancelled) setServerResults(rows);
+          if (!cancelled) setServerResults(Array.isArray(rows) ? rows : []);
         })
         .catch(() => {
           if (!cancelled) setServerResults([]);
@@ -88,7 +86,7 @@ export function PatientQuickRegisterField({
         .finally(() => {
           if (!cancelled) setSearching(false);
         });
-    }, 300);
+    }, 250);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
@@ -162,8 +160,8 @@ export function PatientQuickRegisterField({
             />
           </div>
 
-          {busca.trim() && !patientId && onSearchPatients && busca.trim().length < 2 && (
-            <p className="text-xs text-gray-500 mb-2">Digite ao menos 2 caracteres para buscar.</p>
+          {busca.trim() && !patientId && onSearchPatients && busca.trim().length === 1 && (
+            <p className="text-xs text-gray-500 mb-2">Filtrando na lista carregada… com 2+ caracteres busca no servidor.</p>
           )}
 
           {busca.trim() && !patientId && searching && (
@@ -192,7 +190,7 @@ export function PatientQuickRegisterField({
             </div>
           )}
 
-          {busca.trim() && !patientId && !searching && filtrados.length === 0 && busca.trim().length >= (onSearchPatients ? 2 : 1) && (
+          {busca.trim() && !patientId && !searching && filtrados.length === 0 && (
             <p className="text-xs text-gray-500 mb-2">Nenhum paciente encontrado.</p>
           )}
 

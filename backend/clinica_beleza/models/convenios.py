@@ -21,6 +21,12 @@ class LocalAtendimento(LojaIsolationMixin, models.Model):
     """Local de atendimento com valor de consulta associado (ex: Consultório, Home Care, Telemedicina)."""
     nome = models.CharField(max_length=200, verbose_name="Nome do local")
     valor_consulta = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor da consulta (R$)")
+    tempo_consulta_minutos = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Tempo da consulta (minutos)",
+        help_text="Duração padrão da consulta neste local (ex.: 40 minutos).",
+    )
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

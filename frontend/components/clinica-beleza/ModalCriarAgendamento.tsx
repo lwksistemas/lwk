@@ -389,11 +389,22 @@ export function ModalCriarAgendamento({
                   className={inputClass}
                 >
                   <option value="">Selecione o local (opcional)</option>
-                  {locaisAtendimento.map((l) => (
+                  {locaisAtendimento.map((l) => {
+                    const valor = Number(l.valor_consulta).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    });
+                    const tempo =
+                      l.tempo_consulta_minutos != null && l.tempo_consulta_minutos > 0
+                        ? `${l.tempo_consulta_minutos} min`
+                        : null;
+                    const label = [l.nome, valor, tempo].filter(Boolean).join(" · ");
+                    return (
                     <option key={l.id} value={l.id}>
-                      {l.nome} — R$ {Number(l.valor_consulta).toFixed(2)}
+                      {label}
                     </option>
-                  ))}
+                    );
+                  })}
                 </select>
                 {locaisAtendimento.length === 0 && (
                   <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">

@@ -165,13 +165,17 @@ class Command(BaseCommand):
         # ── Locais padrão do catálogo ──
         locais = []
         self.stdout.write(f'{len(LOCAIS_CATALOGO)} local(is) de atendimento:')
-        for nome, valor in LOCAIS_CATALOGO:
+        for nome, valor, tempo in LOCAIS_CATALOGO:
             local, _ = LocalAtendimento.objects.using(db).update_or_create(
                 nome=nome, loja_id=lid,
-                defaults={'valor_consulta': valor, 'is_active': True},
+                defaults={
+                    'valor_consulta': valor,
+                    'tempo_consulta_minutos': tempo,
+                    'is_active': True,
+                },
             )
             locais.append(local)
-            self.stdout.write(f'   • {nome}: R$ {valor}')
+            self.stdout.write(f'   • {nome}: R$ {valor} — {tempo} min')
 
         self._aplicar_nomes_reais(db, lid)
 

@@ -40,8 +40,10 @@ function extractApiError(err: unknown, fallback: string): string {
 function LocalFormFields({
   formNome,
   formValor,
+  formTempo,
   onNomeChange,
   onValorChange,
+  onTempoChange,
   onSave,
   onCancel,
   saving,
@@ -49,8 +51,10 @@ function LocalFormFields({
 }: {
   formNome: string;
   formValor: string;
+  formTempo: string;
   onNomeChange: (v: string) => void;
   onValorChange: (v: string) => void;
+  onTempoChange: (v: string) => void;
   onSave: () => void;
   onCancel: () => void;
   saving: boolean;
@@ -71,19 +75,36 @@ function LocalFormFields({
           autoFocus
         />
       </div>
-      <div>
-        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-          Valor da consulta (R$)
-        </label>
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          value={formValor}
-          onChange={(e) => onValorChange(e.target.value)}
-          placeholder="0,00"
-          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+            Valor da consulta (R$)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formValor}
+            onChange={(e) => onValorChange(e.target.value)}
+            placeholder="0,00"
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+            Tempo da consulta (min)
+          </label>
+          <input
+            type="number"
+            step="1"
+            min="1"
+            max="480"
+            value={formTempo}
+            onChange={(e) => onTempoChange(e.target.value)}
+            placeholder="40"
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+          />
+        </div>
       </div>
       <div className="flex gap-2">
         <button
@@ -116,6 +137,7 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
   const [isCreating, setIsCreating] = useState(false);
   const [formNome, setFormNome] = useState("");
   const [formValor, setFormValor] = useState("");
+  const [formTempo, setFormTempo] = useState("40");
   const [error, setError] = useState("");
 
   const loadLocais = useCallback(async () => {
@@ -137,6 +159,7 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
       setEditingId(null);
       setFormNome("");
       setFormValor("");
+      setFormTempo("40");
       setError("");
     }
   }, [open, loadLocais]);
@@ -144,6 +167,7 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
   const resetForm = () => {
     setFormNome("");
     setFormValor("");
+    setFormTempo("40");
     setEditingId(null);
     setIsCreating(false);
     setError("");
@@ -154,6 +178,11 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
     setEditingId(local.id);
     setFormNome(local.nome);
     setFormValor(valorToInput(local.valor_consulta));
+    setFormTempo(
+      local.tempo_consulta_minutos != null && local.tempo_consulta_minutos > 0
+        ? String(local.tempo_consulta_minutos)
+        : "40",
+    );
     setError("");
   };
 
@@ -161,6 +190,7 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
     setEditingId(null);
     setFormNome("");
     setFormValor("");
+    setFormTempo("40");
     setIsCreating(true);
     setError("");
   };
@@ -168,6 +198,7 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
   const handleSave = async () => {
     const nome = formNome.trim();
     const valor = parseValorInput(formValor);
+    const tempo = parseInt(formTempo.trim(), 10);
 
     if (!nome) {
       setError("O nome do local é obrigatório.");
@@ -177,14 +208,19 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
       setError("O valor deve ser um número maior ou igual a zero.");
       return;
     }
+    if (!Number.isFinite(tempo) || tempo < 1 || tempo > 480) {
+      setError("O tempo deve ser entre 1 e 480 minutos.");
+      return;
+    }
 
     setSaving(true);
     setError("");
     try {
+      const payload = { nome, valor_consulta: valor, tempo_consulta_minutos: tempo };
       if (editingId) {
-        await ClinicaBelezaAPI.locaisAtendimento.update(editingId, { nome, valor_consulta: valor });
+        await ClinicaBelezaAPI.locaisAtendimento.update(editingId, payload);
       } else {
-        await ClinicaBelezaAPI.locaisAtendimento.create({ nome, valor_consulta: valor });
+        await ClinicaBelezaAPI.locaisAtendimento.create(payload);
       }
       resetForm();
       await loadLocais();
@@ -210,6 +246,18 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
     const num = typeof value === "string" ? parseFloat(value.replace(",", ".")) : value;
     if (!Number.isFinite(num)) return "—";
     return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  };
+
+  const formatTempo = (minutos?: number | null) => {
+    if (minutos == null || !Number.isFinite(minutos) || minutos <= 0) return null;
+    return `${minutos} min`;
+  };
+
+  const formatLocalResumo = (local: LocalAtendimentoItem) => {
+    const partes = [formatCurrencyBR(local.valor_consulta)];
+    const tempo = formatTempo(local.tempo_consulta_minutos);
+    if (tempo) partes.push(tempo);
+    return partes.join(" · ");
   };
 
   if (!open) return null;
@@ -246,8 +294,10 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
               <LocalFormFields
                 formNome={formNome}
                 formValor={formValor}
+                formTempo={formTempo}
                 onNomeChange={setFormNome}
                 onValorChange={setFormValor}
+                onTempoChange={setFormTempo}
                 onSave={handleSave}
                 onCancel={resetForm}
                 saving={saving}
@@ -284,8 +334,10 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
                       <LocalFormFields
                         formNome={formNome}
                         formValor={formValor}
+                        formTempo={formTempo}
                         onNomeChange={setFormNome}
                         onValorChange={setFormValor}
+                        onTempoChange={setFormTempo}
                         onSave={handleSave}
                         onCancel={resetForm}
                         saving={saving}
@@ -299,7 +351,7 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
                           {local.nome}
                         </span>
                         <span className="ml-2 text-gray-500 dark:text-gray-400 text-sm">
-                          {formatCurrencyBR(local.valor_consulta)}
+                          {formatLocalResumo(local)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">

@@ -2,6 +2,7 @@ export interface LocalAtendimento {
   id: number;
   nome: string;
   valor_consulta: string | number;
+  tempo_consulta_minutos?: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

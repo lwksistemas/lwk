@@ -76,11 +76,15 @@ def aplicar_catalogo_padrao(loja, *, log: Callable[[str], None] | None = None) -
 
     emit(f'Catálogo padrão — {loja.nome} ({loja.slug})')
 
-    for nome, valor in LOCAIS_CATALOGO:
+    for nome, valor, tempo in LOCAIS_CATALOGO:
         LocalAtendimento.objects.using(db).update_or_create(
             nome=nome,
             loja_id=lid,
-            defaults={'valor_consulta': valor, 'is_active': True},
+            defaults={
+                'valor_consulta': valor,
+                'tempo_consulta_minutos': tempo,
+                'is_active': True,
+            },
         )
 
     if LOCAIS_CATALOGO_LEGADO:

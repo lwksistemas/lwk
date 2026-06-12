@@ -8,7 +8,7 @@ from decimal import Decimal
 from clinica_beleza.termos_consentimento_catalogo import resolver_termo_consentimento
 
 LOCAIS_CATALOGO = [
-    ('Consultório', Decimal('0.00')),
+    ('Consultório', Decimal('0.00'), 40),
 ]
 
 # Convênio padrão (particular) — sempre cadastrado na loja.
@@ -219,7 +219,7 @@ PROCEDIMENTOS_CATALOGO: list[ProcedimentoCatalogoItem] = [
     ),
 ]
 
-LOCAIS_CATALOGO_NOMES = {nome for nome, _ in LOCAIS_CATALOGO}
+LOCAIS_CATALOGO_NOMES = {nome for nome, *_ in LOCAIS_CATALOGO}
 PROCEDIMENTOS_CATALOGO_NOMES = {item.nome for item in PROCEDIMENTOS_CATALOGO}
 
 # (nome, telefone, cpf) — pacientes de demonstração (CPFs válidos, fictícios)

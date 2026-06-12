@@ -698,9 +698,9 @@ export class ClinicaBelezaAPI {
   static locaisAtendimento = {
     list: () =>
       ClinicaBelezaAPI.get<LocalAtendimentoItem[]>('/locais-atendimento/'),
-    create: (data: { nome: string; valor_consulta: number | string }) =>
+    create: (data: { nome: string; valor_consulta: number | string; tempo_consulta_minutos: number }) =>
       ClinicaBelezaAPI.post<LocalAtendimentoItem>('/locais-atendimento/', data),
-    update: (id: number, data: { nome?: string; valor_consulta?: number | string }) =>
+    update: (id: number, data: { nome?: string; valor_consulta?: number | string; tempo_consulta_minutos?: number }) =>
       ClinicaBelezaAPI.patch<LocalAtendimentoItem>(`/locais-atendimento/${id}/`, data),
     delete: (id: number) =>
       ClinicaBelezaAPI.delete(`/locais-atendimento/${id}/`),
@@ -818,6 +818,7 @@ export interface LocalAtendimentoItem {
   id: number;
   nome: string;
   valor_consulta: string | number;
+  tempo_consulta_minutos?: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

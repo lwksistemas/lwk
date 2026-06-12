@@ -68,7 +68,10 @@ class LocalAtendimentoSerializer(TextNormalizationMixin, serializers.ModelSerial
     phone_fields = []
     class Meta:
         model = LocalAtendimento
-        fields = ['id', 'nome', 'valor_consulta', 'is_active', 'created_at', 'updated_at']
+        fields = [
+            'id', 'nome', 'valor_consulta', 'tempo_consulta_minutos',
+            'is_active', 'created_at', 'updated_at',
+        ]
         read_only_fields = ['id', 'is_active', 'created_at', 'updated_at']
 
     def validate_nome(self, value):
@@ -79,6 +82,13 @@ class LocalAtendimentoSerializer(TextNormalizationMixin, serializers.ModelSerial
     def validate_valor_consulta(self, value):
         if value is None or value < 0:
             raise serializers.ValidationError('O valor deve ser maior ou igual a zero.')
+        return value
+
+    def validate_tempo_consulta_minutos(self, value):
+        if value is None:
+            return value
+        if value < 1 or value > 480:
+            raise serializers.ValidationError('O tempo deve ser entre 1 e 480 minutos.')
         return value
 
 

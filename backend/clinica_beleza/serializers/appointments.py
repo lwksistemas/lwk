@@ -4,7 +4,7 @@ from rest_framework import serializers
 from core.serializer_mixins import TenantQuerysetMixin
 from ..bloqueio_utils import bloqueio_datetime_range, split_datetime_range
 from ..models import (
-    Appointment, AppointmentProcedure, BloqueioHorario, Convenio, NomeAgenda, Procedure,
+    Appointment, AppointmentProcedure, BloqueioHorario, Convenio, LocalAtendimento, NomeAgenda, Procedure,
 )
 from .patients import PatientSerializer
 from .procedures import ProcedureSerializer
@@ -66,16 +66,22 @@ class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializ
         required=False,
         allow_null=True,
     )
+    local_atendimento = serializers.PrimaryKeyRelatedField(
+        queryset=LocalAtendimento.objects.none(),
+        required=False,
+        allow_null=True,
+    )
 
     def apply_tenant_querysets(self):
         self.bind_tenant_queryset('convenio', Convenio.objects.filter(is_active=True))
         self.bind_tenant_queryset('nome_agenda', NomeAgenda.objects.filter(is_active=True))
+        self.bind_tenant_queryset('local_atendimento', LocalAtendimento.objects.filter(is_active=True))
 
     class Meta:
         model = Appointment
         fields = [
             'date', 'status', 'patient', 'professional', 'procedure',
-            'procedures_ids', 'notes', 'convenio', 'nome_agenda',
+            'procedures_ids', 'notes', 'convenio', 'nome_agenda', 'local_atendimento',
         ]
         extra_kwargs = {
             'procedure': {'required': False, 'allow_null': True},
@@ -155,6 +161,12 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     convenio_name = serializers.SerializerMethodField()
     nome_agenda_id = serializers.IntegerField(source='nome_agenda.id', read_only=True, allow_null=True)
     nome_agenda_name = serializers.CharField(source='nome_agenda.nome', read_only=True, allow_null=True, default=None)
+    local_atendimento_id = serializers.IntegerField(
+        source='local_atendimento.id', read_only=True, allow_null=True,
+    )
+    local_atendimento_name = serializers.CharField(
+        source='local_atendimento.nome', read_only=True, allow_null=True, default=None,
+    )
 
     version = serializers.IntegerField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
@@ -172,6 +184,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
             'procedure_price', 'procedures_list',
             'convenio', 'convenio_id', 'convenio_name',
             'nome_agenda', 'nome_agenda_id', 'nome_agenda_name',
+            'local_atendimento', 'local_atendimento_id', 'local_atendimento_name',
             'version', 'updated_at', 'updated_by_id',
         ]
 

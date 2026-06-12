@@ -15,7 +15,7 @@ from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 User = get_user_model()
 
-from .convenios import Convenio, NomeAgenda
+from .convenios import Convenio, LocalAtendimento, NomeAgenda
 from .patients import Patient
 from .procedures import Procedure
 from .professionals import Professional
@@ -63,6 +63,14 @@ class Appointment(LojaIsolationMixin, models.Model):
         blank=True,
         related_name='agendamentos',
         verbose_name='Nome da agenda',
+    )
+    local_atendimento = models.ForeignKey(
+        LocalAtendimento,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='agendamentos',
+        verbose_name='Local de atendimento',
     )
     duracao_minutos = models.PositiveIntegerField(
         null=True,

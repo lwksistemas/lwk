@@ -31,7 +31,7 @@ import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioH
 import { ModalConflitoAgenda } from "@/components/clinica-beleza/ModalConflitoAgenda";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
-import type { NomeAgendaItem } from "@/lib/clinica-beleza-api";
+import type { LocalAtendimentoItem, NomeAgendaItem } from "@/lib/clinica-beleza-api";
 import {
   salvarPacientesOffline, buscarPacientesOffline,
   salvarProfissionaisOffline, buscarProfissionaisOffline,
@@ -87,6 +87,7 @@ export default function AgendaPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [nomesAgenda, setNomesAgenda] = useState<NomeAgendaItem[]>([]);
+  const [locaisAtendimento, setLocaisAtendimento] = useState<LocalAtendimentoItem[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [bloqueios, setBloqueios] = useState<BloqueioHorario[]>([]);
@@ -237,18 +238,21 @@ export default function AgendaPage() {
         const horariosReq = selectedProfessional
           ? clinicaBelezaFetch(`/professionals/${selectedProfessional}/horarios-trabalho/`)
           : Promise.resolve(null);
-        const [resEv, resBl, resProf, resPat, resProc, resHor, resAgendas] = await Promise.all([
+        const [resEv, resBl, resProf, resPat, resProc, resHor, resAgendas, resLocais] = await Promise.all([
           clinicaBelezaFetch(agendaPath), clinicaBelezaFetch(bloqueiosPath),
           clinicaBelezaFetch("/professionals/"),
           clinicaBelezaFetch("/patients/"), clinicaBelezaFetch("/procedures/"),
           horariosReq,
           clinicaBelezaFetch("/nomes-agenda/"),
+          clinicaBelezaFetch("/locais-atendimento/"),
         ]);
         const profs: Professional[] = resProf.ok ? await resProf.json() : [];
         const pacs: Patient[] = resPat.ok ? await resPat.json() : [];
         const procs: Procedure[] = resProc.ok ? await resProc.json() : [];
         const agendas: NomeAgendaItem[] = resAgendas.ok ? await resAgendas.json() : [];
+        const locais: LocalAtendimentoItem[] = resLocais.ok ? await resLocais.json() : [];
         setNomesAgenda(Array.isArray(agendas) ? agendas : []);
+        setLocaisAtendimento(Array.isArray(locais) ? locais : []);
         let horariosAtivos: HorarioTrabalhoRow[] = [];
         if (resHor?.ok) {
           horariosAtivos = await resHor.json();
@@ -548,6 +552,7 @@ export default function AgendaPage() {
         selectedDate={selectedDate} defaultProfessionalId={selectedProfessional}
         professionals={professionals} patients={patients} procedures={procedures}
         nomesAgenda={nomesAgenda}
+        locaisAtendimento={locaisAtendimento}
         onPatientsChange={setPatients}
         onOfflineEventCreated={(evt) => setEventos((prev) => [...prev, evt as AgendaEventData])}
       />

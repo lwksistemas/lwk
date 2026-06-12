@@ -13,12 +13,31 @@ from .models import Appointment, Consulta, Payment
 logger = logging.getLogger(__name__)
 
 
+def _consulta_defaults_from_appointment(appointment, **extra):
+    """Campos comuns ao criar Consulta a partir de um Appointment."""
+    defaults = {
+        'patient_id': appointment.patient_id,
+        'professional_id': appointment.professional_id,
+        'procedure_id': appointment.procedure_id,
+        'valor_consulta': _valor_consulta(appointment),
+        'convenio_id': appointment.convenio_id,
+        'loja_id': appointment.loja_id,
+    }
+    if getattr(appointment, 'local_atendimento_id', None):
+        defaults['local_atendimento_id'] = appointment.local_atendimento_id
+    defaults.update(extra)
+    return defaults
+
+
 def _valor_consulta(appointment, consulta=None):
     """Valor padrão da taxa de consulta ao criar registro (procedimentos têm valores à parte)."""
     if consulta is not None:
         local = getattr(consulta, 'local_atendimento', None)
         if local is not None:
             return Decimal(str(local.valor_consulta or 0))
+    local_appt = getattr(appointment, 'local_atendimento', None)
+    if local_appt is not None:
+        return Decimal(str(local_appt.valor_consulta or 0))
     if appointment.appointment_procedures.exists():
         return Decimal('0')
     try:
@@ -77,15 +96,7 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
     if new_status == 'CONFIRMED':
         consulta, created = Consulta.objects.get_or_create(
             appointment=appointment,
-            defaults={
-                'patient_id': appointment.patient_id,
-                'professional_id': appointment.professional_id,
-                'procedure_id': appointment.procedure_id,
-                'status': 'SCHEDULED',
-                'valor_consulta': _valor_consulta(appointment),
-                'convenio_id': appointment.convenio_id,
-                'loja_id': appointment.loja_id,
-            },
+            defaults=_consulta_defaults_from_appointment(appointment, status='SCHEDULED'),
         )
         if not created and consulta.status not in ('IN_PROGRESS', 'COMPLETED'):
             consulta.status = 'SCHEDULED'
@@ -95,16 +106,9 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
     if new_status == 'IN_PROGRESS':
         consulta, created = Consulta.objects.get_or_create(
             appointment=appointment,
-            defaults={
-                'patient_id': appointment.patient_id,
-                'professional_id': appointment.professional_id,
-                'procedure_id': appointment.procedure_id,
-                'status': 'IN_PROGRESS',
-                'data_inicio': ts,
-                'valor_consulta': _valor_consulta(appointment),
-                'convenio_id': appointment.convenio_id,
-                'loja_id': appointment.loja_id,
-            },
+            defaults=_consulta_defaults_from_appointment(
+                appointment, status='IN_PROGRESS', data_inicio=ts,
+            ),
         )
         if not created:
             consulta.status = 'IN_PROGRESS'
@@ -119,15 +123,9 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
         except Consulta.DoesNotExist:
             consulta = Consulta.objects.create(
                 appointment=appointment,
-                patient_id=appointment.patient_id,
-                professional_id=appointment.professional_id,
-                procedure_id=appointment.procedure_id,
-                status='COMPLETED',
-                data_inicio=ts,
-                data_fim=ts,
-                valor_consulta=_valor_consulta(appointment),
-                convenio_id=appointment.convenio_id,
-                loja_id=appointment.loja_id,
+                **_consulta_defaults_from_appointment(
+                    appointment, status='COMPLETED', data_inicio=ts, data_fim=ts,
+                ),
             )
             return consulta
         consulta.status = 'COMPLETED'
@@ -206,6 +204,7 @@ def criar_consulta_avulsa(
         professional=professional,
         procedure=primary_procedure,
         convenio=convenio,
+        local_atendimento=local_atendimento,
         loja_id=loja_id,
     )
     criar_appointment_procedures(appointment, proc_list, convenio=convenio)

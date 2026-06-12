@@ -11,7 +11,7 @@ import {
 import { useNovaConsultaForm, type ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 import { formatApiErrorBody } from "@/lib/api-errors";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
-import type { NomeAgendaItem } from "@/lib/clinica-beleza-api";
+import type { LocalAtendimentoItem, NomeAgendaItem } from "@/lib/clinica-beleza-api";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { adicionarNaFilaSync } from "@/lib/offline-db";
 import { notificarFilaAtualizada } from "@/hooks/useSyncPending";
@@ -42,6 +42,7 @@ interface ModalCriarAgendamentoProps {
   patients: PatientQuickOption[];
   procedures: ConsultaFormProcedure[];
   nomesAgenda: NomeAgendaItem[];
+  locaisAtendimento: LocalAtendimentoItem[];
   onPatientsChange: (patients: PatientQuickOption[]) => void;
   onOfflineEventCreated?: (event: unknown) => void;
 }
@@ -56,12 +57,14 @@ export function ModalCriarAgendamento({
   patients,
   procedures,
   nomesAgenda,
+  locaisAtendimento,
   onPatientsChange,
   onOfflineEventCreated,
 }: ModalCriarAgendamentoProps) {
   const [time, setTime] = useState("09:00");
   const [notes, setNotes] = useState("");
   const [nomeAgendaId, setNomeAgendaId] = useState<number | "">("");
+  const [localAtendimentoId, setLocalAtendimentoId] = useState<number | "">("");
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
   const [horariosProfissional, setHorariosProfissional] = useState<HorarioTrabalho[]>([]);
@@ -89,6 +92,7 @@ export function ModalCriarAgendamento({
     setConvenioId("");
     setProfessionalId(defaultProfessionalId ? Number(defaultProfessionalId) : "");
     setNomeAgendaId("");
+    setLocalAtendimentoId("");
     setTime(selectedDate ? formatTimeFromDate(selectedDate) : "09:00");
     setNotes("");
     setCreateError("");
@@ -166,6 +170,7 @@ export function ModalCriarAgendamento({
       nome_agenda: Number(nomeAgendaId),
       notes: notes.trim() || null,
     };
+    if (localAtendimentoId) payload.local_atendimento = Number(localAtendimentoId);
     if (convenioId) payload.convenio = Number(convenioId);
     if (selectedProcedures.length === 1) {
       payload.procedure = selectedProcedures[0];
@@ -236,6 +241,7 @@ export function ModalCriarAgendamento({
     setTime("09:00");
     setNotes("");
     setNomeAgendaId("");
+    setLocalAtendimentoId("");
     setCreateError("");
     setCreateLoading(false);
     onClose();
@@ -308,6 +314,29 @@ export function ModalCriarAgendamento({
                 {nomesAgenda.length === 0 && (
                   <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
                     Cadastre nomes de agenda em Consultas → ícone de configurações.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Local de atendimento
+                </label>
+                <select
+                  value={localAtendimentoId}
+                  onChange={(e) => setLocalAtendimentoId(e.target.value ? Number(e.target.value) : "")}
+                  className={inputClass}
+                >
+                  <option value="">Selecione o local (opcional)</option>
+                  {locaisAtendimento.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.nome} — R$ {Number(l.valor_consulta).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+                {locaisAtendimento.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    Cadastre locais em Consultas → ícone de engrenagem.
                   </p>
                 )}
               </div>

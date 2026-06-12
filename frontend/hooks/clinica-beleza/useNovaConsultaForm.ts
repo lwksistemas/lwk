@@ -27,9 +27,16 @@ interface Options {
   patients: ConsultaFormPatient[];
   procedures: ConsultaFormProcedure[];
   enabled?: boolean;
+  /** Nova consulta avulsa permite orçamento/representante sem procedimento. */
+  requireProcedure?: boolean;
 }
 
-export function useNovaConsultaForm({ patients, procedures, enabled = true }: Options) {
+export function useNovaConsultaForm({
+  patients,
+  procedures,
+  enabled = true,
+  requireProcedure = true,
+}: Options) {
   const [patientId, setPatientId] = useState<number | "">("");
   const [professionalId, setProfessionalId] = useState<number | "">("");
   const [convenioId, setConvenioId] = useState<number | "">("");
@@ -73,11 +80,16 @@ export function useNovaConsultaForm({ patients, procedures, enabled = true }: Op
   }, []);
 
   const validateBase = useCallback((): string | null => {
-    if (!patientId || !professionalId || selectedProcedures.length === 0) {
-      return "Selecione o cliente, o profissional e pelo menos um procedimento.";
+    if (!patientId || !professionalId) {
+      return requireProcedure
+        ? "Selecione o cliente, o profissional e pelo menos um procedimento."
+        : "Selecione o paciente e o profissional.";
+    }
+    if (requireProcedure && selectedProcedures.length === 0) {
+      return "Selecione pelo menos um procedimento.";
     }
     return null;
-  }, [patientId, professionalId, selectedProcedures]);
+  }, [patientId, professionalId, selectedProcedures, requireProcedure]);
 
   return {
     patientId,

@@ -40,7 +40,10 @@ class Consulta(LojaIsolationMixin, models.Model):
     professional = models.ForeignKey(
         Professional, on_delete=models.SET_NULL, null=True, related_name='consultas', verbose_name='Profissional',
     )
-    procedure = models.ForeignKey(Procedure, on_delete=models.CASCADE, related_name='consultas', verbose_name='Procedimento')
+    procedure = models.ForeignKey(
+        Procedure, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='consultas', verbose_name='Procedimento',
+    )
     protocol = models.ForeignKey(
         ProcedureProtocol,
         on_delete=models.SET_NULL,
@@ -103,7 +106,8 @@ class Consulta(LojaIsolationMixin, models.Model):
         ]
 
     def __str__(self):
-        return f'Consulta {self.patient.nome} — {self.procedure.nome}'
+        proc = self.procedure.nome if self.procedure_id and self.procedure else 'Sem procedimento'
+        return f'Consulta {self.patient.nome} — {proc}'
 
     @property
     def duracao_minutos(self):

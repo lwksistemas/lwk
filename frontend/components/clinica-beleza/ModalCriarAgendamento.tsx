@@ -101,7 +101,7 @@ export function ModalCriarAgendamento({
     resumo,
     resetForm,
     validateBase,
-  } = useNovaConsultaForm({ patients, procedures, enabled: open });
+  } = useNovaConsultaForm({ patients, procedures, enabled: open, requireProcedure: !isConsulta });
 
   useEffect(() => {
     if (!open) return;
@@ -181,7 +181,16 @@ export function ModalCriarAgendamento({
       return;
     }
 
-    const horarioMsg = workHoursRejectionMessage(date, resumo.duracao, horariosProfissional);
+    const localSel = localAtendimentoId
+      ? locaisAtendimento.find((l) => l.id === localAtendimentoId)
+      : undefined;
+    const duracaoChecagem =
+      resumo.duracao ||
+      (localSel?.tempo_consulta_minutos != null && localSel.tempo_consulta_minutos > 0
+        ? localSel.tempo_consulta_minutos
+        : 30);
+
+    const horarioMsg = workHoursRejectionMessage(date, duracaoChecagem, horariosProfissional);
     if (horarioMsg) {
       setCreateError(horarioMsg);
       return;
@@ -201,7 +210,7 @@ export function ModalCriarAgendamento({
     if (convenioId) basePayload.convenio = Number(convenioId);
     if (selectedProcedures.length === 1) {
       basePayload.procedure = selectedProcedures[0];
-    } else {
+    } else if (selectedProcedures.length > 1) {
       basePayload.procedures_ids = selectedProcedures;
       basePayload.procedure = selectedProcedures[0];
     }
@@ -432,7 +441,13 @@ export function ModalCriarAgendamento({
                 onRemove={removerProcedimento}
                 convenioId={convenioId}
                 precosMap={precosMap}
+                optional={isConsulta}
               />
+              {isConsulta && selectedProcedures.length === 0 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
+                  Opcional — use para orçamento ou atendimento de representante.
+                </p>
+              )}
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>

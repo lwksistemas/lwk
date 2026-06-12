@@ -98,28 +98,8 @@ class ConsultaListView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if not procedures_ids and not procedure_id:
-            return Response(
-                {'error': 'Informe pelo menos um procedimento.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            patient = Patient.objects.get(pk=patient_id)
-        except Patient.DoesNotExist:
-            return Response({'error': 'Cliente não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
-        # Validação de pertencimento à loja
-        loja_id = resolve_loja_id_from_request(request)
-        if patient.loja_id != loja_id:
-            return Response({'error': 'Paciente não pertence a esta loja.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            professional = Professional.objects.get(pk=professional_id)
-        except Professional.DoesNotExist:
-            return Response({'error': 'Profissional não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
-        # Resolver procedimentos
-        if procedures_ids:
+            proc_list = []
+        elif procedures_ids:
             proc_list = list(Procedure.objects.filter(id__in=procedures_ids, is_active=True))
             if not proc_list:
                 return Response({'error': 'Nenhum procedimento válido encontrado.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -128,6 +108,20 @@ class ConsultaListView(APIView):
                 proc_list = [Procedure.objects.get(pk=procedure_id)]
             except Procedure.DoesNotExist:
                 return Response({'error': 'Procedimento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            patient = Patient.objects.get(pk=patient_id)
+        except Patient.DoesNotExist:
+            return Response({'error': 'Cliente não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        loja_id = resolve_loja_id_from_request(request)
+        if patient.loja_id != loja_id:
+            return Response({'error': 'Paciente não pertence a esta loja.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            professional = Professional.objects.get(pk=professional_id)
+        except Professional.DoesNotExist:
+            return Response({'error': 'Profissional não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         iniciar = request.data.get('iniciar', False)
         local_atendimento_id = request.data.get('local_atendimento')
@@ -286,6 +280,12 @@ class ConsultaAplicarProtocoloView(APIView):
             protocol = ProcedureProtocol.objects.get(pk=protocol_id, is_active=True)
         except ProcedureProtocol.DoesNotExist:
             return Response({'error': 'Protocolo não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not consulta.procedure_id:
+            return Response(
+                {'error': 'Adicione um procedimento à consulta antes de aplicar protocolo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if protocol.procedure_id != consulta.procedure_id:
             return Response({'error': 'Protocolo não pertence ao procedimento da consulta'}, status=status.HTTP_400_BAD_REQUEST)

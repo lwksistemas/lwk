@@ -208,11 +208,9 @@ def criar_consulta_avulsa(
     status_inicial = 'IN_PROGRESS' if iniciar else 'SCHEDULED'
     loja_id = loja_id or getattr(patient, 'loja_id', None)
 
-    # Resolve lista de procedimentos
+    # Resolve lista de procedimentos (opcional — orçamento, atendimento de representante, etc.)
     proc_list = procedures or ([procedure] if procedure else [])
-    if not proc_list:
-        raise ValueError('Informe pelo menos um procedimento.')
-    primary_procedure = proc_list[0]
+    primary_procedure = proc_list[0] if proc_list else None
 
     # Resolve local de atendimento
     local_atendimento = None
@@ -242,7 +240,8 @@ def criar_consulta_avulsa(
         notes=(notes or '').strip() or None,
         loja_id=loja_id,
     )
-    criar_appointment_procedures(appointment, proc_list, convenio=convenio)
+    if proc_list:
+        criar_appointment_procedures(appointment, proc_list, convenio=convenio)
 
     # Determinar valor da consulta:
     # 1. Se valor_consulta fornecido explicitamente (override), usar esse

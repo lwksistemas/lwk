@@ -23,6 +23,8 @@ interface Props {
   convenioId?: number | "";
   precosMap?: Record<number, number>;
   showSummary?: boolean;
+  /** Quando true, procedimentos não são obrigatórios (ex.: nova consulta avulsa). */
+  optional?: boolean;
 }
 
 export function ProcedureMultiSelect({
@@ -33,6 +35,7 @@ export function ProcedureMultiSelect({
   convenioId = "",
   precosMap = {},
   showSummary = true,
+  optional = false,
 }: Props) {
   const disponiveis = useMemo(
     () => procedures.filter((p) => !selectedIds.includes(p.id)),
@@ -56,7 +59,10 @@ export function ProcedureMultiSelect({
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Procedimentos * <span className="font-normal text-gray-400">(pode adicionar vários)</span>
+        Procedimentos{optional ? "" : " *"}{" "}
+        <span className="font-normal text-gray-400">
+          {optional ? "(opcional — pode adicionar vários)" : "(pode adicionar vários)"}
+        </span>
       </label>
       <select
         className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg dark:bg-neutral-700 focus:ring-2 focus:ring-pink-200 dark:focus:ring-pink-800 focus:border-pink-400 outline-none transition-colors"

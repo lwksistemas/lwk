@@ -1,158 +1,25 @@
-"""
-Geração de PDF para Proposta e Contrato do CRM.
-Inclui: Dados da Loja, Dados do Cliente, Produtos e Serviços da Oportunidade.
-Suporta assinaturas digitais com marca d'água (logo transparente).
-"""
-from io import BytesIO
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-import re
-import pytz
+"""Seções reutilizáveis do PDF de proposta/contrato."""
 import logging
+from io import BytesIO
+
 import requests
 from PIL import Image as PILImage
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import cm
+from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
+
+from .formatters import (
+    _formatar_endereco_lead,
+    _formatar_nome_usuario,
+    _formatar_timestamp_local,
+    _formatar_valor,
+    _html_to_paragraphs,
+    _title_case_endereco,
+)
 
 logger = logging.getLogger(__name__)
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# UTILITÁRIOS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-def _formatar_timestamp_local(assinado_em):
-    """Converte timestamp UTC para timezone local (Brasil)."""
-    tz_brasil = pytz.timezone('America/Sao_Paulo')
-    return assinado_em.astimezone(tz_brasil).strftime('%d/%m/%Y %H:%M:%S')
-
-
-def _formatar_valor(valor):
-    """Formata valor monetário para exibição."""
-    if valor is None:
-        return '—'
-    try:
-        v = float(valor)
-        return f'R$ {v:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
-    except (TypeError, ValueError):
-        return '—'
-
-
-def _title_case_endereco(texto: str) -> str:
-    """Normaliza capitalização de endereço: se tudo maiúsculo, converte para Title Case."""
-    if not texto or texto == '—':
-        return texto
-    # Se mais de 60% das letras são maiúsculas, converter para title case
-    letras = [c for c in texto if c.isalpha()]
-    if letras and sum(1 for c in letras if c.isupper()) / len(letras) > 0.6:
-        # Preservar siglas de estado (SP, PR, RJ, etc.) e CEP
-        import re
-        def _title_part(part):
-            part = part.strip()
-            if re.match(r'^[A-Z]{2}$', part):  # UF
-                return part
-            if re.match(r'^CEP\s', part, re.I):  # CEP XXXXX
-                return part
-            if re.match(r'^nº\s', part, re.I):  # nº 123
-                return part
-            return part.title()
-        return ', '.join(_title_part(p) for p in texto.split(','))
-    return texto
-
-
-def _formatar_endereco_lead(lead):
-    """Monta string de endereço do lead."""
-    if not lead:
-        return '—'
-    parts = [
-        getattr(lead, 'logradouro', '') or '',
-        f"nº {lead.numero}" if getattr(lead, 'numero', '') else '',
-        getattr(lead, 'complemento', '') or '',
-        getattr(lead, 'bairro', '') or '',
-        (f"{lead.cidade}/{lead.uf}" if (getattr(lead, 'cidade', '') and getattr(lead, 'uf', ''))
-         else (getattr(lead, 'cidade', '') or getattr(lead, 'uf', ''))),
-        f"CEP {lead.cep}" if getattr(lead, 'cep', '') else '',
-    ]
-    raw = ', '.join(p for p in parts if p).strip() or '—'
-    return _title_case_endereco(raw)
-
-
-def _formatar_nome_usuario(user):
-    """Tenta montar um nome legível para o usuário (vendedor)."""
-    if not user:
-        return '—'
-    first = getattr(user, 'first_name', '') or ''
-    last = getattr(user, 'last_name', '') or ''
-    full = f'{first} {last}'.strip()
-    return full or getattr(user, 'nome', '') or getattr(user, 'username', '') or '—'
-
-
-def _html_to_paragraphs(html):
-    """Converte HTML/texto do conteúdo em lista de parágrafos para o PDF."""
-    if not html:
-        return ['Conteúdo não informado.']
-    text = str(html)
-    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
-    text = re.sub(r'</(?:p|div|li|h[1-6])>', '\n', text, flags=re.IGNORECASE)
-    text = re.sub(r'<li[^>]*>', '• ', text, flags=re.IGNORECASE)
-    text = re.sub(r'<[^>]+>', '', text)
-    text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"')
-    lines = text.split('\n')
-    paragraphs = []
-    for line in lines:
-        stripped = line.strip()
-        if stripped:
-            paragraphs.append(stripped)
-        elif paragraphs:
-            paragraphs.append('')
-    return paragraphs if paragraphs else ['Conteúdo não informado.']
-
-
-def _obter_dados_loja(loja_id):
-    """Obtém dados da loja do superadmin (nome, endereço, CPF/CNPJ, admin, logo, telefone)."""
-    try:
-        from superadmin.models import Loja
-        loja = Loja.objects.using('default').filter(id=loja_id).select_related('owner').first()
-        if not loja:
-            return {}
-        cidade = getattr(loja, 'cidade', '') or ''
-        uf = getattr(loja, 'uf', '') or ''
-        cidade_uf = f"{cidade}/{uf}" if (cidade and uf) else (cidade or uf)
-        endereco_parts = [
-            getattr(loja, 'logradouro', '') or '',
-            getattr(loja, 'numero', '') or '',
-            getattr(loja, 'complemento', '') or '',
-            getattr(loja, 'bairro', '') or '',
-            cidade_uf,
-            f"CEP {loja.cep}" if getattr(loja, 'cep', '') else '',
-        ]
-        endereco = ', '.join(p for p in endereco_parts if p).strip() or None
-        owner = getattr(loja, 'owner', None)
-        admin_nome = None
-        admin_email = None
-        if owner:
-            admin_nome = f"{getattr(owner, 'first_name', '') or ''} {getattr(owner, 'last_name', '') or ''}".strip() or getattr(owner, 'username', '') or None
-            admin_email = getattr(owner, 'email', None) or None
-        telefone = getattr(loja, 'owner_telefone', '') or getattr(loja, 'telefone', '') or ''
-        return {
-            'nome': getattr(loja, 'nome', '') or '',
-            'endereco': endereco,
-            'cpf_cnpj': getattr(loja, 'cpf_cnpj', '') or None,
-            'telefone': telefone.strip() or None,
-            'admin_nome': admin_nome,
-            'admin_email': admin_email,
-            'logo': getattr(loja, 'logo', '') or None,
-        }
-    except Exception:
-        return {}
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# SEÇÕES REUTILIZÁVEIS DO PDF
-# ═══════════════════════════════════════════════════════════════════════════════
-
 
 def _build_cabecalho(elements, logo_url, titulo):
     """Cria cabeçalho com logo à esquerda e título à direita."""
@@ -424,7 +291,7 @@ def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir
     assinatura_vendedor = None
     assinatura_cliente = None
     if incluir_assinaturas:
-        from .models import AssinaturaDigital
+        from ..models import AssinaturaDigital
         filtro = {'assinado': True}
         if tipo_doc == 'proposta':
             filtro['proposta'] = documento
@@ -510,178 +377,3 @@ def _build_watermark_callback(logo_url, assinatura_vendedor, assinatura_cliente)
         return out_buf.getvalue()
     except Exception:
         return None
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# FUNÇÕES PÚBLICAS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
-    """Gera PDF da proposta comercial."""
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.2 * cm, bottomMargin=0.5 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
-    elements = []
-    styles = getSampleStyleSheet()
-    compact = ParagraphStyle('Compact', parent=styles['Normal'], fontSize=9, spaceBefore=0, spaceAfter=1, leading=11)
-
-    # Cabeçalho
-    loja_id = getattr(proposta, 'loja_id', None)
-    loja_data = _obter_dados_loja(loja_id) if loja_id else {}
-    logo_url = loja_data.get('logo')
-    _build_cabecalho(elements, logo_url, 'PROPOSTA COMERCIAL')
-    elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', compact))
-
-    # Dados da Empresa
-    if loja_data:
-        _build_secao_empresa(elements, loja_data, compact)
-
-    # Dados do Cliente
-    lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
-    if lead:
-        _build_secao_cliente(elements, lead, compact)
-
-    # Produtos e Serviços
-    _build_secao_produtos(elements, proposta.oportunidade, compact, incluir_recorrencia=True)
-
-    # Valor total e desconto
-    _build_secao_desconto(elements, proposta, compact)
-
-    # Conteúdo
-    _build_secao_conteudo(elements, proposta.conteudo, compact)
-
-    # Assinaturas
-    vendedor = proposta.oportunidade.vendedor if proposta.oportunidade and getattr(proposta.oportunidade, 'vendedor', None) else None
-    ass_v, ass_c = _build_secao_assinaturas(elements, proposta, lead, vendedor, compact, incluir_assinaturas, 'proposta')
-
-    # Build com marca d'água
-    wm_data = _build_watermark_callback(logo_url, ass_v, ass_c)
-    if wm_data:
-        # Inserir marca d'água como flowable antes da tabela de assinaturas
-        from reportlab.platypus import Flowable
-
-        class WatermarkFlowable(Flowable):
-            """Desenha marca d'água no canvas na posição atual do fluxo."""
-            def __init__(self, wm_bytes):
-                Flowable.__init__(self)
-                self.wm_bytes = wm_bytes
-                self.width = 16 * cm
-                self.height = 0  # não ocupa espaço vertical
-
-            def draw(self):
-                try:
-                    from reportlab.lib.utils import ImageReader
-                    img = ImageReader(BytesIO(self.wm_bytes))
-                    iw, ih = img.getSize()
-                    # Preencher o quadrado inteiro de cada célula de assinatura
-                    wm_w = 7.5 * cm  # quase toda a largura da célula (8cm)
-                    wm_h = wm_w * (ih / float(iw))
-                    if wm_h > 5 * cm:
-                        wm_h = 5 * cm
-                        wm_w = wm_h / (ih / float(iw))
-                    # Centralizar verticalmente na área da assinatura
-                    y_offset = -(wm_h * 0.8)
-                    x_left = (8 * cm - wm_w) / 2
-                    x_right = 8 * cm + (8 * cm - wm_w) / 2
-                    self.canv.drawImage(img, x_left, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
-                    self.canv.drawImage(img, x_right, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
-                except Exception:
-                    pass
-
-        # Encontrar a tabela de assinaturas (última Table) e inserir watermark antes dela
-        insert_idx = None
-        for i in range(len(elements) - 1, -1, -1):
-            if isinstance(elements[i], Table):
-                insert_idx = i
-                break
-        if insert_idx is not None:
-            elements.insert(insert_idx, WatermarkFlowable(wm_data))
-
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
-
-
-def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
-    """Gera PDF do contrato."""
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5 * cm, bottomMargin=1 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
-    elements = []
-    styles = getSampleStyleSheet()
-    normal = styles['Normal']
-
-    # Cabeçalho
-    loja_id = getattr(contrato, 'loja_id', None)
-    loja_data = _obter_dados_loja(loja_id) if loja_id else {}
-    logo_url = loja_data.get('logo')
-    _build_cabecalho(elements, logo_url, 'CONTRATO')
-    elements.append(Spacer(1, 0.4 * cm))
-    elements.append(Paragraph(f'<b>Número:</b> {contrato.numero or "—"}', normal))
-    elements.append(Paragraph(f'<b>Título:</b> {contrato.titulo or "—"}', normal))
-
-    # Valor total e desconto
-    _build_secao_desconto(elements, contrato, normal)
-    elements.append(Spacer(1, 0.03 * cm))
-
-    # Dados da Empresa
-    if loja_data:
-        _build_secao_empresa(elements, loja_data, normal)
-
-    # Dados do Cliente
-    lead = contrato.oportunidade.lead if contrato.oportunidade and contrato.oportunidade.lead else None
-    if lead:
-        _build_secao_cliente(elements, lead, normal)
-
-    # Produtos e Serviços
-    if contrato.oportunidade and contrato.oportunidade.itens.exists():
-        _build_secao_produtos(elements, contrato.oportunidade, normal, incluir_recorrencia=False)
-        elements.append(Spacer(1, 0.05 * cm))
-
-    # Conteúdo
-    _build_secao_conteudo(elements, contrato.conteudo, normal)
-
-    # Assinaturas
-    vendedor = contrato.oportunidade.vendedor if contrato.oportunidade and getattr(contrato.oportunidade, 'vendedor', None) else None
-    ass_v, ass_c = _build_secao_assinaturas(elements, contrato, lead, vendedor, normal, incluir_assinaturas, 'contrato')
-
-    # Build com marca d'água
-    wm_data = _build_watermark_callback(logo_url, ass_v, ass_c)
-    if wm_data:
-        from reportlab.platypus import Flowable
-
-        class WatermarkFlowable(Flowable):
-            def __init__(self, wm_bytes):
-                Flowable.__init__(self)
-                self.wm_bytes = wm_bytes
-                self.width = 16 * cm
-                self.height = 0
-
-            def draw(self):
-                try:
-                    from reportlab.lib.utils import ImageReader
-                    img = ImageReader(BytesIO(self.wm_bytes))
-                    iw, ih = img.getSize()
-                    wm_w = 5.5 * cm
-                    wm_h = wm_w * (ih / float(iw))
-                    if wm_h > 3.5 * cm:
-                        wm_h = 3.5 * cm
-                        wm_w = wm_h / (ih / float(iw))
-                    y_offset = -(wm_h)
-                    x_left = (8 * cm - wm_w) / 2
-                    x_right = 8 * cm + (8 * cm - wm_w) / 2
-                    self.canv.drawImage(img, x_left, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
-                    self.canv.drawImage(img, x_right, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
-                except Exception:
-                    pass
-
-        insert_idx = None
-        for i in range(len(elements) - 1, -1, -1):
-            if isinstance(elements[i], Table):
-                insert_idx = i
-                break
-        if insert_idx is not None:
-            elements.insert(insert_idx, WatermarkFlowable(wm_data))
-
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer

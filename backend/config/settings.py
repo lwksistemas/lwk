@@ -508,6 +508,10 @@ WHATSAPP_API_URL = config('WHATSAPP_API_URL', default='https://graph.facebook.co
 WHATSAPP_PHONE_ID = config('WHATSAPP_PHONE_ID', default='')
 WHATSAPP_TOKEN = config('WHATSAPP_TOKEN', default='')
 
+# WhatsApp Web (Evolution API) — opcional; uma instância por loja
+EVOLUTION_API_URL = config('EVOLUTION_API_URL', default='')
+EVOLUTION_API_KEY = config('EVOLUTION_API_KEY', default='')
+
 # Google Calendar (OAuth2 + API) - CRM Vendas
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
 GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')

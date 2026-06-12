@@ -128,6 +128,25 @@ def _candidate_whatsapp_numbers(number):
     return ordered
 
 
+def _prefer_br_mobile_digits(queried: str, resolved: str) -> str:
+    """
+    Evolution/Baileys às vezes devolve JID sem o 9º dígito do celular BR.
+    Ex.: consulta 5562999792267 → retorna 556299792267.
+    """
+    q = _format_evolution_number(queried)
+    r = _format_evolution_number(resolved)
+    if (
+        len(q) == 13
+        and q.startswith('55')
+        and q[4] == '9'
+        and len(r) == 12
+        and r.startswith('55')
+        and r == q[:4] + q[5:]
+    ):
+        return q
+    return r or q
+
+
 def _lookup_whatsapp_number(instance_name, digits):
     data = _request('POST', f'/chat/whatsappNumbers/{instance_name}', json_body={'numbers': [digits]})
     if not isinstance(data, list) or not data:
@@ -137,13 +156,36 @@ def _lookup_whatsapp_number(instance_name, digits):
         return None
     jid = (item.get('jid') or '').strip()
     resolved = _digits_from_jid(jid) if jid else ''
-    return resolved or _format_evolution_number(item.get('number') or digits)
+    resolved = resolved or _format_evolution_number(item.get('number') or digits)
+    return _prefer_br_mobile_digits(digits, resolved)
+
+
+def _pick_best_resolved_number(input_digits: str, matches: list[tuple[str, str]]) -> str:
+    """Escolhe o melhor número entre candidatos válidos (prioriza entrada e celular BR com 9)."""
+    if not matches:
+        return ''
+    input_digits = _format_evolution_number(input_digits)
+
+    for candidate, resolved in matches:
+        if _format_evolution_number(resolved) == input_digits:
+            return _prefer_br_mobile_digits(candidate, resolved)
+        if _format_evolution_number(candidate) == input_digits:
+            return _prefer_br_mobile_digits(candidate, resolved)
+
+    for candidate, resolved in matches:
+        preferred = _prefer_br_mobile_digits(candidate, resolved)
+        if len(preferred) == 13 and preferred.startswith('55') and preferred[4] == '9':
+            return preferred
+
+    candidate, resolved = matches[0]
+    return _prefer_br_mobile_digits(candidate, resolved)
 
 
 def resolve_recipient_number(instance_name, number):
     """
     Confirma na Evolution se o número existe no WhatsApp e retorna digits normalizados.
     """
+    input_digits = _format_evolution_number(number)
     candidates = _candidate_whatsapp_numbers(number)
     if not candidates:
         raise EvolutionAPIError(
@@ -151,19 +193,44 @@ def resolve_recipient_number(instance_name, number):
             'Use DDD + número (ex: 16999998888 ou 5516999999999).'
         )
 
+    matches: list[tuple[str, str]] = []
     for candidate in candidates:
         try:
             resolved = _lookup_whatsapp_number(instance_name, candidate)
         except EvolutionAPIError:
             continue
         if resolved:
-            return resolved
+            matches.append((candidate, resolved))
+
+    if matches:
+        return _pick_best_resolved_number(input_digits, matches)
 
     tried = ', '.join(candidates[:3])
     raise EvolutionAPIError(
         f'Número não encontrado no WhatsApp ({tried}). '
-        'Confira o telefone do paciente — use celular com WhatsApp ativo, DDD e 9 dígitos.'
+        'Confira o telefone — use celular com WhatsApp ativo, DDD e 9 dígitos.'
     )
+
+
+def evolution_send_error_message(exc: 'EvolutionAPIError') -> str:
+    """Mensagem amigável para falhas de envio (Evolution/Baileys)."""
+    parts = [str(exc)]
+    if getattr(exc, 'response', None):
+        parts.append(str(exc.response))
+    combined = ' '.join(parts).lower()
+    if 'connection closed' in combined or 'precondition required' in combined:
+        return (
+            'WhatsApp Web desconectou. Abra Configurações → WhatsApp, '
+            'verifique o status e escaneie o QR Code novamente.'
+        )
+    if getattr(exc, 'status_code', None) in (400, 428) and (
+        'bad request' in combined or not str(exc).strip()
+    ):
+        return (
+            'Não foi possível enviar pelo WhatsApp Web. '
+            'Verifique se a conexão está ativa em Configurações → WhatsApp e tente novamente.'
+        )
+    return str(exc)
 
 
 def _normalize_evolution_state(raw_state):

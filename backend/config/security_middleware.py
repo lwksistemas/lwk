@@ -35,6 +35,11 @@ _NFSE_PUBLIC_PREFIXES = (
 )
 
 
+_WHATSAPP_PUBLIC_PREFIXES = (
+    '/api/whatsapp/evolution/webhook/',
+)
+
+
 class SecurityIsolationMiddleware:
     """
     Middleware que garante isolamento total entre os 3 grupos de usuários:
@@ -167,6 +172,8 @@ class SecurityIsolationMiddleware:
         if self._is_clinica_beleza_public_path(path):
             return None
         if self._is_nfse_public_path(path):
+            return None
+        if self._is_whatsapp_public_path(path):
             return None
         if path.startswith('/api/asaas/webhook'):
             return None
@@ -374,6 +381,10 @@ class SecurityIsolationMiddleware:
     @staticmethod
     def _is_nfse_public_path(path):
         return any(path.startswith(prefix) for prefix in _NFSE_PUBLIC_PREFIXES)
+
+    @staticmethod
+    def _is_whatsapp_public_path(path):
+        return any(path.startswith(prefix) for prefix in _WHATSAPP_PUBLIC_PREFIXES)
     
     def _get_user_group(self, user):
         """

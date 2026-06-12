@@ -54,6 +54,7 @@ interface ModalCriarAgendamentoProps {
   nomesAgenda: NomeAgendaItem[];
   locaisAtendimento: LocalAtendimentoItem[];
   onPatientsChange: (patients: PatientQuickOption[]) => void;
+  onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
   onConsultaCreated?: (consultaId: number) => void;
   onOfflineEventCreated?: (event: unknown) => void;
 }
@@ -71,6 +72,7 @@ export function ModalCriarAgendamento({
   nomesAgenda,
   locaisAtendimento,
   onPatientsChange,
+  onSearchPatients,
   onConsultaCreated,
   onOfflineEventCreated,
 }: ModalCriarAgendamentoProps) {
@@ -353,6 +355,7 @@ export function ModalCriarAgendamento({
                 onClear={() => setPatientId("")}
                 onPatientCreated={(p) => onPatientsChange([...patients, p])}
                 onCreatePatient={handleCreatePatient}
+                onSearchPatients={onSearchPatients}
                 disabled={createLoading}
               />
 

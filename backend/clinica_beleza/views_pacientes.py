@@ -47,6 +47,14 @@ class PatientListView(APIView):
         queryset = Patient.objects.select_related('convenio').order_by('nome')
         if active_only:
             queryset = queryset.filter(is_active=True)
+        search = (request.query_params.get('search') or '').strip()
+        if search:
+            from django.db.models import Q
+            digits = ''.join(c for c in search if c.isdigit())
+            q_filter = Q(nome__icontains=search)
+            if digits:
+                q_filter |= Q(telefone__icontains=digits) | Q(cpf__icontains=digits)
+            queryset = queryset.filter(q_filter)
         return paginate_queryset(queryset, request, PatientSerializer)
 
     def post(self, request):

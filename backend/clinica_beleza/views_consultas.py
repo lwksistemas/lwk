@@ -410,13 +410,13 @@ class PatientHistoricoConsultasView(APIView):
         from .serializers import ConsultaListSerializer
 
         qs = Consulta.objects.filter(patient_id=patient_id).select_related(
-            'professional', 'procedure', 'protocol', 'appointment',
+            'professional', 'procedure', 'protocol', 'appointment', 'patient',
         ).prefetch_related(
             'appointment__appointment_procedures__procedure',
         ).annotate(
             total_evolucoes_count=Count('evolucoes'),
         ).order_by('-data_inicio', '-created_at')
-        return Response(ConsultaListSerializer(qs, many=True).data)
+        return paginate_queryset(qs, request, ConsultaListSerializer)
 
 
 class ConsultaPrescricaoView(APIView):

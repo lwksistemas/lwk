@@ -453,8 +453,12 @@ export class ClinicaBelezaAPI {
       create: (consultaId: number, data: Record<string, unknown>) =>
         ClinicaBelezaAPI.post(`/consultas/${consultaId}/evolucoes/`, data),
     },
-    historicoCliente: (patientId: number) =>
-      ClinicaBelezaAPI.getList(`/patients/${patientId}/consultas/`),
+    historicoCliente: (patientId: number, params?: { page?: number; page_size?: number }) =>
+      ClinicaBelezaAPI.getList(`/patients/${patientId}/consultas/`, {
+        page: 1,
+        page_size: 100,
+        ...params,
+      }),
     produtos: {
       list: (consultaId: number) =>
         ClinicaBelezaAPI.get(`/consultas/${consultaId}/produtos/`),

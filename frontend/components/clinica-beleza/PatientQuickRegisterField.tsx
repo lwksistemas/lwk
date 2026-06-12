@@ -22,6 +22,8 @@ interface Props {
   onClear: () => void;
   onPatientCreated: (patient: PatientQuickOption) => void;
   onCreatePatient: (data: { nome: string; telefone: string; cpf: string }) => Promise<PatientQuickOption>;
+  /** Busca server-side (nome, telefone, CPF). Quando informado, não filtra lista local completa. */
+  onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
   disabled?: boolean;
 }
 
@@ -32,6 +34,7 @@ export function PatientQuickRegisterField({
   onClear,
   onPatientCreated,
   onCreatePatient,
+  onSearchPatients,
   disabled = false,
 }: Props) {
   const [busca, setBusca] = useState("");
@@ -41,10 +44,18 @@ export function PatientQuickRegisterField({
   const [cpfNovo, setCpfNovo] = useState("");
   const [criando, setCriando] = useState(false);
   const [erro, setErro] = useState("");
+  const [serverResults, setServerResults] = useState<PatientQuickOption[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedCache, setSelectedCache] = useState<PatientQuickOption | null>(null);
 
-  const selecionado = patients.find((p) => p.id === patientId) || null;
+  const selecionado =
+    selectedCache ||
+    patients.find((p) => p.id === patientId) ||
+    serverResults.find((p) => p.id === patientId) ||
+    null;
 
   const filtrados = useMemo(() => {
+    if (onSearchPatients) return serverResults;
     const q = busca.trim().toLowerCase();
     if (!q) return patients.slice(0, 40);
     return patients.filter((p) => {
@@ -54,7 +65,35 @@ export function PatientQuickRegisterField({
       const qDigits = q.replace(/\D/g, "");
       return nome.includes(q) || (qDigits && (tel.includes(qDigits) || cpf.includes(qDigits)));
     }).slice(0, 40);
-  }, [busca, patients]);
+  }, [busca, patients, onSearchPatients, serverResults]);
+
+  useEffect(() => {
+    if (!onSearchPatients) return;
+    const q = busca.trim();
+    if (q.length < 2) {
+      setServerResults([]);
+      setSearching(false);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    const timer = window.setTimeout(() => {
+      onSearchPatients(q)
+        .then((rows) => {
+          if (!cancelled) setServerResults(rows);
+        })
+        .catch(() => {
+          if (!cancelled) setServerResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) setSearching(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [busca, onSearchPatients]);
 
   useEffect(() => {
     if (selecionado) {
@@ -87,6 +126,7 @@ export function PatientQuickRegisterField({
       });
       onPatientCreated(created);
       onSelect(created.id);
+      setSelectedCache(created);
       setBusca(entityName(created));
       setModoCadastro(false);
       setNomeNovo("");
@@ -122,7 +162,15 @@ export function PatientQuickRegisterField({
             />
           </div>
 
-          {busca.trim() && !patientId && filtrados.length > 0 && (
+          {busca.trim() && !patientId && onSearchPatients && busca.trim().length < 2 && (
+            <p className="text-xs text-gray-500 mb-2">Digite ao menos 2 caracteres para buscar.</p>
+          )}
+
+          {busca.trim() && !patientId && searching && (
+            <p className="text-xs text-gray-500 mb-2">Buscando...</p>
+          )}
+
+          {busca.trim() && !patientId && !searching && filtrados.length > 0 && (
             <div className="border border-gray-200 dark:border-neutral-600 rounded-lg overflow-hidden mb-2 max-h-36 overflow-y-auto">
               {filtrados.map((p) => (
                 <button
@@ -130,6 +178,7 @@ export function PatientQuickRegisterField({
                   type="button"
                   onClick={() => {
                     onSelect(p.id);
+                    setSelectedCache(p);
                     setBusca(entityName(p));
                   }}
                   className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-neutral-700 border-b last:border-b-0 border-gray-100 dark:border-neutral-700"
@@ -143,7 +192,7 @@ export function PatientQuickRegisterField({
             </div>
           )}
 
-          {busca.trim() && !patientId && filtrados.length === 0 && (
+          {busca.trim() && !patientId && !searching && filtrados.length === 0 && busca.trim().length >= (onSearchPatients ? 2 : 1) && (
             <p className="text-xs text-gray-500 mb-2">Nenhum paciente encontrado.</p>
           )}
 
@@ -169,6 +218,7 @@ export function PatientQuickRegisterField({
                 onClick={() => {
                   onClear();
                   setBusca("");
+                  setSelectedCache(null);
                 }}
                 className="ml-auto text-xs text-gray-400 hover:text-red-500"
               >

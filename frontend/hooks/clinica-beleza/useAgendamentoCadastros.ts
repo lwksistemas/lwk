@@ -1,13 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PatientQuickOption } from "@/components/clinica-beleza/PatientQuickRegisterField";
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 import {
-  clinicaBelezaFetch,
-  type LocalAtendimentoItem,
-  type NomeAgendaItem,
-} from "@/lib/clinica-beleza-api";
+  clinicaBelezaQueryKeys,
+  fetchClinicaLocaisAtendimento,
+  fetchClinicaNomesAgenda,
+  fetchClinicaProcedures,
+  fetchClinicaProfessionals,
+  searchClinicaPatients,
+} from "@/lib/clinica-beleza-cadastros-api";
+import type { LocalAtendimentoItem, NomeAgendaItem } from "@/lib/clinica-beleza-api";
 
 interface Professional {
   id: number;
@@ -16,47 +21,75 @@ interface Professional {
 }
 
 export function useAgendamentoCadastros(enabled = true) {
-  const [loading, setLoading] = useState(false);
-  const [patients, setPatients] = useState<PatientQuickOption[]>([]);
-  const [professionals, setProfessionals] = useState<Professional[]>([]);
-  const [procedures, setProcedures] = useState<ConsultaFormProcedure[]>([]);
-  const [nomesAgenda, setNomesAgenda] = useState<NomeAgendaItem[]>([]);
-  const [locaisAtendimento, setLocaisAtendimento] = useState<LocalAtendimentoItem[]>([]);
+  const queryClient = useQueryClient();
+  const [localPatients, setLocalPatients] = useState<PatientQuickOption[]>([]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [resProf, resPat, resProc, resAgendas, resLocais] = await Promise.all([
-        clinicaBelezaFetch("/professionals/"),
-        clinicaBelezaFetch("/patients/"),
-        clinicaBelezaFetch("/procedures/"),
-        clinicaBelezaFetch("/nomes-agenda/"),
-        clinicaBelezaFetch("/locais-atendimento/"),
-      ]);
-      setProfessionals(resProf.ok ? await resProf.json() : []);
-      setPatients(resPat.ok ? await resPat.json() : []);
-      setProcedures(resProc.ok ? await resProc.json() : []);
-      const agendas = resAgendas.ok ? await resAgendas.json() : [];
-      const locais = resLocais.ok ? await resLocais.json() : [];
-      setNomesAgenda(Array.isArray(agendas) ? agendas : []);
-      setLocaisAtendimento(Array.isArray(locais) ? locais : []);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const professionalsQuery = useQuery({
+    queryKey: clinicaBelezaQueryKeys.professionals(),
+    queryFn: fetchClinicaProfessionals,
+    enabled,
+  });
 
-  useEffect(() => {
-    if (enabled) load();
-  }, [enabled, load]);
+  const proceduresQuery = useQuery({
+    queryKey: clinicaBelezaQueryKeys.procedures(),
+    queryFn: () => fetchClinicaProcedures(),
+    enabled,
+  });
+
+  const nomesAgendaQuery = useQuery({
+    queryKey: clinicaBelezaQueryKeys.nomesAgenda(),
+    queryFn: fetchClinicaNomesAgenda,
+    enabled,
+  });
+
+  const locaisQuery = useQuery({
+    queryKey: clinicaBelezaQueryKeys.locaisAtendimento(),
+    queryFn: fetchClinicaLocaisAtendimento,
+    enabled,
+  });
+
+  const searchPatients = useCallback(
+    async (query: string) => {
+      const q = query.trim();
+      if (q.length < 2) return [];
+      return queryClient.fetchQuery({
+        queryKey: clinicaBelezaQueryKeys.patientSearch(q),
+        queryFn: () => searchClinicaPatients(q),
+        staleTime: 30_000,
+      });
+    },
+    [queryClient],
+  );
+
+  const reload = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: clinicaBelezaQueryKeys.professionals() }),
+      queryClient.invalidateQueries({ queryKey: clinicaBelezaQueryKeys.procedures() }),
+      queryClient.invalidateQueries({ queryKey: clinicaBelezaQueryKeys.nomesAgenda() }),
+      queryClient.invalidateQueries({ queryKey: clinicaBelezaQueryKeys.locaisAtendimento() }),
+    ]);
+  }, [queryClient]);
+
+  const setPatients = useCallback(
+    (updater: PatientQuickOption[] | ((prev: PatientQuickOption[]) => PatientQuickOption[])) => {
+      setLocalPatients((prev) => (typeof updater === "function" ? updater(prev) : updater));
+    },
+    [],
+  );
 
   return {
-    loading,
-    patients,
-    professionals,
-    procedures,
-    nomesAgenda,
-    locaisAtendimento,
+    loading:
+      professionalsQuery.isLoading ||
+      proceduresQuery.isLoading ||
+      nomesAgendaQuery.isLoading ||
+      locaisQuery.isLoading,
+    patients: localPatients,
+    professionals: (professionalsQuery.data ?? []) as Professional[],
+    procedures: (proceduresQuery.data ?? []) as ConsultaFormProcedure[],
+    nomesAgenda: (nomesAgendaQuery.data ?? []) as NomeAgendaItem[],
+    locaisAtendimento: (locaisQuery.data ?? []) as LocalAtendimentoItem[],
     setPatients,
-    reload: load,
+    searchPatients,
+    reload,
   };
 }

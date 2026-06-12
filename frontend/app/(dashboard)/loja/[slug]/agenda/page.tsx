@@ -5,7 +5,7 @@
  * Calendário fullscreen com drag & drop + Bloqueio de Horários
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Plus, Lock, List, CalendarDays } from "lucide-react";
@@ -30,7 +30,8 @@ import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-bele
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioHorario";
 import { ModalConflitoAgenda } from "@/components/clinica-beleza/ModalConflitoAgenda";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
-import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { clinicaBelezaFetch, parseClinicaBelezaListResponse } from "@/lib/clinica-beleza-api";
+import { searchClinicaPatients } from "@/lib/clinica-beleza-cadastros-api";
 import type { LocalAtendimentoItem, NomeAgendaItem } from "@/lib/clinica-beleza-api";
 import {
   salvarPacientesOffline, buscarPacientesOffline,
@@ -98,6 +99,8 @@ export default function AgendaPage() {
   useClinicaBelezaDark();
   const [isMobile, setIsMobile] = useState(false);
   const [modoAgenda, setModoAgenda] = useState<"grade" | "lista">("grade");
+
+  const searchPatients = useCallback((query: string) => searchClinicaPatients(query), []);
 
   // Abrir modal "Novo Agendamento" quando ?novo=1 na URL
   useEffect(() => {
@@ -240,15 +243,22 @@ export default function AgendaPage() {
           : Promise.resolve(null);
         const [resEv, resBl, resProf, resPat, resProc, resHor, resAgendas, resLocais] = await Promise.all([
           clinicaBelezaFetch(agendaPath), clinicaBelezaFetch(bloqueiosPath),
-          clinicaBelezaFetch("/professionals/"),
-          clinicaBelezaFetch("/patients/"), clinicaBelezaFetch("/procedures/"),
+          clinicaBelezaFetch("/professionals/?page=1&page_size=200"),
+          clinicaBelezaFetch("/patients/?page=1&page_size=500"),
+          clinicaBelezaFetch("/procedures/?page=1&page_size=200"),
           horariosReq,
           clinicaBelezaFetch("/nomes-agenda/"),
           clinicaBelezaFetch("/locais-atendimento/"),
         ]);
-        const profs: Professional[] = resProf.ok ? await resProf.json() : [];
-        const pacs: Patient[] = resPat.ok ? await resPat.json() : [];
-        const procs: Procedure[] = resProc.ok ? await resProc.json() : [];
+        const profs: Professional[] = resProf.ok
+          ? parseClinicaBelezaListResponse<Professional>(await resProf.json())
+          : [];
+        const pacs: Patient[] = resPat.ok
+          ? parseClinicaBelezaListResponse<Patient>(await resPat.json())
+          : [];
+        const procs: Procedure[] = resProc.ok
+          ? parseClinicaBelezaListResponse<Procedure>(await resProc.json())
+          : [];
         const agendas: NomeAgendaItem[] = resAgendas.ok ? await resAgendas.json() : [];
         const locais: LocalAtendimentoItem[] = resLocais.ok ? await resLocais.json() : [];
         setNomesAgenda(Array.isArray(agendas) ? agendas : []);
@@ -554,6 +564,7 @@ export default function AgendaPage() {
         nomesAgenda={nomesAgenda}
         locaisAtendimento={locaisAtendimento}
         onPatientsChange={setPatients}
+        onSearchPatients={searchPatients}
         onOfflineEventCreated={(evt) => setEventos((prev) => [...prev, evt as AgendaEventData])}
       />
       <ModalBloqueioHorario isOpen={showModalBloqueio} onClose={() => setShowModalBloqueio(false)} onSuccess={() => carregarDados()} professionals={professionals as any} defaultProfessionalId={selectedProfessional} />

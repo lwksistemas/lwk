@@ -21,6 +21,7 @@ import { formatCurrency } from "@/lib/financeiro-helpers";
 import { toUpperCase } from "@/lib/format-br";
 import { CLINICA_CONSULTA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
+import { fetchHistoricoPaciente } from "@/lib/clinica-beleza-cadastros-api";
 import type { ConsultaPrintMeta } from "@/lib/consulta-print";
 import { logger } from "@/lib/logger";
 import {
@@ -163,7 +164,7 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
           const histPromise =
             historico.length > 0 && !force
               ? Promise.resolve(historico)
-              : ClinicaBelezaAPI.consultas.historicoCliente(patientId).catch(() => []);
+              : fetchHistoricoPaciente(patientId);
           const [hist, anam, presc] = await Promise.all([
             histPromise,
             ClinicaBelezaAPI.anamnese.get(patientId).catch(() => EMPTY_ANAMNESE),
@@ -214,7 +215,7 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
         setSelected(consultaAtual);
       }
 
-      const hist = await ClinicaBelezaAPI.consultas.historicoCliente(consultaAtual.patient).catch(() => []);
+      const hist = await fetchHistoricoPaciente(consultaAtual.patient).catch(() => []);
       const histList = Array.isArray(hist) ? hist : [];
       setHistorico(histList);
       const temHistoricoAnterior = histList.length > 1;

@@ -67,6 +67,7 @@ export default function ConsultasPage() {
     nomesAgenda,
     locaisAtendimento,
     setPatients,
+    searchPatients,
     reload: reloadCadastros,
   } = useAgendamentoCadastros(showNovaConsultaModal);
 
@@ -216,6 +217,7 @@ export default function ConsultasPage() {
         nomesAgenda={nomesAgenda}
         locaisAtendimento={locaisAtendimento}
         onPatientsChange={setPatients}
+        onSearchPatients={searchPatients}
         onSuccess={() => {
           loadConsultas();
           reloadCadastros();

@@ -82,6 +82,9 @@ class ProcedureListView(APIView):
             queryset = queryset.filter(is_active=True)
         if categoria:
             queryset = _filter_procedures_by_categoria(queryset, categoria)
+        search = (request.query_params.get('search') or '').strip()
+        if search:
+            queryset = queryset.filter(Q(nome__icontains=search) | Q(descricao__icontains=search))
         return paginate_queryset(queryset, request, ProcedureSerializer)
 
     def post(self, request):

@@ -11,7 +11,7 @@ import logging
 
 from drf_spectacular.utils import extend_schema_view, extend_schema
 from core.logging_utils import mask_email
-from ..api_docs import (
+from ...api_docs import (
     TIPO_LOJA_LIST_SCHEMA,
     TIPO_LOJA_CREATE_SCHEMA,
     PLANO_LIST_SCHEMA,
@@ -19,118 +19,19 @@ from ..api_docs import (
     LOJA_CREATE_SCHEMA,
     LOJA_DELETE_SCHEMA,
 )
-
-logger = logging.getLogger(__name__)
-from ..models import (
+from ...models import (
     TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, ProfissionalUsuario,
 )
-from ..serializers import (
+from ...serializers import (
     TipoLojaSerializer, PlanoAssinaturaSerializer, LojaSerializer, LojaCreateSerializer,
 )
-from .permissions import IsOwnerOrSuperAdmin, IsSuperAdmin
+from ..permissions import IsOwnerOrSuperAdmin, IsSuperAdmin
 
+logger = logging.getLogger(__name__)
 
-# ✅ ViewSets públicos para cadastro de lojas
-class TipoLojaPublicoViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet público para listar tipos de loja (somente leitura)
-    Usado no formulário de cadastro público
-    """
-    serializer_class = TipoLojaSerializer
-    permission_classes = [permissions.AllowAny]
-    authentication_classes = []
-    
-    def get_queryset(self):
-        return TipoLoja.objects.filter(is_active=True).order_by('nome')
+from .backup_mixin import LojaBackupMixin
 
-
-class PlanoAssinaturaPublicoViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet público para listar planos de assinatura (somente leitura)
-    Usado no formulário de cadastro público
-    """
-    serializer_class = PlanoAssinaturaSerializer
-    permission_classes = [permissions.AllowAny]
-    authentication_classes = []
-    
-    def get_queryset(self):
-        return PlanoAssinatura.objects.filter(is_active=True).order_by('preco_mensal')
-    
-    @action(detail=False, methods=['get'])
-    def por_tipo(self, request):
-        """Buscar planos por tipo de app (público)"""
-        tipo_id = request.query_params.get('tipo_id')
-        if tipo_id:
-            planos = self.get_queryset().filter(tipos_loja__id=tipo_id)
-            serializer = self.get_serializer(planos, many=True)
-            return Response(serializer.data)
-        return Response({'error': 'tipo_id é obrigatório'}, status=400)
-
-
-@extend_schema_view(
-    list=TIPO_LOJA_LIST_SCHEMA,
-    create=TIPO_LOJA_CREATE_SCHEMA,
-    retrieve=extend_schema(summary="Detalhes do Tipo de App", tags=["Tipos de App"]),
-    update=extend_schema(summary="Atualizar Tipo de App", tags=["Tipos de App"]),
-    partial_update=extend_schema(summary="Atualizar Parcialmente Tipo de App", tags=["Tipos de App"]),
-    destroy=extend_schema(summary="Excluir Tipo de App", tags=["Tipos de App"]),
-)
-class TipoLojaViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para gerenciar Tipos de App.
-    Tipos de App definem as funcionalidades e aparência de cada loja.
-    """
-    serializer_class = TipoLojaSerializer
-    permission_classes = [IsSuperAdmin]
-    
-    def get_queryset(self):
-        return TipoLoja.objects.prefetch_related('lojas', 'planos').all()
-
-
-@extend_schema_view(
-    list=PLANO_LIST_SCHEMA,
-    create=extend_schema(summary="Criar Plano", tags=["Planos"]),
-    retrieve=extend_schema(summary="Detalhes do Plano", tags=["Planos"]),
-    update=extend_schema(summary="Atualizar Plano", tags=["Planos"]),
-    partial_update=extend_schema(summary="Atualizar Parcialmente Plano", tags=["Planos"]),
-    destroy=extend_schema(summary="Excluir Plano", tags=["Planos"]),
-)
-class PlanoAssinaturaViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para gerenciar Planos de Assinatura.
-    Planos definem preços e limites para cada tipo de app.
-    """
-    serializer_class = PlanoAssinaturaSerializer
-    permission_classes = [IsSuperAdmin]
-    
-    def get_queryset(self):
-        return PlanoAssinatura.objects.prefetch_related('tipos_loja', 'lojas').all()
-
-    def update(self, request, *args, **kwargs):
-        """Permite atualização parcial via PUT (além do PATCH)."""
-        kwargs['partial'] = True
-        return super().update(request, *args, **kwargs)
-    
-    @action(detail=False, methods=['get'])
-    def por_tipo(self, request):
-        """Buscar planos por tipo de app (superadmin: ativos e inativos)."""
-        tipo_id = request.query_params.get('tipo_id')
-        if tipo_id:
-            planos = self.get_queryset().filter(tipos_loja__id=tipo_id).distinct()
-            serializer = self.get_serializer(planos, many=True)
-            return Response(serializer.data)
-        return Response({'error': 'tipo_id é obrigatório'}, status=400)
-
-
-@extend_schema_view(
-    list=LOJA_LIST_SCHEMA,
-    create=LOJA_CREATE_SCHEMA,
-    retrieve=extend_schema(summary="Detalhes da Loja", tags=["Lojas"]),
-    update=extend_schema(summary="Atualizar Loja", tags=["Lojas"]),
-    partial_update=extend_schema(summary="Atualizar Parcialmente Loja", tags=["Lojas"]),
-    destroy=LOJA_DELETE_SCHEMA,
-)
-class LojaViewSet(viewsets.ModelViewSet):
+class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
     permission_classes = [IsSuperAdmin]
     
     def get_serializer_class(self):
@@ -352,8 +253,8 @@ class LojaViewSet(viewsets.ModelViewSet):
         Mantém a sessão ativa. Se outro dispositivo fez login,
         o session_id no banco será diferente → retorna 401.
         """
-        from ..session_manager import SessionManager
-        from ..models import UserSession
+        from ...session_manager import SessionManager
+        from ...models import UserSession
         
         if not request.user or not request.user.is_authenticated:
             return Response({
@@ -414,7 +315,14 @@ class LojaViewSet(viewsets.ModelViewSet):
             })
         
         try:
-            loja = Loja.objects.get(owner=request.user)
+            slug = (request.query_params.get('slug') or '').strip()
+            if slug:
+                from ...loja_utils import resolve_loja_by_slug_or_atalho
+                loja = resolve_loja_by_slug_or_atalho(slug, is_active=True)
+                if not loja or loja.owner_id != request.user.id:
+                    raise Loja.DoesNotExist
+            else:
+                loja = Loja.objects.get(owner=request.user)
             precisa_trocar = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
             logger.debug(
                 "Verificar senha provisória: loja=%s, senha_foi_alterada=%s, precisa_trocar=%s",
@@ -596,7 +504,7 @@ class LojaViewSet(viewsets.ModelViewSet):
         email_enviado = False
         try:
             if hasattr(settings, 'DEFAULT_FROM_EMAIL') and settings.DEFAULT_FROM_EMAIL:
-                from ..services.provisional_password_helpers import loja_login_absolute_url
+                from ...services.provisional_password_helpers import loja_login_absolute_url
 
                 assunto = f"Nova Senha Provisória - {loja.nome}"
                 mensagem = f"""
@@ -638,7 +546,7 @@ Equipe de Suporte
     
     def destroy(self, request, *args, **kwargs):
         """Exclusão completa da loja com limpeza de todos os dados"""
-        from ..services import LojaCleanupService
+        from ...services import LojaCleanupService
         
         loja = self.get_object()
         cleanup_service = LojaCleanupService(loja)
@@ -698,7 +606,7 @@ Equipe de Suporte
             loja.senha_foi_alterada = False
             loja.save()
 
-            from ..services.provisional_password_helpers import loja_login_absolute_url
+            from ...services.provisional_password_helpers import loja_login_absolute_url
             from core.email_templates import email_senha_provisoria_html
 
             info_adicional = {
@@ -871,349 +779,3 @@ Equipe de Suporte
             'lojas_inativas': total_lojas - lojas_ativas,
             'receita_mensal_estimada': float(receita_mensal),
         })
-    
-    # ============================================================================
-    # ENDPOINTS DE BACKUP - v800
-    # ============================================================================
-    
-    BACKUP_MAX_UPLOAD_BYTES = 500 * 1024 * 1024
-    
-    def _ensure_loja_database_available(self, loja):
-        """Garante que o banco da loja está em settings.DATABASES."""
-        if not loja.database_name or loja.database_name in settings.DATABASES:
-            return True, None
-        from core.db_config import ensure_loja_database_config
-        if ensure_loja_database_config(loja.database_name, conn_max_age=60):
-            return True, None
-        return False, Response(
-            {'success': False, 'error': 'Não foi possível conectar ao banco de dados da loja.'},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE
-        )
-    
-    @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
-    def exportar_backup(self, request, pk=None):
-        """Exporta backup manual da loja em formato CSV compactado."""
-        from django.http import HttpResponse
-        from ..backup_service import BackupService
-        from ..models import HistoricoBackup, ConfiguracaoBackup
-        
-        loja = self.get_object()
-        incluir_imagens = request.data.get('incluir_imagens', False)
-        
-        ok, err_response = self._ensure_loja_database_available(loja)
-        if not ok:
-            return err_response
-        
-        logger.info(f"📤 Solicitação de exportação de backup - Loja: {loja.nome} (ID: {loja.id})")
-        
-        historico = HistoricoBackup.objects.create(
-            loja=loja,
-            tipo='manual',
-            status='processando',
-            solicitado_por=request.user,
-            arquivo_nome='processando...'
-        )
-        
-        try:
-            service = BackupService()
-            result = service.exportar_loja(loja_id=loja.id, incluir_imagens=incluir_imagens)
-            
-            if not result.get('success'):
-                historico.marcar_como_erro(result.get('erro', 'Erro desconhecido'))
-                return Response({
-                    'success': False,
-                    'error': result.get('erro')
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-            historico.arquivo_nome = result['arquivo_nome']
-            historico.marcar_como_concluido(
-                tamanho_mb=result['tamanho_mb'],
-                total_registros=result['total_registros'],
-                tabelas=result['tabelas']
-            )
-            
-            try:
-                config = ConfiguracaoBackup.objects.get(loja=loja)
-                config.incrementar_contador()
-            except ConfiguracaoBackup.DoesNotExist:
-                pass
-            
-            response = HttpResponse(result['arquivo_bytes'], content_type='application/zip')
-            response['Content-Disposition'] = f'attachment; filename="{result["arquivo_nome"]}"'
-            response['X-Backup-Id'] = str(historico.id)
-            response['X-Total-Registros'] = str(result['total_registros'])
-            response['X-Tamanho-MB'] = f"{result['tamanho_mb']:.2f}"
-            if result['total_registros'] == 0:
-                response['X-Backup-Empty'] = 'true'
-            
-            logger.info(f"✅ Backup exportado com sucesso - {result['arquivo_nome']}")
-            return response
-        
-        except Exception as e:
-            logger.exception(f"❌ Erro ao exportar backup: {e}")
-            historico.marcar_como_erro(str(e))
-            return Response({
-                'success': False,
-                'error': f'Erro ao exportar backup: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin], url_path='enviar_backup_agora')
-    def enviar_backup_agora(self, request, pk=None):
-        """Gera o backup da loja agora e envia por email para o proprietário."""
-        from ..backup_service import BackupService
-        from ..backup_email_service import BackupEmailService
-        from ..models import HistoricoBackup, ConfiguracaoBackup
-        from ..tasks import _salvar_arquivo_backup
-
-        loja = self.get_object()
-        ok, err_response = self._ensure_loja_database_available(loja)
-        if not ok:
-            return err_response
-
-        logger.info(f"📤 Enviar backup agora - Loja: {loja.nome} (ID: {loja.id})")
-
-        historico = HistoricoBackup.objects.create(
-            loja=loja,
-            tipo='manual',
-            status='processando',
-            solicitado_por=request.user,
-            arquivo_nome='processando...'
-        )
-
-        try:
-            service = BackupService()
-            result = service.exportar_loja(
-                loja_id=loja.id,
-                incluir_imagens=request.data.get('incluir_imagens', False)
-            )
-
-            if not result.get('success'):
-                historico.marcar_como_erro(result.get('erro', 'Erro desconhecido'))
-                return Response({
-                    'success': False,
-                    'error': result.get('erro')
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-            arquivo_path = _salvar_arquivo_backup(
-                loja=loja,
-                arquivo_nome=result['arquivo_nome'],
-                arquivo_bytes=result['arquivo_bytes']
-            )
-            historico.arquivo_nome = result['arquivo_nome']
-            historico.arquivo_path = arquivo_path
-            historico.marcar_como_concluido(
-                tamanho_mb=result['tamanho_mb'],
-                total_registros=result['total_registros'],
-                tabelas=result['tabelas']
-            )
-
-            try:
-                config = ConfiguracaoBackup.objects.get(loja=loja)
-                config.incrementar_contador()
-            except ConfiguracaoBackup.DoesNotExist:
-                pass
-
-            email_service = BackupEmailService()
-            if email_service.enviar_backup_email(loja_id=loja.id, historico_backup_id=historico.id):
-                logger.info(f"✅ Backup enviado por email - {loja.nome}")
-                return Response({
-                    'success': True,
-                    'message': f'Backup enviado para {loja.owner.email}',
-                    'historico_id': historico.id
-                })
-            return Response({
-                'success': False,
-                'error': 'Backup gerado, mas falha ao enviar email. Verifique o email do proprietário e os logs.'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        except Exception as e:
-            logger.exception(f"❌ Erro em enviar_backup_agora: {e}")
-            historico.marcar_como_erro(str(e))
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin])
-    def importar_backup(self, request, pk=None):
-        """Importa backup de um arquivo ZIP. ATENÇÃO: operação destrutiva."""
-        from ..backup_service import BackupService
-        from ..models import HistoricoBackup
-        
-        loja = self.get_object()
-        
-        ok, err_response = self._ensure_loja_database_available(loja)
-        if not ok:
-            return err_response
-        
-        arquivo = request.FILES.get('arquivo')
-        if not arquivo:
-            return Response({'success': False, 'error': 'Arquivo não fornecido'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if not arquivo.name.endswith('.zip'):
-            return Response({'success': False, 'error': 'Arquivo deve ser um ZIP'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if arquivo.size > self.BACKUP_MAX_UPLOAD_BYTES:
-            return Response({
-                'success': False,
-                'error': f'Arquivo muito grande. Máximo: {self.BACKUP_MAX_UPLOAD_BYTES // (1024*1024)}MB'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        logger.info(f"📥 Solicitação de importação de backup - Loja: {loja.nome} - Arquivo: {arquivo.name}")
-        
-        historico = HistoricoBackup.objects.create(
-            loja=loja,
-            tipo='manual',
-            status='processando',
-            solicitado_por=request.user,
-            arquivo_nome=arquivo.name
-        )
-        
-        try:
-            arquivo_bytes = arquivo.read()
-            
-            service = BackupService()
-            result = service.importar_loja(loja_id=loja.id, arquivo_zip=arquivo_bytes)
-            
-            if not result.get('success'):
-                historico.marcar_como_erro(result.get('erro', 'Erro desconhecido'))
-                return Response({
-                    'success': False,
-                    'error': result.get('erro')
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-            historico.marcar_como_concluido(
-                tamanho_mb=arquivo.size / (1024 * 1024),
-                total_registros=result['total_registros_importados'],
-                tabelas=result['tabelas']
-            )
-            
-            logger.info(f"✅ Backup importado com sucesso - {arquivo.name}")
-            
-            return Response({
-                'success': True,
-                'message': result['message'],
-                'total_registros_importados': result['total_registros_importados'],
-                'tabelas': result['tabelas'],
-                'historico_id': historico.id
-            }, status=status.HTTP_200_OK)
-        
-        except Exception as e:
-            logger.exception(f"❌ Erro ao importar backup: {e}")
-            historico.marcar_como_erro(str(e))
-            return Response({
-                'success': False,
-                'error': f'Erro ao importar backup: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    @action(detail=True, methods=['get'], permission_classes=[IsOwnerOrSuperAdmin])
-    def configuracao_backup(self, request, pk=None):
-        """Obtém configuração de backup da loja."""
-        from ..models import ConfiguracaoBackup
-        from ..serializers import ConfiguracaoBackupSerializer
-        
-        loja = self.get_object()
-        config, created = ConfiguracaoBackup.objects.get_or_create(
-            loja=loja, defaults={'frequencia': 'diario'}
-        )
-        serializer = ConfiguracaoBackupSerializer(config)
-        
-        return Response({'success': True, 'config': serializer.data, 'created': created})
-    
-    @action(detail=True, methods=['put', 'patch'], permission_classes=[IsOwnerOrSuperAdmin])
-    def atualizar_configuracao_backup(self, request, pk=None):
-        """Atualiza configuração de backup da loja."""
-        from ..models import ConfiguracaoBackup
-        from ..serializers import ConfiguracaoBackupSerializer
-        
-        loja = self.get_object()
-        config, _ = ConfiguracaoBackup.objects.get_or_create(
-            loja=loja, defaults={'frequencia': 'diario'}
-        )
-        
-        serializer = ConfiguracaoBackupSerializer(config, data=request.data, partial=True)
-        
-        if serializer.is_valid():
-            serializer.save()
-            logger.info(f"✅ Configuração de backup atualizada - Loja: {loja.nome}")
-            return Response({
-                'success': True,
-                'config': serializer.data,
-                'message': 'Configuração atualizada com sucesso'
-            })
-        else:
-            return Response({
-                'success': False,
-                'errors': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=True, methods=['get'], permission_classes=[IsOwnerOrSuperAdmin])
-    def historico_backups(self, request, pk=None):
-        """Lista histórico de backups da loja."""
-        from ..models import HistoricoBackup
-        from ..serializers import HistoricoBackupListSerializer
-        
-        loja = self.get_object()
-        queryset = HistoricoBackup.objects.filter(loja=loja)
-        
-        tipo = request.query_params.get('tipo')
-        if tipo:
-            queryset = queryset.filter(tipo=tipo)
-        
-        status_filter = request.query_params.get('status')
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-        
-        limit = int(request.query_params.get('limit', 20))
-        queryset = queryset[:limit]
-        
-        serializer = HistoricoBackupListSerializer(queryset, many=True)
-        
-        return Response({
-            'success': True,
-            'count': queryset.count(),
-            'historico': serializer.data
-        })
-    
-    @action(detail=True, methods=['post'], permission_classes=[IsSuperAdmin])
-    def reenviar_backup_email(self, request, pk=None):
-        """Reenvia último backup por email."""
-        from ..models import HistoricoBackup
-        from ..backup_email_service import BackupEmailService
-        
-        loja = self.get_object()
-        historico_id = request.data.get('historico_id')
-        
-        if historico_id:
-            try:
-                historico = HistoricoBackup.objects.get(id=historico_id, loja=loja)
-            except HistoricoBackup.DoesNotExist:
-                return Response({
-                    'success': False,
-                    'error': 'Histórico de backup não encontrado'
-                }, status=status.HTTP_404_NOT_FOUND)
-        else:
-            historico = HistoricoBackup.objects.filter(
-                loja=loja, status='concluido'
-            ).order_by('-created_at').first()
-            
-            if not historico:
-                return Response({
-                    'success': False,
-                    'error': 'Nenhum backup concluído encontrado'
-                }, status=status.HTTP_404_NOT_FOUND)
-        
-        service = BackupEmailService()
-        success = service.enviar_backup_email(loja_id=loja.id, historico_backup_id=historico.id)
-        
-        if success:
-            return Response({
-                'success': True,
-                'message': f'Backup enviado para {loja.owner.email}',
-                'historico_id': historico.id
-            })
-        else:
-            return Response({
-                'success': False,
-                'error': 'Erro ao enviar email. Verifique os logs.'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

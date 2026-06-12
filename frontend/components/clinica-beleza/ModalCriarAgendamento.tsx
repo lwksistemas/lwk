@@ -154,8 +154,8 @@ export function ModalCriarAgendamento({
   };
 
   const buildAppointmentDate = (): Date | null => {
-    const dateSource = isConsulta
-      ? (dateInput ? new Date(`${dateInput}T12:00:00`) : selectedDate)
+    const dateSource = dateInput
+      ? new Date(`${dateInput}T12:00:00`)
       : selectedDate;
     if (!dateSource) return null;
     const [h, m] = time.split(":").map(Number);
@@ -295,10 +295,6 @@ export function ModalCriarAgendamento({
   const inputClass =
     "w-full px-3 py-2.5 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[44px]";
 
-  const displayDate = isConsulta
-    ? (dateInput ? new Date(`${dateInput}T12:00:00`) : null)
-    : selectedDate;
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 overflow-y-auto">
       <div
@@ -325,22 +321,14 @@ export function ModalCriarAgendamento({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data{isConsulta ? " *" : ""}</label>
-                  {isConsulta ? (
-                    <input
-                      type="date"
-                      value={dateInput}
-                      onChange={(e) => setDateInput(e.target.value)}
-                      className={inputClass}
-                      required
-                    />
-                  ) : (
-                    <p className="text-sm text-gray-800 dark:text-gray-200 font-medium py-2.5 px-3 rounded-lg bg-gray-50 dark:bg-neutral-700/50">
-                      {displayDate
-                        ? displayDate.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })
-                        : "—"}
-                    </p>
-                  )}
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data *</label>
+                  <input
+                    type="date"
+                    value={dateInput}
+                    onChange={(e) => setDateInput(e.target.value)}
+                    className={inputClass}
+                    required
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Horário *</label>

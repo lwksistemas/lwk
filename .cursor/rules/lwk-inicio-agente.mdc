@@ -1,0 +1,52 @@
+---
+description: Contexto LWK — ler antes de deploy, tenant ou WhatsApp
+alwaysApply: true
+---
+
+# LWK — início de chat (agente)
+
+**Antes de investigar ou fazer deploy**, leia `docs/RESUMO_SISTEMA_PARA_AGENTES.md` (seção 6 = deploy).
+Detalhes operacionais: `docs/DEPLOY_E_ROLLBACK.md`.
+
+## URLs produção
+
+| O quê | URL |
+|-------|-----|
+| Site | https://lwksistemas.com.br |
+| API | https://api.lwksistemas.com.br |
+| Health | `GET /api/superadmin/health/` → `status`, `build`, `evolution_available` |
+
+## Deploy (copiar e usar)
+
+```bash
+export PATH="$HOME/.local/npm-global/bin:$PATH"
+cd /home/luiz/Documentos/lwksistemas
+
+# 1) Commit + push main → Vercel (frontend) auto-deploy
+git push origin main   # branch protegida: pode pedir aprovação
+
+# 2) Backend — SEMPRE após mudar código Python ou Dockerfile.railway:
+#    a) Bump ARG BUILD_ID=... em Dockerfile.railway (invalida cache Docker)
+#    b) Subir imagem nova (redeploy sozinho NÃO basta se BUILD_ID não mudou)
+railway up --service lwks-backend --detach
+```
+
+- **Nunca** `railway up` no serviço `evolution-api` ou `lwks-cron` por engano.
+- Conta CLI: `lwksistemas@gmail.com` — `railway whoami`, `vercel whoami`.
+
+## Multi-tenant (não esquecer)
+
+- Cada loja = schema Postgres `loja_*` (`Loja.database_name`).
+- Headers: `X-Tenant-Slug` (ex.: `novaimagem`) > `X-Loja-ID`.
+- Migration nova no app tenant → `releaseCommand` no Railway + muitas vezes comando `ensure_*` por loja.
+- WhatsAppConfig fica no **schema da loja**, não no public.
+
+## Loja de teste frequente
+
+- **Nova Imagem:** slug `novaimagem`, tipo clinica-beleza, db `loja_22239255889`.
+
+## WhatsApp / Evolution
+
+- Serviço separado Railway: `evolution-api` (WhatsApp Web QR).
+- Backend precisa `EVOLUTION_API_URL` + `EVOLUTION_API_KEY`.
+- Doc: `docs/WHATSAPP_EVOLUTION.md`.

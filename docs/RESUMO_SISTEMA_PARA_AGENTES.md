@@ -173,15 +173,38 @@ Guia completo: **`docs/DEPLOY_E_ROLLBACK.md`**.
 
 ```bash
 export PATH="$HOME/.local/npm-global/bin:$PATH"
+cd /home/luiz/Documentos/lwksistemas   # raiz do monorepo
 
-# Backend (raiz do repo)
-npx railway up --service lwks-backend --detach
+# Backend — serviço lwks-backend (NÃO evolution-api, NÃO lwks-cron)
+railway up --service lwks-backend --detach
 
-# Frontend (raiz do repo — Root Directory = frontend/ no painel Vercel)
+# Frontend (Vercel usa Root Directory = frontend/)
 npx vercel --prod --yes
 ```
 
 Conta deploy: `lwksistemas@gmail.com`.
+
+### 6.2.1 Backend: BUILD_ID e cache Docker (CRÍTICO)
+
+O Railway usa `Dockerfile.railway`. O Docker **reutiliza camadas em cache** se o código parecer igual.
+
+**Sempre que mudar código do backend** (Python, migrations, fixes de produção):
+
+1. Altere `ARG BUILD_ID=...` em `Dockerfile.railway` (valor único, ex.: hash do commit ou descrição curta).
+2. Commit + `railway up --service lwks-backend --detach`.
+
+**Redeploy** de uma imagem antiga no painel **não** aplica código novo se o BUILD_ID não mudou.
+
+Verificar deploy real:
+
+```bash
+curl -s https://api.lwksistemas.com.br/api/superadmin/health/
+# Campos úteis: "build", "status", "evolution_available"
+```
+
+### 6.2.2 Branch `main` protegida
+
+`git push origin main` pode exigir aprovação no Cursor. Se bloquear, repetir com confirmação ou fazer deploy manual via `railway up` (código local).
 
 ### 6.3 releaseCommand (Railway)
 
@@ -224,7 +247,13 @@ Definido em `railway.toml` — inclui, entre outros:
 
 ### WhatsApp
 
-- Config por loja em módulos que listam `whatsapp` no tipo (ex.: clinica-beleza)
+- Config por loja no **schema tenant** (`whatsapp_whatsappconfig`).
+- UI: `/loja/[slug]/configuracoes/whatsapp` (todos os tipos) ou módulo clínica.
+- **Meta Cloud API:** Phone ID + token + checkbox “WhatsApp ativo”.
+- **WhatsApp Web (Evolution):** serviço Railway separado `evolution-api`; backend com `EVOLUTION_API_URL` + `EVOLUTION_API_KEY`.
+- Colunas novas em `WhatsAppConfig` → `ensure_whatsapp_evolution_fields` (no `releaseCommand`) ou auto-fix em `whatsapp/config_service.py`.
+- Doc completa: `docs/WHATSAPP_EVOLUTION.md`.
+- Health expõe `evolution_available: true/false`.
 
 ### Cloudinary
 
@@ -282,7 +311,7 @@ cd frontend && npm run dev
 | Nome | Slug (CNPJ) | Tipo | Notas |
 |------|-------------|------|-------|
 | HARMONIS | `37302743000126` | clinica-beleza | Corrigida via auditoria de schemas (termo consentimento) |
-| Clinica Nova Imagem | `22239255889` | clinica-beleza | Fluxo Asaas/NFS-e testado |
+| Clinica Nova Imagem | `novaimagem` (atalho) / CNPJ `22239255889` | clinica-beleza | db `loja_22239255889`; WhatsApp Evolution |
 | Felix Representações | `41449198000172` (atalho `felix`) | crm-vendas | Conta Asaas **separada** da LWK |
 | CLÍNICA VIDA | `34787081845` | clinica-beleza | |
 | DR Escrita | `31682991890` | clinica-beleza | |
@@ -306,6 +335,16 @@ cd frontend && npm run dev
 - **Auditoria de schemas:** botão "Verificar e corrigir" agora falha lojas com tabelas obrigatórias ausentes e executa `ensure_*` após migrate (`schema_audit_service.py`).
 - **CRM Asaas:** páginas separadas Asaas e NFS-e; token webhook gerável por loja no CRM e no superadmin.
 - **Deploy:** backend Railway (`lwks-backend`), frontend Vercel; `git push origin main` às vezes bloqueado (branch protegida) — usar `railway up` / `vercel --prod`.
+- **BUILD_ID:** bump obrigatório em `Dockerfile.railway` + `railway up` para backend ir a produção de verdade.
+- **Regra Cursor:** `.cursor/rules/lwk-inicio-agente.mdc` (`alwaysApply`) — cola este resumo em todo chat novo.
+
+---
+
+## 13. Prompt para chat novo
+
+Cole no início de um chat se quiser reforçar:
+
+> Leia `docs/RESUMO_SISTEMA_PARA_AGENTES.md` e `.cursor/rules/lwk-inicio-agente.mdc` antes de continuar. Produção: Vercel (front) + Railway `lwks-backend` (API). Deploy backend = bump BUILD_ID + `railway up --service lwks-backend --detach`.
 
 ---
 

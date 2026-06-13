@@ -21,9 +21,9 @@ npm run build
 echo "  ✅ Build concluído"
 echo ""
 
-# 3. Deploy forçado (ignora cache do Vercel)
-echo "🚀 Passo 3/3: Fazendo deploy forçado..."
-vercel --force
+# 3. Deploy produção (sem --force: preserva cache de build e reduz custo na Vercel)
+echo "🚀 Passo 3/3: Fazendo deploy em produção..."
+vercel --prod --yes
 echo "  ✅ Deploy concluído"
 echo ""
 

@@ -196,17 +196,31 @@ def nfse_config_view(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsSuperAdmin])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
 def nfse_config_test_nacional(request):
     """Testa conexão com o provedor configurado (ISSNet ou ADN Nacional)."""
     from .models_nfse_config import SuperadminNFSeConfig
 
     config = SuperadminNFSeConfig.get_config()
+    data = request.data
 
-    cert_data = config.issnet_certificado or config.nacional_certificado
+    cert_file = request.FILES.get('issnet_certificado') or request.FILES.get('nacional_certificado')
+    if cert_file:
+        cert_data = cert_file.read()
+    else:
+        cert_data = config.issnet_certificado or config.nacional_certificado
+
     from core.encryption import decrypt_value
-    senha_cert = decrypt_value(
-        config.issnet_senha_certificado or config.nacional_senha_certificado or ''
-    )
+
+    senha_cert_raw = str(_data_get(data, 'issnet_senha_certificado', '')).strip()
+    if not senha_cert_raw:
+        senha_cert_raw = str(_data_get(data, 'nacional_senha_certificado', '')).strip()
+    if senha_cert_raw:
+        senha_cert = senha_cert_raw
+    else:
+        senha_cert = decrypt_value(
+            config.issnet_senha_certificado or config.nacional_senha_certificado or ''
+        )
 
     if not cert_data:
         return Response({'success': False, 'detail': 'Certificado não configurado'}, status=400)
@@ -214,35 +228,36 @@ def nfse_config_test_nacional(request):
         return Response({'success': False, 'detail': 'Senha do certificado não configurada'}, status=400)
 
     try:
-        # Rotear teste conforme provedor
         if config.provedor_nfse == 'issnet':
             from nfse_integration.issnet_client import testar_conexao_issnet
 
-            resultado = testar_conexao_issnet(
-                usuario=decrypt_value(config.issnet_usuario or ''),
-                senha=decrypt_value(config.issnet_senha or ''),
-                certificado_path='',  # Não usado diretamente — vamos testar via bytes
-                senha_certificado=senha_cert,
-                ambiente=config.nacional_ambiente or 'producao',
-            )
-            # Se não tem path de certificado, testar manualmente
-            if not resultado.get('success') and 'nao encontrado' in (resultado.get('detail') or '').lower():
-                # Salvar cert temporário e testar
-                import tempfile, os
-                cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix='issnet_test_')
-                cert_tmp.write(bytes(cert_data))
-                cert_tmp.close()
-                try:
-                    resultado = testar_conexao_issnet(
-                        usuario=decrypt_value(config.issnet_usuario or ''),
-                        senha=decrypt_value(config.issnet_senha or ''),
-                        certificado_path=cert_tmp.name,
-                        senha_certificado=senha_cert,
-                        ambiente=config.nacional_ambiente or 'producao',
-                    )
-                finally:
-                    if os.path.isfile(cert_tmp.name):
-                        os.unlink(cert_tmp.name)
+            usuario = str(_data_get(data, 'issnet_usuario', '')).strip()
+            if not usuario:
+                usuario = decrypt_value(config.issnet_usuario or '')
+
+            senha_ws = str(_data_get(data, 'issnet_senha', '')).strip()
+            if not senha_ws:
+                senha_ws = decrypt_value(config.issnet_senha or '')
+
+            ambiente = str(_data_get(data, 'nacional_ambiente', '')).strip() or config.nacional_ambiente or 'producao'
+
+            import tempfile
+            import os
+
+            cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix='issnet_test_')
+            cert_tmp.write(bytes(cert_data))
+            cert_tmp.close()
+            try:
+                resultado = testar_conexao_issnet(
+                    usuario=usuario,
+                    senha=senha_ws,
+                    certificado_path=cert_tmp.name,
+                    senha_certificado=senha_cert,
+                    ambiente=ambiente,
+                )
+            finally:
+                if os.path.isfile(cert_tmp.name):
+                    os.unlink(cert_tmp.name)
         else:
             from nfse_integration.nacional import NacionalClient
 

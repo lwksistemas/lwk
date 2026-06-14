@@ -223,10 +223,7 @@ export default function NFSeConfigPage() {
       }
 
       const formData = buildSaveFormData()
-      const hasFiles = Boolean(nacionalCertificadoFile || issnetCertificadoFile)
-      const { data } = hasFiles
-        ? await apiClient.post('/asaas/nfse-config/', formData)
-        : await apiClient.patch('/asaas/nfse-config/', formData)
+      const { data } = await apiClient.patch('/asaas/nfse-config/', formData)
 
       const saved = normalizeConfigResponse(data as Record<string, unknown>)
       if (saved?.provedor_nfse) {
@@ -265,6 +262,9 @@ export default function NFSeConfigPage() {
         text:
           err.response?.data?.error ||
           detailStr ||
+          (err.response?.status === 405
+            ? 'Método não permitido na API — recarregue a página após o deploy ou use Salvar novamente.'
+            : '') ||
           (err.response?.status === 403 ? 'Sem permissão para salvar (superadmin).' : '') ||
           err.message ||
           'Erro ao salvar configuração',
@@ -278,21 +278,33 @@ export default function NFSeConfigPage() {
     setTesting(true)
     setMessage(null)
     try {
-      const { data } = await apiClient.post('/asaas/nfse-config/test-nacional/')
+      const fd = new FormData()
+      fd.append('issnet_usuario', config.issnet_usuario.trim())
+      if (issnetSenha) fd.append('issnet_senha', issnetSenha)
+      if (issnetSenhaCertificado) fd.append('issnet_senha_certificado', issnetSenhaCertificado)
+      if (issnetCertificadoFile) fd.append('issnet_certificado', issnetCertificadoFile)
+      fd.append('nacional_ambiente', config.nacional_ambiente)
+
+      const { data } = await apiClient.post('/asaas/nfse-config/test-nacional/', fd)
       setMessage({
         type: 'success',
         text: data.message || 'Conexão testada com sucesso!',
       })
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string } } }
+      const err = error as { response?: { data?: { detail?: string; error?: string } } }
       setMessage({
         type: 'error',
-        text: err.response?.data?.detail || 'Erro ao testar conexão',
+        text: err.response?.data?.detail || err.response?.data?.error || 'Erro ao testar conexão',
       })
     } finally {
       setTesting(false)
     }
   }
+
+  const canTestIssnet =
+    config.issnet_certificado_set ||
+    Boolean(issnetCertificadoFile) ||
+    (Boolean(config.issnet_usuario.trim()) && (config.issnet_senha_set || Boolean(issnetSenha)))
 
   if (loading) {
     return (
@@ -574,7 +586,7 @@ export default function NFSeConfigPage() {
               <Button
                 variant="outline"
                 onClick={testConexao}
-                disabled={testing || !config.issnet_certificado_set}
+                disabled={testing || !canTestIssnet}
               >
                 {testing ? (
                   <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Testando...</>

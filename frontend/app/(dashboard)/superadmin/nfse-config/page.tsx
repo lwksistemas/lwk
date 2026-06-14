@@ -524,14 +524,17 @@ export default function NFSeConfigPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Último Nº RPS emitido</Label>
+                <Label>Último nº RPS emitido</Label>
                 <Input
                   type="number"
                   value={config.ultimo_rps}
                   onChange={(e) => setConfig((prev) => ({ ...prev, ultimo_rps: parseInt(e.target.value) || 0 }))}
-                  placeholder="0"
+                  placeholder="Ex: 150"
                 />
-                <p className="text-xs text-muted-foreground">Próxima emissão usará +1</p>
+                <p className="text-xs text-muted-foreground">
+                  Informe o último RPS já usado no ISSNet (não é o número público da NFS-e).
+                  A próxima emissão usará este valor + 1.
+                </p>
               </div>
             </div>
 
@@ -630,14 +633,16 @@ export default function NFSeConfigPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Próximo Nº RPS</Label>
+              <Label>Último nº RPS / DPS emitido</Label>
               <Input
                 type="number"
                 value={config.nacional_ultimo_dps}
                 onChange={(e) => setConfig(prev => ({ ...prev, nacional_ultimo_dps: parseInt(e.target.value) || 0 }))}
-                placeholder="50"
+                placeholder="Ex: 150"
               />
-              <p className="text-xs text-muted-foreground">Último RPS emitido (próximo será +1)</p>
+              <p className="text-xs text-muted-foreground">
+                Informe o último RPS/DPS já emitido no portal Nacional. A próxima nota usará +1.
+              </p>
             </div>
           </div>
 

@@ -56,3 +56,13 @@ export function configuracoesPathForTipo(slug: string, tipoLojaNome: string): st
   if (isTipoServicos(tipoLojaNome)) return `/loja/${slug}/dashboard`;
   return `/loja/${slug}/dashboard`;
 }
+
+/** Rota principal do app conforme o tipo (voltar de páginas compartilhadas). */
+export function homePathForTipo(slug: string, tipoLojaNome: string): string {
+  if (isTipoCRMVendas(tipoLojaNome)) return `/loja/${slug}/crm-vendas`;
+  if (isTipoClinicaBeleza(tipoLojaNome)) return `/loja/${slug}/clinica-beleza/consultas`;
+  if (isTipoClinicaEstetica(tipoLojaNome)) return `/loja/${slug}/clinica-estetica/agenda`;
+  if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/reservas`;
+  if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/cabeleireiro/agenda`;
+  return `/loja/${slug}/dashboard`;
+}

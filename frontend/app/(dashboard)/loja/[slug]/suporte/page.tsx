@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { formatDateTime } from '@/lib/financeiro-helpers';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
+import { useLojaTheme } from '@/hooks/useLojaTheme';
+import { LojaThemedPageShell } from '@/components/loja/LojaThemedPageShell';
+import { hexToRgba } from '@/lib/loja-theme';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import { logger } from '@/lib/logger';
 
@@ -35,7 +38,8 @@ export default function SuporteHistoricoPage() {
   const router = useRouter();
   const params = useParams();
   const slug = params.slug as string;
-  const { loginPath, handleLogout, isLoja, ready } = useLojaAuth(slug);
+  const { loginPath, isLoja, ready } = useLojaAuth(slug);
+  const { loja, theme, loading: loadingTheme } = useLojaTheme(slug);
 
   const [chamados, setChamados] = useState<Chamado[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +48,6 @@ export default function SuporteHistoricoPage() {
   const [modalNovoChamadoAberto, setModalNovoChamadoAberto] = useState(false);
   const [resposta, setResposta] = useState('');
   const [enviandoResposta, setEnviandoResposta] = useState(false);
-  const [lojaNome, setLojaNome] = useState<string>('');
 
   useEffect(() => {
     if (ready && !isLoja) {
@@ -53,9 +56,6 @@ export default function SuporteHistoricoPage() {
     }
     if (!ready || !isLoja) return;
     loadChamados();
-    apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`).then((r) => {
-      if (r.data?.nome) setLojaNome(r.data.nome);
-    }).catch(() => {});
   }, [ready, isLoja, loginPath, slug, router]);
 
   const loadChamados = async () => {
@@ -132,46 +132,49 @@ export default function SuporteHistoricoPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <nav className="bg-blue-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between min-h-16 py-3 sm:py-0 gap-3 sm:gap-0 sm:items-center">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold">Meus Chamados de Suporte</h1>
-              <p className="text-blue-100 text-sm">Histórico e acompanhamento</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setModalNovoChamadoAberto(true)}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md transition-colors flex items-center gap-2 font-medium"
-                title="Abrir novo chamado"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Abrir chamado
-              </button>
-              <button
-                onClick={() => router.push(`/loja/${slug}/dashboard`)}
-                className="px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-md transition-colors"
-              >
-                Voltar ao Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+  const tipoNome = loja?.tipo_loja_nome || '';
+  const lojaNome = loja?.nome || '';
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+  const headerActions = (
+    <button
+      onClick={() => setModalNovoChamadoAberto(true)}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white transition-colors hover:opacity-90"
+      style={{ backgroundColor: theme.corSecundaria }}
+      title="Abrir novo chamado"
+    >
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+      </svg>
+      Abrir chamado
+    </button>
+  );
+
+  if (!ready || !isLoja || loadingTheme) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center dark:bg-slate-950"
+        style={{ backgroundColor: theme.pageBg }}
+      >
+        <p className="text-gray-500">Carregando...</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+    <LojaThemedPageShell
+      slug={slug}
+      tipoLojaNome={tipoNome}
+      theme={theme}
+      title="Meus Chamados de Suporte"
+      subtitle="Histórico e acompanhamento"
+      headerActions={headerActions}
+    >
           {/* Estatísticas */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
               <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total</h3>
-              <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2">{chamados.length}</p>
+              <p className="text-3xl font-bold mt-2" style={{ color: theme.corPrimaria }}>{chamados.length}</p>
             </div>
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
               <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Abertos</h3>
@@ -181,7 +184,7 @@ export default function SuporteHistoricoPage() {
             </div>
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
               <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Em Andamento</h3>
-              <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-2">
+              <p className="text-3xl font-bold mt-2" style={{ color: theme.corSecundaria }}>
                 {chamados.filter(c => c.status === 'em_andamento').length}
               </p>
             </div>
@@ -239,7 +242,10 @@ export default function SuporteHistoricoPage() {
                             </span>
                           )}
                         </div>
-                        <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium">
+                        <button
+                          className="text-sm font-medium hover:opacity-80"
+                          style={{ color: theme.corPrimaria }}
+                        >
                           Ver Detalhes →
                         </button>
                       </div>
@@ -250,18 +256,19 @@ export default function SuporteHistoricoPage() {
             </div>
           </div>
         </div>
-      </main>
+    </LojaThemedPageShell>
 
-      {/* Modal de Detalhes */}
       {modalAberto && chamadoSelecionado && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="bg-blue-600 text-white px-6 py-4 rounded-t-lg sticky top-0">
+            <div
+              className="text-white px-6 py-4 rounded-t-lg sticky top-0"
+              style={{ backgroundColor: theme.corPrimaria }}
+            >
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-xl font-bold">Chamado #{chamadoSelecionado.id}</h3>
-                  <p className="text-blue-100 text-sm mt-1">{chamadoSelecionado.titulo}</p>
+                  <p className="text-sm mt-1 opacity-90">{chamadoSelecionado.titulo}</p>
                 </div>
                 <button
                   onClick={() => setModalAberto(false)}
@@ -324,14 +331,22 @@ export default function SuporteHistoricoPage() {
                         key={resposta.id}
                         className={`p-4 rounded-lg ${
                           resposta.is_suporte
-                            ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500'
+                            ? 'border-l-4'
                             : 'bg-gray-50 dark:bg-gray-700/50 border-l-4 border-gray-300 dark:border-gray-600'
                         }`}
+                        style={
+                          resposta.is_suporte
+                            ? {
+                                backgroundColor: hexToRgba(theme.corPrimaria, 0.1),
+                                borderLeftColor: theme.corPrimaria,
+                              }
+                            : undefined
+                        }
                       >
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex items-center gap-2">
                             {resposta.is_suporte ? (
-                              <span className="text-blue-600 dark:text-blue-400 font-semibold">🎧 Suporte</span>
+                              <span className="font-semibold" style={{ color: theme.corPrimaria }}>🎧 Suporte</span>
                             ) : (
                               <span className="text-gray-700 dark:text-gray-300 font-semibold">👤 {resposta.usuario_nome}</span>
                             )}
@@ -368,7 +383,8 @@ export default function SuporteHistoricoPage() {
                   <textarea
                     value={resposta}
                     onChange={(e) => setResposta(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2"
+                    style={{ '--tw-ring-color': theme.corPrimaria } as CSSProperties}
                     rows={4}
                     placeholder="Digite sua mensagem..."
                     disabled={enviandoResposta}
@@ -377,7 +393,8 @@ export default function SuporteHistoricoPage() {
                     <button
                       onClick={handleEnviarResposta}
                       disabled={!resposta.trim() || enviandoResposta}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                      className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                      style={{ backgroundColor: theme.corPrimaria }}
                     >
                       {enviandoResposta ? 'Enviando...' : 'Enviar Resposta'}
                     </button>
@@ -399,8 +416,9 @@ export default function SuporteHistoricoPage() {
           }}
           lojaSlug={slug}
           lojaNome={lojaNome || undefined}
+          corPrimaria={theme.corPrimaria}
         />
       )}
-    </div>
+    </>
   );
 }

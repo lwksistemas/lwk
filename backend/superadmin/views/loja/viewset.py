@@ -119,6 +119,12 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
                 return Response({'error': 'Loja não encontrada'}, status=404)
             tipo = getattr(loja, 'tipo_loja', None)
             tipo_nome = tipo.nome if tipo else 'Loja'
+            cor_primaria_loja = (getattr(loja, 'cor_primaria', None) or '').strip()
+            cor_secundaria_loja = (getattr(loja, 'cor_secundaria', None) or '').strip()
+            cor_primaria_tipo = (getattr(tipo, 'cor_primaria', None) or '').strip() if tipo else ''
+            cor_secundaria_tipo = (getattr(tipo, 'cor_secundaria', None) or '').strip() if tipo else ''
+            cor_primaria = cor_primaria_loja or cor_primaria_tipo or '#10B981'
+            cor_secundaria = cor_secundaria_loja or cor_secundaria_tipo or '#059669'
 
             cidade = getattr(loja, 'cidade', '') or ''
             uf = getattr(loja, 'uf', '') or ''
@@ -139,8 +145,8 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
                 'slug': getattr(loja, 'slug', '') or slug,
                 'atalho': getattr(loja, 'atalho', '') or '',
                 'tipo_loja_nome': tipo_nome,
-                'cor_primaria': getattr(loja, 'cor_primaria', None) or '#10B981',
-                'cor_secundaria': getattr(loja, 'cor_secundaria', None) or '#059669',
+                'cor_primaria': cor_primaria,
+                'cor_secundaria': cor_secundaria,
                 'logo': getattr(loja, 'logo', None) or '',
                 'login_background': getattr(loja, 'login_background', None) or '',
                 'login_logo': getattr(loja, 'login_logo', None) or '',

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 import apiClient from '@/lib/api-client';
+import { hexToRgba } from '@/lib/loja-theme';
 
 export interface HistoricoPagamentoItem {
   pagamento_loja_id: number;
@@ -54,6 +55,7 @@ interface Props {
   onGerarCobranca?: () => void;
   gerandoCobranca?: boolean;
   onCopiarPix?: () => void;
+  corPrimaria?: string;
 }
 
 function StatusBadge({ item }: { item: HistoricoPagamentoItem }) {
@@ -79,7 +81,11 @@ export function HistoricoPagamentos({
   onGerarCobranca,
   gerandoCobranca,
   onCopiarPix,
+  corPrimaria = '#10B981',
 }: Props) {
+  const softBg = hexToRgba(corPrimaria, 0.08);
+  const softBorder = hexToRgba(corPrimaria, 0.22);
+  const headerBg = hexToRgba(corPrimaria, 0.14);
   const [loadingBoleto, setLoadingBoleto] = useState<number | null>(null);
   const [loadingNf, setLoadingNf] = useState<number | null>(null);
 
@@ -314,10 +320,16 @@ export function HistoricoPagamentos({
   const mostrarProximaLinha = !cobrancaAberta && !temCobrancaAbertaNaLista && proximaCobranca;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-sky-200 dark:border-slate-600 bg-sky-50/60 dark:bg-slate-900/60">
+    <div
+      className="overflow-x-auto rounded-lg dark:bg-slate-900/60"
+      style={{ border: `1px solid ${softBorder}`, backgroundColor: softBg }}
+    >
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-sky-200 dark:border-slate-600 bg-sky-100/90 dark:bg-slate-800">
+          <tr
+            className="border-b dark:border-slate-600"
+            style={{ borderColor: softBorder, backgroundColor: headerBg }}
+          >
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Referência</th>
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Vencimento</th>
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Valor</th>

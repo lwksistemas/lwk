@@ -12,10 +12,12 @@ import {
   CheckCircle,
   Clock,
   AlertTriangle,
-  ArrowLeft,
 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { resolveLojaApiSlug } from '@/lib/resolve-loja-slug';
+import { useLojaTheme } from '@/hooks/useLojaTheme';
+import { LojaThemedPageShell } from '@/components/loja/LojaThemedPageShell';
+import { assinaturaBackPath } from '@/lib/loja-theme';
 import { NovaCobrancaModal } from './components/NovaCobrancaModal';
 import { HistoricoPagamentos, type HistoricoPagamentoItem } from './components/HistoricoPagamentos';
 
@@ -59,19 +61,14 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
   suspenso: <AlertTriangle className="w-4 h-4" />,
 };
 
-const shell =
-  'min-h-screen w-full bg-sky-50 dark:bg-slate-950 text-gray-800 dark:text-gray-100';
-const pagePad = 'w-full min-h-screen px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6';
-const cardCls =
-  'w-full bg-white/95 dark:bg-slate-900/95 border border-sky-100 dark:border-slate-700 shadow-sm';
-
 export default function AssinaturaLojaPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const { loja, theme, loading: loadingTheme } = useLojaTheme(slug);
 
   useEffect(() => {
-    const theme = localStorage.getItem('theme');
-    if (theme === 'dark') document.documentElement.classList.add('dark');
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark') document.documentElement.classList.add('dark');
   }, []);
 
   const [data, setData] = useState<AssinaturaData | null>(null);
@@ -176,9 +173,15 @@ export default function AssinaturaLojaPage() {
     }
   };
 
-  if (loading) {
+  const tipoNome = loja?.tipo_loja_nome || '';
+  const backHref = assinaturaBackPath(slug, tipoNome);
+
+  if (loadingTheme || loading) {
     return (
-      <div className={`${shell} flex items-center justify-center p-6`}>
+      <div
+        className="min-h-screen flex items-center justify-center dark:bg-slate-950"
+        style={{ backgroundColor: theme.pageBg }}
+      >
         <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -186,15 +189,21 @@ export default function AssinaturaLojaPage() {
 
   if (error || !data) {
     return (
-      <div className={`${shell} ${pagePad}`}>
+      <LojaThemedPageShell
+        slug={slug}
+        tipoLojaNome={tipoNome}
+        theme={theme}
+        title="Assinatura"
+        subtitle={loja?.nome}
+      >
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error || 'Dados não encontrados'}</AlertDescription>
         </Alert>
         <Button variant="outline" className="mt-4" asChild>
-          <Link href={`/loja/${slug}/dashboard`}>Voltar</Link>
+          <Link href={backHref}>Voltar</Link>
         </Button>
-      </div>
+      </LojaThemedPageShell>
     );
   }
 
@@ -216,43 +225,49 @@ export default function AssinaturaLojaPage() {
       }
     : null;
 
-  return (
-    <div className={`${shell} ${pagePad}`}>
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
-          <Button variant="ghost" size="sm" className="shrink-0 dark:text-gray-200 -ml-2" asChild>
-            <Link href={`/loja/${slug}/dashboard`} className="flex items-center gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              Voltar
-            </Link>
-          </Button>
-          <div className="min-w-0 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <h1 className="text-xl sm:text-2xl font-bold dark:text-gray-100 shrink-0">Assinatura</h1>
-            <span className="text-muted-foreground hidden sm:inline">·</span>
-            <p className="text-sm text-muted-foreground dark:text-gray-400 truncate">
-              {data.loja.nome} · {data.loja.plano} ({data.loja.tipo_assinatura})
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Badge variant={STATUS_BADGE[st] || 'secondary'} className="text-xs sm:text-sm gap-1">
-            {STATUS_ICON[st] || <Clock className="w-4 h-4" />}
-            {fin.status_pagamento}
-          </Badge>
-          <Button variant="outline" size="sm" onClick={carregarDados}>
-            <RefreshCw className="w-4 h-4 sm:mr-2" />
-            Atualizar
-          </Button>
-          {fin.tem_asaas && (
-            <Button variant="outline" size="sm" onClick={atualizarStatus} disabled={atualizandoStatus}>
-              <RefreshCw className={`w-4 h-4 sm:mr-2 ${atualizandoStatus ? 'animate-spin' : ''}`} />
-              <span className="hidden lg:inline">Sync Asaas</span>
-            </Button>
-          )}
-        </div>
-      </div>
+  const headerActions = (
+    <>
+      <Badge variant={STATUS_BADGE[st] || 'secondary'} className="text-xs sm:text-sm gap-1 bg-white/20 text-white border-white/30">
+        {STATUS_ICON[st] || <Clock className="w-4 h-4" />}
+        {fin.status_pagamento}
+      </Badge>
+      <Button
+        variant="secondary"
+        size="sm"
+        className="bg-white/15 text-white border-white/20 hover:bg-white/25"
+        onClick={carregarDados}
+      >
+        <RefreshCw className="w-4 h-4 sm:mr-2" />
+        <span className="hidden sm:inline">Atualizar</span>
+      </Button>
+      {fin.tem_asaas && (
+        <Button
+          variant="secondary"
+          size="sm"
+          className="bg-white/15 text-white border-white/20 hover:bg-white/25"
+          onClick={atualizarStatus}
+          disabled={atualizandoStatus}
+        >
+          <RefreshCw className={`w-4 h-4 sm:mr-2 ${atualizandoStatus ? 'animate-spin' : ''}`} />
+          <span className="hidden lg:inline">Sync Asaas</span>
+        </Button>
+      )}
+    </>
+  );
 
-      <Card className={cardCls}>
+  return (
+    <LojaThemedPageShell
+      slug={slug}
+      tipoLojaNome={tipoNome}
+      theme={theme}
+      title="Assinatura"
+      subtitle={`${data.loja.nome} · ${data.loja.plano} (${data.loja.tipo_assinatura})`}
+      headerActions={headerActions}
+    >
+      <Card
+        className="w-full bg-white/95 dark:bg-slate-900/95 shadow-sm"
+        style={{ borderColor: theme.cardBorder }}
+      >
         <CardContent className="pt-6">
           <HistoricoPagamentos
             itens={historico}
@@ -263,6 +278,7 @@ export default function AssinaturaLojaPage() {
             onGerarCobranca={gerarNovaCobranca}
             gerandoCobranca={gerandoCobranca}
             onCopiarPix={() => copiarPix(fin.pix_copy_paste)}
+            corPrimaria={theme.corPrimaria}
           />
         </CardContent>
       </Card>
@@ -274,6 +290,6 @@ export default function AssinaturaLojaPage() {
           onCopiarPix={() => copiarPix(novaCobranca.pix_copy_paste)}
         />
       )}
-    </div>
+    </LojaThemedPageShell>
   );
 }

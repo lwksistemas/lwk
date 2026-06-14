@@ -9,9 +9,10 @@ interface ModalChamadoProps {
   onFechar: () => void
   lojaSlug?: string
   lojaNome?: string
+  corPrimaria?: string
 }
 
-export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: ModalChamadoProps) {
+export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome, corPrimaria = '#2563EB' }: ModalChamadoProps) {
   const [loading, setLoading] = useState(false)
   const [sucesso, setSucesso] = useState(false)
   const [erro, setErro] = useState('')
@@ -154,7 +155,8 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
               <select
                 value={formData.tipo}
                 onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:border-transparent text-sm"
+                style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
                 required
               >
                 <option value="duvida">❓ Dúvida</option>
@@ -173,7 +175,8 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
               <select
                 value={formData.prioridade}
                 onChange={(e) => setFormData({ ...formData, prioridade: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:border-transparent text-sm"
+                style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
               >
                 <option value="baixa">🟢 Baixa</option>
                 <option value="media">🟡 Média</option>
@@ -192,7 +195,8 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
                 value={formData.titulo}
                 onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
                 placeholder="Ex: Dúvida sobre cadastro de produtos"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:border-transparent text-sm"
+                style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
                 required
                 maxLength={200}
               />
@@ -208,7 +212,8 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
                 onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
                 placeholder="Descreva detalhadamente sua dúvida, problema ou solicitação..."
                 rows={5}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:border-transparent resize-none text-sm"
+                style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
                 required
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -225,7 +230,8 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
                     id="incluirLogs"
                     checked={incluirLogs}
                     onChange={(e) => setIncluirLogs(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    className="mt-0.5 w-4 h-4 border-gray-300 rounded focus:ring-2"
+                    style={{ accentColor: corPrimaria, '--tw-ring-color': corPrimaria } as React.CSSProperties}
                   />
                   <div className="flex-1">
                     <label htmlFor="incluirLogs" className="text-sm font-medium text-amber-900 dark:text-amber-200 cursor-pointer">
@@ -257,7 +263,8 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                className="flex-1 px-4 py-2.5 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium hover:opacity-90"
+                style={{ backgroundColor: corPrimaria }}
                 disabled={loading}
               >
                 {loading ? (
@@ -276,9 +283,17 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome }: M
           </form>
 
           {/* Informações Adicionais */}
-          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <h3 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">ℹ️ Tempo de Resposta</h3>
-            <ul className="text-xs text-blue-800 dark:text-blue-300 space-y-1">
+          <div
+            className="mt-4 p-3 rounded-lg border dark:border-opacity-30"
+            style={{
+              backgroundColor: `${corPrimaria}14`,
+              borderColor: `${corPrimaria}40`,
+            }}
+          >
+            <h3 className="text-sm font-medium mb-2" style={{ color: corPrimaria }}>
+              ℹ️ Tempo de Resposta
+            </h3>
+            <ul className="text-xs space-y-1 opacity-90" style={{ color: corPrimaria }}>
               <li>• <strong>Urgente:</strong> Até 2 horas</li>
               <li>• <strong>Alta:</strong> Até 4 horas</li>
               <li>• <strong>Média:</strong> Até 24 horas</li>

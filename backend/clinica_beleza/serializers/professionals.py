@@ -124,6 +124,7 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
         extra_kwargs = {
             'email': {'required': False, 'allow_blank': True, 'allow_null': True},
             'telefone': {'required': False, 'allow_blank': True},
+            'tempo_consulta_minutos': {'required': False, 'allow_null': True},
         }
 
     def get_is_administrador_vinculado(self, obj):

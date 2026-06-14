@@ -81,6 +81,16 @@ def _map_professional_data(raw_data):
     for key in ('criar_acesso', 'perfil'):
         data.pop(key, None)
 
+    if 'tempo_consulta_minutos' in data:
+        raw = data.get('tempo_consulta_minutos')
+        if raw is None or raw == '':
+            data['tempo_consulta_minutos'] = None
+        else:
+            try:
+                data['tempo_consulta_minutos'] = int(raw)
+            except (TypeError, ValueError):
+                data['tempo_consulta_minutos'] = None
+
     return data
 
 

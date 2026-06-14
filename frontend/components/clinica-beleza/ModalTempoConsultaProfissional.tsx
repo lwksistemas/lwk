@@ -12,7 +12,7 @@ interface ModalTempoConsultaProfissionalProps {
   professionalId: number;
   professionalName: string;
   onClose: () => void;
-  onSaved?: () => void;
+  onSaved?: (professional: { id: number; tempo_consulta_minutos?: number | null }) => void;
 }
 
 export function ModalTempoConsultaProfissional({
@@ -56,10 +56,21 @@ export function ModalTempoConsultaProfissional({
 
     setSaving(true);
     try {
-      await ClinicaBelezaAPI.professionals.update(professionalId, {
+      const saved = await ClinicaBelezaAPI.professionals.update(professionalId, {
         tempo_consulta_minutos: parsed,
-      });
-      onSaved?.();
+      }) as { id?: number; tempo_consulta_minutos?: number | null };
+      const savedTempo = saved?.tempo_consulta_minutos ?? null;
+      if (parsed != null && savedTempo !== parsed) {
+        setError(
+          'O servidor não confirmou o tempo salvo. Aguarde o deploy do backend no beta e tente novamente.',
+        );
+        return;
+      }
+      if (saved?.id) {
+        onSaved?.({ id: saved.id, tempo_consulta_minutos: savedTempo });
+      } else {
+        onSaved?.({ id: professionalId, tempo_consulta_minutos: savedTempo });
+      }
       onClose();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro ao salvar.";

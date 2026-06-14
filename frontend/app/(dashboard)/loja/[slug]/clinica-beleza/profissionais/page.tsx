@@ -253,7 +253,18 @@ export default function ProfissionaisPage() {
           professionalId={tempoConsultaProfessional.id}
           professionalName={entityName(tempoConsultaProfessional)}
           onClose={() => setTempoConsultaProfessional(null)}
-          onSaved={() => load()}
+          onSaved={(updated) => {
+            setList((prev) => {
+              const next = prev.map((p) =>
+                p.id === updated.id
+                  ? { ...p, tempo_consulta_minutos: updated.tempo_consulta_minutos ?? null }
+                  : p,
+              );
+              void salvarProfissionaisOffline(next);
+              return next;
+            });
+            void load();
+          }}
         />
       )}
     </>

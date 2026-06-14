@@ -52,7 +52,6 @@ O beta **não** deve apontar para um deploy de **Production** (`main`). Cada pus
 | Domínio | Branch Git | URL estável Vercel |
 |---------|------------|-------------------|
 | `beta.lwksistemas.com.br` | `staging` | `frontend-git-staging-lwks-projects-48afd555.vercel.app` |
-| `staging.lwksistemas.com.br` | `staging` | (mesma URL acima) |
 
 **Opção A — script (recomendado, via CLI):**
 
@@ -66,14 +65,12 @@ bash scripts/vercel-link-beta-staging.sh
 1. [Vercel → frontend → Settings → Domains](https://vercel.com/lwks-projects-48afd555/frontend/settings/domains)
 2. Domínio `beta.lwksistemas.com.br` → **Edit**
 3. **Connect to an environment** → **Preview** → Git Branch **`staging`**
-4. Repetir para `staging.lwksistemas.com.br` (se usar)
 
 **Opção C — alias manual (equivalente à opção A):**
 
 ```bash
 cd frontend
 npx vercel alias set frontend-git-staging-lwks-projects-48afd555.vercel.app beta.lwksistemas.com.br
-npx vercel alias set frontend-git-staging-lwks-projects-48afd555.vercel.app staging.lwksistemas.com.br
 ```
 
 **Variável de ambiente Preview (branch staging):** em Vercel → Settings → Environment Variables, para **Preview** (ou branch `staging`):

@@ -255,7 +255,6 @@ export default function SuporteHistoricoPage() {
               )}
             </div>
           </div>
-        </div>
     </LojaThemedPageShell>
 
       {modalAberto && chamadoSelecionado && (

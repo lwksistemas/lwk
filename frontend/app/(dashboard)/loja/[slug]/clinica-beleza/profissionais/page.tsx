@@ -147,8 +147,8 @@ export default function ProfissionaisPage() {
                     <th className="text-left p-3">Nome</th>
                     <th className="text-left p-3">Especialidade</th>
                     <th className="text-left p-3 hidden md:table-cell">Telefone</th>
-                    <th className="text-left p-3 hidden lg:table-cell">Consulta</th>
-                    <th className="w-48 p-3">Ações</th>
+                    <th className="text-left p-3 hidden md:table-cell">Consulta</th>
+                    <th className="min-w-[220px] p-3">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -157,23 +157,26 @@ export default function ProfissionaisPage() {
                       <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{entityName(p)}</td>
                       <td className="p-3 text-gray-700 dark:text-gray-300">{professionalSpecialty(p) || "—"}</td>
                       <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{entityPhone(p) || "—"}</td>
-                      <td className="p-3 hidden lg:table-cell text-gray-700 dark:text-gray-300">
+                      <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">
                         {p.tempo_consulta_minutos != null && p.tempo_consulta_minutos > 0
                           ? `${p.tempo_consulta_minutos} min`
                           : "Padrão do local"}
                       </td>
                       <td className="p-3">
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-1.5">
                           <button
+                            type="button"
                             onClick={() => setTempoConsultaProfessional(p)}
-                            className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded"
-                            title="Tempo da consulta"
+                            className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-md text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                            title="Definir tempo padrão da consulta deste profissional"
                           >
-                            <Timer size={18} />
+                            <Timer size={16} />
+                            Tempo consulta
                           </button>
                           {p.is_administrador_vinculado ? (
                             <>
                               <button
+                                type="button"
                                 onClick={() => setHorariosProfessional(p)}
                                 className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"
                                 title="Dias e horários de trabalho"
@@ -181,6 +184,7 @@ export default function ProfissionaisPage() {
                                 <Clock size={18} />
                               </button>
                               <button
+                                type="button"
                                 onClick={() => openEdit(p)}
                                 className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
                                 title="Editar"
@@ -191,6 +195,7 @@ export default function ProfissionaisPage() {
                           ) : (
                             <>
                               <button
+                                type="button"
                                 onClick={() => setHorariosProfessional(p)}
                                 className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"
                                 title="Dias e horários de trabalho"
@@ -198,6 +203,7 @@ export default function ProfissionaisPage() {
                                 <Clock size={18} />
                               </button>
                               <button
+                                type="button"
                                 onClick={() => openEdit(p)}
                                 className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
                                 title="Editar"

@@ -101,11 +101,15 @@ class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializ
         elif appointment.procedure_id:
             criar_appointment_procedures(appointment, [appointment.procedure], convenio=convenio)
         elif not appointment.duracao_minutos:
-            local = validated_data.get('local_atendimento')
-            tempo = getattr(local, 'tempo_consulta_minutos', None) if local else None
-            if tempo and tempo > 0:
-                appointment.duracao_minutos = tempo
-                appointment.save(update_fields=['duracao_minutos'])
+            from ..duracao_consulta import calcular_duracao_novo_agendamento
+            tempo = calcular_duracao_novo_agendamento(
+                professional=appointment.professional,
+                procedures_list=procedures_list if procedures_list else None,
+                procedure=appointment.procedure if appointment.procedure_id else None,
+                local_atendimento=validated_data.get('local_atendimento'),
+            )
+            appointment.duracao_minutos = tempo
+            appointment.save(update_fields=['duracao_minutos'])
         return appointment
 
 

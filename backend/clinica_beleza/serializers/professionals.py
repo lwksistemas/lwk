@@ -132,6 +132,15 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
             return False
         return obj.id == owner_professional_id
 
+    def validate_tempo_consulta_minutos(self, value):
+        if value is None:
+            return value
+        if value < 5:
+            raise serializers.ValidationError('Tempo mínimo de 5 minutos.')
+        if value > 480:
+            raise serializers.ValidationError('Tempo máximo de 480 minutos (8 horas).')
+        return value
+
 
 class ProfessionalCommissionSerializer(serializers.ModelSerializer):
     procedure_name = serializers.CharField(source='procedure.nome', read_only=True, default=None)

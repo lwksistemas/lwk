@@ -107,20 +107,20 @@ class Appointment(LojaIsolationMixin, models.Model):
         return f"{self.patient.nome} - {nomes} - {self.date.strftime('%d/%m/%Y %H:%M')}"
 
     def get_duracao_efetiva(self) -> int:
-        """Duração efetiva: campo manual > soma dos procedimentos > procedimento principal."""
-        if self.duracao_minutos is not None:
-            return self.duracao_minutos
-        # Soma dos procedimentos extras (se houver)
-        total = sum(
-            ap.duracao_minutos or ap.procedure.duracao_minutos
-            for ap in self.appointment_procedures.select_related('procedure').all()
+        """Duração efetiva: manual > max(procedimentos, tempo consulta do profissional)."""
+        from ..duracao_consulta import calcular_duracao_efetiva_agendamento
+
+        appointment_procedures = list(
+            self.appointment_procedures.select_related('procedure').all()
         )
-        if total > 0:
-            return total
-        # Fallback: procedimento principal (legado)
-        if self.procedure_id:
-            return self.procedure.duracao_minutos
-        return 30
+        procedure_principal = self.procedure if self.procedure_id else None
+        return calcular_duracao_efetiva_agendamento(
+            duracao_manual=self.duracao_minutos,
+            professional=self.professional,
+            local_atendimento=self.local_atendimento,
+            appointment_procedures=appointment_procedures if appointment_procedures else None,
+            procedure_principal=procedure_principal,
+        )
 
     @property
     def valor_total(self):

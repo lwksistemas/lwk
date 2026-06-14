@@ -19,6 +19,7 @@ import {
   type HorarioTrabalho,
   workHoursRejectionMessage,
 } from "@/lib/clinica-beleza-work-hours";
+import { calcularDuracaoAgendamento } from "@/lib/clinica-beleza-duracao";
 
 interface Professional {
   id: number;
@@ -26,6 +27,7 @@ interface Professional {
   nome?: string;
   specialty?: string;
   especialidade?: string;
+  tempo_consulta_minutos?: number | null;
 }
 
 export type ModalCriarAgendamentoMode = "agenda" | "consulta";
@@ -184,11 +186,12 @@ export function ModalCriarAgendamento({
     const localSel = localAtendimentoId
       ? locaisAtendimento.find((l) => l.id === localAtendimentoId)
       : undefined;
-    const duracaoChecagem =
-      resumo.duracao ||
-      (localSel?.tempo_consulta_minutos != null && localSel.tempo_consulta_minutos > 0
-        ? localSel.tempo_consulta_minutos
-        : 30);
+    const profSel = professionals.find((p) => p.id === professionalId);
+    const duracaoChecagem = calcularDuracaoAgendamento(
+      resumo.duracao,
+      profSel,
+      localSel,
+    );
 
     const horarioMsg = workHoursRejectionMessage(date, duracaoChecagem, horariosProfissional);
     if (horarioMsg) {
@@ -241,7 +244,7 @@ export function ModalCriarAgendamento({
           .join(" • ") || "Agendamento (offline)";
         const tempId = `offline-${Date.now()}`;
         const endDate = new Date(date);
-        endDate.setMinutes(endDate.getMinutes() + resumo.duracao);
+        endDate.setMinutes(endDate.getMinutes() + duracaoChecagem);
 
         if (onOfflineEventCreated) {
           onOfflineEventCreated({

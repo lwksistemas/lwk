@@ -6,11 +6,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Pencil, Trash2, Clock } from "lucide-react";
+import { Pencil, Trash2, Clock, Timer } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
+import { ModalTempoConsultaProfissional } from "@/components/clinica-beleza/ModalTempoConsultaProfissional";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { ProfissionalFormPageContent } from "@/components/clinica-beleza/ProfissionalFormPageContent";
 import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
@@ -40,6 +41,7 @@ interface Professional {
   active?: boolean;
   is_active?: boolean;
   is_administrador_vinculado?: boolean;
+  tempo_consulta_minutos?: number | null;
 }
 
 interface LojaOwnerInfo {
@@ -64,6 +66,7 @@ export default function ProfissionaisPage() {
   });
   const [lojaOwnerInfo, setLojaOwnerInfo] = useState<LojaOwnerInfo | null>(null);
   const [horariosProfessional, setHorariosProfessional] = useState<Professional | null>(null);
+  const [tempoConsultaProfessional, setTempoConsultaProfessional] = useState<Professional | null>(null);
 
   const loadLojaInfo = async () => {
     if (!navigator.onLine) return;
@@ -144,7 +147,8 @@ export default function ProfissionaisPage() {
                     <th className="text-left p-3">Nome</th>
                     <th className="text-left p-3">Especialidade</th>
                     <th className="text-left p-3 hidden md:table-cell">Telefone</th>
-                    <th className="w-40 p-3">Ações</th>
+                    <th className="text-left p-3 hidden lg:table-cell">Consulta</th>
+                    <th className="w-48 p-3">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -153,8 +157,20 @@ export default function ProfissionaisPage() {
                       <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{entityName(p)}</td>
                       <td className="p-3 text-gray-700 dark:text-gray-300">{professionalSpecialty(p) || "—"}</td>
                       <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{entityPhone(p) || "—"}</td>
+                      <td className="p-3 hidden lg:table-cell text-gray-700 dark:text-gray-300">
+                        {p.tempo_consulta_minutos != null && p.tempo_consulta_minutos > 0
+                          ? `${p.tempo_consulta_minutos} min`
+                          : "Padrão do local"}
+                      </td>
                       <td className="p-3">
                         <div className="flex gap-2">
+                          <button
+                            onClick={() => setTempoConsultaProfessional(p)}
+                            className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded"
+                            title="Tempo da consulta"
+                          >
+                            <Timer size={18} />
+                          </button>
                           {p.is_administrador_vinculado ? (
                             <>
                               <button
@@ -220,8 +236,17 @@ export default function ProfissionaisPage() {
       {horariosProfessional && (
         <ModalHorariosTrabalho
           professionalId={horariosProfessional.id}
-          professionalName={horariosProfessional.name}
+          professionalName={entityName(horariosProfessional)}
           onClose={() => setHorariosProfessional(null)}
+          onSaved={() => load()}
+        />
+      )}
+
+      {tempoConsultaProfessional && (
+        <ModalTempoConsultaProfissional
+          professionalId={tempoConsultaProfessional.id}
+          professionalName={entityName(tempoConsultaProfessional)}
+          onClose={() => setTempoConsultaProfessional(null)}
           onSaved={() => load()}
         />
       )}

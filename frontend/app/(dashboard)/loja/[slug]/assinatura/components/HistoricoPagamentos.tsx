@@ -314,10 +314,10 @@ export function HistoricoPagamentos({
   const mostrarProximaLinha = !cobrancaAberta && !temCobrancaAbertaNaLista && proximaCobranca;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-neutral-600 bg-gray-50/80 dark:bg-neutral-900/50">
+    <div className="overflow-x-auto rounded-lg border border-sky-200 dark:border-slate-600 bg-sky-50/60 dark:bg-slate-900/60">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 dark:border-neutral-600 bg-gray-100/90 dark:bg-neutral-800">
+          <tr className="border-b border-sky-200 dark:border-slate-600 bg-sky-100/90 dark:bg-slate-800">
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Referência</th>
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Vencimento</th>
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Valor</th>

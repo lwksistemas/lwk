@@ -62,8 +62,11 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
   suspenso: <AlertTriangle className="w-4 h-4" />,
 };
 
-const shell = 'min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100';
-const cardCls = 'bg-white dark:bg-neutral-800 dark:border-neutral-700 shadow-sm';
+const shell =
+  'min-h-screen w-full bg-sky-50 dark:bg-slate-950 text-gray-800 dark:text-gray-100';
+const pagePad = 'w-full min-h-screen px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6';
+const cardCls =
+  'w-full bg-white/95 dark:bg-slate-900/95 border border-sky-100 dark:border-slate-700 shadow-sm';
 
 export default function AssinaturaLojaPage() {
   const params = useParams();
@@ -186,7 +189,7 @@ export default function AssinaturaLojaPage() {
 
   if (error || !data) {
     return (
-      <div className={`${shell} container mx-auto p-6`}>
+      <div className={`${shell} ${pagePad}`}>
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error || 'Dados não encontrados'}</AlertDescription>
@@ -217,7 +220,7 @@ export default function AssinaturaLojaPage() {
     : null;
 
   return (
-    <div className={`${shell} container mx-auto p-3 sm:p-6 space-y-4 max-w-5xl`}>
+    <div className={`${shell} ${pagePad}`}>
       <div className="flex flex-col gap-3">
         <Button variant="ghost" size="sm" className="w-fit dark:text-gray-200" asChild>
           <Link href={`/loja/${slug}/dashboard`} className="flex items-center gap-2">

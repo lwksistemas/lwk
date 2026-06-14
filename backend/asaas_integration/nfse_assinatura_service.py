@@ -236,7 +236,7 @@ def _emitir_via_issnet(
 
         try:
             client = ISSNetClient(
-                usuario=config.issnet_usuario or '',
+                usuario=decrypt_value(config.issnet_usuario or ''),
                 senha=senha_ws_plain,
                 certificado_path=cert_tmp.name,
                 senha_certificado=senha_cert_plain,

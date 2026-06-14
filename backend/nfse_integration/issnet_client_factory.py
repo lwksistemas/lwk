@@ -81,7 +81,7 @@ def issnet_client_superadmin(config: Any, *, prefix: str = 'issnet_') -> Generat
     with issnet_client_from_pfx(
         cert_data=_cert_bytes(config),
         senha_certificado=decrypt_value(_senha_cert(config)),
-        usuario=getattr(config, 'issnet_usuario', '') or '',
+        usuario=decrypt_value(getattr(config, 'issnet_usuario', '') or ''),
         senha=decrypt_value(getattr(config, 'issnet_senha', '') or ''),
         ambiente=getattr(config, 'nacional_ambiente', None) or 'producao',
         prefix=prefix,

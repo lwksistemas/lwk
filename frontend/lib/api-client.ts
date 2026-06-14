@@ -93,7 +93,12 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
   const sessionId = sessionStorage.getItem('session_id');
   if (sessionId) config.headers.set('X-Session-ID', sessionId);
   if (config.data instanceof FormData) {
-    config.headers.delete('Content-Type');
+    // Deixa o browser definir multipart/form-data com boundary
+    if (typeof config.headers?.delete === 'function') {
+      config.headers.delete('Content-Type')
+    } else if (config.headers) {
+      delete config.headers['Content-Type']
+    }
   }
   if (process.env.NODE_ENV === 'development') {
     logger.log('API Request:', config.method?.toUpperCase(), config.url);

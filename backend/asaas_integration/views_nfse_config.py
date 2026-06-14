@@ -1,15 +1,16 @@
 """
 Views para configuração de NFS-e do Superadmin.
-GET/PATCH /api/asaas/nfse-config/
+GET/PATCH/POST /api/asaas/nfse-config/
 POST /api/asaas/nfse-config/test-nacional/
 """
 import os
 import logging
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
 from superadmin.views.permissions import IsSuperAdmin
 
@@ -24,7 +25,27 @@ def _parse_bool(val) -> bool:
     return str(val).strip().lower() in ('true', '1', 'yes', 'on')
 
 
+def _data_get(data, key, default=''):
+    """Extrai valor único de dict ou QueryDict (multipart)."""
+    if not hasattr(data, 'get'):
+        return default
+    if key not in data:
+        return default
+    val = data.get(key, default)
+    if isinstance(val, (list, tuple)):
+        val = val[0] if val else default
+    if val is None:
+        return default
+    return val
+
+
 def _serialize_nfse_config(config) -> dict:
+    from core.encryption import decrypt_value
+
+    issnet_usuario = decrypt_value(config.issnet_usuario or '')
+    issnet_senha_raw = (config.issnet_senha or '').strip()
+    issnet_senha_cert_raw = (config.issnet_senha_certificado or '').strip()
+
     return {
         'provedor_nfse': config.provedor_nfse,
         'emitir_automaticamente': config.emitir_automaticamente,
@@ -39,11 +60,11 @@ def _serialize_nfse_config(config) -> dict:
         'codigo_cnae': config.codigo_cnae,
         'optante_simples_nacional': config.optante_simples_nacional,
         'incentivador_cultural': config.incentivador_cultural,
-        'issnet_usuario': config.issnet_usuario or '',
-        'issnet_senha_set': bool((config.issnet_senha or '').strip()),
+        'issnet_usuario': issnet_usuario,
+        'issnet_senha_set': bool(issnet_senha_raw),
         'issnet_certificado_nome': config.issnet_certificado_nome or '',
         'issnet_certificado_set': bool(config.issnet_certificado),
-        'issnet_senha_certificado_set': bool((config.issnet_senha_certificado or '').strip()),
+        'issnet_senha_certificado_set': bool(issnet_senha_cert_raw),
         'serie_rps': config.serie_rps or 'E',
         'ultimo_rps': int(config.ultimo_rps or 0),
         'nacional_certificado_nome': config.nacional_certificado_nome,
@@ -56,23 +77,12 @@ def _serialize_nfse_config(config) -> dict:
     }
 
 
-@api_view(['GET', 'PATCH'])
-@permission_classes([IsAuthenticated, IsSuperAdmin])
-def nfse_config_view(request):
-    """GET: retorna config. PATCH: atualiza config."""
-    from .models_nfse_config import SuperadminNFSeConfig
-
-    config = SuperadminNFSeConfig.get_config()
-
-    if request.method == 'GET':
-        return Response(_serialize_nfse_config(config))
-
-    # PATCH
+def _apply_nfse_config_update(request, config):
+    """Aplica PATCH/POST no singleton de config NFS-e."""
     data = request.data
     update_fields = ['updated_at']
     from core.encryption import encrypt_value
 
-    # Campos simples
     simple_fields = [
         'provedor_nfse', 'emitir_automaticamente', 'prestador_cnpj',
         'prestador_razao_social', 'prestador_inscricao_municipal',
@@ -81,12 +91,12 @@ def nfse_config_view(request):
         'codigo_cnae', 'optante_simples_nacional', 'incentivador_cultural',
         'nacional_ambiente', 'nacional_codigo_municipio',
         'nacional_serie_dps', 'nacional_ultimo_dps',
-        'issnet_usuario', 'serie_rps', 'ultimo_rps',
+        'serie_rps', 'ultimo_rps',
     ]
     for field in simple_fields:
         if field not in data:
             continue
-        val = data[field]
+        val = _data_get(data, field)
         if field in ('emitir_automaticamente', 'optante_simples_nacional', 'incentivador_cultural'):
             val = _parse_bool(val)
         elif field in ('nacional_ultimo_dps', 'ultimo_rps'):
@@ -103,13 +113,16 @@ def nfse_config_view(request):
         setattr(config, field, val)
         update_fields.append(field)
 
-    # Alíquota ISS
+    if 'issnet_usuario' in data:
+        usuario = str(_data_get(data, 'issnet_usuario', '')).strip()
+        config.issnet_usuario = encrypt_value(usuario) if usuario else ''
+        update_fields.append('issnet_usuario')
+
     if 'aliquota_iss' in data:
         from decimal import Decimal
-        config.aliquota_iss = Decimal(str(data['aliquota_iss']))
+        config.aliquota_iss = Decimal(str(_data_get(data, 'aliquota_iss')))
         update_fields.append('aliquota_iss')
 
-    # Certificado Nacional (upload via multipart)
     cert_file = request.FILES.get('nacional_certificado')
     if cert_file:
         ext = os.path.splitext(cert_file.name)[1].lower()
@@ -121,12 +134,11 @@ def nfse_config_view(request):
         config.nacional_certificado_nome = cert_file.name[:255]
         update_fields.extend(['nacional_certificado', 'nacional_certificado_nome'])
 
-    # Senha certificado Nacional
-    if data.get('nacional_senha_certificado'):
-        config.nacional_senha_certificado = encrypt_value(str(data['nacional_senha_certificado']))
+    nacional_senha_cert = str(_data_get(data, 'nacional_senha_certificado', '')).strip()
+    if nacional_senha_cert:
+        config.nacional_senha_certificado = encrypt_value(nacional_senha_cert)
         update_fields.append('nacional_senha_certificado')
 
-    # Certificado ISSNet (upload via multipart)
     issnet_cert_file = request.FILES.get('issnet_certificado')
     if issnet_cert_file:
         ext = os.path.splitext(issnet_cert_file.name)[1].lower()
@@ -138,22 +150,26 @@ def nfse_config_view(request):
         config.issnet_certificado_nome = issnet_cert_file.name[:255]
         update_fields.extend(['issnet_certificado', 'issnet_certificado_nome'])
 
-    if data.get('issnet_senha'):
-        config.issnet_senha = encrypt_value(str(data['issnet_senha']))
+    issnet_senha = str(_data_get(data, 'issnet_senha', '')).strip()
+    if issnet_senha:
+        config.issnet_senha = encrypt_value(issnet_senha)
         update_fields.append('issnet_senha')
 
-    if data.get('issnet_senha_certificado'):
-        config.issnet_senha_certificado = encrypt_value(str(data['issnet_senha_certificado']))
+    issnet_senha_cert = str(_data_get(data, 'issnet_senha_certificado', '')).strip()
+    if issnet_senha_cert:
+        config.issnet_senha_certificado = encrypt_value(issnet_senha_cert)
         update_fields.append('issnet_senha_certificado')
 
     config.save(using='default', update_fields=list(dict.fromkeys(update_fields)))
     config.refresh_from_db(using='default')
 
     logger.info(
-        'NFS-e config salva por %s: campos=%s provedor=%s',
+        'NFS-e config salva por %s: campos=%s provedor=%s issnet_usuario=%s cert=%s',
         getattr(request.user, 'username', '?'),
         [f for f in update_fields if f != 'updated_at'],
         config.provedor_nfse,
+        bool(config.issnet_usuario),
+        bool(config.issnet_certificado),
     )
 
     return Response({
@@ -161,6 +177,21 @@ def nfse_config_view(request):
         'message': 'Configuração salva',
         **_serialize_nfse_config(config),
     })
+
+
+@api_view(['GET', 'PATCH', 'POST'])
+@permission_classes([IsAuthenticated, IsSuperAdmin])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def nfse_config_view(request):
+    """GET: retorna config. PATCH/POST: atualiza config (POST recomendado com multipart)."""
+    from .models_nfse_config import SuperadminNFSeConfig
+
+    config = SuperadminNFSeConfig.get_config()
+
+    if request.method == 'GET':
+        return Response(_serialize_nfse_config(config))
+
+    return _apply_nfse_config_update(request, config)
 
 
 @api_view(['POST'])
@@ -188,7 +219,7 @@ def nfse_config_test_nacional(request):
             from nfse_integration.issnet_client import testar_conexao_issnet
 
             resultado = testar_conexao_issnet(
-                usuario=config.issnet_usuario or '',
+                usuario=decrypt_value(config.issnet_usuario or ''),
                 senha=decrypt_value(config.issnet_senha or ''),
                 certificado_path='',  # Não usado diretamente — vamos testar via bytes
                 senha_certificado=senha_cert,
@@ -203,7 +234,7 @@ def nfse_config_test_nacional(request):
                 cert_tmp.close()
                 try:
                     resultado = testar_conexao_issnet(
-                        usuario=config.issnet_usuario or '',
+                        usuario=decrypt_value(config.issnet_usuario or ''),
                         senha=decrypt_value(config.issnet_senha or ''),
                         certificado_path=cert_tmp.name,
                         senha_certificado=senha_cert,

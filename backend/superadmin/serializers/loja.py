@@ -111,11 +111,11 @@ class LojaCreateSerializer(
         Cria loja usando services para separar responsabilidades
         ✅ REFATORADO v769: Reduzido de 300+ para ~80 linhas usando services
         """
-        from .services import (
+        from ..services import (
             LojaCreationService,
             DatabaseSchemaService,
             FinanceiroService,
-            ProfessionalService
+            ProfessionalService,
         )
         import traceback
 

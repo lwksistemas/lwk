@@ -1,5 +1,6 @@
 .vercel
 .env*.local
+.env.production
 
 # PWA (gerados no build)
 public/sw.js

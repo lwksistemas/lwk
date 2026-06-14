@@ -221,56 +221,57 @@ export default function AssinaturaLojaPage() {
 
   return (
     <div className={`${shell} ${pagePad}`}>
-      <div className="flex flex-col gap-3">
-        <Button variant="ghost" size="sm" className="w-fit dark:text-gray-200" asChild>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Button variant="ghost" size="sm" className="shrink-0 dark:text-gray-200 -ml-2" asChild>
           <Link href={`/loja/${slug}/dashboard`} className="flex items-center gap-2">
             <ArrowLeft className="w-4 h-4" />
             Voltar
           </Link>
         </Button>
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold dark:text-gray-100">Assinatura</h1>
-            <p className="text-sm text-muted-foreground dark:text-gray-400">
-              {data.loja.nome} · {data.loja.plano} ({data.loja.tipo_assinatura})
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={STATUS_BADGE[st] || 'secondary'} className="text-xs sm:text-sm gap-1">
-              {STATUS_ICON[st] || <Clock className="w-4 h-4" />}
-              {fin.status_pagamento}
-            </Badge>
-            <Button variant="outline" size="sm" onClick={carregarDados}>
-              <RefreshCw className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Atualizar</span>
-            </Button>
-            {fin.tem_asaas && (
-              <Button variant="outline" size="sm" onClick={atualizarStatus} disabled={atualizandoStatus}>
-                <RefreshCw className={`w-4 h-4 sm:mr-2 ${atualizandoStatus ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Sync Asaas</span>
-              </Button>
-            )}
-          </div>
+        <div className="min-w-0 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <h1 className="text-xl sm:text-2xl font-bold dark:text-gray-100 shrink-0">Assinatura</h1>
+          <span className="text-muted-foreground hidden sm:inline">·</span>
+          <p className="text-sm text-muted-foreground dark:text-gray-400 truncate">
+            {data.loja.nome} · {data.loja.plano} ({data.loja.tipo_assinatura})
+          </p>
         </div>
       </div>
 
       <Card className={cardCls}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium dark:text-gray-100 flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span className="inline-flex items-center gap-1.5">
-              <CreditCard className="w-4 h-4 text-muted-foreground" />
-              {formatCurrency(fin.valor_mensalidade)}/mês
-            </span>
-            <span className="text-muted-foreground font-normal">·</span>
-            <span className="inline-flex items-center gap-1.5 font-normal text-muted-foreground dark:text-gray-400">
-              <CalendarDays className="w-4 h-4" />
-              Próximo vencimento:{' '}
-              <strong className="text-foreground dark:text-gray-100">
-                {formatDate(fin.data_proxima_cobranca)}
-              </strong>
-              <span className="text-xs">(dia {fin.dia_vencimento})</span>
-            </span>
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+            <CardTitle className="text-base font-medium dark:text-gray-100 flex flex-wrap items-center gap-x-3 gap-y-1 m-0">
+              <span className="inline-flex items-center gap-1.5">
+                <CreditCard className="w-4 h-4 text-muted-foreground" />
+                {formatCurrency(fin.valor_mensalidade)}/mês
+              </span>
+              <span className="text-muted-foreground font-normal hidden sm:inline">·</span>
+              <span className="inline-flex flex-wrap items-center gap-1.5 font-normal text-muted-foreground dark:text-gray-400">
+                <CalendarDays className="w-4 h-4 shrink-0" />
+                Próximo vencimento:{' '}
+                <strong className="text-foreground dark:text-gray-100">
+                  {formatDate(fin.data_proxima_cobranca)}
+                </strong>
+                <span className="text-xs">(dia {fin.dia_vencimento})</span>
+              </span>
+            </CardTitle>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <Badge variant={STATUS_BADGE[st] || 'secondary'} className="text-xs sm:text-sm gap-1">
+                {STATUS_ICON[st] || <Clock className="w-4 h-4" />}
+                {fin.status_pagamento}
+              </Badge>
+              <Button variant="outline" size="sm" onClick={carregarDados}>
+                <RefreshCw className="w-4 h-4 sm:mr-2" />
+                Atualizar
+              </Button>
+              {fin.tem_asaas && (
+                <Button variant="outline" size="sm" onClick={atualizarStatus} disabled={atualizandoStatus}>
+                  <RefreshCw className={`w-4 h-4 sm:mr-2 ${atualizandoStatus ? 'animate-spin' : ''}`} />
+                  <span className="hidden lg:inline">Sync Asaas</span>
+                </Button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <HistoricoPagamentos

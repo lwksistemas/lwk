@@ -72,57 +72,61 @@ class FinanceiroLojaViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=True, methods=['post'])
     def atualizar_status_asaas(self, request, pk=None):
-        """Atualizar status do pagamento consultando Asaas"""
+        """Atualizar status consultando Asaas (todos PagamentoLoja pendentes + financeiro)."""
         financeiro = self.get_object()
-        
-        if not financeiro.asaas_payment_id:
-            return Response(
-                {'error': 'Pagamento não possui ID do Asaas'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+        loja = financeiro.loja
+
         try:
-            asaas_service = LojaAsaasService()
-            resultado = asaas_service.consultar_status_pagamento(financeiro.asaas_payment_id)
-            
-            if resultado.get('success'):
-                asaas_status = resultado.get('status', '')
-                
-                if asaas_status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
-                    from superadmin.sync_service import AsaasSyncService
-                    sync = AsaasSyncService()
-                    payment_data = resultado.get('raw_payment') or {}
-                    sync._process_payment_confirmed(
-                        financeiro.loja,
-                        financeiro,
-                        financeiro.asaas_payment_id,
-                        payment_data,
-                    )
-                    financeiro.refresh_from_db()
-                elif asaas_status == 'OVERDUE':
-                    financeiro.status_pagamento = 'atrasado'
-                    financeiro.save()
-                else:
-                    financeiro.status_pagamento = 'pendente'
-                    financeiro.save()
-                
-                return Response({
-                    'message': 'Status atualizado com sucesso',
-                    'status_asaas': asaas_status,
-                    'status_local': financeiro.status_pagamento,
-                    'senha_enviada': financeiro.senha_enviada,
-                })
-            else:
+            from superadmin.sync_service import AsaasSyncService
+
+            sync = AsaasSyncService()
+            if not sync.asaas_service.available:
                 return Response(
-                    {'error': resultado.get('error', 'Erro ao consultar Asaas')},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {'error': 'Serviço Asaas não disponível'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
                 )
-                
+
+            resultado_sync = sync.sync_loja_payments(loja)
+            financeiro.refresh_from_db()
+
+            pagamentos_pendentes = PagamentoLoja.objects.filter(
+                loja=loja,
+                status__in=['pendente', 'atrasado'],
+            ).exclude(asaas_payment_id='').count()
+
+            # Fallback: financeiro.asaas_payment_id quando não há PagamentoLoja vinculado
+            payment_id = (financeiro.asaas_payment_id or '').strip()
+            if payment_id and pagamentos_pendentes == 0:
+                resultado = sync.asaas_service.consultar_status_pagamento(payment_id)
+                if resultado.get('success'):
+                    asaas_status = resultado.get('status', '')
+                    if asaas_status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
+                        sync._process_payment_confirmed(
+                            loja,
+                            financeiro,
+                            payment_id,
+                            resultado.get('raw_payment') or {},
+                        )
+                        financeiro.refresh_from_db()
+                    elif asaas_status == 'OVERDUE':
+                        financeiro.status_pagamento = 'atrasado'
+                        financeiro.save(update_fields=['status_pagamento'])
+                    else:
+                        financeiro.status_pagamento = 'pendente'
+                        financeiro.save(update_fields=['status_pagamento'])
+
+            return Response({
+                'message': 'Status atualizado com sucesso',
+                'status_local': financeiro.status_pagamento,
+                'senha_enviada': financeiro.senha_enviada,
+                'pagamentos_atualizados': resultado_sync.get('pagamentos_atualizados', 0),
+                'pagamentos_pendentes': pagamentos_pendentes,
+            })
         except Exception as e:
-            logger.error(f"Erro ao atualizar status Asaas: {e}")
+            logger.exception('Erro ao atualizar status Asaas loja %s: %s', loja.slug, e)
             return Response(
-                {'error': f'Erro interno: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     @action(detail=True, methods=['post'])

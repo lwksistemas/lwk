@@ -216,6 +216,10 @@ def _emitir_via_issnet(
         if not config.prestador_cnpj:
             return {'success': False, 'error': 'CNPJ do prestador não configurado'}
 
+        from core.encryption import decrypt_value
+        senha_cert_plain = decrypt_value(senha_cert)
+        senha_ws_plain = decrypt_value(config.issnet_senha or '')
+
         cnpj_digits = re.sub(r'\D', '', config.prestador_cnpj)
         im = config.prestador_inscricao_municipal or ''
 
@@ -233,9 +237,9 @@ def _emitir_via_issnet(
         try:
             client = ISSNetClient(
                 usuario=config.issnet_usuario or '',
-                senha=config.issnet_senha or '',
+                senha=senha_ws_plain,
                 certificado_path=cert_tmp.name,
-                senha_certificado=senha_cert,
+                senha_certificado=senha_cert_plain,
                 ambiente=config.nacional_ambiente or 'producao',
             )
 

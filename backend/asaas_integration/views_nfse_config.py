@@ -37,6 +37,14 @@ def nfse_config_view(request):
             'codigo_cnae': config.codigo_cnae,
             'optante_simples_nacional': config.optante_simples_nacional,
             'incentivador_cultural': config.incentivador_cultural,
+            # ISSNet
+            'issnet_usuario': config.issnet_usuario or '',
+            'issnet_senha_set': bool((config.issnet_senha or '').strip()),
+            'issnet_certificado_nome': config.issnet_certificado_nome or '',
+            'issnet_certificado_set': bool(config.issnet_certificado),
+            'issnet_senha_certificado_set': bool((config.issnet_senha_certificado or '').strip()),
+            'serie_rps': config.serie_rps or 'E',
+            'ultimo_rps': int(config.ultimo_rps or 0),
             # Nacional
             'nacional_certificado_nome': config.nacional_certificado_nome,
             'nacional_certificado_set': bool(config.nacional_certificado),
@@ -50,6 +58,7 @@ def nfse_config_view(request):
     # PATCH
     data = request.data
     update_fields = ['updated_at']
+    from core.encryption import encrypt_value
 
     # Campos simples
     simple_fields = [
@@ -60,16 +69,22 @@ def nfse_config_view(request):
         'codigo_cnae', 'optante_simples_nacional', 'incentivador_cultural',
         'nacional_ambiente', 'nacional_codigo_municipio',
         'nacional_serie_dps', 'nacional_ultimo_dps',
+        'issnet_usuario', 'serie_rps', 'ultimo_rps',
     ]
     for field in simple_fields:
         if field in data:
             val = data[field]
             if field in ('emitir_automaticamente', 'optante_simples_nacional', 'incentivador_cultural'):
                 val = bool(val)
-            elif field == 'nacional_ultimo_dps':
+            elif field in ('nacional_ultimo_dps', 'ultimo_rps'):
                 val = int(val) if val else 0
-                config.ultimo_rps = max(int(config.ultimo_rps or 0), val)
+                if field == 'nacional_ultimo_dps':
+                    config.nacional_ultimo_dps = val
+                    update_fields.append('nacional_ultimo_dps')
+                config.ultimo_rps = max(int(config.ultimo_rps or 0), val) if field == 'nacional_ultimo_dps' else val
                 update_fields.append('ultimo_rps')
+                if field == 'ultimo_rps':
+                    continue
             setattr(config, field, val)
             update_fields.append(field)
 
@@ -93,8 +108,28 @@ def nfse_config_view(request):
 
     # Senha certificado Nacional
     if data.get('nacional_senha_certificado'):
-        config.nacional_senha_certificado = data['nacional_senha_certificado']
+        config.nacional_senha_certificado = encrypt_value(str(data['nacional_senha_certificado']))
         update_fields.append('nacional_senha_certificado')
+
+    # Certificado ISSNet (upload via multipart)
+    issnet_cert_file = request.FILES.get('issnet_certificado')
+    if issnet_cert_file:
+        ext = os.path.splitext(issnet_cert_file.name)[1].lower()
+        if ext not in ('.pfx', '.p12'):
+            return Response({'error': 'Formato inválido. Envie .pfx ou .p12'}, status=status.HTTP_400_BAD_REQUEST)
+        if issnet_cert_file.size > 5 * 1024 * 1024:
+            return Response({'error': 'Certificado muito grande (máx 5MB)'}, status=status.HTTP_400_BAD_REQUEST)
+        config.issnet_certificado = issnet_cert_file.read()
+        config.issnet_certificado_nome = issnet_cert_file.name[:255]
+        update_fields.extend(['issnet_certificado', 'issnet_certificado_nome'])
+
+    if data.get('issnet_senha'):
+        config.issnet_senha = encrypt_value(str(data['issnet_senha']))
+        update_fields.append('issnet_senha')
+
+    if data.get('issnet_senha_certificado'):
+        config.issnet_senha_certificado = encrypt_value(str(data['issnet_senha_certificado']))
+        update_fields.append('issnet_senha_certificado')
 
     config.save(update_fields=update_fields)
 
@@ -110,7 +145,10 @@ def nfse_config_test_nacional(request):
     config = SuperadminNFSeConfig.get_config()
 
     cert_data = config.issnet_certificado or config.nacional_certificado
-    senha_cert = config.issnet_senha_certificado or config.nacional_senha_certificado
+    from core.encryption import decrypt_value
+    senha_cert = decrypt_value(
+        config.issnet_senha_certificado or config.nacional_senha_certificado or ''
+    )
 
     if not cert_data:
         return Response({'success': False, 'detail': 'Certificado não configurado'}, status=400)
@@ -124,7 +162,7 @@ def nfse_config_test_nacional(request):
 
             resultado = testar_conexao_issnet(
                 usuario=config.issnet_usuario or '',
-                senha=config.issnet_senha or '',
+                senha=decrypt_value(config.issnet_senha or ''),
                 certificado_path='',  # Não usado diretamente — vamos testar via bytes
                 senha_certificado=senha_cert,
                 ambiente=config.nacional_ambiente or 'producao',
@@ -139,7 +177,7 @@ def nfse_config_test_nacional(request):
                 try:
                     resultado = testar_conexao_issnet(
                         usuario=config.issnet_usuario or '',
-                        senha=config.issnet_senha or '',
+                        senha=decrypt_value(config.issnet_senha or ''),
                         certificado_path=cert_tmp.name,
                         senha_certificado=senha_cert,
                         ambiente=config.nacional_ambiente or 'producao',

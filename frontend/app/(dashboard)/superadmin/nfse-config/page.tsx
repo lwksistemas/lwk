@@ -39,6 +39,14 @@ interface NFSeConfig {
   codigo_cnae: string
   optante_simples_nacional: boolean
   incentivador_cultural: boolean
+  // ISSNet
+  issnet_usuario: string
+  issnet_senha_set: boolean
+  issnet_certificado_nome: string
+  issnet_certificado_set: boolean
+  issnet_senha_certificado_set: boolean
+  serie_rps: string
+  ultimo_rps: number
   // Nacional
   nacional_certificado_nome: string
   nacional_certificado_set: boolean
@@ -64,6 +72,13 @@ export default function NFSeConfigPage() {
     codigo_cnae: '',
     optante_simples_nacional: true,
     incentivador_cultural: false,
+    issnet_usuario: '',
+    issnet_senha_set: false,
+    issnet_certificado_nome: '',
+    issnet_certificado_set: false,
+    issnet_senha_certificado_set: false,
+    serie_rps: 'E',
+    ultimo_rps: 0,
     nacional_certificado_nome: '',
     nacional_certificado_set: false,
     nacional_senha_certificado_set: false,
@@ -75,6 +90,35 @@ export default function NFSeConfigPage() {
 
   const [nacionalSenhaCertificado, setNacionalSenhaCertificado] = useState('')
   const [nacionalCertificadoFile, setNacionalCertificadoFile] = useState<File | null>(null)
+  const [issnetSenha, setIssnetSenha] = useState('')
+  const [issnetSenhaCertificado, setIssnetSenhaCertificado] = useState('')
+  const [issnetCertificadoFile, setIssnetCertificadoFile] = useState<File | null>(null)
+
+  const appendCommonFields = (formData: FormData) => {
+    formData.append('provedor_nfse', config.provedor_nfse)
+    formData.append('emitir_automaticamente', String(config.emitir_automaticamente))
+    formData.append('prestador_cnpj', config.prestador_cnpj)
+    formData.append('prestador_razao_social', config.prestador_razao_social)
+    formData.append('prestador_inscricao_municipal', config.prestador_inscricao_municipal)
+    formData.append('prestador_email', config.prestador_email)
+    formData.append('regime_especial_tributacao', config.regime_especial_tributacao)
+    formData.append('codigo_servico_municipal', config.codigo_servico_municipal)
+    formData.append('descricao_servico_padrao', config.descricao_servico_padrao)
+    formData.append('aliquota_iss', config.aliquota_iss)
+    formData.append('codigo_cnae', config.codigo_cnae)
+    formData.append('optante_simples_nacional', String(config.optante_simples_nacional))
+    formData.append('incentivador_cultural', String(config.incentivador_cultural))
+    formData.append('nacional_ambiente', config.nacional_ambiente)
+    formData.append('nacional_codigo_municipio', config.nacional_codigo_municipio)
+    formData.append('nacional_serie_dps', config.nacional_serie_dps)
+    formData.append('nacional_ultimo_dps', String(config.nacional_ultimo_dps))
+    formData.append('issnet_usuario', config.issnet_usuario)
+    formData.append('serie_rps', config.serie_rps)
+    formData.append('ultimo_rps', String(config.ultimo_rps))
+    if (nacionalSenhaCertificado) formData.append('nacional_senha_certificado', nacionalSenhaCertificado)
+    if (issnetSenha) formData.append('issnet_senha', issnetSenha)
+    if (issnetSenhaCertificado) formData.append('issnet_senha_certificado', issnetSenhaCertificado)
+  }
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -140,27 +184,13 @@ export default function NFSeConfigPage() {
     setSaving(true)
     setMessage(null)
     try {
-      if (nacionalCertificadoFile) {
+      const useMultipart = Boolean(nacionalCertificadoFile || issnetCertificadoFile)
+
+      if (useMultipart) {
         const formData = new FormData()
-        formData.append('provedor_nfse', config.provedor_nfse)
-        formData.append('emitir_automaticamente', String(config.emitir_automaticamente))
-        formData.append('prestador_cnpj', config.prestador_cnpj)
-        formData.append('prestador_razao_social', config.prestador_razao_social)
-        formData.append('prestador_inscricao_municipal', config.prestador_inscricao_municipal)
-        formData.append('prestador_email', config.prestador_email)
-        formData.append('regime_especial_tributacao', config.regime_especial_tributacao)
-        formData.append('codigo_servico_municipal', config.codigo_servico_municipal)
-        formData.append('descricao_servico_padrao', config.descricao_servico_padrao)
-        formData.append('aliquota_iss', config.aliquota_iss)
-        formData.append('codigo_cnae', config.codigo_cnae)
-        formData.append('optante_simples_nacional', String(config.optante_simples_nacional))
-        formData.append('incentivador_cultural', String(config.incentivador_cultural))
-        formData.append('nacional_ambiente', config.nacional_ambiente)
-        formData.append('nacional_codigo_municipio', config.nacional_codigo_municipio)
-        formData.append('nacional_serie_dps', config.nacional_serie_dps)
-        formData.append('nacional_ultimo_dps', String(config.nacional_ultimo_dps))
-        if (nacionalSenhaCertificado) formData.append('nacional_senha_certificado', nacionalSenhaCertificado)
-        formData.append('nacional_certificado', nacionalCertificadoFile)
+        appendCommonFields(formData)
+        if (nacionalCertificadoFile) formData.append('nacional_certificado', nacionalCertificadoFile)
+        if (issnetCertificadoFile) formData.append('issnet_certificado', issnetCertificadoFile)
 
         await apiClient.patch('/asaas/nfse-config/', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -184,8 +214,13 @@ export default function NFSeConfigPage() {
           nacional_codigo_municipio: config.nacional_codigo_municipio,
           nacional_serie_dps: config.nacional_serie_dps,
           nacional_ultimo_dps: config.nacional_ultimo_dps,
+          issnet_usuario: config.issnet_usuario,
+          serie_rps: config.serie_rps,
+          ultimo_rps: config.ultimo_rps,
         }
         if (nacionalSenhaCertificado) payload.nacional_senha_certificado = nacionalSenhaCertificado
+        if (issnetSenha) payload.issnet_senha = issnetSenha
+        if (issnetSenhaCertificado) payload.issnet_senha_certificado = issnetSenhaCertificado
 
         await apiClient.patch('/asaas/nfse-config/', payload)
       }
@@ -193,6 +228,9 @@ export default function NFSeConfigPage() {
       setMessage({ type: 'success', text: 'Configuração NFS-e salva com sucesso!' })
       setNacionalSenhaCertificado('')
       setNacionalCertificadoFile(null)
+      setIssnetSenha('')
+      setIssnetSenhaCertificado('')
+      setIssnetCertificadoFile(null)
       loadConfig()
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string; detail?: string } } }
@@ -205,20 +243,20 @@ export default function NFSeConfigPage() {
     }
   }
 
-  const testNacional = async () => {
+  const testConexao = async () => {
     setTesting(true)
     setMessage(null)
     try {
       const { data } = await apiClient.post('/asaas/nfse-config/test-nacional/')
       setMessage({
         type: 'success',
-        text: data.message || 'Conexão ADN Nacional testada com sucesso!',
+        text: data.message || 'Conexão testada com sucesso!',
       })
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } }
       setMessage({
         type: 'error',
-        text: err.response?.data?.detail || 'Erro ao testar conexão Nacional',
+        text: err.response?.data?.detail || 'Erro ao testar conexão',
       })
     } finally {
       setTesting(false)
@@ -392,14 +430,137 @@ export default function NFSeConfigPage() {
         </CardContent>
       </Card>
 
-      {/* Certificado Digital e Ambiente */}
+      {/* Credenciais ISSNet */}
+      {config.provedor_nfse === 'issnet' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5" />
+              Credenciais ISSNet
+            </CardTitle>
+            <CardDescription>
+              Usuário, senha e certificado A1 do portal ISSNet da prefeitura
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {config.issnet_certificado_set && (
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Certificado configurado: <strong>{config.issnet_certificado_nome}</strong>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Usuário ISSNet</Label>
+                <Input
+                  value={config.issnet_usuario}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, issnet_usuario: e.target.value }))}
+                  placeholder="Login do webservice ISSNet"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>
+                  Senha ISSNet
+                  {config.issnet_senha_set && (
+                    <Badge variant="secondary" className="ml-2 text-xs">Configurada</Badge>
+                  )}
+                </Label>
+                <Input
+                  type="password"
+                  value={issnetSenha}
+                  onChange={(e) => setIssnetSenha(e.target.value)}
+                  placeholder={config.issnet_senha_set ? 'Digite para alterar' : 'Senha do webservice'}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Certificado Digital A1 (.pfx / .p12)</Label>
+                <Input
+                  type="file"
+                  accept=".pfx,.p12"
+                  onChange={(e) => setIssnetCertificadoFile(e.target.files?.[0] || null)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Certificado e-CNPJ da empresa prestadora. Máx 5MB.
+                </p>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>
+                  Senha do Certificado
+                  {config.issnet_senha_certificado_set && (
+                    <Badge variant="secondary" className="ml-2 text-xs">Configurada</Badge>
+                  )}
+                </Label>
+                <Input
+                  type="password"
+                  value={issnetSenhaCertificado}
+                  onChange={(e) => setIssnetSenhaCertificado(e.target.value)}
+                  placeholder={config.issnet_senha_certificado_set ? 'Digite para alterar' : 'Senha do arquivo .pfx'}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Ambiente</Label>
+                <select
+                  value={config.nacional_ambiente}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, nacional_ambiente: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                >
+                  <option value="homologacao">Homologação (testes)</option>
+                  <option value="producao">Produção</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Série RPS</Label>
+                <Input
+                  value={config.serie_rps}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, serie_rps: e.target.value }))}
+                  placeholder="E"
+                  maxLength={10}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Último Nº RPS emitido</Label>
+                <Input
+                  type="number"
+                  value={config.ultimo_rps}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, ultimo_rps: parseInt(e.target.value) || 0 }))}
+                  placeholder="0"
+                />
+                <p className="text-xs text-muted-foreground">Próxima emissão usará +1</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={testConexao}
+                disabled={testing || !config.issnet_certificado_set}
+              >
+                {testing ? (
+                  <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Testando...</>
+                ) : (
+                  'Testar Conexão ISSNet'
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Certificado Digital Nacional */}
+      {config.provedor_nfse === 'nacional' && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />
-            Certificado Digital e Ambiente
+            Certificado Digital e Ambiente (Nacional)
           </CardTitle>
-          <CardDescription>Certificado ICP-Brasil A1 para assinatura e mTLS</CardDescription>
+          <CardDescription>Certificado ICP-Brasil A1 para assinatura e mTLS no ADN</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {config.nacional_certificado_set && (
@@ -483,18 +644,19 @@ export default function NFSeConfigPage() {
           <div className="flex gap-2 pt-2">
             <Button
               variant="outline"
-              onClick={testNacional}
+              onClick={testConexao}
               disabled={testing || !config.nacional_certificado_set}
             >
               {testing ? (
                 <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Testando...</>
               ) : (
-                'Testar Conexão'
+                'Testar Conexão Nacional'
               )}
             </Button>
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Dados Fiscais */}
       <Card>

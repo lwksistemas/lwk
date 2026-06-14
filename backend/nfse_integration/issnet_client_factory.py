@@ -76,11 +76,13 @@ def issnet_client_loja(config: Any, *, prefix: str = 'issnet_') -> Generator[Any
 @contextmanager
 def issnet_client_superadmin(config: Any, *, prefix: str = 'issnet_') -> Generator[Any, None, None]:
     """ISSNetClient a partir da SuperadminNFSeConfig."""
+    from core.encryption import decrypt_value
+
     with issnet_client_from_pfx(
         cert_data=_cert_bytes(config),
-        senha_certificado=_senha_cert(config),
+        senha_certificado=decrypt_value(_senha_cert(config)),
         usuario=getattr(config, 'issnet_usuario', '') or '',
-        senha=getattr(config, 'issnet_senha', '') or '',
+        senha=decrypt_value(getattr(config, 'issnet_senha', '') or ''),
         ambiente=getattr(config, 'nacional_ambiente', None) or 'producao',
         prefix=prefix,
     ) as client:

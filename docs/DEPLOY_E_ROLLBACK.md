@@ -43,8 +43,51 @@ railway environment staging
 railway up --service lwks-backend-staging --detach
 
 # Frontend: push na branch staging dispara Preview na Vercel.
-# Alias beta (se necessário):
-# vercel alias set <url-preview> beta.lwksistemas.com.br
+```
+
+#### Domínio beta → branch `staging` (configuração permanente)
+
+O beta **não** deve apontar para um deploy de **Production** (`main`). Cada push em `staging` gera um novo Preview; o domínio customizado precisa seguir a URL estável da branch:
+
+| Domínio | Branch Git | URL estável Vercel |
+|---------|------------|-------------------|
+| `beta.lwksistemas.com.br` | `staging` | `frontend-git-staging-lwks-projects-48afd555.vercel.app` |
+| `staging.lwksistemas.com.br` | `staging` | (mesma URL acima) |
+
+**Opção A — script (recomendado, via CLI):**
+
+```bash
+cd frontend
+bash scripts/vercel-link-beta-staging.sh
+```
+
+**Opção B — painel Vercel:**
+
+1. [Vercel → frontend → Settings → Domains](https://vercel.com/lwks-projects-48afd555/frontend/settings/domains)
+2. Domínio `beta.lwksistemas.com.br` → **Edit**
+3. **Connect to an environment** → **Preview** → Git Branch **`staging`**
+4. Repetir para `staging.lwksistemas.com.br` (se usar)
+
+**Opção C — alias manual (equivalente à opção A):**
+
+```bash
+cd frontend
+npx vercel alias set frontend-git-staging-lwks-projects-48afd555.vercel.app beta.lwksistemas.com.br
+npx vercel alias set frontend-git-staging-lwks-projects-48afd555.vercel.app staging.lwksistemas.com.br
+```
+
+**Variável de ambiente Preview (branch staging):** em Vercel → Settings → Environment Variables, para **Preview** (ou branch `staging`):
+
+```env
+NEXT_PUBLIC_API_URL=https://lwks-backend-staging-staging.up.railway.app
+```
+
+O frontend também detecta `beta.lwksistemas.com.br` em runtime (`frontend/lib/api-base.ts`).
+
+**Verificar CSP** (deve incluir a API staging):
+
+```bash
+curl -sI https://beta.lwksistemas.com.br/superadmin/login | tr '\r' '\n' | grep connect-src
 ```
 
 Verificar build da API staging:

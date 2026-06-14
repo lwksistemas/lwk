@@ -12,6 +12,7 @@ function buildConnectSrc() {
   [
     'https://api.lwksistemas.com.br',
     'https://lwks-backend-production.up.railway.app',
+    'https://lwks-backend-staging-staging.up.railway.app',
     'https://viacep.com.br',
     'https://brasilapi.com.br',
     'https://memed.com.br',

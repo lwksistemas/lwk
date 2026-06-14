@@ -272,6 +272,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 _DEFAULT_CORS_ORIGINS = [
     'https://lwksistemas.com.br',
     'https://www.lwksistemas.com.br',
+    'https://beta.lwksistemas.com.br',
+    'https://staging.lwksistemas.com.br',
 ]
 _raw = os.environ.get('CORS_ORIGINS', '').strip()
 _extra_cors = [o.strip() for o in _raw.split(',') if o.strip()] if _raw else []

@@ -8,15 +8,13 @@ import ErrorAlert from '@/components/auth/ErrorAlert';
 import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
 import { getPublicApiJson } from '@/lib/public-api';
 import { logger } from '@/lib/logger';
+import {
+  getLoginSistemaDefaults,
+  resolveLoginSistemaConfig,
+  type LoginSistemaDefaults,
+} from '@/lib/login-sistema-defaults';
 
-interface LoginConfig {
-  logo: string;
-  login_background: string;
-  cor_primaria: string;
-  cor_secundaria: string;
-  titulo: string;
-  subtitulo: string;
-}
+interface LoginConfig extends LoginSistemaDefaults {}
 
 export default function SuperAdminLoginPage() {
   const [credentials, setCredentials] = useState({
@@ -31,14 +29,7 @@ export default function SuperAdminLoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
-  const [config, setConfig] = useState<LoginConfig>({
-    logo: '',
-    login_background: '',
-    cor_primaria: '#9333ea',
-    cor_secundaria: '#7e22ce',
-    titulo: 'Super Admin',
-    subtitulo: 'Acesso restrito ao sistema',
-  });
+  const [config, setConfig] = useState<LoginConfig>(() => getLoginSistemaDefaults('superadmin'));
   const [configLoading, setConfigLoading] = useState(true);
 
   const STORAGE_KEY = 'login_lembrar_cpf_superadmin';
@@ -60,7 +51,7 @@ export default function SuperAdminLoginPage() {
         );
         if (!timeoutFired) {
           clearTimeout(timeoutId);
-          setConfig(data);
+          setConfig(resolveLoginSistemaConfig('superadmin', data));
           setConfigLoading(false);
         }
       } catch (err) {

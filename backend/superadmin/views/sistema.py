@@ -237,14 +237,10 @@ class LoginConfigSistemaViewSet(viewsets.ModelViewSet):
         
         if tipo:
             from ..models import LoginConfigSistema
+            from ..login_sistema_defaults import LOGIN_SISTEMA_DEFAULTS
             config, created = LoginConfigSistema.objects.get_or_create(
                 tipo=tipo,
-                defaults={
-                    'cor_primaria': '#10B981' if tipo == 'superadmin' else '#3B82F6',
-                    'cor_secundaria': '#059669' if tipo == 'superadmin' else '#2563EB',
-                    'titulo': 'Superadmin' if tipo == 'superadmin' else 'Suporte',
-                    'subtitulo': 'Acesso administrativo' if tipo == 'superadmin' else 'Central de suporte',
-                }
+                defaults=LOGIN_SISTEMA_DEFAULTS.get(tipo, {}),
             )
             serializer = self.get_serializer(config)
             return Response(serializer.data)
@@ -292,36 +288,34 @@ def login_config_sistema_publico(request, tipo):
         return Response(cached_data)
 
     def _defaults_payload():
+        from superadmin.login_sistema_defaults import LOGIN_SISTEMA_DEFAULTS
+        base = LOGIN_SISTEMA_DEFAULTS.get(tipo, {})
         return {
-            'logo': '',
-            'login_background': '',
-            'cor_primaria': '#10B981' if tipo == 'superadmin' else '#3B82F6',
-            'cor_secundaria': '#059669' if tipo == 'superadmin' else '#2563EB',
-            'titulo': 'Superadmin' if tipo == 'superadmin' else 'Suporte',
-            'subtitulo': 'Acesso administrativo' if tipo == 'superadmin' else 'Central de suporte',
+            'logo': base.get('logo', ''),
+            'login_background': base.get('login_background', ''),
+            'cor_primaria': base.get('cor_primaria', '#10B981'),
+            'cor_secundaria': base.get('cor_secundaria', '#059669'),
+            'titulo': base.get('titulo', tipo),
+            'subtitulo': base.get('subtitulo', ''),
         }
 
     try:
+        from ..login_sistema_defaults import LOGIN_SISTEMA_DEFAULTS
         config, created = LoginConfigSistema.objects.get_or_create(
             tipo=tipo,
-            defaults={
-                'cor_primaria': '#10B981' if tipo == 'superadmin' else '#3B82F6',
-                'cor_secundaria': '#059669' if tipo == 'superadmin' else '#2563EB',
-                'titulo': 'Superadmin' if tipo == 'superadmin' else 'Suporte',
-                'subtitulo': 'Acesso administrativo' if tipo == 'superadmin' else 'Central de suporte',
-            },
+            defaults=LOGIN_SISTEMA_DEFAULTS.get(tipo, {}),
         )
     except DatabaseError as e:
         logger.warning('login_config_sistema_publico: BD indisponível (tipo=%s): %s', tipo, e)
         return Response(_defaults_payload())
 
     data = {
-        'logo': config.logo or '',
-        'login_background': config.login_background or '',
-        'cor_primaria': config.cor_primaria or ('#10B981' if tipo == 'superadmin' else '#3B82F6'),
-        'cor_secundaria': config.cor_secundaria or ('#059669' if tipo == 'superadmin' else '#2563EB'),
-        'titulo': config.titulo or ('Superadmin' if tipo == 'superadmin' else 'Suporte'),
-        'subtitulo': config.subtitulo or ('Acesso administrativo' if tipo == 'superadmin' else 'Central de suporte'),
+        'logo': config.logo or LOGIN_SISTEMA_DEFAULTS.get(tipo, {}).get('logo', ''),
+        'login_background': config.login_background or LOGIN_SISTEMA_DEFAULTS.get(tipo, {}).get('login_background', ''),
+        'cor_primaria': config.cor_primaria or LOGIN_SISTEMA_DEFAULTS.get(tipo, {}).get('cor_primaria', '#10B981'),
+        'cor_secundaria': config.cor_secundaria or LOGIN_SISTEMA_DEFAULTS.get(tipo, {}).get('cor_secundaria', '#059669'),
+        'titulo': config.titulo or LOGIN_SISTEMA_DEFAULTS.get(tipo, {}).get('titulo', tipo),
+        'subtitulo': config.subtitulo or LOGIN_SISTEMA_DEFAULTS.get(tipo, {}).get('subtitulo', ''),
     }
 
     try:

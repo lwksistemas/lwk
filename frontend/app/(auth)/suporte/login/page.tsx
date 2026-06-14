@@ -8,15 +8,13 @@ import ErrorAlert from '@/components/auth/ErrorAlert';
 import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
 import { getPublicApiJson } from '@/lib/public-api';
 import { logger } from '@/lib/logger';
+import {
+  getLoginSistemaDefaults,
+  resolveLoginSistemaConfig,
+  type LoginSistemaDefaults,
+} from '@/lib/login-sistema-defaults';
 
-interface LoginConfig {
-  logo: string;
-  login_background: string;
-  cor_primaria: string;
-  cor_secundaria: string;
-  titulo: string;
-  subtitulo: string;
-}
+interface LoginConfig extends LoginSistemaDefaults {}
 
 export default function SuporteLoginPage() {
   const [credentials, setCredentials] = useState({
@@ -31,14 +29,7 @@ export default function SuporteLoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
-  const [config, setConfig] = useState<LoginConfig>({
-    logo: '',
-    login_background: '',
-    cor_primaria: '#2563eb',
-    cor_secundaria: '#1d4ed8',
-    titulo: 'Portal de Suporte',
-    subtitulo: 'Gerenciamento de chamados e tickets',
-  });
+  const [config, setConfig] = useState<LoginConfig>(() => getLoginSistemaDefaults('suporte'));
   const [configLoading, setConfigLoading] = useState(true);
 
   const STORAGE_KEY = 'login_lembrar_cpf_suporte';
@@ -60,7 +51,7 @@ export default function SuporteLoginPage() {
         );
         if (!timeoutFired) {
           clearTimeout(timeoutId);
-          setConfig(data);
+          setConfig(resolveLoginSistemaConfig('suporte', data));
           setConfigLoading(false);
         }
       } catch (err) {

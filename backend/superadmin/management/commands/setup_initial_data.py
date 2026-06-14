@@ -3,7 +3,7 @@ Comando para criar dados iniciais do sistema
 """
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
-from superadmin.models import TipoLoja, PlanoAssinatura
+from superadmin.models import TipoLoja, PlanoAssinatura, UsuarioSistema
 from decimal import Decimal
 
 
@@ -15,6 +15,9 @@ class Command(BaseCommand):
         
         # Criar superusuário se não existir
         self.create_superuser()
+
+        # Telas de login superadmin / suporte (logo e fundo padrão)
+        self.create_login_config_sistema()
         
         # Criar tipos de app
         self.create_tipos_loja()
@@ -25,21 +28,70 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('\n✅ Setup concluído com sucesso!'))
 
     def create_superuser(self):
-        """Cria superusuário padrão (usa variável de ambiente para senha)"""
+        """Cria/atualiza superusuário padrão (senha e e-mail via variáveis de ambiente)."""
         import os
-        if not User.objects.filter(username='admin').exists():
+
+        email = os.environ.get('SUPERADMIN_EMAIL', 'lkwsistemas@gmail.com').strip()
+        username = 'admin'
+        user = User.objects.filter(username=username).first()
+
+        if not user:
             password = os.environ.get('SUPERADMIN_PASSWORD', '')
             if not password:
                 self.stdout.write('ℹ️  Superusuário não criado (SUPERADMIN_PASSWORD não definida)')
                 return
-            User.objects.create_superuser(
-                username='admin',
-                email='admin@lwksistemas.com.br',
-                password=password
+            user = User.objects.create_superuser(
+                username=username,
+                email=email,
+                password=password,
+                first_name='Administrador',
+                last_name='Sistema',
             )
             self.stdout.write(self.style.SUCCESS('✅ Superusuário criado'))
         else:
-            self.stdout.write('ℹ️  Superusuário já existe')
+            if user.email != email:
+                user.email = email
+                user.save(update_fields=['email'])
+                self.stdout.write(self.style.SUCCESS(f'✅ E-mail do superusuário atualizado para {email}'))
+            else:
+                self.stdout.write('ℹ️  Superusuário já existe')
+
+        _, created = UsuarioSistema.objects.update_or_create(
+            user=user,
+            defaults={
+                'tipo': 'superadmin',
+                'pode_criar_lojas': True,
+                'pode_gerenciar_financeiro': True,
+                'pode_acessar_todas_lojas': True,
+                'is_active': True,
+            },
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS('✅ Perfil superadmin criado (recuperação de senha habilitada)'))
+
+    def create_login_config_sistema(self):
+        """Garante logo/fundo padrão nas telas de login do sistema."""
+        from superadmin.models import LoginConfigSistema
+        from superadmin.login_sistema_defaults import LOGIN_SISTEMA_DEFAULTS
+
+        for tipo, defaults in LOGIN_SISTEMA_DEFAULTS.items():
+            config, created = LoginConfigSistema.objects.get_or_create(
+                tipo=tipo,
+                defaults=defaults,
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f'✅ Login config padrão criada ({tipo})'))
+                continue
+            updated = []
+            for field, value in defaults.items():
+                if not getattr(config, field, None):
+                    setattr(config, field, value)
+                    updated.append(field)
+            if updated:
+                config.save(update_fields=updated)
+                self.stdout.write(
+                    self.style.SUCCESS(f'✅ Login config {tipo}: preenchido {", ".join(updated)}')
+                )
 
     def create_tipos_loja(self):
         """Cria tipos de app padrão"""

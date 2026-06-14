@@ -248,6 +248,9 @@ Login: `railway whoami`, `vercel whoami` (conta `lwksistemas@gmail.com`).
 
 ## 2. Rollback em ~2 minutos (atualização bugada)
 
+**PDF para download:** [manual-rollback-emergencia-lwk.pdf](https://lwksistemas.com.br/docs/manual-rollback-emergencia-lwk.pdf)  
+Gerar novamente: `python docs/scripts/gerar_manual_rollback_emergencia_pdf.py`
+
 **Ordem:** estabilizar produção primeiro (rollback nas plataformas), corrigir no Git depois.
 
 ### 2.1 Frontend — Vercel (mais rápido)

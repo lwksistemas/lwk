@@ -3,7 +3,14 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, ExternalLink, FileText, Loader2, Receipt } from 'lucide-react';
+import {
+  Download,
+  ExternalLink,
+  FileText,
+  Loader2,
+  CreditCard,
+  Copy,
+} from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 import apiClient from '@/lib/api-client';
 
@@ -29,9 +36,24 @@ export interface HistoricoPagamentoItem {
   referencia_mes?: string | null;
 }
 
+export interface CobrancaAberta {
+  valor: number;
+  data_vencimento: string;
+  referencia_mes?: string | null;
+  boleto_url?: string;
+  pix_copy_paste?: string;
+  pagamento_id?: number;
+}
+
 interface Props {
   itens: HistoricoPagamentoItem[];
   slug: string;
+  proximaCobranca?: string;
+  valorMensalidade?: number;
+  cobrancaAberta?: CobrancaAberta | null;
+  onGerarCobranca?: () => void;
+  gerandoCobranca?: boolean;
+  onCopiarPix?: () => void;
 }
 
 function StatusBadge({ item }: { item: HistoricoPagamentoItem }) {
@@ -48,7 +70,16 @@ function StatusBadge({ item }: { item: HistoricoPagamentoItem }) {
   return <Badge variant="secondary">Pendente</Badge>;
 }
 
-export function HistoricoPagamentos({ itens, slug }: Props) {
+export function HistoricoPagamentos({
+  itens,
+  slug,
+  proximaCobranca,
+  valorMensalidade,
+  cobrancaAberta,
+  onGerarCobranca,
+  gerandoCobranca,
+  onCopiarPix,
+}: Props) {
   const [loadingBoleto, setLoadingBoleto] = useState<number | null>(null);
   const [loadingNf, setLoadingNf] = useState<number | null>(null);
 
@@ -124,6 +155,42 @@ export function HistoricoPagamentos({ itens, slug }: Props) {
     }
   };
 
+  const baixarBoletoPorId = async (pagamentoId: number, boletoUrl?: string) => {
+    setLoadingBoleto(pagamentoId);
+    try {
+      const res = await apiClient.get(
+        `/superadmin/loja-pagamentos/${pagamentoId}/baixar_boleto_pdf/`,
+        { responseType: 'blob' }
+      );
+      const blob = res.data as Blob;
+      const ct = res.headers?.['content-type'] || blob.type || '';
+      if (ct.includes('json') || blob.type?.includes('json')) {
+        const d = JSON.parse(await blob.text());
+        if (d?.error) {
+          alert(d.error);
+          return;
+        }
+        if (d?.boleto_url) {
+          window.open(d.boleto_url, '_blank');
+          return;
+        }
+      }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `boleto_${slug}_${pagamentoId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch {
+      if (boletoUrl) window.open(boletoUrl, '_blank');
+      else alert('Erro ao baixar boleto.');
+    } finally {
+      setLoadingBoleto(null);
+    }
+  };
+
   const abrirNotaFiscal = async (item: HistoricoPagamentoItem) => {
     if (item.nf_pdf_url) {
       window.open(item.nf_pdf_url, '_blank');
@@ -171,100 +238,229 @@ export function HistoricoPagamentos({ itens, slug }: Props) {
     }
   };
 
-  if (!itens.length) {
+  const renderAcoesBoleto = (item: HistoricoPagamentoItem) => {
+    const pid = item.pagamento_loja_id || item.id;
+    const podeBoleto =
+      item.pode_baixar_boleto !== false &&
+      (pid > 0 ||
+        Boolean(item.boleto_url) ||
+        Boolean(item.asaas_id) ||
+        Boolean(item.mercadopago_payment_id));
+    const showBaixarPdf = pid > 0 || Boolean(item.asaas_id);
+
+    if (!podeBoleto && item.is_pending && onGerarCobranca) {
+      return (
+        <Button type="button" size="sm" disabled={gerandoCobranca} onClick={onGerarCobranca}>
+          {gerandoCobranca ? (
+            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+          ) : (
+            <CreditCard className="w-4 h-4 mr-1" />
+          )}
+          Gerar boleto
+        </Button>
+      );
+    }
+
+    if (!podeBoleto) return <span className="text-xs text-muted-foreground">—</span>;
+
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 dark:border-neutral-600 p-8 text-center text-sm text-muted-foreground dark:text-gray-400">
-        Nenhum pagamento no histórico. Quando houver cobranças, elas aparecerão aqui com boleto e nota fiscal.
+      <div className="flex flex-wrap gap-1 justify-end">
+        {item.boleto_url && (
+          <Button type="button" variant="outline" size="sm" onClick={() => window.open(item.boleto_url, '_blank')}>
+            <ExternalLink className="w-3.5 h-3.5 mr-1" />
+            Ver
+          </Button>
+        )}
+        {(showBaixarPdf || item.mercadopago_payment_id) && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={loadingBoleto === pid || loadingBoleto === -1}
+            onClick={() => baixarBoleto(item)}
+          >
+            {loadingBoleto === pid || (loadingBoleto === -1 && !pid) ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+            ) : (
+              <Download className="w-3.5 h-3.5 mr-1" />
+            )}
+            Baixar
+          </Button>
+        )}
       </div>
     );
-  }
+  };
+
+  const renderAcoesNf = (item: HistoricoPagamentoItem) => {
+    const pid = item.pagamento_loja_id || item.id;
+    const podeNf = item.tem_nota_fiscal || item.is_paid;
+    if (!podeNf) {
+      return <span className="text-xs text-muted-foreground">Após pagamento</span>;
+    }
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={loadingNf === pid}
+        onClick={() => abrirNotaFiscal(item)}
+      >
+        {loadingNf === pid ? (
+          <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+        ) : (
+          <FileText className="w-3.5 h-3.5 mr-1" />
+        )}
+        NFS-e
+      </Button>
+    );
+  };
+
+  const temCobrancaAbertaNaLista = cobrancaAberta
+    ? itens.some(
+        (i) =>
+          i.is_pending &&
+          i.data_vencimento === cobrancaAberta.data_vencimento &&
+          Math.abs(i.valor - cobrancaAberta.valor) < 0.01
+      )
+    : false;
+
+  const mostrarProximaLinha = !cobrancaAberta && !temCobrancaAbertaNaLista && proximaCobranca;
 
   return (
-    <ul className="space-y-3">
-      {itens.map((item, index) => {
-        const pid = item.pagamento_loja_id || item.id;
-        const podeBoleto =
-          item.pode_baixar_boleto !== false &&
-          (pid > 0 ||
-            Boolean(item.boleto_url) ||
-            Boolean(item.asaas_id) ||
-            Boolean(item.mercadopago_payment_id));
-        const showBaixarPdf = pid > 0 || Boolean(item.asaas_id);
-        const podeNf = item.tem_nota_fiscal || item.is_paid;
-
-        return (
-          <li
-            key={`${pid}-${item.asaas_id || index}`}
-            className="rounded-lg border border-gray-200 dark:border-neutral-700 bg-card p-4 sm:p-5"
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <StatusBadge item={item} />
-                  <span className="text-lg font-semibold dark:text-gray-100">
-                    {formatCurrency(item.valor)}
-                  </span>
-                  {item.numero_nf ? (
-                    <span className="text-xs text-muted-foreground dark:text-gray-400">
-                      NF {item.numero_nf}
-                    </span>
-                  ) : null}
+    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-neutral-700">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-gray-200 dark:border-neutral-700 bg-muted/40 dark:bg-neutral-800/80">
+            <th className="text-left py-3 px-3 font-medium text-muted-foreground">Referência</th>
+            <th className="text-left py-3 px-3 font-medium text-muted-foreground">Vencimento</th>
+            <th className="text-left py-3 px-3 font-medium text-muted-foreground">Valor</th>
+            <th className="text-left py-3 px-3 font-medium text-muted-foreground">Status</th>
+            <th className="text-right py-3 px-3 font-medium text-muted-foreground">Boleto</th>
+            <th className="text-right py-3 px-3 font-medium text-muted-foreground">Nota fiscal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {cobrancaAberta && !temCobrancaAbertaNaLista && (
+            <tr className="border-b border-gray-100 dark:border-neutral-800 bg-amber-50/50 dark:bg-amber-950/20">
+              <td className="py-3 px-3 font-medium dark:text-gray-100">
+                {cobrancaAberta.referencia_mes || 'Cobrança em aberto'}
+              </td>
+              <td className="py-3 px-3 dark:text-gray-200">{formatDate(cobrancaAberta.data_vencimento)}</td>
+              <td className="py-3 px-3 font-semibold dark:text-gray-100">
+                {formatCurrency(cobrancaAberta.valor)}
+              </td>
+              <td className="py-3 px-3">
+                <Badge variant="secondary">Pendente</Badge>
+              </td>
+              <td className="py-3 px-3">
+                <div className="flex flex-wrap gap-1 justify-end">
+                  {cobrancaAberta.boleto_url && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(cobrancaAberta.boleto_url, '_blank')}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                      Ver
+                    </Button>
+                  )}
+                  {cobrancaAberta.pagamento_id && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={loadingBoleto === cobrancaAberta.pagamento_id}
+                      onClick={() =>
+                        baixarBoletoPorId(cobrancaAberta.pagamento_id!, cobrancaAberta.boleto_url)
+                      }
+                    >
+                      {loadingBoleto === cobrancaAberta.pagamento_id ? (
+                        <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5 mr-1" />
+                      )}
+                      Baixar
+                    </Button>
+                  )}
+                  {cobrancaAberta.pix_copy_paste && onCopiarPix && (
+                    <Button type="button" variant="outline" size="sm" onClick={onCopiarPix}>
+                      <Copy className="w-3.5 h-3.5 mr-1" />
+                      PIX
+                    </Button>
+                  )}
                 </div>
-                <p className="text-sm text-muted-foreground dark:text-gray-400">
-                  Vencimento: {formatDate(item.data_vencimento)}
+              </td>
+              <td className="py-3 px-3 text-right text-xs text-muted-foreground">Após pagamento</td>
+            </tr>
+          )}
+
+          {mostrarProximaLinha && (
+            <tr className="border-b border-gray-100 dark:border-neutral-800">
+              <td className="py-3 px-3 font-medium dark:text-gray-100">Próxima mensalidade</td>
+              <td className="py-3 px-3 dark:text-gray-200">{formatDate(proximaCobranca)}</td>
+              <td className="py-3 px-3 font-semibold dark:text-gray-100">
+                {valorMensalidade != null ? formatCurrency(valorMensalidade) : '—'}
+              </td>
+              <td className="py-3 px-3">
+                <Badge variant="outline">Aguardando</Badge>
+              </td>
+              <td className="py-3 px-3 text-right">
+                {onGerarCobranca && (
+                  <Button type="button" size="sm" disabled={gerandoCobranca} onClick={onGerarCobranca}>
+                    {gerandoCobranca ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <CreditCard className="w-4 h-4 mr-1" />
+                    )}
+                    Gerar boleto
+                  </Button>
+                )}
+              </td>
+              <td className="py-3 px-3 text-right text-xs text-muted-foreground">—</td>
+            </tr>
+          )}
+
+          {itens.map((item, index) => {
+            const pid = item.pagamento_loja_id || item.id;
+            return (
+              <tr
+                key={`${pid}-${item.asaas_id || index}`}
+                className="border-b border-gray-100 dark:border-neutral-800 last:border-0 hover:bg-muted/30"
+              >
+                <td className="py-3 px-3 dark:text-gray-200">
+                  {item.referencia_mes || item.status_display || 'Mensalidade'}
+                  {item.numero_nf ? (
+                    <span className="block text-xs text-muted-foreground">NF {item.numero_nf}</span>
+                  ) : null}
+                </td>
+                <td className="py-3 px-3 dark:text-gray-200">
+                  {formatDate(item.data_vencimento)}
                   {item.data_pagamento ? (
-                    <span className="text-green-700 dark:text-green-400">
-                      {' '}
-                      · Pago em {formatDate(item.data_pagamento)}
+                    <span className="block text-xs text-green-700 dark:text-green-400">
+                      Pago {formatDate(item.data_pagamento)}
                     </span>
                   ) : null}
-                </p>
-              </div>
+                </td>
+                <td className="py-3 px-3 font-semibold dark:text-gray-100">{formatCurrency(item.valor)}</td>
+                <td className="py-3 px-3">
+                  <StatusBadge item={item} />
+                </td>
+                <td className="py-3 px-3 text-right">{renderAcoesBoleto(item)}</td>
+                <td className="py-3 px-3 text-right">{renderAcoesNf(item)}</td>
+              </tr>
+            );
+          })}
 
-              <div className="flex flex-wrap gap-2 shrink-0">
-                {podeBoleto && item.boleto_url && (
-                  <Button type="button" variant="outline" size="sm" onClick={() => window.open(item.boleto_url, '_blank')}>
-                    <ExternalLink className="w-4 h-4 mr-1" />
-                    Ver boleto
-                  </Button>
-                )}
-                {podeBoleto && (showBaixarPdf || item.mercadopago_payment_id) && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={loadingBoleto === pid || loadingBoleto === -1}
-                    onClick={() => baixarBoleto(item)}
-                  >
-                    {loadingBoleto === pid || (loadingBoleto === -1 && !pid) ? (
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                    ) : (
-                      <Download className="w-4 h-4 mr-1" />
-                    )}
-                    Baixar boleto
-                  </Button>
-                )}
-                {podeNf && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={loadingNf === pid}
-                    onClick={() => abrirNotaFiscal(item)}
-                  >
-                    {loadingNf === pid ? (
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                    ) : (
-                      <FileText className="w-4 h-4 mr-1" />
-                    )}
-                    Nota fiscal
-                  </Button>
-                )}
-              </div>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+          {!itens.length && !cobrancaAberta && !mostrarProximaLinha && (
+            <tr>
+              <td colSpan={6} className="py-10 px-4 text-center text-muted-foreground dark:text-gray-400">
+                Nenhum pagamento no histórico. Use &quot;Gerar boleto&quot; para antecipar a mensalidade.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }

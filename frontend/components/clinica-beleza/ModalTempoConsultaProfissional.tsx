@@ -73,7 +73,13 @@ export function ModalTempoConsultaProfissional({
       }
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro ao salvar.";
+      let msg = "Erro ao salvar.";
+      if (err instanceof Error) {
+        msg = err.message;
+      } else if (err && typeof err === "object") {
+        const apiErr = err as { error?: string; detail?: string };
+        msg = apiErr.error || apiErr.detail || msg;
+      }
       setError(msg);
     } finally {
       setSaving(false);

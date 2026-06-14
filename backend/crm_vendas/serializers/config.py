@@ -35,7 +35,6 @@ class CRMConfigSerializer(serializers.ModelSerializer):
     def get_asaas_webhook_token_configured(self, obj):
         loja = self.context.get('loja')
         if loja:
-            from .models_config import CRMConfig
             return bool(CRMConfig.resolve_asaas_webhook_token(loja.id))
         token = obj.asaas_webhook_token_decrypted() if hasattr(obj, 'asaas_webhook_token_decrypted') else ''
         return bool(token)
@@ -46,7 +45,6 @@ class CRMConfigSerializer(serializers.ModelSerializer):
     def get_asaas_webhook_token_length(self, obj):
         loja = self.context.get('loja')
         if loja:
-            from .models_config import CRMConfig
             return len(CRMConfig.resolve_asaas_webhook_token(loja.id))
         return len(obj.asaas_webhook_token_decrypted()) if hasattr(obj, 'asaas_webhook_token_decrypted') else 0
 

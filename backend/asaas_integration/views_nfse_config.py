@@ -163,10 +163,27 @@ def _apply_nfse_config_update(request, config):
     config.save(using='default', update_fields=list(dict.fromkeys(update_fields)))
     config.refresh_from_db(using='default')
 
+    saved_fields = [f for f in update_fields if f != 'updated_at']
+    if not saved_fields:
+        logger.warning(
+            'NFS-e config PATCH sem campos por %s content_type=%s files=%s keys=%s',
+            getattr(request.user, 'username', '?'),
+            request.content_type,
+            list(request.FILES.keys()),
+            list(data.keys()) if hasattr(data, 'keys') else [],
+        )
+        return Response(
+            {
+                'error': 'Nenhum dado recebido. Recarregue a página e tente salvar novamente.',
+                'detail': 'O servidor não interpretou os campos enviados (multipart).',
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     logger.info(
         'NFS-e config salva por %s: campos=%s provedor=%s issnet_usuario=%s cert=%s',
         getattr(request.user, 'username', '?'),
-        [f for f in update_fields if f != 'updated_at'],
+        saved_fields,
         config.provedor_nfse,
         bool(config.issnet_usuario),
         bool(config.issnet_certificado),

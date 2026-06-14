@@ -77,7 +77,9 @@ function normalizeConfigResponse(data: Record<string, unknown>): NFSeConfig {
     prestador_email: String(raw.prestador_email ?? ''),
     regime_especial_tributacao: String(raw.regime_especial_tributacao ?? ''),
     codigo_servico_municipal: String(raw.codigo_servico_municipal ?? '1401'),
-    descricao_servico_padrao: String(raw.descricao_servico_padrao ?? ''),
+    descricao_servico_padrao: String(
+      raw.descricao_servico_padrao ?? 'Licenciamento de uso de software SaaS'
+    ),
     aliquota_iss: String(raw.aliquota_iss ?? '2.00'),
     codigo_cnae: String(raw.codigo_cnae ?? ''),
     optante_simples_nacional: raw.optante_simples_nacional !== false && raw.optante_simples_nacional !== 'false',
@@ -137,6 +139,49 @@ export default function NFSeConfigPage() {
   const [issnetCertificadoFile, setIssnetCertificadoFile] = useState<File | null>(null)
   const issnetCertInputRef = useRef<HTMLInputElement>(null)
   const nacionalCertInputRef = useRef<HTMLInputElement>(null)
+
+  const buildSaveJsonPayload = (): Record<string, unknown> => {
+    const payload: Record<string, unknown> = {
+      provedor_nfse: config.provedor_nfse,
+      emitir_automaticamente: config.emitir_automaticamente,
+      prestador_cnpj: config.prestador_cnpj,
+      prestador_razao_social: config.prestador_razao_social,
+      prestador_inscricao_municipal: config.prestador_inscricao_municipal,
+      prestador_email: config.prestador_email,
+      regime_especial_tributacao: config.regime_especial_tributacao,
+      codigo_servico_municipal: config.codigo_servico_municipal,
+      descricao_servico_padrao: config.descricao_servico_padrao,
+      aliquota_iss: config.aliquota_iss,
+      codigo_cnae: config.codigo_cnae,
+      optante_simples_nacional: config.optante_simples_nacional,
+      incentivador_cultural: config.incentivador_cultural,
+      nacional_ambiente: config.nacional_ambiente,
+      nacional_codigo_municipio: config.nacional_codigo_municipio,
+      nacional_serie_dps: config.nacional_serie_dps,
+      nacional_ultimo_dps: config.nacional_ultimo_dps,
+      issnet_usuario: config.issnet_usuario,
+      serie_rps: config.serie_rps,
+      ultimo_rps: config.ultimo_rps,
+    }
+    if (nacionalSenhaCertificado) payload.nacional_senha_certificado = nacionalSenhaCertificado
+    if (issnetSenha) payload.issnet_senha = issnetSenha
+    if (issnetSenhaCertificado) payload.issnet_senha_certificado = issnetSenhaCertificado
+    return payload
+  }
+
+  const refreshConfigSilent = async (): Promise<NFSeConfig | null> => {
+    try {
+      const { data } = await apiClient.get('/asaas/nfse-config/', { timeout: 20000 })
+      if (data && typeof data === 'object') {
+        const normalized = normalizeConfigResponse(data as Record<string, unknown>)
+        setConfig(normalized)
+        return normalized
+      }
+    } catch (error) {
+      logger.warn('Erro ao recarregar configuração NFS-e:', error)
+    }
+    return null
+  }
 
   const buildSaveFormData = () => {
     const formData = new FormData()
@@ -257,14 +302,20 @@ export default function NFSeConfigPage() {
         }
       }
 
-      const formData = buildSaveFormData()
-      const { data } = await apiClient.patch('/asaas/nfse-config/', formData)
-
-      const saved = normalizeConfigResponse(data as Record<string, unknown>)
-      if (saved?.provedor_nfse) {
-        setConfig(saved)
+      const hasFiles = Boolean(nacionalCertificadoFile || issnetCertificadoFile)
+      if (hasFiles) {
+        await apiClient.patch('/asaas/nfse-config/', buildSaveFormData())
       } else {
-        await loadConfig()
+        await apiClient.patch('/asaas/nfse-config/', buildSaveJsonPayload())
+      }
+
+      const saved = await refreshConfigSilent()
+      if (!saved) {
+        setMessage({
+          type: 'error',
+          text: 'Salvo, mas não foi possível recarregar. Recarregue a página para confirmar.',
+        })
+        return
       }
 
       const issnetOk =

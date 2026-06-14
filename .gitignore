@@ -84,6 +84,7 @@ gerar_relatorio_infraestrutura.py
 # PDFs e manuais (não devem estar no repositório)
 *.pdf
 !frontend/public/*.pdf
+!frontend/public/docs/*.pdf
 
 # Scripts de debug/one-time (não commitar)
 fix_*.py

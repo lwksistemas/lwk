@@ -61,12 +61,44 @@ class Command(BaseCommand):
             cursor.execute('CREATE SCHEMA IF NOT EXISTS suporte')
             self.stdout.write(self.style.SUCCESS('Schema PostgreSQL suporte garantido'))
 
+            cursor.execute(
+                """
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'suporte' AND table_name = 'django_migrations'
+                LIMIT 1
+                """
+            )
+            if not cursor.fetchone():
+                cursor.execute(
+                    """
+                    CREATE TABLE suporte.django_migrations (
+                        id SERIAL PRIMARY KEY,
+                        app VARCHAR(255) NOT NULL,
+                        name VARCHAR(255) NOT NULL,
+                        applied TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                    """
+                )
+                self.stdout.write('Tabela suporte.django_migrations criada')
+
             if not _table_exists(cursor, 'suporte_chamado'):
                 self.stdout.write(
                     self.style.WARNING('Tabela suporte_chamado ausente — recriando schema suporte…')
                 )
                 cursor.execute('DROP SCHEMA IF EXISTS suporte CASCADE')
                 cursor.execute('CREATE SCHEMA suporte')
+                # Histórico isolado: sem suporte.django_migrations o Django reutiliza public.django_migrations
+                # e acredita que as migrations já foram aplicadas (mesmo PostgreSQL, search_path diferente).
+                cursor.execute(
+                    """
+                    CREATE TABLE suporte.django_migrations (
+                        id SERIAL PRIMARY KEY,
+                        app VARCHAR(255) NOT NULL,
+                        name VARCHAR(255) NOT NULL,
+                        applied TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                    """
+                )
                 for app in ('contenttypes', 'auth', 'sessions', 'suporte'):
                     call_command('migrate', app, database='suporte', interactive=False, verbosity=1)
 

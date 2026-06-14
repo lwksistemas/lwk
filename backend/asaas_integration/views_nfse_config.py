@@ -1,21 +1,63 @@
 """
 Views para configuração de NFS-e do Superadmin.
-GET/PATCH /api/superadmin/nfse-config/
-POST /api/superadmin/nfse-config/test-nacional/
+GET/PATCH /api/asaas/nfse-config/
+POST /api/asaas/nfse-config/test-nacional/
 """
 import os
 import logging
 
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+
+from superadmin.views.permissions import IsSuperAdmin
 
 logger = logging.getLogger(__name__)
 
 
+def _parse_bool(val) -> bool:
+    if isinstance(val, bool):
+        return val
+    if val is None:
+        return False
+    return str(val).strip().lower() in ('true', '1', 'yes', 'on')
+
+
+def _serialize_nfse_config(config) -> dict:
+    return {
+        'provedor_nfse': config.provedor_nfse,
+        'emitir_automaticamente': config.emitir_automaticamente,
+        'prestador_cnpj': config.prestador_cnpj,
+        'prestador_razao_social': config.prestador_razao_social,
+        'prestador_inscricao_municipal': config.prestador_inscricao_municipal,
+        'prestador_email': config.prestador_email,
+        'regime_especial_tributacao': config.regime_especial_tributacao,
+        'codigo_servico_municipal': config.codigo_servico_municipal,
+        'descricao_servico_padrao': config.descricao_servico_padrao,
+        'aliquota_iss': str(config.aliquota_iss),
+        'codigo_cnae': config.codigo_cnae,
+        'optante_simples_nacional': config.optante_simples_nacional,
+        'incentivador_cultural': config.incentivador_cultural,
+        'issnet_usuario': config.issnet_usuario or '',
+        'issnet_senha_set': bool((config.issnet_senha or '').strip()),
+        'issnet_certificado_nome': config.issnet_certificado_nome or '',
+        'issnet_certificado_set': bool(config.issnet_certificado),
+        'issnet_senha_certificado_set': bool((config.issnet_senha_certificado or '').strip()),
+        'serie_rps': config.serie_rps or 'E',
+        'ultimo_rps': int(config.ultimo_rps or 0),
+        'nacional_certificado_nome': config.nacional_certificado_nome,
+        'nacional_certificado_set': bool(config.nacional_certificado),
+        'nacional_senha_certificado_set': bool(config.nacional_senha_certificado),
+        'nacional_ambiente': config.nacional_ambiente,
+        'nacional_codigo_municipio': config.nacional_codigo_municipio,
+        'nacional_serie_dps': config.nacional_serie_dps,
+        'nacional_ultimo_dps': config.nacional_ultimo_dps,
+    }
+
+
 @api_view(['GET', 'PATCH'])
-@permission_classes([IsAuthenticated, IsAdminUser])
+@permission_classes([IsAuthenticated, IsSuperAdmin])
 def nfse_config_view(request):
     """GET: retorna config. PATCH: atualiza config."""
     from .models_nfse_config import SuperadminNFSeConfig
@@ -23,37 +65,7 @@ def nfse_config_view(request):
     config = SuperadminNFSeConfig.get_config()
 
     if request.method == 'GET':
-        return Response({
-            'provedor_nfse': config.provedor_nfse,
-            'emitir_automaticamente': config.emitir_automaticamente,
-            'prestador_cnpj': config.prestador_cnpj,
-            'prestador_razao_social': config.prestador_razao_social,
-            'prestador_inscricao_municipal': config.prestador_inscricao_municipal,
-            'prestador_email': config.prestador_email,
-            'regime_especial_tributacao': config.regime_especial_tributacao,
-            'codigo_servico_municipal': config.codigo_servico_municipal,
-            'descricao_servico_padrao': config.descricao_servico_padrao,
-            'aliquota_iss': str(config.aliquota_iss),
-            'codigo_cnae': config.codigo_cnae,
-            'optante_simples_nacional': config.optante_simples_nacional,
-            'incentivador_cultural': config.incentivador_cultural,
-            # ISSNet
-            'issnet_usuario': config.issnet_usuario or '',
-            'issnet_senha_set': bool((config.issnet_senha or '').strip()),
-            'issnet_certificado_nome': config.issnet_certificado_nome or '',
-            'issnet_certificado_set': bool(config.issnet_certificado),
-            'issnet_senha_certificado_set': bool((config.issnet_senha_certificado or '').strip()),
-            'serie_rps': config.serie_rps or 'E',
-            'ultimo_rps': int(config.ultimo_rps or 0),
-            # Nacional
-            'nacional_certificado_nome': config.nacional_certificado_nome,
-            'nacional_certificado_set': bool(config.nacional_certificado),
-            'nacional_senha_certificado_set': bool(config.nacional_senha_certificado),
-            'nacional_ambiente': config.nacional_ambiente,
-            'nacional_codigo_municipio': config.nacional_codigo_municipio,
-            'nacional_serie_dps': config.nacional_serie_dps,
-            'nacional_ultimo_dps': config.nacional_ultimo_dps,
-        })
+        return Response(_serialize_nfse_config(config))
 
     # PATCH
     data = request.data
@@ -72,21 +84,24 @@ def nfse_config_view(request):
         'issnet_usuario', 'serie_rps', 'ultimo_rps',
     ]
     for field in simple_fields:
-        if field in data:
-            val = data[field]
-            if field in ('emitir_automaticamente', 'optante_simples_nacional', 'incentivador_cultural'):
-                val = bool(val)
-            elif field in ('nacional_ultimo_dps', 'ultimo_rps'):
-                val = int(val) if val else 0
-                if field == 'nacional_ultimo_dps':
-                    config.nacional_ultimo_dps = val
-                    update_fields.append('nacional_ultimo_dps')
-                config.ultimo_rps = max(int(config.ultimo_rps or 0), val) if field == 'nacional_ultimo_dps' else val
+        if field not in data:
+            continue
+        val = data[field]
+        if field in ('emitir_automaticamente', 'optante_simples_nacional', 'incentivador_cultural'):
+            val = _parse_bool(val)
+        elif field in ('nacional_ultimo_dps', 'ultimo_rps'):
+            val = int(val) if val not in (None, '') else 0
+            if field == 'nacional_ultimo_dps':
+                config.nacional_ultimo_dps = val
+                update_fields.append('nacional_ultimo_dps')
+                config.ultimo_rps = max(int(config.ultimo_rps or 0), val)
                 update_fields.append('ultimo_rps')
-                if field == 'ultimo_rps':
-                    continue
-            setattr(config, field, val)
-            update_fields.append(field)
+                continue
+            config.ultimo_rps = val
+            update_fields.append('ultimo_rps')
+            continue
+        setattr(config, field, val)
+        update_fields.append(field)
 
     # Alíquota ISS
     if 'aliquota_iss' in data:
@@ -131,13 +146,25 @@ def nfse_config_view(request):
         config.issnet_senha_certificado = encrypt_value(str(data['issnet_senha_certificado']))
         update_fields.append('issnet_senha_certificado')
 
-    config.save(update_fields=update_fields)
+    config.save(using='default', update_fields=list(dict.fromkeys(update_fields)))
+    config.refresh_from_db(using='default')
 
-    return Response({'success': True, 'message': 'Configuração salva'})
+    logger.info(
+        'NFS-e config salva por %s: campos=%s provedor=%s',
+        getattr(request.user, 'username', '?'),
+        [f for f in update_fields if f != 'updated_at'],
+        config.provedor_nfse,
+    )
+
+    return Response({
+        'success': True,
+        'message': 'Configuração salva',
+        **_serialize_nfse_config(config),
+    })
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminUser])
+@permission_classes([IsAuthenticated, IsSuperAdmin])
 def nfse_config_test_nacional(request):
     """Testa conexão com o provedor configurado (ISSNet ou ADN Nacional)."""
     from .models_nfse_config import SuperadminNFSeConfig

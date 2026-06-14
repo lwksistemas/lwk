@@ -92,6 +92,9 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
   // Enviar session_id para validação de sessão única no backend
   const sessionId = sessionStorage.getItem('session_id');
   if (sessionId) config.headers.set('X-Session-ID', sessionId);
+  if (config.data instanceof FormData) {
+    config.headers.delete('Content-Type');
+  }
   if (process.env.NODE_ENV === 'development') {
     logger.log('API Request:', config.method?.toUpperCase(), config.url);
   }

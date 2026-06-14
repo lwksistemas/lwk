@@ -186,15 +186,15 @@ export default function NFSeConfigPage() {
     try {
       const useMultipart = Boolean(nacionalCertificadoFile || issnetCertificadoFile)
 
+      let saved: NFSeConfig | null = null
       if (useMultipart) {
         const formData = new FormData()
         appendCommonFields(formData)
         if (nacionalCertificadoFile) formData.append('nacional_certificado', nacionalCertificadoFile)
         if (issnetCertificadoFile) formData.append('issnet_certificado', issnetCertificadoFile)
 
-        await apiClient.patch('/asaas/nfse-config/', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        })
+        const { data } = await apiClient.patch('/asaas/nfse-config/', formData)
+        saved = data as NFSeConfig
       } else {
         const payload: Record<string, unknown> = {
           provedor_nfse: config.provedor_nfse,
@@ -222,7 +222,14 @@ export default function NFSeConfigPage() {
         if (issnetSenha) payload.issnet_senha = issnetSenha
         if (issnetSenhaCertificado) payload.issnet_senha_certificado = issnetSenhaCertificado
 
-        await apiClient.patch('/asaas/nfse-config/', payload)
+        const { data } = await apiClient.patch('/asaas/nfse-config/', payload)
+        saved = data as NFSeConfig
+      }
+
+      if (saved?.provedor_nfse) {
+        setConfig(saved)
+      } else {
+        await loadConfig()
       }
 
       setMessage({ type: 'success', text: 'Configuração NFS-e salva com sucesso!' })
@@ -231,12 +238,21 @@ export default function NFSeConfigPage() {
       setIssnetSenha('')
       setIssnetSenhaCertificado('')
       setIssnetCertificadoFile(null)
-      loadConfig()
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string; detail?: string } } }
+      const err = error as {
+        response?: { status?: number; data?: { error?: string; detail?: string | string[] } }
+        message?: string
+      }
+      const detail = err.response?.data?.detail
+      const detailStr = Array.isArray(detail) ? detail.join(', ') : typeof detail === 'string' ? detail : ''
       setMessage({
         type: 'error',
-        text: err.response?.data?.error || err.response?.data?.detail || 'Erro ao salvar configuração',
+        text:
+          err.response?.data?.error ||
+          detailStr ||
+          (err.response?.status === 403 ? 'Sem permissão para salvar (superadmin).' : '') ||
+          err.message ||
+          'Erro ao salvar configuração',
       })
     } finally {
       setSaving(false)

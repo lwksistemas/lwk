@@ -1,10 +1,3 @@
-const STAGING_API_ORIGIN = 'https://lwks-backend-staging-staging.up.railway.app';
-
-function shouldUseStagingApiProxy() {
-  if (process.env.NEXT_PUBLIC_USE_STAGING_API_PROXY === 'true') return true;
-  return (process.env.VERCEL_GIT_COMMIT_REF || '') === 'staging';
-}
-
 function buildConnectSrc() {
   const origins = new Set(["'self'"]);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
@@ -163,17 +156,6 @@ const nextConfig = {
         permanent: true,
       },
     ]
-  },
-
-  // Beta/staging: proxy same-origin /api → Railway staging (evita CSP bloquear cross-origin).
-  async rewrites() {
-    if (!shouldUseStagingApiProxy()) return [];
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${STAGING_API_ORIGIN}/api/:path*`,
-      },
-    ];
   },
   
   env: {

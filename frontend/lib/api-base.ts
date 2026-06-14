@@ -19,8 +19,7 @@ function resolveApiRootFromHost(): string | null {
   if (typeof window === 'undefined') return null;
   const host = window.location.hostname.toLowerCase();
   if (isBetaHost(host)) {
-    // Same-origin: Next.js faz proxy /api → Railway staging (CSP connect-src 'self').
-    return window.location.origin;
+    return STAGING_API_ROOT;
   }
   if (host === 'lwksistemas.com.br' || host === 'www.lwksistemas.com.br') {
     return PRODUCTION_API_ROOT;

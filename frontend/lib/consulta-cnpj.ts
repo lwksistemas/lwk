@@ -13,6 +13,12 @@ export interface DadosCnpj {
   bairro: string;
   municipio: string;
   uf: string;
+  /** Código IBGE do município (7 dígitos), quando disponível na BrasilAPI */
+  codigo_municipio_ibge?: string;
+  /** CNAE fiscal principal */
+  cnae_fiscal?: string;
+  email?: string;
+  optante_simples?: boolean;
 }
 
 const TIMEOUT_MS = 15000;
@@ -44,6 +50,8 @@ export async function consultaCnpj(cnpj: string): Promise<DadosCnpj | null> {
       return n;
     };
 
+    const ibge = data.codigo_municipio_ibge ?? data.codigo_municipio;
+    const cnae = data.cnae_fiscal;
     return {
       razao_social: data.razao_social || data.nome_fantasia || '',
       nome_fantasia: data.nome_fantasia || undefined,
@@ -54,6 +62,10 @@ export async function consultaCnpj(cnpj: string): Promise<DadosCnpj | null> {
       bairro: data.bairro || '',
       municipio: data.municipio || '',
       uf: data.uf || '',
+      codigo_municipio_ibge: ibge != null ? String(ibge).replace(/\D/g, '').slice(0, 7) : undefined,
+      cnae_fiscal: cnae != null ? String(cnae).replace(/\D/g, '') : undefined,
+      email: (data.email || data.correio_eletronico || '').trim() || undefined,
+      optante_simples: typeof data.opcao_pelo_simples === 'boolean' ? data.opcao_pelo_simples : undefined,
     };
   } catch {
     return null;

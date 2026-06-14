@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import apiClient from '@/lib/api-client'
+import { consultaCnpj, formatCpfCnpj } from '@/lib/consulta-cnpj'
 import { logger } from '@/lib/logger'
 
 interface NFSeConfig {
@@ -78,7 +79,45 @@ export default function NFSeConfigPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [buscarCnpjLoading, setBuscarCnpjLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const handleBuscarCnpj = async () => {
+    const digits = config.prestador_cnpj.replace(/\D/g, '')
+    if (digits.length !== 14) {
+      setMessage({ type: 'error', text: 'Informe um CNPJ válido com 14 dígitos.' })
+      return
+    }
+    setBuscarCnpjLoading(true)
+    setMessage(null)
+    try {
+      const data = await consultaCnpj(digits)
+      if (!data) {
+        setMessage({ type: 'error', text: 'CNPJ não encontrado ou serviço indisponível.' })
+        return
+      }
+      setConfig((prev) => ({
+        ...prev,
+        prestador_cnpj: formatCpfCnpj(digits),
+        prestador_razao_social: data.razao_social || prev.prestador_razao_social,
+        prestador_email: data.email || prev.prestador_email,
+        codigo_cnae: data.cnae_fiscal || prev.codigo_cnae,
+        nacional_codigo_municipio: data.codigo_municipio_ibge || prev.nacional_codigo_municipio,
+        optante_simples_nacional:
+          data.optante_simples !== undefined ? data.optante_simples : prev.optante_simples_nacional,
+      }))
+      setMessage({ type: 'success', text: 'Dados do prestador preenchidos pela Receita Federal.' })
+    } catch {
+      setMessage({ type: 'error', text: 'Erro ao consultar CNPJ. Tente novamente.' })
+    } finally {
+      setBuscarCnpjLoading(false)
+    }
+  }
+
+  const handleCnpjChange = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 14)
+    setConfig((prev) => ({ ...prev, prestador_cnpj: formatCpfCnpj(digits) }))
+  }
 
   useEffect(() => {
     loadConfig()
@@ -300,13 +339,32 @@ export default function NFSeConfigPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="space-y-2 md:col-span-2">
               <Label>CNPJ</Label>
-              <Input
-                value={config.prestador_cnpj}
-                onChange={(e) => setConfig(prev => ({ ...prev, prestador_cnpj: e.target.value }))}
-                placeholder="00.000.000/0001-00"
-              />
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  value={config.prestador_cnpj}
+                  onChange={(e) => handleCnpjChange(e.target.value)}
+                  placeholder="00.000.000/0001-00"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBuscarCnpj}
+                  disabled={buscarCnpjLoading || config.prestador_cnpj.replace(/\D/g, '').length !== 14}
+                  className="shrink-0"
+                >
+                  {buscarCnpjLoading ? (
+                    <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Consultando...</>
+                  ) : (
+                    'Consultar CNPJ'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Preenche razão social, e-mail, CNAE e código IBGE do município automaticamente.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Razão Social</Label>

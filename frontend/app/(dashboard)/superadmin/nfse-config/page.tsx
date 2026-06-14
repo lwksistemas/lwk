@@ -61,9 +61,42 @@ function normalizeConfigResponse(data: Record<string, unknown>): NFSeConfig {
   const {
     success: _success,
     message: _message,
-    ...config
+    ...raw
   } = data
-  return config as NFSeConfig
+
+  const provedor = String(raw.provedor_nfse ?? 'issnet')
+  const provedor_nfse: NFSeConfig['provedor_nfse'] =
+    provedor === 'nacional' || provedor === 'desabilitado' ? provedor : 'issnet'
+
+  return {
+    provedor_nfse,
+    emitir_automaticamente: raw.emitir_automaticamente !== false && raw.emitir_automaticamente !== 'false',
+    prestador_cnpj: String(raw.prestador_cnpj ?? ''),
+    prestador_razao_social: String(raw.prestador_razao_social ?? ''),
+    prestador_inscricao_municipal: String(raw.prestador_inscricao_municipal ?? ''),
+    prestador_email: String(raw.prestador_email ?? ''),
+    regime_especial_tributacao: String(raw.regime_especial_tributacao ?? ''),
+    codigo_servico_municipal: String(raw.codigo_servico_municipal ?? '1401'),
+    descricao_servico_padrao: String(raw.descricao_servico_padrao ?? ''),
+    aliquota_iss: String(raw.aliquota_iss ?? '2.00'),
+    codigo_cnae: String(raw.codigo_cnae ?? ''),
+    optante_simples_nacional: raw.optante_simples_nacional !== false && raw.optante_simples_nacional !== 'false',
+    incentivador_cultural: raw.incentivador_cultural === true || raw.incentivador_cultural === 'true',
+    issnet_usuario: String(raw.issnet_usuario ?? ''),
+    issnet_senha_set: Boolean(raw.issnet_senha_set),
+    issnet_certificado_nome: String(raw.issnet_certificado_nome ?? ''),
+    issnet_certificado_set: Boolean(raw.issnet_certificado_set),
+    issnet_senha_certificado_set: Boolean(raw.issnet_senha_certificado_set),
+    serie_rps: String(raw.serie_rps ?? 'E'),
+    ultimo_rps: Number(raw.ultimo_rps ?? 0) || 0,
+    nacional_certificado_nome: String(raw.nacional_certificado_nome ?? ''),
+    nacional_certificado_set: Boolean(raw.nacional_certificado_set),
+    nacional_senha_certificado_set: Boolean(raw.nacional_senha_certificado_set),
+    nacional_ambiente: String(raw.nacional_ambiente ?? 'homologacao'),
+    nacional_codigo_municipio: String(raw.nacional_codigo_municipio ?? ''),
+    nacional_serie_dps: String(raw.nacional_serie_dps ?? '900'),
+    nacional_ultimo_dps: Number(raw.nacional_ultimo_dps ?? 0) || 0,
+  }
 }
 
 export default function NFSeConfigPage() {
@@ -186,7 +219,9 @@ export default function NFSeConfigPage() {
     setLoading(true)
     try {
       const { data } = await apiClient.get('/asaas/nfse-config/', { timeout: 20000 })
-      setConfig(normalizeConfigResponse(data as Record<string, unknown>))
+      if (data && typeof data === 'object') {
+        setConfig(normalizeConfigResponse(data as Record<string, unknown>))
+      }
     } catch (error) {
       logger.warn('Erro ao carregar configuração NFS-e:', error)
       setMessage({ type: 'error', text: 'Erro ao carregar configuração' })
@@ -200,7 +235,7 @@ export default function NFSeConfigPage() {
     setMessage(null)
     try {
       if (config.provedor_nfse === 'issnet') {
-        if (!config.issnet_usuario.trim()) {
+        if (!(config.issnet_usuario ?? '').trim()) {
           setMessage({ type: 'error', text: 'Informe o usuário ISSNet antes de salvar.' })
           return
         }
@@ -279,7 +314,7 @@ export default function NFSeConfigPage() {
     setMessage(null)
     try {
       const fd = new FormData()
-      fd.append('issnet_usuario', config.issnet_usuario.trim())
+      fd.append('issnet_usuario', (config.issnet_usuario ?? '').trim())
       if (issnetSenha) fd.append('issnet_senha', issnetSenha)
       if (issnetSenhaCertificado) fd.append('issnet_senha_certificado', issnetSenhaCertificado)
       if (issnetCertificadoFile) fd.append('issnet_certificado', issnetCertificadoFile)
@@ -304,7 +339,7 @@ export default function NFSeConfigPage() {
   const canTestIssnet =
     config.issnet_certificado_set ||
     Boolean(issnetCertificadoFile) ||
-    (Boolean(config.issnet_usuario.trim()) && (config.issnet_senha_set || Boolean(issnetSenha)))
+    (Boolean((config.issnet_usuario ?? '').trim()) && (config.issnet_senha_set || Boolean(issnetSenha)))
 
   if (loading) {
     return (

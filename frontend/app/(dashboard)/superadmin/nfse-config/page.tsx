@@ -34,6 +34,8 @@ interface NFSeConfig {
   prestador_email: string
   regime_especial_tributacao: string
   codigo_servico_municipal: string
+  item_lista_servico: string
+  codigo_tributacao_municipio: string
   descricao_servico_padrao: string
   aliquota_iss: string
   codigo_cnae: string
@@ -77,6 +79,8 @@ function normalizeConfigResponse(data: Record<string, unknown>): NFSeConfig {
     prestador_email: String(raw.prestador_email ?? ''),
     regime_especial_tributacao: String(raw.regime_especial_tributacao ?? ''),
     codigo_servico_municipal: String(raw.codigo_servico_municipal ?? '1401'),
+    item_lista_servico: String(raw.item_lista_servico ?? '14.01'),
+    codigo_tributacao_municipio: String(raw.codigo_tributacao_municipio ?? ''),
     descricao_servico_padrao: String(
       raw.descricao_servico_padrao ?? 'Licenciamento de uso de software SaaS'
     ),
@@ -111,6 +115,8 @@ export default function NFSeConfigPage() {
     prestador_email: '',
     regime_especial_tributacao: '',
     codigo_servico_municipal: '1401',
+    item_lista_servico: '14.01',
+    codigo_tributacao_municipio: '',
     descricao_servico_padrao: 'Licenciamento de uso de software SaaS',
     aliquota_iss: '2.00',
     codigo_cnae: '',
@@ -164,6 +170,8 @@ export default function NFSeConfigPage() {
     formData.append('prestador_email', config.prestador_email)
     formData.append('regime_especial_tributacao', config.regime_especial_tributacao)
     formData.append('codigo_servico_municipal', config.codigo_servico_municipal)
+    formData.append('item_lista_servico', config.item_lista_servico)
+    formData.append('codigo_tributacao_municipio', config.codigo_tributacao_municipio)
     formData.append('descricao_servico_padrao', config.descricao_servico_padrao)
     formData.append('aliquota_iss', config.aliquota_iss)
     formData.append('codigo_cnae', config.codigo_cnae)
@@ -781,11 +789,33 @@ export default function NFSeConfigPage() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Código do Serviço (LC 116)</Label>
+              <Label>Item lista serviço (LC 116)</Label>
+              <Input
+                value={config.item_lista_servico}
+                onChange={(e) => setConfig(prev => ({ ...prev, item_lista_servico: e.target.value }))}
+                placeholder="14.01"
+              />
+              <p className="text-xs text-muted-foreground">
+                Ex.: 1.05 (licenciamento de software) ou 14.01. Deve combinar com o CNAE.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Código tributação municipal (ISSNet)</Label>
+              <Input
+                value={config.codigo_tributacao_municipio}
+                onChange={(e) => setConfig(prev => ({ ...prev, codigo_tributacao_municipio: e.target.value }))}
+                placeholder="Consulte o portal ISS / prefeitura"
+              />
+              <p className="text-xs text-muted-foreground">
+                Código cadastrado para o CNPJ/IM na prefeitura (erros E035/L003 se incorreto).
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Código serviço (legado / fallback)</Label>
               <Input
                 value={config.codigo_servico_municipal}
                 onChange={(e) => setConfig(prev => ({ ...prev, codigo_servico_municipal: e.target.value }))}
-                placeholder="14.01"
+                placeholder="1401"
               />
             </div>
             <div className="space-y-2">

@@ -227,7 +227,10 @@ def _emitir_via_issnet(
             gerar_proximo_numero_rps_superadmin,
             sincronizar_contadores_rps_superadmin,
         )
+        from nfse_integration.issnet_fiscal_superadmin import fiscal_codes_issnet_superadmin
+
         numero_rps = gerar_proximo_numero_rps_superadmin(config)
+        item_lista, cod_tributacao, cod_cnae, servico_codigo = fiscal_codes_issnet_superadmin(config)
 
         # Salvar certificado em arquivo temporário (ISSNetClient precisa de path)
         cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix='issnet_auto_')
@@ -256,13 +259,15 @@ def _emitir_via_issnet(
                 tomador_cpf_cnpj=tomador_cpf_cnpj,
                 tomador_nome=tomador_nome,
                 tomador_endereco=tomador_endereco,
-                servico_codigo=config.codigo_servico_municipal or '1401',
+                servico_codigo=servico_codigo,
                 servico_descricao=descricao,
                 valor_servicos=float(valor),
                 aliquota_iss=float(config.aliquota_iss),
                 numero_rps=numero_rps,
                 serie_rps=config.serie_rps or 'E',
-                codigo_cnae=(config.codigo_cnae or '').strip() or None,
+                codigo_cnae=cod_cnae,
+                item_lista_servico=item_lista,
+                codigo_tributacao_municipio=cod_tributacao,
             )
         finally:
             try:
@@ -289,6 +294,7 @@ def _emitir_via_issnet(
             return resultado_padrao
         else:
             error_msg = resultado.get('error', 'Erro desconhecido ISSNet')
+            sincronizar_contadores_rps_superadmin(config, numero_rps)
             logger.warning('NFS-e ISSNet falhou: %s', error_msg)
             return {'success': False, 'error': error_msg}
 

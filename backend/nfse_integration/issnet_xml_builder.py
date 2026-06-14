@@ -109,6 +109,7 @@ def construir_xml_enviar_lote_rps(
     data_emissao: datetime,
     codigo_cnae: Optional[str] = None,
     item_lista_servico: Optional[str] = None,
+    codigo_tributacao_municipio: Optional[str] = None,
     opts: Optional[IssnetEmissaoOpts] = None,
 ) -> str:
     """Monta EnviarLoteRpsEnvio (ABRASF 2.04) para RecepcionarLoteRps."""
@@ -172,7 +173,11 @@ def construir_xml_enviar_lote_rps(
         item_lista = normalizar_item_lista_servico_abrasf(item_lista_servico)
     else:
         item_lista = normalizar_item_lista_servico_abrasf(servico_codigo)
-    cod_tributacao = codigo_tributacao_municipio_xml(servico_codigo, item_lista)
+    trib_override = somente_digitos(codigo_tributacao_municipio or '')
+    if trib_override:
+        cod_tributacao = trib_override[:20]
+    else:
+        cod_tributacao = codigo_tributacao_municipio_xml(servico_codigo, item_lista)
     if (servico_codigo or '').strip() and (
         (servico_codigo or '').strip() != item_lista
         or somente_digitos(servico_codigo or '') != cod_tributacao

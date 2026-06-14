@@ -83,7 +83,18 @@ class SuperadminNFSeConfig(models.Model):
     # === Dados fiscais ===
     codigo_servico_municipal = models.CharField(
         max_length=10, default='1401', blank=True,
-        verbose_name='Código do Serviço (LC 116)',
+        verbose_name='Código do Serviço (legado)',
+        help_text='Fallback se codigo_tributacao_municipio estiver vazio.',
+    )
+    item_lista_servico = models.CharField(
+        max_length=10, default='14.01', blank=True,
+        verbose_name='Item lista serviço (LC 116)',
+        help_text='Item LC 116 com ponto (ex.: 14.01, 1.05). Deve ser compatível com o CNAE.',
+    )
+    codigo_tributacao_municipio = models.CharField(
+        max_length=20, blank=True, default='',
+        verbose_name='Código tributação municipal',
+        help_text='Código cadastrado na prefeitura para este CNPJ/IM (portal ISS / ISSNet).',
     )
     descricao_servico_padrao = models.TextField(
         default='Licenciamento de uso de software SaaS',

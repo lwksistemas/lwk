@@ -248,19 +248,6 @@ export function HistoricoPagamentos({
         Boolean(item.mercadopago_payment_id));
     const showBaixarPdf = pid > 0 || Boolean(item.asaas_id);
 
-    if (!podeBoleto && item.is_pending && onGerarCobranca) {
-      return (
-        <Button type="button" size="sm" disabled={gerandoCobranca} onClick={onGerarCobranca}>
-          {gerandoCobranca ? (
-            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-          ) : (
-            <CreditCard className="w-4 h-4 mr-1" />
-          )}
-          Gerar boleto
-        </Button>
-      );
-    }
-
     if (!podeBoleto) return <span className="text-xs text-muted-foreground">—</span>;
 
     return (
@@ -327,10 +314,10 @@ export function HistoricoPagamentos({
   const mostrarProximaLinha = !cobrancaAberta && !temCobrancaAbertaNaLista && proximaCobranca;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-neutral-700">
+    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-neutral-600 bg-gray-50/80 dark:bg-neutral-900/50">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 dark:border-neutral-700 bg-muted/40 dark:bg-neutral-800/80">
+          <tr className="border-b border-gray-200 dark:border-neutral-600 bg-gray-100/90 dark:bg-neutral-800">
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Referência</th>
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Vencimento</th>
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Valor</th>

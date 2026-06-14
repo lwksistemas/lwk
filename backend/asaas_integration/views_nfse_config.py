@@ -39,10 +39,20 @@ def _data_get(data, key, default=''):
     return val
 
 
-def _serialize_nfse_config(config) -> dict:
-    from core.encryption import decrypt_value
+def _read_issnet_usuario(raw: str) -> str:
+    from core.encryption import decrypt_value, is_encrypted
 
-    issnet_usuario = decrypt_value(config.issnet_usuario or '')
+    value = (raw or '').strip()
+    if not value:
+        return ''
+    if is_encrypted(value):
+        decrypted = decrypt_value(value)
+        return decrypted or value
+    return value
+
+
+def _serialize_nfse_config(config) -> dict:
+    issnet_usuario = _read_issnet_usuario(config.issnet_usuario or '')
     issnet_senha_raw = (config.issnet_senha or '').strip()
     issnet_senha_cert_raw = (config.issnet_senha_certificado or '').strip()
 
@@ -91,7 +101,7 @@ def _apply_nfse_config_update(request, config):
         'codigo_cnae', 'optante_simples_nacional', 'incentivador_cultural',
         'nacional_ambiente', 'nacional_codigo_municipio',
         'nacional_serie_dps', 'nacional_ultimo_dps',
-        'serie_rps', 'ultimo_rps',
+        'serie_rps', 'ultimo_rps', 'issnet_usuario',
     ]
     for field in simple_fields:
         if field not in data:
@@ -112,11 +122,6 @@ def _apply_nfse_config_update(request, config):
             continue
         setattr(config, field, val)
         update_fields.append(field)
-
-    if 'issnet_usuario' in data:
-        usuario = str(_data_get(data, 'issnet_usuario', '')).strip()
-        config.issnet_usuario = encrypt_value(usuario) if usuario else ''
-        update_fields.append('issnet_usuario')
 
     if 'aliquota_iss' in data:
         from decimal import Decimal
@@ -160,9 +165,6 @@ def _apply_nfse_config_update(request, config):
         config.issnet_senha_certificado = encrypt_value(issnet_senha_cert)
         update_fields.append('issnet_senha_certificado')
 
-    config.save(using='default', update_fields=list(dict.fromkeys(update_fields)))
-    config.refresh_from_db(using='default')
-
     saved_fields = [f for f in update_fields if f != 'updated_at']
     if not saved_fields:
         logger.warning(
@@ -179,6 +181,21 @@ def _apply_nfse_config_update(request, config):
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    needs_full_save = any(
+        f in saved_fields
+        for f in (
+            'issnet_certificado', 'issnet_certificado_nome',
+            'nacional_certificado', 'nacional_certificado_nome',
+            'issnet_senha', 'issnet_senha_certificado',
+            'nacional_senha_certificado',
+        )
+    )
+    if needs_full_save:
+        config.save(using='default')
+    else:
+        config.save(using='default', update_fields=list(dict.fromkeys(update_fields)))
+    config.refresh_from_db(using='default')
 
     logger.info(
         'NFS-e config salva por %s: campos=%s provedor=%s issnet_usuario=%s cert=%s',

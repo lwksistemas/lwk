@@ -1,15 +1,70 @@
 # Deploy, integração GitHub e rollback (LWK Sistemas)
 
-Guia operacional para **produção**: backend no Railway, frontend na Vercel.
+Guia operacional: **homologação (beta) primeiro**, depois **produção**.
 
-| Serviço | URL produção | Plataforma |
-|---------|----------------|------------|
-| Site | https://lwksistemas.com.br | Vercel (projeto `frontend`) |
-| API | https://api.lwksistemas.com.br | Railway (serviço `lwks-backend`) |
+| Ambiente | Site | API | Branch Git | Railway |
+|----------|------|-----|------------|---------|
+| **Homologação (beta)** | https://beta.lwksistemas.com.br | https://lwks-backend-staging-staging.up.railway.app | `staging` | `lwks-backend-staging` (env **staging**) |
+| **Produção** | https://lwksistemas.com.br | https://api.lwksistemas.com.br | `main` | `lwks-backend` (env **production**) |
 
 ---
 
-## 1. Recomendação: deploy automático via GitHub (nativo)
+## 0. Fluxo correto (sempre)
+
+```
+1. Desenvolver / corrigir no código
+2. Commit + push na branch staging
+3. Deploy automático (Vercel Preview + Railway staging) ou manual (seção 0.2)
+4. Testar em https://beta.lwksistemas.com.br
+5. Aprovar com o cliente/equipe
+6. Merge staging → main
+7. Deploy produção (automático via GitHub ou manual seção 1.3)
+```
+
+**Nunca** corrigir direto em `main` + `railway up --environment production` sem passar pelo beta.
+
+### 0.1 Frontend local apontando para beta
+
+Copie `frontend/.env.staging.local.example` → `frontend/.env.staging.local`:
+
+```env
+NEXT_PUBLIC_API_URL=https://lwks-backend-staging-staging.up.railway.app
+```
+
+### 0.2 Deploy manual homologação (beta)
+
+```bash
+export PATH="$HOME/.local/npm-global/bin:$PATH"
+cd /caminho/para/lwksistemas
+
+# Backend staging
+cd backend
+railway environment staging
+railway up --service lwks-backend-staging --detach
+
+# Frontend: push na branch staging dispara Preview na Vercel.
+# Alias beta (se necessário):
+# vercel alias set <url-preview> beta.lwksistemas.com.br
+```
+
+Verificar build da API staging:
+
+```bash
+curl -s https://lwks-backend-staging-staging.up.railway.app/api/superadmin/health/ | jq .build
+```
+
+### 0.3 Promover para produção
+
+```bash
+git checkout main
+git merge staging
+git push origin main
+# Vercel (main) + Railway production disparam automaticamente se Git conectado
+```
+
+---
+
+## 1. Produção — deploy automático via GitHub (nativo)
 
 **Não usar GitHub Actions com `railway up` / `vercel` como padrão.** Conectar o repositório em cada plataforma — menos manutenção e o Railway executa o `releaseCommand` (migrations) em todo deploy.
 

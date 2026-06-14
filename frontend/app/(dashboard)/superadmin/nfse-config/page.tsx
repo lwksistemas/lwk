@@ -140,35 +140,6 @@ export default function NFSeConfigPage() {
   const issnetCertInputRef = useRef<HTMLInputElement>(null)
   const nacionalCertInputRef = useRef<HTMLInputElement>(null)
 
-  const buildSaveJsonPayload = (): Record<string, unknown> => {
-    const payload: Record<string, unknown> = {
-      provedor_nfse: config.provedor_nfse,
-      emitir_automaticamente: config.emitir_automaticamente,
-      prestador_cnpj: config.prestador_cnpj,
-      prestador_razao_social: config.prestador_razao_social,
-      prestador_inscricao_municipal: config.prestador_inscricao_municipal,
-      prestador_email: config.prestador_email,
-      regime_especial_tributacao: config.regime_especial_tributacao,
-      codigo_servico_municipal: config.codigo_servico_municipal,
-      descricao_servico_padrao: config.descricao_servico_padrao,
-      aliquota_iss: config.aliquota_iss,
-      codigo_cnae: config.codigo_cnae,
-      optante_simples_nacional: config.optante_simples_nacional,
-      incentivador_cultural: config.incentivador_cultural,
-      nacional_ambiente: config.nacional_ambiente,
-      nacional_codigo_municipio: config.nacional_codigo_municipio,
-      nacional_serie_dps: config.nacional_serie_dps,
-      nacional_ultimo_dps: config.nacional_ultimo_dps,
-      issnet_usuario: config.issnet_usuario,
-      serie_rps: config.serie_rps,
-      ultimo_rps: config.ultimo_rps,
-    }
-    if (nacionalSenhaCertificado) payload.nacional_senha_certificado = nacionalSenhaCertificado
-    if (issnetSenha) payload.issnet_senha = issnetSenha
-    if (issnetSenhaCertificado) payload.issnet_senha_certificado = issnetSenhaCertificado
-    return payload
-  }
-
   const refreshConfigSilent = async (): Promise<NFSeConfig | null> => {
     try {
       const { data } = await apiClient.get('/asaas/nfse-config/', { timeout: 20000 })
@@ -275,6 +246,15 @@ export default function NFSeConfigPage() {
     }
   }
 
+  const describeIssnetMissing = (saved: NFSeConfig): string => {
+    const missing: string[] = []
+    if (!(saved.issnet_usuario ?? '').trim()) missing.push('usuário ISSNet')
+    if (!saved.issnet_senha_set) missing.push('senha ISSNet')
+    if (!saved.issnet_certificado_set) missing.push('certificado A1')
+    if (!saved.issnet_senha_certificado_set) missing.push('senha do certificado')
+    return missing.join(', ')
+  }
+
   const saveConfig = async () => {
     setSaving(true)
     setMessage(null)
@@ -302,12 +282,7 @@ export default function NFSeConfigPage() {
         }
       }
 
-      const hasFiles = Boolean(nacionalCertificadoFile || issnetCertificadoFile)
-      if (hasFiles) {
-        await apiClient.patch('/asaas/nfse-config/', buildSaveFormData())
-      } else {
-        await apiClient.patch('/asaas/nfse-config/', buildSaveJsonPayload())
-      }
+      await apiClient.patch('/asaas/nfse-config/', buildSaveFormData())
 
       const saved = await refreshConfigSilent()
       if (!saved) {
@@ -324,10 +299,10 @@ export default function NFSeConfigPage() {
           (saved.issnet_senha_set || saved.issnet_certificado_set))
 
       setMessage({
-        type: 'success',
+        type: issnetOk ? 'success' : 'error',
         text: issnetOk
           ? 'Configuração NFS-e salva com sucesso!'
-          : 'Salvo, mas credenciais ISSNet incompletas — confira usuário, senha e certificado.',
+          : `Credenciais ISSNet incompletas após salvar: ${describeIssnetMissing(saved)}.`,
       })
       setNacionalSenhaCertificado('')
       setNacionalCertificadoFile(null)

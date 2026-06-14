@@ -36,6 +36,9 @@ class MultiTenantRouter:
         )
     )
     
+    # Apps permitidos no alias suporte (schema PostgreSQL `suporte`)
+    suporte_dependency_apps = frozenset({'auth', 'contenttypes', 'sessions'})
+
     def db_for_read(self, model, **hints):
         """Direciona leitura para o banco correto"""
         if model._meta.app_label in self.suporte_apps:
@@ -69,10 +72,14 @@ class MultiTenantRouter:
         """Controla quais apps podem migrar em quais bancos"""
         if app_label in self.suporte_apps:
             return db == 'suporte'
-        
+
+        if db == 'suporte':
+            return app_label in self.suporte_dependency_apps
+
         if app_label in self.loja_apps:
-            # Permite migração em qualquer banco de loja
             return db.startswith('loja_') or db == 'loja_template'
-        
-        # Apps padrão (auth, admin, etc) vão para todos os bancos
-        return True
+
+        if db.startswith('loja_') or db == 'loja_template':
+            return True
+
+        return db == 'default'

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -15,13 +15,10 @@ import {
   AlertTriangle,
   ArrowLeft,
   CalendarDays,
-  Receipt,
-  FileText,
 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { resolveLojaApiSlug } from '@/lib/resolve-loja-slug';
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
-import { PaymentTabs } from './components/PaymentTabs';
 import { NovaCobrancaModal } from './components/NovaCobrancaModal';
 import { HistoricoPagamentos, type HistoricoPagamentoItem } from './components/HistoricoPagamentos';
 
@@ -65,14 +62,11 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
   suspenso: <AlertTriangle className="w-4 h-4" />,
 };
 
-const STEPS = [
-  { n: 1, title: 'Gerar cobrança', desc: 'Clique em Gerar boleto agora' },
-  { n: 2, title: 'Pagar', desc: 'Boleto ou PIX (vence em até 3 dias)' },
-  { n: 3, title: 'Nota fiscal', desc: 'Emitida após confirmação do pagamento' },
-];
-
-const shell = 'min-h-screen bg-white dark:bg-[#0d1117] text-gray-800 dark:text-gray-100';
-const cardCls = 'dark:bg-neutral-800 dark:border-neutral-700';
+const shell =
+  'min-h-screen w-full bg-sky-50 dark:bg-slate-950 text-gray-800 dark:text-gray-100';
+const pagePad = 'w-full min-h-screen px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6';
+const cardCls =
+  'w-full bg-white/95 dark:bg-slate-900/95 border border-sky-100 dark:border-slate-700 shadow-sm';
 
 export default function AssinaturaLojaPage() {
   const params = useParams();
@@ -117,44 +111,6 @@ export default function AssinaturaLojaPage() {
   useEffect(() => {
     carregarDados();
   }, [carregarDados]);
-
-  const baixarBoleto = async (pagamentoId: number) => {
-    try {
-      const res = await apiClient.get(`/superadmin/loja-pagamentos/${pagamentoId}/baixar_boleto_pdf/`, {
-        responseType: 'blob',
-      });
-      const blob = res.data as Blob;
-      const ct = res.headers?.['content-type'] || blob.type || '';
-      if (ct.includes('json') || blob.type?.includes('json')) {
-        const d = JSON.parse(await blob.text());
-        if (d?.error) {
-          alert(d.error);
-          return;
-        }
-        if (d?.boleto_url && d.provedor === 'mercadopago') {
-          window.open(d.boleto_url, '_blank');
-          return;
-        }
-      }
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `boleto_${slug}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (err: any) {
-      let msg = 'Erro ao baixar boleto';
-      const ax = err?.response;
-      if (ax?.status === 400 && ax.data instanceof Blob) {
-        try {
-          msg = JSON.parse(await ax.data.text()).error || msg;
-        } catch {}
-      } else if (ax?.data?.error) msg = ax.data.error;
-      alert(msg);
-    }
-  };
 
   const atualizarStatus = async () => {
     if (!data?.financeiro.tem_asaas) return;
@@ -223,9 +179,6 @@ export default function AssinaturaLojaPage() {
     }
   };
 
-  const historico = data?.historico_pagamentos ?? [];
-  const pagosCount = useMemo(() => historico.filter((h) => h.is_paid).length, [historico]);
-
   if (loading) {
     return (
       <div className={`${shell} flex items-center justify-center p-6`}>
@@ -236,7 +189,7 @@ export default function AssinaturaLojaPage() {
 
   if (error || !data) {
     return (
-      <div className={`${shell} container mx-auto p-6`}>
+      <div className={`${shell} ${pagePad}`}>
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error || 'Dados não encontrados'}</AlertDescription>
@@ -251,187 +204,86 @@ export default function AssinaturaLojaPage() {
   const fin = data.financeiro;
   const pp = data.proximo_pagamento;
   const st = fin.status_pagamento?.toLowerCase() || 'pendente';
-  const temPagamento = (fin.tem_asaas || fin.tem_mercadopago) && (fin.boleto_url || fin.pix_copy_paste);
+  const historico = data.historico_pagamentos ?? [];
+  const temPagamentoAberto =
+    (fin.tem_asaas || fin.tem_mercadopago) && (fin.boleto_url || fin.pix_copy_paste);
+
+  const cobrancaAberta = temPagamentoAberto
+    ? {
+        valor: pp?.valor ?? fin.valor_mensalidade,
+        data_vencimento: pp?.data_vencimento ?? fin.data_proxima_cobranca,
+        referencia_mes: pp?.referencia_mes ?? null,
+        boleto_url: fin.boleto_url || pp?.boleto_url,
+        pix_copy_paste: fin.pix_copy_paste,
+        pagamento_id: pp?.id,
+      }
+    : null;
 
   return (
-    <div className={`${shell} container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-5xl`}>
-      {/* Header */}
-      <div className="flex flex-col gap-3">
-        <Button variant="ghost" size="sm" className="w-fit dark:text-gray-200" asChild>
+    <div className={`${shell} ${pagePad}`}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Button variant="ghost" size="sm" className="shrink-0 dark:text-gray-200 -ml-2" asChild>
           <Link href={`/loja/${slug}/dashboard`} className="flex items-center gap-2">
             <ArrowLeft className="w-4 h-4" />
             Voltar
           </Link>
         </Button>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold dark:text-gray-100">Pagar Assinatura</h1>
-            <p className="text-sm text-muted-foreground dark:text-gray-400">
-              {data.loja.nome} – {data.loja.plano} ({data.loja.tipo_assinatura})
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={STATUS_BADGE[st] || 'secondary'} className="text-xs sm:text-sm gap-1">
-              {STATUS_ICON[st] || <Clock className="w-4 h-4" />}
-              {fin.status_pagamento}
-            </Badge>
-            <Button variant="outline" size="sm" onClick={carregarDados}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Atualizar
-            </Button>
-            {fin.tem_asaas && (
-              <Button variant="outline" size="sm" onClick={atualizarStatus} disabled={atualizandoStatus}>
-                <RefreshCw className={`w-4 h-4 mr-2 ${atualizandoStatus ? 'animate-spin' : ''}`} />
-                Atualizar status
-              </Button>
-            )}
-          </div>
+        <div className="min-w-0 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <h1 className="text-xl sm:text-2xl font-bold dark:text-gray-100 shrink-0">Assinatura</h1>
+          <span className="text-muted-foreground hidden sm:inline">·</span>
+          <p className="text-sm text-muted-foreground dark:text-gray-400 truncate">
+            {data.loja.nome} · {data.loja.plano} ({data.loja.tipo_assinatura})
+          </p>
         </div>
       </div>
 
-      {/* Resumo */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className={cardCls}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground dark:text-gray-400 flex items-center gap-2">
-              <CreditCard className="w-4 h-4" />
-              Mensalidade
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold dark:text-gray-100">{formatCurrency(fin.valor_mensalidade)}</p>
-            <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
-              Vencimento todo dia {fin.dia_vencimento}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className={cardCls}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground dark:text-gray-400 flex items-center gap-2">
-              <CalendarDays className="w-4 h-4" />
-              Próxima cobrança
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-bold dark:text-gray-100">{formatDate(fin.data_proxima_cobranca)}</p>
-            <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
-              Boleto gerado automaticamente antes do vencimento
-            </p>
-          </CardContent>
-        </Card>
-        <Card className={cardCls}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground dark:text-gray-400 flex items-center gap-2">
-              <Receipt className="w-4 h-4" />
-              Histórico
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-bold dark:text-gray-100">
-              {pagosCount} pago{pagosCount !== 1 ? 's' : ''}
-            </p>
-            <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
-              {historico.length} cobrança{historico.length !== 1 ? 's' : ''} no total
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Ações */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
-        <Card className={`lg:col-span-2 ${cardCls}`}>
-          <CardHeader>
-            <CardTitle className="text-base dark:text-gray-100">Pagar antes do vencimento</CardTitle>
-            <CardDescription className="dark:text-gray-400">
-              Antecipe o pagamento e receba a NFS-e após a confirmação.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              {STEPS.map((step) => (
-                <div key={step.n} className="flex gap-3 items-start">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                    {step.n}
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium dark:text-gray-100">{step.title}</p>
-                    <p className="text-xs text-muted-foreground dark:text-gray-400">{step.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground dark:text-gray-500 border-l-2 border-muted pl-3">
-              Pagamento antecipado é justo: os dias pagos antes do vencimento entram no próximo ciclo.
-            </p>
-            <Button onClick={gerarNovaCobranca} disabled={gerandoCobranca} className="w-full sm:w-auto">
-              {gerandoCobranca ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Gerando…
-                </>
-              ) : (
-                <>
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Gerar boleto agora
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className={`lg:col-span-3 ${cardCls}`}>
-          <CardHeader>
-            <CardTitle className="text-base dark:text-gray-100 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-muted-foreground" />
-              Cobrança em aberto
-            </CardTitle>
-            <CardDescription className="dark:text-gray-400">
-              {temPagamento
-                ? 'Pague por boleto ou PIX.'
-                : 'Nenhum boleto ou PIX pendente no momento.'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {temPagamento ? (
-              <PaymentTabs
-                boletoUrl={fin.boleto_url}
-                pixQrCode={fin.pix_qr_code}
-                pixCopyPaste={fin.pix_copy_paste}
-                proximoPagamentoId={pp?.id}
-                asaasPaymentId={pp?.asaas_payment_id}
-                onBaixarBoleto={baixarBoleto}
-                onCopiarPix={() => copiarPix(fin.pix_copy_paste)}
-              />
-            ) : (
-              <div className="rounded-lg border border-dashed border-gray-300 dark:border-neutral-600 py-8 px-4 text-center">
-                <CheckCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm font-medium dark:text-gray-200">Tudo em dia</p>
-                <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
-                  Próxima cobrança em {formatDate(fin.data_proxima_cobranca)}.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Histórico */}
       <Card className={cardCls}>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
-              <CardTitle className="text-base dark:text-gray-100">Histórico de pagamentos</CardTitle>
-              <CardDescription className="dark:text-gray-400">
-                Boletos, pagamentos e notas fiscais
-              </CardDescription>
+        <CardHeader className="pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+            <CardTitle className="text-base font-medium dark:text-gray-100 flex flex-wrap items-center gap-x-3 gap-y-1 m-0">
+              <span className="inline-flex items-center gap-1.5">
+                <CreditCard className="w-4 h-4 text-muted-foreground" />
+                {formatCurrency(fin.valor_mensalidade)}/mês
+              </span>
+              <span className="text-muted-foreground font-normal hidden sm:inline">·</span>
+              <span className="inline-flex flex-wrap items-center gap-1.5 font-normal text-muted-foreground dark:text-gray-400">
+                <CalendarDays className="w-4 h-4 shrink-0" />
+                Próximo vencimento:{' '}
+                <strong className="text-foreground dark:text-gray-100">
+                  {formatDate(fin.data_proxima_cobranca)}
+                </strong>
+                <span className="text-xs">(dia {fin.dia_vencimento})</span>
+              </span>
+            </CardTitle>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <Badge variant={STATUS_BADGE[st] || 'secondary'} className="text-xs sm:text-sm gap-1">
+                {STATUS_ICON[st] || <Clock className="w-4 h-4" />}
+                {fin.status_pagamento}
+              </Badge>
+              <Button variant="outline" size="sm" onClick={carregarDados}>
+                <RefreshCw className="w-4 h-4 sm:mr-2" />
+                Atualizar
+              </Button>
+              {fin.tem_asaas && (
+                <Button variant="outline" size="sm" onClick={atualizarStatus} disabled={atualizandoStatus}>
+                  <RefreshCw className={`w-4 h-4 sm:mr-2 ${atualizandoStatus ? 'animate-spin' : ''}`} />
+                  <span className="hidden lg:inline">Sync Asaas</span>
+                </Button>
+              )}
             </div>
-            {historico.length > 0 && (
-              <Badge variant="outline">{historico.length} registro{historico.length !== 1 ? 's' : ''}</Badge>
-            )}
           </div>
         </CardHeader>
         <CardContent>
-          <HistoricoPagamentos itens={historico} slug={slug} />
+          <HistoricoPagamentos
+            itens={historico}
+            slug={slug}
+            proximaCobranca={fin.data_proxima_cobranca}
+            valorMensalidade={fin.valor_mensalidade}
+            cobrancaAberta={cobrancaAberta}
+            onGerarCobranca={gerarNovaCobranca}
+            gerandoCobranca={gerandoCobranca}
+            onCopiarPix={() => copiarPix(fin.pix_copy_paste)}
+          />
         </CardContent>
       </Card>
 

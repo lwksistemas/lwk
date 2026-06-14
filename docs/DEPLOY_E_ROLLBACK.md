@@ -102,6 +102,62 @@ git push origin main
 # Vercel (main) + Railway production disparam automaticamente se Git conectado
 ```
 
+### 0.4 Alinhar beta com produção (NFS-e e integrações)
+
+O **código** é o mesmo após merge `staging` → `main`. O que difere entre beta e produção é o **banco de dados** e variáveis no **Railway/Vercel** — não há cópia automática.
+
+| Item | Produção | Beta (staging) | Observação |
+|------|----------|--------------|------------|
+| Config NFS-e (`SuperadminNFSeConfig`) | Banco prod | Banco staging | Certificado, códigos fiscais, RPS |
+| Asaas (`AsaasConfig` + env) | `$aact_prod_` | Sandbox ou prod* | Webhook URL diferente no beta |
+| Webhook Asaas | `api.lwksistemas.com.br/...` | `lwks-backend-staging-.../...` | Token pode ser o mesmo ou outro |
+| E-mail (Resend) | Ativo | Ativo | Mesma chave ou separada |
+
+\*Se quiser **teste real completo no beta** (PIX + NFS-e na prefeitura), pode usar Asaas produção e ISSNet produção — entenda os riscos abaixo.
+
+#### Checklist manual (Superadmin → NFS-e config no beta)
+
+Replicar os mesmos valores de produção em https://beta.lwksistemas.com.br/superadmin/nfse-config:
+
+1. **Provedor:** ISSNet (Municipal)
+2. **Emitir automaticamente:** ligado
+3. **Prestador:** CNPJ, razão social, IM, e-mail (iguais à prod)
+4. **Credenciais ISSNet:** usuário, senha WS, certificado `.pfx`, senha do certificado
+5. **Ambiente ISSNet:** Produção (se teste real)
+6. **Dados fiscais:**
+   - Item LC 116: `14.01`
+   - **Código tributação municipal:** `140118` (obrigatório — não deixar vazio)
+   - Código serviço legado: `140118`
+   - CNAE: `9511800`
+7. **Último RPS:** copiar de produção **ou** manter contador próprio no beta (`--keep-counters` no import)
+
+#### Sincronizar via comando (produção → beta)
+
+```bash
+# 1) Exportar na produção (Railway SSH no lwks-backend)
+python manage.py nfse_config_sync export -o /tmp/nfse_config.json
+
+# 2) Copiar arquivo para máquina local / staging
+
+# 3) Importar no beta (Railway SSH no lwks-backend-staging)
+python manage.py nfse_config_sync import -i /tmp/nfse_config.json --keep-counters
+```
+
+`--keep-counters` evita que o beta sobrescreva `ultimo_rps` de produção; use se **ambos** emitirem NFS-e real.
+
+#### Asaas no beta (cadastro + PIX de teste real)
+
+1. Railway **staging** → variáveis `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN` (produção ou sandbox)
+2. Superadmin → Asaas no beta: mesma chave e webhook token
+3. Webhook no painel Asaas apontando para:
+   `https://lwks-backend-staging-staging.up.railway.app/api/asaas/webhook/`
+
+#### Atenção — emissão real no beta
+
+- ISSNet **produção** no beta gera **nota fiscal real** na prefeitura (mesmo CNPJ/IM).
+- Cada emissão consome **número de RPS** — mantenha `ultimo_rps` sincronizado ou use `--keep-counters` e atualize manualmente após testes.
+- Para testes frequentes de NFS-e, prefira **produção** com lojas de teste ou **homologação ISSNet** (se o município oferecer).
+
 ---
 
 ## 1. Produção — deploy automático via GitHub (nativo)

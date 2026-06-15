@@ -37,11 +37,13 @@ export async function tryRefreshAccessToken(): Promise<boolean> {
         USE_JWT_HTTPONLY_COOKIES ? {} : { refresh: refreshToken },
         { headers: refreshHeaders, withCredentials: USE_JWT_HTTPONLY_COOKIES },
       );
-      const { access } = response.data;
-      if (!USE_JWT_HTTPONLY_COOKIES && access) {
-        sessionStorage.setItem('access_token', access);
+      const { access, refresh: newRefresh } = response.data;
+      if (!USE_JWT_HTTPONLY_COOKIES) {
+        if (access) sessionStorage.setItem('access_token', access);
+        // ROTATE_REFRESH_TOKENS: backend invalida o refresh antigo — persistir o novo.
+        if (newRefresh) sessionStorage.setItem('refresh_token', newRefresh);
       }
-      return true;
+      return Boolean(access);
     } catch {
       return false;
     } finally {

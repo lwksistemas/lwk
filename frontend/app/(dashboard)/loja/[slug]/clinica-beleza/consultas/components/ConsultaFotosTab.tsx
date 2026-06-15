@@ -77,7 +77,11 @@ export function ConsultaFotosTab({
       setQrData({ url: res.url, qr_base64: res.qr_base64 });
       setQrAberto(true);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Erro ao gerar QR.");
+      const detail =
+        e && typeof e === "object" && "detail" in e && typeof (e as { detail: unknown }).detail === "string"
+          ? (e as { detail: string }).detail
+          : null;
+      alert(detail || (e instanceof Error ? e.message : "Erro ao gerar QR."));
     } finally {
       setQrLoading(false);
     }

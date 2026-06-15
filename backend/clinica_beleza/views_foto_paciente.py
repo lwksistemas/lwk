@@ -22,6 +22,7 @@ from .foto_paciente_service import (
     listar_fotos_paciente,
     parse_json_body_seguro,
     registrar_foto,
+    resolver_frontend_base_qr,
     upload_foto_cloudinary,
 )
 from .models import Consulta, PacienteFotoAcompanhamento

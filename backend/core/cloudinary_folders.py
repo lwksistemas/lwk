@@ -2,11 +2,12 @@
  * Pastas padronizadas no Cloudinary (raiz: lwksistemas).
  *
  * Estrutura:
- *   lwksistemas/{beta|producao}/superadmin-homepage
- *   lwksistemas/{beta|producao}/superadmin-login
- *   lwksistemas/{beta|producao}/suporte-login
- *   lwksistemas/{beta|producao}/{cpf_cnpj}
- *   lwksistemas/{beta|producao}/{cpf_cnpj}/clinica-beleza-fotos
+ *   lwksistemas/producao/superadmin/homepage
+ *   lwksistemas/producao/superadmin/login
+ *   lwksistemas/producao/suporte/login
+ *   lwksistemas/producao/{cpf_cnpj}/login
+ *   lwksistemas/producao/{cpf_cnpj}/clinica-beleza-fotos
+ *   (mesma árvore em lwksistemas/beta/...)
  */
 from __future__ import annotations
 
@@ -42,15 +43,15 @@ def ambiente_segment() -> str:
 
 
 def loja_documento_segment(loja) -> str:
-    """CPF/CNPJ só dígitos; fallback slug/atalho/id."""
+    """CPF/CNPJ só dígitos; fallback id interno (nunca atalho/slug)."""
     digits = re.sub(r'\D', '', getattr(loja, 'cpf_cnpj', None) or '')
     if digits:
         return digits
-    return loja_segment(loja)
+    return _sanitize_segment(str(getattr(loja, 'id', '')))
 
 
 def loja_segment(loja) -> str:
-    """Slug/atalho/id — legado e fallback."""
+    """Slug/atalho — apenas validação de uploads legados."""
     for attr in ('slug', 'atalho'):
         valor = _sanitize_segment(getattr(loja, attr, None))
         if valor and valor != 'sem-identificador':
@@ -79,11 +80,11 @@ def _path(*parts: str) -> str:
 
 
 def superadmin_homepage() -> str:
-    return _path(ambiente_segment(), 'superadmin-homepage')
+    return _path(ambiente_segment(), 'superadmin', 'homepage')
 
 
 def superadmin_login() -> str:
-    return _path(ambiente_segment(), 'superadmin-login')
+    return _path(ambiente_segment(), 'superadmin', 'login')
 
 
 def suporte_root() -> str:
@@ -91,7 +92,7 @@ def suporte_root() -> str:
 
 
 def suporte_login() -> str:
-    return _path(ambiente_segment(), 'suporte-login')
+    return _path(ambiente_segment(), 'suporte', 'login')
 
 
 def loja_root(loja) -> str:
@@ -99,17 +100,13 @@ def loja_root(loja) -> str:
 
 
 def loja_login(loja) -> str:
-    return loja_root(loja)
+    return _path(ambiente_segment(), loja_documento_segment(loja), 'login')
 
 
 def loja_login_documento(cpf_cnpj: str) -> str:
     digits = re.sub(r'\D', '', cpf_cnpj or '')
     seg = digits or _sanitize_segment(cpf_cnpj)
-    return _path(ambiente_segment(), seg)
-
-
-def loja_login_slug(slug: str) -> str:
-    return _path(ambiente_segment(), _sanitize_segment(slug))
+    return _path(ambiente_segment(), seg, 'login')
 
 
 def loja_clinica_fotos(loja) -> str:
@@ -123,15 +120,21 @@ def loja_clinica_fotos_documento(cpf_cnpj: str) -> str:
 
 
 def loja_clinica_fotos_paths(loja) -> list[str]:
-    paths = [loja_clinica_fotos(loja)]
+    paths = [loja_clinica_fotos(loja), loja_login(loja), loja_root(loja)]
     env = ambiente_segment()
     for seg in loja_segments_legacy(loja):
         legado = [
+            f'{ROOT}/{env}/superadmin-homepage',
+            f'{ROOT}/{env}/superadmin-login',
+            f'{ROOT}/{env}/superadmin/homepage',
             f'{ROOT}/{env}/{seg}/clinica-beleza-fotos',
+            f'{ROOT}/{env}/{seg}',
             f'{ROOT}/{seg}/clinica-beleza/fotos-paciente',
             f'{ROOT}/{env}/{seg}/clinica-beleza/fotos-paciente',
             f'{ROOT}/{seg}/login',
-            f'{ROOT}/{env}/{seg}',
+            f'{ROOT}/{env}/{seg}/login',
+            f'{ROOT}/{seg}',
+            f'{ROOT}/superadmin/homepage',
         ]
         for p in legado:
             if p not in paths:
@@ -144,13 +147,14 @@ def loja_clinica_memed(loja) -> str:
 
 
 def loja_prefixes(loja) -> list[str]:
-    prefixes = [f'{loja_root(loja)}/', f'{loja_root(loja)}']
+    prefixes = [f'{loja_root(loja)}/', f'{loja_root(loja)}', f'{loja_login(loja)}/']
     env = ambiente_segment()
     for seg in loja_segments_legacy(loja):
         for base in (
             f'{ROOT}/{env}/{seg}/',
-            f'{ROOT}/{seg}/',
             f'{ROOT}/{env}/{seg}',
+            f'{ROOT}/{seg}/',
+            f'{ROOT}/{seg}',
         ):
             if base not in prefixes:
                 prefixes.append(base)
@@ -158,11 +162,19 @@ def loja_prefixes(loja) -> list[str]:
 
 
 def folders_for_new_loja(loja) -> list[str]:
-    base = loja_root(loja)
+    env = ambiente_segment()
+    doc = loja_documento_segment(loja)
+    loja_base = _path(env, doc)
     return [
-        base,
-        f'{base}/clinica-beleza-fotos',
-        f'{base}/clinica-beleza-memed',
+        _path(env, 'superadmin'),
+        _path(env, 'superadmin', 'homepage'),
+        _path(env, 'superadmin', 'login'),
+        _path(env, 'suporte'),
+        _path(env, 'suporte', 'login'),
+        loja_base,
+        f'{loja_base}/login',
+        f'{loja_base}/clinica-beleza-fotos',
+        f'{loja_base}/clinica-beleza-memed',
     ]
 
 

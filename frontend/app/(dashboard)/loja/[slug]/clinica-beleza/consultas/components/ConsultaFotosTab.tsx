@@ -36,7 +36,7 @@ export function ConsultaFotosTab({
 }) {
   const params = useParams();
   const slug = (params.slug as string) || "loja";
-  const lojaDoc = useLojaCloudinaryDocument(slug);
+  const { documento: lojaDoc, ready: lojaDocReady } = useLojaCloudinaryDocument(slug);
 
   const [fotos, setFotos] = useState<PacienteFotoItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,7 +192,7 @@ export function ConsultaFotosTab({
                 if (url) void salvarUploadPainel(url);
               }}
               folder={cloudinaryLojaClinicaFotos(lojaDoc)}
-              disabled={salvando}
+              disabled={salvando || !lojaDocReady}
             />
             <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">
               ou QR no topo da página

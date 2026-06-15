@@ -18,6 +18,14 @@ _session_cache = {}
 _CACHE_TTL_SECONDS = 10
 
 
+def invalidate_session_cache(user_id: int | None = None) -> None:
+    """Limpa cache de sessão (ex.: após refresh token)."""
+    if user_id is None:
+        _session_cache.clear()
+    else:
+        _session_cache.pop(user_id, None)
+
+
 class SessionAwareJWTAuthentication(JWTAuthentication):
     """
     Authenticator JWT que verifica sessão única usando PostgreSQL.
@@ -89,7 +97,7 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         
         # Validar sessão única com cache
         validation = self._validate_with_cache(user.id, client_session_id)
-        
+
         if not validation['valid']:
             reason = validation.get('reason', 'UNKNOWN')
             message = validation.get('message', 'Sessão inválida')
@@ -105,7 +113,7 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         
         return user, token
     
-    def _validate_with_cache(self, user_id: int, client_session_id: str) -> dict:
+    def _validate_with_cache(self, user_id: int, client_session_id: str, _db_retry: bool = False) -> dict:
         """
         Valida sessão usando cache em memória (TTL de 10s).
         Evita query no DB a cada request.
@@ -172,6 +180,8 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
             
         except Exception as e:
             logger.error("session.validate_with_cache: error: %s", e)
+            if not _db_retry:
+                return self._validate_with_cache(user_id, client_session_id, _db_retry=True)
             return {
                 'valid': False,
                 'reason': 'SESSION_DB_ERROR',

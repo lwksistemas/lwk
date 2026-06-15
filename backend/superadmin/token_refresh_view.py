@@ -51,6 +51,19 @@ class SessionAwareTokenRefreshView(TokenRefreshView):
         response = Response(serializer.validated_data, status=status.HTTP_200_OK)
 
         access = serializer.validated_data.get('access')
+        if access:
+            try:
+                from rest_framework_simplejwt.tokens import AccessToken
+                from superadmin.session_manager import SessionManager
+                from superadmin.authentication import invalidate_session_cache
+
+                user_id = AccessToken(access).get('user_id')
+                if user_id:
+                    SessionManager.update_activity(user_id)
+                    invalidate_session_cache(user_id)
+            except Exception as exc:
+                logger.debug('refresh: update_activity ignorado: %s', exc)
+
         if use_httponly_jwt_cookies() and access:
             new_refresh = serializer.validated_data.get('refresh', refresh)
             attach_auth_cookies(

@@ -4,13 +4,14 @@ import { useEffect, useRef } from 'react';
 import axios from 'axios';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 import { USE_JWT_HTTPONLY_COOKIES } from '@/lib/auth-cookies';
-import { clearSessionAndRedirect, getLoginUrlForRedirect } from '@/lib/api-client';
+import { clearSessionAndRedirect, getLoginUrlForRedirect, tryRefreshAccessToken } from '@/lib/api-client';
 
 /**
  * Monitor de sessão única: GET /superadmin/lojas/heartbeat/ a cada 60s quando a aba está visível.
  * Usa axios direto (sem interceptor de refresh) para detectar SESSION_REPLACED.
  */
 const CHECK_INTERVAL_MS = 60000;
+const PROACTIVE_REFRESH_MS = 25 * 60 * 1000;
 
 function hasActiveSession(): boolean {
   if (typeof window === 'undefined') return false;
@@ -23,6 +24,7 @@ function hasActiveSession(): boolean {
 export function useSessionMonitor() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isCheckingRef = useRef(false);
+  const lastRefreshRef = useRef(0);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -31,6 +33,12 @@ export function useSessionMonitor() {
 
       isCheckingRef.current = true;
       try {
+        const now = Date.now();
+        if (now - lastRefreshRef.current >= PROACTIVE_REFRESH_MS) {
+          const refreshed = await tryRefreshAccessToken();
+          if (refreshed) lastRefreshRef.current = now;
+        }
+
         const sid = sessionStorage.getItem('session_id') || '';
         const accessToken = sessionStorage.getItem('access_token') || '';
         const base = getPrimaryApiBaseUrl();

@@ -42,11 +42,21 @@ def ambiente_segment() -> str:
     return 'producao'
 
 
+def _cpf_cnpj_digits(value: str | None) -> str:
+    digits = re.sub(r'\D', '', value or '')
+    if len(digits) in (11, 14):
+        return digits
+    return ''
+
+
 def loja_documento_segment(loja) -> str:
-    """CPF/CNPJ só dígitos; fallback id interno (nunca atalho/slug)."""
-    digits = re.sub(r'\D', '', getattr(loja, 'cpf_cnpj', None) or '')
+    """CPF/CNPJ só dígitos; slug numérico; fallback id interno (nunca atalho)."""
+    digits = _cpf_cnpj_digits(getattr(loja, 'cpf_cnpj', None))
     if digits:
         return digits
+    slug_digits = _cpf_cnpj_digits(getattr(loja, 'slug', None))
+    if slug_digits:
+        return slug_digits
     return _sanitize_segment(str(getattr(loja, 'id', '')))
 
 

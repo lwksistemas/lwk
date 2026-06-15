@@ -8,6 +8,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 import logging
+import re
 
 from drf_spectacular.utils import extend_schema_view, extend_schema
 from core.logging_utils import mask_email
@@ -79,7 +80,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             return Response({'error': 'slug é obrigatório'}, status=400)
         slug = slug.strip().lower()
         
-        cache_key = f'loja_info_publica_v2:{slug}'
+        cache_key = f'loja_info_publica_v3:{slug}'
         cached_data = cache.get(cache_key)
         if cached_data:
             logger.debug(f'✅ Cache HIT para loja {slug}')
@@ -139,6 +140,13 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             ]
             endereco = ', '.join(p for p in endereco_parts if p).strip() or None
 
+            cpf_cnpj_raw = (getattr(loja, 'cpf_cnpj', '') or '').strip()
+            cpf_cnpj_digits = re.sub(r'\D', '', cpf_cnpj_raw)
+            if len(cpf_cnpj_digits) not in (11, 14):
+                slug_digits = re.sub(r'\D', '', getattr(loja, 'slug', '') or '')
+                if len(slug_digits) in (11, 14):
+                    cpf_cnpj_digits = slug_digits
+
             data = {
                 'id': loja.id,
                 'nome': getattr(loja, 'nome', '') or '',
@@ -154,7 +162,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
                 'senha_foi_alterada': getattr(loja, 'senha_foi_alterada', False),
                 'requer_cpf_cnpj': True,
                 'endereco': endereco,
-                'cpf_cnpj': getattr(loja, 'cpf_cnpj', '') or '',
+                'cpf_cnpj': cpf_cnpj_digits,
             }
             
             cache.set(cache_key, data, 300)

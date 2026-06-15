@@ -20,6 +20,28 @@ export function cloudinaryDocumento(cpfCnpj: string): string {
   return digits || '';
 }
 
+function isCpfCnpjDigits(digits: string): boolean {
+  return digits.length === 11 || digits.length === 14;
+}
+
+/** Resolve pasta da loja: cpf_cnpj → slug numérico → id interno. */
+export function resolveLojaCloudinaryDocumento(data: {
+  cpf_cnpj?: string;
+  slug?: string;
+  id?: number;
+}): { documento: string; semCpfCnpj: boolean } {
+  const cpf = cloudinaryDocumento(data.cpf_cnpj || '');
+  if (cpf) return { documento: cpf, semCpfCnpj: false };
+
+  const slugDigits = cloudinaryDocumento(data.slug || '');
+  if (isCpfCnpjDigits(slugDigits)) {
+    return { documento: slugDigits, semCpfCnpj: false };
+  }
+
+  if (data.id) return { documento: String(data.id), semCpfCnpj: true };
+  return { documento: '', semCpfCnpj: true };
+}
+
 export function cloudinarySuperadminHomepage(): string {
   return path(cloudinaryAmbiente(), 'superadmin', 'homepage');
 }
@@ -82,22 +104,17 @@ export function useLojaCloudinaryDocument(slug: string): LojaCloudinaryDocument 
     }
 
     apiClient
-      .get<{ cpf_cnpj?: string; id?: number }>(
+      .get<{ cpf_cnpj?: string; slug?: string; id?: number }>(
         `/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`,
       )
       .then((res) => {
         if (cancelled) return;
-        const cpf = cloudinaryDocumento(res.data?.cpf_cnpj || '');
-        if (cpf) {
-          setDocumento(cpf);
-          setSemCpfCnpj(false);
-          setReady(true);
-          return;
-        }
-        const lojaId = res.data?.id;
-        if (lojaId) {
-          setDocumento(String(lojaId));
-          setSemCpfCnpj(true);
+        const { documento: doc, semCpfCnpj: semDoc } = resolveLojaCloudinaryDocumento(
+          res.data || {},
+        );
+        if (doc) {
+          setDocumento(doc);
+          setSemCpfCnpj(semDoc);
           setReady(true);
         }
       })

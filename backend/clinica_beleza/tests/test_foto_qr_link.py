@@ -48,6 +48,14 @@ class FotoQrLinkTests(TestCase):
         )
         self.assertEqual(base, 'https://beta.lwksistemas.com.br')
 
+    def test_gerar_qr_foto_usa_frontend_beta(self):
+        from types import SimpleNamespace
+        from clinica_beleza.foto_paciente_service import gerar_qr_foto
+
+        consulta = SimpleNamespace(id=2, patient_id=1, loja_id=2)
+        data = gerar_qr_foto(consulta, frontend_base='https://beta.lwksistemas.com.br')
+        self.assertTrue(data['url'].startswith('https://beta.lwksistemas.com.br/enviar-foto/'))
+
     @patch('clinica_beleza.foto_paciente_service.getattr')
     def test_fallback_settings_quando_sem_origin(self, mock_getattr):
         mock_getattr.return_value = 'https://lwksistemas.com.br'

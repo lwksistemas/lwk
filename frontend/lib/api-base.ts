@@ -11,8 +11,19 @@ function stripTrailingSlashes(s: string): string {
 const PRODUCTION_API_ROOT = 'https://api.lwksistemas.com.br';
 const STAGING_API_ROOT = 'https://lwks-backend-staging-staging.up.railway.app';
 
-function isBetaHost(host: string): boolean {
+export function isBetaHost(host: string): boolean {
   return host === 'beta.lwksistemas.com.br';
+}
+
+/** True no beta (hostname ou build Preview da branch staging). */
+export function isBetaEnvironment(): boolean {
+  if (typeof window !== 'undefined') {
+    return isBetaHost(window.location.hostname.toLowerCase());
+  }
+  if (process.env.NEXT_PUBLIC_LWK_BETA === '1') return true;
+  const vercelEnv = process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.VERCEL_ENV;
+  const gitRef = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF || process.env.VERCEL_GIT_COMMIT_REF;
+  return vercelEnv === 'preview' && gitRef === 'staging';
 }
 
 function resolveApiRootFromHost(): string | null {

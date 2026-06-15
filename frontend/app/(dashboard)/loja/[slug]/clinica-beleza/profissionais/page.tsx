@@ -6,12 +6,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Pencil, Trash2, Clock, Timer } from "lucide-react";
+import { Pencil, Trash2, Clock } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
-import { ModalTempoConsultaProfissional } from "@/components/clinica-beleza/ModalTempoConsultaProfissional";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { ProfissionalFormPageContent } from "@/components/clinica-beleza/ProfissionalFormPageContent";
 import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
@@ -41,7 +40,6 @@ interface Professional {
   active?: boolean;
   is_active?: boolean;
   is_administrador_vinculado?: boolean;
-  tempo_consulta_minutos?: number | null;
 }
 
 interface LojaOwnerInfo {
@@ -59,14 +57,13 @@ export default function ProfissionaisPage() {
   const isNovo = searchParams.get("novo") === "1";
   const editIdParam = searchParams.get("id");
   const isFormView = isNovo || Boolean(editIdParam);
-  const { list, setList, loading, load, page, setPage, totalPages, pageSize, totalCount } = useClinicaBelezaEntityList<Professional>({
+  const { list, loading, load, page, setPage, totalPages, pageSize, totalCount } = useClinicaBelezaEntityList<Professional>({
     path: "/professionals/",
     fetchOffline: buscarProfissionaisOffline,
     saveOffline: salvarProfissionaisOffline,
   });
   const [lojaOwnerInfo, setLojaOwnerInfo] = useState<LojaOwnerInfo | null>(null);
   const [horariosProfessional, setHorariosProfessional] = useState<Professional | null>(null);
-  const [tempoConsultaProfessional, setTempoConsultaProfessional] = useState<Professional | null>(null);
 
   const loadLojaInfo = async () => {
     if (!navigator.onLine) return;
@@ -147,8 +144,7 @@ export default function ProfissionaisPage() {
                     <th className="text-left p-3">Nome</th>
                     <th className="text-left p-3">Especialidade</th>
                     <th className="text-left p-3 hidden md:table-cell">Telefone</th>
-                    <th className="text-left p-3 hidden md:table-cell">Consulta</th>
-                    <th className="min-w-[220px] p-3">Ações</th>
+                    <th className="min-w-[140px] p-3">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -157,22 +153,8 @@ export default function ProfissionaisPage() {
                       <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{entityName(p)}</td>
                       <td className="p-3 text-gray-700 dark:text-gray-300">{professionalSpecialty(p) || "—"}</td>
                       <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{entityPhone(p) || "—"}</td>
-                      <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">
-                        {p.tempo_consulta_minutos != null && p.tempo_consulta_minutos > 0
-                          ? `${p.tempo_consulta_minutos} min`
-                          : "Padrão do local"}
-                      </td>
                       <td className="p-3">
                         <div className="flex flex-wrap gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setTempoConsultaProfessional(p)}
-                            className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-md text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
-                            title="Definir tempo padrão da consulta deste profissional"
-                          >
-                            <Timer size={16} />
-                            Tempo consulta
-                          </button>
                           {p.is_administrador_vinculado ? (
                             <>
                               <button
@@ -245,26 +227,6 @@ export default function ProfissionaisPage() {
           professionalName={entityName(horariosProfessional)}
           onClose={() => setHorariosProfessional(null)}
           onSaved={() => load()}
-        />
-      )}
-
-      {tempoConsultaProfessional && (
-        <ModalTempoConsultaProfissional
-          professionalId={tempoConsultaProfessional.id}
-          professionalName={entityName(tempoConsultaProfessional)}
-          onClose={() => setTempoConsultaProfessional(null)}
-          onSaved={(updated) => {
-            setList((prev) => {
-              const next = prev.map((p) =>
-                p.id === updated.id
-                  ? { ...p, tempo_consulta_minutos: updated.tempo_consulta_minutos ?? null }
-                  : p,
-              );
-              void salvarProfissionaisOffline(next);
-              return next;
-            });
-            void load();
-          }}
         />
       )}
     </>

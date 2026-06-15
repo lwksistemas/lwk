@@ -50,10 +50,6 @@ _PROFESSIONAL_FIELD_MAP = {
     'active': 'is_active',
 }
 
-# Administrador vinculado à loja não pode alterar cadastro geral, mas pode ajustar tempo da consulta.
-_OWNER_PROFESSIONAL_EDITABLE_FIELDS = frozenset({'tempo_consulta_minutos'})
-
-
 def _map_professional_data(raw_data):
     """Normaliza campos legados (inglês) para os nomes do model."""
     data = raw_data.copy() if hasattr(raw_data, 'copy') else dict(raw_data)
@@ -84,15 +80,7 @@ def _map_professional_data(raw_data):
     for key in ('criar_acesso', 'perfil'):
         data.pop(key, None)
 
-    if 'tempo_consulta_minutos' in data:
-        raw = data.get('tempo_consulta_minutos')
-        if raw is None or raw == '':
-            data['tempo_consulta_minutos'] = None
-        else:
-            try:
-                data['tempo_consulta_minutos'] = int(raw)
-            except (TypeError, ValueError):
-                data['tempo_consulta_minutos'] = None
+    data.pop('tempo_consulta_minutos', None)
 
     return data
 
@@ -187,17 +175,15 @@ class ProfessionalDetailView(GetObjectMixin, APIView):
 
     def put(self, request, pk):
         owner_professional_id = LojaContextHelper.get_owner_professional_id()
-        data = _map_professional_data(request.data)
         if owner_professional_id is not None and int(pk) == owner_professional_id:
-            extra_fields = set(data.keys()) - _OWNER_PROFESSIONAL_EDITABLE_FIELDS
-            if extra_fields:
-                return Response(
-                    {'error': 'O administrador vinculado à loja não pode ser editado.'},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+            return Response(
+                {'error': 'O administrador vinculado à loja não pode ser editado.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         obj, err = self.object_or_404(pk)
         if err:
             return err
+        data = _map_professional_data(request.data)
         serializer = ProfessionalSerializer(obj, data=data, partial=True)
         if serializer.is_valid():
             professional = serializer.save()

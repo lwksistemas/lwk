@@ -120,11 +120,10 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
 
     class Meta:
         model = Professional
-        exclude = ['loja_id']
+        exclude = ['loja_id', 'tempo_consulta_minutos']
         extra_kwargs = {
             'email': {'required': False, 'allow_blank': True, 'allow_null': True},
             'telefone': {'required': False, 'allow_blank': True},
-            'tempo_consulta_minutos': {'required': False, 'allow_null': True},
         }
 
     def get_is_administrador_vinculado(self, obj):
@@ -132,16 +131,6 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
         if owner_professional_id is None:
             return False
         return obj.id == owner_professional_id
-
-    def validate_tempo_consulta_minutos(self, value):
-        if value is None:
-            return value
-        if value < 5:
-            raise serializers.ValidationError('Tempo mínimo de 5 minutos.')
-        if value > 480:
-            raise serializers.ValidationError('Tempo máximo de 480 minutos (8 horas).')
-        return value
-
 
 class ProfessionalCommissionSerializer(serializers.ModelSerializer):
     procedure_name = serializers.CharField(source='procedure.nome', read_only=True, default=None)

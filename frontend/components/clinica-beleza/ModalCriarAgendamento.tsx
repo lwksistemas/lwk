@@ -186,10 +186,8 @@ export function ModalCriarAgendamento({
     const localSel = localAtendimentoId
       ? locaisAtendimento.find((l) => l.id === localAtendimentoId)
       : undefined;
-    const profSel = professionals.find((p) => p.id === professionalId);
     const duracaoChecagem = calcularDuracaoAgendamento(
       resumo.duracao,
-      profSel,
       localSel,
     );
 

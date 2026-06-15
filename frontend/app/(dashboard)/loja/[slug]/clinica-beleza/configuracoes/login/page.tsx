@@ -30,7 +30,7 @@ const CORES_PRE_DEFINIDAS = [
 
 export default function ClinicaBelezaConfiguracoesLoginPage() {
   const slug = (useParams()?.slug as string) ?? '';
-  const { documento: lojaDoc, ready: lojaDocReady } = useLojaCloudinaryDocument(slug);
+  const { documento: lojaDoc, ready: lojaDocReady, loading: lojaDocLoading } = useLojaCloudinaryDocument(slug);
   const base = `/loja/${slug}/clinica-beleza/configuracoes`;
 
   const [loading, setLoading] = useState(true);
@@ -121,7 +121,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
               maxSize={2}
               aspectRatio="16:9"
               folder={cloudinaryLojaLogin(lojaDoc)}
-              disabled={!lojaDocReady}
+              disabled={lojaDocLoading || !lojaDocReady}
             />
             <ImageUpload
               label="Imagem de fundo da tela de login"
@@ -131,7 +131,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
               maxSize={5}
               aspectRatio="16:9"
               folder={cloudinaryLojaLogin(lojaDoc)}
-              disabled={!lojaDocReady}
+              disabled={lojaDocLoading || !lojaDocReady}
             />
             <ImageUpload
               label="Logo da tela de login"
@@ -141,7 +141,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
               maxSize={2}
               aspectRatio="1:1"
               folder={cloudinaryLojaLogin(lojaDoc)}
-              disabled={!lojaDocReady}
+              disabled={lojaDocLoading || !lojaDocReady}
             />
 
             <div>

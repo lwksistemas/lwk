@@ -31,7 +31,7 @@ export default function ConfiguracoesLoginPage() {
   const params = useParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
-  const { documento: lojaDoc, ready: lojaDocReady } = useLojaCloudinaryDocument(slug);
+  const { documento: lojaDoc, ready: lojaDocReady, loading: lojaDocLoading } = useLojaCloudinaryDocument(slug);
   const base = `/loja/${slug}/crm-vendas/configuracoes`;
 
   const [loading, setLoading] = useState(true);
@@ -145,7 +145,7 @@ export default function ConfiguracoesLoginPage() {
               maxSize={2}
               aspectRatio="16:9"
               folder={cloudinaryLojaLogin(lojaDoc)}
-              disabled={!lojaDocReady}
+              disabled={lojaDocLoading || !lojaDocReady}
             />
 
             {/* Imagem de fundo do login */}
@@ -157,7 +157,7 @@ export default function ConfiguracoesLoginPage() {
               maxSize={5}
               aspectRatio="16:9"
               folder={cloudinaryLojaLogin(lojaDoc)}
-              disabled={!lojaDocReady}
+              disabled={lojaDocLoading || !lojaDocReady}
             />
 
             {/* Logo específico do login */}
@@ -169,7 +169,7 @@ export default function ConfiguracoesLoginPage() {
               maxSize={2}
               aspectRatio="1:1"
               folder={cloudinaryLojaLogin(lojaDoc)}
-              disabled={!lojaDocReady}
+              disabled={lojaDocLoading || !lojaDocReady}
             />
 
             {/* Cores pré-definidas */}

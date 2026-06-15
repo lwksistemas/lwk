@@ -79,7 +79,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             return Response({'error': 'slug é obrigatório'}, status=400)
         slug = slug.strip().lower()
         
-        cache_key = f'loja_info_publica:{slug}'
+        cache_key = f'loja_info_publica_v2:{slug}'
         cached_data = cache.get(cache_key)
         if cached_data:
             logger.debug(f'✅ Cache HIT para loja {slug}')

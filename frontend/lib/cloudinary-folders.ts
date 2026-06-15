@@ -38,45 +38,66 @@ export function cloudinarySuporteLogin(): string {
 
 /** Login da loja — pasta com CPF/CNPJ (não atalho/slug). */
 export function cloudinaryLojaLogin(cpfCnpj: string): string {
-  const doc = cloudinaryDocumento(cpfCnpj);
+  const doc = cloudinaryDocumento(cpfCnpj) || cpfCnpj;
   return path(cloudinaryAmbiente(), doc, 'login');
 }
 
 export function cloudinaryLojaClinicaFotos(cpfCnpj: string): string {
-  const doc = cloudinaryDocumento(cpfCnpj);
+  const doc = cloudinaryDocumento(cpfCnpj) || cpfCnpj;
   return path(cloudinaryAmbiente(), doc, 'clinica-beleza-fotos');
 }
 
 export function cloudinaryLojaRoot(cpfCnpj: string): string {
-  const doc = cloudinaryDocumento(cpfCnpj);
+  const doc = cloudinaryDocumento(cpfCnpj) || cpfCnpj;
   return path(cloudinaryAmbiente(), doc);
 }
 
 export interface LojaCloudinaryDocument {
-  /** CPF/CNPJ só dígitos */
+  /** CPF/CNPJ (ou id interno se CPF ausente) */
   documento: string;
-  /** true quando o CPF/CNPJ foi carregado da API */
+  /** Pronto para upload */
   ready: boolean;
+  /** Carregando dados da loja */
+  loading: boolean;
+  /** true se não há CPF/CNPJ cadastrado (usa id da loja) */
+  semCpfCnpj: boolean;
 }
 
-/** Carrega CPF/CNPJ da loja — nunca usa atalho/slug como pasta. */
+/** Carrega CPF/CNPJ da loja para pasta no Cloudinary. */
 export function useLojaCloudinaryDocument(slug: string): LojaCloudinaryDocument {
   const [documento, setDocumento] = useState('');
   const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [semCpfCnpj, setSemCpfCnpj] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setDocumento('');
     setReady(false);
-    if (!slug) return;
+    setLoading(true);
+    setSemCpfCnpj(false);
+    if (!slug) {
+      setLoading(false);
+      return;
+    }
 
     apiClient
-      .get<{ cpf_cnpj?: string }>(`/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`)
+      .get<{ cpf_cnpj?: string; id?: number }>(
+        `/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`,
+      )
       .then((res) => {
         if (cancelled) return;
-        const doc = cloudinaryDocumento(res.data?.cpf_cnpj || '');
-        if (doc) {
-          setDocumento(doc);
+        const cpf = cloudinaryDocumento(res.data?.cpf_cnpj || '');
+        if (cpf) {
+          setDocumento(cpf);
+          setSemCpfCnpj(false);
+          setReady(true);
+          return;
+        }
+        const lojaId = res.data?.id;
+        if (lojaId) {
+          setDocumento(String(lojaId));
+          setSemCpfCnpj(true);
           setReady(true);
         }
       })
@@ -85,6 +106,9 @@ export function useLojaCloudinaryDocument(slug: string): LojaCloudinaryDocument 
           setDocumento('');
           setReady(false);
         }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
 
     return () => {
@@ -92,5 +116,5 @@ export function useLojaCloudinaryDocument(slug: string): LojaCloudinaryDocument 
     };
   }, [slug]);
 
-  return { documento, ready };
+  return { documento, ready, loading, semCpfCnpj };
 }

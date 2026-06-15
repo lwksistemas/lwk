@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, LogIn } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ImageUpload } from '@/components/ImageUpload';
-import { cloudinaryLojaLogin } from '@/lib/cloudinary-folders';
+import { cloudinaryLojaLogin, useLojaCloudinaryDocument } from '@/lib/cloudinary-folders';
 import { logger } from '@/lib/logger';
 import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
@@ -30,6 +30,7 @@ const CORES_PRE_DEFINIDAS = [
 
 export default function ClinicaBelezaConfiguracoesLoginPage() {
   const slug = (useParams()?.slug as string) ?? '';
+  const lojaDoc = useLojaCloudinaryDocument(slug);
   const base = `/loja/${slug}/clinica-beleza/configuracoes`;
 
   const [loading, setLoading] = useState(true);
@@ -119,7 +120,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
               onChange={setLogo}
               maxSize={2}
               aspectRatio="16:9"
-              folder={cloudinaryLojaLogin(slug)}
+              folder={cloudinaryLojaLogin(lojaDoc)}
             />
             <ImageUpload
               label="Imagem de fundo da tela de login"
@@ -128,7 +129,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
               onChange={setLoginBackground}
               maxSize={5}
               aspectRatio="16:9"
-              folder={cloudinaryLojaLogin(slug)}
+              folder={cloudinaryLojaLogin(lojaDoc)}
             />
             <ImageUpload
               label="Logo da tela de login"
@@ -137,7 +138,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
               onChange={setLoginLogo}
               maxSize={2}
               aspectRatio="1:1"
-              folder={cloudinaryLojaLogin(slug)}
+              folder={cloudinaryLojaLogin(lojaDoc)}
             />
 
             <div>

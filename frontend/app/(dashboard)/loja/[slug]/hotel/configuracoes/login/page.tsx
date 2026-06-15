@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { LogIn, ArrowLeft, Palette, Image, Check } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ImageUpload } from '@/components/ImageUpload';
-import { cloudinaryLojaLogin } from '@/lib/cloudinary-folders';
+import { cloudinaryLojaLogin, useLojaCloudinaryDocument } from '@/lib/cloudinary-folders';
 
 interface LoginConfigData {
   logo: string;
@@ -30,6 +30,7 @@ const CORES = [
 export default function HotelLoginConfigPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
+  const lojaDoc = useLojaCloudinaryDocument(slug);
 
   const [config, setConfig] = useState<LoginConfigData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -106,7 +107,7 @@ export default function HotelLoginConfigPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-4">
                       Imagem que aparece no topo da tela de login.
                     </p>
-                    <ImageUpload value={config.login_logo} onChange={(v) => setConfig({ ...config, login_logo: v })} folder={cloudinaryLojaLogin(slug)} />
+                    <ImageUpload value={config.login_logo} onChange={(v) => setConfig({ ...config, login_logo: v })} folder={cloudinaryLojaLogin(lojaDoc)} />
                   </div>
                 </div>
               </div>
@@ -125,7 +126,7 @@ export default function HotelLoginConfigPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-4">
                       Imagem de fundo da tela de login.
                     </p>
-                    <ImageUpload value={config.login_background} onChange={(v) => setConfig({ ...config, login_background: v })} folder={cloudinaryLojaLogin(slug)} />
+                    <ImageUpload value={config.login_background} onChange={(v) => setConfig({ ...config, login_background: v })} folder={cloudinaryLojaLogin(lojaDoc)} />
                   </div>
                 </div>
               </div>

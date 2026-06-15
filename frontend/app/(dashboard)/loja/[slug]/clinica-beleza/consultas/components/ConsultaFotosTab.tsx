@@ -14,7 +14,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
-import { cloudinaryLojaClinicaFotos } from "@/lib/cloudinary-folders";
+import { cloudinaryLojaClinicaFotos, useLojaCloudinaryDocument } from "@/lib/cloudinary-folders";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
 import { PacienteFotoZoomModal } from "./PacienteFotoZoomModal";
@@ -36,6 +36,7 @@ export function ConsultaFotosTab({
 }) {
   const params = useParams();
   const slug = (params.slug as string) || "loja";
+  const lojaDoc = useLojaCloudinaryDocument(slug);
 
   const [fotos, setFotos] = useState<PacienteFotoItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -190,7 +191,7 @@ export function ConsultaFotosTab({
                 setUploadUrl(url);
                 if (url) void salvarUploadPainel(url);
               }}
-              folder={cloudinaryLojaClinicaFotos(slug)}
+              folder={cloudinaryLojaClinicaFotos(lojaDoc)}
               disabled={salvando}
             />
             <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">

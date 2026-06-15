@@ -1,15 +1,10 @@
 /** Pastas padronizadas no Cloudinary — espelha backend/core/cloudinary_folders.py */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { isBetaEnvironment } from '@/lib/api-base';
 
 const ROOT = 'lwksistemas';
-
-function sanitizeSegment(value: string): string {
-  const raw = (value || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-  return raw || 'sem-identificador';
-}
 
 export function cloudinaryAmbiente(): 'beta' | 'producao' {
   return isBetaEnvironment() ? 'beta' : 'producao';
@@ -19,17 +14,18 @@ function path(...parts: string[]): string {
   return [ROOT, ...parts.filter(Boolean)].join('/');
 }
 
+/** CPF/CNPJ só dígitos. */
 export function cloudinaryDocumento(cpfCnpj: string): string {
   const digits = (cpfCnpj || '').replace(/\D/g, '');
-  return digits || sanitizeSegment(cpfCnpj);
+  return digits || '';
 }
 
 export function cloudinarySuperadminHomepage(): string {
-  return path(cloudinaryAmbiente(), 'superadmin-homepage');
+  return path(cloudinaryAmbiente(), 'superadmin', 'homepage');
 }
 
 export function cloudinarySuperadminLogin(): string {
-  return path(cloudinaryAmbiente(), 'superadmin-login');
+  return path(cloudinaryAmbiente(), 'superadmin', 'login');
 }
 
 export function cloudinarySuporte(): string {
@@ -37,30 +33,41 @@ export function cloudinarySuporte(): string {
 }
 
 export function cloudinarySuporteLogin(): string {
-  return path(cloudinaryAmbiente(), 'suporte-login');
+  return path(cloudinaryAmbiente(), 'suporte', 'login');
 }
 
-/** Pasta da loja (login, logo, fundo) — use CPF/CNPJ quando disponível. */
-export function cloudinaryLojaLogin(cpfCnpjOrSlug: string): string {
-  return path(cloudinaryAmbiente(), cloudinaryDocumento(cpfCnpjOrSlug));
+/** Login da loja — pasta com CPF/CNPJ (não atalho/slug). */
+export function cloudinaryLojaLogin(cpfCnpj: string): string {
+  const doc = cloudinaryDocumento(cpfCnpj);
+  return path(cloudinaryAmbiente(), doc, 'login');
 }
 
-export function cloudinaryLojaClinicaFotos(cpfCnpjOrSlug: string): string {
-  return path(cloudinaryAmbiente(), cloudinaryDocumento(cpfCnpjOrSlug), 'clinica-beleza-fotos');
+export function cloudinaryLojaClinicaFotos(cpfCnpj: string): string {
+  const doc = cloudinaryDocumento(cpfCnpj);
+  return path(cloudinaryAmbiente(), doc, 'clinica-beleza-fotos');
 }
 
-export function cloudinaryLojaRoot(cpfCnpjOrSlug: string): string {
-  return path(cloudinaryAmbiente(), cloudinaryDocumento(cpfCnpjOrSlug));
+export function cloudinaryLojaRoot(cpfCnpj: string): string {
+  const doc = cloudinaryDocumento(cpfCnpj);
+  return path(cloudinaryAmbiente(), doc);
 }
 
-/** Carrega CPF/CNPJ da loja para montar a pasta correta no Cloudinary. */
-export function useLojaCloudinaryDocument(slug: string): string {
-  const fallback = useMemo(() => sanitizeSegment(slug), [slug]);
-  const [documento, setDocumento] = useState(fallback);
+export interface LojaCloudinaryDocument {
+  /** CPF/CNPJ só dígitos */
+  documento: string;
+  /** true quando o CPF/CNPJ foi carregado da API */
+  ready: boolean;
+}
+
+/** Carrega CPF/CNPJ da loja — nunca usa atalho/slug como pasta. */
+export function useLojaCloudinaryDocument(slug: string): LojaCloudinaryDocument {
+  const [documento, setDocumento] = useState('');
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    setDocumento(fallback);
+    setDocumento('');
+    setReady(false);
     if (!slug) return;
 
     apiClient
@@ -68,16 +75,22 @@ export function useLojaCloudinaryDocument(slug: string): string {
       .then((res) => {
         if (cancelled) return;
         const doc = cloudinaryDocumento(res.data?.cpf_cnpj || '');
-        setDocumento(doc !== 'sem-identificador' ? doc : fallback);
+        if (doc) {
+          setDocumento(doc);
+          setReady(true);
+        }
       })
       .catch(() => {
-        if (!cancelled) setDocumento(fallback);
+        if (!cancelled) {
+          setDocumento('');
+          setReady(false);
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [slug, fallback]);
+  }, [slug]);
 
-  return documento;
+  return { documento, ready };
 }

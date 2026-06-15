@@ -30,7 +30,7 @@ const CORES = [
 export default function HotelLoginConfigPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
-  const lojaDoc = useLojaCloudinaryDocument(slug);
+  const { documento: lojaDoc, ready: lojaDocReady } = useLojaCloudinaryDocument(slug);
 
   const [config, setConfig] = useState<LoginConfigData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,7 +107,7 @@ export default function HotelLoginConfigPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-4">
                       Imagem que aparece no topo da tela de login.
                     </p>
-                    <ImageUpload value={config.login_logo} onChange={(v) => setConfig({ ...config, login_logo: v })} folder={cloudinaryLojaLogin(lojaDoc)} />
+                    <ImageUpload value={config.login_logo} onChange={(v) => setConfig({ ...config, login_logo: v })} folder={cloudinaryLojaLogin(lojaDoc)} disabled={!lojaDocReady} />
                   </div>
                 </div>
               </div>
@@ -126,7 +126,7 @@ export default function HotelLoginConfigPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-4">
                       Imagem de fundo da tela de login.
                     </p>
-                    <ImageUpload value={config.login_background} onChange={(v) => setConfig({ ...config, login_background: v })} folder={cloudinaryLojaLogin(lojaDoc)} />
+                    <ImageUpload value={config.login_background} onChange={(v) => setConfig({ ...config, login_background: v })} folder={cloudinaryLojaLogin(lojaDoc)} disabled={!lojaDocReady} />
                   </div>
                 </div>
               </div>

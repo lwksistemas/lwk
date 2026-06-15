@@ -5,7 +5,7 @@ import io
 import logging
 import os
 from datetime import timedelta
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from django.conf import settings
 from django.core.signing import BadSignature, dumps, loads
@@ -298,14 +298,58 @@ def decodificar_token_foto(token: str) -> dict | None:
     return payload
 
 
-def build_link_foto(token: str) -> str:
-    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')
-    return f'{frontend_url}{PATH_PUBLICO}{quote(token, safe="")}'
+def build_link_foto(token: str, frontend_base: str | None = None) -> str:
+    base = (frontend_base or getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')).rstrip('/')
+    return f'{base}{PATH_PUBLICO}{quote(token, safe="")}'
 
 
-def gerar_qr_foto(consulta) -> dict:
+def frontend_base_permitido(origin: str | None) -> str | None:
+    """Aceita só origens LWK (beta/produção/local) para o link do QR."""
+    raw = (origin or '').strip()
+    if not raw:
+        return None
+    if '://' not in raw:
+        raw = f'https://{raw.lstrip("/")}'
+    parsed = urlparse(raw)
+    if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+        return None
+    host = (parsed.hostname or '').lower()
+    if host in (
+        'beta.lwksistemas.com.br',
+        'lwksistemas.com.br',
+        'www.lwksistemas.com.br',
+        'localhost',
+        '127.0.0.1',
+    ) or host.endswith('.lwksistemas.com.br'):
+        return f'{parsed.scheme}://{parsed.netloc}'.rstrip('/')
+    return None
+
+
+def resolver_frontend_base_qr(request=None, frontend_origin: str | None = None) -> str | None:
+    """Prioriza origem enviada pelo painel (beta vs produção)."""
+    if request is not None:
+        for candidate in (
+            frontend_origin,
+            getattr(request, 'headers', {}).get('Origin') if hasattr(request, 'headers') else None,
+        ):
+            base = frontend_base_permitido(candidate)
+            if base:
+                return base
+        referer = getattr(request, 'META', {}).get('HTTP_REFERER', '')
+        if referer:
+            ref = urlparse(referer)
+            if ref.scheme and ref.netloc:
+                base = frontend_base_permitido(f'{ref.scheme}://{ref.netloc}')
+                if base:
+                    return base
+    elif frontend_origin:
+        return frontend_base_permitido(frontend_origin)
+    return None
+
+
+def gerar_qr_foto(consulta, frontend_base: str | None = None) -> dict:
     token = gerar_token_foto(consulta.id, consulta.patient_id, consulta.loja_id)
-    url = build_link_foto(token)
+    url = build_link_foto(token, frontend_base)
     return {
         'token': token,
         'url': url,

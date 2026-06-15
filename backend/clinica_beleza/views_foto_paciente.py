@@ -91,7 +91,9 @@ class ConsultaFotoQrView(GetObjectMixin, APIView):
         bloqueio = _consulta_permite_envio_foto(consulta)
         if bloqueio:
             return bloqueio
-        data = gerar_qr_foto(consulta)
+        origin = (request.data.get('frontend_origin') or '').strip()
+        frontend_base = resolver_frontend_base_qr(request, origin or None)
+        data = gerar_qr_foto(consulta, frontend_base=frontend_base)
         return Response(data)
 
 

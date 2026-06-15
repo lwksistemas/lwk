@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, LogIn } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ImageUpload } from '@/components/ImageUpload';
+import { cloudinaryLojaLogin } from '@/lib/cloudinary-folders';
 import { logger } from '@/lib/logger';
 import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
@@ -118,7 +119,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
               onChange={setLogo}
               maxSize={2}
               aspectRatio="16:9"
-              folder={`lwksistemas/${slug}`}
+              folder={cloudinaryLojaLogin(slug)}
             />
             <ImageUpload
               label="Imagem de fundo da tela de login"
@@ -127,7 +128,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
               onChange={setLoginBackground}
               maxSize={5}
               aspectRatio="16:9"
-              folder={`lwksistemas/${slug}`}
+              folder={cloudinaryLojaLogin(slug)}
             />
             <ImageUpload
               label="Logo da tela de login"
@@ -136,7 +137,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
               onChange={setLoginLogo}
               maxSize={2}
               aspectRatio="1:1"
-              folder={`lwksistemas/${slug}`}
+              folder={cloudinaryLojaLogin(slug)}
             />
 
             <div>

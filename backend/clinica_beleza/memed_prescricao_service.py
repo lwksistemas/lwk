@@ -7,6 +7,7 @@ from typing import Any
 
 import requests
 
+from core.cloudinary_folders import loja_clinica_memed
 from .memed_config import memed_config as _memed_config, memed_credentials as _memed_credentials
 
 logger = logging.getLogger(__name__)
@@ -216,8 +217,7 @@ def arquivar_pdf_bytes_cloudinary(loja, conteudo: bytes) -> str:
             api_secret=cfg.api_secret,
             secure=True,
         )
-        slug = (getattr(loja, 'atalho', None) or loja.slug or str(loja.id)).strip().lower()
-        folder = f'lwksistemas/{slug}/clinica-beleza/prescricoes-memed'
+        folder = loja_clinica_memed(loja)
         resultado = cloudinary.uploader.upload(
             conteudo,
             folder=folder,
@@ -264,8 +264,7 @@ def arquivar_pdf_cloudinary(loja, pdf_url: str) -> str:
             api_secret=cfg.api_secret,
             secure=True,
         )
-        slug = (getattr(loja, 'atalho', None) or loja.slug or str(loja.id)).strip().lower()
-        folder = f'lwksistemas/{slug}/clinica-beleza/prescricoes-memed'
+        folder = loja_clinica_memed(loja)
         resultado = cloudinary.uploader.upload(
             conteudo,
             folder=folder,

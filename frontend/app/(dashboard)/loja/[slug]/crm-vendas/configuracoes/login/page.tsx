@@ -7,6 +7,7 @@ import { ArrowLeft, LogIn } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { ImageUpload } from '@/components/ImageUpload';
+import { cloudinaryLojaLogin } from '@/lib/cloudinary-folders';
 import { logger } from '@/lib/logger';
 
 interface LoginConfigData {
@@ -142,7 +143,7 @@ export default function ConfiguracoesLoginPage() {
               onChange={(url) => setLogo(url)}
               maxSize={2}
               aspectRatio="16:9"
-              folder={`lwksistemas/${slug}`}
+              folder={cloudinaryLojaLogin(slug)}
             />
 
             {/* Imagem de fundo do login */}
@@ -153,7 +154,7 @@ export default function ConfiguracoesLoginPage() {
               onChange={(url) => setLoginBackground(url)}
               maxSize={5}
               aspectRatio="16:9"
-              folder={`lwksistemas/${slug}`}
+              folder={cloudinaryLojaLogin(slug)}
             />
 
             {/* Logo específico do login */}
@@ -164,7 +165,7 @@ export default function ConfiguracoesLoginPage() {
               onChange={(url) => setLoginLogo(url)}
               maxSize={2}
               aspectRatio="1:1"
-              folder={`lwksistemas/${slug}`}
+              folder={cloudinaryLojaLogin(slug)}
             />
 
             {/* Cores pré-definidas */}

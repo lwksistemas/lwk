@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Save, ArrowLeft } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ImageUpload } from '@/components/ImageUpload';
+import { cloudinarySuperadminLogin, cloudinarySuporteLogin } from '@/lib/cloudinary-folders';
 import { logger } from '@/lib/logger';
 
 interface LoginConfig {
@@ -33,7 +34,8 @@ function LoginConfigContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tipo = (searchParams.get('tipo') || 'superadmin') as 'superadmin' | 'suporte';
-  
+  const loginFolder = tipo === 'suporte' ? cloudinarySuporteLogin() : cloudinarySuperadminLogin();
+
   const [config, setConfig] = useState<LoginConfig>({
     tipo,
     logo: '',
@@ -214,7 +216,7 @@ function LoginConfigContent() {
                   onChange={(url) => setConfig({ ...config, logo: url })}
                   maxSize={2}
                   aspectRatio="16:9"
-                  folder="lwksistemas/sistema"
+                  folder={loginFolder}
                 />
                 
                 <ImageUpload
@@ -224,7 +226,7 @@ function LoginConfigContent() {
                   onChange={(url) => setConfig({ ...config, login_background: url })}
                   maxSize={5}
                   aspectRatio="16:9"
-                  folder="lwksistemas/sistema"
+                  folder={loginFolder}
                 />
               </CardContent>
             </Card>

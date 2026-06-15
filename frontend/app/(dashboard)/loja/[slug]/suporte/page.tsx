@@ -2,12 +2,20 @@
 
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { Headphones, Plus } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { formatDateTime } from '@/lib/financeiro-helpers';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 import { useLojaTheme } from '@/hooks/useLojaTheme';
 import { LojaThemedPageShell } from '@/components/loja/LojaThemedPageShell';
 import { hexToRgba } from '@/lib/loja-theme';
+import { isTipoClinicaBeleza } from '@/lib/loja-tipo';
+import {
+  ClinicaBelezaPageContent,
+  ClinicaBelezaPanel,
+} from '@/components/clinica-beleza/ClinicaBelezaPageContent';
+import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
+import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import { logger } from '@/lib/logger';
 
@@ -134,34 +142,137 @@ export default function SuporteHistoricoPage() {
 
   const tipoNome = loja?.tipo_loja_nome || '';
   const lojaNome = loja?.nome || '';
+  const clinicaBeleza = isTipoClinicaBeleza(tipoNome);
+  const accent = clinicaBeleza ? CLINICA_BELEZA_PRIMARY : theme.corPrimaria;
+  const accentSecondary = clinicaBeleza ? CLINICA_BELEZA_PRIMARY : theme.corSecundaria;
 
   const headerActions = (
     <button
       onClick={() => setModalNovoChamadoAberto(true)}
-      className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white transition-colors hover:opacity-90"
-      style={{ backgroundColor: theme.corSecundaria }}
+      className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium text-white transition-colors hover:opacity-90"
+      style={{ backgroundColor: accent }}
       title="Abrir novo chamado"
     >
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-      </svg>
-      Abrir chamado
+      <Plus className="w-4 h-4" />
+      <span className="hidden sm:inline">Abrir chamado</span>
+      <span className="sm:hidden">Novo</span>
     </button>
   );
 
   if (!ready || !isLoja || loadingTheme) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center dark:bg-slate-950"
-        style={{ backgroundColor: theme.pageBg }}
+        className="min-h-screen flex items-center justify-center dark:bg-gray-950"
+        style={{ backgroundColor: clinicaBeleza ? '#f7f2f4' : theme.pageBg }}
       >
         <p className="text-gray-500">Carregando...</p>
       </div>
     );
   }
 
-  return (
+  const statsGrid = (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="bg-white/80 dark:bg-neutral-800/80 border border-gray-200 dark:border-neutral-700 p-4 sm:p-6 rounded-xl shadow-sm">
+        <h3 className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium">Total</h3>
+        <p className="text-2xl sm:text-3xl font-bold mt-2" style={{ color: accent }}>{chamados.length}</p>
+      </div>
+      <div className="bg-white/80 dark:bg-neutral-800/80 border border-gray-200 dark:border-neutral-700 p-4 sm:p-6 rounded-xl shadow-sm">
+        <h3 className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium">Abertos</h3>
+        <p className="text-2xl sm:text-3xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">
+          {chamados.filter(c => c.status === 'aberto').length}
+        </p>
+      </div>
+      <div className="bg-white/80 dark:bg-neutral-800/80 border border-gray-200 dark:border-neutral-700 p-4 sm:p-6 rounded-xl shadow-sm">
+        <h3 className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium">Em Andamento</h3>
+        <p className="text-2xl sm:text-3xl font-bold mt-2" style={{ color: accentSecondary }}>
+          {chamados.filter(c => c.status === 'em_andamento').length}
+        </p>
+      </div>
+      <div className="bg-white/80 dark:bg-neutral-800/80 border border-gray-200 dark:border-neutral-700 p-4 sm:p-6 rounded-xl shadow-sm">
+        <h3 className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm font-medium">Resolvidos</h3>
+        <p className="text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-400 mt-2">
+          {chamados.filter(c => c.status === 'resolvido').length}
+        </p>
+      </div>
+    </div>
+  );
+
+  const chamadosList = (
+    <ClinicaBelezaPanel>
+      <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-neutral-700">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Histórico de Chamados</h3>
+      </div>
+      <div className="p-4 sm:p-6">
+        {loading ? (
+          <p className="text-center text-gray-500 dark:text-gray-400 py-12">Carregando...</p>
+        ) : chamados.length === 0 ? (
+          <div className="text-center py-12">
+            <Headphones className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <p className="mt-4 text-gray-500 dark:text-gray-400">Nenhum chamado encontrado</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+              Clique em &quot;Abrir chamado&quot; no topo para criar um novo
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {chamados.map((chamado) => (
+              <div
+                key={chamado.id}
+                className="border border-gray-200 dark:border-neutral-700 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer bg-white/50 dark:bg-neutral-900/30"
+                onClick={() => handleVerDetalhes(chamado)}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                      <span className="text-sm font-medium text-gray-500 dark:text-gray-400">#{chamado.id}</span>
+                      <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(chamado.status)}`}>
+                        {getStatusDisplay(chamado.status)}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{getTipoDisplay(chamado.tipo)}</span>
+                    </div>
+                    <h4 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1">{chamado.titulo}</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{chamado.descricao}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap justify-between items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-neutral-700">
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                    <span>📅 {new Date(chamado.created_at).toLocaleDateString('pt-BR')}</span>
+                    {chamado.respostas && chamado.respostas.length > 0 && (
+                      <span className="flex items-center gap-1">
+                        💬 {chamado.respostas.length} {chamado.respostas.length === 1 ? 'resposta' : 'respostas'}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="text-sm font-medium hover:opacity-80"
+                    style={{ color: accent }}
+                  >
+                    Ver Detalhes →
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </ClinicaBelezaPanel>
+  );
+
+  const pageBody = clinicaBeleza ? (
     <>
+      <ClinicaBelezaStandardPageHeader
+        title="Suporte"
+        subtitle="Histórico e acompanhamento de chamados"
+        icon={Headphones}
+        extraActions={headerActions}
+      />
+      <ClinicaBelezaPageContent>
+        {statsGrid}
+        {chamadosList}
+      </ClinicaBelezaPageContent>
+    </>
+  ) : (
     <LojaThemedPageShell
       slug={slug}
       tipoLojaNome={tipoNome}
@@ -170,99 +281,71 @@ export default function SuporteHistoricoPage() {
       subtitle="Histórico e acompanhamento"
       headerActions={headerActions}
     >
-          {/* Estatísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total</h3>
-              <p className="text-3xl font-bold mt-2" style={{ color: theme.corPrimaria }}>{chamados.length}</p>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* legacy themed stats — keep for non-clinica apps */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total</h3>
+          <p className="text-3xl font-bold mt-2" style={{ color: theme.corPrimaria }}>{chamados.length}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Abertos</h3>
+          <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">
+            {chamados.filter(c => c.status === 'aberto').length}
+          </p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Em Andamento</h3>
+          <p className="text-3xl font-bold mt-2" style={{ color: theme.corSecundaria }}>
+            {chamados.filter(c => c.status === 'em_andamento').length}
+          </p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Resolvidos</h3>
+          <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">
+            {chamados.filter(c => c.status === 'resolvido').length}
+          </p>
+        </div>
+      </div>
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Histórico de Chamados</h3>
+        </div>
+        <div className="p-6">
+          {loading ? (
+            <p className="text-center text-gray-500 dark:text-gray-400 py-12">Carregando...</p>
+          ) : chamados.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 dark:text-gray-400">Nenhum chamado encontrado</p>
             </div>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Abertos</h3>
-              <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mt-2">
-                {chamados.filter(c => c.status === 'aberto').length}
-              </p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Em Andamento</h3>
-              <p className="text-3xl font-bold mt-2" style={{ color: theme.corSecundaria }}>
-                {chamados.filter(c => c.status === 'em_andamento').length}
-              </p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-              <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Resolvidos</h3>
-              <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">
-                {chamados.filter(c => c.status === 'resolvido').length}
-              </p>
-            </div>
-          </div>
-
-          {/* Lista de Chamados */}
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Histórico de Chamados</h3>
-            </div>
-            <div className="p-6">
-              {loading ? (
-                <p className="text-center text-gray-500 dark:text-gray-400 py-12">Carregando...</p>
-              ) : chamados.length === 0 ? (
-                <div className="text-center py-12">
-                  <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
-                  <p className="mt-4 text-gray-500 dark:text-gray-400">Nenhum chamado encontrado</p>
-                  <p className="text-sm text-gray-400 dark:text-gray-400 mt-2">Clique em &quot;Abrir chamado&quot; no topo da página para criar um novo</p>
+          ) : (
+            <div className="space-y-4">
+              {chamados.map((chamado) => (
+                <div
+                  key={chamado.id}
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer bg-gray-50/50 dark:bg-gray-700/30"
+                  onClick={() => handleVerDetalhes(chamado)}
+                >
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">{chamado.titulo}</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{chamado.descricao}</p>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {chamados.map((chamado) => (
-                    <div
-                      key={chamado.id}
-                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer bg-gray-50/50 dark:bg-gray-700/30"
-                      onClick={() => handleVerDetalhes(chamado)}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">#{chamado.id}</span>
-                            <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(chamado.status)}`}>
-                              {getStatusDisplay(chamado.status)}
-                            </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">{getTipoDisplay(chamado.tipo)}</span>
-                          </div>
-                          <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{chamado.titulo}</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{chamado.descricao}</p>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100 dark:border-gray-600">
-                        <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                          <span>📅 {new Date(chamado.created_at).toLocaleDateString('pt-BR')}</span>
-                          {chamado.respostas && chamado.respostas.length > 0 && (
-                            <span className="flex items-center gap-1">
-                              💬 {chamado.respostas.length} {chamado.respostas.length === 1 ? 'resposta' : 'respostas'}
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          className="text-sm font-medium hover:opacity-80"
-                          style={{ color: theme.corPrimaria }}
-                        >
-                          Ver Detalhes →
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              ))}
             </div>
-          </div>
+          )}
+        </div>
+      </div>
     </LojaThemedPageShell>
+  );
+
+  return (
+    <>
+    {pageBody}
 
       {modalAberto && chamadoSelecionado && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div
               className="text-white px-6 py-4 rounded-t-lg sticky top-0"
-              style={{ backgroundColor: theme.corPrimaria }}
+              style={{ backgroundColor: accent }}
             >
               <div className="flex justify-between items-start">
                 <div>
@@ -336,8 +419,8 @@ export default function SuporteHistoricoPage() {
                         style={
                           resposta.is_suporte
                             ? {
-                                backgroundColor: hexToRgba(theme.corPrimaria, 0.1),
-                                borderLeftColor: theme.corPrimaria,
+                                backgroundColor: hexToRgba(accent, 0.1),
+                                borderLeftColor: accent,
                               }
                             : undefined
                         }
@@ -345,7 +428,7 @@ export default function SuporteHistoricoPage() {
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex items-center gap-2">
                             {resposta.is_suporte ? (
-                              <span className="font-semibold" style={{ color: theme.corPrimaria }}>🎧 Suporte</span>
+                              <span className="font-semibold" style={{ color: accent }}>🎧 Suporte</span>
                             ) : (
                               <span className="text-gray-700 dark:text-gray-300 font-semibold">👤 {resposta.usuario_nome}</span>
                             )}
@@ -383,7 +466,7 @@ export default function SuporteHistoricoPage() {
                     value={resposta}
                     onChange={(e) => setResposta(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2"
-                    style={{ '--tw-ring-color': theme.corPrimaria } as CSSProperties}
+                    style={{ '--tw-ring-color': accent } as CSSProperties}
                     rows={4}
                     placeholder="Digite sua mensagem..."
                     disabled={enviandoResposta}
@@ -393,7 +476,7 @@ export default function SuporteHistoricoPage() {
                       onClick={handleEnviarResposta}
                       disabled={!resposta.trim() || enviandoResposta}
                       className="px-6 py-2 text-white rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                      style={{ backgroundColor: theme.corPrimaria }}
+                      style={{ backgroundColor: accent }}
                     >
                       {enviandoResposta ? 'Enviando...' : 'Enviar Resposta'}
                     </button>
@@ -415,7 +498,7 @@ export default function SuporteHistoricoPage() {
           }}
           lojaSlug={slug}
           lojaNome={lojaNome || undefined}
-          corPrimaria={theme.corPrimaria}
+          corPrimaria={accent}
         />
       )}
     </>

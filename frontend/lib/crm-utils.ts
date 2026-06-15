@@ -193,6 +193,31 @@ export function gerarTituloOportunidade(lead: { nome: string; empresa?: string |
   return nome;
 }
 
+/** Título padrão da proposta: nome (CPF) ou razão social (CNPJ) do cliente. */
+export function gerarTituloProposta(lead: {
+  nome: string;
+  empresa?: string | null;
+  cpf_cnpj?: string;
+  conta_info?: {
+    nome?: string;
+    razao_social?: string;
+    cnpj?: string;
+  } | null;
+}): string {
+  const cpfCnpj = lead.conta_info?.cnpj || lead.cpf_cnpj || '';
+  const isCnpj = cpfCnpj.replace(/\D/g, '').length > 11;
+  if (isCnpj) {
+    return (
+      lead.conta_info?.razao_social ||
+      lead.conta_info?.nome ||
+      lead.empresa ||
+      lead.nome ||
+      ''
+    ).trim();
+  }
+  return (lead.conta_info?.nome || lead.nome || '').trim();
+}
+
 /** Rótulo no quadro Kanban — pessoa (lead) em destaque, senão título legível. */
 export function rotuloExibicaoOportunidade(o: {
   titulo: string;

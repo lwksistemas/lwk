@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { normalizeListResponse, getCrmApiErrorDetail, gerarTituloProposta } from '@/lib/crm-utils';
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
@@ -132,24 +132,15 @@ export default function NovaPropostaPage() {
     }
   }, [formData.oportunidade_id, oportunidades, loadItensOportunidade, loadLeadInfo, setLeadInfo]);
 
-  // Gerar título automaticamente: Empresa Prestadora + Razão Social (CNPJ) ou Nome (CPF) do cliente
+  // Título automático: nome (CPF) ou razão social (CNPJ) do cliente
   useEffect(() => {
     if (!leadInfo) return;
-    // Nome da prestadora: vem da oportunidade selecionada (empresa_prestadora_nome)
-    const opp = oportunidades.find((o) => String(o.id) === formData.oportunidade_id);
-    const nomePrestadora = opp?.empresa_prestadora_nome || lojaInfo?.nome || '';
-    // Se tem CNPJ (>11 dígitos), usar razao_social; senão usar nome (CPF)
-    const cpfCnpj = leadInfo.conta_info?.cnpj || leadInfo.cpf_cnpj || '';
-    const isCnpj = cpfCnpj.replace(/\D/g, '').length > 11;
-    const nomeCliente = isCnpj
-      ? (leadInfo.conta_info?.razao_social || leadInfo.conta_info?.nome || leadInfo.empresa || leadInfo.nome)
-      : (leadInfo.conta_info?.nome || leadInfo.nome);
-    const tituloGerado = nomePrestadora && nomeCliente
-      ? `${nomePrestadora} - ${nomeCliente}`
-      : nomePrestadora || nomeCliente || '';
-    setFormData((f) => ({ ...f, titulo: tituloGerado }));
+    const tituloGerado = gerarTituloProposta(leadInfo);
+    if (tituloGerado) {
+      setFormData((f) => ({ ...f, titulo: tituloGerado }));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leadInfo, lojaInfo, formData.oportunidade_id, oportunidades]);
+  }, [leadInfo]);
 
   const handleOportunidadeChange = (id: string) => {
     const opp = oportunidades.find((o) => String(o.id) === id);

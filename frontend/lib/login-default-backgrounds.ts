@@ -143,6 +143,53 @@ export function preloadLoginBackground(url: string): void {
   img.src = url;
 }
 
+/** Preload aguardável — evita piscada ao trocar a URL do fundo. */
+export function preloadImageUrl(url: string): Promise<void> {
+  if (typeof window === 'undefined' || !url) return Promise.resolve();
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.decoding = 'async';
+    img.fetchPriority = 'high';
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = url;
+  });
+}
+
+const lojaTipoCacheKey = (slug: string) => `loja_tipo_${slug}`;
+const lojaLoginBgCacheKey = (slug: string) => `loja_login_bg_${slug}`;
+
+/** Persiste tipo/fundo customizado para abrir login sem piscada na 2ª visita. */
+export function cacheLojaLoginContext(
+  slug: string,
+  tipoLojaNome: string,
+  loginBackground?: string | null,
+): void {
+  if (typeof window === 'undefined' || !slug) return;
+  sessionStorage.setItem(lojaTipoCacheKey(slug), (tipoLojaNome || '').trim());
+  const custom = (loginBackground ?? '').trim();
+  if (custom) sessionStorage.setItem(lojaLoginBgCacheKey(slug), custom);
+  else sessionStorage.removeItem(lojaLoginBgCacheKey(slug));
+}
+
+/**
+ * Fundo imediato: cache da visita anterior ou heurística pelo slug.
+ */
+export function getInitialLoginBackgroundForSlug(slug: string): string {
+  if (typeof window !== 'undefined') {
+    const tipo = sessionStorage.getItem(lojaTipoCacheKey(slug));
+    if (tipo) {
+      const custom = sessionStorage.getItem(lojaLoginBgCacheKey(slug));
+      return resolveLoginBackground(tipo, custom);
+    }
+  }
+  return getLoginBackgroundHintFromSlug(slug);
+}
+
+export function getInitialLoginBackgroundFallbackForSlug(slug: string): string {
+  return getLoginBackgroundFallbackColor(getInitialLoginBackgroundForSlug(slug));
+}
+
 /** Preload de todos os fundos locais (opcional — útil em build/preview). */
 export function preloadAllDefaultLoginBackgrounds(): void {
   Object.values(LOCAL).forEach(preloadLoginBackground);

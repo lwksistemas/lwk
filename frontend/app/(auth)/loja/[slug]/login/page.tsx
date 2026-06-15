@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
-import { resolveLoginBackground, getLoginBackgroundHintFromSlug, getLoginBackgroundFallbackFromSlug, getLoginBackgroundFallbackColor, preloadLoginBackground, getLoginThemeColor } from '@/lib/login-default-backgrounds';
+import { resolveLoginBackground, getLoginBackgroundHintFromSlug, getLoginBackgroundFallbackColor, preloadLoginBackground, getLoginThemeColor, cacheLojaLoginContext, getInitialLoginBackgroundForSlug, preloadImageUrl } from '@/lib/login-default-backgrounds';
 import { LoginBackgroundLayer } from '@/components/auth/LoginBackgroundLayer';
 import { getPublicApiJson } from '@/lib/public-api';
 import { logger } from '@/lib/logger';
@@ -40,7 +40,13 @@ export default function LojaLoginDinamicoPage() {
   const [showRecuperarSenha, setShowRecuperarSenha] = useState(false);
 
   const backgroundHint = getLoginBackgroundHintFromSlug(slug);
-  const backgroundFallback = getLoginBackgroundFallbackFromSlug(slug);
+  const [backgroundUrl, setBackgroundUrl] = useState(backgroundHint);
+
+  useLayoutEffect(() => {
+    const initial = getInitialLoginBackgroundForSlug(slug);
+    setBackgroundUrl(initial);
+    preloadLoginBackground(initial);
+  }, [slug]);
 
   // Preload imediato — não espera a API da loja
   useEffect(() => {
@@ -64,6 +70,10 @@ export default function LojaLoginDinamicoPage() {
       }
 
       setLojaInfo(data);
+      cacheLojaLoginContext(slug, data.tipo_loja_nome || '', data.login_background);
+      const finalBackground = resolveLoginBackground(data.tipo_loja_nome, data.login_background);
+      await preloadImageUrl(finalBackground);
+      setBackgroundUrl(finalBackground);
     } catch (err: unknown) {
       logger.warn('Erro ao carregar informações da loja:', err);
       const status = err && typeof err === 'object' && 'response' in err && typeof (err as { response?: { status?: number } }).response?.status === 'number'
@@ -195,9 +205,10 @@ export default function LojaLoginDinamicoPage() {
 
   // Loading — fundo visível desde o primeiro frame; card centralizado
   if (loadingInfo) {
+    const loadingFallback = getLoginBackgroundFallbackColor(backgroundUrl);
     return (
       <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-        <LoginBackgroundLayer imageUrl={backgroundHint} fallbackColor={backgroundFallback} />
+        <LoginBackgroundLayer imageUrl={backgroundUrl} fallbackColor={loadingFallback} />
         <div className="relative z-10 text-white text-lg sm:text-xl flex items-center drop-shadow-md">
           <svg className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -249,7 +260,7 @@ export default function LojaLoginDinamicoPage() {
   const loginBackground = resolveLoginBackground(lojaInfo.tipo_loja_nome, lojaInfo.login_background);
   const loginLogo = lojaInfo.login_logo || lojaInfo.logo;
   const hasBackgroundImage = Boolean(loginBackground);
-  const loginBackgroundFallback = getLoginBackgroundFallbackColor(loginBackground);
+  const loginBackgroundFallback = getLoginBackgroundFallbackColor(backgroundUrl);
   // Cor temática baseada na imagem de fundo padrão (não na cor da loja)
   const corTema = getLoginThemeColor(lojaInfo.tipo_loja_nome);
 
@@ -263,7 +274,7 @@ export default function LojaLoginDinamicoPage() {
       }
     >
       {hasBackgroundImage && (
-        <LoginBackgroundLayer imageUrl={loginBackground} fallbackColor={loginBackgroundFallback} />
+        <LoginBackgroundLayer imageUrl={backgroundUrl} fallbackColor={loginBackgroundFallback} />
       )}
       
       <div className="max-w-sm w-full space-y-4 sm:space-y-5 p-5 sm:p-6 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-2xl border-t-4" style={{ position: 'relative', zIndex: 2, borderTopColor: corTema }}>

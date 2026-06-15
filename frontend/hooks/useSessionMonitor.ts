@@ -3,12 +3,22 @@
 import { useEffect, useRef } from 'react';
 import axios from 'axios';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
+import { USE_JWT_HTTPONLY_COOKIES } from '@/lib/auth-cookies';
+import { clearSessionAndRedirect, getLoginUrlForRedirect } from '@/lib/api-client';
 
 /**
  * Monitor de sessão única: GET /superadmin/lojas/heartbeat/ a cada 60s quando a aba está visível.
  * Usa axios direto (sem interceptor de refresh) para detectar SESSION_REPLACED.
  */
 const CHECK_INTERVAL_MS = 60000;
+
+function hasActiveSession(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (USE_JWT_HTTPONLY_COOKIES) {
+    return Boolean(sessionStorage.getItem('session_id'));
+  }
+  return Boolean(sessionStorage.getItem('access_token'));
+}
 
 export function useSessionMonitor() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -17,8 +27,7 @@ export function useSessionMonitor() {
   useEffect(() => {
     const checkSession = async () => {
       if (isCheckingRef.current) return;
-      const token = typeof window !== 'undefined' ? sessionStorage.getItem('access_token') : null;
-      if (!token) return;
+      if (!hasActiveSession()) return;
 
       isCheckingRef.current = true;
       try {
@@ -30,21 +39,16 @@ export function useSessionMonitor() {
         if (sid) headers['X-Session-ID'] = sid;
         await axios.get(`${base}/superadmin/lojas/heartbeat/${sid ? `?sid=${sid}` : ''}`, {
           headers,
+          withCredentials: USE_JWT_HTTPONLY_COOKIES,
         });
-      } catch (err: any) {
-        const code = err?.response?.data?.code;
+      } catch (err: unknown) {
+        const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
         if (code === 'SESSION_REPLACED') {
-          sessionStorage.removeItem('access_token');
-          sessionStorage.removeItem('refresh_token');
-          sessionStorage.removeItem('session_id');
-          sessionStorage.removeItem('user_type');
-          sessionStorage.removeItem('loja_slug');
-          const path = window.location.pathname;
-          const lojaMatch = path.match(/^\/loja\/([^/]+)/);
-          window.location.href = lojaMatch ? `/loja/${lojaMatch[1]}/login` : '/superadmin/login';
-          return;
+          void clearSessionAndRedirect(
+            getLoginUrlForRedirect(),
+            'Sessão encerrada — login realizado em outro dispositivo. Faça login novamente.',
+          );
         }
-        // 401: interceptor trata DIFFERENT_SESSION → logout + redirect
       } finally {
         isCheckingRef.current = false;
       }

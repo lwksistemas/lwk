@@ -11,8 +11,53 @@ const SESSION_CODES = [
   'SESSION_CONFLICT', 'SESSION_TIMEOUT', 'SESSION_REPLACED', 'SESSION_DB_ERROR',
 ] as const;
 
+export { SESSION_CODES };
+
+let sessionLogoutInProgress = false;
+let refreshInFlight: Promise<boolean> | null = null;
+
+/** Renova access token (sessionStorage ou cookies httpOnly). Retorna false se falhar. */
+export async function tryRefreshAccessToken(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const refreshToken = sessionStorage.getItem('refresh_token');
+    const accessToken = sessionStorage.getItem('access_token');
+    if (!USE_JWT_HTTPONLY_COOKIES && !refreshToken) return false;
+
+    try {
+      const base = getPrimaryApiBaseUrl();
+      const refreshHeaders: Record<string, string> = {};
+      if (accessToken) refreshHeaders.Authorization = `Bearer ${accessToken}`;
+      const sessionId = sessionStorage.getItem('session_id');
+      if (sessionId) refreshHeaders['X-Session-ID'] = sessionId;
+      const response = await axios.post(
+        `${base}/auth/token/refresh/`,
+        USE_JWT_HTTPONLY_COOKIES ? {} : { refresh: refreshToken },
+        { headers: refreshHeaders, withCredentials: USE_JWT_HTTPONLY_COOKIES },
+      );
+      const { access } = response.data;
+      if (!USE_JWT_HTTPONLY_COOKIES && access) {
+        sessionStorage.setItem('access_token', access);
+      }
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
+}
+
 /** Limpa tokens/sessão e redireciona para login. Exportado para uso em fetch() (ex.: clinica-beleza). */
 export async function clearSessionAndRedirect(loginUrl: string, message?: string) {
+  if (typeof window !== 'undefined') {
+    if (sessionLogoutInProgress) return;
+    sessionLogoutInProgress = true;
+  }
   if (USE_JWT_HTTPONLY_COOKIES && typeof window !== 'undefined') {
     try {
       const base = getPrimaryApiBaseUrl();
@@ -59,7 +104,10 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
   let lojaSlug: string | null = null;
   if (pathLojaMatch) {
     lojaSlug = pathLojaMatch[1];
-    if (accessToken) {
+    const hasSession = USE_JWT_HTTPONLY_COOKIES
+      ? Boolean(sessionStorage.getItem('session_id'))
+      : Boolean(accessToken);
+    if (hasSession) {
       const stored = sessionStorage.getItem('loja_slug');
       if (stored !== lojaSlug) {
         sessionStorage.setItem('loja_slug', lojaSlug);
@@ -142,43 +190,21 @@ async function handle401(
 
   if (originalRequest && !originalRequest._retry) {
     originalRequest._retry = true;
-    try {
-      logger.log('Tentando refresh token...');
-      const refreshToken = sessionStorage.getItem('refresh_token');
-      const accessToken = sessionStorage.getItem('access_token');
-      if (!USE_JWT_HTTPONLY_COOKIES && !refreshToken) {
-        await         void clearSessionAndRedirect(getLoginUrlForRedirect());
-        return Promise.reject(error);
-      }
-      const base = getPrimaryApiBaseUrl();
-      const refreshHeaders: Record<string, string> = {};
-      if (accessToken) refreshHeaders.Authorization = `Bearer ${accessToken}`;
-      const sessionId = sessionStorage.getItem('session_id');
-      if (sessionId) refreshHeaders['X-Session-ID'] = sessionId;
-      const response = await axios.post(
-        `${base}/auth/token/refresh/`,
-        USE_JWT_HTTPONLY_COOKIES ? {} : { refresh: refreshToken },
-        { headers: refreshHeaders, withCredentials: USE_JWT_HTTPONLY_COOKIES }
-      );
-      const { access } = response.data;
-      if (!USE_JWT_HTTPONLY_COOKIES && access) {
-        sessionStorage.setItem('access_token', access);
-      }
-      originalRequest.headers = originalRequest.headers || {};
-      originalRequest.headers.Authorization = `Bearer ${access}`;
+    const refreshed = await tryRefreshAccessToken();
+    if (refreshed) {
       logger.log('Refresh OK, repetindo requisição');
-      return apiInstance(originalRequest);
-    } catch (refreshError: unknown) {
-      logger.error('Refresh token falhou:', refreshError);
-      const re = refreshError as { response?: { data?: { code?: string; message?: string; detail?: string } } };
-      const errCode = re.response?.data?.code;
-      const errMessage = re.response?.data?.message || re.response?.data?.detail;
-      if (errCode === 'DIFFERENT_SESSION' || errCode === 'NO_SESSION') {
-        alert(errMessage || 'Sua sessão foi encerrada. Faça login novamente.');
+      originalRequest.headers = originalRequest.headers || {};
+      const accessToken = sessionStorage.getItem('access_token');
+      if (accessToken) {
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
       }
-      void clearSessionAndRedirect(getLoginUrlForRedirect());
-      return Promise.reject(refreshError);
+      return apiInstance(originalRequest);
     }
+    void clearSessionAndRedirect(
+      getLoginUrlForRedirect(),
+      'Sessão expirada. Faça login novamente.',
+    );
+    return Promise.reject(error);
   }
   return Promise.reject(error);
 }

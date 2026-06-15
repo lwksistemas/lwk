@@ -24,6 +24,7 @@ interface WhatsAppWebConnectProps {
   connect: () => Promise<WhatsAppConnectionState>;
   disconnect: () => Promise<WhatsAppConnectionState>;
   onConnectionUpdate: (state: WhatsAppConnectionState) => void;
+  accentColor?: string;
 }
 
 function qrSrc(base64?: string | null) {
@@ -42,6 +43,7 @@ export function WhatsAppWebConnect({
   connect,
   disconnect,
   onConnectionUpdate,
+  accentColor = '#0176d3',
 }: WhatsAppWebConnectProps) {
   const [loading, setLoading] = useState(false);
   const [qrBase64, setQrBase64] = useState<string | null>(null);
@@ -255,7 +257,8 @@ export function WhatsAppWebConnect({
                   type="button"
                   onClick={handleConnect}
                   disabled={loading || !evolutionAvailable}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg text-white hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: accentColor }}
                 >
                   {loading ? <Loader2 size={16} className="animate-spin" /> : <Smartphone size={16} />}
                   Gerar QR Code

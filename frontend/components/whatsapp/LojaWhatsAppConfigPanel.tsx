@@ -17,11 +17,14 @@ import {
 interface LojaWhatsAppConfigPanelProps {
   features: WhatsAppFeatureFlags;
   accentColor?: string;
+  /** Sem card externo — conteúdo embutido na página CRM/Clínica. */
+  embedded?: boolean;
 }
 
 export function LojaWhatsAppConfigPanel({
   features,
   accentColor = '#0176d3',
+  embedded = false,
 }: LojaWhatsAppConfigPanelProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -176,14 +179,16 @@ export function LojaWhatsAppConfigPanel({
     });
   }
 
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-        Meta Cloud API (oficial) ou WhatsApp Web via QR Code (Evolution). Cada loja usa sua própria conexão.
-      </p>
+  const inner = (
+    <>
+      {!embedded && (
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+          Meta Cloud API (oficial) ou WhatsApp Web via QR Code (Evolution). Cada loja usa sua própria conexão.
+        </p>
+      )}
 
       {loading ? (
-        <p className="text-sm text-gray-500">Carregando...</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Carregando...</p>
       ) : (
         <div className="space-y-6">
           {loadError && (
@@ -201,6 +206,7 @@ export function LojaWhatsAppConfigPanel({
             connect={() => whatsappConfigApi.connect()}
             disconnect={() => whatsappConfigApi.disconnect()}
             onConnectionUpdate={handleConnectionUpdate}
+            accentColor={accentColor}
           />
 
           {whatsappProvider === 'meta' && <WhatsAppConfigHelp variant={helpVariant} />}
@@ -309,6 +315,14 @@ export function LojaWhatsAppConfigPanel({
           </div>
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return inner;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      {inner}
     </div>
   );
 }

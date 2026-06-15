@@ -4,13 +4,17 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { ClinicaBelezaShell } from '@/components/clinica-beleza/ClinicaBelezaShell';
+import { CrmVendasShell } from '@/components/crm-vendas/CrmVendasShell';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
-import { isTipoClinicaBeleza } from '@/lib/loja-tipo';
+import { isTipoClinicaBeleza, isTipoCRMVendas } from '@/lib/loja-tipo';
 import type { LojaInfo } from '@/types/dashboard';
 
-function LoadingScreen() {
+function LoadingScreen({ bg = '#f7f2f4' }: { bg?: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f7f2f4] dark:bg-gray-950">
+    <div
+      className="min-h-screen flex items-center justify-center dark:bg-gray-950"
+      style={{ backgroundColor: bg }}
+    >
       <p className="text-gray-500 dark:text-gray-400">Carregando...</p>
     </div>
   );
@@ -48,12 +52,18 @@ export function LojaModuleShellLayout({ children }: { children: ReactNode }) {
 
   if (!ready || !isLoja || !loja) return <LoadingScreen />;
 
-  if (isTipoClinicaBeleza(loja.tipo_loja_nome || '')) {
+  const tipoNome = loja.tipo_loja_nome || '';
+
+  if (isTipoClinicaBeleza(tipoNome)) {
     return (
       <ClinicaBelezaShell loja={loja} onLogout={handleLogout}>
         {children}
       </ClinicaBelezaShell>
     );
+  }
+
+  if (isTipoCRMVendas(tipoNome)) {
+    return <CrmVendasShell>{children}</CrmVendasShell>;
   }
 
   return <>{children}</>;

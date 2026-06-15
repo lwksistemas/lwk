@@ -56,6 +56,8 @@ interface Props {
   gerandoCobranca?: boolean;
   onCopiarPix?: () => void;
   corPrimaria?: string;
+  /** Tabela neutra (padrão Clínica da Beleza) em vez de fundo tingido pela cor da loja. */
+  neutralStyle?: boolean;
 }
 
 function StatusBadge({ item }: { item: HistoricoPagamentoItem }) {
@@ -82,10 +84,11 @@ export function HistoricoPagamentos({
   gerandoCobranca,
   onCopiarPix,
   corPrimaria = '#10B981',
+  neutralStyle = false,
 }: Props) {
-  const softBg = hexToRgba(corPrimaria, 0.08);
-  const softBorder = hexToRgba(corPrimaria, 0.22);
-  const headerBg = hexToRgba(corPrimaria, 0.14);
+  const softBg = neutralStyle ? undefined : hexToRgba(corPrimaria, 0.08);
+  const softBorder = neutralStyle ? undefined : hexToRgba(corPrimaria, 0.22);
+  const headerBg = neutralStyle ? undefined : hexToRgba(corPrimaria, 0.14);
   const [loadingBoleto, setLoadingBoleto] = useState<number | null>(null);
   const [loadingNf, setLoadingNf] = useState<number | null>(null);
 
@@ -321,14 +324,30 @@ export function HistoricoPagamentos({
 
   return (
     <div
-      className="overflow-x-auto rounded-lg dark:bg-slate-900/60"
-      style={{ border: `1px solid ${softBorder}`, backgroundColor: softBg }}
+      className={
+        neutralStyle
+          ? 'overflow-x-auto rounded-lg'
+          : 'overflow-x-auto rounded-lg dark:bg-slate-900/60'
+      }
+      style={
+        neutralStyle
+          ? undefined
+          : { border: `1px solid ${softBorder}`, backgroundColor: softBg }
+      }
     >
       <table className="w-full text-sm">
         <thead>
           <tr
-            className="border-b dark:border-slate-600"
-            style={{ borderColor: softBorder, backgroundColor: headerBg }}
+            className={
+              neutralStyle
+                ? 'border-b border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800'
+                : 'border-b dark:border-slate-600'
+            }
+            style={
+              neutralStyle
+                ? undefined
+                : { borderColor: softBorder, backgroundColor: headerBg }
+            }
           >
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Referência</th>
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Vencimento</th>
@@ -406,7 +425,14 @@ export function HistoricoPagamentos({
               </td>
               <td className="py-3 px-3 text-right">
                 {onGerarCobranca && (
-                  <Button type="button" size="sm" disabled={gerandoCobranca} onClick={onGerarCobranca}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={gerandoCobranca}
+                    onClick={onGerarCobranca}
+                    className={neutralStyle ? 'text-white hover:opacity-90' : undefined}
+                    style={neutralStyle ? { backgroundColor: corPrimaria } : undefined}
+                  >
                     {gerandoCobranca ? (
                       <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                     ) : (

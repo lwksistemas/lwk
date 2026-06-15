@@ -16,6 +16,11 @@ export function isTipoClinicaBeleza(tipoLojaNome: string): boolean {
   return s.includes('clinica') && s.includes('beleza');
 }
 
+/** Várias fontes (tipo da loja, plano, etc.) — qualquer uma basta. */
+export function resolveIsClinicaBeleza(...hints: (string | undefined | null)[]): boolean {
+  return hints.some((h) => h && isTipoClinicaBeleza(h));
+}
+
 export function isTipoRestaurante(tipoLojaNome: string): boolean {
   return normalizarTipo(tipoLojaNome).includes('restaurante');
 }

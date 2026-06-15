@@ -19,12 +19,15 @@ import { resolveLojaApiSlug } from '@/lib/resolve-loja-slug';
 import { useLojaTheme } from '@/hooks/useLojaTheme';
 import { LojaThemedPageShell } from '@/components/loja/LojaThemedPageShell';
 import { assinaturaBackPath } from '@/lib/loja-theme';
-import { isTipoClinicaBeleza } from '@/lib/loja-tipo';
+import { resolveIsClinicaBeleza } from '@/lib/loja-tipo';
 import {
   ClinicaBelezaPageContent,
   ClinicaBelezaPanel,
 } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
-import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
+import {
+  ClinicaBelezaStandardPageHeader,
+  useClinicaBelezaShellActions,
+} from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import { NovaCobrancaModal } from './components/NovaCobrancaModal';
 import { HistoricoPagamentos, type HistoricoPagamentoItem } from './components/HistoricoPagamentos';
@@ -72,7 +75,26 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 export default function AssinaturaLojaPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const shellActions = useClinicaBelezaShellActions();
   const { loja, theme, loading: loadingTheme } = useLojaTheme(slug);
+  const [tipoLojaNome, setTipoLojaNome] = useState('');
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        const { data } = await apiClient.get<{ tipo_loja_nome?: string }>(
+          `/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`,
+        );
+        if (!cancel) setTipoLojaNome(data?.tipo_loja_nome || '');
+      } catch {
+        if (!cancel) setTipoLojaNome('');
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [slug]);
 
   useEffect(() => {
     const stored = localStorage.getItem('theme');
@@ -181,9 +203,11 @@ export default function AssinaturaLojaPage() {
     }
   };
 
-  const tipoNome = loja?.tipo_loja_nome || '';
+  const tipoNome = loja?.tipo_loja_nome || tipoLojaNome;
   const backHref = assinaturaBackPath(slug, tipoNome);
-  const clinicaBeleza = isTipoClinicaBeleza(tipoNome);
+  const clinicaBeleza =
+    Boolean(shellActions) ||
+    resolveIsClinicaBeleza(tipoNome, tipoLojaNome, data?.loja?.plano);
   const accent = clinicaBeleza ? CLINICA_BELEZA_PRIMARY : theme.corPrimaria;
 
   if (loadingTheme || loading) {
@@ -197,7 +221,7 @@ export default function AssinaturaLojaPage() {
     );
   }
 
-  const renderHistorico = (corPrimaria: string) => {
+  const renderHistorico = (corPrimaria: string, neutralStyle: boolean) => {
     if (error || !data) {
       return (
         <>
@@ -243,6 +267,7 @@ export default function AssinaturaLojaPage() {
           gerandoCobranca={gerandoCobranca}
           onCopiarPix={() => copiarPix(fin.pix_copy_paste)}
           corPrimaria={corPrimaria}
+          neutralStyle={neutralStyle}
         />
         {showModal && novaCobranca && (
           <NovaCobrancaModal
@@ -330,7 +355,7 @@ export default function AssinaturaLojaPage() {
         />
         <ClinicaBelezaPageContent>
           <ClinicaBelezaPanel className="p-4 sm:p-6">
-            {renderHistorico(accent)}
+            {renderHistorico(accent, true)}
           </ClinicaBelezaPanel>
         </ClinicaBelezaPageContent>
       </>
@@ -346,7 +371,7 @@ export default function AssinaturaLojaPage() {
         title="Assinatura"
         subtitle={loja?.nome}
       >
-        {renderHistorico(theme.corPrimaria)}
+        {renderHistorico(theme.corPrimaria, false)}
       </LojaThemedPageShell>
     );
   }
@@ -365,7 +390,7 @@ export default function AssinaturaLojaPage() {
         style={{ borderColor: theme.cardBorder }}
       >
         <CardContent className="pt-6">
-          {renderHistorico(theme.corPrimaria)}
+          {renderHistorico(theme.corPrimaria, false)}
         </CardContent>
       </Card>
     </LojaThemedPageShell>

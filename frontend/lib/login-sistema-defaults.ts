@@ -2,7 +2,7 @@
  * Imagens e textos padrão das telas de login do sistema (Superadmin e Suporte).
  * Usados quando a API não retorna logo/fundo personalizados.
  *
- * Superadmin no beta usa fundo/cores distintos para não confundir com produção.
+ * No beta, fundo/cores distintos para não confundir com produção.
  */
 
 import { isBetaEnvironment } from '@/lib/api-base';
@@ -36,25 +36,46 @@ const SUPERADMIN_BETA: LoginSistemaDefaults = {
   subtitulo: 'Homologação (beta.lwksistemas.com.br)',
 };
 
-const DEFAULTS: Record<LoginSistemaTipo, LoginSistemaDefaults> = {
+const SUPORTE_PRODUCTION: LoginSistemaDefaults = {
+  logo: '/login-logos/suporte.svg',
+  login_background: '/login-backgrounds/suporte.jpg',
+  cor_primaria: '#2563eb',
+  cor_secundaria: '#1d4ed8',
+  titulo: 'Portal de Suporte',
+  subtitulo: 'Chamados, tickets e atendimento às lojas',
+};
+
+const SUPORTE_BETA: LoginSistemaDefaults = {
+  logo: '/login-logos/suporte.svg',
+  login_background: '/login-backgrounds/suporte-beta.jpg',
+  cor_primaria: '#ea580c',
+  cor_secundaria: '#c2410c',
+  titulo: 'Portal de Suporte — Beta',
+  subtitulo: 'Homologação (beta.lwksistemas.com.br)',
+};
+
+const PRODUCTION_DEFAULTS: Record<LoginSistemaTipo, LoginSistemaDefaults> = {
   superadmin: SUPERADMIN_PRODUCTION,
-  suporte: {
-    logo: '/login-logos/suporte.svg',
-    login_background: '/login-backgrounds/suporte.jpg',
-    cor_primaria: '#2563eb',
-    cor_secundaria: '#1d4ed8',
-    titulo: 'Portal de Suporte',
-    subtitulo: 'Chamados, tickets e atendimento às lojas',
-  },
+  suporte: SUPORTE_PRODUCTION,
+};
+
+const BETA_DEFAULTS: Record<LoginSistemaTipo, LoginSistemaDefaults> = {
+  superadmin: SUPERADMIN_BETA,
+  suporte: SUPORTE_BETA,
 };
 
 export function getLoginSistemaDefaults(tipo: LoginSistemaTipo): LoginSistemaDefaults {
-  if (tipo === 'superadmin' && isBetaEnvironment()) {
-    return SUPERADMIN_BETA;
+  if (isBetaEnvironment()) {
+    return BETA_DEFAULTS[tipo];
   }
-  return DEFAULTS[tipo];
+  return PRODUCTION_DEFAULTS[tipo];
 }
 
+export function isSistemaBetaLogin(): boolean {
+  return isBetaEnvironment();
+}
+
+/** @deprecated Use isSistemaBetaLogin */
 export function isSuperadminBetaLogin(): boolean {
   return isBetaEnvironment();
 }
@@ -67,13 +88,12 @@ export function resolveLoginSistemaConfig(
   const base = getLoginSistemaDefaults(tipo);
   if (!api) return base;
 
+  const productionBg = PRODUCTION_DEFAULTS[tipo].login_background;
+  const betaBg = BETA_DEFAULTS[tipo].login_background;
+
   let login_background = (api.login_background ?? '').trim() || base.login_background;
-  if (
-    tipo === 'superadmin' &&
-    isBetaEnvironment() &&
-    login_background === SUPERADMIN_PRODUCTION.login_background
-  ) {
-    login_background = SUPERADMIN_BETA.login_background;
+  if (isBetaEnvironment() && login_background === productionBg) {
+    login_background = betaBg;
   }
 
   return {

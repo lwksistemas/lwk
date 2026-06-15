@@ -10,7 +10,7 @@ import { getPublicApiJson } from '@/lib/public-api';
 import { logger } from '@/lib/logger';
 import {
   getLoginSistemaDefaults,
-  isSuperadminBetaLogin,
+  isSistemaBetaLogin,
   resolveLoginSistemaConfig,
   type LoginSistemaDefaults,
 } from '@/lib/login-sistema-defaults';
@@ -156,7 +156,7 @@ export default function SuperAdminLoginPage() {
     setCredentials({ ...credentials, cpf_cnpj: valorFormatado });
   };
 
-  const isBeta = isSuperadminBetaLogin();
+  const isBeta = isSistemaBetaLogin();
 
   // Mostrar loading enquanto carrega configurações
   if (configLoading) {

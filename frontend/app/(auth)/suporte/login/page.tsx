@@ -10,6 +10,7 @@ import { getPublicApiJson } from '@/lib/public-api';
 import { logger } from '@/lib/logger';
 import {
   getLoginSistemaDefaults,
+  isSistemaBetaLogin,
   resolveLoginSistemaConfig,
   type LoginSistemaDefaults,
 } from '@/lib/login-sistema-defaults';
@@ -150,10 +151,18 @@ export default function SuporteLoginPage() {
     setCredentials({ ...credentials, cpf_cnpj: valorFormatado });
   };
 
+  const isBeta = isSistemaBetaLogin();
+
   // Mostrar loading enquanto carrega configurações
   if (configLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-cyan-900">
+      <div
+        className={`min-h-screen flex items-center justify-center ${
+          isBeta
+            ? 'bg-gradient-to-br from-orange-900 to-amber-900'
+            : 'bg-gradient-to-br from-blue-900 to-cyan-900'
+        }`}
+      >
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
           <p className="mt-4 text-white">Carregando...</p>
@@ -197,6 +206,14 @@ export default function SuporteLoginPage() {
             style={{ zIndex: 1 }}
           />
         </>
+      )}
+      {isBeta && (
+        <div
+          className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-orange-600/95 text-white text-sm font-bold tracking-wide shadow-lg border border-orange-300/40"
+          role="status"
+        >
+          AMBIENTE BETA — HOMOLOGAÇÃO
+        </div>
       )}
       <div className="max-w-md w-full space-y-8 p-8 bg-white/95 backdrop-blur-sm rounded-lg shadow-2xl relative" style={{ zIndex: 2 }}>
         {/* Header */}

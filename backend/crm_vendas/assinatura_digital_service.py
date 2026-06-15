@@ -21,6 +21,16 @@ logger = logging.getLogger(__name__)
 # Configurações
 TOKEN_EXPIRACAO_DIAS = 7  # Token válido por 7 dias
 
+MSG_LINK_SUBSTITUIDO = (
+    'Este link não é mais válido. Foi enviado um link mais recente '
+    'por e-mail ou WhatsApp — abra a última mensagem recebida para assinar.'
+)
+
+AVISO_LINK_ANTERIOR = (
+    'Você abriu um link anterior. Também enviamos um link mais recente '
+    'por e-mail ou WhatsApp; se preferir, pode concluir a assinatura nesta página.'
+)
+
 # Alias CRM — mesma lógica de core.assinatura_service (evita duplicar unquote em loop).
 normalizar_token_assinatura_url = normalizar_token_url
 
@@ -149,6 +159,25 @@ def _buscar_assinatura_pendente_por_payload(payload, loja_id):
     return assinatura
 
 
+def _documento_aguarda_assinatura(payload, loja_id):
+    """True se proposta/contrato ainda está aguardando assinatura."""
+    doc_type = (payload.get('doc_type') or '').lower()
+    doc_id = payload.get('doc_id')
+    if not doc_id:
+        return False
+    if doc_type == 'proposta':
+        from .models import Proposta
+        doc = Proposta.objects.filter(pk=doc_id, loja_id=loja_id).first()
+    elif doc_type == 'contrato':
+        from .models import Contrato
+        doc = Contrato.objects.filter(pk=doc_id, loja_id=loja_id).first()
+    else:
+        return False
+    if not doc:
+        return False
+    return getattr(doc, 'status_assinatura', '') in ('aguardando_cliente', 'aguardando_vendedor')
+
+
 def verificar_token_assinatura(token, loja_id=None):
     """
     Verifica e retorna AssinaturaDigital se token válido.
@@ -158,27 +187,28 @@ def verificar_token_assinatura(token, loja_id=None):
         loja_id: ID da loja (opcional, será extraído do token se não fornecido)
     
     Returns:
-        tuple: (AssinaturaDigital ou None, mensagem_erro ou None, loja_id extraído)
+        tuple: (AssinaturaDigital ou None, mensagem_erro ou None, loja_id, meta dict)
     """
     from .models import AssinaturaDigital
 
+    meta: dict = {}
     token = normalizar_token_assinatura_url(token)
     if not token:
-        return None, 'Link de assinatura inválido.', loja_id
+        return None, 'Link de assinatura inválido.', loja_id, {'error_code': 'invalido'}
 
     payload = _payload_assinatura_de_token(token)
     if payload is None:
         logger.error('❌ Erro ao decodificar token de assinatura')
-        return None, 'Link de assinatura inválido.', loja_id
+        return None, 'Link de assinatura inválido.', loja_id, {'error_code': 'invalido'}
 
     exp = payload.get('exp')
     if exp and timezone.now().timestamp() > exp:
-        return None, 'Este link de assinatura expirou.', loja_id
+        return None, 'Este link de assinatura expirou.', loja_id, {'error_code': 'expirado'}
 
     if loja_id is None:
         loja_id = payload.get('loja_id')
     elif payload.get('loja_id') and int(payload.get('loja_id')) != int(loja_id):
-        return None, 'Link de assinatura inválido.', loja_id
+        return None, 'Link de assinatura inválido.', loja_id, {'error_code': 'invalido'}
 
     logger.info(
         'Verificando token de assinatura: tamanho=%s, loja_id=%s, doc_type=%s, doc_id=%s',
@@ -205,26 +235,38 @@ def verificar_token_assinatura(token, loja_id=None):
     except AssinaturaDigital.DoesNotExist:
         assinatura = _buscar_assinatura_pendente_por_payload(payload, loja_id)
         if assinatura:
+            meta['link_anterior'] = True
             logger.info(
                 '✅ Token rotacionado — usando assinatura pendente ID=%s (doc=%s#%s)',
                 assinatura.id,
                 payload.get('doc_type'),
                 payload.get('doc_id'),
             )
+        elif _documento_aguarda_assinatura(payload, loja_id):
+            logger.warning(
+                'Link substituído: token válido mas ausente no banco (loja_id=%s, doc=%s#%s)',
+                loja_id,
+                payload.get('doc_type'),
+                payload.get('doc_id'),
+            )
+            return None, MSG_LINK_SUBSTITUIDO, loja_id, {'error_code': 'link_substituido'}
         else:
             logger.error('❌ Token não encontrado no banco de dados (loja_id=%s)', loja_id)
-            return None, 'Link de assinatura inválido.', loja_id
+            return None, 'Link de assinatura inválido.', loja_id, {'error_code': 'invalido'}
 
     if assinatura.assinado:
         logger.warning('⚠️ Documento já foi assinado - Assinatura ID: %s', assinatura.id)
-        return None, 'Este documento já foi assinado.', loja_id
+        return None, 'Este documento já foi assinado.', loja_id, {'error_code': 'ja_assinado'}
 
     if assinatura.is_expirado():
         logger.warning('⚠️ Token expirado - Assinatura ID: %s', assinatura.id)
-        return None, 'Este link de assinatura expirou.', loja_id
+        return None, 'Este link de assinatura expirou.', loja_id, {'error_code': 'expirado'}
+
+    if meta.get('link_anterior'):
+        meta['aviso'] = AVISO_LINK_ANTERIOR
 
     logger.info('✅ Token válido e ativo - Assinatura ID: %s', assinatura.id)
-    return assinatura, None, loja_id
+    return assinatura, None, loja_id, meta
 
 
 def registrar_assinatura(assinatura, ip_address, user_agent=''):

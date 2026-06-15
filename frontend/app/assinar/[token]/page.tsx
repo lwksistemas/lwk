@@ -23,6 +23,8 @@ interface DocumentoData {
   lead_email?: string;
   lead_empresa: string;
   vendedor_email?: string;
+  link_anterior?: boolean;
+  aviso?: string;
 }
 
 function formatarMoeda(valor: string | number | undefined): string {
@@ -129,6 +131,7 @@ export default function AssinaturaPage() {
   const [loading, setLoading] = useState(true);
   const [documento, setDocumento] = useState<DocumentoData | null>(null);
   const [erro, setErro] = useState('');
+  const [errorCode, setErrorCode] = useState('');
   const [assinando, setAssinando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [proximoStatus, setProximoStatus] = useState('');
@@ -186,10 +189,12 @@ export default function AssinaturaPage() {
       
       if (!res.ok) {
         setErro(data.error || 'Erro ao carregar documento');
+        setErrorCode(data.error_code || 'invalido');
         return;
       }
       
       setDocumento(data);
+      setErrorCode('');
     } catch (err) {
       setErro('Erro ao carregar documento. Verifique sua conexão.');
     } finally {
@@ -256,6 +261,7 @@ export default function AssinaturaPage() {
       
       if (!res.ok) {
         setErro(data.error || 'Erro ao assinar documento');
+        setErrorCode(data.error_code || 'invalido');
         return;
       }
       
@@ -348,16 +354,22 @@ export default function AssinaturaPage() {
   
   // Error state
   if (erro && !documento) {
+    const linkSubstituido = errorCode === 'link_substituido';
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 flex items-center justify-center p-4">
+      <div className={`min-h-screen flex items-center justify-center p-4 ${linkSubstituido ? 'bg-gradient-to-br from-amber-50 to-orange-100' : 'bg-gradient-to-br from-red-50 to-pink-100'}`}>
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
-          <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
-            <AlertCircle className="w-8 h-8 text-red-600" />
+          <div className={`flex items-center justify-center w-16 h-16 rounded-full mx-auto mb-4 ${linkSubstituido ? 'bg-amber-100' : 'bg-red-100'}`}>
+            <AlertCircle className={`w-8 h-8 ${linkSubstituido ? 'text-amber-600' : 'text-red-600'}`} />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
-            Erro ao Carregar
+            {linkSubstituido ? 'Link desatualizado' : 'Erro ao Carregar'}
           </h2>
           <p className="text-gray-600 text-center">{erro}</p>
+          {linkSubstituido && (
+            <p className="mt-4 text-sm text-amber-800 text-center bg-amber-50 border border-amber-200 rounded-lg p-3">
+              Verifique seu e-mail ou WhatsApp e abra a mensagem mais recente com o link de assinatura.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -431,6 +443,15 @@ export default function AssinaturaPage() {
             {tipoDocumento} para assinatura eletrônica
           </p>
         </div>
+
+        {documento?.link_anterior && documento.aviso && (
+          <div className="bg-amber-50 border-l-4 border-amber-400 p-4 shadow-xl">
+            <div className="flex items-start">
+              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
+              <p className="text-sm text-amber-900">{documento.aviso}</p>
+            </div>
+          </div>
+        )}
         
         {/* Document Info */}
         <div className="bg-white shadow-xl p-8">
@@ -590,10 +611,10 @@ export default function AssinaturaPage() {
         
         {/* Error message */}
         {erro && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 shadow-xl">
+          <div className={`border-l-4 p-4 shadow-xl ${errorCode === 'link_substituido' ? 'bg-amber-50 border-amber-400' : 'bg-red-50 border-red-400'}`}>
             <div className="flex items-center">
-              <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
-              <p className="text-sm text-red-700">{erro}</p>
+              <AlertCircle className={`w-5 h-5 mr-3 ${errorCode === 'link_substituido' ? 'text-amber-600' : 'text-red-600'}`} />
+              <p className={`text-sm ${errorCode === 'link_substituido' ? 'text-amber-900' : 'text-red-700'}`}>{erro}</p>
             </div>
           </div>
         )}

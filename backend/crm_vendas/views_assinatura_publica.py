@@ -113,11 +113,14 @@ class AssinaturaPublicaView(View):
             return JsonResponse({'error': cfg_err}, status=status)
 
         # PASSO 3: Buscar token no banco (agora com contexto correto)
-        assinatura, erro, _ = verificar_token_assinatura(token, loja_id=loja_id)
+        assinatura, erro, _, meta = verificar_token_assinatura(token, loja_id=loja_id)
         
         if erro:
             logger.warning(f'❌ Erro ao verificar token: {erro}')
-            return JsonResponse({'error': erro}, status=400)
+            return JsonResponse({
+                'error': erro,
+                'error_code': meta.get('error_code', 'invalido'),
+            }, status=400)
         
         logger.info(f'✅ Token válido - Assinatura ID: {assinatura.id}, Loja ID: {assinatura.loja_id}')
         
@@ -163,6 +166,7 @@ class AssinaturaPublicaView(View):
             'lead_email': getattr(lead, 'email', '') or '',
             'lead_empresa': getattr(lead, 'empresa', '') or '',
             'vendedor_email': getattr(vendedor, 'email', '') or '',
+            **({'link_anterior': True, 'aviso': meta['aviso']} if meta.get('link_anterior') else {}),
         })
     
     @_rate_limit('assinatura_post', max_requests=5, window=60)
@@ -196,10 +200,13 @@ class AssinaturaPublicaView(View):
             return JsonResponse({'error': cfg_err}, status=status)
 
         # PASSO 3: Buscar token no banco (agora com contexto correto)
-        assinatura, erro, _ = verificar_token_assinatura(token, loja_id=loja_id)
+        assinatura, erro, _, meta = verificar_token_assinatura(token, loja_id=loja_id)
         
         if erro:
-            return JsonResponse({'error': erro}, status=400)
+            return JsonResponse({
+                'error': erro,
+                'error_code': meta.get('error_code', 'invalido'),
+            }, status=400)
         
         # Obter IP do cliente
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -289,11 +296,14 @@ class AssinaturaPdfView(View):
             return JsonResponse({'error': cfg_err}, status=status)
 
         # PASSO 3: Buscar token no banco (agora com contexto correto)
-        assinatura, erro, _ = verificar_token_assinatura(token, loja_id=loja_id)
+        assinatura, erro, _, meta = verificar_token_assinatura(token, loja_id=loja_id)
         
         if erro:
             logger.warning(f'❌ Erro ao verificar token para PDF: {erro}')
-            return JsonResponse({'error': erro}, status=400)
+            return JsonResponse({
+                'error': erro,
+                'error_code': meta.get('error_code', 'invalido'),
+            }, status=400)
         
         documento = assinatura.documento
         

@@ -113,7 +113,7 @@ def _nome_assinatura_crm_token(token: str) -> tuple[str, str, int | None]:
         from superadmin.models import Loja
         from tenants.middleware import set_current_loja_id, set_current_tenant_db
 
-        assinatura, _erro, loja_id = verificar_token_assinatura(token)
+        assinatura, _erro, loja_id, _meta = verificar_token_assinatura(token)
         if not assinatura:
             return '', '', loja_id
         if loja_id:

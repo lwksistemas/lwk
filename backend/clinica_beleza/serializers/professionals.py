@@ -120,7 +120,7 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
 
     class Meta:
         model = Professional
-        exclude = ['loja_id']
+        exclude = ['loja_id', 'tempo_consulta_minutos']
         extra_kwargs = {
             'email': {'required': False, 'allow_blank': True, 'allow_null': True},
             'telefone': {'required': False, 'allow_blank': True},
@@ -131,7 +131,6 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
         if owner_professional_id is None:
             return False
         return obj.id == owner_professional_id
-
 
 class ProfessionalCommissionSerializer(serializers.ModelSerializer):
     procedure_name = serializers.CharField(source='procedure.nome', read_only=True, default=None)

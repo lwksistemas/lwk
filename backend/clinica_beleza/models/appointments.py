@@ -20,6 +20,31 @@ from .patients import Patient
 from .procedures import Procedure
 from .professionals import Professional
 
+
+def calcular_valor_exibicao_agenda(
+    proc_total,
+    *,
+    local_atendimento=None,
+    consulta=None,
+    procedure=None,
+    procedure_id=None,
+) -> Decimal:
+    """Valor exibido na agenda: taxa do local + procedimentos (sem duplicar legacy procedure)."""
+    total_proc = Decimal(str(proc_total or 0))
+    if local_atendimento is not None:
+        taxa = Decimal(str(getattr(local_atendimento, 'valor_consulta', 0) or 0))
+        return taxa + total_proc
+    if total_proc > 0:
+        return total_proc
+    if consulta is not None:
+        vc = Decimal(str(getattr(consulta, 'valor_consulta', 0) or 0))
+        if vc > 0:
+            return vc
+    if procedure_id and procedure is not None:
+        return Decimal(str(getattr(procedure, 'preco', 0) or 0))
+    return Decimal('0')
+
+
 class Appointment(LojaIsolationMixin, models.Model):
     """Agendamentos"""
     STATUS_CHOICES = (
@@ -29,7 +54,7 @@ class Appointment(LojaIsolationMixin, models.Model):
         ('PENDING', 'Aguardando confirmação'),  # legado — migrar para SCHEDULED
         ('SCHEDULED', 'Aguardando confirmação'),
         ('IN_PROGRESS', 'Em Atendimento'),
-        ('COMPLETED', 'Concluído'),
+        ('COMPLETED', 'Consulta finalizada'),
         ('CANCELLED', 'Cancelado'),
         ('NO_SHOW', 'Faltou'),
     )
@@ -107,20 +132,20 @@ class Appointment(LojaIsolationMixin, models.Model):
         return f"{self.patient.nome} - {nomes} - {self.date.strftime('%d/%m/%Y %H:%M')}"
 
     def get_duracao_efetiva(self) -> int:
-        """Duração efetiva: campo manual > soma dos procedimentos > procedimento principal."""
-        if self.duracao_minutos is not None:
-            return self.duracao_minutos
-        # Soma dos procedimentos extras (se houver)
-        total = sum(
-            ap.duracao_minutos or ap.procedure.duracao_minutos
-            for ap in self.appointment_procedures.select_related('procedure').all()
+        """Duração efetiva: manual > max(procedimentos, tempo consulta do profissional)."""
+        from ..duracao_consulta import calcular_duracao_efetiva_agendamento
+
+        appointment_procedures = list(
+            self.appointment_procedures.select_related('procedure').all()
         )
-        if total > 0:
-            return total
-        # Fallback: procedimento principal (legado)
-        if self.procedure_id:
-            return self.procedure.duracao_minutos
-        return 30
+        procedure_principal = self.procedure if self.procedure_id else None
+        return calcular_duracao_efetiva_agendamento(
+            duracao_manual=self.duracao_minutos,
+            professional=self.professional,
+            local_atendimento=self.local_atendimento,
+            appointment_procedures=appointment_procedures if appointment_procedures else None,
+            procedure_principal=procedure_principal,
+        )
 
     @property
     def valor_total(self):
@@ -136,7 +161,16 @@ class Appointment(LojaIsolationMixin, models.Model):
             return self.procedure.preco or Decimal('0')
         return Decimal('0')
 
-
+    def get_valor_exibicao_agenda(self) -> Decimal:
+        """Taxa de consulta (local) + procedimentos, para exibição no calendário."""
+        consulta = getattr(self, 'consulta', None)
+        return calcular_valor_exibicao_agenda(
+            self.valor_total,
+            local_atendimento=getattr(self, 'local_atendimento', None),
+            consulta=consulta,
+            procedure=self.procedure if self.procedure_id else None,
+            procedure_id=self.procedure_id,
+        )
 
 
 class AppointmentProcedure(LojaIsolationMixin, models.Model):

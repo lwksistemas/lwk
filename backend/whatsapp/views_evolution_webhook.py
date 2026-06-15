@@ -171,6 +171,9 @@ class EvolutionWebhookView(View):
             return
 
         remote_jid = key.get('remoteJid') or data.get('remoteJid') or ''
+        # Ignorar grupos (@g.us) — promoções e mensagens de terceiros não são confirmações 1:1
+        if remote_jid.endswith('@g.us'):
+            return
         telefone = _extract_phone_from_jid(remote_jid)
         if not telefone:
             sender = event.get('sender') or data.get('sender') or ''

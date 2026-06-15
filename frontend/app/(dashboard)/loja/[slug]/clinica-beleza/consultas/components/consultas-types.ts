@@ -120,7 +120,7 @@ export function consultaProcedimentos(c: Consulta): ConsultaProcedimento[] {
 
 export function consultaProcedimentosNomes(c: Consulta): string {
   const nomes = consultaProcedimentos(c).map((p) => (p.nome || "").toUpperCase());
-  return nomes.length ? nomes.join(" · ") : "—";
+  return nomes.length ? nomes.join(" · ") : "Consulta";
 }
 
 export const EMPTY_ANAMNESE: Anamnese = {

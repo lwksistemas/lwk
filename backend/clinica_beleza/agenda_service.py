@@ -132,18 +132,16 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
     """
     date_start = validated_data['date']
     professional = validated_data['professional']
+    local_atendimento = validated_data.get('local_atendimento')
 
-    # Calcular duração total (múltiplos procedimentos ou procedimento único)
+    from .duracao_consulta import calcular_duracao_novo_agendamento
     procedures_list = validated_data.get('_procedures_list')
-    if procedures_list:
-        total_duration = sum(p.duracao_minutos for p in procedures_list)
-    elif validated_data.get('procedure'):
-        total_duration = validated_data['procedure'].duracao_minutos
-    elif validated_data.get('local_atendimento'):
-        local = validated_data['local_atendimento']
-        total_duration = getattr(local, 'tempo_consulta_minutos', None) or 30
-    else:
-        total_duration = 30
+    total_duration = calcular_duracao_novo_agendamento(
+        professional=professional,
+        procedures_list=procedures_list,
+        procedure=validated_data.get('procedure'),
+        local_atendimento=local_atendimento,
+    )
 
     date_end = date_start + timedelta(minutes=total_duration)
 

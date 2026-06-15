@@ -12,12 +12,23 @@ import {
   CheckCircle,
   Clock,
   AlertTriangle,
+  CreditCard,
 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { resolveLojaApiSlug } from '@/lib/resolve-loja-slug';
 import { useLojaTheme } from '@/hooks/useLojaTheme';
 import { LojaThemedPageShell } from '@/components/loja/LojaThemedPageShell';
 import { assinaturaBackPath } from '@/lib/loja-theme';
+import { resolveIsClinicaBeleza } from '@/lib/loja-tipo';
+import {
+  ClinicaBelezaPageContent,
+  ClinicaBelezaPanel,
+} from '@/components/clinica-beleza/ClinicaBelezaPageContent';
+import {
+  ClinicaBelezaStandardPageHeader,
+  useClinicaBelezaShellActions,
+} from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
+import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import { NovaCobrancaModal } from './components/NovaCobrancaModal';
 import { HistoricoPagamentos, type HistoricoPagamentoItem } from './components/HistoricoPagamentos';
 
@@ -64,7 +75,26 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 export default function AssinaturaLojaPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const shellActions = useClinicaBelezaShellActions();
   const { loja, theme, loading: loadingTheme } = useLojaTheme(slug);
+  const [tipoLojaNome, setTipoLojaNome] = useState('');
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        const { data } = await apiClient.get<{ tipo_loja_nome?: string }>(
+          `/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`,
+        );
+        if (!cancel) setTipoLojaNome(data?.tipo_loja_nome || '');
+      } catch {
+        if (!cancel) setTipoLojaNome('');
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [slug]);
 
   useEffect(() => {
     const stored = localStorage.getItem('theme');
@@ -173,63 +203,93 @@ export default function AssinaturaLojaPage() {
     }
   };
 
-  const tipoNome = loja?.tipo_loja_nome || '';
+  const tipoNome = loja?.tipo_loja_nome || tipoLojaNome;
   const backHref = assinaturaBackPath(slug, tipoNome);
+  const clinicaBeleza =
+    Boolean(shellActions) ||
+    resolveIsClinicaBeleza(tipoNome, tipoLojaNome, data?.loja?.plano);
+  const accent = clinicaBeleza ? CLINICA_BELEZA_PRIMARY : theme.corPrimaria;
 
   if (loadingTheme || loading) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center dark:bg-slate-950"
-        style={{ backgroundColor: theme.pageBg }}
+        className="min-h-screen flex items-center justify-center dark:bg-gray-950"
+        style={{ backgroundColor: clinicaBeleza ? '#f7f2f4' : theme.pageBg }}
       >
         <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  if (error || !data) {
+  const renderHistorico = (corPrimaria: string, neutralStyle: boolean) => {
+    if (error || !data) {
+      return (
+        <>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error || 'Dados não encontrados'}</AlertDescription>
+          </Alert>
+          {!clinicaBeleza && (
+            <Button variant="outline" className="mt-4" asChild>
+              <Link href={backHref}>Voltar</Link>
+            </Button>
+          )}
+        </>
+      );
+    }
+
+    const fin = data.financeiro;
+    const pp = data.proximo_pagamento;
+    const historico = data.historico_pagamentos ?? [];
+    const temPagamentoAberto =
+      (fin.tem_asaas || fin.tem_mercadopago) && (fin.boleto_url || fin.pix_copy_paste);
+
+    const cobrancaAberta = temPagamentoAberto
+      ? {
+          valor: pp?.valor ?? fin.valor_mensalidade,
+          data_vencimento: pp?.data_vencimento ?? fin.data_proxima_cobranca,
+          referencia_mes: pp?.referencia_mes ?? null,
+          boleto_url: fin.boleto_url || pp?.boleto_url,
+          pix_copy_paste: fin.pix_copy_paste,
+          pagamento_id: pp?.id,
+        }
+      : null;
+
     return (
-      <LojaThemedPageShell
-        slug={slug}
-        tipoLojaNome={tipoNome}
-        theme={theme}
-        title="Assinatura"
-        subtitle={loja?.nome}
-      >
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error || 'Dados não encontrados'}</AlertDescription>
-        </Alert>
-        <Button variant="outline" className="mt-4" asChild>
-          <Link href={backHref}>Voltar</Link>
-        </Button>
-      </LojaThemedPageShell>
+      <>
+        <HistoricoPagamentos
+          itens={historico}
+          slug={slug}
+          proximaCobranca={fin.data_proxima_cobranca}
+          valorMensalidade={fin.valor_mensalidade}
+          cobrancaAberta={cobrancaAberta}
+          onGerarCobranca={gerarNovaCobranca}
+          gerandoCobranca={gerandoCobranca}
+          onCopiarPix={() => copiarPix(fin.pix_copy_paste)}
+          corPrimaria={corPrimaria}
+          neutralStyle={neutralStyle}
+        />
+        {showModal && novaCobranca && (
+          <NovaCobrancaModal
+            data={novaCobranca}
+            onClose={() => setShowModal(false)}
+            onCopiarPix={() => copiarPix(novaCobranca.pix_copy_paste)}
+          />
+        )}
+      </>
     );
-  }
+  };
 
-  const fin = data.financeiro;
-  const pp = data.proximo_pagamento;
-  const st = fin.status_pagamento?.toLowerCase() || 'pendente';
-  const historico = data.historico_pagamentos ?? [];
-  const temPagamentoAberto =
-    (fin.tem_asaas || fin.tem_mercadopago) && (fin.boleto_url || fin.pix_copy_paste);
+  const st = data?.financeiro.status_pagamento?.toLowerCase() || 'pendente';
+  const subtitle = data
+    ? `${data.loja.nome} · ${data.loja.plano} (${data.loja.tipo_assinatura})`
+    : loja?.nome || '';
 
-  const cobrancaAberta = temPagamentoAberto
-    ? {
-        valor: pp?.valor ?? fin.valor_mensalidade,
-        data_vencimento: pp?.data_vencimento ?? fin.data_proxima_cobranca,
-        referencia_mes: pp?.referencia_mes ?? null,
-        boleto_url: fin.boleto_url || pp?.boleto_url,
-        pix_copy_paste: fin.pix_copy_paste,
-        pagamento_id: pp?.id,
-      }
-    : null;
-
-  const headerActions = (
+  const headerActionsThemed = data ? (
     <>
       <Badge variant={STATUS_BADGE[st] || 'secondary'} className="text-xs sm:text-sm gap-1 bg-white/20 text-white border-white/30">
         {STATUS_ICON[st] || <Clock className="w-4 h-4" />}
-        {fin.status_pagamento}
+        {data.financeiro.status_pagamento}
       </Badge>
       <Button
         variant="secondary"
@@ -240,7 +300,7 @@ export default function AssinaturaLojaPage() {
         <RefreshCw className="w-4 h-4 sm:mr-2" />
         <span className="hidden sm:inline">Atualizar</span>
       </Button>
-      {fin.tem_asaas && (
+      {data.financeiro.tem_asaas && (
         <Button
           variant="secondary"
           size="sm"
@@ -253,7 +313,68 @@ export default function AssinaturaLojaPage() {
         </Button>
       )}
     </>
-  );
+  ) : null;
+
+  const headerActionsClinica = data ? (
+    <>
+      <Badge variant={STATUS_BADGE[st] || 'secondary'} className="text-xs sm:text-sm gap-1">
+        {STATUS_ICON[st] || <Clock className="w-4 h-4" />}
+        {data.financeiro.status_pagamento}
+      </Badge>
+      <button
+        type="button"
+        onClick={carregarDados}
+        className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+      >
+        <RefreshCw className="w-4 h-4" />
+        <span className="hidden sm:inline">Atualizar</span>
+      </button>
+      {data.financeiro.tem_asaas && (
+        <button
+          type="button"
+          onClick={atualizarStatus}
+          disabled={atualizandoStatus}
+          className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${atualizandoStatus ? 'animate-spin' : ''}`} />
+          <span className="hidden lg:inline">Sync Asaas</span>
+        </button>
+      )}
+    </>
+  ) : null;
+
+  if (clinicaBeleza) {
+    return (
+      <>
+        <ClinicaBelezaStandardPageHeader
+          title="Assinatura"
+          subtitle={subtitle}
+          icon={CreditCard}
+          backHref={backHref}
+          extraActions={headerActionsClinica}
+        />
+        <ClinicaBelezaPageContent>
+          <ClinicaBelezaPanel className="p-4 sm:p-6">
+            {renderHistorico(accent, true)}
+          </ClinicaBelezaPanel>
+        </ClinicaBelezaPageContent>
+      </>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <LojaThemedPageShell
+        slug={slug}
+        tipoLojaNome={tipoNome}
+        theme={theme}
+        title="Assinatura"
+        subtitle={loja?.nome}
+      >
+        {renderHistorico(theme.corPrimaria, false)}
+      </LojaThemedPageShell>
+    );
+  }
 
   return (
     <LojaThemedPageShell
@@ -261,35 +382,17 @@ export default function AssinaturaLojaPage() {
       tipoLojaNome={tipoNome}
       theme={theme}
       title="Assinatura"
-      subtitle={`${data.loja.nome} · ${data.loja.plano} (${data.loja.tipo_assinatura})`}
-      headerActions={headerActions}
+      subtitle={subtitle}
+      headerActions={headerActionsThemed}
     >
       <Card
         className="w-full bg-white/95 dark:bg-slate-900/95 shadow-sm"
         style={{ borderColor: theme.cardBorder }}
       >
         <CardContent className="pt-6">
-          <HistoricoPagamentos
-            itens={historico}
-            slug={slug}
-            proximaCobranca={fin.data_proxima_cobranca}
-            valorMensalidade={fin.valor_mensalidade}
-            cobrancaAberta={cobrancaAberta}
-            onGerarCobranca={gerarNovaCobranca}
-            gerandoCobranca={gerandoCobranca}
-            onCopiarPix={() => copiarPix(fin.pix_copy_paste)}
-            corPrimaria={theme.corPrimaria}
-          />
+          {renderHistorico(theme.corPrimaria, false)}
         </CardContent>
       </Card>
-
-      {showModal && novaCobranca && (
-        <NovaCobrancaModal
-          data={novaCobranca}
-          onClose={() => setShowModal(false)}
-          onCopiarPix={() => copiarPix(novaCobranca.pix_copy_paste)}
-        />
-      )}
     </LojaThemedPageShell>
   );
 }

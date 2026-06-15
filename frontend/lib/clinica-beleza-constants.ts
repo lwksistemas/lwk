@@ -24,7 +24,7 @@ export const CLINICA_AGENDA_STATUS_LABEL: Record<string, string> = {
   CONFIRMED: 'Cliente presente',
   PENDING: 'Aguardando confirmação',
   IN_PROGRESS: 'Em atendimento',
-  COMPLETED: 'Concluído',
+  COMPLETED: 'Consulta finalizada',
   CANCELLED: 'Cancelado',
   NO_SHOW: 'Faltou',
 };
@@ -36,25 +36,14 @@ export const CLINICA_AGENDA_STATUS_COLORS: Record<string, { bg: string; border: 
   CONFIRMED: { bg: '#22c55e', border: '#16a34a' },
   PENDING: { bg: '#a855f7', border: '#9333ea' },
   IN_PROGRESS: { bg: '#8b5cf6', border: '#7c3aed' },
-  COMPLETED: { bg: '#0d9488', border: '#0f766e' },
+  COMPLETED: { bg: '#047857', border: '#065f46' },
   CANCELLED: { bg: '#dc2626', border: '#b91c1c' },
   NO_SHOW: { bg: '#b45309', border: '#92400e' },
 };
 
 export const CLINICA_AGENDA_BLOQUEIO_COLORS = { bg: '#4f46e5', border: '#4338ca' } as const;
 
-/** Cores da legenda no header da agenda (usa CLINICA_AGENDA_STATUS_COLORS + intervalo). */
-export const CLINICA_AGENDA_LEGEND_ITEMS: { key: string; label: string; bg: string }[] = [
-  { key: 'SCHEDULED', label: CLINICA_AGENDA_STATUS_LABEL.SCHEDULED, bg: CLINICA_AGENDA_STATUS_COLORS.SCHEDULED.bg },
-  { key: 'CLIENT_CONFIRMED', label: CLINICA_AGENDA_STATUS_LABEL.CLIENT_CONFIRMED, bg: CLINICA_AGENDA_STATUS_COLORS.CLIENT_CONFIRMED.bg },
-  { key: 'PHONE_CONFIRMED', label: CLINICA_AGENDA_STATUS_LABEL.PHONE_CONFIRMED, bg: CLINICA_AGENDA_STATUS_COLORS.PHONE_CONFIRMED.bg },
-  { key: 'CONFIRMED', label: CLINICA_AGENDA_STATUS_LABEL.CONFIRMED, bg: CLINICA_AGENDA_STATUS_COLORS.CONFIRMED.bg },
-  { key: 'NO_SHOW', label: CLINICA_AGENDA_STATUS_LABEL.NO_SHOW, bg: CLINICA_AGENDA_STATUS_COLORS.NO_SHOW.bg },
-  { key: 'CANCELLED', label: CLINICA_AGENDA_STATUS_LABEL.CANCELLED, bg: CLINICA_AGENDA_STATUS_COLORS.CANCELLED.bg },
-  { key: 'INTERVALO', label: 'Intervalo', bg: '#f59e0b' },
-];
-
-/** Opções de status no modal Detalhes do Agendamento (mesma ordem da legenda). */
+/** Opções de status no modal Detalhes do Agendamento. */
 export const CLINICA_AGENDA_STATUS_OPCOES_MODAL = [
   { value: 'SCHEDULED', label: '🟣 Aguardando confirmação' },
   { value: 'CLIENT_CONFIRMED', label: '💬 Confirmado pelo WhatsApp' },
@@ -94,7 +83,7 @@ export function getAgendaStatusOpcoesModal(currentStatus: string) {
 export const CLINICA_CONSULTA_STATUS_LABEL: Record<string, string> = {
   SCHEDULED: 'AGUARDANDO INÍCIO',
   IN_PROGRESS: 'EM ATENDIMENTO',
-  COMPLETED: 'CONCLUÍDA',
+  COMPLETED: 'CONSULTA FINALIZADA',
   CANCELLED: 'CANCELADA',
 };
 

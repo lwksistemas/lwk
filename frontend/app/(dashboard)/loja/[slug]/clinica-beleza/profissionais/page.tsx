@@ -57,7 +57,7 @@ export default function ProfissionaisPage() {
   const isNovo = searchParams.get("novo") === "1";
   const editIdParam = searchParams.get("id");
   const isFormView = isNovo || Boolean(editIdParam);
-  const { list, setList, loading, load, page, setPage, totalPages, pageSize, totalCount } = useClinicaBelezaEntityList<Professional>({
+  const { list, loading, load, page, setPage, totalPages, pageSize, totalCount } = useClinicaBelezaEntityList<Professional>({
     path: "/professionals/",
     fetchOffline: buscarProfissionaisOffline,
     saveOffline: salvarProfissionaisOffline,
@@ -144,7 +144,7 @@ export default function ProfissionaisPage() {
                     <th className="text-left p-3">Nome</th>
                     <th className="text-left p-3">Especialidade</th>
                     <th className="text-left p-3 hidden md:table-cell">Telefone</th>
-                    <th className="w-40 p-3">Ações</th>
+                    <th className="min-w-[140px] p-3">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -154,10 +154,11 @@ export default function ProfissionaisPage() {
                       <td className="p-3 text-gray-700 dark:text-gray-300">{professionalSpecialty(p) || "—"}</td>
                       <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{entityPhone(p) || "—"}</td>
                       <td className="p-3">
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-1.5">
                           {p.is_administrador_vinculado ? (
                             <>
                               <button
+                                type="button"
                                 onClick={() => setHorariosProfessional(p)}
                                 className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"
                                 title="Dias e horários de trabalho"
@@ -165,6 +166,7 @@ export default function ProfissionaisPage() {
                                 <Clock size={18} />
                               </button>
                               <button
+                                type="button"
                                 onClick={() => openEdit(p)}
                                 className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
                                 title="Editar"
@@ -175,6 +177,7 @@ export default function ProfissionaisPage() {
                           ) : (
                             <>
                               <button
+                                type="button"
                                 onClick={() => setHorariosProfessional(p)}
                                 className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"
                                 title="Dias e horários de trabalho"
@@ -182,6 +185,7 @@ export default function ProfissionaisPage() {
                                 <Clock size={18} />
                               </button>
                               <button
+                                type="button"
                                 onClick={() => openEdit(p)}
                                 className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
                                 title="Editar"
@@ -220,7 +224,7 @@ export default function ProfissionaisPage() {
       {horariosProfessional && (
         <ModalHorariosTrabalho
           professionalId={horariosProfessional.id}
-          professionalName={horariosProfessional.name}
+          professionalName={entityName(horariosProfessional)}
           onClose={() => setHorariosProfessional(null)}
           onSaved={() => load()}
         />

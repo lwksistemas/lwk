@@ -22,6 +22,7 @@ from .foto_paciente_service import (
     listar_fotos_paciente,
     parse_json_body_seguro,
     registrar_foto,
+    resolver_frontend_base_qr,
     upload_foto_cloudinary,
 )
 from .models import Consulta, PacienteFotoAcompanhamento
@@ -91,7 +92,9 @@ class ConsultaFotoQrView(GetObjectMixin, APIView):
         bloqueio = _consulta_permite_envio_foto(consulta)
         if bloqueio:
             return bloqueio
-        data = gerar_qr_foto(consulta)
+        origin = (request.data.get('frontend_origin') or '').strip()
+        frontend_base = resolver_frontend_base_qr(request, origin or None)
+        data = gerar_qr_foto(consulta, frontend_base=frontend_base)
         return Response(data)
 
 

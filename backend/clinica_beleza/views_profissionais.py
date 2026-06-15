@@ -50,7 +50,6 @@ _PROFESSIONAL_FIELD_MAP = {
     'active': 'is_active',
 }
 
-
 def _map_professional_data(raw_data):
     """Normaliza campos legados (inglês) para os nomes do model."""
     data = raw_data.copy() if hasattr(raw_data, 'copy') else dict(raw_data)
@@ -80,6 +79,8 @@ def _map_professional_data(raw_data):
 
     for key in ('criar_acesso', 'perfil'):
         data.pop(key, None)
+
+    data.pop('tempo_consulta_minutos', None)
 
     return data
 
@@ -175,7 +176,10 @@ class ProfessionalDetailView(GetObjectMixin, APIView):
     def put(self, request, pk):
         owner_professional_id = LojaContextHelper.get_owner_professional_id()
         if owner_professional_id is not None and int(pk) == owner_professional_id:
-            return Response({'error': 'O administrador vinculado à loja não pode ser editado.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {'error': 'O administrador vinculado à loja não pode ser editado.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         obj, err = self.object_or_404(pk)
         if err:
             return err

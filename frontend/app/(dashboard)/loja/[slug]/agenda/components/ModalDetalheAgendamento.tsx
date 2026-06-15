@@ -149,7 +149,9 @@ export function ModalDetalheAgendamento({
             )}
             {statusSomenteLeitura ? (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                Início e conclusão do atendimento são feitos em Consultas.
+                {status === "COMPLETED"
+                  ? "Consulta finalizada em Consultas — exibido em verde escuro na agenda."
+                  : "Início e conclusão do atendimento são feitos em Consultas."}
               </p>
             ) : status === "SCHEDULED" || status === "PENDING" ? (
               <p className="text-xs text-amber-700 dark:text-amber-400 mt-1.5">

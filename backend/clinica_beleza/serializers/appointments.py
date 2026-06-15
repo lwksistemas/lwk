@@ -101,11 +101,15 @@ class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializ
         elif appointment.procedure_id:
             criar_appointment_procedures(appointment, [appointment.procedure], convenio=convenio)
         elif not appointment.duracao_minutos:
-            local = validated_data.get('local_atendimento')
-            tempo = getattr(local, 'tempo_consulta_minutos', None) if local else None
-            if tempo and tempo > 0:
-                appointment.duracao_minutos = tempo
-                appointment.save(update_fields=['duracao_minutos'])
+            from ..duracao_consulta import calcular_duracao_novo_agendamento
+            tempo = calcular_duracao_novo_agendamento(
+                professional=appointment.professional,
+                procedures_list=procedures_list if procedures_list else None,
+                procedure=appointment.procedure if appointment.procedure_id else None,
+                local_atendimento=validated_data.get('local_atendimento'),
+            )
+            appointment.duracao_minutos = tempo
+            appointment.save(update_fields=['duracao_minutos'])
         return appointment
 
 
@@ -191,7 +195,12 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         procs = obj.appointment_procedures.select_related('procedure').all()
         if procs:
             return ', '.join(ap.procedure.nome for ap in procs)
-        return obj.procedure.nome if obj.procedure_id else None
+        if obj.procedure_id:
+            return obj.procedure.nome
+        local = getattr(obj, 'local_atendimento', None)
+        if local is not None and getattr(local, 'nome', None):
+            return f'Consulta — {local.nome}'
+        return 'Consulta'
 
     def get_procedure_duration(self, obj):
         return obj.get_duracao_efetiva()
@@ -200,7 +209,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         return obj.get_duracao_efetiva()
 
     def get_procedure_price(self, obj):
-        return float(obj.valor_total)
+        return float(obj.get_valor_exibicao_agenda())
 
     def get_convenio_name(self, obj):
         if obj.convenio_id and obj.convenio:
@@ -240,7 +249,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
             'PENDING': '#f59e0b',
             'SCHEDULED': '#a855f7',
             'IN_PROGRESS': '#8b5cf6',
-            'COMPLETED': '#0d9488',
+            'COMPLETED': '#047857',
             'CANCELLED': '#dc2626',
             'NO_SHOW': '#b45309',
         }

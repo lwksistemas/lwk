@@ -23,10 +23,7 @@ import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { useAgendaMutations } from "@/hooks/useAgendaMutations";
 import { useLojaAuth } from "@/hooks/useLojaAuth";
 import { ClinicaBelezaShell } from "@/components/clinica-beleza/ClinicaBelezaShell";
-import {
-  ClinicaBelezaPageHeaderFooter,
-  ClinicaBelezaStandardPageHeader,
-} from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
+import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import type { LojaInfo } from "@/types/dashboard";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
@@ -53,7 +50,6 @@ import { ModalDetalheAgendamento } from "./components/ModalDetalheAgendamento";
 import { ModalCriarAgendamento } from "./components/ModalCriarAgendamento";
 import { ModalBloqueio } from "./components/ModalBloqueio";
 import { AgendaListaColunas } from "./components/AgendaListaColunas";
-import { AgendaLegenda } from "./components/AgendaLegenda";
 
 const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
   ssr: false,
@@ -509,9 +505,6 @@ export default function AgendaPage() {
           </>
         }
       />
-      <ClinicaBelezaPageHeaderFooter>
-        <AgendaLegenda />
-      </ClinicaBelezaPageHeaderFooter>
 
       <div className="flex flex-col flex-1 min-h-0 p-3 sm:p-4 lg:p-6">
         <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">

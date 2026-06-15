@@ -43,20 +43,7 @@ export const CLINICA_AGENDA_STATUS_COLORS: Record<string, { bg: string; border: 
 
 export const CLINICA_AGENDA_BLOQUEIO_COLORS = { bg: '#4f46e5', border: '#4338ca' } as const;
 
-/** Cores da legenda no header da agenda (usa CLINICA_AGENDA_STATUS_COLORS + intervalo). */
-export const CLINICA_AGENDA_LEGEND_ITEMS: { key: string; label: string; bg: string }[] = [
-  { key: 'SCHEDULED', label: CLINICA_AGENDA_STATUS_LABEL.SCHEDULED, bg: CLINICA_AGENDA_STATUS_COLORS.SCHEDULED.bg },
-  { key: 'CLIENT_CONFIRMED', label: CLINICA_AGENDA_STATUS_LABEL.CLIENT_CONFIRMED, bg: CLINICA_AGENDA_STATUS_COLORS.CLIENT_CONFIRMED.bg },
-  { key: 'PHONE_CONFIRMED', label: CLINICA_AGENDA_STATUS_LABEL.PHONE_CONFIRMED, bg: CLINICA_AGENDA_STATUS_COLORS.PHONE_CONFIRMED.bg },
-  { key: 'CONFIRMED', label: CLINICA_AGENDA_STATUS_LABEL.CONFIRMED, bg: CLINICA_AGENDA_STATUS_COLORS.CONFIRMED.bg },
-  { key: 'IN_PROGRESS', label: CLINICA_AGENDA_STATUS_LABEL.IN_PROGRESS, bg: CLINICA_AGENDA_STATUS_COLORS.IN_PROGRESS.bg },
-  { key: 'COMPLETED', label: CLINICA_AGENDA_STATUS_LABEL.COMPLETED, bg: CLINICA_AGENDA_STATUS_COLORS.COMPLETED.bg },
-  { key: 'NO_SHOW', label: CLINICA_AGENDA_STATUS_LABEL.NO_SHOW, bg: CLINICA_AGENDA_STATUS_COLORS.NO_SHOW.bg },
-  { key: 'CANCELLED', label: CLINICA_AGENDA_STATUS_LABEL.CANCELLED, bg: CLINICA_AGENDA_STATUS_COLORS.CANCELLED.bg },
-  { key: 'INTERVALO', label: 'Intervalo', bg: '#f59e0b' },
-];
-
-/** Opções de status no modal Detalhes do Agendamento (mesma ordem da legenda). */
+/** Opções de status no modal Detalhes do Agendamento. */
 export const CLINICA_AGENDA_STATUS_OPCOES_MODAL = [
   { value: 'SCHEDULED', label: '🟣 Aguardando confirmação' },
   { value: 'CLIENT_CONFIRMED', label: '💬 Confirmado pelo WhatsApp' },

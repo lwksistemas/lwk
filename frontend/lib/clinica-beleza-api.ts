@@ -2,16 +2,8 @@
  * Cliente API otimizado para Clínica da Beleza
  */
 
-import { clearSessionAndRedirect, getLoginUrlForRedirect, getCurrentApiBaseUrl } from "@/lib/api-client";
+import { clearSessionAndRedirect, getLoginUrlForRedirect, getCurrentApiBaseUrl, SESSION_CODES, tryRefreshAccessToken } from "@/lib/api-client";
 import { USE_JWT_HTTPONLY_COOKIES } from "@/lib/auth-cookies";
-
-const SESSION_CODES = [
-  "DIFFERENT_SESSION",
-  "NO_SESSION",
-  "TIMEOUT",
-  "SESSION_CONFLICT",
-  "SESSION_TIMEOUT",
-] as const;
 
 function getAuthToken(): string | null {
   if (typeof window === "undefined" || USE_JWT_HTTPONLY_COOKIES) return null;
@@ -76,7 +68,7 @@ export function getClinicaBelezaHeadersWithLoja(
     if (!lojaSlug) lojaSlug = sessionStorage.getItem("loja_slug");
     if (!lojaId) lojaId = sessionStorage.getItem("current_loja_id");
     // Alinhado ao api-client: slug da URL tem prioridade; ID stale causa listas vazias.
-    if (slugFromPath && token) {
+    if (slugFromPath && (token || sessionStorage.getItem("session_id"))) {
       const stored = sessionStorage.getItem("loja_slug");
       if (stored !== slugFromPath) {
         sessionStorage.setItem("loja_slug", slugFromPath);
@@ -146,6 +138,7 @@ export async function clinicaBelezaFetch(
   path: string,
   options: RequestInit = {},
   loja?: { id?: number; slug?: string } | null,
+  retried = false,
 ): Promise<Response> {
   const base = getClinicaBelezaBaseUrl();
   const url = path.startsWith("http") ? path : `${base}${path.startsWith("/") ? path : `/${path}`}`;
@@ -158,10 +151,17 @@ export async function clinicaBelezaFetch(
   if (response.status === 401) {
     const handled = await handle401SessionResponse(response);
     if (handled) throw new Error("SESSION_ENDED");
-    // Token expirado ou inválido (sem código de sessão): mensagem amigável e redirect
+
+    if (!retried) {
+      const refreshed = await tryRefreshAccessToken();
+      if (refreshed) {
+        return clinicaBelezaFetch(path, options, loja, true);
+      }
+    }
+
     clearSessionAndRedirect(
       getLoginUrlForRedirect(),
-      "Sessão expirada ou token inválido. Faça login novamente."
+      "Sessão expirada. Faça login novamente.",
     );
     throw new Error("SESSION_ENDED");
   }

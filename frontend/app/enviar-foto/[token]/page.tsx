@@ -30,6 +30,15 @@ interface ArquivoPendente {
 
 const MAX_FOTOS = 20;
 const EXT_IMAGEM = /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i;
+const FECHAR_APOS_ENVIO_MS = 1800;
+
+/** Fecha aba/janela após envio (QR abre link novo a cada consulta). */
+function fecharPaginaAposEnvio() {
+  window.close();
+  if (window.history.length > 1) {
+    window.history.back();
+  }
+}
 
 function arquivoEhImagem(file: File): boolean {
   if (file.type.startsWith('image/')) return true;
@@ -279,6 +288,12 @@ export default function EnviarFotoPage() {
     e.target.value = '';
   };
 
+  useEffect(() => {
+    if (fotosEnviadas <= 0) return;
+    const timer = window.setTimeout(fecharPaginaAposEnvio, FECHAR_APOS_ENVIO_MS);
+    return () => window.clearTimeout(timer);
+  }, [fotosEnviadas]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -296,17 +311,13 @@ export default function EnviarFotoPage() {
             {fotosEnviadas === 1 ? 'Foto registrada!' : `${fotosEnviadas} fotos registradas!`}
           </h1>
           <p className="text-gray-600 text-sm">
-            {fotosEnviadas === 1
-              ? 'A foto já aparece na aba Fotos da consulta no computador.'
-              : 'As fotos já aparecem na aba Fotos da consulta no computador.'}
+            A imagem já aparece na consulta no computador.
+            <br />
+            <span className="text-gray-500">Fechando esta página…</span>
           </p>
-          <button
-            type="button"
-            onClick={() => setFotosEnviadas(0)}
-            className="mt-6 w-full py-3 rounded-lg bg-green-600 text-white font-medium"
-          >
-            Enviar mais fotos
-          </button>
+          <p className="text-xs text-gray-400 mt-4">
+            Para enviar outra foto, escaneie o QR novamente na consulta.
+          </p>
         </div>
       </div>
     );

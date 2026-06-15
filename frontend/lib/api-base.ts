@@ -15,6 +15,22 @@ export function isBetaHost(host: string): boolean {
   return host === 'beta.lwksistemas.com.br';
 }
 
+/** Raiz da API a partir do hostname (sem barra final). */
+export function getApiRootForHost(host: string): string | null {
+  const h = host.toLowerCase().split(':')[0];
+  if (isBetaHost(h)) return STAGING_API_ROOT;
+  if (h === 'lwksistemas.com.br' || h === 'www.lwksistemas.com.br') {
+    return PRODUCTION_API_ROOT;
+  }
+  return null;
+}
+
+/** Base `/api` para SSR quando o host da requisição é conhecido. */
+export function getPrimaryApiBaseUrlFromHost(host: string): string {
+  const root = getApiRootForHost(host) ?? getPrimaryApiRoot();
+  return root.endsWith('/api') ? root : `${root}/api`;
+}
+
 /** True no beta (hostname ou build Preview da branch staging). */
 export function isBetaEnvironment(): boolean {
   if (typeof window !== 'undefined') {

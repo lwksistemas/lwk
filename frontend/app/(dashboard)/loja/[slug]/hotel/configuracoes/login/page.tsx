@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { LogIn, ArrowLeft, Palette, Image, Check } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ImageUpload } from '@/components/ImageUpload';
+import { cloudinaryLojaLogin } from '@/lib/cloudinary-folders';
 
 interface LoginConfigData {
   logo: string;
@@ -105,7 +106,7 @@ export default function HotelLoginConfigPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-4">
                       Imagem que aparece no topo da tela de login.
                     </p>
-                    <ImageUpload value={config.login_logo} onChange={(v) => setConfig({ ...config, login_logo: v })} />
+                    <ImageUpload value={config.login_logo} onChange={(v) => setConfig({ ...config, login_logo: v })} folder={cloudinaryLojaLogin(slug)} />
                   </div>
                 </div>
               </div>
@@ -124,7 +125,7 @@ export default function HotelLoginConfigPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-4">
                       Imagem de fundo da tela de login.
                     </p>
-                    <ImageUpload value={config.login_background} onChange={(v) => setConfig({ ...config, login_background: v })} />
+                    <ImageUpload value={config.login_background} onChange={(v) => setConfig({ ...config, login_background: v })} folder={cloudinaryLojaLogin(slug)} />
                   </div>
                 </div>
               </div>

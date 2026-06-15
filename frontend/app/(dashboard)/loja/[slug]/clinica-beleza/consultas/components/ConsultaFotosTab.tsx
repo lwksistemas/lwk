@@ -14,6 +14,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
+import { cloudinaryLojaClinicaFotos } from "@/lib/cloudinary-folders";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
 import { PacienteFotoZoomModal } from "./PacienteFotoZoomModal";
@@ -189,7 +190,7 @@ export function ConsultaFotosTab({
                 setUploadUrl(url);
                 if (url) void salvarUploadPainel(url);
               }}
-              folder={`lwksistemas/${slug}/clinica-beleza/fotos-paciente`}
+              folder={cloudinaryLojaClinicaFotos(slug)}
               disabled={salvando}
             />
             <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">

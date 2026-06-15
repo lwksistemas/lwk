@@ -103,7 +103,7 @@ export function ImageUpload({
   disabled = false,
   maxSize = 5,
   aspectRatio,
-  folder = 'lwksistemas',
+  folder = 'lwksistemas/misc',
   compact = false,
   buttonLabel,
 }: ImageUploadProps) {

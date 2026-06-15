@@ -23,17 +23,7 @@ class FotoCloudinaryInvalida(ValueError):
     """URL ou public_id do Cloudinary fora da pasta permitida da loja."""
 
 
-def _pastas_cloudinary_foto_loja(loja) -> list[str]:
-    """Pastas válidas (atalho, slug ou id da loja)."""
-    partes: list[str] = []
-    for attr in ('atalho', 'slug'):
-        valor = (getattr(loja, attr, None) or '').strip().lower()
-        if valor and valor not in partes:
-            partes.append(valor)
-    id_str = str(loja.id).strip()
-    if id_str and id_str not in partes:
-        partes.append(id_str)
-    return [f'lwksistemas/{p}/clinica-beleza/fotos-paciente' for p in partes]
+from core.cloudinary_folders import loja_clinica_fotos, loja_clinica_fotos_paths, loja_segment
 
 
 def validar_cloudinary_foto_loja(loja, cloudinary_url: str, public_id: str = '') -> None:
@@ -47,7 +37,7 @@ def validar_cloudinary_foto_loja(loja, cloudinary_url: str, public_id: str = '')
 
     cfg = cloudinary_upload_config(loja)
     cloud_name = (cfg.get('cloud_name') or '').strip()
-    pastas = _pastas_cloudinary_foto_loja(loja)
+    pastas = loja_clinica_fotos_paths(loja)
     if not cloud_name or not pastas:
         raise FotoCloudinaryInvalida('Configuração de upload indisponível.')
 
@@ -325,8 +315,8 @@ def cloudinary_upload_config(loja) -> dict:
     except Exception as e:
         logger.debug('CloudinaryConfig: %s', e)
 
-    slug = (getattr(loja, 'atalho', None) or loja.slug or str(loja.id)).strip().lower()
-    folder = f'lwksistemas/{slug}/clinica-beleza/fotos-paciente'
+    slug = loja_segment(loja)
+    folder = loja_clinica_fotos(loja)
     return {
         'cloud_name': cloud_name,
         'upload_preset': upload_preset,

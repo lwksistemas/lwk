@@ -28,6 +28,16 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
     """
     if not created:
         return
+
+    try:
+        from core.cloudinary_folders import ensure_loja_cloudinary_folders
+        ensure_loja_cloudinary_folders(instance)
+    except Exception as cloud_err:
+        logger.warning(
+            'Pastas Cloudinary não criadas para loja %s: %s',
+            instance.slug,
+            cloud_err,
+        )
     
     try:
         tipo_loja_nome = instance.tipo_loja.nome

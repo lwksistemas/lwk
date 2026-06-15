@@ -109,23 +109,26 @@ def delete_cloudinary_image(cloudinary_url: str, loja_slug: str = None) -> bool:
         
         # 🔒 SEGURANÇA: Validar propriedade da imagem (se loja_slug fornecido)
         if loja_slug:
-            # Verificar se a imagem está na pasta da loja
-            expected_prefix = f'lwksistemas/{loja_slug}/'
-            
-            if not public_id.startswith(expected_prefix):
-                # Permitir imagens na pasta genérica 'lwksistemas/' (legado)
-                if not public_id.startswith('lwksistemas/'):
+            from core.cloudinary_folders import ROOT
+
+            slug_seg = loja_slug.strip().lower()
+            allowed_prefixes = [
+                f'{ROOT}/{slug_seg}/',
+                f'{ROOT}/{slug_seg}',  # sem barra final
+            ]
+            if not any(
+                public_id == p.rstrip('/') or public_id.startswith(p)
+                for p in allowed_prefixes
+            ):
+                # Legado: imagens direto em lwksistemas/ sem subpasta superadmin/suporte
+                if not public_id.startswith(f'{ROOT}/'):
                     logger.warning(
                         f"⚠️ Tentativa de deletar imagem fora da pasta lwksistemas: {public_id} "
                         f"(loja: {loja_slug})"
                     )
                     return False
-                
-                # Imagem está em 'lwksistemas/' mas não na subpasta da loja
-                # Permitir por compatibilidade com imagens antigas
                 logger.info(
-                    f"ℹ️ Deletando imagem legada (sem subpasta de loja): {public_id} "
-                    f"(loja: {loja_slug})"
+                    f"ℹ️ Deletando imagem legada: {public_id} (loja: {loja_slug})"
                 )
         
         # Deletar imagem

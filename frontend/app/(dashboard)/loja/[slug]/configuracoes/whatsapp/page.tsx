@@ -6,11 +6,8 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, MessageCircle } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { LojaWhatsAppConfigPanel } from '@/components/whatsapp/LojaWhatsAppConfigPanel';
-import { configuracoesPathForTipo, isTipoClinicaBeleza } from '@/lib/loja-tipo';
+import { configuracoesPathForTipo } from '@/lib/loja-tipo';
 import { whatsappFeaturesForTipoLoja } from '@/lib/whatsapp-config-api';
-import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
-import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
-import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 
 export default function LojaConfiguracoesWhatsappPage() {
   const params = useParams();
@@ -39,27 +36,6 @@ export default function LojaConfiguracoesWhatsappPage() {
 
   const features = whatsappFeaturesForTipoLoja(tipoLojaNome);
   const backHref = configuracoesPathForTipo(slug, tipoLojaNome);
-  const clinicaBeleza = isTipoClinicaBeleza(tipoLojaNome);
-
-  if (clinicaBeleza) {
-    return (
-      <>
-        <ClinicaBelezaStandardPageHeader
-          title="Configurar WhatsApp"
-          subtitle="Meta Cloud API ou WhatsApp Web (Evolution)"
-          icon={MessageCircle}
-          backHref={backHref}
-        />
-        <ClinicaBelezaPageContent>
-          {loading ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">Carregando...</p>
-          ) : (
-            <LojaWhatsAppConfigPanel features={features} />
-          )}
-        </ClinicaBelezaPageContent>
-      </>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -73,10 +49,7 @@ export default function LojaConfiguracoesWhatsappPage() {
         </Link>
 
         <div className="flex items-center gap-3">
-          <div
-            className="p-2.5 rounded-lg text-white"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-          >
+          <div className="p-2.5 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
             <MessageCircle size={22} />
           </div>
           <div>

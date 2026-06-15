@@ -486,9 +486,7 @@ export class ClinicaBelezaAPI {
           url: string;
           qr_base64: string;
           expira_em_horas: number;
-        }>(`/consultas/${consultaId}/fotos/qr/`, {
-          frontend_origin: typeof window !== "undefined" ? window.location.origin : "",
-        }),
+        }>(`/consultas/${consultaId}/fotos/qr/`, {}),
       excluir: (consultaId: number, fotoId: number) =>
         ClinicaBelezaAPI.delete(`/consultas/${consultaId}/fotos/${fotoId}/`),
     },

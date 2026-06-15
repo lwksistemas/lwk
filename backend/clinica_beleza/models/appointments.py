@@ -20,6 +20,31 @@ from .patients import Patient
 from .procedures import Procedure
 from .professionals import Professional
 
+
+def calcular_valor_exibicao_agenda(
+    proc_total,
+    *,
+    local_atendimento=None,
+    consulta=None,
+    procedure=None,
+    procedure_id=None,
+) -> Decimal:
+    """Valor exibido na agenda: taxa do local + procedimentos (sem duplicar legacy procedure)."""
+    total_proc = Decimal(str(proc_total or 0))
+    if local_atendimento is not None:
+        taxa = Decimal(str(getattr(local_atendimento, 'valor_consulta', 0) or 0))
+        return taxa + total_proc
+    if total_proc > 0:
+        return total_proc
+    if consulta is not None:
+        vc = Decimal(str(getattr(consulta, 'valor_consulta', 0) or 0))
+        if vc > 0:
+            return vc
+    if procedure_id and procedure is not None:
+        return Decimal(str(getattr(procedure, 'preco', 0) or 0))
+    return Decimal('0')
+
+
 class Appointment(LojaIsolationMixin, models.Model):
     """Agendamentos"""
     STATUS_CHOICES = (
@@ -136,7 +161,16 @@ class Appointment(LojaIsolationMixin, models.Model):
             return self.procedure.preco or Decimal('0')
         return Decimal('0')
 
-
+    def get_valor_exibicao_agenda(self) -> Decimal:
+        """Taxa de consulta (local) + procedimentos, para exibição no calendário."""
+        consulta = getattr(self, 'consulta', None)
+        return calcular_valor_exibicao_agenda(
+            self.valor_total,
+            local_atendimento=getattr(self, 'local_atendimento', None),
+            consulta=consulta,
+            procedure=self.procedure if self.procedure_id else None,
+            procedure_id=self.procedure_id,
+        )
 
 
 class AppointmentProcedure(LojaIsolationMixin, models.Model):

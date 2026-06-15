@@ -195,7 +195,12 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         procs = obj.appointment_procedures.select_related('procedure').all()
         if procs:
             return ', '.join(ap.procedure.nome for ap in procs)
-        return obj.procedure.nome if obj.procedure_id else None
+        if obj.procedure_id:
+            return obj.procedure.nome
+        local = getattr(obj, 'local_atendimento', None)
+        if local is not None and getattr(local, 'nome', None):
+            return f'Consulta — {local.nome}'
+        return 'Consulta'
 
     def get_procedure_duration(self, obj):
         return obj.get_duracao_efetiva()
@@ -204,7 +209,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         return obj.get_duracao_efetiva()
 
     def get_procedure_price(self, obj):
-        return float(obj.valor_total)
+        return float(obj.get_valor_exibicao_agenda())
 
     def get_convenio_name(self, obj):
         if obj.convenio_id and obj.convenio:

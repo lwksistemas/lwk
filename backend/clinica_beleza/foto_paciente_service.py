@@ -23,7 +23,12 @@ class FotoCloudinaryInvalida(ValueError):
     """URL ou public_id do Cloudinary fora da pasta permitida da loja."""
 
 
-from core.cloudinary_folders import loja_clinica_fotos, loja_clinica_fotos_paths, loja_segment
+from core.cloudinary_folders import (
+    loja_clinica_fotos,
+    loja_clinica_fotos_paths,
+    resolve_ambiente_segment,
+)
+from core.cloudinary_upload_preset import server_image_upload_options
 
 
 def validar_cloudinary_foto_loja(loja, cloudinary_url: str, public_id: str = '') -> None:
@@ -226,14 +231,14 @@ def comprimir_imagem_bytes(conteudo: bytes) -> bytes:
     )
 
 
-def upload_foto_cloudinary(loja, conteudo: bytes) -> dict:
+def upload_foto_cloudinary(loja, conteudo: bytes, ambiente: str | None = None) -> dict:
     """Envia bytes comprimidos ao Cloudinary (upload autenticado no servidor)."""
     if not _configurar_cloudinary_sdk():
         raise FotoUploadInvalida('Upload de imagem indisponível no momento.')
 
     import cloudinary.uploader
 
-    cfg = cloudinary_upload_config(loja)
+    cfg = cloudinary_upload_config(loja, ambiente=ambiente)
     folder = (cfg.get('folder') or '').strip()
     if not folder:
         raise FotoUploadInvalida('Pasta de upload não configurada.')
@@ -242,8 +247,7 @@ def upload_foto_cloudinary(loja, conteudo: bytes) -> dict:
     try:
         resultado = cloudinary.uploader.upload(
             comprimido,
-            folder=folder,
-            resource_type='image',
+            **server_image_upload_options(folder),
             overwrite=True,
         )
     except Exception as exc:
@@ -259,13 +263,20 @@ def upload_foto_cloudinary(loja, conteudo: bytes) -> dict:
     }
 
 
-def gerar_token_foto(consulta_id: int, patient_id: int, loja_id: int) -> str:
+def gerar_token_foto(
+    consulta_id: int,
+    patient_id: int,
+    loja_id: int,
+    ambiente: str | None = None,
+) -> str:
+    amb = ambiente if ambiente in ('beta', 'producao') else resolve_ambiente_segment()
     payload = {
         'doc_type': 'foto_paciente',
         'consulta_id': consulta_id,
         'patient_id': patient_id,
         'loja_id': loja_id,
         'modulo': MODULO,
+        'ambiente': amb,
         'exp': int((timezone.now() + timedelta(hours=TOKEN_EXPIRACAO_HORAS)).timestamp()),
     }
     return dumps(payload)
@@ -338,7 +349,13 @@ def resolver_frontend_base_qr(request=None, frontend_origin: str | None = None) 
 
 
 def gerar_qr_foto(consulta, frontend_base: str | None = None) -> dict:
-    token = gerar_token_foto(consulta.id, consulta.patient_id, consulta.loja_id)
+    ambiente = resolve_ambiente_segment(frontend_base)
+    token = gerar_token_foto(
+        consulta.id,
+        consulta.patient_id,
+        consulta.loja_id,
+        ambiente=ambiente,
+    )
     url = build_link_foto(token, frontend_base)
     return {
         'token': token,
@@ -348,7 +365,16 @@ def gerar_qr_foto(consulta, frontend_base: str | None = None) -> dict:
     }
 
 
-def cloudinary_upload_config(loja) -> dict:
+def ambiente_do_token_foto(payload: dict, request=None) -> str:
+    """Ambiente Cloudinary do token QR; fallback pela origem da requisição."""
+    amb = payload.get('ambiente')
+    if amb in ('beta', 'producao'):
+        return amb
+    base = resolver_frontend_base_qr(request) if request is not None else None
+    return resolve_ambiente_segment(base)
+
+
+def cloudinary_upload_config(loja, ambiente: str | None = None) -> dict:
     cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', 'dzrdbw74w')
     upload_preset = os.environ.get('CLOUDINARY_UPLOAD_PRESET', 'lwk_padrao')
     try:
@@ -359,8 +385,7 @@ def cloudinary_upload_config(loja) -> dict:
     except Exception as e:
         logger.debug('CloudinaryConfig: %s', e)
 
-    slug = loja_segment(loja)
-    folder = loja_clinica_fotos(loja)
+    folder = loja_clinica_fotos(loja, ambiente=ambiente)
     return {
         'cloud_name': cloud_name,
         'upload_preset': upload_preset,

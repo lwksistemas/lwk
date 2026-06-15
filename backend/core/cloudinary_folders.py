@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+from urllib.parse import urlparse
 
 from django.conf import settings
 
@@ -40,6 +41,20 @@ def ambiente_segment() -> str:
     if 'beta.lwksistemas.com.br' in frontend:
         return 'beta'
     return 'producao'
+
+
+def resolve_ambiente_segment(origin_or_base: str | None = None) -> str:
+    """beta/producao — prioriza hostname (ex.: beta.lwksistemas.com.br no QR)."""
+    if origin_or_base:
+        raw = origin_or_base.strip()
+        if raw and '://' not in raw:
+            raw = f'https://{raw.lstrip("/")}'
+        host = (urlparse(raw).hostname or '').lower()
+        if host == 'beta.lwksistemas.com.br':
+            return 'beta'
+        if host in ('lwksistemas.com.br', 'www.lwksistemas.com.br'):
+            return 'producao'
+    return ambiente_segment()
 
 
 def _cpf_cnpj_digits(value: str | None) -> str:
@@ -119,8 +134,9 @@ def loja_login_documento(cpf_cnpj: str) -> str:
     return _path(ambiente_segment(), seg, 'login')
 
 
-def loja_clinica_fotos(loja) -> str:
-    return _path(ambiente_segment(), loja_documento_segment(loja), 'clinica-beleza-fotos')
+def loja_clinica_fotos(loja, ambiente: str | None = None) -> str:
+    env = ambiente if ambiente in ('beta', 'producao') else ambiente_segment()
+    return _path(env, loja_documento_segment(loja), 'clinica-beleza-fotos')
 
 
 def loja_clinica_fotos_documento(cpf_cnpj: str) -> str:
@@ -130,7 +146,16 @@ def loja_clinica_fotos_documento(cpf_cnpj: str) -> str:
 
 
 def loja_clinica_fotos_paths(loja) -> list[str]:
-    paths = [loja_clinica_fotos(loja), loja_login(loja), loja_root(loja)]
+    paths: list[str] = []
+    doc = loja_documento_segment(loja)
+    for env in ('beta', 'producao'):
+        for p in (
+            _path(env, doc, 'clinica-beleza-fotos'),
+            _path(env, doc, 'login'),
+            _path(env, doc),
+        ):
+            if p not in paths:
+                paths.append(p)
     env = ambiente_segment()
     for seg in loja_segments_legacy(loja):
         legado = [

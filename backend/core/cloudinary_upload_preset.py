@@ -9,6 +9,15 @@ logger = logging.getLogger(__name__)
 DEFAULT_PRESET = os.environ.get('CLOUDINARY_UPLOAD_PRESET', 'lwk_padrao')
 
 
+def server_image_upload_options(folder: str) -> dict:
+    """Upload autenticado no modo de pastas dinâmicas do Cloudinary."""
+    return {
+        'asset_folder': folder,
+        'use_asset_folder_as_public_id_prefix': True,
+        'resource_type': 'image',
+    }
+
+
 def _configure_cloudinary_sdk() -> bool:
     import cloudinary
 

@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 from .foto_paciente_service import (
     FotoCloudinaryInvalida,
     FotoUploadInvalida,
+    ambiente_do_token_foto,
     cloudinary_upload_config,
     decodificar_token_foto,
     excluir_foto_paciente,
@@ -150,7 +151,8 @@ class EnviarFotoPublicaView(View):
             return JsonResponse({'error': 'Este link só vale durante a consulta em andamento.'}, status=400)
 
         loja = Loja.objects.using('default').filter(id=payload['loja_id']).first()
-        upload_cfg = cloudinary_upload_config(loja) if loja else {}
+        ambiente = ambiente_do_token_foto(payload, request)
+        upload_cfg = cloudinary_upload_config(loja, ambiente=ambiente) if loja else {}
 
         return JsonResponse({
             'paciente_nome': consulta.patient.nome if consulta.patient else '',
@@ -198,10 +200,11 @@ class EnviarFotoPublicaView(View):
         if not loja:
             return JsonResponse({'error': 'Loja não encontrada.'}, status=400)
 
+        ambiente = ambiente_do_token_foto(payload, request)
         conteudo = extrair_bytes_upload_request(request)
         if conteudo:
             try:
-                up = upload_foto_cloudinary(loja, conteudo)
+                up = upload_foto_cloudinary(loja, conteudo, ambiente=ambiente)
                 foto = registrar_foto(consulta, up['secure_url'], 'qr', up['public_id'])
             except FotoUploadInvalida as exc:
                 return JsonResponse({'error': str(exc)}, status=400)

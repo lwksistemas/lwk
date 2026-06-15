@@ -154,6 +154,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
                 'senha_foi_alterada': getattr(loja, 'senha_foi_alterada', False),
                 'requer_cpf_cnpj': True,
                 'endereco': endereco,
+                'cpf_cnpj': getattr(loja, 'cpf_cnpj', '') or '',
             }
             
             cache.set(cache_key, data, 300)

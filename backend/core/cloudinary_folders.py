@@ -1,17 +1,20 @@
-"""
-Pastas padronizadas no Cloudinary (raiz: lwksistemas).
-
-Estrutura:
-  lwksistemas/superadmin/homepage   — site público (hero, módulos, funcionalidades)
-  lwksistemas/superadmin/login      — telas de login superadmin / suporte
-  lwksistemas/suporte               — chamados, erros, anexos de suporte
-  lwksistemas/{loja}/login          — logo e fundo de login da loja
-  lwksistemas/{loja}/clinica-beleza/... — demais mídias por app
-"""
+/**
+ * Pastas padronizadas no Cloudinary (raiz: lwksistemas).
+ *
+ * Estrutura:
+ *   lwksistemas/{beta|producao}/superadmin-homepage
+ *   lwksistemas/{beta|producao}/superadmin-login
+ *   lwksistemas/{beta|producao}/suporte-login
+ *   lwksistemas/{beta|producao}/{cpf_cnpj}
+ *   lwksistemas/{beta|producao}/{cpf_cnpj}/clinica-beleza-fotos
+ */
 from __future__ import annotations
 
 import logging
+import os
 import re
+
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +28,29 @@ def _sanitize_segment(value: str | None) -> str:
     return raw or 'sem-identificador'
 
 
+def ambiente_segment() -> str:
+    """beta (homologação) ou producao."""
+    explicit = (os.environ.get('LWK_ENV') or os.environ.get('LWK_AMBIENTE') or '').strip().lower()
+    if explicit in ('beta', 'staging', 'homologacao', 'homologação'):
+        return 'beta'
+    if explicit in ('producao', 'production', 'prod'):
+        return 'producao'
+    frontend = (getattr(settings, 'FRONTEND_URL', None) or '').lower()
+    if 'beta.lwksistemas.com.br' in frontend:
+        return 'beta'
+    return 'producao'
+
+
+def loja_documento_segment(loja) -> str:
+    """CPF/CNPJ só dígitos; fallback slug/atalho/id."""
+    digits = re.sub(r'\D', '', getattr(loja, 'cpf_cnpj', None) or '')
+    if digits:
+        return digits
+    return loja_segment(loja)
+
+
 def loja_segment(loja) -> str:
-    """Identificador estável da loja na pasta (slug > atalho > id)."""
+    """Slug/atalho/id — legado e fallback."""
     for attr in ('slug', 'atalho'):
         valor = _sanitize_segment(getattr(loja, attr, None))
         if valor and valor != 'sem-identificador':
@@ -35,8 +59,11 @@ def loja_segment(loja) -> str:
 
 
 def loja_segments_legacy(loja) -> list[str]:
-    """Slug, atalho e id — para validar uploads antigos."""
+    """Identificadores legados para validar uploads antigos."""
     vistos: list[str] = []
+    doc = re.sub(r'\D', '', getattr(loja, 'cpf_cnpj', None) or '')
+    if doc and doc not in vistos:
+        vistos.append(doc)
     for attr in ('atalho', 'slug'):
         valor = _sanitize_segment(getattr(loja, attr, None))
         if valor and valor != 'sem-identificador' and valor not in vistos:
@@ -47,70 +74,99 @@ def loja_segments_legacy(loja) -> list[str]:
     return vistos
 
 
+def _path(*parts: str) -> str:
+    return '/'.join([ROOT, *[p.strip('/') for p in parts if p]])
+
+
 def superadmin_homepage() -> str:
-    return f'{ROOT}/superadmin/homepage'
+    return _path(ambiente_segment(), 'superadmin-homepage')
 
 
 def superadmin_login() -> str:
-    return f'{ROOT}/superadmin/login'
+    return _path(ambiente_segment(), 'superadmin-login')
 
 
 def suporte_root() -> str:
-    return f'{ROOT}/suporte'
+    return _path(ambiente_segment(), 'suporte')
 
 
 def suporte_login() -> str:
-    return f'{suporte_root()}/login'
+    return _path(ambiente_segment(), 'suporte-login')
 
 
 def loja_root(loja) -> str:
-    return f'{ROOT}/{loja_segment(loja)}'
+    return _path(ambiente_segment(), loja_documento_segment(loja))
 
 
 def loja_login(loja) -> str:
-    return f'{loja_root(loja)}/login'
+    return loja_root(loja)
+
+
+def loja_login_documento(cpf_cnpj: str) -> str:
+    digits = re.sub(r'\D', '', cpf_cnpj or '')
+    seg = digits or _sanitize_segment(cpf_cnpj)
+    return _path(ambiente_segment(), seg)
 
 
 def loja_login_slug(slug: str) -> str:
-    return f'{ROOT}/{_sanitize_segment(slug)}/login'
+    return _path(ambiente_segment(), _sanitize_segment(slug))
 
 
 def loja_clinica_fotos(loja) -> str:
-    return f'{loja_root(loja)}/clinica-beleza/fotos-paciente'
+    return _path(ambiente_segment(), loja_documento_segment(loja), 'clinica-beleza-fotos')
+
+
+def loja_clinica_fotos_documento(cpf_cnpj: str) -> str:
+    digits = re.sub(r'\D', '', cpf_cnpj or '')
+    seg = digits or _sanitize_segment(cpf_cnpj)
+    return _path(ambiente_segment(), seg, 'clinica-beleza-fotos')
 
 
 def loja_clinica_fotos_paths(loja) -> list[str]:
-    return [f'{ROOT}/{seg}/clinica-beleza/fotos-paciente' for seg in loja_segments_legacy(loja)]
+    paths = [loja_clinica_fotos(loja)]
+    env = ambiente_segment()
+    for seg in loja_segments_legacy(loja):
+        legado = [
+            f'{ROOT}/{env}/{seg}/clinica-beleza-fotos',
+            f'{ROOT}/{seg}/clinica-beleza/fotos-paciente',
+            f'{ROOT}/{env}/{seg}/clinica-beleza/fotos-paciente',
+            f'{ROOT}/{seg}/login',
+            f'{ROOT}/{env}/{seg}',
+        ]
+        for p in legado:
+            if p not in paths:
+                paths.append(p)
+    return paths
 
 
 def loja_clinica_memed(loja) -> str:
-    return f'{loja_root(loja)}/clinica-beleza/prescricoes-memed'
+    return _path(ambiente_segment(), loja_documento_segment(loja), 'clinica-beleza-memed')
 
 
 def loja_prefixes(loja) -> list[str]:
-    """Prefixos válidos para mídia da loja (inclui legado sem subpasta)."""
-    prefixes = [f'{loja_root(loja)}/']
+    prefixes = [f'{loja_root(loja)}/', f'{loja_root(loja)}']
+    env = ambiente_segment()
     for seg in loja_segments_legacy(loja):
-        legado = f'{ROOT}/{seg}/'
-        if legado not in prefixes:
-            prefixes.append(legado)
+        for base in (
+            f'{ROOT}/{env}/{seg}/',
+            f'{ROOT}/{seg}/',
+            f'{ROOT}/{env}/{seg}',
+        ):
+            if base not in prefixes:
+                prefixes.append(base)
     return prefixes
 
 
 def folders_for_new_loja(loja) -> list[str]:
-    """Pastas criadas ao cadastrar uma loja."""
     base = loja_root(loja)
     return [
         base,
-        f'{base}/login',
-        f'{base}/clinica-beleza',
-        f'{base}/clinica-beleza/fotos-paciente',
-        f'{base}/clinica-beleza/prescricoes-memed',
+        f'{base}/clinica-beleza-fotos',
+        f'{base}/clinica-beleza-memed',
     ]
 
 
 def ensure_cloudinary_folders(folder_paths: list[str]) -> None:
-    """Cria pastas no Cloudinary (ignora se já existirem ou API indisponível)."""
     if not folder_paths:
         return
     try:

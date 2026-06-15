@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, LogIn } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ImageUpload } from '@/components/ImageUpload';
-import { cloudinaryLojaLogin } from '@/lib/cloudinary-folders';
+import { cloudinaryLojaLogin, useLojaCloudinaryDocument } from '@/lib/cloudinary-folders';
 import { logger } from '@/lib/logger';
 
 interface LoginConfigData {
@@ -30,6 +30,7 @@ export default function ClinicaConfiguracoesLoginPage() {
   const params = useParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
+  const lojaDoc = useLojaCloudinaryDocument(slug);
   const base = `/loja/${slug}/clinica-estetica/configuracoes`;
 
   const [loading, setLoading] = useState(true);
@@ -141,7 +142,7 @@ export default function ClinicaConfiguracoesLoginPage() {
                   onChange={(url) => setLogo(url)}
                   maxSize={2}
                   aspectRatio="16:9"
-                  folder={cloudinaryLojaLogin(slug)}
+                  folder={cloudinaryLojaLogin(lojaDoc)}
                 />
 
                 {/* Imagem de fundo do login */}
@@ -152,7 +153,7 @@ export default function ClinicaConfiguracoesLoginPage() {
                   onChange={(url) => setLoginBackground(url)}
                   maxSize={5}
                   aspectRatio="16:9"
-                  folder={cloudinaryLojaLogin(slug)}
+                  folder={cloudinaryLojaLogin(lojaDoc)}
                 />
 
                 {/* Logo específico do login */}
@@ -163,7 +164,7 @@ export default function ClinicaConfiguracoesLoginPage() {
                   onChange={(url) => setLoginLogo(url)}
                   maxSize={2}
                   aspectRatio="1:1"
-                  folder={cloudinaryLojaLogin(slug)}
+                  folder={cloudinaryLojaLogin(lojaDoc)}
                 />
 
                 {/* Cores pré-definidas */}

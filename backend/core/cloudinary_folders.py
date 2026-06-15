@@ -1,14 +1,14 @@
-/**
- * Pastas padronizadas no Cloudinary (raiz: lwksistemas).
- *
- * Estrutura:
- *   lwksistemas/producao/superadmin/homepage
- *   lwksistemas/producao/superadmin/login
- *   lwksistemas/producao/suporte/login
- *   lwksistemas/producao/{cpf_cnpj}/login
- *   lwksistemas/producao/{cpf_cnpj}/clinica-beleza-fotos
- *   (mesma árvore em lwksistemas/beta/...)
- */
+"""
+Pastas padronizadas no Cloudinary (raiz: lwksistemas).
+
+Estrutura:
+  lwksistemas/producao/superadmin/homepage
+  lwksistemas/producao/superadmin/login
+  lwksistemas/producao/suporte/login
+  lwksistemas/producao/{cpf_cnpj}/login
+  lwksistemas/producao/{cpf_cnpj}/clinica-beleza-fotos
+  (mesma árvore em lwksistemas/beta/...)
+"""
 from __future__ import annotations
 
 import logging
@@ -182,19 +182,11 @@ def ensure_cloudinary_folders(folder_paths: list[str]) -> None:
     if not folder_paths:
         return
     try:
-        import cloudinary
         import cloudinary.api
-        from superadmin.cloudinary_models import CloudinaryConfig
+        from core.cloudinary_upload_preset import _configure_cloudinary_sdk
 
-        cfg = CloudinaryConfig.get_config()
-        if not cfg.enabled or not cfg.cloud_name or not cfg.api_key or not cfg.api_secret:
+        if not _configure_cloudinary_sdk():
             return
-        cloudinary.config(
-            cloud_name=cfg.cloud_name,
-            api_key=cfg.api_key,
-            api_secret=cfg.api_secret,
-            secure=True,
-        )
         for path in folder_paths:
             try:
                 cloudinary.api.create_folder(path)

@@ -10,10 +10,27 @@ interface WhatsAppConfigHelpProps {
 }
 
 export function WhatsAppConfigHelp({ variant = 'clinica' }: WhatsAppConfigHelpProps) {
+  const isCrm = variant === 'crm';
+  const boxClass = isCrm
+    ? 'rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-900/20 px-4 py-4 space-y-3'
+    : 'rounded-lg border border-rose-200 dark:border-rose-900/50 bg-rose-50/60 dark:bg-rose-950/20 px-4 py-4 space-y-3';
+  const titleClass = isCrm
+    ? 'text-sm font-medium text-blue-900 dark:text-blue-100 flex items-center gap-2'
+    : 'text-sm font-medium text-rose-900 dark:text-rose-100 flex items-center gap-2';
+  const linkClass = isCrm
+    ? 'inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-blue-300 hover:underline'
+    : 'inline-flex items-center gap-1.5 text-xs font-medium text-rose-700 dark:text-rose-300 hover:underline';
+  const introClass = isCrm
+    ? 'text-xs text-blue-800 dark:text-blue-200 font-medium'
+    : 'text-xs text-rose-800 dark:text-rose-200 font-medium';
+  const anchorClass = isCrm
+    ? 'text-blue-700 dark:text-blue-300 hover:underline'
+    : 'text-rose-700 dark:text-rose-300 hover:underline';
+
   return (
-    <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/20 px-4 py-4 space-y-3">
+    <div className={boxClass}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100 flex items-center gap-2">
+        <p className={titleClass}>
           <BookOpen size={16} />
           Como configurar na Meta
         </p>
@@ -21,21 +38,22 @@ export function WhatsAppConfigHelp({ variant = 'clinica' }: WhatsAppConfigHelpPr
           href={META_API_SETUP}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:underline"
+          className={linkClass}
         >
           Documentação oficial Meta
           <ExternalLink size={12} />
         </a>
       </div>
 
-      <p className="text-xs text-emerald-800 dark:text-emerald-200 font-medium">
-        Modelo LWK: cada loja conecta <strong>seu próprio</strong> WhatsApp Business na Meta (número e token da clínica).
+      <p className={introClass}>
+        Modelo LWK: cada loja conecta <strong>seu próprio</strong> WhatsApp Business na Meta (número e token da{' '}
+        {isCrm ? 'loja' : 'clínica'}).
       </p>
 
       <ol className="text-xs text-gray-700 dark:text-gray-300 space-y-1.5 list-decimal list-inside">
         <li>
           Crie um app em{' '}
-          <a href={META_DEV} target="_blank" rel="noopener noreferrer" className="text-emerald-700 dark:text-emerald-300 hover:underline">
+          <a href={META_DEV} target="_blank" rel="noopener noreferrer" className={anchorClass}>
             developers.facebook.com
           </a>{' '}
           e adicione o produto <strong>WhatsApp</strong>.

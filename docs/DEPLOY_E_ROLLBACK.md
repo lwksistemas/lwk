@@ -112,8 +112,35 @@ O **código** é o mesmo após merge `staging` → `main`. O que difere entre be
 | Asaas (`AsaasConfig` + env) | `$aact_prod_` | Sandbox ou prod* | Webhook URL diferente no beta |
 | Webhook Asaas | `api.lwksistemas.com.br/...` | `lwks-backend-staging-.../...` | Token pode ser o mesmo ou outro |
 | E-mail (Resend) | Ativo | Ativo | Mesma chave ou separada |
+| **WhatsApp Web (Evolution)** | `evolution-api` + env no `lwks-backend` | **Variáveis ausentes por padrão** | Ver seção abaixo |
 
 \*Se quiser **teste real completo no beta** (PIX + NFS-e na prefeitura), pode usar Asaas produção e ISSNet produção — entenda os riscos abaixo.
+
+#### WhatsApp Web (Evolution) no beta
+
+A opção **WhatsApp Web (QR)** só fica ativa quando o health da API staging retorna `evolution_available: true`:
+
+```bash
+curl -s https://lwks-backend-staging-staging.up.railway.app/api/superadmin/health/ | jq .evolution_available
+```
+
+**Produção** já tem o serviço `evolution-api`. O ambiente **staging** não copia isso automaticamente.
+
+**Opção A — teste rápido (compartilhar Evolution de produção):**
+
+No Railway → ambiente **staging** → serviço **`lwks-backend-staging`** → **Variables**, adicione (copie os mesmos valores de `lwks-backend` em **production**):
+
+```env
+EVOLUTION_API_URL=https://evolution-api-production-....up.railway.app
+EVOLUTION_API_KEY=<mesma AUTHENTICATION_API_KEY da Evolution prod>
+API_BASE_URL=https://lwks-backend-staging-staging.up.railway.app
+```
+
+Redeploy do `lwks-backend-staging`. Cada loja no beta usa instância `lwk_loja_{id}` (ID do banco staging — não conflita com produção se o ID for diferente).
+
+**Opção B — Evolution dedicada no staging:** subir `evolution-api` no ambiente staging (Postgres + Redis próprios). Ver `docs/WHATSAPP_EVOLUTION.md`.
+
+Depois do redeploy, confirme `evolution_available: true` e recarregue https://beta.lwksistemas.com.br/loja/sorriso/configuracoes/whatsapp .
 
 #### Checklist manual (Superadmin → NFS-e config no beta)
 

@@ -2,9 +2,87 @@
 Utilitários do CRM Vendas.
 """
 import logging
+import re
 from tenants.middleware import get_current_loja_id, ensure_loja_context
 
 logger = logging.getLogger(__name__)
+
+
+def _digits_cpf_cnpj(value: str) -> str:
+    return re.sub(r'\D', '', value or '')
+
+
+def gerar_titulo_proposta(lead) -> str:
+    """
+    Título padrão da proposta: nome (CPF) ou razão social (CNPJ) do cliente.
+    Espelha frontend/lib/crm-utils.ts gerarTituloProposta.
+    """
+    conta = getattr(lead, 'conta', None)
+    cpf_cnpj = ''
+    if conta and getattr(conta, 'cnpj', None):
+        cpf_cnpj = conta.cnpj
+    elif getattr(lead, 'cpf_cnpj', None):
+        cpf_cnpj = lead.cpf_cnpj
+
+    is_cnpj = len(_digits_cpf_cnpj(cpf_cnpj)) > 11
+    if is_cnpj:
+        for candidate in (
+            getattr(conta, 'razao_social', None) if conta else None,
+            getattr(conta, 'nome', None) if conta else None,
+            getattr(lead, 'empresa', None),
+            getattr(lead, 'nome', None),
+        ):
+            text = (candidate or '').strip()
+            if text:
+                return text
+        return ''
+
+    for candidate in (
+        getattr(conta, 'nome', None) if conta else None,
+        getattr(lead, 'nome', None),
+    ):
+        text = (candidate or '').strip()
+        if text:
+            return text
+    return ''
+
+
+def titulo_proposta_corrigido(titulo_atual: str, lead, prestadora_nomes=None) -> str | None:
+    """
+    Retorna o novo título se a proposta deve ser atualizada; None se já estiver ok.
+    Remove prefixo da prestadora (ex.: "ULTRASIS INFORMATICA LTDA - Cliente").
+    """
+    atual = (titulo_atual or '').strip()
+    novo = gerar_titulo_proposta(lead)
+    if not novo:
+        return None
+    if atual == novo:
+        return None
+
+    prefixes = []
+    for name in prestadora_nomes or []:
+        text = (name or '').strip()
+        if text and text not in prefixes:
+            prefixes.append(text)
+
+    for prefix in prefixes:
+        for sep in (' - ', ' — ', ' – '):
+            marker = f'{prefix}{sep}'
+            if atual.startswith(marker):
+                candidato = atual[len(marker):].strip()
+                if candidato and candidato != atual:
+                    return candidato
+
+    for sep in (' - ', ' — ', ' – '):
+        if sep in atual:
+            suffix = atual.split(sep, 1)[1].strip()
+            if suffix and suffix.lower() == novo.lower():
+                return suffix
+
+    if any(sep in atual for sep in (' - ', ' — ', ' – ')):
+        return novo
+
+    return None
 
 
 def get_loja_from_context(request=None):

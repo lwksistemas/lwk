@@ -107,6 +107,47 @@ def criar_token_assinatura(documento, tipo, loja_id):
     return assinatura
 
 
+def _payload_assinatura_de_token(token):
+    """Decodifica payload assinado do Django ou retorna None."""
+    try:
+        return loads(token)
+    except (BadSignature, Exception):
+        return None
+
+
+def _buscar_assinatura_pendente_por_payload(payload, loja_id):
+    """
+    Fallback quando o token exato foi rotacionado (ex.: reenvio por outro canal).
+    Aceita qualquer link assinado válido para o mesmo documento/tipo pendente.
+    """
+    from .models import AssinaturaDigital
+
+    doc_type = (payload.get('doc_type') or '').lower()
+    doc_id = payload.get('doc_id')
+    tipo = payload.get('tipo')
+    if not doc_id or tipo not in ('cliente', 'vendedor'):
+        return None
+
+    filt = {'tipo': tipo, 'assinado': False, 'loja_id': loja_id}
+    if doc_type == 'proposta':
+        filt['proposta_id'] = doc_id
+    elif doc_type == 'contrato':
+        filt['contrato_id'] = doc_id
+    else:
+        return None
+
+    assinatura = (
+        AssinaturaDigital.objects.select_related('proposta', 'contrato')
+        .filter(**filt)
+        .order_by('-created_at')
+        .first()
+    )
+    if not assinatura:
+        return None
+    if assinatura.is_expirado():
+        return None
+    return assinatura
+
 
 def verificar_token_assinatura(token, loja_id=None):
     """
@@ -124,57 +165,66 @@ def verificar_token_assinatura(token, loja_id=None):
     token = normalizar_token_assinatura_url(token)
     if not token:
         return None, 'Link de assinatura inválido.', loja_id
-    
-    logger.info('Verificando token de assinatura: tamanho=%s, loja_id=%s', len(token), loja_id)
-    
-    # Se loja_id não foi fornecido, extrair do token
+
+    payload = _payload_assinatura_de_token(token)
+    if payload is None:
+        logger.error('❌ Erro ao decodificar token de assinatura')
+        return None, 'Link de assinatura inválido.', loja_id
+
+    exp = payload.get('exp')
+    if exp and timezone.now().timestamp() > exp:
+        return None, 'Este link de assinatura expirou.', loja_id
+
     if loja_id is None:
+        loja_id = payload.get('loja_id')
+    elif payload.get('loja_id') and int(payload.get('loja_id')) != int(loja_id):
+        return None, 'Link de assinatura inválido.', loja_id
+
+    logger.info(
+        'Verificando token de assinatura: tamanho=%s, loja_id=%s, doc_type=%s, doc_id=%s',
+        len(token),
+        loja_id,
+        payload.get('doc_type'),
+        payload.get('doc_id'),
+    )
+
+    assinatura = None
+    try:
         try:
-            # Decodificar token para extrair loja_id
-            payload = loads(token)
-            loja_id = payload.get('loja_id')
+            assinatura = AssinaturaDigital.objects.select_related('proposta', 'contrato').get(token=token)
+            logger.info('✅ Token encontrado direto - ID: %s', assinatura.id)
+        except AssinaturaDigital.DoesNotExist:
+            token_decoded = unquote(token)
+            if token_decoded != token:
+                assinatura = AssinaturaDigital.objects.select_related('proposta', 'contrato').get(
+                    token=token_decoded,
+                )
+                logger.info('✅ Token encontrado após decode - ID: %s', assinatura.id)
+            else:
+                raise AssinaturaDigital.DoesNotExist
+    except AssinaturaDigital.DoesNotExist:
+        assinatura = _buscar_assinatura_pendente_por_payload(payload, loja_id)
+        if assinatura:
             logger.info(
-                'Payload de assinatura decodificado: loja_id=%s, doc_type=%s, doc_id=%s',
-                loja_id,
+                '✅ Token rotacionado — usando assinatura pendente ID=%s (doc=%s#%s)',
+                assinatura.id,
                 payload.get('doc_type'),
                 payload.get('doc_id'),
             )
-        except (BadSignature, Exception) as e:
-            logger.error(f'❌ Erro ao decodificar token: {e}')
-            return None, 'Link de assinatura inválido.', None
-    
-    try:
-        # Tentar buscar com o token como está (pode estar URL encoded)
-        try:
-            logger.info(f'Tentando buscar token direto no banco (loja_id={loja_id})...')
-            assinatura = AssinaturaDigital.objects.select_related('proposta', 'contrato').get(token=token)
-            logger.info(f'✅ Token encontrado direto - ID: {assinatura.id}')
-        except AssinaturaDigital.DoesNotExist:
-            # Se não encontrar, tentar com URL decode (para tokens antigos que foram salvos encoded)
-            token_decoded = unquote(token)
-            logger.info('Token não encontrado direto. Tentando decode: tamanho=%s', len(token_decoded))
-            if token_decoded != token:  # Só tenta se realmente decodificou algo
-                assinatura = AssinaturaDigital.objects.select_related('proposta', 'contrato').get(token=token_decoded)
-                logger.info(f'✅ Token encontrado após decode - ID: {assinatura.id}')
-            else:
-                logger.warning(f'❌ Token não mudou após decode')
-                raise AssinaturaDigital.DoesNotExist
-        
-        # Verificar se já foi assinado
-        if assinatura.assinado:
-            logger.warning(f'⚠️ Documento já foi assinado - Assinatura ID: {assinatura.id}')
-            return None, 'Este documento já foi assinado.', loja_id
-        
-        # Verificar expiração
-        if assinatura.is_expirado():
-            logger.warning(f'⚠️ Token expirado - Assinatura ID: {assinatura.id}')
-            return None, 'Este link de assinatura expirou.', loja_id
-        
-        logger.info(f'✅ Token válido e ativo - Assinatura ID: {assinatura.id}')
-        return assinatura, None, loja_id
-    except AssinaturaDigital.DoesNotExist:
-        logger.error(f'❌ Token não encontrado no banco de dados (loja_id={loja_id})')
-        return None, 'Link de assinatura inválido.', loja_id
+        else:
+            logger.error('❌ Token não encontrado no banco de dados (loja_id=%s)', loja_id)
+            return None, 'Link de assinatura inválido.', loja_id
+
+    if assinatura.assinado:
+        logger.warning('⚠️ Documento já foi assinado - Assinatura ID: %s', assinatura.id)
+        return None, 'Este documento já foi assinado.', loja_id
+
+    if assinatura.is_expirado():
+        logger.warning('⚠️ Token expirado - Assinatura ID: %s', assinatura.id)
+        return None, 'Este link de assinatura expirou.', loja_id
+
+    logger.info('✅ Token válido e ativo - Assinatura ID: %s', assinatura.id)
+    return assinatura, None, loja_id
 
 
 def registrar_assinatura(assinatura, ip_address, user_agent=''):
@@ -499,7 +549,6 @@ def reenviar_link_assinatura_pendente(documento, loja_id, request, canal='email'
             return False, None, 'Lead não possui telefone cadastrado.'
 
         filt = {fk_field: documento, 'tipo': 'cliente', 'assinado': False}
-        AssinaturaDigital.objects.filter(**filt).delete()
         assinatura = criar_token_assinatura(documento, 'cliente', loja_id)
 
         if canal == 'whatsapp':
@@ -507,11 +556,13 @@ def reenviar_link_assinatura_pendente(documento, loja_id, request, canal='email'
                 documento, assinatura, request, user=getattr(request, 'user', None),
             )
             if ok:
+                AssinaturaDigital.objects.filter(**filt).exclude(pk=assinatura.pk).delete()
                 dest = (lead.telefone or '').strip()
                 return True, f'Novo link de assinatura enviado por WhatsApp para {dest}', None
         else:
             ok, err = enviar_email_assinatura_cliente(documento, assinatura, request)
             if ok:
+                AssinaturaDigital.objects.filter(**filt).exclude(pk=assinatura.pk).delete()
                 return True, f'Novo link de assinatura enviado para {lead.email}', None
 
         assinatura.delete()
@@ -530,7 +581,6 @@ def reenviar_link_assinatura_pendente(documento, loja_id, request, canal='email'
         documento.save(update_fields=['canal_assinatura_vendedor', 'updated_at'])
 
         filt = {fk_field: documento, 'tipo': 'vendedor', 'assinado': False}
-        AssinaturaDigital.objects.filter(**filt).delete()
         assinatura = criar_token_assinatura(documento, 'vendedor', loja_id)
         ok, err = enviar_link_assinatura_vendedor(
             documento,
@@ -540,6 +590,7 @@ def reenviar_link_assinatura_pendente(documento, loja_id, request, canal='email'
             user=getattr(request, 'user', None),
         )
         if ok:
+            AssinaturaDigital.objects.filter(**filt).exclude(pk=assinatura.pk).delete()
             canal_label = 'WhatsApp' if canal == 'whatsapp' else 'e-mail'
             return True, f'Novo link de assinatura enviado ao vendedor por {canal_label}.', None
         assinatura.delete()

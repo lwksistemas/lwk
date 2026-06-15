@@ -29,7 +29,7 @@ class Appointment(LojaIsolationMixin, models.Model):
         ('PENDING', 'Aguardando confirmação'),  # legado — migrar para SCHEDULED
         ('SCHEDULED', 'Aguardando confirmação'),
         ('IN_PROGRESS', 'Em Atendimento'),
-        ('COMPLETED', 'Concluído'),
+        ('COMPLETED', 'Consulta finalizada'),
         ('CANCELLED', 'Cancelado'),
         ('NO_SHOW', 'Faltou'),
     )

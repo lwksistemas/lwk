@@ -244,7 +244,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
             'PENDING': '#f59e0b',
             'SCHEDULED': '#a855f7',
             'IN_PROGRESS': '#8b5cf6',
-            'COMPLETED': '#0d9488',
+            'COMPLETED': '#047857',
             'CANCELLED': '#dc2626',
             'NO_SHOW': '#b45309',
         }

@@ -39,4 +39,4 @@ RUN echo "build=${BUILD_ID}" > /app/.build-id
 RUN mkdir -p staticfiles
 
 EXPOSE 8000
-CMD ["sh", "-c", "python manage.py ensure_estoque_produto_fields && gunicorn config.wsgi --bind 0.0.0.0:${PORT:-8000} --workers 2 --threads 2 --worker-class gthread --worker-connections 500 --timeout 60 --log-file - --access-logfile - --error-logfile -"]
+CMD ["sh", "-c", "gunicorn config.wsgi --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --threads 2 --worker-class gthread --worker-connections 500 --timeout 60 --log-file - --access-logfile - --error-logfile -"]

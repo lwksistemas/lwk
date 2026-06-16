@@ -611,10 +611,9 @@ Equipe de Suporte
             )
         
         try:
-            import random
-            import string
+            from core.password_validation import generate_provisional_password
             
-            nova_senha_provisoria = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%', k=10))
+            nova_senha_provisoria = generate_provisional_password()
             
             user = loja.owner
             user.set_password(nova_senha_provisoria)

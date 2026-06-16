@@ -43,7 +43,9 @@ class LojaPasswordRecoveryService:
             )
             return ({'message': _RECOVERY_OK_MESSAGE}, http_status.HTTP_200_OK)
 
-        nova_senha = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%', k=10))
+        from core.password_validation import generate_provisional_password
+
+        nova_senha = generate_provisional_password()
 
         loja.owner.set_password(nova_senha)
         loja.owner.save()

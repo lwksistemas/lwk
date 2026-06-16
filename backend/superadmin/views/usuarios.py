@@ -213,9 +213,8 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            import random
-            import string
-            nova_senha = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%', k=10))
+            from core.password_validation import generate_provisional_password
+            nova_senha = generate_provisional_password()
             
             user.set_password(nova_senha)
             user.save()

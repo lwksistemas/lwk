@@ -164,10 +164,13 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        from core.password_validation import validate_password_policy
+        from core.password_validation import validate_password_policy, password_policy_requirements
         ok, msg = validate_password_policy(nova_senha)
         if not ok:
-            return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'detail': msg,
+                'requisitos_senha': password_policy_requirements(),
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         user = request.user
         user.set_password(nova_senha)

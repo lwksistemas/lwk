@@ -390,7 +390,13 @@ class SecureLoginView(APIView):
             real_user_type,
             precisa_trocar_senha,
         )
-        
+
+        # Se precisa trocar senha, incluir requisitos na resposta para o frontend
+        # exibir as regras antes mesmo do usuário tentar digitar.
+        if precisa_trocar_senha:
+            from core.password_validation import password_policy_requirements
+            response_data['requisitos_senha'] = password_policy_requirements()
+
         response = Response(response_data, status=status.HTTP_200_OK)
         return attach_auth_cookies(
             response,

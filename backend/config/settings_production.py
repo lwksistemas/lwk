@@ -16,6 +16,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY')
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY deve estar configurada nas variáveis de ambiente!")
+_INSECURE_KEY_PREFIX = 'django-insecure-'
+if SECRET_KEY.startswith(_INSECURE_KEY_PREFIX):
+    raise ValueError(
+        "SECRET_KEY inválida em produção: a chave não pode começar com 'django-insecure-'. "
+        "Gere uma nova chave com: python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\""
+    )
+if len(SECRET_KEY) < 50:
+    raise ValueError(
+        "SECRET_KEY muito curta para produção: use no mínimo 50 caracteres. "
+        "Gere uma nova chave com: python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\""
+    )
 DEBUG = False
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
 if not ALLOWED_HOSTS:

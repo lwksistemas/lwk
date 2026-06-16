@@ -1,10 +1,10 @@
-"""Cálculo de duração de agendamentos — tempo base do profissional vs procedimentos."""
+"""Cálculo de duração de agendamentos — tempo base do local vs procedimentos."""
 
 
 def tempo_consulta_base_minutos(professional=None, local_atendimento=None) -> int:
     """
     Tempo padrão de consulta: local de atendimento > 30 min.
-    (O tempo é configurado em Consultas → Locais de Atendimento.)
+    Configurado em Consultas → Locais de Atendimento (não no cadastro do profissional).
     """
     if local_atendimento is not None:
         local_tempo = getattr(local_atendimento, 'tempo_consulta_minutos', None)

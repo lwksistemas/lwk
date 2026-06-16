@@ -412,10 +412,13 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
                 {'error': 'As senhas não coincidem'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        from core.password_validation import validate_password_policy
+        from core.password_validation import validate_password_policy, password_policy_requirements
         ok, msg = validate_password_policy(nova_senha)
         if not ok:
-            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'error': msg,
+                'requisitos_senha': password_policy_requirements(),
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         loja = self.get_object()
         user = request.user

@@ -33,6 +33,18 @@ class LojaBackupMixin:
     """Actions de backup para LojaViewSet."""
 
     BACKUP_MAX_UPLOAD_BYTES = 500 * 1024 * 1024
+
+    def _resolver_incluir_imagens(self, loja, request) -> bool:
+        """Usa valor explícito do request ou a configuração salva da loja."""
+        from ...models import ConfiguracaoBackup
+
+        raw = request.data.get('incluir_imagens', None)
+        if raw is not None:
+            return bool(raw)
+        try:
+            return bool(ConfiguracaoBackup.objects.get(loja=loja).incluir_imagens)
+        except ConfiguracaoBackup.DoesNotExist:
+            return False
     
     def _ensure_loja_database_available(self, loja):
         """Garante que o banco da loja está em settings.DATABASES."""
@@ -54,7 +66,7 @@ class LojaBackupMixin:
         from ...models import HistoricoBackup, ConfiguracaoBackup
         
         loja = self.get_object()
-        incluir_imagens = request.data.get('incluir_imagens', False)
+        incluir_imagens = self._resolver_incluir_imagens(loja, request)
         
         ok, err_response = self._ensure_loja_database_available(loja)
         if not ok:
@@ -140,7 +152,7 @@ class LojaBackupMixin:
             service = BackupService()
             result = service.exportar_loja(
                 loja_id=loja.id,
-                incluir_imagens=request.data.get('incluir_imagens', False)
+                incluir_imagens=self._resolver_incluir_imagens(loja, request),
             )
 
             if not result.get('success'):

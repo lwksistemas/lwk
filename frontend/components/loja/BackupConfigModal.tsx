@@ -241,6 +241,10 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
                     />
                     <span className="text-sm text-gray-700 dark:text-gray-300">Incluir imagens (aumenta o tamanho)</span>
                   </label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+                    Baixa fotos do Cloudinary (ex.: acompanhamento do paciente), logos da loja e PDF timbrado.
+                    Limite aproximado: 120 MB de mídia por backup.
+                  </p>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Manter últimos N backups</label>
                     <input

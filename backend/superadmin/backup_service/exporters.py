@@ -86,6 +86,10 @@ class ZipBuilder:
     def add_csv(self, filename: str, csv_content: bytes):
         """Adiciona um arquivo CSV ao ZIP"""
         self.zip_file.writestr(filename, csv_content)
+
+    def add_file(self, filename: str, content: bytes):
+        """Adiciona arquivo binário ao ZIP (imagens, PDFs, etc.)."""
+        self.zip_file.writestr(filename, content)
     
     def add_metadata(self, metadata: dict):
         """Adiciona arquivo de metadados ao ZIP"""

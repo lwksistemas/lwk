@@ -45,10 +45,20 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
         titulo: 'Backup',
         mensagem: 'Iniciando exportação do backup...'
       });
+
+      let incluirImagens = false;
+      try {
+        const cfg = await apiClient.get(`/superadmin/lojas/${lojaId}/configuracao_backup/`);
+        if (cfg.data?.success && cfg.data.config) {
+          incluirImagens = Boolean(cfg.data.config.incluir_imagens);
+        }
+      } catch {
+        // usa false
+      }
       
       const response = await apiClient.post(
         `/superadmin/lojas/${lojaId}/exportar_backup/`,
-        { incluir_imagens: false },
+        { incluir_imagens: incluirImagens },
         { responseType: 'blob' }
       );
       
@@ -79,6 +89,9 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
         : null;
       const tamanhoMb = response.headers['x-tamanho-mb'];
       let mensagem = 'Backup exportado com sucesso!';
+      if (incluirImagens) {
+        mensagem = 'Backup exportado com imagens incluídas!';
+      }
       if (totalRegistros !== null || tamanhoMb) {
         const partes: string[] = [];
         if (totalRegistros !== null) partes.push(`${totalRegistros.toLocaleString('pt-BR')} registro(s)`);

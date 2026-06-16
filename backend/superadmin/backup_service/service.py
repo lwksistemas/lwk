@@ -164,6 +164,18 @@ class BackupService:
                 except Exception as e:
                     logger.error(f"❌ Erro ao exportar tabela {table_name}: {e}")
                     tabelas_stats[table_name] = 0
+
+            imagens_stats = None
+            if incluir_imagens:
+                from .image_exporter import BackupImageExporter
+
+                logger.info(f"🖼️ Incluindo imagens no backup da loja {loja.nome}")
+                image_exporter = BackupImageExporter(loja, db_helper)
+                imagens_stats = image_exporter.export_to_zip(zip_builder, table_names, loja.id)
+                logger.info(
+                    f"🖼️ Imagens no backup: {imagens_stats.get('total_arquivos', 0)} arquivo(s), "
+                    f"{imagens_stats.get('total_bytes', 0) / (1024 * 1024):.2f} MB"
+                )
             
             # Adicionar metadados (inclui schema efetivo para rastreabilidade quando fallback para public)
             metadata = {
@@ -175,7 +187,9 @@ class BackupService:
                 'data_backup': timezone.now().isoformat(),
                 'total_registros': total_registros,
                 'tabelas': tabelas_stats,
-                'versao_backup': '1.0',
+                'incluir_imagens': incluir_imagens,
+                'imagens': imagens_stats,
+                'versao_backup': '1.1',
             }
             zip_builder.add_metadata(metadata)
             
@@ -199,6 +213,7 @@ class BackupService:
                 'tamanho_mb': tamanho_mb,
                 'total_registros': total_registros,
                 'tabelas': tabelas_stats,
+                'imagens': imagens_stats,
             }
         
         except Loja.DoesNotExist:

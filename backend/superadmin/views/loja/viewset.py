@@ -239,7 +239,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
         try:
             logger.info(f"[por_atalho] Buscando loja com atalho: {atalho}")
             
-            loja = Loja.objects.filter(atalho=atalho, is_active=True).first()
+            loja = Loja.objects.filter(atalho__iexact=atalho, is_active=True).first()
             
             if not loja:
                 logger.warning(f"[por_atalho] Nenhuma loja encontrada com atalho: {atalho}")

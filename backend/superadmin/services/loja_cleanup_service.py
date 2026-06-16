@@ -48,6 +48,7 @@ class LojaCleanupService:
             self.cleanup_logs_and_alerts()
             self.cleanup_payments()
             self.cleanup_fk_references()
+            self.cleanup_lockout()
             self.cleanup_database_file()
             self.cleanup_owner_user()
             
@@ -296,53 +297,73 @@ class LojaCleanupService:
         if removed:
             logger.info(f"✅ FK references limpas: {removed}")
 
+    def cleanup_lockout(self):
+        """Remove registros de lockout de login do owner da loja."""
+        try:
+            from core.login_lockout import normalize_username
+            from superadmin.models import LoginLockout
+
+            username = normalize_username(self.owner.username)
+            if username:
+                deleted, _ = LoginLockout.objects.filter(username_key=username).delete()
+                if deleted:
+                    logger.info(f"  ✅ LoginLockout removido: {username} ({deleted})")
+            # Também limpar por email
+            email = normalize_username(self.owner.email)
+            if email and email != username:
+                deleted, _ = LoginLockout.objects.filter(username_key=email).delete()
+                if deleted:
+                    logger.info(f"  ✅ LoginLockout removido: {email} ({deleted})")
+        except Exception as e:
+            logger.warning(f"  ⚠️ Erro ao limpar lockout: {e}")
+
     def cleanup_database_file(self):
         """
-        Remove configuração do banco de dados da loja.
-        
-        NOTA: Sistema usa PostgreSQL com schemas isolados.
-        A remoção do schema é feita pelo signal pre_delete.
-        Este método apenas remove a configuração do settings.DATABASES.
+        Remove schema PostgreSQL da loja E configuração do settings.DATABASES.
+
+        Executa DROP SCHEMA CASCADE diretamente para garantir limpeza mesmo
+        quando signals não são disparados (ex: DELETE SQL direto).
         """
-        if not self.database_created:
-            self.results['banco_dados'] = {
-                'existia': False,
-                'nome': self.database_name
-            }
+        schema_name = self.database_name
+        self.results['banco_dados'] = {'nome': schema_name}
+
+        if not schema_name:
+            self.results['banco_dados']['existia'] = False
             return
-        
+
+        # 1. DROP SCHEMA no PostgreSQL
         try:
-            # Remover configuração do settings.DATABASES
-            if self.database_name in settings.DATABASES:
-                del settings.DATABASES[self.database_name]
-                logger.info(f"✅ Configuração do banco removida: {self.database_name}")
-                
-                self.results['banco_dados'] = {
-                    'existia': True,
-                    'nome': self.database_name,
-                    'config_removida': True
-                }
-            else:
-                self.results['banco_dados'] = {
-                    'existia': True,
-                    'nome': self.database_name,
-                    'config_removida': False,
-                    'motivo': 'Configuração não encontrada'
-                }
-                
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT schema_name FROM information_schema.schemata WHERE schema_name = %s",
+                    [schema_name]
+                )
+                if cursor.fetchone():
+                    cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
+                    logger.info(f"✅ Schema PostgreSQL removido: {schema_name}")
+                    self.results['banco_dados']['schema_removido'] = True
+                else:
+                    logger.info(f"  ℹ️ Schema {schema_name} não existe (já removido)")
+                    self.results['banco_dados']['schema_removido'] = False
         except Exception as e:
-            logger.warning(f"⚠️ Erro ao remover configuração do banco: {e}")
-            self.results['banco_dados'] = {
-                'existia': True,
-                'nome': self.database_name,
-                'erro': str(e)
-            }
-    
+            logger.warning(f"⚠️ Erro ao remover schema {schema_name}: {e}")
+            self.results['banco_dados']['schema_erro'] = str(e)
+
+        # 2. Remover configuração do settings.DATABASES
+        try:
+            if schema_name in settings.DATABASES:
+                del settings.DATABASES[schema_name]
+                self.results['banco_dados']['config_removida'] = True
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao remover config DATABASES: {e}")
+
     def cleanup_owner_user(self):
         """
-        Registra se o usuário proprietário será removido pelo signal post_delete.
-        NÃO remove o usuário aqui: a loja ainda existe (owner_id referencia o user).
-        O signal remove_owner_if_orphan remove o owner órfão após loja.delete().
+        Remove o usuário proprietário SE ficar órfão (sem outras lojas).
+
+        Executa a remoção diretamente em vez de depender do signal post_delete
+        (que não dispara quando usamos DELETE SQL direto).
         """
         from superadmin.models import Loja
 
@@ -365,14 +386,20 @@ class LojaCleanupService:
                 }
                 return
 
+            # Owner é órfão — remover user e dados relacionados
+            from superadmin.utils import delete_user_raw
+            username = self.owner.username
+            owner_id = self.owner.id
+            delete_user_raw(owner_id)
+            logger.info(f"✅ Usuário órfão removido: {username}")
+            self.results['usuario_proprietario'] = {
+                'username': username,
+                'removido': True,
+            }
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao remover usuário órfão: {e}")
             self.results['usuario_proprietario'] = {
                 'username': self.owner.username,
                 'removido': False,
-                'motivo_nao_removido': 'Será removido pelo signal após exclusão da loja'
-            }
-        except Exception as e:
-            logger.warning(f"⚠️ Erro ao verificar usuário: {e}")
-            self.results['usuario_proprietario'] = {
-                'username': self.owner.username,
-                'erro': str(e)
+                'erro': str(e),
             }

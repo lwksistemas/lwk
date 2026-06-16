@@ -599,7 +599,7 @@ function EvolucaoConsultaBlock({
         </p>
         {!loading && evolucoes.length > 0 && (
           <ConsultaPrintButton
-            label="Imprimir"
+            label={evolucoes.length > 1 ? "Imprimir todas" : "Imprimir"}
             onPrint={() => imprimirConsultaPdf(consulta.id, "evolucao")}
           />
         )}
@@ -610,17 +610,12 @@ function EvolucaoConsultaBlock({
         ) : evolucoes.length === 0 ? (
           <p className="text-xs text-gray-400">Sem evoluções.</p>
         ) : (
-          evolucoes.map((ev, idx) => (
+          evolucoes.map((ev) => (
             <div key={ev.id} className="text-sm space-y-1">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs text-gray-500">
-                  {formatData(ev.created_at)}
-                  {ev.professional_name ? ` · ${ev.professional_name}` : ""}
-                </p>
-                <ConsultaPrintButton
-                  onPrint={() => imprimirConsultaPdf(consulta.id, "evolucao")}
-                />
-              </div>
+              <p className="text-xs text-gray-500">
+                {formatData(ev.created_at)}
+                {ev.professional_name ? ` · ${ev.professional_name}` : ""}
+              </p>
               {ev.descricao && <p className="text-gray-800 dark:text-gray-200">{ev.descricao}</p>}
               {ev.procedimento_realizado && (
                 <p className="text-gray-600 dark:text-gray-400"><span className="font-medium">Procedimento:</span> {ev.procedimento_realizado}</p>

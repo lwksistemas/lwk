@@ -43,21 +43,16 @@ export function ConsultaEvolucaoTab({
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-semibold text-gray-900 dark:text-gray-100">Registros desta consulta</h3>
             <ConsultaPrintButton
-              label="Imprimir todas"
+              label={evolucoes.length > 1 ? "Imprimir todas" : "Imprimir"}
               onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "evolucao")}
             />
           </div>
           {evolucoes.map((ev) => (
             <div key={ev.id} className="rounded-lg border border-gray-100 dark:border-neutral-700 p-4 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs text-gray-500">
-                  {formatData(ev.created_at)}
-                  {ev.professional_name ? ` · ${ev.professional_name}` : ""}
-                </p>
-                <ConsultaPrintButton
-                  onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "evolucao")}
-                />
-              </div>
+              <p className="text-xs text-gray-500">
+                {formatData(ev.created_at)}
+                {ev.professional_name ? ` · ${ev.professional_name}` : ""}
+              </p>
               {ev.descricao && <PreviewBlock label="Evolução" value={ev.descricao} />}
               {ev.procedimento_realizado && <PreviewBlock label="Procedimento" value={ev.procedimento_realizado} />}
               {ev.produtos_utilizados && <PreviewBlock label="Produtos" value={ev.produtos_utilizados} />}

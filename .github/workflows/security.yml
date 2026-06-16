@@ -19,16 +19,23 @@ jobs:
           python-version: '3.12'
       - name: Install audit tools
         run: pip install pip-audit bandit
-      - name: pip-audit
+
+      # Falha o build se houver vulnerabilidades conhecidas nas dependências.
+      # Para ignorar temporariamente um CVE específico, use:
+      #   pip-audit -r requirements.txt --ignore-vuln PYSEC-XXXX-XXXX
+      - name: pip-audit (bloqueia em vulnerabilidades)
         run: pip-audit -r requirements.txt --desc on
-        continue-on-error: true
-      - name: bandit
+
+      # Análise estática de segurança: falha apenas em severidade MÉDIA ou acima (-ll).
+      # B101 (assert): falsos positivos em testes.
+      # B601 (paramiko shell): não usamos paramiko; removido do skip para detectar uso acidental.
+      # Adicione ao --skip apenas após revisão justificada.
+      - name: bandit (bloqueia em severidade média+)
         run: |
           bandit -r . \
             -x ./tests,./test_*,./*/migrations \
             -ll -q \
-            --skip B101,B601
-        continue-on-error: true
+            --skip B101
 
   frontend-audit:
     runs-on: ubuntu-latest
@@ -44,6 +51,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
-      - name: npm audit
+
+      # Falha o build se houver vulnerabilidades de severidade HIGH ou CRITICAL.
+      - name: npm audit (bloqueia em high+)
         run: npm audit --audit-level=high
-        continue-on-error: true

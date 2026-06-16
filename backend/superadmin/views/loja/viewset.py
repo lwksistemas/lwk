@@ -239,7 +239,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
         try:
             logger.info(f"[por_atalho] Buscando loja com atalho: {atalho}")
             
-            loja = Loja.objects.filter(atalho=atalho, is_active=True).first()
+            loja = Loja.objects.filter(atalho__iexact=atalho, is_active=True).first()
             
             if not loja:
                 logger.warning(f"[por_atalho] Nenhuma loja encontrada com atalho: {atalho}")
@@ -412,10 +412,13 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
                 {'error': 'As senhas não coincidem'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        from core.password_validation import validate_password_policy
+        from core.password_validation import validate_password_policy, password_policy_requirements
         ok, msg = validate_password_policy(nova_senha)
         if not ok:
-            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'error': msg,
+                'requisitos_senha': password_policy_requirements(),
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         loja = self.get_object()
         user = request.user
@@ -608,10 +611,9 @@ Equipe de Suporte
             )
         
         try:
-            import random
-            import string
+            from core.password_validation import generate_provisional_password
             
-            nova_senha_provisoria = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%', k=10))
+            nova_senha_provisoria = generate_provisional_password()
             
             user = loja.owner
             user.set_password(nova_senha_provisoria)

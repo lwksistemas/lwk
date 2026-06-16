@@ -80,8 +80,6 @@ def _map_professional_data(raw_data):
     for key in ('criar_acesso', 'perfil'):
         data.pop(key, None)
 
-    data.pop('tempo_consulta_minutos', None)
-
     return data
 
 

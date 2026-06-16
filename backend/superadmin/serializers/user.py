@@ -46,7 +46,8 @@ class UsuarioSistemaSerializer(UniqueDocumentoPerLojaMixin, serializers.ModelSer
         user_data = validated_data.pop('user')
         
         # Gerar senha provisória automaticamente
-        senha_provisoria = ''.join(random.choices(string.ascii_letters + string.digits + '!@#$%&*', k=10))
+        from core.password_validation import generate_provisional_password
+        senha_provisoria = generate_provisional_password()
         
         # Criar usuário
         user = User.objects.create_user(

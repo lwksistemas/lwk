@@ -120,7 +120,7 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
 
     class Meta:
         model = Professional
-        exclude = ['loja_id', 'tempo_consulta_minutos']
+        exclude = ['loja_id']
         extra_kwargs = {
             'email': {'required': False, 'allow_blank': True, 'allow_null': True},
             'telefone': {'required': False, 'allow_blank': True},

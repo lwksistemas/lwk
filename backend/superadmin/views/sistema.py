@@ -194,6 +194,18 @@ def health_check(request):
         'email_backend': getattr(settings, 'EMAIL_BACKEND', ''),
         'migrations_pending': pending,
     }
+
+    # Redis
+    try:
+        from django.core.cache import cache
+        cache.set('_health_check', '1', timeout=5)
+        redis_ok = cache.get('_health_check') == '1'
+        payload['cache'] = 'redis' if getattr(settings, 'USE_REDIS', False) or 'redis' in str(getattr(settings, 'CACHES', {}).get('default', {}).get('BACKEND', '')) else 'locmem'
+        payload['cache_status'] = 'connected' if redis_ok else 'error'
+    except Exception as e:
+        payload['cache'] = 'error'
+        payload['cache_status'] = str(e)[:80]
+
     try:
         from whatsapp.evolution_client import evolution_configured
         payload['evolution_available'] = evolution_configured()

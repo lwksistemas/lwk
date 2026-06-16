@@ -488,6 +488,7 @@ class BeaconLogoutView(APIView):
     - Usa navigator.sendBeacon() que não permite headers customizados
     """
     permission_classes = [AllowAny]
+    throttle_classes = [AuthLoginThrottle]  # Rate limit: 20/min por IP
     
     def post(self, request):
         """

@@ -241,63 +241,56 @@ class LojaCleanupService:
     def cleanup_fk_references(self):
         """
         Remove registros de tabelas com FK para superadmin_loja que podem bloquear
-        a exclusão (quando CASCADE no banco não está aplicado corretamente).
+        a exclusão (quando CASCADE no banco não está aplicado corretamente ou
+        a tabela está em schema diferente do search_path do ORM).
         """
         removed = {}
-        tables_to_clean = [
-            ('whatsapp', 'WhatsAppConfig', 'loja_id'),
-            ('whatsapp', 'WhatsAppInstance', 'loja_id'),
-            ('superadmin', 'GoogleCalendarConnection', 'loja_id'),
-            ('superadmin', 'EmailRetry', 'loja_id'),
-            ('superadmin', 'BackupConfig', 'loja_id'),
-            ('superadmin', 'BackupHistorico', 'loja_id'),
-        ]
 
-        for app_label, model_name, fk_field in tables_to_clean:
-            try:
-                from django.apps import apps
-                model = apps.get_model(app_label, model_name)
-                qs = model.objects.filter(**{fk_field: self.loja_id})
-                count = qs.count()
-                if count:
-                    qs.delete()
-                    removed[f'{app_label}.{model_name}'] = count
-                    logger.info(f"  ✅ {app_label}.{model_name}: {count} removidos")
-            except LookupError:
-                pass  # Model não existe nesta instalação
-            except Exception as e:
-                logger.warning(f"  ⚠️ {app_label}.{model_name}: {e}")
-                removed[f'{app_label}.{model_name}'] = f'erro: {e}'
-
-        # Fallback SQL: limpar qualquer FK restante via query direta
+        # Fallback SQL direto: busca TODAS as FKs apontando para superadmin_loja
+        # e remove os registros referenciando esta loja. Isso cobre qualquer tabela
+        # independente do schema/search_path.
         try:
             from django.db import connection
             with connection.cursor() as cur:
+                # Buscar todas as constraints FK que referenciam superadmin_loja
                 cur.execute("""
-                    SELECT table_name, column_name
-                    FROM information_schema.key_column_usage kcu
-                    JOIN information_schema.table_constraints tc
-                      ON kcu.constraint_name = tc.constraint_name
-                    WHERE tc.constraint_type = 'FOREIGN KEY'
-                      AND kcu.column_name = 'loja_id'
-                      AND tc.table_name != 'superadmin_loja'
-                      AND kcu.table_schema = current_schema()
+                    SELECT
+                        kcu.table_schema,
+                        kcu.table_name,
+                        kcu.column_name
+                    FROM information_schema.referential_constraints rc
+                    JOIN information_schema.key_column_usage kcu
+                      ON kcu.constraint_name = rc.constraint_name
+                      AND kcu.constraint_schema = rc.constraint_schema
+                    JOIN information_schema.key_column_usage rcu
+                      ON rcu.constraint_name = rc.unique_constraint_name
+                      AND rcu.constraint_schema = rc.unique_constraint_schema
+                    WHERE rcu.table_name = 'superadmin_loja'
+                      AND rcu.column_name = 'id'
                 """)
-                fk_tables = cur.fetchall()
+                fk_refs = cur.fetchall()
 
-                for table_name, col_name in fk_tables:
+                for schema, table_name, col_name in fk_refs:
+                    if table_name == 'superadmin_loja':
+                        continue
                     try:
+                        qualified_table = f'"{schema}"."{table_name}"' if schema != 'public' else f'"{table_name}"'
                         cur.execute(
-                            f'DELETE FROM "{table_name}" WHERE "{col_name}" = %s',
+                            f'DELETE FROM {qualified_table} WHERE "{col_name}" = %s',
                             [self.loja_id]
                         )
                         if cur.rowcount:
-                            removed[table_name] = cur.rowcount
-                            logger.info(f"  ✅ SQL {table_name}: {cur.rowcount} removidos")
+                            removed[f'{schema}.{table_name}'] = cur.rowcount
+                            logger.info(f"  ✅ {schema}.{table_name}: {cur.rowcount} removidos")
                     except Exception as e:
-                        logger.warning(f"  ⚠️ SQL {table_name}: {e}")
+                        logger.warning(f"  ⚠️ {schema}.{table_name}: {e}")
+                        # Reconectar se a transação abortou
+                        try:
+                            connection.rollback() if not connection.get_autocommit() else None
+                        except Exception:
+                            pass
         except Exception as e:
-            logger.warning(f"  ⚠️ Fallback SQL FK cleanup: {e}")
+            logger.warning(f"  ⚠️ FK cleanup SQL: {e}")
 
         self.results['fk_references'] = removed
         if removed:

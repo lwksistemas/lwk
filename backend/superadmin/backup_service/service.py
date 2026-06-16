@@ -75,7 +75,7 @@ class BackupService:
                 - tabelas: dict com contagem por tabela
                 - erro: str (se houver erro)
         """
-        from .models import Loja
+        from superadmin.models import Loja
         
         try:
             # Buscar loja (com tipo de app para filtrar tabelas quando schema=public)
@@ -254,7 +254,7 @@ class BackupService:
                 - tabelas: dict com contagem por tabela
                 - erro: str (se houver erro)
         """
-        from .models import Loja
+        from superadmin.models import Loja
         
         try:
             # Buscar loja (com tipo_loja para filtrar tabelas na importação)
@@ -309,7 +309,7 @@ class BackupService:
                         if cur.fetchone()[0] == 0:
                             logger.info(f"Schema '{db_helper._pg_schema}' vazio - aplicando migrations antes da importação")
                             from django.db import connections
-                            from .services.database_schema_service import DatabaseSchemaService
+                            from superadmin.services.database_schema_service import DatabaseSchemaService
                             DatabaseSchemaService.aplicar_migrations(loja)
                             try:
                                 connections[loja.database_name].close()

@@ -8,7 +8,7 @@ import PasswordInput from '@/components/auth/PasswordInput';
 import { AuthScreenShell } from '@/components/auth/AuthScreenShell';
 import { cacheLojaLoginContext } from '@/lib/login-default-backgrounds';
 import { logger } from '@/lib/logger';
-import { validatePasswordPolicy } from '@/lib/password-policy';
+import { validatePasswordPolicy, checkPasswordRules } from '@/lib/password-policy';
 
 export default function TrocarSenhaLojaComSlugPage() {
   const router = useRouter();
@@ -163,6 +163,37 @@ export default function TrocarSenhaLojaComSlugPage() {
           autoComplete="new-password"
           required
         />
+
+        {/* Requisitos de senha — feedback em tempo real */}
+        <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-md p-4">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+            Requisitos da senha:
+          </h4>
+          <ul className="text-xs space-y-1.5">
+            {checkPasswordRules(formData.nova_senha).map(({ rule, passed }) => (
+              <li key={rule.id} className="flex items-center gap-2">
+                <span className={`flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  formData.nova_senha
+                    ? passed
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                    : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                }`}>
+                  {formData.nova_senha ? (passed ? '✓' : '✗') : '•'}
+                </span>
+                <span className={`${
+                  formData.nova_senha
+                    ? passed
+                      ? 'text-green-700 dark:text-green-400'
+                      : 'text-red-700 dark:text-red-400'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}>
+                  {rule.texto}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         <button
           type="submit"

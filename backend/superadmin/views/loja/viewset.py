@@ -565,35 +565,38 @@ Equipe de Suporte
     def destroy(self, request, *args, **kwargs):
         """Exclusão completa da loja com limpeza de todos os dados"""
         from ...services import LojaCleanupService
-        
+
         loja = self.get_object()
         cleanup_service = LojaCleanupService(loja)
-        
+
         try:
             results = cleanup_service.cleanup_all()
-            
-            with transaction.atomic():
-                try:
+
+            # Tentar exclusão normal (com CASCADE)
+            try:
+                with transaction.atomic():
                     loja.delete()
-                except Exception as del_err:
-                    err_str = str(del_err)
-                    if 'does not exist' in err_str.lower() or 'UndefinedTable' in err_str:
-                        logger.warning(f"⚠️ Tabela inexistente durante CASCADE, forçando exclusão: {err_str}")
-                        from django.db import connection
-                        with connection.cursor() as cur:
-                            cur.execute('DELETE FROM superadmin_loja WHERE id = %s', [loja.id])
-                    else:
-                        raise
-                logger.info(f"✅ Loja removida: {results['loja_nome']}")
-            
+            except Exception as del_err:
+                err_str = str(del_err)
+                if 'does not exist' in err_str.lower() or 'UndefinedTable' in err_str:
+                    # Tabela referenciada por FK não existe (schema de loja já removido)
+                    # Forçar exclusão direta fora da transação abortada
+                    logger.warning(f"⚠️ CASCADE falhou (tabela inexistente), forçando DELETE direto: {err_str}")
+                    from django.db import connection
+                    with connection.cursor() as cur:
+                        cur.execute('DELETE FROM superadmin_loja WHERE id = %s', [loja.id])
+                else:
+                    raise
+
+            logger.info(f"✅ Loja removida: {results['loja_nome']}")
+
             return Response({
                 'message': f'Loja "{results["loja_nome"]}" foi completamente removida do sistema',
                 'detalhes': results
             }, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
-            logger.error(f"❌ Erro ao remover loja: {e}")
-            transaction.set_rollback(True)
+            logger.error(f"❌ Erro ao remover loja: {e}", exc_info=True)
             return Response(
                 {'error': f'Erro ao remover loja: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

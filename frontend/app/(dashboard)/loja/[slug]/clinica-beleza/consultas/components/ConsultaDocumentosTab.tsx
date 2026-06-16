@@ -69,11 +69,14 @@ const TIPO_LABELS: Record<string, string> = {
 export function ConsultaDocumentosTab({
   consultaId,
   consultaAtiva,
+  professionalId,
   onUsarMemed,
   refreshPrescricoes = 0,
 }: {
   consultaId: number;
   consultaAtiva: boolean;
+  /** Profissional da consulta — usado para carregar templates quando o login não tem vínculo direto. */
+  professionalId?: number | null;
   /** Callback ao selecionar "Usar Memed" (receituário ou exames). */
   onUsarMemed?: () => void;
   /** Incrementar após nova prescrição Memed para atualizar a lista. */
@@ -401,6 +404,7 @@ export function ConsultaDocumentosTab({
           open={!!templateModalTipo}
           tipo={templateModalTipo}
           consultaId={consultaId}
+          professionalId={professionalId ?? undefined}
           onClose={() => setTemplateModalTipo(null)}
           onSuccess={async (created) => {
             setTemplateModalTipo(null);

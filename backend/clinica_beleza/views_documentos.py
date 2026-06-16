@@ -27,12 +27,14 @@ def _documentos_da_consulta(consulta):
     return qs
 
 
-def _get_professional_from_request(request):
+def _get_professional_from_request(request, *, consulta=None, professional_id=None):
     """
     Resolve o Professional do usuário logado na loja atual.
     Verifica:
     1. ProfissionalUsuario (acesso por vínculo)
     2. Owner da loja (admin habilitado como profissional)
+    3. ID explícito (?professional=) ou profissional da consulta em atendimento
+
     Retorna Professional ou None.
     """
     from superadmin.models import Loja, ProfissionalUsuario
@@ -47,7 +49,7 @@ def _get_professional_from_request(request):
         loja_id=loja_id,
     ).first()
     if vinculo:
-        prof = Professional.objects.filter(pk=vinculo.professional_id).first()
+        prof = Professional.objects.filter(pk=vinculo.professional_id, is_active=True).first()
         if prof:
             return prof
 
@@ -61,11 +63,31 @@ def _get_professional_from_request(request):
                 if prof:
                     return prof
             if request.user.email:
-                return Professional.objects.filter(
+                prof = Professional.objects.filter(
                     email=request.user.email, is_active=True, loja_id=loja_id,
                 ).first()
+                if prof:
+                    return prof
     except Loja.DoesNotExist:
         pass
+
+    # 3. Profissional explícito (query ou argumento) — equipe clínica já autorizada
+    pid = professional_id or request.query_params.get('professional')
+    if pid:
+        try:
+            prof = Professional.objects.filter(pk=int(pid), is_active=True).first()
+            if prof:
+                return prof
+        except (TypeError, ValueError):
+            pass
+
+    # 4. Profissional da consulta em atendimento (admin/recepção atuando na consulta)
+    if consulta and consulta.professional_id:
+        prof = Professional.objects.filter(
+            pk=consulta.professional_id, is_active=True,
+        ).first()
+        if prof:
+            return prof
 
     return None
 
@@ -213,7 +235,7 @@ class ConsultaDocumentoListView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        professional = _get_professional_from_request(request)
+        professional = _get_professional_from_request(request, consulta=consulta)
         if not professional:
             return Response(
                 {'error': 'Profissional não encontrado para o usuário logado.'},
@@ -229,7 +251,9 @@ class ConsultaDocumentoListView(APIView):
         template_obj = None
         if template_id:
             try:
-                template_obj = DocumentTemplate.objects.get(pk=template_id, is_active=True)
+                template_obj = DocumentTemplate.objects.get(
+                    pk=template_id, is_active=True, professional=professional,
+                )
             except DocumentTemplate.DoesNotExist:
                 return Response({'error': 'Template não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 

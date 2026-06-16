@@ -657,7 +657,7 @@ export class ClinicaBelezaAPI {
   };
 
   static templates = {
-    list: async (params?: { tipo?: string; page?: number; page_size?: number }) => {
+    list: async (params?: { tipo?: string; page?: number; page_size?: number; professional?: number }) => {
       const data = await ClinicaBelezaAPI.get<
         DocumentTemplateItem[] | { results: DocumentTemplateItem[]; count: number }
       >('/templates/', params);

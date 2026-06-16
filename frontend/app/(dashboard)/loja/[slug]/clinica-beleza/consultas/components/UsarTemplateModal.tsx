@@ -28,12 +28,14 @@ export function UsarTemplateModal({
   open,
   tipo,
   consultaId,
+  professionalId,
   onClose,
   onSuccess,
 }: {
   open: boolean;
   tipo: DocumentoTipo;
   consultaId: number;
+  professionalId?: number;
   onClose: () => void;
   /** Chamado após criação com sucesso — para recarregar lista de documentos. */
   onSuccess?: (created?: DocumentoClinicoItem) => void | Promise<void>;
@@ -52,7 +54,9 @@ export function UsarTemplateModal({
     setLoading(true);
     (async () => {
       try {
-        const data = await ClinicaBelezaAPI.templates.list({ tipo, page_size: 100 });
+        const params: Record<string, string | number> = { tipo, page_size: 100 };
+        if (professionalId) params.professional = professionalId;
+        const data = await ClinicaBelezaAPI.templates.list(params);
         const lista = Array.isArray(data) ? data : data?.results ?? [];
         setTemplates(lista);
       } catch (e) {
@@ -62,7 +66,7 @@ export function UsarTemplateModal({
         setLoading(false);
       }
     })();
-  }, [open, tipo]);
+  }, [open, tipo, professionalId]);
 
   const handleConfirmar = async () => {
     if (!selectedTemplate) return;

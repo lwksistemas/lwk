@@ -725,6 +725,7 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
                 <ConsultaDocumentosTab
                   consultaId={selected.id}
                   consultaAtiva={consultaAtiva}
+                  professionalId={selected.professional}
                   onUsarMemed={abrirMemed}
                   refreshPrescricoes={prescricoesRefresh}
                 />

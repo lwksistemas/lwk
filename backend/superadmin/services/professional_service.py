@@ -43,11 +43,11 @@ class ProfessionalService:
             owner_name = f"{owner.first_name} {owner.last_name}".strip() or owner.username
             
             prof = Professional.objects.using(loja.database_name).create(
-                name=owner_name,
+                nome=owner_name,
                 email=owner.email,
-                phone=owner_telefone or '',
-                specialty='Administrador',
-                active=True,
+                telefone=owner_telefone or '',
+                especialidade='Administrador',
+                is_active=True,
                 loja_id=loja.id,
             )
             

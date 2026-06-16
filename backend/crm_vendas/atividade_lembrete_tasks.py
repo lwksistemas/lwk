@@ -33,9 +33,7 @@ def send_lembretes_atividade_crm(antecedencia: str) -> int:
     """
     from superadmin.models import Loja
     from tenants.middleware import set_current_loja_id, set_current_tenant_db
-    from whatsapp.models import WhatsAppConfig
-    from whatsapp.tasks import _ensure_loja_db
-    from crm_vendas.models import Atividade
+    from whatsapp.tasks import _ensure_loja_db, _get_whatsapp_config
     from crm_vendas.atividade_whatsapp_service import enviar_lembrete_atividade_whatsapp
 
     inicio, fim, campo_enviado, config_flag = _janela_antecedencia(antecedencia)
@@ -48,17 +46,24 @@ def send_lembretes_atividade_crm(antecedencia: str) -> int:
 
     for loja in lojas:
         try:
-            config = WhatsAppConfig.objects.filter(loja=loja).first()
+            db_name = _ensure_loja_db(loja)
+            set_current_loja_id(loja.id)
+            set_current_tenant_db(db_name)
+
+            from core.tenant_tables import tenant_table_exists
+
+            if not tenant_table_exists(db_name, 'whatsapp_whatsappconfig'):
+                continue
+            if not tenant_table_exists(db_name, 'crm_vendas_atividade'):
+                continue
+
+            config = _get_whatsapp_config(loja)
             if not config or not config.whatsapp_ativo:
                 continue
             if not getattr(config, 'enviar_lembrete_tarefas', True):
                 continue
             if not getattr(config, config_flag, True):
                 continue
-
-            db_name = _ensure_loja_db(loja)
-            set_current_loja_id(loja.id)
-            set_current_tenant_db(db_name)
 
             filtro = {
                 'concluido': False,
@@ -67,6 +72,8 @@ def send_lembretes_atividade_crm(antecedencia: str) -> int:
                 'data__lte': fim,
                 f'{campo_enviado}__isnull': True,
             }
+            from crm_vendas.models import Atividade
+
             qs = (
                 Atividade.objects.using(db_name)
                 .filter(**filtro)

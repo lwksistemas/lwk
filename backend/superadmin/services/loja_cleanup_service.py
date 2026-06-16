@@ -47,6 +47,7 @@ class LojaCleanupService:
             self.cleanup_support_tickets()
             self.cleanup_logs_and_alerts()
             self.cleanup_payments()
+            self.cleanup_fk_references()
             self.cleanup_database_file()
             self.cleanup_owner_user()
             
@@ -237,6 +238,71 @@ class LojaCleanupService:
             self.results['asaas'] = {'erro': str(e)}
             return 0
     
+    def cleanup_fk_references(self):
+        """
+        Remove registros de tabelas com FK para superadmin_loja que podem bloquear
+        a exclusão (quando CASCADE no banco não está aplicado corretamente).
+        """
+        removed = {}
+        tables_to_clean = [
+            ('whatsapp', 'WhatsAppConfig', 'loja_id'),
+            ('whatsapp', 'WhatsAppInstance', 'loja_id'),
+            ('superadmin', 'GoogleCalendarConnection', 'loja_id'),
+            ('superadmin', 'EmailRetry', 'loja_id'),
+            ('superadmin', 'BackupConfig', 'loja_id'),
+            ('superadmin', 'BackupHistorico', 'loja_id'),
+        ]
+
+        for app_label, model_name, fk_field in tables_to_clean:
+            try:
+                from django.apps import apps
+                model = apps.get_model(app_label, model_name)
+                qs = model.objects.filter(**{fk_field: self.loja_id})
+                count = qs.count()
+                if count:
+                    qs.delete()
+                    removed[f'{app_label}.{model_name}'] = count
+                    logger.info(f"  ✅ {app_label}.{model_name}: {count} removidos")
+            except LookupError:
+                pass  # Model não existe nesta instalação
+            except Exception as e:
+                logger.warning(f"  ⚠️ {app_label}.{model_name}: {e}")
+                removed[f'{app_label}.{model_name}'] = f'erro: {e}'
+
+        # Fallback SQL: limpar qualquer FK restante via query direta
+        try:
+            from django.db import connection
+            with connection.cursor() as cur:
+                cur.execute("""
+                    SELECT table_name, column_name
+                    FROM information_schema.key_column_usage kcu
+                    JOIN information_schema.table_constraints tc
+                      ON kcu.constraint_name = tc.constraint_name
+                    WHERE tc.constraint_type = 'FOREIGN KEY'
+                      AND kcu.column_name = 'loja_id'
+                      AND tc.table_name != 'superadmin_loja'
+                      AND kcu.table_schema = current_schema()
+                """)
+                fk_tables = cur.fetchall()
+
+                for table_name, col_name in fk_tables:
+                    try:
+                        cur.execute(
+                            f'DELETE FROM "{table_name}" WHERE "{col_name}" = %s',
+                            [self.loja_id]
+                        )
+                        if cur.rowcount:
+                            removed[table_name] = cur.rowcount
+                            logger.info(f"  ✅ SQL {table_name}: {cur.rowcount} removidos")
+                    except Exception as e:
+                        logger.warning(f"  ⚠️ SQL {table_name}: {e}")
+        except Exception as e:
+            logger.warning(f"  ⚠️ Fallback SQL FK cleanup: {e}")
+
+        self.results['fk_references'] = removed
+        if removed:
+            logger.info(f"✅ FK references limpas: {removed}")
+
     def cleanup_database_file(self):
         """
         Remove configuração do banco de dados da loja.

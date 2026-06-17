@@ -75,7 +75,7 @@ export default function SchemasPage() {
       body
     );
 
-  /** Uma requisição por loja com falha evita timeout do Heroku (~30s) em correção em massa. */
+  /** Uma requisição por loja evita timeout em correção em massa. */
   const executarCorrecaoEmLotes = async () => {
     setProgressText('Auditoria inicial…');
     const { data: inicial } = await postAuditoria({
@@ -84,15 +84,26 @@ export default function SchemasPage() {
     });
     setResult(inicial);
 
-    const ids = (inicial.resultados || [])
+    const idsComFalha = (inicial.resultados || [])
       .filter((r) => !r.ok_final && r.audit.loja_id != null)
       .map((r) => r.audit.loja_id as number);
+
+    const idsComLegado = (inicial.resultados || [])
+      .filter(
+        (r) =>
+          r.ok_final &&
+          r.audit.loja_id != null &&
+          (r.audit.tabelas_extras_count ?? 0) > 0
+      )
+      .map((r) => r.audit.loja_id as number);
+
+    const ids = [...new Set([...idsComFalha, ...idsComLegado])];
 
     if (ids.length === 0) {
       setProgressText(null);
       setResult((prev) => ({
         ...inicial,
-        mensagem: 'Nenhuma loja com falha detectada — nada a corrigir.',
+        mensagem: 'Nenhuma loja com falha ou tabelas legado — nada a corrigir.',
         resultados: prev?.resultados ?? inicial.resultados,
         resumo: prev?.resumo ?? inicial.resumo,
       }));
@@ -101,7 +112,8 @@ export default function SchemasPage() {
 
     for (let i = 0; i < ids.length; i++) {
       const lojaId = ids[i];
-      setProgressText(`Aplicando correção: loja ${i + 1} de ${ids.length} (id ${lojaId})…`);
+      const motivo = idsComFalha.includes(lojaId) ? 'correção' : 'limpeza legado';
+      setProgressText(`${motivo}: loja ${i + 1} de ${ids.length} (id ${lojaId})…`);
       await postAuditoria({
         aplicar_correcao: true,
         loja_id: lojaId,
@@ -185,6 +197,9 @@ export default function SchemasPage() {
   };
 
   const resultados = result?.resultados || [];
+  const comLegado = resultados.filter(
+    (r) => r.ok_final && (r.audit.tabelas_extras_count ?? 0) > 0
+  ).length;
   const filtrados = resultados.filter((r) => {
     if (filtro === 'ok') return r.ok_final;
     if (filtro === 'falha') return !r.ok_final;
@@ -242,10 +257,13 @@ export default function SchemasPage() {
               </span>
             )}
             {result?.resumo && (
-              <div className="ml-auto flex gap-4 text-sm">
+              <div className="ml-auto flex gap-4 text-sm flex-wrap justify-end">
                 <span className="text-gray-600 dark:text-gray-400">{result.resumo.total} lojas</span>
                 <span className="text-green-600 dark:text-green-400">{result.resumo.ok} OK</span>
                 <span className="text-red-600 dark:text-red-400">{result.resumo.falhas} falha(s)</span>
+                {comLegado > 0 && (
+                  <span className="text-amber-600 dark:text-amber-400">{comLegado} com legado</span>
+                )}
                 {result.aplicar_correcao && (
                   <span className="text-amber-600 dark:text-amber-400">{result.resumo.corrigidos} corrigida(s)</span>
                 )}
@@ -260,6 +278,20 @@ export default function SchemasPage() {
             <p className="text-amber-700 dark:text-amber-300 flex items-center gap-2">
               <AlertTriangle size={18} />
               {result.mensagem || 'Ambiente sem PostgreSQL: auditoria de schema só se aplica em produção.'}
+            </p>
+          </div>
+        )}
+
+        {comLegado > 0 && (result?.resumo?.falhas ?? 0) === 0 && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+            <p className="text-amber-800 dark:text-amber-200 flex items-start gap-2 text-sm">
+              <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+              <span>
+                <strong>Não é falha:</strong> {comLegado} loja(s) têm tabelas <em>legado</em> (ex.:{' '}
+                <code className="text-xs">cabeleireiro_*</code> de outro tipo de app). O status verde significa que
+                os apps do tipo atual estão corretos. Use <strong>Verificar e corrigir</strong> para remover essas
+                tabelas antigas com segurança.
+              </span>
             </p>
           </div>
         )}
@@ -301,7 +333,7 @@ export default function SchemasPage() {
                     <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Loja</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Tipo</th>
                     <th className="text-center py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Tabelas</th>
-                    <th className="text-center py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                    <th className="text-center py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Status</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Apps</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Ações</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Detalhe</th>
@@ -314,7 +346,9 @@ export default function SchemasPage() {
                     const lojaId = a.loja_id;
                     const temFalha =
                       !row.ok_final || (a.tabelas_faltando != null && a.tabelas_faltando.length > 0);
-                    const podeCorrigirLoja = typeof lojaId === 'number' && temFalha && !loading;
+                    const temLegado = (a.tabelas_extras_count ?? 0) > 0;
+                    const podeCorrigirLoja =
+                      typeof lojaId === 'number' && (temFalha || temLegado) && !loading;
                     return (
                       <tr key={i} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30">
                         <td className="py-3 px-4">
@@ -343,7 +377,14 @@ export default function SchemasPage() {
                         </td>
                         <td className="py-3 px-4 text-center">
                           {row.ok_final ? (
-                            <CheckCircle size={18} className="text-green-500 mx-auto" />
+                            (a.tabelas_extras_count ?? 0) > 0 ? (
+                              <span title="Apps OK — há tabelas legado" className="inline-flex">
+                                <CheckCircle size={18} className="text-green-500" />
+                                <AlertTriangle size={14} className="text-amber-500 -ml-1 -mt-2" />
+                              </span>
+                            ) : (
+                              <CheckCircle size={18} className="text-green-500 mx-auto" />
+                            )
                           ) : (
                             <XCircle size={18} className="text-red-500 mx-auto" />
                           )}
@@ -371,7 +412,7 @@ export default function SchemasPage() {
                               onClick={() => corrigirUmaLoja(lojaId)}
                               className="text-xs px-2 py-1 rounded bg-amber-600 text-white hover:bg-amber-700 whitespace-nowrap"
                             >
-                              Corrigir esta loja
+                              {temLegado && !temFalha ? 'Limpar legado' : 'Corrigir esta loja'}
                             </button>
                           ) : (
                             <span className="text-gray-400 text-xs">—</span>

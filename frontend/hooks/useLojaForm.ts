@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
-import { formatCep } from '@/lib/format-br';
+import { formatCep, cepDigitosValidos } from '@/lib/format-br';
+import { consultaCnpj, resolverCepDadosCnpj } from '@/lib/consulta-cnpj';
 
 export interface LojaFormData {
   nome: string;
@@ -186,23 +187,29 @@ export function useLojaForm(incluirSenha: boolean = true) {
     }
     setBuscarCnpjLoading(true);
     try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-      if (!res.ok) {
+      const dados = await consultaCnpj(cnpj);
+      if (!dados) {
         alert('CNPJ não encontrado ou serviço indisponível.');
         return;
       }
-      const data = await res.json();
-      setFormData(prev => ({
+      const cep = await resolverCepDadosCnpj(dados);
+      if (!cepDigitosValidos(cep)) {
+        alert(
+          'Endereço encontrado, mas o CEP não pôde ser preenchido automaticamente. ' +
+          'Informe o CEP com 8 dígitos no campo CEP e clique em Buscar.',
+        );
+      }
+      setFormData((prev) => ({
         ...prev,
-        nome: data.razao_social || data.nome_fantasia || prev.nome,
-        cep: formatCep(String(data.cep ?? '')) || prev.cep,
-        logradouro: data.logradouro || prev.logradouro,
-        numero: data.numero || prev.numero,
-        complemento: data.complemento || prev.complemento,
-        bairro: data.bairro || prev.bairro,
-        cidade: data.municipio || prev.cidade,
-        uf: data.uf || prev.uf,
-        slug: getSuggestedSlug(data.razao_social || data.nome_fantasia || prev.nome, prev.cpf_cnpj),
+        nome: dados.razao_social || dados.nome_fantasia || prev.nome,
+        cep: cepDigitosValidos(cep) ? cep : '',
+        logradouro: dados.logradouro || prev.logradouro,
+        numero: dados.numero || prev.numero,
+        complemento: dados.complemento || prev.complemento,
+        bairro: dados.bairro || prev.bairro,
+        cidade: dados.municipio || prev.cidade,
+        uf: dados.uf || prev.uf,
+        slug: getSuggestedSlug(dados.razao_social || dados.nome_fantasia || prev.nome, prev.cpf_cnpj),
       }));
     } catch {
       alert('Erro ao consultar CNPJ. Tente novamente.');

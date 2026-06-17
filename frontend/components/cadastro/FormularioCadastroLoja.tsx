@@ -65,6 +65,13 @@ export function FormularioCadastroLoja({
     }));
   };
 
+  const handleCpfCnpjBlur = () => {
+    const digits = formData.cpf_cnpj.replace(/\D/g, '');
+    if (digits.length === 14 && !buscarCnpjLoading) {
+      void buscarCnpj();
+    }
+  };
+
   const planoSelecionado = planos.find((p: any) => p.id === parseInt(formData.plano));
   const valorAssinatura = planoSelecionado 
     ? (formData.tipo_assinatura === 'anual' 
@@ -105,6 +112,7 @@ export function FormularioCadastroLoja({
                 name="cpf_cnpj"
                 value={formData.cpf_cnpj}
                 onChange={handleCpfCnpjChange}
+                onBlur={handleCpfCnpjBlur}
                 required
                 maxLength={18}
                 className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"

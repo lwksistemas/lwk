@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
 import { formatCurrency } from '@/lib/financeiro-helpers';
-import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
+import { applyTelefoneInternacionalPayload, formatTelefone, cepDigitosValidos } from '@/lib/format-br';
+import { consultaCnpj, resolverCepDadosCnpj } from '@/lib/consulta-cnpj';
 import { logger } from '@/lib/logger';
 
 export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
@@ -239,28 +240,29 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
     }
     setBuscarCnpjLoading(true);
     try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-      if (!res.ok) {
+      const dados = await consultaCnpj(cnpj);
+      if (!dados) {
         alert('CNPJ não encontrado ou serviço indisponível.');
         return;
       }
-      const data = await res.json();
-      const formatCep = (v: string) => {
-        const n = (v || '').replace(/\D/g, '');
-        if (n.length >= 8) return n.slice(0, 5) + '-' + n.slice(5, 8);
-        return n;
-      };
-      setFormData(prev => ({
+      const cep = await resolverCepDadosCnpj(dados);
+      if (!cepDigitosValidos(cep)) {
+        alert(
+          'Endereço encontrado, mas o CEP não pôde ser preenchido automaticamente. ' +
+          'Informe o CEP com 8 dígitos no campo CEP.',
+        );
+      }
+      setFormData((prev) => ({
         ...prev,
-        nome: data.razao_social || data.nome_fantasia || prev.nome,
-        cep: formatCep(data.cep) || prev.cep,
-        logradouro: data.logradouro || prev.logradouro,
-        numero: data.numero || prev.numero,
-        complemento: data.complemento || prev.complemento,
-        bairro: data.bairro || prev.bairro,
-        cidade: data.municipio || prev.cidade,
-        uf: data.uf || prev.uf,
-        slug: getSuggestedSlug(data.razao_social || data.nome_fantasia || prev.nome, prev.cpf_cnpj),
+        nome: dados.razao_social || dados.nome_fantasia || prev.nome,
+        cep: cepDigitosValidos(cep) ? cep : '',
+        logradouro: dados.logradouro || prev.logradouro,
+        numero: dados.numero || prev.numero,
+        complemento: dados.complemento || prev.complemento,
+        bairro: dados.bairro || prev.bairro,
+        cidade: dados.municipio || prev.cidade,
+        uf: dados.uf || prev.uf,
+        slug: getSuggestedSlug(dados.razao_social || dados.nome_fantasia || prev.nome, prev.cpf_cnpj),
       }));
     } catch {
       alert('Erro ao consultar CNPJ. Tente novamente.');

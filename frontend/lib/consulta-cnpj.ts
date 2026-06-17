@@ -23,10 +23,52 @@ export interface DadosCnpj {
 
 const TIMEOUT_MS = 15000;
 
+function formatCepFromApi(v: string | number | null | undefined): string {
+  const n = String(v ?? '').replace(/\D/g, '');
+  if (n.length !== 8) return '';
+  return `${n.slice(0, 5)}-${n.slice(5)}`;
+}
+
 function fetchWithTimeout(url: string): Promise<Response> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+}
+
+/**
+ * Busca CEP pelo logradouro (ViaCEP) quando a BrasilAPI retorna CEP incompleto ou vazio.
+ */
+export async function consultaCepPorLogradouro(
+  uf: string,
+  cidade: string,
+  logradouro: string,
+): Promise<string> {
+  const ufNorm = (uf || '').trim().toUpperCase();
+  const cidadeNorm = (cidade || '').trim();
+  const logradouroNorm = (logradouro || '').trim();
+  if (!ufNorm || !cidadeNorm || !logradouroNorm) return '';
+
+  try {
+    const url = `https://viacep.com.br/ws/${encodeURIComponent(ufNorm)}/${encodeURIComponent(cidadeNorm)}/${encodeURIComponent(logradouroNorm)}/json/`;
+    const res = await fetchWithTimeout(url);
+    if (!res.ok) return '';
+    const list = await res.json();
+    if (!Array.isArray(list) || list.length === 0) return '';
+    const primeiro = list.find((item) => item && !item.erro && item.cep);
+    if (!primeiro?.cep) return '';
+    return formatCepFromApi(primeiro.cep);
+  } catch {
+    return '';
+  }
+}
+
+/** Garante CEP com 8 dígitos a partir dos dados da BrasilAPI (+ ViaCEP se necessário). */
+export async function resolverCepDadosCnpj(dados: DadosCnpj): Promise<string> {
+  const direto = formatCepFromApi(dados.cep);
+  if (direto.replace(/\D/g, '').length === 8) return direto;
+  const via = await consultaCepPorLogradouro(dados.uf, dados.municipio, dados.logradouro);
+  if (via.replace(/\D/g, '').length === 8) return via;
+  return '';
 }
 
 /**
@@ -43,14 +85,6 @@ export async function consultaCnpj(cnpj: string): Promise<DadosCnpj | null> {
     if (!res.ok) return null;
     const data = await res.json();
     if (!data) return null;
-
-    const formatCepFromApi = (v: string | number | null | undefined) => {
-      const raw = v == null ? '' : String(v);
-      const n = raw.replace(/\D/g, '');
-      if (!n) return '';
-      const padded = n.length < 8 ? n.padStart(8, '0') : n.slice(0, 8);
-      return padded.slice(0, 5) + '-' + padded.slice(5, 8);
-    };
 
     const ibge = data.codigo_municipio_ibge ?? data.codigo_municipio;
     const cnae = data.cnae_fiscal;

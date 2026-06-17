@@ -108,12 +108,28 @@ class LojaCreateSerializer(
     
     def validate(self, attrs):
         from core.cep_utils import cep_digitos_validos, normalizar_cep
+        from nfse_integration.nfse_geo import enriquecer_endereco_por_cep
 
         cep_raw = (attrs.get('cep') or '').strip()
+        if cep_raw and not cep_digitos_validos(cep_raw):
+            endereco = {
+                'cep': cep_raw,
+                'logradouro': (attrs.get('logradouro') or '').strip(),
+                'bairro': (attrs.get('bairro') or '').strip(),
+                'cidade': (attrs.get('cidade') or '').strip(),
+                'uf': (attrs.get('uf') or '').strip(),
+            }
+            if enriquecer_endereco_por_cep(endereco):
+                attrs['cep'] = endereco['cep']
+                for campo in ('logradouro', 'bairro', 'cidade', 'uf'):
+                    if (endereco.get(campo) or '').strip():
+                        attrs[campo] = endereco[campo]
+                cep_raw = attrs['cep']
+
         if cep_raw:
             if not cep_digitos_validos(cep_raw):
                 raise serializers.ValidationError({
-                    'cep': 'Informe um CEP válido com 8 dígitos (ex.: 14026-580).',
+                    'cep': 'Informe um CEP válido com 8 dígitos (ex.: 14026-583).',
                 })
             attrs['cep'] = normalizar_cep(cep_raw)
         elif any((attrs.get(k) or '').strip() for k in ('logradouro', 'cidade', 'uf', 'bairro')):

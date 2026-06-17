@@ -103,10 +103,9 @@ export default function CrmVendasPropostasPage() {
       (filtroStatus === 'pedido' && p.status === 'aceita'),
   );
 
-  const exibirColunaAssinatura =
-    filtroStatus !== 'cancelada' &&
-    filtroStatus !== 'pedido' &&
-    propostasFiltradas.some((p) => !propostaOcultaColunaAssinatura(p));
+  const exibirColunaAssinatura = propostasFiltradas.some(
+    (p) => !propostaOcultaColunaAssinatura(p),
+  );
 
   const colunasTabela = exibirColunaAssinatura ? 7 : 6;
 

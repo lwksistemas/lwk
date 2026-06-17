@@ -101,7 +101,7 @@ export default function CrmVendasConfiguracoesPage() {
       descricao: 'Personalize o sistema do jeito que você quiser trabalhar',
       href: `${base}/personalizar`,
       icon: Sliders,
-      itens: ['Origens de leads', 'Etapas do pipeline', 'Colunas visíveis', 'Módulos ativos'],
+      itens: ['Origens de leads', 'Etapas do pipeline', 'Colunas visíveis (Leads, Contas, Contatos)', 'Módulos ativos'],
     },
   ];
 

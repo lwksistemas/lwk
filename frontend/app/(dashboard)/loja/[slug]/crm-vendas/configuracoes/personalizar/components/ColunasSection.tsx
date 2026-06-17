@@ -5,6 +5,7 @@ import type { CrmColunaDef } from '@/lib/crm-colunas-config';
 
 interface Props {
   title: string;
+  sectionId?: string;
   description?: string;
   colunasDisponiveis: CrmColunaDef[];
   colunas: string[];
@@ -15,6 +16,7 @@ interface Props {
 
 export function ColunasSection({
   title,
+  sectionId,
   description = 'Escolha quais informações aparecem na listagem.',
   colunasDisponiveis,
   colunas,
@@ -44,7 +46,7 @@ export function ColunasSection({
   };
 
   return (
-    <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-6">
+    <div id={sectionId} className="scroll-mt-24 bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-6">
       <div className="mb-4">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">

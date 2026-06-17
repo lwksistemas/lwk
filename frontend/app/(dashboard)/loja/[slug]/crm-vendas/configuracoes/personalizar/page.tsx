@@ -75,10 +75,30 @@ export default function ConfiguracoesPage() {
       {error && <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4"><p className="text-sm text-red-600 dark:text-red-400">{error}</p></div>}
       {success && <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4"><p className="text-sm text-green-600 dark:text-green-400">{success}</p></div>}
 
+      <nav className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-4" aria-label="Atalhos da personalização">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Ir para</p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { href: '#colunas-leads', label: 'Colunas — Leads' },
+            { href: '#colunas-contas', label: 'Colunas — Contas' },
+            { href: '#colunas-contatos', label: 'Colunas — Contatos' },
+          ].map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              className="text-sm px-3 py-1.5 rounded-full border border-[#0176d3]/30 text-[#0176d3] hover:bg-[#e3f3ff] dark:hover:bg-[#0176d3]/20 transition-colors"
+            >
+              {item.label}
+            </a>
+          ))}
+        </div>
+      </nav>
+
       <OrigensSection origens={config?.origens_leads || []} saving={saving} onSave={(o) => salvarConfig({ origens_leads: o })} onError={handleError} />
       <ModulosSection modulos={config?.modulos_ativos || {}} onSave={(m) => salvarConfig({ modulos_ativos: m })} />
       <EtapasSection etapas={config?.etapas_pipeline || []} onSave={(e) => salvarConfig({ etapas_pipeline: e })} onError={handleError} />
       <ColunasSection
+        sectionId="colunas-leads"
         title="Colunas Visíveis nos Leads"
         colunasDisponiveis={COLUNAS_LEADS_DISPONIVEIS}
         colunas={config?.colunas_leads?.length ? config.colunas_leads : DEFAULT_COLUNAS_LEADS}
@@ -86,6 +106,7 @@ export default function ConfiguracoesPage() {
         onError={handleError}
       />
       <ColunasSection
+        sectionId="colunas-contas"
         title="Colunas Visíveis nas Contas"
         description="Escolha quais informações aparecem na listagem de contas."
         colunasDisponiveis={COLUNAS_CONTAS_DISPONIVEIS}
@@ -94,6 +115,7 @@ export default function ConfiguracoesPage() {
         onError={handleError}
       />
       <ColunasSection
+        sectionId="colunas-contatos"
         title="Colunas Visíveis nos Contatos"
         description="Escolha quais informações aparecem na listagem de contatos (pessoas vinculadas às contas)."
         colunasDisponiveis={COLUNAS_CONTATOS_DISPONIVEIS}

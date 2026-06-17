@@ -72,6 +72,13 @@ def emitir_nfse_assinatura(pagamento) -> Dict[str, Any]:
         'email': tomador_email,
         'telefone': getattr(loja, 'owner_telefone', '') or '',
     }
+    from core.cep_utils import normalizar_cep
+    cep_norm = normalizar_cep(tomador_endereco['cep'])
+    if cep_norm:
+        tomador_endereco['cep'] = cep_norm
+        if cep_norm != (getattr(loja, 'cep', '') or ''):
+            loja.cep = cep_norm
+            loja.save(update_fields=['cep', 'updated_at'])
     if not enriquecer_endereco_por_cep(tomador_endereco):
         msg = (
             f'CEP do tomador inválido ou não localizado ({tomador_endereco.get("cep") or "vazio"}). '

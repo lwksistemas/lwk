@@ -1,7 +1,7 @@
 'use client';
 
 import { formatCurrency } from '@/lib/financeiro-helpers';
-import { formatTelefone } from '@/lib/format-br';
+import { formatCep, formatTelefone, cepDigitosValidos } from '@/lib/format-br';
 
 interface FormularioCadastroLojaProps {
   lojaForm: any;
@@ -35,9 +35,7 @@ export function FormularioCadastroLoja({
     const { name, value } = e.target;
     
     if (name === 'cep') {
-      const digits = value.replace(/\D/g, '').slice(0, 8);
-      const formatted = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
-      setFormData((prev: any) => ({ ...prev, cep: formatted }));
+      setFormData((prev: any) => ({ ...prev, cep: formatCep(value) }));
       return;
     }
 
@@ -150,7 +148,7 @@ export function FormularioCadastroLoja({
           <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-2">
             <div className="min-w-0 flex-1">
               <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                CEP
+                CEP *
               </label>
               <input
                 type="text"

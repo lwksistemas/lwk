@@ -44,10 +44,12 @@ export async function consultaCnpj(cnpj: string): Promise<DadosCnpj | null> {
     const data = await res.json();
     if (!data) return null;
 
-    const formatCep = (v: string) => {
-      const n = (v || '').replace(/\D/g, '');
-      if (n.length >= 8) return n.slice(0, 5) + '-' + n.slice(5, 8);
-      return n;
+    const formatCepFromApi = (v: string | number | null | undefined) => {
+      const raw = v == null ? '' : String(v);
+      const n = raw.replace(/\D/g, '');
+      if (!n) return '';
+      const padded = n.length < 8 ? n.padStart(8, '0') : n.slice(0, 8);
+      return padded.slice(0, 5) + '-' + padded.slice(5, 8);
     };
 
     const ibge = data.codigo_municipio_ibge ?? data.codigo_municipio;
@@ -55,7 +57,7 @@ export async function consultaCnpj(cnpj: string): Promise<DadosCnpj | null> {
     return {
       razao_social: data.razao_social || data.nome_fantasia || '',
       nome_fantasia: data.nome_fantasia || undefined,
-      cep: formatCep(data.cep || '') || '',
+      cep: formatCepFromApi(data.cep) || '',
       logradouro: data.logradouro || '',
       numero: data.numero || '',
       complemento: data.complemento || '',

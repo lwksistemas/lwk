@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import { formatCep } from '@/lib/format-br';
 
 export interface LojaFormData {
   nome: string;
@@ -191,15 +192,10 @@ export function useLojaForm(incluirSenha: boolean = true) {
         return;
       }
       const data = await res.json();
-      const formatCep = (v: string) => {
-        const n = (v || '').replace(/\D/g, '');
-        if (n.length >= 8) return n.slice(0, 5) + '-' + n.slice(5, 8);
-        return n;
-      };
       setFormData(prev => ({
         ...prev,
         nome: data.razao_social || data.nome_fantasia || prev.nome,
-        cep: formatCep(data.cep) || prev.cep,
+        cep: formatCep(String(data.cep ?? '')) || prev.cep,
         logradouro: data.logradouro || prev.logradouro,
         numero: data.numero || prev.numero,
         complemento: data.complemento || prev.complemento,

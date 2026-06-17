@@ -111,6 +111,18 @@ export function formatCep(valor?: string | null): string {
   return `${d.slice(0, 5)}-${d.slice(5)}`;
 }
 
+/** Normaliza CEP para 8 dígitos (completa zeros à esquerda quando a API omite). */
+export function normalizeCepDigits(valor?: string | null): string {
+  let d = apenasDigitos(valor);
+  if (!d) return '';
+  if (d.length < 8) d = d.padStart(8, '0');
+  return d.slice(0, 8);
+}
+
+export function cepDigitosValidos(valor?: string | null): boolean {
+  return apenasDigitos(valor).length === 8;
+}
+
 /**
  * Converte texto para MAIÚSCULAS (usado em campos de cadastro como nome, empresa, cidade).
  * Retorna string vazia se valor for nulo/undefined.

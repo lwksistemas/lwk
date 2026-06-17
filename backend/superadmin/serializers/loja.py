@@ -106,6 +106,27 @@ class LojaCreateSerializer(
             'atalho', 'subdomain',  # ✅ NOVO v1421: Sistema híbrido de acesso
         ]
     
+    def validate(self, attrs):
+        from core.cep_utils import cep_digitos_validos, normalizar_cep
+
+        cep_raw = (attrs.get('cep') or '').strip()
+        if cep_raw:
+            if not cep_digitos_validos(cep_raw):
+                raise serializers.ValidationError({
+                    'cep': 'Informe um CEP válido com 8 dígitos (ex.: 14026-580).',
+                })
+            attrs['cep'] = normalizar_cep(cep_raw)
+        elif any((attrs.get(k) or '').strip() for k in ('logradouro', 'cidade', 'uf', 'bairro')):
+            raise serializers.ValidationError({
+                'cep': 'CEP é obrigatório quando o endereço é informado.',
+            })
+        else:
+            raise serializers.ValidationError({
+                'cep': 'CEP é obrigatório para emissão da nota fiscal após o pagamento.',
+            })
+
+        return super().validate(attrs)
+
     def create(self, validated_data):
         """
         Cria loja usando services para separar responsabilidades

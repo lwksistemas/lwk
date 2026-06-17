@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
+import { cepDigitosValidos } from '@/lib/format-br';
+import { logger } from '@/lib/logger';
 import { useLojaForm } from '@/hooks/useLojaForm';
 import { CadastroFundo } from '@/components/cadastro/CadastroFundo';
 import { FormularioCadastroLoja } from '@/components/cadastro/FormularioCadastroLoja';
@@ -19,6 +21,12 @@ export default function CadastroPublicoPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!cepDigitosValidos(lojaForm.formData.cep)) {
+      alert('Informe um CEP válido com 8 dígitos antes de finalizar o cadastro.');
+      return;
+    }
+
     setLoading(true);
 
     try {

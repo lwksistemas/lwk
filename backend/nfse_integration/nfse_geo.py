@@ -177,6 +177,19 @@ def enriquecer_endereco_por_cep(endereco: dict[str, str]) -> bool:
     """
     cep_digits = re.sub(r'\D', '', endereco.get('cep') or '')
     if len(cep_digits) != 8:
+        logradouro = (endereco.get('logradouro') or '').strip()
+        cidade = (endereco.get('cidade') or '').strip()
+        uf = (endereco.get('uf') or '').strip()
+        if logradouro and cidade and uf:
+            por_rua = consultar_viacep_por_logradouro(uf, cidade, logradouro, endereco.get('bairro') or '')
+            if por_rua.get('ibge') and por_rua.get('cep'):
+                _aplicar_endereco_viacep(endereco, por_rua)
+                logger.info(
+                    'CEP %r corrigido via logradouro para %s',
+                    cep_digits or 'vazio',
+                    endereco.get('cep'),
+                )
+                return True
         return False
 
     viacep = consultar_viacep(cep_digits)

@@ -35,11 +35,18 @@ class DocumentoQuerysetMixin:
         qs = qs.select_related(*self.documento_select_related).prefetch_related(
             *self.documento_prefetch_related
         )
-        return filtrar_queryset_por_query_params(
+        qs = filtrar_queryset_por_query_params(
             qs,
             self.request,
-            {'oportunidade_id': 'oportunidade_id', 'status': 'status'},
+            {'oportunidade_id': 'oportunidade_id'},
         )
+        status = self.request.query_params.get('status')
+        if status == 'pedido':
+            # Aba "Concluída" no CRM: aceita (assinada) + pedido (confirmado).
+            qs = qs.filter(status__in=['aceita', 'pedido'])
+        elif status:
+            qs = qs.filter(status=status)
+        return qs
 
 
 class EnviarClienteMixin:

@@ -78,8 +78,7 @@ export default function CrmVendasPropostasPage() {
   const slug = (params?.slug as string) ?? '';
   const [filtroStatus, setFiltroStatus] = useState('');
 
-  const statusParam =
-    filtroStatus === 'pedido' ? 'aceita' : filtroStatus || undefined;
+  const statusParam = filtroStatus || undefined;
 
   const {
     items: propostas,
@@ -96,14 +95,7 @@ export default function CrmVendasPropostasPage() {
     errorFallback: 'Erro ao carregar propostas.',
   });
 
-  const propostasFiltradas = propostas.filter(
-    (p) =>
-      !filtroStatus ||
-      p.status === filtroStatus ||
-      (filtroStatus === 'pedido' && p.status === 'aceita'),
-  );
-
-  const exibirColunaAssinatura = propostasFiltradas.some(
+  const exibirColunaAssinatura = propostas.some(
     (p) => !propostaOcultaColunaAssinatura(p),
   );
 
@@ -441,7 +433,17 @@ export default function CrmVendasPropostasPage() {
               onClick={() => setFiltroStatus(s)}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${filtroStatus === s ? 'bg-[#0176d3] text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
             >
-              {s === '' ? `Todos (${propostas.length})` : `${STATUS_LABEL[s] || s} (${propostas.filter(p => p.status === s || (s === 'pedido' && p.status === 'aceita')).length})`}
+              {s === ''
+                ? `Todos (${filtroStatus === '' ? totalCount : propostas.length})`
+                : `${STATUS_LABEL[s] || s} (${
+                    filtroStatus === s
+                      ? totalCount
+                      : propostas.filter(
+                          (p) =>
+                            p.status === s ||
+                            (s === 'pedido' && (p.status === 'aceita' || p.status === 'pedido')),
+                        ).length
+                  })`}
             </button>
           ))}
         </div>
@@ -480,7 +482,7 @@ export default function CrmVendasPropostasPage() {
                   </td>
                 </tr>
               ) : (
-                propostasFiltradas.map((p) => (
+                propostas.map((p) => (
                   <tr key={p.id} className="border-b border-gray-100 dark:border-[#0d1f3c] hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/30">
                     <td className="py-3 px-4 font-mono text-sm text-gray-600 dark:text-gray-400">#{p.numero || '---'}</td>
                     <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{p.titulo}</td>
@@ -635,16 +637,17 @@ export default function CrmVendasPropostasPage() {
             </tbody>
           </table>
         </div>
-        <CrmPaginationBar
-          page={page}
-          totalPages={totalPages}
-          totalCount={totalCount}
-          pageSize={pageSize}
-          loading={loading}
-          itemLabel="propostas"
-          onPageChange={setPage}
-        />
       </div>
+
+      <CrmPaginationBar
+        page={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        pageSize={pageSize}
+        loading={loading}
+        itemLabel="propostas"
+        onPageChange={setPage}
+      />
 
       <div className="px-4 py-3 bg-gray-50 dark:bg-[#0d1f3c]/30 rounded-lg border border-gray-200 dark:border-[#0d1f3c]">
         <p className="text-xs text-gray-500 dark:text-gray-400 text-center">

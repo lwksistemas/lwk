@@ -64,6 +64,15 @@ interface Proposta {
 
 type ModalType = 'create' | 'edit' | 'view' | 'delete' | 'cancelar' | null;
 
+/** Proposta finalizada — não exibe coluna de envio de assinatura. */
+function propostaOcultaColunaAssinatura(p: Proposta): boolean {
+  return (
+    p.status === 'cancelada' ||
+    p.status === 'pedido' ||
+    p.status_assinatura === 'concluido'
+  );
+}
+
 export default function CrmVendasPropostasPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
@@ -93,6 +102,13 @@ export default function CrmVendasPropostasPage() {
       p.status === filtroStatus ||
       (filtroStatus === 'pedido' && p.status === 'aceita'),
   );
+
+  const exibirColunaAssinatura =
+    filtroStatus !== 'cancelada' &&
+    filtroStatus !== 'pedido' &&
+    propostasFiltradas.some((p) => !propostaOcultaColunaAssinatura(p));
+
+  const colunasTabela = exibirColunaAssinatura ? 7 : 6;
 
   const [oportunidades, setOportunidades] = useState<CrmPropostaOportunidadeOption[]>([]);
   const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
@@ -377,7 +393,7 @@ export default function CrmVendasPropostasPage() {
     return (
       <div className="space-y-4">
         <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse" />
-        <SkeletonTable rows={5} columns={7} />
+        <SkeletonTable rows={5} columns={6} />
       </div>
     );
   }
@@ -438,10 +454,12 @@ export default function CrmVendasPropostasPage() {
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Título</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Oportunidade</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase w-28">
-                  <span className="block">Assinatura</span>
-                  <span className="block text-[9px] font-normal normal-case text-gray-500 dark:text-gray-400">Cliente / vendedor</span>
-                </th>
+                {exibirColunaAssinatura && (
+                  <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase w-28">
+                    <span className="block">Assinatura</span>
+                    <span className="block text-[9px] font-normal normal-case text-gray-500 dark:text-gray-400">Cliente / vendedor</span>
+                  </th>
+                )}
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase whitespace-nowrap">Emissão</th>
                 <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Ações</th>
               </tr>
@@ -449,7 +467,7 @@ export default function CrmVendasPropostasPage() {
             <tbody>
               {propostas.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={colunasTabela} className="py-12 text-center text-gray-500 dark:text-gray-400">
                     <ClipboardList size={48} className="mx-auto mb-3 opacity-30" />
                     <p className="font-medium">Nenhuma proposta cadastrada</p>
                     <p className="text-sm mt-1">Clique em &quot;Nova Proposta&quot; ou vá ao Pipeline para criar</p>
@@ -477,18 +495,20 @@ export default function CrmVendasPropostasPage() {
                         variante="proposta"
                       />
                     </td>
-                    <td className="py-3 px-4">
-                      {p.status === 'cancelada' ? (
-                        <span className="text-gray-300 dark:text-gray-600 text-center block">—</span>
-                      ) : (
-                        <CrmEnviarAssinaturaColuna
-                          statusAssinatura={p.status_assinatura}
-                          whatsappHabilitado={propostaWhatsappHabilitada}
-                          enviando={enviandoId === p.id}
-                          onEnviar={(canal) => handleEnviarCliente(p, canal)}
-                        />
-                      )}
-                    </td>
+                    {exibirColunaAssinatura && (
+                      <td className="py-3 px-4">
+                        {propostaOcultaColunaAssinatura(p) ? (
+                          <span className="text-gray-300 dark:text-gray-600 text-center block">—</span>
+                        ) : (
+                          <CrmEnviarAssinaturaColuna
+                            statusAssinatura={p.status_assinatura}
+                            whatsappHabilitado={propostaWhatsappHabilitada}
+                            enviando={enviandoId === p.id}
+                            onEnviar={(canal) => handleEnviarCliente(p, canal)}
+                          />
+                        )}
+                      </td>
+                    )}
                     <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                       {formatDate(p.created_at)}
                     </td>

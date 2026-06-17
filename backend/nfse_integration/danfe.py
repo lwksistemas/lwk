@@ -185,7 +185,7 @@ def buscar_url_danfe_issnet_superadmin(nfse: Any, config: Any | None = None, *, 
 
         if salvar:
             try:
-                nfse.pdf_url = url[:500]
+                nfse.pdf_url = (url or '').strip()
                 nfse.save(update_fields=['pdf_url'])
             except Exception as exc:
                 logger.debug(

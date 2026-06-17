@@ -336,7 +336,7 @@ def _salvar_nfse_emitida_issnet(pagamento, config, resultado, tomador_nome, toma
             tomador_email=tomador_email,
             descricao_servico=descricao[:500],
             xml_nfse=resultado.get('xml_nfse', ''),
-            pdf_url=(resultado.get('pdf_url') or '')[:500],
+            pdf_url=(resultado.get('pdf_url') or '').strip(),
             asaas_payment_id=pagamento.asaas_payment_id or '',
             data_emissao=_data_emissao_resultado(resultado),
         )
@@ -375,7 +375,7 @@ def _salvar_nfse_emitida(pagamento, config, resultado, tomador_nome, tomador_cpf
             xml_nfse=resultado.get('xml_nfse', ''),
             xml_dps_assinado=resultado.get('xml_dps_assinado', ''),
             resposta_adn=resultado.get('resposta_adn', ''),
-            pdf_url=(resultado.get('pdf_url') or '')[:500],
+            pdf_url=(resultado.get('pdf_url') or '').strip(),
             asaas_payment_id=pagamento.asaas_payment_id or '',
             data_emissao=_data_emissao_resultado(resultado),
         )

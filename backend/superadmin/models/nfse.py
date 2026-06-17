@@ -65,7 +65,7 @@ class NFSeEmitida(models.Model):
         verbose_name='Resposta ADN (debug)',
         help_text='Resposta JSON completa retornada pelo ADN — para diagnóstico'
     )
-    pdf_url = models.URLField(blank=True, verbose_name='URL do PDF')
+    pdf_url = models.TextField(blank=True, verbose_name='URL do PDF')
 
     # Asaas (quando emitido via Asaas)
     asaas_invoice_id = models.CharField(max_length=100, blank=True)

@@ -482,6 +482,37 @@ def enviar_link_assinatura_vendedor(documento, assinatura, request, canal='email
     return enviar_email_assinatura_vendedor(documento, assinatura, request)
 
 
+def _notificar_falha_envio_vendedor(documento, erro):
+    """Alerta o dono da loja quando o link automático ao vendedor falha após assinatura do cliente."""
+    try:
+        from notificacoes.models import Notification
+        from superadmin.models import Loja
+
+        loja_id = getattr(documento, 'loja_id', None)
+        if not loja_id:
+            return
+        loja = Loja.objects.using('default').filter(id=loja_id).first()
+        if not loja or not loja.owner_id:
+            return
+        tipo_doc = documento.__class__.__name__
+        titulo_doc = getattr(documento, 'titulo', '') or f'{tipo_doc} #{documento.numero or documento.id}'
+        detalhe = (erro or 'erro desconhecido')[:300]
+        Notification.objects.using('default').create(
+            user_id=loja.owner_id,
+            titulo='⚠️ Vendedor não recebeu link de assinatura',
+            mensagem=(
+                f'{titulo_doc}: o cliente assinou, mas o envio automático ao vendedor falhou ({detalhe}). '
+                'Abra a proposta/contrato e use os ícones de e-mail ou WhatsApp na coluna Assinatura para reenviar.'
+            ),
+            tipo='sistema',
+            canal='in_app',
+            status='pendente',
+            metadata={'tipo_documento': tipo_doc.lower(), 'documento_id': documento.id, 'loja_id': loja_id},
+        )
+    except Exception as e:
+        logger.warning('Erro ao notificar falha de envio ao vendedor: %s', e)
+
+
 def notificar_vendedor_apos_assinatura_cliente(documento, loja_id, request):
     """Cria token do vendedor e envia pelo canal escolhido na proposta/contrato."""
     canal = (getattr(documento, 'canal_assinatura_vendedor', None) or 'email').strip().lower()
@@ -505,7 +536,34 @@ def notificar_vendedor_apos_assinatura_cliente(documento, loja_id, request):
         )
         return True, None
 
+    # Fallback: se WhatsApp falhar, tenta e-mail (e vice-versa) quando houver contato.
+    fallback = 'email' if canal == 'whatsapp' else 'whatsapp'
+    pode_fallback = (
+        (fallback == 'email' and (_email_vendedor_documento(documento) or assinatura_vendedor.email_assinante))
+        or (fallback == 'whatsapp' and _telefone_vendedor_documento(documento))
+    )
+    if pode_fallback:
+        ok_fb, err_fb = enviar_link_assinatura_vendedor(
+            documento,
+            assinatura_vendedor,
+            request,
+            canal=fallback,
+            user=getattr(request, 'user', None),
+        )
+        if ok_fb:
+            documento.canal_assinatura_vendedor = fallback
+            documento.save(update_fields=['canal_assinatura_vendedor', 'updated_at'])
+            logger.info(
+                'Link vendedor enviado via fallback (%s): documento=%s#%s',
+                fallback,
+                documento.__class__.__name__,
+                documento.id,
+            )
+            return True, None
+        err = err_fb or err
+
     assinatura_vendedor.delete()
+    _notificar_falha_envio_vendedor(documento, err)
     return False, err or f'Erro ao enviar link ao vendedor por {canal}.'
 
 

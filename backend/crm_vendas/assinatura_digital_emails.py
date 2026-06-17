@@ -239,7 +239,15 @@ def enviar_email_assinatura_vendedor(documento, assinatura, request):
     Returns:
         tuple: (sucesso: bool, erro: str ou None)
     """
-    if not assinatura.email_assinante:
+    if not (assinatura.email_assinante or '').strip():
+        documento = assinatura.documento
+        if documento:
+            oportunidade = getattr(documento, 'oportunidade', None)
+            vendedor = getattr(oportunidade, 'vendedor', None) if oportunidade else None
+            email_doc = (getattr(vendedor, 'email', None) or '').strip()
+            if email_doc:
+                assinatura.email_assinante = email_doc
+    if not (assinatura.email_assinante or '').strip():
         return False, 'Vendedor não possui email cadastrado.'
     
     # Construir link de assinatura (usar URL do frontend)

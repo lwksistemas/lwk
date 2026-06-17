@@ -47,6 +47,11 @@ class AssinaturaDigital(LojaIsolationMixin, models.Model):
     # Status da assinatura
     assinado = models.BooleanField(default=False, help_text='Se o documento foi assinado')
     assinado_em = models.DateTimeField(null=True, blank=True, help_text='Data/hora da assinatura')
+    link_enviado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Quando o link de assinatura foi enviado ao assinante (e-mail/WhatsApp)',
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

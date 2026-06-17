@@ -102,6 +102,8 @@ def _start_whatsapp_scheduler():
                     send_lembretes_2h_whatsapp()
                     from crm_vendas.atividade_lembrete_tasks import send_lembretes_atividade_crm_2h
                     send_lembretes_atividade_crm_2h()
+                    from crm_vendas.assinatura_vendedor_retry import processar_envios_vendedor_pendentes
+                    processar_envios_vendedor_pendentes()
 
                 if cache.add(f'lwk_crm_ativ_24h:{slot_key}', 1, timeout=2000):
                     from crm_vendas.atividade_lembrete_tasks import send_lembretes_atividade_crm_24h

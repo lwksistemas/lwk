@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 ENSURES = [
     ('ensure_financeiro_lojas', {}),
     ('ensure_relatorio_comissao_table', {}),
+    ('ensure_crm_config_colunas', {}),
     ('ensure_clinica_beleza_consultas', {}),
     ('ensure_appointment_duracao_minutos', {}),
     ('ensure_professional_nascimento_sexo', {}),

@@ -40,6 +40,20 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         blank=True,
         help_text='Colunas visíveis na listagem de leads'
     )
+
+    # Colunas visíveis na listagem de contas
+    colunas_contas = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Colunas visíveis na listagem de contas',
+    )
+
+    # Colunas visíveis na listagem de contatos
+    colunas_contatos = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Colunas visíveis na listagem de contatos',
+    )
     
     # Módulos ativos
     # Formato: {"contas": true, "contatos": true, "pipeline": true}
@@ -285,6 +299,8 @@ class CRMConfig(LojaIsolationMixin, models.Model):
                 'origens_leads': cls.get_default_origens(),
                 'etapas_pipeline': cls.get_default_etapas(),
                 'colunas_leads': cls.get_default_colunas_leads(),
+                'colunas_contas': cls.get_default_colunas_contas(),
+                'colunas_contatos': cls.get_default_colunas_contatos(),
                 'modulos_ativos': cls.get_default_modulos(),
             }
         )
@@ -318,6 +334,16 @@ class CRMConfig(LojaIsolationMixin, models.Model):
     def get_default_colunas_leads():
         """Colunas padrão visíveis na listagem de leads."""
         return ['nome', 'empresa', 'telefone', 'email', 'origem', 'status', 'valor_estimado']
+
+    @staticmethod
+    def get_default_colunas_contas():
+        """Colunas padrão visíveis na listagem de contas."""
+        return ['nome', 'tipo', 'segmento', 'email', 'cidade']
+
+    @staticmethod
+    def get_default_colunas_contatos():
+        """Colunas padrão visíveis na listagem de contatos."""
+        return ['nome', 'conta', 'cargo', 'email']
     
     @staticmethod
     def get_default_modulos():

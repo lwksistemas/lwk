@@ -8,12 +8,22 @@ import { OrigensSection } from './components/OrigensSection';
 import { ModulosSection } from './components/ModulosSection';
 import { EtapasSection } from './components/EtapasSection';
 import { ColunasSection } from './components/ColunasSection';
+import {
+  COLUNAS_LEADS_DISPONIVEIS,
+  COLUNAS_CONTAS_DISPONIVEIS,
+  COLUNAS_CONTATOS_DISPONIVEIS,
+  DEFAULT_COLUNAS_LEADS,
+  DEFAULT_COLUNAS_CONTAS,
+  DEFAULT_COLUNAS_CONTATOS,
+} from '@/lib/crm-colunas-config';
 
 interface CRMConfig {
   id: number;
   origens_leads: Array<{ key: string; label: string; ativo: boolean }>;
   etapas_pipeline: Array<{ key: string; label: string; ativo: boolean; ordem: number }>;
   colunas_leads: string[];
+  colunas_contas: string[];
+  colunas_contatos: string[];
   modulos_ativos: Record<string, boolean>;
 }
 
@@ -68,7 +78,29 @@ export default function ConfiguracoesPage() {
       <OrigensSection origens={config?.origens_leads || []} saving={saving} onSave={(o) => salvarConfig({ origens_leads: o })} onError={handleError} />
       <ModulosSection modulos={config?.modulos_ativos || {}} onSave={(m) => salvarConfig({ modulos_ativos: m })} />
       <EtapasSection etapas={config?.etapas_pipeline || []} onSave={(e) => salvarConfig({ etapas_pipeline: e })} onError={handleError} />
-      <ColunasSection colunas={config?.colunas_leads || []} onSave={(c) => salvarConfig({ colunas_leads: c })} onError={handleError} />
+      <ColunasSection
+        title="Colunas Visíveis nos Leads"
+        colunasDisponiveis={COLUNAS_LEADS_DISPONIVEIS}
+        colunas={config?.colunas_leads?.length ? config.colunas_leads : DEFAULT_COLUNAS_LEADS}
+        onSave={(c) => salvarConfig({ colunas_leads: c })}
+        onError={handleError}
+      />
+      <ColunasSection
+        title="Colunas Visíveis nas Contas"
+        description="Escolha quais informações aparecem na listagem de contas."
+        colunasDisponiveis={COLUNAS_CONTAS_DISPONIVEIS}
+        colunas={config?.colunas_contas?.length ? config.colunas_contas : DEFAULT_COLUNAS_CONTAS}
+        onSave={(c) => salvarConfig({ colunas_contas: c })}
+        onError={handleError}
+      />
+      <ColunasSection
+        title="Colunas Visíveis nos Contatos"
+        description="Escolha quais informações aparecem na listagem de contatos (pessoas vinculadas às contas)."
+        colunasDisponiveis={COLUNAS_CONTATOS_DISPONIVEIS}
+        colunas={config?.colunas_contatos?.length ? config.colunas_contatos : DEFAULT_COLUNAS_CONTATOS}
+        onSave={(c) => salvarConfig({ colunas_contatos: c })}
+        onError={handleError}
+      />
     </div>
   );
 }

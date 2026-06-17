@@ -3,12 +3,23 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import {
+  COLUNAS_LEADS_DISPONIVEIS,
+  COLUNAS_CONTAS_DISPONIVEIS,
+  COLUNAS_CONTATOS_DISPONIVEIS,
+  DEFAULT_COLUNAS_LEADS,
+  DEFAULT_COLUNAS_CONTAS,
+  DEFAULT_COLUNAS_CONTATOS,
+  colunasVisiveisFromConfig,
+} from '@/lib/crm-colunas-config';
 
 interface CRMConfig {
   id: number;
   origens_leads: Array<{ key: string; label: string; ativo: boolean }>;
   etapas_pipeline: any[];
   colunas_leads: string[];
+  colunas_contas: string[];
+  colunas_contatos: string[];
   modulos_ativos: Record<string, boolean>;
   // Configurações de NFS-e
   provedor_nf: 'asaas' | 'issnet' | 'nacional' | 'manual';
@@ -51,6 +62,8 @@ interface CRMConfigContextType {
   etapasAtivas: () => Array<{ key: string; label: string; ordem: number }>;
   origensAtivas: () => Array<{ key: string; label: string }>;
   colunasLeadsVisiveis: () => Array<{ key: string; label: string }>;
+  colunasContasVisiveis: () => Array<{ key: string; label: string }>;
+  colunasContatosVisiveis: () => Array<{ key: string; label: string }>;
 }
 
 const CRMConfigContext = createContext<CRMConfigContextType | undefined>(undefined);
@@ -71,6 +84,8 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
         origens_leads: [],
         etapas_pipeline: [],
         colunas_leads: [],
+        colunas_contas: [],
+        colunas_contatos: [],
         modulos_ativos: {
           leads: true,
           contas: true,
@@ -175,30 +190,27 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
     return ativas;
   };
 
-  const colunasLeadsVisiveis = () => {
-    // Mapa de labels das colunas
-    const labelMap: Record<string, string> = {
-      nome: 'Nome',
-      empresa: 'Empresa',
-      email: 'E-mail',
-      telefone: 'Telefone',
-      origem: 'Origem',
-      status: 'Status',
-      valor_estimado: 'Valor Estimado',
-      created_at: 'Data de Criação',
-    };
+  const colunasLeadsVisiveis = () =>
+    colunasVisiveisFromConfig(config?.colunas_leads, COLUNAS_LEADS_DISPONIVEIS, DEFAULT_COLUNAS_LEADS);
 
-    if (!config || !config.colunas_leads || config.colunas_leads.length === 0) {
-      // Retornar colunas padrão se não carregou
-      const defaultColunas = ['nome', 'empresa', 'telefone', 'email', 'origem', 'status', 'valor_estimado'];
-      return defaultColunas.map(key => ({ key, label: labelMap[key] || key }));
-    }
-    
-    return config.colunas_leads.map(key => ({ key, label: labelMap[key] || key }));
-  };
+  const colunasContasVisiveis = () =>
+    colunasVisiveisFromConfig(config?.colunas_contas, COLUNAS_CONTAS_DISPONIVEIS, DEFAULT_COLUNAS_CONTAS);
+
+  const colunasContatosVisiveis = () =>
+    colunasVisiveisFromConfig(config?.colunas_contatos, COLUNAS_CONTATOS_DISPONIVEIS, DEFAULT_COLUNAS_CONTATOS);
 
   return (
-    <CRMConfigContext.Provider value={{ config, loading, recarregar: carregarConfig, moduloAtivo, etapasAtivas, origensAtivas, colunasLeadsVisiveis }}>
+    <CRMConfigContext.Provider value={{
+      config,
+      loading,
+      recarregar: carregarConfig,
+      moduloAtivo,
+      etapasAtivas,
+      origensAtivas,
+      colunasLeadsVisiveis,
+      colunasContasVisiveis,
+      colunasContatosVisiveis,
+    }}>
       {children}
     </CRMConfigContext.Provider>
   );

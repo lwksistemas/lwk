@@ -1,28 +1,33 @@
 'use client';
 
 import { ChevronUp, ChevronDown } from 'lucide-react';
+import type { CrmColunaDef } from '@/lib/crm-colunas-config';
 
 interface Props {
+  title: string;
+  description?: string;
+  colunasDisponiveis: CrmColunaDef[];
   colunas: string[];
   onSave: (colunas: string[]) => void;
   onError: (msg: string) => void;
+  minColunas?: number;
 }
 
-const COLUNAS_DISPONIVEIS = [
-  { key: 'nome', label: 'Nome' },
-  { key: 'empresa', label: 'Empresa' },
-  { key: 'email', label: 'E-mail' },
-  { key: 'telefone', label: 'Telefone' },
-  { key: 'origem', label: 'Origem' },
-  { key: 'status', label: 'Status' },
-  { key: 'valor_estimado', label: 'Valor Estimado' },
-  { key: 'created_at', label: 'Data de Criação' },
-];
-
-export function ColunasSection({ colunas, onSave, onError }: Props) {
+export function ColunasSection({
+  title,
+  description = 'Escolha quais informações aparecem na listagem.',
+  colunasDisponiveis,
+  colunas,
+  onSave,
+  onError,
+  minColunas = 3,
+}: Props) {
   const toggle = (key: string) => {
     if (colunas.includes(key)) {
-      if (colunas.length <= 3) { onError('Mantenha pelo menos 3 colunas visíveis.'); return; }
+      if (colunas.length <= minColunas) {
+        onError(`Mantenha pelo menos ${minColunas} colunas visíveis.`);
+        return;
+      }
       onSave(colunas.filter((c) => c !== key));
     } else {
       onSave([...colunas, key]);
@@ -41,19 +46,21 @@ export function ColunasSection({ colunas, onSave, onError }: Props) {
   return (
     <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-6">
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Colunas Visíveis nos Leads</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Escolha quais informações aparecem na listagem. Mínimo 3.</p>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {description} Mínimo {minColunas}.
+        </p>
       </div>
       <div className="space-y-2">
-        {COLUNAS_DISPONIVEIS.map((col) => {
+        {colunasDisponiveis.map((col) => {
           const isVisible = colunas.includes(col.key);
           const idx = colunas.indexOf(col.key);
           return (
             <div key={col.key} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-[#0d1f3c] rounded-lg border border-gray-200 dark:border-gray-700">
               {isVisible && (
                 <div className="flex flex-col gap-1">
-                  <button onClick={() => mover(col.key, 'up')} disabled={idx === 0} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"><ChevronUp size={16} /></button>
-                  <button onClick={() => mover(col.key, 'down')} disabled={idx === colunas.length - 1} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"><ChevronDown size={16} /></button>
+                  <button type="button" onClick={() => mover(col.key, 'up')} disabled={idx === 0} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"><ChevronUp size={16} /></button>
+                  <button type="button" onClick={() => mover(col.key, 'down')} disabled={idx === colunas.length - 1} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"><ChevronDown size={16} /></button>
                 </div>
               )}
               <div className="flex items-center gap-3 flex-1">

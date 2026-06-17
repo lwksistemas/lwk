@@ -136,6 +136,7 @@ class CRMConfigSerializer(serializers.ModelSerializer):
         model = CRMConfig
         fields = [
             'id', 'origens_leads', 'etapas_pipeline', 'colunas_leads',
+            'colunas_contas', 'colunas_contatos',
             'modulos_ativos', 'proposta_conteudo_padrao',
             'provedor_nf', 'provedor_nf_display',
             'issnet_usuario', 'issnet_senha',

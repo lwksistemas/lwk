@@ -12,6 +12,8 @@ import { ContatoFormModal } from './components/ContatoFormModal';
 import { ContatoViewModal } from './components/ContatoViewModal';
 import { ContatoDeleteModal } from './components/ContatoDeleteModal';
 import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
+import { useCRMConfig } from '@/contexts/CRMConfigContext';
+import { formatDate } from '@/lib/financeiro-helpers';
 import { logger } from '@/lib/logger';
 
 interface Conta { id: number; nome: string; }
@@ -29,6 +31,33 @@ export default function CrmVendasContatosPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
+
+  const { colunasContatosVisiveis } = useCRMConfig();
+  const colunasVisiveis = colunasContatosVisiveis();
+
+  const renderCelulaContato = (c: Contato, coluna: string) => {
+    switch (coluna) {
+      case 'nome':
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#06a59a] to-[#0d9dda] flex items-center justify-center text-white font-semibold text-xs shrink-0">{c.nome.charAt(0).toUpperCase()}</div>
+            <span className="font-medium text-gray-900 dark:text-white">{c.nome}</span>
+          </div>
+        );
+      case 'conta':
+        return <span className="text-gray-700 dark:text-gray-300">{c.conta_nome || '–'}</span>;
+      case 'cargo':
+        return <span className="text-gray-700 dark:text-gray-300">{c.cargo || '–'}</span>;
+      case 'email':
+        return <span className="text-gray-700 dark:text-gray-300">{c.email || '–'}</span>;
+      case 'telefone':
+        return <span className="text-gray-700 dark:text-gray-300">{c.telefone ? formatTelefone(c.telefone) : '–'}</span>;
+      case 'created_at':
+        return <span className="text-gray-700 dark:text-gray-300">{formatDate(c.created_at)}</span>;
+      default:
+        return <span className="text-gray-700 dark:text-gray-300">–</span>;
+    }
+  };
 
   const [contaFiltro, setContaFiltro] = useState<number | null>(null);
 
@@ -206,29 +235,24 @@ export default function CrmVendasContatosPage() {
           <table className="w-full min-w-[600px]">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                {['Nome', 'Conta', 'Cargo', 'Email', 'Ações'].map((h, i) => (
-                  <th key={h} className={`py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider ${i === 4 ? 'text-right' : 'text-left'}`}>{h}</th>
+                {colunasVisiveis.map((col) => (
+                  <th key={col.key} className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">{col.label}</th>
                 ))}
+                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
             <tbody>
               {contatos.length === 0 ? (
-                <tr><td colSpan={5} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                <tr><td colSpan={colunasVisiveis.length + 1} className="py-12 text-center text-gray-500 dark:text-gray-400">
                   <User size={48} className="mx-auto mb-3 opacity-30" />
                   <p className="font-medium">Nenhum contato cadastrado</p>
                   <p className="text-sm mt-1">Clique em &quot;Novo Contato&quot; para começar</p>
                 </td></tr>
               ) : contatos.map((c) => (
                 <tr key={c.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#06a59a] to-[#0d9dda] flex items-center justify-center text-white font-semibold text-xs shrink-0">{c.nome.charAt(0).toUpperCase()}</div>
-                      <span className="font-medium text-gray-900 dark:text-white">{c.nome}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{c.conta_nome || '–'}</td>
-                  <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{c.cargo || '–'}</td>
-                  <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{c.email || '–'}</td>
+                  {colunasVisiveis.map((col) => (
+                    <td key={col.key} className="py-3 px-4">{renderCelulaContato(c, col.key)}</td>
+                  ))}
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-end gap-1">
                       <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Visualizar"><Eye size={16} /></button>

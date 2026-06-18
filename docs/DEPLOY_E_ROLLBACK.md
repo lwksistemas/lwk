@@ -293,6 +293,16 @@ Health da API expõe `task_queue: { enabled, broker }`. Com worker ativo: `enabl
 
 **Schedulers WSGI desativados por padrão** — o Gunicorn não roda mais threads de WhatsApp/backup em paralelo com o cron. Tarefas periódicas ficam só no `lwks-cron`.
 
+**Fila assíncrona (django-q):**
+
+| Tipo | Enfileira em | Executa em |
+|------|--------------|------------|
+| WhatsApp (`send_whatsapp`) | `lwks-backend` | `lwks-worker` |
+| E-mail (`send_prepared`, `send_system_mail`, `msg.send()` via Resend) | `lwks-backend` | `lwks-worker` |
+| Cron (lembretes, backups) | — (síncrono no `lwks-cron`) | `lwks-cron` |
+
+E-mails com anexo > 4 MB são enviados de forma síncrona (ex.: backup por email no cron).
+
 ### 1.2.1 Railway — serviço `lwks-cron` (backups automáticos)
 
 Serviço **cron** separado (`railway.cron.toml`): roda `python manage.py executar_cron_lwks` **a cada 15 minutos** (`*/15 * * * *`):

@@ -17,6 +17,70 @@ from core.resend_api import resend_api_key, send_via_resend_api
 logger = logging.getLogger(__name__)
 
 Recipient = Union[str, Sequence[str]]
+MAX_EMAIL_QUEUE_BYTES = 4 * 1024 * 1024
+
+
+def _should_enqueue_email() -> bool:
+    from core.task_queue import task_queue_enabled
+    from core.email_sync_context import email_sync_only
+
+    return task_queue_enabled() and not email_sync_only.get()
+
+
+def deliver_email_sync(msg: EmailMessage, *, fail_silently: bool = False) -> int:
+    """Envio síncrono (Resend API ou backend Django)."""
+    msg = prepare_outbound_email(msg)
+    key = resend_api_key()
+    if key:
+        try:
+            send_via_resend_api(msg, api_key=key)
+            return 1
+        except Exception:
+            logger.exception(
+                'Falha Resend API: assunto=%s dest=%s',
+                msg.subject,
+                msg.to,
+            )
+            if fail_silently:
+                return 0
+            raise
+
+    if os.environ.get('RAILWAY_ENVIRONMENT'):
+        raise RuntimeError(
+            'RESEND_API_KEY não está configurada no Railway. '
+            'Adicione a chave do Resend e remova EMAIL_HOST / EMAIL_HOST_PASSWORD do Gmail.'
+        )
+
+    return msg.send(fail_silently=fail_silently)
+
+
+def deliver_email_message(msg: EmailMessage, *, fail_silently: bool = False) -> int:
+    """Envia e-mail na hora ou enfileira para o lwks-worker."""
+    from core.email_serialize import payload_too_large_for_queue, serialize_email_message
+    from core.task_queue import enqueue_task
+
+    prepared = prepare_outbound_email(msg)
+    if not _should_enqueue_email():
+        return deliver_email_sync(prepared, fail_silently=fail_silently)
+
+    payload = serialize_email_message(prepared)
+    if payload_too_large_for_queue(payload, MAX_EMAIL_QUEUE_BYTES):
+        logger.info(
+            'E-mail grande (%s bytes) — envio síncrono: assunto=%s',
+            payload.get('payload_bytes'),
+            payload.get('subject'),
+        )
+        return deliver_email_sync(prepared, fail_silently=fail_silently)
+
+    to_label = (payload.get('to') or ['?'])[0]
+    task_key = abs(hash((payload.get('subject', ''), to_label, payload.get('payload_bytes', 0))))
+    enqueue_task(
+        f'email-{task_key}',
+        'core.email_queue_tasks.run_send_email',
+        payload,
+        fail_silently,
+    )
+    return 1
 
 
 def get_from_email() -> str:
@@ -122,36 +186,14 @@ def send_system_mail(
             from_email=from_email,
         )
     try:
-        return msg.send(fail_silently=fail_silently)
+        return deliver_email_message(msg, fail_silently=fail_silently)
     except Exception:
         logger.exception('Falha ao enviar e-mail: assunto=%s destinatarios=%s', subject, to)
         raise
 
 
 def send_prepared(msg: EmailMessage, *, fail_silently: bool = False) -> int:
-    msg = prepare_outbound_email(msg)
-    key = resend_api_key()
-    if key:
-        try:
-            send_via_resend_api(msg, api_key=key)
-            return 1
-        except Exception:
-            logger.exception(
-                'Falha Resend API: assunto=%s dest=%s',
-                msg.subject,
-                msg.to,
-            )
-            if fail_silently:
-                return 0
-            raise
-
-    if os.environ.get('RAILWAY_ENVIRONMENT'):
-        raise RuntimeError(
-            'RESEND_API_KEY não está configurada no Railway. '
-            'Adicione a chave do Resend e remova EMAIL_HOST / EMAIL_HOST_PASSWORD do Gmail.'
-        )
-
-    return msg.send(fail_silently=fail_silently)
+    return deliver_email_message(msg, fail_silently=fail_silently)
 
 
 # Compatibilidade: send_mail legado com Reply-To

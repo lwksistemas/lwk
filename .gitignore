@@ -81,10 +81,8 @@ xml_cancelamento_assinado_para_suporte.xml
 LWK_Infraestrutura_Projecao_Custos.pdf
 gerar_relatorio_infraestrutura.py
 
-# PDFs e manuais (não devem estar no repositório)
+# PDFs gerados localmente (não versionar)
 *.pdf
-!frontend/public/*.pdf
-!frontend/public/docs/*.pdf
 
 # Scripts de debug/one-time (não commitar)
 fix_*.py

@@ -32,6 +32,34 @@ from superadmin.session_manager import SessionManager
 logger = logging.getLogger(__name__)
 
 
+def usuario_precisa_trocar_senha_loja(user, loja, *, pu=None, vu=None) -> bool:
+    """
+    True se o usuário deve trocar senha provisória nesta loja
+    (proprietário, profissional ou vendedor vinculado).
+    """
+    if not user or not loja:
+        return False
+
+    if (
+        loja.owner_id == user.id
+        and not loja.senha_foi_alterada
+        and bool(loja.senha_provisoria)
+    ):
+        return True
+
+    if pu is None:
+        pu = ProfissionalUsuario.objects.filter(user=user, loja=loja).first()
+    if pu and pu.precisa_trocar_senha:
+        return True
+
+    if vu is None:
+        vu = VendedorUsuario.objects.filter(user=user, loja=loja).first()
+    if vu and vu.precisa_trocar_senha:
+        return True
+
+    return False
+
+
 @dataclass
 class LoginResult:
     """Resultado do login — sucesso ou erro."""
@@ -340,20 +368,14 @@ class LoginService:
 
     def _enrich_loja_response(self, response_data: dict, user, loja, loja_slug) -> bool:
         """Adiciona dados de loja na resposta. Retorna precisa_trocar_senha."""
-        from django.db.models import Q
-
-        slug_match = Q(loja=loja)
-        if loja_slug:
-            slug_match = Q(loja__slug=loja_slug) | Q(loja__atalho=loja_slug)
-
-        pu = ProfissionalUsuario.objects.filter(user=user, loja__is_active=True).filter(slug_match).first()
+        pu = ProfissionalUsuario.objects.filter(user=user, loja=loja).first()
         vu = None
 
         if pu:
             response_data['professional_id'] = pu.professional_id
             response_data['is_professional'] = True
         else:
-            vu = VendedorUsuario.objects.filter(user=user, loja__is_active=True).filter(slug_match).first()
+            vu = VendedorUsuario.objects.filter(user=user, loja=loja).first()
             if vu:
                 response_data['vendedor_id'] = vu.vendedor_id
                 if loja.owner_id != user.id:
@@ -362,22 +384,8 @@ class LoginService:
                     if user.groups.filter(name='Gerente de Vendas').exists():
                         response_data['is_gerente'] = True
 
-        # Determinar precisa_trocar_senha
-        precisa_senha_loja = (
-            loja.owner_id == user.id
-            and not loja.senha_foi_alterada
-            and bool(loja.senha_provisoria)
-        )
-        if precisa_senha_loja:
-            response_data['precisa_trocar_senha'] = True
-        elif loja.owner_id == user.id and loja.senha_foi_alterada:
-            response_data['precisa_trocar_senha'] = False
-        elif pu:
-            response_data['precisa_trocar_senha'] = pu.precisa_trocar_senha
-        elif vu:
-            response_data['precisa_trocar_senha'] = vu.precisa_trocar_senha
-        else:
-            response_data['precisa_trocar_senha'] = False
+        precisa = usuario_precisa_trocar_senha_loja(user, loja, pu=pu, vu=vu)
+        response_data['precisa_trocar_senha'] = precisa
 
         response_data['loja'] = {
             'id': loja.id,
@@ -388,10 +396,7 @@ class LoginService:
         }
         response_data['loja_slug'] = (getattr(loja, 'atalho', '') or '') or loja.slug
 
-        if 'precisa_trocar_senha' not in response_data:
-            response_data['precisa_trocar_senha'] = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
-
-        return response_data.get('precisa_trocar_senha', False)
+        return precisa
 
     @staticmethod
     def _check_sistema_senha(response_data: dict, user, tipo: str) -> bool:

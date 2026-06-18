@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { authService, UserType } from '@/lib/auth';
+import apiClient from '@/lib/api-client';
 
 function getLojaDashboardPath(lojaSlug: string): string {
   if (typeof document === 'undefined') return `/loja/${lojaSlug}/dashboard`;
@@ -70,6 +71,18 @@ export default function RouteGuard({ children, allowedUserType, requiredSlug }: 
         if (requiredSlug !== lojaSlug) {
           router.replace(getLojaDashboardPath(lojaSlug));
           return;
+        }
+
+        // Senha provisória: redirecionar antes de acessar o dashboard
+        if (!pathname.includes('/trocar-senha')) {
+          apiClient
+            .get(`/superadmin/lojas/verificar_senha_provisoria/?slug=${encodeURIComponent(requiredSlug)}`)
+            .then((res) => {
+              if (res.data?.precisa_trocar_senha === true) {
+                router.replace(`/loja/${requiredSlug}/trocar-senha`);
+              }
+            })
+            .catch(() => {});
         }
       }
     };

@@ -322,30 +322,45 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
     def verificar_senha_provisoria(self, request):
-        """Verifica se o usuário logado precisa trocar a senha provisória"""
+        """Verifica se o usuário logado precisa trocar a senha provisória."""
         if not request.user or not request.user.is_authenticated:
             return Response({
                 'precisa_trocar_senha': False,
                 'mensagem': 'Usuário não autenticado'
             })
-        
+
+        from ...loja_utils import resolve_loja_by_slug_or_atalho
+        from ...services.login_service import usuario_precisa_trocar_senha_loja
+        from ...models import VendedorUsuario
+
         try:
             slug = (request.query_params.get('slug') or '').strip()
+            loja = None
             if slug:
-                from ...loja_utils import resolve_loja_by_slug_or_atalho
                 loja = resolve_loja_by_slug_or_atalho(slug, is_active=True)
-                if not loja or loja.owner_id != request.user.id:
-                    raise Loja.DoesNotExist
-            else:
-                loja = Loja.objects.get(owner=request.user)
-            precisa_trocar = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
+            if not loja:
+                loja = Loja.objects.filter(owner=request.user, is_active=True).first()
+            if not loja:
+                pu = ProfissionalUsuario.objects.filter(
+                    user=request.user, loja__is_active=True,
+                ).select_related('loja').first()
+                if pu:
+                    loja = pu.loja
+            if not loja:
+                vu = VendedorUsuario.objects.filter(
+                    user=request.user, loja__is_active=True,
+                ).select_related('loja').first()
+                if vu:
+                    loja = vu.loja
+            if not loja:
+                raise Loja.DoesNotExist
+
+            precisa_trocar = usuario_precisa_trocar_senha_loja(request.user, loja)
             logger.debug(
-                "Verificar senha provisória: loja=%s, senha_foi_alterada=%s, precisa_trocar=%s",
-                loja.slug,
-                loja.senha_foi_alterada,
-                precisa_trocar,
+                "Verificar senha provisória: loja=%s user=%s precisa_trocar=%s",
+                loja.slug, request.user.id, precisa_trocar,
             )
-            
+
             return Response({
                 'precisa_trocar_senha': precisa_trocar,
                 'loja_id': loja.id,

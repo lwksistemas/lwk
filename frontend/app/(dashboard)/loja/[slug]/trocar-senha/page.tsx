@@ -134,7 +134,7 @@ export default function TrocarSenhaLojaComSlugPage() {
           Alterar Senha
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Por segurança, altere sua senha periodicamente.
+          Por segurança, altere sua senha provisória antes de continuar.
         </p>
       </div>
 

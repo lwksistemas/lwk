@@ -3,6 +3,11 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.railway"
+watchPatterns = [
+    "backend/**",
+    "Dockerfile.railway",
+    "railway.toml",
+]
 
 [deploy]
 startCommand = '''sh -c "exec gunicorn config.wsgi --bind 0.0.0.0:$PORT --workers ${WEB_CONCURRENCY:-2} --threads 2 --worker-class gthread --worker-connections 500 --timeout 60 --log-file - --access-logfile - --error-logfile -"'''

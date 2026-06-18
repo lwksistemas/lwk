@@ -220,7 +220,7 @@ Cada push na `main` que altera o front gera deploy de produção. PRs podem gera
 
 1. [Railway](https://railway.com) → projeto **refreshing-contentment** → serviço **lwks-backend**.
 2. **Settings** → **Source** → **Connect GitHub** → repo `lwksistemas/lwk`, branch `main`.
-3. (Opcional) **Watch paths:** `backend/`, `Dockerfile.railway`, `railway.toml`, `requirements.txt`
+3. (Opcional) **Watch paths:** `backend/`, `Dockerfile.railway`, `railway.toml` — definidos em **`railway.toml`** → `[build].watchPatterns` (vale para `lwks-backend` e `lwks-backend-staging`, que usam o mesmo repo).
 
 O `railway.toml` já define `releaseCommand` com `migrate` e tarefas de schema — **sempre rode deploy pelo Railway após mudanças de migration**, nunca só subir código sem release.
 

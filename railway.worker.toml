@@ -10,5 +10,6 @@ watchPatterns = [
 ]
 
 [deploy]
-startCommand = '''sh -c "exec python manage.py qcluster"'''
+startCommand = "python manage.py qcluster"
 restartPolicyType = "ON_FAILURE"
+# Sem healthcheck HTTP — qcluster não expõe porta (desativar no painel Railway se necessário)

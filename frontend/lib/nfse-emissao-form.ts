@@ -4,6 +4,7 @@
 import apiClient from '@/lib/api-client';
 import { consultaCnpj } from '@/lib/consulta-cnpj';
 import { ensureArray } from '@/lib/array-helpers';
+import { fetchAllPaginatedResults } from '@/lib/crm-utils';
 
 export const NFSE_EMISSAO_INPUT_CLASS =
   'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white';
@@ -328,17 +329,17 @@ export async function carregarPrestadorasParaNfse(): Promise<NfsePrestadoraOptio
 
 /** Carrega todas as contas com CNPJ + leads — qualquer empresa pode ser tomador. */
 export async function carregarContasTomadorParaNfse(): Promise<NfseEmissaoContaOption[]> {
-  const [resContas, resLeads] = await Promise.all([
-    apiClient.get('/crm-vendas/contas/'),
-    apiClient.get('/crm-vendas/leads/'),
+  const [contasRaw, leadsRaw] = await Promise.all([
+    fetchAllPaginatedResults<Record<string, unknown>>('/crm-vendas/contas/'),
+    fetchAllPaginatedResults<Record<string, unknown>>('/crm-vendas/leads/'),
   ]);
-  const contasList = ensureArray<Record<string, unknown>>(resContas.data).map((c) => ({
+  const contasList = contasRaw.map((c) => ({
     ...c,
     id: c.id as number,
     _tipo: 'conta' as const,
     _display: `${c.nome}${c.cnpj ? ` - ${c.cnpj}` : ''}`,
   })) as NfseEmissaoContaOption[];
-  const leadsList = ensureArray<Record<string, unknown>>(resLeads.data)
+  const leadsList = leadsRaw
     .filter((l) => l.cpf_cnpj)
     .map((l) => ({
       id: `lead_${l.id}`,

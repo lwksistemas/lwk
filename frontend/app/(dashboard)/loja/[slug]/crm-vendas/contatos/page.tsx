@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse } from '@/lib/crm-utils';
+import { fetchAllPaginatedResults } from '@/lib/crm-utils';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { Plus, Eye, Edit2, Trash2, User } from 'lucide-react';
@@ -80,8 +80,8 @@ export default function CrmVendasContatosPage() {
 
   const loadContas = async () => {
     try {
-      const res = await apiClient.get<Conta[] | { results: Conta[] }>('/crm-vendas/contas/');
-      setContas(normalizeListResponse(res.data));
+      const list = await fetchAllPaginatedResults<Conta>('/crm-vendas/contas/');
+      setContas(list);
     } catch (err) {
       logger.warn('Erro ao carregar contas:', err);
     }

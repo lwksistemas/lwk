@@ -81,6 +81,8 @@ def queue_status() -> dict:
         stats = Stat.get_all(broker) or []
         status['clusters'] = len(stats)
         status['workers_alive'] = sum(len(getattr(stat, 'workers', []) or []) for stat in stats)
+        if role == 'web' and status['workers_alive'] == 0:
+            status['worker_warning'] = True
 
         try:
             from datetime import timedelta
@@ -117,6 +119,8 @@ def queue_health_level(status: dict | None = None) -> QueueHealthLevel:
     role = status.get('role') or process_role()
     workers = status.get('workers_alive')
     if role == 'web' and workers == 0 and not status.get('error'):
-        return 'degraded'
+        queued = int(status.get('queued') or 0)
+        if queued > 0:
+            return 'degraded'
 
     return None

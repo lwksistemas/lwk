@@ -309,7 +309,7 @@ Health da API expõe `task_queue` com monitoramento da fila:
 | `queued` | Tarefas aguardando no Redis |
 | `workers_alive` | Workers django-q ativos (heartbeat ~3s) |
 | `failures_24h` | Falhas registradas nas últimas 24h |
-| `health` | `degraded` se fila > 50 ou worker offline; `unhealthy` se fila > 200 (HTTP 503) |
+| `health` | `degraded` se fila > 50; `unhealthy` se fila > 200 (HTTP 503). `workers_alive=0` com fila > 0 também degrada. |
 
 Limites configuráveis: `LWK_QUEUE_BACKLOG_DEGRADED` (padrão 50), `LWK_QUEUE_BACKLOG_UNHEALTHY` (padrão 200).
 

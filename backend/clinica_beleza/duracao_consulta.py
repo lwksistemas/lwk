@@ -1,11 +1,15 @@
-"""Cálculo de duração de agendamentos — tempo base do local vs procedimentos."""
+"""Cálculo de duração de agendamentos — tempo base do profissional vs procedimentos."""
 
 
 def tempo_consulta_base_minutos(professional=None, local_atendimento=None) -> int:
     """
-    Tempo padrão de consulta: local de atendimento > 30 min.
-    Configurado em Consultas → Locais de Atendimento (não no cadastro do profissional).
+    Tempo padrão de consulta: profissional > local de atendimento (legado) > 30 min.
+    Configurado em Profissionais → Ações → Tempo da consulta.
     """
+    if professional is not None:
+        prof_tempo = getattr(professional, 'tempo_consulta_minutos', None)
+        if prof_tempo and int(prof_tempo) > 0:
+            return int(prof_tempo)
     if local_atendimento is not None:
         local_tempo = getattr(local_atendimento, 'tempo_consulta_minutos', None)
         if local_tempo and int(local_tempo) > 0:
@@ -22,8 +26,8 @@ def calcular_duracao_novo_agendamento(
 ) -> int:
     """
     Duração ao criar agendamento.
-    Com procedimentos: max(soma procedimentos, tempo base do local).
-    Sem procedimentos: tempo base do local.
+    Com procedimentos: max(soma procedimentos, tempo base do profissional/local).
+    Sem procedimentos: tempo base do profissional/local.
     """
     base = tempo_consulta_base_minutos(professional, local_atendimento)
     if procedures_list:

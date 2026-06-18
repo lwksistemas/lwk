@@ -57,6 +57,12 @@ class Professional(ProfissionalBase):
         max_length=1, blank=True, null=True, choices=SEXO_CHOICES,
         verbose_name="Sexo", help_text="Sexo do prescritor (usado no cadastro da Memed).",
     )
+    tempo_consulta_minutos = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        verbose_name="Tempo da consulta (min)",
+        help_text="Duração padrão da consulta deste profissional. Se os procedimentos somarem mais tempo, prevalece a soma dos procedimentos.",
+    )
 
     class Meta(ProfissionalBase.Meta):
         app_label = 'clinica_beleza'

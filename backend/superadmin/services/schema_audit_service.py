@@ -52,6 +52,7 @@ ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
         'ensure_clinica_beleza_consultas',
         'ensure_appointment_duracao_minutos',
         'ensure_professional_nascimento_sexo',
+        'ensure_professional_tempo_consulta',
         'ensure_memed_timbrado_table',
         'ensure_professional_commission_local',
         'ensure_professional_commission_convenio',

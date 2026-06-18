@@ -6,11 +6,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Pencil, Trash2, Clock } from "lucide-react";
+import { Pencil, Trash2, Clock, Timer } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
+import { ModalTempoConsulta } from "@/components/clinica-beleza/ModalTempoConsulta";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { ProfissionalFormPageContent } from "@/components/clinica-beleza/ProfissionalFormPageContent";
 import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
@@ -40,6 +41,7 @@ interface Professional {
   active?: boolean;
   is_active?: boolean;
   is_administrador_vinculado?: boolean;
+  tempo_consulta_minutos?: number | null;
 }
 
 interface LojaOwnerInfo {
@@ -64,6 +66,7 @@ export default function ProfissionaisPage() {
   });
   const [lojaOwnerInfo, setLojaOwnerInfo] = useState<LojaOwnerInfo | null>(null);
   const [horariosProfessional, setHorariosProfessional] = useState<Professional | null>(null);
+  const [tempoConsultaProfessional, setTempoConsultaProfessional] = useState<Professional | null>(null);
 
   const loadLojaInfo = async () => {
     if (!navigator.onLine) return;
@@ -167,6 +170,14 @@ export default function ProfissionaisPage() {
                               </button>
                               <button
                                 type="button"
+                                onClick={() => setTempoConsultaProfessional(p)}
+                                className="p-2 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded"
+                                title="Tempo da consulta (min)"
+                              >
+                                <Timer size={18} />
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => openEdit(p)}
                                 className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
                                 title="Editar"
@@ -183,6 +194,14 @@ export default function ProfissionaisPage() {
                                 title="Dias e horários de trabalho"
                               >
                                 <Clock size={18} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setTempoConsultaProfessional(p)}
+                                className="p-2 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded"
+                                title="Tempo da consulta (min)"
+                              >
+                                <Timer size={18} />
                               </button>
                               <button
                                 type="button"
@@ -226,6 +245,15 @@ export default function ProfissionaisPage() {
           professionalId={horariosProfessional.id}
           professionalName={entityName(horariosProfessional)}
           onClose={() => setHorariosProfessional(null)}
+          onSaved={() => load()}
+        />
+      )}
+
+      {tempoConsultaProfessional && (
+        <ModalTempoConsulta
+          professionalId={tempoConsultaProfessional.id}
+          professionalName={entityName(tempoConsultaProfessional)}
+          onClose={() => setTempoConsultaProfessional(null)}
           onSaved={() => load()}
         />
       )}

@@ -186,8 +186,12 @@ export function ModalCriarAgendamento({
     const localSel = localAtendimentoId
       ? locaisAtendimento.find((l) => l.id === localAtendimentoId)
       : undefined;
+    const profSel = professionalId
+      ? professionals.find((p) => p.id === professionalId)
+      : undefined;
     const duracaoChecagem = calcularDuracaoAgendamento(
       resumo.duracao,
+      profSel,
       localSel,
     );
 
@@ -395,11 +399,7 @@ export function ModalCriarAgendamento({
                       style: "currency",
                       currency: "BRL",
                     });
-                    const tempo =
-                      l.tempo_consulta_minutos != null && l.tempo_consulta_minutos > 0
-                        ? `${l.tempo_consulta_minutos} min`
-                        : null;
-                    const label = [l.nome, valor, tempo].filter(Boolean).join(" · ");
+                    const label = [l.nome, valor].filter(Boolean).join(" · ");
                     return (
                     <option key={l.id} value={l.id}>
                       {label}
@@ -425,9 +425,16 @@ export function ModalCriarAgendamento({
                   required
                 >
                   <option value="">Selecione o profissional</option>
-                  {professionals.map((p) => (
-                    <option key={p.id} value={p.id}>{entityName(p)}</option>
-                  ))}
+                  {professionals.map((p) => {
+                    const tempo =
+                      p.tempo_consulta_minutos != null && p.tempo_consulta_minutos > 0
+                        ? `${p.tempo_consulta_minutos} min`
+                        : null;
+                    const label = [entityName(p), tempo].filter(Boolean).join(" · ");
+                    return (
+                      <option key={p.id} value={p.id}>{label}</option>
+                    );
+                  })}
                 </select>
                 {professionalId && horariosProfissional.length === 0 && (
                   <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">

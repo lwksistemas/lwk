@@ -700,7 +700,7 @@ export class ClinicaBelezaAPI {
   static locaisAtendimento = {
     list: () =>
       ClinicaBelezaAPI.get<LocalAtendimentoItem[]>('/locais-atendimento/'),
-    create: (data: { nome: string; valor_consulta: number | string; tempo_consulta_minutos: number }) =>
+    create: (data: { nome: string; valor_consulta: number | string; tempo_consulta_minutos?: number }) =>
       ClinicaBelezaAPI.post<LocalAtendimentoItem>('/locais-atendimento/', data),
     update: (id: number, data: { nome?: string; valor_consulta?: number | string; tempo_consulta_minutos?: number }) =>
       ClinicaBelezaAPI.patch<LocalAtendimentoItem>(`/locais-atendimento/${id}/`, data),

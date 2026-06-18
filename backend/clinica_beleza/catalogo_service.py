@@ -68,13 +68,12 @@ def _aplicar_locais_catalogo(db, lid, emit) -> int:
         emit('  locais: mantidos (já cadastrados)')
         return 0
 
-    for nome, valor, tempo in LOCAIS_CATALOGO:
+    for nome, valor, _tempo in LOCAIS_CATALOGO:
         LocalAtendimento.objects.using(db).update_or_create(
             nome=_normalizar_nome_local(nome),
             loja_id=lid,
             defaults={
                 'valor_consulta': valor,
-                'tempo_consulta_minutos': tempo,
                 'is_active': True,
             },
         )

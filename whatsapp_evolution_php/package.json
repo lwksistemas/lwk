@@ -1,0 +1,15 @@
+{
+  "name": "whatsapp_evolution_php",
+  "version": "1.0.0",
+  "description": "Pacote para integrar **WhatsApp Web via Evolution API** em sistemas com **backend PHP**, **frontend PHP** e **banco MySQL** — independente do LWK/Django.",
+  "main": "index.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

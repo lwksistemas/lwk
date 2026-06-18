@@ -1,8 +1,11 @@
-# WhatsApp Web (Evolution API) — PHP + MySQL
+# WhatsApp — PHP + MySQL (Evolution API e Meta Cloud API)
 
-Pacote para integrar **WhatsApp Web via Evolution API** em sistemas com **backend PHP**, **frontend PHP** e **banco MySQL** — independente do LWK/Django.
+Pacote standalone para integrar **WhatsApp** em sistemas **PHP + MySQL** — independente do LWK/Django.
 
-Inclui manual PDF/HTML, schema SQL, cliente HTTP, webhook, tela de configuração com QR e exemplos de envio (proposta, contrato, termo, assinatura digital).
+- **Evolution API** — WhatsApp Web (QR code)
+- **Meta Cloud API** — Graph API (Phone Number ID + token)
+
+Inclui manuais PDF/HTML, schemas SQL, clientes HTTP, webhook, tela de configuração e exemplos de envio.
 
 ## Requisitos
 
@@ -22,8 +25,16 @@ cp config.example.php config.php
 
 ### Banco MySQL
 
+**Evolution (WhatsApp Web):**
+
 ```bash
 mysql -u root -p meu_sistema < sql/schema.mysql.sql
+```
+
+**Meta Cloud API:**
+
+```bash
+mysql -u root -p meu_sistema < sql/schema_meta.mysql.sql
 ```
 
 ## Manuais (geração local)
@@ -32,30 +43,39 @@ Os PDFs/HTML são gerados localmente em `output/` (não versionados):
 
 | Manual | Comando |
 |--------|---------|
-| **PHP + MySQL (standalone)** | `php gerar_manual_mysql.php` |
-| LWK Django (referência) | `php gerar_pdf.php` |
+| **Meta Cloud API — LWK Sistemas (admin)** | `php gerar_manual_meta_lwk.php` |
+| **Meta Cloud API — PHP + MySQL (códigos)** | `php gerar_manual_meta_mysql.php` |
+| WhatsApp Web Evolution — PHP + MySQL | `php gerar_manual_mysql.php` |
+| WhatsApp Web Evolution — LWK Django | `php gerar_pdf.php` |
 
 Ver HTML no navegador:
 
 ```bash
 php -S localhost:8765 -t .
-# http://localhost:8765/manual_mysql.php   ← PHP + MySQL
-# http://localhost:8765/manual.php           ← LWK Django
+# output/manual-whatsapp-meta-cloud-lwk.html
+# output/manual-whatsapp-meta-cloud-php-mysql.html
 ```
 
 ## Estrutura
 
 | Arquivo | Função |
 |---------|--------|
-| `sql/schema.mysql.sql` | Tabelas `whatsapp_config`, `whatsapp_log`, `whatsapp_acao_token` |
+| `sql/schema.mysql.sql` | Tabelas Evolution (`whatsapp_config`, `whatsapp_log`, …) |
+| `sql/schema_meta.mysql.sql` | Schema Meta Cloud API (`empresas`, `whatsapp_config` com phone_id/token) |
 | `src/EvolutionClient.php` | Cliente Evolution (create, connect, QR, sendText, webhook) |
-| `src/ManualPhpMysqlRenderer.php` | Manual HTML PHP + MySQL |
-| `examples/WhatsAppService.php` | Envio texto + link assinatura |
-| `examples/connect.php` | API JSON QR/conexão |
+| `src/MetaCloudClient.php` | Cliente Meta Graph API (sendText, sendDocument) |
+| `src/ManualMetaLwkRenderer.php` | Manual HTML Meta — painel LWK (admin) |
+| `src/ManualMetaPhpMysqlRenderer.php` | Manual HTML Meta — PHP + MySQL (códigos) |
+| `src/ManualPhpMysqlRenderer.php` | Manual HTML Evolution — PHP + MySQL |
+| `examples/WhatsAppService.php` | Envio Evolution + link assinatura |
+| `examples/MetaWhatsAppService.php` | Envio Meta Cloud API |
+| `examples/connect.php` | API JSON QR/conexão (Evolution) |
 | `examples/config_whatsapp.php` | Tela admin PHP |
 | `examples/webhook_evolution.php` | Webhook MESSAGES_UPSERT |
 | `examples/bootstrap.php` | PDO MySQL |
-| `gerar_manual_mysql.php` | Gera PDF + HTML do manual MySQL |
+| `gerar_manual_meta_lwk.php` | PDF + HTML manual Meta LWK |
+| `gerar_manual_meta_mysql.php` | PDF + HTML manual Meta PHP+MySQL |
+| `gerar_manual_mysql.php` | PDF + HTML manual Evolution MySQL |
 
 ## Uso rápido
 

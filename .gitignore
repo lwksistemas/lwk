@@ -93,3 +93,4 @@ COMMIT_MESSAGE_*.txt
 # Binários PHP e artefatos gerados
 *.phar
 whatsapp_evolution_php/output/
+docs/manual-whatsapp-meta-cloud-*.html

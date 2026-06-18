@@ -1,5 +1,5 @@
--- WhatsApp Evolution API — schema MySQL genérico (PHP backend)
--- Ajuste nomes de tabela/colunas ao seu sistema.
+-- WhatsApp Meta Cloud API — schema MySQL (PHP backend standalone)
+-- Phone Number ID + token por empresa/loja.
 
 CREATE TABLE IF NOT EXISTS empresas (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -14,11 +14,7 @@ CREATE TABLE IF NOT EXISTS empresas (
 CREATE TABLE IF NOT EXISTS whatsapp_config (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   empresa_id INT UNSIGNED NOT NULL,
-  provider ENUM('meta','evolution') NOT NULL DEFAULT 'evolution',
-  evolution_instance_name VARCHAR(64) NOT NULL DEFAULT '',
-  connection_status ENUM('disconnected','qr_pending','connected','error') NOT NULL DEFAULT 'disconnected',
-  connected_phone VARCHAR(32) NOT NULL DEFAULT '',
-  connected_at DATETIME NULL,
+  provider ENUM('meta','evolution') NOT NULL DEFAULT 'meta',
   whatsapp_numero VARCHAR(20) NOT NULL DEFAULT '',
   whatsapp_phone_id VARCHAR(64) NOT NULL DEFAULT '' COMMENT 'Phone Number ID (Meta Cloud API)',
   whatsapp_token VARCHAR(512) NOT NULL DEFAULT '' COMMENT 'Token permanente Meta',
@@ -45,11 +41,10 @@ CREATE TABLE IF NOT EXISTS whatsapp_log (
   CONSTRAINT fk_whatsapp_log_empresa FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Tokens públicos (confirmação agenda, assinatura digital, etc.)
 CREATE TABLE IF NOT EXISTS whatsapp_acao_token (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   empresa_id INT UNSIGNED NOT NULL,
-  tipo VARCHAR(40) NOT NULL COMMENT 'agenda_confirmar, assinatura_proposta, termo_consentimento',
+  tipo VARCHAR(40) NOT NULL,
   referencia_id BIGINT UNSIGNED NOT NULL,
   token VARCHAR(128) NOT NULL UNIQUE,
   expira_em DATETIME NOT NULL,

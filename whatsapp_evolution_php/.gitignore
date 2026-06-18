@@ -1,4 +1,6 @@
 /vendor/
 /config.php
-/output/*.pdf
+/output/
+/node_modules/
+/package-lock.json
 composer.phar

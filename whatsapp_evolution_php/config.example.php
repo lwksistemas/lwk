@@ -22,6 +22,8 @@ return [
     // Webhook do SEU backend PHP (não Django)
     'webhook_url' => 'https://seusite.com.br/api/whatsapp/evolution/webhook.php',
 
+    'meta_api_url' => 'https://graph.facebook.com/v19.0',
+
     // Referência LWK (opcional)
     'api_base_url' => 'https://api.lwksistemas.com.br',
     'frontend_url' => 'https://lwksistemas.com.br',

@@ -347,13 +347,13 @@ def processar_cancelamento_nfse_loja(
     )
 
 
-def processar_emissao_nfse_loja(
+def processar_emissao_nfse_loja_sync(
     loja: Any,
     loja_id: int,
     validated_data: dict[str, Any],
 ) -> tuple[dict[str, Any], int]:
     """
-    Emite NFS-e para a loja atual.
+    Emite NFS-e para a loja atual (síncrono).
     Retorna (corpo da resposta, status HTTP).
     """
     from nfse_integration.emissao import montar_dados_tomador_nfse
@@ -420,3 +420,24 @@ def processar_emissao_nfse_loja(
     if nfse_falha:
         body['nfse'] = NFSeSerializer(nfse_falha).data
     return body, status.HTTP_400_BAD_REQUEST
+
+
+def processar_emissao_nfse_loja(
+    loja: Any,
+    loja_id: int,
+    validated_data: dict[str, Any],
+) -> tuple[dict[str, Any], int]:
+    """Enfileira ou emite NFS-e para a loja (API HTTP)."""
+    from nfse_integration.queue_dispatch import enqueue_emissao_nfse_loja, should_enqueue_nfse
+
+    if should_enqueue_nfse():
+        enqueue_emissao_nfse_loja(loja_id, validated_data)
+        return (
+            {
+                'success': True,
+                'queued': True,
+                'message': 'NFS-e enfileirada para emissão. Consulte a lista em instantes.',
+            },
+            status.HTTP_202_ACCEPTED,
+        )
+    return processar_emissao_nfse_loja_sync(loja, loja_id, validated_data)

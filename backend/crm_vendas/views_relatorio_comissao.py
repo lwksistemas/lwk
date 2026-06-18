@@ -348,10 +348,20 @@ def reemitir_nfse_view(request, relatorio_id):
     processar_pagamento_comissao(relatorio)
     relatorio.refresh_from_db()
 
+    from core.task_queue import task_queue_enabled
+
+    queued = task_queue_enabled() and relatorio.status == 'pago' and not relatorio.nfse_numero
     return Response({
         'success': True,
+        'queued': queued,
         'message': (
-            f'NFS-e {"emitida: " + relatorio.nfse_numero if relatorio.nfse_numero else "falhou — verifique configuração ISSNet."}'
+            'NFS-e enfileirada para emissão.'
+            if queued
+            else (
+                f'NFS-e emitida: {relatorio.nfse_numero}'
+                if relatorio.nfse_numero
+                else 'NFS-e falhou — verifique configuração ISSNet.'
+            )
         ),
         'status': relatorio.status,
         'nfse_numero': relatorio.nfse_numero,

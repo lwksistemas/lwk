@@ -643,29 +643,27 @@ def gerar_boleto_comissao(relatorio):
         return False, str(e)
 
 
-def processar_pagamento_comissao(relatorio):
-    """
-    Chamado quando o pagamento do boleto é confirmado (via webhook Asaas).
-    Emite NFS-e automaticamente.
-    """
+def emitir_nfse_comissao_sync(relatorio_id: int, loja_id: int) -> None:
+    """Emite NFS-e do relatório de comissão (síncrono)."""
     from nfse_integration.service import NFSeService
     from superadmin.models import Loja
 
-    relatorio.status = 'pago'
-    relatorio.pago_em = timezone.now()
-    relatorio.save(update_fields=['status', 'pago_em', 'updated_at'])
-    logger.info('Relatório %s marcado como pago.', relatorio.numero)
+    from .models_relatorio_comissao import RelatorioComissao
 
-    # Emitir NFS-e automaticamente
+    relatorio = RelatorioComissao.objects.filter(id=relatorio_id, loja_id=loja_id).first()
+    if not relatorio:
+        logger.warning('Relatório comissão id=%s loja=%s não encontrado', relatorio_id, loja_id)
+        return
+
     try:
         loja = Loja.objects.using('default').filter(id=relatorio.loja_id).first()
         if not loja:
             logger.warning('Loja não encontrada para emissão de NFS-e: loja_id=%s', relatorio.loja_id)
             return
 
-        # Configurar tenant para que NFSeService acesse CRMConfig corretamente
         from tenants.middleware import set_current_loja_id, set_current_tenant_db
         from core.db_config import ensure_loja_database_config
+
         set_current_loja_id(loja.id)
         db_name = getattr(loja, 'database_name', None) or f'loja_{loja.slug}'
         ensure_loja_database_config(db_name, conn_max_age=0)
@@ -673,6 +671,7 @@ def processar_pagamento_comissao(relatorio):
 
         ep = relatorio.empresa_prestadora
         import re
+
         cnpj_digits = re.sub(r'\D', '', ep.cnpj or '')
 
         service = NFSeService(loja)
@@ -706,12 +705,39 @@ def processar_pagamento_comissao(relatorio):
             ])
             logger.info(
                 'NFS-e emitida para relatório %s: %s',
-                relatorio.numero, relatorio.nfse_numero,
+                relatorio.numero,
+                relatorio.nfse_numero,
             )
         else:
             logger.warning(
                 'Falha ao emitir NFS-e para relatório %s: %s',
-                relatorio.numero, resultado.get('error'),
+                relatorio.numero,
+                resultado.get('error'),
             )
     except Exception as e:
-        logger.exception('Erro ao emitir NFS-e para relatório %s: %s', relatorio.numero, e)
+        logger.exception(
+            'Erro ao emitir NFS-e para relatório id=%s loja=%s: %s',
+            relatorio_id,
+            loja_id,
+            e,
+        )
+
+
+def processar_pagamento_comissao(relatorio):
+    """
+    Chamado quando o pagamento do boleto é confirmado (via webhook Asaas).
+    Emite NFS-e automaticamente.
+    """
+    relatorio.status = 'pago'
+    relatorio.pago_em = timezone.now()
+    relatorio.save(update_fields=['status', 'pago_em', 'updated_at'])
+    logger.info('Relatório %s marcado como pago.', relatorio.numero)
+
+    from nfse_integration.queue_dispatch import enqueue_emitir_nfse_comissao, should_enqueue_nfse
+
+    if should_enqueue_nfse():
+        enqueue_emitir_nfse_comissao(relatorio.id, relatorio.loja_id)
+        logger.info('NFS-e comissão enfileirada: relatório %s', relatorio.numero)
+        return
+
+    emitir_nfse_comissao_sync(relatorio.id, relatorio.loja_id)

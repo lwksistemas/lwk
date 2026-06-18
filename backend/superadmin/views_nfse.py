@@ -5,6 +5,7 @@ POST /api/superadmin/nfse-emitidas/emitir-manual/
 """
 import logging
 
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -248,6 +249,19 @@ def emitir_nfse_manual(request):
     config_err = validar_config_emissao(config)
     if config_err:
         return Response({'success': False, 'error': config_err.message}, status=config_err.status)
+
+    from nfse_integration.queue_dispatch import enqueue_emitir_nfse_manual, should_enqueue_nfse
+
+    if should_enqueue_nfse():
+        enqueue_emitir_nfse_manual(payload)
+        return Response(
+            {
+                'success': True,
+                'queued': True,
+                'message': 'Emissão de NFS-e enfileirada. A nota aparecerá em NFS-e emitidas em instantes.',
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
 
     try:
         resultado = emitir_nfse_manual_superadmin(config, payload)

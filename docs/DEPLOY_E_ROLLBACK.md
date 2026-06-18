@@ -299,7 +299,8 @@ Health da API expõe `task_queue: { enabled, broker }`. Com worker ativo: `enabl
 |------|--------------|------------|
 | WhatsApp (`send_whatsapp`) | `lwks-backend` | `lwks-worker` |
 | E-mail (`send_prepared`, `send_system_mail`, `msg.send()` via Resend) | `lwks-backend` | `lwks-worker` |
-| Cron (lembretes, backups) | — (síncrono no `lwks-cron`) | `lwks-cron` |
+| NFS-e (assinatura, loja, manual, comissão) | `lwks-backend` | `lwks-worker` |
+| Cron (lembretes, backups, retry NFS-e) | — (síncrono no `lwks-cron`) | `lwks-cron` |
 
 E-mails com anexo > 4 MB são enviados de forma síncrona (ex.: backup por email no cron).
 

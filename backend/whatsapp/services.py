@@ -250,34 +250,93 @@ def _loja_plano_permite_whatsapp(loja_or_id):
         return True, None
 
 
+def _should_enqueue_whatsapp() -> bool:
+    from core.task_queue import task_queue_enabled
+    from whatsapp.sync_context import whatsapp_sync_only
+
+    return task_queue_enabled() and not whatsapp_sync_only.get()
+
+
+def _validate_whatsapp_send(telefone, mensagem, user=None, config=None, *, log_label=None):
+    """Validações rápidas antes de enfileirar ou enviar."""
+    loja_id = _config_loja_id(config)
+    ok_plano, err_plano = _loja_plano_permite_whatsapp(loja_id)
+    if not ok_plano:
+        return False, err_plano
+
+    phone = _normalize_phone(telefone)
+    if not phone:
+        logger.warning("WhatsApp: telefone inválido ou vazio: %s", telefone)
+        _write_whatsapp_log(
+            loja_id=loja_id,
+            telefone=telefone,
+            mensagem=log_label or mensagem,
+            status='falhou',
+            response={'error': 'telefone_invalido'},
+            user=user,
+        )
+        return False, "Telefone inválido ou incompleto (use DDD + número com código do país)."
+
+    if config and not getattr(config, 'whatsapp_ativo', False):
+        return False, 'WhatsApp não está ativo. Configure em Configurações → WhatsApp.'
+
+    if config and _get_provider(config) != WhatsAppConfig.PROVIDER_EVOLUTION:
+        _, _, _, cred_err = _resolve_whatsapp_credentials(config)
+        if cred_err:
+            logger.warning("WhatsApp loja_id=%s: %s", loja_id, cred_err)
+            _write_whatsapp_log(
+                loja_id=loja_id,
+                telefone=phone,
+                mensagem=log_label or mensagem,
+                status='falhou',
+                response={'error': 'config_missing'},
+                user=user,
+            )
+            return False, cred_err
+
+    return True, None
+
+
 def send_whatsapp_document(telefone, document_url, filename, caption=None, user=None, config=None):
     """
     Envia documento (PDF) via WhatsApp Cloud API ou Evolution (WhatsApp Web).
     document_url: URL pública HTTPS do documento.
     Retorna (True, None) ou (False, mensagem_erro).
     """
+    loja_id = _config_loja_id(config)
+    ok_val, err_val = _validate_whatsapp_send(
+        telefone,
+        f'[documento] {filename}',
+        user=user,
+        config=config,
+        log_label=f'[documento] {filename}',
+    )
+    if not ok_val:
+        return False, err_val
+
+    if _should_enqueue_whatsapp() and loja_id:
+        from core.task_queue import enqueue_task
+
+        user_id = getattr(user, 'pk', None) if user else None
+        phone = _normalize_phone(telefone) or telefone
+        enqueue_task(
+            f'wa-doc-{loja_id}-{str(phone)[-6:]}',
+            'whatsapp.queue_tasks.run_send_whatsapp_document',
+            telefone,
+            document_url,
+            filename,
+            loja_id,
+            user_id,
+            caption,
+        )
+        return True, None
+
     if config and _get_provider(config) == WhatsAppConfig.PROVIDER_EVOLUTION:
         return _send_whatsapp_document_evolution(
             telefone, document_url, filename, caption=caption, user=user, config=config,
         )
 
     phone = _normalize_phone(telefone)
-    loja_id = _config_loja_id(config)
-    ok_plano, err_plano = _loja_plano_permite_whatsapp(loja_id)
-    if not ok_plano:
-        return False, err_plano
-    if not phone:
-        logger.warning("WhatsApp documento: telefone inválido: %s", telefone)
-        _write_whatsapp_log(
-            loja_id=loja_id,
-            telefone=telefone,
-            mensagem=f"[documento] {filename}",
-            status='falhou',
-            response={'error': 'telefone_invalido'},
-            user=user,
-        )
-        return False, "Telefone inválido ou incompleto."
-
     phone_id, token, api_url, cred_err = _resolve_whatsapp_credentials(config)
     if cred_err:
         _write_whatsapp_log(
@@ -341,27 +400,32 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
     Envia mensagem de texto via Meta Cloud API ou Evolution (WhatsApp Web).
     Registra em WhatsAppLog (auditoria por loja).
     Retorna (True, None) se enviou com sucesso; (False, mensagem_erro) em caso de falha.
+    Com USE_TASK_QUEUE=true no lwks-backend, enfileira envio para o lwks-worker.
     """
+    loja_id = _config_loja_id(config)
+    ok_val, err_val = _validate_whatsapp_send(telefone, mensagem, user=user, config=config)
+    if not ok_val:
+        return False, err_val
+
+    if _should_enqueue_whatsapp() and loja_id:
+        from core.task_queue import enqueue_task
+
+        user_id = getattr(user, 'pk', None) if user else None
+        phone = _normalize_phone(telefone) or telefone
+        enqueue_task(
+            f'wa-text-{loja_id}-{str(phone)[-6:]}',
+            'whatsapp.queue_tasks.run_send_whatsapp',
+            telefone,
+            mensagem,
+            loja_id,
+            user_id,
+        )
+        return True, None
+
     if config and _get_provider(config) == WhatsAppConfig.PROVIDER_EVOLUTION:
         return _send_whatsapp_evolution(telefone, mensagem, user=user, config=config)
 
     phone = _normalize_phone(telefone)
-    loja_id = _config_loja_id(config)
-    ok_plano, err_plano = _loja_plano_permite_whatsapp(loja_id)
-    if not ok_plano:
-        return False, err_plano
-    if not phone:
-        logger.warning("WhatsApp: telefone inválido ou vazio: %s", telefone)
-        _write_whatsapp_log(
-            loja_id=loja_id,
-            telefone=telefone,
-            mensagem=mensagem,
-            status='falhou',
-            response={'error': 'telefone_invalido'},
-            user=user,
-        )
-        return False, "Telefone inválido ou incompleto (use DDD + número com código do país)."
-
     phone_id, token, api_url, cred_err = _resolve_whatsapp_credentials(config)
     if cred_err:
         logger.warning("WhatsApp loja_id=%s: %s", loja_id, cred_err)

@@ -112,6 +112,8 @@ class CampanhaPromocaoEnviarView(APIView):
             return Response({'error': 'WhatsApp não está ativo. Configure em Configurações.'}, status=status.HTTP_400_BAD_REQUEST)
 
         from whatsapp.services import send_whatsapp
+        from core.task_queue import task_queue_enabled
+
         pacientes = Patient.objects.filter(
             is_active=True, allow_whatsapp=True
         ).exclude(telefone__isnull=True).exclude(telefone='')
@@ -130,8 +132,14 @@ class CampanhaPromocaoEnviarView(APIView):
         campanha.enviada_em = timezone.now()
         campanha.total_enviados = enviados
         campanha.save(update_fields=['enviada_em', 'total_enviados', 'updated_at'])
+        msg = (
+            f'{enviados} mensagem(ns) enfileirada(s) para envio.'
+            if task_queue_enabled()
+            else f'Mensagem enviada para {enviados} paciente(s).'
+        )
         return Response({
             'sent': enviados,
             'total_recipients': pacientes.count(),
-            'message': f'Mensagem enviada para {enviados} paciente(s).',
+            'queued': task_queue_enabled(),
+            'message': msg,
         })

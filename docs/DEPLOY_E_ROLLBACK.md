@@ -273,9 +273,15 @@ DATABASE_URL=${{lwks-backend.DATABASE_URL}}
 REDIS_URL=${{Redis.REDIS_URL}}
 USE_REDIS=true
 USE_TASK_QUEUE=true
+LWK_PROCESS_ROLE=worker
 DJANGO_SETTINGS_MODULE=config.settings_production
 LWK_SKIP_STARTUP_ENSURE=1
+RAILWAY_CONFIG_FILE=railway.worker.toml
 ```
+
+**Importante:** `USE_TASK_QUEUE=false` no **lwks-worker** (só enfileira no `lwks-backend`). O worker **executa** a fila, não re-enfileira.
+
+No painel Railway → **lwks-worker** → Settings → desativar **Healthcheck** (qcluster não serve HTTP).
 
 Deploy manual:
 

@@ -246,6 +246,8 @@ class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelVie
         if not loja_id:
             return Response({'error': 'Contexto de loja não encontrado.'}, status=status.HTTP_400_BAD_REQUEST)
         telefone = (request.data.get('telefone') or '').strip()
+        from core.task_queue import task_queue_enabled
+
         ok, result = enviar_atividade_whatsapp(
             loja_id,
             atividade,
@@ -254,6 +256,12 @@ class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelVie
         )
         if not ok:
             return Response({'error': result}, status=status.HTTP_400_BAD_REQUEST)
+        if task_queue_enabled():
+            return Response({
+                'success': True,
+                'queued': True,
+                'message': f'WhatsApp enfileirado para {result}.',
+            })
         return Response({
             'success': True,
             'message': f'Lembrete enviado por WhatsApp para {result}',

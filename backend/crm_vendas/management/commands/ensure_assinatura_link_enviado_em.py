@@ -49,6 +49,7 @@ class Command(BaseCommand):
                         continue
                     if not column_exists(cursor, TABLE, COLUMN):
                         cursor.execute(f'ALTER TABLE {TABLE} ADD COLUMN {COLUMN} {DDL}')
+                        conn.commit()
                         self.stdout.write(
                             self.style.SUCCESS(f'{loja.slug}: coluna {COLUMN} adicionada em {TABLE}')
                         )

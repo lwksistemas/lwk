@@ -105,6 +105,11 @@ def criar_token_assinatura(documento, tipo, loja_id):
         kwargs['proposta'] = documento
     else:
         kwargs['contrato'] = documento
+
+    from tenants.middleware import get_current_tenant_db
+    from .schema_ensure_assinatura import ensure_assinatura_link_enviado_em_coluna
+
+    ensure_assinatura_link_enviado_em_coluna(get_current_tenant_db())
     
     assinatura = AssinaturaDigital.objects.create(**kwargs)
     

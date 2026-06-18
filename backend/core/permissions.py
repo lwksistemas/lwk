@@ -29,6 +29,36 @@ class IsSuperAdmin(permissions.BasePermission):
         )
 
 
+class HasLojaAccess(permissions.BasePermission):
+    """
+    Exige que o usuário autenticado tenha vínculo com a loja do contexto (headers).
+    Superuser passa. Endpoints sem headers de loja são negados para usuários de loja.
+    """
+    message = 'Você não tem permissão para acessar esta loja.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+
+        from core.tenant_access import user_can_access_loja, resolve_lojas_from_request
+        from tenants.middleware import ensure_loja_context, get_current_loja_id
+        from superadmin.models import Loja
+
+        for loja in resolve_lojas_from_request(request):
+            if not user_can_access_loja(request.user, loja):
+                return False
+
+        ensure_loja_context(request)
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return False
+
+        loja = Loja.objects.filter(id=loja_id).first()
+        return user_can_access_loja(request.user, loja) if loja else False
+
+
 class IsSuperAdminOrReadOnly(permissions.BasePermission):
     """
     Permissão para leitura pública, mas apenas super admin pode editar.

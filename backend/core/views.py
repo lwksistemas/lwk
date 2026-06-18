@@ -5,13 +5,15 @@ from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework import status
 
+from core.permissions import HasLojaAccess
+
 
 class BaseModelViewSet(viewsets.ModelViewSet):
     """
     ViewSet genérico para modelos simples
     Inclui filtro por is_active, permissões básicas e validação de isolamento
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasLojaAccess]
     
     def get_queryset(self):
         """
@@ -91,7 +93,7 @@ class ReadOnlyBaseViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet genérico apenas para leitura
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasLojaAccess]
     
     def get_queryset(self):
         """Filtra apenas registros ativos"""

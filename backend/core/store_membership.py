@@ -13,29 +13,21 @@ logger = logging.getLogger(__name__)
 def user_belongs_to_store(user, store_slug: str) -> bool:
     """
     True se o usuário pertence à loja (slug/atalho/CNPJ).
-    Em erro interno retorna True (fail-open; views validam de novo).
+    Fail-closed: erro interno ou loja inexistente → False.
     """
     if not user or not getattr(user, 'is_authenticated', False) or not store_slug:
         return False
     try:
         from tenants.middleware import resolve_loja_from_slug_or_cnpj
-        from superadmin.models import ProfissionalUsuario, VendedorUsuario
+        from core.tenant_access import user_can_access_loja
 
         loja = resolve_loja_from_slug_or_cnpj(store_slug)
-        if not loja or not loja.is_active:
-            return True
-        if loja.owner_id == user.id:
-            return True
-        if ProfissionalUsuario.objects.filter(user=user, loja=loja).exists():
-            return True
-        if VendedorUsuario.objects.filter(user=user, loja=loja).exists():
-            return True
-        if funcionario_email_ativo_na_loja(user, loja):
-            return True
-        return False
+        if not loja:
+            return False
+        return user_can_access_loja(user, loja)
     except Exception as e:
         logger.error('store_membership: erro ao validar pertencimento: %s', e)
-        return True
+        return False
 
 
 def funcionario_email_ativo_na_loja(user, loja) -> bool:

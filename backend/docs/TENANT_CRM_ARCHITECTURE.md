@@ -15,7 +15,7 @@ Este documento fixa a ordem de resolução de tenant e os pontos de extensão pa
 2. **Middleware** (`TenantMiddleware`): limpa o contexto no início da requisição e resolve loja por URL/header.
 3. **Headers HTTP** (quando ainda não há contexto coerente): usar **`ensure_loja_context(request)`** — mesma regra que o middleware:
    - **`X-Tenant-Slug` antes de `X-Loja-ID`** (o slug reflete a loja “ativa” no app; o ID no cliente pode ficar obsoleto).
-   - Se o slug **falhar na validação** (ex.: slug desatualizado no cliente vs `Loja.slug` no banco), o **`TenantMiddleware` tenta `X-Loja-ID`** em seguida — não abortar o tenant só por causa do header de slug.
+   - Se o slug **falhar na validação** para usuário autenticado → **403** (não configura tenant de outra loja). Com headers inconsistentes, o middleware ainda tenta `X-Loja-ID` apenas quando o slug foi rejeitado por **desatualização** (usuário tem acesso à loja do ID).
 4. **Helpers**:
    - `get_loja_from_context(request)` em `crm_vendas/utils.py` deve preferir `ensure_loja_context` em vez de reimplementar leitura de headers.
    - `get_current_vendedor_id` / `is_owner` alinham tenant com `ensure_loja_context` quando necessário.
@@ -23,6 +23,22 @@ Este documento fixa a ordem de resolução de tenant e os pontos de extensão pa
 ## Fonte canônica de imports
 
 - **`get_current_loja_id`**: sempre `tenants.middleware` (não usar módulos inexistentes ou duplicados).
+
+## Segurança tenant (JWT → loja permitida → contexto)
+
+Ordem de validação (fail-closed):
+
+1. **`JWTAuthenticationMiddleware`** autentica o usuário antes do tenant.
+2. **`TenantMiddleware`** chama **`check_cross_tenant_access(request)`** (`core/tenant_access.py`): se o usuário autenticado enviou `X-Tenant-Slug`, `X-Loja-ID` ou URL `/loja/{slug}/` de uma loja sem vínculo → **403** (`CROSS_STORE_ACCESS_DENIED`).
+3. **`ensure_loja_context(request)`** só configura schema/banco se **`user_can_access_loja(user, loja)`** for verdadeiro (mesma regra central).
+4. **`HasLojaAccess`** (`core/permissions.py`) em **`BaseModelViewSet`** / **`ReadOnlyBaseViewSet`**: segunda camada nas APIs DRF.
+
+Vínculos aceitos em **`user_can_access_loja`**: owner, `ProfissionalUsuario`, `VendedorUsuario`, funcionário por e-mail no schema da loja (`funcionario_email_ativo_na_loja`).
+
+Helpers:
+
+- `core/tenant_access.py` — validação central (usar em middleware, views e testes).
+- `core/store_membership.py` — `user_belongs_to_store` delega para `user_can_access_loja` (fail-closed).
 
 ## ViewSets e isolamento
 

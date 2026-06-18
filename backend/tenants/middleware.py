@@ -144,6 +144,12 @@ def ensure_loja_context(request):
             loja_id = int(lid)
             loja = Loja.objects.using('default').filter(id=loja_id).first()
         if loja:
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                from core.tenant_access import user_can_access_loja
+                if not user_can_access_loja(request.user, loja):
+                    set_current_loja_id(None)
+                    set_current_tenant_db('default')
+                    return False
             return _configure_tenant_db_for_loja(loja, request)
     except (ValueError, TypeError):
         pass
@@ -187,6 +193,12 @@ class TenantMiddleware:
             path_norm = request.path.rstrip('/') or '/'
             if path_norm.startswith('/api/auth'):
                 return self.get_response(request)
+
+            from core.tenant_access import check_cross_tenant_access
+            denied = check_cross_tenant_access(request)
+            if denied is not None:
+                return denied
+
             # Detectar tenant por subdomain, header ou parâmetro
             tenant_slug = self._get_tenant_slug(request)
             
@@ -418,74 +430,33 @@ class TenantMiddleware:
         return None
     
     def _validate_user_owns_loja(self, request, loja):
-        """Valida que usuário autenticado é owner da loja (objeto Loja)"""
+        """Valida que usuário autenticado pode acessar a loja."""
         import logging
         logger = logging.getLogger(__name__)
-        
+
         if not hasattr(request, 'user') or not request.user.is_authenticated:
             logger.warning("⚠️ Usuário não autenticado tentando acessar loja")
             return False
-        
-        # SuperAdmin pode acessar qualquer loja
-        if request.user.is_superuser:
+
+        from core.tenant_access import user_can_access_loja
+        if user_can_access_loja(request.user, loja):
             return True
-        
-        # Validar owner
-        if loja.owner_id != request.user.id:
-            # 🔧 PERMITIR acesso se for funcionário/profissional/vendedor (só logar se for bloquear)
-            #
-            # IMPORTANTE: cada verificação é isolada em seu próprio try/except. As tabelas de
-            # funcionário (clinica_estetica/restaurante) vivem no schema da loja e podem NÃO
-            # existir conforme o tipo de loja — uma exceção ali não pode abortar as demais
-            # verificações (ex.: ProfissionalUsuario da Clínica da Beleza, que fica no schema
-            # público). Antes, um erro em clinica_funcionarios bloqueava profissionais válidos.
 
-            # Profissional/usuário da Clínica da Beleza (ProfissionalUsuario) — schema público.
-            try:
-                from superadmin.models import ProfissionalUsuario
-                if ProfissionalUsuario.objects.filter(user=request.user, loja=loja).exists():
-                    return True
-            except Exception as e:
-                logger.error(f"❌ Erro ao verificar ProfissionalUsuario: {e}")
-
-            # Vendedor do CRM (VendedorUsuario) — schema público.
-            try:
-                from superadmin.models import VendedorUsuario
-                if VendedorUsuario.objects.filter(user=request.user, loja=loja).exists():
-                    return True
-            except Exception as e:
-                logger.error(f"❌ Erro ao verificar VendedorUsuario: {e}")
-
-            # Funcionário (Clínica Estética) — tabela no schema da loja; pode não existir.
-            try:
-                from clinica_estetica.models import Funcionario as FuncionarioClinica
-                if FuncionarioClinica.objects.all_without_filter().filter(
-                    loja_id=loja.id, email=request.user.email, is_active=True
-                ).exists():
-                    return True
-            except Exception as e:
-                logger.debug(f"Verificação FuncionarioClinica ignorada: {e}")
-
-            # Funcionário (Restaurante) — tabela no schema da loja; pode não existir.
-            try:
-                from restaurante.models import Funcionario as FuncionarioRestaurante
-                if FuncionarioRestaurante.objects.all_without_filter().filter(
-                    loja_id=loja.id, email=request.user.email, is_active=True
-                ).exists():
-                    return True
-            except Exception as e:
-                logger.debug(f"Verificação FuncionarioRestaurante ignorada: {e}")
-
-            logger.warning(
-                f"⚠️ Usuário {request.user.id} ({request.user.email}) não tem permissão para loja {loja.slug} (owner: {loja.owner_id})"
-            )
-            logger.critical(
-                f"🚨 BLOQUEIO: Usuário {request.user.id} ({request.user.email}) "
-                f"não tem permissão para loja {loja.slug} (ID: {loja.id})"
-            )
-            return False
-        
-        return True
+        logger.warning(
+            "⚠️ Usuário %s (%s) não tem permissão para loja %s (owner: %s)",
+            request.user.id,
+            request.user.email,
+            loja.slug,
+            loja.owner_id,
+        )
+        logger.critical(
+            "🚨 BLOQUEIO: Usuário %s (%s) não tem permissão para loja %s (ID: %s)",
+            request.user.id,
+            request.user.email,
+            loja.slug,
+            loja.id,
+        )
+        return False
     
     def _validate_user_owns_loja_by_slug(self, request, tenant_slug):
         """Valida que usuário autenticado é owner da loja (por slug)"""

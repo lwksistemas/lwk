@@ -494,3 +494,16 @@ WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')
 WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', '')
 EVOLUTION_API_URL = os.environ.get('EVOLUTION_API_URL', '').rstrip('/')
 EVOLUTION_API_KEY = os.environ.get('EVOLUTION_API_KEY', '')
+
+# OpenAPI (drf-spectacular) — /api/schema/ (staff)
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'LWK Sistemas API',
+    'DESCRIPTION': 'API Multi-Tenant — superadmin, lojas, CRM, clínica, etc.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
+# Sentry (opcional — só ativa com SENTRY_DSN)
+from config.sentry_init import init_sentry  # noqa: E402
+
+init_sentry()

@@ -232,6 +232,12 @@ Definido em `railway.toml` — ordem:
 - [ ] Uma tela de loja autenticada
 - [ ] Vercel production Ready
 
+### 6.6 Observabilidade e backup
+
+- **Sentry (opcional):** `SENTRY_DSN` no Railway — ver `docs/OBSERVABILIDADE_SENTRY.md`
+- **OpenAPI:** `/api/schema/swagger-ui/` (staff autenticado)
+- **Validar backup:** `python manage.py audit_backup_lojas --dry-export` — ver `docs/BACKUP_RESTORE_VALIDACAO.md`
+
 ---
 
 ## 7. Integrações importantes

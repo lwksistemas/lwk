@@ -213,13 +213,24 @@ def health_check(request):
         payload['evolution_available'] = False
 
     try:
-        from core.task_queue import queue_status
-        payload['task_queue'] = queue_status()
+        from core.task_queue import queue_health_level, queue_status
+
+        task_queue = queue_status()
+        payload['task_queue'] = task_queue
+        queue_level = queue_health_level(task_queue)
+        if queue_level:
+            payload['task_queue']['health'] = queue_level
+            if payload['status'] == 'healthy' and queue_level == 'unhealthy':
+                payload['status'] = 'degraded'
+            elif payload['status'] == 'healthy' and queue_level == 'degraded':
+                payload['status'] = 'degraded'
     except Exception:
         payload['task_queue'] = {'enabled': False, 'broker': 'unknown'}
 
     if pending:
         payload['status'] = 'degraded'
+        return JsonResponse(payload, status=503)
+    if payload.get('task_queue', {}).get('health') == 'unhealthy':
         return JsonResponse(payload, status=503)
     return JsonResponse(payload, status=200)
 

@@ -272,7 +272,7 @@ SECRET_KEY=${{lwks-backend.SECRET_KEY}}
 DATABASE_URL=${{lwks-backend.DATABASE_URL}}
 REDIS_URL=${{Redis.REDIS_URL}}
 USE_REDIS=true
-USE_TASK_QUEUE=true
+USE_TASK_QUEUE=false
 LWK_PROCESS_ROLE=worker
 DJANGO_SETTINGS_MODULE=config.settings_production
 LWK_SKIP_STARTUP_ENSURE=1
@@ -289,7 +289,31 @@ Deploy manual:
 railway up --service lwks-worker -c railway.worker.toml --detach
 ```
 
-Health da API expõe `task_queue: { enabled, broker }`. Com worker ativo: `enabled: true`, `broker: redis`.
+Health da API expõe `task_queue` com monitoramento da fila:
+
+```json
+"task_queue": {
+  "enabled": true,
+  "broker": "redis",
+  "role": "web",
+  "queued": 0,
+  "workers_alive": 4,
+  "clusters": 1,
+  "failures_24h": 0,
+  "health": "degraded"
+}
+```
+
+| Campo | Significado |
+|-------|-------------|
+| `queued` | Tarefas aguardando no Redis |
+| `workers_alive` | Workers django-q ativos (heartbeat ~3s) |
+| `failures_24h` | Falhas registradas nas últimas 24h |
+| `health` | `degraded` se fila > 50 ou worker offline; `unhealthy` se fila > 200 (HTTP 503) |
+
+Limites configuráveis: `LWK_QUEUE_BACKLOG_DEGRADED` (padrão 50), `LWK_QUEUE_BACKLOG_UNHEALTHY` (padrão 200).
+
+Com worker ativo: `enabled: true`, `broker: redis`, `workers_alive` ≥ 1.
 
 **Schedulers WSGI desativados por padrão** — o Gunicorn não roda mais threads de WhatsApp/backup em paralelo com o cron. Tarefas periódicas ficam só no `lwks-cron`.
 

@@ -11,18 +11,54 @@ from django.contrib.auth.models import User
 from superadmin.models import Loja
 
 
+def _drop_loja_schema(database_name: str) -> None:
+    """Remove schema PostgreSQL da loja (idempotente)."""
+    if not database_name:
+        return
+    using_pg = connection.settings_dict.get('ENGINE', '').endswith('postgresql')
+    if not using_pg:
+        return
+    schema_name = database_name.replace('-', '_')
+    if not schema_name or schema_name == 'public':
+        return
+    with connection.cursor() as cursor:
+        cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
+
+
+def _limpar_fks_public_loja(loja_id: int) -> None:
+    """Remove registros no public que bloqueiam DELETE em superadmin_loja."""
+    try:
+        from superadmin.models import HistoricoAcessoGlobal
+
+        HistoricoAcessoGlobal.objects.filter(loja_id=loja_id).delete()
+    except Exception:
+        pass
+    with connection.cursor() as cursor:
+        cursor.execute(
+            'DELETE FROM superadmin_historico_acesso_global WHERE loja_id = %s',
+            [loja_id],
+        )
+
+
 def _delete_loja_registro(loja: Loja) -> None:
     """
-    Remove a loja do public. Se CASCADE falhar (ex.: whatsapp_whatsappconfig ausente
-    no schema public), remove só o registro superadmin_loja após o pre_delete.
+    Remove a loja do public. Limpa FKs conhecidas e faz fallback SQL se CASCADE falhar
+    (ex.: whatsapp_whatsappconfig ausente no public para lojas CRM).
     """
+    _limpar_fks_public_loja(loja.id)
     try:
         loja.delete()
         return
     except Exception as exc:
         err = str(exc).lower()
-        if 'whatsapp_whatsappconfig' not in err:
+        recoverable = (
+            'whatsapp_whatsappconfig' in err
+            or 'historico_acesso_global' in err
+            or 'superadmin_historico' in err
+        )
+        if not recoverable:
             raise
+    _limpar_fks_public_loja(loja.id)
     with connection.cursor() as cursor:
         cursor.execute('DELETE FROM superadmin_loja WHERE id = %s', [loja.id])
 
@@ -55,7 +91,11 @@ class Command(BaseCommand):
         for loja in lojas:
             self._excluir_loja(loja)
 
-        self.stdout.write(self.style.SUCCESS(f'\n✅ Concluído. {total} loja(s) processada(s).'))
+        restantes = Loja.objects.count()
+        if restantes:
+            self.stdout.write(self.style.ERROR(f'⚠️  Ainda restam {restantes} loja(s) no cadastro.'))
+        else:
+            self.stdout.write(self.style.SUCCESS(f'\n✅ Concluído. {total} loja(s) processada(s).'))
 
     def _excluir_loja(self, loja):
         loja_nome = loja.nome
@@ -111,7 +151,9 @@ class Command(BaseCommand):
                 if mp_service.available:
                     result = mp_service.cancel_pending_payments_loja(loja_slug)
                     if result.get('success') and result.get('cancelled_count', 0):
-                        self.stdout.write(f'   [{loja_slug}] Mercado Pago: {result["cancelled_count"]} boleto(s) cancelado(s)')
+                        self.stdout.write(
+                            f'   [{loja_slug}] Mercado Pago: {result["cancelled_count"]} boleto(s) cancelado(s)'
+                        )
             except Exception as e:
                 self.stdout.write(self.style.WARNING(f'   [{loja_slug}] Mercado Pago: {e}'))
 
@@ -119,7 +161,10 @@ class Command(BaseCommand):
             _delete_loja_registro(loja)
             self.stdout.write(self.style.SUCCESS(f'   [{loja_slug}] Loja excluída'))
 
-            # 4. Banco/schema (após excluir loja: config + arquivo sqlite ou schema PostgreSQL)
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'   [{loja_slug}] Erro: {e}'))
+        finally:
+            # 4. Sempre tentar remover schema/config (mesmo se delete da loja falhou parcialmente)
             if database_created:
                 try:
                     if database_name in settings.DATABASES:
@@ -128,18 +173,13 @@ class Command(BaseCommand):
                     if hasattr(db_path, 'exists') and db_path.exists():
                         import os
                         os.remove(db_path)
-                    using_pg = connection.settings_dict.get('ENGINE', '').endswith('postgresql')
-                    if using_pg:
-                        schema_name = (database_name or '').replace('-', '_')
-                        if schema_name and schema_name != 'public':
-                            with connection.cursor() as cursor:
-                                cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
-                            self.stdout.write(f'   [{loja_slug}] Schema PostgreSQL removido')
+                    _drop_loja_schema(database_name)
+                    self.stdout.write(f'   [{loja_slug}] Schema PostgreSQL removido (garantia)')
                 except Exception as e:
                     self.stdout.write(self.style.WARNING(f'   [{loja_slug}] Banco/schema: {e}'))
 
             # 5. Owner se não tiver outras lojas
-            if usuario_sera_removido:
+            if usuario_sera_removido and not Loja.objects.filter(owner_id=owner_id).exists():
                 try:
                     user = User.objects.filter(id=owner_id).first()
                     if user and not user.is_superuser:
@@ -150,6 +190,3 @@ class Command(BaseCommand):
                         self.stdout.write(f'   [{loja_slug}] Usuário {owner_username} removido')
                 except Exception as e:
                     self.stdout.write(self.style.WARNING(f'   [{loja_slug}] Usuário: {e}'))
-
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f'   [{loja_slug}] Erro: {e}'))

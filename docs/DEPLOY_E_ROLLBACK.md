@@ -301,6 +301,7 @@ Health da API expõe `task_queue: { enabled, broker }`. Com worker ativo: `enabl
 | E-mail (`send_prepared`, `send_system_mail`, `msg.send()` via Resend) | `lwks-backend` | `lwks-worker` |
 | NFS-e (assinatura, loja, manual, comissão) | `lwks-backend` | `lwks-worker` |
 | Webhooks Asaas (global LWK + por loja CRM) | `lwks-backend` | `lwks-worker` |
+| Webhook Mercado Pago (mensalidade LWK) | `lwks-backend` | `lwks-worker` |
 | Cron (lembretes, backups, retry NFS-e) | — (síncrono no `lwks-cron`) | `lwks-cron` |
 
 E-mails com anexo > 4 MB são enviados de forma síncrona (ex.: backup por email no cron).

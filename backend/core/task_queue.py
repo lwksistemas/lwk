@@ -47,5 +47,17 @@ def queue_status() -> dict:
     """Status da fila para health check."""
     if not task_queue_enabled():
         return {'enabled': False, 'broker': 'disabled'}
-    broker = 'redis' if getattr(settings, 'Q_CLUSTER', {}).get('redis') else 'orm'
-    return {'enabled': True, 'broker': broker}
+
+    broker_name = 'redis' if getattr(settings, 'Q_CLUSTER', {}).get('redis') else 'orm'
+    status = {'enabled': True, 'broker': broker_name}
+
+    try:
+        from django_q.broker import get_broker
+
+        broker = get_broker()
+        if hasattr(broker, 'queue_size'):
+            status['queued'] = int(broker.queue_size())
+    except Exception as exc:
+        logger.debug('queue_status: não foi possível ler tamanho da fila: %s', exc)
+
+    return status

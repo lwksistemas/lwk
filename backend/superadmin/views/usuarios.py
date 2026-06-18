@@ -475,10 +475,28 @@ def mercadopago_webhook(request):
             return Response({'status': 'ignored'}, status=status.HTTP_200_OK)
         if notification_type != 'payment':
             return Response({'status': 'ignored', 'type': notification_type}, status=status.HTTP_200_OK)
+
+        from superadmin.mercadopago_queue_dispatch import (
+            enqueue_mercadopago_webhook,
+            should_enqueue_mercadopago_webhook,
+        )
+
+        payment_id = str(payment_id)
+        if should_enqueue_mercadopago_webhook():
+            enqueue_mercadopago_webhook(payment_id)
+            return Response(
+                {'status': 'received', 'queued': True, 'payment_id': payment_id},
+                status=status.HTTP_200_OK,
+            )
+
         from ..sync_service import process_mercadopago_webhook_payment
-        result = process_mercadopago_webhook_payment(str(payment_id))
+
+        result = process_mercadopago_webhook_payment(payment_id)
         if result.get('success') and result.get('processed'):
-            return Response({'status': 'processed', 'payment_id': payment_id, 'loja_slug': result.get('loja_slug')}, status=status.HTTP_200_OK)
+            return Response(
+                {'status': 'processed', 'payment_id': payment_id, 'loja_slug': result.get('loja_slug')},
+                status=status.HTTP_200_OK,
+            )
         return Response({'status': 'ok', 'processed': result.get('processed', False)}, status=status.HTTP_200_OK)
     except Exception as e:
         logger.exception("Erro no webhook Mercado Pago: %s", e)

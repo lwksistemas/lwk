@@ -1,4 +1,4 @@
-# Worker django-q: fila assíncrona (WhatsApp, e-mail, NFS-e, webhooks Asaas).
+# Worker django-q: fila assíncrona (WhatsApp, e-mail, NFS-e, webhooks pagamento).
 # Deploy: railway up --service lwks-worker -c railway.worker.toml
 [build]
 builder = "DOCKERFILE"

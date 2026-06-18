@@ -220,7 +220,19 @@ Cada push na `main` que altera o front gera deploy de produção. PRs podem gera
 
 1. [Railway](https://railway.com) → projeto **refreshing-contentment** → serviço **lwks-backend**.
 2. **Settings** → **Source** → **Connect GitHub** → repo `lwksistemas/lwk`, branch `main`.
-3. (Opcional) **Watch paths:** `backend/`, `Dockerfile.railway`, `railway.toml` — definidos em **`railway.toml`** → `[build].watchPatterns` (vale para `lwks-backend` e `lwks-backend-staging`, que usam o mesmo repo).
+3. **Wait for CI:** deixe **desligado** até o workflow `Security` passar no GitHub; com CI falhando, deploys são **SKIPPED**. Depois que `pip-audit` e `npm audit` passarem, pode ligar.
+4. (Opcional) **Watch paths:** `backend/`, `Dockerfile.railway`, `railway.toml` — definidos em **`railway.toml`** → `[build].watchPatterns` (vale para `lwks-backend` e `lwks-backend-staging`, que usam o mesmo repo).
+
+**Beta:** serviço `lwks-backend-staging`, branch `staging`, mesmas regras de Wait for CI e watch paths.
+
+**Auto-deploy lento ou “não disparou”:**
+
+| Sintoma | Causa provável | O que fazer |
+|---------|----------------|-------------|
+| Push na `main` sem deploy em ~1 min | Atraso normal do webhook Railway | Aguardar **5–10 min**; no histórico, **Show Skipped** |
+| Deploy **SKIPPED** | **Wait for CI** ligado + workflow `Security` falhou | Corrigir deps ou desligar Wait for CI |
+| Só `railway up` funciona | Repo não conectado ou branch errada | `railway service source connect --repo lwksistemas/lwk --branch main --service lwks-backend` |
+| Prompt “external contributor” | Commit com co-autor fora do time Railway | Evitar `Co-authored-by:` de agentes; ou aprovar no painel |
 
 O `railway.toml` já define `releaseCommand` com `migrate` e tarefas de schema — **sempre rode deploy pelo Railway após mudanças de migration**, nunca só subir código sem release.
 

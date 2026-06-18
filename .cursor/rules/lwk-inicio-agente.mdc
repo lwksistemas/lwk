@@ -22,17 +22,18 @@ Detalhes operacionais: `docs/DEPLOY_E_ROLLBACK.md`.
 export PATH="$HOME/.local/npm-global/bin:$PATH"
 cd /home/luiz/Documentos/lwksistemas
 
-# 1) Commit + push main → Vercel (frontend) auto-deploy
+# 1) Commit + push main → Vercel (frontend) + Railway (lwks-backend) auto-deploy
 git push origin main   # branch protegida: pode pedir aprovação
+# Aguardar 5–10 min; Railway skipa deploy se "Wait for CI" ON e workflow Security falhar.
 
-# 2) Backend — SEMPRE após mudar código Python ou Dockerfile.railway:
+# 2) Backend — após mudar código Python ou Dockerfile.railway:
 #    a) Bump ARG BUILD_ID=... em Dockerfile.railway (invalida cache Docker)
-#    b) Subir imagem nova (redeploy sozinho NÃO basta se BUILD_ID não mudou)
-railway up --service lwks-backend --detach
+#    b) Push na main (GitHub) OU emergência: railway up --service lwks-backend --detach
 ```
 
 - **Nunca** `railway up` no serviço `evolution-api` ou `lwks-cron` por engano.
 - Conta CLI: `lwksistemas@gmail.com` — `railway whoami`, `vercel whoami`.
+- **Commits:** não incluir `Co-authored-by: Cursor` (Railway pode pedir aprovação de “external contributor”).
 
 ## Multi-tenant (não esquecer)
 

@@ -96,7 +96,7 @@ Fluxo típico ao criar tabela nova:
 1. Migration Django no app do tenant (`clinica_beleza/migrations/…`)
 2. `python manage.py migrate` no **public** (registro)
 3. `python manage.py migrate_all_lojas` — aplica nos schemas das lojas
-4. Muitas alterações também têm comandos **`ensure_*`** idempotentes (criam tabela/coluna via SQL se migration não rodou no tenant)
+4. Comandos **`ensure_*`** idempotentes no release (`ensure_all`) — fallback se migration não rodou no tenant; **evitar** chamar ensures em views/services (usar ORM após migrate_all_lojas)
 
 Comandos `ensure_*` importantes (clínica beleza): ver `railway.toml` → `releaseCommand`.
 

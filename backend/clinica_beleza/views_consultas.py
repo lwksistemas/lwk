@@ -593,23 +593,10 @@ class ConsultaProdutoListView(APIView):
         except Consulta.DoesNotExist:
             return None, Response({'error': 'Consulta não encontrada'}, status=status.HTTP_404_NOT_FOUND)
 
-    def _ensure_consulta_produto_table(self):
-        from .schema_ensure import ensure_consulta_produto_utilizado_for_tenant
-
-        if not ensure_consulta_produto_utilizado_for_tenant():
-            return Response(
-                {'error': 'Estrutura de produtos da consulta indisponível. Contate o suporte.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-        return None
-
     def get(self, request, consulta_id):
         consulta, error = self._get_consulta(consulta_id)
         if error:
             return error
-        table_error = self._ensure_consulta_produto_table()
-        if table_error:
-            return Response([])
         qs = ConsultaProdutoUtilizado.objects.filter(
             consulta=consulta,
         ).select_related('produto').order_by('created_at')
@@ -619,9 +606,6 @@ class ConsultaProdutoListView(APIView):
         consulta, error = self._get_consulta(consulta_id)
         if error:
             return error
-        table_error = self._ensure_consulta_produto_table()
-        if table_error:
-            return table_error
         if consulta.status != 'IN_PROGRESS':
             return Response(
                 {'error': 'Só é possível registrar produtos com a consulta em atendimento.'},

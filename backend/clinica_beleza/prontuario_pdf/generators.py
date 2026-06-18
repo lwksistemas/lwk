@@ -105,16 +105,12 @@ def gerar_pdf_consulta_secao(consulta, secao: str) -> BytesIO:
     if secao == 'atendimento':
         elements.extend(_build_atendimento_elements(consulta, styles))
     elif secao == 'produtos':
-        from ..schema_ensure import ensure_consulta_produto_utilizado_for_tenant
-
-        produtos = []
-        if ensure_consulta_produto_utilizado_for_tenant():
-            produtos = list(
-                ConsultaProdutoUtilizado.objects
-                .filter(consulta=consulta)
-                .select_related('produto')
-                .order_by('created_at')
-            )
+        produtos = list(
+            ConsultaProdutoUtilizado.objects
+            .filter(consulta=consulta)
+            .select_related('produto')
+            .order_by('created_at')
+        )
         elements.extend(_build_produtos_consulta_elements(produtos, styles))
     elif secao == 'anamnese':
         anamnese = PatientAnamnese.objects.filter(patient_id=consulta.patient_id).first()

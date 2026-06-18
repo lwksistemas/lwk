@@ -2,7 +2,6 @@
 Views de Estoque — Clínica da Beleza
 Controle de produtos (botox, ácido hialurônico, soros, etc.)
 """
-import logging
 from decimal import Decimal
 
 from django.db.models import F, Sum
@@ -16,34 +15,13 @@ from .serializers import ProdutoEstoqueSerializer, MovimentacaoEstoqueSerializer
 from .pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from .views_base import GetObjectMixin
 
-logger = logging.getLogger(__name__)
-
-# Campos legados (sem numero_nota) para schemas que ainda não aplicaram 0034.
+# Campos para listagem via .values() (inclui numero_nota desde migration 0034).
 _PRODUTO_VALUES_FIELDS = (
     'id', 'nome', 'categoria', 'marca', 'unidade_medida',
     'quantidade_atual', 'quantidade_minima', 'preco_custo', 'preco_venda',
-    'validade', 'lote', 'observacoes', 'is_active', 'created_at', 'updated_at',
+    'validade', 'lote', 'numero_nota', 'observacoes', 'is_active', 'created_at', 'updated_at',
 )
 _CATEGORIA_LABELS = dict(ProdutoEstoque.CATEGORIA_CHOICES)
-
-
-def _produto_schema_has_numero_nota() -> bool:
-    """True somente quando a coluna existe no schema tenant atual."""
-    from django.db import connections
-    from tenants.middleware import get_current_tenant_db
-    from clinica_beleza.schema_ensure import column_exists, table_exists
-
-    tenant_db = get_current_tenant_db()
-    if not tenant_db or tenant_db == 'default':
-        return False
-    try:
-        with connections[tenant_db].cursor() as cursor:
-            if not table_exists(cursor, 'clinica_beleza_produtoestoque'):
-                return False
-            return column_exists(cursor, 'clinica_beleza_produtoestoque', 'numero_nota')
-    except Exception as exc:
-        logger.debug('Verificação numero_nota indisponível: %s', exc)
-        return False
 
 
 def _produto_values_row(row: dict) -> dict:
@@ -54,19 +32,11 @@ def _produto_values_row(row: dict) -> dict:
     return item
 
 
-def _produto_list_value_fields() -> tuple[str, ...]:
-    fields = list(_PRODUTO_VALUES_FIELDS)
-    if _produto_schema_has_numero_nota():
-        fields.append('numero_nota')
-    return tuple(fields)
-
-
 def _paginate_produtos_values(queryset, request):
-    """Lista produtos via .values() — seguro mesmo sem coluna numero_nota no schema."""
-    value_fields = _produto_list_value_fields()
+    """Lista produtos via .values()."""
     page_param = request.query_params.get('page')
     if page_param is None:
-        rows = list(queryset.values(*value_fields))
+        rows = list(queryset.values(*_PRODUTO_VALUES_FIELDS))
         return Response([_produto_values_row(r) for r in rows])
 
     try:
@@ -84,7 +54,7 @@ def _paginate_produtos_values(queryset, request):
     total = queryset.count()
     total_pages = max(1, (total + page_size - 1) // page_size)
     offset = (page - 1) * page_size
-    rows = list(queryset.values(*value_fields)[offset:offset + page_size])
+    rows = list(queryset.values(*_PRODUTO_VALUES_FIELDS)[offset:offset + page_size])
     return Response({
         'count': total,
         'page': page,
@@ -124,7 +94,7 @@ class ProdutoEstoqueListView(APIView):
         estoque_baixo = request.query_params.get('estoque_baixo')
         if estoque_baixo == 'true':
             qs = qs.filter(quantidade_atual__lte=F('quantidade_minima'))
-        # Sempre via .values(): evita 500 quando numero_nota ainda não existe no schema da loja.
+        # Sempre via .values() para resposta leve na listagem.
         return _paginate_produtos_values(qs, request)
 
     def post(self, request):
@@ -150,14 +120,6 @@ class ProdutoEstoqueDetailView(GetObjectMixin, APIView):
         from tenants.middleware import ensure_loja_context
 
         ensure_loja_context(request)
-        if not _produto_schema_has_numero_nota():
-            row = ProdutoEstoque.objects.filter(pk=pk).values(*_produto_list_value_fields()).first()
-            if not row:
-                return Response(
-                    {'error': self.not_found_message},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            return Response(_produto_values_row(row))
         obj, error = self.object_or_404(pk)
         if error:
             return error

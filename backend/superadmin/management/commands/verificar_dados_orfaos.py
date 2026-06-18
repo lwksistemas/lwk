@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand
 from django.db import connection
 
 from superadmin.models import Loja
-from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT
+from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT, tabela_existe_em_public
 
 
 class Command(BaseCommand):
@@ -31,6 +31,8 @@ class Command(BaseCommand):
         for tabela, coluna in TABELAS_LOJA_ID_DEFAULT:
             try:
                 with connection.cursor() as cursor:
+                    if not tabela_existe_em_public(cursor, tabela):
+                        continue
                     cursor.execute(
                         f"""
                         SELECT COUNT(*) FROM {tabela}

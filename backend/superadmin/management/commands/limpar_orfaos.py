@@ -209,12 +209,14 @@ class Command(BaseCommand):
         lojas_ids = set(Loja.objects.values_list('id', flat=True))
         
         # Tabelas a verificar (do orfaos_config.py)
-        from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT
+        from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT, tabela_existe_em_public
         
         total_orfaos = 0
         for tabela, coluna in TABELAS_LOJA_ID_DEFAULT:
             try:
                 with connection.cursor() as cursor:
+                    if not tabela_existe_em_public(cursor, tabela):
+                        continue
                     cursor.execute(f"""
                         SELECT COUNT(*) FROM {tabela} 
                         WHERE {coluna} IS NOT NULL AND {coluna} NOT IN (SELECT id FROM superadmin_loja)

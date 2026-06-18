@@ -374,11 +374,13 @@ def delete_all_loja_data(sender, instance, **kwargs):
         # inexistente) não aborte a transação principal do loja.delete()
         try:
             from django.db import connection, transaction
-            from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT
+            from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT, tabela_existe_em_public
             for tabela, coluna in TABELAS_LOJA_ID_DEFAULT:
                 try:
                     with transaction.atomic():
                         with connection.cursor() as cursor:
+                            if not tabela_existe_em_public(cursor, tabela):
+                                continue
                             cursor.execute(
                                 f'DELETE FROM {tabela} WHERE {coluna} = %s',
                                 [loja_id]

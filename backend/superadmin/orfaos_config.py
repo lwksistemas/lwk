@@ -15,12 +15,8 @@ TABELAS_LOJA_ID_DEFAULT = [
     ('superadmin_historico_backup', 'loja_id'),
     ('superadmin_configuracao_backup', 'loja_id'),
 
-    # WhatsApp (modelos reais: WhatsAppConfig, WhatsAppLog)
-    ('whatsapp_whatsappconfig', 'loja_id'),
-    ('whatsapp_whatsapplog', 'loja_id'),
-
-    # CRM Vendas: tabelas ficam APENAS no schema da loja (nunca em public).
-    # Não incluir aqui - são limpas no signal via .using(db_alias) antes de dropar o schema.
+    # WhatsApp: tabelas ficam APENAS no schema da loja (tenant), nunca em public.
+    # Ver TABELAS_TENANT_LOJA_ID e core/tests_tenant_tables.py.
 ]
 
 # Tabelas em schemas de loja (tenant) - verificadas via ORM com .using(db_alias)
@@ -68,6 +64,8 @@ TABELAS_TENANT_LOJA_ID = {
         'clinica_beleza_horariotrabalhoprofissional',
         'clinica_beleza_payment',
         'clinica_beleza_campanhapromocao',
+        'whatsapp_whatsappconfig',
+        'whatsapp_whatsapplog',
     ],
     'cabeleireiro': [
         'cabeleireiro_cliente',
@@ -87,6 +85,19 @@ TABELAS_LOJA_ID = TABELAS_LOJA_ID_DEFAULT
 
 # Ordem de limpeza de FKs antes de deletar tabela pai (evita violação de FK)
 LIMPAR_REFERENCIAS_ANTES = {}
+
+
+def tabela_existe_em_public(cursor, table_name: str) -> bool:
+    """Evita SQL em tabelas tenant-only (ex.: whatsapp_*) que geram ERROR no log do Postgres."""
+    cursor.execute(
+        """
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = %s
+        LIMIT 1
+        """,
+        [table_name],
+    )
+    return cursor.fetchone() is not None
 
 
 def get_usuarios_orfaos_queryset():

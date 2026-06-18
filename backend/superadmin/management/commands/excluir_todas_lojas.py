@@ -25,19 +25,16 @@ def _drop_loja_schema(database_name: str) -> None:
         cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
 
 
-def _limpar_fks_public_loja(loja_id: int) -> None:
+def _limpar_fks_public_loja(loja: Loja) -> None:
     """Remove registros no public que bloqueiam DELETE em superadmin_loja."""
     try:
-        from superadmin.models import HistoricoAcessoGlobal
+        from superadmin.services.loja_cleanup_service import LojaCleanupService
 
-        HistoricoAcessoGlobal.objects.filter(loja_id=loja_id).delete()
+        svc = LojaCleanupService(loja)
+        svc.cleanup_logs_and_alerts()
+        svc.cleanup_fk_references()
     except Exception:
         pass
-    with connection.cursor() as cursor:
-        cursor.execute(
-            'DELETE FROM superadmin_historico_acesso_global WHERE loja_id = %s',
-            [loja_id],
-        )
 
 
 def _delete_loja_registro(loja: Loja) -> None:
@@ -45,7 +42,7 @@ def _delete_loja_registro(loja: Loja) -> None:
     Remove a loja do public. Limpa FKs conhecidas e faz fallback SQL se CASCADE falhar
     (ex.: whatsapp_whatsappconfig ausente no public para lojas CRM).
     """
-    _limpar_fks_public_loja(loja.id)
+    _limpar_fks_public_loja(loja)
     try:
         loja.delete()
         return
@@ -55,10 +52,12 @@ def _delete_loja_registro(loja: Loja) -> None:
             'whatsapp_whatsappconfig' in err
             or 'historico_acesso_global' in err
             or 'superadmin_historico' in err
+            or 'superadmin_nfse' in err
+            or 'violates foreign key constraint' in err
         )
         if not recoverable:
             raise
-    _limpar_fks_public_loja(loja.id)
+    _limpar_fks_public_loja(loja)
     with connection.cursor() as cursor:
         cursor.execute('DELETE FROM superadmin_loja WHERE id = %s', [loja.id])
 

@@ -255,6 +255,38 @@ railway service delete --service lwks-backend-staging --environment production -
 
 O `railway.toml` já define `releaseCommand` com `migrate` e tarefas de schema — **sempre rode deploy pelo Railway após mudanças de migration**, nunca só subir código sem release.
 
+### 1.2.2 Railway — serviço `lwks-worker` (fila assíncrona)
+
+Processa tarefas em background via **django-q + Redis** (WhatsApp, retry de assinatura, e-mails, NFS-e).
+
+| Serviço | Comando | Quando usar |
+|---------|---------|-------------|
+| `lwks-backend` | Gunicorn | API HTTP — **sem** schedulers WSGI (padrão) |
+| `lwks-cron` | `executar_cron_lwks` a cada 15 min | Lembretes, backups, NFS-e retry, segurança |
+| `lwks-worker` | `python manage.py qcluster` | Fila assíncrona on-demand |
+
+**Variáveis** (copiar referências de `lwks-backend`):
+
+```env
+SECRET_KEY=${{lwks-backend.SECRET_KEY}}
+DATABASE_URL=${{lwks-backend.DATABASE_URL}}
+REDIS_URL=${{Redis.REDIS_URL}}
+USE_REDIS=true
+USE_TASK_QUEUE=true
+DJANGO_SETTINGS_MODULE=config.settings_production
+LWK_SKIP_STARTUP_ENSURE=1
+```
+
+Deploy manual:
+
+```bash
+railway up --service lwks-worker -c railway.worker.toml --detach
+```
+
+Health da API expõe `task_queue: { enabled, broker }`. Com worker ativo: `enabled: true`, `broker: redis`.
+
+**Schedulers WSGI desativados por padrão** — o Gunicorn não roda mais threads de WhatsApp/backup em paralelo com o cron. Tarefas periódicas ficam só no `lwks-cron`.
+
 ### 1.2.1 Railway — serviço `lwks-cron` (backups automáticos)
 
 Serviço **cron** separado (`railway.cron.toml`): roda `python manage.py executar_cron_lwks` **a cada 15 minutos** (`*/15 * * * *`):

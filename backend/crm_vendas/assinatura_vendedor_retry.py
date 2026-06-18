@@ -2,10 +2,8 @@
 Retentativas de envio do link de assinatura ao vendedor após assinatura do cliente.
 """
 import logging
-import threading
 import time
 
-from django.conf import settings
 from django.db import close_old_connections
 from django.utils import timezone
 
@@ -15,6 +13,7 @@ _RETRY_DELAYS_SEC = (30, 120, 300)
 
 
 def _configurar_tenant_loja(loja_id):
+    from django.conf import settings
     from tenants.middleware import set_current_loja_id, set_current_tenant_db
     from superadmin.models import Loja
     from core.db_config import ensure_loja_database_config
@@ -62,40 +61,45 @@ def tentar_envio_vendedor_por_id(assinatura_id, loja_id):
     return ok
 
 
-def agendar_retry_envio_vendedor(assinatura_id, loja_id):
-    """Retenta envio em background (30s, 2min, 5min) sem bloquear a assinatura do cliente."""
-
-    def _run():
-        for delay in _RETRY_DELAYS_SEC:
-            time.sleep(delay)
-            try:
-                close_old_connections()
-                if tentar_envio_vendedor_por_id(assinatura_id, loja_id):
-                    logger.info(
-                        'Retry envio vendedor OK: assinatura_id=%s loja_id=%s',
-                        assinatura_id,
-                        loja_id,
-                    )
-                    return
-            except Exception as exc:
-                logger.warning(
-                    'Retry envio vendedor falhou: assinatura_id=%s loja_id=%s err=%s',
+def run_retry_envio_vendedor(assinatura_id, loja_id):
+    """Executa retentativas (30s, 2min, 5min). Roda no worker django-q ou sync."""
+    for delay in _RETRY_DELAYS_SEC:
+        time.sleep(delay)
+        try:
+            close_old_connections()
+            if tentar_envio_vendedor_por_id(assinatura_id, loja_id):
+                logger.info(
+                    'Retry envio vendedor OK: assinatura_id=%s loja_id=%s',
                     assinatura_id,
                     loja_id,
-                    exc,
                 )
+                return True
+        except Exception as exc:
+            logger.warning(
+                'Retry envio vendedor falhou: assinatura_id=%s loja_id=%s err=%s',
+                assinatura_id,
+                loja_id,
+                exc,
+            )
+    return False
 
-    threading.Thread(
-        target=_run,
-        daemon=True,
-        name=f'crm-vendedor-retry-{assinatura_id}',
-    ).start()
+
+def agendar_retry_envio_vendedor(assinatura_id, loja_id):
+    """Retenta envio em background (30s, 2min, 5min) sem bloquear a assinatura do cliente."""
+    from core.task_queue import enqueue_task
+
+    enqueue_task(
+        f'crm-vendedor-retry-{assinatura_id}',
+        'crm_vendas.assinatura_vendedor_retry.run_retry_envio_vendedor',
+        assinatura_id,
+        loja_id,
+    )
 
 
 def processar_envios_vendedor_pendentes():
     """
     Varre lojas CRM e reenvia links pendentes (aguardando_vendedor, token sem link_enviado_em).
-    Chamado pelo scheduler do WSGI como rede de segurança.
+    Chamado pelo cron lwks-cron como rede de segurança.
     """
     from superadmin.models import Loja
     from .models import AssinaturaDigital

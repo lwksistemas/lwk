@@ -247,6 +247,8 @@ else:
         }
     }
 
+USE_REDIS = _use_redis_env and bool(_redis_url)
+
 # PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -461,24 +463,16 @@ LOGGING = {
 # ============================================
 # DJANGO-Q CONFIGURATION (Task Queue)
 # ============================================
-Q_CLUSTER = {
-    'name': 'LWKSistemas',
-    'workers': int(os.environ.get('DJANGO_Q_WORKERS', '4')),
-    'recycle': 500,
-    'timeout': 300,  # 5 minutos
-    'compress': True,
-    'save_limit': 250,
-    'queue_limit': 500,
-    'cpu_affinity': 1,
-    'label': 'Django Q',
-    'redis': None,  # Usar ORM (PostgreSQL)
-    'orm': 'default',
-    'catch_up': True,
-    'sync': False,
-    'ack_failures': True,
-    'max_attempts': 3,
-    'retry': 360,  # 6 minutos (deve ser > timeout)
-}
+from core.q_cluster_settings import build_q_cluster
+
+_use_redis_for_queue = _use_redis_env and bool(_redis_url)
+USE_TASK_QUEUE = os.environ.get('USE_TASK_QUEUE', 'true' if _use_redis_for_queue else 'false').lower() in (
+    'true', '1', 'yes',
+)
+Q_CLUSTER = build_q_cluster(
+    workers=int(os.environ.get('DJANGO_Q_WORKERS', '4')),
+    redis_url=_redis_url if USE_TASK_QUEUE and _redis_url else None,
+)
 
 # Configurações de Notificações de Segurança
 SECURITY_NOTIFICATION_EMAILS = os.environ.get(

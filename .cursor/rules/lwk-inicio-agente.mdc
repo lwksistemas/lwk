@@ -36,6 +36,7 @@ git push origin main   # branch protegida: pode pedir aprovação
 ```
 
 - **Nunca** `railway up` no serviço `evolution-api` ou `lwks-cron` por engano.
+- **Worker (fila):** `lwks-worker` → `python manage.py qcluster` (`railway.worker.toml`). Ver `docs/DEPLOY_E_ROLLBACK.md` §1.2.2.
 - Conta CLI: `lwksistemas@gmail.com` — `railway whoami`, `vercel whoami`.
 - **Commits:** não incluir `Co-authored-by: Cursor` (Railway pode pedir aprovação de “external contributor”).
 

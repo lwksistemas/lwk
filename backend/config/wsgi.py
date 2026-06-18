@@ -41,7 +41,7 @@ def _start_backup_scheduler():
     """
     if os.environ.get('LWK_SKIP_STARTUP_ENSURE') == '1':
         return
-    if os.environ.get('LWK_ENABLE_BACKUP_SCHEDULER', '1') != '1':
+    if os.environ.get('LWK_ENABLE_BACKUP_SCHEDULER', '0') != '1':
         return
     settings_module = os.environ.get('DJANGO_SETTINGS_MODULE', '')
     if 'production' not in settings_module:
@@ -75,7 +75,7 @@ def _start_whatsapp_scheduler():
     """
     if os.environ.get('LWK_SKIP_STARTUP_ENSURE') == '1':
         return
-    if os.environ.get('LWK_ENABLE_WHATSAPP_SCHEDULER', '1') != '1':
+    if os.environ.get('LWK_ENABLE_WHATSAPP_SCHEDULER', '0') != '1':
         return
     settings_module = os.environ.get('DJANGO_SETTINGS_MODULE', '')
     if 'production' not in settings_module:
@@ -135,7 +135,7 @@ def _start_security_scheduler():
     """
     if os.environ.get('LWK_SKIP_STARTUP_ENSURE') == '1':
         return
-    if os.environ.get('LWK_ENABLE_SECURITY_SCHEDULER', '1') != '1':
+    if os.environ.get('LWK_ENABLE_SECURITY_SCHEDULER', '0') != '1':
         return
     settings_module = os.environ.get('DJANGO_SETTINGS_MODULE', '')
     if 'production' not in settings_module:

@@ -480,24 +480,14 @@ MEMED_AUTO_CADASTRO = os.environ.get('MEMED_AUTO_CADASTRO', 'false').strip().low
 # ============================================
 # DJANGO-Q CONFIGURATION (Task Queue)
 # ============================================
-Q_CLUSTER = {
-    'name': 'LWKSistemas',
-    'workers': 4,  # Número de workers paralelos
-    'recycle': 500,  # Reciclar worker após N tarefas
-    'timeout': 300,  # Timeout de 5 minutos por tarefa
-    'compress': True,  # Comprimir dados na fila
-    'save_limit': 250,  # Manter últimas 250 tarefas no histórico
-    'queue_limit': 500,  # Limite de tarefas na fila
-    'cpu_affinity': 1,  # CPU affinity
-    'label': 'Django Q',
-    'redis': None,  # Usar ORM (banco de dados) ao invés de Redis
-    'orm': 'default',  # Usar banco 'default' para armazenar tarefas
-    'catch_up': True,  # Executar tarefas perdidas ao reiniciar
-    'sync': False,  # Executar de forma assíncrona (não bloquear)
-    'ack_failures': True,  # Reconhecer falhas
-    'max_attempts': 3,  # Tentar até 3 vezes em caso de falha
-    'retry': 360,  # Aguardar 360s (6min) antes de retentar (deve ser > timeout)
-}
+from core.q_cluster_settings import build_q_cluster
+
+_redis_url_dev = os.environ.get('REDIS_URL') if USE_REDIS else None
+USE_TASK_QUEUE = os.environ.get('USE_TASK_QUEUE', 'false').lower() in ('true', '1', 'yes')
+Q_CLUSTER = build_q_cluster(
+    workers=int(os.environ.get('DJANGO_Q_WORKERS', '2')),
+    redis_url=_redis_url_dev if USE_TASK_QUEUE else None,
+)
 
 # Push Notifications (VAPID) - chave privada no backend; chave pública no frontend (NEXT_PUBLIC_VAPID_PUBLIC_KEY)
 VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default='')

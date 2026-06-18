@@ -28,19 +28,28 @@ class Command(BaseCommand):
         )
         from whatsapp.tasks import send_lembretes_2h_whatsapp
         from clinica_beleza.agenda_no_show_service import marcar_faltas_agenda_automatico
+        from crm_vendas.assinatura_vendedor_retry import processar_envios_vendedor_pendentes
+        from asaas_integration.nfse_assinatura_retry import processar_nfse_assinatura_pendentes
 
         crm_24h = send_lembretes_atividade_crm_24h()
         crm_2h = send_lembretes_atividade_crm_2h()
         clin_2h = send_lembretes_2h_whatsapp()
         no_show = marcar_faltas_agenda_automatico()
+        vendedor = processar_envios_vendedor_pendentes()
+        nfse = processar_nfse_assinatura_pendentes()
         self.stdout.write(f'  CRM atividades: 24h={crm_24h} | 2h={crm_2h}')
         self.stdout.write(f'  Clínica 2h: {clin_2h} | NO_SHOW auto: {no_show}')
+        self.stdout.write(f'  Assinatura vendedor retry: {vendedor} | NFS-e pendentes: {nfse}')
 
         if 7 <= now.hour <= 9:
-            from whatsapp.tasks import send_lembretes_24h_whatsapp
+            from whatsapp.tasks import send_lembretes_24h_whatsapp, send_cobrancas_pendentes_whatsapp
             clin_24h = send_lembretes_24h_whatsapp()
-            self.stdout.write(f'  Clínica 24h: {clin_24h}')
+            cobranca = send_cobrancas_pendentes_whatsapp()
+            self.stdout.write(f'  Clínica 24h: {clin_24h} | Cobranças WA: {cobranca}')
             call_command('notificar_tarefas_crm', verbosity=1)
+
+        from superadmin.tasks import detect_security_violations
+        detect_security_violations()
 
         if now.minute == 0:
             call_command('executar_backups_automaticos', verbosity=1)

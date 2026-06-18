@@ -211,6 +211,13 @@ def health_check(request):
         payload['evolution_available'] = evolution_configured()
     except Exception:
         payload['evolution_available'] = False
+
+    try:
+        from core.task_queue import queue_status
+        payload['task_queue'] = queue_status()
+    except Exception:
+        payload['task_queue'] = {'enabled': False, 'broker': 'unknown'}
+
     if pending:
         payload['status'] = 'degraded'
         return JsonResponse(payload, status=503)

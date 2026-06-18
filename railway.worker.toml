@@ -1,0 +1,14 @@
+# Worker django-q: fila assíncrona (WhatsApp, assinatura, e-mails, NFS-e).
+# Deploy: railway up --service lwks-worker -c railway.worker.toml
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.railway"
+watchPatterns = [
+    "backend/**",
+    "Dockerfile.railway",
+    "railway.worker.toml",
+]
+
+[deploy]
+startCommand = '''sh -c "exec python manage.py qcluster"'''
+restartPolicyType = "ON_FAILURE"

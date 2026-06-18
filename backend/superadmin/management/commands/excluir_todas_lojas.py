@@ -11,6 +11,22 @@ from django.contrib.auth.models import User
 from superadmin.models import Loja
 
 
+def _delete_loja_registro(loja: Loja) -> None:
+    """
+    Remove a loja do public. Se CASCADE falhar (ex.: whatsapp_whatsappconfig ausente
+    no schema public), remove só o registro superadmin_loja após o pre_delete.
+    """
+    try:
+        loja.delete()
+        return
+    except Exception as exc:
+        err = str(exc).lower()
+        if 'whatsapp_whatsappconfig' not in err:
+            raise
+    with connection.cursor() as cursor:
+        cursor.execute('DELETE FROM superadmin_loja WHERE id = %s', [loja.id])
+
+
 class Command(BaseCommand):
     help = 'Exclui todas as lojas do sistema (chamados, Asaas, loja, owner). Use --confirmar para executar.'
 
@@ -100,8 +116,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f'   [{loja_slug}] Mercado Pago: {e}'))
 
             # 3. Excluir loja (dispara signal pre_delete que limpa dados do tipo de app)
-            with transaction.atomic():
-                loja.delete()
+            _delete_loja_registro(loja)
             self.stdout.write(self.style.SUCCESS(f'   [{loja_slug}] Loja excluída'))
 
             # 4. Banco/schema (após excluir loja: config + arquivo sqlite ou schema PostgreSQL)

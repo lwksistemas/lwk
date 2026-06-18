@@ -62,6 +62,7 @@ ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
         'ensure_estoque_produto_fields',
         'ensure_termo_consentimento',
         'ensure_paciente_fotos_table',
+        'ensure_estoque_catalogo',
     ],
     'crm-vendas': [
         'ensure_crm_config_colunas',

@@ -36,6 +36,7 @@ ENSURES = [
     ('ensure_estoque_produto_fields', {}),
     ('ensure_termo_consentimento', {}),
     ('ensure_procedimentos_catalogo', {'all_clinica_beleza': True}),
+    ('ensure_estoque_catalogo', {'all_clinica_beleza': True}),
     ('ensure_paciente_fotos_table', {}),
     ('ensure_whatsapp_evolution_fields', {}),
     ('ensure_canal_assinatura_vendedor', {}),

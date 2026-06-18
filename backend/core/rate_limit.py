@@ -47,7 +47,8 @@ def rate_limit(max_requests: int = 10, window_seconds: int = 60):
             # Chave única: prefixo + endpoint + identificador
             endpoint = f'{request.method}:{request.path}'
             key = RATE_LIMIT_PREFIX + hashlib.md5(
-                f'{endpoint}:{identifier}'.encode()
+                f'{endpoint}:{identifier}'.encode(),
+                usedforsecurity=False,
             ).hexdigest()
 
             # Verificar e incrementar contador

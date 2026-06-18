@@ -106,7 +106,7 @@ class OptimizedLojaViewSet(viewsets.ModelViewSet):
         }
         
         key_string = json.dumps(key_data, sort_keys=True)
-        key_hash = hashlib.md5(key_string.encode()).hexdigest()
+        key_hash = hashlib.md5(key_string.encode(), usedforsecurity=False).hexdigest()
         
         return f"viewset:{key_hash}"
     

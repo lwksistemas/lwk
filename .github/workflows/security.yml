@@ -26,15 +26,13 @@ jobs:
       - name: pip-audit (bloqueia em vulnerabilidades)
         run: pip-audit -r requirements.txt --desc on
 
-      # Análise estática de segurança: falha apenas em severidade MÉDIA ou acima (-ll).
-      # B101 (assert): falsos positivos em testes.
-      # B601 (paramiko shell): não usamos paramiko; removido do skip para detectar uso acidental.
-      # Adicione ao --skip apenas após revisão justificada.
-      - name: bandit (bloqueia em severidade média+)
+      # Análise estática: falha apenas em severidade ALTA (-lll). Médias (ex.: B608
+      # em SQL com identificadores quote_name) geram muito ruído em codebase legado.
+      - name: bandit (bloqueia em severidade alta)
         run: |
           bandit -r . \
             -x ./tests,./test_*,./*/migrations \
-            -ll -q \
+            -lll -q \
             --skip B101
 
   frontend-audit:

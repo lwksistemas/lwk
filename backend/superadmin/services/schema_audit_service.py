@@ -46,7 +46,7 @@ TABELAS_OBRIGATORIAS_POR_TIPO: dict[str, list[str]] = {
     ],
 }
 
-# Comandos ensure_* executados após migrate (mesma ordem do releaseCommand Railway).
+# Comandos ensure_* do ensure_all (fallback pós migrate_all_lojas no release Railway).
 ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
     'clinica-beleza': [
         'ensure_clinica_beleza_consultas',

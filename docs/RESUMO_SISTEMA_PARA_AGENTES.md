@@ -208,12 +208,14 @@ curl -s https://api.lwksistemas.com.br/api/superadmin/health/
 
 ### 6.3 releaseCommand (Railway)
 
-Definido em `railway.toml` — inclui, entre outros:
+Definido em `railway.toml` — ordem:
 
-- `migrate --noinput`
-- `ensure_clinica_beleza_consultas`, `ensure_termo_consentimento`, `ensure_paciente_fotos_table`, …
-- `migrate_all_lojas`
-- `collectstatic --noinput`
+1. `migrate --noinput` (schema `public`)
+2. `migrate --database=suporte --noinput`
+3. `migrate_all_lojas` — migrations em todos os schemas `loja_*`
+4. `ensure_all` — fallback idempotente pós-migration (não substitui migrate)
+5. `setup_initial_data`
+6. `collectstatic --noinput`
 
 **Sempre que houver migration nova**, o deploy deve passar pelo Railway (não só subir código sem release).
 

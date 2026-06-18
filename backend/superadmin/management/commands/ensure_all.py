@@ -4,6 +4,9 @@ Consolida todos os ensure_* em um único comando para simplificar o releaseComma
 Uso:
   python manage.py ensure_all
 
+Executar **após** migrate_all_lojas no release — ensures são fallback idempotente
+para schemas que ainda não receberam a migration (lojas antigas, drift pontual).
+
 Cada ensure é executado em sequência. Falhas são logadas mas não interrompem
 os próximos ensures (o deploy continua mesmo que um ensure individual falhe).
 """

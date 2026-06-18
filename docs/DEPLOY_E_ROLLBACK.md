@@ -253,7 +253,7 @@ railway service delete --service lwks-backend-staging --environment production -
 | Só `railway up` funciona | Repo não conectado ou branch errada | `railway service source connect --repo lwksistemas/lwk --branch main --service lwks-backend` |
 | Prompt “external contributor” | Commit com co-autor fora do time Railway | Evitar `Co-authored-by:` de agentes; ou aprovar no painel |
 
-O `railway.toml` já define `releaseCommand` com `migrate` e tarefas de schema — **sempre rode deploy pelo Railway após mudanças de migration**, nunca só subir código sem release.
+O `railway.toml` já define `releaseCommand` (`migrate` → `migrate_all_lojas` → `ensure_all`) — **sempre rode deploy pelo Railway após mudanças de migration**, nunca só subir código sem release.
 
 ### 1.2.2 Railway — serviço `lwks-worker` (fila assíncrona)
 
@@ -506,7 +506,7 @@ Antes de considerar deploy “ok”:
 
 | Arquivo | Conteúdo |
 |---------|----------|
-| `railway.toml` | `releaseCommand` (migrations + ensure_* + collectstatic) |
+| `railway.toml` | `releaseCommand`: migrate → migrate suporte → **migrate_all_lojas** → ensure_all → collectstatic |
 | `Dockerfile.railway` | Build da API |
 | `frontend/.env.railway.example` | `NEXT_PUBLIC_API_URL` |
 | `backend/.env.example` | Webhooks, MFA, cookies httpOnly |

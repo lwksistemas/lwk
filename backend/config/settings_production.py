@@ -466,12 +466,17 @@ LOGGING = {
 from core.q_cluster_settings import build_q_cluster
 
 _use_redis_for_queue = _use_redis_env and bool(_redis_url)
+_lwk_process_role = (os.environ.get('LWK_PROCESS_ROLE') or 'web').strip().lower()
 USE_TASK_QUEUE = os.environ.get('USE_TASK_QUEUE', 'true' if _use_redis_for_queue else 'false').lower() in (
     'true', '1', 'yes',
 )
+# Worker consome Redis mesmo com USE_TASK_QUEUE=false (só o backend enfileira).
+_use_q_redis_broker = bool(_redis_url) and (
+    USE_TASK_QUEUE or _lwk_process_role == 'worker'
+)
 Q_CLUSTER = build_q_cluster(
     workers=int(os.environ.get('DJANGO_Q_WORKERS', '4')),
-    redis_url=_redis_url if USE_TASK_QUEUE and _redis_url else None,
+    redis_url=_redis_url if _use_q_redis_broker else None,
 )
 
 # Configurações de Notificações de Segurança

@@ -279,7 +279,7 @@ LWK_SKIP_STARTUP_ENSURE=1
 RAILWAY_CONFIG_FILE=railway.worker.toml
 ```
 
-**Importante:** `USE_TASK_QUEUE=false` no **lwks-worker** (só enfileira no `lwks-backend`). O worker **executa** a fila, não re-enfileira.
+**Importante:** `USE_TASK_QUEUE=false` no **lwks-worker** (só enfileira no `lwks-backend`). Mesmo assim o worker **precisa** de `REDIS_URL` — consome a fila Redis via `Q_CLUSTER` (não re-enfileira tarefas).
 
 No painel Railway → **lwks-worker** → Settings → desativar **Healthcheck** (qcluster não serve HTTP).
 

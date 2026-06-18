@@ -58,7 +58,7 @@ class EnviarClienteMixin:
     @action(detail=True, methods=['post'])
     def enviar_cliente(self, request, pk=None):
         """Envia documento ao cliente por email ou WhatsApp."""
-        from .views_enviar_cliente import _enviar_proposta_contrato_cliente
+        from .views_enviar_cliente import dispatch_enviar_proposta_contrato_cliente
 
         instance = self.get_object()
         canal = (request.data.get('canal') or '').strip().lower()
@@ -67,7 +67,18 @@ class EnviarClienteMixin:
                 {'detail': 'Informe o canal: email ou whatsapp'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        ok, err = _enviar_proposta_contrato_cliente(instance, canal, request)
+        ok, err, queued = dispatch_enviar_proposta_contrato_cliente(instance, canal, request)
+        if ok and queued:
+            return Response(
+                {
+                    'message': (
+                        f'{self.enviar_cliente_label} enfileirado para envio por {canal}. '
+                        'O processamento ocorre em background.'
+                    ),
+                    'queued': True,
+                },
+                status=status.HTTP_202_ACCEPTED,
+            )
         if ok:
             return Response({'message': f'{self.enviar_cliente_label} enviado ao cliente por {canal} com sucesso.'})
         return Response({'detail': err or 'Erro ao enviar.'}, status=status.HTTP_400_BAD_REQUEST)

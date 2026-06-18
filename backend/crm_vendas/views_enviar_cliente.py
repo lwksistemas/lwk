@@ -110,9 +110,34 @@ class DocumentoPdfPublicView(View):
             return HttpResponse('Erro interno', status=500)
 
 
-def _enviar_proposta_contrato_cliente(instance, canal: str, request) -> tuple[bool, str]:
+def _validar_envio_documento_cliente(instance, canal: str) -> str | None:
+    """Retorna mensagem de erro ou None se válido."""
+    oportunidade = instance.oportunidade
+    if not oportunidade or not oportunidade.lead_id:
+        return 'Oportunidade ou lead não encontrado.'
+
+    lead = oportunidade.lead
+    if canal == 'email':
+        if not (lead.email or '').strip():
+            return 'Lead não possui e-mail cadastrado.'
+    elif canal == 'whatsapp':
+        if not (lead.telefone or '').strip():
+            return 'Lead não possui telefone cadastrado.'
+    else:
+        return 'Canal inválido.'
+    return None
+
+
+def _enviar_proposta_contrato_cliente_sync(
+    instance,
+    canal: str,
+    request=None,
+    *,
+    user=None,
+    public_api_base_url: str | None = None,
+) -> tuple[bool, str | None]:
     """
-    Envia proposta ou contrato ao cliente por email ou WhatsApp.
+    Envia proposta ou contrato ao cliente por email ou WhatsApp (síncrono).
     instance: Proposta ou Contrato
     canal: 'email' | 'whatsapp'
     Retorna (sucesso, mensagem_erro)
@@ -120,11 +145,11 @@ def _enviar_proposta_contrato_cliente(instance, canal: str, request) -> tuple[bo
     from core.email_delivery import create_email_message, send_prepared
     from whatsapp.services import send_whatsapp_document
 
-    oportunidade = instance.oportunidade
-    if not oportunidade or not oportunidade.lead_id:
-        return False, 'Oportunidade ou lead não encontrado.'
+    err = _validar_envio_documento_cliente(instance, canal)
+    if err:
+        return False, err
 
-    lead = oportunidade.lead
+    lead = instance.oportunidade.lead
     loja_id = get_current_loja_id()
     if not loja_id:
         return False, 'Contexto de loja não definido.'
@@ -138,10 +163,10 @@ def _enviar_proposta_contrato_cliente(instance, canal: str, request) -> tuple[bo
     pdf_buffer.seek(0)
     pdf_bytes = pdf_buffer.read()
 
+    actor = user if user is not None else (getattr(request, 'user', None) if request else None)
+
     if canal == 'email':
         email_dest = (lead.email or '').strip()
-        if not email_dest:
-            return False, 'Lead não possui e-mail cadastrado.'
         try:
             assunto = f'{tipo.capitalize()}: {instance.titulo or instance.numero or "Documento"}'
             corpo = f'Prezado(a) {lead.nome},\n\nSegue em anexo o documento solicitado.\n\nAtenciosamente.'
@@ -153,41 +178,78 @@ def _enviar_proposta_contrato_cliente(instance, canal: str, request) -> tuple[bo
             logger.exception('Erro ao enviar email: %s', e)
             return False, str(e)
 
-    elif canal == 'whatsapp':
-        telefone = (lead.telefone or '').strip()
-        if not telefone:
-            return False, 'Lead não possui telefone cadastrado.'
+    telefone = (lead.telefone or '').strip()
+    try:
+        from whatsapp.models import WhatsAppConfig
+        from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
 
-        try:
-            from whatsapp.models import WhatsAppConfig
-            from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
+        config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+        ok_cfg, err_cfg = whatsapp_envio_permitido(
+            config,
+            proposta=is_proposta,
+            contrato=not is_proposta,
+        )
+        if not ok_cfg:
+            return False, err_cfg
 
-            config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
-            ok_cfg, err_cfg = whatsapp_envio_permitido(
-                config,
-                proposta=is_proposta,
-                contrato=not is_proposta,
-            )
-            if not ok_cfg:
-                return False, err_cfg
+        api_base = public_api_base_url or get_public_api_base_url(request)
+        token_str = _criar_token(tipo, instance.id, loja_id)
+        doc_url = f'{api_base}/api/crm-vendas/documento-pdf/?token={token_str}'
+        caption = f'Olá {lead.nome}! Segue o documento solicitado.'
+        ok, err = send_whatsapp_document(
+            telefone=telefone,
+            document_url=doc_url,
+            filename=filename,
+            caption=caption,
+            user=actor,
+            config=config,
+        )
+        return ok, err or ''
+    except Exception as e:
+        logger.exception('Erro ao enviar WhatsApp: %s', e)
+        return False, str(e)
 
-            token_str = _criar_token(tipo, instance.id, loja_id)
-            base_url = get_public_api_base_url(request)
-            doc_url = f'{base_url}/api/crm-vendas/documento-pdf/?token={token_str}'
-            caption = f'Olá {lead.nome}! Segue o documento solicitado.'
-            ok, err = send_whatsapp_document(
-                telefone=telefone,
-                document_url=doc_url,
-                filename=filename,
-                caption=caption,
-                user=request.user,
-                config=config,
-            )
-            return ok, err or ''
-        except Exception as e:
-            logger.exception('Erro ao enviar WhatsApp: %s', e)
-            return False, str(e)
 
-    return False, 'Canal inválido.'
+def dispatch_enviar_proposta_contrato_cliente(instance, canal: str, request) -> tuple[bool, str | None, bool]:
+    """
+    Enfileira envio (PDF + email/WhatsApp) ou executa na hora.
+    Retorna (sucesso, erro, enfileirado).
+    """
+    from crm_vendas.documento_envio_queue import (
+        _should_enqueue_documento_envio,
+        enqueue_enviar_proposta_contrato_cliente,
+    )
+
+    err = _validar_envio_documento_cliente(instance, canal)
+    if err:
+        return False, err, False
+
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return False, 'Contexto de loja não definido.', False
+
+    is_proposta = isinstance(instance, Proposta)
+    tipo = 'proposta' if is_proposta else 'contrato'
+    user_id = getattr(getattr(request, 'user', None), 'pk', None)
+
+    if _should_enqueue_documento_envio():
+        enqueue_enviar_proposta_contrato_cliente(
+            tipo=tipo,
+            doc_id=instance.id,
+            loja_id=loja_id,
+            canal=canal,
+            user_id=user_id,
+            public_api_base_url=get_public_api_base_url(request),
+        )
+        return True, None, True
+
+    ok, err = _enviar_proposta_contrato_cliente_sync(instance, canal, request)
+    return ok, err, False
+
+
+def _enviar_proposta_contrato_cliente(instance, canal: str, request) -> tuple[bool, str]:
+    """Compat: envio síncrono imediato (tests/callers legados)."""
+    ok, err, _queued = dispatch_enviar_proposta_contrato_cliente(instance, canal, request)
+    return ok, err or ''
 
 

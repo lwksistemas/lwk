@@ -326,6 +326,7 @@ Com worker ativo: `enabled: true`, `broker: redis`, `workers_alive` ≥ 1.
 | NFS-e (assinatura, loja, manual, comissão) | `lwks-backend` | `lwks-worker` |
 | Webhooks Asaas (global LWK + por loja CRM) | `lwks-backend` | `lwks-worker` |
 | Webhook Mercado Pago (mensalidade LWK) | `lwks-backend` | `lwks-worker` |
+| CRM — enviar proposta/contrato (PDF + email/WhatsApp) | `lwks-backend` | `lwks-worker` |
 | Cron (lembretes, backups, retry NFS-e) | — (síncrono no `lwks-cron`) | `lwks-cron` |
 
 E-mails com anexo > 4 MB são enviados de forma síncrona (ex.: backup por email no cron).
@@ -510,6 +511,7 @@ Antes de considerar deploy “ok”:
 | `Dockerfile.railway` | Build da API |
 | `frontend/.env.railway.example` | `NEXT_PUBLIC_API_URL` |
 | `backend/.env.example` | Webhooks, MFA, cookies httpOnly |
+| `docs/scripts/gerar_resumo_melhorias_2026_pdf.py` | PDF resumo das melhorias (geração local) |
 
 ---
 

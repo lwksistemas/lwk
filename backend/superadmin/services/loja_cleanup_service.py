@@ -35,6 +35,8 @@ class LojaCleanupService:
             'banco_dados': {},
             'asaas': {'api': {}, 'local': {}},
             'usuario_proprietario': {},
+            'usuarios_staff': {},
+            'evolution': {},
             'limpeza_completa': False
         }
     
@@ -44,11 +46,13 @@ class LojaCleanupService:
         Retorna dicionário com detalhes da operação
         """
         try:
+            self.cleanup_evolution()
             self.cleanup_support_tickets()
             self.cleanup_logs_and_alerts()
             self.cleanup_payments()
             self.cleanup_fk_references()
             self.cleanup_lockout()
+            self.cleanup_staff_users()
             self.cleanup_database_file()
             self.cleanup_owner_user()
             
@@ -61,6 +65,71 @@ class LojaCleanupService:
             logger.error(f"Erro na limpeza da loja {self.loja_slug}: {e}")
             raise
     
+    def cleanup_evolution(self):
+        """Remove instância WhatsApp (Evolution API) da loja."""
+        try:
+            from whatsapp.evolution_cleanup import delete_evolution_for_loja
+
+            self.results['evolution'] = delete_evolution_for_loja(self.loja_id)
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao remover Evolution: {e}")
+            self.results['evolution'] = {'ok': False, 'error': str(e)}
+
+    def cleanup_staff_users(self):
+        """
+        Remove contas de profissionais/vendedores vinculados só a esta loja.
+        """
+        from django.contrib.auth import get_user_model
+
+        from superadmin.models import Loja, ProfissionalUsuario, VendedorUsuario
+        from superadmin.utils import delete_user_raw
+
+        User = get_user_model()
+
+        removidos = []
+        pulados = []
+
+        try:
+            prof_links = list(
+                ProfissionalUsuario.objects.filter(loja_id=self.loja_id).select_related('user')
+            )
+            vend_links = list(
+                VendedorUsuario.objects.filter(loja_id=self.loja_id).select_related('user')
+            )
+            user_ids = {link.user_id for link in prof_links + vend_links}
+
+            ProfissionalUsuario.objects.filter(loja_id=self.loja_id).delete()
+            VendedorUsuario.objects.filter(loja_id=self.loja_id).delete()
+
+            for uid in user_ids:
+                user = User.objects.filter(id=uid).first()
+                if not user:
+                    continue
+                if user.is_superuser or user.is_staff:
+                    pulados.append({'user_id': uid, 'motivo': 'superuser/staff'})
+                    continue
+                if Loja.objects.filter(owner_id=uid).exclude(id=self.loja_id).exists():
+                    pulados.append({'user_id': uid, 'motivo': 'owner de outra loja'})
+                    continue
+                if ProfissionalUsuario.objects.filter(user_id=uid).exists():
+                    pulados.append({'user_id': uid, 'motivo': 'profissional em outra loja'})
+                    continue
+                if VendedorUsuario.objects.filter(user_id=uid).exists():
+                    pulados.append({'user_id': uid, 'motivo': 'vendedor em outra loja'})
+                    continue
+                username = user.username
+                delete_user_raw(uid)
+                removidos.append(username)
+                logger.info(f"✅ Usuário staff removido: {username}")
+
+            self.results['usuarios_staff'] = {
+                'removidos': removidos,
+                'pulados': pulados,
+            }
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao limpar usuários staff: {e}")
+            self.results['usuarios_staff'] = {'erro': str(e)}
+
     def cleanup_support_tickets(self):
         """Remove chamados de suporte da loja"""
         try:

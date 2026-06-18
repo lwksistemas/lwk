@@ -69,7 +69,15 @@ def delete_all_loja_data(sender, instance, **kwargs):
             if db_name in settings.DATABASES:
                 db_alias = db_name
 
-        # 0. Remover LojaAssinatura por slug (evita órfãos se loja for excluída fora da API)
+        # 0. Remover instância Evolution (WhatsApp Web)
+        try:
+            from whatsapp.evolution_cleanup import delete_evolution_for_loja
+
+            delete_evolution_for_loja(loja_id)
+        except Exception as e:
+            logger.warning(f"   ⚠️ Erro ao remover Evolution: {e}")
+
+        # 0b. Remover LojaAssinatura por slug (evita órfãos se loja for excluída fora da API)
         try:
             from asaas_integration.models import LojaAssinatura
             n = LojaAssinatura.objects.filter(loja_slug=instance.slug).count()

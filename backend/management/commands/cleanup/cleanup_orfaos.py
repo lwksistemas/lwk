@@ -109,9 +109,8 @@ class Command(BaseCommand):
             """)
             all_schemas = [row[0] for row in cursor.fetchall()]
         
-        # Schemas de lojas existentes
-        lojas = Loja.objects.all()
-        valid_schemas = {f'loja_{loja.id}' for loja in lojas}
+        # Schemas de lojas existentes (database_name, não loja_{id})
+        valid_schemas = set(Loja.objects.values_list('database_name', flat=True))
         
         # Órfãos = schemas sem loja
         orphan_schemas = [s for s in all_schemas if s not in valid_schemas]
@@ -143,14 +142,12 @@ class Command(BaseCommand):
         return empty_lojas
     
     def _find_orphan_users(self):
-        """Encontra usuários órfãos (sem lojas)"""
+        """Encontra usuários órfãos (sem vínculo com loja)."""
+        from superadmin.orfaos_config import get_usuarios_orfaos_queryset
+
         orphan_users = []
-        
-        for user in User.objects.filter(is_superuser=False, is_staff=False):
-            # Verificar se tem lojas
-            if not user.lojas_owned.exists():
-                orphan_users.append((user.id, user.username, user.email))
-        
+        for user in get_usuarios_orfaos_queryset():
+            orphan_users.append((user.id, user.username, user.email))
         return orphan_users
     
     def _cleanup_orphan_schemas(self, schemas):
@@ -213,9 +210,11 @@ class Command(BaseCommand):
             try:
                 user = User.objects.get(id=user_id)
                 
-                # Verificar novamente se não tem lojas
-                if user.lojas_owned.exists():
-                    self.stdout.write(self.style.WARNING(f'   ⚠️  Pulando {username} (tem lojas)'))
+                # Verificar novamente se ainda é órfão
+                from superadmin.orfaos_config import get_usuarios_orfaos_queryset
+
+                if not get_usuarios_orfaos_queryset().filter(id=user_id).exists():
+                    self.stdout.write(self.style.WARNING(f'   ⚠️  Pulando {username} (tem vínculo com loja)'))
                     continue
                 
                 user.delete()

@@ -120,19 +120,11 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.SUCCESS('   ℹ️ Não está usando PostgreSQL'))
 
-        # 3. Verificar usuários órfãos (sem lojas)
+        # 3. Verificar usuários órfãos (sem vínculo com loja)
         self.stdout.write(self.style.HTTP_INFO('\n3️⃣ Verificando usuários órfãos...'))
-        usuarios_com_loja = set(Loja.objects.values_list('owner_id', flat=True))
-        usuarios_prof = set(ProfissionalUsuario.objects.values_list('user_id', flat=True))
-        usuarios_vend = set(VendedorUsuario.objects.values_list('user_id', flat=True))
-        usuarios_validos = usuarios_com_loja | usuarios_prof | usuarios_vend
-        usuarios_orfaos = User.objects.exclude(
-            id__in=usuarios_validos
-        ).exclude(
-            is_superuser=True
-        ).exclude(
-            is_staff=True
-        )
+        from superadmin.orfaos_config import get_usuarios_orfaos_queryset
+
+        usuarios_orfaos = get_usuarios_orfaos_queryset()
 
         if usuarios_orfaos.exists():
             self.stdout.write(self.style.WARNING(f'   ⚠️ Encontrados {usuarios_orfaos.count()} usuários órfãos:'))
@@ -166,18 +158,28 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.SUCCESS('   ✅ Nenhuma sessão órfã'))
 
-        # 5. Verificar ProfissionalUsuario órfãos
-        self.stdout.write(self.style.HTTP_INFO('\n5️⃣ Verificando ProfissionalUsuario órfãos...'))
+        # 5. Verificar ProfissionalUsuario / VendedorUsuario órfãos
+        self.stdout.write(self.style.HTTP_INFO('\n5️⃣ Verificando vínculos profissional/vendedor órfãos...'))
+        lojas_ids = set(Loja.objects.values_list('id', flat=True))
         prof_usuarios_orfaos = ProfissionalUsuario.objects.exclude(user_id__in=usuarios_ids)
+        prof_loja_orfaos = ProfissionalUsuario.objects.exclude(loja_id__in=lojas_ids)
+        vend_usuarios_orfaos = VendedorUsuario.objects.exclude(user_id__in=usuarios_ids)
+        vend_loja_orfaos = VendedorUsuario.objects.exclude(loja_id__in=lojas_ids)
 
-        if prof_usuarios_orfaos.exists():
-            count = prof_usuarios_orfaos.count()
-            self.stdout.write(self.style.WARNING(f'   ⚠️ Encontrados {count} ProfissionalUsuario órfãos'))
-            if execute:
-                prof_usuarios_orfaos.delete()
-                self.stdout.write(self.style.SUCCESS(f'      ✅ {count} registros removidos'))
-        else:
-            self.stdout.write(self.style.SUCCESS('   ✅ Nenhum ProfissionalUsuario órfão'))
+        for label, qs in (
+            ('ProfissionalUsuario (user inexistente)', prof_usuarios_orfaos),
+            ('ProfissionalUsuario (loja inexistente)', prof_loja_orfaos),
+            ('VendedorUsuario (user inexistente)', vend_usuarios_orfaos),
+            ('VendedorUsuario (loja inexistente)', vend_loja_orfaos),
+        ):
+            if qs.exists():
+                count = qs.count()
+                self.stdout.write(self.style.WARNING(f'   ⚠️ {label}: {count}'))
+                if execute:
+                    qs.delete()
+                    self.stdout.write(self.style.SUCCESS(f'      ✅ {count} removidos'))
+            else:
+                self.stdout.write(self.style.SUCCESS(f'   ✅ {label}: nenhum'))
 
         # 6. Verificar configurações de banco órfãs em settings.DATABASES
         self.stdout.write(self.style.HTTP_INFO('\n6️⃣ Verificando configurações de banco órfãs...'))
@@ -320,6 +322,33 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS('   ✅ Nenhum arquivo NF-e órfão'))
         else:
             self.stdout.write(self.style.SUCCESS('   ✅ Diretório nfe_restaurante não existe'))
+
+        # 9. Instâncias Evolution órfãs (lwk_loja_{id} sem loja)
+        self.stdout.write(self.style.HTTP_INFO('\n9️⃣ Verificando instâncias Evolution órfãs...'))
+        try:
+            from whatsapp.evolution_cleanup import find_orphan_evolution_instances
+            from whatsapp.evolution_client import evolution_configured
+
+            if not evolution_configured():
+                self.stdout.write(self.style.SUCCESS('   ℹ️ Evolution não configurado — pulando'))
+            else:
+                ev_orphans = find_orphan_evolution_instances(loja_ids_set)
+                if ev_orphans:
+                    self.stdout.write(self.style.WARNING(
+                        f'   ⚠️ {len(ev_orphans)} instância(s) órfã(s):'
+                    ))
+                    for row in ev_orphans:
+                        self.stdout.write(f"      - {row['instance_name']} (loja_id={row['loja_id']})")
+                    if execute:
+                        from whatsapp.evolution_cleanup import delete_orphan_evolution_instances
+
+                        results = delete_orphan_evolution_instances(loja_ids_set)
+                        ok = sum(1 for r in results if r.get('ok'))
+                        self.stdout.write(self.style.SUCCESS(f'      ✅ {ok} removida(s) no Evolution'))
+                else:
+                    self.stdout.write(self.style.SUCCESS('   ✅ Nenhuma instância Evolution órfã'))
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f'   ℹ️ Evolution: {e}'))
 
         # Resumo final
         self.stdout.write(self.style.HTTP_INFO('\n' + '='*60))

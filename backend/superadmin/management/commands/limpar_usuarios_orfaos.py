@@ -1,11 +1,10 @@
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
-from django.db.models import Count
-from superadmin.models import Loja, UserSession, ProfissionalUsuario, VendedorUsuario
+from superadmin.models import UserSession, ProfissionalUsuario, VendedorUsuario
+from superadmin.orfaos_config import get_usuarios_orfaos_queryset
 
 
 class Command(BaseCommand):
-    help = 'Limpa usuários órfãos (que não são donos de nenhuma loja). Não remove superusers.'
+    help = 'Limpa usuários órfãos (sem owner, profissional ou vendedor). Não remove superusers.'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -19,11 +18,8 @@ class Command(BaseCommand):
         self.stdout.write("🧹 LIMPEZA DE USUÁRIOS ÓRFÃOS")
         self.stdout.write("="*70 + "\n")
         
-        # Usuários órfãos = não são donos de nenhuma loja (e não são superuser)
-        # Query correta: annotate + Count (lojas_owned__isnull=True não funciona bem para relação reversa)
-        orfaos = User.objects.filter(is_superuser=False).annotate(
-            n_lojas=Count('lojas_owned')
-        ).filter(n_lojas=0)
+        # Usuários órfãos = sem owner, profissional ou vendedor vinculado (e não superuser/staff)
+        orfaos = get_usuarios_orfaos_queryset()
         
         if not orfaos.exists():
             self.stdout.write(self.style.SUCCESS("✅ Nenhum usuário órfão encontrado!"))

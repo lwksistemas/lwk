@@ -87,3 +87,22 @@ TABELAS_LOJA_ID = TABELAS_LOJA_ID_DEFAULT
 
 # Ordem de limpeza de FKs antes de deletar tabela pai (evita violação de FK)
 LIMPAR_REFERENCIAS_ANTES = {}
+
+
+def get_usuarios_orfaos_queryset():
+    """
+    Usuários sem vínculo válido: não são owner, profissional nem vendedor de loja.
+    """
+    from django.contrib.auth import get_user_model
+
+    from superadmin.models import Loja, ProfissionalUsuario, VendedorUsuario
+
+    User = get_user_model()
+    usuarios_validos = set(Loja.objects.values_list('owner_id', flat=True))
+    usuarios_validos |= set(ProfissionalUsuario.objects.values_list('user_id', flat=True))
+    usuarios_validos |= set(VendedorUsuario.objects.values_list('user_id', flat=True))
+    return (
+        User.objects.exclude(id__in=usuarios_validos)
+        .exclude(is_superuser=True)
+        .exclude(is_staff=True)
+    )

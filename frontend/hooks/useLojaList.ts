@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
+import { clearOrphanStorageKeys } from '@/lib/storage-cleanup';
 
 export interface Loja {
   id: number;
@@ -34,7 +35,12 @@ export function useLojaList() {
     try {
       const response = await apiClient.get('/superadmin/lojas/');
       const data = response.data.results || response.data;
-      setLojas(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setLojas(list);
+      const slugs = list.flatMap((loja: Loja) =>
+        [loja.slug, loja.atalho].filter((s): s is string => Boolean(s))
+      );
+      clearOrphanStorageKeys(slugs);
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || 'Erro ao carregar lojas';
       setError(errorMsg);

@@ -8,9 +8,7 @@ Uso:
   python manage.py limpar_todos_orfaos --tudo       # remover dados + usuários órfãos (pede confirmação)
 """
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
-from django.db.models import Count
-from superadmin.models import Loja
+from superadmin.orfaos_config import get_usuarios_orfaos_queryset
 
 
 class Command(BaseCommand):
@@ -55,11 +53,9 @@ class Command(BaseCommand):
         self.call_command('verificar_dados_orfaos', remover=options['remover'])
         self.stdout.write('')
 
-        # 2. Usuários órfãos
-        self.stdout.write('👤 Usuários órfãos (não são donos de nenhuma loja):')
-        orfaos = User.objects.filter(is_superuser=False).annotate(
-            n_lojas=Count('lojas_owned')
-        ).filter(n_lojas=0)
+        # 2. Usuários órfãos (sem owner, profissional ou vendedor)
+        self.stdout.write('👤 Usuários órfãos (sem vínculo com loja):')
+        orfaos = get_usuarios_orfaos_queryset()
         n = orfaos.count()
         if n == 0:
             self.stdout.write(self.style.SUCCESS('   Nenhum usuário órfão.'))
@@ -80,6 +76,12 @@ class Command(BaseCommand):
                 ))
 
         self.stdout.write('')
+
+        # 3. Evolution (WhatsApp Web)
+        self.stdout.write('📱 Instâncias Evolution (lwk_loja_*):')
+        self.call_command('limpar_evolution_orfaos', execute=options.get('remover', False))
+
+        self.stdout.write('')
         self.stdout.write('=' * 60)
         self.stdout.write(self.style.SUCCESS('Concluído.'))
         self.stdout.write('')
@@ -94,6 +96,13 @@ class Command(BaseCommand):
                 call_command('verificar_dados_orfaos', remover=kwargs.get('remover', False), stdout=out, stderr=err)
             elif name == 'limpar_usuarios_orfaos':
                 call_command('limpar_usuarios_orfaos', confirmar=kwargs.get('confirmar', False), stdout=out, stderr=err)
+            elif name == 'limpar_evolution_orfaos':
+                call_command(
+                    'limpar_evolution_orfaos',
+                    execute=kwargs.get('execute', False),
+                    stdout=out,
+                    stderr=err,
+                )
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'   Erro ao chamar {name}: {e}'))
             return

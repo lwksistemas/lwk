@@ -16,8 +16,14 @@ if [[ -z "${VERCEL_GIT_COMMIT_SHA:-}" ]]; then
   exit 1
 fi
 
-if [[ -n "${VERCEL_GIT_PREVIOUS_SHA:-}" ]]; then
-  if git diff --quiet "$VERCEL_GIT_PREVIOUS_SHA" "$VERCEL_GIT_COMMIT_SHA" -- "$ROOT"; then
+# Commit sem arquivos em frontend/ (ex.: dependabot só no backend) → pular.
+if ! git diff-tree --no-commit-id --name-only -r "$VERCEL_GIT_COMMIT_SHA" 2>/dev/null | grep -q '^frontend/'; then
+  echo ">> Nenhum arquivo em frontend/ neste commit — pulando build"
+  exit 0
+fi
+
+if [[ -n "${VERCEL_GIT_PREVIOUS_SHA:-}" ]] && git cat-file -e "${VERCEL_GIT_PREVIOUS_SHA}^{commit}" 2>/dev/null; then
+  if git diff --quiet "$VERCEL_GIT_PREVIOUS_SHA" "$VERCEL_GIT_COMMIT_SHA" -- "$ROOT" 2>/dev/null; then
     echo ">> Sem mudanças em frontend/ desde o último deploy — pulando build"
     exit 0
   fi
@@ -26,7 +32,7 @@ if [[ -n "${VERCEL_GIT_PREVIOUS_SHA:-}" ]]; then
 fi
 
 # Fallback: commit anterior no histórico git.
-if git diff --quiet HEAD^ HEAD -- "$ROOT" 2>/dev/null; then
+if git rev-parse HEAD^ >/dev/null 2>&1 && git diff --quiet HEAD^ HEAD -- "$ROOT" 2>/dev/null; then
   echo ">> Sem mudanças em frontend/ no último commit — pulando build"
   exit 0
 fi

@@ -8,13 +8,17 @@ alwaysApply: true
 **Antes de investigar ou fazer deploy**, leia `docs/RESUMO_SISTEMA_PARA_AGENTES.md` (seção 6 = deploy).
 Detalhes operacionais: `docs/DEPLOY_E_ROLLBACK.md`.
 
-## URLs produção
+## URLs produção e beta
 
 | O quê | URL |
 |-------|-----|
-| Site | https://lwksistemas.com.br |
-| API | https://api.lwksistemas.com.br |
-| Health | `GET /api/superadmin/health/` → `status`, `build`, `evolution_available` |
+| Site produção | https://lwksistemas.com.br |
+| API produção | https://api.lwksistemas.com.br |
+| **Site beta (homologação)** | https://beta.lwksistemas.com.br → branch `staging` (Vercel Preview) |
+| **API beta** | https://lwks-backend-staging-staging.up.railway.app |
+| Health prod | `GET /api/superadmin/health/` → `status`, `build`, `evolution_available` |
+
+Beta fora do ar ou servindo `main`? `cd frontend && bash scripts/vercel-link-beta-staging.sh`
 
 ## Deploy (copiar e usar)
 

@@ -49,9 +49,12 @@ railway up --service lwks-backend-staging --detach
 
 O beta **não** deve apontar para um deploy de **Production** (`main`). Cada push em `staging` gera um novo Preview; o domínio customizado precisa seguir a URL estável da branch:
 
-| Domínio | Branch Git | URL estável Vercel |
-|---------|------------|-------------------|
-| `beta.lwksistemas.com.br` | `staging` | `frontend-git-staging-lwks-projects-48afd555.vercel.app` |
+| Domínio | Branch Git | URL estável Vercel | DNS (registro.br) |
+|---------|------------|-------------------|-------------------|
+| `beta.lwksistemas.com.br` | `staging` | `frontend-git-staging-lwks-projects-48afd555.vercel.app` | CNAME → `cname.vercel-dns.com` |
+| `staging.lwksistemas.com.br` | `staging` | (mesma URL estável) | CNAME → `cname.vercel-dns.com` |
+
+**Estado atual (jun/2026):** domínios configurados no Vercel + registro.br; alias apontando para a branch `staging`. Se o beta voltar a servir código de `main` (login laranja some, API errada), rode o script abaixo.
 
 **Opção A — script (recomendado, via CLI):**
 
@@ -224,6 +227,22 @@ Cada push na `main` que altera o front gera deploy de produção. PRs podem gera
 4. (Opcional) **Watch paths:** `backend/`, `Dockerfile.railway`, `railway.toml` — definidos em **`railway.toml`** → `[build].watchPatterns` (vale para `lwks-backend` e `lwks-backend-staging`, que usam o mesmo repo).
 
 **Beta:** serviço `lwks-backend-staging`, branch `staging`, mesmas regras de Wait for CI e watch paths.
+
+**⚠️ Nunca duplicar serviços entre ambientes Railway:**
+
+| Serviço | Ambiente correto | Branch | Nunca colocar em |
+|---------|------------------|--------|------------------|
+| `lwks-backend` | **production** | `main` | staging |
+| `lwks-backend-staging` | **staging** | `staging` | **production** |
+| `evolution-api` | **production** | — | staging (opcional separado) |
+| `lwks-cron` | **production** | — | staging |
+
+Se `lwks-backend-staging` aparecer em production com healthcheck FAILED, remova só desse ambiente:
+
+```bash
+railway environment production
+railway service delete --service lwks-backend-staging --environment production --yes
+```
 
 **Auto-deploy lento ou “não disparou”:**
 

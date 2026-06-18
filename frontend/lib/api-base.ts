@@ -11,8 +11,10 @@ function stripTrailingSlashes(s: string): string {
 const PRODUCTION_API_ROOT = 'https://api.lwksistemas.com.br';
 const STAGING_API_ROOT = 'https://lwks-backend-staging-staging.up.railway.app';
 
+const BETA_HOSTS = new Set(['beta.lwksistemas.com.br', 'staging.lwksistemas.com.br']);
+
 export function isBetaHost(host: string): boolean {
-  return host === 'beta.lwksistemas.com.br';
+  return BETA_HOSTS.has(host.toLowerCase().split(':')[0]);
 }
 
 /** Raiz da API a partir do hostname (sem barra final). */

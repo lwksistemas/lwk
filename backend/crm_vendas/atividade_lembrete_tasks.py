@@ -50,13 +50,6 @@ def send_lembretes_atividade_crm(antecedencia: str) -> int:
             set_current_loja_id(loja.id)
             set_current_tenant_db(db_name)
 
-            from core.tenant_tables import tenant_table_exists
-
-            if not tenant_table_exists(db_name, 'whatsapp_whatsappconfig'):
-                continue
-            if not tenant_table_exists(db_name, 'crm_vendas_atividade'):
-                continue
-
             config = _get_whatsapp_config(loja)
             if not config or not config.whatsapp_ativo:
                 continue

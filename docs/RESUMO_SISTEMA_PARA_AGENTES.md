@@ -253,7 +253,7 @@ Definido em `railway.toml` — ordem:
 - UI: `/loja/[slug]/configuracoes/whatsapp` (todos os tipos) ou módulo clínica.
 - **Meta Cloud API:** Phone ID + token + checkbox “WhatsApp ativo”.
 - **WhatsApp Web (Evolution):** serviço Railway separado `evolution-api`; backend com `EVOLUTION_API_URL` + `EVOLUTION_API_KEY`.
-- Colunas novas em `WhatsAppConfig` → `ensure_whatsapp_evolution_fields` (no `releaseCommand`) ou auto-fix em `whatsapp/config_service.py`.
+- Colunas novas em `WhatsAppConfig` → migration + `ensure_whatsapp_evolution_fields` no `ensure_all` (release)
 - Doc completa: `docs/WHATSAPP_EVOLUTION.md`.
 - Health expõe `evolution_available: true/false`.
 

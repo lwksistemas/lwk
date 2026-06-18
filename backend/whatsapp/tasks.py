@@ -36,24 +36,6 @@ def _lojas_clinica_beleza_whatsapp():
     )
 
 
-def _pode_lembrete_agenda_clinica(db_name: str) -> bool:
-    from core.tenant_tables import tenant_table_exists
-
-    return (
-        tenant_table_exists(db_name, 'whatsapp_whatsappconfig')
-        and tenant_table_exists(db_name, 'clinica_beleza_appointment')
-    )
-
-
-def _pode_cobranca_clinica(db_name: str) -> bool:
-    from core.tenant_tables import tenant_table_exists
-
-    return (
-        tenant_table_exists(db_name, 'whatsapp_whatsappconfig')
-        and tenant_table_exists(db_name, 'clinica_beleza_payment')
-    )
-
-
 def send_lembretes_24h_whatsapp():
     """
     Envia lembrete por WhatsApp 24h antes do agendamento.
@@ -73,8 +55,6 @@ def send_lembretes_24h_whatsapp():
             db_name = _ensure_loja_db(loja)
             set_current_loja_id(loja.id)
             set_current_tenant_db(db_name)
-            if not _pode_lembrete_agenda_clinica(db_name):
-                continue
             config = _get_whatsapp_config(loja)
             if not config or not config.whatsapp_ativo or not config.enviar_lembrete_24h:
                 continue
@@ -120,8 +100,6 @@ def send_lembretes_2h_whatsapp():
             db_name = _ensure_loja_db(loja)
             set_current_loja_id(loja.id)
             set_current_tenant_db(db_name)
-            if not _pode_lembrete_agenda_clinica(db_name):
-                continue
             config = _get_whatsapp_config(loja)
             if not config or not config.whatsapp_ativo or not config.enviar_lembrete_2h:
                 continue
@@ -170,8 +148,6 @@ def send_cobrancas_pendentes_whatsapp():
             db_name = _ensure_loja_db(loja)
             set_current_loja_id(loja.id)
             set_current_tenant_db(db_name)
-            if not _pode_cobranca_clinica(db_name):
-                continue
             config = _get_whatsapp_config(loja)
             if not config or not config.whatsapp_ativo or not config.enviar_cobranca:
                 continue

@@ -11,31 +11,6 @@ from .models import WhatsAppConfig
 logger = logging.getLogger(__name__)
 
 
-def _ensure_whatsapp_schema(loja):
-    """Best-effort: garante colunas novas no schema da loja."""
-    from django.db import connections
-
-    from clinica_beleza.schema_ensure import column_exists, table_exists
-    from core.db_config import ensure_loja_database_config
-    from whatsapp.management.commands.ensure_whatsapp_evolution_fields import COLUMNS
-
-    db_name = getattr(loja, 'database_name', None)
-    if not db_name or not ensure_loja_database_config(db_name, conn_max_age=0):
-        return
-    try:
-        with connections[db_name].cursor() as cursor:
-            if not table_exists(cursor, 'whatsapp_whatsappconfig'):
-                return
-            for col, ddl in COLUMNS:
-                if not column_exists(cursor, 'whatsapp_whatsappconfig', col):
-                    cursor.execute(
-                        f'ALTER TABLE whatsapp_whatsappconfig ADD COLUMN {col} {ddl}'
-                    )
-                    logger.info('WhatsApp schema loja %s: coluna %s adicionada', loja.id, col)
-    except Exception as exc:
-        logger.warning('ensure_whatsapp_schema loja %s: %s', getattr(loja, 'id', '?'), exc)
-
-
 def resolve_loja_from_request(request):
     """Retorna Loja do contexto tenant ou None."""
     loja_id = get_current_loja_id()
@@ -58,9 +33,8 @@ def get_or_create_whatsapp_config(loja):
     try:
         config = WhatsAppConfig.objects.filter(loja_id=loja.id).first()
     except (OperationalError, ProgrammingError) as exc:
-        logger.warning('WhatsAppConfig schema loja %s: %s — tentando ensure colunas', loja.id, exc)
-        _ensure_whatsapp_schema(loja)
-        config = WhatsAppConfig.objects.filter(loja_id=loja.id).first()
+        logger.warning('WhatsAppConfig schema loja %s: %s', loja.id, exc)
+        return None
     if config:
         if not (config.whatsapp_numero or '').strip() and owner_tel:
             config.whatsapp_numero = owner_tel

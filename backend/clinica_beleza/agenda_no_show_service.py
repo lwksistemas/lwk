@@ -45,10 +45,6 @@ def marcar_faltas_agenda_automatico() -> int:
         try:
             set_current_loja_id(loja.id)
             set_current_tenant_db(db_name)
-            from core.tenant_tables import tenant_table_exists
-
-            if not tenant_table_exists(db_name, 'clinica_beleza_appointment'):
-                continue
             qs = (
                 Appointment.objects
                 .filter(status__in=_STATUS_ELEGIVEL_FALTA, date__lt=limite)

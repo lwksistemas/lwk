@@ -93,33 +93,6 @@ def _loja_elegivel_confirmacao_agenda(loja_id: int) -> bool:
     return tipo == 'Clínica da Beleza'
 
 
-def _tenant_tem_tabela_agenda(loja_id: int | None = None) -> bool:
-    from django.db import connections
-
-    from clinica_beleza.schema_ensure import table_exists
-    from superadmin.models import Loja
-    from tenants.middleware import get_current_tenant_db
-
-    db_alias = get_current_tenant_db() or 'default'
-    if loja_id and db_alias == 'default':
-        loja = Loja.objects.using('default').filter(id=loja_id).only('database_name').first()
-        if loja and loja.database_name in connections:
-            db_alias = loja.database_name
-
-    try:
-        conn = connections[db_alias]
-        schema = (db_alias or 'default').replace('-', '_')
-        if db_alias != 'default':
-            with conn.cursor() as cursor:
-                cursor.execute(f'SET search_path TO "{schema}", public')
-                return table_exists(cursor, 'clinica_beleza_appointment')
-        with conn.cursor() as cursor:
-            return table_exists(cursor, 'clinica_beleza_appointment')
-    except Exception as exc:
-        logger.debug('tenant_tem_tabela_agenda: %s', exc)
-        return False
-
-
 def _procedure_label(appointment) -> str:
     if appointment.procedures.exists():
         return ', '.join(appointment.procedures.values_list('nome', flat=True))
@@ -347,13 +320,6 @@ def processar_resposta_whatsapp(
     err = _configurar_tenant(loja_id)
     if err:
         return RespostaConfirmacao(False, err)
-
-    if not _tenant_tem_tabela_agenda(loja_id):
-        logger.warning(
-            'processar_resposta_whatsapp: loja %s sem tabela clinica_beleza_appointment',
-            loja_id,
-        )
-        return None
 
     from django.db.utils import ProgrammingError
 

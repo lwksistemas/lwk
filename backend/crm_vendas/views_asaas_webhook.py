@@ -15,26 +15,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from crm_vendas.asaas_loja_webhook_process import process_asaas_loja_webhook_sync
 from tenants.middleware import resolve_loja_from_slug_or_cnpj, _configure_tenant_db_for_loja
 
 logger = logging.getLogger(__name__)
-
-
-def _invoice_payload_para_sync(payload: dict) -> tuple:
-    """
-    Retorna (event, invoice_dict) para sincronizar NFSe.
-    O Asaas envia `invoice` no corpo; em alguns eventos pode vir só em `payment`.
-    """
-    event = payload.get('event') or payload.get('type') or ''
-    invoice = payload.get('invoice') if isinstance(payload.get('invoice'), dict) else {}
-    if not invoice.get('id') and isinstance(payload.get('payment'), dict):
-        pay = payload['payment']
-        inv = pay.get('invoice') if isinstance(pay.get('invoice'), dict) else {}
-        if inv.get('id'):
-            invoice = inv
-        elif pay.get('invoiceId'):
-            invoice = {'id': pay.get('invoiceId'), 'status': pay.get('invoiceStatus')}
-    return event, invoice
 
 
 @csrf_exempt
@@ -45,7 +29,7 @@ def asaas_loja_webhook(request, loja_slug: str):
     Recebe notificações do Asaas da conta configurada na loja (API Key em CRM).
 
     GET/HEAD: confirma que a URL está correta (teste no painel ou navegador).
-    POST: eventos PAYMENT_*, INVOICE_* etc. — registra e responde 200 para o Asaas reenviar.
+    POST: eventos PAYMENT_*, INVOICE_* etc. — valida token e enfileira ou processa sync.
     """
     loja = resolve_loja_from_slug_or_cnpj(loja_slug.strip())
     if not loja:
@@ -69,6 +53,7 @@ def asaas_loja_webhook(request, loja_slug: str):
     if not _configure_tenant_db_for_loja(loja, request):
         logger.warning('asaas_loja_webhook: falha ao configurar tenant loja_id=%s', loja.id)
 
+    from asaas_integration.queue_dispatch import enqueue_asaas_loja_webhook, should_enqueue_asaas_webhook
     from core.webhook_security import verify_asaas_access_token, webhook_auth_failed_response
     from crm_vendas.models_config import CRMConfig
 
@@ -90,30 +75,19 @@ def asaas_loja_webhook(request, loja_slug: str):
         invoice.get('id'),
     )
 
-    try:
-        ev, inv = _invoice_payload_para_sync(payload)
-        if inv.get('id'):
-            from nfse_integration.asaas_webhook_sync import sincronizar_nfse_com_webhook_invoice
+    if should_enqueue_asaas_webhook():
+        enqueue_asaas_loja_webhook(loja.id, payload)
+        return Response(
+            {
+                'status': 'received',
+                'queued': True,
+                'loja_slug': loja.slug,
+                'event': event,
+            },
+            status=status.HTTP_200_OK,
+        )
 
-            sincronizar_nfse_com_webhook_invoice(ev, inv)
-    except Exception as sync_err:
-        logger.warning('Falha ao sincronizar NFSe com webhook Asaas: %s', sync_err, exc_info=True)
-
-    # Verificar se é pagamento de relatório de comissão
-    try:
-        if event in ('PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED') and payment.get('id'):
-            from crm_vendas.models_relatorio_comissao import RelatorioComissao
-            from crm_vendas.services_relatorio_comissao import processar_pagamento_comissao
-
-            rc = RelatorioComissao.objects.filter(
-                asaas_payment_id=payment['id'],
-                status='aguardando_pagamento',
-            ).first()
-            if rc:
-                logger.info('Pagamento confirmado para relatório comissão %s', rc.numero)
-                processar_pagamento_comissao(rc)
-    except Exception as rc_err:
-        logger.warning('Falha ao processar pagamento de comissão: %s', rc_err, exc_info=True)
+    process_asaas_loja_webhook_sync(loja.id, payload)
 
     return Response(
         {

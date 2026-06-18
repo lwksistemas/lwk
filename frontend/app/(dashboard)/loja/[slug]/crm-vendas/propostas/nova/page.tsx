@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse, getCrmApiErrorDetail, gerarTituloProposta } from '@/lib/crm-utils';
+import { normalizeListResponse, getCrmApiErrorDetail, gerarTituloProposta, fetchCrmOportunidade } from '@/lib/crm-utils';
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
@@ -12,7 +12,6 @@ import { ArrowLeft } from 'lucide-react';
 import PropostaFormContent from '@/components/crm-vendas/PropostaFormContent';
 import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
 import type {
-  CrmPropostaOportunidadeOption,
   CrmOportunidadeItem,
   CrmPropostaTemplate,
 } from '@/lib/crm-proposta-form-types';
@@ -32,8 +31,6 @@ export default function NovaPropostaPage() {
     nome_vendedor_assinatura: '',
     nome_cliente_assinatura: '',
   });
-  const [oportunidades, setOportunidades] = useState<CrmPropostaOportunidadeOption[]>([]);
-  const [loadingOportunidades, setLoadingOportunidades] = useState(true);
   const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
   const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
   const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
@@ -46,20 +43,6 @@ export default function NovaPropostaPage() {
     formData,
     setFormData
   );
-
-  const loadOportunidades = useCallback(async () => {
-    setLoadingOportunidades(true);
-    try {
-      const res = await apiClient.get<
-        CrmPropostaOportunidadeOption[] | { results: CrmPropostaOportunidadeOption[] }
-      >('/crm-vendas/oportunidades/');
-      setOportunidades(normalizeListResponse(res.data));
-    } catch {
-      setOportunidades([]);
-    } finally {
-      setLoadingOportunidades(false);
-    }
-  }, []);
 
   const loadItensOportunidade = useCallback(async (oportunidadeId: string) => {
     if (!oportunidadeId) {
@@ -97,12 +80,11 @@ export default function NovaPropostaPage() {
   }, []);
 
   useEffect(() => {
-    loadOportunidades();
     loadLojaInfo();
     loadCrmConfig();
     loadTemplates();
     loadVendedorInfo();
-  }, [loadOportunidades, loadLojaInfo, loadCrmConfig, loadTemplates, loadVendedorInfo]);
+  }, [loadLojaInfo, loadCrmConfig, loadTemplates, loadVendedorInfo]);
 
   useEffect(() => {
     // Carregar template padrão se existir, senão usar proposta_conteudo_padrao
@@ -117,20 +99,33 @@ export default function NovaPropostaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- formData.conteudo omitido de propósito
   }, [templates, propostaConteudoPadrao]);
 
-  useEffect(() => {
-    if (formData.oportunidade_id) {
-      loadItensOportunidade(formData.oportunidade_id);
-      const opp = oportunidades.find((o) => String(o.id) === formData.oportunidade_id);
-      if (opp?.lead) {
-        loadLeadInfo(opp.lead);
-      } else {
+  const handleOportunidadeChange = useCallback(
+    async (id: string) => {
+      setFormData((f) => ({ ...f, oportunidade_id: id }));
+      if (!id) {
+        setItensOportunidade([]);
+        setLeadInfo(null);
+        return;
+      }
+      loadItensOportunidade(id);
+      try {
+        const opp = await fetchCrmOportunidade(id);
+        setFormData((f) => ({
+          ...f,
+          oportunidade_id: id,
+          valor_total: opp.valor ? String(opp.valor) : f.valor_total,
+        }));
+        if (opp.lead) {
+          loadLeadInfo(opp.lead);
+        } else {
+          setLeadInfo(null);
+        }
+      } catch {
         setLeadInfo(null);
       }
-    } else {
-      setItensOportunidade([]);
-      setLeadInfo(null);
-    }
-  }, [formData.oportunidade_id, oportunidades, loadItensOportunidade, loadLeadInfo, setLeadInfo]);
+    },
+    [loadItensOportunidade, loadLeadInfo, setLeadInfo],
+  );
 
   // Título automático: nome (CPF) ou razão social (CNPJ) do cliente
   useEffect(() => {
@@ -141,21 +136,6 @@ export default function NovaPropostaPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadInfo]);
-
-  const handleOportunidadeChange = (id: string) => {
-    const opp = oportunidades.find((o) => String(o.id) === id);
-    setFormData((f) => ({
-      ...f,
-      oportunidade_id: id,
-      valor_total: opp?.valor ? String(opp.valor) : f.valor_total,
-    }));
-    loadItensOportunidade(id);
-    if (opp?.lead) {
-      loadLeadInfo(opp.lead);
-    } else {
-      setLeadInfo(null);
-    }
-  };
 
   const handleSalvarComoPadrao = useCallback(async (conteudo: string) => {
     try {
@@ -227,14 +207,12 @@ export default function NovaPropostaPage() {
           enviando={submitting}
           lojaInfo={lojaInfo}
           leadInfo={leadInfo}
-          oportunidades={oportunidades}
           itensOportunidade={itensOportunidade}
           statusOpcoes={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
           onFormChange={setFormData}
           onOportunidadeChange={handleOportunidadeChange}
           onSubmit={handleSubmit}
           isEdit={false}
-          loadingOportunidades={loadingOportunidades}
           onSalvarComoPadrao={handleSalvarComoPadrao}
           salvandoPadrao={salvandoPadrao}
           showCancel={true}

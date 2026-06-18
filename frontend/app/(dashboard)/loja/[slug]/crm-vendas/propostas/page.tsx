@@ -8,6 +8,7 @@ import apiClient from '@/lib/api-client';
 import {
   normalizeListResponse,
   getCrmApiErrorDetail,
+  fetchCrmOportunidade,
 } from '@/lib/crm-utils';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -30,7 +31,6 @@ import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusB
 import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetalhesModal';
 import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
 import type {
-  CrmPropostaOportunidadeOption,
   CrmOportunidadeItem,
   CrmPropostaTemplate,
 } from '@/lib/crm-proposta-form-types';
@@ -101,8 +101,8 @@ export default function CrmVendasPropostasPage() {
 
   const colunasTabela = exibirColunaAssinatura ? 7 : 6;
 
-  const [oportunidades, setOportunidades] = useState<CrmPropostaOportunidadeOption[]>([]);
   const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
+  const [oportunidadeTituloInicial, setOportunidadeTituloInicial] = useState('');
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selected, setSelected] = useState<Proposta | null>(null);
   const [formData, setFormData] = useState<FormDataProposta>({
@@ -134,17 +134,6 @@ export default function CrmVendasPropostasPage() {
     formData,
     setFormData
   );
-
-  const loadOportunidades = useCallback(async () => {
-    try {
-      const res = await apiClient.get<
-        CrmPropostaOportunidadeOption[] | { results: CrmPropostaOportunidadeOption[] }
-      >('/crm-vendas/oportunidades/');
-      setOportunidades(normalizeListResponse(res.data));
-    } catch {
-      setOportunidades([]);
-    }
-  }, []);
 
   const loadItensOportunidade = useCallback(async (oportunidadeId: string) => {
     if (!oportunidadeId) {
@@ -244,37 +233,26 @@ export default function CrmVendasPropostasPage() {
 
   useEffect(() => {
     if (modalType === 'edit') {
-      loadOportunidades();
       loadLojaInfo();
       loadCrmConfig();
       loadTemplates();
       loadVendedorInfo();
-    }
-  }, [modalType, loadOportunidades, loadLojaInfo, loadCrmConfig, loadTemplates, loadVendedorInfo]);
-
-  useEffect(() => {
-    if ((modalType === 'create' || modalType === 'edit') && formData.oportunidade_id) {
-      loadItensOportunidade(formData.oportunidade_id);
-      const opp = oportunidades.find((o) => String(o.id) === formData.oportunidade_id);
-      if (opp?.lead) {
-        loadLeadInfo(opp.lead);
-      } else {
-        setLeadInfo(null);
+      if (formData.oportunidade_id) {
+        loadItensOportunidade(formData.oportunidade_id);
+        fetchCrmOportunidade(formData.oportunidade_id)
+          .then((opp) => {
+            if (opp.lead) loadLeadInfo(opp.lead);
+          })
+          .catch(() => setLeadInfo(null));
       }
-      // Atualizar valor_total com o valor atual da oportunidade
-      if (opp?.valor && modalType === 'edit') {
-        setFormData((f) => ({ ...f, valor_total: String(opp.valor) }));
-      }
-    } else if (!formData.oportunidade_id) {
-      setItensOportunidade([]);
-      setLeadInfo(null);
     }
-  }, [modalType, formData.oportunidade_id, oportunidades, loadItensOportunidade, loadLeadInfo, setLeadInfo]);
+  }, [modalType, formData.oportunidade_id, loadLojaInfo, loadCrmConfig, loadTemplates, loadVendedorInfo, loadItensOportunidade, loadLeadInfo, setLeadInfo]);
 
   const openModal = (type: ModalType, item?: Proposta) => {
     setModalType(type);
     setSelected(item || null);
     if (type === 'edit' && item) {
+      setOportunidadeTituloInicial(item.oportunidade_titulo || '');
       setFormData({
         oportunidade_id: String(item.oportunidade),
         titulo: item.titulo || '',
@@ -307,24 +285,37 @@ export default function CrmVendasPropostasPage() {
     }
   };
 
-  const handleOportunidadeChange = (id: string) => {
-    const opp = oportunidades.find((o) => String(o.id) === id);
-    setFormData((f) => ({
-      ...f,
-      oportunidade_id: id,
-      valor_total: opp?.valor ? String(opp.valor) : f.valor_total,
-    }));
-    loadItensOportunidade(id);
-    if (opp?.lead) {
-      loadLeadInfo(opp.lead);
-    } else {
-      setLeadInfo(null);
-    }
-  };
+  const handleOportunidadeChange = useCallback(
+    async (id: string) => {
+      setFormData((f) => ({ ...f, oportunidade_id: id }));
+      if (!id) {
+        setItensOportunidade([]);
+        setLeadInfo(null);
+        setOportunidadeTituloInicial('');
+        return;
+      }
+      loadItensOportunidade(id);
+      try {
+        const opp = await fetchCrmOportunidade(id);
+        setOportunidadeTituloInicial(opp.titulo);
+        setFormData((f) => ({
+          ...f,
+          oportunidade_id: id,
+          valor_total: opp.valor ? String(opp.valor) : f.valor_total,
+        }));
+        if (opp.lead) loadLeadInfo(opp.lead);
+        else setLeadInfo(null);
+      } catch {
+        setLeadInfo(null);
+      }
+    },
+    [loadItensOportunidade, loadLeadInfo, setLeadInfo],
+  );
 
   const closeModal = () => {
     setModalType(null);
     setSelected(null);
+    setOportunidadeTituloInicial('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -663,7 +654,6 @@ export default function CrmVendasPropostasPage() {
           enviando={submitting}
           lojaInfo={lojaInfo}
           leadInfo={leadInfo}
-          oportunidades={oportunidades}
           itensOportunidade={itensOportunidade}
           statusOpcoes={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
           onFormChange={setFormData}
@@ -671,6 +661,7 @@ export default function CrmVendasPropostasPage() {
           onSubmit={handleSubmit}
           onClose={closeModal}
           isEdit={modalType === 'edit'}
+          oportunidadeTituloInicial={oportunidadeTituloInicial}
           onSalvarComoPadrao={handleSalvarComoPadrao}
           salvandoPadrao={salvandoPadrao}
           templates={templates}

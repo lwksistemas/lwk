@@ -3,10 +3,13 @@
 import { Search } from 'lucide-react';
 import { formatCpfCnpj } from '@/lib/format-br';
 import { NFSE_EMISSAO_INPUT_CLASS } from '@/lib/nfse-emissao-form';
+import BuscarContaInput from '@/components/crm-vendas/BuscarContaInput';
 
 export function ModalEmitirNFSeStepInicio({
   documentoTomador,
   onDocumentoChange,
+  contaBuscaId,
+  onContaBuscaChange,
   erro,
   buscandoTomador,
   onContinuar,
@@ -14,6 +17,8 @@ export function ModalEmitirNFSeStepInicio({
 }: {
   documentoTomador: string;
   onDocumentoChange: (value: string) => void;
+  contaBuscaId: string;
+  onContaBuscaChange: (id: string) => void;
   erro: string;
   buscandoTomador: boolean;
   onContinuar: () => void | Promise<void>;
@@ -29,11 +34,37 @@ export function ModalEmitirNFSeStepInicio({
       <div>
         <h3 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
           <Search size={18} className="text-[#0176d3]" />
+          Buscar cliente pelo nome
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Digite o nome da empresa (ex.: ULTRASIS, ANADEM). O CNPJ será preenchido automaticamente.
+        </p>
+        <BuscarContaInput
+          contaId={contaBuscaId}
+          onContaChange={onContaBuscaChange}
+          placeholder="Buscar conta pelo nome ou CNPJ..."
+          disabled={buscandoTomador}
+          inputClassName={NFSE_EMISSAO_INPUT_CLASS}
+        />
+      </div>
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+          <div className="w-full border-t border-gray-200 dark:border-gray-600" />
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="px-2 bg-white dark:bg-[#16325c] text-gray-500 dark:text-gray-400">ou</span>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+          <Search size={18} className="text-[#0176d3]" />
           CPF ou CNPJ do cliente (tomador)
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-          Ex.: ULTRASIS INFORMATICA, ANADEM SA — informe o CNPJ do cliente que receberá a nota.
-          Se estiver cadastrado no CRM, os dados serão preenchidos automaticamente.
+          Informe o CPF/CNPJ do cliente que receberá a nota. Se estiver cadastrado no CRM, os dados
+          serão preenchidos automaticamente.
         </p>
         <input
           type="text"
@@ -41,8 +72,6 @@ export function ModalEmitirNFSeStepInicio({
           onChange={(e) => onDocumentoChange(formatCpfCnpj(e.target.value))}
           className={NFSE_EMISSAO_INPUT_CLASS}
           placeholder="00.000.000/0001-00"
-          maxLength={18}
-          autoFocus
           disabled={buscandoTomador}
         />
       </div>

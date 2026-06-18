@@ -1,6 +1,7 @@
 'use client';
 
 import type { LojaInfo, LeadInfo, OportunidadeItem, FormDataProposta } from './modals/ModalPropostaForm';
+import BuscarOportunidadeInput from '@/components/crm-vendas/BuscarOportunidadeInput';
 
 export interface PropostaFormContentProps {
   form: FormDataProposta;
@@ -8,13 +9,13 @@ export interface PropostaFormContentProps {
   enviando: boolean;
   lojaInfo: LojaInfo | null;
   leadInfo: LeadInfo | null;
-  oportunidades: Array<{ id: number; titulo: string; lead_nome: string }>;
   itensOportunidade: OportunidadeItem[];
   statusOpcoes: Array<{ value: string; label: string }>;
   onFormChange: (updater: (f: FormDataProposta) => FormDataProposta) => void;
   onOportunidadeChange: (id: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   isEdit?: boolean;
+  oportunidadeTituloInicial?: string;
   onSalvarComoPadrao?: (conteudo: string) => void;
   salvandoPadrao?: boolean;
   /** Se true, mostra botão Cancelar que chama onCancel */
@@ -22,8 +23,6 @@ export interface PropostaFormContentProps {
   onCancel?: () => void;
   /** Se true, formulário ocupa largura total (para página fullscreen) */
   fullWidth?: boolean;
-  /** Se true, select de oportunidade mostra estado de carregamento */
-  loadingOportunidades?: boolean;
   /** Templates disponíveis para seleção */
   templates?: Array<{ id: number; nome: string; conteudo: string; is_padrao: boolean }>;
   /** Callback quando seleciona um template */
@@ -42,19 +41,18 @@ export default function PropostaFormContent({
   enviando,
   lojaInfo,
   leadInfo,
-  oportunidades,
   itensOportunidade,
   statusOpcoes,
   onFormChange,
   onOportunidadeChange,
   onSubmit,
   isEdit = false,
+  oportunidadeTituloInicial = '',
   onSalvarComoPadrao,
   salvandoPadrao = false,
   showCancel = true,
   onCancel,
   fullWidth = false,
-  loadingOportunidades = false,
   templates = [],
   onSelecionarTemplate,
   vendedorNome,
@@ -179,20 +177,13 @@ export default function PropostaFormContent({
       {/* Oportunidade */}
       <div className="md:col-span-2">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Oportunidade *</label>
-        <select
-          value={form.oportunidade_id}
-          onChange={(e) => onOportunidadeChange(e.target.value)}
-          className={inputClass}
+        <BuscarOportunidadeInput
+          oportunidadeId={form.oportunidade_id}
+          initialTitulo={oportunidadeTituloInicial}
+          onOportunidadeChange={onOportunidadeChange}
           required
-          disabled={isEdit || loadingOportunidades}
-        >
-          <option value="">
-            {loadingOportunidades ? 'Carregando oportunidades...' : 'Selecione'}
-          </option>
-          {!loadingOportunidades && oportunidades.map((o) => (
-            <option key={o.id} value={o.id}>{o.titulo} - {o.lead_nome}</option>
-          ))}
-        </select>
+          disabled={isEdit || enviando}
+        />
       </div>
 
       {/* Produtos e Serviços */}

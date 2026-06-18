@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import { formatCpfCnpj } from '@/lib/format-br';
 import {
   NFSE_EMISSAO_INITIAL_FORM,
   buscarTomadorCadastroPorDocumento,
@@ -35,7 +36,29 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
   const [buscandoTomador, setBuscandoTomador] = useState(false);
   const [fonteTomador, setFonteTomador] = useState<'conta' | 'lead' | 'nfse' | 'brasilapi' | null>(null);
   const [documentoTomador, setDocumentoTomador] = useState('');
+  const [contaBuscaId, setContaBuscaId] = useState('');
   const [formData, setFormData] = useState(NFSE_EMISSAO_INITIAL_FORM);
+
+  const handleContaBuscaChange = async (id: string) => {
+    setContaBuscaId(id);
+    setErroInicio('');
+    if (!id) return;
+    setBuscandoTomador(true);
+    try {
+      const res = await apiClient.get<{ cnpj?: string }>(`/crm-vendas/contas/${id}/`);
+      const cnpj = (res.data.cnpj || '').trim();
+      if (cnpj) {
+        setDocumentoTomador(formatCpfCnpj(cnpj));
+      } else {
+        setErroInicio('Esta conta não possui CNPJ cadastrado. Informe o documento manualmente.');
+      }
+    } catch {
+      setErroInicio('Erro ao carregar dados da conta. Tente novamente.');
+      setContaBuscaId('');
+    } finally {
+      setBuscandoTomador(false);
+    }
+  };
 
   const handleFieldChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -146,7 +169,13 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
           {step === 'inicio' && (
             <ModalEmitirNFSeStepInicio
               documentoTomador={documentoTomador}
-              onDocumentoChange={setDocumentoTomador}
+              onDocumentoChange={(value) => {
+                setDocumentoTomador(value);
+                setContaBuscaId('');
+                setErroInicio('');
+              }}
+              contaBuscaId={contaBuscaId}
+              onContaBuscaChange={handleContaBuscaChange}
               erro={erroInicio}
               buscandoTomador={buscandoTomador}
               onContinuar={handleContinuarInicio}

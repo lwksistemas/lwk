@@ -78,7 +78,6 @@ interface ModalPropostaFormProps {
   enviando: boolean;
   lojaInfo: LojaInfo | null;
   leadInfo: LeadInfo | null;
-  oportunidades: Array<{ id: number; titulo: string; lead_nome: string }>;
   itensOportunidade: OportunidadeItem[];
   statusOpcoes: Array<{ value: string; label: string }>;
   onFormChange: (updater: (f: FormDataProposta) => FormDataProposta) => void;
@@ -86,6 +85,7 @@ interface ModalPropostaFormProps {
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
   isEdit?: boolean;
+  oportunidadeTituloInicial?: string;
   /** Callback para salvar o conteúdo atual como Proposta PADRAO */
   onSalvarComoPadrao?: (conteudo: string) => void;
   salvandoPadrao?: boolean;
@@ -104,7 +104,6 @@ export default function ModalPropostaForm({
   enviando,
   lojaInfo,
   leadInfo,
-  oportunidades,
   itensOportunidade,
   statusOpcoes,
   onFormChange,
@@ -112,6 +111,7 @@ export default function ModalPropostaForm({
   onSubmit,
   onClose,
   isEdit = false,
+  oportunidadeTituloInicial = '',
   onSalvarComoPadrao,
   salvandoPadrao = false,
   templates = [],
@@ -145,13 +145,13 @@ export default function ModalPropostaForm({
             enviando={enviando}
             lojaInfo={lojaInfo}
             leadInfo={leadInfo}
-            oportunidades={oportunidades}
             itensOportunidade={itensOportunidade}
             statusOpcoes={statusOpcoes}
             onFormChange={onFormChange}
             onOportunidadeChange={onOportunidadeChange}
             onSubmit={onSubmit}
             isEdit={isEdit}
+            oportunidadeTituloInicial={oportunidadeTituloInicial}
             onSalvarComoPadrao={onSalvarComoPadrao}
             salvandoPadrao={salvandoPadrao}
             showCancel={true}

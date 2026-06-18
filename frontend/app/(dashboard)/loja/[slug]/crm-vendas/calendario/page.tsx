@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import apiClient from '@/lib/api-client';
-import { fetchAllPaginatedResults, getCrmApiErrorDetail, normalizeListResponse } from '@/lib/crm-utils';
+import { getCrmApiErrorDetail, normalizeListResponse } from '@/lib/crm-utils';
 import { formatTelefone, telefoneInternacionalBr } from '@/lib/format-br';
 import { obterFeriadosBrasil } from '@/lib/feriados-brasil';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
@@ -37,6 +37,7 @@ export interface Atividade {
   lead: number | null;
   lead_nome?: string;
   conta: number | null;
+  conta_nome?: string;
   data: string;
   duracao_minutos?: number;
   concluido: boolean;
@@ -119,8 +120,6 @@ export default function CalendarioCrmPage() {
   }, []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [contas, setContas] = useState<{ id: number; nome: string }[]>([]);
-  const [leads, setLeads] = useState<{ id: number; nome: string; empresa?: string; telefone?: string }[]>([]);
   const { whatsappAtivo } = useWhatsappEnvioFlags();
   const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email: string | null }>({ connected: false, email: null });
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -173,24 +172,6 @@ export default function CalendarioCrmPage() {
   useEffect(() => {
     loadGoogleStatus();
   }, [loadGoogleStatus]);
-
-  useEffect(() => {
-    fetchAllPaginatedResults<{ id: number; nome: string }>(`${API_CRM}/contas/`)
-      .then((list) => setContas(list.map((c) => ({ id: c.id, nome: c.nome }))))
-      .catch(() => setContas([]));
-    fetchAllPaginatedResults<{ id: number; nome: string; empresa?: string; telefone?: string }>(
-      `${API_CRM}/leads/`,
-    )
-      .then((list) =>
-        setLeads(list.map((l) => ({
-          id: l.id,
-          nome: l.nome,
-          empresa: l.empresa,
-          telefone: l.telefone,
-        }))),
-      )
-      .catch(() => setLeads([]));
-  }, []);
 
   useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
@@ -846,8 +827,6 @@ export default function CalendarioCrmPage() {
           form={form}
           saving={saving}
           error={error}
-          contas={contas}
-          leads={leads}
           whatsappHabilitado={whatsappAtivo}
           onChange={patchForm}
           onSave={handleSave}

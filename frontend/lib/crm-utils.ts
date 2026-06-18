@@ -5,6 +5,7 @@
 import apiClient from '@/lib/api-client';
 import { formatApiErrorBody } from '@/lib/api-errors';
 import { applyTelefoneInternacionalPayload } from '@/lib/format-br';
+import type { CrmPropostaOportunidadeOption } from '@/lib/crm-proposta-form-types';
 
 export type CrmLeadFormPayloadInput = {
   nome: string;
@@ -67,6 +68,14 @@ export type CrmPaginatedResponse<T> = {
   hasPrevious: boolean;
   totalPages: number;
 };
+
+/** Busca detalhes de uma oportunidade (propostas, contratos). */
+export async function fetchCrmOportunidade(id: string | number) {
+  const res = await apiClient.get<CrmPropostaOportunidadeOption>(
+    `/crm-vendas/oportunidades/${id}/`,
+  );
+  return res.data;
+}
 
 /** Uma página de listagem paginada do DRF. */
 export async function fetchCrmPaginatedPage<T>(

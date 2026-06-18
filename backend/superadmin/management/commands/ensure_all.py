@@ -41,6 +41,7 @@ ENSURES = [
     ('ensure_paciente_fotos_table', {}),
     ('ensure_whatsapp_evolution_fields', {}),
     ('ensure_canal_assinatura_vendedor', {}),
+    ('ensure_assinatura_link_enviado_em', {}),
     ('ensure_suporte_schema', {}),
     ('verificar_storage_lojas', {}),
 ]

@@ -68,6 +68,7 @@ ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
     'crm-vendas': [
         'ensure_crm_config_colunas',
         'ensure_canal_assinatura_vendedor',
+        'ensure_assinatura_link_enviado_em',
     ],
 }
 

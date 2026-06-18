@@ -2,11 +2,7 @@
 
 import { X } from 'lucide-react';
 import { formatTelefone, toUpperCase } from '@/lib/format-br';
-
-interface Conta {
-  id: number;
-  nome: string;
-}
+import BuscarContaInput from '@/components/crm-vendas/BuscarContaInput';
 
 interface ContatoFormData {
   nome: string;
@@ -20,7 +16,7 @@ interface ContatoFormData {
 interface ContatoFormModalProps {
   title: string;
   formData: ContatoFormData;
-  contas: Conta[];
+  contaNomeInicial?: string;
   submitting: boolean;
   onChange: (data: ContatoFormData) => void;
   onSubmit: (e: React.FormEvent) => void;
@@ -29,7 +25,15 @@ interface ContatoFormModalProps {
 
 const inputClass = "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent";
 
-export function ContatoFormModal({ title, formData, contas, submitting, onChange, onSubmit, onClose }: ContatoFormModalProps) {
+export function ContatoFormModal({
+  title,
+  formData,
+  contaNomeInicial,
+  submitting,
+  onChange,
+  onSubmit,
+  onClose,
+}: ContatoFormModalProps) {
   const set = (field: keyof ContatoFormData, value: string) => onChange({ ...formData, [field]: value });
   const setUpper = (field: keyof ContatoFormData, value: string) => onChange({ ...formData, [field]: toUpperCase(value) });
   const setPhone = (field: keyof ContatoFormData, value: string) => onChange({ ...formData, [field]: formatTelefone(value) });
@@ -48,10 +52,13 @@ export function ContatoFormModal({ title, formData, contas, submitting, onChange
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Conta <span className="text-red-500">*</span>
             </label>
-            <select value={formData.conta} onChange={(e) => set('conta', e.target.value)} className={inputClass} required>
-              <option value="">Selecione uma conta</option>
-              {contas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
+            <BuscarContaInput
+              contaId={formData.conta}
+              initialNome={contaNomeInicial}
+              onContaChange={(id) => set('conta', id)}
+              required
+              disabled={submitting}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cargo</label>

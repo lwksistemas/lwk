@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { fetchAllPaginatedResults } from '@/lib/crm-utils';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { Plus, Eye, Edit2, Trash2, User } from 'lucide-react';
@@ -14,9 +13,7 @@ import { ContatoDeleteModal } from './components/ContatoDeleteModal';
 import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { formatDate } from '@/lib/financeiro-helpers';
-import { logger } from '@/lib/logger';
 
-interface Conta { id: number; nome: string; }
 interface Contato {
   id: number; nome: string; email?: string; telefone?: string;
   cargo?: string; conta: number; conta_nome?: string; observacoes?: string; created_at: string;
@@ -60,6 +57,7 @@ export default function CrmVendasContatosPage() {
   };
 
   const [contaFiltro, setContaFiltro] = useState<number | null>(null);
+  const [contaFiltroNome, setContaFiltroNome] = useState<string | null>(null);
 
   const {
     items: contatos,
@@ -76,24 +74,40 @@ export default function CrmVendasContatosPage() {
     errorFallback: 'Erro ao carregar contatos.',
   });
 
-  const [contas, setContas] = useState<Conta[]>([]);
-
-  const loadContas = async () => {
-    try {
-      const list = await fetchAllPaginatedResults<Conta>('/crm-vendas/contas/');
-      setContas(list);
-    } catch (err) {
-      logger.warn('Erro ao carregar contas:', err);
-    }
-  };
+  const [modalType, setModalType] = useState<ModalType>(null);
+  const [selectedContato, setSelectedContato] = useState<Contato | null>(null);
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [contaNomeForm, setContaNomeForm] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const contaIdNaUrl = searchParams.get('conta_id');
   const verParam = searchParams.get('ver');
 
-  const [modalType, setModalType] = useState<ModalType>(null);
-  const [selectedContato, setSelectedContato] = useState<Contato | null>(null);
-  const [formData, setFormData] = useState(EMPTY_FORM);
-  const [submitting, setSubmitting] = useState(false);
+  const openModal = useCallback((type: ModalType, contato?: Contato) => {
+    setModalType(type);
+    setSelectedContato(contato || null);
+    if (type === 'edit' && contato) {
+      setFormData({
+        nome: contato.nome || '',
+        email: contato.email || '',
+        telefone: formatTelefone(contato.telefone || ''),
+        cargo: contato.cargo || '',
+        conta: String(contato.conta) || '',
+        observacoes: contato.observacoes || '',
+      });
+      setContaNomeForm(contato.conta_nome || '');
+    } else if (type === 'create') {
+      setFormData(EMPTY_FORM);
+      setContaNomeForm('');
+    }
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setModalType(null);
+    setSelectedContato(null);
+    setFormData(EMPTY_FORM);
+    setContaNomeForm('');
+  }, []);
 
   useEffect(() => {
     if (contaIdNaUrl) {
@@ -103,16 +117,32 @@ export default function CrmVendasContatosPage() {
     setContaFiltro(null);
   }, [contaIdNaUrl]);
 
-  useEffect(() => { loadContas(); }, []);
+  useEffect(() => {
+    if (!contaFiltro) {
+      setContaFiltroNome(null);
+      return;
+    }
+    let cancelled = false;
+    apiClient
+      .get<{ nome: string }>(`/crm-vendas/contas/${contaFiltro}/`)
+      .then((res) => {
+        if (!cancelled) setContaFiltroNome(res.data.nome);
+      })
+      .catch(() => {
+        if (!cancelled) setContaFiltroNome(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contaFiltro]);
 
   useEffect(() => {
-    if (searchParams.get('criar') === '1' && contas.length > 0) {
-      const cid = searchParams.get('conta_id');
-      if (cid) setFormData((f) => ({ ...f, conta: cid }));
-      openModal('create');
-      router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
-    }
-  }, [searchParams, contas, router, slug]);
+    if (searchParams.get('criar') !== '1') return;
+    const cid = searchParams.get('conta_id');
+    if (cid) setFormData((f) => ({ ...f, conta: cid }));
+    openModal('create');
+    router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
+  }, [searchParams, router, slug, openModal]);
 
   useEffect(() => {
     if (!verParam) return;
@@ -125,19 +155,7 @@ export default function CrmVendasContatosPage() {
         openModal('view', res.data); router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
       }).catch(() => {});
     }
-  }, [verParam, contatos, loading, slug, router]);
-
-  const openModal = (type: ModalType, contato?: Contato) => {
-    setModalType(type);
-    setSelectedContato(contato || null);
-    if (type === 'edit' && contato) {
-      setFormData({ nome: contato.nome || '', email: contato.email || '', telefone: formatTelefone(contato.telefone || ''), cargo: contato.cargo || '', conta: String(contato.conta) || '', observacoes: contato.observacoes || '' });
-    } else if (type === 'create') {
-      setFormData(EMPTY_FORM);
-    }
-  };
-
-  const closeModal = () => { setModalType(null); setSelectedContato(null); setFormData(EMPTY_FORM); };
+  }, [verParam, contatos, loading, slug, router, openModal]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,7 +230,7 @@ export default function CrmVendasContatosPage() {
             <div className="flex items-center gap-2 mt-1">
               <p className="text-sm text-gray-600 dark:text-gray-400">Filtrando por conta:</p>
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                {contas.find((c) => c.id === contaFiltro)?.nome || `ID ${contaFiltro}`}
+                {contaFiltroNome || `ID ${contaFiltro}`}
               </span>
               <button type="button" onClick={() => { setContaFiltro(null); router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false }); }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
                 Limpar filtro
@@ -278,7 +296,15 @@ export default function CrmVendasContatosPage() {
 
       {/* Modals */}
       {(modalType === 'create' || modalType === 'edit') && (
-        <ContatoFormModal title={modalType === 'create' ? 'Novo Contato' : 'Editar Contato'} formData={formData} contas={contas} submitting={submitting} onChange={setFormData} onSubmit={handleSubmit} onClose={closeModal} />
+        <ContatoFormModal
+          title={modalType === 'create' ? 'Novo Contato' : 'Editar Contato'}
+          formData={formData}
+          contaNomeInicial={contaNomeForm}
+          submitting={submitting}
+          onChange={setFormData}
+          onSubmit={handleSubmit}
+          onClose={closeModal}
+        />
       )}
       {modalType === 'view' && selectedContato && (
         <ContatoViewModal contato={selectedContato} onClose={closeModal} onEdit={() => openModal('edit', selectedContato)} />

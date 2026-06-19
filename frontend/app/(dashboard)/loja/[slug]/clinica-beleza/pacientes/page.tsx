@@ -34,7 +34,7 @@ import {
   patientNotes,
 } from "@/lib/clinica-beleza-entities";
 import { formatClinicaApiValidationErrors } from "@/lib/clinica-beleza-form-errors";
-import { formatTelefone, formatCpf, formatCep, applyTelefoneInternacionalPayload } from "@/lib/format-br";
+import { formatTelefone, formatCpf, formatCep, applyTelefoneInternacionalPayload, toUpperCase } from "@/lib/format-br";
 import { consultaCep } from "@/lib/consulta-cep";
 import {
   bloquearCriacaoDuplicadaOffline,
@@ -410,7 +410,7 @@ export default function PacientesPage() {
   /* ── Formulário tela inteira ── */
   if (isFormView) {
     return (
-      <div className="flex flex-col flex-1 min-h-0 w-full">
+      <div className="absolute inset-0 z-10 flex flex-col min-h-0 overflow-hidden bg-white dark:bg-neutral-900">
         <PacienteCadastroForm
         editing={Boolean(editing)}
         form={form}

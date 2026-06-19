@@ -140,7 +140,7 @@ export default function PacientesPage() {
   const searchParams = useSearchParams();
   const slug = params.slug as string;
   const basePath = `/loja/${slug}/clinica-beleza/pacientes`;
-  const { loja, theme } = useLojaTheme(slug);
+  const { theme } = useLojaTheme(slug);
 
   const { list, setList, loading, load, page, setPage, totalPages, pageSize, totalCount } = useClinicaBelezaEntityList<Patient>({
     path: "/patients/",
@@ -422,8 +422,6 @@ export default function PacientesPage() {
         onBuscarCep={handleBuscarCep}
         onSave={save}
         onCancel={voltarLista}
-        lojaNome={loja?.nome}
-        lojaLogo={loja?.logo}
         accentColor={theme.corPrimaria || CLINICA_BELEZA_PRIMARY}
       />
     );

@@ -39,6 +39,7 @@ export function RetornoAgendaModal({ open, onClose }: RetornoAgendaModalProps) {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
+    setErro("");
     try {
       const [cfg, regs, procs] = await Promise.all([
         ClinicaBelezaAPI.retorno.getConfig(),
@@ -47,9 +48,9 @@ export function RetornoAgendaModal({ open, onClose }: RetornoAgendaModalProps) {
       ]);
       setConfig(cfg);
       setRegras(Array.isArray(regs) ? regs : []);
-      setProcedures(Array.isArray(procs.results) ? procs.results : []);
-    } catch {
-      setErro("Erro ao carregar configuração de retorno.");
+      setProcedures(Array.isArray(procs) ? procs : []);
+    } catch (e: unknown) {
+      setErro(extractApiError(e, "Erro ao carregar configuração de retorno."));
     } finally {
       setLoading(false);
     }

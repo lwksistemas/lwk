@@ -34,6 +34,7 @@ ENSURES = [
     ('ensure_professional_commission_convenio', {}),
     ('ensure_convenio_tables', {}),
     ('ensure_nomes_agenda_table', {}),
+    ('ensure_retorno_gratuito_tables', {}),
     ('ensure_appointment_local_atendimento', {}),
     ('ensure_local_tempo_consulta', {}),
     ('normalizar_status_agenda', {}),

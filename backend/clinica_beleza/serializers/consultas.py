@@ -82,6 +82,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             'procedure', 'procedure_name', 'procedures_list', 'protocol', 'protocol_name', 'status',
             'data_inicio', 'data_fim', 'duracao_minutos', 'observacoes_gerais', 'protocolo_notas',
             'valor_consulta', 'valor_procedimentos', 'valor_pagamento',
+            'retorno_gratuito', 'retorno_tipo',
             'local_atendimento', 'local_atendimento_name',
             'convenio', 'convenio_name',
             'nome_agenda_id', 'nome_agenda_name',
@@ -89,7 +90,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             'status_assinatura_termo', 'status_assinatura_termo_display', 'exige_termo_consentimento',
             'created_at', 'updated_at', 'loja_id',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'loja_id', 'appointment']
+        read_only_fields = ['created_at', 'updated_at', 'loja_id', 'appointment', 'retorno_gratuito', 'retorno_tipo']
 
     def get_total_evolucoes(self, obj):
         return obj.evolucoes.count()

@@ -4,6 +4,7 @@ Importe via ``from clinica_beleza.models import X``.
 """
 from .procedures import Procedure, ProcedureProtocol
 from .convenios import LocalAtendimento, NomeAgenda, Convenio, ConvenioProcedimentoPreco
+from .retorno import AgendaRetornoConfig, RetornoProcedimentoRegra
 from .patients import Patient, PatientAnamnese
 from .professionals import Professional, ProfessionalCommission, HorarioTrabalhoProfissional
 from .appointments import Appointment, AppointmentProcedure, BloqueioHorario
@@ -23,6 +24,8 @@ __all__ = [
     'NomeAgenda',
     'Convenio',
     'ConvenioProcedimentoPreco',
+    'AgendaRetornoConfig',
+    'RetornoProcedimentoRegra',
     'Patient',
     'PatientAnamnese',
     'Professional',
@@ -47,4 +50,6 @@ __all__ = [
     'DocumentTemplate',
     'DocumentoClinico',
     'PacienteFotoAcompanhamento',
+    'AgendaRetornoConfig',
+    'RetornoProcedimentoRegra',
 ]

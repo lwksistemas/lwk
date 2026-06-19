@@ -719,6 +719,36 @@ export class ClinicaBelezaAPI {
       ClinicaBelezaAPI.delete(`/nomes-agenda/${id}/`),
   };
 
+  static retorno = {
+    getConfig: () => ClinicaBelezaAPI.get<AgendaRetornoConfigItem>('/retorno/config/'),
+    updateConfig: (data: Partial<Pick<AgendaRetornoConfigItem, 'retorno_procedimento_ativo' | 'retorno_consulta_ativo' | 'dias_retorno_consulta'>>) =>
+      ClinicaBelezaAPI.patch<AgendaRetornoConfigItem>('/retorno/config/', data),
+    listRegras: () => ClinicaBelezaAPI.get<RetornoProcedimentoRegraItem[]>('/retorno/procedimentos/'),
+    createRegra: (data: { procedure: number; dias_retorno: number }) =>
+      ClinicaBelezaAPI.post<RetornoProcedimentoRegraItem>('/retorno/procedimentos/', data),
+    updateRegra: (id: number, data: { dias_retorno?: number; is_active?: boolean }) =>
+      ClinicaBelezaAPI.patch<RetornoProcedimentoRegraItem>(`/retorno/procedimentos/${id}/`, data),
+    deleteRegra: (id: number) => ClinicaBelezaAPI.delete(`/retorno/procedimentos/${id}/`),
+    verificar: (params: {
+      patient_id: number;
+      procedure_ids?: number[];
+      retorno_procedure_id?: number;
+      exclude_appointment_id?: number;
+    }) => {
+      const qs = new URLSearchParams({ patient_id: String(params.patient_id) });
+      if (params.procedure_ids?.length) {
+        qs.set('procedure_ids', params.procedure_ids.join(','));
+      }
+      if (params.retorno_procedure_id) {
+        qs.set('retorno_procedure_id', String(params.retorno_procedure_id));
+      }
+      if (params.exclude_appointment_id) {
+        qs.set('exclude_appointment_id', String(params.exclude_appointment_id));
+      }
+      return ClinicaBelezaAPI.get<RetornoVerificacaoResult>(`/retorno/verificar/?${qs.toString()}`);
+    },
+  };
+
   static campanhas = {
     list: () => ClinicaBelezaAPI.get('/campanhas/'),
     get: (id: number) => ClinicaBelezaAPI.get(`/campanhas/${id}/`),
@@ -833,6 +863,41 @@ export interface NomeAgendaItem {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+/** Configuração de retorno gratuito (isenção da taxa de consulta) */
+export interface AgendaRetornoConfigItem {
+  id: number;
+  retorno_procedimento_ativo: boolean;
+  retorno_consulta_ativo: boolean;
+  dias_retorno_consulta: number;
+  created_at: string;
+  updated_at: string;
+  loja_id?: number;
+}
+
+export interface RetornoProcedimentoRegraItem {
+  id: number;
+  procedure: number;
+  procedure_name: string;
+  dias_retorno: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  loja_id?: number;
+}
+
+export interface RetornoVerificacaoResult {
+  elegivel: boolean;
+  tipo?: 'procedimento' | 'consulta' | null;
+  procedure_id?: number | null;
+  procedure_nome?: string | null;
+  dias_retorno?: number | null;
+  dias_restantes?: number | null;
+  consulta_origem_id?: number | null;
+  mensagem?: string | null;
+  config?: AgendaRetornoConfigItem;
+  regras_procedimento?: RetornoProcedimentoRegraItem[];
 }
 
 /** Template de documento clínico */

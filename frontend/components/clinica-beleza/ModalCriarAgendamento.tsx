@@ -10,7 +10,7 @@ import {
 } from "@/components/clinica-beleza/PatientQuickRegisterField";
 import { useNovaConsultaForm, type ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 import { formatApiErrorBody } from "@/lib/api-errors";
-import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, clinicaBelezaFetch, type RetornoVerificacaoResult } from "@/lib/clinica-beleza-api";
 import type { LocalAtendimentoItem, NomeAgendaItem } from "@/lib/clinica-beleza-api";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { adicionarNaFilaSync } from "@/lib/offline-db";
@@ -87,6 +87,9 @@ export function ModalCriarAgendamento({
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
   const [horariosProfissional, setHorariosProfissional] = useState<HorarioTrabalho[]>([]);
+  const [retornoInfo, setRetornoInfo] = useState<RetornoVerificacaoResult | null>(null);
+  const [retornoProcedureId, setRetornoProcedureId] = useState<number | "">("");
+  const [verificandoRetorno, setVerificandoRetorno] = useState(false);
 
   const {
     patientId,
@@ -117,7 +120,40 @@ export function ModalCriarAgendamento({
     setTime(formatTimeFromDate(base));
     setNotes("");
     setCreateError("");
+    setRetornoInfo(null);
+    setRetornoProcedureId("");
   }, [open, selectedDate, defaultProfessionalId, resetForm, setConvenioId, setProfessionalId]);
+
+  useEffect(() => {
+    if (!open || !patientId) {
+      setRetornoInfo(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setVerificandoRetorno(true);
+      try {
+        const procedureIds = [...selectedProcedures];
+        if (retornoProcedureId && !procedureIds.includes(Number(retornoProcedureId))) {
+          procedureIds.push(Number(retornoProcedureId));
+        }
+        const result = await ClinicaBelezaAPI.retorno.verificar({
+          patient_id: Number(patientId),
+          procedure_ids: procedureIds.length ? procedureIds : undefined,
+          retorno_procedure_id: retornoProcedureId ? Number(retornoProcedureId) : undefined,
+        });
+        if (!cancelled) setRetornoInfo(result);
+      } catch {
+        if (!cancelled) setRetornoInfo(null);
+      } finally {
+        if (!cancelled) setVerificandoRetorno(false);
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [open, patientId, selectedProcedures, retornoProcedureId]);
 
   useEffect(() => {
     if (!open || !professionalId) {
@@ -219,6 +255,9 @@ export function ModalCriarAgendamento({
       basePayload.procedures_ids = selectedProcedures;
       basePayload.procedure = selectedProcedures[0];
     }
+    if (retornoProcedureId) {
+      basePayload.retorno_procedure = Number(retornoProcedureId);
+    }
 
     try {
       if (isConsulta) {
@@ -311,6 +350,15 @@ export function ModalCriarAgendamento({
 
   const inputClass =
     "w-full px-3 py-2.5 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[44px]";
+
+  const localSel = localAtendimentoId
+    ? locaisAtendimento.find((l) => l.id === localAtendimentoId)
+    : undefined;
+  const taxaConsultaBase = localSel ? Number(localSel.valor_consulta) || 0 : 0;
+  const taxaConsulta = retornoInfo?.elegivel ? 0 : taxaConsultaBase;
+  const totalEstimado = taxaConsulta + resumo.valor;
+  const regrasRetornoProc = retornoInfo?.regras_procedimento ?? [];
+  const retornoProcAtivo = retornoInfo?.config?.retorno_procedimento_ativo ?? false;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 overflow-y-auto">
@@ -458,6 +506,75 @@ export function ModalCriarAgendamento({
                 <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
                   Opcional — use para orçamento ou atendimento de representante.
                 </p>
+              )}
+
+              {retornoProcAtivo && regrasRetornoProc.length > 0 && patientId && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Retorno do procedimento (acompanhamento)
+                  </label>
+                  <select
+                    value={retornoProcedureId}
+                    onChange={(e) => setRetornoProcedureId(e.target.value ? Number(e.target.value) : "")}
+                    className={inputClass}
+                  >
+                    <option value="">Não é retorno de procedimento</option>
+                    {regrasRetornoProc.map((r) => (
+                      <option key={r.id} value={r.procedure}>
+                        {r.procedure_name} — prazo {r.dias_retorno} dias
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {(retornoInfo?.elegivel || verificandoRetorno) && patientId && (
+                <div
+                  className={`p-3 rounded-lg text-sm ${
+                    retornoInfo?.elegivel
+                      ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                      : "bg-gray-50 dark:bg-neutral-800 text-gray-500"
+                  }`}
+                >
+                  {verificandoRetorno && !retornoInfo?.elegivel ? (
+                    "Verificando retorno..."
+                  ) : retornoInfo?.elegivel ? (
+                    <>
+                      <span className="font-medium">Retorno gratuito</span>
+                      <span className="block text-xs mt-0.5">{retornoInfo.mensagem}</span>
+                    </>
+                  ) : null}
+                </div>
+              )}
+
+              {localAtendimentoId && (
+                <div className="p-3 rounded-lg bg-gray-50 dark:bg-neutral-800/80 text-sm space-y-1">
+                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                    <span>Taxa de consulta</span>
+                    <span>
+                      {retornoInfo?.elegivel ? (
+                        <>
+                          <span className="line-through opacity-60 mr-1">
+                            {taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">R$ 0,00</span>
+                        </>
+                      ) : (
+                        taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                      )}
+                    </span>
+                  </div>
+                  {resumo.valor > 0 && (
+                    <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                      <span>Procedimentos</span>
+                      <span>{resumo.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-medium text-gray-900 dark:text-gray-100 pt-1 border-t border-gray-200 dark:border-neutral-700">
+                    <span>Total estimado</span>
+                    <span>{totalEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                  </div>
+                </div>
               )}
 
               <div>

@@ -28,14 +28,30 @@ def calcular_valor_exibicao_agenda(
     consulta=None,
     procedure=None,
     procedure_id=None,
+    appointment=None,
 ) -> Decimal:
     """Valor exibido na agenda: taxa do local + procedimentos (sem duplicar legacy procedure)."""
     total_proc = Decimal(str(proc_total or 0))
+    taxa = Decimal('0')
     if local_atendimento is not None:
         taxa = Decimal(str(getattr(local_atendimento, 'valor_consulta', 0) or 0))
+    elif consulta is not None:
+        vc = Decimal(str(getattr(consulta, 'valor_consulta', 0) or 0))
+        if vc > 0:
+            taxa = vc
+    if appointment is not None and taxa > 0:
+        from ..retorno_service import verificar_retorno_appointment
+        if verificar_retorno_appointment(appointment).elegivel:
+            taxa = Decimal('0')
+    elif consulta is not None and getattr(consulta, 'retorno_gratuito', False):
+        taxa = Decimal('0')
+
+    if local_atendimento is not None:
         return taxa + total_proc
     if total_proc > 0:
         return total_proc
+    if taxa > 0:
+        return taxa
     if consulta is not None:
         vc = Decimal(str(getattr(consulta, 'valor_consulta', 0) or 0))
         if vc > 0:
@@ -98,6 +114,15 @@ class Appointment(LojaIsolationMixin, models.Model):
         blank=True,
         related_name='agendamentos',
         verbose_name='Local de atendimento',
+    )
+    retorno_procedure = models.ForeignKey(
+        Procedure,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='agendamentos_retorno',
+        verbose_name='Retorno do procedimento',
+        help_text='Indica retorno de acompanhamento deste procedimento (sem repetir cobrança da consulta).',
     )
     duracao_minutos = models.PositiveIntegerField(
         null=True,
@@ -170,6 +195,7 @@ class Appointment(LojaIsolationMixin, models.Model):
             consulta=consulta,
             procedure=self.procedure if self.procedure_id else None,
             procedure_id=self.procedure_id,
+            appointment=self,
         )
 
 

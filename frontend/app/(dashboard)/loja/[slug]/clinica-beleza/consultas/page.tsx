@@ -52,6 +52,10 @@ const NovoConvenioModal = dynamic(
   () => import("./components/NovoConvenioModal").then((m) => ({ default: m.NovoConvenioModal })),
 );
 
+const RetornoAgendaModal = dynamic(
+  () => import("./components/RetornoAgendaModal").then((m) => ({ default: m.RetornoAgendaModal })),
+);
+
 export default function ConsultasPage() {
   const params = useParams();
   const router = useRouter();
@@ -76,6 +80,7 @@ export default function ConsultasPage() {
   const [showNomesAgendaModal, setShowNomesAgendaModal] = useState(false);
   const [showMensagensWhatsAppModal, setShowMensagensWhatsAppModal] = useState(false);
   const [showNovoConvenioModal, setShowNovoConvenioModal] = useState(false);
+  const [showRetornoModal, setShowRetornoModal] = useState(false);
   const [showNovaConsultaModal, setShowNovaConsultaModal] = useState(false);
   const [novaConsultaDate, setNovaConsultaDate] = useState<Date | null>(null);
 
@@ -243,6 +248,7 @@ export default function ConsultasPage() {
           onNomesAgenda={() => setShowNomesAgendaModal(true)}
           onMensagensWhatsApp={() => setShowMensagensWhatsAppModal(true)}
           onNovoConvenio={() => setShowNovoConvenioModal(true)}
+          onRetorno={() => setShowRetornoModal(true)}
         />
       )}
       {showLocaisModal && (
@@ -267,6 +273,12 @@ export default function ConsultasPage() {
         <NovoConvenioModal
           open={showNovoConvenioModal}
           onClose={() => setShowNovoConvenioModal(false)}
+        />
+      )}
+      {showRetornoModal && (
+        <RetornoAgendaModal
+          open={showRetornoModal}
+          onClose={() => setShowRetornoModal(false)}
         />
       )}
     </>

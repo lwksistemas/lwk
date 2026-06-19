@@ -33,11 +33,17 @@ def motivo_bloqueio_exclusao_consulta(consulta) -> str | None:
 
 def _consulta_defaults_from_appointment(appointment, **extra):
     """Campos comuns ao criar Consulta a partir de um Appointment."""
+    from .retorno_service import valor_consulta_com_retorno
+
+    valor_base = _valor_consulta(appointment)
+    valor_ajustado, retorno = valor_consulta_com_retorno(appointment, valor_base)
     defaults = {
         'patient_id': appointment.patient_id,
         'professional_id': appointment.professional_id,
         'procedure_id': appointment.procedure_id,
-        'valor_consulta': _valor_consulta(appointment),
+        'valor_consulta': valor_ajustado,
+        'retorno_gratuito': retorno.elegivel,
+        'retorno_tipo': retorno.tipo or '',
         'convenio_id': appointment.convenio_id,
         'loja_id': appointment.loja_id,
     }
@@ -66,6 +72,8 @@ def _valor_consulta(appointment, consulta=None):
 
 def _garantir_valor_consulta_consulta(consulta) -> None:
     """Persiste taxa de consulta a partir do local quando ainda está zerada."""
+    if getattr(consulta, 'retorno_gratuito', False):
+        return
     if Decimal(str(consulta.valor_consulta or 0)) > 0:
         return
     local = getattr(consulta, 'local_atendimento', None)
@@ -187,6 +195,7 @@ def criar_consulta_avulsa(
     nome_agenda_id=None,
     appointment_date=None,
     notes=None,
+    retorno_procedure_id=None,
 ):
     """
     Cria uma consulta "avulsa" (sem agendamento prévio na agenda), a partir do
@@ -201,7 +210,7 @@ def criar_consulta_avulsa(
 
     Retorna a Consulta criada.
     """
-    from .models import LocalAtendimento, NomeAgenda
+    from .models import LocalAtendimento, NomeAgenda, Procedure
     from .convenio_service import resolver_convenio, criar_appointment_procedures
 
     ts = appointment_date or now()
@@ -228,6 +237,10 @@ def criar_consulta_avulsa(
     if nome_agenda_id:
         nome_agenda = NomeAgenda.objects.filter(pk=nome_agenda_id, is_active=True).first()
 
+    retorno_procedure = None
+    if retorno_procedure_id:
+        retorno_procedure = Procedure.objects.filter(pk=retorno_procedure_id, is_active=True).first()
+
     appointment = Appointment.objects.create(
         date=ts,
         status=status_inicial,
@@ -237,6 +250,7 @@ def criar_consulta_avulsa(
         convenio=convenio,
         local_atendimento=local_atendimento,
         nome_agenda=nome_agenda,
+        retorno_procedure=retorno_procedure,
         notes=(notes or '').strip() or None,
         loja_id=loja_id,
     )
@@ -266,6 +280,9 @@ def criar_consulta_avulsa(
         convenio=convenio,
         loja_id=loja_id,
     )
+    from .retorno_service import aplicar_retorno_em_consulta
+    aplicar_retorno_em_consulta(consulta, appointment)
+    consulta.refresh_from_db()
     return consulta
 
 

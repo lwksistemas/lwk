@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, FileText, MapPin, MessageCircle, X } from "lucide-react";
+import { CalendarDays, FileText, MapPin, MessageCircle, RotateCcw, X } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 
 interface ConfiguracaoAgendaMenuModalProps {
@@ -10,6 +10,7 @@ interface ConfiguracaoAgendaMenuModalProps {
   onNomesAgenda: () => void;
   onMensagensWhatsApp: () => void;
   onNovoConvenio: () => void;
+  onRetorno: () => void;
 }
 
 const OPTIONS = [
@@ -32,6 +33,12 @@ const OPTIONS = [
     icon: MessageCircle,
   },
   {
+    id: "retorno",
+    label: "Retorno gratuito",
+    description: "Retorno por consulta ou por procedimento — prazo definido pelo administrador",
+    icon: RotateCcw,
+  },
+  {
     id: "convenio",
     label: "Cadastrar convênio",
     description: "Novo convênio — informe o nome; o código será gerado automaticamente",
@@ -46,6 +53,7 @@ export function ConfiguracaoAgendaMenuModal({
   onNomesAgenda,
   onMensagensWhatsApp,
   onNovoConvenio,
+  onRetorno,
 }: ConfiguracaoAgendaMenuModalProps) {
   if (!open) return null;
 
@@ -53,6 +61,7 @@ export function ConfiguracaoAgendaMenuModal({
     locais: onLocais,
     nomes: onNomesAgenda,
     whatsapp: onMensagensWhatsApp,
+    retorno: onRetorno,
     convenio: onNovoConvenio,
   };
 

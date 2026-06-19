@@ -7,7 +7,6 @@ from ..models import (
     Appointment, AppointmentProcedure, BloqueioHorario, Convenio, LocalAtendimento, NomeAgenda, Procedure,
 )
 
-
 class AppointmentListSerializer(serializers.ModelSerializer):
     """Serializer simplificado para listagem de agendamentos."""
     patient_name = serializers.CharField(source='patient.nome', read_only=True)
@@ -57,17 +56,25 @@ class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializ
         required=False,
         allow_null=True,
     )
+    retorno_procedure = serializers.PrimaryKeyRelatedField(
+        queryset=Procedure.objects.none(),
+        required=False,
+        allow_null=True,
+        help_text='Procedimento de acompanhamento (retorno gratuito da taxa de consulta).',
+    )
 
     def apply_tenant_querysets(self):
         self.bind_tenant_queryset('convenio', Convenio.objects.filter(is_active=True))
         self.bind_tenant_queryset('nome_agenda', NomeAgenda.objects.filter(is_active=True))
         self.bind_tenant_queryset('local_atendimento', LocalAtendimento.objects.filter(is_active=True))
+        self.bind_tenant_queryset('retorno_procedure', Procedure.objects.filter(is_active=True))
 
     class Meta:
         model = Appointment
         fields = [
             'date', 'status', 'patient', 'professional', 'procedure',
             'procedures_ids', 'notes', 'convenio', 'nome_agenda', 'local_atendimento',
+            'retorno_procedure',
         ]
         extra_kwargs = {
             'procedure': {'required': False, 'allow_null': True},
@@ -161,6 +168,12 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     local_atendimento_name = serializers.CharField(
         source='local_atendimento.nome', read_only=True, allow_null=True, default=None,
     )
+    retorno_gratuito = serializers.SerializerMethodField()
+    retorno_tipo = serializers.SerializerMethodField()
+    retorno_mensagem = serializers.SerializerMethodField()
+    retorno_procedure_id = serializers.IntegerField(
+        source='retorno_procedure.id', read_only=True, allow_null=True, default=None,
+    )
 
     version = serializers.IntegerField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
@@ -179,8 +192,41 @@ class AgendaEventSerializer(serializers.ModelSerializer):
             'convenio', 'convenio_id', 'convenio_name',
             'nome_agenda', 'nome_agenda_id', 'nome_agenda_name',
             'local_atendimento', 'local_atendimento_id', 'local_atendimento_name',
+            'retorno_gratuito', 'retorno_tipo', 'retorno_mensagem', 'retorno_procedure_id',
             'version', 'updated_at', 'updated_by_id',
         ]
+
+    def _retorno_info(self, obj):
+        from ..retorno_service import verificar_retorno_appointment
+        cached = getattr(obj, '_retorno_cache', None)
+        if cached is None:
+            cached = verificar_retorno_appointment(obj)
+            obj._retorno_cache = cached
+        return cached
+
+    def get_retorno_gratuito(self, obj):
+        consulta = getattr(obj, 'consulta', None)
+        if consulta is not None and getattr(consulta, 'retorno_gratuito', False):
+            return True
+        return self._retorno_info(obj).elegivel
+
+    def get_retorno_tipo(self, obj):
+        consulta = getattr(obj, 'consulta', None)
+        if consulta is not None and getattr(consulta, 'retorno_gratuito', False):
+            return getattr(consulta, 'retorno_tipo', '') or None
+        info = self._retorno_info(obj)
+        return info.tipo if info.elegivel else None
+
+    def get_retorno_mensagem(self, obj):
+        consulta = getattr(obj, 'consulta', None)
+        if consulta is not None and getattr(consulta, 'retorno_gratuito', False):
+            tipo = getattr(consulta, 'retorno_tipo', '')
+            if tipo == 'procedimento':
+                return 'Retorno de acompanhamento — taxa de consulta isenta.'
+            if tipo == 'consulta':
+                return 'Retorno por consulta — taxa de consulta isenta.'
+        info = self._retorno_info(obj)
+        return info.mensagem if info.elegivel else None
 
     def get_title(self, obj):
         procs = obj.appointment_procedures.select_related('procedure').all()

@@ -7,17 +7,22 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronRight, Pencil, Save, Trash2, Users } from "lucide-react";
+import { ChevronRight, Pencil, Trash2, Users } from "lucide-react";
 import {
-  CLINICA_FORM_INPUT,
   deleteClinicaBelezaEntity,
   saveClinicaBelezaEntity,
   useClinicaBelezaEntityList,
 } from "@/lib/clinica-beleza-crud";
-import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
+import {
+  PacienteCadastroForm,
+  PACIENTE_EMPTY_FORM,
+  type PacienteFormState,
+} from "./components/PacienteCadastroForm";
+import { useLojaTheme } from "@/hooks/useLojaTheme";
 import {
   entityEmail,
   entityName,
@@ -29,7 +34,7 @@ import {
   patientNotes,
 } from "@/lib/clinica-beleza-entities";
 import { formatClinicaApiValidationErrors } from "@/lib/clinica-beleza-form-errors";
-import { formatTelefone, formatCpf, formatCep, applyTelefoneInternacionalPayload, toUpperCase } from "@/lib/format-br";
+import { formatTelefone, formatCpf, formatCep, applyTelefoneInternacionalPayload } from "@/lib/format-br";
 import { consultaCep } from "@/lib/consulta-cep";
 import {
   bloquearCriacaoDuplicadaOffline,
@@ -75,27 +80,9 @@ interface Patient {
   convenio_name?: string | null;
 }
 
-const EMPTY_FORM = {
-  name: "",
-  phone: "",
-  email: "",
-  cpf: "",
-  birth_date: "",
-  cep: "",
-  logradouro: "",
-  numero: "",
-  complemento: "",
-  bairro: "",
-  cidade: "",
-  uf: "",
-  notes: "",
-  allow_whatsapp: true,
-  convenio: "" as number | "",
-};
+const EMPTY_FORM = PACIENTE_EMPTY_FORM;
 
-const INPUT = CLINICA_FORM_INPUT;
-
-function montarEnderecoPaciente(form: typeof EMPTY_FORM): string {
+function montarEnderecoPaciente(form: PacienteFormState): string {
   const partes: string[] = [];
   if (form.logradouro.trim()) partes.push(form.logradouro.trim());
   if (form.numero.trim()) partes.push(`Nº ${form.numero.trim()}`);
@@ -153,6 +140,7 @@ export default function PacientesPage() {
   const searchParams = useSearchParams();
   const slug = params.slug as string;
   const basePath = `/loja/${slug}/clinica-beleza/pacientes`;
+  const { loja, theme } = useLojaTheme(slug);
 
   const { list, setList, loading, load, page, setPage, totalPages, pageSize, totalCount } = useClinicaBelezaEntityList<Patient>({
     path: "/patients/",
@@ -419,258 +407,25 @@ export default function PacientesPage() {
 
   const activeList = list.filter((p) => entityActive(p));
 
-  /* ── Formulário em tela cheia ── */
+  /* ── Formulário estilo cadastro (mockup) ── */
   if (isFormView) {
     return (
-      <>
-        <ClinicaBelezaStandardPageHeader
-          title={editing ? "Editar Cliente" : "Novo Cliente"}
-          subtitle={editing ? entityName(editing) : "Preencha os dados do cliente"}
-          backHref={basePath}
-          icon={Users}
-        />
-          <ClinicaBelezaPageContent className="flex flex-col flex-1 !p-0">
-          <div className="px-4 md:px-6 lg:px-8 pt-2 pb-3 border-b border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80">
-            <button
-              type="button"
-              onClick={voltarLista}
-              className="inline-flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-            >
-              <ArrowLeft size={16} />
-              Voltar à lista
-            </button>
-          </div>
-
-          <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
-            <ClinicaBelezaPanel className="p-5 md:p-8">
-                {error && (
-                  <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
-                    {error}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Nome *</label>
-                    <input
-                      value={form.name}
-                      onChange={(e) => setForm((f) => ({ ...f, name: toUpperCase(e.target.value) }))}
-                      className={INPUT}
-                      placeholder="Nome completo"
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Telefone</label>
-                    <input
-                      value={form.phone}
-                      onChange={(e) => setForm((f) => ({ ...f, phone: formatTelefone(e.target.value) }))}
-                      className={INPUT}
-                      placeholder="(00) 00000-0000"
-                      inputMode="tel"
-                      maxLength={15}
-                    />
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      Salvo automaticamente com código do país (55) para WhatsApp.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">E-mail</label>
-                    <input
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                      className={INPUT}
-                      placeholder="email@exemplo.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CPF</label>
-                    <input
-                      value={form.cpf}
-                      onChange={(e) => setForm((f) => ({ ...f, cpf: formatCpf(e.target.value) }))}
-                      className={INPUT}
-                      placeholder="000.000.000-00"
-                      inputMode="numeric"
-                      maxLength={14}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Data de Nascimento</label>
-                    <input
-                      type="date"
-                      value={form.birth_date}
-                      onChange={(e) => setForm((f) => ({ ...f, birth_date: e.target.value }))}
-                      className={INPUT}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                      Convênio padrão
-                    </label>
-                    <select
-                      value={form.convenio}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          convenio: e.target.value ? Number(e.target.value) : "",
-                        }))
-                      }
-                      className={INPUT}
-                    >
-                      {!findConvenioParticular(convenios) && (
-                        <option value="">{CONVENIO_PARTICULAR_LABEL}</option>
-                      )}
-                      {ordenarConveniosComParticularPrimeiro(convenios).map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.nome}
-                          {isConvenioParticularNome(c.nome) ? " (padrão)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                      Sugerido ao agendar ou abrir consulta. O convênio{" "}
-                      <strong>{CONVENIO_PARTICULAR_LABEL}</strong> usa os preços cadastrados nos procedimentos.
-                    </p>
-                  </div>
-                  <div className="md:col-span-2 space-y-4 pt-1">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Endereço</p>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                      <div className="min-w-0 flex-1">
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">CEP</label>
-                        <input
-                          type="text"
-                          value={form.cep}
-                          onChange={(e) => handleCepChange(e.target.value)}
-                          onBlur={() => form.cep.replace(/\D/g, "").length === 8 && handleBuscarCep()}
-                          maxLength={9}
-                          className={INPUT}
-                          placeholder="00000-000"
-                          inputMode="numeric"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleBuscarCep}
-                        disabled={buscarCepLoading || form.cep.replace(/\D/g, "").length !== 8}
-                        className="shrink-0 px-4 py-2.5 rounded-lg border text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap w-full sm:w-auto"
-                        style={{ borderColor: CLINICA_BELEZA_PRIMARY, color: CLINICA_BELEZA_PRIMARY }}
-                        title="Consultar endereço pelo CEP"
-                      >
-                        {buscarCepLoading ? "Consultando..." : "Consultar CEP"}
-                      </button>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Logradouro</label>
-                      <input
-                        value={form.logradouro}
-                        onChange={(e) => setForm((f) => ({ ...f, logradouro: toUpperCase(e.target.value) }))}
-                        className={INPUT}
-                        placeholder="Rua, avenida..."
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Número</label>
-                        <input
-                          value={form.numero}
-                          onChange={(e) => setForm((f) => ({ ...f, numero: e.target.value }))}
-                          className={INPUT}
-                          placeholder="Nº"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Complemento</label>
-                        <input
-                          value={form.complemento}
-                          onChange={(e) => setForm((f) => ({ ...f, complemento: toUpperCase(e.target.value) }))}
-                          className={INPUT}
-                          placeholder="Apto, sala, bloco..."
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Bairro</label>
-                        <input
-                          value={form.bairro}
-                          onChange={(e) => setForm((f) => ({ ...f, bairro: toUpperCase(e.target.value) }))}
-                          className={INPUT}
-                          placeholder="Bairro"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Cidade</label>
-                        <input
-                          value={form.cidade}
-                          onChange={(e) => setForm((f) => ({ ...f, cidade: toUpperCase(e.target.value) }))}
-                          className={INPUT}
-                          placeholder="Cidade"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">UF</label>
-                        <input
-                          value={form.uf}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, uf: e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 2) }))
-                          }
-                          className={INPUT}
-                          placeholder="SP"
-                          maxLength={2}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Observações</label>
-                    <textarea
-                      value={form.notes}
-                      onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                      rows={4}
-                      className={`${INPUT} resize-y min-h-[100px]`}
-                      placeholder="Observações sobre o cliente"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="flex items-start gap-3 cursor-pointer p-4 rounded-lg bg-gray-50 dark:bg-neutral-900/50 border border-gray-100 dark:border-neutral-700">
-                      <input
-                        type="checkbox"
-                        checked={form.allow_whatsapp}
-                        onChange={(e) => setForm((f) => ({ ...f, allow_whatsapp: e.target.checked }))}
-                        className="mt-0.5 rounded border-gray-300 dark:border-neutral-600"
-                        style={{ accentColor: CLINICA_BELEZA_PRIMARY }}
-                      />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        Permitir WhatsApp (lembretes e cobranças) — LGPD: o cliente pode optar por não receber
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex flex-col-reverse sm:flex-row gap-3 mt-8 pt-6 border-t border-gray-100 dark:border-neutral-700">
-                  <button
-                    type="button"
-                    onClick={voltarLista}
-                    className="flex-1 sm:flex-none sm:min-w-[140px] py-2.5 px-6 rounded-lg border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 text-sm font-medium"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={save}
-                    disabled={saving}
-                    className="flex-1 sm:flex-none sm:min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-6 rounded-lg text-white disabled:opacity-50 text-sm font-medium"
-                    style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-                  >
-                    <Save size={18} />
-                    {saving ? "Salvando..." : editing ? "Salvar alterações" : "Cadastrar cliente"}
-                  </button>
-                </div>
-            </ClinicaBelezaPanel>
-          </div>
-          </ClinicaBelezaPageContent>
-      </>
+      <PacienteCadastroForm
+        editing={Boolean(editing)}
+        form={form}
+        setForm={setForm}
+        error={error}
+        saving={saving}
+        convenios={convenios}
+        buscarCepLoading={buscarCepLoading}
+        onCepChange={handleCepChange}
+        onBuscarCep={handleBuscarCep}
+        onSave={save}
+        onCancel={voltarLista}
+        lojaNome={loja?.nome}
+        lojaLogo={loja?.logo}
+        accentColor={theme.corPrimaria || CLINICA_BELEZA_PRIMARY}
+      />
     );
   }
 

@@ -48,6 +48,12 @@ from .views_locais_atendimento import (
 from .views_nomes_agenda import (
     NomeAgendaListView, NomeAgendaDetailView,
 )
+from .views_retorno import (
+    RetornoConfigView,
+    RetornoProcedimentoRegraDetailView,
+    RetornoProcedimentoRegraListView,
+    RetornoVerificarView,
+)
 from .views_convenios import (
     ConvenioListView, ConvenioDetailView, ConvenioPrecosView,
 )
@@ -118,6 +124,12 @@ urlpatterns = [
     # Nomes de agenda
     path('nomes-agenda/', NomeAgendaListView.as_view(), name='nomes-agenda-list'),
     path('nomes-agenda/<int:pk>/', NomeAgendaDetailView.as_view(), name='nomes-agenda-detail'),
+
+    # Retorno gratuito (taxa de consulta)
+    path('retorno/config/', RetornoConfigView.as_view(), name='retorno-config'),
+    path('retorno/procedimentos/', RetornoProcedimentoRegraListView.as_view(), name='retorno-procedimentos-list'),
+    path('retorno/procedimentos/<int:pk>/', RetornoProcedimentoRegraDetailView.as_view(), name='retorno-procedimentos-detail'),
+    path('retorno/verificar/', RetornoVerificarView.as_view(), name='retorno-verificar'),
 
     # Convênios
     path('convenios/', ConvenioListView.as_view(), name='convenios-list'),

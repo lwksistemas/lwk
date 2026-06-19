@@ -129,6 +129,7 @@ class ConsultaListView(APIView):
         convenio_id = request.data.get('convenio')
         nome_agenda_id = request.data.get('nome_agenda')
         notes = request.data.get('notes')
+        retorno_procedure_id = request.data.get('retorno_procedure')
         appointment_date = None
         if date_raw := request.data.get('date'):
             from django.utils.dateparse import parse_datetime
@@ -147,6 +148,7 @@ class ConsultaListView(APIView):
             nome_agenda_id=nome_agenda_id,
             appointment_date=appointment_date,
             notes=notes,
+            retorno_procedure_id=retorno_procedure_id,
         )
         consulta = Consulta.objects.select_related(
             'patient', 'professional', 'procedure', 'protocol', 'appointment',

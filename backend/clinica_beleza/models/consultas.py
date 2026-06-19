@@ -58,6 +58,23 @@ class Consulta(LojaIsolationMixin, models.Model):
     observacoes_gerais = models.TextField(blank=True, default='', verbose_name='Observações gerais')
     protocolo_notas = models.TextField(blank=True, default='', verbose_name='Notas do protocolo')
     valor_consulta = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    retorno_gratuito = models.BooleanField(
+        default=False,
+        verbose_name='Retorno gratuito',
+        help_text='Taxa de consulta isenta por retorno dentro do prazo configurado.',
+    )
+    RETORNO_TIPO_CHOICES = (
+        ('', '—'),
+        ('procedimento', 'Por procedimento'),
+        ('consulta', 'Por consulta'),
+    )
+    retorno_tipo = models.CharField(
+        max_length=20,
+        choices=RETORNO_TIPO_CHOICES,
+        blank=True,
+        default='',
+        verbose_name='Tipo de retorno',
+    )
     local_atendimento = models.ForeignKey(
         'LocalAtendimento',
         on_delete=models.SET_NULL,

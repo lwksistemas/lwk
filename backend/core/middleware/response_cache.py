@@ -39,8 +39,9 @@ CACHED_ENDPOINTS = [
 
 def _get_cache_config(path: str) -> Optional[tuple]:
     """Retorna (ttl, requires_auth) se o path deve ser cacheado."""
+    path_norm = (path or '').rstrip('/') + '/'
     for prefix, ttl, requires_auth in CACHED_ENDPOINTS:
-        if path.startswith(prefix):
+        if path_norm.startswith(prefix.rstrip('/') + '/'):
             return (ttl, requires_auth)
     return None
 

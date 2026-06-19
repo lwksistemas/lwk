@@ -41,17 +41,25 @@ class RetornoElegibilidade:
 
 
 def get_agenda_retorno_config(loja_id):
+    from clinica_beleza.schema_ensure import ensure_retorno_gratuito_for_tenant
+    from tenants.middleware import get_current_loja_id
+
     from .models import AgendaRetornoConfig
 
-    config, _ = AgendaRetornoConfig.objects.get_or_create(
+    ensure_retorno_gratuito_for_tenant()
+    loja_id = loja_id or get_current_loja_id()
+    if not loja_id:
+        raise ValueError('loja_id é obrigatório para configuração de retorno')
+
+    config = AgendaRetornoConfig.objects.filter(loja_id=loja_id).first()
+    if config:
+        return config
+    return AgendaRetornoConfig.objects.create(
         loja_id=loja_id,
-        defaults={
-            'retorno_procedimento_ativo': False,
-            'retorno_consulta_ativo': False,
-            'dias_retorno_consulta': 30,
-        },
+        retorno_procedimento_ativo=False,
+        retorno_consulta_ativo=False,
+        dias_retorno_consulta=30,
     )
-    return config
 
 
 def _aware_dt(dt):

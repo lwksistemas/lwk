@@ -1,16 +1,10 @@
-"""
-Garante tabelas/colunas de retorno gratuito (migration 0047) nos schemas das lojas.
-
-Fallback quando migrate_all_lojas não aplica 0047_retorno_gratuito_agenda.
-"""
+"""Garante tabelas/colunas de retorno gratuito (migration 0047) nos schemas das lojas."""
 from django.core.management.base import BaseCommand
 from django.db import connections
 
-from clinica_beleza.schema_ensure import column_exists, table_exists
+from clinica_beleza.schema_ensure import ensure_retorno_gratuito_tables, table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
-
-MIGRATION = '0047_retorno_gratuito_agenda'
 
 
 class Command(BaseCommand):
@@ -42,88 +36,14 @@ class Command(BaseCommand):
                     if not table_exists(cursor, 'clinica_beleza_appointment'):
                         skip += 1
                         continue
+                    before_config = table_exists(cursor, 'clinica_beleza_agenda_retorno_config')
+                    ensure_retorno_gratuito_tables(cursor)
+                    after_config = table_exists(cursor, 'clinica_beleza_agenda_retorno_config')
 
-                    changed = False
-
-                    if not table_exists(cursor, 'clinica_beleza_agenda_retorno_config'):
-                        cursor.execute("""
-                            CREATE TABLE clinica_beleza_agenda_retorno_config (
-                                id BIGSERIAL PRIMARY KEY,
-                                loja_id INTEGER NOT NULL,
-                                retorno_procedimento_ativo BOOLEAN NOT NULL DEFAULT FALSE,
-                                retorno_consulta_ativo BOOLEAN NOT NULL DEFAULT FALSE,
-                                dias_retorno_consulta INTEGER NOT NULL DEFAULT 30
-                                    CHECK (dias_retorno_consulta >= 0),
-                                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                            )
-                        """)
-                        cursor.execute(
-                            'CREATE INDEX IF NOT EXISTS clinica_beleza_agenda_retorno_config_loja_id_idx '
-                            'ON clinica_beleza_agenda_retorno_config (loja_id)'
-                        )
-                        changed = True
-
-                    if not table_exists(cursor, 'clinica_beleza_retorno_procedimento_regra'):
-                        cursor.execute("""
-                            CREATE TABLE clinica_beleza_retorno_procedimento_regra (
-                                id BIGSERIAL PRIMARY KEY,
-                                loja_id INTEGER NOT NULL,
-                                dias_retorno INTEGER NOT NULL CHECK (dias_retorno >= 1),
-                                is_active BOOLEAN NOT NULL DEFAULT TRUE,
-                                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                procedure_id BIGINT NOT NULL
-                                    REFERENCES clinica_beleza_procedure(id) ON DELETE CASCADE,
-                                CONSTRAINT uniq_retorno_procedimento_loja
-                                    UNIQUE (procedure_id, loja_id)
-                            )
-                        """)
-                        cursor.execute(
-                            'CREATE INDEX IF NOT EXISTS clinica_beleza_retorno_procedimento_regra_loja_id_idx '
-                            'ON clinica_beleza_retorno_procedimento_regra (loja_id)'
-                        )
-                        changed = True
-
-                    if not column_exists(cursor, 'clinica_beleza_appointment', 'retorno_procedure_id'):
-                        cursor.execute("""
-                            ALTER TABLE clinica_beleza_appointment
-                            ADD COLUMN retorno_procedure_id BIGINT NULL
-                            REFERENCES clinica_beleza_procedure(id) ON DELETE SET NULL
-                        """)
-                        changed = True
-
-                    consulta_table = 'clinica_beleza_consultas'
-                    if table_exists(cursor, consulta_table):
-                        if not column_exists(cursor, consulta_table, 'retorno_gratuito'):
-                            cursor.execute("""
-                                ALTER TABLE clinica_beleza_consultas
-                                ADD COLUMN retorno_gratuito BOOLEAN NOT NULL DEFAULT FALSE
-                            """)
-                            changed = True
-                        if not column_exists(cursor, consulta_table, 'retorno_tipo'):
-                            cursor.execute("""
-                                ALTER TABLE clinica_beleza_consultas
-                                ADD COLUMN retorno_tipo VARCHAR(20) NOT NULL DEFAULT ''
-                            """)
-                            changed = True
-
-                    cursor.execute(
-                        """
-                        INSERT INTO django_migrations (app, name, applied)
-                        SELECT 'clinica_beleza', %s, NOW()
-                        WHERE NOT EXISTS (
-                            SELECT 1 FROM django_migrations
-                            WHERE app = 'clinica_beleza' AND name = %s
-                        )
-                        """,
-                        [MIGRATION, MIGRATION],
-                    )
-
-                if changed:
+                if not before_config and after_config:
                     ok += 1
                     self.stdout.write(self.style.SUCCESS(
-                        f'OK loja={loja.id} ({loja.nome}) db={db_name}: retorno gratuito criado/atualizado'
+                        f'OK loja={loja.id} ({loja.nome}) db={db_name}: retorno gratuito criado'
                     ))
                 else:
                     skip += 1

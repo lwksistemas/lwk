@@ -108,34 +108,32 @@ export function PacienteCadastroForm({
     "w-full px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0";
 
   return (
-    <div className="min-h-full bg-[#ececec] dark:bg-neutral-950 py-4 px-4 md:py-6 md:px-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-100 dark:border-neutral-800 overflow-hidden">
-          {/* Barra superior compacta */}
-          <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-gray-100 dark:border-neutral-800 bg-gray-50/80 dark:bg-neutral-900/80">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="inline-flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-            >
-              <ArrowLeft size={16} />
-              Voltar à lista
-            </button>
-            <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-              {editing ? "Editar cliente" : "Novo cliente"}
-            </span>
-            <div className="w-[100px]" aria-hidden />
+    <div className="flex flex-col flex-1 min-h-0 w-full bg-white dark:bg-neutral-900">
+      {/* Barra superior */}
+      <div className="flex items-center justify-between gap-3 px-4 md:px-8 py-3 border-b border-gray-200 dark:border-neutral-800 shrink-0 bg-white dark:bg-neutral-900">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="inline-flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+        >
+          <ArrowLeft size={16} />
+          Voltar à lista
+        </button>
+        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+          {editing ? "Editar cliente" : "Novo cliente"}
+        </span>
+        <div className="w-[100px]" aria-hidden />
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-10 py-5 md:py-6">
+        {error && (
+          <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm max-w-6xl">
+            {error}
           </div>
+        )}
 
-          <div className="p-5 md:p-6 lg:p-8">
-            {error && (
-              <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
-                {error}
-              </div>
-            )}
-
-            {/* Layout paisagem: duas colunas */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10">
+        {/* Layout paisagem — página inteira */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-12 max-w-7xl">
               {/* Coluna esquerda — dados pessoais */}
               <div className="space-y-4">
                 <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-neutral-800 pb-2">
@@ -349,28 +347,30 @@ export function PacienteCadastroForm({
                 </div>
               </div>
             </div>
-
-            {/* Ações — rodapé horizontal */}
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 mt-8 pt-5 border-t border-gray-100 dark:border-neutral-800">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="sm:min-w-[120px] py-2.5 px-5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={onSave}
-                disabled={saving}
-                className="sm:min-w-[160px] flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-white text-sm font-medium disabled:opacity-60"
-                style={{ backgroundColor: accentColor }}
-              >
-                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                {saving ? "Salvando..." : editing ? "Salvar alterações" : "Cadastrar cliente"}
-              </button>
-            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Rodapé fixo */}
+      <div className="shrink-0 border-t border-gray-200 dark:border-neutral-800 bg-gray-50/80 dark:bg-neutral-900/80 px-4 md:px-8 lg:px-10 py-4">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 max-w-7xl ml-auto">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="sm:min-w-[120px] py-2.5 px-5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            className="sm:min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-white text-sm font-medium disabled:opacity-60"
+            style={{ backgroundColor: accentColor }}
+          >
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+            {saving ? "Salvando..." : editing ? "Salvar alterações" : "Cadastrar cliente"}
+          </button>
         </div>
       </div>
     </div>

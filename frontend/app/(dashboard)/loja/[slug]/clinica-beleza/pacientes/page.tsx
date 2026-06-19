@@ -407,10 +407,11 @@ export default function PacientesPage() {
 
   const activeList = list.filter((p) => entityActive(p));
 
-  /* ── Formulário estilo cadastro (mockup) ── */
+  /* ── Formulário tela inteira ── */
   if (isFormView) {
     return (
-      <PacienteCadastroForm
+      <div className="flex flex-col flex-1 min-h-0 w-full">
+        <PacienteCadastroForm
         editing={Boolean(editing)}
         form={form}
         setForm={setForm}
@@ -423,7 +424,8 @@ export default function PacientesPage() {
         onSave={save}
         onCancel={voltarLista}
         accentColor={theme.corPrimaria || CLINICA_BELEZA_PRIMARY}
-      />
+        />
+      </div>
     );
   }
 

@@ -15,6 +15,7 @@ CONSULTA_TABLE = 'clinica_beleza_consultas'
 PRODUTO_ESTOQUE_TABLE = 'clinica_beleza_produtoestoque'
 CONSULTA_PRODUTO_TABLE = 'clinica_beleza_consultaprodutoutilizado'
 MIGRATION_CONSULTA_PRODUTO = '0034_consulta_produto_numero_nota'
+MIGRATION_RETORNO_GRATUITO = '0047_retorno_gratuito_agenda'
 
 
 def table_exists(cursor, table: str) -> bool:
@@ -85,6 +86,103 @@ def ensure_consulta_produto_utilizado_table(cursor) -> bool:
         [MIGRATION_CONSULTA_PRODUTO, MIGRATION_CONSULTA_PRODUTO],
     )
     return True
+
+
+def ensure_retorno_gratuito_tables(cursor) -> bool:
+    """Cria tabelas/colunas de retorno gratuito no schema atual (IF NOT EXISTS)."""
+    if not table_exists(cursor, 'clinica_beleza_appointment'):
+        logger.warning('ensure_retorno: tabela clinica_beleza_appointment ausente')
+        return False
+
+    if not table_exists(cursor, 'clinica_beleza_agenda_retorno_config'):
+        cursor.execute("""
+            CREATE TABLE clinica_beleza_agenda_retorno_config (
+                id BIGSERIAL PRIMARY KEY,
+                loja_id INTEGER NOT NULL,
+                retorno_procedimento_ativo BOOLEAN NOT NULL DEFAULT FALSE,
+                retorno_consulta_ativo BOOLEAN NOT NULL DEFAULT FALSE,
+                dias_retorno_consulta INTEGER NOT NULL DEFAULT 30
+                    CHECK (dias_retorno_consulta >= 0),
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+        cursor.execute(
+            'CREATE INDEX IF NOT EXISTS clinica_beleza_agenda_retorno_config_loja_id_idx '
+            'ON clinica_beleza_agenda_retorno_config (loja_id)'
+        )
+
+    if not table_exists(cursor, 'clinica_beleza_retorno_procedimento_regra'):
+        if not table_exists(cursor, 'clinica_beleza_procedure'):
+            logger.warning('ensure_retorno: tabela clinica_beleza_procedure ausente')
+            return False
+        cursor.execute("""
+            CREATE TABLE clinica_beleza_retorno_procedimento_regra (
+                id BIGSERIAL PRIMARY KEY,
+                loja_id INTEGER NOT NULL,
+                dias_retorno INTEGER NOT NULL CHECK (dias_retorno >= 1),
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                procedure_id BIGINT NOT NULL
+                    REFERENCES clinica_beleza_procedure(id) ON DELETE CASCADE,
+                CONSTRAINT uniq_retorno_procedimento_loja
+                    UNIQUE (procedure_id, loja_id)
+            )
+        """)
+        cursor.execute(
+            'CREATE INDEX IF NOT EXISTS clinica_beleza_retorno_procedimento_regra_loja_id_idx '
+            'ON clinica_beleza_retorno_procedimento_regra (loja_id)'
+        )
+
+    if not column_exists(cursor, 'clinica_beleza_appointment', 'retorno_procedure_id'):
+        if table_exists(cursor, 'clinica_beleza_procedure'):
+            cursor.execute("""
+                ALTER TABLE clinica_beleza_appointment
+                ADD COLUMN retorno_procedure_id BIGINT NULL
+                REFERENCES clinica_beleza_procedure(id) ON DELETE SET NULL
+            """)
+
+    if table_exists(cursor, CONSULTA_TABLE):
+        if not column_exists(cursor, CONSULTA_TABLE, 'retorno_gratuito'):
+            cursor.execute(
+                f'ALTER TABLE {CONSULTA_TABLE} '
+                'ADD COLUMN retorno_gratuito BOOLEAN NOT NULL DEFAULT FALSE'
+            )
+        if not column_exists(cursor, CONSULTA_TABLE, 'retorno_tipo'):
+            cursor.execute(
+                f'ALTER TABLE {CONSULTA_TABLE} '
+                "ADD COLUMN retorno_tipo VARCHAR(20) NOT NULL DEFAULT ''"
+            )
+
+    cursor.execute(
+        """
+        INSERT INTO django_migrations (app, name, applied)
+        SELECT 'clinica_beleza', %s, NOW()
+        WHERE NOT EXISTS (
+            SELECT 1 FROM django_migrations
+            WHERE app = 'clinica_beleza' AND name = %s
+        )
+        """,
+        [MIGRATION_RETORNO_GRATUITO, MIGRATION_RETORNO_GRATUITO],
+    )
+    return True
+
+
+def ensure_retorno_gratuito_for_tenant() -> bool:
+    """Garante schema de retorno no tenant da requisição atual."""
+    from tenants.middleware import get_current_tenant_db
+
+    tenant_db = get_current_tenant_db()
+    if not tenant_db or tenant_db == 'default':
+        return True
+    try:
+        conn = connections[tenant_db]
+        with conn.cursor() as cursor:
+            return ensure_retorno_gratuito_tables(cursor)
+    except Exception as exc:
+        logger.exception('ensure_retorno_gratuito_for_tenant falhou: %s', exc)
+        return False
 
 
 def ensure_consulta_produto_utilizado_for_tenant() -> bool:

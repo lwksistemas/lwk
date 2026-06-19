@@ -5,10 +5,12 @@ from io import BytesIO
 import requests
 from PIL import Image as PILImage
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
+
+from core.phone_utils import telefone_exibicao_brasileiro
 
 from .formatters import (
     _formatar_endereco_lead,
@@ -77,14 +79,7 @@ def _build_secao_empresa(elements, loja_data, style):
     if loja_data.get('cpf_cnpj'):
         linhas.append(f"<b>CPF/CNPJ:</b> {loja_data['cpf_cnpj']}")
     if loja_data.get('telefone'):
-        tel = loja_data['telefone'].strip()
-        digits = ''.join(c for c in tel if c.isdigit())
-        if len(digits) == 11:
-            tel_fmt = f"({digits[:2]}) {digits[2:7]}-{digits[7:]}"
-        elif len(digits) == 10:
-            tel_fmt = f"({digits[:2]}) {digits[2:6]}-{digits[6:]}"
-        else:
-            tel_fmt = tel
+        tel_fmt = telefone_exibicao_brasileiro(loja_data['telefone']) or loja_data['telefone'].strip()
         linhas.append(f"<b>Telefone:</b> {tel_fmt}")
     if loja_data.get('admin_nome'):
         linhas.append(f"<b>Responsável:</b> {loja_data['admin_nome']}")
@@ -112,14 +107,7 @@ def _build_secao_cliente(elements, lead, style):
     if getattr(lead, 'cpf_cnpj', ''):
         elements.append(Paragraph(f"<b>CPF/CNPJ:</b> {lead.cpf_cnpj}", style))
     if getattr(lead, 'telefone', ''):
-        tel = (lead.telefone or '').strip()
-        digits = ''.join(c for c in tel if c.isdigit())
-        if len(digits) == 11:
-            tel_fmt = f"({digits[:2]}) {digits[2:7]}-{digits[7:]}"
-        elif len(digits) == 10:
-            tel_fmt = f"({digits[:2]}) {digits[2:6]}-{digits[6:]}"
-        else:
-            tel_fmt = tel
+        tel_fmt = telefone_exibicao_brasileiro(lead.telefone) or (lead.telefone or '').strip()
         elements.append(Paragraph(f"<b>Telefone:</b> {tel_fmt}", style))
     if getattr(lead, 'email', ''):
         elements.append(Paragraph(f"<b>Email:</b> {lead.email}", style))
@@ -268,11 +256,20 @@ def _build_secao_conteudo(elements, conteudo, style):
     section = ParagraphStyle('SecConteudo', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Conteúdo</b>', section))
     styles = getSampleStyleSheet()
+    conteudo_style = ParagraphStyle(
+        'ConteudoJustificado',
+        parent=styles['Normal'],
+        fontSize=style.fontSize if hasattr(style, 'fontSize') else 9,
+        leading=style.leading if hasattr(style, 'leading') else 11,
+        alignment=TA_JUSTIFY,
+        spaceBefore=2,
+        spaceAfter=4,
+    )
     for p in _html_to_paragraphs(conteudo)[:100]:
         if p == '':
             elements.append(Spacer(1, 0.2 * cm))
         else:
-            elements.append(Paragraph(p[:500], styles['Normal']))
+            elements.append(Paragraph(p[:500], conteudo_style))
 
 
 def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir_assinaturas=True, tipo_doc='proposta'):

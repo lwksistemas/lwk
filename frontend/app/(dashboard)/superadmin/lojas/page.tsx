@@ -29,7 +29,7 @@ export default function GerenciarLojasPage() {
   const [selectedLoja, setSelectedLoja] = useState<Loja | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
-  const { lojas, loading, reload } = useLojaList();
+  const { lojas, loading, error, reload } = useLojaList();
   const { excluirLoja, reenviarSenha, criarBanco, loading: actionLoading } = useLojaActions();
   const { lojaInfo, loading: infoLoading, loadLojaInfo } = useLojaInfo();
 
@@ -200,6 +200,30 @@ export default function GerenciarLojasPage() {
           {/* Lista de Lojas */}
           {loading ? (
             <div className="text-center py-12">Carregando...</div>
+          ) : error && lojas.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-lg shadow border border-amber-200">
+              <p className="text-amber-800 font-medium mb-2">Não foi possível carregar as lojas</p>
+              <p className="text-gray-600 mb-4 text-sm">{error}</p>
+              <p className="text-gray-500 mb-4 text-sm">
+                No beta, faça login novamente em{' '}
+                <a href="/superadmin/login" className="text-purple-600 underline">
+                  /superadmin/login
+                </a>{' '}
+                para renovar a sessão com a API de homologação.
+              </p>
+              <button
+                onClick={() => reload()}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 mr-2"
+              >
+                Tentar novamente
+              </button>
+              <a
+                href="/superadmin/login"
+                className="inline-block px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+              >
+                Ir para login
+              </a>
+            </div>
           ) : lojas.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-lg shadow">
               <p className="text-gray-500 mb-4">Nenhuma loja cadastrada ainda.</p>

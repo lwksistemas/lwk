@@ -12,6 +12,9 @@ Implementação simples (sem conversão HTML->DOCX completa):
 from io import BytesIO
 from html.parser import HTMLParser
 
+from core.phone_utils import telefone_exibicao_brasileiro
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+
 
 class _HtmlToDocxBlocksParser(HTMLParser):
     """
@@ -117,6 +120,7 @@ def _add_html_as_docx(document, html: str):
             p = document.add_paragraph(style=b.get("style") or "List Bullet")
         else:
             p = document.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         for run_data in b["runs"]:
             t = run_data.get("text") or ""
             if not t:
@@ -247,7 +251,8 @@ def gerar_docx_proposta(proposta) -> BytesIO:
         if getattr(lead, "email", ""):
             doc.add_paragraph(f"Email: {lead.email}")
         if getattr(lead, "telefone", ""):
-            doc.add_paragraph(f"Telefone: {lead.telefone}")
+            tel_fmt = telefone_exibicao_brasileiro(lead.telefone) or lead.telefone
+            doc.add_paragraph(f"Telefone: {tel_fmt}")
         doc.add_paragraph(f"Endereço: {_formatar_endereco_lead(lead)}")
 
     doc.add_heading("Produtos e Serviços da Oportunidade", level=2)
@@ -336,7 +341,8 @@ def gerar_docx_contrato(contrato) -> BytesIO:
         if getattr(lead, "email", ""):
             doc.add_paragraph(f"Email: {lead.email}")
         if getattr(lead, "telefone", ""):
-            doc.add_paragraph(f"Telefone: {lead.telefone}")
+            tel_fmt = telefone_exibicao_brasileiro(lead.telefone) or lead.telefone
+            doc.add_paragraph(f"Telefone: {tel_fmt}")
         doc.add_paragraph(f"Endereço: {_formatar_endereco_lead(lead)}")
 
     doc.add_heading("Produtos e Serviços da Oportunidade", level=2)

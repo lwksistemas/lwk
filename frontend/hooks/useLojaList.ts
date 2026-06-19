@@ -42,8 +42,12 @@ export function useLojaList() {
       );
       clearOrphanStorageKeys(slugs);
     } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Erro ao carregar lojas';
-      setError(errorMsg);
+      const status = err.response?.status;
+      const errorMsg =
+        status === 401
+          ? 'Sessão expirada ou inválida. Faça login novamente no beta.'
+          : err.response?.data?.error || err.response?.data?.detail || 'Erro ao carregar lojas';
+      setError(typeof errorMsg === 'string' ? errorMsg : 'Erro ao carregar lojas');
       setLojas([]);
     } finally {
       setLoading(false);

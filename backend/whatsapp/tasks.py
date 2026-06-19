@@ -173,7 +173,7 @@ def send_cobrancas_pendentes_whatsapp():
             for item in por_paciente.values():
                 patient = item['patient']
                 phone = (getattr(patient, 'phone', None) or '').strip()
-                ja_enviou = WhatsAppLog.objects.using('default').filter(
+                ja_enviou = WhatsAppLog.objects.using(db_name).filter(
                     loja_id=loja.id,
                     telefone__icontains=phone[-8:],
                     created_at__date=hoje,

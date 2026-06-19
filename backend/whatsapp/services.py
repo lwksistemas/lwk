@@ -17,13 +17,35 @@ def _config_loja_id(config):
     return getattr(config, 'loja_id', None)
 
 
-def _write_whatsapp_log(*, loja_id, telefone, mensagem, status, response=None, user=None):
-    """
-    Auditoria em public. Usa loja_id (int) — atribuir config.loja quebra o db router
-    quando WhatsAppConfig veio do schema da loja.
-    """
+def _whatsapp_log_db(loja_id):
+    """Schema da loja (whatsapp é app tenant); fallback para contexto ativo."""
+    from tenants.middleware import get_current_tenant_db
+
+    tenant_db = get_current_tenant_db()
+    if tenant_db and tenant_db != 'default':
+        return tenant_db
+    if not loja_id:
+        return 'default'
     try:
-        WhatsAppLog.objects.using('default').create(
+        from core.db_config import ensure_loja_database_config
+        from superadmin.models import Loja
+
+        loja = Loja.objects.using('default').filter(pk=loja_id).first()
+        if not loja:
+            return 'default'
+        db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", loja_id)}'.replace('-', '_')
+        if ensure_loja_database_config(db_name, conn_max_age=0):
+            return db_name
+    except Exception:
+        pass
+    return 'default'
+
+
+def _write_whatsapp_log(*, loja_id, telefone, mensagem, status, response=None, user=None):
+    """Auditoria no schema da loja (WhatsAppLog é app tenant)."""
+    try:
+        db = _whatsapp_log_db(loja_id)
+        WhatsAppLog.objects.using(db).create(
             loja_id=loja_id,
             user_id=user.id if user else None,
             telefone=str(telefone or '')[:20],

@@ -99,11 +99,11 @@ class Command(BaseCommand):
                 hora = agora.hour
                 enviar_hoje = 7 <= hora <= 9
                 if enviar_hoje and atividades:
-                    config = WhatsAppConfig.objects.filter(loja=loja).first()
+                    config = WhatsAppConfig.objects.using(db_name).filter(loja_id=loja.id).first()
                     if config:
                         # Evitar envio duplicado no mesmo dia
-                        ja_enviou = WhatsAppLog.objects.filter(
-                            loja=loja,
+                        ja_enviou = WhatsAppLog.objects.using(db_name).filter(
+                            loja_id=loja.id,
                             created_at__date=agora.date(),
                             mensagem__icontains='Lembretes CRM',
                         ).exists()

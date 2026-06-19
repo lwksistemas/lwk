@@ -11,7 +11,7 @@ watchPatterns = [
 
 [deploy]
 # LWK_PROCESS_ROLE: web (padrão) | worker (qcluster) | cron (executar_cron_lwks)
-startCommand = '''sh -c "case \"${LWK_PROCESS_ROLE:-web}\" in worker) exec sh scripts/start_worker.sh ;; cron) exec python manage.py executar_cron_lwks ;; *) exec gunicorn config.wsgi --bind 0.0.0.0:$PORT --workers ${WEB_CONCURRENCY:-2} --threads 2 --worker-class gthread --worker-connections 500 --timeout 60 --log-file - --access-logfile - --error-logfile - ;; esac"'''
+startCommand = '''sh -c "case \"${LWK_PROCESS_ROLE:-web}\" in worker) exec sh scripts/start_worker.sh ;; cron) exec python manage.py executar_cron_lwks ;; *) exec gunicorn config.wsgi --bind 0.0.0.0:$PORT --workers ${WEB_CONCURRENCY:-4} --threads 2 --worker-class gthread --worker-connections 1000 --timeout 60 --graceful-timeout 30 --keep-alive 5 --max-requests 1000 --max-requests-jitter 50 --log-file - --access-logfile - --error-logfile - ;; esac"'''
 releaseCommand = '''sh -c "python manage.py migrate --noinput && python manage.py migrate --database=suporte --noinput && python manage.py migrate_all_lojas && python manage.py ensure_all && python manage.py setup_initial_data && python manage.py collectstatic --noinput"'''
 healthcheckPath = "/api/superadmin/health"
 healthcheckTimeout = 300

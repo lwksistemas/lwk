@@ -88,6 +88,7 @@ MIDDLEWARE = [
     'superadmin.middleware.JWTAuthenticationMiddleware',  # JWT antes do Tenant (X-Loja-ID)
     'tenants.middleware.TenantMiddleware',  # Requer usuário autenticado para validar loja
     'superadmin.middleware.SuperAdminSecurityMiddleware',  # APÓS AUTENTICAÇÃO
+    'core.middleware.response_cache.ResponseCacheMiddleware',  # ✅ Cache de respostas GET (Redis)
     'superadmin.historico_middleware.HistoricoAcessoMiddleware',  # ✅ Histórico de acessos
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -162,7 +163,7 @@ if _use_postgres:
     DATABASES = {
         'default': dj_database_url.config(
             default=_database_url,
-            conn_max_age=int(os.environ.get('CONN_MAX_AGE', '60')),
+            conn_max_age=int(os.environ.get('CONN_MAX_AGE', '120')),
             conn_health_checks=True,
         )
     }

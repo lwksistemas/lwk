@@ -90,6 +90,59 @@ class AsaasClient:
         endpoint = 'customers'
         return self._make_request('POST', endpoint, customer_data)
 
+    def list_customer_notifications(self, customer_id: str) -> list:
+        """Lista regras de notificação de cobrança de um cliente Asaas."""
+        if not customer_id:
+            return []
+        response = self._make_request('GET', f'customers/{customer_id}/notifications')
+        return response.get('data') or []
+
+    def disable_provider_notifications(self, customer_id: str) -> None:
+        """
+        Desativa e-mails/SMS do Asaas para o prestador (conta LWK — coluna "Para mim").
+        Mantém notificações para o cliente da loja (boleto, lembretes).
+        """
+        if not customer_id:
+            return
+        try:
+            items = self.list_customer_notifications(customer_id)
+            updates = []
+            for notif in items:
+                if notif.get('deleted'):
+                    continue
+                notif_id = notif.get('id')
+                if not notif_id:
+                    continue
+                if not (notif.get('emailEnabledForProvider') or notif.get('smsEnabledForProvider')):
+                    continue
+                updates.append({
+                    'id': notif_id,
+                    'enabled': notif.get('enabled', True),
+                    'emailEnabledForProvider': False,
+                    'smsEnabledForProvider': False,
+                    'emailEnabledForCustomer': notif.get('emailEnabledForCustomer', True),
+                    'smsEnabledForCustomer': notif.get('smsEnabledForCustomer', False),
+                    'phoneCallEnabledForCustomer': notif.get('phoneCallEnabledForCustomer', False),
+                    'whatsappEnabledForCustomer': notif.get('whatsappEnabledForCustomer', False),
+                })
+            if not updates:
+                return
+            self._make_request('POST', 'notifications/batch', {
+                'customer': customer_id,
+                'notifications': updates,
+            })
+            logger.info(
+                'Asaas: notificações do prestador desativadas para cliente %s (%s regra(s))',
+                customer_id,
+                len(updates),
+            )
+        except Exception as exc:
+            logger.warning(
+                'Asaas: falha ao desativar notificações do prestador (%s): %s',
+                customer_id,
+                exc,
+            )
+
     @staticmethod
     def _only_digits(value: str) -> str:
         return re.sub(r'\D', '', value or '')
@@ -143,10 +196,15 @@ class AsaasClient:
             external_reference=payload.get('externalReference'),
         )
         if existing:
-            return existing
+            customer = existing
+        else:
+            logger.info('Criando novo cliente Asaas: %s', payload.get('name'))
+            customer = self.create_customer(payload)
 
-        logger.info('Criando novo cliente Asaas: %s', payload.get('name'))
-        return self.create_customer(payload)
+        customer_id = customer.get('id')
+        if customer_id:
+            self.disable_provider_notifications(customer_id)
+        return customer
     
     def update_customer(self, customer_id: str, customer_data: Dict[str, Any]) -> Dict[str, Any]:
         """Atualiza um cliente no Asaas"""

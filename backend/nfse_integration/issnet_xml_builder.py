@@ -217,9 +217,12 @@ def construir_xml_enviar_lote_rps(
     etree.SubElement(end, '{%s}Endereco' % ns).text = (
         (tomador_endereco.get('logradouro') or '').strip() or 'Nao informado'
     )
-    etree.SubElement(end, '{%s}Numero' % ns).text = (
-        (tomador_endereco.get('numero') or '').strip() or 'S/N'
+    from nfse_integration.nfse_geo import normalizar_numero_complemento_endereco
+
+    numero_tomador, _ = normalizar_numero_complemento_endereco(
+        (tomador_endereco.get('numero') or '').strip(),
     )
+    etree.SubElement(end, '{%s}Numero' % ns).text = numero_tomador or 'S/N'
     compl = (tomador_endereco.get('complemento') or '').strip()
     if compl:
         etree.SubElement(end, '{%s}Complemento' % ns).text = compl

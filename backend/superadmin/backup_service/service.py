@@ -1,4 +1,5 @@
 """Orquestração de exportação e importação de backup de lojas."""
+import csv
 import io
 import json
 import logging

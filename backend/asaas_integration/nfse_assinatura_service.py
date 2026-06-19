@@ -61,10 +61,16 @@ def emitir_nfse_assinatura(pagamento) -> Dict[str, Any]:
     # Endereço do tomador — cidade/UF/IBGE devem bater com o CEP (ISSNet E058/E061)
     from nfse_integration.nfse_geo import enriquecer_endereco_por_cep
 
+    from nfse_integration.nfse_geo import normalizar_numero_complemento_endereco
+
+    numero_norm, compl_norm = normalizar_numero_complemento_endereco(
+        getattr(loja, 'numero', '') or '',
+        getattr(loja, 'complemento', '') or '',
+    )
     tomador_endereco = {
         'logradouro': getattr(loja, 'logradouro', '') or '',
-        'numero': getattr(loja, 'numero', '') or 'S/N',
-        'complemento': getattr(loja, 'complemento', '') or '',
+        'numero': numero_norm or 'S/N',
+        'complemento': compl_norm,
         'bairro': getattr(loja, 'bairro', '') or '',
         'cidade': getattr(loja, 'cidade', '') or '',
         'uf': getattr(loja, 'uf', '') or '',

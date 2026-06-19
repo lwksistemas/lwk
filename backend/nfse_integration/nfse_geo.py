@@ -29,6 +29,34 @@ def _cep_generico_municipio(cep_digits: str) -> bool:
     return len(d) == 8 and d.endswith('000')
 
 
+def normalizar_numero_complemento_endereco(
+    numero: str,
+    complemento: str = '',
+    *,
+    max_numero: int = 10,
+) -> tuple[str, str]:
+    """
+    ISSNet exige numero do endereco com no maximo 10 caracteres (erro E120).
+    Separa complemento quando o usuario informa tudo no campo numero (ex.: "1025. SALA 304").
+    """
+    numero_limpo = (numero or '').strip()
+    compl = (complemento or '').strip()
+    if not numero_limpo:
+        return 'S/N', compl
+    if len(numero_limpo) <= max_numero:
+        return numero_limpo, compl
+
+    match = re.match(r'^(\d+)[.\s,\-/]*(.*)$', numero_limpo)
+    if match:
+        n, resto = match.group(1), (match.group(2) or '').strip()
+        if len(n) <= max_numero:
+            if resto:
+                compl = f'{resto} {compl}'.strip() if compl else resto
+            return n, compl
+
+    return numero_limpo[:max_numero], compl
+
+
 def _viacep_item_to_dict(data: dict) -> dict[str, str]:
     cep_raw = re.sub(r'\D', '', str(data.get('cep') or ''))
     return {

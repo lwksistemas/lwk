@@ -126,6 +126,17 @@ class LojaCreateSerializer(
                         attrs[campo] = endereco[campo]
                 cep_raw = attrs['cep']
 
+        from nfse_integration.nfse_geo import normalizar_numero_complemento_endereco
+
+        numero_norm, compl_norm = normalizar_numero_complemento_endereco(
+            attrs.get('numero') or '',
+            attrs.get('complemento') or '',
+        )
+        if numero_norm:
+            attrs['numero'] = numero_norm
+        if compl_norm:
+            attrs['complemento'] = compl_norm
+
         if cep_raw:
             if not cep_digitos_validos(cep_raw):
                 raise serializers.ValidationError({

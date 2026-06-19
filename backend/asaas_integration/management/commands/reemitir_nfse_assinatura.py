@@ -53,6 +53,8 @@ class Command(BaseCommand):
             from superadmin.models import Loja
             loja = Loja.objects.filter(slug=slug).first()
             if not loja:
+                loja = Loja.objects.filter(atalho__iexact=slug).first()
+            if not loja:
                 doc = slug.replace('.', '').replace('/', '').replace('-', '')
                 loja = Loja.objects.filter(cpf_cnpj__icontains=doc).first()
             if not loja:

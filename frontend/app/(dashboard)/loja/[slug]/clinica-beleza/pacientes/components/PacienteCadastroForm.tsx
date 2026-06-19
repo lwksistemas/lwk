@@ -88,6 +88,8 @@ interface PacienteCadastroFormProps {
   onSave: () => void;
   onCancel: () => void;
   accentColor?: string;
+  /** Quando false, o cabeçalho fica só no ClinicaBelezaStandardPageHeader (topbar). */
+  showHeader?: boolean;
 }
 
 export function PacienteCadastroForm({
@@ -103,35 +105,38 @@ export function PacienteCadastroForm({
   onSave,
   onCancel,
   accentColor = CLINICA_BELEZA_PRIMARY,
+  showHeader = true,
 }: PacienteCadastroFormProps) {
   const selectClass =
     "w-full px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0";
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full h-full bg-white dark:bg-neutral-900">
-      <div className="flex items-center justify-between gap-3 px-4 md:px-8 py-3 border-b border-gray-200 dark:border-neutral-800 shrink-0">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="inline-flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-        >
-          <ArrowLeft size={16} />
-          Voltar à lista
-        </button>
-        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-          {editing ? "Editar cliente" : "Novo cliente"}
-        </span>
-        <div className="w-[100px]" aria-hidden />
-      </div>
+    <div className="flex flex-col flex-1 min-h-0 w-full bg-white dark:bg-neutral-900">
+      {showHeader && (
+        <div className="flex items-center justify-between gap-3 px-4 md:px-8 py-3 border-b border-gray-200 dark:border-neutral-800 shrink-0">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+          >
+            <ArrowLeft size={16} />
+            Voltar à lista
+          </button>
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+            {editing ? "Editar cliente" : "Novo cliente"}
+          </span>
+          <div className="w-[100px]" aria-hidden />
+        </div>
+      )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 lg:px-10 py-5 md:py-6">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-6 lg:px-8 py-5 md:py-6">
         {error && (
           <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
             {error}
           </div>
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-12 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full max-w-none">
               {/* Coluna esquerda — dados pessoais */}
               <div className="space-y-4">
                 <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-neutral-800 pb-2">
@@ -347,7 +352,7 @@ export function PacienteCadastroForm({
             </div>
       </div>
 
-      <div className="shrink-0 border-t border-gray-200 dark:border-neutral-800 bg-gray-50/80 dark:bg-neutral-900/80 px-4 md:px-8 lg:px-10 py-4">
+      <div className="shrink-0 border-t border-gray-200 dark:border-neutral-800 bg-gray-50/80 dark:bg-neutral-900/80 px-4 md:px-6 lg:px-8 py-4">
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 w-full">
           <button
             type="button"

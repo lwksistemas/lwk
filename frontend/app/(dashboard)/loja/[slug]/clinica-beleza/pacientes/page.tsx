@@ -410,22 +410,31 @@ export default function PacientesPage() {
   /* ── Formulário tela inteira ── */
   if (isFormView) {
     return (
-      <div className="absolute inset-0 z-10 flex flex-col min-h-0 overflow-hidden bg-white dark:bg-neutral-900">
-        <PacienteCadastroForm
-        editing={Boolean(editing)}
-        form={form}
-        setForm={setForm}
-        error={error}
-        saving={saving}
-        convenios={convenios}
-        buscarCepLoading={buscarCepLoading}
-        onCepChange={handleCepChange}
-        onBuscarCep={handleBuscarCep}
-        onSave={save}
-        onCancel={voltarLista}
-        accentColor={theme.corPrimaria || CLINICA_BELEZA_PRIMARY}
+      <>
+        <ClinicaBelezaStandardPageHeader
+          title={editing ? "Editar cliente" : "Novo cliente"}
+          subtitle={editing ? undefined : "Cadastro de cliente da clínica"}
+          onBack={voltarLista}
+          icon={Users}
         />
-      </div>
+        <ClinicaBelezaPageContent className="!p-0 flex flex-col flex-1 min-h-0 bg-white dark:bg-neutral-900">
+          <PacienteCadastroForm
+            showHeader={false}
+            editing={Boolean(editing)}
+            form={form}
+            setForm={setForm}
+            error={error}
+            saving={saving}
+            convenios={convenios}
+            buscarCepLoading={buscarCepLoading}
+            onCepChange={handleCepChange}
+            onBuscarCep={handleBuscarCep}
+            onSave={save}
+            onCancel={voltarLista}
+            accentColor={theme.corPrimaria || CLINICA_BELEZA_PRIMARY}
+          />
+        </ClinicaBelezaPageContent>
+      </>
     );
   }
 

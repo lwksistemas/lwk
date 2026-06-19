@@ -417,7 +417,7 @@ export default function PacientesPage() {
           onBack={voltarLista}
           icon={Users}
         />
-        <ClinicaBelezaPageContent className="!p-0 flex flex-col flex-1 min-h-0 bg-white dark:bg-neutral-900">
+        <ClinicaBelezaPageContent className="flex flex-col flex-1 min-h-0 !p-0">
           <PacienteCadastroForm
             showHeader={false}
             editing={Boolean(editing)}

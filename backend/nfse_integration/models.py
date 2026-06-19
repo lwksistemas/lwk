@@ -152,14 +152,14 @@ class NFSe(LojaIsolationMixin, models.Model):
         help_text='XML da Nota Fiscal de Serviço Eletrônica'
     )
     
-    # URLs
-    pdf_url = models.URLField(
+    # URLs (ISSNet gera links longos — TextField evita limite de 200 do URLField)
+    pdf_url = models.TextField(
         blank=True,
         verbose_name='URL do PDF',
         help_text='URL para download do PDF da NF'
     )
     
-    xml_url = models.URLField(
+    xml_url = models.TextField(
         blank=True,
         verbose_name='URL do XML',
         help_text='URL para download do XML da NF'

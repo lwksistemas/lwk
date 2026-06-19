@@ -25,6 +25,7 @@ from ..backup_helpers import (
     BackupImportError,
     _backup_finalize_crm_config_row_values,
     _coerce_int_or_zero,
+    _truncate_backup_value_for_pg_type,
     _connection_is_postgresql,
     _ensure_crm_vendas_config_pg_int_defaults,
     _fetch_crm_vendas_config_pg_colrows,
@@ -431,7 +432,7 @@ class BackupService:
                             db_columns = db_helper.get_table_columns(table_name)
                             db_columns = [str(c).strip() for c in db_columns if c is not None and str(c).strip()]
                             col_info = db_helper.get_columns_nullable_and_type(table_name)
-                            if table_name == "crm_vendas_config" and not db_helper._is_sqlite():
+                            if not db_helper._is_sqlite():
                                 pg_cols, pg_info = db_helper.get_pg_table_meta_for_backup(
                                     table_name
                                 )
@@ -563,6 +564,14 @@ class BackupService:
                                             and _is_crm_issnet_int_col(col)
                                         ):
                                             val = 0
+                                        _, dtype = col_info.get(
+                                            col,
+                                            col_info.get(
+                                                (col or "").strip(),
+                                                (True, ""),
+                                            ),
+                                        )
+                                        val = _truncate_backup_value_for_pg_type(val, dtype)
                                         values.append(val)
                                     if table_name == "crm_vendas_config":
                                         values = _backup_finalize_crm_config_row_values(

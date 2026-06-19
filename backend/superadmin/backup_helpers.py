@@ -91,6 +91,31 @@ def _is_safe_table_name(name: str) -> bool:
     return bool(name and BACKUP_SAFE_IDENTIFIER_RE.match(name))
 
 
+_VARCHAR_LEN_RE = re.compile(
+    r'^(?:character varying|varchar|character)\((\d+)\)',
+    re.IGNORECASE,
+)
+
+
+def _truncate_backup_value_for_pg_type(val: Any, dtype: str) -> Any:
+    """Trunca strings quando o tipo PG tem limite (ex.: character varying(200))."""
+    if not isinstance(val, str) or not dtype:
+        return val
+    match = _VARCHAR_LEN_RE.match((dtype or '').strip())
+    if not match:
+        return val
+    max_len = int(match.group(1))
+    if len(val) <= max_len:
+        return val
+    logger.warning(
+        'Backup import: truncando coluna varchar(%s) de %s para %s chars',
+        max_len,
+        len(val),
+        max_len,
+    )
+    return val[:max_len]
+
+
 def _zip_csv_basename_table_name(zip_inner_path: str) -> str:
     """Nome da tabela a partir do caminho do .csv dentro do ZIP (basename, sem extensão, sem BOM)."""
     base = (zip_inner_path or "").strip().lstrip("\ufeff").replace("\\", "/").rsplit("/", 1)[-1]

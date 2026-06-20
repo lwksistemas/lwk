@@ -2,13 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse, getCrmApiErrorDetail, gerarTituloProposta, fetchCrmOportunidade } from '@/lib/crm-utils';
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
-import { ArrowLeft } from 'lucide-react';
+import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import PropostaFormContent from '@/components/crm-vendas/PropostaFormContent';
 import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
 import type {
@@ -20,6 +19,8 @@ export default function NovaPropostaPage() {
   const params = useParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
+  const listPath = `/loja/${slug}/crm-vendas/propostas`;
+
   const [formData, setFormData] = useState<FormDataProposta>({
     oportunidade_id: '',
     titulo: '',
@@ -87,15 +88,13 @@ export default function NovaPropostaPage() {
   }, [loadLojaInfo, loadCrmConfig, loadTemplates, loadVendedorInfo]);
 
   useEffect(() => {
-    // Carregar template padrão se existir, senão usar proposta_conteudo_padrao
     if (!formData.conteudo) {
-      const templatePadrao = templates.find(t => t.is_padrao);
+      const templatePadrao = templates.find((t) => t.is_padrao);
       const conteudoInicial = templatePadrao?.conteudo || propostaConteudoPadrao;
       if (conteudoInicial) {
         setFormData((f) => ({ ...f, conteudo: conteudoInicial }));
       }
     }
-    // Intencional: reagir só ao carregar templates/padrão, não a cada tecla em conteudo.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- formData.conteudo omitido de propósito
   }, [templates, propostaConteudoPadrao]);
 
@@ -127,7 +126,6 @@ export default function NovaPropostaPage() {
     [loadItensOportunidade, loadLeadInfo, setLeadInfo],
   );
 
-  // Título automático: nome (CPF) ou razão social (CNPJ) do cliente
   useEffect(() => {
     if (!leadInfo) return;
     const tituloGerado = gerarTituloProposta(leadInfo);
@@ -150,8 +148,7 @@ export default function NovaPropostaPage() {
     }
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async () => {
     setFormErro(null);
     if (!formData.titulo.trim()) {
       setFormErro('Título é obrigatório');
@@ -174,7 +171,7 @@ export default function NovaPropostaPage() {
         nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
         nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
       });
-      router.push(`/loja/${slug}/crm-vendas/propostas`);
+      router.push(listPath);
     } catch (err: unknown) {
       setFormErro(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
     } finally {
@@ -183,52 +180,43 @@ export default function NovaPropostaPage() {
   };
 
   return (
-    <div className="w-full max-w-full">
-      <div className="flex items-center gap-4 mb-6">
-        <Link
-          href={`/loja/${slug}/crm-vendas/propostas`}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
-          aria-label="Voltar"
-        >
-          <ArrowLeft size={20} />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Nova Proposta</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Preencha os dados da proposta comercial
-          </p>
-        </div>
-      </div>
+    <CrmFormPageShell
+      error={formErro}
+      saving={submitting}
+      saveLabel="Criar proposta"
+      savingLabel="Salvando..."
+      onSave={handleSave}
+      onCancel={() => router.push(listPath)}
+    >
+      <PropostaFormContent
+        form={formData}
+        formErro={formErro}
+        enviando={submitting}
+        lojaInfo={lojaInfo}
+        leadInfo={leadInfo}
+        itensOportunidade={itensOportunidade}
+        statusOpcoes={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
+        onFormChange={setFormData}
+        onOportunidadeChange={handleOportunidadeChange}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleSave();
+        }}
+        isEdit={false}
+        onSalvarComoPadrao={handleSalvarComoPadrao}
+        salvandoPadrao={salvandoPadrao}
+        pageLayout
+        hideError
+        hideActions
+        templates={templates}
+        onSelecionarTemplate={(conteudo) => setFormData((f) => ({ ...f, conteudo }))}
+        vendedorNome={vendedorNome}
+      />
 
-      <div className="bg-white dark:bg-[#16325c] rounded-xl border border-gray-200 dark:border-[#0d1f3c] p-6 w-full">
-          <PropostaFormContent
-          form={formData}
-          formErro={formErro}
-          enviando={submitting}
-          lojaInfo={lojaInfo}
-          leadInfo={leadInfo}
-          itensOportunidade={itensOportunidade}
-          statusOpcoes={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
-          onFormChange={setFormData}
-          onOportunidadeChange={handleOportunidadeChange}
-          onSubmit={handleSubmit}
-          isEdit={false}
-          onSalvarComoPadrao={handleSalvarComoPadrao}
-          salvandoPadrao={salvandoPadrao}
-          showCancel={true}
-          onCancel={() => router.push(`/loja/${slug}/crm-vendas/propostas`)}
-          fullWidth
-          templates={templates}
-          onSelecionarTemplate={(conteudo) => setFormData((f) => ({ ...f, conteudo }))}
-          vendedorNome={vendedorNome}
-        />
-      </div>
-
-      <div className="mt-4 px-4 py-3 bg-gray-50 dark:bg-[#0d1f3c]/30 rounded-lg border border-gray-200 dark:border-[#0d1f3c]">
-        <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-          Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
-        </p>
-      </div>
-    </div>
+      <p className="mt-6 pt-4 border-t border-gray-100 dark:border-[#0d1f3c] text-xs text-gray-500 dark:text-gray-400 text-center">
+        Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de
+        data, hora e endereço IP.
+      </p>
+    </CrmFormPageShell>
   );
 }

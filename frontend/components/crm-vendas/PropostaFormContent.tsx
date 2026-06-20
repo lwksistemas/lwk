@@ -23,6 +23,12 @@ export interface PropostaFormContentProps {
   onCancel?: () => void;
   /** Se true, formulário ocupa largura total (para página fullscreen) */
   fullWidth?: boolean;
+  /** Layout full-page CRM (CrmFormPageShell): estilos e sem rodapé interno */
+  pageLayout?: boolean;
+  /** Oculta mensagem de erro interna (ex.: erro no shell) */
+  hideError?: boolean;
+  /** Oculta botões Cancelar/Salvar (rodapé no CrmFormPageShell) */
+  hideActions?: boolean;
   /** Templates disponíveis para seleção */
   templates?: Array<{ id: number; nome: string; conteudo: string; is_padrao: boolean }>;
   /** Callback quando seleciona um template */
@@ -53,51 +59,68 @@ export default function PropostaFormContent({
   showCancel = true,
   onCancel,
   fullWidth = false,
+  pageLayout = false,
+  hideError = false,
+  hideActions = false,
   templates = [],
   onSelecionarTemplate,
   vendedorNome,
 }: PropostaFormContentProps) {
-  const formClass = fullWidth
-    ? 'space-y-4 w-full md:grid md:grid-cols-2 md:gap-x-6 lg:gap-x-8'
-    : 'space-y-4 md:max-w-3xl md:mx-auto md:grid md:grid-cols-2 md:gap-x-6';
+  const usePageStyles = pageLayout || fullWidth;
+  const inputCls = usePageStyles
+    ? 'w-full px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-[#1e3a5f] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0176d3] focus:ring-offset-0'
+    : inputClass;
+  const labelCls = usePageStyles
+    ? 'block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1'
+    : labelClass;
+  const sectionTitleCls = usePageStyles
+    ? 'text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-[#0d1f3c] pb-2'
+    : 'text-sm font-medium text-gray-700 dark:text-gray-300';
+  const sectionWrapCls = usePageStyles ? 'space-y-4' : sectionClass;
+  const formClass = pageLayout
+    ? 'grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full'
+    : fullWidth
+      ? 'space-y-4 w-full md:grid md:grid-cols-2 md:gap-x-6 lg:gap-x-8'
+      : 'space-y-4 md:max-w-3xl md:mx-auto md:grid md:grid-cols-2 md:gap-x-6';
+  const spanClass = pageLayout ? 'lg:col-span-2' : 'md:col-span-2';
   return (
     <form onSubmit={onSubmit} className={formClass}>
-      {formErro && (
-        <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg md:col-span-2">
+      {formErro && !hideError && (
+        <p className={`text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg ${spanClass}`}>
           {formErro}
         </p>
       )}
 
       {/* Dados da Loja */}
-      <div className={`${sectionClass} md:col-span-2`}>
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Dados da Loja</p>
+      <div className={`${sectionWrapCls} ${spanClass}`}>
+        <p className={sectionTitleCls}>Dados da Loja</p>
         {lojaInfo ? (
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <span className={labelClass}>Nome da loja</span>
+              <span className={labelCls}>Nome da loja</span>
               <p className="font-medium">{lojaInfo.nome}</p>
             </div>
             {lojaInfo.endereco && (
               <div className="col-span-2">
-                <span className={labelClass}>Endereço da loja</span>
+                <span className={labelCls}>Endereço da loja</span>
                 <p>{lojaInfo.endereco}</p>
               </div>
             )}
             {lojaInfo.cpf_cnpj && (
               <div>
-                <span className={labelClass}>CPF ou CNPJ da loja</span>
+                <span className={labelCls}>CPF ou CNPJ da loja</span>
                 <p>{lojaInfo.cpf_cnpj}</p>
               </div>
             )}
             {lojaInfo.admin_nome && (
               <div>
-                <span className={labelClass}>Nome do administrador</span>
+                <span className={labelCls}>Nome do administrador</span>
                 <p>{lojaInfo.admin_nome}</p>
               </div>
             )}
             {lojaInfo.admin_email && (
               <div>
-                <span className={labelClass}>Email do administrador</span>
+                <span className={labelCls}>Email do administrador</span>
                 <p>{lojaInfo.admin_email}</p>
               </div>
             )}
@@ -108,48 +131,48 @@ export default function PropostaFormContent({
       </div>
 
       {/* Dados do Cliente */}
-      <div className={`${sectionClass} md:col-span-2`}>
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Dados do Cliente</p>
+      <div className={`${sectionWrapCls} ${spanClass}`}>
+        <p className={sectionTitleCls}>Dados do Cliente</p>
         {leadInfo ? (
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <span className={labelClass}>Nome</span>
+              <span className={labelCls}>Nome</span>
               <p className="font-medium">{leadInfo.conta_info?.nome || (leadInfo.cpf_cnpj?.replace(/\D/g, '').length === 11 ? leadInfo.nome : (leadInfo.empresa || leadInfo.nome))}</p>
             </div>
             {leadInfo.conta_info?.razao_social && (
               <div>
-                <span className={labelClass}>Razão Social</span>
+                <span className={labelCls}>Razão Social</span>
                 <p>{leadInfo.conta_info.razao_social}</p>
               </div>
             )}
             {(leadInfo.conta_info?.cnpj || leadInfo.cpf_cnpj) && (
               <div>
-                <span className={labelClass}>CNPJ</span>
+                <span className={labelCls}>CNPJ</span>
                 <p>{leadInfo.conta_info?.cnpj || leadInfo.cpf_cnpj}</p>
               </div>
             )}
             {leadInfo.conta_info?.inscricao_estadual && (
               <div>
-                <span className={labelClass}>Inscrição Estadual</span>
+                <span className={labelCls}>Inscrição Estadual</span>
                 <p>{leadInfo.conta_info.inscricao_estadual}</p>
               </div>
             )}
             <div>
-              <span className={labelClass}>Email</span>
+              <span className={labelCls}>Email</span>
               <p>{leadInfo.conta_info?.email || leadInfo.email || '—'}</p>
             </div>
             <div>
-              <span className={labelClass}>Telefone</span>
+              <span className={labelCls}>Telefone</span>
               <p>{leadInfo.conta_info?.telefone || leadInfo.telefone || '—'}</p>
             </div>
             {leadInfo.conta_info?.site && (
               <div className="col-span-2">
-                <span className={labelClass}>Site</span>
+                <span className={labelCls}>Site</span>
                 <p>{leadInfo.conta_info.site}</p>
               </div>
             )}
             <div className="col-span-2">
-              <span className={labelClass}>Endereço</span>
+              <span className={labelCls}>Endereço</span>
               <p>
                 {(() => {
                   // Priorizar endereço da conta
@@ -175,8 +198,8 @@ export default function PropostaFormContent({
       </div>
 
       {/* Oportunidade */}
-      <div className="md:col-span-2">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Oportunidade *</label>
+      <div className={spanClass}>
+        <label className={labelCls}>Oportunidade *</label>
         <BuscarOportunidadeInput
           oportunidadeId={form.oportunidade_id}
           initialTitulo={oportunidadeTituloInicial}
@@ -196,8 +219,8 @@ export default function PropostaFormContent({
         const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
         return (
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <div className={spanClass}>
+            <label className={labelCls}>
               Produtos e Serviços da Oportunidade
             </label>
             <div className="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
@@ -267,20 +290,20 @@ export default function PropostaFormContent({
       })()}
 
       {form.oportunidade_id && itensOportunidade.length === 0 && (
-        <p className="text-xs text-gray-500 md:col-span-2">Esta oportunidade não possui produtos ou serviços cadastrados.</p>
+        <p className={`text-xs text-gray-500 ${spanClass}`}>Esta oportunidade não possui produtos ou serviços cadastrados.</p>
       )}
 
       {/* Valor total */}
       {form.oportunidade_id && (
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor total (R$)</label>
+        <div className={spanClass}>
+          <label className={labelCls}>Valor total (R$)</label>
           <input
             type="number"
             min="0"
             step="0.01"
             value={form.valor_total}
             onChange={(e) => onFormChange((f) => ({ ...f, valor_total: e.target.value }))}
-            className={`${inputClass} max-w-[200px]`}
+            className={`${inputCls} max-w-[200px]`}
             placeholder="0,00"
           />
         </div>
@@ -288,13 +311,13 @@ export default function PropostaFormContent({
 
       {/* Desconto */}
       {form.oportunidade_id && (
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Desconto</label>
+        <div className={spanClass}>
+          <label className={labelCls}>Desconto</label>
           <div className="flex gap-2 items-end">
             <select
               value={form.desconto_tipo || 'percentual'}
               onChange={(e) => onFormChange((f) => ({ ...f, desconto_tipo: e.target.value as 'percentual' | 'valor' }))}
-              className={`${inputClass} max-w-[160px]`}
+              className={`${inputCls} max-w-[160px]`}
             >
               <option value="percentual">Percentual (%)</option>
               <option value="valor">Valor fixo (R$)</option>
@@ -306,7 +329,7 @@ export default function PropostaFormContent({
               max={form.desconto_tipo === 'percentual' ? '100' : undefined}
               value={form.desconto_valor || ''}
               onChange={(e) => onFormChange((f) => ({ ...f, desconto_valor: e.target.value }))}
-              className={`${inputClass} max-w-[160px]`}
+              className={`${inputCls} max-w-[160px]`}
               placeholder={form.desconto_tipo === 'percentual' ? '0%' : '0,00'}
             />
           </div>
@@ -328,12 +351,12 @@ export default function PropostaFormContent({
 
       {/* Título */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título *</label>
+        <label className={labelCls}>Título *</label>
         <input
           type="text"
           value={form.titulo}
           onChange={(e) => onFormChange((f) => ({ ...f, titulo: e.target.value }))}
-          className={inputClass}
+          className={inputCls}
           placeholder="Título da proposta"
           required
         />
@@ -341,8 +364,8 @@ export default function PropostaFormContent({
 
       {/* Seletor de Template */}
       {templates.length > 0 && onSelecionarTemplate && (
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <div className={spanClass}>
+          <label className={labelCls}>
             Usar template
           </label>
           <select
@@ -353,7 +376,7 @@ export default function PropostaFormContent({
               }
               e.target.value = ''; // Reset select
             }}
-            className={inputClass}
+            className={inputCls}
             defaultValue=""
           >
             <option value="">Selecione um template (opcional)</option>
@@ -370,9 +393,9 @@ export default function PropostaFormContent({
       )}
 
       {/* Conteúdo */}
-      <div className="md:col-span-2">
+      <div className={spanClass}>
         <div className="flex items-center justify-between gap-2 mb-1">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Conteúdo</label>
+          <label className={labelCls}>Conteúdo</label>
           {onSalvarComoPadrao && form.conteudo.trim() && (
             <button
               type="button"
@@ -387,19 +410,19 @@ export default function PropostaFormContent({
         <textarea
           value={form.conteudo}
           onChange={(e) => onFormChange((f) => ({ ...f, conteudo: e.target.value }))}
-          className={`${inputClass} ${fullWidth ? 'min-h-[200px] md:min-h-[300px]' : 'min-h-[120px] md:min-h-[180px]'}`}
-          rows={fullWidth ? 12 : 6}
+          className={`${inputCls} ${usePageStyles ? 'min-h-[200px] lg:min-h-[280px]' : 'min-h-[120px] md:min-h-[180px]'}`}
+          rows={usePageStyles ? 12 : 6}
           placeholder="Descrição detalhada da proposta..."
         />
       </div>
 
       {/* Status */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+        <label className={labelCls}>Status</label>
         <select
           value={form.status}
           onChange={(e) => onFormChange((f) => ({ ...f, status: e.target.value }))}
-          className={inputClass}
+          className={inputCls}
         >
           {statusOpcoes.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -408,18 +431,18 @@ export default function PropostaFormContent({
       </div>
 
       {/* Assinaturas */}
-      <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-600 pt-4 mt-2">
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Assinaturas</p>
+      <div className={`${spanClass} border-t border-gray-100 dark:border-[#0d1f3c] pt-4 mt-2`}>
+        <p className={`${sectionTitleCls} mb-3`}>Assinaturas</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className={labelCls}>
               Nome do Vendedor
             </label>
             <input
               type="text"
               value={form.nome_vendedor_assinatura || ''}
               onChange={(e) => onFormChange((f) => ({ ...f, nome_vendedor_assinatura: e.target.value }))}
-              className={inputClass}
+              className={inputCls}
               placeholder={vendedorNome || 'Nome do vendedor'}
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -427,14 +450,14 @@ export default function PropostaFormContent({
             </p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className={labelCls}>
               Nome do Cliente
             </label>
             <input
               type="text"
               value={form.nome_cliente_assinatura || ''}
               onChange={(e) => onFormChange((f) => ({ ...f, nome_cliente_assinatura: e.target.value }))}
-              className={inputClass}
+              className={inputCls}
               placeholder={leadInfo?.nome || 'Nome do cliente'}
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -444,25 +467,27 @@ export default function PropostaFormContent({
         </div>
       </div>
 
-      {/* Botões */}
-      <div className="flex gap-2 pt-2 md:col-span-2">
-        {showCancel && onCancel && (
+      {/* Botões (modal / formulário embutido) */}
+      {!hideActions && (
+        <div className={`flex gap-2 pt-2 ${spanClass}`}>
+          {showCancel && onCancel && (
+            <button
+              type="button"
+              onClick={() => !enviando && onCancel()}
+              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Cancelar
+            </button>
+          )}
           <button
-            type="button"
-            onClick={() => !enviando && onCancel()}
-            className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            type="submit"
+            disabled={enviando}
+            className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium"
           >
-            Cancelar
+            {enviando ? 'Salvando...' : 'Salvar'}
           </button>
-        )}
-        <button
-          type="submit"
-          disabled={enviando}
-          className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium"
-        >
-          {enviando ? 'Salvando...' : 'Salvar'}
-        </button>
-      </div>
+        </div>
+      )}
     </form>
   );
 }

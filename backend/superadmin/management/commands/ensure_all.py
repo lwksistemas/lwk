@@ -43,6 +43,7 @@ ENSURES = [
     ('ensure_procedimentos_catalogo', {'all_clinica_beleza': True}),
     ('ensure_estoque_catalogo', {'all_clinica_beleza': True}),
     ('ensure_paciente_fotos_table', {}),
+    ('ensure_patient_foto_url', {}),
     ('ensure_whatsapp_evolution_fields', {}),
     ('ensure_canal_assinatura_vendedor', {}),
     ('ensure_assinatura_link_enviado_em', {}),

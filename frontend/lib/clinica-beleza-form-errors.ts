@@ -18,6 +18,7 @@ const PACIENTE_FIELD_LABELS: Record<string, string> = {
   birth_date: 'Data de Nascimento',
   address: 'Endereço',
   notes: 'Observações',
+  foto_url: 'Foto do cliente',
 };
 
 /** Erros 400 com rótulos amigáveis (pacientes, procedimentos e cadastros simples). */

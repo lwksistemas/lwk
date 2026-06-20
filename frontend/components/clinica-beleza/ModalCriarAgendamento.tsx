@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { ConvenioSelect } from "@/components/clinica-beleza/ConvenioSelect";
 import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
 import {
@@ -90,6 +90,9 @@ export function ModalCriarAgendamento({
   const [retornoInfo, setRetornoInfo] = useState<RetornoVerificacaoResult | null>(null);
   const [retornoProcedureId, setRetornoProcedureId] = useState<number | "">("");
   const [verificandoRetorno, setVerificandoRetorno] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const nomeAgendaUnico = nomesAgenda.length === 1 ? nomesAgenda[0] : null;
 
   const {
     patientId,
@@ -122,7 +125,13 @@ export function ModalCriarAgendamento({
     setCreateError("");
     setRetornoInfo(null);
     setRetornoProcedureId("");
+    setShowAdvanced(false);
   }, [open, selectedDate, defaultProfessionalId, resetForm, setConvenioId, setProfessionalId]);
+
+  useEffect(() => {
+    if (!open || !nomeAgendaUnico) return;
+    setNomeAgendaId(nomeAgendaUnico.id);
+  }, [open, nomeAgendaUnico]);
 
   useEffect(() => {
     if (!open || !patientId) {
@@ -361,57 +370,82 @@ export function ModalCriarAgendamento({
   const retornoProcAtivo = retornoInfo?.config?.retorno_procedimento_ativo ?? false;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
       <div
-        className="bg-white dark:bg-neutral-800 rounded-t-xl sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-neutral-700 w-full max-w-md sm:max-w-4xl sm:w-[calc(100vw-2rem)] max-h-[95vh] sm:max-h-[90vh] flex flex-col"
+        className="bg-white dark:bg-neutral-800 rounded-t-xl sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-neutral-700 w-full max-w-lg sm:max-w-xl max-h-[92dvh] sm:max-h-[88vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b dark:border-neutral-700 shrink-0">
-          <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-            {isConsulta ? "Nova consulta" : "Novo Agendamento"}
-          </h2>
-          <button onClick={resetAndClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg" aria-label="Fechar">
+        <div className="flex justify-between items-center px-4 py-3 border-b dark:border-neutral-700 shrink-0">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-100">
+              {isConsulta ? "Nova consulta" : "Novo Agendamento"}
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Preencha paciente, data e profissional para agendar.
+            </p>
+          </div>
+          <button onClick={resetAndClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg shrink-0" aria-label="Fechar">
             <X size={20} />
           </button>
         </div>
 
-        <form className="flex-1 overflow-y-auto px-4 sm:px-6 py-4" onSubmit={handleSubmit}>
-          {createError && (
-            <div className="mb-4 p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
-              {createError}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data *</label>
-                  <input
-                    type="date"
-                    value={dateInput}
-                    onChange={(e) => setDateInput(e.target.value)}
-                    className={inputClass}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Horário *</label>
-                  <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} required />
-                </div>
+        <form className="flex flex-col flex-1 min-h-0" onSubmit={handleSubmit}>
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            {createError && (
+              <div className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
+                {createError}
               </div>
+            )}
 
-              <PatientQuickRegisterField
-                patients={patients}
-                patientId={patientId}
-                onSelect={setPatientId}
-                onClear={() => setPatientId("")}
-                onPatientCreated={(p) => onPatientsChange([...patients, p])}
-                onCreatePatient={handleCreatePatient}
-                onSearchPatients={onSearchPatients}
-                disabled={createLoading}
-              />
+            <PatientQuickRegisterField
+              patients={patients}
+              patientId={patientId}
+              onSelect={setPatientId}
+              onClear={() => setPatientId("")}
+              onPatientCreated={(p) => onPatientsChange([...patients, p])}
+              onCreatePatient={handleCreatePatient}
+              onSearchPatients={onSearchPatients}
+              disabled={createLoading}
+            />
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data *</label>
+                <input
+                  type="date"
+                  value={dateInput}
+                  onChange={(e) => setDateInput(e.target.value)}
+                  className={inputClass}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Horário *</label>
+                <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} required />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profissional *</label>
+              <select
+                value={professionalId}
+                onChange={(e) => setProfessionalId(e.target.value ? Number(e.target.value) : "")}
+                className={inputClass}
+                required
+              >
+                <option value="">Selecione o profissional</option>
+                {professionals.map((p) => (
+                  <option key={p.id} value={p.id}>{entityName(p)}</option>
+                ))}
+              </select>
+            </div>
+
+            {nomeAgendaUnico ? (
+              <div className="rounded-lg border border-purple-100 dark:border-purple-900/40 bg-purple-50/60 dark:bg-purple-950/20 px-3 py-2 text-sm text-purple-900 dark:text-purple-200">
+                <span className="text-xs text-purple-700 dark:text-purple-300 block mb-0.5">Agenda</span>
+                {nomeAgendaUnico.nome}
+              </div>
+            ) : (
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da agenda *</label>
                 <select
@@ -431,166 +465,123 @@ export function ModalCriarAgendamento({
                   </p>
                 )}
               </div>
+            )}
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Local de atendimento
-                </label>
-                <select
-                  value={localAtendimentoId}
-                  onChange={(e) => setLocalAtendimentoId(e.target.value ? Number(e.target.value) : "")}
-                  className={inputClass}
-                >
-                  <option value="">Selecione o local (opcional)</option>
-                  {locaisAtendimento.map((l) => {
-                    const valor = Number(l.valor_consulta).toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    });
-                    const label = [l.nome, valor].filter(Boolean).join(" · ");
-                    return (
-                    <option key={l.id} value={l.id}>
-                      {label}
-                    </option>
-                    );
-                  })}
-                </select>
-                {locaisAtendimento.length === 0 && (
-                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                    Cadastre locais em Consultas → ícone de engrenagem.
-                  </p>
-                )}
+            {retornoInfo?.elegivel && patientId && (
+              <div className="p-2.5 rounded-lg text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <span className="font-medium">Retorno gratuito</span>
+                <span className="block text-xs mt-0.5">{retornoInfo.mensagem}</span>
               </div>
-            </div>
+            )}
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profissional *</label>
-                <select
-                  value={professionalId}
-                  onChange={(e) => setProfessionalId(e.target.value ? Number(e.target.value) : "")}
-                  className={inputClass}
-                  required
-                >
-                  <option value="">Selecione o profissional</option>
-                  {professionals.map((p) => {
-                    const tempo =
-                      p.tempo_consulta_minutos != null && p.tempo_consulta_minutos > 0
-                        ? `${p.tempo_consulta_minutos} min`
-                        : null;
-                    const label = [entityName(p), tempo].filter(Boolean).join(" · ");
-                    return (
-                      <option key={p.id} value={p.id}>{label}</option>
-                    );
-                  })}
-                </select>
-                {professionalId && horariosProfissional.length === 0 && (
-                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                    Profissional sem horário de trabalho cadastrado — o agendamento não será validado por expediente.
-                  </p>
-                )}
-              </div>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-dashed border-gray-300 dark:border-neutral-600 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700/50"
+            >
+              <span>Mais opções (local, convênio, procedimentos…)</span>
+              {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
 
-              <ConvenioSelect convenios={convenios} value={convenioId} onChange={setConvenioId} hint="" className={inputClass} />
-
-              <ProcedureMultiSelect
-                procedures={procedures}
-                selectedIds={selectedProcedures}
-                onAdd={adicionarProcedimento}
-                onRemove={removerProcedimento}
-                convenioId={convenioId}
-                precosMap={precosMap}
-                optional
-              />
-              {selectedProcedures.length === 0 && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
-                  Opcional — use para orçamento ou atendimento de representante.
-                </p>
-              )}
-
-              {retornoProcAtivo && regrasRetornoProc.length > 0 && patientId && (
+            {showAdvanced && (
+              <div className="space-y-3 pt-1 border-t border-gray-100 dark:border-neutral-700">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Retorno do procedimento (acompanhamento)
+                    Local de atendimento
                   </label>
                   <select
-                    value={retornoProcedureId}
-                    onChange={(e) => setRetornoProcedureId(e.target.value ? Number(e.target.value) : "")}
+                    value={localAtendimentoId}
+                    onChange={(e) => setLocalAtendimentoId(e.target.value ? Number(e.target.value) : "")}
                     className={inputClass}
                   >
-                    <option value="">Não é retorno de procedimento</option>
-                    {regrasRetornoProc.map((r) => (
-                      <option key={r.id} value={r.procedure}>
-                        {r.procedure_name} — prazo {r.dias_retorno} dias
-                      </option>
+                    <option value="">Opcional</option>
+                    {locaisAtendimento.map((l) => (
+                      <option key={l.id} value={l.id}>{l.nome}</option>
                     ))}
                   </select>
                 </div>
-              )}
 
-              {(retornoInfo?.elegivel || verificandoRetorno) && patientId && (
-                <div
-                  className={`p-3 rounded-lg text-sm ${
-                    retornoInfo?.elegivel
-                      ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
-                      : "bg-gray-50 dark:bg-neutral-800 text-gray-500"
-                  }`}
-                >
-                  {verificandoRetorno && !retornoInfo?.elegivel ? (
-                    "Verificando retorno..."
-                  ) : retornoInfo?.elegivel ? (
-                    <>
-                      <span className="font-medium">Retorno gratuito</span>
-                      <span className="block text-xs mt-0.5">{retornoInfo.mensagem}</span>
-                    </>
-                  ) : null}
-                </div>
-              )}
+                <ConvenioSelect convenios={convenios} value={convenioId} onChange={setConvenioId} hint="" className={inputClass} />
 
-              {localAtendimentoId && (
-                <div className="p-3 rounded-lg bg-gray-50 dark:bg-neutral-800/80 text-sm space-y-1">
-                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                    <span>Taxa de consulta</span>
-                    <span>
-                      {retornoInfo?.elegivel ? (
-                        <>
-                          <span className="line-through opacity-60 mr-1">
-                            {taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                          </span>
-                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">R$ 0,00</span>
-                        </>
-                      ) : (
-                        taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                      )}
-                    </span>
-                  </div>
-                  {resumo.valor > 0 && (
-                    <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                      <span>Procedimentos</span>
-                      <span>{resumo.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-medium text-gray-900 dark:text-gray-100 pt-1 border-t border-gray-200 dark:border-neutral-700">
-                    <span>Total estimado</span>
-                    <span>{totalEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                  className={`${inputClass} resize-none min-h-[80px]`}
-                  placeholder="Opcional"
+                <ProcedureMultiSelect
+                  procedures={procedures}
+                  selectedIds={selectedProcedures}
+                  onAdd={adicionarProcedimento}
+                  onRemove={removerProcedimento}
+                  convenioId={convenioId}
+                  precosMap={precosMap}
+                  optional
                 />
+
+                {retornoProcAtivo && regrasRetornoProc.length > 0 && patientId && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Retorno do procedimento
+                    </label>
+                    <select
+                      value={retornoProcedureId}
+                      onChange={(e) => setRetornoProcedureId(e.target.value ? Number(e.target.value) : "")}
+                      className={inputClass}
+                    >
+                      <option value="">Não é retorno de procedimento</option>
+                      {regrasRetornoProc.map((r) => (
+                        <option key={r.id} value={r.procedure}>
+                          {r.procedure_name} — prazo {r.dias_retorno} dias
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {verificandoRetorno && patientId && !retornoInfo?.elegivel && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Verificando retorno...</p>
+                )}
+
+                {localAtendimentoId && (
+                  <div className="p-3 rounded-lg bg-gray-50 dark:bg-neutral-800/80 text-sm space-y-1">
+                    <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                      <span>Taxa de consulta</span>
+                      <span>
+                        {retornoInfo?.elegivel ? (
+                          <>
+                            <span className="line-through opacity-60 mr-1">
+                              {taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                            </span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">R$ 0,00</span>
+                          </>
+                        ) : (
+                          taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                        )}
+                      </span>
+                    </div>
+                    {resumo.valor > 0 && (
+                      <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                        <span>Procedimentos</span>
+                        <span>{resumo.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-medium text-gray-900 dark:text-gray-100 pt-1 border-t border-gray-200 dark:border-neutral-700">
+                      <span>Total estimado</span>
+                      <span>{totalEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={2}
+                    className={`${inputClass} resize-none min-h-[64px]`}
+                    placeholder="Opcional"
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
-          <div className="flex gap-3 pt-5 mt-2 border-t dark:border-neutral-700 shrink-0">
+          <div className="flex gap-3 px-4 py-3 border-t dark:border-neutral-700 shrink-0 bg-white dark:bg-neutral-800">
             <button
               type="button"
               onClick={resetAndClose}

@@ -52,6 +52,7 @@ class PatientSerializer(
             'allow_whatsapp': {'required': False, 'default': True},
             'address': {'required': False, 'allow_blank': True, 'allow_null': True},
             'notes': {'required': False, 'allow_blank': True, 'allow_null': True},
+            'foto_url': {'required': False, 'allow_blank': True, 'default': ''},
         }
 
     def get_convenio_name(self, obj):

@@ -21,6 +21,7 @@ import {
   ordenarConveniosComParticularPrimeiro,
 } from "@/lib/convenio-precos";
 import { formatCep, formatCpf, formatTelefone, toUpperCase } from "@/lib/format-br";
+import { PacienteFotoCadastro } from "./PacienteFotoCadastro";
 
 export const PACIENTE_EMPTY_FORM = {
   name: "",
@@ -38,6 +39,7 @@ export const PACIENTE_EMPTY_FORM = {
   notes: "",
   allow_whatsapp: true,
   convenio: "" as number | "",
+  foto_url: "",
 };
 
 export type PacienteFormState = typeof PACIENTE_EMPTY_FORM;
@@ -89,6 +91,7 @@ interface PacienteCadastroFormProps {
   onSave: () => void;
   onCancel: () => void;
   accentColor?: string;
+  lojaSlug: string;
   /** Quando false, o cabeçalho fica só no ClinicaBelezaStandardPageHeader (topbar). */
   showHeader?: boolean;
 }
@@ -106,6 +109,7 @@ export function PacienteCadastroForm({
   onSave,
   onCancel,
   accentColor = CLINICA_BELEZA_PRIMARY,
+  lojaSlug,
   showHeader = true,
 }: PacienteCadastroFormProps) {
   const selectClass =
@@ -144,6 +148,14 @@ export function PacienteCadastroForm({
                 <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-neutral-800 pb-2">
                   Dados pessoais
                 </p>
+
+                <PacienteFotoCadastro
+                  slug={lojaSlug}
+                  value={form.foto_url}
+                  onChange={(url) => setForm((f) => ({ ...f, foto_url: url }))}
+                  disabled={saving}
+                  accentColor={accentColor}
+                />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">

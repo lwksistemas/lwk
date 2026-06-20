@@ -78,6 +78,7 @@ interface Patient {
   allow_whatsapp?: boolean;
   convenio?: number | null;
   convenio_name?: string | null;
+  foto_url?: string | null;
 }
 
 const EMPTY_FORM = PACIENTE_EMPTY_FORM;
@@ -131,6 +132,7 @@ function patientToForm(p: Patient) {
     notes: patientNotes(p) || "",
     allow_whatsapp: p.allow_whatsapp !== false,
     convenio: p.convenio ?? "",
+    foto_url: (p as Patient).foto_url || "",
   };
 }
 
@@ -270,6 +272,7 @@ export default function PacientesPage() {
       active: true,
       allow_whatsapp: form.allow_whatsapp,
       convenio: form.convenio ? Number(form.convenio) : null,
+      foto_url: form.foto_url.trim() || null,
     });
 
     const finishSave = () => {
@@ -315,6 +318,7 @@ export default function PacientesPage() {
             active: true,
             allow_whatsapp: body.allow_whatsapp ?? true,
             convenio: body.convenio ?? null,
+            foto_url: body.foto_url ?? null,
           };
           const updatedList = [newPatient, ...list];
           setList(updatedList);
@@ -376,6 +380,7 @@ export default function PacientesPage() {
               active: true,
               allow_whatsapp: body.allow_whatsapp ?? true,
               convenio: body.convenio ?? null,
+              foto_url: body.foto_url ?? null,
             };
             const updatedList = [newPatient, ...list];
             setList(updatedList);
@@ -432,6 +437,7 @@ export default function PacientesPage() {
             onSave={save}
             onCancel={voltarLista}
             accentColor={theme.corPrimaria || CLINICA_BELEZA_PRIMARY}
+            lojaSlug={slug}
           />
         </ClinicaBelezaPageContent>
       </>

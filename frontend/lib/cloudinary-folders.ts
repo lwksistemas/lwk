@@ -69,6 +69,12 @@ export function cloudinaryLojaClinicaFotos(cpfCnpj: string): string {
   return path(cloudinaryAmbiente(), doc, 'clinica-beleza-fotos');
 }
 
+/** Foto de perfil do paciente no cadastro. */
+export function cloudinaryLojaClinicaPacientePerfil(cpfCnpj: string): string {
+  const doc = cloudinaryDocumento(cpfCnpj) || cpfCnpj;
+  return path(cloudinaryAmbiente(), doc, 'clinica-beleza-pacientes');
+}
+
 export function cloudinaryLojaRoot(cpfCnpj: string): string {
   const doc = cloudinaryDocumento(cpfCnpj) || cpfCnpj;
   return path(cloudinaryAmbiente(), doc);

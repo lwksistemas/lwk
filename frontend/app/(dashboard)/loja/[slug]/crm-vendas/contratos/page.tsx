@@ -1,21 +1,16 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import dynamic from 'next/dynamic';
-import { useParams } from 'next/navigation';
+import { useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 import {
-  normalizeListResponse,
   getCrmApiErrorDetail,
 } from '@/lib/crm-utils';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
-import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
-import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import { useCrmDocumentoActions } from '@/hooks/useCrmDocumentoActions';
-import { reenviarAssinaturaAposEdicaoSeNecessario } from '@/lib/crm-reenviar-assinatura';
 import {
   CRM_CONTRATO_STATUS_LABEL as STATUS_LABEL,
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
@@ -27,9 +22,6 @@ import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal
 import CrmCancelarModal from '@/components/crm-vendas/CrmCancelarModal';
 import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
 import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetalhesModal';
-import type { FormDataContrato } from '@/components/crm-vendas/modals/ModalContratoForm';
-
-const ModalContratoForm = dynamic(() => import('@/components/crm-vendas/modals/ModalContratoForm'), { ssr: false });
 
 interface Contrato {
   id: number;
@@ -56,19 +48,11 @@ interface Contrato {
   created_at: string;
 }
 
-interface OportunidadeOption {
-  id: number;
-  titulo: string;
-  lead?: number;
-  lead_nome: string;
-  valor: string;
-  etapa: string;
-}
-
-type ModalType = 'create' | 'edit' | 'view' | 'delete' | 'cancelar' | null;
+type ModalType = 'view' | 'delete' | 'cancelar' | null;
 
 export default function CrmVendasContratosPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = (params?.slug as string) ?? '';
   const [filtroStatus, setFiltroStatus] = useState('');
 
@@ -91,21 +75,8 @@ export default function CrmVendasContratosPage() {
     (c) => !filtroStatus || c.status === filtroStatus,
   );
 
-  const [oportunidades, setOportunidades] = useState<OportunidadeOption[]>([]);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selected, setSelected] = useState<Contrato | null>(null);
-  const [formData, setFormData] = useState<FormDataContrato>({
-    oportunidade_id: '',
-    numero: '',
-    titulo: '',
-    conteudo: '',
-    valor_total: '',
-    desconto_tipo: 'percentual',
-    desconto_valor: '',
-    status: 'rascunho' as string,
-    nome_vendedor_assinatura: '',
-    nome_cliente_assinatura: '',
-  });
   const [submitting, setSubmitting] = useState(false);
   const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
   const [menuAberto, setMenuAberto] = useState<number | null>(null);
@@ -115,12 +86,7 @@ export default function CrmVendasContratosPage() {
     loadContratos,
   );
 
-  const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
   const { contrato: contratoWhatsappHabilitado } = useWhatsappEnvioFlags();
-  const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
-    formData,
-    setFormData
-  );
 
   const handleMarcarComoAssinado = async (contratoId: number) => {
     if (!confirm('Marcar este contrato como assinado manualmente?\n\nUse esta opção quando o cliente assinar de outra forma (manual, gov.br, etc).')) {
@@ -155,128 +121,14 @@ export default function CrmVendasContratosPage() {
     }
   };
 
-  const loadOportunidades = useCallback(async () => {
-    try {
-      const res = await apiClient.get<OportunidadeOption[] | { results: OportunidadeOption[] }>(
-        '/crm-vendas/oportunidades/?etapa=closed_won'
-      );
-      setOportunidades(normalizeListResponse(res.data));
-    } catch {
-      setOportunidades([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (modalType === 'create' || modalType === 'edit') {
-      loadOportunidades();
-      loadLojaInfo();
-      loadVendedorInfo();
-    }
-  }, [modalType, loadOportunidades, loadLojaInfo, loadVendedorInfo]);
-
-  useEffect(() => {
-    if ((modalType === 'create' || modalType === 'edit') && formData.oportunidade_id) {
-      const opp = oportunidades.find((o) => String(o.id) === formData.oportunidade_id);
-      if (opp?.lead) {
-        loadLeadInfo(opp.lead);
-      } else {
-        setLeadInfo(null);
-      }
-    } else if (!formData.oportunidade_id) {
-      setLeadInfo(null);
-    }
-  }, [modalType, formData.oportunidade_id, oportunidades, loadLeadInfo, setLeadInfo]);
-
   const openModal = (type: ModalType, item?: Contrato) => {
     setModalType(type);
     setSelected(item || null);
-    if (type === 'edit' && item) {
-      setFormData({
-        oportunidade_id: String(item.oportunidade),
-        numero: item.numero || '',
-        titulo: item.titulo || '',
-        conteudo: item.conteudo || '',
-        valor_total: item.valor_total || '',
-        desconto_tipo: item.desconto_tipo || 'percentual',
-        desconto_valor: String(item.desconto_valor || ''),
-        status: item.status || 'rascunho',
-        nome_vendedor_assinatura: '',
-        nome_cliente_assinatura: '',
-      });
-    } else if (type === 'create') {
-      setFormData({
-        oportunidade_id: '',
-        numero: '',
-        titulo: '',
-        conteudo: '',
-        valor_total: '',
-        desconto_tipo: 'percentual',
-        desconto_valor: '',
-        status: 'rascunho',
-        nome_vendedor_assinatura: '',
-        nome_cliente_assinatura: '',
-      });
-      setLeadInfo(null);
-    }
-  };
-
-  const handleOportunidadeChange = (id: string) => {
-    const opp = oportunidades.find((o) => String(o.id) === id);
-    setFormData((f) => ({
-      ...f,
-      oportunidade_id: id,
-      valor_total: opp?.valor ? String(opp.valor) : f.valor_total,
-    }));
-    if (opp?.lead) {
-      loadLeadInfo(opp.lead);
-    } else {
-      setLeadInfo(null);
-    }
   };
 
   const closeModal = () => {
     setModalType(null);
     setSelected(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.titulo.trim()) {
-      alert('Título é obrigatório');
-      return;
-    }
-    if (!formData.oportunidade_id) {
-      alert('Selecione uma oportunidade fechada');
-      return;
-    }
-    try {
-      setSubmitting(true);
-      const payload = {
-        oportunidade: parseInt(formData.oportunidade_id, 10),
-        numero: formData.numero || undefined,
-        titulo: formData.titulo.trim(),
-        conteudo: formData.conteudo,
-        valor_total: formData.valor_total ? parseFloat(formData.valor_total) : null,
-        desconto_tipo: formData.desconto_tipo || 'percentual',
-        desconto_valor: formData.desconto_valor ? parseFloat(formData.desconto_valor) : 0,
-        status: formData.status,
-        nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
-        nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
-      };
-      if (modalType === 'create') {
-        await apiClient.post('/crm-vendas/contratos/', payload);
-      } else if (modalType === 'edit' && selected) {
-        const assinaturaAntes = selected.status_assinatura;
-        await apiClient.put(`/crm-vendas/contratos/${selected.id}/`, payload);
-        await reenviarAssinaturaAposEdicaoSeNecessario('contrato', selected.id, assinaturaAntes);
-      }
-      await loadContratos();
-      closeModal();
-    } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   const handleDelete = async () => {
@@ -321,7 +173,7 @@ export default function CrmVendasContratosPage() {
           </Link>
           <button
             type="button"
-            onClick={() => openModal('create')}
+            onClick={() => router.push(`/loja/${slug}/crm-vendas/contratos/nova`)}
             className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm"
           >
             <Plus size={18} />
@@ -489,7 +341,7 @@ export default function CrmVendasContratosPage() {
                               </button>
                             )}
                             <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>
-                            <button type="button" onClick={() => openModal('edit', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>
+                            <button type="button" onClick={() => router.push(`/loja/${slug}/crm-vendas/contratos/${c.id}/editar`)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>
                             <button
                               type="button"
                               onClick={() => { openModal('cancelar', c); }}
@@ -526,25 +378,6 @@ export default function CrmVendasContratosPage() {
           Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
         </p>
       </div>
-
-      {(modalType === 'create' || modalType === 'edit') && (
-        <ModalContratoForm
-          title={modalType === 'create' ? 'Novo Contrato' : 'Editar Contrato'}
-          form={formData}
-          formErro={null}
-          enviando={submitting}
-          lojaInfo={lojaInfo}
-          leadInfo={leadInfo}
-          oportunidades={oportunidades}
-          statusOpcoes={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
-          onFormChange={setFormData}
-          onOportunidadeChange={handleOportunidadeChange}
-          onSubmit={handleSubmit}
-          onClose={closeModal}
-          isEdit={modalType === 'edit'}
-          vendedorNome={vendedorNome}
-        />
-      )}
 
       {modalType === 'view' && selected && (
         <CrmDocumentoDetalhesModal

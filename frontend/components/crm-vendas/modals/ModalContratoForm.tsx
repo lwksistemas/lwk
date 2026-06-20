@@ -1,6 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
+import ContratoFormContent from '../ContratoFormContent';
 import type { LojaInfo, LeadInfo } from './ModalPropostaForm';
 
 export interface FormDataContrato {
@@ -49,10 +50,6 @@ export default function ModalContratoForm({
   isEdit = false,
   vendedorNome,
 }: ModalContratoFormProps) {
-  const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
-  const labelClass = 'block text-xs text-gray-500 dark:text-gray-400 mb-0.5';
-  const sectionClass = 'space-y-3 border-b border-gray-200 dark:border-gray-600 pb-4';
-
   return (
     <div
       className="fixed inset-0 z-[80] bg-black/50 flex items-center justify-center md:p-0"
@@ -73,280 +70,24 @@ export default function ModalContratoForm({
             <X size={20} />
           </button>
         </div>
-        <form onSubmit={onSubmit} className="p-4 space-y-4 md:max-w-3xl md:mx-auto md:grid md:grid-cols-2 md:gap-x-6">
-          {formErro && (
-            <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg md:col-span-2">
-              {formErro}
-            </p>
-          )}
-
-          {/* Dados da Loja - nome, endereço, CPF/CNPJ, administrador (sem Site e Tipo) */}
-          <div className={`${sectionClass} md:col-span-2`}>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Dados da Loja</p>
-            {lojaInfo ? (
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className={labelClass}>Nome da loja</span>
-                  <p className="font-medium">{lojaInfo.nome}</p>
-                </div>
-                {lojaInfo.endereco && (
-                  <div className="col-span-2">
-                    <span className={labelClass}>Endereço da loja</span>
-                    <p>{lojaInfo.endereco}</p>
-                  </div>
-                )}
-                {lojaInfo.cpf_cnpj && (
-                  <div>
-                    <span className={labelClass}>CPF ou CNPJ da loja</span>
-                    <p>{lojaInfo.cpf_cnpj}</p>
-                  </div>
-                )}
-                {lojaInfo.admin_nome && (
-                  <div>
-                    <span className={labelClass}>Nome do administrador</span>
-                    <p>{lojaInfo.admin_nome}</p>
-                  </div>
-                )}
-                {lojaInfo.admin_email && (
-                  <div>
-                    <span className={labelClass}>Email do administrador</span>
-                    <p>{lojaInfo.admin_email}</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-xs text-gray-500">Carregando...</p>
-            )}
-          </div>
-
-          {/* Dados do Cliente */}
-          <div className={`${sectionClass} md:col-span-2`}>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Dados do Cliente</p>
-            {leadInfo ? (
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className={labelClass}>Nome</span>
-                  <p className="font-medium">{leadInfo.nome}</p>
-                </div>
-                {leadInfo.empresa && leadInfo.cpf_cnpj?.replace(/\D/g, '').length !== 11 && (
-                  <div>
-                    <span className={labelClass}>Empresa</span>
-                    <p>{leadInfo.empresa}</p>
-                  </div>
-                )}
-                {leadInfo.cpf_cnpj && (
-                  <div>
-                    <span className={labelClass}>CPF/CNPJ</span>
-                    <p>{leadInfo.cpf_cnpj}</p>
-                  </div>
-                )}
-                <div>
-                  <span className={labelClass}>Email</span>
-                  <p>{leadInfo.email || '—'}</p>
-                </div>
-                <div>
-                  <span className={labelClass}>Telefone</span>
-                  <p>{leadInfo.telefone || '—'}</p>
-                </div>
-                <div className="col-span-2">
-                  <span className={labelClass}>Endereço</span>
-                  <p>
-                    {[leadInfo.logradouro, leadInfo.numero, leadInfo.complemento, leadInfo.bairro, leadInfo.cidade, leadInfo.uf, leadInfo.cep]
-                      .filter(Boolean).length > 0
-                      ? [
-                          leadInfo.logradouro,
-                          leadInfo.numero ? `nº ${leadInfo.numero}` : '',
-                          leadInfo.complemento,
-                          leadInfo.bairro,
-                          leadInfo.cidade && leadInfo.uf ? `${leadInfo.cidade}/${leadInfo.uf}` : leadInfo.cidade || leadInfo.uf,
-                          leadInfo.cep ? `CEP ${leadInfo.cep}` : '',
-                        ].filter(Boolean).join(' - ')
-                      : '—'}
-                  </p>
-                </div>
-              </div>
-            ) : form.oportunidade_id ? (
-              <p className="text-xs text-gray-500">Carregando dados do cliente...</p>
-            ) : (
-              <p className="text-xs text-gray-500">Selecione uma oportunidade para ver os dados do cliente.</p>
-            )}
-          </div>
-
-          {/* Oportunidade */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Oportunidade (fechada ganha) *</label>
-            <select
-              value={form.oportunidade_id}
-              onChange={(e) => onOportunidadeChange(e.target.value)}
-              className={inputClass}
-              required
-              disabled={isEdit}
-            >
-              <option value="">Selecione</option>
-              {oportunidades.map((o) => (
-                <option key={o.id} value={o.id}>{o.titulo} - {o.lead_nome}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Número */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Número</label>
-            <input
-              type="text"
-              value={form.numero}
-              onChange={(e) => onFormChange((f) => ({ ...f, numero: e.target.value }))}
-              className={inputClass}
-              placeholder="Ex: 001/2025"
-            />
-          </div>
-
-          {/* Título */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título *</label>
-            <input
-              type="text"
-              value={form.titulo}
-              onChange={(e) => onFormChange((f) => ({ ...f, titulo: e.target.value }))}
-              className={inputClass}
-              placeholder="Título do contrato"
-              required
-            />
-          </div>
-
-          {/* Valor total */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor total (R$)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.valor_total}
-              onChange={(e) => onFormChange((f) => ({ ...f, valor_total: e.target.value }))}
-              className={inputClass}
-              placeholder="0,00"
-            />
-          </div>
-
-          {/* Desconto */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Desconto</label>
-            <div className="flex gap-2 items-end">
-              <select
-                value={form.desconto_tipo || 'percentual'}
-                onChange={(e) => onFormChange((f) => ({ ...f, desconto_tipo: e.target.value as 'percentual' | 'valor' }))}
-                className={`${inputClass} max-w-[160px]`}
-              >
-                <option value="percentual">Percentual (%)</option>
-                <option value="valor">Valor fixo (R$)</option>
-              </select>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                max={form.desconto_tipo === 'percentual' ? '100' : undefined}
-                value={form.desconto_valor || ''}
-                onChange={(e) => onFormChange((f) => ({ ...f, desconto_valor: e.target.value }))}
-                className={`${inputClass} max-w-[160px]`}
-                placeholder={form.desconto_tipo === 'percentual' ? '0%' : '0,00'}
-              />
-            </div>
-            {form.valor_total && form.desconto_valor && parseFloat(form.desconto_valor) > 0 && (
-              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                Valor com desconto:{' '}
-                {(() => {
-                  const base = parseFloat(form.valor_total) || 0;
-                  const desc = parseFloat(form.desconto_valor) || 0;
-                  const final_val = form.desconto_tipo === 'percentual'
-                    ? Math.max(base - (base * desc / 100), 0)
-                    : Math.max(base - desc, 0);
-                  return final_val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                })()}
-              </p>
-            )}
-          </div>
-
-          {/* Conteúdo */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Conteúdo</label>
-            <textarea
-              value={form.conteudo}
-              onChange={(e) => onFormChange((f) => ({ ...f, conteudo: e.target.value }))}
-              className={`${inputClass} min-h-[100px]`}
-              rows={4}
-              placeholder="Descrição detalhada do contrato..."
-            />
-          </div>
-
-          {/* Status */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-            <select
-              value={form.status}
-              onChange={(e) => onFormChange((f) => ({ ...f, status: e.target.value }))}
-              className={inputClass}
-            >
-              {statusOpcoes.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Assinaturas */}
-          <div className="md:col-span-2 border-t border-gray-200 dark:border-gray-600 pt-4 mt-2">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Assinaturas</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nome do Vendedor
-                </label>
-                <input
-                  type="text"
-                  value={form.nome_vendedor_assinatura || ''}
-                  onChange={(e) => onFormChange((f) => ({ ...f, nome_vendedor_assinatura: e.target.value }))}
-                  className={inputClass}
-                  placeholder={vendedorNome || 'Nome do vendedor'}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Nome que aparecerá na assinatura do PDF
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nome do Cliente
-                </label>
-                <input
-                  type="text"
-                  value={form.nome_cliente_assinatura || ''}
-                  onChange={(e) => onFormChange((f) => ({ ...f, nome_cliente_assinatura: e.target.value }))}
-                  className={inputClass}
-                  placeholder={leadInfo?.nome || 'Nome do cliente'}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Nome que aparecerá na assinatura do PDF
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Botões */}
-          <div className="flex gap-2 pt-2 md:col-span-2">
-            <button
-              type="button"
-              onClick={() => !enviando && onClose()}
-              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={enviando}
-              className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium"
-            >
-              {enviando ? 'Salvando...' : 'Salvar'}
-            </button>
-          </div>
-        </form>
+        <div className="p-4">
+          <ContratoFormContent
+            form={form}
+            formErro={formErro}
+            enviando={enviando}
+            lojaInfo={lojaInfo}
+            leadInfo={leadInfo}
+            oportunidades={oportunidades}
+            statusOpcoes={statusOpcoes}
+            onFormChange={onFormChange}
+            onOportunidadeChange={onOportunidadeChange}
+            onSubmit={onSubmit}
+            isEdit={isEdit}
+            showCancel
+            onCancel={onClose}
+            vendedorNome={vendedorNome}
+          />
+        </div>
       </div>
     </div>
   );

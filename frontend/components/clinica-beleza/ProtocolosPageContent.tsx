@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, ClipboardList, Pencil, Save, Trash2 } from 'lucide-react';
+import { ClipboardList, Loader2, Pencil, Save, Trash2 } from 'lucide-react';
 import { ClinicaBelezaAPI } from '@/lib/clinica-beleza-api';
 import {
   CLINICA_BELEZA_ONLINE_ONLY,
-  CLINICA_FORM_INPUT,
   deleteClinicaBelezaEntity,
   saveClinicaBelezaEntity,
   useClinicaBelezaEntityList,
@@ -20,6 +19,7 @@ import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/Cli
 import { EntityListTable } from '@/components/clinica-beleza/EntityListTable';
 import { EntityListLoadMore } from '@/components/clinica-beleza/EntityListLoadMore';
 import { useClinicaBelezaFormRouting } from '@/hooks/clinica-beleza/useClinicaBelezaFormRouting';
+import { useLojaTheme } from '@/hooks/useLojaTheme';
 import { toUpperCase } from '@/lib/format-br';
 
 interface Protocol {
@@ -91,6 +91,8 @@ export function ProtocolosPageContent({
 }: ProtocolosPageContentProps) {
   const params = useParams();
   const slug = params.slug as string;
+  const { theme } = useLojaTheme(slug);
+  const accentColor = theme.corPrimaria || CLINICA_BELEZA_PRIMARY;
   const { isNovo, editIdParam, isFormView, voltarLista, abrirNovo, abrirEditar } =
     useClinicaBelezaFormRouting();
 
@@ -199,9 +201,9 @@ export function ProtocolosPageContent({
     }
   };
 
-  const formFields = (
+  const formFieldsLeft = [['descricao', 'Descrição']] as const;
+  const formFieldsRight = (
     [
-      ['descricao', 'Descrição'],
       ['materiais_necessarios', 'Materiais necessários'],
       ['preparacao', 'Preparação'],
       ['execucao', 'Execução (passos)'],
@@ -212,69 +214,125 @@ export function ProtocolosPageContent({
   );
 
   if (isFormView) {
+    const inputClass =
+      'w-full px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0';
+    const labelClass = 'block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1';
+    const sectionTitleClass =
+      'text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-neutral-800 pb-2';
+
     return (
       <>
         <ClinicaBelezaStandardPageHeader
           title={editing ? 'Editar protocolo' : 'Novo protocolo'}
-          subtitle={editing ? editing.nome : 'Padronize etapas e cuidados do procedimento'}
+          subtitle={editing ? editing.nome : 'Cadastro de protocolo da clínica'}
           onBack={voltarLista}
           icon={ClipboardList}
         />
-        <ClinicaBelezaPageContent>
-          <ClinicaBelezaPanel className="p-6 md:p-8 max-w-3xl">
-            {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
-            <div className="space-y-4">
-              <input
-                className={CLINICA_FORM_INPUT}
-                placeholder="Nome do protocolo *"
-                value={form.nome}
-                onChange={(e) => setForm((f) => ({ ...f, nome: toUpperCase(e.target.value) }))}
-              />
-              <select
-                className={CLINICA_FORM_INPUT}
-                value={form.procedure}
-                onChange={(e) => setForm((f) => ({ ...f, procedure: e.target.value }))}
-              >
-                <option value="">Procedimento *</option>
-                {procedures.map((pr) => (
-                  <option key={pr.id} value={pr.id}>{entityName(pr)}</option>
-                ))}
-              </select>
-              <input
-                type="number"
-                className={CLINICA_FORM_INPUT}
-                placeholder="Tempo estimado (min) *"
-                value={form.tempo_estimado}
-                onChange={(e) => setForm((f) => ({ ...f, tempo_estimado: e.target.value }))}
-              />
-              {formFields.map(([key, label]) => (
-                <textarea
-                  key={key}
-                  className={`${CLINICA_FORM_INPUT} resize-none`}
-                  placeholder={label}
-                  rows={key === 'execucao' ? 4 : 2}
-                  value={form[key]}
-                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                />
-              ))}
+        <ClinicaBelezaPageContent className="flex flex-col flex-1 min-h-0 !p-0 !bg-[#f7f2f4] dark:!bg-gray-950">
+          <div className="flex flex-col flex-1 min-h-0 w-full">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#f7f2f4] dark:bg-gray-950">
+              {error && (
+                <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <ClinicaBelezaPanel className="p-5 md:p-6 lg:p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full max-w-none">
+                  <div className="space-y-4">
+                    <p className={sectionTitleClass}>Dados do protocolo</p>
+                    <div>
+                      <label className={labelClass}>Nome *</label>
+                      <input
+                        value={form.nome}
+                        onChange={(e) => setForm((f) => ({ ...f, nome: toUpperCase(e.target.value) }))}
+                        className={inputClass}
+                        placeholder="Ex.: Protocolo limpeza de pele"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelClass}>Procedimento *</label>
+                        <select
+                          value={form.procedure}
+                          onChange={(e) => setForm((f) => ({ ...f, procedure: e.target.value }))}
+                          className={inputClass}
+                        >
+                          <option value="">Selecione...</option>
+                          {procedures.map((pr) => (
+                            <option key={pr.id} value={pr.id}>
+                              {entityName(pr)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Tempo estimado (min) *</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={form.tempo_estimado}
+                          onChange={(e) => setForm((f) => ({ ...f, tempo_estimado: e.target.value }))}
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                    {formFieldsLeft.map(([key, label]) => (
+                      <div key={key}>
+                        <label className={labelClass}>{label}</label>
+                        <textarea
+                          value={form[key]}
+                          onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                          rows={4}
+                          className={`${inputClass} resize-y min-h-[96px]`}
+                          placeholder="Opcional"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-4">
+                    <p className={sectionTitleClass}>Etapas e cuidados</p>
+                    {formFieldsRight.map(([key, label]) => (
+                      <div key={key}>
+                        <label className={labelClass}>{label}</label>
+                        <textarea
+                          value={form[key]}
+                          onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                          rows={key === 'execucao' ? 5 : 3}
+                          className={`${inputClass} resize-y min-h-[72px]`}
+                          placeholder={label}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </ClinicaBelezaPanel>
             </div>
-            <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-neutral-700">
-              <button type="button" onClick={voltarLista} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border text-sm font-medium">
-                <ArrowLeft size={16} />
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={save}
-                disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-              >
-                <Save size={16} />
-                {saving ? 'Salvando...' : 'Salvar'}
-              </button>
+
+            <div className="shrink-0 border-t border-gray-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-800/80 px-4 md:px-6 lg:px-8 py-4">
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 w-full">
+                <button
+                  type="button"
+                  onClick={voltarLista}
+                  className="sm:min-w-[120px] py-2.5 px-5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={saving}
+                  className="sm:min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-white text-sm font-medium disabled:opacity-60"
+                  style={{ backgroundColor: accentColor }}
+                >
+                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                  {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Cadastrar protocolo'}
+                </button>
+              </div>
             </div>
-          </ClinicaBelezaPanel>
+          </div>
         </ClinicaBelezaPageContent>
       </>
     );

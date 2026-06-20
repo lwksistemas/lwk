@@ -345,7 +345,11 @@ export default function PacientesPage() {
     } catch (e: unknown) {
       if (e instanceof Error && e.message === "SESSION_ENDED") return;
       const err = e && typeof e === "object" ? (e as Record<string, unknown>) : {};
-      const msg = formatClinicaApiValidationErrors(err) || (e instanceof Error ? e.message : "Erro ao salvar");
+      const msg =
+        formatClinicaApiValidationErrors(err) ||
+        (typeof err?.error === 'string' ? err.error : '') ||
+        (typeof err?.detail === 'string' ? err.detail : '') ||
+        (e instanceof Error ? e.message : 'Erro ao salvar');
       if (isFetchNetworkError(msg)) {
         try {
           const lojaSlug = getLojaSlug();

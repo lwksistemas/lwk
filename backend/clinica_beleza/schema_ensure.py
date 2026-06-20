@@ -16,6 +16,8 @@ PRODUTO_ESTOQUE_TABLE = 'clinica_beleza_produtoestoque'
 CONSULTA_PRODUTO_TABLE = 'clinica_beleza_consultaprodutoutilizado'
 MIGRATION_CONSULTA_PRODUTO = '0034_consulta_produto_numero_nota'
 MIGRATION_RETORNO_GRATUITO = '0047_retorno_gratuito_agenda'
+MIGRATION_PATIENT_FOTO_URL = '0048_patient_foto_url'
+PATIENT_TABLE = 'clinica_beleza_patient'
 
 
 def table_exists(cursor, table: str) -> bool:
@@ -169,6 +171,45 @@ def ensure_retorno_gratuito_tables(cursor) -> bool:
         [MIGRATION_RETORNO_GRATUITO, MIGRATION_RETORNO_GRATUITO],
     )
     return True
+
+
+def ensure_patient_foto_url_column(cursor) -> bool:
+    """Adiciona foto_url em clinica_beleza_patient se ausente no schema atual."""
+    if not table_exists(cursor, PATIENT_TABLE):
+        logger.warning('ensure_patient_foto_url: tabela %s ausente', PATIENT_TABLE)
+        return False
+    if not column_exists(cursor, PATIENT_TABLE, 'foto_url'):
+        cursor.execute(
+            f"ALTER TABLE {PATIENT_TABLE} ADD COLUMN foto_url VARCHAR(500) NOT NULL DEFAULT ''"
+        )
+    cursor.execute(
+        """
+        INSERT INTO django_migrations (app, name, applied)
+        SELECT 'clinica_beleza', %s, NOW()
+        WHERE NOT EXISTS (
+            SELECT 1 FROM django_migrations
+            WHERE app = 'clinica_beleza' AND name = %s
+        )
+        """,
+        [MIGRATION_PATIENT_FOTO_URL, MIGRATION_PATIENT_FOTO_URL],
+    )
+    return True
+
+
+def ensure_patient_foto_url_for_tenant() -> bool:
+    """Garante coluna foto_url no tenant da requisição atual."""
+    from tenants.middleware import get_current_tenant_db
+
+    tenant_db = get_current_tenant_db()
+    if not tenant_db or tenant_db == 'default':
+        return True
+    try:
+        conn = connections[tenant_db]
+        with conn.cursor() as cursor:
+            return ensure_patient_foto_url_column(cursor)
+    except Exception as exc:
+        logger.exception('ensure_patient_foto_url_for_tenant falhou: %s', exc)
+        return False
 
 
 def ensure_retorno_gratuito_for_tenant() -> bool:

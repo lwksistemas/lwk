@@ -17,7 +17,9 @@ CONSULTA_PRODUTO_TABLE = 'clinica_beleza_consultaprodutoutilizado'
 MIGRATION_CONSULTA_PRODUTO = '0034_consulta_produto_numero_nota'
 MIGRATION_RETORNO_GRATUITO = '0047_retorno_gratuito_agenda'
 MIGRATION_PATIENT_FOTO_URL = '0048_patient_foto_url'
+MIGRATION_PATIENT_ANAMNESE = '0019_consulta_anamnese_evolucao'
 PATIENT_TABLE = 'clinica_beleza_patient'
+ANAMNESE_TABLE = 'clinica_beleza_anamneses'
 
 
 def table_exists(cursor, table: str) -> bool:
@@ -194,6 +196,63 @@ def ensure_patient_foto_url_column(cursor) -> bool:
         [MIGRATION_PATIENT_FOTO_URL, MIGRATION_PATIENT_FOTO_URL],
     )
     return True
+
+
+def ensure_patient_anamnese_table(cursor) -> bool:
+    """Cria clinica_beleza_anamneses se ausente no schema atual."""
+    if table_exists(cursor, ANAMNESE_TABLE):
+        return True
+    if not table_exists(cursor, PATIENT_TABLE):
+        logger.warning('ensure_patient_anamnese: tabela %s ausente', PATIENT_TABLE)
+        return False
+
+    cursor.execute(f"""
+        CREATE TABLE {ANAMNESE_TABLE} (
+            id BIGSERIAL PRIMARY KEY,
+            loja_id INTEGER NOT NULL,
+            queixa_principal TEXT NOT NULL DEFAULT '',
+            historico_medico TEXT NOT NULL DEFAULT '',
+            medicamentos_uso TEXT NOT NULL DEFAULT '',
+            alergias TEXT NOT NULL DEFAULT '',
+            condicoes_clinicas TEXT NOT NULL DEFAULT '',
+            tipo_pele VARCHAR(100) NOT NULL DEFAULT '',
+            pressao_arterial VARCHAR(20) NOT NULL DEFAULT '',
+            peso NUMERIC(5, 2) NULL,
+            altura NUMERIC(4, 2) NULL,
+            observacoes TEXT NOT NULL DEFAULT '',
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            patient_id BIGINT NOT NULL UNIQUE REFERENCES {PATIENT_TABLE}(id) ON DELETE CASCADE
+        )
+    """)
+    cursor.execute(
+        """
+        INSERT INTO django_migrations (app, name, applied)
+        SELECT 'clinica_beleza', %s, NOW()
+        WHERE NOT EXISTS (
+            SELECT 1 FROM django_migrations
+            WHERE app = 'clinica_beleza' AND name = %s
+        )
+        """,
+        [MIGRATION_PATIENT_ANAMNESE, MIGRATION_PATIENT_ANAMNESE],
+    )
+    return True
+
+
+def ensure_patient_anamnese_for_tenant() -> bool:
+    """Garante tabela de anamnese no tenant da requisição atual."""
+    from tenants.middleware import get_current_tenant_db
+
+    tenant_db = get_current_tenant_db()
+    if not tenant_db or tenant_db == 'default':
+        return True
+    try:
+        conn = connections[tenant_db]
+        with conn.cursor() as cursor:
+            return ensure_patient_anamnese_table(cursor)
+    except Exception as exc:
+        logger.exception('ensure_patient_anamnese_for_tenant falhou: %s', exc)
+        return False
 
 
 def ensure_patient_foto_url_for_tenant() -> bool:

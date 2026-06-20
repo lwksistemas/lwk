@@ -34,6 +34,13 @@ function useIsMobileViewport() {
   return isMobile;
 }
 
+function mensagemPacientePosResposta(status: string): string {
+  if (status === "CANCELLED") {
+    return "Consulta cancelada. Se precisar remarcar, entre em contato conosco.";
+  }
+  return "Consulta confirmada! Aguardamos você no horário marcado.";
+}
+
 function fecharPagina() {
   window.close();
   setTimeout(() => {
@@ -311,12 +318,10 @@ export default function ConfirmarAgendamentoPage() {
         {jaRespondido && !resultado && (
           <div
             className={`p-3 rounded-xl text-center text-sm ${
-              confirmado ? 'bg-green-50 text-green-800' : 'bg-gray-50 text-gray-700'
+              cancelado ? "bg-gray-50 text-gray-700" : "bg-green-50 text-green-800"
             }`}
           >
-            <p className="mb-2">
-              Status: <strong>{agendamento.status_display}</strong>
-            </p>
+            <p className="mb-2">{mensagemPacientePosResposta(agendamento.status)}</p>
             <button
               type="button"
               onClick={tentarFechar}

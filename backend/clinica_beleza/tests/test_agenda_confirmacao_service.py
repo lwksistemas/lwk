@@ -19,7 +19,6 @@ class SyncConsultaConfirmacaoTest(TestCase):
 
 
 class ProcessarRespostaConfirmacaoTest(TestCase):
-    @patch('clinica_beleza.agenda_confirmacao_service._enviar_ack_whatsapp')
     @patch('clinica_beleza.agenda_service.atualizar_agendamento')
     @patch('clinica_beleza.agenda_confirmacao_service._configurar_tenant')
     @patch('clinica_beleza.agenda_confirmacao_service.decodificar_token_confirmacao')
@@ -30,7 +29,6 @@ class ProcessarRespostaConfirmacaoTest(TestCase):
         mock_decode,
         mock_tenant,
         mock_atualizar,
-        mock_ack,
     ):
         mock_tenant.return_value = None
         mock_decode.return_value = {'loja_id': 15, 'doc_id': 99}

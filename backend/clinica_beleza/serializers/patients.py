@@ -72,4 +72,16 @@ class PatientAnamneseSerializer(serializers.ModelSerializer):
             'condicoes_clinicas', 'tipo_pele', 'pressao_arterial', 'peso', 'altura',
             'observacoes', 'created_at', 'updated_at', 'loja_id',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+        read_only_fields = ['created_at', 'updated_at', 'loja_id', 'patient_name']
+
+    @staticmethod
+    def _empty_decimal_to_none(value):
+        if value in ('', None):
+            return None
+        return value
+
+    def validate_peso(self, value):
+        return self._empty_decimal_to_none(value)
+
+    def validate_altura(self, value):
+        return self._empty_decimal_to_none(value)

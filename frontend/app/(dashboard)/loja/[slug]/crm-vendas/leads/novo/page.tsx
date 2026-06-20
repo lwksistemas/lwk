@@ -2,23 +2,20 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import apiClient from '@/lib/api-client';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
-import { ArrowLeft } from 'lucide-react';
 import { consultaCep } from '@/lib/consulta-cep';
 import { consultaCnpj, formatCpfCnpj } from '@/lib/consulta-cnpj';
 import { buildCrmLeadPayload } from '@/lib/crm-utils';
-import { formatCep, formatTelefone, toUpperCase } from '@/lib/format-br';
-
-const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
-const labelClass = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1';
+import { formatCep, toUpperCase } from '@/lib/format-br';
+import { LeadCadastroForm } from '@/components/crm-vendas/LeadCadastroForm';
 
 export default function NovoLeadPage() {
   const params = useParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
+  const basePath = `/loja/${slug}/crm-vendas/leads`;
   const { origensAtivas } = useCRMConfig();
   const [form, setForm] = useState({
     nome: '',
@@ -42,10 +39,13 @@ export default function NovoLeadPage() {
   const [buscarCepLoading, setBuscarCepLoading] = useState(false);
   const [buscarCnpjLoading, setBuscarCnpjLoading] = useState(false);
 
+  const voltarLista = () => {
+    router.push(basePath);
+  };
+
   const handleCpfCnpjChange = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 14);
     const updates: Partial<typeof form> = { cpf_cnpj: formatCpfCnpj(digits) };
-    // Limpar empresa quando for CPF (pessoa física)
     if (digits.length === 11) {
       updates.empresa = '';
     }
@@ -85,9 +85,7 @@ export default function NovoLeadPage() {
   };
 
   const handleCepChange = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 8);
-    const formatted = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
-    setForm((f) => ({ ...f, cep: formatted }));
+    setForm((f) => ({ ...f, cep: formatCep(value) }));
   };
 
   const handleBuscarCep = async () => {
@@ -102,10 +100,10 @@ export default function NovoLeadPage() {
       if (endereco) {
         setForm((f) => ({
           ...f,
-          logradouro: endereco.logradouro,
-          bairro: endereco.bairro,
-          cidade: endereco.cidade,
-          uf: endereco.uf,
+          logradouro: toUpperCase(endereco.logradouro),
+          bairro: toUpperCase(endereco.bairro),
+          cidade: toUpperCase(endereco.cidade),
+          uf: endereco.uf.toUpperCase(),
         }));
       } else {
         alert('Erro ao consultar CEP. Verifique sua conexão ou tente novamente em instantes.');
@@ -115,8 +113,7 @@ export default function NovoLeadPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = () => {
     setFormErro(null);
     if (!form.nome.trim()) {
       setFormErro('Informe o nome.');
@@ -126,266 +123,34 @@ export default function NovoLeadPage() {
     apiClient
       .post('/crm-vendas/leads/', buildCrmLeadPayload(form))
       .then(() => {
-        router.push(`/loja/${slug}/crm-vendas/leads`);
+        router.push(basePath);
       })
       .catch((err) => {
         setFormErro(
-          err.response?.data?.nome?.[0] || err.response?.data?.detail || 'Erro ao salvar lead.'
+          err.response?.data?.nome?.[0] || err.response?.data?.detail || 'Erro ao salvar lead.',
         );
       })
       .finally(() => setEnviando(false));
   };
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center gap-4">
-        <Link
-          href={`/loja/${slug}/crm-vendas/leads`}
-          className="shrink-0 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
-          aria-label="Voltar"
-        >
-          <ArrowLeft size={20} />
-        </Link>
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Novo Lead</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Preencha os dados do cliente
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-[#16325c] rounded-xl border border-gray-200 dark:border-[#0d1f3c] p-4 sm:p-6 w-full shadow-sm">
-        <form onSubmit={handleSubmit} className="space-y-8 w-full">
-        {formErro && (
-          <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
-            {formErro}
-          </div>
-        )}
-
-        {/* Dados do lead */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-medium text-gray-800 dark:text-white border-b border-gray-200 dark:border-gray-600 pb-2">
-            Dados do lead
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className={labelClass}>Nome *</label>
-              <input
-                type="text"
-                value={form.nome}
-                onChange={(e) => setForm((f) => ({ ...f, nome: toUpperCase(e.target.value) }))}
-                className={inputClass}
-                placeholder="Nome completo do lead"
-                required
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className={labelClass}>CPF ou CNPJ</label>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-                <input
-                  type="text"
-                  value={form.cpf_cnpj}
-                  onChange={(e) => handleCpfCnpjChange(e.target.value)}
-                  className={`${inputClass} min-w-0 sm:flex-1`}
-                  placeholder="000.000.000-00 ou 00.000.000/0001-00"
-                />
-                <button
-                  type="button"
-                  onClick={handleBuscarCnpj}
-                  disabled={buscarCnpjLoading || form.cpf_cnpj.replace(/\D/g, '').length !== 14}
-                  className="shrink-0 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm font-medium sm:self-auto"
-                  title="Buscar dados do CNPJ na Receita Federal"
-                >
-                  {buscarCnpjLoading ? '...' : 'Buscar CNPJ'}
-                </button>
-              </div>
-            </div>
-            {form.cpf_cnpj.replace(/\D/g, '').length !== 11 && (
-              <div>
-                <label className={labelClass}>Empresa</label>
-                <input
-                  type="text"
-                  value={form.empresa}
-                  onChange={(e) => setForm((f) => ({ ...f, empresa: toUpperCase(e.target.value) }))}
-                  className={inputClass}
-                  placeholder="Nome da empresa"
-                />
-              </div>
-            )}
-            <div>
-              <label className={labelClass}>Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className={inputClass}
-                placeholder="email@exemplo.com"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Telefone</label>
-              <input
-                type="text"
-                value={form.telefone}
-                onChange={(e) => setForm((f) => ({ ...f, telefone: formatTelefone(e.target.value) }))}
-                className={inputClass}
-                placeholder="(00) 00000-0000"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Origem</label>
-              <select
-                value={form.origem}
-                onChange={(e) => setForm((f) => ({ ...f, origem: e.target.value }))}
-                className={inputClass}
-              >
-                {origensAtivas().map((o) => (
-                  <option key={o.key} value={o.key}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Status</label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                className={inputClass}
-              >
-                {STATUS_LEAD_OPCOES.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Endereço */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-medium text-gray-800 dark:text-white border-b border-gray-200 dark:border-gray-600 pb-2">
-            Endereço
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <div className="min-w-0 flex-1">
-                <label className={labelClass}>CEP</label>
-                <input
-                  type="text"
-                  value={form.cep}
-                  onChange={(e) => handleCepChange(e.target.value)}
-                  onBlur={() => form.cep.replace(/\D/g, '').length === 8 && handleBuscarCep()}
-                  maxLength={9}
-                  className={inputClass}
-                  placeholder="00000-000"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleBuscarCep}
-                disabled={buscarCepLoading || form.cep.replace(/\D/g, '').length !== 8}
-                className="shrink-0 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm font-medium w-full sm:w-auto sm:self-end"
-                title="Buscar endereço pelo CEP"
-              >
-                {buscarCepLoading ? '...' : 'Buscar'}
-              </button>
-            </div>
-            <div className="md:col-span-2">
-              <label className={labelClass}>Logradouro</label>
-              <input
-                type="text"
-                value={form.logradouro}
-                onChange={(e) => setForm((f) => ({ ...f, logradouro: toUpperCase(e.target.value) }))}
-                className={inputClass}
-                placeholder="Rua, avenida..."
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Número</label>
-              <input
-                type="text"
-                value={form.numero}
-                onChange={(e) => setForm((f) => ({ ...f, numero: e.target.value }))}
-                className={inputClass}
-                placeholder="Nº"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Complemento</label>
-              <input
-                type="text"
-                value={form.complemento}
-                onChange={(e) => setForm((f) => ({ ...f, complemento: toUpperCase(e.target.value) }))}
-                className={inputClass}
-                placeholder="Apto, sala..."
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Bairro</label>
-              <input
-                type="text"
-                value={form.bairro}
-                onChange={(e) => setForm((f) => ({ ...f, bairro: toUpperCase(e.target.value) }))}
-                className={inputClass}
-                placeholder="Bairro"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Cidade</label>
-              <input
-                type="text"
-                value={form.cidade}
-                onChange={(e) => setForm((f) => ({ ...f, cidade: toUpperCase(e.target.value) }))}
-                className={inputClass}
-                placeholder="Cidade"
-              />
-            </div>
-            <div className="max-w-[100px]">
-              <label className={labelClass}>UF</label>
-              <input
-                type="text"
-                value={form.uf}
-                onChange={(e) => setForm((f) => ({ ...f, uf: e.target.value.toUpperCase().slice(0, 2) }))}
-                maxLength={2}
-                className={inputClass}
-                placeholder="UF"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Observações */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-medium text-gray-800 dark:text-white border-b border-gray-200 dark:border-gray-600 pb-2">
-            Observações
-          </h2>
-          <div>
-            <label className={labelClass}>Notas sobre o lead</label>
-            <textarea
-              value={form.observacoes}
-              onChange={(e) => setForm((f) => ({ ...f, observacoes: e.target.value }))}
-              rows={4}
-              className={`${inputClass} resize-y min-h-[96px]`}
-              placeholder="Anotações, histórico de contato, detalhes da negociação..."
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-3 pt-4">
-          <Link
-            href={`/loja/${slug}/crm-vendas/leads`}
-            className="px-6 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
-          >
-            Cancelar
-          </Link>
-          <button
-            type="submit"
-            disabled={enviando}
-            className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium"
-          >
-            {enviando ? 'Salvando...' : 'Salvar lead'}
-          </button>
-        </div>
-      </form>
-      </div>
+    <div className="-m-4 sm:-m-6 lg:-m-8 flex flex-col min-h-[calc(100dvh-3.5rem)]">
+      <LeadCadastroForm
+        form={form}
+        onFormChange={(updater) => setForm(updater)}
+        error={formErro}
+        saving={enviando}
+        origensAtivas={origensAtivas}
+        statusOpcoes={STATUS_LEAD_OPCOES}
+        buscarCepLoading={buscarCepLoading}
+        buscarCnpjLoading={buscarCnpjLoading}
+        onCepChange={handleCepChange}
+        onBuscarCep={handleBuscarCep}
+        onBuscarCnpj={handleBuscarCnpj}
+        onCpfCnpjChange={handleCpfCnpjChange}
+        onSave={handleSave}
+        onCancel={voltarLista}
+      />
     </div>
   );
 }

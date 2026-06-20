@@ -131,7 +131,7 @@ export function CrmVendasShell({ children }: { children: ReactNode }) {
             userRole={userRole}
             slug={slug}
           />
-          <main className="p-4 sm:p-6 lg:p-8 flex-1 min-h-0 overflow-y-auto bg-[#f3f2f2] dark:bg-[#0d1f3c] w-full">
+          <main className="p-4 sm:p-6 lg:p-8 flex flex-col flex-1 min-h-0 overflow-y-auto bg-[#f3f2f2] dark:bg-[#0d1f3c] w-full">
             {children}
           </main>
         </div>

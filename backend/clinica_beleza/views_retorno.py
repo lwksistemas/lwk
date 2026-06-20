@@ -10,6 +10,16 @@ from .serializers.retorno import AgendaRetornoConfigSerializer, RetornoProcedime
 from .views_base import GetObjectMixin
 
 
+def _ensure_retorno_schema_or_response():
+    from .retorno_service import require_retorno_gratuito_schema
+
+    try:
+        require_retorno_gratuito_schema()
+    except ValueError as exc:
+        return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    return None
+
+
 class RetornoConfigView(APIView):
     """
     GET/PATCH /clinica-beleza/retorno/config/
@@ -25,6 +35,9 @@ class RetornoConfigView(APIView):
         return Response(AgendaRetornoConfigSerializer(config).data)
 
     def patch(self, request):
+        err = _ensure_retorno_schema_or_response()
+        if err:
+            return err
         from tenants.middleware import get_current_loja_id
 
         loja_id = get_current_loja_id()
@@ -41,10 +54,16 @@ class RetornoProcedimentoRegraListView(APIView):
     permission_classes = CLINICA_MEMBER
 
     def get(self, request):
+        err = _ensure_retorno_schema_or_response()
+        if err:
+            return err
         qs = RetornoProcedimentoRegra.objects.filter(is_active=True).select_related('procedure').order_by('procedure__nome')
         return Response(RetornoProcedimentoRegraSerializer(qs, many=True).data)
 
     def post(self, request):
+        err = _ensure_retorno_schema_or_response()
+        if err:
+            return err
         serializer = RetornoProcedimentoRegraSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -59,12 +78,18 @@ class RetornoProcedimentoRegraDetailView(GetObjectMixin, APIView):
     not_found_message = 'Regra de retorno não encontrada'
 
     def get(self, request, pk):
+        err = _ensure_retorno_schema_or_response()
+        if err:
+            return err
         obj, error = self.object_or_404(pk)
         if error:
             return error
         return Response(RetornoProcedimentoRegraSerializer(obj).data)
 
     def _update(self, request, pk):
+        err = _ensure_retorno_schema_or_response()
+        if err:
+            return err
         obj, error = self.object_or_404(pk)
         if error:
             return error
@@ -81,6 +106,9 @@ class RetornoProcedimentoRegraDetailView(GetObjectMixin, APIView):
         return self._update(request, pk)
 
     def delete(self, request, pk):
+        err = _ensure_retorno_schema_or_response()
+        if err:
+            return err
         obj, error = self.object_or_404(pk)
         if error:
             return error
@@ -97,6 +125,9 @@ class RetornoVerificarView(APIView):
     permission_classes = CLINICA_MEMBER
 
     def get(self, request):
+        err = _ensure_retorno_schema_or_response()
+        if err:
+            return err
         from tenants.middleware import get_current_loja_id
 
         loja_id = get_current_loja_id()

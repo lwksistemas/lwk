@@ -25,6 +25,7 @@ _PATIENT_FIELD_MAP = {
     'address': 'endereco',
     'notes': 'observacoes',
     'active': 'is_active',
+    'photo_url': 'foto_url',
 }
 _PATIENT_NULL_FIELDS = ('telefone', 'endereco', 'observacoes', 'cpf', 'cidade', 'estado')
 

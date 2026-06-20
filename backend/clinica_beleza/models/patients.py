@@ -31,6 +31,13 @@ class Patient(ClienteBase):
         verbose_name='Convênio padrão',
         help_text='Convênio sugerido ao agendar ou abrir consulta.',
     )
+    foto_url = models.URLField(
+        blank=True,
+        default='',
+        max_length=500,
+        verbose_name='Foto',
+        help_text='Foto de perfil do cliente (Cloudinary).',
+    )
 
     # DEPRECATED: aliases inglês→português mantidos apenas para o management command
     # popular_loja_clinica_beleza. O mapeamento real é feito em views_pacientes._map_patient_data.

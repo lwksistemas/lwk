@@ -9,6 +9,44 @@ import {
 } from "@/lib/cloudinary-folders";
 import { uploadImagemCloudinary } from "@/lib/cloudinary-direct-upload";
 
+function mensagemErroCamera(err: unknown): string {
+  if (err instanceof DOMException) {
+    if (err.name === "NotAllowedError") {
+      return "Permita o acesso à câmera no navegador (ícone de cadeado/câmera na barra de endereço).";
+    }
+    if (err.name === "NotFoundError") {
+      return "Nenhuma webcam encontrada. Conecte uma câmera ou use Importar foto.";
+    }
+    if (err.name === "NotReadableError") {
+      return "A câmera está em uso por outro aplicativo. Feche o outro app e tente novamente.";
+    }
+  }
+  return "Não foi possível acessar a câmera. Verifique se há webcam conectada e permita o acesso no navegador.";
+}
+
+async function obterStreamCamera(): Promise<MediaStream> {
+  const tentativas: MediaStreamConstraints[] = [
+    {
+      video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 1280 } },
+      audio: false,
+    },
+    { video: { width: { ideal: 1280 }, height: { ideal: 1280 } }, audio: false },
+    { video: true, audio: false },
+  ];
+  let ultimoErro: unknown;
+  for (const constraints of tentativas) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      ultimoErro = err;
+      if (err instanceof DOMException && err.name === "NotAllowedError") {
+        throw err;
+      }
+    }
+  }
+  throw ultimoErro ?? new Error("camera_unavailable");
+}
+
 interface PacienteFotoCadastroProps {
   slug: string;
   value: string;
@@ -93,20 +131,11 @@ export function PacienteFotoCadastro({
     try {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 1280 },
-          height: { ideal: 1280 },
-        },
-        audio: false,
-      });
+      const stream = await obterStreamCamera();
       streamRef.current = stream;
       setCameraOpen(true);
-    } catch {
-      setErro(
-        "Não foi possível acessar a câmera. Verifique se há webcam conectada e permita o acesso no navegador.",
-      );
+    } catch (err) {
+      setErro(mensagemErroCamera(err));
     }
   };
 

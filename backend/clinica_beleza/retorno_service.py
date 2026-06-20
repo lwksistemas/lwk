@@ -40,13 +40,22 @@ class RetornoElegibilidade:
         }
 
 
-def get_agenda_retorno_config(loja_id):
+def require_retorno_gratuito_schema() -> None:
+    """Garante tabelas de retorno no tenant atual; levanta ValueError se indisponível."""
     from clinica_beleza.schema_ensure import ensure_retorno_gratuito_for_tenant
+
+    if not ensure_retorno_gratuito_for_tenant():
+        raise ValueError(
+            'Schema de retorno gratuito indisponível. Tente novamente em instantes ou contate o suporte.'
+        )
+
+
+def get_agenda_retorno_config(loja_id):
     from tenants.middleware import get_current_loja_id
 
     from .models import AgendaRetornoConfig
 
-    ensure_retorno_gratuito_for_tenant()
+    require_retorno_gratuito_schema()
     loja_id = loja_id or get_current_loja_id()
     if not loja_id:
         raise ValueError('loja_id é obrigatório para configuração de retorno')

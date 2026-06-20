@@ -114,9 +114,11 @@ def ensure_retorno_gratuito_tables(cursor) -> bool:
 
     if not table_exists(cursor, 'clinica_beleza_retorno_procedimento_regra'):
         if not table_exists(cursor, 'clinica_beleza_procedure'):
-            logger.warning('ensure_retorno: tabela clinica_beleza_procedure ausente')
-            return False
-        cursor.execute("""
+            logger.warning(
+                'ensure_retorno: tabela clinica_beleza_procedure ausente — regras por procedimento omitidas'
+            )
+        else:
+            cursor.execute("""
             CREATE TABLE clinica_beleza_retorno_procedimento_regra (
                 id BIGSERIAL PRIMARY KEY,
                 loja_id INTEGER NOT NULL,
@@ -130,10 +132,10 @@ def ensure_retorno_gratuito_tables(cursor) -> bool:
                     UNIQUE (procedure_id, loja_id)
             )
         """)
-        cursor.execute(
-            'CREATE INDEX IF NOT EXISTS clinica_beleza_retorno_procedimento_regra_loja_id_idx '
-            'ON clinica_beleza_retorno_procedimento_regra (loja_id)'
-        )
+            cursor.execute(
+                'CREATE INDEX IF NOT EXISTS clinica_beleza_retorno_procedimento_regra_loja_id_idx '
+                'ON clinica_beleza_retorno_procedimento_regra (loja_id)'
+            )
 
     if not column_exists(cursor, 'clinica_beleza_appointment', 'retorno_procedure_id'):
         if table_exists(cursor, 'clinica_beleza_procedure'):

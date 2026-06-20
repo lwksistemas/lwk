@@ -41,8 +41,9 @@ export function RetornoAgendaModal({ open, onClose }: RetornoAgendaModalProps) {
     setLoading(true);
     setErro("");
     try {
-      const [cfg, regs, procs] = await Promise.all([
-        ClinicaBelezaAPI.retorno.getConfig(),
+      // getConfig garante schema de retorno no tenant antes de listRegras (evita race 500).
+      const cfg = await ClinicaBelezaAPI.retorno.getConfig();
+      const [regs, procs] = await Promise.all([
         ClinicaBelezaAPI.retorno.listRegras(),
         ClinicaBelezaAPI.procedures.list({ active: true, page_size: 500 }),
       ]);
@@ -128,8 +129,8 @@ export function RetornoAgendaModal({ open, onClose }: RetornoAgendaModalProps) {
     "w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg dark:bg-neutral-800";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+      <div className="bg-white dark:bg-neutral-900 rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-lg sm:max-w-4xl sm:w-[calc(100vw-2rem)] max-h-[95vh] sm:max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-700 shrink-0">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Retorno gratuito</h2>
@@ -161,7 +162,7 @@ export function RetornoAgendaModal({ open, onClose }: RetornoAgendaModalProps) {
               Carregando...
             </div>
           ) : config ? (
-            <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
               <section className="space-y-3">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Retorno por consulta</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -199,7 +200,7 @@ export function RetornoAgendaModal({ open, onClose }: RetornoAgendaModalProps) {
                 )}
               </section>
 
-              <section className="space-y-3 pt-2 border-t border-gray-100 dark:border-neutral-800">
+              <section className="space-y-3 md:pt-0 pt-2 border-t md:border-t-0 border-gray-100 dark:border-neutral-800">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Retorno por procedimento</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Após procedimento concluído, acompanhamento dentro do prazo → taxa de consulta isenta
@@ -292,7 +293,7 @@ export function RetornoAgendaModal({ open, onClose }: RetornoAgendaModalProps) {
                   </div>
                 )}
               </section>
-            </>
+            </div>
           ) : null}
         </div>
 

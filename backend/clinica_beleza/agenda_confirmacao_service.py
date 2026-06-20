@@ -206,41 +206,16 @@ def processar_resposta_confirmacao(token: str, acao: str) -> RespostaConfirmacao
         return RespostaConfirmacao(False, 'Erro ao registrar sua resposta. Tente novamente.')
 
     msg = (
-        'Agendamento confirmado pelo WhatsApp! Aguardamos você no horário marcado.'
+        'Agendamento confirmado! Aguardamos você no horário marcado.'
         if novo_status == 'CLIENT_CONFIRMED'
         else 'Agendamento cancelado. Se precisar remarcar, entre em contato conosco.'
     )
-    _enviar_ack_whatsapp(loja_id, result.appointment, msg)
     return RespostaConfirmacao(
         True,
         msg,
         status=result.appointment.status,
         appointment_id=result.appointment.id,
     )
-
-
-def _enviar_ack_whatsapp(loja_id: int, appointment, mensagem: str):
-    """Confirmação automática no WhatsApp após resposta (link ou webhook)."""
-    try:
-        patient = appointment.patient
-        if not getattr(patient, 'allow_whatsapp', True):
-            return
-        telefone = getattr(patient, 'telefone', '') or getattr(patient, 'phone', '')
-        if not telefone.strip():
-            return
-        from whatsapp.models import WhatsAppConfig
-        from whatsapp.services import send_whatsapp
-
-        config = (
-            WhatsAppConfig.objects.using('default')
-            .filter(loja_id=loja_id, whatsapp_ativo=True)
-            .first()
-        )
-        if not config:
-            return
-        send_whatsapp(telefone=telefone, mensagem=mensagem, user=None, config=config)
-    except Exception as exc:
-        logger.warning('WhatsApp ack confirmação agendamento %s: %s', appointment.id, exc)
 
 
 def _normalize_phone_digits(telefone: str) -> str:

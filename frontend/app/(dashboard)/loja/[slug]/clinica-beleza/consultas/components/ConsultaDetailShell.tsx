@@ -309,7 +309,11 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
   const salvarAnamnese = async () => {
     setSaving(true);
     try {
-      await ClinicaBelezaAPI.anamnese.save(selected.patient, anamneseDraft);
+      const payload: Record<string, unknown> = { ...anamneseDraft };
+      for (const key of ["peso", "altura"] as const) {
+        if (payload[key] === "" || payload[key] == null) payload[key] = null;
+      }
+      await ClinicaBelezaAPI.anamnese.save(selected.patient, payload);
       setAnamnese(anamneseDraft);
       setEditAnamnese(false);
     } catch {

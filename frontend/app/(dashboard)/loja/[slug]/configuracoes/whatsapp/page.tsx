@@ -52,7 +52,8 @@ export default function LojaConfiguracoesWhatsappPage() {
 
   const features = whatsappFeaturesForTipoLoja(tipoLojaNome);
   const backHref = configuracoesPathForTipo(slug, tipoLojaNome);
-  const clinicaBeleza = Boolean(shellActions) || resolveIsClinicaBeleza(tipoLojaNome);
+  const inClinicaShell = Boolean(shellActions);
+  const clinicaBeleza = resolveIsClinicaBeleza(tipoLojaNome);
   const crmVendas = isTipoCRMVendas(tipoLojaNome);
   const accentColor = clinicaBeleza ? CLINICA_BELEZA_PRIMARY : crmVendas ? CRM_PRIMARY : undefined;
 
@@ -64,7 +65,17 @@ export default function LojaConfiguracoesWhatsappPage() {
     />
   );
 
-  if (clinicaBeleza) {
+  const backLink = (
+    <Link
+      href={backHref}
+      className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:underline"
+    >
+      <ArrowLeft size={16} />
+      Voltar às configurações
+    </Link>
+  );
+
+  if (clinicaBeleza && inClinicaShell) {
     return (
       <>
         <ClinicaBelezaStandardPageHeader
@@ -86,16 +97,39 @@ export default function LojaConfiguracoesWhatsappPage() {
     );
   }
 
+  if (clinicaBeleza) {
+    return (
+      <ClinicaBelezaPageContent className="space-y-6">
+        {backLink}
+        <ClinicaBelezaPanel className="p-4 sm:p-6 w-full">
+          <div className="flex items-center gap-3 mb-4">
+            <div
+              className="p-2.5 rounded-lg text-white"
+              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            >
+              <MessageCircle size={24} />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Configurar WhatsApp</h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Meta Cloud API ou WhatsApp Web (Evolution)
+              </p>
+            </div>
+          </div>
+          {loading ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">Carregando...</p>
+          ) : (
+            panel
+          )}
+        </ClinicaBelezaPanel>
+      </ClinicaBelezaPageContent>
+    );
+  }
+
   if (crmVendas) {
     return (
       <div className="space-y-6 w-full">
-        <Link
-          href={backHref}
-          className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-[#0176d3] dark:hover:text-[#0d9dda]"
-        >
-          <ArrowLeft size={16} />
-          Voltar às configurações
-        </Link>
+        {backLink}
 
         <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6 w-full">
           <div className="flex items-center gap-3 mb-4">
@@ -120,13 +154,7 @@ export default function LojaConfiguracoesWhatsappPage() {
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-gray-900">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
-        <Link
-          href={backHref}
-          className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-        >
-          <ArrowLeft size={16} />
-          Voltar
-        </Link>
+        {backLink}
 
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">

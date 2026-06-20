@@ -254,7 +254,7 @@ export default function NovaOportunidadePage() {
 
   if (loading) {
     return (
-      <div className="-m-4 sm:-m-6 lg:-m-8 flex flex-1 items-center justify-center min-h-[calc(100dvh-3.5rem)] bg-white dark:bg-[#16325c]">
+      <div className="-m-4 sm:-m-6 lg:-m-8 flex flex-1 items-center justify-center min-h-[calc(100dvh-3.5rem)] bg-[#f3f2f2] dark:bg-[#0d1f3c]">
         <p className="text-gray-500 dark:text-gray-400">Carregando...</p>
       </div>
     );
@@ -262,7 +262,6 @@ export default function NovaOportunidadePage() {
 
   return (
     <CrmFormPageShell
-      fullPage
       error={formErro}
       saving={enviando}
       saveLabel="Criar oportunidade"

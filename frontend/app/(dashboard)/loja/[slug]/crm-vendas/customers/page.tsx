@@ -7,9 +7,8 @@ import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { Plus, Eye, Edit2, Trash2, Building2, Download } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
-import { ContaFormModal, type ContaFormData } from './components/ContaFormModal';
 import { ContaViewModal } from './components/ContaViewModal';
-import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
+import { formatTelefone } from '@/lib/format-br';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { formatDate } from '@/lib/financeiro-helpers';
 
@@ -20,13 +19,7 @@ interface Conta {
   bairro?: string; cidade?: string; uf?: string; observacoes?: string; created_at: string;
 }
 
-type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
-
-const EMPTY_FORM: ContaFormData = {
-  nome: '', razao_social: '', cnpj: '', inscricao_estadual: '', tipo: 'cliente', segmento: '',
-  telefone: '', email: '', site: '', cep: '', logradouro: '', numero: '',
-  complemento: '', bairro: '', cidade: '', uf: '', observacoes: '',
-};
+type ModalType = 'view' | 'delete' | null;
 
 export default function CrmVendasCustomersPage() {
   const params = useParams();
@@ -93,9 +86,7 @@ export default function CrmVendasCustomersPage() {
   });
   const [modalType, setModalType] = useState<ModalType>(null);
   const [selectedConta, setSelectedConta] = useState<Conta | null>(null);
-  const [formData, setFormData] = useState<ContaFormData>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
-  const [consultingCNPJ, setConsultingCNPJ] = useState(false);
 
   useEffect(() => {
     if (!verParam) return;
@@ -113,62 +104,9 @@ export default function CrmVendasCustomersPage() {
   const openModal = (type: ModalType, conta?: Conta) => {
     setModalType(type);
     setSelectedConta(conta || null);
-    if (type === 'edit' && conta) {
-      setFormData({
-        nome: conta.nome || '', razao_social: conta.razao_social || '', cnpj: conta.cnpj || '',
-        inscricao_estadual: conta.inscricao_estadual || '', tipo: conta.tipo || 'cliente', segmento: conta.segmento || '',
-        telefone: formatTelefone(conta.telefone || ''), email: conta.email || '', site: conta.site || '',
-        cep: conta.cep || '', logradouro: conta.logradouro || '', numero: conta.numero || '',
-        complemento: conta.complemento || '', bairro: conta.bairro || '',
-        cidade: conta.cidade || '', uf: conta.uf || '', observacoes: conta.observacoes || '',
-      });
-    } else if (type === 'create') {
-      setFormData(EMPTY_FORM);
-    }
   };
 
-  const closeModal = () => { setModalType(null); setSelectedConta(null); setFormData(EMPTY_FORM); };
-
-  const consultarCNPJ = async () => {
-    const cnpj = formData.cnpj.replace(/\D/g, '');
-    if (cnpj.length !== 14) { alert('CNPJ inválido.'); return; }
-    try {
-      setConsultingCNPJ(true);
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-      if (!res.ok) throw new Error('CNPJ não encontrado');
-      const d = await res.json();
-      setFormData((f) => ({
-        ...f, razao_social: d.razao_social || '', nome: d.nome_fantasia || d.razao_social || f.nome,
-        telefone: d.ddd_telefone_1 ? `(${d.ddd_telefone_1.substring(0, 2)}) ${d.ddd_telefone_1.substring(2)}` : f.telefone,
-        email: d.email || f.email, cep: d.cep || '', logradouro: d.logradouro || '',
-        numero: d.numero || '', complemento: d.complemento || '', bairro: d.bairro || '',
-        cidade: d.municipio || '', uf: d.uf || '',
-      }));
-      alert('Dados carregados!');
-    } catch { alert('Erro ao consultar CNPJ.'); } finally { setConsultingCNPJ(false); }
-  };
-
-  const consultarCEP = async () => {
-    const cep = formData.cep.replace(/\D/g, '');
-    if (cep.length !== 8) return;
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const d = await res.json();
-      if (d.erro) return;
-      setFormData((f) => ({ ...f, logradouro: d.logradouro || f.logradouro, bairro: d.bairro || f.bairro, cidade: d.localidade || f.cidade, uf: d.uf || f.uf }));
-    } catch { /* silently fail */ }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.nome.trim()) { alert('Nome é obrigatório'); return; }
-    try {
-      setSubmitting(true);
-      if (modalType === 'create') await apiClient.post('/crm-vendas/contas/', applyTelefoneInternacionalPayload(formData));
-      else if (modalType === 'edit' && selectedConta) await apiClient.put(`/crm-vendas/contas/${selectedConta.id}/`, applyTelefoneInternacionalPayload(formData));
-      await loadContas(true); closeModal();
-    } catch (err: any) { alert(err.response?.data?.detail || 'Erro ao salvar.'); } finally { setSubmitting(false); }
-  };
+  const closeModal = () => { setModalType(null); setSelectedConta(null); };
 
   const handleDelete = async () => {
     if (!selectedConta) return;
@@ -216,7 +154,11 @@ export default function CrmVendasCustomersPage() {
               <Download size={16} /> Exportar CSV
             </button>
           )}
-          <button type="button" onClick={() => openModal('create')} className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium shadow-sm">
+          <button
+            type="button"
+            onClick={() => router.push(`/loja/${slug}/crm-vendas/customers/nova-conta`)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium shadow-sm"
+          >
             <Plus size={18} /> <span>Nova Conta</span>
           </button>
         </div>
@@ -250,7 +192,7 @@ export default function CrmVendasCustomersPage() {
                   <td className="py-3 px-4">
                     <div className="flex items-center justify-end gap-1">
                       <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Visualizar"><Eye size={16} /></button>
-                      <button type="button" onClick={() => openModal('edit', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Editar"><Edit2 size={16} /></button>
+                      <button type="button" onClick={() => router.push(`/loja/${slug}/crm-vendas/customers/${c.id}/editar`)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Editar"><Edit2 size={16} /></button>
                       <button type="button" onClick={() => openModal('delete', c)} className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400" title="Excluir"><Trash2 size={16} /></button>
                     </div>
                   </td>
@@ -270,11 +212,12 @@ export default function CrmVendasCustomersPage() {
         />
       </div>
 
-      {(modalType === 'create' || modalType === 'edit') && (
-        <ContaFormModal title={modalType === 'create' ? 'Nova Conta' : 'Editar Conta'} formData={formData} submitting={submitting} consultingCNPJ={consultingCNPJ} onChange={setFormData} onSubmit={handleSubmit} onClose={closeModal} onConsultarCNPJ={consultarCNPJ} onConsultarCEP={consultarCEP} />
-      )}
       {modalType === 'view' && selectedConta && (
-        <ContaViewModal conta={selectedConta} onClose={closeModal} onEdit={() => openModal('edit', selectedConta)} />
+        <ContaViewModal
+          conta={selectedConta}
+          onClose={closeModal}
+          onEdit={() => router.push(`/loja/${slug}/crm-vendas/customers/${selectedConta.id}/editar`)}
+        />
       )}
       {modalType === 'delete' && selectedConta && (
         <ContaDeleteModal nome={selectedConta.nome} segmento={selectedConta.segmento} submitting={submitting} onClose={closeModal} onConfirm={handleDelete} />

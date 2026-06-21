@@ -463,52 +463,49 @@ export function ModalCriarAgendamento({
 
       <form className="flex flex-col flex-1 min-h-0" onSubmit={handleSubmit}>
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6">
+          <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 space-y-5">
             {createError && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
                 {createError}
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
-              <div className="min-w-0">
-                <PatientQuickRegisterField
-                  patients={patients}
-                  patientId={patientId}
-                  onSelect={setPatientId}
-                  onClear={() => setPatientId("")}
-                  onPatientCreated={(p) => onPatientsChange([...patients, p])}
-                  onCreatePatient={handleCreatePatient}
-                  onSearchPatients={onSearchPatients}
-                  disabled={createLoading}
-                />
-              </div>
+            <section className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-gray-50/50 dark:bg-neutral-800/40 p-4 sm:p-5">
+              <PatientQuickRegisterField
+                patients={patients}
+                patientId={patientId}
+                onSelect={setPatientId}
+                onClear={() => setPatientId("")}
+                onPatientCreated={(p) => onPatientsChange([...patients, p])}
+                onCreatePatient={handleCreatePatient}
+                onSearchPatients={onSearchPatients}
+                disabled={createLoading}
+              />
+            </section>
 
-              <div className="min-w-0 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data *</label>
-                    <input
-                      type="date"
-                      value={dateInput}
-                      onChange={(e) => setDateInput(e.target.value)}
-                      className={inputClass}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Horário *</label>
-                    <input
-                      type="time"
-                      value={time}
-                      onChange={(e) => setTime(e.target.value)}
-                      className={inputClass}
-                      required
-                    />
-                  </div>
-                </div>
-
+            <section className="rounded-xl border border-gray-200 dark:border-neutral-700 p-4 sm:p-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data *</label>
+                  <input
+                    type="date"
+                    value={dateInput}
+                    onChange={(e) => setDateInput(e.target.value)}
+                    className={inputClass}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Horário *</label>
+                  <input
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className={inputClass}
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profissional *</label>
                   <select
                     value={professionalId}
@@ -522,76 +519,71 @@ export function ModalCriarAgendamento({
                     ))}
                   </select>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {campoNomeAgenda}
-                  {campoLocalAtendimento}
-                </div>
-
-                {retornoInfo?.elegivel && patientId && (
-                  <div className="p-2.5 rounded-lg text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                    <span className="font-medium">Retorno gratuito</span>
-                    <span className="block text-xs mt-0.5">{retornoInfo.mensagem}</span>
-                  </div>
-                )}
-
-                {localAtendimentoId && (
-                  <div className="p-3 rounded-lg bg-gray-50 dark:bg-neutral-800/80 text-sm space-y-1 border border-gray-100 dark:border-neutral-700">
-                    <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                      <span>Taxa de consulta</span>
-                      <span>
-                        {retornoInfo?.elegivel ? (
-                          <>
-                            <span className="line-through opacity-60 mr-1">
-                              {taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                            </span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">R$ 0,00</span>
-                          </>
-                        ) : (
-                          taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                        )}
-                      </span>
-                    </div>
-                    {resumo.valor > 0 && (
-                      <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                        <span>Procedimentos</span>
-                        <span>{resumo.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between font-medium text-gray-900 dark:text-gray-100 pt-1 border-t border-gray-200 dark:border-neutral-700">
-                      <span>Total estimado</span>
-                      <span>{totalEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
-                    </div>
-                  </div>
-                )}
+                <div>{campoNomeAgenda}</div>
+                <div>{campoLocalAtendimento}</div>
               </div>
-            </div>
 
-            <div className="mt-6 pt-4 border-t border-gray-100 dark:border-neutral-800 space-y-3">
+              {retornoInfo?.elegivel && patientId && (
+                <div className="p-2.5 rounded-lg text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  <span className="font-medium">Retorno gratuito</span>
+                  <span className="block text-xs mt-0.5">{retornoInfo.mensagem}</span>
+                </div>
+              )}
+
+              {localAtendimentoId && (
+                <div className="p-3 rounded-lg bg-gray-50 dark:bg-neutral-800/80 text-sm space-y-1 border border-gray-100 dark:border-neutral-700">
+                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                    <span>Taxa de consulta</span>
+                    <span>
+                      {retornoInfo?.elegivel ? (
+                        <>
+                          <span className="line-through opacity-60 mr-1">
+                            {taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">R$ 0,00</span>
+                        </>
+                      ) : (
+                        taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                      )}
+                    </span>
+                  </div>
+                  {resumo.valor > 0 && (
+                    <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                      <span>Procedimentos</span>
+                      <span>{resumo.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-medium text-gray-900 dark:text-gray-100 pt-1 border-t border-gray-200 dark:border-neutral-700">
+                    <span>Total estimado</span>
+                    <span>{totalEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-dashed border-gray-300 dark:border-neutral-600 p-4 sm:p-5 space-y-3">
               <button
                 type="button"
                 onClick={() => setShowAdvanced((v) => !v)}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-dashed border-gray-300 dark:border-neutral-600 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800/50"
+                className="w-full flex items-center justify-between gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
               >
                 <span>Mais opções (convênio, procedimentos, observações…)</span>
                 {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
 
               {showAdvanced && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-4 pt-2 border-t border-gray-100 dark:border-neutral-700">
                   <ConvenioSelect convenios={convenios} value={convenioId} onChange={setConvenioId} hint="" className={inputClass} />
 
-                  <div className="lg:col-span-2">
-                    <ProcedureMultiSelect
-                      procedures={procedures}
-                      selectedIds={selectedProcedures}
-                      onAdd={adicionarProcedimento}
-                      onRemove={removerProcedimento}
-                      convenioId={convenioId}
-                      precosMap={precosMap}
-                      optional
-                    />
-                  </div>
+                  <ProcedureMultiSelect
+                    procedures={procedures}
+                    selectedIds={selectedProcedures}
+                    onAdd={adicionarProcedimento}
+                    onRemove={removerProcedimento}
+                    convenioId={convenioId}
+                    precosMap={precosMap}
+                    optional
+                  />
 
                   {retornoProcAtivo && regrasRetornoProc.length > 0 && patientId && (
                     <div>
@@ -614,10 +606,10 @@ export function ModalCriarAgendamento({
                   )}
 
                   {verificandoRetorno && patientId && !retornoInfo?.elegivel && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 lg:col-span-2">Verificando retorno...</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Verificando retorno...</p>
                   )}
 
-                  <div className="lg:col-span-2">
+                  <div>
                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>
                     <textarea
                       value={notes}
@@ -629,12 +621,12 @@ export function ModalCriarAgendamento({
                   </div>
                 </div>
               )}
-            </div>
+            </section>
           </div>
         </div>
 
         <footer className="shrink-0 border-t border-gray-200 dark:border-neutral-700 bg-gray-50/80 dark:bg-neutral-900/80 px-4 sm:px-6 py-3">
-          <div className="max-w-5xl mx-auto flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+          <div className="max-w-3xl mx-auto flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
             <button
               type="button"
               onClick={resetAndClose}

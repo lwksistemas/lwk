@@ -9,6 +9,7 @@ import {
   ClipboardList,
   DollarSign,
   FileText,
+  Heart,
   MapPin,
   User,
 } from 'lucide-react';
@@ -41,6 +42,18 @@ const CATEGORIAS: CategoriaRelatorio[] = [
         descricao: 'Resumo consolidado de comissões — consultas e procedimentos no período',
         href: 'comissoes',
         icon: User,
+      },
+      {
+        titulo: 'Comissão por Local de Atendimento',
+        descricao: 'Comissões detalhadas por sala ou local onde o atendimento foi realizado',
+        href: 'comissoes',
+        icon: MapPin,
+      },
+      {
+        titulo: 'Comissão por Convênio',
+        descricao: 'Comissões com detalhamento por convênio do paciente',
+        href: 'comissoes',
+        icon: Heart,
       },
       {
         titulo: 'Repasse por Consulta',

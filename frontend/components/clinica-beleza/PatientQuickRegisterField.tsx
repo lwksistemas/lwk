@@ -169,7 +169,7 @@ export function PatientQuickRegisterField({
       ) : (
         <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-900/10 p-3 space-y-2">
           <p className="text-xs text-purple-800 dark:text-purple-300">
-            Cadastro rápido — ao digitar nome, telefone ou CPF, busca no cadastro (a partir da 1ª letra do nome).
+            Cadastro rápido — ao digitar, busca no cadastro: nome desde a 1ª letra (Lu, Lui…), telefone/CPF com 3+ dígitos.
           </p>
           <input
             type="text"

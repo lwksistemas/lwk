@@ -35,6 +35,26 @@ def _map_patient_data(raw_data):
     return map_field_names(raw_data, _PATIENT_FIELD_MAP, _PATIENT_NULL_FIELDS)
 
 
+def _patient_search_q(search: str):
+    """Busca por prefixo do nome; telefone/CPF por dígitos (não casa 'L' dentro de 'FELIX')."""
+    from django.db.models import Q
+
+    search = (search or '').strip()
+    if not search:
+        return Q()
+    digits = ''.join(c for c in search if c.isdigit())
+    has_letters = any(c.isalpha() for c in search)
+    if len(digits) >= 3 and not has_letters:
+        return Q(telefone__icontains=digits) | Q(cpf__icontains=digits)
+    if len(digits) >= 3:
+        return (
+            Q(nome__istartswith=search)
+            | Q(telefone__icontains=digits)
+            | Q(cpf__icontains=digits)
+        )
+    return Q(nome__istartswith=search)
+
+
 class PatientListView(APIView):
     """
     Listagem e criação de pacientes
@@ -50,16 +70,7 @@ class PatientListView(APIView):
             queryset = queryset.filter(is_active=True)
         search = (request.query_params.get('search') or '').strip()
         if search:
-            from django.db.models import Q
-            digits = ''.join(c for c in search if c.isdigit())
-            if len(digits) >= 3:
-                queryset = queryset.filter(
-                    Q(nome__icontains=search)
-                    | Q(telefone__icontains=digits)
-                    | Q(cpf__icontains=digits)
-                )
-            else:
-                queryset = queryset.filter(nome__icontains=search)
+            queryset = queryset.filter(_patient_search_q(search))
         return paginate_queryset(queryset, request, PatientSerializer)
 
     def post(self, request):

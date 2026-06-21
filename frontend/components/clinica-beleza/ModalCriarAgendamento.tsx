@@ -370,17 +370,17 @@ export function ModalCriarAgendamento({
   const retornoProcAtivo = retornoInfo?.config?.retorno_procedimento_ativo ?? false;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-end [@media(orientation:landscape)]:items-center sm:items-center justify-center z-50 p-0 [@media(orientation:landscape)]:p-3 sm:p-4">
       <div
-        className="bg-white dark:bg-neutral-800 rounded-t-xl sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-neutral-700 w-full max-w-lg sm:max-w-xl max-h-[92dvh] sm:max-h-[88vh] flex flex-col"
+        className="bg-white dark:bg-neutral-800 rounded-t-xl sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-neutral-700 w-full max-w-lg sm:max-w-3xl [@media(orientation:landscape)]:max-w-4xl max-h-[92dvh] [@media(orientation:landscape)]:max-h-[96dvh] sm:max-h-[88vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center px-4 py-3 border-b dark:border-neutral-700 shrink-0">
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-100">
+        <div className="flex justify-between items-center px-4 py-2.5 [@media(orientation:landscape)]:py-2 sm:py-3 border-b dark:border-neutral-700 shrink-0">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-100 truncate">
               {isConsulta ? "Nova consulta" : "Novo Agendamento"}
             </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 [@media(orientation:landscape)]:hidden">
               Preencha paciente, data e profissional para agendar.
             </p>
           </div>
@@ -390,90 +390,97 @@ export function ModalCriarAgendamento({
         </div>
 
         <form className="flex flex-col flex-1 min-h-0" onSubmit={handleSubmit}>
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          <div className="flex-1 overflow-y-auto px-4 py-3 [@media(orientation:landscape)]:py-2">
             {createError && (
-              <div className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
+              <div className="mb-3 p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
                 {createError}
               </div>
             )}
 
-            <PatientQuickRegisterField
-              patients={patients}
-              patientId={patientId}
-              onSelect={setPatientId}
-              onClear={() => setPatientId("")}
-              onPatientCreated={(p) => onPatientsChange([...patients, p])}
-              onCreatePatient={handleCreatePatient}
-              onSearchPatients={onSearchPatients}
-              disabled={createLoading}
-            />
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data *</label>
-                <input
-                  type="date"
-                  value={dateInput}
-                  onChange={(e) => setDateInput(e.target.value)}
-                  className={inputClass}
-                  required
+            <div className="grid grid-cols-1 [@media(orientation:landscape)]:grid-cols-2 sm:grid-cols-2 gap-3 [@media(orientation:landscape)]:gap-4">
+              <div className="[@media(orientation:landscape)]:min-h-0">
+                <PatientQuickRegisterField
+                  patients={patients}
+                  patientId={patientId}
+                  onSelect={setPatientId}
+                  onClear={() => setPatientId("")}
+                  onPatientCreated={(p) => onPatientsChange([...patients, p])}
+                  onCreatePatient={handleCreatePatient}
+                  onSearchPatients={onSearchPatients}
+                  disabled={createLoading}
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Horário *</label>
-                <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} required />
-              </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profissional *</label>
-              <select
-                value={professionalId}
-                onChange={(e) => setProfessionalId(e.target.value ? Number(e.target.value) : "")}
-                className={inputClass}
-                required
-              >
-                <option value="">Selecione o profissional</option>
-                {professionals.map((p) => (
-                  <option key={p.id} value={p.id}>{entityName(p)}</option>
-                ))}
-              </select>
-            </div>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data *</label>
+                    <input
+                      type="date"
+                      value={dateInput}
+                      onChange={(e) => setDateInput(e.target.value)}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Horário *</label>
+                    <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} required />
+                  </div>
+                </div>
 
-            {nomeAgendaUnico ? (
-              <div className="rounded-lg border border-purple-100 dark:border-purple-900/40 bg-purple-50/60 dark:bg-purple-950/20 px-3 py-2 text-sm text-purple-900 dark:text-purple-200">
-                <span className="text-xs text-purple-700 dark:text-purple-300 block mb-0.5">Agenda</span>
-                {nomeAgendaUnico.nome}
-              </div>
-            ) : (
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da agenda *</label>
-                <select
-                  value={nomeAgendaId}
-                  onChange={(e) => setNomeAgendaId(e.target.value ? Number(e.target.value) : "")}
-                  className={inputClass}
-                  required
-                >
-                  <option value="">Selecione a agenda</option>
-                  {nomesAgenda.map((a) => (
-                    <option key={a.id} value={a.id}>{a.nome}</option>
-                  ))}
-                </select>
-                {nomesAgenda.length === 0 && (
-                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                    Cadastre nomes de agenda em Consultas → ícone de calendário.
-                  </p>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profissional *</label>
+                  <select
+                    value={professionalId}
+                    onChange={(e) => setProfessionalId(e.target.value ? Number(e.target.value) : "")}
+                    className={inputClass}
+                    required
+                  >
+                    <option value="">Selecione o profissional</option>
+                    {professionals.map((p) => (
+                      <option key={p.id} value={p.id}>{entityName(p)}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {nomeAgendaUnico ? (
+                  <div className="rounded-lg border border-purple-100 dark:border-purple-900/40 bg-purple-50/60 dark:bg-purple-950/20 px-3 py-2 text-sm text-purple-900 dark:text-purple-200">
+                    <span className="text-xs text-purple-700 dark:text-purple-300 block mb-0.5">Agenda</span>
+                    {nomeAgendaUnico.nome}
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da agenda *</label>
+                    <select
+                      value={nomeAgendaId}
+                      onChange={(e) => setNomeAgendaId(e.target.value ? Number(e.target.value) : "")}
+                      className={inputClass}
+                      required
+                    >
+                      <option value="">Selecione a agenda</option>
+                      {nomesAgenda.map((a) => (
+                        <option key={a.id} value={a.id}>{a.nome}</option>
+                      ))}
+                    </select>
+                    {nomesAgenda.length === 0 && (
+                      <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                        Cadastre nomes de agenda em Consultas → ícone de calendário.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {retornoInfo?.elegivel && patientId && (
+                  <div className="p-2.5 rounded-lg text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <span className="font-medium">Retorno gratuito</span>
+                    <span className="block text-xs mt-0.5">{retornoInfo.mensagem}</span>
+                  </div>
                 )}
               </div>
-            )}
+            </div>
 
-            {retornoInfo?.elegivel && patientId && (
-              <div className="p-2.5 rounded-lg text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                <span className="font-medium">Retorno gratuito</span>
-                <span className="block text-xs mt-0.5">{retornoInfo.mensagem}</span>
-              </div>
-            )}
-
+            <div className="mt-3 space-y-3">
             <button
               type="button"
               onClick={() => setShowAdvanced((v) => !v)}
@@ -579,9 +586,10 @@ export function ModalCriarAgendamento({
                 </div>
               </div>
             )}
+            </div>
           </div>
 
-          <div className="flex gap-3 px-4 py-3 border-t dark:border-neutral-700 shrink-0 bg-white dark:bg-neutral-800">
+          <div className="flex gap-3 px-4 py-2.5 [@media(orientation:landscape)]:py-2 sm:py-3 border-t dark:border-neutral-700 shrink-0 bg-white dark:bg-neutral-800">
             <button
               type="button"
               onClick={resetAndClose}

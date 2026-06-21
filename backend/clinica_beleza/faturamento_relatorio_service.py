@@ -36,7 +36,7 @@ def calcular_faturamento(
         filters &= Q(date__lte=data_fim)
 
     appointments = Appointment.objects.filter(filters).select_related(
-        'professional', 'patient', 'local_atendimento',
+        'professional', 'patient', 'local_atendimento', 'convenio',
     ).prefetch_related('procedures', 'procedures__procedure', 'payments')
 
     # Acumular dados por grupo
@@ -101,8 +101,7 @@ def _get_grupo_chave(appt: Appointment, agrupar: AgrupamentoType) -> str:
         local = getattr(appt, 'local_atendimento', None)
         return f'local_{local.id if local else 0}'
     elif agrupar == 'convenio':
-        patient = appt.patient
-        conv_id = getattr(patient, 'convenio_id', None) or 0
+        conv_id = appt.convenio_id or 0
         return f'conv_{conv_id}'
     return 'outros'
 
@@ -124,13 +123,8 @@ def _get_grupo_nome(appt: Appointment, agrupar: AgrupamentoType) -> str:
             return getattr(local, 'nome', '') or getattr(local, 'name', '') or 'Local sem nome'
         return 'Sem local definido'
     elif agrupar == 'convenio':
-        patient = appt.patient
-        conv_name = getattr(patient, 'convenio_name', None)
-        if conv_name:
-            return conv_name
-        # Tentar via FK
-        convenio = getattr(patient, 'convenio', None)
-        if convenio and hasattr(convenio, 'nome'):
+        convenio = appt.convenio
+        if convenio:
             return convenio.nome
         return 'Particular'
     return 'Outros'

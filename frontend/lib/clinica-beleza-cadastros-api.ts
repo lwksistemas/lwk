@@ -58,7 +58,7 @@ export async function fetchClinicaLocaisAtendimento(): Promise<LocalAtendimentoI
 
 export async function searchClinicaPatients(query: string): Promise<PatientQuickOption[]> {
   const q = query.trim();
-  if (q.length < 2) return [];
+  if (q.length < 1) return [];
   return ClinicaBelezaAPI.getList<PatientQuickOption>("/patients/", {
     page: 1,
     page_size: PATIENT_SEARCH_PAGE_SIZE,

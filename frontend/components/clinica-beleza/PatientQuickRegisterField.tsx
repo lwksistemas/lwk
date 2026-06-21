@@ -32,7 +32,7 @@ function buildSearchQuery(nome: string, telefone: string, cpf: string): string {
   const nomeTrim = nome.trim();
   if (cpfDigits.length >= 3) return cpfDigits;
   if (telDigits.length >= 3) return telDigits;
-  if (nomeTrim.length >= 2) return nomeTrim;
+  if (nomeTrim.length >= 1) return nomeTrim;
   return "";
 }
 
@@ -169,7 +169,7 @@ export function PatientQuickRegisterField({
       ) : (
         <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-900/10 p-3 space-y-2">
           <p className="text-xs text-purple-800 dark:text-purple-300">
-            Cadastro rápido — ao digitar, busca no cadastro por nome, telefone ou CPF.
+            Cadastro rápido — ao digitar nome, telefone ou CPF, busca no cadastro (a partir da 1ª letra do nome).
           </p>
           <input
             type="text"

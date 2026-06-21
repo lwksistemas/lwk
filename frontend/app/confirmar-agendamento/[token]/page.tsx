@@ -307,7 +307,7 @@ export default function ConfirmarAgendamentoPage() {
               type="button"
               disabled={processando}
               onClick={() => responder('cancelar')}
-              className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-60 text-gray-800 font-semibold py-2.5 md:py-2 px-4 rounded-xl text-sm transition border border-gray-300"
+              className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-semibold py-2.5 md:py-2 px-4 rounded-xl text-sm transition"
             >
               <XCircle className="w-4 h-4" />
               Cancelar

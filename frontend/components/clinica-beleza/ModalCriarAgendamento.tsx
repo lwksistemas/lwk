@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronDown, ChevronUp, Loader2, Save } from "lucide-react";
+import { ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ConvenioSelect } from "@/components/clinica-beleza/ConvenioSelect";
 import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
 import {
@@ -60,6 +62,23 @@ interface ModalCriarAgendamentoProps {
   onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
   onConsultaCreated?: (consultaId: number) => void;
   onOfflineEventCreated?: (event: unknown) => void;
+  accentColor?: string;
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+      {children}
+    </label>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-neutral-800 pb-2">
+      {children}
+    </p>
+  );
 }
 
 export function ModalCriarAgendamento({
@@ -78,6 +97,7 @@ export function ModalCriarAgendamento({
   onSearchPatients,
   onConsultaCreated,
   onOfflineEventCreated,
+  accentColor = CLINICA_BELEZA_PRIMARY,
 }: ModalCriarAgendamentoProps) {
   const isConsulta = mode === "consulta";
   const [time, setTime] = useState("09:00");
@@ -377,7 +397,7 @@ export function ModalCriarAgendamento({
   };
 
   const inputClass =
-    "w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[44px]";
+    "w-full px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0";
 
   const localSel = localAtendimentoId
     ? locaisAtendimento.find((l) => l.id === localAtendimentoId)
@@ -389,13 +409,15 @@ export function ModalCriarAgendamento({
   const retornoProcAtivo = retornoInfo?.config?.retorno_procedimento_ativo ?? false;
 
   const campoNomeAgenda = nomeAgendaUnico ? (
-    <div className="rounded-lg border border-purple-100 dark:border-purple-900/40 bg-purple-50/60 dark:bg-purple-950/20 px-3 py-2 text-sm text-purple-900 dark:text-purple-200">
-      <span className="text-xs text-purple-700 dark:text-purple-300 block mb-0.5">Nome da agenda *</span>
-      {nomeAgendaUnico.nome}
+    <div>
+      <FieldLabel>Nome da agenda *</FieldLabel>
+      <div className="px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-gray-50/80 dark:bg-neutral-900/50 text-gray-900 dark:text-gray-100">
+        {nomeAgendaUnico.nome}
+      </div>
     </div>
   ) : (
     <div>
-      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da agenda *</label>
+      <FieldLabel>Nome da agenda *</FieldLabel>
       <select
         value={nomeAgendaId}
         onChange={(e) => setNomeAgendaId(e.target.value ? Number(e.target.value) : "")}
@@ -416,15 +438,15 @@ export function ModalCriarAgendamento({
   );
 
   const campoLocalAtendimento = localUnico ? (
-    <div className="rounded-lg border border-gray-200 dark:border-neutral-600 bg-gray-50/80 dark:bg-neutral-800/80 px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
-      <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">Local de atendimento</span>
-      {localUnico.nome}
+    <div>
+      <FieldLabel>Local de atendimento</FieldLabel>
+      <div className="px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-gray-50/80 dark:bg-neutral-900/50 text-gray-900 dark:text-gray-100">
+        {localUnico.nome}
+      </div>
     </div>
   ) : (
     <div>
-      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-        Local de atendimento
-      </label>
+      <FieldLabel>Local de atendimento</FieldLabel>
       <select
         value={localAtendimentoId}
         onChange={(e) => setLocalAtendimentoId(e.target.value ? Number(e.target.value) : "")}
@@ -445,123 +467,147 @@ export function ModalCriarAgendamento({
 
   if (!open || !mounted) return null;
 
+  const modalTitle = isConsulta ? "Nova consulta" : "Novo agendamento";
+  const modalSubtitle = isConsulta
+    ? "Abrir consulta na clínica"
+    : "Agendar atendimento na clínica";
+  const submitLabel = isConsulta
+    ? (createLoading ? "Abrindo..." : "Abrir consulta")
+    : (createLoading ? "Agendando..." : "Agendar");
+
   const modal = (
     <div className="fixed inset-0 z-[110] bg-white dark:bg-neutral-900 flex flex-col">
-      <header className="flex items-center justify-between gap-4 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-          {isConsulta ? "Nova consulta" : "Novo Agendamento"}
-        </h2>
+      <header className="flex flex-wrap items-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0 bg-white dark:bg-neutral-900">
         <button
           type="button"
           onClick={resetAndClose}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-gray-300"
-          aria-label="Fechar"
+          className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 shrink-0"
+          aria-label="Voltar"
         >
-          <X size={22} />
+          <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
         </button>
+        <div
+          className="hidden sm:flex w-9 h-9 rounded-lg items-center justify-center shrink-0"
+          style={{ backgroundColor: `${accentColor}18` }}
+        >
+          <CalendarDays className="w-4 h-4" style={{ color: accentColor }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
+            {modalTitle}
+          </h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400 truncate hidden sm:block leading-snug">
+            {modalSubtitle}
+          </p>
+        </div>
       </header>
 
       <form className="flex flex-col flex-1 min-h-0" onSubmit={handleSubmit}>
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 space-y-5">
-            {createError && (
-              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm">
-                {createError}
-              </div>
-            )}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#f7f2f4] dark:bg-gray-950">
+          {createError && (
+            <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+              {createError}
+            </div>
+          )}
 
-            <section className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-gray-50/50 dark:bg-neutral-800/40 p-4 sm:p-5">
-              <PatientQuickRegisterField
-                patients={patients}
-                patientId={patientId}
-                onSelect={setPatientId}
-                onClear={() => setPatientId("")}
-                onPatientCreated={(p) => onPatientsChange([...patients, p])}
-                onCreatePatient={handleCreatePatient}
-                onSearchPatients={onSearchPatients}
-                disabled={createLoading}
-              />
-            </section>
-
-            <section className="rounded-xl border border-gray-200 dark:border-neutral-700 p-4 sm:p-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data *</label>
-                  <input
-                    type="date"
-                    value={dateInput}
-                    onChange={(e) => setDateInput(e.target.value)}
-                    className={inputClass}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Horário *</label>
-                  <input
-                    type="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    className={inputClass}
-                    required
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profissional *</label>
-                  <select
-                    value={professionalId}
-                    onChange={(e) => setProfessionalId(e.target.value ? Number(e.target.value) : "")}
-                    className={inputClass}
-                    required
-                  >
-                    <option value="">Selecione o profissional</option>
-                    {professionals.map((p) => (
-                      <option key={p.id} value={p.id}>{entityName(p)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>{campoNomeAgenda}</div>
-                <div>{campoLocalAtendimento}</div>
+          <ClinicaBelezaPanel className="p-5 md:p-6 lg:p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full max-w-none">
+              <div className="space-y-4">
+                <SectionTitle>Cliente</SectionTitle>
+                <PatientQuickRegisterField
+                  patients={patients}
+                  patientId={patientId}
+                  onSelect={setPatientId}
+                  onClear={() => setPatientId("")}
+                  onPatientCreated={(p) => onPatientsChange([...patients, p])}
+                  onCreatePatient={handleCreatePatient}
+                  onSearchPatients={onSearchPatients}
+                  disabled={createLoading}
+                />
               </div>
 
-              {retornoInfo?.elegivel && patientId && (
-                <div className="p-2.5 rounded-lg text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  <span className="font-medium">Retorno gratuito</span>
-                  <span className="block text-xs mt-0.5">{retornoInfo.mensagem}</span>
-                </div>
-              )}
+              <div className="space-y-4">
+                <SectionTitle>Agendamento</SectionTitle>
 
-              {localAtendimentoId && (
-                <div className="p-3 rounded-lg bg-gray-50 dark:bg-neutral-800/80 text-sm space-y-1 border border-gray-100 dark:border-neutral-700">
-                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                    <span>Taxa de consulta</span>
-                    <span>
-                      {retornoInfo?.elegivel ? (
-                        <>
-                          <span className="line-through opacity-60 mr-1">
-                            {taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                          </span>
-                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">R$ 0,00</span>
-                        </>
-                      ) : (
-                        taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                      )}
-                    </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <FieldLabel>Data *</FieldLabel>
+                    <input
+                      type="date"
+                      value={dateInput}
+                      onChange={(e) => setDateInput(e.target.value)}
+                      className={inputClass}
+                      required
+                    />
                   </div>
-                  {resumo.valor > 0 && (
+                  <div>
+                    <FieldLabel>Horário *</FieldLabel>
+                    <input
+                      type="time"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <FieldLabel>Profissional *</FieldLabel>
+                    <select
+                      value={professionalId}
+                      onChange={(e) => setProfessionalId(e.target.value ? Number(e.target.value) : "")}
+                      className={inputClass}
+                      required
+                    >
+                      <option value="">Selecione o profissional</option>
+                      {professionals.map((p) => (
+                        <option key={p.id} value={p.id}>{entityName(p)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>{campoNomeAgenda}</div>
+                  <div>{campoLocalAtendimento}</div>
+                </div>
+
+                {retornoInfo?.elegivel && patientId && (
+                  <div className="p-2.5 rounded-lg text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <span className="font-medium">Retorno gratuito</span>
+                    <span className="block text-xs mt-0.5">{retornoInfo.mensagem}</span>
+                  </div>
+                )}
+
+                {localAtendimentoId && (
+                  <div className="p-3 rounded-lg bg-gray-50 dark:bg-neutral-900/50 text-sm space-y-1 border border-gray-100 dark:border-neutral-700">
                     <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                      <span>Procedimentos</span>
-                      <span>{resumo.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                      <span>Taxa de consulta</span>
+                      <span>
+                        {retornoInfo?.elegivel ? (
+                          <>
+                            <span className="line-through opacity-60 mr-1">
+                              {taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                            </span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">R$ 0,00</span>
+                          </>
+                        ) : (
+                          taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                        )}
+                      </span>
                     </div>
-                  )}
-                  <div className="flex justify-between font-medium text-gray-900 dark:text-gray-100 pt-1 border-t border-gray-200 dark:border-neutral-700">
-                    <span>Total estimado</span>
-                    <span>{totalEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                    {resumo.valor > 0 && (
+                      <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                        <span>Procedimentos</span>
+                        <span>{resumo.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-medium text-gray-900 dark:text-gray-100 pt-1 border-t border-gray-200 dark:border-neutral-700">
+                      <span>Total estimado</span>
+                      <span>{totalEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                    </div>
                   </div>
-                </div>
-              )}
-            </section>
+                )}
+              </div>
+            </div>
 
-            <section className="rounded-xl border border-dashed border-gray-300 dark:border-neutral-600 p-4 sm:p-5 space-y-3">
+            <div className="mt-6 pt-6 border-t border-gray-100 dark:border-neutral-800 space-y-3">
               <button
                 type="button"
                 onClick={() => setShowAdvanced((v) => !v)}
@@ -572,7 +618,7 @@ export function ModalCriarAgendamento({
               </button>
 
               {showAdvanced && (
-                <div className="space-y-4 pt-2 border-t border-gray-100 dark:border-neutral-700">
+                <div className="space-y-4 pt-2">
                   <ConvenioSelect convenios={convenios} value={convenioId} onChange={setConvenioId} hint="" className={inputClass} />
 
                   <ProcedureMultiSelect
@@ -587,9 +633,7 @@ export function ModalCriarAgendamento({
 
                   {retornoProcAtivo && regrasRetornoProc.length > 0 && patientId && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Retorno do procedimento
-                      </label>
+                      <FieldLabel>Retorno do procedimento</FieldLabel>
                       <select
                         value={retornoProcedureId}
                         onChange={(e) => setRetornoProcedureId(e.target.value ? Number(e.target.value) : "")}
@@ -610,42 +654,38 @@ export function ModalCriarAgendamento({
                   )}
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Observações</label>
+                    <FieldLabel>Observações</FieldLabel>
                     <textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      rows={2}
-                      className={`${inputClass} resize-none min-h-[64px]`}
+                      rows={3}
+                      className={`${inputClass} resize-y min-h-[72px]`}
                       placeholder="Opcional"
                     />
                   </div>
                 </div>
               )}
-            </section>
-          </div>
+            </div>
+          </ClinicaBelezaPanel>
         </div>
 
-        <footer className="shrink-0 border-t border-gray-200 dark:border-neutral-700 bg-gray-50/80 dark:bg-neutral-900/80 px-4 sm:px-6 py-3">
-          <div className="max-w-3xl mx-auto flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+        <footer className="shrink-0 border-t border-gray-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-800/80 px-4 md:px-6 lg:px-8 py-4">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 w-full">
             <button
               type="button"
               onClick={resetAndClose}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium bg-white dark:bg-neutral-800"
+              className="sm:min-w-[120px] py-2.5 px-5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={createLoading}
-              className="w-full sm:w-auto sm:min-w-[160px] py-2.5 px-6 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+              className="sm:min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-white text-sm font-medium disabled:opacity-60"
+              style={{ backgroundColor: accentColor }}
             >
-              {createLoading
-                ? isConsulta
-                  ? "Abrindo..."
-                  : "Agendando..."
-                : isConsulta
-                  ? "Abrir consulta"
-                  : "Agendar"}
+              {createLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              {submitLabel}
             </button>
           </div>
         </footer>

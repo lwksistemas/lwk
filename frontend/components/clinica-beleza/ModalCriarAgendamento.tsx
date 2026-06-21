@@ -538,6 +538,16 @@ export function ModalCriarAgendamento({
                   onSearchPatients={onSearchPatients}
                   disabled={createLoading}
                 />
+
+                <ProcedureMultiSelect
+                  procedures={procedures}
+                  selectedIds={selectedProcedures}
+                  onAdd={adicionarProcedimento}
+                  onRemove={removerProcedimento}
+                  convenioId={convenioId}
+                  precosMap={precosMap}
+                  optional
+                />
               </div>
 
               <div className="space-y-4">
@@ -627,23 +637,13 @@ export function ModalCriarAgendamento({
                 onClick={() => setShowAdvanced((v) => !v)}
                 className="w-full flex items-center justify-between gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
               >
-                <span>Mais opções (convênio, procedimentos, observações…)</span>
+                <span>Mais opções (convênio, observações…)</span>
                 {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
 
               {showAdvanced && (
                 <div className="space-y-4 pt-2">
                   <ConvenioSelect convenios={convenios} value={convenioId} onChange={setConvenioId} hint="" className={inputClass} />
-
-                  <ProcedureMultiSelect
-                    procedures={procedures}
-                    selectedIds={selectedProcedures}
-                    onAdd={adicionarProcedimento}
-                    onRemove={removerProcedimento}
-                    convenioId={convenioId}
-                    precosMap={precosMap}
-                    optional
-                  />
 
                   {retornoProcAtivo && regrasRetornoProc.length > 0 && patientId && (
                     <div>

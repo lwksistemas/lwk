@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, UserPlus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { formatCpf, formatTelefone } from "@/lib/format-br";
-import { entityName, dedupePatientsById, matchesPatientSearchQuery } from "@/lib/clinica-beleza-entities";
+import { entityName, matchesPatientSearchQuery } from "@/lib/clinica-beleza-entities";
 
 export interface PatientQuickOption {
   id: number;
@@ -22,9 +21,19 @@ interface Props {
   onClear: () => void;
   onPatientCreated: (patient: PatientQuickOption) => void;
   onCreatePatient: (data: { nome: string; telefone: string; cpf: string }) => Promise<PatientQuickOption>;
-  /** Busca server-side (nome, telefone, CPF). Quando informado, não filtra lista local completa. */
+  /** Busca server-side (nome, telefone, CPF). */
   onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
   disabled?: boolean;
+}
+
+function buildSearchQuery(nome: string, telefone: string, cpf: string): string {
+  const cpfDigits = cpf.replace(/\D/g, "");
+  const telDigits = telefone.replace(/\D/g, "");
+  const nomeTrim = nome.trim();
+  if (cpfDigits.length >= 3) return cpfDigits;
+  if (telDigits.length >= 3) return telDigits;
+  if (nomeTrim.length >= 2) return nomeTrim;
+  return "";
 }
 
 export function PatientQuickRegisterField({
@@ -37,8 +46,6 @@ export function PatientQuickRegisterField({
   onSearchPatients,
   disabled = false,
 }: Props) {
-  const [busca, setBusca] = useState("");
-  const [modoCadastro, setModoCadastro] = useState(false);
   const [nomeNovo, setNomeNovo] = useState("");
   const [telefoneNovo, setTelefoneNovo] = useState("");
   const [cpfNovo, setCpfNovo] = useState("");
@@ -54,21 +61,20 @@ export function PatientQuickRegisterField({
     serverResults.find((p) => p.id === patientId) ||
     null;
 
-  const filtrados = useMemo(() => {
-    const q = busca.trim();
-    if (!q) {
-      return onSearchPatients ? [] : patients.slice(0, 40);
-    }
-    const pool = onSearchPatients
-      ? dedupePatientsById([...serverResults, ...patients])
-      : patients;
-    return pool.filter((p) => matchesPatientSearchQuery(p, q)).slice(0, 40);
-  }, [busca, patients, onSearchPatients, serverResults]);
+  const searchQuery = useMemo(
+    () => buildSearchQuery(nomeNovo, telefoneNovo, cpfNovo),
+    [nomeNovo, telefoneNovo, cpfNovo],
+  );
+
+  const resultados = useMemo(() => {
+    if (!searchQuery || patientId) return [];
+    if (onSearchPatients) return serverResults;
+    return patients.filter((p) => matchesPatientSearchQuery(p, searchQuery)).slice(0, 40);
+  }, [searchQuery, patientId, onSearchPatients, serverResults, patients]);
 
   useEffect(() => {
-    if (!onSearchPatients) return;
-    const q = busca.trim();
-    if (q.length < 2) {
+    if (!onSearchPatients || patientId || disabled) return;
+    if (!searchQuery) {
       setServerResults([]);
       setSearching(false);
       return;
@@ -76,7 +82,7 @@ export function PatientQuickRegisterField({
     let cancelled = false;
     setSearching(true);
     const timer = window.setTimeout(() => {
-      onSearchPatients(q)
+      onSearchPatients(searchQuery)
         .then((rows) => {
           if (!cancelled) setServerResults(Array.isArray(rows) ? rows : []);
         })
@@ -86,25 +92,26 @@ export function PatientQuickRegisterField({
         .finally(() => {
           if (!cancelled) setSearching(false);
         });
-    }, 250);
+    }, 300);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [busca, onSearchPatients]);
+  }, [searchQuery, onSearchPatients, patientId, disabled]);
 
-  useEffect(() => {
-    if (selecionado) {
-      setBusca(entityName(selecionado));
-      setModoCadastro(false);
-    }
-  }, [patientId, selecionado]);
+  const handleSelecionar = (p: PatientQuickOption) => {
+    onSelect(p.id);
+    setSelectedCache(p);
+    setErro("");
+  };
 
-  const abrirCadastroRapido = () => {
-    setModoCadastro(true);
-    setNomeNovo(busca.trim());
+  const handleTrocar = () => {
+    onClear();
+    setSelectedCache(null);
+    setNomeNovo("");
     setTelefoneNovo("");
     setCpfNovo("");
+    setServerResults([]);
     setErro("");
   };
 
@@ -123,13 +130,7 @@ export function PatientQuickRegisterField({
         cpf: cpfNovo.replace(/\D/g, "") ? cpfNovo : "",
       });
       onPatientCreated(created);
-      onSelect(created.id);
-      setSelectedCache(created);
-      setBusca(entityName(created));
-      setModoCadastro(false);
-      setNomeNovo("");
-      setTelefoneNovo("");
-      setCpfNovo("");
+      handleSelecionar(created);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao cadastrar paciente.");
     } finally {
@@ -137,103 +138,46 @@ export function PatientQuickRegisterField({
     }
   };
 
+  const inputClass =
+    "w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[44px]";
+
   return (
     <div>
       <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
         Paciente *
       </label>
 
-      {!modoCadastro ? (
-        <>
-          <div className="relative mb-2">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={busca}
-              onChange={(e) => {
-                setBusca(e.target.value);
-                if (patientId) onClear();
-              }}
-              placeholder="Buscar por nome, telefone ou CPF..."
-              disabled={disabled}
-              className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-800 outline-none"
-            />
-          </div>
-
-          {busca.trim() && !patientId && onSearchPatients && busca.trim().length === 1 && (
-            <p className="text-xs text-gray-500 mb-2">Filtrando na lista carregada… com 2+ caracteres busca no servidor.</p>
-          )}
-
-          {busca.trim() && !patientId && searching && (
-            <p className="text-xs text-gray-500 mb-2">Buscando...</p>
-          )}
-
-          {busca.trim() && !patientId && !searching && filtrados.length > 0 && (
-            <div className="border border-gray-200 dark:border-neutral-600 rounded-lg overflow-hidden mb-2 max-h-36 overflow-y-auto">
-              {filtrados.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    onSelect(p.id);
-                    setSelectedCache(p);
-                    setBusca(entityName(p));
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-neutral-700 border-b last:border-b-0 border-gray-100 dark:border-neutral-700"
-                >
-                  <span className="font-medium">{entityName(p)}</span>
-                  {(p.telefone || p.phone) && (
-                    <span className="ml-2 text-xs text-gray-500">{formatTelefone(p.telefone || p.phone)}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {busca.trim() && !patientId && !searching && filtrados.length === 0 && (
-            <p className="text-xs text-gray-500 mb-2">Nenhum paciente encontrado.</p>
-          )}
-
-          {!patientId && (
-            <button
-              type="button"
-              onClick={abrirCadastroRapido}
-              disabled={disabled}
-              className="flex items-center gap-1.5 text-xs font-medium text-purple-700 dark:text-purple-300 hover:underline mb-2"
-            >
-              <UserPlus size={14} />
-              Cadastro rápido (nome, telefone, CPF)
-            </button>
-          )}
-
-          {selecionado && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-              <span className="text-sm text-green-700 dark:text-green-400">
-                ✓ <strong>{entityName(selecionado)}</strong>
+      {selecionado ? (
+        <div className="flex items-center gap-2 px-3 py-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+          <span className="text-sm text-green-700 dark:text-green-400">
+            ✓ <strong>{entityName(selecionado)}</strong>
+            {(selecionado.telefone || selecionado.phone) && (
+              <span className="ml-2 font-normal text-green-600/80 dark:text-green-300/80">
+                {formatTelefone(selecionado.telefone || selecionado.phone)}
               </span>
-              <button
-                type="button"
-                onClick={() => {
-                  onClear();
-                  setBusca("");
-                  setSelectedCache(null);
-                }}
-                className="ml-auto text-xs text-gray-400 hover:text-red-500"
-              >
-                Trocar
-              </button>
-            </div>
-          )}
-        </>
+            )}
+          </span>
+          <button
+            type="button"
+            onClick={handleTrocar}
+            disabled={disabled}
+            className="ml-auto text-xs text-gray-500 hover:text-red-500 shrink-0"
+          >
+            Trocar
+          </button>
+        </div>
       ) : (
-        <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10 p-3 space-y-2">
-          <p className="text-xs font-medium text-purple-800 dark:text-purple-300">Cadastro rápido</p>
+        <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-900/10 p-3 space-y-2">
+          <p className="text-xs text-purple-800 dark:text-purple-300">
+            Cadastro rápido — ao digitar, busca no cadastro por nome, telefone ou CPF.
+          </p>
           <input
             type="text"
             value={nomeNovo}
             onChange={(e) => setNomeNovo(e.target.value)}
             placeholder="Nome *"
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700"
+            disabled={disabled}
+            className={inputClass}
             autoFocus
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -242,37 +186,66 @@ export function PatientQuickRegisterField({
               value={telefoneNovo}
               onChange={(e) => setTelefoneNovo(formatTelefone(e.target.value))}
               placeholder="Telefone"
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700"
+              disabled={disabled}
+              className={inputClass}
             />
             <input
               type="text"
               value={cpfNovo}
               onChange={(e) => setCpfNovo(formatCpf(e.target.value))}
               placeholder="CPF"
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700"
+              disabled={disabled}
+              className={inputClass}
             />
           </div>
+
+          {searchQuery && searching && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">Buscando no cadastro...</p>
+          )}
+
+          {searchQuery && !searching && resultados.length > 0 && (
+            <div className="border border-gray-200 dark:border-neutral-600 rounded-lg overflow-hidden max-h-40 overflow-y-auto bg-white dark:bg-neutral-800">
+              <p className="px-3 py-1.5 text-[11px] font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-neutral-900/50 border-b border-gray-100 dark:border-neutral-700">
+                Pacientes encontrados — selecione ou cadastre novo abaixo
+              </p>
+              {resultados.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handleSelecionar(p)}
+                  disabled={disabled}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 border-b last:border-b-0 border-gray-100 dark:border-neutral-700"
+                >
+                  <span className="font-medium">{entityName(p)}</span>
+                  {(p.telefone || p.phone) && (
+                    <span className="ml-2 text-xs text-gray-500">
+                      {formatTelefone(p.telefone || p.phone)}
+                    </span>
+                  )}
+                  {p.cpf && (
+                    <span className="ml-2 text-xs text-gray-500">{formatCpf(p.cpf)}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {searchQuery && !searching && resultados.length === 0 && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Nenhum paciente no cadastro — preencha e salve como novo.
+            </p>
+          )}
+
           {erro && <p className="text-xs text-red-600 dark:text-red-400">{erro}</p>}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleCriar}
-              disabled={criando}
-              className="px-3 py-1.5 text-xs font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50"
-            >
-              {criando ? "Salvando..." : "Salvar paciente"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setModoCadastro(false);
-                setErro("");
-              }}
-              className="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400"
-            >
-              Cancelar
-            </button>
-          </div>
+
+          <button
+            type="button"
+            onClick={handleCriar}
+            disabled={disabled || criando || !nomeNovo.trim()}
+            className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+          >
+            {criando ? "Salvando..." : "Salvar novo paciente"}
+          </button>
         </div>
       )}
     </div>

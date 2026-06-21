@@ -9,7 +9,6 @@ import {
   ClipboardList,
   DollarSign,
   FileText,
-  Heart,
   MapPin,
   User,
 } from 'lucide-react';
@@ -39,27 +38,9 @@ const CATEGORIAS: CategoriaRelatorio[] = [
     relatorios: [
       {
         titulo: 'Comissão por Profissional',
-        descricao: 'Resumo consolidado de comissões por profissional no período',
+        descricao: 'Resumo consolidado de comissões — consultas e procedimentos no período',
         href: 'comissoes',
         icon: User,
-      },
-      {
-        titulo: 'Comissão por Procedimento',
-        descricao: 'Comissões agrupadas por tipo de procedimento realizado',
-        href: 'comissoes?agrupar=procedimento',
-        icon: ClipboardList,
-      },
-      {
-        titulo: 'Comissão por Local de Atendimento',
-        descricao: 'Comissões separadas por sala ou local',
-        href: 'comissoes?agrupar=local',
-        icon: MapPin,
-      },
-      {
-        titulo: 'Comissão por Convênio',
-        descricao: 'Comissões agrupadas por convênio do paciente',
-        href: 'comissoes?agrupar=convenio',
-        icon: Heart,
       },
       {
         titulo: 'Repasse por Consulta',
@@ -116,7 +97,7 @@ export default function RelatoriosHubPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100%-5rem)]">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {CATEGORIAS.map((cat) => {
           const CatIcon = cat.icon;
           return (

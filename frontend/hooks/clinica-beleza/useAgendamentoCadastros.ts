@@ -51,7 +51,7 @@ export function useAgendamentoCadastros(enabled = true) {
   const searchPatients = useCallback(
     async (query: string) => {
       const q = query.trim();
-      if (q.length < 2) return [];
+      if (q.length < 1) return [];
       return queryClient.fetchQuery({
         queryKey: clinicaBelezaQueryKeys.patientSearch(q),
         queryFn: () => searchClinicaPatients(q),

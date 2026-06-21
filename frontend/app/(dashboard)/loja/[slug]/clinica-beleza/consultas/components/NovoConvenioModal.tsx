@@ -128,7 +128,7 @@ export function NovoConvenioModal({ open, onClose, onSuccess }: NovoConvenioModa
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Convênios</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Novo convênio — informe o nome; o código será gerado automaticamente
+              Gerencie os convênios aceitos pela clínica
             </p>
           </div>
           <button
@@ -209,11 +209,6 @@ export function NovoConvenioModal({ open, onClose, onSuccess }: NovoConvenioModa
                       {padrao && (
                         <span className="ml-2 text-xs font-normal px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
                           Padrão
-                        </span>
-                      )}
-                      {c.codigo && (
-                        <span className="block text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">
-                          {c.codigo}
                         </span>
                       )}
                     </div>

@@ -41,7 +41,7 @@ const OPTIONS = [
   {
     id: "convenio",
     label: "Cadastrar convênio",
-    description: "Novo convênio — informe o nome; o código será gerado automaticamente",
+    description: "Gerenciar convênios da clínica — cadastre, visualize e exclua",
     icon: FileText,
   },
 ] as const;

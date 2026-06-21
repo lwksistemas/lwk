@@ -208,6 +208,28 @@ def _serialize_profissional_repasse(p: dict) -> dict:
     }
 
 
+class RelatorioFaturamentoView(APIView):
+    """GET /clinica-beleza/relatorios/faturamento/?data_inicio=&data_fim=&agrupar=profissional"""
+    permission_classes = CLINICA_FINANCEIRO
+
+    def get(self, request):
+        from .faturamento_relatorio_service import calcular_faturamento
+
+        data_inicio = RelatorioComissoesView._parse_date(request.query_params.get('data_inicio'))
+        data_fim = RelatorioComissoesView._parse_date(request.query_params.get('data_fim'))
+        agrupar = request.query_params.get('agrupar', 'profissional')
+        if agrupar not in ('profissional', 'procedimento', 'local', 'convenio'):
+            agrupar = 'profissional'
+
+        resultado = calcular_faturamento(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            agrupar=agrupar,
+        )
+
+        return Response(resultado)
+
+
 class RelatorioRepasseConsultaView(APIView):
     """GET /clinica-beleza/relatorios/repasse-consultas/ — atendimento a atendimento."""
 

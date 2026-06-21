@@ -476,8 +476,19 @@ export function ModalCriarAgendamento({
     : (createLoading ? "Agendando..." : "Agendar");
 
   const modal = (
-    <div className="fixed inset-0 z-[110] bg-white dark:bg-neutral-900 flex flex-col">
-      <header className="flex flex-wrap items-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0 bg-white dark:bg-neutral-900">
+    <div
+      className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 bg-black/40 dark:bg-black/60"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) resetAndClose();
+      }}
+    >
+      <div
+        className="flex flex-col w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[100dvh] sm:max-h-[92vh] bg-white dark:bg-neutral-900 sm:rounded-xl shadow-2xl overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-criar-agendamento-title"
+      >
+      <header className="flex flex-wrap items-center gap-2 sm:gap-3 px-4 sm:px-5 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0 bg-white dark:bg-neutral-900">
         <button
           type="button"
           onClick={resetAndClose}
@@ -493,7 +504,10 @@ export function ModalCriarAgendamento({
           <CalendarDays className="w-4 h-4" style={{ color: accentColor }} />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
+          <h1
+            id="modal-criar-agendamento-title"
+            className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight"
+          >
             {modalTitle}
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 truncate hidden sm:block leading-snug">
@@ -503,15 +517,15 @@ export function ModalCriarAgendamento({
       </header>
 
       <form className="flex flex-col flex-1 min-h-0" onSubmit={handleSubmit}>
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#f7f2f4] dark:bg-gray-950">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 bg-[#f7f2f4] dark:bg-gray-950">
           {createError && (
-            <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
               {createError}
             </div>
           )}
 
-          <ClinicaBelezaPanel className="p-5 md:p-6 lg:p-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full max-w-none">
+          <ClinicaBelezaPanel className="p-4 sm:p-5 md:p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 lg:gap-8 w-full">
               <div className="space-y-4">
                 <SectionTitle>Cliente</SectionTitle>
                 <PatientQuickRegisterField
@@ -669,8 +683,8 @@ export function ModalCriarAgendamento({
           </ClinicaBelezaPanel>
         </div>
 
-        <footer className="shrink-0 border-t border-gray-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-800/80 px-4 md:px-6 lg:px-8 py-4">
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 w-full">
+        <footer className="shrink-0 border-t border-gray-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-800/80 px-4 sm:px-5 py-3 sm:py-4">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 w-full">
             <button
               type="button"
               onClick={resetAndClose}
@@ -690,6 +704,7 @@ export function ModalCriarAgendamento({
           </div>
         </footer>
       </form>
+      </div>
     </div>
   );
 

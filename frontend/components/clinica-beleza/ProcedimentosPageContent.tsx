@@ -491,7 +491,7 @@ export function ProcedimentosPageContent({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {convenios.map((c) => (
                             <div key={c.id}>
-                              <label className={`${labelClass} font-mono`}>{c.codigo || c.nome}</label>
+                              <label className={`${labelClass}`}>{c.nome}</label>
                               <input
                                 type="text"
                                 inputMode="decimal"
@@ -590,10 +590,10 @@ export function ProcedimentosPageContent({
                     {convenios.map((c) => (
                       <th
                         key={c.id}
-                        className="text-left px-4 md:px-6 py-3.5 font-semibold whitespace-nowrap font-mono text-xs"
+                        className="text-left px-4 md:px-6 py-3.5 font-semibold whitespace-nowrap text-xs"
                         title={c.nome}
                       >
-                        {c.codigo || c.nome}
+                        {c.nome}
                       </th>
                     ))}
                     <th className="text-right px-4 md:px-6 py-3.5 font-semibold w-24">Ações</th>

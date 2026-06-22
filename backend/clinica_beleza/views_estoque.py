@@ -12,7 +12,7 @@ from rest_framework import status
 
 from .models import ProdutoEstoque, MovimentacaoEstoque
 from .serializers import ProdutoEstoqueSerializer, MovimentacaoEstoqueSerializer
-from .pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from .pagination import paginate_queryset
 from .views_base import GetObjectMixin
 
 # Campos para listagem via .values() (inclui numero_nota desde migration 0034).
@@ -33,35 +33,12 @@ def _produto_values_row(row: dict) -> dict:
 
 
 def _paginate_produtos_values(queryset, request):
-    """Lista produtos via .values()."""
-    page_param = request.query_params.get('page')
-    if page_param is None:
-        rows = list(queryset.values(*_PRODUTO_VALUES_FIELDS))
-        return Response([_produto_values_row(r) for r in rows])
-
-    try:
-        page = max(1, int(page_param))
-    except (ValueError, TypeError):
-        page = 1
-    try:
-        page_size = min(
-            MAX_PAGE_SIZE,
-            max(1, int(request.query_params.get('page_size', DEFAULT_PAGE_SIZE))),
-        )
-    except (ValueError, TypeError):
-        page_size = DEFAULT_PAGE_SIZE
-
-    total = queryset.count()
-    total_pages = max(1, (total + page_size - 1) // page_size)
-    offset = (page - 1) * page_size
-    rows = list(queryset.values(*_PRODUTO_VALUES_FIELDS)[offset:offset + page_size])
-    return Response({
-        'count': total,
-        'page': page,
-        'page_size': page_size,
-        'total_pages': total_pages,
-        'results': [_produto_values_row(r) for r in rows],
-    })
+    """Lista produtos via .values() usando paginação padrão."""
+    return paginate_queryset(
+        queryset.values(*_PRODUTO_VALUES_FIELDS),
+        request,
+        to_representation=_produto_values_row,
+    )
 
 
 class ProdutoEstoqueListView(APIView):

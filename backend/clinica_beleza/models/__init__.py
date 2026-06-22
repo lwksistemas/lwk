@@ -50,6 +50,4 @@ __all__ = [
     'DocumentTemplate',
     'DocumentoClinico',
     'PacienteFotoAcompanhamento',
-    'AgendaRetornoConfig',
-    'RetornoProcedimentoRegra',
 ]

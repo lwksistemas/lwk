@@ -196,6 +196,15 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
     }
   };
 
+  const handleSetPadrao = async (id: number) => {
+    try {
+      await ClinicaBelezaAPI.locaisAtendimento.update(id, { is_padrao: true });
+      await loadLocais();
+    } catch (err) {
+      setError(extractApiError(err, "Erro ao definir padrão."));
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm("Deseja realmente excluir este local de atendimento?")) return;
     try {
@@ -299,11 +308,27 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
                         <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">
                           {local.nome}
                         </span>
+                        {local.is_padrao && (
+                          <span className="ml-2 text-xs font-normal px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
+                            Padrão
+                          </span>
+                        )}
                         <span className="ml-2 text-gray-500 dark:text-gray-400 text-sm">
                           {formatCurrencyBR(local.valor_consulta)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
+                        {!local.is_padrao && (
+                          <button
+                            type="button"
+                            onClick={() => handleSetPadrao(local.id)}
+                            disabled={formBusy}
+                            className="px-2 py-1 text-xs rounded border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 disabled:opacity-40"
+                            title="Definir como padrão"
+                          >
+                            Padrão
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => startEdit(local)}

@@ -70,7 +70,7 @@ class LocalAtendimentoSerializer(TextNormalizationMixin, serializers.ModelSerial
         model = LocalAtendimento
         fields = [
             'id', 'nome', 'valor_consulta', 'tempo_consulta_minutos',
-            'is_active', 'created_at', 'updated_at',
+            'is_padrao', 'is_active', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'is_active', 'created_at', 'updated_at']
 
@@ -98,7 +98,7 @@ class NomeAgendaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
 
     class Meta:
         model = NomeAgenda
-        fields = ['id', 'nome', 'is_active', 'created_at', 'updated_at']
+        fields = ['id', 'nome', 'is_padrao', 'is_active', 'created_at', 'updated_at']
         read_only_fields = ['id', 'is_active', 'created_at', 'updated_at']
 
     def validate_nome(self, value):

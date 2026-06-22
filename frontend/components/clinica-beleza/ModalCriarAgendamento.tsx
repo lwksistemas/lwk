@@ -166,12 +166,14 @@ export function ModalCriarAgendamento({
 
   useEffect(() => {
     if (!open || nomesAgenda.length === 0) return;
-    setNomeAgendaId(nomesAgenda[0].id);
+    const padrao = nomesAgenda.find((n) => n.is_padrao);
+    setNomeAgendaId(padrao ? padrao.id : nomesAgenda[0].id);
   }, [open, nomesAgenda]);
 
   useEffect(() => {
     if (!open || locaisAtendimento.length === 0) return;
-    setLocalAtendimentoId(locaisAtendimento[0].id);
+    const padrao = locaisAtendimento.find((l) => l.is_padrao);
+    setLocalAtendimentoId(padrao ? padrao.id : locaisAtendimento[0].id);
   }, [open, locaisAtendimento]);
 
   useEffect(() => {

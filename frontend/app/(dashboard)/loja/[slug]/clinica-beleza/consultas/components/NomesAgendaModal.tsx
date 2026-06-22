@@ -83,6 +83,15 @@ export function NomesAgendaModal({ open, onClose }: NomesAgendaModalProps) {
     }
   };
 
+  const handleSetPadrao = async (id: number) => {
+    try {
+      await ClinicaBelezaAPI.nomesAgenda.update(id, { is_padrao: true });
+      await loadNomes();
+    } catch (err) {
+      setError(extractApiError(err, "Erro ao definir padrão."));
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm("Deseja excluir este nome de agenda?")) return;
     try {
@@ -173,9 +182,27 @@ export function NomesAgendaModal({ open, onClose }: NomesAgendaModalProps) {
                       : "bg-gray-50 dark:bg-neutral-800"
                   }`}
                 >
-                  <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{item.nome}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{item.nome}</span>
+                    {item.is_padrao && (
+                      <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
+                        Padrão
+                      </span>
+                    )}
+                  </div>
                   {editingId !== item.id && (
                     <div className="flex gap-1 shrink-0">
+                      {!item.is_padrao && (
+                        <button
+                          type="button"
+                          onClick={() => handleSetPadrao(item.id)}
+                          disabled={formBusy}
+                          className="px-2 py-1 text-xs rounded border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 disabled:opacity-40"
+                          title="Definir como padrão"
+                        >
+                          Padrão
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {

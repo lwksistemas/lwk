@@ -702,7 +702,7 @@ export class ClinicaBelezaAPI {
       ClinicaBelezaAPI.get<LocalAtendimentoItem[]>('/locais-atendimento/'),
     create: (data: { nome: string; valor_consulta: number | string; tempo_consulta_minutos?: number }) =>
       ClinicaBelezaAPI.post<LocalAtendimentoItem>('/locais-atendimento/', data),
-    update: (id: number, data: { nome?: string; valor_consulta?: number | string; tempo_consulta_minutos?: number }) =>
+    update: (id: number, data: { nome?: string; valor_consulta?: number | string; tempo_consulta_minutos?: number; is_padrao?: boolean }) =>
       ClinicaBelezaAPI.patch<LocalAtendimentoItem>(`/locais-atendimento/${id}/`, data),
     delete: (id: number) =>
       ClinicaBelezaAPI.delete(`/locais-atendimento/${id}/`),
@@ -713,7 +713,7 @@ export class ClinicaBelezaAPI {
       ClinicaBelezaAPI.get<NomeAgendaItem[]>('/nomes-agenda/'),
     create: (data: { nome: string }) =>
       ClinicaBelezaAPI.post<NomeAgendaItem>('/nomes-agenda/', data),
-    update: (id: number, data: { nome?: string }) =>
+    update: (id: number, data: { nome?: string; is_padrao?: boolean }) =>
       ClinicaBelezaAPI.patch<NomeAgendaItem>(`/nomes-agenda/${id}/`, data),
     delete: (id: number) =>
       ClinicaBelezaAPI.delete(`/nomes-agenda/${id}/`),
@@ -851,6 +851,7 @@ export interface LocalAtendimentoItem {
   nome: string;
   valor_consulta: string | number;
   tempo_consulta_minutos?: number | null;
+  is_padrao?: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -860,6 +861,7 @@ export interface LocalAtendimentoItem {
 export interface NomeAgendaItem {
   id: number;
   nome: string;
+  is_padrao?: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;

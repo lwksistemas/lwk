@@ -27,6 +27,11 @@ class LocalAtendimento(LojaIsolationMixin, models.Model):
         verbose_name="Tempo da consulta (minutos)",
         help_text="Duração padrão da consulta neste local (ex.: 40 minutos).",
     )
+    is_padrao = models.BooleanField(
+        default=False,
+        verbose_name="Padrão",
+        help_text="Local pré-selecionado ao criar agendamento.",
+    )
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -47,6 +52,11 @@ class LocalAtendimento(LojaIsolationMixin, models.Model):
 class NomeAgenda(LojaIsolationMixin, models.Model):
     """Nome/categoria de agenda exibida no calendário e nas consultas (ex: Estética, Dermatologia)."""
     nome = models.CharField(max_length=200, verbose_name="Nome da agenda")
+    is_padrao = models.BooleanField(
+        default=False,
+        verbose_name="Padrão",
+        help_text="Nome de agenda pré-selecionado ao criar agendamento.",
+    )
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

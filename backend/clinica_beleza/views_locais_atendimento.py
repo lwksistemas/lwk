@@ -50,7 +50,12 @@ class LocalAtendimentoDetailView(GetObjectMixin, APIView):
             return error
         serializer = LocalAtendimentoSerializer(obj, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            instance = serializer.save()
+            # Se marcou como padrão, desmarcar os outros da mesma loja
+            if instance.is_padrao:
+                LocalAtendimento.objects.using(instance._state.db).filter(
+                    loja_id=instance.loja_id, is_padrao=True,
+                ).exclude(pk=instance.pk).update(is_padrao=False)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

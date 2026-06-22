@@ -12,6 +12,7 @@ from clinica_beleza.procedimentos_catalogo import (
     CONVENIO_PARTICULAR_CATALOGO,
     LOCAIS_CATALOGO,
     LOCAIS_CATALOGO_LEGADO,
+    NOMES_AGENDA_CATALOGO,
     PROCEDIMENTOS_CATALOGO,
     procedimento_catalogo_defaults,
 )
@@ -129,9 +130,17 @@ def aplicar_catalogo_padrao(loja, *, log: Callable[[str], None] | None = None) -
     set_current_loja_id(lid)
     set_current_tenant_db(db)
 
-    from clinica_beleza.models import Convenio, ConvenioProcedimentoPreco, LocalAtendimento, Patient, Procedure
+    from clinica_beleza.models import Convenio, ConvenioProcedimentoPreco, LocalAtendimento, NomeAgenda, Patient, Procedure
 
     emit(f'Catálogo padrão — {loja.nome} ({loja.slug})')
+
+    # Nomes de agenda padrão
+    for nome_agenda in NOMES_AGENDA_CATALOGO:
+        NomeAgenda.objects.using(db).update_or_create(
+            nome=nome_agenda,
+            loja_id=lid,
+            defaults={'is_active': True},
+        )
 
     locais_aplicados = _aplicar_locais_catalogo(db, lid, emit)
     duplicados = _desativar_locais_catalogo_duplicados(db, lid)

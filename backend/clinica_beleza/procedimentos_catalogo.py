@@ -14,6 +14,11 @@ LOCAIS_CATALOGO = [
 # Convênio padrão (particular) — sempre cadastrado na loja.
 CONVENIO_PARTICULAR_CATALOGO = ('Particular', 'PARTICULAR')
 
+# Nome de agenda padrão — sempre cadastrado na loja.
+NOMES_AGENDA_CATALOGO = [
+    'Consulta',
+]
+
 # Locais de demonstração antigos — desativados ao reaplicar o catálogo padrão.
 LOCAIS_CATALOGO_LEGADO = [
     'Consultório Centro — Av. Paulista',

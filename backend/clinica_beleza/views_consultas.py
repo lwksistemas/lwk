@@ -345,6 +345,9 @@ class PatientAnamneseView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning('Anamnese PUT 400 patient_id=%s errors=%s data_keys=%s', patient_id, serializer.errors, list(request.data.keys()))
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

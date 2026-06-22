@@ -72,7 +72,7 @@ class PatientAnamneseSerializer(serializers.ModelSerializer):
             'condicoes_clinicas', 'tipo_pele', 'pressao_arterial', 'peso', 'altura',
             'observacoes', 'created_at', 'updated_at', 'loja_id',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'loja_id', 'patient_name']
+        read_only_fields = ['created_at', 'updated_at', 'loja_id', 'patient', 'patient_name']
 
     @staticmethod
     def _empty_decimal_to_none(value):

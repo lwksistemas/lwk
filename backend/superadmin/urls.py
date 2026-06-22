@@ -28,6 +28,7 @@ from .financeiro_views import (
 )
 from .auth_views_secure import SecureLoginView, SecureLogoutView
 from . import views_nfse as nfse_views
+from .views import lockouts as lockout_views
 
 router = DefaultRouter()
 router.register(r'tipos-loja', TipoLojaViewSet, basename='tipo-loja')
@@ -99,6 +100,10 @@ urlpatterns = [
     # Cloudinary
     path('cloudinary-config/', cloudinary_config, name='cloudinary-config'),
     path('cloudinary-config/test/', cloudinary_test, name='cloudinary-config-test'),
+    
+    # ✅ Lockouts (bloqueios de login)
+    path('lockouts/', lockout_views.listar_lockouts, name='lockouts-list'),
+    path('lockouts/<str:username>/', lockout_views.desbloquear_conta, name='lockouts-unlock'),
     
     # ✅ NOVO v738: Rotas de monitoramento de storage
     path('lojas/<int:loja_id>/verificar-storage/', verificar_storage_loja, name='verificar-storage-loja'),

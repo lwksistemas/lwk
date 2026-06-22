@@ -39,6 +39,101 @@ interface Estatisticas {
   por_tipo: { [key: string]: number };
 }
 
+function LockoutsSection() {
+  const [lockouts, setLockouts] = useState<{ username: string; failed_attempts: number; locked_until: string | null; updated_at: string }[]>([]);
+  const [tentativas, setTentativas] = useState<{ username: string; failed_attempts: number; locked_until: string | null; updated_at: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [unlocking, setUnlocking] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const { data } = await apiClient.get('/superadmin/lockouts/');
+      setLockouts(data.bloqueados || []);
+      setTentativas(data.tentativas_falhas || []);
+    } catch {
+      setLockouts([]);
+      setTentativas([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const desbloquear = async (username: string) => {
+    setUnlocking(username);
+    try {
+      await apiClient.delete(`/superadmin/lockouts/${username}/`);
+      await load();
+    } catch {
+      alert('Erro ao desbloquear conta.');
+    } finally {
+      setUnlocking(null);
+    }
+  };
+
+  if (loading) return null;
+  if (lockouts.length === 0 && tentativas.length === 0) return null;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+        <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+        Contas Bloqueadas
+      </h3>
+
+      {lockouts.length > 0 && (
+        <div className="space-y-3 mb-4">
+          {lockouts.map((lo) => (
+            <div key={lo.username} className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <div>
+                <p className="font-medium text-red-800 dark:text-red-200">{lo.username}</p>
+                <p className="text-xs text-red-600 dark:text-red-400">
+                  {lo.failed_attempts} tentativas falhas · Bloqueado até {new Date(lo.locked_until!).toLocaleString('pt-BR')}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => desbloquear(lo.username)}
+                disabled={unlocking === lo.username}
+                className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50"
+              >
+                {unlocking === lo.username ? 'Desbloqueando...' : 'Desbloquear'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tentativas.length > 0 && (
+        <div>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Tentativas falhas (não bloqueadas)</p>
+          <div className="space-y-2">
+            {tentativas.map((lo) => (
+              <div key={lo.username} className="flex items-center justify-between p-2 rounded-lg bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800">
+                <div>
+                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">{lo.username}</p>
+                  <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                    {lo.failed_attempts} tentativa{lo.failed_attempts > 1 ? 's' : ''} · {new Date(lo.updated_at).toLocaleString('pt-BR')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => desbloquear(lo.username)}
+                  disabled={unlocking === lo.username}
+                  className="px-2 py-1 text-xs font-medium text-yellow-700 dark:text-yellow-300 border border-yellow-400 rounded hover:bg-yellow-100 dark:hover:bg-yellow-900/30 disabled:opacity-50"
+                >
+                  Limpar
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AlertasContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -262,6 +357,8 @@ function AlertasContent() {
             </div>
           </div>
         )}
+
+        <LockoutsSection />
 
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Filtros</h3>

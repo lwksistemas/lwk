@@ -25,8 +25,15 @@ class LocalAtendimentoListView(APIView):
     def post(self, request):
         serializer = LocalAtendimentoSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            instance = serializer.save()
+            # Se é o primeiro ou não existe nenhum padrão, marcar como padrão
+            tem_padrao = LocalAtendimento.objects.using(instance._state.db).filter(
+                loja_id=instance.loja_id, is_padrao=True, is_active=True,
+            ).exists()
+            if not tem_padrao:
+                instance.is_padrao = True
+                instance.save(update_fields=['is_padrao'])
+            return Response(LocalAtendimentoSerializer(instance).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

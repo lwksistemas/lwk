@@ -23,8 +23,15 @@ class NomeAgendaListView(APIView):
     def post(self, request):
         serializer = NomeAgendaSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            instance = serializer.save()
+            # Se não existe nenhum padrão, marcar este como padrão
+            tem_padrao = NomeAgenda.objects.using(instance._state.db).filter(
+                loja_id=instance.loja_id, is_padrao=True, is_active=True,
+            ).exists()
+            if not tem_padrao:
+                instance.is_padrao = True
+                instance.save(update_fields=['is_padrao'])
+            return Response(NomeAgendaSerializer(instance).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

@@ -323,10 +323,10 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
                             type="button"
                             onClick={() => handleSetPadrao(local.id)}
                             disabled={formBusy}
-                            className="px-2 py-1 text-xs rounded border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 disabled:opacity-40"
+                            className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-neutral-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-neutral-700 disabled:opacity-40"
                             title="Definir como padrão"
                           >
-                            Padrão
+                            Definir padrão
                           </button>
                         )}
                         <button

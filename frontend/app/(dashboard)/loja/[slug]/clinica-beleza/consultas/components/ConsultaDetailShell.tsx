@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI, type LocalAtendimentoItem, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
+import { ClinicaBelezaAPI, clinicaBelezaFetch, type LocalAtendimentoItem, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { toUpperCase } from "@/lib/format-br";
 import { CLINICA_CONSULTA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
@@ -94,6 +94,8 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [iniciando, setIniciando] = useState(false);
+  const [showProfessionalModal, setShowProfessionalModal] = useState(false);
+  const [profissionaisDisponiveis, setProfissionaisDisponiveis] = useState<{id: number; nome?: string; name?: string}[]>([]);
   const memedRef = useRef<MemedPrescricaoHandle>(null);
   const [memedBusy, setMemedBusy] = useState(false);
   const [locaisAtendimento, setLocaisAtendimento] = useState<LocalAtendimentoItem[]>([]);
@@ -345,11 +347,26 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
     }
   };
 
-  const iniciarConsulta = async () => {
+  const iniciarConsulta = async (professionalId?: number) => {
+    // Se consulta sem profissional e nenhum foi informado, pedir
+    if (!selected.professional && !professionalId) {
+      try {
+        const res = await clinicaBelezaFetch('/professionals/');
+        if (res.ok) {
+          const json = await res.json();
+          const profs = json.results || json;
+          setProfissionaisDisponiveis(Array.isArray(profs) ? profs : []);
+        }
+      } catch { /* fallback empty */ }
+      setShowProfessionalModal(true);
+      return;
+    }
+
     if (!confirm("Iniciar atendimento? A agenda será marcada como Em atendimento.")) return;
     setIniciando(true);
     try {
-      const data = await ClinicaBelezaAPI.consultas.iniciar(selected.id);
+      const body = professionalId ? { professional: professionalId } : undefined;
+      const data = await ClinicaBelezaAPI.consultas.iniciar(selected.id, body);
       setSelected({ ...selected, ...data });
       await onListRefresh();
     } catch (e: unknown) {
@@ -750,6 +767,50 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
         onChange={setFinalizarForm}
         onConfirm={finalizarConsulta}
       />
+
+      {showProfessionalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full max-w-sm">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-neutral-700">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                Selecione o Profissional
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Este agendamento não possui profissional. Informe quem realizará o atendimento.
+              </p>
+            </div>
+            <div className="p-4 max-h-60 overflow-y-auto space-y-2">
+              {profissionaisDisponiveis.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setShowProfessionalModal(false);
+                    iniciarConsulta(p.id);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
+                >
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {p.nome || p.name}
+                  </span>
+                </button>
+              ))}
+              {profissionaisDisponiveis.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">Nenhum profissional cadastrado.</p>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-200 dark:border-neutral-700">
+              <button
+                type="button"
+                onClick={() => setShowProfessionalModal(false)}
+                className="w-full px-4 py-2 text-sm text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </>
   );

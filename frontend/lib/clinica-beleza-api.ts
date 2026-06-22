@@ -438,7 +438,7 @@ export class ClinicaBelezaAPI {
     excluir: (id: number) => ClinicaBelezaAPI.delete(`/consultas/${id}/`),
     aplicarProtocolo: (id: number, protocolId: number) =>
       ClinicaBelezaAPI.post(`/consultas/${id}/aplicar-protocolo/`, { protocol_id: protocolId }),
-    iniciar: (id: number) => ClinicaBelezaAPI.post(`/consultas/${id}/iniciar/`, {}),
+    iniciar: (id: number, body?: { professional?: number }) => ClinicaBelezaAPI.post(`/consultas/${id}/iniciar/`, body || {}),
     finalizar: (
       id: number,
       data?: {

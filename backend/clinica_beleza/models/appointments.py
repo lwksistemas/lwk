@@ -78,7 +78,11 @@ class Appointment(LojaIsolationMixin, models.Model):
     date = models.DateTimeField(verbose_name="Data e Hora")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SCHEDULED', verbose_name="Status")
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, verbose_name="Paciente")
-    professional = models.ForeignKey(Professional, on_delete=models.CASCADE, verbose_name="Profissional")
+    professional = models.ForeignKey(
+        Professional, on_delete=models.SET_NULL, verbose_name="Profissional",
+        null=True, blank=True,
+        help_text="Profissional responsável. Pode ser definido ao iniciar a consulta.",
+    )
     procedure = models.ForeignKey(
         Procedure, on_delete=models.CASCADE, verbose_name="Procedimento principal",
         null=True, blank=True,

@@ -80,16 +80,14 @@ export function useNovaConsultaForm({
   }, []);
 
   const validateBase = useCallback((): string | null => {
-    if (!patientId || !professionalId) {
-      return requireProcedure
-        ? "Selecione o cliente, o profissional e pelo menos um procedimento."
-        : "Selecione o paciente e o profissional.";
+    if (!patientId) {
+      return "Selecione o paciente.";
     }
     if (requireProcedure && selectedProcedures.length === 0) {
       return "Selecione pelo menos um procedimento.";
     }
     return null;
-  }, [patientId, professionalId, selectedProcedures, requireProcedure]);
+  }, [patientId, selectedProcedures, requireProcedure]);
 
   return {
     patientId,

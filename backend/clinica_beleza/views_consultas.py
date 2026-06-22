@@ -221,6 +221,25 @@ class ConsultaIniciarView(APIView):
         if error:
             return error
 
+        # Se agendamento sem profissional, exigir no body
+        appointment = consulta.appointment
+        if not appointment.professional_id:
+            professional_id = request.data.get('professional')
+            if not professional_id:
+                return Response(
+                    {'error': 'Selecione o profissional para iniciar a consulta.', 'code': 'PROFESSIONAL_REQUIRED'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            from .models import Professional
+            try:
+                prof = Professional.objects.get(pk=professional_id)
+            except Professional.DoesNotExist:
+                return Response({'error': 'Profissional não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+            appointment.professional = prof
+            appointment.save(update_fields=['professional', 'updated_at'])
+            consulta.professional = prof
+            consulta.save(update_fields=['professional', 'updated_at'])
+
         try:
             iniciar_consulta(consulta)
         except ValueError as e:

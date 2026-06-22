@@ -45,9 +45,15 @@ class AgendaView(APIView):
     permission_classes = CLINICA_MEMBER
 
     def get(self, request):
+        from django.db.models import Q
         qs = (
             _agenda_events_queryset()
-            .filter(patient__is_active=True, professional__is_active=True)
+            .filter(
+                patient__is_active=True,
+            )
+            .filter(
+                Q(professional__isnull=True) | Q(professional__is_active=True)
+            )
         )
         if s := request.query_params.get('start'):
             qs = qs.filter(date__gte=s)

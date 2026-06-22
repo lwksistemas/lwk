@@ -165,14 +165,14 @@ export function ModalCriarAgendamento({
   }, [open, selectedDate, defaultProfessionalId, resetForm, setConvenioId, setProfessionalId]);
 
   useEffect(() => {
-    if (!open || !nomeAgendaUnico) return;
-    setNomeAgendaId(nomeAgendaUnico.id);
-  }, [open, nomeAgendaUnico]);
+    if (!open || nomesAgenda.length === 0) return;
+    setNomeAgendaId(nomesAgenda[0].id);
+  }, [open, nomesAgenda]);
 
   useEffect(() => {
-    if (!open || !localUnico) return;
-    setLocalAtendimentoId(localUnico.id);
-  }, [open, localUnico]);
+    if (!open || locaisAtendimento.length === 0) return;
+    setLocalAtendimentoId(locaisAtendimento[0].id);
+  }, [open, locaisAtendimento]);
 
   useEffect(() => {
     if (!open || !patientId) {

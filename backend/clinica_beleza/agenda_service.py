@@ -131,7 +131,7 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
     Se `serializer` for passado, usa serializer.save() (suporta múltiplos procedimentos).
     """
     date_start = validated_data['date']
-    professional = validated_data['professional']
+    professional = validated_data.get('professional')
     local_atendimento = validated_data.get('local_atendimento')
 
     from .duracao_consulta import calcular_duracao_novo_agendamento
@@ -145,14 +145,15 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
 
     date_end = date_start + timedelta(minutes=total_duration)
 
-    # Verificar bloqueios
-    if bloqueio_impede_agendamento(date_start, date_end, professional.id):
+    # Verificar bloqueios (apenas se tem profissional definido)
+    if professional and bloqueio_impede_agendamento(date_start, date_end, professional.id):
         raise AgendaValidationError('Horário bloqueado. Escolha outro horário ou profissional.')
 
-    # Regras de negócio (pré-criação)
-    validar_regras_agendamento(
-        'AGENDAMENTO_CRIADO', professional, date_start, date_end, appointment_id=None
-    )
+    # Regras de negócio (pré-criação) — apenas se tem profissional
+    if professional:
+        validar_regras_agendamento(
+            'AGENDAMENTO_CRIADO', professional, date_start, date_end, appointment_id=None
+        )
 
     # Criar via serializer (lida com AppointmentProcedure) ou direto
     if serializer:

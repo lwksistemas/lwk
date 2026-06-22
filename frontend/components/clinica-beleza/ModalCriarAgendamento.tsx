@@ -588,6 +588,9 @@ export function ModalCriarAgendamento({
                     </select>
                   </div>
                   <div>{campoNomeAgenda}</div>
+                  <div>
+                    <ConvenioSelect convenios={convenios} value={convenioId} onChange={setConvenioId} hint="" className={inputClass} />
+                  </div>
                   <div>{campoLocalAtendimento}</div>
                 </div>
 
@@ -636,14 +639,12 @@ export function ModalCriarAgendamento({
                 onClick={() => setShowAdvanced((v) => !v)}
                 className="w-full flex items-center justify-between gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
               >
-                <span>Mais opções (convênio, observações…)</span>
+                <span>Mais opções (retorno, observações…)</span>
                 {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
 
               {showAdvanced && (
                 <div className="space-y-4 pt-2">
-                  <ConvenioSelect convenios={convenios} value={convenioId} onChange={setConvenioId} hint="" className={inputClass} />
-
                   {retornoProcAtivo && regrasRetornoProc.length > 0 && patientId && (
                     <div>
                       <FieldLabel>Retorno do procedimento</FieldLabel>

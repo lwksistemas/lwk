@@ -375,18 +375,18 @@ export function ConsultaFotosTab({
               <X size={22} />
             </button>
           </div>
-          <div className={`flex-1 grid grid-cols-1 ${colsComparacao} gap-1 min-h-0`}>
+          <div className={`flex-1 grid grid-cols-1 ${colsComparacao} gap-0 min-h-0`}>
             {fotosComparar.map((f, i) => (
-              <div key={f.id} className="relative flex flex-col min-h-0 border-t md:border-t-0 md:border-l border-white/10 first:border-l-0 first:border-t-0">
-                <p className="text-xs text-white/70 px-3 py-1.5 shrink-0 bg-black/60">
+              <div key={f.id} className="relative flex flex-col min-h-0">
+                <p className="text-xs text-white/70 px-3 py-1 shrink-0 bg-black/60 text-center">
                   Foto {i + 1} — {f.consulta_data} ({f.origem_display})
                 </p>
-                <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-hidden bg-neutral-900">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={f.cloudinary_url}
                     alt={`Comparação ${i + 1}`}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-cover"
                   />
                 </div>
               </div>

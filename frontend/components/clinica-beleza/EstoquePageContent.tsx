@@ -579,7 +579,7 @@ export function EstoquePageContent({
       <EstoqueImportarXmlModal
         open={showImportXmlModal}
         onClose={() => setShowImportXmlModal(false)}
-        onSuccess={loadProdutos}
+        onSuccess={loadAll}
       />
 
     </>

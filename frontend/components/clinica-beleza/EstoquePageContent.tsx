@@ -21,6 +21,7 @@ interface Produto {
   id: number;
   nome: string;
   categoria: string;
+  marca?: string;
   quantidade_atual: number;
   quantidade_minima: number;
   preco_custo: number | string;
@@ -178,6 +179,17 @@ export function EstoquePageContent({
     }, searchTerm ? 300 : 0);
     return () => clearTimeout(timer);
   }, [loadProdutos, searchTerm]);
+
+  // --- Delete Product ---
+  const handleExcluirProduto = async (id: number, nome: string) => {
+    if (!confirm(`Excluir "${nome}" do estoque? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await ClinicaBelezaAPI.estoque.delete(id);
+      await loadAll();
+    } catch {
+      alert("Erro ao excluir produto.");
+    }
+  };
 
   // --- Product Modal ---
   function ProdutoModal() {
@@ -474,13 +486,14 @@ export function EstoquePageContent({
                   <thead className="bg-gray-50 dark:bg-neutral-700 border-b border-gray-200 dark:border-neutral-600">
                     <tr>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Nome</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 hidden md:table-cell">Fornecedor</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Categoria</th>
                       <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Qtd</th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Mínimo</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 hidden sm:table-cell">Mínimo</th>
                       <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Preço Custo</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 hidden lg:table-cell">Lote</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 hidden xl:table-cell">Nota</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Validade</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 hidden lg:table-cell">Validade</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Status</th>
                       <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Ações</th>
                     </tr>
@@ -496,13 +509,14 @@ export function EstoquePageContent({
                       produtos.map((p) => (
                         <tr key={p.id} className="border-b border-gray-100 dark:border-neutral-700 hover:bg-gray-50/50 dark:hover:bg-neutral-700/50">
                           <td className="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{p.nome}</td>
+                          <td className="py-3 px-4 text-gray-600 dark:text-gray-300 hidden md:table-cell">{p.marca || "—"}</td>
                           <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{categoriaLabel(p.categoria)}</td>
                           <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-gray-100">{p.quantidade_atual}</td>
-                          <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300">{p.quantidade_minima}</td>
+                          <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300 hidden sm:table-cell">{p.quantidade_minima}</td>
                           <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300">{formatCurrency(p.preco_custo)}</td>
                           <td className="py-3 px-4 text-gray-600 dark:text-gray-300 hidden lg:table-cell">{p.lote || "—"}</td>
                           <td className="py-3 px-4 text-gray-600 dark:text-gray-300 hidden xl:table-cell">{p.numero_nota || "—"}</td>
-                          <td className="py-3 px-4 text-gray-600 dark:text-gray-300">
+                          <td className="py-3 px-4 text-gray-600 dark:text-gray-300 hidden lg:table-cell">
                             {p.validade ? formatClinicaDataCurta(new Date(p.validade + "T00:00:00")) : "—"}
                           </td>
                           <td className="py-3 px-4"><StatusBadge produto={p} /></td>
@@ -528,6 +542,13 @@ export function EstoquePageContent({
                                 title="Saída de estoque"
                               >
                                 <ArrowUp size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleExcluirProduto(p.id, p.nome)}
+                                className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                title="Excluir produto"
+                              >
+                                <X size={16} />
                               </button>
                             </div>
                           </td>

@@ -179,6 +179,7 @@ def importar_produtos_xml(xml_content: bytes, *, categoria: str = 'outro') -> di
         produtos_para_criar.append({
             'nome': item['nome'],
             'categoria': categoria,
+            'marca': parsed['fornecedor'],
             'unidade_medida': item['unidade_medida'],
             'quantidade_atual': quantidade,
             'quantidade_minima': 0,

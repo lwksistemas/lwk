@@ -590,7 +590,7 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
                 </span>
                 <div className="ml-auto flex flex-wrap gap-2">
                   {podeIniciar && (
-                    <button type="button" onClick={iniciarConsulta} disabled={iniciando} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50" style={{ backgroundColor: "#2563eb" }}>
+                    <button type="button" onClick={() => iniciarConsulta()} disabled={iniciando} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50" style={{ backgroundColor: "#2563eb" }}>
                       <Play size={16} />
                       {iniciando ? "Iniciando…" : "Iniciar consulta"}
                     </button>

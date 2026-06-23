@@ -2,6 +2,7 @@
 Views de Estoque — Clínica da Beleza
 Controle de produtos (botox, ácido hialurônico, soros, etc.)
 """
+import logging
 from decimal import Decimal
 
 from django.db.models import F, Sum
@@ -14,6 +15,8 @@ from .models import ProdutoEstoque, MovimentacaoEstoque
 from .serializers import ProdutoEstoqueSerializer, MovimentacaoEstoqueSerializer
 from .pagination import paginate_queryset
 from .views_base import GetObjectMixin
+
+logger = logging.getLogger(__name__)
 
 # Campos para listagem via .values() (inclui numero_nota desde migration 0034).
 _PRODUTO_VALUES_FIELDS = (
@@ -212,3 +215,62 @@ class EstoqueResumoView(APIView):
             'estoque_baixo': estoque_baixo,
             'valor_total_estoque': float(valor_total),
         })
+
+
+class EstoqueImportarXmlView(APIView):
+    """
+    POST /clinica-beleza/estoque/importar-xml/
+    Upload de XML NF-e para importar produtos ao estoque.
+
+    Body: multipart/form-data com campo 'arquivo' (XML) e 'categoria' (opcional).
+    Retorna preview dos produtos encontrados ou cria se 'confirmar=true'.
+    """
+    permission_classes = CLINICA_ESTOQUE
+
+    def post(self, request):
+        from core.upload_validation import validate_xml_upload
+        from .estoque_xml_import_service import importar_produtos_xml
+
+        arquivo = request.FILES.get('arquivo')
+        if not arquivo:
+            return Response({'error': 'Envie o arquivo XML da NF-e.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid, msg = validate_xml_upload(arquivo)
+        if not valid:
+            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+
+        categoria = request.data.get('categoria', 'outro')
+        confirmar = request.data.get('confirmar', 'false').lower() in ('true', '1')
+
+        try:
+            xml_content = arquivo.read()
+            resultado = importar_produtos_xml(xml_content, categoria=categoria)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception('Erro ao processar XML de estoque: %s', e)
+            return Response({'error': 'Erro ao processar o XML. Verifique o formato.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not confirmar:
+            # Preview: retorna produtos encontrados sem salvar
+            return Response({
+                'preview': True,
+                **resultado,
+            })
+
+        # Confirmar: criar produtos no estoque
+        criados = 0
+        erros = []
+        for item in resultado['produtos']:
+            serializer = ProdutoEstoqueSerializer(data=item)
+            if serializer.is_valid():
+                serializer.save()
+                criados += 1
+            else:
+                erros.append({'nome': item.get('nome', '?'), 'erros': serializer.errors})
+
+        return Response({
+            'criados': criados,
+            'erros': erros,
+            'nota': resultado['nota'],
+        }, status=status.HTTP_201_CREATED if criados > 0 else status.HTTP_400_BAD_REQUEST)

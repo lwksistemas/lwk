@@ -28,7 +28,7 @@ from .views_consultas import (
 )
 from .views_estoque import (
     ProdutoEstoqueListView, ProdutoEstoqueDetailView,
-    MovimentacaoEstoqueView, EstoqueResumoView,
+    MovimentacaoEstoqueView, EstoqueResumoView, EstoqueImportarXmlView,
 )
 from .views_protocolos import ProtocolListView, ProtocolDetailView
 from .views_memed import MemedTokenView, MemedTimbradoView
@@ -191,6 +191,7 @@ urlpatterns = [
     # Estoque
     path('estoque/', ProdutoEstoqueListView.as_view(), name='estoque-list'),
     path('estoque/resumo/', EstoqueResumoView.as_view(), name='estoque-resumo'),
+    path('estoque/importar-xml/', EstoqueImportarXmlView.as_view(), name='estoque-importar-xml'),
     path('estoque/<int:pk>/', ProdutoEstoqueDetailView.as_view(), name='estoque-detail'),
     path('estoque/<int:pk>/movimentar/', MovimentacaoEstoqueView.as_view(), name='estoque-movimentar'),
     # Templates de documentos clínicos

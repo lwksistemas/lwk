@@ -9,11 +9,12 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
-import { Package, ArrowDown, ArrowUp, AlertTriangle, Search, X } from "lucide-react";
+import { Package, ArrowDown, ArrowUp, AlertTriangle, Search, X, FileUp } from "lucide-react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { formatClinicaDataCurta } from "@/lib/clinica-beleza-datetime";
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
+import { EstoqueImportarXmlModal } from "@/components/clinica-beleza/EstoqueImportarXmlModal";
 import { toUpperCase } from "@/lib/format-br";
 
 interface Produto {
@@ -96,6 +97,7 @@ export function EstoquePageContent({
 
   // Modal states
   const [showProdutoModal, setShowProdutoModal] = useState(false);
+  const [showImportXmlModal, setShowImportXmlModal] = useState(false);
   const [editingProduto, setEditingProduto] = useState<Produto | null>(null);
   const [showMovModal, setShowMovModal] = useState(false);
   const [movProduto, setMovProduto] = useState<Produto | null>(null);
@@ -380,6 +382,16 @@ export function EstoquePageContent({
         icon={Package}
         newLabel="Novo Produto"
         onNew={() => { setEditingProduto(null); setShowProdutoModal(true); }}
+        extraActions={
+          <button
+            type="button"
+            onClick={() => setShowImportXmlModal(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700"
+          >
+            <FileUp size={16} />
+            <span className="hidden sm:inline">Importar XML</span>
+          </button>
+        }
       />
       <ClinicaBelezaPageContent>
 
@@ -543,6 +555,11 @@ export function EstoquePageContent({
       {/* Modals */}
       {showProdutoModal && <ProdutoModal />}
       {showMovModal && movProduto && <MovimentacaoModal />}
+      <EstoqueImportarXmlModal
+        open={showImportXmlModal}
+        onClose={() => setShowImportXmlModal(false)}
+        onSuccess={loadProdutos}
+      />
 
     </>
   );

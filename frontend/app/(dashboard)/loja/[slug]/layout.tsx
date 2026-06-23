@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import RouteGuard from '@/components/RouteGuard';
 import { useSessionMonitor } from '@/hooks/useSessionMonitor';
+import { useInactivityLogout } from '@/hooks/useInactivityLogout';
 import { registrarSincronizacaoAoVoltarOnline } from '@/lib/offline-sync';
 import CapturaErrosNavegador from '@/components/suporte/CapturaErrosNavegador';
 import { authService, syncLojaTenantSlug } from '@/lib/auth';
@@ -20,6 +21,7 @@ export default function LojaLayout({
 
   // Monitorar sessão em tempo real
   useSessionMonitor();
+  useInactivityLogout();
 
   // Modo offline: ao voltar online, sincronizar fila de agendamentos (e demais itens) pendentes
   useEffect(() => {

@@ -12,6 +12,8 @@ import { clearSessionAndRedirect, getLoginUrlForRedirect, tryRefreshAccessToken 
  */
 const CHECK_INTERVAL_MS = 60000;
 const PROACTIVE_REFRESH_MS = 25 * 60 * 1000;
+const INACTIVITY_LIMIT_MS = 2 * 60 * 60 * 1000; // Não renovar se inativo por 2h
+const ACTIVITY_STORAGE_KEY = 'lwk_last_activity';
 
 function hasActiveSession(): boolean {
   if (typeof window === 'undefined') return false;
@@ -34,6 +36,18 @@ export function useSessionMonitor() {
       isCheckingRef.current = true;
       try {
         const now = Date.now();
+        const lastActivity = parseInt(localStorage.getItem(ACTIVITY_STORAGE_KEY) || '0', 10) || now;
+        const inactiveMs = now - lastActivity;
+
+        // Não renovar token se inativo por mais de 2h
+        if (inactiveMs >= INACTIVITY_LIMIT_MS) {
+          void clearSessionAndRedirect(
+            getLoginUrlForRedirect(),
+            'Sessão encerrada por inatividade. Faça login novamente.',
+          );
+          return;
+        }
+
         if (now - lastRefreshRef.current >= PROACTIVE_REFRESH_MS) {
           const refreshed = await tryRefreshAccessToken();
           if (refreshed) lastRefreshRef.current = now;

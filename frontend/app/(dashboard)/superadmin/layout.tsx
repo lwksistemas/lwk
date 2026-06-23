@@ -2,6 +2,7 @@
 
 import RouteGuard from '@/components/RouteGuard';
 import { useSessionMonitor } from '@/hooks/useSessionMonitor';
+import { useInactivityLogout } from '@/hooks/useInactivityLogout';
 
 export default function SuperAdminLayout({
   children,
@@ -9,6 +10,7 @@ export default function SuperAdminLayout({
   children: React.ReactNode;
 }) {
   useSessionMonitor();
+  useInactivityLogout();
 
   return (
     <RouteGuard allowedUserType="superadmin">

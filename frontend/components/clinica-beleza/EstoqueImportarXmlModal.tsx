@@ -89,7 +89,6 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: Props) {
       const res = await clinicaBelezaFetch("/estoque/importar-xml/", {
         method: "POST",
         body: formData,
-        headers: {}, // Não enviar Content-Type (browser seta multipart boundary)
       });
 
       const data = await res.json();

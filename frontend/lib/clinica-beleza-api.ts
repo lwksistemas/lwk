@@ -146,7 +146,14 @@ export async function clinicaBelezaFetch(
   const response = await fetch(url, {
     ...options,
     credentials: USE_JWT_HTTPONLY_COOKIES ? "include" : options.credentials,
-    headers: { ...getClinicaBelezaHeadersWithLoja(loja), ...options.headers },
+    headers: (() => {
+      const merged = { ...getClinicaBelezaHeadersWithLoja(loja), ...options.headers };
+      // FormData: remover Content-Type para que o browser sete multipart/form-data com boundary
+      if (options.body instanceof FormData) {
+        delete (merged as Record<string, string>)["Content-Type"];
+      }
+      return merged;
+    })(),
   });
   if (response.status === 401) {
     const handled = await handle401SessionResponse(response);

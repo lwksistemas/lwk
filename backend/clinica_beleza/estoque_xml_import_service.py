@@ -172,16 +172,20 @@ def importar_produtos_xml(xml_content: bytes, *, categoria: str = 'outro') -> di
 
     produtos_para_criar = []
     for item in parsed['produtos']:
+        # Limpar valores decimais para 2 casas (compatível com model)
+        preco = str(round(float(item['preco_unitario']), 2))
+        quantidade = str(round(float(item['quantidade']), 2))
+
         produtos_para_criar.append({
             'nome': item['nome'],
             'categoria': categoria,
             'unidade_medida': item['unidade_medida'],
-            'quantidade_atual': item['quantidade'],
+            'quantidade_atual': quantidade,
             'quantidade_minima': 0,
-            'preco_custo': item['preco_unitario'],
+            'preco_custo': preco,
             'preco_venda': 0,
             'lote': item['lote'],
-            'validade': item['validade'],
+            'validade': item['validade'] or None,
             'numero_nota': parsed['numero_nota'],
             'observacoes': f"NCM: {item['ncm']}" if item['ncm'] else '',
         })

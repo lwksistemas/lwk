@@ -178,7 +178,7 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: Props) {
                   <div key={i} className="px-3 py-2 text-sm">
                     <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{p.nome}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {p.quantidade} {p.unidade_medida} × R$ {Number(p.preco_unitario).toFixed(2)}
+                      {p.quantidade} {p.unidade_medida} × R$ {parseFloat(p.preco_unitario || "0").toFixed(2)}
                       {p.lote ? ` · Lote: ${p.lote}` : ""}
                     </p>
                   </div>

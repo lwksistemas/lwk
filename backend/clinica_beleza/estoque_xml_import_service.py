@@ -257,7 +257,7 @@ def confirmar_importacao_xml(produtos_para_importar: list[dict]) -> dict:
             existente.quantidade_atual += quantidade
             if item.get('preco_custo'):
                 existente.preco_custo = Decimal(str(item['preco_custo']))
-            if item.get('validade') and (not existente.validade or item['validade'] > str(existente.validade)):
+            if item.get('validade') and (not existente.validade or item['validade'] < str(existente.validade)):
                 existente.validade = item['validade']
             if item.get('lote'):
                 existente.lote = item['lote']

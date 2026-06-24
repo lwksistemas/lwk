@@ -23,6 +23,7 @@ interface PreviewResult {
 
 interface ImportResult {
   criados: number;
+  atualizados: number;
   erros: { nome: string; erros: Record<string, string[]> }[];
   nota: { numero: string; fornecedor: string; data_emissao: string };
 }
@@ -143,7 +144,9 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: Props) {
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle2 size={20} className="text-green-600" />
                 <span className="font-semibold text-green-800 dark:text-green-200">
-                  {resultado.criados} produto{resultado.criados !== 1 ? "s" : ""} importado{resultado.criados !== 1 ? "s" : ""}!
+                  {resultado.criados > 0 && `${resultado.criados} novo${resultado.criados !== 1 ? "s" : ""}`}
+                  {resultado.criados > 0 && resultado.atualizados > 0 && " · "}
+                  {resultado.atualizados > 0 && `${resultado.atualizados} atualizado${resultado.atualizados !== 1 ? "s" : ""} (estoque somado)`}
                 </span>
               </div>
               {resultado.nota.numero && (

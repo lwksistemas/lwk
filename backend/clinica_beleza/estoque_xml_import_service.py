@@ -163,28 +163,27 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
 
 def importar_produtos_xml(xml_content: bytes, *, categoria: str = 'outro') -> dict:
     """
-    Parseia XML e prepara dados formatados para criação no estoque.
+    Parseia XML e importa produtos ao estoque.
+    Se o produto já existe (mesmo nome), soma a quantidade e registra movimentação.
 
     Returns:
-        dict com 'nota' (info da NF) e 'produtos' (lista pronta para serializer).
+        dict com 'nota' (info da NF) e 'produtos' (lista pronta para criação/atualização).
     """
     parsed = parse_nfe_xml(xml_content)
 
-    produtos_para_criar = []
+    produtos_para_importar = []
     for item in parsed['produtos']:
         # Limpar valores decimais para 2 casas (compatível com model)
         preco = str(round(float(item['preco_unitario']), 2))
         quantidade = str(round(float(item['quantidade']), 2))
 
-        produtos_para_criar.append({
+        produtos_para_importar.append({
             'nome': item['nome'],
             'categoria': categoria,
             'marca': parsed['fornecedor'],
             'unidade_medida': item['unidade_medida'],
-            'quantidade_atual': quantidade,
-            'quantidade_minima': 0,
+            'quantidade': quantidade,
             'preco_custo': preco,
-            'preco_venda': 0,
             'lote': item['lote'],
             'validade': item['validade'] or None,
             'numero_nota': parsed['numero_nota'],
@@ -197,6 +196,90 @@ def importar_produtos_xml(xml_content: bytes, *, categoria: str = 'outro') -> di
             'fornecedor': parsed['fornecedor'],
             'data_emissao': parsed['data_emissao'],
         },
-        'produtos': produtos_para_criar,
-        'total_produtos': len(produtos_para_criar),
+        'produtos': produtos_para_importar,
+        'total_produtos': len(produtos_para_importar),
+    }
+
+
+def confirmar_importacao_xml(produtos_para_importar: list[dict]) -> dict:
+    """
+    Cria ou atualiza produtos no estoque a partir da lista parseada.
+    Se o produto já existe (mesmo nome), soma quantidade e registra movimentação.
+
+    Returns:
+        dict com 'criados', 'atualizados', 'erros'.
+    """
+    from decimal import Decimal
+    from .models import ProdutoEstoque, MovimentacaoEstoque
+    from .serializers import ProdutoEstoqueSerializer
+
+    criados = 0
+    atualizados = 0
+    erros = []
+
+    for item in produtos_para_importar:
+        nome = item['nome']
+        quantidade = Decimal(str(item['quantidade']))
+        numero_nota = item.get('numero_nota', '')
+
+        # Buscar produto existente (mesmo nome, case insensitive)
+        existente = ProdutoEstoque.objects.filter(
+            nome__iexact=nome, is_active=True,
+        ).first()
+
+        if existente:
+            # Somar quantidade ao estoque existente
+            existente.quantidade_atual += quantidade
+            if item.get('preco_custo'):
+                existente.preco_custo = Decimal(str(item['preco_custo']))
+            if item.get('validade') and (not existente.validade or item['validade'] > str(existente.validade)):
+                existente.validade = item['validade']
+            if item.get('lote'):
+                existente.lote = item['lote']
+            if numero_nota:
+                existente.numero_nota = numero_nota
+            existente.save(update_fields=[
+                'quantidade_atual', 'preco_custo', 'validade', 'lote', 'numero_nota', 'updated_at',
+            ])
+            # Registrar movimentação de entrada
+            MovimentacaoEstoque.objects.create(
+                produto=existente,
+                tipo='entrada',
+                quantidade=quantidade,
+                motivo=f'NF {numero_nota} - Lote: {item.get("lote", "")} - Val: {item.get("validade", "")}',
+            )
+            atualizados += 1
+        else:
+            # Criar produto novo
+            serializer_data = {
+                'nome': nome,
+                'categoria': item.get('categoria', 'outro'),
+                'marca': item.get('marca', ''),
+                'unidade_medida': item.get('unidade_medida', 'unidade'),
+                'quantidade_atual': str(quantidade),
+                'quantidade_minima': 0,
+                'preco_custo': item.get('preco_custo', '0'),
+                'preco_venda': 0,
+                'lote': item.get('lote', ''),
+                'validade': item.get('validade'),
+                'numero_nota': numero_nota,
+                'observacoes': item.get('observacoes', ''),
+            }
+            serializer = ProdutoEstoqueSerializer(data=serializer_data)
+            if serializer.is_valid():
+                produto_novo = serializer.save()
+                MovimentacaoEstoque.objects.create(
+                    produto=produto_novo,
+                    tipo='entrada',
+                    quantidade=quantidade,
+                    motivo=f'NF {numero_nota} - Lote: {item.get("lote", "")} - Val: {item.get("validade", "")}',
+                )
+                criados += 1
+            else:
+                erros.append({'nome': nome, 'erros': serializer.errors})
+
+    return {
+        'criados': criados,
+        'atualizados': atualizados,
+        'erros': erros,
     }

@@ -129,13 +129,19 @@ class ProdutoEstoqueDetailView(GetObjectMixin, APIView):
 
 class MovimentacaoEstoqueView(GetObjectMixin, APIView):
     """
-    POST /clinica-beleza/estoque/<id>/movimentar/
-    Registra entrada ou saída de estoque e atualiza quantidade.
-    Body: { "tipo": "entrada"|"saida"|"ajuste", "quantidade": 5, "motivo": "Compra fornecedor" }
+    GET  /clinica-beleza/estoque/<id>/movimentar/ — lista histórico de movimentações
+    POST /clinica-beleza/estoque/<id>/movimentar/ — registra entrada/saída
     """
     permission_classes = CLINICA_ESTOQUE
     model_class = ProdutoEstoque
     not_found_message = 'Produto não encontrado'
+
+    def get(self, request, pk):
+        produto, error = self.object_or_404(pk)
+        if error:
+            return error
+        movs = MovimentacaoEstoque.objects.filter(produto=produto).order_by('-created_at')[:50]
+        return Response(MovimentacaoEstoqueSerializer(movs, many=True).data)
 
     def post(self, request, pk):
         produto, error = self.object_or_404(pk)
@@ -258,19 +264,12 @@ class EstoqueImportarXmlView(APIView):
                 **resultado,
             })
 
-        # Confirmar: criar produtos no estoque
-        criados = 0
-        erros = []
-        for item in resultado['produtos']:
-            serializer = ProdutoEstoqueSerializer(data=item)
-            if serializer.is_valid():
-                serializer.save()
-                criados += 1
-            else:
-                erros.append({'nome': item.get('nome', '?'), 'erros': serializer.errors})
+        # Confirmar: criar ou atualizar produtos no estoque
+        from .estoque_xml_import_service import confirmar_importacao_xml
+
+        result = confirmar_importacao_xml(resultado['produtos'])
 
         return Response({
-            'criados': criados,
-            'erros': erros,
+            **result,
             'nota': resultado['nota'],
-        }, status=status.HTTP_201_CREATED if criados > 0 else status.HTTP_400_BAD_REQUEST)
+        }, status=status.HTTP_201_CREATED if (result['criados'] + result['atualizados']) > 0 else status.HTTP_400_BAD_REQUEST)

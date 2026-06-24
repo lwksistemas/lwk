@@ -218,6 +218,8 @@ def importar_produtos_xml(xml_content: bytes, *, categoria: str = 'outro') -> di
             'numero': parsed['numero_nota'],
             'fornecedor': parsed['fornecedor'],
             'data_emissao': parsed['data_emissao'],
+            'destinatario_documento': parsed.get('destinatario_documento', ''),
+            'destinatario_nome': parsed.get('destinatario_nome', ''),
         },
         'produtos': produtos_para_importar,
         'total_produtos': len(produtos_para_importar),

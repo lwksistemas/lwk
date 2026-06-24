@@ -63,6 +63,9 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: Props) {
 
   const handleClose = () => {
     if (loading) return;
+    if (resultado && (resultado.criados > 0 || resultado.atualizados > 0)) {
+      onSuccess();
+    }
     reset();
     onClose();
   };
@@ -103,7 +106,6 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: Props) {
         setPreview(data as PreviewResult);
       } else {
         setResultado(data as ImportResult);
-        if (data.criados > 0) onSuccess();
       }
     } catch {
       setError("Erro ao enviar arquivo. Tente novamente.");

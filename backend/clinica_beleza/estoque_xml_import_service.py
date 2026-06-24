@@ -19,17 +19,32 @@ NFE_NS = '{http://www.portalfiscal.inf.br/nfe}'
 
 def _find_text(element, path: str, ns: str = NFE_NS) -> str:
     """Busca texto em elemento XML com ou sem namespace."""
-    # Tentar com namespace
-    el = element.find(path.replace('/', f'/{ns}').replace('//', f'//{ns}'))
-    if el is None:
-        # Tentar sem namespace (NF-e simples)
-        el = element.find(path)
-    if el is None:
-        # Tentar com prefixo direto
-        parts = path.split('/')
-        ns_path = '/'.join(f'{ns}{p}' for p in parts)
-        el = element.find(ns_path)
-    return (el.text or '').strip() if el is not None else ''
+    # Tentar sem namespace
+    el = element.find(path)
+    if el is not None:
+        return (el.text or '').strip()
+
+    # Tentar com namespace em cada segmento
+    parts = path.split('/')
+    ns_path = '/'.join(f'{ns}{p}' for p in parts)
+    el = element.find(ns_path)
+    if el is not None:
+        return (el.text or '').strip()
+
+    # Buscar iterando filhos (fallback para XMLs com namespace irregular)
+    segments = path.split('/')
+    current = element
+    for seg in segments:
+        found = None
+        for child in current:
+            child_tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+            if child_tag == seg:
+                found = child
+                break
+        if found is None:
+            return ''
+        current = found
+    return (current.text or '').strip()
 
 
 def _parse_decimal(value: str) -> Decimal:
@@ -89,19 +104,19 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
         raise ValueError('Estrutura de NF-e não encontrada no XML.')
 
     # Dados da nota
-    numero_nota = _find_text(inf_nfe, 'ide/nNF') or _find_text(inf_nfe, f'{NFE_NS}ide/{NFE_NS}nNF')
-    data_emissao = _find_text(inf_nfe, 'ide/dhEmi') or _find_text(inf_nfe, f'{NFE_NS}ide/{NFE_NS}dhEmi')
+    numero_nota = _find_text(inf_nfe, 'ide/nNF')
+    data_emissao = _find_text(inf_nfe, 'ide/dhEmi')
     if data_emissao:
         data_emissao = data_emissao[:10]  # Pegar só YYYY-MM-DD
 
     # Emitente (fornecedor)
-    fornecedor = _find_text(inf_nfe, 'emit/xNome') or _find_text(inf_nfe, f'{NFE_NS}emit/{NFE_NS}xNome')
+    fornecedor = _find_text(inf_nfe, 'emit/xNome')
 
     # Destinatário (comprador) — CPF ou CNPJ
-    dest_cpf = _find_text(inf_nfe, 'dest/CPF') or _find_text(inf_nfe, f'{NFE_NS}dest/{NFE_NS}CPF')
-    dest_cnpj = _find_text(inf_nfe, 'dest/CNPJ') or _find_text(inf_nfe, f'{NFE_NS}dest/{NFE_NS}CNPJ')
+    dest_cpf = _find_text(inf_nfe, 'dest/CPF')
+    dest_cnpj = _find_text(inf_nfe, 'dest/CNPJ')
     dest_documento = dest_cnpj or dest_cpf
-    dest_nome = _find_text(inf_nfe, 'dest/xNome') or _find_text(inf_nfe, f'{NFE_NS}dest/{NFE_NS}xNome')
+    dest_nome = _find_text(inf_nfe, 'dest/xNome')
 
     # Produtos
     produtos = []

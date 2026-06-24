@@ -290,7 +290,32 @@ class EstoqueImportarXmlView(APIView):
 
         result = confirmar_importacao_xml(resultado['produtos'])
 
-        return Response({
+        # Incluir aviso de destinatário também na confirmação
+        from tenants.middleware import get_current_loja_id
+        from superadmin.models import Loja
+        import re
+
+        aviso_destinatario = None
+        loja_id = get_current_loja_id()
+        if loja_id and resultado.get('nota', {}).get('destinatario_documento'):
+            loja = Loja.objects.filter(id=loja_id).first()
+            if loja:
+                loja_doc = re.sub(r'\D', '', loja.cpf_cnpj or '')
+                nf_doc = re.sub(r'\D', '', resultado['nota']['destinatario_documento'])
+                if loja_doc and nf_doc and loja_doc != nf_doc:
+                    aviso_destinatario = (
+                        f'O destinatário da NF ({resultado["nota"].get("destinatario_nome", "")} - '
+                        f'{nf_doc}) não confere com o documento da loja ({loja_doc}).'
+                    )
+
+        response_data = {
             **result,
             'nota': resultado['nota'],
-        }, status=status.HTTP_201_CREATED if (result['criados'] + result['atualizados']) > 0 else status.HTTP_400_BAD_REQUEST)
+        }
+        if aviso_destinatario:
+            response_data['aviso_destinatario'] = aviso_destinatario
+
+        return Response(
+            response_data,
+            status=status.HTTP_201_CREATED if (result['criados'] + result['atualizados']) > 0 else status.HTTP_400_BAD_REQUEST,
+        )

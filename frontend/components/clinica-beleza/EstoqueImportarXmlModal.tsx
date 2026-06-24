@@ -155,6 +155,14 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: Props) {
                   NF nº {resultado.nota.numero} — {resultado.nota.fornecedor}
                 </p>
               )}
+              {(resultado as unknown as {aviso_destinatario?: string}).aviso_destinatario && (
+                <div className="mt-2 p-2 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 flex items-start gap-2">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5 text-amber-600" />
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    {(resultado as unknown as {aviso_destinatario: string}).aviso_destinatario}
+                  </p>
+                </div>
+              )}
               {resultado.erros.length > 0 && (
                 <div className="mt-2 text-xs text-red-600">
                   {resultado.erros.length} erro{resultado.erros.length !== 1 ? "s" : ""}:

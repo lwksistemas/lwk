@@ -19,6 +19,7 @@ interface PreviewResult {
   nota: { numero: string; fornecedor: string; data_emissao: string };
   produtos: ProdutoPreview[];
   total_produtos: number;
+  aviso_destinatario?: string;
 }
 
 interface ImportResult {
@@ -168,6 +169,14 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: Props) {
           {/* Preview */}
           {preview && !resultado && (
             <div>
+              {preview.aviso_destinatario && (
+                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 mb-3 flex items-start gap-2">
+                  <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-600" />
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    <strong>Atenção:</strong> {preview.aviso_destinatario}
+                  </p>
+                </div>
+              )}
               <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 mb-3">
                 <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
                   NF nº {preview.nota.numero || "—"} — {preview.nota.fornecedor || "Fornecedor"}

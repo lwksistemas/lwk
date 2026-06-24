@@ -97,6 +97,12 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
     # Emitente (fornecedor)
     fornecedor = _find_text(inf_nfe, 'emit/xNome') or _find_text(inf_nfe, f'{NFE_NS}emit/{NFE_NS}xNome')
 
+    # Destinatário (comprador) — CPF ou CNPJ
+    dest_cpf = _find_text(inf_nfe, 'dest/CPF') or _find_text(inf_nfe, f'{NFE_NS}dest/{NFE_NS}CPF')
+    dest_cnpj = _find_text(inf_nfe, 'dest/CNPJ') or _find_text(inf_nfe, f'{NFE_NS}dest/{NFE_NS}CNPJ')
+    dest_documento = dest_cnpj or dest_cpf
+    dest_nome = _find_text(inf_nfe, 'dest/xNome') or _find_text(inf_nfe, f'{NFE_NS}dest/{NFE_NS}xNome')
+
     # Produtos
     produtos = []
     for det in inf_nfe.iter():
@@ -156,6 +162,8 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
         'numero_nota': numero_nota,
         'fornecedor': fornecedor,
         'data_emissao': data_emissao,
+        'destinatario_documento': dest_documento,
+        'destinatario_nome': dest_nome,
         'produtos': produtos,
         'total_produtos': len(produtos),
     }

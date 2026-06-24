@@ -122,8 +122,9 @@ class ProdutoEstoqueDetailView(GetObjectMixin, APIView):
         obj, error = self.object_or_404(pk)
         if error:
             return error
-        obj.is_active = False
-        obj.save(update_fields=['is_active', 'updated_at'])
+        # Hard delete: remove produto e movimentações associadas
+        MovimentacaoEstoque.objects.filter(produto=obj).delete()
+        obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

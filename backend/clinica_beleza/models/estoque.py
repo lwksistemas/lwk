@@ -57,6 +57,11 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
         help_text='Vincula o produto ao procedimento (ex.: termo de consentimento).',
     )
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
+    dias_alerta_validade = models.PositiveIntegerField(
+        default=90,
+        verbose_name="Dias para alerta de validade",
+        help_text="Quantidade de dias antes do vencimento para emitir alerta (ex: 90).",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
 
@@ -75,6 +80,15 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
     def estoque_baixo(self):
         """Retorna True se estoque está abaixo do mínimo."""
         return self.quantidade_atual <= self.quantidade_minima
+
+    @property
+    def validade_proxima(self):
+        """Retorna True se a validade está dentro do período de alerta."""
+        if not self.validade:
+            return False
+        from datetime import date, timedelta
+        limite = date.today() + timedelta(days=self.dias_alerta_validade)
+        return self.validade <= limite
 
 
 

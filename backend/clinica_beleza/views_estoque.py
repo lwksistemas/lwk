@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 _PRODUTO_VALUES_FIELDS = (
     'id', 'nome', 'categoria', 'marca', 'unidade_medida',
     'quantidade_atual', 'quantidade_minima', 'preco_custo', 'preco_venda',
-    'validade', 'lote', 'numero_nota', 'observacoes', 'is_active', 'created_at', 'updated_at',
+    'validade', 'lote', 'numero_nota', 'dias_alerta_validade',
+    'observacoes', 'is_active', 'created_at', 'updated_at',
 )
 _CATEGORIA_LABELS = dict(ProdutoEstoque.CATEGORIA_CHOICES)
 
@@ -32,6 +33,15 @@ def _produto_values_row(row: dict) -> dict:
     item.setdefault('numero_nota', '')
     item['categoria_display'] = _CATEGORIA_LABELS.get(row.get('categoria'), row.get('categoria'))
     item['estoque_baixo'] = row.get('quantidade_atual', 0) <= row.get('quantidade_minima', 0)
+    # Alerta de validade
+    validade = row.get('validade')
+    dias_alerta = row.get('dias_alerta_validade') or 90
+    if validade:
+        from datetime import date, timedelta
+        limite = date.today() + timedelta(days=dias_alerta)
+        item['validade_proxima'] = validade <= limite
+    else:
+        item['validade_proxima'] = False
     return item
 
 
@@ -208,6 +218,7 @@ class EstoqueResumoView(APIView):
 
     def get(self, request):
         from tenants.middleware import ensure_loja_context
+        from datetime import date, timedelta
 
         ensure_loja_context(request)
         produtos = ProdutoEstoque.objects.filter(is_active=True)
@@ -217,9 +228,18 @@ class EstoqueResumoView(APIView):
             total=Sum(F('quantidade_atual') * F('preco_custo'))
         )['total'] or 0
 
+        # Produtos com validade próxima do vencimento
+        hoje = date.today()
+        validade_proxima = 0
+        for p in produtos.filter(validade__isnull=False).values('validade', 'dias_alerta_validade'):
+            limite = hoje + timedelta(days=p['dias_alerta_validade'] or 90)
+            if p['validade'] <= limite:
+                validade_proxima += 1
+
         return Response({
             'total_produtos': total_produtos,
             'estoque_baixo': estoque_baixo,
+            'validade_proxima': validade_proxima,
             'valor_total_estoque': float(valor_total),
         })
 

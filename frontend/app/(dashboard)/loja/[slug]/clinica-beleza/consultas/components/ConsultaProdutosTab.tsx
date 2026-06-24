@@ -47,6 +47,7 @@ export function ConsultaProdutosTab({
   const [produtos, setProdutos] = useState<ProdutoEstoque[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [produtoId, setProdutoId] = useState<number | "">("");
   const [quantidade, setQuantidade] = useState<string>("1");
   const [lote, setLote] = useState("");
@@ -168,8 +169,23 @@ export function ConsultaProdutosTab({
       </p>
 
       {!somenteLeitura && (
+        <div className="space-y-3">
+          {!showAddForm ? (
+            <button
+              type="button"
+              onClick={() => setShowAddForm(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
+              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            >
+              <Plus size={16} />
+              Adicionar produto
+            </button>
+          ) : (
         <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4 space-y-4">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Adicionar produto</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Adicionar produto</h3>
+            <button type="button" onClick={() => setShowAddForm(false)} className="text-xs text-gray-500 hover:text-gray-700">Fechar</button>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Produto *</label>
@@ -227,6 +243,8 @@ export function ConsultaProdutosTab({
             <Plus size={16} />
             {saving ? "Salvando..." : "Adicionar"}
           </button>
+        </div>
+          )}
         </div>
       )}
 

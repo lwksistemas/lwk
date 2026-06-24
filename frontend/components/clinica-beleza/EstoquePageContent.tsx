@@ -195,6 +195,7 @@ export function EstoquePageContent({
   function ProdutoModal() {
     const [form, setForm] = useState({
       nome: editingProduto?.nome ?? "",
+      marca: editingProduto?.marca ?? "",
       categoria: normalizeCategoria(editingProduto?.categoria),
       quantidade_atual: editingProduto?.quantidade_atual ?? 0,
       quantidade_minima: editingProduto?.quantidade_minima ?? 0,
@@ -245,6 +246,12 @@ export function EstoquePageContent({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome</label>
               <input type="text" required value={form.nome} onChange={(e) => setForm({ ...form, nome: toUpperCase(e.target.value) })}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fornecedor</label>
+              <input type="text" value={form.marca} onChange={(e) => setForm({ ...form, marca: toUpperCase(e.target.value) })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100"
+                placeholder="Nome do fornecedor" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>

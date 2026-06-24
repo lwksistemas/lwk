@@ -20,7 +20,12 @@ function hasActiveSession(): boolean {
 
 function getLastActivity(): number {
   const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? parseInt(stored, 10) : Date.now();
+  if (!stored) {
+    // Primeiro acesso ou limpo: assumir atividade agora (não deslogar)
+    setLastActivity();
+    return Date.now();
+  }
+  return parseInt(stored, 10) || Date.now();
 }
 
 function setLastActivity(): void {

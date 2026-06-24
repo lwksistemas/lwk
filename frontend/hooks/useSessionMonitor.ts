@@ -36,7 +36,7 @@ export function useSessionMonitor() {
       isCheckingRef.current = true;
       try {
         const now = Date.now();
-        const lastActivity = parseInt(localStorage.getItem(ACTIVITY_STORAGE_KEY) || '0', 10) || now;
+        const lastActivity = parseInt(localStorage.getItem(ACTIVITY_STORAGE_KEY) || String(now), 10) || now;
         const inactiveMs = now - lastActivity;
 
         // Não renovar token se inativo por mais de 2h

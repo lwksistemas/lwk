@@ -22,6 +22,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
     data_nascimento = serializers.DateField(required=False, allow_null=True)
     sexo = serializers.ChoiceField(choices=['M', 'F'], required=False, allow_blank=True, allow_null=True)
     criar_acesso = serializers.BooleanField(default=False, write_only=True)
+    username = serializers.CharField(max_length=150, required=False, allow_blank=True, write_only=True)
     perfil = serializers.ChoiceField(
         choices=[
             'administrador', 'profissional', 'recepcao', 'recepcionista',
@@ -51,6 +52,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
     def create(self, validated_data):
         criar_acesso = validated_data.pop('criar_acesso', False)
         perfil = validated_data.pop('perfil', 'profissional')
+        username = validated_data.pop('username', '') or ''
         email = validated_data.get('email')
         name = validated_data.pop('name', None)
         specialty = validated_data.pop('specialty', None)
@@ -81,6 +83,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
                 criar_profissional_com_acesso(
                     professional,
                     email=email,
+                    username=username,
                     name=name or '',
                     perfil=perfil,
                 )

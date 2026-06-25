@@ -59,6 +59,7 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
     conselho: "", registro: "", uf: "", cpf: "",
     data_nascimento: "", sexo: "",
     criar_acesso: false, perfil: "profissional" as PerfilAcesso,
+    username: "",
   });
   const [comissoes, setComissoes] = useState<Commission[]>([]);
   const [comissoesConsultaLocal, setComissoesConsultaLocal] = useState<Commission[]>([]);
@@ -204,7 +205,8 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
   const salvar = async () => {
     if (!form.name.trim()) { setError("Nome é obrigatório."); return; }
     if (!form.specialty.trim()) { setError("Especialidade é obrigatória."); return; }
-    if (form.criar_acesso && !form.email.trim()) { setError("E-mail é obrigatório para criar acesso."); return; }
+    if (form.criar_acesso && !form.username.trim()) { setError("Usuário para login é obrigatório."); return; }
+    if (form.criar_acesso && !form.email.trim()) { setError("E-mail é obrigatório para enviar a senha."); return; }
 
     const locaisConsultaUsados = comissoesConsultaLocal
       .filter((c) => c.valor && Number(c.valor) > 0)
@@ -250,6 +252,7 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
     if (!editId && form.criar_acesso) {
       body.criar_acesso = true;
       body.perfil = form.perfil;
+      body.username = form.username.trim();
     }
 
     try {
@@ -545,9 +548,40 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
                 </select>
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.criar_acesso} onChange={(e) => set("criar_acesso", e.target.checked)} className="rounded border-gray-300 dark:border-neutral-600 text-purple-600" />
+                <input type="checkbox" checked={form.criar_acesso} onChange={(e) => {
+                  set("criar_acesso", e.target.checked);
+                  if (e.target.checked && !form.username) {
+                    const sugestao = form.name.trim().split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    set("username", sugestao);
+                  }
+                }} className="rounded border-gray-300 dark:border-neutral-600 text-purple-600" />
                 <span className="text-sm text-gray-700 dark:text-gray-300">Criar login e enviar senha por e-mail</span>
               </label>
+              {form.criar_acesso && (
+                <div className="space-y-3 pt-2 pl-6 border-l-2 border-purple-200 dark:border-purple-800">
+                  <div>
+                    <label className={labelClass}>Usuário para login *</label>
+                    <input
+                      type="text"
+                      value={form.username}
+                      onChange={(e) => set("username", e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))}
+                      className={inputClass}
+                      placeholder="Ex: daniel, maria.silva"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Será usado para entrar no sistema (sem espaços ou caracteres especiais)</p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>E-mail (para envio da senha) *</label>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => set("email", e.target.value)}
+                      className={inputClass}
+                      placeholder="email@exemplo.com"
+                    />
+                  </div>
+                </div>
+              )}
             </section>
           )}
 

@@ -160,7 +160,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
                 'login_logo': getattr(loja, 'login_logo', None) or '',
                 'login_page_url': getattr(loja, 'login_page_url', None) or '',
                 'senha_foi_alterada': getattr(loja, 'senha_foi_alterada', False),
-                'requer_cpf_cnpj': True,
+                'requer_cpf_cnpj': False,
                 'endereco': endereco,
                 'cpf_cnpj': cpf_cnpj_digits,
             }

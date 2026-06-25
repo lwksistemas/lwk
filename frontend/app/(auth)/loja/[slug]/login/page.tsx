@@ -336,7 +336,8 @@ export default function LojaLoginDinamicoPage() {
               />
             </div>
             
-            {/* CPF/CNPJ - SEMPRE obrigatório para maior segurança */}
+            {/* CPF/CNPJ - só exibido se a loja exigir */}
+            {lojaInfo.requer_cpf_cnpj && (
             <div>
               <label htmlFor="cpf_cnpj" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 CPF/CNPJ
@@ -354,6 +355,8 @@ export default function LojaLoginDinamicoPage() {
                 disabled={loading}
                 maxLength={18}
               />
+            </div>
+            )}
               <label className="mt-2 flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -362,9 +365,8 @@ export default function LojaLoginDinamicoPage() {
                   className="rounded border-gray-300 dark:border-gray-600 text-gray-900 focus:ring-2 focus:ring-offset-0"
                   disabled={loading}
                 />
-                <span className="text-sm text-gray-600 dark:text-gray-400">Lembrar usuário e CPF/CNPJ neste dispositivo</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Lembrar usuário neste dispositivo</span>
               </label>
-            </div>
             
             {/* Password */}
             <PasswordInput

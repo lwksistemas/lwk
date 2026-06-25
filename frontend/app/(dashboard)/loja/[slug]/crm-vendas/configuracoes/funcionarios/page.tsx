@@ -62,6 +62,7 @@ export default function ConfiguracoesFuncionariosPage() {
     comissao_padrao: '0',
     grupo_id: '',
     criar_acesso: false,
+    username: '',
   });
   const [reenviando, setReenviando] = useState<number | string | null>(null);
   const [excluindo, setExcluindo] = useState<number | string | null>(null);
@@ -76,7 +77,7 @@ export default function ConfiguracoesFuncionariosPage() {
 
   const abrirNovo = () => {
     setEditando(null);
-    setForm({ nome: '', email: '', telefone: '', cargo: 'Vendedor', comissao_padrao: '0', grupo_id: '', criar_acesso: false });
+    setForm({ nome: '', email: '', telefone: '', cargo: 'Vendedor', comissao_padrao: '0', grupo_id: '', criar_acesso: false, username: '' });
     setFormErro(null);
     setModalAberto(true);
   };
@@ -92,6 +93,7 @@ export default function ConfiguracoesFuncionariosPage() {
       comissao_padrao: v.comissao_padrao?.toString() || '0',
       grupo_id: '',
       criar_acesso: false,
+      username: '',
     });
     setFormErro(null);
     setModalAberto(true);
@@ -140,6 +142,10 @@ export default function ConfiguracoesFuncionariosPage() {
       setFormErro('Informe o nome.');
       return;
     }
+    if (form.criar_acesso && !form.username?.trim()) {
+      setFormErro('Para criar acesso, informe o usuário para login.');
+      return;
+    }
     if (form.criar_acesso && !form.email?.trim()) {
       setFormErro('Para criar acesso, informe o e-mail.');
       return;
@@ -152,7 +158,8 @@ export default function ConfiguracoesFuncionariosPage() {
         telefone: form.telefone.trim() ? telefoneInternacionalBr(form.telefone) : '', 
         cargo: form.cargo, 
         comissao_padrao: parseFloat(form.comissao_padrao) || 0,
-        criar_acesso: form.criar_acesso 
+        criar_acesso: form.criar_acesso,
+        username: form.username?.trim() || '',
       };
       
       // Adicionar grupo_id apenas se foi selecionado
@@ -328,7 +335,7 @@ export default function ConfiguracoesFuncionariosPage() {
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
-              className="bg-white dark:bg-[#16325c] rounded-xl shadow-xl w-full max-w-md"
+              className="bg-white dark:bg-[#16325c] rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6 border-b border-gray-200 dark:border-[#0d1f3c] flex justify-between items-center">
@@ -437,7 +444,13 @@ export default function ConfiguracoesFuncionariosPage() {
                   <input
                     type="checkbox"
                     checked={form.criar_acesso}
-                    onChange={(e) => setForm((f) => ({ ...f, criar_acesso: e.target.checked }))}
+                    onChange={(e) => {
+                      setForm((f) => ({
+                        ...f,
+                        criar_acesso: e.target.checked,
+                        username: e.target.checked && !f.username ? f.nome.trim().split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : f.username,
+                      }));
+                    }}
                     className="mt-1 rounded border-gray-300 dark:border-gray-600 text-[#0176d3]"
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -446,6 +459,31 @@ export default function ConfiguracoesFuncionariosPage() {
                       : 'Criar acesso ao sistema e enviar senha provisória por e-mail'}
                   </span>
                 </label>
+                {form.criar_acesso && (
+                  <div className="space-y-3 pl-6 border-l-2 border-blue-200 dark:border-blue-800">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Usuário para login *</label>
+                      <input
+                        type="text"
+                        value={form.username}
+                        onChange={(e) => setForm((f) => ({ ...f, username: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '') }))}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="Ex: daniel, maria.silva"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Sem espaços ou caracteres especiais</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E-mail (para envio da senha) *</label>
+                      <input
+                        type="email"
+                        value={form.email}
+                        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="email@exemplo.com"
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"

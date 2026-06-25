@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     criar_acesso = serializers.BooleanField(write_only=True, default=False, required=False)
+    username = serializers.CharField(write_only=True, max_length=150, required=False, allow_blank=True)
     tem_acesso = serializers.SerializerMethodField(read_only=True)
     grupo_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     grupo_nome = serializers.SerializerMethodField(read_only=True)
@@ -30,7 +31,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         model = Vendedor
         fields = [
             'id', 'nome', 'email', 'telefone', 'cargo', 'comissao_padrao', 'is_admin', 'is_active',
-            'criar_acesso', 'tem_acesso', 'grupo_id', 'grupo_nome',
+            'criar_acesso', 'username', 'tem_acesso', 'grupo_id', 'grupo_nome',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -79,11 +80,12 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
 
     def create(self, validated_data):
         criar_acesso = validated_data.pop('criar_acesso', False)
+        username = validated_data.pop('username', '') or ''
         grupo_id = validated_data.pop('grupo_id', None)
         vendedor = super().create(validated_data)
         if criar_acesso and vendedor.email:
             try:
-                self._criar_acesso_e_enviar_email(vendedor, grupo_id)
+                self._criar_acesso_e_enviar_email(vendedor, grupo_id, username)
             except serializers.ValidationError:
                 vendedor.delete()
                 raise
@@ -91,11 +93,12 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         criar_acesso = validated_data.pop('criar_acesso', False)
+        username = validated_data.pop('username', '') or ''
         grupo_id = validated_data.pop('grupo_id', None)
         vendedor = super().update(instance, validated_data)
         if criar_acesso and vendedor.email:
             try:
-                self._criar_acesso_e_enviar_email(vendedor, grupo_id)
+                self._criar_acesso_e_enviar_email(vendedor, grupo_id, username)
             except serializers.ValidationError:
                 raise
         elif grupo_id is not None:
@@ -103,7 +106,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
             self._atualizar_grupo(vendedor, grupo_id)
         return vendedor
 
-    def _criar_acesso_e_enviar_email(self, vendedor, grupo_id=None):
+    def _criar_acesso_e_enviar_email(self, vendedor, grupo_id=None, username=''):
         User = get_user_model()
         from superadmin.models import Loja, VendedorUsuario
         from tenants.middleware import get_current_loja_id
@@ -118,6 +121,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
             return
 
         email = vendedor.email.strip().lower()
+        login_username = (username.strip().lower() if username else email).strip()
         senha_provisoria = get_random_string(8)
 
         # Se já tem VendedorUsuario: apenas reenviar senha e atualizar grupo
@@ -140,24 +144,25 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
             _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Nova senha provisória - CRM Vendas', reenviar=True)
             return
 
-        existing_user = User.objects.using('default').filter(username=email).first()
+        existing_user = User.objects.using('default').filter(username=login_username).first()
         if existing_user:
             if VendedorUsuario.objects.using('default').filter(
                 user=existing_user,
                 loja_id=loja_id,
             ).exists():
                 raise serializers.ValidationError({
-                    'email': 'Este e-mail já possui acesso a esta loja. Use outro ou cadastre sem "Criar acesso".',
-                    'detail': 'Este e-mail já possui acesso a esta loja.',
+                    'username': f'O usuário "{login_username}" já possui acesso a esta loja.',
+                    'detail': f'O usuário "{login_username}" já possui acesso a esta loja.',
                 })
             if existing_user.lojas_owned.exists():
                 raise serializers.ValidationError({
-                    'email': 'Já existe um usuário (proprietário de loja) com este e-mail. Use outro ou não marque "Criar acesso".',
-                    'detail': 'E-mail já utilizado como proprietário.',
+                    'username': f'O usuário "{login_username}" já existe no sistema. Escolha outro.',
+                    'detail': f'Usuário "{login_username}" já utilizado.',
                 })
             existing_user.set_password(senha_provisoria)
             existing_user.first_name = vendedor.nome or existing_user.first_name or ''
-            existing_user.save(update_fields=['password', 'first_name'])
+            existing_user.email = email
+            existing_user.save(update_fields=['password', 'first_name', 'email'])
             VendedorUsuario.objects.using('default').create(
                 user=existing_user,
                 loja=loja,
@@ -170,7 +175,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
                 self._atualizar_grupo_usuario(existing_user, grupo_id)
         else:
             user = User.objects.db_manager('default').create_user(
-                username=email,
+                username=login_username,
                 email=email,
                 password=senha_provisoria,
                 first_name=vendedor.nome or '',

@@ -266,7 +266,7 @@ export default function LojaLoginDinamicoPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      className="min-h-screen flex items-center justify-center lg:justify-end p-4 lg:pr-[10%] relative overflow-hidden"
       style={
         hasBackgroundImage
           ? undefined

@@ -66,6 +66,19 @@ export default function SuperAdminLoginPage() {
     loadConfig();
   }, []);
 
+  // Preload da imagem de fundo para aparecer mais rápido
+  useEffect(() => {
+    if (config.login_background) {
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = config.login_background;
+      document.head.appendChild(link);
+      const img = new window.Image();
+      img.src = config.login_background;
+    }
+  }, [config.login_background]);
+
   // Limpar sessões antigas e carregar credenciais salvas (se "Lembrar" ativo)
   // SEGURANÇA: Nunca fazer login automático — sempre exigir login explícito
   useEffect(() => {

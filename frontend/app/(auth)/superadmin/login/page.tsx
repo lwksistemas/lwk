@@ -224,7 +224,7 @@ export default function SuperAdminLoginPage() {
           AMBIENTE BETA — HOMOLOGAÇÃO
         </div>
       )}
-      <div className="max-w-md w-full space-y-8 p-8 bg-white/95 backdrop-blur-sm rounded-lg shadow-2xl relative" style={{ zIndex: 2 }}>
+      <div className="max-w-sm w-full space-y-5 p-5 sm:p-6 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl relative" style={{ zIndex: 2 }}>
         <div>
           {config.logo ? (
             <div className="mx-auto h-16 flex items-center justify-center">

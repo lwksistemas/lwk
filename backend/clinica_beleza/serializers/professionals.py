@@ -130,6 +130,11 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
         }
 
     def get_is_administrador_vinculado(self, obj):
+        # Novo: verificar contra set de admin IDs
+        admin_ids = self.context.get('admin_professional_ids')
+        if admin_ids is not None:
+            return obj.id in admin_ids
+        # Fallback: lógica legada (backward compat)
         owner_professional_id = self.context.get('owner_professional_id')
         if owner_professional_id is None:
             return False

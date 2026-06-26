@@ -16,6 +16,7 @@ class SuperadminConfig(AppConfig):
         try:
             # Importar signals para registrá-los
             from . import signals
-            logger.info("✅ Superadmin: Signals de limpeza carregados")
+            from . import signals_admin_cache  # noqa: F401
+            logger.info("✅ Superadmin: Signals carregados")
         except Exception as e:
             logger.warning(f"⚠️ Superadmin: Erro ao carregar signals: {e}")

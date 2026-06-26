@@ -9,6 +9,47 @@ class LojaContextHelper:
     """Helper para contexto de loja com cache automático"""
     
     @staticmethod
+    def get_admin_professional_ids() -> set:
+        """
+        Retorna set[int] com os professional_id de todos os administradores
+        da loja atual (perfil='administrador') + owner. Cacheado por 1 hora.
+        """
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return set()
+
+        cache_key = f'admin_professional_ids_{loja_id}'
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        try:
+            from superadmin.models import Loja, ProfissionalUsuario
+
+            # Todos com perfil administrador na loja
+            admin_ids = set(
+                ProfissionalUsuario.objects.using('default')
+                .filter(loja_id=loja_id, perfil='administrador')
+                .values_list('professional_id', flat=True)
+            )
+
+            # Garantir owner sempre incluído (backward compat)
+            try:
+                loja = Loja.objects.using('default').get(id=loja_id)
+                owner_pu = ProfissionalUsuario.objects.using('default').filter(
+                    loja_id=loja_id, user_id=loja.owner_id
+                ).first()
+                if owner_pu:
+                    admin_ids.add(owner_pu.professional_id)
+            except Loja.DoesNotExist:
+                pass
+
+            cache.set(cache_key, admin_ids, 3600)
+            return admin_ids
+        except Exception:
+            return set()
+
+    @staticmethod
     def get_owner_professional_id():
         """
         Retorna ID do Professional vinculado ao owner da loja atual.
@@ -101,6 +142,7 @@ class LojaContextHelper:
     def invalidate_cache(loja_id):
         """Invalida todos os caches da loja"""
         cache.delete(f'owner_professional_{loja_id}')
+        cache.delete(f'admin_professional_ids_{loja_id}')
         cache.delete(f'loja_owner_info_{loja_id}')
         cache.delete(f'whatsapp_config_{loja_id}')
         invalidate_dashboard_cache(loja_id)

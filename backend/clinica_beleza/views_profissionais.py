@@ -124,16 +124,24 @@ class ProfessionalListView(APIView):
         if with_schedule or scheduling:
             queryset = queryset.filter(is_profissional=True)
 
+        admin_professional_ids = LojaContextHelper.get_admin_professional_ids()
         owner_professional_id = LojaContextHelper.get_owner_professional_id()
-        # Na agenda: administrador não aparece como profissional de atendimento
-        if with_schedule and owner_professional_id is not None:
-            queryset = queryset.exclude(id=owner_professional_id)
+
+        # Na agenda: administradores com is_profissional=False não aparecem
+        if with_schedule and admin_professional_ids:
+            admin_not_professional = Professional.objects.filter(
+                id__in=admin_professional_ids, is_profissional=False
+            ).values_list('id', flat=True)
+            queryset = queryset.exclude(id__in=admin_not_professional)
 
         return paginate_queryset(
             queryset,
             request,
             ProfessionalSerializer,
-            serializer_context={'owner_professional_id': owner_professional_id},
+            serializer_context={
+                'admin_professional_ids': admin_professional_ids,
+                'owner_professional_id': owner_professional_id,
+            },
         )
 
     def post(self, request):
@@ -188,13 +196,23 @@ class ProfessionalDetailView(GetObjectMixin, APIView):
         obj, err = self.object_or_404(pk)
         if err:
             return err
+        admin_professional_ids = LojaContextHelper.get_admin_professional_ids()
         owner_professional_id = LojaContextHelper.get_owner_professional_id()
-        return Response(ProfessionalSerializer(obj, context={'owner_professional_id': owner_professional_id}).data)
+        return Response(ProfessionalSerializer(obj, context={
+            'admin_professional_ids': admin_professional_ids,
+            'owner_professional_id': owner_professional_id,
+        }).data)
 
     def put(self, request, pk):
-        owner_professional_id = LojaContextHelper.get_owner_professional_id()
+        admin_professional_ids = LojaContextHelper.get_admin_professional_ids()
         data = _map_professional_data(request.data)
-        if owner_professional_id is not None and int(pk) == owner_professional_id:
+        if int(pk) in admin_professional_ids:
+            # Bloquear desativação
+            if 'is_active' in data and data['is_active'] is False:
+                return Response(
+                    {'error': 'O administrador vinculado à loja não pode ser desativado.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             keys = set(data.keys())
             if not keys or not keys.issubset(_OWNER_PROFESSIONAL_EDITABLE_FIELDS):
                 return Response(
@@ -215,8 +233,8 @@ class ProfessionalDetailView(GetObjectMixin, APIView):
         return self.put(request, pk)
 
     def delete(self, request, pk):
-        owner_professional_id = LojaContextHelper.get_owner_professional_id()
-        if owner_professional_id is not None and int(pk) == owner_professional_id:
+        admin_professional_ids = LojaContextHelper.get_admin_professional_ids()
+        if int(pk) in admin_professional_ids:
             return Response({'error': 'O administrador vinculado à loja não pode ser excluído.'}, status=status.HTTP_403_FORBIDDEN)
         obj, err = self.object_or_404(pk)
         if err:

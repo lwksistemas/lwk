@@ -17,6 +17,15 @@ def resolve_loja_from_request(request):
     if not loja_id and request:
         ensure_loja_context(request)
         loja_id = get_current_loja_id()
+    if not loja_id and request:
+        slug = (request.headers.get('X-Tenant-Slug') or '').strip()
+        if slug:
+            from tenants.middleware import _configure_tenant_db_for_loja, resolve_loja_from_slug_or_cnpj
+
+            loja = resolve_loja_from_slug_or_cnpj(slug)
+            if loja:
+                _configure_tenant_db_for_loja(loja, request)
+                loja_id = loja.id
     if not loja_id:
         return None
     try:

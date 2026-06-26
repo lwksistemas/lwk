@@ -134,8 +134,7 @@ function addLojaAuthHeaders(config: InternalAxiosRequestConfig): InternalAxiosRe
     config.headers.set('X-Tenant-Slug', lojaSlug);
   }
   const lojaId = sessionStorage.getItem('current_loja_id');
-  const isLojaDashboardComSlug = Boolean(pathLojaMatch && lojaSlug);
-  if (lojaId && !isLojaDashboardComSlug) {
+  if (lojaId) {
     config.headers.set('X-Loja-ID', lojaId);
   }
   if (accessToken) config.headers.set('Authorization', `Bearer ${accessToken}`);

@@ -55,10 +55,16 @@ export default function LojaLayout({
     import('@/lib/api-client').then(({ default: apiClient }) => {
       apiClient.get(`/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`)
         .then((res) => {
-          const nome = res.data?.nome;
-          if (nome) {
-            document.title = nome;
-            sessionStorage.setItem(`loja_nome_${slug}`, nome);
+          const data = res.data as { nome?: string; id?: number; slug?: string };
+          if (data?.nome) {
+            document.title = data.nome;
+            sessionStorage.setItem(`loja_nome_${slug}`, data.nome);
+          }
+          if (data?.id) {
+            sessionStorage.setItem('current_loja_id', String(data.id));
+          }
+          if (data?.slug) {
+            sessionStorage.setItem('loja_slug', data.slug);
           }
         })
         .catch(() => {});

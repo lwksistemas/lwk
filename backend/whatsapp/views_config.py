@@ -8,6 +8,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.tenant_access import user_can_access_loja
+
 from .config_helpers import apply_whatsapp_config_patch, serialize_whatsapp_config
 from .config_service import (
     default_whatsapp_config_payload,
@@ -30,7 +32,7 @@ def _user_may_configure_whatsapp(request, loja) -> bool:
         return True
     if loja.owner_id == request.user.id:
         return True
-    return False
+    return user_can_access_loja(request.user, loja)
 
 
 class WhatsAppConfigView(APIView):
@@ -93,31 +95,43 @@ class WhatsAppConfigView(APIView):
         return Response(serialize_whatsapp_config(config, loja=loja))
 
 
+def _whatsapp_config_for_request(request):
+    loja = resolve_loja_from_request(request)
+    if not loja:
+        return None, 'not_found'
+    if not _user_may_configure_whatsapp(request, loja):
+        return None, 'forbidden'
+    config = get_or_create_whatsapp_config(loja)
+    if config is None:
+        return None, 'schema'
+    return config, None
+
+
 class LojaWhatsAppConnectionStatusView(BaseWhatsAppConnectionStatusView):
     permission_classes = [IsAuthenticated]
 
     def _get_config(self, request):
-        loja = resolve_loja_from_request(request)
-        if not loja or not _user_may_configure_whatsapp(request, loja):
-            return None
-        return get_or_create_whatsapp_config(loja)
+        config, err = _whatsapp_config_for_request(request)
+        if err == 'forbidden':
+            return 'forbidden'
+        return config
 
 
 class LojaWhatsAppConnectView(BaseWhatsAppConnectView):
     permission_classes = [IsAuthenticated]
 
     def _get_config(self, request):
-        loja = resolve_loja_from_request(request)
-        if not loja or not _user_may_configure_whatsapp(request, loja):
-            return None
-        return get_or_create_whatsapp_config(loja)
+        config, err = _whatsapp_config_for_request(request)
+        if err == 'forbidden':
+            return 'forbidden'
+        return config
 
 
 class LojaWhatsAppDisconnectView(BaseWhatsAppDisconnectView):
     permission_classes = [IsAuthenticated]
 
     def _get_config(self, request):
-        loja = resolve_loja_from_request(request)
-        if not loja or not _user_may_configure_whatsapp(request, loja):
-            return None
-        return get_or_create_whatsapp_config(loja)
+        config, err = _whatsapp_config_for_request(request)
+        if err == 'forbidden':
+            return 'forbidden'
+        return config

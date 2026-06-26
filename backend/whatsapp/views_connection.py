@@ -31,6 +31,11 @@ class WhatsAppConnectionStatusView(WhatsAppConnectionMixin, APIView):
 
     def get(self, request):
         config = self._get_config(request)
+        if config == 'forbidden':
+            return Response(
+                {'error': 'Sem permissão para configurar WhatsApp desta loja.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if config is None:
             return Response({'error': 'Contexto de loja não encontrado'}, status=status.HTTP_404_NOT_FOUND)
         fetch_qr = request.query_params.get('qr', '').lower() in ('1', 'true', 'yes')
@@ -42,6 +47,11 @@ class WhatsAppConnectView(WhatsAppConnectionMixin, APIView):
 
     def post(self, request):
         config = self._get_config(request)
+        if config == 'forbidden':
+            return Response(
+                {'error': 'Sem permissão para configurar WhatsApp desta loja.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if config is None:
             return Response({'error': 'Contexto de loja não encontrado'}, status=status.HTTP_404_NOT_FOUND)
         try:
@@ -56,6 +66,11 @@ class WhatsAppDisconnectView(WhatsAppConnectionMixin, APIView):
 
     def post(self, request):
         config = self._get_config(request)
+        if config == 'forbidden':
+            return Response(
+                {'error': 'Sem permissão para configurar WhatsApp desta loja.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if config is None:
             return Response({'error': 'Contexto de loja não encontrado'}, status=status.HTTP_404_NOT_FOUND)
         try:

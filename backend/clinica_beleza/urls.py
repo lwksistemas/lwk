@@ -39,9 +39,6 @@ from .views_documentos import (
 from .views_prontuario import (
     ProntuarioView, ProntuarioPDFView, DocumentoPDFView,
 )
-from .views_admin_professional import (
-    AdminProfessionalStatusView, AdminProfessionalToggleView,
-)
 from .views_locais_atendimento import (
     LocalAtendimentoListView, LocalAtendimentoDetailView,
 )
@@ -142,8 +139,6 @@ urlpatterns = [
     path('memed/timbrado/', MemedTimbradoView.as_view(), name='memed-timbrado'),
     
     # Profissionais
-    path('professionals/admin-status/', AdminProfessionalStatusView.as_view(), name='admin-professional-status'),
-    path('professionals/toggle-admin/', AdminProfessionalToggleView.as_view(), name='admin-professional-toggle'),
     path('professionals/', ProfessionalListView.as_view(), name='professionals-list'),
     path('professionals/<int:pk>/', ProfessionalDetailView.as_view(), name='professionals-detail'),
     path('professionals/<int:pk>/horarios-trabalho/', HorarioTrabalhoProfissionalView.as_view(), name='horarios-trabalho'),

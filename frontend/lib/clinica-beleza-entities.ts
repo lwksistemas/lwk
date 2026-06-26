@@ -97,3 +97,68 @@ export function procedureDuration(e: BilingualDuration): number {
 export function procedureCategoria(e: { categoria?: string }): string {
   return e.categoria || '';
 }
+
+/** Tipos compartilhados da API Clínica da Beleza (campos bilíngues PT/EN). */
+export interface ClinicaProfessional {
+  id: number;
+  name?: string;
+  nome?: string;
+  specialty?: string;
+  especialidade?: string;
+  phone?: string | null;
+  telefone?: string | null;
+  email?: string | null;
+  registro_profissional?: string | null;
+  conselho?: string | null;
+  conselho_uf?: string | null;
+  cpf?: string | null;
+  data_nascimento?: string | null;
+  sexo?: string | null;
+  active?: boolean;
+  is_active?: boolean;
+  is_administrador_vinculado?: boolean;
+  is_owner?: boolean;
+  is_profissional?: boolean;
+  tempo_consulta_minutos?: number | null;
+}
+
+export interface ClinicaPatient {
+  id: number;
+  name?: string;
+  nome?: string;
+  phone?: string;
+  telefone?: string;
+  cpf?: string | null;
+  convenio?: number | null;
+}
+
+export interface ClinicaProcedure {
+  id: number;
+  name?: string;
+  nome?: string;
+  duration?: number;
+  duracao_minutos?: number;
+  price?: string;
+  preco?: string | number;
+}
+
+export interface HorarioTrabalhoRow {
+  id: number;
+  dia_semana: number;
+  hora_entrada: string;
+  hora_saida: string;
+  intervalo_inicio: string | null;
+  intervalo_fim: string | null;
+  ativo: boolean;
+}
+
+export interface BloqueioHorario {
+  id: number;
+  professional: number | null;
+  professional_name: string | null;
+  data_inicio: string;
+  data_fim: string;
+  motivo: string;
+  observacoes: string | null;
+  criado_em: string;
+}

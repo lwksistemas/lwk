@@ -58,6 +58,7 @@ _OWNER_PROFESSIONAL_EDITABLE_FIELDS = frozenset({
     'cpf', 'data_nascimento', 'sexo',
     'nome', 'specialty', 'name', 'phone',
     'registro', 'uf', 'is_profissional',
+    'is_active', 'active',
 })
 
 def _map_professional_data(raw_data):

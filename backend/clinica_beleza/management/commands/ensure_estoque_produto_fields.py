@@ -65,6 +65,22 @@ class Command(BaseCommand):
                             )
                         """)
 
+                    if not column_exists(cursor, PRODUTO_ESTOQUE_TABLE, 'dias_alerta_validade'):
+                        cursor.execute("""
+                            ALTER TABLE clinica_beleza_produtoestoque
+                            ADD COLUMN dias_alerta_validade INTEGER NOT NULL DEFAULT 90
+                        """)
+                        self.stdout.write(f'  {loja.slug}: coluna dias_alerta_validade adicionada')
+                        cursor.execute("""
+                            INSERT INTO django_migrations (app, name, applied)
+                            SELECT 'clinica_beleza', '0051_produto_dias_alerta_validade', NOW()
+                            WHERE NOT EXISTS (
+                                SELECT 1 FROM django_migrations
+                                WHERE app = 'clinica_beleza'
+                                  AND name = '0051_produto_dias_alerta_validade'
+                            )
+                        """)
+
                     if table_exists(cursor, CONSULTA_TABLE):
                         if ensure_consulta_produto_utilizado_table(cursor):
                             if table_exists(cursor, 'clinica_beleza_consultaprodutoutilizado'):

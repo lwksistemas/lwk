@@ -148,21 +148,10 @@ export function ConsultaFotosTab({
             <span className="md:hidden">{qrLoading ? "…" : "QR"}</span>
           </button>
         )}
-        {selecionadas.length >= MIN_COMPARAR && (
-          <button
-            type="button"
-            onClick={() => setComparar(true)}
-            className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-gray-900 text-white dark:bg-white dark:text-gray-900"
-          >
-            <Columns2 size={14} />
-            <span className="hidden sm:inline">Comparar lado a lado</span>
-            <span className="sm:hidden">Comparar</span>
-          </button>
-        )}
       </div>,
     );
     return () => onToolbarChange(null);
-  }, [onToolbarChange, permiteEnviar, qrLoading, selecionadas.length, carregar, abrirQr]);
+  }, [onToolbarChange, permiteEnviar, qrLoading, carregar, abrirQr]);
 
   const podeComparar = selecionadas.length >= MIN_COMPARAR;
   const colsComparacao =

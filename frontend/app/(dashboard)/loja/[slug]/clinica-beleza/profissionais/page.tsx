@@ -167,31 +167,49 @@ export default function ProfissionaisPage() {
                     <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
                       <td className="p-3 font-medium text-gray-800 dark:text-gray-200">
                         {entityName(p)}
-                        {p.is_profissional === false && (
-                          <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
-                            Só Admin
-                          </span>
-                        )}
                       </td>
                       <td className="p-3 text-gray-700 dark:text-gray-300">{professionalSpecialty(p) || "—"}</td>
                       <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{entityPhone(p) || "—"}</td>
                       <td className="p-3">
                         <div className="flex flex-wrap gap-1.5">
                           {p.is_administrador_vinculado ? (
-                            <label
-                              className="inline-flex items-center gap-2 cursor-pointer select-none"
-                              title={(p.is_profissional ?? true) ? "Desmarcar para ficar só como administrador" : "Marcar para atuar também como profissional"}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={p.is_profissional ?? true}
-                                onChange={() => toggleProfissional(p)}
-                                className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 dark:border-neutral-600 dark:bg-neutral-700"
-                              />
-                              <span className={`text-xs font-medium ${(p.is_profissional ?? true) ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>
-                                {(p.is_profissional ?? true) ? "✓ Profissional" : "✗ Só Admin"}
-                              </span>
-                            </label>
+                            <>
+                              <label
+                                className="inline-flex items-center gap-2 cursor-pointer select-none"
+                                title={(p.is_profissional ?? true) ? "Desmarcar para ficar só como administrador" : "Marcar para atuar também como profissional"}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={p.is_profissional ?? true}
+                                  onChange={() => toggleProfissional(p)}
+                                  className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 dark:border-neutral-600 dark:bg-neutral-700"
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setHorariosProfessional(p)}
+                                className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"
+                                title="Dias e horários de trabalho"
+                              >
+                                <Clock size={18} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setTempoConsultaProfessional(p)}
+                                className="p-2 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded"
+                                title="Tempo da consulta (min)"
+                              >
+                                <Timer size={18} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openEdit(p)}
+                                className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
+                                title="Editar"
+                              >
+                                <Pencil size={18} />
+                              </button>
+                            </>
                           ) : (
                             <>
                               <button

@@ -63,6 +63,11 @@ class Professional(ProfissionalBase):
         verbose_name="Tempo da consulta (min)",
         help_text="Duração padrão da consulta deste profissional. Se os procedimentos somarem mais tempo, prevalece a soma dos procedimentos.",
     )
+    is_profissional = models.BooleanField(
+        default=True,
+        verbose_name="É profissional",
+        help_text="Se False, é apenas administrador (não aparece na agenda nem recebe agendamentos).",
+    )
 
     class Meta(ProfissionalBase.Meta):
         app_label = 'clinica_beleza'

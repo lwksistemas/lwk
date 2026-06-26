@@ -41,6 +41,7 @@ interface Professional {
   active?: boolean;
   is_active?: boolean;
   is_administrador_vinculado?: boolean;
+  is_profissional?: boolean;
   tempo_consulta_minutos?: number | null;
 }
 
@@ -108,6 +109,16 @@ export default function ProfissionaisPage() {
     }
   };
 
+  const toggleProfissional = async (p: Professional) => {
+    const novoValor = !(p.is_profissional ?? true);
+    try {
+      await ClinicaBelezaAPI.patch(`/professionals/${p.id}/`, { is_profissional: novoValor });
+      load();
+    } catch {
+      alert("Erro ao alterar status.");
+    }
+  };
+
   const activeList = list.filter((p) => entityActive(p));
 
   if (isFormView) {
@@ -153,13 +164,28 @@ export default function ProfissionaisPage() {
                 <tbody>
                   {activeList.map((p) => (
                     <tr key={p.id} className="border-t border-gray-100 dark:border-neutral-700">
-                      <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{entityName(p)}</td>
+                      <td className="p-3 font-medium text-gray-800 dark:text-gray-200">
+                        {entityName(p)}
+                        {p.is_profissional === false && (
+                          <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                            Só Admin
+                          </span>
+                        )}
+                      </td>
                       <td className="p-3 text-gray-700 dark:text-gray-300">{professionalSpecialty(p) || "—"}</td>
                       <td className="p-3 hidden md:table-cell text-gray-700 dark:text-gray-300">{entityPhone(p) || "—"}</td>
                       <td className="p-3">
                         <div className="flex flex-wrap gap-1.5">
                           {p.is_administrador_vinculado ? (
                             <>
+                              <button
+                                type="button"
+                                onClick={() => toggleProfissional(p)}
+                                className={`px-2 py-1 text-xs rounded ${(p.is_profissional ?? true) ? 'text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20' : 'text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20'}`}
+                                title={(p.is_profissional ?? true) ? "Marcar como só administrador" : "Marcar como profissional"}
+                              >
+                                {(p.is_profissional ?? true) ? "Só Admin" : "É Prof."}
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => setHorariosProfessional(p)}

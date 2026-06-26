@@ -57,7 +57,7 @@ _OWNER_PROFESSIONAL_EDITABLE_FIELDS = frozenset({
     'especialidade', 'telefone', 'email',
     'cpf', 'data_nascimento', 'sexo',
     'nome', 'specialty', 'name', 'phone',
-    'registro', 'uf',
+    'registro', 'uf', 'is_profissional',
 })
 
 def _map_professional_data(raw_data):
@@ -113,6 +113,12 @@ class ProfessionalListView(APIView):
                 id__in=HorarioTrabalhoProfissional.objects.filter(ativo=True)
                 .values_list('professional_id', flat=True).distinct()
             )
+
+        # Filtrar apenas profissionais que atendem (is_profissional=True)
+        # para agenda e agendamentos
+        scheduling = request.query_params.get('scheduling', '').lower() == 'true'
+        if with_schedule or scheduling:
+            queryset = queryset.filter(is_profissional=True)
 
         owner_professional_id = LojaContextHelper.get_owner_professional_id()
         # Na agenda: administrador não aparece como profissional de atendimento

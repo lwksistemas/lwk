@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import type {
   BloqueioHorario,
@@ -68,6 +68,30 @@ function formatarEvento(
   };
 }
 
+function agendaEventsEqual(a: AgendaEventData[], b: AgendaEventData[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (
+      x.id !== y.id ||
+      x.start !== y.start ||
+      x.end !== y.end ||
+      x.title !== y.title ||
+      x.backgroundColor !== y.backgroundColor
+    ) {
+      return false;
+    }
+    if (x.extendedProps?.status !== y.extendedProps?.status) return false;
+  }
+  return true;
+}
+
+function horariosEqual(a: HorarioTrabalhoRow[], b: HorarioTrabalhoRow[]): boolean {
+  if (a.length !== b.length) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 export function useAgendaData(selectedProfessional: string) {
   const [eventos, setEventos] = useState<AgendaEventData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,6 +102,7 @@ export function useAgendaData(selectedProfessional: string) {
   const [nomesAgenda, setNomesAgenda] = useState<NomeAgendaItem[]>([]);
   const [locaisAtendimento, setLocaisAtendimento] = useState<LocalAtendimentoItem[]>([]);
   const [bloqueios, setBloqueios] = useState<BloqueioHorario[]>([]);
+  const horariosTrabalhoRef = useRef<HorarioTrabalhoRow[]>([]);
 
   const carregarDados = useCallback(async () => {
     try {
@@ -121,8 +146,12 @@ export function useAgendaData(selectedProfessional: string) {
         let horariosAtivos: HorarioTrabalhoRow[] = [];
         if (resHor?.ok) {
           horariosAtivos = await resHor.json();
-          setHorariosTrabalho(horariosAtivos);
-        } else {
+          if (!horariosEqual(horariosTrabalhoRef.current, horariosAtivos)) {
+            horariosTrabalhoRef.current = horariosAtivos;
+            setHorariosTrabalho(horariosAtivos);
+          }
+        } else if (horariosTrabalhoRef.current.length > 0) {
+          horariosTrabalhoRef.current = [];
           setHorariosTrabalho([]);
         }
 
@@ -235,8 +264,15 @@ export function useAgendaData(selectedProfessional: string) {
             } as AgendaEventData;
           });
 
-        setEventos([...eventosFormatados, ...bloqueiosAsEvents, ...intervalos, ...pendingEvents]);
+        const nextEventos = [
+          ...eventosFormatados,
+          ...bloqueiosAsEvents,
+          ...intervalos,
+          ...pendingEvents,
+        ];
+        setEventos((prev) => (agendaEventsEqual(prev, nextEventos) ? prev : nextEventos));
       } else {
+        const horariosOffline = horariosTrabalhoRef.current;
         const [agendaRaw, profs, pacs, procs] = await Promise.all([
           buscarAgendamentosOffline(),
           buscarProfissionaisOffline(),
@@ -251,23 +287,24 @@ export function useAgendaData(selectedProfessional: string) {
             (profs as ClinicaProfessional[]).find((p) => p.id === Number(selectedProfessional)) || {},
           ) || "Profissional";
         const intervalos =
-          selectedProfessional && horariosTrabalho.length > 0
-            ? intervalosEventsFromHorarios(selectedProfessional, horariosTrabalho, profName)
+          selectedProfessional && horariosOffline.length > 0
+            ? intervalosEventsFromHorarios(selectedProfessional, horariosOffline, profName)
             : [];
         const temExpediente = Boolean(
-          selectedProfessional && horariosTrabalho.some((h) => h.ativo),
+          selectedProfessional && horariosOffline.some((h) => h.ativo),
         );
         if (Array.isArray(agendaRaw) && agendaRaw.length > 0) {
           let list = agendaRaw as Record<string, unknown>[];
           if (selectedProfessional) {
             list = list.filter((e) => String(e.professional) === selectedProfessional);
           }
-          setEventos([
+          const nextEventos = [
             ...list.map((e) => formatarEvento(e, temExpediente)),
             ...intervalos,
-          ]);
+          ];
+          setEventos((prev) => (agendaEventsEqual(prev, nextEventos) ? prev : nextEventos));
         } else {
-          setEventos(intervalos);
+          setEventos((prev) => (agendaEventsEqual(prev, intervalos) ? prev : intervalos));
         }
       }
       setLoading(false);
@@ -275,7 +312,7 @@ export function useAgendaData(selectedProfessional: string) {
       logger.warn("Erro ao carregar dados:", error);
       setLoading(false);
     }
-  }, [selectedProfessional, horariosTrabalho]);
+  }, [selectedProfessional]);
 
   return {
     eventos,

@@ -5,7 +5,7 @@
  * Calendário fullscreen com drag & drop + Bloqueio de Horários
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Plus, Lock, List, CalendarDays } from "lucide-react";
@@ -62,6 +62,9 @@ export default function AgendaPage() {
   const [ptBrLocale, setPtBrLocale] = useState<unknown>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [modoAgenda, setModoAgenda] = useState<"grade" | "lista">("grade");
+  const carregarDadosRef = useRef<() => Promise<void>>(async () => {});
+  const userScrollingRef = useRef(false);
+  const scrollPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useClinicaBelezaDark();
 
@@ -79,6 +82,8 @@ export default function AgendaPage() {
     bloqueios,
     carregarDados,
   } = useAgendaData(selectedProfessional);
+
+  carregarDadosRef.current = carregarDados;
 
   const {
     temHorarioExpediente,
@@ -112,8 +117,8 @@ export default function AgendaPage() {
   }, []);
 
   useEffect(() => {
-    if (calendarPlugins.length > 0) carregarDados();
-  }, [selectedProfessional, calendarPlugins, carregarDados]);
+    if (calendarPlugins.length > 0) void carregarDadosRef.current();
+  }, [selectedProfessional, calendarPlugins]);
 
   useEffect(() => {
     const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 640);
@@ -123,10 +128,29 @@ export default function AgendaPage() {
   }, []);
 
   useEffect(() => {
-    const handler = () => setTimeout(() => carregarDados(), 1200);
+    const markScrolling = () => {
+      userScrollingRef.current = true;
+      if (scrollPauseTimerRef.current) clearTimeout(scrollPauseTimerRef.current);
+      scrollPauseTimerRef.current = setTimeout(() => {
+        userScrollingRef.current = false;
+      }, 4000);
+    };
+    const onScroll = (e: Event) => {
+      const el = e.target as HTMLElement | null;
+      if (el?.closest?.(".fc-scroller")) markScrolling();
+    };
+    document.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("scroll", onScroll, true);
+      if (scrollPauseTimerRef.current) clearTimeout(scrollPauseTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setTimeout(() => void carregarDadosRef.current(), 1200);
     window.addEventListener("offline-sync-done", handler);
     return () => window.removeEventListener("offline-sync-done", handler);
-  }, [carregarDados]);
+  }, []);
 
   useEffect(() => {
     if (!calendarPlugins.length) return;
@@ -136,14 +160,16 @@ export default function AgendaPage() {
       (selectedEvent?.extendedProps.status === "SCHEDULED" ||
         selectedEvent?.extendedProps.status === "PENDING");
     const intervalMs = aguardando ? 5000 : 15000;
-    const timer = window.setInterval(() => carregarDados(), intervalMs);
+    const timer = window.setInterval(() => {
+      if (userScrollingRef.current) return;
+      void carregarDadosRef.current();
+    }, intervalMs);
     return () => window.clearInterval(timer);
   }, [
     calendarPlugins.length,
     selectedProfessional,
     showModal,
     selectedEvent?.extendedProps.status,
-    carregarDados,
   ]);
 
   useEffect(() => {
@@ -333,7 +359,7 @@ export default function AgendaPage() {
               <AgendaListaColunas eventos={eventos} onAbrir={abrirEventoDaLista} />
             ) : calendarPlugins.length > 0 && ptBrLocale ? (
               <FullCalendar
-                key={`${isMobile ? "mobile" : "desktop"}-${selectedProfessional}-${horariosTrabalho.length}`}
+                key={`${isMobile ? "mobile" : "desktop"}-${selectedProfessional}`}
                 plugins={calendarPlugins as never[]}
                 initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
                 locale={ptBrLocale as never}

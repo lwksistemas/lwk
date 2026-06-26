@@ -87,6 +87,9 @@ def _map_professional_data(raw_data):
     if 'is_active' in data and isinstance(data['is_active'], str):
         data['is_active'] = data['is_active'].strip().lower() in ('1', 'true', 'yes', 'on')
 
+    if 'is_profissional' in data and isinstance(data['is_profissional'], str):
+        data['is_profissional'] = data['is_profissional'].strip().lower() in ('1', 'true', 'yes', 'on')
+
     for key in ('criar_acesso', 'perfil'):
         data.pop(key, None)
 
@@ -206,6 +209,9 @@ class ProfessionalDetailView(GetObjectMixin, APIView):
             _sync_memed(professional)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk):
+        return self.put(request, pk)
 
     def delete(self, request, pk):
         owner_professional_id = LojaContextHelper.get_owner_professional_id()

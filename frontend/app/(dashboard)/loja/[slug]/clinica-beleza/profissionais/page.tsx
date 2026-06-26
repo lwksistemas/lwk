@@ -114,8 +114,9 @@ export default function ProfissionaisPage() {
     try {
       await ClinicaBelezaAPI.patch(`/professionals/${p.id}/`, { is_profissional: novoValor });
       load();
-    } catch {
-      alert("Erro ao alterar status.");
+    } catch (err: any) {
+      const msg = err?.error || err?.detail || "Erro ao alterar status.";
+      alert(msg);
     }
   };
 
@@ -178,14 +179,20 @@ export default function ProfissionaisPage() {
                         <div className="flex flex-wrap gap-1.5">
                           {p.is_administrador_vinculado ? (
                             <>
-                              <button
-                                type="button"
-                                onClick={() => toggleProfissional(p)}
-                                className={`px-2 py-1 text-xs rounded ${(p.is_profissional ?? true) ? 'text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20' : 'text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20'}`}
-                                title={(p.is_profissional ?? true) ? "Marcar como só administrador" : "Marcar como profissional"}
+                              <label
+                                className="inline-flex items-center gap-1.5 cursor-pointer select-none"
+                                title={(p.is_profissional ?? true) ? "Desmarcar para ficar só como administrador" : "Marcar para atuar também como profissional"}
                               >
-                                {(p.is_profissional ?? true) ? "Só Admin" : "É Prof."}
-                              </button>
+                                <input
+                                  type="checkbox"
+                                  checked={p.is_profissional ?? true}
+                                  onChange={() => toggleProfissional(p)}
+                                  className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 dark:border-neutral-600 dark:bg-neutral-700"
+                                />
+                                <span className="text-xs text-gray-600 dark:text-gray-400">
+                                  {(p.is_profissional ?? true) ? "Profissional" : "Só Admin"}
+                                </span>
+                              </label>
                               <button
                                 type="button"
                                 onClick={() => setHorariosProfessional(p)}

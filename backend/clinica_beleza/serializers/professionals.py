@@ -117,6 +117,7 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
     unique_documento_entidade = 'profissional'
     unique_documento_apenas_ativos = True
     is_administrador_vinculado = serializers.SerializerMethodField(read_only=True)
+    is_owner = serializers.SerializerMethodField(read_only=True)
     horarios_trabalho = HorarioTrabalhoProfissionalSerializer(many=True, read_only=True, required=False)
     uppercase_fields = ['nome', 'especialidade']
     phone_fields = ['telefone']
@@ -135,6 +136,12 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
         if admin_ids is not None:
             return obj.id in admin_ids
         # Fallback: lógica legada (backward compat)
+        owner_professional_id = self.context.get('owner_professional_id')
+        if owner_professional_id is None:
+            return False
+        return obj.id == owner_professional_id
+
+    def get_is_owner(self, obj):
         owner_professional_id = self.context.get('owner_professional_id')
         if owner_professional_id is None:
             return False

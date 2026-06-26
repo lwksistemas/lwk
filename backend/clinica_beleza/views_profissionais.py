@@ -204,10 +204,10 @@ class ProfessionalDetailView(GetObjectMixin, APIView):
         }).data)
 
     def put(self, request, pk):
-        admin_professional_ids = LojaContextHelper.get_admin_professional_ids()
+        owner_professional_id = LojaContextHelper.get_owner_professional_id()
         data = _map_professional_data(request.data)
-        if int(pk) in admin_professional_ids:
-            # Bloquear desativação
+        if owner_professional_id is not None and int(pk) == owner_professional_id:
+            # Bloquear desativação do owner
             if 'is_active' in data and data['is_active'] is False:
                 return Response(
                     {'error': 'O administrador vinculado à loja não pode ser desativado.'},
@@ -233,8 +233,8 @@ class ProfessionalDetailView(GetObjectMixin, APIView):
         return self.put(request, pk)
 
     def delete(self, request, pk):
-        admin_professional_ids = LojaContextHelper.get_admin_professional_ids()
-        if int(pk) in admin_professional_ids:
+        owner_professional_id = LojaContextHelper.get_owner_professional_id()
+        if owner_professional_id is not None and int(pk) == owner_professional_id:
             return Response({'error': 'O administrador vinculado à loja não pode ser excluído.'}, status=status.HTTP_403_FORBIDDEN)
         obj, err = self.object_or_404(pk)
         if err:

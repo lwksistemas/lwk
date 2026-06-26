@@ -60,6 +60,7 @@ ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
         'ensure_nomes_agenda_table',
         'ensure_appointment_local_atendimento',
         'ensure_local_tempo_consulta',
+        'ensure_local_nomeagenda_is_padrao',
         'ensure_estoque_produto_fields',
         'ensure_termo_consentimento',
         'ensure_paciente_fotos_table',

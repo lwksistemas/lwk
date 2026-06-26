@@ -37,6 +37,7 @@ ENSURES = [
     ('ensure_retorno_gratuito_tables', {}),
     ('ensure_appointment_local_atendimento', {}),
     ('ensure_local_tempo_consulta', {}),
+    ('ensure_local_nomeagenda_is_padrao', {}),
     ('normalizar_status_agenda', {}),
     ('ensure_estoque_produto_fields', {}),
     ('ensure_termo_consentimento', {}),

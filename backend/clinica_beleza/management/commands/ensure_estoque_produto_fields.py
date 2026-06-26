@@ -1,12 +1,12 @@
 """
-Garante coluna numero_nota e tabela de produtos usados na consulta nos schemas das lojas.
+Garante coluna numero_nota, dias_alerta_validade e tabela consulta_produto nos schemas das lojas.
 
 Uso:
     python manage.py ensure_estoque_produto_fields
-    python manage.py ensure_estoque_produto_fields --slug beleza
+    python manage.py ensure_estoque_produto_fields --slug clinicaharmonis
 """
 from django.core.management.base import BaseCommand
-from django.db import connections
+from django.db import connection
 
 from clinica_beleza.schema_ensure import (
     CONSULTA_TABLE,
@@ -15,19 +15,22 @@ from clinica_beleza.schema_ensure import (
     ensure_consulta_produto_utilizado_table,
     table_exists,
 )
-from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
 
 class Command(BaseCommand):
-    help = 'Adiciona numero_nota em produtoestoque e tabela consulta_produto nos schemas das lojas.'
+    help = 'Adiciona colunas em produtoestoque e tabela consulta_produto nos schemas das lojas.'
 
     def add_arguments(self, parser):
         parser.add_argument('--slug', type=str, help='Processar apenas loja com este slug/atalho')
 
     def handle(self, *args, **options):
         slug_filter = (options.get('slug') or '').strip().lower()
-        lojas = Loja.objects.filter(is_active=True, database_created=True)
+        lojas = (
+            Loja.objects.filter(is_active=True)
+            .exclude(database_name='')
+            .exclude(database_name__isnull=True)
+        )
         ok = skip = 0
 
         for loja in lojas:
@@ -36,14 +39,14 @@ class Command(BaseCommand):
                 (getattr(loja, 'atalho', None) or '').lower(),
             ):
                 continue
-            db_name = loja.database_name
-            if not ensure_loja_database_config(db_name, conn_max_age=0):
-                self.stdout.write(self.style.WARNING(f'  skip {loja.slug}: DB não configurado'))
+            schema = (loja.database_name or '').replace('-', '_')
+            if not schema:
                 skip += 1
                 continue
             try:
-                conn = connections[db_name]
-                with conn.cursor() as cursor:
+                with connection.cursor() as cursor:
+                    cursor.execute(f'SET search_path TO "{schema}", public')
+
                     if not table_exists(cursor, PRODUTO_ESTOQUE_TABLE):
                         self.stdout.write(self.style.WARNING(f'  skip {loja.slug}: sem tabela estoque'))
                         skip += 1
@@ -52,7 +55,7 @@ class Command(BaseCommand):
                     if not column_exists(cursor, PRODUTO_ESTOQUE_TABLE, 'numero_nota'):
                         cursor.execute("""
                             ALTER TABLE clinica_beleza_produtoestoque
-                            ADD COLUMN numero_nota VARCHAR(50) NOT NULL DEFAULT ''
+                            ADD COLUMN IF NOT EXISTS numero_nota VARCHAR(50) NOT NULL DEFAULT ''
                         """)
                         self.stdout.write(f'  {loja.slug}: coluna numero_nota adicionada')
                         cursor.execute("""
@@ -68,7 +71,7 @@ class Command(BaseCommand):
                     if not column_exists(cursor, PRODUTO_ESTOQUE_TABLE, 'dias_alerta_validade'):
                         cursor.execute("""
                             ALTER TABLE clinica_beleza_produtoestoque
-                            ADD COLUMN dias_alerta_validade INTEGER NOT NULL DEFAULT 90
+                            ADD COLUMN IF NOT EXISTS dias_alerta_validade INTEGER NOT NULL DEFAULT 90
                         """)
                         self.stdout.write(f'  {loja.slug}: coluna dias_alerta_validade adicionada')
                         cursor.execute("""
@@ -85,24 +88,26 @@ class Command(BaseCommand):
                         if ensure_consulta_produto_utilizado_table(cursor):
                             if table_exists(cursor, 'clinica_beleza_consultaprodutoutilizado'):
                                 self.stdout.write(f'  {loja.slug}: tabela consulta_produto OK')
-                        else:
-                            self.stdout.write(self.style.WARNING(
-                                f'  {loja.slug}: consulta_produto não criada (pré-requisitos ausentes)'
-                            ))
                     else:
                         self.stdout.write(self.style.WARNING(
                             f'  skip {loja.slug}: sem tabela {CONSULTA_TABLE}'
                         ))
 
+                connection.commit()
                 ok += 1
-                self.stdout.write(self.style.SUCCESS(f'  OK {loja.slug} ({loja.nome}) db={db_name}'))
+                self.stdout.write(self.style.SUCCESS(f'  OK {loja.slug} ({loja.nome}) schema={schema}'))
             except Exception as e:
                 skip += 1
-                self.stdout.write(self.style.ERROR(f'  ERRO {loja.slug}: {e}'))
-            finally:
                 try:
-                    connections[db_name].close()
+                    connection.rollback()
                 except Exception:
                     pass
+                self.stdout.write(self.style.ERROR(f'  ERRO {loja.slug}: {e}'))
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('SET search_path TO public')
+        except Exception:
+            pass
 
         self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s), {skip} ignorada(s)/erro.'))

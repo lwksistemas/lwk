@@ -7,6 +7,7 @@ Uso:
     python manage.py corrigir_schema_clinica_beleza --loja-id 16
 """
 from django.core.management.base import BaseCommand
+from django.db.models import Q
 
 from superadmin.models import Loja
 from superadmin.services.schema_audit_service import corrigir_loja
@@ -27,7 +28,8 @@ class Command(BaseCommand):
             .filter(tipo_loja__nome='Clínica da Beleza')
         )
         if options.get('slug'):
-            qs = qs.filter(slug=options['slug'])
+            ident = options['slug'].strip()
+            qs = qs.filter(Q(slug=ident) | Q(atalho__iexact=ident))
         if options.get('loja_id'):
             qs = qs.filter(id=options['loja_id'])
 

@@ -242,7 +242,7 @@ export default function AgendaPage() {
           : Promise.resolve(null);
         const [resEv, resBl, resProf, resPat, resProc, resHor, resAgendas, resLocais] = await Promise.all([
           clinicaBelezaFetch(agendaPath), clinicaBelezaFetch(bloqueiosPath),
-          clinicaBelezaFetch("/professionals/?page=1&page_size=200"),
+          clinicaBelezaFetch("/professionals/?page=1&page_size=200&scheduling=true"),
           clinicaBelezaFetch("/patients/?page=1&page_size=500"),
           clinicaBelezaFetch("/procedures/?page=1&page_size=200"),
           horariosReq,

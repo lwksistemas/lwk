@@ -186,22 +186,26 @@ export default function ProfissionaisPage() {
                               />
                             </label>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => setHorariosProfessional(p)}
-                            className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"
-                            title="Dias e horários de trabalho"
-                          >
-                            <Clock size={18} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setTempoConsultaProfessional(p)}
-                            className="p-2 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded"
-                            title="Tempo da consulta (min)"
-                          >
-                            <Timer size={18} />
-                          </button>
+                          {(p.is_profissional ?? true) && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setHorariosProfessional(p)}
+                                className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded"
+                                title="Dias e horários de trabalho"
+                              >
+                                <Clock size={18} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setTempoConsultaProfessional(p)}
+                                className="p-2 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded"
+                                title="Tempo da consulta (min)"
+                              >
+                                <Timer size={18} />
+                              </button>
+                            </>
+                          )}
                           <button
                             type="button"
                             onClick={() => openEdit(p)}

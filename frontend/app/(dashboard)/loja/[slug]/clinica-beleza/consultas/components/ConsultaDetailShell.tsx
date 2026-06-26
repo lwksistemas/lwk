@@ -370,7 +370,7 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
       setSelected({ ...selected, ...data });
       await onListRefresh();
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Erro ao iniciar consulta.");
+      alert(formatApiErrorBody(e) || "Erro ao iniciar consulta.");
     } finally {
       setIniciando(false);
     }
@@ -431,7 +431,7 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
           : "Consulta finalizada. Lançamento pendente criado no Financeiro e agenda atualizada.",
       );
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Erro ao finalizar consulta.");
+      alert(formatApiErrorBody(e) || "Erro ao finalizar consulta.");
     } finally {
       setFinalizando(false);
     }

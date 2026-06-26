@@ -26,6 +26,7 @@ def movimentar_saida(
     motivo: str = '',
     profissional_id=None,
     appointment_id=None,
+    permitir_saldo_negativo: bool = False,
 ) -> MovimentacaoEstoque:
     """Registra saída e decrementa quantidade_atual (com lock de linha)."""
     if quantidade <= 0:
@@ -33,10 +34,17 @@ def movimentar_saida(
 
     with tenant_atomic():
         produto = ProdutoEstoque.objects.select_for_update().get(pk=produto.pk)
-        if produto.quantidade_atual < quantidade:
+        if not permitir_saldo_negativo and produto.quantidade_atual < quantidade:
             raise ValueError(
                 f'Estoque insuficiente para {produto.nome}. '
                 f'Disponível: {produto.quantidade_atual} {produto.unidade_medida}.',
+            )
+        if permitir_saldo_negativo and produto.quantidade_atual < quantidade:
+            logger.warning(
+                'Baixa consulta com saldo negativo: %s (disp. %s, saída %s)',
+                produto.nome,
+                produto.quantidade_atual,
+                quantidade,
             )
         produto.quantidade_atual -= quantidade
         produto.save(update_fields=['quantidade_atual', 'updated_at'])
@@ -77,6 +85,7 @@ def baixar_produtos_consulta(consulta) -> None:
                 motivo=motivo,
                 profissional_id=profissional_id,
                 appointment_id=appointment_id,
+                permitir_saldo_negativo=True,
             )
             item.estoque_baixado = True
             item.save(update_fields=['estoque_baixado'])

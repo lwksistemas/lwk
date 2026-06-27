@@ -410,7 +410,14 @@ def delete_instance(instance_name):
 
 def send_text(instance_name, number, text):
     resolved = resolve_recipient_number(instance_name, number)
-    body = {'number': resolved, 'text': str(text)[:4096]}
+    msg = str(text)[:4096]
+    body = {
+        'number': resolved,
+        'text': msg,
+        # Mensagens com link (confirmação, termo, assinatura) falham entrega se o
+        # preview tenta scrapear URL e quebra o ack Baileys (Evolution 2.3.x).
+        'linkPreview': False,
+    }
     return _request('POST', f'/message/sendText/{instance_name}', json_body=body)
 
 

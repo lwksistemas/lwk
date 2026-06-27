@@ -93,7 +93,7 @@ export default function ConsultasPage() {
     setPatients,
     searchPatients,
     reload: reloadCadastros,
-  } = useAgendamentoCadastros(showNovaConsultaModal);
+  } = useAgendamentoCadastros(true);
 
   const abrirConsulta = useCallback((consulta: Consulta, preloaded = false) => {
     setDetailPreloaded(preloaded);

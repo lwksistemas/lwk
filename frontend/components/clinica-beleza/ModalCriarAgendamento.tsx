@@ -39,6 +39,18 @@ function formatTimeFromDate(date: Date): string {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+function resolveDefaultNomeAgendaId(items: NomeAgendaItem[]): number | "" {
+  if (items.length === 0) return "";
+  const padrao = items.find((n) => n.is_padrao);
+  return padrao?.id ?? items[0].id;
+}
+
+function resolveDefaultLocalId(items: LocalAtendimentoItem[]): number | "" {
+  if (items.length === 0) return "";
+  const padrao = items.find((l) => l.is_padrao);
+  return padrao?.id ?? items[0].id;
+}
+
 function formatDateInputValue(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -152,8 +164,8 @@ export function ModalCriarAgendamento({
     resetForm();
     setConvenioId("");
     setProfessionalId(defaultProfessionalId ? Number(defaultProfessionalId) : "");
-    setNomeAgendaId("");
-    setLocalAtendimentoId("");
+    setNomeAgendaId(resolveDefaultNomeAgendaId(nomesAgenda));
+    setLocalAtendimentoId(resolveDefaultLocalId(locaisAtendimento));
     const base = selectedDate ?? new Date();
     setDateInput(formatDateInputValue(base));
     setTime(formatTimeFromDate(base));
@@ -162,18 +174,16 @@ export function ModalCriarAgendamento({
     setRetornoInfo(null);
     setRetornoProcedureId("");
     setShowAdvanced(false);
-  }, [open, selectedDate, defaultProfessionalId, resetForm, setConvenioId, setProfessionalId]);
+  }, [open, selectedDate, defaultProfessionalId, resetForm, setConvenioId, setProfessionalId, nomesAgenda, locaisAtendimento]);
 
   useEffect(() => {
     if (!open || nomesAgenda.length === 0) return;
-    const padrao = nomesAgenda.find((n) => n.is_padrao);
-    setNomeAgendaId(padrao ? padrao.id : nomesAgenda[0].id);
+    setNomeAgendaId((current) => current || resolveDefaultNomeAgendaId(nomesAgenda));
   }, [open, nomesAgenda]);
 
   useEffect(() => {
     if (!open || locaisAtendimento.length === 0) return;
-    const padrao = locaisAtendimento.find((l) => l.is_padrao);
-    setLocalAtendimentoId(padrao ? padrao.id : locaisAtendimento[0].id);
+    setLocalAtendimentoId((current) => current || resolveDefaultLocalId(locaisAtendimento));
   }, [open, locaisAtendimento]);
 
   useEffect(() => {
@@ -271,18 +281,20 @@ export function ModalCriarAgendamento({
       setCreateError(validationError.replace("cliente", "paciente"));
       return;
     }
-    if (!nomeAgendaId) {
+    const agendaId = nomeAgendaId || resolveDefaultNomeAgendaId(nomesAgenda);
+    if (!agendaId) {
       setCreateError("Selecione o nome da agenda.");
       return;
     }
+    const localId = localAtendimentoId || resolveDefaultLocalId(locaisAtendimento);
     const date = buildAppointmentDate();
     if (!date) {
       setCreateError("Data não definida.");
       return;
     }
 
-    const localSel = localAtendimentoId
-      ? locaisAtendimento.find((l) => l.id === localAtendimentoId)
+    const localSel = localId
+      ? locaisAtendimento.find((l) => l.id === localId)
       : undefined;
     const profSel = professionalId
       ? professionals.find((p) => p.id === professionalId)
@@ -304,12 +316,12 @@ export function ModalCriarAgendamento({
 
     const basePayload: Record<string, unknown> = {
       patient: Number(patientId),
-      nome_agenda: Number(nomeAgendaId),
+      nome_agenda: Number(agendaId),
       notes: notes.trim() || null,
       date: date.toISOString(),
     };
     if (professionalId) basePayload.professional = Number(professionalId);
-    if (localAtendimentoId) basePayload.local_atendimento = Number(localAtendimentoId);
+    if (localId) basePayload.local_atendimento = Number(localId);
     if (convenioId) basePayload.convenio = Number(convenioId);
     if (selectedProcedures.length === 1) {
       basePayload.procedure = selectedProcedures[0];
@@ -348,7 +360,7 @@ export function ModalCriarAgendamento({
           .map((id) => entityName(procedures.find((p) => p.id === id) || {}))
           .filter(Boolean)
           .join(", ");
-        const nomeAgenda = nomesAgenda.find((a) => a.id === nomeAgendaId)?.nome;
+        const nomeAgenda = nomesAgenda.find((a) => a.id === agendaId)?.nome;
         const titulo = [entityName(patient || {}), procNames || nomeAgenda || "Atendimento"]
           .filter(Boolean)
           .join(" • ") || "Agendamento (offline)";

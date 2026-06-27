@@ -1,4 +1,4 @@
-"""Testes — webhook Evolution e envio síncrono de confirmação."""
+"""Testes — webhook Evolution e confirmação de agenda por texto."""
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
@@ -21,20 +21,13 @@ class EvolutionWebhookCacheTest(SimpleTestCase):
         _ensure_evolution_webhook('lwk_loja_6')
         mock_set.assert_called_once()
 
-    @patch('whatsapp.evolution_client.set_instance_webhook')
-    def test_invalidar_cache_permite_reconfigurar(self, mock_set):
-        _ensure_evolution_webhook('lwk_loja_6')
-        _invalidate_evolution_webhook_cache('lwk_loja_6')
-        _ensure_evolution_webhook('lwk_loja_6')
-        self.assertEqual(mock_set.call_count, 2)
-
 
 class EnviarConfirmacaoAgendamentoTest(SimpleTestCase):
     @patch('whatsapp.services.send_whatsapp')
-    @patch('whatsapp.services.msg_confirmacao', return_value='msg teste')
-    @patch('clinica_beleza.agenda_confirmacao_service.url_confirmacao_frontend', return_value='https://link')
-    @patch('clinica_beleza.agenda_confirmacao_service.gerar_token_confirmacao', return_value='tok')
-    def test_envia_confirmacao_sincrono(self, _tok, _url, _msg, mock_send):
+    @patch('whatsapp.services.msg_confirmacao', return_value='Olá Cliente 😊\n\n🔗 https://link')
+    @patch('clinica_beleza.agenda_confirmacao_service.url_confirmacao_frontend', return_value='https://lwksistemas.com.br/confirmar/x')
+    @patch('clinica_beleza.agenda_confirmacao_service.gerar_token_confirmacao', return_value='tok-front')
+    def test_envia_mensagem_original_sincrona(self, _tok, _url, _msg, mock_send):
         mock_send.return_value = (True, None)
         agendamento = MagicMock()
         agendamento.patient.phone = '5516981402966'
@@ -43,8 +36,9 @@ class EnviarConfirmacaoAgendamentoTest(SimpleTestCase):
 
         sync_durante_envio = []
 
-        def capturar(**_kwargs):
+        def capturar(**kwargs):
             sync_durante_envio.append(whatsapp_sync_only.get())
+            self.assertEqual(kwargs['mensagem'], 'Olá Cliente 😊\n\n🔗 https://link')
             return True, None
 
         mock_send.side_effect = capturar

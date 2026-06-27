@@ -671,11 +671,11 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
     msg = msg_confirmacao(agendamento, link_confirmacao=link, config=config)
     from .sync_context import whatsapp_sync_only
 
-    token = whatsapp_sync_only.set(True)
+    sync_token = whatsapp_sync_only.set(True)
     try:
         return send_whatsapp(telefone=phone, mensagem=msg, user=user, config=config)
     finally:
-        whatsapp_sync_only.reset(token)
+        whatsapp_sync_only.reset(sync_token)
 
 
 def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, config=None):

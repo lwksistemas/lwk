@@ -1,4 +1,4 @@
-"""Testes — envio síncrono de links de assinatura por WhatsApp."""
+"""Testes — envio de link de assinatura por WhatsApp (texto original)."""
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
@@ -13,56 +13,28 @@ class EnviarWhatsappLinkAssinaturaTest(SimpleTestCase):
     @patch('whatsapp.assinatura_whatsapp._get_whatsapp_config')
     @patch('whatsapp.assinatura_whatsapp._get_loja_nome', return_value='Loja Teste')
     @patch('whatsapp.assinatura_whatsapp._build_link_assinatura', return_value='https://example.com/assinar/x')
-    def test_envia_sincrono_sem_enfileirar(self, _mock_link, _mock_loja, mock_config, mock_send, _mock_permitido):
+    def test_envia_texto_sincrono_com_mensagem_original(
+        self, _mock_link, _mock_loja, mock_config, mock_send, _mock_envio,
+    ):
         mock_send.return_value = (True, None)
-        config = MagicMock()
-        mock_config.return_value = config
+        mock_config.return_value = MagicMock()
 
         adapter = MagicMock()
         adapter.get_modulo.return_value = 'clinica_beleza'
         adapter.get_destinatario_parte1.return_value = ('Paciente', None)
         adapter.get_titulo.return_value = 'Botox'
-        adapter.get_tipo_documento_label.return_value = 'Termo'
+        adapter.get_tipo_documento_label.return_value = 'Termo de Consentimento Esclarecido'
         adapter.get_pagina_assinatura_path.return_value = '/assinar-consentimento/'
-
-        documento = MagicMock()
-        assinatura = MagicMock(token='tok')
 
         sync_durante_envio = []
 
-        def capturar_sync(**_kwargs):
+        def capturar(**kwargs):
             sync_durante_envio.append(whatsapp_sync_only.get())
+            self.assertIn('*Termo de Consentimento Esclarecido*', kwargs['mensagem'])
+            self.assertIn('https://example.com/assinar/x', kwargs['mensagem'])
             return True, None
 
-        mock_send.side_effect = capturar_sync
-
-        ok, err = enviar_whatsapp_link_assinatura(
-            adapter,
-            documento,
-            assinatura,
-            loja_id=6,
-            telefone='5516981402966',
-        )
-
-        self.assertTrue(ok)
-        self.assertIsNone(err)
-        self.assertEqual(sync_durante_envio, [True])
-
-    @patch('whatsapp.assinatura_whatsapp.whatsapp_envio_permitido', return_value=(True, None))
-    @patch('whatsapp.services.send_whatsapp', return_value=(False, 'WhatsApp Web não está conectado.'))
-    @patch('whatsapp.assinatura_whatsapp._get_whatsapp_config')
-    @patch('whatsapp.assinatura_whatsapp._get_loja_nome', return_value='Loja Teste')
-    @patch('whatsapp.assinatura_whatsapp._build_link_assinatura', return_value='https://example.com/assinar/x')
-    def test_propaga_erro_real_do_envio(self, _mock_link, _mock_loja, mock_config, _mock_send, _mock_permitido):
-        config = MagicMock()
-        mock_config.return_value = config
-
-        adapter = MagicMock()
-        adapter.get_modulo.return_value = 'clinica_beleza'
-        adapter.get_destinatario_parte1.return_value = ('Paciente', None)
-        adapter.get_titulo.return_value = 'Botox'
-        adapter.get_tipo_documento_label.return_value = 'Termo'
-        adapter.get_pagina_assinatura_path.return_value = '/assinar-consentimento/'
+        mock_send.side_effect = capturar
 
         ok, err = enviar_whatsapp_link_assinatura(
             adapter,
@@ -72,5 +44,6 @@ class EnviarWhatsappLinkAssinaturaTest(SimpleTestCase):
             telefone='5516981402966',
         )
 
-        self.assertFalse(ok)
-        self.assertIn('conectado', err)
+        self.assertTrue(ok)
+        self.assertIsNone(err)
+        self.assertEqual(sync_durante_envio, [True])

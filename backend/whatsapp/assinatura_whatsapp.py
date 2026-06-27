@@ -1,8 +1,6 @@
 """Envio de links de assinatura digital por WhatsApp."""
 import logging
 
-from django.conf import settings
-
 from core.assinatura_service import AssinaturaAdapter, TOKEN_EXPIRACAO_DIAS, _build_link_assinatura, _get_loja_nome
 
 logger = logging.getLogger(__name__)
@@ -40,6 +38,7 @@ def enviar_whatsapp_link_assinatura(
     user=None,
 ) -> tuple[bool, str | None]:
     from .services import send_whatsapp
+    from .sync_context import whatsapp_sync_only
 
     telefone = (telefone or '').strip()
     if not telefone:
@@ -64,8 +63,6 @@ def enviar_whatsapp_link_assinatura(
         f'Leia e assine pelo link:\n{link}\n\n'
         f'Link válido por {TOKEN_EXPIRACAO_DIAS} dias.'
     )
-
-    from .sync_context import whatsapp_sync_only
 
     token = whatsapp_sync_only.set(True)
     try:

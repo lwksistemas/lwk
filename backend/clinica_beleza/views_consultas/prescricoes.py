@@ -24,7 +24,7 @@ class ConsultaPrescricaoView(APIView):
     def post(self, request, consulta_id):
         from superadmin.models import Loja
 
-        from .memed_prescricao_service import resolver_pdf_prescricao
+        from ..memed_prescricao_service import resolver_pdf_prescricao
 
         try:
             consulta = Consulta.objects.select_related('professional').get(pk=consulta_id)
@@ -110,7 +110,7 @@ class PrescricaoMemedPdfView(APIView):
     def post(self, request, pk):
         from superadmin.models import Loja
 
-        from .memed_prescricao_service import resolver_pdf_prescricao
+        from ..memed_prescricao_service import resolver_pdf_prescricao
 
         try:
             presc = PrescricaoMemed.objects.select_related(
@@ -135,8 +135,8 @@ class PrescricaoMemedPdfView(APIView):
             pdf_url = resolver_pdf_prescricao(loja, professional, prescricao_id, '')
 
         if not pdf_url:
-            from .memed_prescricao_service import arquivar_pdf_bytes_cloudinary
-            from .prontuario_pdf import gerar_pdf_prescricao_memed
+            from ..memed_prescricao_service import arquivar_pdf_bytes_cloudinary
+            from ..prontuario_pdf import gerar_pdf_prescricao_memed
 
             try:
                 buffer = gerar_pdf_prescricao_memed(presc)

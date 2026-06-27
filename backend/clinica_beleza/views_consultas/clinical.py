@@ -99,7 +99,7 @@ class ConsultaSecaoPDFView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request, consulta_id):
-        from .consulta_queries import get_consulta_for_tenant
+        from ..consulta_queries import get_consulta_for_tenant
 
         consulta = get_consulta_for_tenant(
             consulta_id,
@@ -110,7 +110,7 @@ class ConsultaSecaoPDFView(APIView):
 
         secao = request.query_params.get('secao', 'atendimento')
         try:
-            from .prontuario_pdf import gerar_pdf_consulta_secao
+            from ..prontuario_pdf import gerar_pdf_consulta_secao
             buffer = gerar_pdf_consulta_secao(consulta, secao)
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

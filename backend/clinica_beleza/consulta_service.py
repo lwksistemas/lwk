@@ -13,6 +13,9 @@ from .models import Appointment, Consulta, Payment
 logger = logging.getLogger(__name__)
 
 MSG_CONSULTA_CONCLUIDA_NAO_EXCLUI = 'Consultas concluídas não podem ser excluídas.'
+MSG_PACIENTE_CONSULTA_EM_ANDAMENTO = (
+    'Este paciente já possui uma consulta em andamento. Finalize-a antes de iniciar outra.'
+)
 
 
 def consulta_esta_concluida(consulta) -> bool:
@@ -29,6 +32,15 @@ def motivo_bloqueio_exclusao_consulta(consulta) -> str | None:
     if consulta_esta_concluida(consulta):
         return MSG_CONSULTA_CONCLUIDA_NAO_EXCLUI
     return None
+
+
+def validar_paciente_sem_consulta_em_andamento(patient_id, *, exclude_consulta_id=None):
+    """Impede duas consultas IN_PROGRESS para o mesmo paciente."""
+    qs = Consulta.objects.filter(patient_id=patient_id, status='IN_PROGRESS')
+    if exclude_consulta_id:
+        qs = qs.exclude(pk=exclude_consulta_id)
+    if qs.exists():
+        raise ValueError(MSG_PACIENTE_CONSULTA_EM_ANDAMENTO)
 
 
 def _consulta_defaults_from_appointment(appointment, **extra):
@@ -233,6 +245,9 @@ def criar_consulta_avulsa(
     if convenio is None and getattr(patient, 'convenio_id', None):
         convenio = resolver_convenio(patient.convenio_id, loja_id=loja_id)
 
+    if iniciar:
+        validar_paciente_sem_consulta_em_andamento(patient.id)
+
     nome_agenda = None
     if nome_agenda_id:
         nome_agenda = NomeAgenda.objects.filter(pk=nome_agenda_id, is_active=True).first()
@@ -351,6 +366,10 @@ def iniciar_consulta(consulta):
         raise ValueError('A consulta precisa estar agendada para ser iniciada.')
     if appointment.status != 'CONFIRMED':
         raise ValueError('Registre a chegada do cliente na agenda (status Cliente presente) antes de iniciar a consulta.')
+
+    validar_paciente_sem_consulta_em_andamento(
+        consulta.patient_id, exclude_consulta_id=consulta.id,
+    )
 
     old_status = appointment.status
     ts = now()

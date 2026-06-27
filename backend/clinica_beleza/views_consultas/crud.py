@@ -98,20 +98,23 @@ class ConsultaListView(APIView):
             appointment_date = parse_datetime(str(date_raw))
             if appointment_date is None:
                 return Response({'error': 'Data/hora inválida.'}, status=status.HTTP_400_BAD_REQUEST)
-        consulta = criar_consulta_avulsa(
-            patient=patient,
-            professional=professional,
-            procedures=proc_list,
-            loja_id=patient.loja_id,
-            iniciar=bool(iniciar),
-            local_atendimento_id=local_atendimento_id,
-            valor_consulta=valor_consulta_override,
-            convenio_id=convenio_id,
-            nome_agenda_id=nome_agenda_id,
-            appointment_date=appointment_date,
-            notes=notes,
-            retorno_procedure_id=retorno_procedure_id,
-        )
+        try:
+            consulta = criar_consulta_avulsa(
+                patient=patient,
+                professional=professional,
+                procedures=proc_list,
+                loja_id=patient.loja_id,
+                iniciar=bool(iniciar),
+                local_atendimento_id=local_atendimento_id,
+                valor_consulta=valor_consulta_override,
+                convenio_id=convenio_id,
+                nome_agenda_id=nome_agenda_id,
+                appointment_date=appointment_date,
+                notes=notes,
+                retorno_procedure_id=retorno_procedure_id,
+            )
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         consulta = Consulta.objects.select_related(
             'patient', 'professional', 'procedure', 'protocol', 'appointment',
         ).get(pk=consulta.id)

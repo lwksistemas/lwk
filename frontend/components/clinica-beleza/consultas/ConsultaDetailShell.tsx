@@ -373,6 +373,8 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
       const data = await ClinicaBelezaAPI.consultas.iniciar(selected.id, body);
       setSelected({ ...selected, ...data });
       await onListRefresh();
+      const hist = await fetchHistoricoPaciente(selected.patient).catch(() => []);
+      setHistorico(Array.isArray(hist) ? hist : []);
     } catch (e: unknown) {
       alert(formatApiErrorBody(e) || "Erro ao iniciar consulta.");
     } finally {
@@ -479,7 +481,10 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
     }
   };
 
-  const podeIniciar = selected.status === "SCHEDULED";
+  const outraConsultaEmAndamento = historico.find(
+    (c) => c.id !== selected.id && c.status === "IN_PROGRESS",
+  );
+  const podeIniciar = selected.status === "SCHEDULED" && !outraConsultaEmAndamento;
   const podeFinalizar = selected.status === "IN_PROGRESS";
   const consultaConcluida = consultaEstaConcluida(selected);
   const podeExcluir = !consultaConcluida;
@@ -600,6 +605,11 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
                   Convênio: <strong className="text-gray-800 dark:text-gray-200 uppercase">{toUpperCase(selected.convenio_name || "Particular")}</strong>
                 </span>
                 <div className="ml-auto flex flex-wrap gap-2">
+                  {outraConsultaEmAndamento && selected.status === "SCHEDULED" && (
+                    <p className="text-xs text-amber-700 dark:text-amber-400 max-w-xs">
+                      Já existe consulta em andamento para este paciente. Finalize-a antes de iniciar outra.
+                    </p>
+                  )}
                   {podeIniciar && (
                     <button type="button" onClick={() => iniciarConsulta()} disabled={iniciando} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50" style={{ backgroundColor: "#2563eb" }}>
                       <Play size={16} />

@@ -130,6 +130,26 @@ export async function sincronizarFila(): Promise<{ enviados: number; erros: numb
           await removerItemFilaSync(key);
           logger.log('✅ [offline-sync] Procedimento sincronizado com sucesso');
           enviados++;
+          continue;
+        }
+
+        if (item.tipo === 'consulta') {
+          logger.log('📤 [offline-sync] Enviando consulta para /consultas/');
+          const res = await clinicaBelezaFetch('/consultas/', {
+            method: 'POST',
+            body: JSON.stringify(item.payload),
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            if (res.status === 400) {
+              logger.warn(`⚠️ [offline-sync] Erro de validação consulta (400), removendo da fila`);
+              continue;
+            }
+            throw new Error((data as { error?: string }).error || `Erro ${res.status}`);
+          }
+          await removerItemFilaSync(key);
+          logger.log('✅ [offline-sync] Consulta sincronizada com sucesso');
+          enviados++;
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);

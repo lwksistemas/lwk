@@ -23,6 +23,19 @@ _CRM_VENDAS_PUBLIC_PREFIXES = (
     '/api/crm-vendas/relatorio-comissao/',
 )
 
+# CRM Vendas: rotas permitidas em lojas Clínica da Beleza (só config NFS-e / login)
+_CRM_VENDAS_CLINICA_BELEZA_ALLOWED_PREFIXES = (
+    '/api/crm-vendas/config/',
+    '/api/crm-vendas/login-config/',
+)
+
+_CLINICA_BELEZA_TIPO_SLUGS = frozenset({
+    'clinica-beleza',
+    'clinica-da-beleza',
+    'clinica-estetica',
+    'clinica-de-estetica',
+})
+
 _CLINICA_BELEZA_PUBLIC_PREFIXES = (
     '/api/clinica-beleza/assinar-consentimento/',
     '/api/clinica-beleza/enviar-foto/',
@@ -67,6 +80,11 @@ class SecurityIsolationMiddleware:
         
         # 4. Verificar isolamento de dados de loja
         violation = self._check_store_isolation(request)
+        if violation:
+            return violation
+
+        # 5. Clínica da Beleza: bloquear CRM (leads, pipeline, etc.) — só config NFS-e
+        violation = self._check_clinica_crm_route_restriction(request)
         if violation:
             return violation
         
@@ -301,6 +319,55 @@ class SecurityIsolationMiddleware:
                 }, status=403)
         
         return None  # Sem violação
+
+    def _check_clinica_crm_route_restriction(self, request):
+        """
+        Lojas Clínica da Beleza têm tabelas crm_vendas (NFS-e) mas não expõem
+        leads, pipeline, vendedores etc.
+        """
+        path = request.path
+        if not path.startswith('/api/crm-vendas/'):
+            return None
+        if self._is_crm_vendas_public_path(path):
+            return None
+        if any(path.startswith(prefix) for prefix in _CRM_VENDAS_CLINICA_BELEZA_ALLOWED_PREFIXES):
+            return None
+
+        slug = self._extract_store_slug(request)
+        if not slug:
+            return None
+
+        try:
+            from superadmin.models import Loja
+
+            loja = (
+                Loja.objects.filter(slug=slug, is_active=True)
+                .select_related('tipo_loja')
+                .first()
+            )
+            if not loja or not loja.tipo_loja_id:
+                return None
+            tipo_slug = (loja.tipo_loja.slug or '').strip().lower()
+            if tipo_slug not in _CLINICA_BELEZA_TIPO_SLUGS:
+                return None
+        except Exception:
+            logger.exception('Erro ao verificar tipo de loja para bloqueio CRM')
+            return None
+
+        logger.warning(
+            'CRM bloqueado para clínica: usuário=%s path=%s loja=%s',
+            getattr(request.user, 'username', '?'),
+            path,
+            slug,
+        )
+        return JsonResponse(
+            {
+                'error': 'Módulo CRM não disponível para Clínica da Beleza.',
+                'code': 'CRM_NOT_AVAILABLE_FOR_CLINICA',
+                'mensagem': 'Use as configurações de nota fiscal em Clínica da Beleza.',
+            },
+            status=403,
+        )
     
     def _check_store_isolation(self, request):
         """

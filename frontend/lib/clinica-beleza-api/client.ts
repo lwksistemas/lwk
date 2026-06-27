@@ -424,7 +424,8 @@ export class ClinicaBelezaAPI {
     create: (data: Record<string, unknown>) => ClinicaBelezaAPI.post('/campanhas/', data),
     update: (id: number, data: Record<string, unknown>) => ClinicaBelezaAPI.put(`/campanhas/${id}/`, data),
     delete: (id: number) => ClinicaBelezaAPI.delete(`/campanhas/${id}/`),
-    enviar: (id: number) => ClinicaBelezaAPI.post(`/campanhas/${id}/enviar/`, {}),
+    enviar: (id: number, body?: { patient_ids?: number[] }) =>
+      ClinicaBelezaAPI.post(`/campanhas/${id}/enviar/`, body ?? {}),
   };
 
   static protocolos = {

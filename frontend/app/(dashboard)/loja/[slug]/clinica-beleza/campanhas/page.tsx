@@ -7,12 +7,13 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Megaphone, Pencil, Save, Send, Trash2 } from "lucide-react";
+import { CampanhaEnviarModal } from "@/components/clinica-beleza/CampanhaEnviarModal";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { useToast } from "@/components/ui/Toast";
 import {
   CLINICA_BELEZA_ONLINE_ONLY,
   CLINICA_FORM_INPUT,
@@ -64,6 +65,7 @@ function extractSaveError(e: unknown, fallback: string): string {
 
 export default function CampanhasPage() {
   const slug = useParams().slug as string;
+  const toast = useToast();
   const basePath = `/loja/${slug}/clinica-beleza/campanhas`;
   const { isNovo, editId, editIdParam, isFormView, voltarLista, abrirNovo, abrirEditar } =
     useClinicaBelezaFormRouting(basePath);
@@ -76,7 +78,9 @@ export default function CampanhasPage() {
   const [editing, setEditing] = useState<Campanha | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
-  const [sendingId, setSendingId] = useState<number | null>(null);
+  const [enviarCampanha, setEnviarCampanha] = useState<Campanha | null>(null);
+  const [excluirCampanha, setExcluirCampanha] = useState<Campanha | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -113,8 +117,10 @@ export default function CampanhasPage() {
       };
       if (editing) {
         await saveClinicaBelezaEntity(`/campanhas/${editing.id}/`, "PUT", body);
+        toast.success("Campanha atualizada.");
       } else {
         await saveClinicaBelezaEntity("/campanhas/", "POST", body);
+        toast.success("Campanha criada.");
       }
       voltarLista();
       load();
@@ -127,37 +133,21 @@ export default function CampanhasPage() {
     }
   };
 
-  const enviarCampanha = async (c: Campanha) => {
-    if (!confirm(`Enviar a campanha "${c.titulo}" para todos os pacientes com WhatsApp ativo?`)) return;
-    setSendingId(c.id);
-    try {
-      const data = await ClinicaBelezaAPI.campanhas.enviar(c.id) as {
-        sent?: number;
-        message?: string;
-        error?: string;
-      };
-      if (data.sent !== undefined) {
-        alert(data.message || `Enviado para ${data.sent} paciente(s).`);
-        load();
-      } else {
-        alert(data.error || "Não foi possível enviar. Verifique a integração WhatsApp em Configurações.");
-      }
-    } catch (e: unknown) {
-      if (e instanceof Error && e.message === "SESSION_ENDED") return;
-      alert("Erro ao enviar. Tente novamente.");
-    } finally {
-      setSendingId(null);
-    }
-  };
-
-  const exclude = async (c: Campanha) => {
-    if (!confirm(`Excluir a campanha "${c.titulo}"?`)) return;
+  const confirmarExclusao = async () => {
+    const c = excluirCampanha;
+    if (!c) return;
+    setExcluindo(true);
     try {
       await deleteClinicaBelezaEntity(`/campanhas/${c.id}/`, "Erro ao excluir.");
+      toast.success("Campanha excluída.");
       if (editId === c.id) voltarLista();
+      setExcluirCampanha(null);
       load();
-    } catch {
-      alert("Erro ao excluir.");
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message === "SESSION_ENDED") return;
+      toast.error("Erro ao excluir campanha.");
+    } finally {
+      setExcluindo(false);
     }
   };
 
@@ -314,9 +304,8 @@ export default function CampanhasPage() {
                 <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
-                    onClick={() => enviarCampanha(c)}
-                    disabled={!!sendingId}
-                    className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg disabled:opacity-50"
+                    onClick={() => setEnviarCampanha(c)}
+                    className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg"
                     title="Enviar WhatsApp"
                   >
                     <Send size={16} />
@@ -331,7 +320,7 @@ export default function CampanhasPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => exclude(c)}
+                    onClick={() => setExcluirCampanha(c)}
                     className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                     title="Excluir"
                   >
@@ -352,6 +341,41 @@ export default function CampanhasPage() {
           </ClinicaBelezaPanel>
         )}
       </ClinicaBelezaPageContent>
+
+      <CampanhaEnviarModal
+        open={!!enviarCampanha}
+        campanha={enviarCampanha}
+        onClose={() => setEnviarCampanha(null)}
+        onSent={load}
+      />
+
+      {excluirCampanha && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Excluir campanha</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+              Excluir <strong>{excluirCampanha.titulo}</strong>? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setExcluirCampanha(null)}
+                className="flex-1 py-2.5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarExclusao}
+                disabled={excluindo}
+                className="flex-1 py-2.5 rounded-lg bg-red-600 text-white text-sm font-medium disabled:opacity-50"
+              >
+                {excluindo ? "Excluindo..." : "Excluir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

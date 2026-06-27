@@ -323,6 +323,13 @@ export function ModalCriarAgendamento({
 
     try {
       if (isConsulta) {
+        if (!navigator.onLine) {
+          await adicionarNaFilaSync({ tipo: "consulta", payload: basePayload });
+          notificarFilaAtualizada();
+          resetAndClose();
+          onSuccess();
+          return;
+        }
         const consulta = await ClinicaBelezaAPI.consultas.criar(basePayload);
         resetAndClose();
         onSuccess();

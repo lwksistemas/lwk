@@ -17,7 +17,7 @@ export interface OfflineDBSchema extends DBSchema {
 }
 
 export interface FilaSyncItem {
-  tipo: "agendamento" | "paciente" | "profissional" | "procedimento";
+  tipo: "agendamento" | "paciente" | "profissional" | "procedimento" | "consulta";
   payload: unknown;
   lojaSlug?: string;
   createdAt: number;

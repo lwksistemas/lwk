@@ -301,7 +301,7 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
     )
 
     if not payment:
-        return Payment.objects.create(
+        payment = Payment.objects.create(
             appointment=appointment,
             amount=valor,
             payment_method=payment_method or 'CASH',
@@ -311,11 +311,15 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
             comissao_valor=comissao_val,
             loja_id=appointment.loja_id,
         )
+        if mark_as_paid:
+            _tentar_nfse_pos_pagamento(consulta, payment)
+        return payment
 
     if payment_method:
         payment.payment_method = payment_method
     if amount is not None:
         payment.amount = valor
+    was_paid = payment.status == 'PAID'
     if mark_as_paid:
         payment.status = 'PAID'
         if not payment.payment_date:
@@ -323,7 +327,19 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
     payment.comissao_percentual = comissao_pct
     payment.comissao_valor = comissao_val
     payment.save()
+    if mark_as_paid and not was_paid:
+        _tentar_nfse_pos_pagamento(consulta, payment)
     return payment
+
+
+def _tentar_nfse_pos_pagamento(consulta, payment):
+    """Dispara emissão NFS-e após pagamento confirmado (não bloqueia fluxo)."""
+    try:
+        from .nfse_consulta_service import tentar_emitir_nfse_consulta
+
+        tentar_emitir_nfse_consulta(consulta, payment)
+    except Exception:
+        logger.exception('Erro ao tentar NFS-e após pagamento (consulta %s)', consulta.id)
 
 
 def iniciar_consulta(consulta):

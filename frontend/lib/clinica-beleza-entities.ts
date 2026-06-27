@@ -130,6 +130,7 @@ export interface ClinicaPatient {
   telefone?: string;
   cpf?: string | null;
   convenio?: number | null;
+  foto_url?: string | null;
 }
 
 export interface ClinicaProcedure {

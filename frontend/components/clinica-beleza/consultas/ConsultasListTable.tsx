@@ -2,6 +2,7 @@
 
 import { ChevronRight } from "lucide-react";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
+import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
 import { CLINICA_CONSULTA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import { toUpperCase } from "@/lib/format-br";
 import { consultaProcedimentosNomes, type Consulta } from "./consultas-types";
@@ -24,9 +25,16 @@ export function ConsultasListTable({ consultas, onSelect, formatData }: Props) {
           key: "patient",
           header: "CLIENTE",
           render: (c) => (
-            <span className="font-medium text-gray-900 dark:text-gray-100 uppercase">
-              {toUpperCase(c.patient_name)}
-            </span>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <PacienteAvatar
+                fotoUrl={c.patient_foto_url}
+                name={c.patient_name}
+                size="sm"
+              />
+              <span className="font-medium text-gray-900 dark:text-gray-100 uppercase truncate">
+                {toUpperCase(c.patient_name)}
+              </span>
+            </div>
           ),
         },
         {

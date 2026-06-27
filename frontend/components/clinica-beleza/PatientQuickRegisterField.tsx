@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { formatCpf, formatTelefone } from "@/lib/format-br";
+import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
 import { entityName, matchesPatientSearchQuery } from "@/lib/clinica-beleza-entities";
 
 export interface PatientQuickOption {
@@ -12,6 +13,7 @@ export interface PatientQuickOption {
   phone?: string;
   cpf?: string;
   convenio?: number | null;
+  foto_url?: string | null;
 }
 
 interface Props {
@@ -148,15 +150,22 @@ export function PatientQuickRegisterField({
       </label>
 
       {selecionado ? (
-        <div className="flex items-center gap-2 px-3 py-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-          <span className="text-sm text-green-700 dark:text-green-400">
-            ✓ <strong>{entityName(selecionado)}</strong>
+        <div className="flex items-center gap-3 px-3 py-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+          <PacienteAvatar
+            fotoUrl={selecionado.foto_url}
+            name={entityName(selecionado)}
+            size="sm"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-green-700 dark:text-green-400 truncate">
+              ✓ <strong>{entityName(selecionado)}</strong>
+            </p>
             {(selecionado.telefone || selecionado.phone) && (
-              <span className="ml-2 font-normal text-green-600/80 dark:text-green-300/80">
+              <p className="text-xs text-green-600/80 dark:text-green-300/80">
                 {formatTelefone(selecionado.telefone || selecionado.phone)}
-              </span>
+              </p>
             )}
-          </span>
+          </div>
           <button
             type="button"
             onClick={handleTrocar}
@@ -214,17 +223,21 @@ export function PatientQuickRegisterField({
                   type="button"
                   onClick={() => handleSelecionar(p)}
                   disabled={disabled}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 border-b last:border-b-0 border-gray-100 dark:border-neutral-700"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 border-b last:border-b-0 border-gray-100 dark:border-neutral-700 flex items-center gap-2.5"
                 >
-                  <span className="font-medium">{entityName(p)}</span>
-                  {(p.telefone || p.phone) && (
-                    <span className="ml-2 text-xs text-gray-500">
-                      {formatTelefone(p.telefone || p.phone)}
+                  <PacienteAvatar fotoUrl={p.foto_url} name={entityName(p)} size="sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium block truncate">{entityName(p)}</span>
+                    <span className="text-xs text-gray-500">
+                      {(p.telefone || p.phone) && formatTelefone(p.telefone || p.phone)}
+                      {p.cpf && (
+                        <>
+                          {(p.telefone || p.phone) ? " · " : ""}
+                          {formatCpf(p.cpf)}
+                        </>
+                      )}
                     </span>
-                  )}
-                  {p.cpf && (
-                    <span className="ml-2 text-xs text-gray-500">{formatCpf(p.cpf)}</span>
-                  )}
+                  </span>
                 </button>
               ))}
             </div>

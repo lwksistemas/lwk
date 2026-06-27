@@ -117,6 +117,9 @@ def _parse_webhook_payload(body) -> list[dict]:
         }]
 
     event_name = (body.get('event') or '').lower().replace('_', '.')
+    if event_name == 'connection.update':
+        return [body]
+
     if event_name == 'messages.upsert':
         return [body]
 
@@ -153,11 +156,24 @@ class EvolutionWebhookView(View):
 
     def _handle_event(self, event: dict):
         event_name = (event.get('event') or 'messages.upsert').lower().replace('_', '.')
+        instance = (event.get('instance') or '').strip()
+        loja_id = _loja_id_from_instance(instance)
+
+        if event_name == 'connection.update':
+            if not loja_id:
+                logger.debug('Evolution webhook connection: instance desconhecida %s', instance)
+                return
+            data = event.get('data')
+            if not isinstance(data, dict):
+                data = {}
+            from whatsapp.connection_service import update_evolution_connection_from_webhook
+
+            update_evolution_connection_from_webhook(loja_id, data)
+            return
+
         if event_name not in ('messages.upsert', ''):
             return
 
-        instance = (event.get('instance') or '').strip()
-        loja_id = _loja_id_from_instance(instance)
         if not loja_id:
             logger.debug('Evolution webhook: instance desconhecida %s', instance)
             return

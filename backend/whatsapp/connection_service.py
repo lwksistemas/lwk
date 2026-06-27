@@ -69,6 +69,86 @@ def _connection_payload(config, instance_name, qr_base64=None, pairing_code=None
     }
 
 
+def _apply_evolution_state_to_config(config, status, phone=None):
+    """Persiste status Evolution no WhatsAppConfig (sync API ou webhook)."""
+    phone = (phone or '').strip()
+    update_fields = ['whatsapp_connection_status', 'updated_at']
+
+    if status == WhatsAppConfig.CONNECTION_CONNECTED:
+        config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_CONNECTED
+        if phone:
+            config.whatsapp_connected_phone = phone
+            if not (config.whatsapp_numero or '').strip():
+                config.whatsapp_numero = phone[:20]
+            update_fields.extend(['whatsapp_connected_phone', 'whatsapp_numero'])
+        if not config.whatsapp_connected_at:
+            config.whatsapp_connected_at = timezone.now()
+            update_fields.append('whatsapp_connected_at')
+        config.save(update_fields=list(dict.fromkeys(update_fields)))
+        return
+
+    if status == WhatsAppConfig.CONNECTION_QR_PENDING:
+        if config.whatsapp_connection_status != WhatsAppConfig.CONNECTION_QR_PENDING:
+            config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_QR_PENDING
+            config.save(update_fields=update_fields)
+        return
+
+    was_connected = config.whatsapp_connection_status == WhatsAppConfig.CONNECTION_CONNECTED
+    config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_DISCONNECTED
+    config.whatsapp_connected_at = None
+    config.whatsapp_connected_phone = ''
+    update_fields.extend(['whatsapp_connected_at', 'whatsapp_connected_phone'])
+    config.save(update_fields=list(dict.fromkeys(update_fields)))
+    if was_connected:
+        logger.info(
+            'Evolution loja %s: WhatsApp Web desconectado (status=%s)',
+            config.loja_id,
+            status,
+        )
+
+
+def update_evolution_connection_from_webhook(loja_id, data):
+    """
+    Atualiza status quando o celular desconecta a sessão Web (webhook connection.update).
+    """
+    from core.db_config import ensure_loja_database_config
+    from superadmin.models import Loja
+
+    from .evolution_client import _extract_phone, _normalize_evolution_state
+
+    loja = Loja.objects.using('default').filter(pk=loja_id).first()
+    if not loja:
+        logger.debug('Evolution webhook connection: loja %s inexistente', loja_id)
+        return
+
+    db = loja.database_name
+    ensure_loja_database_config(db, conn_max_age=0)
+    try:
+        config = WhatsAppConfig.objects.using(db).filter(loja_id=loja_id).first()
+    except Exception as exc:
+        logger.warning('Evolution webhook connection loja %s: %s', loja_id, exc)
+        return
+    if not config:
+        return
+
+    payload = data if isinstance(data, dict) else {}
+    state_raw = (
+        payload.get('state')
+        or payload.get('status')
+        or payload.get('connectionStatus')
+        or ''
+    )
+    status = _normalize_evolution_state(state_raw)
+    phone = _extract_phone(payload)
+    _apply_evolution_state_to_config(config, status, phone or None)
+    logger.info(
+        'Evolution webhook connection loja=%s state=%r -> %s',
+        loja_id,
+        state_raw,
+        config.whatsapp_connection_status,
+    )
+
+
 def _apply_qr_from_data(config, instance_name, qr_data):
     qr_base64 = _extract_qr_base64(qr_data)
     pairing_code = _extract_pairing_code(qr_data)
@@ -115,20 +195,7 @@ def sync_evolution_connection(config, fetch_qr=False):
         phone = (state_info.get('phone') or '').strip()
 
         if status == WhatsAppConfig.CONNECTION_CONNECTED:
-            config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_CONNECTED
-            if phone:
-                config.whatsapp_connected_phone = phone
-                if not (config.whatsapp_numero or '').strip():
-                    config.whatsapp_numero = phone[:20]
-            if not config.whatsapp_connected_at:
-                config.whatsapp_connected_at = timezone.now()
-            config.save(update_fields=[
-                'whatsapp_connection_status',
-                'whatsapp_connected_phone',
-                'whatsapp_numero',
-                'whatsapp_connected_at',
-                'updated_at',
-            ])
+            _apply_evolution_state_to_config(config, status, phone or None)
             _ensure_evolution_webhook(instance_name)
             return _connection_payload(config, instance_name)
 
@@ -140,18 +207,11 @@ def sync_evolution_connection(config, fetch_qr=False):
             return _apply_qr_from_data(config, instance_name, qr_data)
 
         if config.whatsapp_connection_status == WhatsAppConfig.CONNECTION_CONNECTED:
-            config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_DISCONNECTED
-            config.whatsapp_connected_at = None
-            config.save(update_fields=[
-                'whatsapp_connection_status',
-                'whatsapp_connected_at',
-                'updated_at',
-            ])
+            _apply_evolution_state_to_config(config, WhatsAppConfig.CONNECTION_DISCONNECTED)
         elif status == WhatsAppConfig.CONNECTION_DISCONNECTED and (
             config.whatsapp_connection_status != WhatsAppConfig.CONNECTION_QR_PENDING
         ):
-            config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_DISCONNECTED
-            config.save(update_fields=['whatsapp_connection_status', 'updated_at'])
+            _apply_evolution_state_to_config(config, WhatsAppConfig.CONNECTION_DISCONNECTED)
 
     except EvolutionAPIError as exc:
         logger.warning('Evolution sync loja %s: %s', config.loja_id, exc)

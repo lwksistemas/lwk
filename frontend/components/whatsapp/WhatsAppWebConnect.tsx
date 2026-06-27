@@ -74,10 +74,14 @@ export function WhatsAppWebConnect({
         setGeneratingQr(false);
       }
       if (data.connection_status === 'connected') {
-        stopPolling();
         setQrBase64(null);
         setPairingCode(null);
         setError(null);
+        setGeneratingQr(false);
+      }
+      if (data.connection_status === 'disconnected' || data.connection_status === 'error') {
+        setQrBase64(null);
+        setPairingCode(null);
         setGeneratingQr(false);
       }
     } catch {
@@ -90,10 +94,11 @@ export function WhatsAppWebConnect({
       stopPolling();
       return;
     }
-    if (connectionStatus === 'qr_pending') {
+    if (connectionStatus === 'qr_pending' || connectionStatus === 'connected') {
       pollStatus();
       stopPolling();
-      pollRef.current = setInterval(pollStatus, 5000);
+      const intervalMs = connectionStatus === 'qr_pending' ? 5000 : 20000;
+      pollRef.current = setInterval(pollStatus, intervalMs);
     } else {
       stopPolling();
     }

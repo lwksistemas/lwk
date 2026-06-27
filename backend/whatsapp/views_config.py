@@ -60,7 +60,7 @@ class WhatsAppConfigView(APIView):
         if config is None:
             return Response(default_whatsapp_config_payload())
         try:
-            return Response(serialize_whatsapp_config(config, loja=loja, sync_evolution=False))
+            return Response(serialize_whatsapp_config(config, loja=loja, sync_evolution=True))
         except Exception as exc:
             logger.exception('WhatsAppConfigView.get loja=%s: %s', getattr(loja, 'id', '?'), exc)
             payload = default_whatsapp_config_payload(loja)

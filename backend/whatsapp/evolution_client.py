@@ -488,7 +488,7 @@ def set_instance_webhook(instance_name):
             'url': evolution_webhook_url(),
             'webhookByEvents': False,
             'webhookBase64': False,
-            'events': ['MESSAGES_UPSERT'],
+            'events': ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
         }
     }
     return _request('POST', f'/webhook/set/{instance_name}', json_body=body)

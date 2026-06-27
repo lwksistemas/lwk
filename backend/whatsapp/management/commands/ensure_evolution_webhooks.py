@@ -12,7 +12,7 @@ from whatsapp.models import WhatsAppConfig
 
 
 class Command(BaseCommand):
-    help = 'Configura webhook Evolution (MESSAGES_UPSERT) nas lojas WhatsApp Web conectadas.'
+    help = 'Configura webhook Evolution (mensagens + status de conexão) nas lojas WhatsApp Web conectadas.'
 
     def add_arguments(self, parser):
         parser.add_argument('--slug', type=str, help='Apenas esta loja (slug ou atalho)')

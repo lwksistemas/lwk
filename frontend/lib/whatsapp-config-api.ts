@@ -58,6 +58,8 @@ export const whatsappConfigApi = {
       .then((r) => r.data),
   connect: () => apiClient.post<WhatsAppConnectionState>(`${BASE}/connect/`).then((r) => r.data),
   disconnect: () => apiClient.post<WhatsAppConnectionState>(`${BASE}/disconnect/`).then((r) => r.data),
+  resetSession: () =>
+    apiClient.post<WhatsAppConnectionState>(`${BASE}/reset-session/`).then((r) => r.data),
 };
 
 export type WhatsAppConfigVariant = 'clinica' | 'crm' | 'generic';

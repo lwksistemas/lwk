@@ -205,6 +205,7 @@ export function LojaWhatsAppConfigPanel({
             fetchConnection={(withQr) => whatsappConfigApi.connection(withQr)}
             connect={() => whatsappConfigApi.connect()}
             disconnect={() => whatsappConfigApi.disconnect()}
+            resetSession={() => whatsappConfigApi.resetSession()}
             onConnectionUpdate={handleConnectionUpdate}
             accentColor={accentColor}
           />

@@ -222,3 +222,55 @@ def disconnect_evolution(config):
         'updated_at',
     ])
     return sync_evolution_connection(config, fetch_qr=False)
+
+
+def reset_evolution_connection(config):
+    """
+    Remove a instância Evolution no servidor e cria sessão nova com QR.
+    Use quando o status aparece conectado mas mensagens não chegam ao cliente.
+    """
+    if not evolution_configured():
+        raise EvolutionAPIError(
+            'Evolution API não configurada no servidor LWK (EVOLUTION_API_URL / EVOLUTION_API_KEY).'
+        )
+
+    instance_name = ensure_evolution_instance_name(config)
+    _invalidate_evolution_webhook_cache(instance_name)
+
+    try:
+        logout_instance(instance_name)
+    except EvolutionAPIError as exc:
+        logger.warning('Evolution logout antes do reset loja %s: %s', config.loja_id, exc)
+
+    from .evolution_cleanup import delete_evolution_for_loja
+
+    delete_evolution_for_loja(config.loja_id, instance_name=instance_name)
+
+    config.whatsapp_provider = WhatsAppConfig.PROVIDER_EVOLUTION
+    config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_QR_PENDING
+    config.whatsapp_connected_phone = ''
+    config.whatsapp_connected_at = None
+    config.save(update_fields=[
+        'whatsapp_provider',
+        'whatsapp_connection_status',
+        'whatsapp_connected_phone',
+        'whatsapp_connected_at',
+        'updated_at',
+    ])
+
+    try:
+        qr_data = create_instance(instance_name)
+        if _has_qr_payload(qr_data):
+            logger.info('Evolution reset loja %s: nova instância %s com QR', config.loja_id, instance_name)
+            return _apply_qr_from_data(config, instance_name, qr_data)
+
+        qr_data = wait_for_qr(instance_name, attempts=12, delay=2.0)
+        logger.info('Evolution reset loja %s: QR após aguardar (%s)', config.loja_id, instance_name)
+        return _apply_qr_from_data(config, instance_name, qr_data)
+    except EvolutionAPIError as exc:
+        if exc.status_code == 409:
+            qr_data = wait_for_qr(instance_name, attempts=12, delay=2.0)
+            return _apply_qr_from_data(config, instance_name, qr_data)
+        config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_ERROR
+        config.save(update_fields=['whatsapp_connection_status', 'updated_at'])
+        raise

@@ -20,6 +20,7 @@ from .views_connection import (
     WhatsAppConnectView as BaseWhatsAppConnectView,
     WhatsAppConnectionStatusView as BaseWhatsAppConnectionStatusView,
     WhatsAppDisconnectView as BaseWhatsAppDisconnectView,
+    WhatsAppResetSessionView as BaseWhatsAppResetSessionView,
 )
 
 logger = logging.getLogger(__name__)
@@ -128,6 +129,16 @@ class LojaWhatsAppConnectView(BaseWhatsAppConnectView):
 
 
 class LojaWhatsAppDisconnectView(BaseWhatsAppDisconnectView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_config(self, request):
+        config, err = _whatsapp_config_for_request(request)
+        if err == 'forbidden':
+            return 'forbidden'
+        return config
+
+
+class LojaWhatsAppResetSessionView(BaseWhatsAppResetSessionView):
     permission_classes = [IsAuthenticated]
 
     def _get_config(self, request):

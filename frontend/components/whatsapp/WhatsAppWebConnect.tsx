@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Loader2, Smartphone, Unplug } from 'lucide-react';
+import { AlertTriangle, Loader2, RotateCcw, Smartphone, Unplug } from 'lucide-react';
 
 export interface WhatsAppConnectionState {
   provider?: string;
@@ -23,6 +23,7 @@ interface WhatsAppWebConnectProps {
   fetchConnection: (withQr?: boolean) => Promise<WhatsAppConnectionState>;
   connect: () => Promise<WhatsAppConnectionState>;
   disconnect: () => Promise<WhatsAppConnectionState>;
+  resetSession: () => Promise<WhatsAppConnectionState>;
   onConnectionUpdate: (state: WhatsAppConnectionState) => void;
   accentColor?: string;
 }
@@ -42,6 +43,7 @@ export function WhatsAppWebConnect({
   fetchConnection,
   connect,
   disconnect,
+  resetSession,
   onConnectionUpdate,
   accentColor = '#0176d3',
 }: WhatsAppWebConnectProps) {
@@ -142,6 +144,43 @@ export function WhatsAppWebConnect({
     }
   };
 
+  const handleResetSession = async () => {
+    const ok = window.confirm(
+      'Resetar sessão apaga a conexão WhatsApp Web no servidor e gera um novo QR Code.\n\n' +
+        'Use quando o status aparece Conectado mas as mensagens não chegam ao cliente.\n\n' +
+        'Deseja continuar?',
+    );
+    if (!ok) return;
+
+    setLoading(true);
+    setGeneratingQr(true);
+    setError(null);
+    setQrBase64(null);
+    setPairingCode(null);
+    try {
+      const data = await resetSession();
+      onConnectionUpdate(data);
+      if (data.qr_base64) {
+        setQrBase64(data.qr_base64);
+        setGeneratingQr(false);
+      }
+      if (data.pairing_code) {
+        setPairingCode(data.pairing_code);
+        setGeneratingQr(false);
+      }
+      if (data.error) {
+        setError(data.error);
+        setGeneratingQr(false);
+      }
+    } catch (e) {
+      const err = e as { response?: { data?: { error?: string } }; message?: string };
+      setError(err?.response?.data?.error || err?.message || 'Erro ao resetar sessão.');
+      setGeneratingQr(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40 px-4 py-3 space-y-3">
@@ -205,20 +244,37 @@ export function WhatsAppWebConnect({
           </div>
 
           {connectionStatus === 'connected' ? (
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
-                <Smartphone size={18} />
-                Conectado{connectedPhone ? `: ${connectedPhone}` : ''}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+                  <Smartphone size={18} />
+                  Conectado{connectedPhone ? `: ${connectedPhone}` : ''}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleResetSession}
+                    disabled={loading || !evolutionAvailable}
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-amber-400 text-amber-800 dark:border-amber-600 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/30 disabled:opacity-50"
+                  >
+                    {loading ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                    Resetar sessão
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDisconnect}
+                    disabled={loading}
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-red-300 text-red-700 dark:border-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                  >
+                    {loading ? <Loader2 size={14} className="animate-spin" /> : <Unplug size={14} />}
+                    Desconectar
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={handleDisconnect}
-                disabled={loading}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-red-300 text-red-700 dark:border-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
-              >
-                {loading ? <Loader2 size={14} className="animate-spin" /> : <Unplug size={14} />}
-                Desconectar
-              </button>
+              <p className="text-xs text-amber-800 dark:text-amber-200/90">
+                Mensagens não chegam ao cliente com status Conectado? Clique em{' '}
+                <strong>Resetar sessão</strong>, escaneie o novo QR e teste de novo.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -253,16 +309,27 @@ export function WhatsAppWebConnect({
                   Gerando QR Code… aguarde alguns segundos.
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={handleConnect}
-                  disabled={loading || !evolutionAvailable}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg text-white hover:opacity-90 disabled:opacity-50"
-                  style={{ backgroundColor: accentColor }}
-                >
-                  {loading ? <Loader2 size={16} className="animate-spin" /> : <Smartphone size={16} />}
-                  Gerar QR Code
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleConnect}
+                    disabled={loading || !evolutionAvailable}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg text-white hover:opacity-90 disabled:opacity-50"
+                    style={{ backgroundColor: accentColor }}
+                  >
+                    {loading ? <Loader2 size={16} className="animate-spin" /> : <Smartphone size={16} />}
+                    Gerar QR Code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetSession}
+                    disabled={loading || !evolutionAvailable}
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-amber-400 text-amber-800 dark:border-amber-600 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/30 disabled:opacity-50"
+                  >
+                    {loading ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                    Resetar sessão
+                  </button>
+                </div>
               )}
             </div>
           )}

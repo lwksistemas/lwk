@@ -5,7 +5,12 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .connection_service import disconnect_evolution, start_evolution_connection, sync_evolution_connection
+from .connection_service import (
+    disconnect_evolution,
+    reset_evolution_connection,
+    start_evolution_connection,
+    sync_evolution_connection,
+)
 from .evolution_client import EvolutionAPIError
 from .models import WhatsAppConfig
 
@@ -75,6 +80,30 @@ class WhatsAppDisconnectView(WhatsAppConnectionMixin, APIView):
             return Response({'error': 'Contexto de loja não encontrado'}, status=status.HTTP_404_NOT_FOUND)
         try:
             payload = disconnect_evolution(config)
+            return Response(payload)
+        except EvolutionAPIError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+class WhatsAppResetSessionView(WhatsAppConnectionMixin, APIView):
+    """POST — apaga sessão Evolution corrompida e gera novo QR Code."""
+
+    def post(self, request):
+        config = self._get_config(request)
+        if config == 'forbidden':
+            return Response(
+                {'error': 'Sem permissão para configurar WhatsApp desta loja.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if config is None:
+            return Response({'error': 'Contexto de loja não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        if getattr(config, 'whatsapp_provider', WhatsAppConfig.PROVIDER_META) != WhatsAppConfig.PROVIDER_EVOLUTION:
+            return Response(
+                {'error': 'Reset de sessão só se aplica ao WhatsApp Web (QR).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            payload = reset_evolution_connection(config)
             return Response(payload)
         except EvolutionAPIError as exc:
             return Response({'error': str(exc)}, status=status.HTTP_502_BAD_GATEWAY)

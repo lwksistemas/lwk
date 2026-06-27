@@ -4,6 +4,7 @@ from .views_config import (
     LojaWhatsAppConnectView,
     LojaWhatsAppConnectionStatusView,
     LojaWhatsAppDisconnectView,
+    LojaWhatsAppResetSessionView,
     WhatsAppConfigView,
 )
 from .views_evolution_webhook import EvolutionWebhookView
@@ -15,5 +16,6 @@ urlpatterns = [
     path('config/connection/', LojaWhatsAppConnectionStatusView.as_view(), name='whatsapp-connection'),
     path('config/connect/', LojaWhatsAppConnectView.as_view(), name='whatsapp-connect'),
     path('config/disconnect/', LojaWhatsAppDisconnectView.as_view(), name='whatsapp-disconnect'),
+    path('config/reset-session/', LojaWhatsAppResetSessionView.as_view(), name='whatsapp-reset-session'),
     path('evolution/webhook/', EvolutionWebhookView.as_view(), name='evolution-webhook'),
 ]

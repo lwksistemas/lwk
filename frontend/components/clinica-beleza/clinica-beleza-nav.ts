@@ -39,11 +39,6 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Clientes', icon: Users, path: 'clinica-beleza/pacientes' },
   { label: 'Consultas', icon: Stethoscope, path: 'clinica-beleza/consultas' },
   { label: 'Procedimentos', icon: ListChecks, path: 'clinica-beleza/procedimentos' },
-  {
-    label: 'Soroterapia — Procedimentos',
-    icon: ListChecks,
-    path: 'clinica-beleza/soroterapia/procedimentos',
-  },
   { label: 'Protocolos', icon: ClipboardList, path: 'clinica-beleza/protocolos' },
   { label: 'Templates', icon: FileText, path: 'clinica-beleza/templates' },
   { label: 'Estoque', icon: Package, path: 'clinica-beleza/estoque' },

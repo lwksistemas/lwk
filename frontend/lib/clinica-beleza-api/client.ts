@@ -19,11 +19,15 @@ import type {
   NomeAgendaItem,
   ProcedureConvenioPrecoItem,
   ProcedimentoConvenioPrecosMatrix,
-  ProntuarioData,
   RetornoProcedimentoRegraItem,
   RetornoVerificacaoResult,
 } from "./types-entities";
-import type { PacienteFotoItem, PrescricaoMemedItem } from "./types-memed";
+import type { PacienteFotoItem } from "./types-memed";
+import type { MemedApi } from "./client-memed";
+import type { ProntuarioApi } from "./client-prontuario";
+
+const loadMemedApi = () => import("./client-memed").then((m) => m.memedApi);
+const loadProntuarioApi = () => import("./client-prontuario").then((m) => m.prontuarioApi);
 
 export class ClinicaBelezaAPI {
   /** GET que retorna sempre um array (compatível com paginação opcional). */
@@ -305,44 +309,18 @@ export class ClinicaBelezaAPI {
       ClinicaBelezaAPI.post(`/estoque/${id}/movimentar/`, data),
   };
 
-  static memed = {
-    /** Token do prescritor + URL do script da Memed (api-key/secret-key ficam no backend). */
-    token: (params?: { professional?: number; prescritor?: string; uf?: string }) =>
-      ClinicaBelezaAPI.get<{
-        token: string;
-        script_url: string;
-        environment: string;
-        prescritor?: { nome?: string; sobrenome?: string; crm?: string; uf?: string };
-        clinica?: {
-          local_name?: string;
-          address?: string;
-          city?: string;
-          state?: string;
-          phone?: string;
-        };
-      }>('/memed/token/', params as Record<string, string> | undefined),
-
+  static memed: MemedApi = {
+    token: (params) => loadMemedApi().then((m) => m.token(params)),
     timbrado: {
-      get: () => ClinicaBelezaAPI.get('/memed/timbrado/'),
+      get: () => loadMemedApi().then((m) => m.timbrado.get()),
     },
-
-    /** Registra no histórico do paciente uma prescrição emitida na Memed. */
-    salvarPrescricao: (
-      consultaId: number,
-      data: { prescricao_id?: string; resumo?: string; itens?: unknown[]; pdf_url?: string; professional?: number | null },
-    ) => ClinicaBelezaAPI.post(`/consultas/${consultaId}/prescricoes/`, data),
-
-    /** Lista prescrições Memed registradas nesta consulta. */
-    listarPrescricoesConsulta: (consultaId: number) =>
-      ClinicaBelezaAPI.get<PrescricaoMemedItem[]>(`/consultas/${consultaId}/prescricoes/`),
-
-    /** Lista as prescrições registradas para um paciente (histórico). */
-    listarPrescricoesPaciente: (patientId: number) =>
-      ClinicaBelezaAPI.getList<PrescricaoMemedItem>(`/patients/${patientId}/prescricoes/`),
-
-    /** Busca/salva PDF da prescrição na Memed e retorna URL para impressão. */
-    obterPdf: (prescricaoId: number) =>
-      ClinicaBelezaAPI.post<{ pdf_url: string }>(`/prescricoes-memed/${prescricaoId}/pdf/`, {}),
+    salvarPrescricao: (consultaId, data) =>
+      loadMemedApi().then((m) => m.salvarPrescricao(consultaId, data)),
+    listarPrescricoesConsulta: (consultaId) =>
+      loadMemedApi().then((m) => m.listarPrescricoesConsulta(consultaId)),
+    listarPrescricoesPaciente: (patientId) =>
+      loadMemedApi().then((m) => m.listarPrescricoesPaciente(patientId)),
+    obterPdf: (prescricaoId) => loadMemedApi().then((m) => m.obterPdf(prescricaoId)),
   };
 
   static templates = {
@@ -372,15 +350,14 @@ export class ClinicaBelezaAPI {
       ClinicaBelezaAPI.delete(`/consultas/${consultaId}/documentos/${docId}/`),
   };
 
-  static prontuario = {
-    get: (patientId: number, secao?: string) =>
-      ClinicaBelezaAPI.get<ProntuarioData>(`/patients/${patientId}/prontuario/`, secao ? { secao } : undefined),
-    pdfUrl: (patientId: number, secao?: string) => {
+  static prontuario: ProntuarioApi = {
+    get: (patientId, secao) => loadProntuarioApi().then((m) => m.get(patientId, secao)),
+    pdfUrl: (patientId, secao) => {
       const base = getClinicaBelezaBaseUrl();
-      const query = secao ? `?secao=${secao}` : '';
+      const query = secao ? `?secao=${secao}` : "";
       return `${base}/patients/${patientId}/prontuario/pdf/${query}`;
     },
-    documentoPdfUrl: (docId: number) => {
+    documentoPdfUrl: (docId) => {
       const base = getClinicaBelezaBaseUrl();
       return `${base}/documentos/${docId}/pdf/`;
     },

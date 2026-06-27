@@ -5,6 +5,7 @@ import type { PatientQuickOption } from "@/components/clinica-beleza/PatientQuic
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 import {
   ClinicaBelezaAPI,
+  clinicaBelezaFetch,
   type LocalAtendimentoItem,
   type NomeAgendaItem,
 } from "@/lib/clinica-beleza-api";
@@ -21,11 +22,16 @@ const HISTORICO_PAGE_SIZE = 100;
 
 export const clinicaBelezaQueryKeys = {
   professionals: () => ["clinica-beleza", "professionals"] as const,
+  schedulingProfessionals: () => ["clinica-beleza", "professionals", "scheduling"] as const,
   procedures: (categoria?: string) => ["clinica-beleza", "procedures", categoria ?? "all"] as const,
   nomesAgenda: () => ["clinica-beleza", "nomes-agenda"] as const,
   locaisAtendimento: () => ["clinica-beleza", "locais-atendimento"] as const,
   patientSearch: (q: string) => ["clinica-beleza", "patients-search", q] as const,
   historicoPaciente: (patientId: number) => ["clinica-beleza", "historico-paciente", patientId] as const,
+  agendaPatients: () => ["clinica-beleza", "patients", "agenda"] as const,
+  agendaEvents: (professionalId: string) => ["clinica-beleza", "agenda-events", professionalId] as const,
+  agendaBloqueios: (professionalId: string) => ["clinica-beleza", "agenda-bloqueios", professionalId] as const,
+  horariosTrabalho: (professionalId: string) => ["clinica-beleza", "horarios-trabalho", professionalId] as const,
 };
 
 export async function fetchClinicaProfessionals(): Promise<ClinicaProfessionalOption[]> {
@@ -34,6 +40,44 @@ export async function fetchClinicaProfessionals(): Promise<ClinicaProfessionalOp
     page_size: CADASTRO_PAGE_SIZE,
     active: true,
   });
+}
+
+/** Profissionais visíveis na agenda (filtro scheduling=true no backend). */
+export async function fetchClinicaSchedulingProfessionals(): Promise<ClinicaProfessionalOption[]> {
+  return ClinicaBelezaAPI.getList<ClinicaProfessionalOption>("/professionals/", {
+    page: 1,
+    page_size: CADASTRO_PAGE_SIZE,
+    scheduling: true,
+  });
+}
+
+export async function fetchClinicaAgendaPatients() {
+  return ClinicaBelezaAPI.getList("/patients/", {
+    page: 1,
+    page_size: 500,
+    active: true,
+  });
+}
+
+export async function fetchClinicaAgendaEvents(professionalId: string) {
+  const path = professionalId ? `/agenda/?professional=${professionalId}` : "/agenda/";
+  const res = await clinicaBelezaFetch(path);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function fetchClinicaAgendaBloqueios(professionalId: string) {
+  const path = professionalId ? `/bloqueios/?professional=${professionalId}` : "/bloqueios/";
+  const res = await clinicaBelezaFetch(path);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function fetchClinicaHorariosTrabalho(professionalId: string) {
+  if (!professionalId) return [];
+  const res = await clinicaBelezaFetch(`/professionals/${professionalId}/horarios-trabalho/`);
+  if (!res.ok) return [];
+  return res.json();
 }
 
 export async function fetchClinicaProcedures(categoria?: string): Promise<ConsultaFormProcedure[]> {

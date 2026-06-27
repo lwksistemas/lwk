@@ -4,7 +4,6 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
 import { DashboardSkeleton, AgendamentosListSkeleton } from '@/components/ui/Skeleton';
-import GerenciadorConsultas from '@/components/clinica/GerenciadorConsultas';
 import { ModalLoadingFallback, EmptyState, ActionButton, StatCard, AgendamentoCard } from '@/components/dashboard';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useModals } from '@/hooks/useModals';
@@ -33,6 +32,9 @@ const ModalFuncionarios = lazy(() => import('@/components/clinica/modals/ModalFu
 const ConfiguracoesModal = lazy(() => import('@/components/clinica/modals/ConfiguracoesModal').then(m => ({ default: m.ConfiguracoesModal })));
 const ModalConfiguracoes = lazy(() => import('@/components/clinica/modals/ModalConfiguracoes'));
 const ModalFinanceiro = lazy(() => import('@/components/clinica/modals/ModalFinanceiro'));
+
+/** Legado clinica-estetica — carregado só ao abrir Consultas (app `clinica`, não clinica-beleza). */
+const GerenciadorConsultas = lazy(() => import('@/components/clinica/GerenciadorConsultas'));
 
 export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: LojaInfo; onLogout?: () => void }) {
   const router = useRouter();
@@ -147,13 +149,15 @@ export default function DashboardClinicaEstetica({ loja, onLogout }: { loja: Loj
     );
   }
 
-  // Consultas
+  // Consultas (fluxo legado clinica-estetica)
   if (showConsultas) {
     return (
-      <GerenciadorConsultas 
-        loja={loja} 
-        onClose={() => setShowConsultas(false)} 
-      />
+      <Suspense fallback={<DashboardSkeleton />}>
+        <GerenciadorConsultas
+          loja={loja}
+          onClose={() => setShowConsultas(false)}
+        />
+      </Suspense>
     );
   }
 

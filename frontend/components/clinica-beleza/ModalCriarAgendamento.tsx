@@ -405,12 +405,14 @@ export function ModalCriarAgendamento({
       resetAndClose();
       onSuccess();
     } catch (err: unknown) {
+      const apiMsg =
+        err && typeof err === 'object' && 'error' in err && typeof (err as { error?: unknown }).error === 'string'
+          ? (err as { error: string }).error
+          : null;
       setCreateError(
-        err instanceof Error
-          ? err.message
-          : isConsulta
-            ? "Erro ao abrir consulta"
-            : "Erro ao criar agendamento",
+        apiMsg
+          || (err instanceof Error ? err.message : null)
+          || (isConsulta ? 'Erro ao abrir consulta' : 'Erro ao criar agendamento'),
       );
     } finally {
       setCreateLoading(false);

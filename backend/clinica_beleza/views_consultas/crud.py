@@ -54,9 +54,9 @@ class ConsultaListView(APIView):
         professional_id = request.data.get('professional')
         procedure_id = request.data.get('procedure')
         procedures_ids = request.data.get('procedures_ids') or []
-        if not patient_id or not professional_id:
+        if not patient_id:
             return Response(
-                {'error': 'Informe cliente e profissional.'},
+                {'error': 'Informe o paciente.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if not procedures_ids and not procedure_id:
@@ -80,10 +80,12 @@ class ConsultaListView(APIView):
         if patient.loja_id != loja_id:
             return Response({'error': 'Paciente não pertence a esta loja.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            professional = Professional.objects.get(pk=professional_id)
-        except Professional.DoesNotExist:
-            return Response({'error': 'Profissional não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        professional = None
+        if professional_id:
+            try:
+                professional = Professional.objects.get(pk=professional_id)
+            except Professional.DoesNotExist:
+                return Response({'error': 'Profissional não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         iniciar = request.data.get('iniciar', False)
         local_atendimento_id = request.data.get('local_atendimento')

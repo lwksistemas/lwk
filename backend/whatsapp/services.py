@@ -3,6 +3,7 @@ Serviço de envio WhatsApp (Meta Cloud API ou Evolution WhatsApp Web) e template
 """
 import re
 import logging
+import uuid
 import requests
 from django.conf import settings
 
@@ -168,14 +169,6 @@ def _evolution_ready(config):
         return False, None
     if config.whatsapp_connection_status != WhatsAppConfig.CONNECTION_CONNECTED:
         return False, 'WhatsApp Web não está conectado. Escaneie o QR Code em Configurações → WhatsApp.'
-    try:
-        from .connection_service import sync_evolution_connection
-
-        sync_evolution_connection(config, fetch_qr=False)
-    except Exception as exc:
-        logger.warning('Evolution sync antes do envio loja_id=%s: %s', _config_loja_id(config), exc)
-    if config.whatsapp_connection_status != WhatsAppConfig.CONNECTION_CONNECTED:
-        return False, 'WhatsApp Web não está conectado. Escaneie o QR Code em Configurações → WhatsApp.'
     instance = (getattr(config, 'evolution_instance_name', None) or '').strip()
     if not instance:
         from .evolution_client import evolution_instance_name
@@ -330,8 +323,7 @@ def _validate_whatsapp_send(telefone, mensagem, user=None, config=None, *, log_l
         return False, 'WhatsApp não está ativo. Configure em Configurações → WhatsApp.'
 
     if config and _get_provider(config) == WhatsAppConfig.PROVIDER_EVOLUTION:
-        ok_evo, err_evo = _evolution_ready(config)
-        if not ok_evo:
+        if config.whatsapp_connection_status != WhatsAppConfig.CONNECTION_CONNECTED:
             _write_whatsapp_log(
                 loja_id=loja_id,
                 telefone=phone or telefone,
@@ -340,7 +332,7 @@ def _validate_whatsapp_send(telefone, mensagem, user=None, config=None, *, log_l
                 response={'error': 'evolution_not_connected'},
                 user=user,
             )
-            return False, err_evo
+            return False, 'WhatsApp Web não está conectado. Escaneie o QR Code em Configurações → WhatsApp.'
 
     if config and _get_provider(config) != WhatsAppConfig.PROVIDER_EVOLUTION:
         _, _, _, cred_err = _resolve_whatsapp_credentials(config)
@@ -382,7 +374,7 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
         user_id = getattr(user, 'pk', None) if user else None
         phone = _normalize_phone(telefone) or telefone
         enqueue_task(
-            f'wa-doc-{loja_id}-{str(phone)[-6:]}',
+            f'wa-doc-{loja_id}-{str(phone)[-6:]}-{uuid.uuid4().hex[:8]}',
             'whatsapp.queue_tasks.run_send_whatsapp_document',
             telefone,
             document_url,
@@ -475,7 +467,7 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
         user_id = getattr(user, 'pk', None) if user else None
         phone = _normalize_phone(telefone) or telefone
         enqueue_task(
-            f'wa-text-{loja_id}-{str(phone)[-6:]}',
+            f'wa-text-{loja_id}-{str(phone)[-6:]}-{uuid.uuid4().hex[:8]}',
             'whatsapp.queue_tasks.run_send_whatsapp',
             telefone,
             mensagem,
@@ -677,8 +669,13 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
         link = url_confirmacao_frontend(token)
 
     msg = msg_confirmacao(agendamento, link_confirmacao=link, config=config)
-    # Sempre texto com link (Meta ou Evolution). Botões Evolution não incluíam o link.
-    return send_whatsapp(telefone=phone, mensagem=msg, user=user, config=config)
+    from .sync_context import whatsapp_sync_only
+
+    token = whatsapp_sync_only.set(True)
+    try:
+        return send_whatsapp(telefone=phone, mensagem=msg, user=user, config=config)
+    finally:
+        whatsapp_sync_only.reset(token)
 
 
 def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, config=None):

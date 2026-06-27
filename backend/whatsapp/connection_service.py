@@ -24,12 +24,24 @@ from .models import WhatsAppConfig
 
 logger = logging.getLogger(__name__)
 
+_webhooks_configured: set[str] = set()
+
+
+def _invalidate_evolution_webhook_cache(instance_name=None):
+    if instance_name:
+        _webhooks_configured.discard(instance_name)
+    else:
+        _webhooks_configured.clear()
+
 
 def _ensure_evolution_webhook(instance_name):
-    """Registra webhook LWK na instância Evolution (best-effort)."""
+    """Registra webhook LWK na instância Evolution (best-effort, uma vez por processo)."""
+    if instance_name in _webhooks_configured:
+        return
     try:
         from .evolution_client import set_instance_webhook
         set_instance_webhook(instance_name)
+        _webhooks_configured.add(instance_name)
         logger.info('Evolution webhook configurado para %s', instance_name)
     except Exception as exc:
         logger.warning('Evolution webhook %s: %s', instance_name, exc)
@@ -158,6 +170,7 @@ def start_evolution_connection(config):
         )
 
     instance_name = ensure_evolution_instance_name(config)
+    _invalidate_evolution_webhook_cache(instance_name)
     config.whatsapp_provider = WhatsAppConfig.PROVIDER_EVOLUTION
     config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_QR_PENDING
     config.whatsapp_connected_phone = ''
@@ -193,6 +206,7 @@ def start_evolution_connection(config):
 
 def disconnect_evolution(config):
     instance_name = ensure_evolution_instance_name(config)
+    _invalidate_evolution_webhook_cache(instance_name)
     try:
         logout_instance(instance_name)
     except EvolutionAPIError as exc:

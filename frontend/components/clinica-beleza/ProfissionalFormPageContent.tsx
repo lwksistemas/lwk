@@ -14,6 +14,8 @@ import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-bele
 import { ClinicaBelezaAPI, ConvenioItem, LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
 import { formatTelefone, formatCpf, telefoneInternacionalBr, toUpperCase } from "@/lib/format-br";
 import { formatProfissionalApiErrors } from "@/lib/clinica-beleza-form-errors";
+import { isBrowserOffline } from "@/lib/clinica-beleza-offline";
+import { adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
 import { logger } from "@/lib/logger";
 
 type PerfilAcesso = "administrador" | "profissional" | "recepcao" | "recepcionista" | "caixa" | "limpeza" | "estoque";
@@ -253,6 +255,33 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
       body.criar_acesso = true;
       body.perfil = form.perfil;
       body.username = form.username.trim();
+    }
+
+    if (isBrowserOffline()) {
+      try {
+        const lojaSlug = getLojaSlug();
+        if (editId) {
+          await adicionarNaFilaSync({
+            tipo: "profissional",
+            payload: { action: "update", id: Number(editId), body },
+            lojaSlug,
+          });
+        } else {
+          await adicionarNaFilaSync({
+            tipo: "profissional",
+            payload: { action: "create", body },
+            lojaSlug,
+          });
+        }
+        alert("Salvo offline. O profissional será sincronizado quando você estiver online.");
+        onDone();
+        return;
+      } catch (e) {
+        logger.warn("Erro ao salvar profissional offline:", e);
+        setError("Erro ao salvar localmente. Tente novamente.");
+        setSaving(false);
+        return;
+      }
     }
 
     try {

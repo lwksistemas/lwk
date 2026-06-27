@@ -205,6 +205,43 @@ class MemedTokenView(APIView):
         return (default_id or '').strip()
 
 
+class MemedStatusView(APIView):
+    """
+    GET /clinica-beleza/memed/status/
+    Diagnóstico: ambiente, credenciais e timbrado (sem expor secrets).
+    """
+    permission_classes = CLINICA_CLINICAL
+
+    def get(self, request):
+        from .models import MemedTimbrado, Professional
+
+        env, endpoints = _memed_config()
+        api_key, secret_key = _memed_credentials(env)
+        timbrado = MemedTimbrado.objects.first()
+        profs_cpf = Professional.objects.filter(is_active=True).exclude(cpf__isnull=True).exclude(cpf='')
+        profs_com_cpf = sum(
+            1 for p in profs_cpf if len(''.join(ch for ch in (p.cpf or '') if ch.isdigit())) == 11
+        )
+
+        prod_keys = bool(
+            getattr(settings, 'MEMED_API_KEY_PROD', '') and getattr(settings, 'MEMED_SECRET_KEY_PROD', '')
+        )
+
+        return Response({
+            'environment': env,
+            'api_base': endpoints['api'],
+            'credentials_configured': bool(api_key and secret_key),
+            'production_keys_configured': prod_keys,
+            'timbrado': {
+                'tem_timbrado': bool(timbrado and timbrado.pdf),
+                'pdf_nome': timbrado.pdf_nome if timbrado else None,
+                'updated_at': timbrado.updated_at.isoformat() if timbrado and timbrado.updated_at else None,
+            },
+            'profissionais_com_cpf': profs_com_cpf,
+            'ready_for_production': env == 'production' and bool(api_key and secret_key) and profs_com_cpf > 0,
+        })
+
+
 class MemedTimbradoView(APIView):
     """
     Timbrado A4 (PDF) para receituário e exames na Memed — por loja.

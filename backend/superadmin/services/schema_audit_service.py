@@ -66,6 +66,7 @@ ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
         'ensure_paciente_fotos_table',
         'ensure_patient_foto_url',
         'ensure_estoque_catalogo',
+        'ensure_crm_config_colunas',
     ],
     'crm-vendas': [
         'ensure_crm_config_colunas',

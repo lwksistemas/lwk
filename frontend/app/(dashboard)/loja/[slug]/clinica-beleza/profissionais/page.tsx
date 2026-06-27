@@ -11,6 +11,7 @@ import { ModalHorariosTrabalho } from '@/components/clinica-beleza/ModalHorarios
 import { ModalTempoConsulta } from '@/components/clinica-beleza/ModalTempoConsulta';
 import { ClinicaBelezaAPI } from '@/lib/clinica-beleza-api';
 import { ProfissionalFormPageContent } from '@/components/clinica-beleza/ProfissionalFormPageContent';
+import { AdminProfissionalToggle } from '@/components/clinica-beleza/AdminProfissionalToggle';
 import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from '@/lib/clinica-beleza-crud';
 import { useClinicaBelezaFormRouting } from '@/hooks/clinica-beleza/useClinicaBelezaFormRouting';
 import {
@@ -89,6 +90,7 @@ export default function ProfissionaisPage() {
         onNew={abrirNovo}
       />
       <ClinicaBelezaPageContent>
+        <AdminProfissionalToggle onToggled={load} />
         {loading ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>
         ) : (

@@ -38,9 +38,10 @@ BACKUP_TABLE_PREFIX_BLACKLIST = (
 # Quando o backup usa schema PUBLIC: só exportar tabelas cujo prefixo pertence ao tipo de app da loja.
 # Evita incluir cabeleireiro_*, clinica_beleza_*, crm_*, etc. no backup de uma clínica de estética.
 BACKUP_TIPO_APP_TABLE_PREFIXES = {
-    'clinica-de-estetica': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_'),
-    'clinica-estetica': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_'),
-    'clinica-da-beleza': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_'),
+    'clinica-de-estetica': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_', 'crm_vendas_', 'nfse_integration_'),
+    'clinica-estetica': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_', 'crm_vendas_', 'nfse_integration_'),
+    'clinica-da-beleza': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_', 'crm_vendas_', 'nfse_integration_'),
+    'clinica-beleza': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_', 'crm_vendas_', 'nfse_integration_'),
     'e-commerce': ('stores_', 'products_', 'ecommerce_'),
     'restaurante': ('stores_', 'products_', 'restaurante_'),
     'servicos': ('stores_', 'products_', 'servicos_'),

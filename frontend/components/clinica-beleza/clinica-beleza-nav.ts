@@ -13,6 +13,8 @@ import {
   Settings,
   Headphones,
   FileText,
+  Handshake,
+  Layers,
 } from 'lucide-react';
 
 /** Cor principal do app (mockup Beleza & Vitalidade) */
@@ -37,9 +39,18 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: 'dashboard' },
   { label: 'Agenda', icon: CalendarDays, path: 'agenda' },
   { label: 'Clientes', icon: Users, path: 'clinica-beleza/pacientes' },
+  { label: 'Convênios', icon: Handshake, path: 'clinica-beleza/convenios' },
   { label: 'Consultas', icon: Stethoscope, path: 'clinica-beleza/consultas' },
   { label: 'Procedimentos', icon: ListChecks, path: 'clinica-beleza/procedimentos' },
   { label: 'Protocolos', icon: ClipboardList, path: 'clinica-beleza/protocolos' },
+  {
+    label: 'Módulos',
+    icon: Layers,
+    children: [
+      { label: 'Estética', path: 'clinica-beleza/estetica/procedimentos' },
+      { label: 'Soroterapia', path: 'clinica-beleza/soroterapia/procedimentos' },
+    ],
+  },
   { label: 'Templates', icon: FileText, path: 'clinica-beleza/templates' },
   { label: 'Estoque', icon: Package, path: 'clinica-beleza/estoque' },
   { label: 'Financeiro', icon: DollarSign, path: 'clinica-beleza/financeiro' },

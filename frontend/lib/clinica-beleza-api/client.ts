@@ -266,6 +266,9 @@ export class ClinicaBelezaAPI {
       save: (id: number, data: unknown) =>
         ClinicaBelezaAPI.put(`/professionals/${id}/horarios-trabalho/`, data),
     },
+    adminStatus: () => ClinicaBelezaAPI.get<{ is_enabled: boolean; professional_id: number | null }>('/professionals/admin-status/'),
+    toggleAdmin: (enable: boolean) =>
+      ClinicaBelezaAPI.post('/professionals/toggle-admin/', { enable }),
   };
 
   static loja = {

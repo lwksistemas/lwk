@@ -45,6 +45,16 @@ export const memedApi = {
     get: () => apiGet("/memed/timbrado/"),
   },
 
+  status: () =>
+    apiGet<{
+      environment: string;
+      credentials_configured: boolean;
+      production_keys_configured: boolean;
+      timbrado: { tem_timbrado: boolean; pdf_nome?: string | null };
+      profissionais_com_cpf: number;
+      ready_for_production: boolean;
+    }>("/memed/status/"),
+
   salvarPrescricao: (
     consultaId: number,
     data: {

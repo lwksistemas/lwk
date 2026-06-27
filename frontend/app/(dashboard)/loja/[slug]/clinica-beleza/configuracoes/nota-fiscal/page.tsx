@@ -22,7 +22,11 @@ export default function ClinicaBelezaNotaFiscalPage() {
           <ArrowLeft size={16} style={{ color: CLINICA_BELEZA_PRIMARY }} />
           Voltar às configurações
         </Link>
-        <ConfiguracaoNotaFiscalPage />
+        <ConfiguracaoNotaFiscalPage
+          configBackHref={base}
+          descricaoServicoPadrao="Serviços de estética, saúde e bem-estar"
+          codigoServicoPadrao="0601"
+        />
       </ClinicaBelezaPageContent>
     </CRMConfigProvider>
   );

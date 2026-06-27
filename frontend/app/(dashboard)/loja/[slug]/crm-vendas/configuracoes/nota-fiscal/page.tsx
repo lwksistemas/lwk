@@ -8,11 +8,21 @@ import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { FileText, Upload, AlertCircle, CheckCircle2, Info, Loader2, ArrowLeft } from 'lucide-react';
 
-export default function ConfiguracaoNotaFiscalPage() {
+type ConfiguracaoNotaFiscalPageProps = {
+  configBackHref?: string;
+  descricaoServicoPadrao?: string;
+  codigoServicoPadrao?: string;
+};
+
+export default function ConfiguracaoNotaFiscalPage({
+  configBackHref,
+  descricaoServicoPadrao = 'Desenvolvimento e licenciamento de software sob demanda',
+  codigoServicoPadrao = '1401',
+}: ConfiguracaoNotaFiscalPageProps = {}) {
   const router = useRouter();
   const params = useParams();
   const lojaSlug = typeof params?.slug === 'string' ? params.slug : '';
-  const configBase = `/loja/${lojaSlug}/crm-vendas/configuracoes`;
+  const configBase = configBackHref ?? `/loja/${lojaSlug}/crm-vendas/configuracoes`;
   const { config, recarregar } = useCRMConfig();
   
   const [loading, setLoading] = useState(false);
@@ -23,8 +33,8 @@ export default function ConfiguracaoNotaFiscalPage() {
     issnet_usuario: '',
     issnet_senha: '',
     issnet_senha_certificado: '',
-    codigo_servico_municipal: '1401',
-    descricao_servico_padrao: 'Desenvolvimento e licenciamento de software sob demanda',
+    codigo_servico_municipal: codigoServicoPadrao,
+    descricao_servico_padrao: descricaoServicoPadrao,
     aliquota_iss: '2.00',
     inscricao_municipal: '',
     codigo_cnae: '',
@@ -53,8 +63,8 @@ export default function ConfiguracaoNotaFiscalPage() {
         issnet_usuario: config.issnet_usuario || '',
         issnet_senha: '',
         issnet_senha_certificado: '',
-        codigo_servico_municipal: config.codigo_servico_municipal || '1401',
-        descricao_servico_padrao: config.descricao_servico_padrao || 'Desenvolvimento e licenciamento de software sob demanda',
+        codigo_servico_municipal: config.codigo_servico_municipal || codigoServicoPadrao,
+        descricao_servico_padrao: config.descricao_servico_padrao || descricaoServicoPadrao,
         aliquota_iss: config.aliquota_iss || '2.00',
         inscricao_municipal: config.inscricao_municipal || '',
         codigo_cnae: config.codigo_cnae || '',
@@ -76,7 +86,7 @@ export default function ConfiguracaoNotaFiscalPage() {
         emitir_nf_automaticamente: config.emitir_nf_automaticamente ?? true,
       });
     }
-  }, [config]);
+  }, [config, codigoServicoPadrao, descricaoServicoPadrao]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

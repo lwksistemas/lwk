@@ -32,6 +32,20 @@ def _campanha_to_dict(c):
     }
 
 
+def _validar_campanha_para_envio(campanha: CampanhaPromocao) -> str | None:
+    """Retorna mensagem de erro ou None se OK para enviar."""
+    hoje = timezone.localdate()
+    if not campanha.ativa:
+        return 'Campanha está inativa. Ative-a antes de enviar.'
+    if campanha.data_inicio and hoje < campanha.data_inicio:
+        return f'Campanha só pode ser enviada a partir de {campanha.data_inicio.strftime("%d/%m/%Y")}.'
+    if campanha.data_fim and hoje > campanha.data_fim:
+        return f'Campanha expirou em {campanha.data_fim.strftime("%d/%m/%Y")}.'
+    if not (campanha.mensagem or '').strip():
+        return 'Mensagem da campanha está vazia.'
+    return None
+
+
 class CampanhaPromocaoListView(APIView):
     """GET /clinica-beleza/campanhas/  POST /clinica-beleza/campanhas/"""
     permission_classes = CLINICA_ADMIN
@@ -107,6 +121,10 @@ class CampanhaPromocaoEnviarView(APIView):
         except CampanhaPromocao.DoesNotExist:
             return Response({'error': 'Campanha não encontrada'}, status=status.HTTP_404_NOT_FOUND)
 
+        erro_validacao = _validar_campanha_para_envio(campanha)
+        if erro_validacao:
+            return Response({'error': erro_validacao}, status=status.HTTP_400_BAD_REQUEST)
+
         config, _ = LojaContextHelper.get_whatsapp_config(request=request)
         if not config or not getattr(config, 'whatsapp_ativo', False):
             return Response({'error': 'WhatsApp não está ativo. Configure em Configurações.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -117,6 +135,18 @@ class CampanhaPromocaoEnviarView(APIView):
         pacientes = Patient.objects.filter(
             is_active=True, allow_whatsapp=True
         ).exclude(telefone__isnull=True).exclude(telefone='')
+
+        # Segmentação opcional: { "patient_ids": [1, 2, 3] }
+        raw_ids = request.data.get('patient_ids') if hasattr(request, 'data') else None
+        if raw_ids:
+            try:
+                ids = [int(x) for x in raw_ids if x is not None]
+            except (TypeError, ValueError):
+                return Response({'error': 'patient_ids inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+            if ids:
+                pacientes = pacientes.filter(id__in=ids)
+            if not pacientes.exists():
+                return Response({'error': 'Nenhum paciente elegível na segmentação informada.'}, status=status.HTTP_400_BAD_REQUEST)
 
         enviados = 0
         for p in pacientes:

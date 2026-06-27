@@ -48,6 +48,7 @@ ENSURES = [
     ('ensure_whatsapp_evolution_fields', {}),
     ('ensure_canal_assinatura_vendedor', {}),
     ('ensure_assinatura_link_enviado_em', {}),
+    ('ensure_nfse_tenant_clinica_beleza', {}),
     ('ensure_suporte_schema', {}),
     ('verificar_storage_lojas', {}),
 ]

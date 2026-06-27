@@ -48,13 +48,24 @@ export default function ClinicaBelezaConfiguracoesMemedPage() {
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [msg, setMsg] = useState('');
   const [erro, setErro] = useState('');
+  const [memedDiag, setMemedDiag] = useState<{
+    environment?: string;
+    credentials_configured?: boolean;
+    production_keys_configured?: boolean;
+    profissionais_com_cpf?: number;
+    ready_for_production?: boolean;
+  } | null>(null);
 
   const carregar = async () => {
     setLoading(true);
     setErro('');
     try {
-      const data = await ClinicaBelezaAPI.memed.timbrado.get();
-      setStatus(data as TimbradoStatus);
+      const [timbradoData, statusData] = await Promise.all([
+        ClinicaBelezaAPI.memed.timbrado.get(),
+        ClinicaBelezaAPI.memed.status().catch(() => null),
+      ]);
+      setStatus(timbradoData as TimbradoStatus);
+      if (statusData) setMemedDiag(statusData);
     } catch {
       setErro('Não foi possível carregar o timbrado.');
     } finally {
@@ -134,6 +145,30 @@ export default function ClinicaBelezaConfiguracoesMemedPage() {
         backHref={base}
       />
       <ClinicaBelezaPageContent className="max-w-2xl space-y-6">
+        {memedDiag && (
+          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 text-sm space-y-1">
+            <p className="font-medium text-gray-900 dark:text-white">Status da integração Memed</p>
+            <p className="text-gray-600 dark:text-gray-400">
+              Ambiente: <strong>{memedDiag.environment === 'production' ? 'Produção' : 'Homologação'}</strong>
+            </p>
+            <p className="text-gray-600 dark:text-gray-400">
+              Credenciais no servidor: {memedDiag.credentials_configured ? 'OK' : 'Pendente'}
+              {memedDiag.environment === 'production' && !memedDiag.production_keys_configured && (
+                <span className="text-amber-600"> — configure MEMED_*_PROD no Railway</span>
+              )}
+            </p>
+            <p className="text-gray-600 dark:text-gray-400">
+              Profissionais com CPF (prescrição): {memedDiag.profissionais_com_cpf ?? 0}
+            </p>
+            {memedDiag.ready_for_production ? (
+              <p className="text-green-700 dark:text-green-400">Pronto para prescrição em produção.</p>
+            ) : (
+              <p className="text-amber-700 dark:text-amber-400">
+                Complete credenciais, CPF dos prescritores e timbrado antes de ir a produção.
+              </p>
+            )}
+          </div>
+        )}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
           <div className="flex items-start gap-3">
             <div className="p-2.5 rounded-lg text-white" style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}>

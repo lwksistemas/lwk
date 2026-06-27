@@ -31,7 +31,8 @@ from .views_estoque import (
     MovimentacaoEstoqueView, EstoqueResumoView, EstoqueImportarXmlView,
 )
 from .views_protocolos import ProtocolListView, ProtocolDetailView
-from .views_memed import MemedTokenView, MemedTimbradoView
+from .views_memed import MemedTokenView, MemedTimbradoView, MemedStatusView
+from .views_admin_professional import AdminProfessionalStatusView, AdminProfessionalToggleView
 from .views_documentos import (
     DocumentTemplateListView, DocumentTemplateDetailView,
     ConsultaDocumentoListView, ConsultaDocumentoDeleteView,
@@ -136,10 +137,13 @@ urlpatterns = [
 
     # Memed — prescrição digital (receituário e exames)
     path('memed/token/', MemedTokenView.as_view(), name='memed-token'),
+    path('memed/status/', MemedStatusView.as_view(), name='memed-status'),
     path('memed/timbrado/', MemedTimbradoView.as_view(), name='memed-timbrado'),
     
     # Profissionais
     path('professionals/', ProfessionalListView.as_view(), name='professionals-list'),
+    path('professionals/admin-status/', AdminProfessionalStatusView.as_view(), name='professionals-admin-status'),
+    path('professionals/toggle-admin/', AdminProfessionalToggleView.as_view(), name='professionals-toggle-admin'),
     path('professionals/<int:pk>/', ProfessionalDetailView.as_view(), name='professionals-detail'),
     path('professionals/<int:pk>/horarios-trabalho/', HorarioTrabalhoProfissionalView.as_view(), name='horarios-trabalho'),
     path('professionals/<int:pk>/comissoes/', ProfessionalCommissionView.as_view(), name='professional-comissoes'),

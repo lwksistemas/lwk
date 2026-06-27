@@ -65,7 +65,13 @@ def enviar_whatsapp_link_assinatura(
         f'Link válido por {TOKEN_EXPIRACAO_DIAS} dias.'
     )
 
-    ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, user=user, config=config)
+    from .sync_context import whatsapp_sync_only
+
+    token = whatsapp_sync_only.set(True)
+    try:
+        ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, user=user, config=config)
+    finally:
+        whatsapp_sync_only.reset(token)
     if ok:
         logger.info(
             'WhatsApp assinatura enviado: modulo=%s doc=%s telefone=***',

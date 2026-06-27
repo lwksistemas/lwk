@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Trash2, X } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { ClinicaBelezaPortraitModal } from "@/components/clinica-beleza/ClinicaBelezaPortraitModal";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
 import {
@@ -119,118 +120,15 @@ export function NovoConvenioModal({ open, onClose, onSuccess }: NovoConvenioModa
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-md sm:max-w-4xl sm:w-[calc(100vw-2rem)] max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-neutral-700 shrink-0">
-          <div>
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">Convênios</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Gerencie os convênios aceitos pela clínica
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            disabled={salvando}
-            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-500 disabled:opacity-40"
-            aria-label="Fechar"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
-          {erro && (
-            <div className="mb-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
-              {erro}
-            </div>
-          )}
-
-          {isCreating && (
-            <div className="mb-4 p-4 rounded-lg border-2 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Novo convênio</p>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Nome do convênio *
-              </label>
-              <input
-                type="text"
-                value={nome}
-                onChange={(e) => setNome(toUpperCase(e.target.value))}
-                placeholder="Ex.: Unimed, Santa Casa..."
-                autoFocus
-                className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg dark:bg-neutral-700 mb-3"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                Os valores praticados por convênio são definidos na página de Procedimentos.
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={criarConvenio}
-                  disabled={salvando || !nome.trim()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-sm font-medium disabled:opacity-50"
-                  style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-                >
-                  {salvando ? <Loader2 size={14} className="animate-spin" /> : null}
-                  {salvando ? "Criando..." : "Criar convênio"}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  disabled={salvando}
-                  className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          )}
-
-          {loading ? (
-            <div className="text-center py-8 text-gray-500">
-              <Loader2 size={24} className="animate-spin mx-auto mb-2" />
-              Carregando...
-            </div>
-          ) : (
-            <ul className="space-y-2 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-3 sm:space-y-0">
-              {listaExibida.map((c) => {
-                const padrao = isConvenioParticularNome(c.nome);
-                const sintetico = c.id === 0;
-                return (
-                  <li
-                    key={sintetico ? "particular-sistema" : c.id}
-                    className="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50 dark:bg-neutral-800"
-                  >
-                    <div className="min-w-0">
-                      <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{c.nome}</span>
-                      {padrao && (
-                        <span className="ml-2 text-xs font-normal px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
-                          Padrão
-                        </span>
-                      )}
-                    </div>
-                    {!padrao && !sintetico && (
-                      <button
-                        type="button"
-                        onClick={() => excluirConvenio(c)}
-                        disabled={salvando || isCreating}
-                        className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40 shrink-0"
-                        title="Excluir convênio"
-                      >
-                        <Trash2 size={14} className="text-red-500" />
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-neutral-700 flex justify-between shrink-0">
+    <ClinicaBelezaPortraitModal
+      open={open}
+      onClose={handleClose}
+      closeDisabled={salvando}
+      title="Convênios"
+      subtitle="Gerencie os convênios aceitos pela clínica"
+      footer={
+        <div className="flex justify-between gap-2">
           {!isCreating && (
             <button
               type="button"
@@ -255,7 +153,93 @@ export function NovoConvenioModal({ open, onClose, onSuccess }: NovoConvenioModa
             Fechar
           </button>
         </div>
-      </div>
-    </div>
+      }
+    >
+      {erro && (
+        <div className="mb-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+          {erro}
+        </div>
+      )}
+
+      {isCreating && (
+        <div className="mb-4 p-3 rounded-lg border-2 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10">
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Novo convênio</p>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Nome do convênio *
+          </label>
+          <input
+            type="text"
+            value={nome}
+            onChange={(e) => setNome(toUpperCase(e.target.value))}
+            placeholder="Ex.: Unimed, Santa Casa..."
+            autoFocus
+            className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg dark:bg-neutral-700 mb-3"
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            Os valores praticados por convênio são definidos na página de Procedimentos.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={criarConvenio}
+              disabled={salvando || !nome.trim()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            >
+              {salvando ? <Loader2 size={14} className="animate-spin" /> : null}
+              {salvando ? "Criando..." : "Criar convênio"}
+            </button>
+            <button
+              type="button"
+              onClick={resetForm}
+              disabled={salvando}
+              className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center py-8 text-gray-500">
+          <Loader2 size={24} className="animate-spin mx-auto mb-2" />
+          Carregando...
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {listaExibida.map((c) => {
+            const padrao = isConvenioParticularNome(c.nome);
+            const sintetico = c.id === 0;
+            return (
+              <li
+                key={sintetico ? "particular-sistema" : c.id}
+                className="flex items-center justify-between gap-2 p-3 rounded-lg bg-gray-50 dark:bg-neutral-800"
+              >
+                <div className="min-w-0">
+                  <span className="font-medium text-sm text-gray-900 dark:text-gray-100 break-words">{c.nome}</span>
+                  {padrao && (
+                    <span className="ml-1.5 text-xs font-normal px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 whitespace-nowrap">
+                      Padrão
+                    </span>
+                  )}
+                </div>
+                {!padrao && !sintetico && (
+                  <button
+                    type="button"
+                    onClick={() => excluirConvenio(c)}
+                    disabled={salvando || isCreating}
+                    className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40 shrink-0"
+                    title="Excluir convênio"
+                  >
+                    <Trash2 size={14} className="text-red-500" />
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </ClinicaBelezaPortraitModal>
   );
 }

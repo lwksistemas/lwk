@@ -137,7 +137,7 @@ export default function AgendaPage() {
     };
     const onScroll = (e: Event) => {
       const el = e.target as HTMLElement | null;
-      if (el?.closest?.(".fc-scroller")) markScrolling();
+      if (el?.closest?.(".fc-scroller") || el?.closest?.(".fc-agenda-calendar-root")) markScrolling();
     };
     document.addEventListener("scroll", onScroll, true);
     return () => {
@@ -353,12 +353,12 @@ export default function AgendaPage() {
       />
 
       <div className="flex flex-col flex-1 min-h-0 p-3 sm:p-4 lg:p-6">
-        <div className="flex flex-col flex-1 min-h-[420px] sm:min-h-[480px] bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
           <div
-            className={`flex flex-col flex-1 min-h-0 p-2 sm:p-3 ${
-              modoAgenda === "grade" ? "fc-agenda-calendar-root overflow-hidden" : "overflow-y-auto overscroll-contain"
+            className={`flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain ${
+              modoAgenda === "grade" ? "fc-agenda-calendar-root" : ""
             }`}
-            style={modoAgenda === "grade" ? { WebkitOverflowScrolling: "touch" } : undefined}
+            style={{ WebkitOverflowScrolling: "touch" }}
           >
             {modoAgenda === "lista" ? (
               <AgendaListaColunas eventos={eventos} onAbrir={abrirEventoDaLista} />
@@ -381,7 +381,7 @@ export default function AgendaPage() {
                 eventResize={(info) => { void redimensionarEvento(info); }}
                 eventClick={handleEventClick}
                 dateClick={handleDateClick}
-                height="100%"
+                height="auto"
                 headerToolbar={
                   isMobile
                     ? { left: "prev,next", center: "title", right: "today" }

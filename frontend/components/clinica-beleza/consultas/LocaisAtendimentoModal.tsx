@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, X, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { ClinicaBelezaPortraitModal } from "@/components/clinica-beleza/ClinicaBelezaPortraitModal";
 import { ClinicaBelezaAPI, type LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 
@@ -85,7 +86,7 @@ function LocalFormFields({
           className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
         />
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={onSave}
@@ -222,143 +223,16 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
     return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   };
 
-  if (!open) return null;
-
   const formBusy = isCreating || editingId !== null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-md sm:max-w-4xl sm:w-[calc(100vw-2rem)] max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-neutral-700 shrink-0">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Locais de Atendimento
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800"
-            aria-label="Fechar"
-          >
-            <X size={20} className="text-gray-500" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
-          {error && (
-            <div className="mb-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
-              {error}
-            </div>
-          )}
-
-          {isCreating && (
-            <div className="mb-4 p-4 rounded-lg border-2 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Novo local</p>
-              <LocalFormFields
-                formNome={formNome}
-                formValor={formValor}
-                onNomeChange={setFormNome}
-                onValorChange={setFormValor}
-                onSave={handleSave}
-                onCancel={resetForm}
-                saving={saving}
-                saveLabel="Adicionar"
-              />
-            </div>
-          )}
-
-          {loading ? (
-            <div className="text-center py-8 text-gray-500">
-              <Loader2 size={24} className="animate-spin mx-auto mb-2" />
-              Carregando...
-            </div>
-          ) : locais.length === 0 && !isCreating ? (
-            <p className="text-center text-gray-500 dark:text-gray-400 text-sm py-8">
-              Nenhum local cadastrado.
-            </p>
-          ) : (
-            <ul className="space-y-2 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-3 sm:space-y-0">
-              {locais.map((local) => (
-                <li
-                  key={local.id}
-                  className={`p-3 rounded-lg ${
-                    editingId === local.id
-                      ? "border-2 border-purple-300 dark:border-purple-700 bg-purple-50/40 dark:bg-purple-900/10"
-                      : "bg-gray-50 dark:bg-neutral-800"
-                  }`}
-                >
-                  {editingId === local.id ? (
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                        Editando: {local.nome}
-                      </p>
-                      <LocalFormFields
-                        formNome={formNome}
-                        formValor={formValor}
-                        onNomeChange={setFormNome}
-                        onValorChange={setFormValor}
-                        onSave={handleSave}
-                        onCancel={resetForm}
-                        saving={saving}
-                        saveLabel="Salvar"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">
-                          {local.nome}
-                        </span>
-                        {local.is_padrao && (
-                          <span className="ml-2 text-xs font-normal px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
-                            Padrão
-                          </span>
-                        )}
-                        <span className="ml-2 text-gray-500 dark:text-gray-400 text-sm">
-                          {formatCurrencyBR(local.valor_consulta)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {!local.is_padrao && (
-                          <button
-                            type="button"
-                            onClick={() => handleSetPadrao(local.id)}
-                            disabled={formBusy}
-                            className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-neutral-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-neutral-700 disabled:opacity-40"
-                            title="Definir como padrão"
-                          >
-                            Definir padrão
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => startEdit(local)}
-                          disabled={formBusy}
-                          className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-neutral-700 disabled:opacity-40"
-                          aria-label={`Editar ${local.nome}`}
-                          title="Editar"
-                        >
-                          <Pencil size={14} className="text-gray-500" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(local.id)}
-                          disabled={formBusy}
-                          className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40"
-                          aria-label={`Excluir ${local.nome}`}
-                          title="Excluir"
-                        >
-                          <Trash2 size={14} className="text-red-500" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-neutral-700 flex justify-between shrink-0">
+    <ClinicaBelezaPortraitModal
+      open={open}
+      onClose={onClose}
+      title="Locais de Atendimento"
+      subtitle="Cadastre consultório, home care e outros locais"
+      footer={
+        <div className="flex justify-between gap-2">
           {!formBusy && (
             <button
               type="button"
@@ -378,7 +252,120 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
             Fechar
           </button>
         </div>
-      </div>
-    </div>
+      }
+    >
+      {error && (
+        <div className="mb-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+          {error}
+        </div>
+      )}
+
+      {isCreating && (
+        <div className="mb-4 p-3 rounded-lg border-2 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10">
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Novo local</p>
+          <LocalFormFields
+            formNome={formNome}
+            formValor={formValor}
+            onNomeChange={setFormNome}
+            onValorChange={setFormValor}
+            onSave={handleSave}
+            onCancel={resetForm}
+            saving={saving}
+            saveLabel="Adicionar"
+          />
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center py-8 text-gray-500">
+          <Loader2 size={24} className="animate-spin mx-auto mb-2" />
+          Carregando...
+        </div>
+      ) : locais.length === 0 && !isCreating ? (
+        <p className="text-center text-gray-500 dark:text-gray-400 text-sm py-8">
+          Nenhum local cadastrado.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {locais.map((local) => (
+            <li
+              key={local.id}
+              className={`p-3 rounded-lg ${
+                editingId === local.id
+                  ? "border-2 border-purple-300 dark:border-purple-700 bg-purple-50/40 dark:bg-purple-900/10"
+                  : "bg-gray-50 dark:bg-neutral-800"
+              }`}
+            >
+              {editingId === local.id ? (
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 break-words">
+                    Editando: {local.nome}
+                  </p>
+                  <LocalFormFields
+                    formNome={formNome}
+                    formValor={formValor}
+                    onNomeChange={setFormNome}
+                    onValorChange={setFormValor}
+                    onSave={handleSave}
+                    onCancel={resetForm}
+                    saving={saving}
+                    saveLabel="Salvar"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 dark:text-gray-100 text-sm break-words">{local.nome}</p>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+                      {local.is_padrao && (
+                        <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200">
+                          Padrão
+                        </span>
+                      )}
+                      <span className="text-gray-500 dark:text-gray-400 text-sm">
+                        {formatCurrencyBR(local.valor_consulta)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {!local.is_padrao && (
+                      <button
+                        type="button"
+                        onClick={() => handleSetPadrao(local.id)}
+                        disabled={formBusy}
+                        className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-neutral-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-neutral-700 disabled:opacity-40"
+                        title="Definir como padrão"
+                      >
+                        Definir padrão
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => startEdit(local)}
+                      disabled={formBusy}
+                      className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-neutral-700 disabled:opacity-40"
+                      aria-label={`Editar ${local.nome}`}
+                      title="Editar"
+                    >
+                      <Pencil size={14} className="text-gray-500" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(local.id)}
+                      disabled={formBusy}
+                      className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40"
+                      aria-label={`Excluir ${local.nome}`}
+                      title="Excluir"
+                    >
+                      <Trash2 size={14} className="text-red-500" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </ClinicaBelezaPortraitModal>
   );
 }

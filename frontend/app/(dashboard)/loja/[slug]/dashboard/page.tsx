@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
-import { isTipoClinicaEstetica, isTipoClinicaBeleza, isTipoRestaurante, isTipoCabeleireiro, isTipoCommerce, isTipoCRMVendas, isTipoServicos, isTipoHotel } from '@/lib/loja-tipo';
+import { isTipoClinicaBeleza, isTipoRestaurante, isTipoCabeleireiro, isTipoCommerce, isTipoCRMVendas, isTipoServicos, isTipoHotel } from '@/lib/loja-tipo';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import BackupButton from '@/components/loja/BackupButton';
 import { logger } from '@/lib/logger';
@@ -17,7 +17,6 @@ const DashboardChunkSkeleton = () => (
   </div>
 );
 
-const DashboardClinicaEstetica = dynamic(() => import('./templates/clinica-estetica'), { loading: DashboardChunkSkeleton });
 const DashboardClinicaBeleza = dynamic(() => import('./templates/clinica-beleza'), { loading: DashboardChunkSkeleton });
 const DashboardRestaurante = dynamic(() => import('./templates/restaurante'), { loading: DashboardChunkSkeleton });
 const DashboardServicos = dynamic(() => import('./templates/servicos'), { loading: DashboardChunkSkeleton });
@@ -151,11 +150,10 @@ export default function LojaDashboardDinamicoPage() {
     );
   }
 
-  const isClinicaEstetica = isTipoClinicaEstetica(lojaInfo.tipo_loja_nome);
   const isClinicaBeleza = isTipoClinicaBeleza(lojaInfo.tipo_loja_nome);
   const isRestaurante = isTipoRestaurante(lojaInfo.tipo_loja_nome);
   const isCabeleireiro = isTipoCabeleireiro(lojaInfo.tipo_loja_nome);
-  const isFullWidth = isClinicaEstetica || isClinicaBeleza || isRestaurante || isCabeleireiro;
+  const isFullWidth = isClinicaBeleza || isRestaurante || isCabeleireiro;
 
   // Renderizar dashboard específico por tipo de app
   return (
@@ -178,82 +176,39 @@ export default function LojaDashboardDinamicoPage() {
               <p className="text-xs sm:text-sm opacity-90">{lojaInfo.tipo_loja_nome}</p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-              {isClinicaEstetica ? (
-                <>
-                  {/* Chamados: dropdown com "Ver chamados" e "Abrir chamado" */}
-                  <div className="relative flex-1 sm:flex-none" ref={chamadosDropdownRef}>
-                    <button
-                      onClick={() => setChamadosDropdownAberto((v) => !v)}
-                      className="w-full sm:w-auto px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                      title="Chamados"
-                    >
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                      </svg>
-                      <span>Chamados</span>
-                      <svg className="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                    </button>
-                    {chamadosDropdownAberto && (
-                      <div className="absolute top-full right-0 mt-1 py-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
-                        <button
-                          onClick={() => { setChamadosDropdownAberto(false); router.push(`/loja/${slug}/suporte`); }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-                          Ver meus chamados
-                        </button>
-                        <button
-                          onClick={() => { setChamadosDropdownAberto(false); setModalSuporteAberto(true); }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-                          Abrir chamado
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {/* Backup (verde) no lugar do antigo Abrir Suporte */}
-                  <div className="flex-1 sm:flex-none">
-                    <BackupButton lojaId={lojaInfo.id} lojaNome={lojaInfo.nome} className="!min-h-[40px] !px-3 sm:!px-4 !py-2 !rounded-md !bg-green-600 hover:!bg-green-700 !text-white !border-0" />
-                  </div>
-                </>
-              ) : (
-                <>
-                  {isTipoHotel(lojaInfo.tipo_loja_nome) && (
-                    <button
-                      onClick={() => router.push(`/loja/${slug}/hotel`)}
-                      className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                      title="Ir para o módulo Hotel"
-                    >
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                      <span>Hotel</span>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => router.push(`/loja/${slug}/suporte`)}
-                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                    title="Ver meus chamados de suporte"
-                  >
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                    </svg>
-                    <span>Chamados</span>
-                  </button>
-                  <button
-                    onClick={() => setModalSuporteAberto(true)}
-                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-green-600 hover:bg-green-700 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                    title="Abrir novo chamado de suporte"
-                  >
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                    </svg>
-                    <span className="hidden sm:inline">Abrir Suporte</span>
-                    <span className="sm:hidden">Suporte</span>
-                  </button>
-                </>
+              {isTipoHotel(lojaInfo.tipo_loja_nome) && (
+                <button
+                  onClick={() => router.push(`/loja/${slug}/hotel`)}
+                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
+                  title="Ir para o módulo Hotel"
+                >
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  <span>Hotel</span>
+                </button>
               )}
+              <button
+                onClick={() => router.push(`/loja/${slug}/suporte`)}
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
+                title="Ver meus chamados de suporte"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                <span>Chamados</span>
+              </button>
+              <button
+                onClick={() => setModalSuporteAberto(true)}
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-green-600 hover:bg-green-700 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
+                title="Abrir novo chamado de suporte"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+                <span className="hidden sm:inline">Abrir Suporte</span>
+                <span className="sm:hidden">Suporte</span>
+              </button>
               <button
                 onClick={() => {
                   const html = document.documentElement;
@@ -315,7 +270,6 @@ export default function LojaDashboardDinamicoPage() {
 
 function renderDashboardPorTipo(loja: LojaInfo, onLogout: () => void) {
   if (isTipoClinicaBeleza(loja.tipo_loja_nome)) return <DashboardClinicaBeleza loja={loja} onLogout={onLogout} />;
-  if (isTipoClinicaEstetica(loja.tipo_loja_nome)) return <DashboardClinicaEstetica loja={loja} onLogout={onLogout} />;
   if (isTipoCommerce(loja.tipo_loja_nome)) return <DashboardEcommerce loja={loja} />;
   if (isTipoRestaurante(loja.tipo_loja_nome)) return <DashboardRestaurante loja={loja} />;
   if (isTipoServicos(loja.tipo_loja_nome)) return <DashboardServicos loja={loja} />;

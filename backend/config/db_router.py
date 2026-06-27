@@ -23,7 +23,6 @@ class MultiTenantRouter:
         (
             'cabeleireiro',
             'clinica_beleza',
-            'clinica_estetica',
             'crm_vendas',
             'ecommerce',
             'hotel',

@@ -49,9 +49,9 @@ export const DEFAULT_MODULOS: Omit<Modulo, "id">[] = [
     icone: "📊",
   },
   {
-    nome: "Clínica Estética",
-    descricao: "Agenda, prontuários e gestão de clientes",
-    slug: "clinica-estetica",
+    nome: "Clínica da Beleza",
+    descricao: "Agenda, prontuários e gestão de pacientes",
+    slug: "clinica-beleza",
     icone: "💆",
   },
   {

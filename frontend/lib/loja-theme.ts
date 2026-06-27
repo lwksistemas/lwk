@@ -4,7 +4,6 @@ import {
   homePathForTipo,
   isTipoCRMVendas,
   isTipoClinicaBeleza,
-  isTipoClinicaEstetica,
 } from '@/lib/loja-tipo';
 
 export interface LojaThemeColors {
@@ -43,7 +42,6 @@ function isGenericGreen(primary: string, secondary: string): boolean {
 function defaultColorsForTipo(tipoLojaNome: string): { primary: string; secondary: string } {
   if (isTipoCRMVendas(tipoLojaNome)) return { primary: '#3B82F6', secondary: '#2563EB' };
   if (isTipoClinicaBeleza(tipoLojaNome)) return { primary: '#EC4899', secondary: '#DB2777' };
-  if (isTipoClinicaEstetica(tipoLojaNome)) return { primary: '#10B981', secondary: '#059669' };
   return { primary: DEFAULT_PRIMARY, secondary: DEFAULT_SECONDARY };
 }
 
@@ -81,6 +79,5 @@ export function assinaturaBackPath(slug: string, tipoLojaNome: string): string {
 export function themeLabelForTipo(tipoLojaNome: string): string {
   if (isTipoCRMVendas(tipoLojaNome)) return 'CRM Vendas';
   if (isTipoClinicaBeleza(tipoLojaNome)) return 'Clínica da Beleza';
-  if (isTipoClinicaEstetica(tipoLojaNome)) return 'Clínica Estética';
   return 'Dashboard';
 }

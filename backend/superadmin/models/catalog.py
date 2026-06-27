@@ -56,11 +56,11 @@ class TipoLoja(models.Model):
         # Atribuir código único a partir do slug se estiver vazio (novos tipos de app)
         if not self.codigo and self.slug:
             slug_to_codigo = {
-                'clinica-de-estetica': 'CLIEST', 'clinica-da-beleza': 'CLIBEL',
+                'clinica-de-estetica': 'CLIBEL', 'clinica-da-beleza': 'CLIBEL',
                 'clinica-beleza': 'CLIBEL',
                 'crm-vendas': 'CRMVND', 'e-commerce': 'ECOMM', 'ecommerce': 'ECOMM',
                 'restaurante': 'REST', 'servicos': 'SERV', 'cabeleireiro': 'CABEL',
-                'clinica-estetica': 'CLIEST',
+                'clinica-estetica': 'CLIBEL',
                 # Hotelaria
                 'hotel': 'HOTEL', 'pousada': 'HOTEL', 'hotel-pousada': 'HOTEL', 'pousada-hotel': 'HOTEL',
             }

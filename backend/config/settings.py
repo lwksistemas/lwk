@@ -30,7 +30,6 @@ INSTALLED_APPS = [
     'superadmin',  # App de super admin
     'asaas_integration',  # App de integração com Asaas
     'nfse_integration.apps.NfseIntegrationConfig',  # App de integração NFS-e (ISSNet, API Nacional, etc)
-    'clinica_estetica',  # App de clínica de estética
     'ecommerce',  # App de e-commerce
     'restaurante',  # App de restaurante
     'servicos',  # App de serviços

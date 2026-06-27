@@ -47,7 +47,6 @@ def funcionario_email_ativo_na_loja(user, loja) -> bool:
         for import_path, model_name in (
             ('cabeleireiro.models', 'Funcionario'),
             ('hotel.models', 'Funcionario'),
-            ('clinica_estetica.models', 'Funcionario'),
             ('restaurante.models', 'Funcionario'),
         ):
             try:

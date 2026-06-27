@@ -155,6 +155,21 @@ const nextConfig = {
         destination: '/superadmin/tipos-app',
         permanent: true,
       },
+      {
+        source: '/loja/:slug/clinica-estetica/agenda',
+        destination: '/loja/:slug/agenda',
+        permanent: true,
+      },
+      {
+        source: '/loja/:slug/clinica-estetica/configuracoes/:path*',
+        destination: '/loja/:slug/clinica-beleza/configuracoes/:path*',
+        permanent: true,
+      },
+      {
+        source: '/loja/:slug/clinica-estetica',
+        destination: '/loja/:slug/clinica-beleza/consultas',
+        permanent: true,
+      },
     ]
   },
   

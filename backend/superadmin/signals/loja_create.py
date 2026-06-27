@@ -56,13 +56,7 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
         funcionario_criado = None
         
         # Criar funcionário baseado no tipo de app
-        if tipo_loja_nome == 'Clínica de Estética':
-            from clinica_estetica.models import Funcionario
-            
-            if not Funcionario.objects.filter(email=owner.email, loja_id=instance.id).exists():
-                funcionario_criado = Funcionario.objects.create(**funcionario_data)
-                
-        elif tipo_loja_nome == 'Serviços':
+        if tipo_loja_nome == 'Serviços':
             from servicos.models import Funcionario
             
             if not Funcionario.objects.filter(email=owner.email, loja_id=instance.id).exists():

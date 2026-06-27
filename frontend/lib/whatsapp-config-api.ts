@@ -3,7 +3,6 @@ import apiClient from '@/lib/api-client';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 import {
   isTipoClinicaBeleza,
-  isTipoClinicaEstetica,
   isTipoCRMVendas,
 } from '@/lib/loja-tipo';
 
@@ -73,7 +72,7 @@ export interface WhatsAppFeatureFlags {
 
 export function whatsappFeaturesForTipoLoja(tipoLojaNome?: string | null): WhatsAppFeatureFlags {
   const tipo = tipoLojaNome || '';
-  if (isTipoClinicaBeleza(tipo) || isTipoClinicaEstetica(tipo)) {
+  if (isTipoClinicaBeleza(tipo)) {
     return {
       showAgendaMessages: true,
       showCrmTasks: false,

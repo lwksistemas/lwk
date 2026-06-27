@@ -86,8 +86,8 @@ def _reset_tenant_connection(alias: str) -> None:
 
 # Apps extras por slug de TipoLoja (única fonte para migrate / auditoria)
 TIPO_LOJA_EXTRA_APPS = {
-    'clinica-de-estetica': ['clinica_estetica'],
-    'clinica-estetica': ['clinica_estetica'],
+    'clinica-de-estetica': ['clinica_beleza', 'whatsapp'],
+    'clinica-estetica': ['clinica_beleza', 'whatsapp'],
     'clinica-da-beleza': ['clinica_beleza', 'whatsapp'],
     'clinica-beleza': ['clinica_beleza', 'whatsapp'],
     'e-commerce': ['ecommerce'],

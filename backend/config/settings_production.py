@@ -58,7 +58,6 @@ INSTALLED_APPS = [
     'superadmin',
     'asaas_integration',  # Integração com Asaas
     'nfse_integration.apps.NfseIntegrationConfig',  # NFS-e (emissão/listagem) — deve coincidir com config.settings
-    'clinica_estetica',
     'clinica_beleza.apps.ClinicaBelezaConfig',  # Clínica da Beleza (agenda, profissionais, etc.)
     'ecommerce',
     'restaurante',

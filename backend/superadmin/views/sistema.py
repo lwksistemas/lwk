@@ -379,10 +379,8 @@ def atalho_redirect(request, atalho):
     
     if loja.tipo_loja:
         tipo_codigo = loja.tipo_loja.codigo or ''
-        if tipo_codigo == 'CLIEST':
-            app_url = 'clinica-estetica'
-        elif tipo_codigo == 'CLIBEL':
-            app_url = 'clinica-beleza'
+        if tipo_codigo in ('CLIEST', 'CLIBEL'):
+            app_url = 'clinica-beleza/consultas'
         elif tipo_codigo == 'CABEL':
             app_url = 'cabeleireiro'
         elif tipo_codigo == 'ECOMM':

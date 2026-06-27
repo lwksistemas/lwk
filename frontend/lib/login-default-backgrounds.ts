@@ -5,7 +5,6 @@
 import {
   isTipoCabeleireiro,
   isTipoClinicaBeleza,
-  isTipoClinicaEstetica,
   isTipoCommerce,
   isTipoCRMVendas,
   isTipoHotel,
@@ -57,7 +56,6 @@ export const LOGIN_THEME_COLORS: Record<LoginBackgroundKey, string> = {
 export function getLoginThemeColor(tipoLojaNome: string): string {
   const tipo = (tipoLojaNome || '').trim();
   if (isTipoClinicaBeleza(tipo)) return LOGIN_THEME_COLORS.clinicaBeleza;
-  if (isTipoClinicaEstetica(tipo)) return LOGIN_THEME_COLORS.clinicaEstetica;
   if (isTipoCabeleireiro(tipo)) return LOGIN_THEME_COLORS.cabeleireiro;
   if (isTipoHotel(tipo)) return LOGIN_THEME_COLORS.hotel;
   if (isTipoRestaurante(tipo)) return LOGIN_THEME_COLORS.restaurante;
@@ -75,7 +73,6 @@ const LOCAL = LOGIN_BACKGROUND_PATHS;
 export function getDefaultLoginBackground(tipoLojaNome: string): string {
   const tipo = (tipoLojaNome || '').trim();
   if (isTipoClinicaBeleza(tipo)) return LOCAL.clinicaBeleza;
-  if (isTipoClinicaEstetica(tipo)) return LOCAL.clinicaEstetica;
   if (isTipoCabeleireiro(tipo)) return LOCAL.cabeleireiro;
   if (isTipoHotel(tipo)) return LOCAL.hotel;
   if (isTipoRestaurante(tipo)) return LOCAL.restaurante;
@@ -118,8 +115,7 @@ export function getLoginBackgroundHintFromSlug(slug: string): string {
   };
   if (exact[s]) return exact[s];
 
-  if (s.includes('beleza')) return LOCAL.clinicaBeleza;
-  if (s.includes('estetica')) return LOCAL.clinicaEstetica;
+  if (s.includes('beleza') || s.includes('estetica')) return LOCAL.clinicaBeleza;
   if (s.includes('cabeleireiro') || s.includes('salao') || s.includes('barbearia')) return LOCAL.cabeleireiro;
   if (s.includes('hotel') || s.includes('pousada')) return LOCAL.hotel;
   if (s.includes('restaurante') || s.includes('bar') || s.includes('food')) return LOCAL.restaurante;

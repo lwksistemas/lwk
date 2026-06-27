@@ -71,7 +71,6 @@ urlpatterns = [
     path('api/asaas/', include('asaas_integration.urls')),  # API Asaas
     
     # APIs dos tipos de app
-    path('api/clinica/', include('clinica_estetica.urls')),
     path('api/ecommerce/', include('ecommerce.urls')),
     path('api/restaurante/', include('restaurante.urls')),
     path('api/servicos/', include('servicos.urls')),

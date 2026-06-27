@@ -9,7 +9,6 @@ export default function ProcedimentosPage() {
     <ProcedimentosPageContent
       relatedLinks={[
         { label: 'Soroterapia — procedimentos', href: `/loja/${slug}/clinica-beleza/soroterapia/procedimentos` },
-        { label: 'Estética — procedimentos', href: `/loja/${slug}/clinica-beleza/estetica/procedimentos` },
       ]}
     />
   );

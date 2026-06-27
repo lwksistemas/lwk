@@ -55,7 +55,7 @@ export default function AgendaLayout({ children }: { children: React.ReactNode }
     <ClinicaBelezaShell
       loja={loja}
       onLogout={handleLogout}
-      mainClassName="overflow-hidden !overflow-y-hidden flex flex-col"
+      mainClassName="flex flex-col flex-1 min-h-0 overflow-hidden"
     >
       {children}
     </ClinicaBelezaShell>

@@ -11,7 +11,6 @@ export default function ProtocolosPage() {
       subtitle="Todos os protocolos da clínica, de qualquer módulo"
       relatedLinks={[
         { label: 'Soroterapia — protocolos', href: `/loja/${slug}/clinica-beleza/soroterapia/protocolos` },
-        { label: 'Estética — protocolos', href: `/loja/${slug}/clinica-beleza/estetica/protocolos` },
       ]}
     />
   );

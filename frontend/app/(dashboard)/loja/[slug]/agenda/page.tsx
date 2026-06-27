@@ -298,7 +298,7 @@ export default function AgendaPage() {
   }
 
   return (
-    <>
+    <div className="flex flex-col flex-1 min-h-0">
       <ClinicaBelezaStandardPageHeader
         title="Agenda"
         subtitle="Calendário de agendamentos"
@@ -353,8 +353,13 @@ export default function AgendaPage() {
       />
 
       <div className="flex flex-col flex-1 min-h-0 p-3 sm:p-4 lg:p-6">
-        <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className={`flex-1 min-h-0 p-2 sm:p-3 ${modoAgenda === "grade" ? "overflow-hidden fc-agenda-mobile" : "overflow-y-auto"}`}>
+        <div className="flex flex-col flex-1 min-h-[420px] sm:min-h-[480px] bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div
+            className={`flex flex-col flex-1 min-h-0 p-2 sm:p-3 ${
+              modoAgenda === "grade" ? "fc-agenda-calendar-root overflow-hidden" : "overflow-y-auto overscroll-contain"
+            }`}
+            style={modoAgenda === "grade" ? { WebkitOverflowScrolling: "touch" } : undefined}
+          >
             {modoAgenda === "lista" ? (
               <AgendaListaColunas eventos={eventos} onAbrir={abrirEventoDaLista} />
             ) : calendarPlugins.length > 0 && ptBrLocale ? (
@@ -444,6 +449,6 @@ export default function AgendaPage() {
         onUseLocal={handleConflitoUseLocal}
         resolving={conflictResolving}
       />
-    </>
+    </div>
   );
 }

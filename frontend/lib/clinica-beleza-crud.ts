@@ -15,6 +15,12 @@ import { isBrowserOffline } from '@/lib/clinica-beleza-offline';
 
 export { parseClinicaBelezaListResponse };
 
+/** Entidades sem cache offline (campanhas, protocolos, listas online-only). */
+export const CLINICA_BELEZA_ONLINE_ONLY = {
+  fetchOffline: async (): Promise<unknown[]> => [],
+  saveOffline: async (): Promise<void> => {},
+};
+
 export async function loadClinicaBelezaListPage<T>({
   path,
   page = 1,
@@ -22,6 +28,8 @@ export async function loadClinicaBelezaListPage<T>({
   fetchOffline,
   saveOffline,
   paginate = true,
+  queryParams,
+  loja,
 }: {
   path: string;
   page?: number;
@@ -29,6 +37,8 @@ export async function loadClinicaBelezaListPage<T>({
   fetchOffline: () => Promise<unknown[]>;
   saveOffline: (items: T[]) => Promise<void>;
   paginate?: boolean;
+  queryParams?: Record<string, string | number | undefined | null>;
+  loja?: { id?: number; slug?: string } | null;
 }): Promise<ClinicaBelezaPaginatedResult<T>> {
   if (isBrowserOffline()) {
     const data = await fetchOffline();
@@ -42,20 +52,20 @@ export async function loadClinicaBelezaListPage<T>({
       hasMore: false,
     };
   }
-  const url = paginate
-    ? buildClinicaBelezaListUrl(path, { page, page_size: pageSize })
+  const params: Record<string, string | number | undefined | null> = {
+    ...(queryParams ?? {}),
+  };
+  if (paginate) {
+    params.page = page;
+    params.page_size = pageSize;
+  }
+  const url = paginate || Object.keys(params).length > 0
+    ? buildClinicaBelezaListUrl(path, params)
     : path;
-  const res = await clinicaBelezaFetch(url);
+  const res = await clinicaBelezaFetch(url, {}, loja);
   const data = await res.json();
   if (!res.ok) {
-    return {
-      items: [],
-      count: 0,
-      page: 1,
-      pageSize,
-      totalPages: 1,
-      hasMore: false,
-    };
+    throw data;
   }
   const result = parseClinicaBelezaPaginatedResponse<T>(data, page, pageSize);
   if (page === 1) {
@@ -118,6 +128,9 @@ export function useClinicaBelezaEntityList<T>({
   reloadDeps = [],
   paginate = true,
   pageSize = CLINICA_BELEZA_PAGE_SIZE,
+  queryParams,
+  loja,
+  enabled = true,
 }: {
   path: string;
   fetchOffline: () => Promise<unknown[]>;
@@ -125,6 +138,9 @@ export function useClinicaBelezaEntityList<T>({
   reloadDeps?: unknown[];
   paginate?: boolean;
   pageSize?: number;
+  queryParams?: Record<string, string | number | undefined | null>;
+  loja?: { id?: number; slug?: string } | null;
+  enabled?: boolean;
 }) {
   const [list, setList] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,6 +148,7 @@ export function useClinicaBelezaEntityList<T>({
   const [totalPages, setTotalPages] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchPage = useCallback(
     async (targetPage: number) => {
@@ -142,6 +159,8 @@ export function useClinicaBelezaEntityList<T>({
         fetchOffline,
         saveOffline,
         paginate,
+        queryParams,
+        loja,
       });
       setList(result.items);
       setHasMore(result.hasMore);
@@ -150,19 +169,27 @@ export function useClinicaBelezaEntityList<T>({
       setPage(result.page);
       return result;
     },
-    [path, pageSize, fetchOffline, saveOffline, paginate],
+    [path, pageSize, fetchOffline, saveOffline, paginate, queryParams, loja?.id, loja?.slug],
   );
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       await fetchPage(1);
-    } catch {
+    } catch (err) {
       setList([]);
       setHasMore(false);
       setTotalCount(null);
       setTotalPages(1);
       setPage(1);
+      const msg =
+        err && typeof err === 'object' && 'error' in err
+          ? String((err as { error: string }).error)
+          : err && typeof err === 'object' && 'detail' in err
+            ? String((err as { detail: string }).detail)
+            : 'Não foi possível carregar a lista.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -186,8 +213,8 @@ export function useClinicaBelezaEntityList<T>({
   );
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (enabled) load();
+  }, [load, enabled]);
 
   useEffect(() => {
     const onSyncDone = () => {
@@ -210,14 +237,43 @@ export function useClinicaBelezaEntityList<T>({
     loadingMore: false,
     hasMore,
     totalCount,
+    error,
   };
 }
 
-/** Entidades sem cache offline (campanhas, protocolos, etc.). */
-export const CLINICA_BELEZA_ONLINE_ONLY = {
-  fetchOffline: async (): Promise<unknown[]> => [],
-  saveOffline: async (): Promise<void> => {},
-};
+/**
+ * Lista paginada online (sem cache offline).
+ * Usa o mesmo núcleo de `useClinicaBelezaEntityList`.
+ */
+export function useClinicaBelezaPaginatedList<T>({
+  path,
+  queryParams,
+  pageSize = CLINICA_BELEZA_PAGE_SIZE,
+  reloadDeps = [],
+  enabled = true,
+  paginate = true,
+  loja,
+}: {
+  path: string;
+  queryParams?: Record<string, string | number | undefined | null>;
+  pageSize?: number;
+  reloadDeps?: unknown[];
+  enabled?: boolean;
+  paginate?: boolean;
+  loja?: { id?: number; slug?: string } | null;
+}) {
+  return useClinicaBelezaEntityList<T>({
+    path,
+    fetchOffline: CLINICA_BELEZA_ONLINE_ONLY.fetchOffline,
+    saveOffline: CLINICA_BELEZA_ONLINE_ONLY.saveOffline,
+    reloadDeps,
+    paginate,
+    pageSize,
+    queryParams,
+    loja,
+    enabled,
+  });
+}
 
 /**
  * Resolve deep-link ?id=X buscando o registro na API quando ainda não está na lista paginada.

@@ -15,14 +15,14 @@ import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clini
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalCriarAgendamento } from "@/components/clinica-beleza/ModalCriarAgendamento";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
-import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
+import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { useAgendamentoCadastros } from "@/hooks/clinica-beleza/useAgendamentoCadastros";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
-import type { Consulta } from "./components/consultas-types";
-import { ConsultasListTable } from "./components/ConsultasListTable";
+import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
+import { ConsultasListTable } from "@/components/clinica-beleza/consultas/ConsultasListTable";
 
 const ConsultaDetailShell = dynamic(
-  () => import("./components/ConsultaDetailShell").then((m) => ({ default: m.ConsultaDetailShell })),
+  () => import("@/components/clinica-beleza/consultas/ConsultaDetailShell").then((m) => ({ default: m.ConsultaDetailShell })),
   {
     ssr: false,
     loading: () => <div className="text-center py-16 text-gray-500">Carregando consulta...</div>,
@@ -30,30 +30,30 @@ const ConsultaDetailShell = dynamic(
 );
 
 const LocaisAtendimentoModal = dynamic(
-  () => import("./components/LocaisAtendimentoModal").then((m) => ({ default: m.LocaisAtendimentoModal })),
+  () => import("@/components/clinica-beleza/consultas/LocaisAtendimentoModal").then((m) => ({ default: m.LocaisAtendimentoModal })),
 );
 
 const NomesAgendaModal = dynamic(
-  () => import("./components/NomesAgendaModal").then((m) => ({ default: m.NomesAgendaModal })),
+  () => import("@/components/clinica-beleza/consultas/NomesAgendaModal").then((m) => ({ default: m.NomesAgendaModal })),
 );
 
 const MensagensWhatsAppAgendaModal = dynamic(
   () =>
-    import("./components/MensagensWhatsAppAgendaModal").then((m) => ({
+    import("@/components/clinica-beleza/consultas/MensagensWhatsAppAgendaModal").then((m) => ({
       default: m.MensagensWhatsAppAgendaModal,
     })),
 );
 
 const ConfiguracaoAgendaMenuModal = dynamic(
-  () => import("./components/ConfiguracaoAgendaMenuModal").then((m) => ({ default: m.ConfiguracaoAgendaMenuModal })),
+  () => import("@/components/clinica-beleza/consultas/ConfiguracaoAgendaMenuModal").then((m) => ({ default: m.ConfiguracaoAgendaMenuModal })),
 );
 
 const NovoConvenioModal = dynamic(
-  () => import("./components/NovoConvenioModal").then((m) => ({ default: m.NovoConvenioModal })),
+  () => import("@/components/clinica-beleza/consultas/NovoConvenioModal").then((m) => ({ default: m.NovoConvenioModal })),
 );
 
 const RetornoAgendaModal = dynamic(
-  () => import("./components/RetornoAgendaModal").then((m) => ({ default: m.RetornoAgendaModal })),
+  () => import("@/components/clinica-beleza/consultas/RetornoAgendaModal").then((m) => ({ default: m.RetornoAgendaModal })),
 );
 
 export default function ConsultasPage() {

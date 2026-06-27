@@ -33,7 +33,7 @@ def _load_user(user_id):
         return None
     from django.contrib.auth import get_user_model
 
-    return get_user_model().objects.filter(pk=user_id).first()
+    return get_user_model().objects.using('default').filter(pk=user_id).first()
 
 
 def run_send_whatsapp(telefone, mensagem, loja_id, user_id=None):

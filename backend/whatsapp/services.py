@@ -41,17 +41,44 @@ def _whatsapp_log_db(loja_id):
     return 'default'
 
 
+def _resolve_whatsapp_log_user_id(db, user):
+    """
+    auth.User fica no schema public; WhatsAppLog no schema da loja.
+    Só preenche FK se o usuário existir no mesmo banco do log.
+    """
+    if not user:
+        return None
+    user_id = getattr(user, 'pk', None) or getattr(user, 'id', None)
+    if not user_id:
+        return None
+    from django.contrib.auth import get_user_model
+
+    if get_user_model().objects.using(db).filter(pk=user_id).exists():
+        return user_id
+    return None
+
+
 def _write_whatsapp_log(*, loja_id, telefone, mensagem, status, response=None, user=None):
     """Auditoria no schema da loja (WhatsAppLog é app tenant)."""
     try:
         db = _whatsapp_log_db(loja_id)
+        user_id = _resolve_whatsapp_log_user_id(db, user)
+        log_response = dict(response) if isinstance(response, dict) else response
+        if user and user_id is None:
+            requested_by = getattr(user, 'pk', None) or getattr(user, 'id', None)
+            if requested_by:
+                extra = {'requested_by_user_id': requested_by}
+                if isinstance(log_response, dict):
+                    log_response = {**log_response, **extra}
+                else:
+                    log_response = extra
         WhatsAppLog.objects.using(db).create(
             loja_id=loja_id,
-            user_id=user.id if user else None,
+            user_id=user_id,
             telefone=str(telefone or '')[:20],
             mensagem=str(mensagem or '')[:500],
             status=status,
-            response=response,
+            response=log_response,
         )
     except Exception as exc:
         logger.warning('WhatsAppLog não registrado (loja_id=%s): %s', loja_id, exc)
@@ -301,6 +328,19 @@ def _validate_whatsapp_send(telefone, mensagem, user=None, config=None, *, log_l
 
     if config and not getattr(config, 'whatsapp_ativo', False):
         return False, 'WhatsApp não está ativo. Configure em Configurações → WhatsApp.'
+
+    if config and _get_provider(config) == WhatsAppConfig.PROVIDER_EVOLUTION:
+        ok_evo, err_evo = _evolution_ready(config)
+        if not ok_evo:
+            _write_whatsapp_log(
+                loja_id=loja_id,
+                telefone=phone or telefone,
+                mensagem=log_label or mensagem,
+                status='falhou',
+                response={'error': 'evolution_not_connected'},
+                user=user,
+            )
+            return False, err_evo
 
     if config and _get_provider(config) != WhatsAppConfig.PROVIDER_EVOLUTION:
         _, _, _, cred_err = _resolve_whatsapp_credentials(config)

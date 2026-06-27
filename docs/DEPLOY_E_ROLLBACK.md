@@ -105,6 +105,39 @@ git push origin main
 # Vercel (main) + Railway production disparam automaticamente se Git conectado
 ```
 
+### 0.3.1 Obrigatório após deploy em produção — atualizar beta
+
+Sempre que houver **push em `main`** (deploy produção), o beta **deve** receber o mesmo código:
+
+```bash
+git checkout staging
+git merge main
+git push origin staging
+git checkout main
+```
+
+Isso dispara deploy automático em:
+
+- **Frontend:** Vercel Preview → https://beta.lwksistemas.com.br (branch `staging`)
+- **Backend:** Railway `lwks-backend-staging` (ambiente **staging**)
+
+**Verificar beta após ~5 min:**
+
+```bash
+curl -s https://lwks-backend-staging-staging.up.railway.app/api/superadmin/health/ | jq .build
+curl -sI https://beta.lwksistemas.com.br/superadmin/login | tr '\r' '\n' | grep connect-src
+```
+
+Se o site beta não refletir a branch `staging` (domínio apontando para deploy antigo):
+
+```bash
+cd frontend && bash scripts/vercel-link-beta-staging.sh
+```
+
+**Regra para agentes:** ao fazer deploy/push em produção, **sempre** executar o merge `main` → `staging` na mesma sessão, salvo instrução explícita do usuário em contrário.
+
+> Fluxo ideal continua sendo testar no beta **antes** de merge em `main`. Quando a correção for feita direto em `main`, o passo 0.3.1 evita beta defasado.
+
 ### 0.4 Alinhar beta com produção (NFS-e e integrações)
 
 O **código** é o mesmo após merge `staging` → `main`. O que difere entre beta e produção é o **banco de dados** e variáveis no **Railway/Vercel** — não há cópia automática.

@@ -4,9 +4,11 @@ import { imprimirConsultaPdf, type ConsultaPrintMeta } from "@/lib/consulta-prin
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { ConsultaProcedimento, Protocolo } from "./consultas-types";
 import { ConsultaPrintButton } from "./ConsultaPrintButton";
+import { ConsultaProcedimentosSection } from "./ConsultaProcedimentosSection";
 import { PreviewBlock } from "./PreviewBlock";
 
 export function ConsultaAtendimentoTab({
+  consultaId,
   protocolos,
   protocoloPreview,
   editAtendimento,
@@ -24,7 +26,9 @@ export function ConsultaAtendimentoTab({
   protocolName,
   procedimentosRealizados = [],
   consultaFinalizada = false,
+  onProcedimentosChanged,
 }: {
+  consultaId: number;
   protocolos: Protocolo[];
   protocoloPreview: Protocolo | null;
   editAtendimento: boolean;
@@ -42,21 +46,31 @@ export function ConsultaAtendimentoTab({
   onCancelEdit: () => void;
   onChangeDraft: (v: string) => void;
   onSave: () => void;
+  onProcedimentosChanged?: (consulta?: Record<string, unknown>) => void;
 }) {
   return (
     <div className="space-y-5">
-      {consultaFinalizada && procedimentosRealizados.length > 0 && (
-        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Procedimentos realizados</h3>
-          <ul className="divide-y divide-gray-100 dark:divide-neutral-700">
-            {procedimentosRealizados.map((p) => (
-              <li key={p.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 text-sm">
-                <span className="font-medium text-gray-800 dark:text-gray-200">{p.nome}</span>
-                <span className="tabular-nums text-gray-600 dark:text-gray-400">{formatCurrency(p.valor)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {consultaFinalizada ? (
+        procedimentosRealizados.length > 0 && (
+          <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Procedimentos realizados</h3>
+            <ul className="divide-y divide-gray-100 dark:divide-neutral-700">
+              {procedimentosRealizados.map((p) => (
+                <li key={p.appointment_procedure_id ?? p.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 text-sm">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">{p.nome}</span>
+                  <span className="tabular-nums text-gray-600 dark:text-gray-400">{formatCurrency(p.valor)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      ) : (
+        <ConsultaProcedimentosSection
+          consultaId={consultaId}
+          somenteLeitura={false}
+          procedimentosIniciais={procedimentosRealizados}
+          onChanged={onProcedimentosChanged}
+        />
       )}
       {protocolos.length > 0 && !editAtendimento && (
         <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4">

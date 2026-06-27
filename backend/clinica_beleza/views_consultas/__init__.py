@@ -18,6 +18,7 @@ from .prescricoes import (
     PrescricaoMemedPdfView,
 )
 from .produtos import ConsultaProdutoDetailView, ConsultaProdutoListView
+from .procedimentos import ConsultaProcedimentoDetailView, ConsultaProcedimentoListView
 
 __all__ = [
     'ConsultaListView',
@@ -34,4 +35,6 @@ __all__ = [
     'PrescricaoMemedPdfView',
     'ConsultaProdutoListView',
     'ConsultaProdutoDetailView',
+    'ConsultaProcedimentoListView',
+    'ConsultaProcedimentoDetailView',
 ]

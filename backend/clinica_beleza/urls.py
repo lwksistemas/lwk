@@ -24,6 +24,7 @@ from .views_consultas import (
     PatientAnamneseView, ConsultaEvolucaoListView, PatientHistoricoConsultasView,
     ConsultaPrescricaoView, PatientPrescricaoView, PrescricaoMemedPdfView,
     ConsultaProdutoListView, ConsultaProdutoDetailView,
+    ConsultaProcedimentoListView, ConsultaProcedimentoDetailView,
     ConsultaSecaoPDFView,
 )
 from .views_estoque import (
@@ -104,6 +105,8 @@ urlpatterns = [
     path('prescricoes-memed/<int:pk>/pdf/', PrescricaoMemedPdfView.as_view(), name='prescricoes-memed-pdf'),
     path('consultas/<int:consulta_id>/produtos/', ConsultaProdutoListView.as_view(), name='consultas-produtos'),
     path('consultas/<int:consulta_id>/produtos/<int:pk>/', ConsultaProdutoDetailView.as_view(), name='consultas-produtos-detail'),
+    path('consultas/<int:consulta_id>/procedimentos/', ConsultaProcedimentoListView.as_view(), name='consultas-procedimentos'),
+    path('consultas/<int:consulta_id>/procedimentos/<int:pk>/', ConsultaProcedimentoDetailView.as_view(), name='consultas-procedimentos-detail'),
     path('consultas/<int:consulta_id>/pdf/', ConsultaSecaoPDFView.as_view(), name='consultas-secao-pdf'),
     path('consultas/<int:pk>/termo-consentimento/', ConsultaTermoConsentimentoStatusView.as_view(), name='consultas-termo-status'),
     path('consultas/<int:pk>/termo-consentimento/enviar/', ConsultaEnviarTermoAssinaturaView.as_view(), name='consultas-termo-enviar'),

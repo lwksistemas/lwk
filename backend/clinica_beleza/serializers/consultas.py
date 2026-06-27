@@ -119,8 +119,13 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             return [
                 {
                     'id': ap.procedure_id,
+                    'appointment_procedure_id': ap.id,
                     'nome': ap.procedure.nome,
                     'valor': float(ap.get_valor()),
+                    'exige_termo': bool(
+                        ap.procedure.termo_consentimento_ativo
+                        and (ap.procedure.termo_consentimento or '').strip()
+                    ),
                 }
                 for ap in procs
             ]

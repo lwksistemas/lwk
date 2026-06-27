@@ -165,6 +165,28 @@ export class ClinicaBelezaAPI {
       remove: (consultaId: number, itemId: number) =>
         ClinicaBelezaAPI.delete(`/consultas/${consultaId}/produtos/${itemId}/`),
     },
+    procedimentos: {
+      list: (consultaId: number) =>
+        ClinicaBelezaAPI.get<
+          Array<{
+            id: number;
+            procedure: number;
+            procedure_name: string;
+            valor: number | null;
+            valor_efetivo: number;
+            ordem: number;
+          }>
+        >(`/consultas/${consultaId}/procedimentos/`),
+      add: (consultaId: number, procedureId: number) =>
+        ClinicaBelezaAPI.post<{ item: unknown; consulta: Record<string, unknown> }>(
+          `/consultas/${consultaId}/procedimentos/`,
+          { procedure: procedureId },
+        ),
+      remove: async (consultaId: number, appointmentProcedureId: number) => {
+        await ClinicaBelezaAPI.delete(`/consultas/${consultaId}/procedimentos/${appointmentProcedureId}/`);
+        return ClinicaBelezaAPI.get<Record<string, unknown>>(`/consultas/${consultaId}/`);
+      },
+    },
     fotos: {
       list: (consultaId: number) =>
         ClinicaBelezaAPI.get<{

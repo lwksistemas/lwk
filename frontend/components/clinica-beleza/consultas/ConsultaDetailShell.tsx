@@ -249,14 +249,17 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
     }
   }, [onSelectConsulta, consulta.id, loadTabData]);
 
-  const refreshConsulta = useCallback(async () => {
+  const refreshConsulta = useCallback(async (patch?: Record<string, unknown>) => {
     try {
-      const fresh = await ClinicaBelezaAPI.consultas.get(selected.id);
+      const fresh = patch
+        ? patch
+        : await ClinicaBelezaAPI.consultas.get(selected.id);
       setSelected((prev) => ({ ...prev, ...fresh }));
+      if (patch) await onListRefresh();
     } catch (e) {
       logger.warn("Erro ao atualizar consulta:", e);
     }
-  }, [selected.id]);
+  }, [selected.id, onListRefresh]);
 
   useEffect(() => {
     if (lastLoadedIdRef.current === consulta.id) return;
@@ -679,6 +682,7 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
               )}
               {tab === "atendimento" && (
                 <ConsultaAtendimentoTab
+                  consultaId={selected.id}
                   protocolos={consultaFinalizada ? [] : protocolos}
                   protocoloPreview={protocoloPreview}
                   editAtendimento={consultaFinalizada ? false : editAtendimento}
@@ -696,6 +700,7 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
                   onCancelEdit={() => { setObservacoesDraft(observacoes); setEditAtendimento(false); }}
                   onChangeDraft={setObservacoesDraft}
                   onSave={salvarObservacoes}
+                  onProcedimentosChanged={refreshConsulta}
                 />
               )}
               {tab === "anamnese" && (

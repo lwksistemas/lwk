@@ -12,6 +12,8 @@ export interface ConsultaProcedimento {
   id: number;
   nome: string;
   valor: number;
+  appointment_procedure_id?: number;
+  exige_termo?: boolean;
 }
 
 export interface Consulta {

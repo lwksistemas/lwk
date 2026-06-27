@@ -15,6 +15,7 @@ import {
   Camera,
 } from "lucide-react";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
+import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, clinicaBelezaFetch, type LocalAtendimentoItem, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
 import { formatCurrency } from "@/lib/financeiro-helpers";
@@ -554,6 +555,13 @@ export function ConsultaDetailShell({ consulta, detailPreloaded = false, onBack,
         title={toUpperCase(selected.patient_name)}
         subtitle={`${consultaProcedimentosNomes(selected)} · ${toUpperCase(selected.professional_name)}`}
         onBack={onBack}
+        leadingContent={
+          <PacienteAvatar
+            fotoUrl={selected.patient_foto_url}
+            name={selected.patient_name}
+            size="sm"
+          />
+        }
         toolbarActions={tab === "fotos" ? fotosToolbar : undefined}
         extraActions={headerExtraActions}
       />

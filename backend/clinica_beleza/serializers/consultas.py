@@ -36,6 +36,7 @@ class PrescricaoMemedSerializer(serializers.ModelSerializer):
 
 class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     patient_name = serializers.CharField(source='patient.nome', read_only=True)
+    patient_foto_url = serializers.CharField(source='patient.foto_url', read_only=True, default='')
     professional_name = serializers.CharField(source='professional.nome', read_only=True, default=None)
     procedure_name = serializers.SerializerMethodField()
     procedures_list = serializers.SerializerMethodField()
@@ -78,7 +79,8 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     class Meta:
         model = Consulta
         fields = [
-            'id', 'appointment', 'patient', 'patient_name', 'professional', 'professional_name',
+            'id', 'appointment', 'patient', 'patient_name', 'patient_foto_url',
+            'professional', 'professional_name',
             'procedure', 'procedure_name', 'procedures_list', 'protocol', 'protocol_name', 'status',
             'data_inicio', 'data_fim', 'duracao_minutos', 'observacoes_gerais', 'protocolo_notas',
             'valor_consulta', 'valor_procedimentos', 'valor_pagamento',

@@ -78,9 +78,9 @@ export function MensagensWhatsAppAgendaModal({ open, onClose }: MensagensWhatsAp
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-700 shrink-0">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+      <div className="bg-white dark:bg-neutral-900 rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-md sm:max-w-4xl sm:w-[calc(100vw-2rem)] max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-neutral-700 shrink-0">
           <div className="flex items-center gap-2">
             <MessageCircle size={18} style={{ color: CLINICA_BELEZA_PRIMARY }} />
             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
@@ -97,45 +97,55 @@ export function MensagensWhatsAppAgendaModal({ open, onClose }: MensagensWhatsAp
           </button>
         </div>
 
-        <div className="p-6 space-y-4 overflow-y-auto flex-1">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Texto enviado ao paciente com o link para confirmar ou cancelar o agendamento. Deixe em branco
-            para usar a mensagem padrão do sistema.
-          </p>
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Texto enviado ao paciente com o link para confirmar ou cancelar o agendamento. Deixe em branco
+                para usar a mensagem padrão do sistema.
+              </p>
 
-          <div>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Variáveis disponíveis</p>
-            <div className="flex flex-wrap gap-1.5">
-              {PLACEHOLDERS.map((ph) => (
-                <code
-                  key={ph}
-                  className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300"
-                >
-                  {ph}
-                </code>
-              ))}
+              <div>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Variáveis disponíveis</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {PLACEHOLDERS.map((ph) => (
+                    <code
+                      key={ph}
+                      className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300"
+                    >
+                      {ph}
+                    </code>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-dashed border-gray-200 dark:border-neutral-700 p-3 text-xs text-gray-500 dark:text-gray-400 font-mono whitespace-pre-wrap hidden lg:block">
+                {MENSAGEM_PADRAO}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {loading ? (
+                <div className="flex items-center justify-center py-8 text-gray-500">
+                  <Loader2 size={20} className="animate-spin mr-2" />
+                  Carregando...
+                </div>
+              ) : (
+                <textarea
+                  value={mensagem}
+                  onChange={(e) => setMensagem(e.target.value)}
+                  rows={14}
+                  placeholder={MENSAGEM_PADRAO}
+                  className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 font-mono leading-relaxed resize-y min-h-[280px]"
+                />
+              )}
+
+              {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             </div>
           </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-8 text-gray-500">
-              <Loader2 size={20} className="animate-spin mr-2" />
-              Carregando...
-            </div>
-          ) : (
-            <textarea
-              value={mensagem}
-              onChange={(e) => setMensagem(e.target.value)}
-              rows={12}
-              placeholder={MENSAGEM_PADRAO}
-              className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 font-mono leading-relaxed resize-y min-h-[200px]"
-            />
-          )}
-
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         </div>
 
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-200 dark:border-neutral-700 shrink-0">
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-neutral-700 shrink-0">
           <button
             type="button"
             onClick={() => setMensagem("")}

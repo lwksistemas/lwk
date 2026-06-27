@@ -108,12 +108,12 @@ export function NomesAgendaModal({ open, onClose }: NomesAgendaModalProps) {
   const formBusy = isCreating || editingId !== null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-700 shrink-0">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+      <div className="bg-white dark:bg-neutral-900 rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-md sm:max-w-4xl sm:w-[calc(100vw-2rem)] max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-neutral-700 shrink-0">
           <div className="flex items-center gap-2">
             <CalendarDays size={20} className="text-purple-600" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
               Nomes de Agenda
             </h2>
           </div>
@@ -122,7 +122,7 @@ export function NomesAgendaModal({ open, onClose }: NomesAgendaModalProps) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
             Cadastre os nomes usados ao agendar (ex: Estética, Dermatologia, Consultório 1).
           </p>
@@ -172,7 +172,7 @@ export function NomesAgendaModal({ open, onClose }: NomesAgendaModalProps) {
           ) : nomes.length === 0 && !isCreating ? (
             <p className="text-center text-gray-500 text-sm py-8">Nenhum nome cadastrado.</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-2 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-3 sm:space-y-0">
               {nomes.map((item) => (
                 <li
                   key={item.id}

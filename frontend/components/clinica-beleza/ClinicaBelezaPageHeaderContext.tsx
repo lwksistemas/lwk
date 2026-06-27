@@ -105,6 +105,8 @@ export interface ClinicaBelezaStandardPageHeaderProps {
   /** Ações à esquerda do indicador Online (ex.: toolbar da aba ativa). */
   toolbarActions?: ReactNode;
   extraActions?: ReactNode;
+  /** Conteúdo à esquerda do título (ex.: avatar do paciente). */
+  leadingContent?: ReactNode;
   /** Oculta voltar, ícone e título — só exibe Online, Sair e ações extras (ex.: dashboard). */
   actionsOnly?: boolean;
   showBack?: boolean;
@@ -122,6 +124,7 @@ export function ClinicaBelezaStandardPageHeader({
   showOffline = true,
   toolbarActions,
   extraActions,
+  leadingContent,
   actionsOnly = false,
   showBack = true,
 }: ClinicaBelezaStandardPageHeaderProps) {
@@ -204,6 +207,7 @@ export function ClinicaBelezaStandardPageHeader({
             <Icon className="w-4 h-4" style={{ color: CLINICA_BELEZA_PRIMARY }} />
           </div>
         )}
+        {leadingContent}
         <div className="flex-1 min-w-0">
           <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
             {title}

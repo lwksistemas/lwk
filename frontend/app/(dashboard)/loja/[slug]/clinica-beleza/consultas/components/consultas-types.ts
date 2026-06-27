@@ -20,6 +20,7 @@ export interface Consulta {
   procedure: number;
   professional?: number | null;
   patient_name: string;
+  patient_foto_url?: string | null;
   professional_name: string;
   procedure_name: string;
   procedures_list?: ConsultaProcedimento[];

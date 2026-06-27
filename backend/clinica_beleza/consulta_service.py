@@ -365,7 +365,7 @@ def finalizar_consulta(
     Baixa produtos do estoque registrados na consulta.
     """
     from rules.base import MotorRegras
-    from .estoque_service import baixar_produtos_consulta, tenant_atomic
+    from .estoque_service import baixar_produtos_consulta, produtos_estoque_insuficiente, tenant_atomic
 
     appointment = consulta.appointment
     old_status = appointment.status
@@ -393,6 +393,14 @@ def finalizar_consulta(
 
     if consulta.status != 'IN_PROGRESS':
         raise ValueError('Inicie a consulta antes de finalizar.')
+
+    insuficientes = produtos_estoque_insuficiente(consulta)
+    if insuficientes:
+        linhas = '\n'.join(f'• {msg}' for msg in insuficientes)
+        raise ValueError(
+            f'Estoque insuficiente para finalizar a consulta. Regularize o estoque ou '
+            f'remova/ajuste os produtos registrados:\n{linhas}',
+        )
 
     ts = now()
 

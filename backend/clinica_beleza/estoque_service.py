@@ -58,6 +58,38 @@ def movimentar_saida(
         )
 
 
+def produtos_estoque_insuficiente(consulta) -> list[str]:
+    """
+    Lista produtos da consulta (ainda não baixados) cujo estoque atual é menor
+    que a quantidade total registrada (soma por produto).
+    """
+    from collections import defaultdict
+
+    itens = (
+        ConsultaProdutoUtilizado.objects
+        .filter(consulta=consulta, estoque_baixado=False)
+        .select_related('produto')
+    )
+    totais: dict[int, dict] = defaultdict(
+        lambda: {'nome': '', 'unidade': '', 'necessario': Decimal('0'), 'disponivel': Decimal('0')},
+    )
+    for item in itens:
+        bucket = totais[item.produto_id]
+        bucket['nome'] = item.produto.nome
+        bucket['unidade'] = item.produto.unidade_medida
+        bucket['necessario'] += item.quantidade
+        bucket['disponivel'] = item.produto.quantidade_atual
+
+    erros: list[str] = []
+    for data in totais.values():
+        if data['disponivel'] < data['necessario']:
+            erros.append(
+                f"{data['nome']}: necessário {data['necessario']} {data['unidade']}, "
+                f"disponível {data['disponivel']} {data['unidade']}",
+            )
+    return erros
+
+
 def baixar_produtos_consulta(consulta) -> None:
     """
     Baixa estoque dos produtos registrados na consulta.
@@ -85,7 +117,6 @@ def baixar_produtos_consulta(consulta) -> None:
                 motivo=motivo,
                 profissional_id=profissional_id,
                 appointment_id=appointment_id,
-                permitir_saldo_negativo=True,
             )
             item.estoque_baixado = True
             item.save(update_fields=['estoque_baixado'])

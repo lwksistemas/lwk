@@ -16,6 +16,7 @@ import {
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
+import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
   PacienteCadastroForm,
@@ -471,6 +472,7 @@ export default function PacientesPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-neutral-900/80 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-neutral-700">
                   <tr>
+                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold w-14" aria-label="Foto" />
                     <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Nome</th>
                     <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Telefone</th>
                     <th className="text-left px-4 md:px-6 py-3.5 font-semibold hidden sm:table-cell">E-mail</th>
@@ -488,6 +490,13 @@ export default function PacientesPage() {
                         className="border-t border-gray-100 dark:border-neutral-700/80 hover:bg-[#F5E6EA]/40 dark:hover:bg-neutral-700/30 transition-colors cursor-pointer"
                         onClick={() => openEdit(p)}
                       >
+                        <td className="px-4 md:px-6 py-4">
+                          <PacienteAvatar
+                            fotoUrl={p.foto_url}
+                            name={entityName(p)}
+                            size="sm"
+                          />
+                        </td>
                         <td className="px-4 md:px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
                           <div className="flex items-center gap-2">
                             {entityName(p)}

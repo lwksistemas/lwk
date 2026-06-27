@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatClinicaDataCurta } from "@/lib/clinica-beleza-datetime";
@@ -31,6 +31,24 @@ interface ProdutoEstoque {
 
 const inputClass =
   "w-full px-3 py-2 text-sm border dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100";
+
+function totalPorProduto(itens: ConsultaProdutoItem[]): Map<number, number> {
+  const map = new Map<number, number>();
+  for (const item of itens) {
+    if (item.estoque_baixado) continue;
+    map.set(item.produto, (map.get(item.produto) || 0) + Number(item.quantidade));
+  }
+  return map;
+}
+
+function mensagemEstoqueInsuficiente(
+  nome: string,
+  necessario: number,
+  disponivel: number,
+  unidade: string,
+): string {
+  return `${nome}: necessário ${necessario} ${unidade}, disponível ${disponivel} ${unidade}.`;
+}
 
 export function ConsultaProdutosTab({
   consultaId,
@@ -96,6 +114,41 @@ export function ConsultaProdutosTab({
     carregar();
   }, [carregar]);
 
+  const totaisConsulta = useMemo(() => totalPorProduto(itens), [itens]);
+
+  const produtoSelecionado = produtoId ? produtos.find((x) => x.id === produtoId) : undefined;
+  const qtdInformada = Number(quantidade) || 0;
+  const qtdJaRegistrada = produtoId ? totaisConsulta.get(Number(produtoId)) || 0 : 0;
+  const disponivelSelecionado = produtoSelecionado ? Number(produtoSelecionado.quantidade_atual) : 0;
+  const unidadeSelecionada = produtoSelecionado?.unidade_medida || "un";
+  const avisoFormulario =
+    produtoSelecionado && qtdInformada > 0 && qtdJaRegistrada + qtdInformada > disponivelSelecionado
+      ? mensagemEstoqueInsuficiente(
+          produtoSelecionado.nome,
+          qtdJaRegistrada + qtdInformada,
+          disponivelSelecionado,
+          unidadeSelecionada,
+        )
+      : "";
+
+  const produtosComEstoqueInsuficiente = useMemo(() => {
+    const avisos: string[] = [];
+    for (const [produtoIdKey, total] of totaisConsulta) {
+      const produto = produtos.find((p) => p.id === produtoIdKey);
+      const disponivel = produto
+        ? Number(produto.quantidade_atual)
+        : Number(itens.find((i) => i.produto === produtoIdKey)?.quantidade_disponivel ?? 0);
+      const nome =
+        produto?.nome || itens.find((i) => i.produto === produtoIdKey)?.produto_nome || "Produto";
+      const unidade =
+        produto?.unidade_medida || itens.find((i) => i.produto === produtoIdKey)?.unidade_medida || "un";
+      if (total > disponivel) {
+        avisos.push(mensagemEstoqueInsuficiente(nome, total, disponivel, unidade));
+      }
+    }
+    return avisos;
+  }, [itens, produtos, totaisConsulta]);
+
   const onProdutoChange = (id: number | "") => {
     setProdutoId(id);
     if (!id) {
@@ -119,6 +172,12 @@ export function ConsultaProdutosTab({
     if (!qtd || qtd <= 0) {
       setErro("Informe a quantidade utilizada.");
       return;
+    }
+    if (avisoFormulario) {
+      const continuar = confirm(
+        `Estoque insuficiente:\n${avisoFormulario}\n\nDeseja registrar mesmo assim? A finalização da consulta ficará bloqueada até regularizar o estoque.`,
+      );
+      if (!continuar) return;
     }
     setSaving(true);
     setErro("");
@@ -167,6 +226,20 @@ export function ConsultaProdutosTab({
         Registre os produtos utilizados no atendimento. Ao <strong>finalizar a consulta</strong>, a quantidade será
         baixada automaticamente do estoque.
       </p>
+
+      {produtosComEstoqueInsuficiente.length > 0 && (
+        <div className="flex gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-sm">
+          <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium">Estoque insuficiente — a consulta não poderá ser finalizada:</p>
+            <ul className="mt-1 list-disc list-inside space-y-0.5">
+              {produtosComEstoqueInsuficiente.map((msg) => (
+                <li key={msg}>{msg}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {!somenteLeitura && (
         <div className="space-y-3">
@@ -222,6 +295,12 @@ export function ConsultaProdutosTab({
                 onChange={(e) => setQuantidade(e.target.value)}
                 className={inputClass}
               />
+              {avisoFormulario && (
+                <p className="mt-1.5 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1">
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                  {avisoFormulario} A finalização será bloqueada até regularizar o estoque.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nº do lote</label>
@@ -271,9 +350,23 @@ export function ConsultaProdutosTab({
               </tr>
             </thead>
             <tbody>
-              {itens.map((item) => (
+              {itens.map((item) => {
+                const totalProduto = totaisConsulta.get(item.produto) || Number(item.quantidade);
+                const disponivel =
+                  Number(item.quantidade_disponivel ?? produtos.find((p) => p.id === item.produto)?.quantidade_atual ?? 0);
+                const estoqueInsuficiente = !item.estoque_baixado && totalProduto > disponivel;
+                return (
                 <tr key={item.id} className="border-t border-gray-100 dark:border-neutral-700">
-                  <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{item.produto_nome}</td>
+                  <td className="p-3 font-medium text-gray-800 dark:text-gray-200">
+                    <span className="inline-flex items-center gap-1.5">
+                      {item.produto_nome}
+                      {estoqueInsuficiente && (
+                        <span title="Estoque insuficiente para finalizar">
+                          <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   <td className="p-3 text-gray-700 dark:text-gray-300">
                     {Number(item.quantidade)} {item.unidade_medida || ""}
                   </td>
@@ -297,7 +390,8 @@ export function ConsultaProdutosTab({
                     </td>
                   )}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

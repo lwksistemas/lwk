@@ -63,6 +63,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Marca migrations como aplicadas sem executar',
         )
+        parser.add_argument(
+            '--strict',
+            action='store_true',
+            help='Retorna erro se alguma loja falhar (padrão: continua e exit 0 para o release)',
+        )
 
     def handle(self, *args, **options):
         app_label = options.get('app_label')
@@ -179,3 +184,13 @@ class Command(BaseCommand):
         self.stdout.write(f"✅ Sucesso: {sucesso}")
         self.stdout.write(f"❌ Erros: {erros}")
         self.stdout.write(f"📊 Total: {lojas.count()}\n")
+
+        if erros > 0:
+            self.stderr.write(
+                self.style.WARNING(
+                    f'⚠️ {erros} loja(s) com erro — ensure_all e corrigir_schema_* tentarão corrigir no release.',
+                ),
+            )
+            if options.get('strict'):
+                from django.core.management.base import CommandError
+                raise CommandError(f'migrate_all_lojas: {erros} loja(s) com erro')

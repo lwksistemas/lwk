@@ -80,4 +80,8 @@ class Command(BaseCommand):
         elapsed = time.time() - inicio
         self.stdout.write(f'\n✅ ensure_all concluído em {elapsed:.1f}s: {sucesso}/{total} OK')
         if falhas:
-            self.stderr.write(f'❌ Falhas ({len(falhas)}): {", ".join(falhas)}')
+            self.stderr.write(
+                self.style.WARNING(
+                    f'⚠️ Falhas parciais ({len(falhas)}): {", ".join(falhas)} — release continua',
+                ),
+            )

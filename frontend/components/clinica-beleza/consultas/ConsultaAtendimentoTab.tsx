@@ -50,27 +50,18 @@ export function ConsultaAtendimentoTab({
 }) {
   return (
     <div className="space-y-5">
-      {consultaFinalizada ? (
-        procedimentosRealizados.length > 0 && (
-          <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Procedimentos realizados</h3>
-            <ul className="divide-y divide-gray-100 dark:divide-neutral-700">
-              {procedimentosRealizados.map((p) => (
-                <li key={p.appointment_procedure_id ?? p.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 text-sm">
-                  <span className="font-medium text-gray-800 dark:text-gray-200">{p.nome}</span>
-                  <span className="tabular-nums text-gray-600 dark:text-gray-400">{formatCurrency(p.valor)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )
-      ) : (
-        <ConsultaProcedimentosSection
-          consultaId={consultaId}
-          somenteLeitura={false}
-          procedimentosIniciais={procedimentosRealizados}
-          onChanged={onProcedimentosChanged}
-        />
+      {consultaFinalizada && procedimentosRealizados.length > 0 && (
+        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4">
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Procedimentos realizados</h3>
+          <ul className="divide-y divide-gray-100 dark:divide-neutral-700">
+            {procedimentosRealizados.map((p) => (
+              <li key={p.appointment_procedure_id ?? p.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0 text-sm">
+                <span className="font-medium text-gray-800 dark:text-gray-200">{p.nome}</span>
+                <span className="tabular-nums text-gray-600 dark:text-gray-400">{formatCurrency(p.valor)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {protocolos.length > 0 && !editAtendimento && (
         <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4">
@@ -121,10 +112,10 @@ export function ConsultaAtendimentoTab({
       )}
 
       <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4 md:p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 gap-2">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100">Notas do atendimento</h3>
           {!editAtendimento ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               {observacoes.trim() && (
                 <ConsultaPrintButton
                   onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "atendimento")}
@@ -146,6 +137,16 @@ export function ConsultaAtendimentoTab({
             </button>
           )}
         </div>
+
+        {!consultaFinalizada && (
+          <ConsultaProcedimentosSection
+            consultaId={consultaId}
+            somenteLeitura={false}
+            procedimentosIniciais={procedimentosRealizados}
+            onChanged={onProcedimentosChanged}
+          />
+        )}
+
         {!editAtendimento ? (
           <PreviewBlock label="Conteúdo" value={observacoes} empty="Nenhuma anotação registrada." mono />
         ) : (

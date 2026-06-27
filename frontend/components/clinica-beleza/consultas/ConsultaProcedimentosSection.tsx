@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Loader2, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatCurrency } from "@/lib/financeiro-helpers";
@@ -31,6 +31,7 @@ function extractApiError(err: unknown, fallback: string): string {
   return fallback;
 }
 
+/** Controles compactos — inclusão/remoção dentro de Notas do atendimento (sem card grande). */
 export function ConsultaProcedimentosSection({
   consultaId,
   somenteLeitura,
@@ -47,6 +48,7 @@ export function ConsultaProcedimentosSection({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showManageList, setShowManageList] = useState(false);
   const [procedureId, setProcedureId] = useState<number | "">("");
   const [erro, setErro] = useState("");
   const [avisoTermo, setAvisoTermo] = useState("");
@@ -79,7 +81,7 @@ export function ConsultaProcedimentosSection({
       );
     } catch {
       setItens(mapFromConsulta(procedimentosIniciais));
-      setErro("Erro ao carregar procedimentos do atendimento.");
+      setErro("Erro ao carregar procedimentos.");
     } finally {
       setLoading(false);
     }
@@ -93,11 +95,6 @@ export function ConsultaProcedimentosSection({
   const opcoesDisponiveis = useMemo(
     () => catalogo.filter((p) => !idsJaAdicionados.has(p.id)),
     [catalogo, idsJaAdicionados],
-  );
-
-  const total = useMemo(
-    () => itens.reduce((acc, item) => acc + Number(item.valor_efetivo ?? 0), 0),
-    [itens],
   );
 
   const adicionar = async () => {
@@ -114,13 +111,14 @@ export function ConsultaProcedimentosSection({
       setItens(Array.isArray(lista) ? lista : []);
       setProcedureId("");
       setShowAddForm(false);
+      setShowManageList(false);
       onChanged?.(res.consulta);
 
       const added = (res.consulta?.procedures_list as ConsultaProcedimento[] | undefined)?.find(
         (p) => p.id === Number(procedureId),
       );
       if (added?.exige_termo) {
-        setAvisoTermo("Este procedimento exige termo de consentimento. Envie a assinatura na aba de termos.");
+        setAvisoTermo("Procedimento incluído. Envie o termo de consentimento na aba correspondente.");
       }
     } catch (e: unknown) {
       setErro(extractApiError(e, "Erro ao adicionar procedimento."));
@@ -139,6 +137,7 @@ export function ConsultaProcedimentosSection({
       const fresh = await ClinicaBelezaAPI.consultas.get(consultaId);
       setItens(Array.isArray(lista) ? lista : []);
       onChanged?.(fresh as Record<string, unknown>);
+      if ((Array.isArray(lista) ? lista : []).length === 0) setShowManageList(false);
     } catch (e: unknown) {
       setErro(extractApiError(e, "Erro ao remover procedimento."));
     } finally {
@@ -146,49 +145,67 @@ export function ConsultaProcedimentosSection({
     }
   };
 
+  if (somenteLeitura) return null;
+
+  const podeAdicionar = !loading && opcoesDisponiveis.length > 0;
+  if (!loading && itens.length === 0 && !podeAdicionar && !showAddForm && !erro && !avisoTermo) {
+    return null;
+  }
+
+  const toolbar = (
+    <div className="flex flex-wrap items-center gap-2">
+      {itens.length > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            setShowManageList((v) => !v);
+            setShowAddForm(false);
+          }}
+          className="inline-flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+        >
+          {showManageList ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          Gerenciar ({itens.length})
+        </button>
+      )}
+      {podeAdicionar && (
+        <button
+          type="button"
+          onClick={() => {
+            setShowAddForm((v) => !v);
+            setShowManageList(false);
+            setErro("");
+            setAvisoTermo("");
+          }}
+          disabled={saving}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50"
+        >
+          <Plus size={14} />
+          Procedimento
+        </button>
+      )}
+    </div>
+  );
+
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-        <div>
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Procedimentos do atendimento</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Inclua ou remova procedimentos realizados nesta consulta. O total é atualizado na finalização.
-          </p>
-        </div>
-        {!somenteLeitura && !showAddForm && (
-          <button
-            type="button"
-            onClick={() => {
-              setShowAddForm(true);
-              setErro("");
-              setAvisoTermo("");
-            }}
-            disabled={saving || opcoesDisponiveis.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-          >
-            <Plus size={14} />
-            Adicionar
-          </button>
-        )}
-      </div>
+    <div className="mb-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-end gap-2">{toolbar}</div>
 
       {erro && (
-        <div className="mb-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+        <div className="p-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs">
           {erro}
         </div>
       )}
 
       {avisoTermo && (
-        <div className="mb-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm flex gap-2">
-          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+        <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-xs flex gap-2">
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
           <span>{avisoTermo}</span>
         </div>
       )}
 
-      {showAddForm && !somenteLeitura && (
-        <div className="mb-4 p-3 rounded-lg border-2 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10 space-y-3">
-          <label className="block text-sm font-medium text-gray-800 dark:text-gray-200">Procedimento</label>
+      {showAddForm && (
+        <div className="p-3 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-900/10 space-y-2">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">Incluir procedimento</label>
           <select
             value={procedureId}
             onChange={(e) => setProcedureId(e.target.value ? Number(e.target.value) : "")}
@@ -207,11 +224,11 @@ export function ConsultaProcedimentosSection({
               type="button"
               onClick={adicionar}
               disabled={saving || !procedureId}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
               style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-              Incluir procedimento
+              Incluir
             </button>
             <button
               type="button"
@@ -221,7 +238,7 @@ export function ConsultaProcedimentosSection({
                 setErro("");
               }}
               disabled={saving}
-              className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-gray-400"
+              className="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400"
             >
               Cancelar
             </button>
@@ -229,48 +246,28 @@ export function ConsultaProcedimentosSection({
         </div>
       )}
 
-      {loading ? (
-        <div className="text-center py-6 text-gray-500 text-sm">
-          <Loader2 size={20} className="animate-spin mx-auto mb-2" />
-          Carregando...
-        </div>
-      ) : itens.length === 0 ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
-          Nenhum procedimento vinculado. Use &quot;Adicionar&quot; se o paciente decidir fazer um procedimento durante a consulta.
-        </p>
-      ) : (
-        <ul className="divide-y divide-gray-100 dark:divide-neutral-700">
+      {showManageList && itens.length > 0 && (
+        <ul className="rounded-lg border border-gray-200 dark:border-neutral-700 divide-y divide-gray-100 dark:divide-neutral-700 bg-gray-50/50 dark:bg-neutral-800/50">
           {itens.map((item) => (
-            <li key={item.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-              <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            <li key={item.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+              <span className="font-medium text-gray-800 dark:text-gray-200 truncate">
                 {toUpperCase(item.procedure_name)}
               </span>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-sm tabular-nums text-gray-600 dark:text-gray-400">
-                  {formatCurrency(item.valor_efetivo)}
-                </span>
-                {!somenteLeitura && (
-                  <button
-                    type="button"
-                    onClick={() => remover(item)}
-                    disabled={saving}
-                    className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40"
-                    title="Remover procedimento"
-                  >
-                    <Trash2 size={14} className="text-red-500" />
-                  </button>
-                )}
+                <span className="text-xs tabular-nums text-gray-500">{formatCurrency(item.valor_efetivo)}</span>
+                <button
+                  type="button"
+                  onClick={() => remover(item)}
+                  disabled={saving}
+                  className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40"
+                  title="Remover"
+                >
+                  <Trash2 size={13} className="text-red-500" />
+                </button>
               </div>
             </li>
           ))}
         </ul>
-      )}
-
-      {itens.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-neutral-700 flex justify-between text-sm">
-          <span className="text-gray-600 dark:text-gray-400">Subtotal procedimentos</span>
-          <strong className="text-gray-900 dark:text-gray-100 tabular-nums">{formatCurrency(total)}</strong>
-        </div>
       )}
     </div>
   );

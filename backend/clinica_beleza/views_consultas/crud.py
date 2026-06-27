@@ -192,7 +192,6 @@ class ConsultaIniciarView(APIView):
                     {'error': 'Selecione o profissional para iniciar a consulta.', 'code': 'PROFESSIONAL_REQUIRED'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            from .models import Professional
             try:
                 prof = Professional.objects.get(pk=professional_id)
             except Professional.DoesNotExist:

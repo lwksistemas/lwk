@@ -1,6 +1,7 @@
 """Construção de elementos (parágrafos, seções) dos PDFs."""
 import re
 
+from django.utils import timezone
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
@@ -8,6 +9,13 @@ from reportlab.platypus import Paragraph, Spacer
 
 from .constants import MARGIN, PAGE_WIDTH
 from .header import _linha_separadora
+
+
+def _format_datetime_br(dt, fmt='%d/%m/%Y %H:%M'):
+    """Datetime no fuso da clínica (America/Sao_Paulo), não UTC bruto do banco."""
+    if not dt:
+        return ''
+    return timezone.localtime(dt).strftime(fmt)
 
 def _formatar_conteudo_rich_text(conteudo: str) -> list:
     """
@@ -110,7 +118,7 @@ def _build_documento_elements(documento, styles, include_header=True):
         elements.append(Paragraph(prof_line, styles['DocFooter']))
 
     if documento.created_at:
-        data_str = documento.created_at.strftime('%d/%m/%Y %H:%M')
+        data_str = _format_datetime_br(documento.created_at)
         elements.append(Paragraph(f'Data: {data_str}', styles['DocFooter']))
 
     return elements
@@ -120,7 +128,7 @@ def _build_evolucao_elements(evolucao, styles):
     """Constrói elementos para uma evolução clínica."""
     elements = []
 
-    data_str = evolucao.created_at.strftime('%d/%m/%Y %H:%M') if evolucao.created_at else ''
+    data_str = _format_datetime_br(evolucao.created_at)
     elements.append(Paragraph(f'Evolução — {data_str}', styles['DocTitle']))
 
     if evolucao.descricao:
@@ -172,7 +180,7 @@ def _build_anamnese_elements(anamnese, styles):
     if anamnese.updated_at:
         elements.append(Spacer(1, 3 * mm))
         elements.append(Paragraph(
-            f'Última atualização: {anamnese.updated_at.strftime("%d/%m/%Y %H:%M")}',
+            f'Última atualização: {_format_datetime_br(anamnese.updated_at)}',
             styles['DocFooter'],
         ))
 
@@ -194,7 +202,7 @@ def _build_consulta_meta_elements(consulta, titulo: str, styles):
     if proc:
         linhas.append(f'<b>Procedimento:</b> {proc.nome}')
     if consulta.data_inicio:
-        linhas.append(f'<b>Data:</b> {consulta.data_inicio.strftime("%d/%m/%Y %H:%M")}')
+        linhas.append(f'<b>Data:</b> {_format_datetime_br(consulta.data_inicio)}')
     linhas.append(f'<b>Consulta:</b> #{consulta.id}')
 
     protocol = getattr(consulta, 'protocol', None)
@@ -265,7 +273,7 @@ def _build_prescricao_memed_elements(prescricao, styles):
     """Constrói elementos para uma prescrição Memed."""
     elements = []
 
-    data_str = prescricao.created_at.strftime('%d/%m/%Y %H:%M') if prescricao.created_at else ''
+    data_str = _format_datetime_br(prescricao.created_at)
     elements.append(Paragraph(f'Receituário — {data_str}', styles['DocTitle']))
 
     if prescricao.resumo:

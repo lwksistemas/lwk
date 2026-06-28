@@ -582,7 +582,12 @@ def enviar_whatsapp_assinatura_vendedor(documento, assinatura, request, user=Non
     nome_cliente = getattr(lead, 'nome', None) if lead else None
 
     frontend_url = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')
-    link = f'{frontend_url}/assinar/{quote(assinatura.token, safe="")}'
+    full_link = f'{frontend_url}/assinar/{quote(assinatura.token, safe="")}'
+    try:
+        from core.short_link import build_short_url
+        link = build_short_url(full_link)
+    except Exception:
+        link = full_link
 
     from whatsapp.message_templates import msg_assinatura_vendedor
     mensagem = msg_assinatura_vendedor(
@@ -705,7 +710,12 @@ def enviar_whatsapp_assinatura_cliente(documento, assinatura, request, user=None
     titulo = (getattr(documento, 'titulo', None) or getattr(documento, 'numero', None) or tipo_doc).strip()
 
     frontend_url = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')
-    link = f'{frontend_url}/assinar/{quote(assinatura.token, safe="")}'
+    full_link = f'{frontend_url}/assinar/{quote(assinatura.token, safe="")}'
+    try:
+        from core.short_link import build_short_url
+        link = build_short_url(full_link)
+    except Exception:
+        link = full_link
 
     from whatsapp.message_templates import msg_assinatura_cliente
     mensagem = msg_assinatura_cliente(

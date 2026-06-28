@@ -173,7 +173,13 @@ def _get_loja_nome(loja_id: int) -> str:
 def _build_link_assinatura(token: str, path: str) -> str:
     frontend_url = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')
     token_encoded = quote(token, safe='')
-    return f'{frontend_url}{path}{token_encoded}'
+    full_url = f'{frontend_url}{path}{token_encoded}'
+    # Encurtar para WhatsApp (evita URL enorme que parece spam/phishing)
+    try:
+        from core.short_link import build_short_url
+        return build_short_url(full_url)
+    except Exception:
+        return full_url
 
 
 def criar_assinatura(adapter: AssinaturaAdapter, documento, tipo: str, loja_id: int):

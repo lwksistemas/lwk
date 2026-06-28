@@ -4,6 +4,34 @@ Modelos base abstratos para evitar duplicação de código
 from django.db import models
 
 
+class ShortLink(models.Model):
+    """
+    Encurtador de URL interno — mapeia código curto para URL longa.
+    Usado para enviar links legíveis via WhatsApp (sem token enorme).
+    Ex.: lwksistemas.com.br/r/aB3xK9mQ → URL completa de assinatura.
+    """
+    code = models.CharField(max_length=12, unique=True, db_index=True)
+    full_url = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        app_label = 'core'
+        db_table = 'core_short_links'
+        verbose_name = 'Link Curto'
+        verbose_name_plural = 'Links Curtos'
+
+    def __str__(self):
+        return f'{self.code} → {self.full_url[:60]}'
+
+    @property
+    def is_expired(self):
+        from django.utils import timezone
+        if not self.expires_at:
+            return False
+        return timezone.now() > self.expires_at
+
+
 class BaseModel(models.Model):
     """
     Modelo base abstrato com campos comuns a todos os modelos

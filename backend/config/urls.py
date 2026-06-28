@@ -1,12 +1,24 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.conf import settings
 
 
 def favicon_empty(_request):
     """Evita 500 quando browser/bots pedem /favicon.ico na API."""
     return HttpResponse(status=204)
+
+
+def short_link_redirect(_request, code: str):
+    """
+    Redireciona /r/<code>/ para a URL completa correspondente.
+    Usado para encurtar links longos de assinatura enviados via WhatsApp.
+    """
+    from core.short_link import resolve_short_link
+    full_url = resolve_short_link(code)
+    if not full_url:
+        return HttpResponseNotFound('Link expirado ou inválido.')
+    return HttpResponseRedirect(full_url)
 from superadmin.token_refresh_view import SessionAwareTokenRefreshView
 from superadmin.views import atalho_redirect  # ✅ NOVO v1421: Redirecionamento por atalho
 from config.api_schema_views import (
@@ -55,6 +67,7 @@ def api_root(request):
 
 urlpatterns = [
     path('favicon.ico', favicon_empty, name='favicon'),
+    path('r/<str:code>/', short_link_redirect, name='short_link_redirect'),
     path('', api_root, name='api_root'),  # Rota raiz
     path('api/', api_root, name='api_info'),  # Informações da API
     path('admin/', admin.site.urls),

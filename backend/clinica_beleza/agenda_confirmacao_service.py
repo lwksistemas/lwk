@@ -58,7 +58,13 @@ def decodificar_token_confirmacao(token: str) -> dict | None:
 
 def url_confirmacao_frontend(token: str) -> str:
     base = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br').rstrip('/')
-    return f'{base}/confirmar-agendamento/{token}'
+    full_url = f'{base}/confirmar-agendamento/{token}'
+    # Encurtar para WhatsApp (evita URL enorme)
+    try:
+        from core.short_link import build_short_url
+        return build_short_url(full_url)
+    except Exception:
+        return full_url
 
 
 def _configurar_tenant(loja_id: int) -> str | None:

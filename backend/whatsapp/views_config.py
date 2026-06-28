@@ -27,13 +27,17 @@ logger = logging.getLogger(__name__)
 
 
 def _user_may_configure_whatsapp(request, loja) -> bool:
+    """Verifica se o usuário pode CONFIGURAR WhatsApp (admin only)."""
     if not request.user or not request.user.is_authenticated:
         return False
     if request.user.is_superuser:
         return True
     if loja.owner_id == request.user.id:
         return True
-    return user_can_access_loja(request.user, loja)
+    # Apenas perfil administrador pode configurar WhatsApp
+    from superadmin.models import ProfissionalUsuario
+    prof = ProfissionalUsuario.objects.filter(user=request.user, loja=loja).first()
+    return prof is not None and prof.perfil == ProfissionalUsuario.PERFIL_ADMINISTRADOR
 
 
 class WhatsAppConfigView(APIView):

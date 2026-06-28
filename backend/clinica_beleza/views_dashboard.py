@@ -219,8 +219,6 @@ class DashboardView(APIView):
             if cached_data:
                 return Response(cached_data)
 
-        _backfill_consultas_data_fim()
-
         filter_label = f'{MESES_PT[filter_mes]}/{filter_ano}'
         is_current_month = filter_ano == today.year and filter_mes == today.month
 

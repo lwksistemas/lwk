@@ -12,7 +12,7 @@ from ..consulta_service import (
 )
 from ..models import Consulta, Patient, Procedure, ProcedureProtocol, Professional
 from ..pagination import paginate_queryset
-from ..permissions import CLINICA_MEMBER
+from ..permissions import CLINICA_CLINICAL
 from ..serializers import ConsultaSerializer
 from ..views_base import GetObjectMixin, resolve_loja_id_from_request
 from .helpers import get_consulta_or_404, get_patient_or_404
@@ -22,7 +22,7 @@ class ConsultaListView(APIView):
     POST /clinica-beleza/consultas/ — abre uma consulta avulsa (sem agendamento na
          agenda) a partir do cadastro do cliente.
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def get(self, request):
         from django.db.models import Count
@@ -125,7 +125,7 @@ class ConsultaListView(APIView):
 
 class ConsultaDetailView(GetObjectMixin, APIView):
     """GET / PUT / PATCH /clinica-beleza/consultas/<id>/"""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
     model_class = Consulta
     not_found_message = 'Consulta não encontrada'
     select_related_fields = (
@@ -179,7 +179,7 @@ class ConsultaDetailView(GetObjectMixin, APIView):
 
 class ConsultaIniciarView(APIView):
     """POST /clinica-beleza/consultas/<id>/iniciar/ — inicia atendimento (consulta + agenda)."""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def post(self, request, pk):
         consulta, error = get_consulta_or_404(pk, select_related=(
@@ -219,7 +219,7 @@ class ConsultaIniciarView(APIView):
 
 class ConsultaFinalizarView(APIView):
     """POST /clinica-beleza/consultas/<id>/finalizar/ — conclui consulta, agenda e financeiro."""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def post(self, request, pk):
         consulta, error = get_consulta_or_404(pk, select_related=(
@@ -252,7 +252,7 @@ class ConsultaFinalizarView(APIView):
 
 class ConsultaAplicarProtocoloView(APIView):
     """POST /clinica-beleza/consultas/<id>/aplicar-protocolo/ — vincula protocolo e preenche notas."""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def post(self, request, pk):
         consulta, error = get_consulta_or_404(pk, select_related=('procedure',))

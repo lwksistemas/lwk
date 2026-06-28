@@ -8,7 +8,7 @@ from ..consulta_procedimentos_service import (
     remover_procedimento_consulta,
 )
 from ..models import Consulta
-from ..permissions import CLINICA_MEMBER
+from ..permissions import CLINICA_CLINICAL
 from ..serializers import AppointmentProcedureSerializer, ConsultaSerializer
 
 
@@ -17,7 +17,7 @@ class ConsultaProcedimentoListView(APIView):
     GET  /clinica-beleza/consultas/<consulta_id>/procedimentos/
     POST /clinica-beleza/consultas/<consulta_id>/procedimentos/
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def _get_consulta(self, consulta_id):
         try:
@@ -67,7 +67,7 @@ class ConsultaProcedimentoListView(APIView):
 
 class ConsultaProcedimentoDetailView(APIView):
     """DELETE /clinica-beleza/consultas/<consulta_id>/procedimentos/<pk>/"""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def delete(self, request, consulta_id, pk):
         try:

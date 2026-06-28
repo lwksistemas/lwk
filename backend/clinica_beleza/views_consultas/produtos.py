@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..models import Consulta, ConsultaProdutoUtilizado, ProdutoEstoque
-from ..permissions import CLINICA_MEMBER
+from ..permissions import CLINICA_CLINICAL
 from ..serializers import ConsultaProdutoUtilizadoSerializer
 
 class ConsultaProdutoListView(APIView):
@@ -14,7 +14,7 @@ class ConsultaProdutoListView(APIView):
     GET  /clinica-beleza/consultas/<consulta_id>/produtos/
     POST /clinica-beleza/consultas/<consulta_id>/produtos/
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def _get_consulta(self, consulta_id):
         try:
@@ -80,7 +80,7 @@ class ConsultaProdutoListView(APIView):
 
 class ConsultaProdutoDetailView(APIView):
     """DELETE /clinica-beleza/consultas/<consulta_id>/produtos/<pk>/"""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
 
     def delete(self, request, consulta_id, pk):
         try:

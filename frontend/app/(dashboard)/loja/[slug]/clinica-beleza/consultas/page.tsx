@@ -18,6 +18,7 @@ import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { useAgendamentoCadastros } from "@/hooks/clinica-beleza/useAgendamentoCadastros";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { formatApiErrorBody } from "@/lib/api-errors";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import { ConsultasListTable } from "@/components/clinica-beleza/consultas/ConsultasListTable";
 
@@ -75,6 +76,7 @@ export default function ConsultasPage() {
   } = useClinicaBelezaPaginatedList<Consulta>({ path: "/consultas/" });
   const [selected, setSelected] = useState<Consulta | null>(null);
   const [detailPreloaded, setDetailPreloaded] = useState(false);
+  const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
   const [showConfigAgendaMenu, setShowConfigAgendaMenu] = useState(false);
   const [showLocaisModal, setShowLocaisModal] = useState(false);
   const [showNomesAgendaModal, setShowNomesAgendaModal] = useState(false);
@@ -125,10 +127,12 @@ export default function ConsultasPage() {
     const idParam = searchParams.get("id");
     if (!idParam) {
       if (selected) setSelected(null);
+      setDeepLinkError(null);
       return;
     }
     const found = consultas.find((c) => String(c.id) === idParam);
     if (found) {
+      setDeepLinkError(null);
       if (found.id !== selected?.id) {
         setDetailPreloaded(false);
         setSelected(found);
@@ -139,12 +143,18 @@ export default function ConsultasPage() {
     ClinicaBelezaAPI.consultas.get(Number(idParam))
       .then((c) => {
         if (!cancelled) {
+          setDeepLinkError(null);
           setDetailPreloaded(true);
           setSelected(c as Consulta);
         }
       })
-      .catch(() => {
-        if (!cancelled) setSelected(null);
+      .catch((e) => {
+        if (!cancelled) {
+          setSelected(null);
+          setDeepLinkError(
+            formatApiErrorBody(e) || "Consulta não encontrada ou sem permissão para visualizá-la.",
+          );
+        }
       });
     return () => {
       cancelled = true;
@@ -192,6 +202,24 @@ export default function ConsultasPage() {
         }
       />
       <ClinicaBelezaPageContent>
+        {deepLinkError && (
+          <div
+            role="alert"
+            className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+          >
+            {deepLinkError}
+            <button
+              type="button"
+              onClick={() => {
+                setDeepLinkError(null);
+                router.replace(basePath, { scroll: false });
+              }}
+              className="ml-2 font-medium underline hover:no-underline"
+            >
+              Voltar à lista
+            </button>
+          </div>
+        )}
         {loading ? (
           <div className="text-center py-16 text-gray-500">Carregando...</div>
         ) : consultas.length === 0 ? (

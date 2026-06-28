@@ -23,6 +23,7 @@ import {
   workHoursRejectionMessage,
 } from "@/lib/clinica-beleza-work-hours";
 import { calcularDuracaoAgendamento } from "@/lib/clinica-beleza-duracao";
+import { isBrowserOffline, isFetchNetworkError } from "@/lib/clinica-beleza-offline";
 
 interface Professional {
   id: number;
@@ -333,15 +334,66 @@ export function ModalCriarAgendamento({
       basePayload.retorno_procedure = Number(retornoProcedureId);
     }
 
+    const enqueueConsultaOffline = async () => {
+      await adicionarNaFilaSync({ tipo: "consulta", payload: basePayload });
+      notificarFilaAtualizada();
+      resetAndClose();
+      onSuccess();
+    };
+
+    const enqueueAgendamentoOffline = async () => {
+      await adicionarNaFilaSync({ tipo: "agendamento", payload: { ...basePayload, status: "SCHEDULED" } });
+      notificarFilaAtualizada();
+      const patient = patients.find((p) => p.id === patientId);
+      const professional = professionals.find((p) => p.id === professionalId);
+      const procNames = selectedProcedures
+        .map((id) => entityName(procedures.find((p) => p.id === id) || {}))
+        .filter(Boolean)
+        .join(", ");
+      const nomeAgenda = nomesAgenda.find((a) => a.id === agendaId)?.nome;
+      const titulo = [entityName(patient || {}), procNames || nomeAgenda || "Atendimento"]
+        .filter(Boolean)
+        .join(" • ") || "Agendamento (offline)";
+      const tempId = `offline-${Date.now()}`;
+      const endDate = new Date(date);
+      endDate.setMinutes(endDate.getMinutes() + duracaoChecagem);
+
+      if (onOfflineEventCreated) {
+        onOfflineEventCreated({
+          id: tempId,
+          title: titulo,
+          start: date.toISOString(),
+          end: endDate.toISOString(),
+          backgroundColor: "#a855f7",
+          borderColor: "#9333ea",
+          textColor: "#fff",
+          extendedProps: {
+            dbId: tempId,
+            status: "SCHEDULED",
+            patient_name: entityName(patient || {}),
+            patient_phone: "",
+            professional_name: entityName(professional || {}),
+            procedure_name: procNames,
+            procedure_duration: resumo.duracao,
+            procedure_price: resumo.valor,
+            notes: notes.trim() || "",
+          },
+        });
+      }
+      resetAndClose();
+    };
+
     try {
-      if (isConsulta) {
-        if (!navigator.onLine) {
-          await adicionarNaFilaSync({ tipo: "consulta", payload: basePayload });
-          notificarFilaAtualizada();
-          resetAndClose();
-          onSuccess();
+      if (isBrowserOffline()) {
+        if (isConsulta) {
+          await enqueueConsultaOffline();
           return;
         }
+        await enqueueAgendamentoOffline();
+        return;
+      }
+
+      if (isConsulta) {
         const consulta = await ClinicaBelezaAPI.consultas.criar(basePayload);
         resetAndClose();
         onSuccess();
@@ -350,50 +402,6 @@ export function ModalCriarAgendamento({
       }
 
       const payload = { ...basePayload, status: "SCHEDULED" };
-
-      if (!navigator.onLine) {
-        await adicionarNaFilaSync({ tipo: "agendamento", payload });
-        notificarFilaAtualizada();
-        const patient = patients.find((p) => p.id === patientId);
-        const professional = professionals.find((p) => p.id === professionalId);
-        const procNames = selectedProcedures
-          .map((id) => entityName(procedures.find((p) => p.id === id) || {}))
-          .filter(Boolean)
-          .join(", ");
-        const nomeAgenda = nomesAgenda.find((a) => a.id === agendaId)?.nome;
-        const titulo = [entityName(patient || {}), procNames || nomeAgenda || "Atendimento"]
-          .filter(Boolean)
-          .join(" • ") || "Agendamento (offline)";
-        const tempId = `offline-${Date.now()}`;
-        const endDate = new Date(date);
-        endDate.setMinutes(endDate.getMinutes() + duracaoChecagem);
-
-        if (onOfflineEventCreated) {
-          onOfflineEventCreated({
-            id: tempId,
-            title: titulo,
-            start: date.toISOString(),
-            end: endDate.toISOString(),
-            backgroundColor: "#a855f7",
-            borderColor: "#9333ea",
-            textColor: "#fff",
-            extendedProps: {
-              dbId: tempId,
-              status: "SCHEDULED",
-              patient_name: entityName(patient || {}),
-              patient_phone: "",
-              professional_name: entityName(professional || {}),
-              procedure_name: procNames,
-              procedure_duration: resumo.duracao,
-              procedure_price: resumo.valor,
-              notes: notes.trim() || "",
-            },
-          });
-        }
-        resetAndClose();
-        return;
-      }
-
       const res = await clinicaBelezaFetch("/agenda/create/", {
         method: "POST",
         body: JSON.stringify(payload),
@@ -409,11 +417,26 @@ export function ModalCriarAgendamento({
         err && typeof err === 'object' && 'error' in err && typeof (err as { error?: unknown }).error === 'string'
           ? (err as { error: string }).error
           : null;
-      setCreateError(
+      const msg =
         apiMsg
           || (err instanceof Error ? err.message : null)
-          || (isConsulta ? 'Erro ao abrir consulta' : 'Erro ao criar agendamento'),
-      );
+          || (isConsulta ? 'Erro ao abrir consulta' : 'Erro ao criar agendamento');
+
+      if (isFetchNetworkError(msg)) {
+        try {
+          if (isConsulta) {
+            await enqueueConsultaOffline();
+            return;
+          }
+          await enqueueAgendamentoOffline();
+          return;
+        } catch {
+          setCreateError("Sem conexão. Não foi possível salvar offline.");
+          return;
+        }
+      }
+
+      setCreateError(msg);
     } finally {
       setCreateLoading(false);
     }

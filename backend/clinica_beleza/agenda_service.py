@@ -253,9 +253,6 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
     if new_status is not None:
         result.consulta_id, result.consulta_error = _sync_consulta(appointment, new_status, old_status)
 
-    if new_status == 'COMPLETED':
-        _executar_regra_finalizacao(appointment)
-
     return result
 
 

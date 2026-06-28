@@ -637,6 +637,8 @@ def msg_cobranca(paciente, valor):
 def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
     """
     Envia solicitação de confirmação por WhatsApp ao paciente.
+    Evolution: tenta botões interativos (URL ou reply) antes de fallback texto.
+    Meta: envia texto formatado com link.
     Retorna (True, None) ou (False, mensagem_erro).
     """
     phone = getattr(agendamento.patient, 'phone', None) or getattr(agendamento.patient, 'telefone', None)
@@ -655,8 +657,18 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
         link = url_confirmacao_frontend(token)
 
     msg = msg_confirmacao(agendamento, link_confirmacao=link, config=config)
-    from .sync_context import whatsapp_sync_only
 
+    # Evolution: tentar botões interativos (melhor UX)
+    if config and _get_provider(config) == WhatsAppConfig.PROVIDER_EVOLUTION:
+        from .sync_context import whatsapp_sync_only
+        sync_token = whatsapp_sync_only.set(True)
+        try:
+            return _send_confirmacao_evolution(phone, msg, agendamento, user=user, config=config)
+        finally:
+            whatsapp_sync_only.reset(sync_token)
+
+    # Meta Cloud API: texto formatado com link
+    from .sync_context import whatsapp_sync_only
     sync_token = whatsapp_sync_only.set(True)
     try:
         return send_whatsapp(telefone=phone, mensagem=msg, user=user, config=config)

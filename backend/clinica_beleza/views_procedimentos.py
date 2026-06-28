@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .permissions import CLINICA_MEMBER
+from .permissions import CLINICA_RECEPCAO
 from rest_framework import status
 
 from .models import Convenio, ConvenioProcedimentoPreco, Procedure
@@ -72,7 +72,7 @@ class ProcedureListView(APIView):
     GET /clinica-beleza/procedures/
     POST /clinica-beleza/procedures/
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
         active_only = request.query_params.get('active', 'true').lower() == 'true'
@@ -99,7 +99,7 @@ class ProcedureListView(APIView):
 
 class ProcedureDetailView(GetObjectMixin, APIView):
     """GET /clinica-beleza/procedures/<id>/  PUT  DELETE"""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
     model_class = Procedure
     not_found_message = 'Procedimento não encontrado'
 
@@ -180,7 +180,7 @@ class ProcedimentoConvenioPrecosMatrixView(APIView):
     GET /clinica-beleza/procedures/convenio-precos-matrix/
     Matriz de preços: convênios ativos + valores por (procedimento, convênio).
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
         convenios = Convenio.objects.filter(is_active=True).order_by('nome')
@@ -209,7 +209,7 @@ class ProcedurePrecosConvenioView(GetObjectMixin, APIView):
     GET /clinica-beleza/procedures/<pk>/precos-convenio/
     PUT — body: { "precos": [ { "convenio": 1, "preco": "700.00" }, ... ] }
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
     model_class = Procedure
     not_found_message = 'Procedimento não encontrado'
 

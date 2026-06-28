@@ -10,7 +10,7 @@ from rest_framework import status
 from .models import Convenio, ConvenioProcedimentoPreco, Procedure
 from .serializers import ConvenioSerializer, ConvenioListSerializer, ConvenioPrecoSerializer
 from .serializers.convenios import gerar_codigo_convenio
-from .permissions import CLINICA_MEMBER
+from .permissions import CLINICA_RECEPCAO
 from .pagination import paginate_queryset
 from .views_base import GetObjectMixin
 class ConvenioListView(APIView):
@@ -18,7 +18,7 @@ class ConvenioListView(APIView):
     GET /clinica-beleza/convenios/ — lista convênios ativos
     POST /clinica-beleza/convenios/ — cria convênio
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
         incluir_inativos = request.query_params.get('todos') == '1'
@@ -46,7 +46,7 @@ class ConvenioDetailView(GetObjectMixin, APIView):
     """
     GET / PUT / DELETE /clinica-beleza/convenios/<pk>/
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
     model_class = Convenio
     not_found_message = 'Convênio não encontrado'
 
@@ -87,7 +87,7 @@ class ConvenioPrecosView(GetObjectMixin, APIView):
     Body PUT: { "precos": [ { "procedure": 1, "modo": "fixo", "preco": "700.00" }, ... ] }
     modo: "fixo" (R$) ou "percentual" (% sobre particular). preco vazio remove a regra.
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
     model_class = Convenio
     not_found_message = 'Convênio não encontrado'
 

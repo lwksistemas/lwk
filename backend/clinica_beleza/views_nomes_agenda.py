@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import NomeAgenda
-from .permissions import CLINICA_MEMBER
+from .permissions import CLINICA_RECEPCAO
 from .serializers import NomeAgendaSerializer
 from .views_base import GetObjectMixin
 
@@ -14,7 +14,7 @@ class NomeAgendaListView(APIView):
     GET /clinica-beleza/nomes-agenda/ — lista nomes ativos da loja
     POST /clinica-beleza/nomes-agenda/ — cria novo nome
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
         queryset = NomeAgenda.objects.filter(is_active=True).order_by('nome')
@@ -37,7 +37,7 @@ class NomeAgendaListView(APIView):
 
 class NomeAgendaDetailView(GetObjectMixin, APIView):
     """GET / PUT / PATCH / DELETE /clinica-beleza/nomes-agenda/<pk>/"""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
     model_class = NomeAgenda
     not_found_message = 'Nome de agenda não encontrado'
 

@@ -23,7 +23,7 @@ from .consentimento_service import (
     sincronizar_status_consulta,
 )
 from .models import Consulta, ConsultaTermoProcedimento
-from .permissions import CLINICA_MEMBER
+from .permissions import CLINICA_CLINICAL
 from .views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ def _documento_da_assinatura(adapter, assinatura):
 class ConsultaTermoConsentimentoStatusView(GetObjectMixin, APIView):
     """GET — status dos termos por procedimento."""
 
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
     model_class = Consulta
     not_found_message = 'Consulta não encontrada'
     select_related_fields = ('patient', 'professional', 'appointment')
@@ -98,7 +98,7 @@ class ConsultaTermoConsentimentoStatusView(GetObjectMixin, APIView):
 class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
     """POST — envia termo(s) para assinatura do paciente (e-mail ou WhatsApp)."""
 
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
     model_class = Consulta
     not_found_message = 'Consulta não encontrada'
     select_related_fields = ('patient', 'professional', 'appointment')
@@ -246,7 +246,7 @@ class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
 class ConsultaReenviarTermoAssinaturaView(GetObjectMixin, APIView):
     """POST — reenvia link de assinatura de um procedimento específico."""
 
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
     model_class = Consulta
     not_found_message = 'Consulta não encontrada'
     select_related_fields = ('patient', 'professional')
@@ -326,7 +326,7 @@ class ConsultaReenviarTermoAssinaturaView(GetObjectMixin, APIView):
 class ConsultaDownloadTermoPdfView(GetObjectMixin, APIView):
     """GET — baixa PDF do termo de um procedimento (?procedure_id=)."""
 
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_CLINICAL
     model_class = Consulta
     not_found_message = 'Consulta não encontrada'
     select_related_fields = ('patient', 'professional')

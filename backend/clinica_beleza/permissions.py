@@ -51,7 +51,8 @@ class IsClinicaLojaMember(BasePermission):
 
 class IsRecepcaoOrAdmin(BasePermission):
     """
-    Agenda/recepção ampla: owner, administrador, recepcionista ou recepcao (legado).
+    Cadastros/recepção ampla: owner, administrador, recepcionista ou recepcao (legado).
+    Exclui perfil limpeza, caixa, estoque e profissional.
     """
 
     message = 'Acesso permitido apenas para administrador ou perfil recepção.'
@@ -74,6 +75,35 @@ class IsRecepcaoOrAdmin(BasePermission):
             ProfissionalUsuario.PERFIL_ADMINISTRADOR,
             ProfissionalUsuario.PERFIL_RECEPCAO,
             ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+        )
+
+
+class IsAgendaOrAdmin(BasePermission):
+    """
+    Agenda e bloqueios: recepção/admin (visão completa) ou profissional (escopo próprio).
+    """
+
+    message = 'Acesso permitido apenas para recepção, administrador ou profissional da clínica.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        loja, prof = _loja_and_profissional(request)
+        if prof == 'superuser':
+            return True
+        if not loja:
+            return False
+        if loja.owner_id == request.user.id:
+            return True
+        if not prof:
+            return False
+        from superadmin.models import ProfissionalUsuario
+
+        return prof.perfil in (
+            ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+            ProfissionalUsuario.PERFIL_RECEPCAO,
+            ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+            ProfissionalUsuario.PERFIL_PROFISSIONAL,
         )
 
 
@@ -180,9 +210,38 @@ class IsClinicaEstoque(BasePermission):
         )
 
 
+def resolve_agenda_professional_scope(request) -> int | None:
+    """
+    Escopo de agenda para o usuário autenticado.
+
+    None — visão completa (owner, admin, recepção).
+    int  — professional_id quando perfil profissional (só agenda/bloqueios próprios).
+    """
+    loja, prof = _loja_and_profissional(request)
+    if prof == 'superuser' or (loja and loja.owner_id == request.user.id):
+        return None
+    if not prof:
+        return None
+    from superadmin.models import ProfissionalUsuario
+
+    if prof.perfil == ProfissionalUsuario.PERFIL_PROFISSIONAL:
+        return prof.professional_id or 0
+    return None
+
+
+def appointment_in_agenda_scope(appointment, scope_professional_id: int | None) -> bool:
+    """True se o agendamento pode ser lido/alterado pelo escopo atual."""
+    if scope_professional_id is None:
+        return True
+    if not scope_professional_id:
+        return False
+    return appointment.professional_id == scope_professional_id
+
+
 # Atalhos para permission_classes nas views
 CLINICA_MEMBER = [IsAuthenticated, IsClinicaLojaMember]
 CLINICA_RECEPCAO = [IsAuthenticated, IsClinicaLojaMember, IsRecepcaoOrAdmin]
+CLINICA_AGENDA = [IsAuthenticated, IsClinicaLojaMember, IsAgendaOrAdmin]
 CLINICA_ADMIN = [IsAuthenticated, IsClinicaLojaMember, IsClinicaAdmin]
 CLINICA_CLINICAL = [IsAuthenticated, IsClinicaLojaMember, IsClinicaClinicalStaff]
 CLINICA_FINANCEIRO = [IsAuthenticated, IsClinicaLojaMember, IsClinicaFinanceiro]

@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import RetornoProcedimentoRegra
-from .permissions import CLINICA_MEMBER
+from .permissions import CLINICA_RECEPCAO
 from .retorno_service import get_agenda_retorno_config, verificar_retorno
 from .serializers.retorno import AgendaRetornoConfigSerializer, RetornoProcedimentoRegraSerializer
 from .views_base import GetObjectMixin
@@ -25,7 +25,7 @@ class RetornoConfigView(APIView):
     GET/PATCH /clinica-beleza/retorno/config/
     Configuração geral: ativar retorno por procedimento/consulta e prazo da consulta.
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
         from tenants.middleware import get_current_loja_id
@@ -51,7 +51,7 @@ class RetornoConfigView(APIView):
 
 class RetornoProcedimentoRegraListView(APIView):
     """GET/POST /clinica-beleza/retorno/procedimentos/"""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
         err = _ensure_retorno_schema_or_response()
@@ -73,7 +73,7 @@ class RetornoProcedimentoRegraListView(APIView):
 
 class RetornoProcedimentoRegraDetailView(GetObjectMixin, APIView):
     """GET/PATCH/DELETE /clinica-beleza/retorno/procedimentos/<pk>/"""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
     model_class = RetornoProcedimentoRegra
     not_found_message = 'Regra de retorno não encontrada'
 
@@ -122,7 +122,7 @@ class RetornoVerificarView(APIView):
     GET /clinica-beleza/retorno/verificar/?patient_id=&procedure_ids=1,2&retorno_procedure_id=
     Verifica se paciente tem direito a retorno gratuito (taxa de consulta isenta).
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
         err = _ensure_retorno_schema_or_response()

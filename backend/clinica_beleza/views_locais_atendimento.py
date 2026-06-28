@@ -7,7 +7,7 @@ from rest_framework import status
 
 from .models import LocalAtendimento
 from .serializers import LocalAtendimentoSerializer
-from .permissions import CLINICA_MEMBER
+from .permissions import CLINICA_RECEPCAO
 from .views_base import GetObjectMixin
 
 
@@ -16,7 +16,7 @@ class LocalAtendimentoListView(APIView):
     GET /clinica-beleza/locais-atendimento/ — lista locais ativos da loja
     POST /clinica-beleza/locais-atendimento/ — cria novo local
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
         queryset = LocalAtendimento.objects.filter(is_active=True).order_by('nome')
@@ -41,7 +41,7 @@ class LocalAtendimentoDetailView(GetObjectMixin, APIView):
     """
     GET / PUT / DELETE /clinica-beleza/locais-atendimento/<pk>/
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
     model_class = LocalAtendimento
     not_found_message = 'Local de atendimento não encontrado'
 

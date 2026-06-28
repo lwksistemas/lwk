@@ -203,17 +203,15 @@ class DashboardView(APIView):
             )
 
         today = now().date()
-        yesterday = today - timedelta(days=1)
         current = now()
-
         period_start, period_end, filter_mes, filter_ano = _parse_dashboard_period(request, today)
         period = (request.query_params.get('period') or 'proximos').strip().lower()
         professional_id = request.query_params.get('professional')
+
         cache_key = (
             f'clinica_beleza_dashboard_{DASHBOARD_CACHE_VERSION}_{loja_id}_{filter_ano}_{filter_mes:02d}'
             f'_{period}_{professional_id or "all"}'
         )
-
         skip_cache = (request.query_params.get('refresh') or '').strip().lower() in ('1', 'true', 'yes')
         if not skip_cache:
             cached_data = cache.get(cache_key)
@@ -222,45 +220,59 @@ class DashboardView(APIView):
 
         _backfill_consultas_data_fim()
 
-        appointments_today = Appointment.objects.filter(date__date=today).count()
-        appointments_yesterday = Appointment.objects.filter(date__date=yesterday).count()
-        patients_total = Patient.objects.filter(is_active=True).count()
-        procedures_total = Procedure.objects.filter(is_active=True).count()
+        filter_label = f'{MESES_PT[filter_mes]}/{filter_ano}'
+        is_current_month = filter_ano == today.year and filter_mes == today.month
 
+        data = {
+            'filter': {
+                'mes': filter_mes,
+                'ano': filter_ano,
+                'label': filter_label,
+                'is_current_month': is_current_month,
+                'period_start': period_start.isoformat(),
+                'period_end': period_end.isoformat(),
+            },
+            'statistics': self._build_statistics(today, period_start, period_end),
+            'next_appointments': self._build_next_appointments(period, professional_id, today, current),
+            'revenue_last_7_days': _revenue_by_day(period_start, period_end),
+            'top_procedures': _top_procedures_realizados_periodo(period_start, period_end),
+            'top_procedures_volume': _top_soroterapia_periodo(period_start, period_end),
+        }
+
+        cache.set(cache_key, data, 120)
+        return Response(data)
+
+    def _build_statistics(self, today, period_start, period_end):
+        """Agrega métricas numéricas do dashboard para o período."""
+        yesterday = today - timedelta(days=1)
         revenue_month = Payment.objects.filter(
             status='PAID',
             payment_date__date__gte=period_start,
             payment_date__date__lte=period_end,
         ).aggregate(total=Sum('amount'))['total'] or 0
-
         revenue_today = Payment.objects.filter(
-            status='PAID', payment_date__date=today
+            status='PAID', payment_date__date=today,
         ).aggregate(total=Sum('amount'))['total'] or 0
+        return {
+            'appointments_today': Appointment.objects.filter(date__date=today).count(),
+            'appointments_yesterday': Appointment.objects.filter(date__date=yesterday).count(),
+            'patients_total': Patient.objects.filter(is_active=True).count(),
+            'procedures_total': Procedure.objects.filter(is_active=True).count(),
+            'revenue_month': float(revenue_month),
+            'revenue_today': float(revenue_today),
+            'sessions_month': _consultas_concluidas_no_periodo(period_start, period_end).count(),
+        }
 
-        sessions_month = _consultas_concluidas_no_periodo(period_start, period_end).count()
-
-        revenue_last_7_days = _revenue_by_day(period_start, period_end)
-
-        top_procedures = _top_procedures_realizados_periodo(period_start, period_end)
-        top_procedures_volume = _top_soroterapia_periodo(period_start, period_end)
-
-        filter_label = f'{MESES_PT[filter_mes]}/{filter_ano}'
-        is_current_month = filter_ano == today.year and filter_mes == today.month
-
-        # Próximos agendamentos: a partir de agora (não só hoje)
+    def _build_next_appointments(self, period, professional_id, today, current):
+        """Retorna lista serializada dos próximos agendamentos conforme período."""
         if period == 'hoje':
-            horizon_date = today
-            next_qs = Appointment.objects.filter(
-                date__date=today,
-                date__gte=current,
-            )
+            next_qs = Appointment.objects.filter(date__date=today, date__gte=current)
+            limit = 10
         else:
             days_ahead = 7 if period == 'semana' else 14
-            horizon_date = today + timedelta(days=days_ahead)
-            next_qs = Appointment.objects.filter(
-                date__gte=current,
-                date__date__lte=horizon_date,
-            )
+            horizon = today + timedelta(days=days_ahead)
+            next_qs = Appointment.objects.filter(date__gte=current, date__date__lte=horizon)
+            limit = 15
 
         next_qs = next_qs.filter(
             status__in=['SCHEDULED', 'CLIENT_CONFIRMED', 'PHONE_CONFIRMED', 'CONFIRMED', 'IN_PROGRESS'],
@@ -272,31 +284,4 @@ class DashboardView(APIView):
             except (ValueError, TypeError):
                 pass
 
-        limit = 10 if period == 'hoje' else 15
-
-        data = {
-            'filter': {
-                'mes': filter_mes,
-                'ano': filter_ano,
-                'label': filter_label,
-                'is_current_month': is_current_month,
-                'period_start': period_start.isoformat(),
-                'period_end': period_end.isoformat(),
-            },
-            'statistics': {
-                'appointments_today': appointments_today,
-                'appointments_yesterday': appointments_yesterday,
-                'patients_total': patients_total,
-                'procedures_total': procedures_total,
-                'revenue_month': float(revenue_month),
-                'revenue_today': float(revenue_today),
-                'sessions_month': sessions_month,
-            },
-            'next_appointments': AppointmentListSerializer(next_qs[:limit], many=True).data,
-            'revenue_last_7_days': revenue_last_7_days,
-            'top_procedures': top_procedures,
-            'top_procedures_volume': top_procedures_volume,
-        }
-
-        cache.set(cache_key, data, 120)
-        return Response(data)
+        return AppointmentListSerializer(next_qs[:limit], many=True).data

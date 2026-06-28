@@ -39,24 +39,6 @@ class Patient(ClienteBase):
         help_text='Foto de perfil do cliente (Cloudinary).',
     )
 
-    # DEPRECATED: aliases inglês→português mantidos apenas para o management command
-    # popular_loja_clinica_beleza. O mapeamento real é feito em views_pacientes._map_patient_data.
-    @property
-    def name(self):
-        return self.nome
-
-    @name.setter
-    def name(self, value):
-        self.nome = value
-
-    @property
-    def phone(self):
-        return self.telefone
-
-    @phone.setter
-    def phone(self, value):
-        self.telefone = value
-
     class Meta(ClienteBase.Meta):
         app_label = 'clinica_beleza'
         verbose_name = "Paciente"

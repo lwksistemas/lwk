@@ -260,13 +260,16 @@ def clear_loja_context():
 class ClienteSearchMixin:
     """
     Mixin para adicionar busca de clientes por nome/telefone/email.
-    
+
     Adiciona o endpoint /buscar/ que permite busca rápida de clientes
     por nome, telefone ou email (mínimo 2 caracteres).
-    
+
+    Consumidores: `clinica_estetica` e `cabeleireiro`.
+    NÃO usado por `clinica_beleza` (que usa `_patient_search_q` diretamente nas views).
+
     Uso:
         from rest_framework.decorators import action
-        
+
         class ClienteViewSet(ClienteSearchMixin, BaseModelViewSet):
             queryset = Cliente.objects.all()
             serializer_class = ClienteSerializer

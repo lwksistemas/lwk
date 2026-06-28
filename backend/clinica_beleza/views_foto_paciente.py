@@ -127,6 +127,13 @@ class ConsultaFotoDeleteView(GetObjectMixin, APIView):
 class EnviarFotoPublicaView(View):
     """GET/POST /api/clinica-beleza/enviar-foto/{token}/"""
 
+    def dispatch(self, request, *args, **kwargs):
+        from .throttles import check_rate_limit
+        from django.http import JsonResponse
+        if not check_rate_limit(request, 'public_foto', '10/min'):
+            return JsonResponse({'error': 'Muitas tentativas. Aguarde alguns segundos e tente novamente.'}, status=429)
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, token):
         from core.assinatura_service import normalizar_token_url
         from superadmin.models import Loja

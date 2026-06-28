@@ -4,11 +4,9 @@ Popula uma loja Clínica da Beleza com dados de exemplo (profissionais, procedim
 Uso:
   python manage.py popular_loja_clinica_beleza --slug clinica-luiz-000172
 """
-import os
 from datetime import datetime, timedelta
 from decimal import Decimal
 from django.core.management.base import BaseCommand
-from django.conf import settings
 from django.utils import timezone
 from superadmin.models import Loja
 
@@ -59,55 +57,54 @@ class Command(BaseCommand):
         # 1. Profissionais
         self.stdout.write('\nProfissionais:')
         profissionais_data = [
-            {'name': 'Dra. Ana Silva', 'specialty': 'Dermatologista', 'phone': '(11) 98765-4321', 'email': 'ana.silva@clinica.com'},
-            {'name': 'Dra. Julia Santos', 'specialty': 'Esteticista', 'phone': '(11) 98765-4322', 'email': 'julia.santos@clinica.com'},
-            {'name': 'Dra. Fernanda Costa', 'specialty': 'Biomédica Esteta', 'phone': '(11) 98765-4323', 'email': 'fernanda.costa@clinica.com'},
+            {'nome': 'Dra. Ana Silva', 'especialidade': 'Dermatologista', 'telefone': '(11) 98765-4321', 'email': 'ana.silva@clinica.com'},
+            {'nome': 'Dra. Julia Santos', 'especialidade': 'Esteticista', 'telefone': '(11) 98765-4322', 'email': 'julia.santos@clinica.com'},
+            {'nome': 'Dra. Fernanda Costa', 'especialidade': 'Biomédica Esteta', 'telefone': '(11) 98765-4323', 'email': 'fernanda.costa@clinica.com'},
         ]
         profissionais_criados = []
         for d in profissionais_data:
             d['loja_id'] = loja_id
-            prof, created = Professional.objects.using(db_name).get_or_create(name=d['name'], defaults=d)
+            prof, created = Professional.objects.using(db_name).get_or_create(nome=d['nome'], defaults=d)
             profissionais_criados.append(prof)
-            self.stdout.write(f'   {"Criado" if created else "Já existe"}: {prof.name}')
+            self.stdout.write(f'   {"Criado" if created else "Já existe"}: {prof.nome}')
 
         # 2. Procedimentos
         self.stdout.write('\nProcedimentos:')
         procedimentos_data = [
-            {'name': 'Limpeza de Pele', 'price': Decimal('150.00'), 'duration': 60},
-            {'name': 'Botox', 'price': Decimal('800.00'), 'duration': 30},
-            {'name': 'Preenchimento Labial', 'price': Decimal('1200.00'), 'duration': 45},
-            {'name': 'Laser Facial', 'price': Decimal('350.00'), 'duration': 40},
-            {'name': 'Peeling Químico', 'price': Decimal('250.00'), 'duration': 50},
-            {'name': 'Microagulhamento', 'price': Decimal('300.00'), 'duration': 60},
-            {'name': 'Drenagem Linfática', 'price': Decimal('120.00'), 'duration': 60},
-            {'name': 'Massagem Relaxante', 'price': Decimal('150.00'), 'duration': 60},
+            {'nome': 'Limpeza de Pele', 'preco': Decimal('150.00'), 'duracao_minutos': 60},
+            {'nome': 'Botox', 'preco': Decimal('800.00'), 'duracao_minutos': 30},
+            {'nome': 'Preenchimento Labial', 'preco': Decimal('1200.00'), 'duracao_minutos': 45},
+            {'nome': 'Laser Facial', 'preco': Decimal('350.00'), 'duracao_minutos': 40},
+            {'nome': 'Peeling Químico', 'preco': Decimal('250.00'), 'duracao_minutos': 50},
+            {'nome': 'Microagulhamento', 'preco': Decimal('300.00'), 'duracao_minutos': 60},
+            {'nome': 'Drenagem Linfática', 'preco': Decimal('120.00'), 'duracao_minutos': 60},
+            {'nome': 'Massagem Relaxante', 'preco': Decimal('150.00'), 'duracao_minutos': 60},
         ]
         procedimentos_criados = []
         for d in procedimentos_data:
             d['loja_id'] = loja_id
-            d.setdefault('description', '')
-            proc, created = Procedure.objects.using(db_name).get_or_create(name=d['name'], defaults=d)
+            proc, created = Procedure.objects.using(db_name).get_or_create(nome=d['nome'], defaults=d)
             procedimentos_criados.append(proc)
-            self.stdout.write(f'   {"Criado" if created else "Já existe"}: {proc.name} - R$ {proc.price}')
+            self.stdout.write(f'   {"Criado" if created else "Já existe"}: {proc.nome} - R$ {proc.preco}')
 
         # 3. Pacientes
         self.stdout.write('\nPacientes:')
         pacientes_data = [
-            {'name': 'Mariana Lopes', 'phone': '(11) 91234-5678', 'email': 'mariana@email.com'},
-            {'name': 'Camila Rocha', 'phone': '(11) 91234-5679', 'email': 'camila@email.com'},
-            {'name': 'Patricia Alves', 'phone': '(11) 91234-5680', 'email': 'patricia@email.com'},
-            {'name': 'Renata Souza', 'phone': '(11) 91234-5681', 'email': 'renata@email.com'},
-            {'name': 'Juliana Lima', 'phone': '(11) 91234-5682', 'email': 'juliana@email.com'},
-            {'name': 'Beatriz Costa', 'phone': '(11) 91234-5683', 'email': 'beatriz@email.com'},
-            {'name': 'Amanda Silva', 'phone': '(11) 91234-5684', 'email': 'amanda@email.com'},
-            {'name': 'Carolina Dias', 'phone': '(11) 91234-5685', 'email': 'carolina@email.com'},
+            {'nome': 'Mariana Lopes', 'telefone': '(11) 91234-5678', 'email': 'mariana@email.com'},
+            {'nome': 'Camila Rocha', 'telefone': '(11) 91234-5679', 'email': 'camila@email.com'},
+            {'nome': 'Patricia Alves', 'telefone': '(11) 91234-5680', 'email': 'patricia@email.com'},
+            {'nome': 'Renata Souza', 'telefone': '(11) 91234-5681', 'email': 'renata@email.com'},
+            {'nome': 'Juliana Lima', 'telefone': '(11) 91234-5682', 'email': 'juliana@email.com'},
+            {'nome': 'Beatriz Costa', 'telefone': '(11) 91234-5683', 'email': 'beatriz@email.com'},
+            {'nome': 'Amanda Silva', 'telefone': '(11) 91234-5684', 'email': 'amanda@email.com'},
+            {'nome': 'Carolina Dias', 'telefone': '(11) 91234-5685', 'email': 'carolina@email.com'},
         ]
         pacientes_criados = []
         for d in pacientes_data:
             d['loja_id'] = loja_id
-            pac, created = Patient.objects.using(db_name).get_or_create(phone=d['phone'], defaults=d)
+            pac, created = Patient.objects.using(db_name).get_or_create(telefone=d['telefone'], defaults=d)
             pacientes_criados.append(pac)
-            self.stdout.write(f'   {"Criado" if created else "Já existe"}: {pac.name}')
+            self.stdout.write(f'   {"Criado" if created else "Já existe"}: {pac.nome}')
 
         # 4. Agendamentos
         self.stdout.write('\nAgendamentos:')
@@ -122,7 +119,7 @@ class Command(BaseCommand):
             (hoje + timedelta(days=1), '10:00', 6, 2, 6, 'CONFIRMED'),
         ]
         agendamentos_criados = []
-        for data_date, hora, iPac, iProf, iProc, status in agendamentos_data:
+        for data_date, hora, iPac, iProf, iProc, appt_status in agendamentos_data:
             dt = timezone.make_aware(datetime.combine(data_date, datetime.strptime(hora, '%H:%M').time()))
             agend, created = Appointment.objects.using(db_name).get_or_create(
                 date=dt,
@@ -130,27 +127,27 @@ class Command(BaseCommand):
                 defaults={
                     'professional': profissionais_criados[iProf],
                     'procedure': procedimentos_criados[iProc],
-                    'status': status,
+                    'status': appt_status,
                     'loja_id': loja_id,
                 },
             )
             agendamentos_criados.append(agend)
-            self.stdout.write(f'   {"Criado" if created else "Já existe"}: {agend.date.strftime("%d/%m %H:%M")} - {agend.patient.name}')
+            self.stdout.write(f'   {"Criado" if created else "Já existe"}: {agend.date.strftime("%d/%m %H:%M")} - {agend.patient.nome}')
 
         # 5. Pagamentos (agendamentos confirmados)
         self.stdout.write('\nPagamentos:')
         confirmados = [a for a in agendamentos_criados if a.status == 'CONFIRMED'][:3]
         for agend in confirmados:
-                pay, created = Payment.objects.using(db_name).get_or_create(
-                    appointment=agend,
-                    defaults={
-                        'amount': agend.procedure.price,
-                        'payment_method': 'PIX',
-                        'status': 'PAID',
-                        'payment_date': timezone.now(),
-                        'loja_id': loja_id,
-                    },
-                )
-                self.stdout.write(f'   {"Criado" if created else "Já existe"}: R$ {pay.amount} - {agend.patient.name}')
+            pay, created = Payment.objects.using(db_name).get_or_create(
+                appointment=agend,
+                defaults={
+                    'amount': agend.procedure.preco,
+                    'payment_method': 'PIX',
+                    'status': 'PAID',
+                    'payment_date': timezone.now(),
+                    'loja_id': loja_id,
+                },
+            )
+            self.stdout.write(f'   {"Criado" if created else "Já existe"}: R$ {pay.amount} - {agend.patient.nome}')
 
         self.stdout.write(self.style.SUCCESS('\nDados populados com sucesso.'))

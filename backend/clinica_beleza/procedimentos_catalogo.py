@@ -1,6 +1,10 @@
 """
 Catálogo padrão de locais e procedimentos — Clínica da Beleza.
 Usado no seed e no comando ensure_procedimentos_catalogo.
+
+Consumidores: `catalogo_service.py` e management commands
+(`ensure_procedimentos_catalogo`, `popular_loja_clinica_beleza`).
+Este arquivo define apenas dados de seed — não contém lógica de negócio em runtime.
 """
 from dataclasses import dataclass
 from decimal import Decimal

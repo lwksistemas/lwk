@@ -148,16 +148,18 @@ class AgendaCreateView(APIView):
             )
 
 
-class AgendaDeleteView(APIView):
+class AgendaDeleteView(GetObjectMixin, APIView):
     """DELETE /clinica-beleza/agenda/<id>/delete/"""
     permission_classes = CLINICA_MEMBER
+    model_class = Appointment
+    not_found_message = 'Agendamento não encontrado'
 
     def delete(self, request, pk):
-        try:
-            Appointment.objects.get(pk=pk).delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Appointment.DoesNotExist:
-            return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AgendaReenviarMensagemView(APIView):

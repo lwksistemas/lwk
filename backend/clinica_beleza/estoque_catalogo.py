@@ -2,6 +2,10 @@
 Catálogo padrão de produtos do estoque — Clínica da Beleza (estética + soroterapia).
 
 Nomes comerciais usados em clínicas de estética e IV therapy no Brasil.
+
+Consumidores: `estoque_catalogo_service.py` e management commands
+(`ensure_estoque_catalogo`, `popular_loja_clinica_beleza`).
+Este arquivo define apenas dados de seed — não contém lógica de negócio em runtime.
 """
 from __future__ import annotations
 

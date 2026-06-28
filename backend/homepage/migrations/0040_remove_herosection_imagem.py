@@ -4,6 +4,25 @@
 from django.db import migrations
 
 
+def drop_hero_imagem_column(apps, schema_editor):
+    from django.db import connection
+
+    table = 'homepage_hero_section'
+    column = 'imagem'
+    with connection.cursor() as cursor:
+        if connection.vendor == 'sqlite':
+            cursor.execute(f'PRAGMA table_info("{table}")')
+            if not any(row[1] == column for row in cursor.fetchall()):
+                return
+            # SQLite 3.35+ suporta DROP COLUMN; versões antigas ignoram silenciosamente via exceção
+            try:
+                cursor.execute(f'ALTER TABLE "{table}" DROP COLUMN "{column}"')
+            except Exception:
+                pass
+            return
+        cursor.execute(f'ALTER TABLE {table} DROP COLUMN IF EXISTS {column};')
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -11,8 +30,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql='ALTER TABLE homepage_hero_section DROP COLUMN IF EXISTS imagem;',
-            reverse_sql=migrations.RunSQL.noop,
-        ),
+        migrations.RunPython(drop_hero_imagem_column, migrations.RunPython.noop),
     ]

@@ -17,7 +17,9 @@ def check_table_exists(table_name):
 
 
 def create_cloudinary_config_if_not_exists(apps, schema_editor):
-    """Cria a tabela CloudinaryConfig apenas se ela não existir"""
+    """Cria a tabela CloudinaryConfig apenas se ela não existir (PostgreSQL)."""
+    if schema_editor.connection.vendor != 'postgresql':
+        return
     if not check_table_exists('superadmin_cloudinary_config'):
         # Tabela não existe, criar normalmente
         schema_editor.execute("""

@@ -5,11 +5,16 @@ from django.utils import timezone
 
 
 def copiar_motivo_para_titulo(apps, schema_editor):
+    from django.db.utils import OperationalError
+
     BloqueioAgenda = apps.get_model('cabeleireiro', 'BloqueioAgenda')
-    for b in BloqueioAgenda.objects.all():
-        if b.motivo and not b.titulo:
-            b.titulo = b.motivo
-            b.save(update_fields=['titulo'])
+    try:
+        for b in BloqueioAgenda.objects.all():
+            if b.motivo and not b.titulo:
+                b.titulo = b.motivo
+                b.save(update_fields=['titulo'])
+    except OperationalError:
+        return
 
 
 class Migration(migrations.Migration):

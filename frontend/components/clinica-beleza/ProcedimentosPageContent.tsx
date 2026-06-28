@@ -10,28 +10,21 @@ import {
   procedureDescription,
   procedureDuration,
 } from "@/lib/clinica-beleza-entities";
-import { formatProcedimentoApiErrors } from "@/lib/clinica-beleza-form-errors";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import {
   deleteClinicaBelezaEntity,
   saveClinicaBelezaEntity,
   useClinicaBelezaEntityList,
 } from "@/lib/clinica-beleza-crud";
-import {
-  bloquearCriacaoDuplicadaOffline,
-  deveVerificarDuplicataOffline,
-  gerarIdTemporarioOffline,
-  isBrowserOffline,
-  isFetchNetworkError,
-  temDuplicataNaLista,
-} from "@/lib/clinica-beleza-offline";
-import { buscarProcedimentosOffline, salvarProcedimentosOffline, adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
+import { isBrowserOffline } from "@/lib/clinica-beleza-offline";
+import { buscarProcedimentosOffline, salvarProcedimentosOffline } from "@/lib/offline-db";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
+import { useOfflineSave } from "@/hooks/clinica-beleza/useOfflineSave";
 import { useLojaTheme } from "@/hooks/useLojaTheme";
 import { logger } from "@/lib/logger";
 import { toUpperCase } from "@/lib/format-br";
@@ -135,8 +128,48 @@ export function ProcedimentosPageContent({
   const [editing, setEditing] = useState<Procedure | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [precosConvenio, setPrecosConvenio] = useState<Record<number, string>>({});
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const { save: offlineSave, saving } = useOfflineSave<Procedure>({
+    entityType: "procedimento",
+    saveOnline: async (body, ed) => {
+      let procedureId: number;
+      if (ed) {
+        await saveClinicaBelezaEntity(`/procedures/${ed.id}/`, "PUT", body);
+        procedureId = ed.id;
+      } else {
+        const created = await saveClinicaBelezaEntity("/procedures/", "POST", body) as { id?: number };
+        procedureId = created?.id ?? 0;
+      }
+      if (procedureId > 0 && convenios.length > 0) {
+        await ClinicaBelezaAPI.procedures.savePrecosConvenio(
+          procedureId,
+          convenios.map((c) => {
+            const raw = precosConvenio[c.id]?.trim();
+            return {
+              convenio: c.id,
+              preco: raw ? raw.replace(",", ".") : null,
+            };
+          }),
+        );
+      }
+    },
+    list,
+    setList,
+    saveOffline: salvarProcedimentosOffline,
+    buildNewEntity: (body, tempId) => ({
+      id: tempId,
+      name: body.name as string,
+      description: body.description as string | null,
+      price: "0",
+      duration: body.duration as number,
+      categoria: body.category as string,
+      active: true,
+    }),
+    duplicatePredicate: (p) =>
+      entityName(p).toLowerCase() === form.name.trim().toLowerCase(),
+    offlineMessage: "Salvo offline. O procedimento será sincronizado quando você estiver online.",
+  });
 
   const carregarMatrix = useCallback(async () => {
     if (isBrowserOffline()) return;
@@ -218,49 +251,6 @@ export function ProcedimentosPageContent({
       };
     });
 
-  const saveOffline = async (body: Record<string, unknown>) => {
-    const lojaSlug = getLojaSlug();
-    if (deveVerificarDuplicataOffline(editing)) {
-      const jaExisteLocal = temDuplicataNaLista(list, (p) =>
-        entityName(p).toLowerCase() === form.name.trim().toLowerCase(),
-      );
-      if (jaExisteLocal) {
-        setError("Este procedimento já foi adicionado. Aguarde a sincronização.");
-        return false;
-      }
-    }
-    if (editing && editing.id > 0) {
-      await adicionarNaFilaSync({
-        tipo: "procedimento",
-        payload: { action: "update", id: editing.id, body },
-        lojaSlug,
-      });
-      const updatedList = list.map((p) =>
-        p.id === editing.id
-          ? { ...p, name: body.name as string, description: body.description as string | null, duration: body.duration as number }
-          : p
-      );
-      setList(updatedList);
-      await salvarProcedimentosOffline(updatedList);
-    } else {
-      await adicionarNaFilaSync({ tipo: "procedimento", payload: { action: "create", body }, lojaSlug });
-      const tempId = gerarIdTemporarioOffline();
-      const newProc: Procedure = {
-        id: tempId,
-        name: body.name as string,
-        description: body.description as string | null,
-        price: "0",
-        duration: body.duration as number,
-        categoria: body.category as string,
-        active: true,
-      };
-      const updatedList = [newProc, ...list];
-      setList(updatedList);
-      await salvarProcedimentosOffline(updatedList);
-    }
-    return true;
-  };
-
   const save = async () => {
     if (!form.name.trim()) {
       setError("Nome é obrigatório.");
@@ -281,7 +271,6 @@ export function ProcedimentosPageContent({
       setError("Informe o valor praticado em pelo menos um convênio.");
       return;
     }
-    setSaving(true);
     setError("");
     const body = {
       name: form.name.trim(),
@@ -294,63 +283,19 @@ export function ProcedimentosPageContent({
       termo_consentimento_ativo: form.termo_consentimento_ativo,
     };
 
-    if (isBrowserOffline()) {
-      try {
-        const ok = await saveOffline(body);
-        if (ok) {
-          voltarLista();
-          alert("Salvo offline. O procedimento será sincronizado quando você estiver online.");
-        }
-      } catch (err) {
-        logger.warn("Erro ao salvar offline:", err);
-        setError("Erro ao salvar localmente. Tente novamente.");
-      }
-      setSaving(false);
+    const result = await offlineSave(body, editing);
+    if (!result.ok) {
+      if (result.error) setError(result.error);
       return;
     }
-
-    try {
-      let procedureId: number;
-      if (editing) {
-        await saveClinicaBelezaEntity(`/procedures/${editing.id}/`, "PUT", body);
-        procedureId = editing.id;
-      } else {
-        const created = await saveClinicaBelezaEntity("/procedures/", "POST", body) as { id?: number };
-        procedureId = created?.id ?? 0;
-      }
-      if (procedureId > 0 && convenios.length > 0) {
-        await ClinicaBelezaAPI.procedures.savePrecosConvenio(procedureId, buildPrecosPayload());
-      }
+    if (result.offline) {
       voltarLista();
-      load();
-      carregarMatrix();
-    } catch (e: unknown) {
-      const err = e && typeof e === "object" ? (e as Record<string, unknown>) : {};
-      const msg = formatProcedimentoApiErrors(err) || (e instanceof Error ? e.message : "Erro ao salvar");
-      if (isFetchNetworkError(msg)) {
-        try {
-          if (bloquearCriacaoDuplicadaOffline(editing, list, (p) =>
-            entityName(p).toLowerCase() === form.name.trim().toLowerCase(),
-          )) {
-            setError("Este procedimento já foi adicionado offline. Aguarde a sincronização.");
-            setSaving(false);
-            return;
-          }
-          const ok = await saveOffline(body);
-          if (ok) {
-            voltarLista();
-            alert("Sem conexão. Procedimento salvo offline e será sincronizado quando você estiver online.");
-          }
-        } catch (err) {
-          logger.warn("Erro ao salvar offline:", err);
-          setError("Sem conexão. Não foi possível salvar offline. Tente novamente.");
-        }
-      } else {
-        setError(msg);
-      }
-    } finally {
-      setSaving(false);
+      alert(result.message);
+      return;
     }
+    voltarLista();
+    load();
+    carregarMatrix();
   };
 
   const exclude = async (p: Procedure) => {

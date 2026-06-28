@@ -74,13 +74,6 @@ class PatientListView(APIView):
         return paginate_queryset(queryset, request, PatientSerializer)
 
     def post(self, request):
-        from clinica_beleza.schema_ensure import ensure_patient_foto_url_for_tenant
-
-        if not ensure_patient_foto_url_for_tenant():
-            return Response(
-                {'detail': 'Schema de pacientes desatualizado. Tente novamente em instantes.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
         data = _map_patient_data(request.data)
         serializer = PatientSerializer(data=data)
         if serializer.is_valid():
@@ -107,16 +100,9 @@ class PatientDetailView(GetObjectMixin, APIView):
         return Response(PatientSerializer(obj).data)
 
     def put(self, request, pk):
-        from clinica_beleza.schema_ensure import ensure_patient_foto_url_for_tenant
-
         obj, err = self.object_or_404(pk)
         if err:
             return err
-        if not ensure_patient_foto_url_for_tenant():
-            return Response(
-                {'detail': 'Schema de pacientes desatualizado. Tente novamente em instantes.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
         data = _map_patient_data(request.data)
         serializer = PatientSerializer(obj, data=data, partial=True)
         if serializer.is_valid():

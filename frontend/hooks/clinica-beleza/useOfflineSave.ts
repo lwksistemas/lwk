@@ -6,9 +6,9 @@
  * 2. Save direto offline se browser estiver offline
  * 3. Tentativa de save online → fallback offline se falhar por rede
  * 4. Gestão da fila de sincronização (IndexedDB)
- * 5. Atualização otimista da lista local
+ * 5. Atualização otimista da lista local (opcional)
  *
- * Consumidores: pacientes/page.tsx (e futuros módulos com suporte offline)
+ * Consumidores: pacientes, procedimentos, profissionais
  */
 
 import { useState } from 'react';
@@ -35,41 +35,33 @@ export type OfflineSaveResult =
   | { ok: false; offline: true; error: string };
 
 export interface UseOfflineSaveOptions<T extends { id: number }> {
-  /** Tipo da entidade na fila de sync (ex: 'paciente') */
   entityType: FilaSyncItem['tipo'];
-  /** Função que faz o save na API (cria ou atualiza) */
   saveOnline: (body: unknown, editing: T | null) => Promise<void>;
-  /** Lista atual da entidade (para atualização otimista e detecção de duplicatas) */
-  list: T[];
-  /** Setter da lista (para atualização otimista offline) */
-  setList: (list: T[]) => void;
-  /** Persiste a lista atualizada no IndexedDB */
-  saveOffline: (list: T[]) => Promise<void>;
-  /** Cria um objeto temporário para inserção otimista offline */
-  buildNewEntity: (body: Record<string, unknown>, tempId: number) => T;
-  /** Predicado de duplicata — usado para bloquear criação duplicada offline */
+  /** Lista local — omitir em formulários sem lista (ex.: profissional) */
+  list?: T[];
+  setList?: (list: T[]) => void;
+  saveOffline?: (list: T[]) => Promise<void>;
+  buildNewEntity?: (body: Record<string, unknown>, tempId: number) => T;
   duplicatePredicate?: (item: T) => boolean;
+  offlineMessage?: string;
 }
 
-/**
- * Hook que abstrai a lógica de salvar online com fallback offline.
- *
- * @returns `save(body, editing)` — executa o save e retorna `OfflineSaveResult`
- */
 export function useOfflineSave<T extends { id: number }>(
   options: UseOfflineSaveOptions<T>,
 ) {
   const {
     entityType,
     saveOnline,
-    list,
+    list = [],
     setList,
     saveOffline,
     buildNewEntity,
     duplicatePredicate,
+    offlineMessage = 'Salvo offline. Será sincronizado quando você estiver online.',
   } = options;
 
   const [saving, setSaving] = useState(false);
+  const hasOptimisticList = Boolean(setList && saveOffline && buildNewEntity);
 
   const _saveOfflineQueue = async (
     body: Record<string, unknown>,
@@ -78,36 +70,34 @@ export function useOfflineSave<T extends { id: number }>(
     const lojaSlug = getLojaSlug();
 
     if (editing && !isRegistroPendenteSync(editing.id)) {
-      // Atualização de registro já sincronizado
       await adicionarNaFilaSync({
         tipo: entityType,
         payload: { action: 'update', id: editing.id, body },
         lojaSlug,
       });
-      const updated = list.map((item) =>
-        item.id === editing.id ? { ...item, ...body } : item,
-      ) as T[];
-      setList(updated);
-      await saveOffline(updated);
+      if (hasOptimisticList && setList && saveOffline) {
+        const updated = list.map((item) =>
+          item.id === editing.id ? { ...item, ...body } : item,
+        ) as T[];
+        setList(updated);
+        await saveOffline(updated);
+      }
     } else {
-      // Criação de novo registro
-      const tempId = gerarIdTemporarioOffline();
       await adicionarNaFilaSync({
         tipo: entityType,
         payload: { action: 'create', body },
         lojaSlug,
       });
-      const newEntity = buildNewEntity(body, tempId);
-      const updated = [newEntity, ...list];
-      setList(updated);
-      await saveOffline(updated);
+      if (hasOptimisticList && setList && saveOffline && buildNewEntity) {
+        const tempId = gerarIdTemporarioOffline();
+        const newEntity = buildNewEntity(body, tempId);
+        const updated = [newEntity, ...list];
+        setList(updated);
+        await saveOffline(updated);
+      }
     }
 
-    return {
-      ok: true,
-      offline: true,
-      message: 'Salvo offline. Será sincronizado quando você estiver online.',
-    };
+    return { ok: true, offline: true, message: offlineMessage };
   };
 
   const save = async (
@@ -117,7 +107,6 @@ export function useOfflineSave<T extends { id: number }>(
     setSaving(true);
 
     try {
-      // 1. Detectar offline direto
       if (isBrowserOffline()) {
         if (duplicatePredicate && deveVerificarDuplicataOffline(editing)) {
           if (temDuplicataNaLista(list, duplicatePredicate)) {
@@ -127,7 +116,6 @@ export function useOfflineSave<T extends { id: number }>(
         return await _saveOfflineQueue(body, editing);
       }
 
-      // 2. Tentar online
       await saveOnline(body, editing);
       return { ok: true, offline: false };
     } catch (e: unknown) {
@@ -141,7 +129,6 @@ export function useOfflineSave<T extends { id: number }>(
         (typeof err?.detail === 'string' ? err.detail : '') ||
         (e instanceof Error ? e.message : 'Erro ao salvar');
 
-      // 3. Fallback offline se falhar por rede
       if (isFetchNetworkError(msg)) {
         if (duplicatePredicate && bloquearCriacaoDuplicadaOffline(editing, list, duplicatePredicate)) {
           return { ok: false, offline: true, error: 'Este registro já foi adicionado offline. Aguarde a sincronização.' };

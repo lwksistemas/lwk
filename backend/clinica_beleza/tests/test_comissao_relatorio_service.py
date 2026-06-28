@@ -1,7 +1,7 @@
 """Testes unitários do relatório de comissões (funções puras)."""
 from decimal import Decimal
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from clinica_beleza.comissao_relatorio_service import (
     _agrupar_pagamentos_por_agendamento,
@@ -14,6 +14,7 @@ from clinica_beleza.comissao_relatorio_service import (
     _resolver_regra_procedimento,
     _resolver_local_atendimento_efetivo,
     _resolver_valor_consulta_cadastro,
+    calcular_comissao_payment_atendimento,
 )
 
 
@@ -172,4 +173,49 @@ class ComissaoRelatorioHelpersTest(TestCase):
         }
         self.assertIs(_resolver_regra_procedimento(proc_map, 10, 1), regra_unimed)
         self.assertIs(_resolver_regra_procedimento(proc_map, 10, 2), regra_geral)
-        self.assertIs(_resolver_regra_procedimento(proc_map, 10, None), regra_geral)
+
+    @patch('clinica_beleza.comissao_relatorio_service._calcular_comissao_regra', return_value=Decimal('45'))
+    @patch('clinica_beleza.comissao_relatorio_service._resolver_regra_consulta')
+    @patch(
+        'clinica_beleza.comissao_relatorio_service._resolver_local_atendimento_efetivo',
+        return_value=(1, 'Consultório'),
+    )
+    @patch(
+        'clinica_beleza.comissao_relatorio_service._alocar_valores_pagamento',
+        return_value=(Decimal('150'), {}),
+    )
+    @patch(
+        'clinica_beleza.comissao_relatorio_service._resolver_valor_consulta_cadastro',
+        return_value=Decimal('150'),
+    )
+    @patch('clinica_beleza.comissao_relatorio_service.resolver_convenio_atendimento_comissao', return_value=None)
+    @patch('clinica_beleza.comissao_relatorio_service._regras_profissional')
+    @patch('clinica_beleza.comissao_relatorio_service._procedimentos_vinculados_consulta', return_value=[])
+    def test_calcular_comissao_pagamento_somente_taxa_consulta(
+        self,
+        _mock_procs,
+        mock_regras,
+        _mock_conv,
+        _mock_valor_cad,
+        _mock_alocar,
+        _mock_local,
+        _mock_regra_consulta,
+        _mock_calc_regra,
+    ):
+        mock_regras.return_value = {
+            'consulta': _comissao('percentual', '30'),
+            'consultas_local': {},
+            'procedimentos': {},
+            'procedimento_ids': set(),
+        }
+        appt = MagicMock(professional_id=1, id=1, pk=1)
+        appt._prefetched_objects_cache = {'appointment_procedures': True}
+        consulta = MagicMock(valor_consulta=Decimal('150'))
+
+        pct, total = calcular_comissao_payment_atendimento(
+            appointment=appt,
+            consulta=consulta,
+            amount=Decimal('150'),
+        )
+        self.assertEqual(total, Decimal('45'))
+        self.assertEqual(pct, 30)

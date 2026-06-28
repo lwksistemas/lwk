@@ -15,16 +15,9 @@ class PatientAnamneseView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request, patient_id):
-        from clinica_beleza.schema_ensure import ensure_patient_anamnese_for_tenant
-
         patient, error = get_patient_or_404(patient_id)
         if error:
             return error
-        if not ensure_patient_anamnese_for_tenant():
-            return Response(
-                {'error': 'Estrutura de anamnese indisponível. Contate o suporte.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
         obj, _ = PatientAnamnese.objects.get_or_create(
             patient_id=patient_id,
             defaults={'loja_id': patient.loja_id},
@@ -32,16 +25,9 @@ class PatientAnamneseView(APIView):
         return Response(PatientAnamneseSerializer(obj).data)
 
     def put(self, request, patient_id):
-        from clinica_beleza.schema_ensure import ensure_patient_anamnese_for_tenant
-
         patient, error = get_patient_or_404(patient_id)
         if error:
             return error
-        if not ensure_patient_anamnese_for_tenant():
-            return Response(
-                {'error': 'Estrutura de anamnese indisponível. Contate o suporte.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
         obj, _ = PatientAnamnese.objects.get_or_create(
             patient_id=patient_id,
             defaults={'loja_id': patient.loja_id},

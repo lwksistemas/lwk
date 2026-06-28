@@ -13,9 +13,7 @@ import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/Cli
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, ConvenioItem, LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
 import { formatTelefone, formatCpf, telefoneInternacionalBr, toUpperCase } from "@/lib/format-br";
-import { formatProfissionalApiErrors } from "@/lib/clinica-beleza-form-errors";
-import { isBrowserOffline } from "@/lib/clinica-beleza-offline";
-import { adicionarNaFilaSync, getLojaSlug } from "@/lib/offline-db";
+import { useOfflineSave } from "@/hooks/clinica-beleza/useOfflineSave";
 import { logger } from "@/lib/logger";
 
 type PerfilAcesso = "administrador" | "profissional" | "recepcao" | "recepcionista" | "caixa" | "limpeza" | "estoque";
@@ -55,6 +53,8 @@ interface ProfissionalFormPageContentProps {
   onDone: () => void;
 }
 
+type ProfissionalEditing = { id: number };
+
 export function ProfissionalFormPageContent({ slug, editId, onDone }: ProfissionalFormPageContentProps) {
   const [form, setForm] = useState({
     name: "", specialty: "", phone: "", email: "",
@@ -68,9 +68,49 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
   const [locais, setLocais] = useState<LocalAtendimentoItem[]>([]);
   const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(!!editId);
+
+  const salvarComissoesOnline = async (profId: number) => {
+    const payload: Record<string, unknown>[] = [];
+    for (const c of comissoesConsultaLocal) {
+      if (c.valor && Number(c.valor) > 0 && c.local_atendimento) {
+        payload.push({
+          tipo: "consulta",
+          modo: c.modo,
+          valor: c.valor,
+          procedure: null,
+          local_atendimento: c.local_atendimento,
+        });
+      }
+    }
+    for (const c of comissoes) {
+      if (c.valor && Number(c.valor) > 0 && c.procedure && c.convenio) {
+        payload.push({
+          tipo: "procedimento",
+          modo: c.modo,
+          valor: c.valor,
+          procedure: c.procedure,
+          convenio: c.convenio,
+        });
+      }
+    }
+    await ClinicaBelezaAPI.professionals.comissoes.save(profId, payload);
+  };
+
+  const { save: offlineSave, saving } = useOfflineSave<ProfissionalEditing>({
+    entityType: "profissional",
+    saveOnline: async (body, editing) => {
+      let profId: number;
+      if (editing) {
+        await ClinicaBelezaAPI.professionals.update(editing.id, body);
+        profId = editing.id;
+      } else {
+        profId = (await ClinicaBelezaAPI.professionals.create(body) as { id: number }).id;
+      }
+      await salvarComissoesOnline(profId);
+    },
+  });
 
   const set = (field: string, value: string | boolean) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -235,7 +275,6 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
       return;
     }
 
-    setSaving(true);
     setError("");
 
     const body: Record<string, unknown> = {
@@ -257,78 +296,17 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
       body.username = form.username.trim();
     }
 
-    if (isBrowserOffline()) {
-      try {
-        const lojaSlug = getLojaSlug();
-        if (editId) {
-          await adicionarNaFilaSync({
-            tipo: "profissional",
-            payload: { action: "update", id: Number(editId), body },
-            lojaSlug,
-          });
-        } else {
-          await adicionarNaFilaSync({
-            tipo: "profissional",
-            payload: { action: "create", body },
-            lojaSlug,
-          });
-        }
-        alert("Salvo offline. O profissional será sincronizado quando você estiver online.");
-        onDone();
-        return;
-      } catch (e) {
-        logger.warn("Erro ao salvar profissional offline:", e);
-        setError("Erro ao salvar localmente. Tente novamente.");
-        setSaving(false);
-        return;
+    const result = await offlineSave(body, editId ? { id: Number(editId) } : null);
+    if (!result.ok) {
+      if (result.error) {
+        setError(result.error);
       }
+      return;
     }
-
-    try {
-      let profId = editId;
-      if (editId) {
-        await ClinicaBelezaAPI.professionals.update(Number(editId), body);
-      } else {
-        const created = await ClinicaBelezaAPI.professionals.create(body) as { id: number };
-        profId = String(created.id);
-      }
-
-      // Salvar comissões
-      if (profId) {
-        const payload: any[] = [];
-        for (const c of comissoesConsultaLocal) {
-          if (c.valor && Number(c.valor) > 0 && c.local_atendimento) {
-            payload.push({
-              tipo: "consulta",
-              modo: c.modo,
-              valor: c.valor,
-              procedure: null,
-              local_atendimento: c.local_atendimento,
-            });
-          }
-        }
-        // Comissões por procedimento
-        for (const c of comissoes) {
-          if (c.valor && Number(c.valor) > 0 && c.procedure && c.convenio) {
-            payload.push({
-              tipo: "procedimento",
-              modo: c.modo,
-              valor: c.valor,
-              procedure: c.procedure,
-              convenio: c.convenio,
-            });
-          }
-        }
-        await ClinicaBelezaAPI.professionals.comissoes.save(Number(profId), payload);
-      }
-
-      onDone();
-    } catch (e: any) {
-      const msg = formatProfissionalApiErrors(e) || (e?.message || e?.detail || "Erro ao salvar.");
-      setError(typeof msg === "string" ? msg : JSON.stringify(msg));
-    } finally {
-      setSaving(false);
+    if (result.offline) {
+      alert(result.message);
     }
+    onDone();
   };
 
   if (loading) {

@@ -342,8 +342,6 @@ def calcular_comissao_payment_atendimento(
         ).select_related('procedure', 'professional').get(pk=appointment.pk)
 
     procedimentos = _procedimentos_vinculados_consulta(appt, consulta)
-    if not procedimentos:
-        return 0, Decimal('0')
 
     regras = _regras_profissional(appt.professional_id)
     valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)

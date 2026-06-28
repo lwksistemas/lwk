@@ -74,19 +74,40 @@ def check_retorno_service_config(ctx: SmokeContext) -> None:
         raise AssertionError(f'config.loja_id={config.loja_id} != {ctx.loja_id}')
 
 
-def check_api_retorno_config_get(ctx: SmokeContext) -> None:
+def _api_host() -> str:
+    from django.conf import settings
+
+    for host in settings.ALLOWED_HOSTS:
+        if host and host not in ('*', 'testserver', 'localhost', '127.0.0.1'):
+            return host
+    return 'api.lwksistemas.com.br'
+
+
+def _authenticated_api_client(owner: User):
     from rest_framework.test import APIClient
 
-    activate_loja(ctx, loja_id=ctx.loja_id, tenant_db=ctx.tenant_db)
-    invalidate_session_cache(ctx.owner.id)
+    invalidate_session_cache(owner.id)
     client = APIClient()
-    token = _owner_token(ctx.owner)
-    sid = SessionManager.create_session(ctx.owner.id, token)
+    token = _owner_token(owner)
+    sid = SessionManager.create_session(owner.id, token)
     client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}', HTTP_X_SESSION_ID=sid)
+    return client
+
+
+def _tenant_api_headers(ctx: SmokeContext) -> dict[str, str]:
+    return {
+        'HTTP_X_LOJA_ID': str(ctx.loja_id),
+        'HTTP_X_TENANT_SLUG': ctx.loja_slug,
+        'HTTP_HOST': _api_host(),
+    }
+
+
+def check_api_retorno_config_get(ctx: SmokeContext) -> None:
+    activate_loja(ctx, loja_id=ctx.loja_id, tenant_db=ctx.tenant_db)
+    client = _authenticated_api_client(ctx.owner)
     response = client.get(
         '/api/clinica-beleza/retorno/config/',
-        HTTP_X_LOJA_ID=str(ctx.loja_id),
-        HTTP_X_TENANT_SLUG=ctx.loja_slug,
+        **_tenant_api_headers(ctx),
     )
     if response.status_code != 200:
         raise AssertionError(f'GET retorno/config → {response.status_code}: {response.content!r}')
@@ -112,14 +133,8 @@ def check_cria_paciente_com_contexto_loja(ctx: SmokeContext) -> None:
 
 
 def check_api_post_paciente(ctx: SmokeContext) -> None:
-    from rest_framework.test import APIClient
-
     activate_loja(ctx, loja_id=ctx.loja_id, tenant_db=ctx.tenant_db)
-    invalidate_session_cache(ctx.owner.id)
-    client = APIClient()
-    token = _owner_token(ctx.owner)
-    sid = SessionManager.create_session(ctx.owner.id, token)
-    client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}', HTTP_X_SESSION_ID=sid)
+    client = _authenticated_api_client(ctx.owner)
     response = client.post(
         '/api/clinica-beleza/patients/',
         {
@@ -128,29 +143,21 @@ def check_api_post_paciente(ctx: SmokeContext) -> None:
             'active': True,
         },
         format='json',
-        HTTP_X_LOJA_ID=str(ctx.loja_id),
-        HTTP_X_TENANT_SLUG=ctx.loja_slug,
+        **_tenant_api_headers(ctx),
     )
     if response.status_code != 201:
         raise AssertionError(f'POST patients → {response.status_code}: {response.content!r}')
 
 
 def check_api_anamnese_put(ctx: SmokeContext) -> None:
-    from rest_framework.test import APIClient
-
     activate_loja(ctx, loja_id=ctx.loja_id, tenant_db=ctx.tenant_db)
     patient = Patient.objects.create(nome='[SMOKE] Paciente Anamnese', loja_id=ctx.loja_id)
-    invalidate_session_cache(ctx.owner.id)
-    client = APIClient()
-    token = _owner_token(ctx.owner)
-    sid = SessionManager.create_session(ctx.owner.id, token)
-    client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}', HTTP_X_SESSION_ID=sid)
+    client = _authenticated_api_client(ctx.owner)
     response = client.put(
         f'/api/clinica-beleza/patients/{patient.id}/anamnese/',
         {'queixa_principal': '[SMOKE] Melasma'},
         format='json',
-        HTTP_X_LOJA_ID=str(ctx.loja_id),
-        HTTP_X_TENANT_SLUG=ctx.loja_slug,
+        **_tenant_api_headers(ctx),
     )
     if response.status_code != 200:
         raise AssertionError(f'PUT anamnese → {response.status_code}: {response.content!r}')

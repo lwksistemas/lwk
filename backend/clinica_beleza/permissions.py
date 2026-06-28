@@ -210,6 +210,34 @@ class IsClinicaEstoque(BasePermission):
         )
 
 
+class IsClinicalOrEstoqueStaff(BasePermission):
+    """Leitura de estoque na consulta: equipe clínica ou perfil estoque (exclui limpeza/caixa)."""
+
+    message = 'Acesso permitido apenas à equipe clínica ou estoque.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        loja, prof = _loja_and_profissional(request)
+        if prof == 'superuser':
+            return True
+        if not loja:
+            return False
+        if loja.owner_id == request.user.id:
+            return True
+        if not prof:
+            return False
+        from superadmin.models import ProfissionalUsuario
+
+        return prof.perfil in (
+            ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+            ProfissionalUsuario.PERFIL_PROFISSIONAL,
+            ProfissionalUsuario.PERFIL_RECEPCAO,
+            ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+            ProfissionalUsuario.PERFIL_ESTOQUE,
+        )
+
+
 def resolve_agenda_professional_scope(request) -> int | None:
     """
     Escopo de agenda para o usuário autenticado.
@@ -246,3 +274,4 @@ CLINICA_ADMIN = [IsAuthenticated, IsClinicaLojaMember, IsClinicaAdmin]
 CLINICA_CLINICAL = [IsAuthenticated, IsClinicaLojaMember, IsClinicaClinicalStaff]
 CLINICA_FINANCEIRO = [IsAuthenticated, IsClinicaLojaMember, IsClinicaFinanceiro]
 CLINICA_ESTOQUE = [IsAuthenticated, IsClinicaLojaMember, IsClinicaEstoque]
+CLINICA_ESTOQUE_LEITURA = [IsAuthenticated, IsClinicaLojaMember, IsClinicalOrEstoqueStaff]

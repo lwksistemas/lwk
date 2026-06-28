@@ -91,6 +91,10 @@ class LimpezaCadastros403Test(TestCase):
         r = self._get('/api/clinica-beleza/patients/')
         self.assertEqual(r.status_code, 403)
 
+    def test_limpeza_negado_estoque_listagem(self):
+        r = self._get('/api/clinica-beleza/estoque/')
+        self.assertEqual(r.status_code, 403)
+
 
 class ProfissionalAgendaAccessTest(TestCase):
     """Profissional acessa agenda (CLINICA_AGENDA) — não recebe 403 por permissão."""

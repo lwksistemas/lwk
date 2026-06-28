@@ -42,6 +42,8 @@ run_best_effort "migrate_all_lojas" python manage.py migrate_all_lojas
 log_step "ensure_all"
 python manage.py ensure_all
 
+run_best_effort "ensure_evolution_webhooks" python manage.py ensure_evolution_webhooks
+
 run_best_effort "corrigir_schema_clinica_beleza" python manage.py corrigir_schema_clinica_beleza
 run_best_effort "corrigir_schema_crm" python manage.py corrigir_schema_crm
 

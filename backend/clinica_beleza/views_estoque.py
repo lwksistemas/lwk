@@ -8,7 +8,7 @@ from decimal import Decimal
 from django.db.models import F, Sum
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .permissions import CLINICA_ESTOQUE, CLINICA_MEMBER
+from .permissions import CLINICA_ESTOQUE, CLINICA_ESTOQUE_LEITURA
 from rest_framework import status
 
 from .models import ProdutoEstoque, MovimentacaoEstoque
@@ -62,9 +62,9 @@ class ProdutoEstoqueListView(APIView):
     permission_classes = CLINICA_ESTOQUE
 
     def get_permissions(self):
-        # Profissionais em consulta precisam listar insumos; gestão continua restrita.
+        # Profissionais em consulta listam insumos; gestão (POST/PUT) continua CLINICA_ESTOQUE.
         if self.request.method == 'GET':
-            return [perm() for perm in CLINICA_MEMBER]
+            return [perm() for perm in CLINICA_ESTOQUE_LEITURA]
         return [perm() for perm in CLINICA_ESTOQUE]
 
     def get(self, request):
@@ -103,7 +103,7 @@ class ProdutoEstoqueDetailView(GetObjectMixin, APIView):
 
     def get_permissions(self):
         if self.request.method == 'GET':
-            return [perm() for perm in CLINICA_MEMBER]
+            return [perm() for perm in CLINICA_ESTOQUE_LEITURA]
         return [perm() for perm in CLINICA_ESTOQUE]
 
     def get(self, request, pk):

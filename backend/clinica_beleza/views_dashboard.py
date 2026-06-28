@@ -112,12 +112,13 @@ def _consultas_concluidas_no_periodo(period_start, period_end):
 def _top_procedures_realizados_periodo(period_start, period_end):
     rows = (
         _consultas_concluidas_no_periodo(period_start, period_end)
+        .filter(procedure__isnull=False)
         .values('procedure__nome')
         .annotate(count=Count('id'))
         .order_by('-count')[:5]
     )
     return [
-        {'name': item['procedure__nome'] or 'Sem nome', 'count': item['count']}
+        {'name': item['procedure__nome'] or 'Consulta', 'count': item['count']}
         for item in rows
     ]
 

@@ -12,6 +12,7 @@ from .evolution_client import (
     _has_qr_payload,
     connect_instance,
     create_instance,
+    delete_instance,
     evolution_configured,
     evolution_instance_name,
     get_connection_state,
@@ -271,6 +272,12 @@ def disconnect_evolution(config):
         logout_instance(instance_name)
     except EvolutionAPIError as exc:
         logger.warning('Evolution logout loja %s: %s', config.loja_id, exc)
+
+    # Remover instância da Evolution para evitar sessão fantasma (close mas não removida)
+    try:
+        delete_instance(instance_name)
+    except EvolutionAPIError as exc:
+        logger.warning('Evolution delete após disconnect loja %s: %s', config.loja_id, exc)
 
     config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_DISCONNECTED
     config.whatsapp_connected_phone = ''

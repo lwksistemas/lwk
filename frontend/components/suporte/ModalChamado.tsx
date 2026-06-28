@@ -101,11 +101,11 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome, cor
         onClick={onFechar}
       />
 
-      {/* Modal */}
+      {/* Modal — modo paisagem: 2 colunas */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="flex items-start justify-between mb-6">
+          <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex-1">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                 🆘 Abrir Chamado de Suporte
@@ -126,7 +126,7 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome, cor
 
           {/* Mensagem de Sucesso */}
           {sucesso && (
-            <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <div className="mx-6 mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
               <div className="flex items-start">
                 <svg className="w-5 h-5 text-green-600 dark:text-green-400 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -140,166 +140,171 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome, cor
 
           {/* Mensagem de Erro */}
           {erro && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <p className="text-sm text-red-800 dark:text-red-200">{erro}</p>
             </div>
           )}
 
-          {/* Formulário */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Tipo de Chamado */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Tipo de Chamado *
-              </label>
-              <select
-                value={formData.tipo}
-                onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:border-transparent text-sm"
-                style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
-                required
-              >
-                <option value="duvida">❓ Dúvida</option>
-                <option value="treinamento">📚 Treinamento</option>
-                <option value="problema">🐛 Problema Técnico</option>
-                <option value="sugestao">💡 Sugestão</option>
-                <option value="outro">📝 Outro</option>
-              </select>
-            </div>
+          {/* Corpo em 2 colunas */}
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:divide-x md:divide-gray-200 md:dark:divide-gray-700">
+              {/* Coluna esquerda — classificação */}
+              <div className="p-6 space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Classificação</h3>
 
-            {/* Prioridade */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Prioridade
-              </label>
-              <select
-                value={formData.prioridade}
-                onChange={(e) => setFormData({ ...formData, prioridade: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:border-transparent text-sm"
-                style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
-              >
-                <option value="baixa">🟢 Baixa</option>
-                <option value="media">🟡 Média</option>
-                <option value="alta">🟠 Alta</option>
-                <option value="urgente">🔴 Urgente</option>
-              </select>
-            </div>
+                {/* Tipo de Chamado */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Tipo de Chamado *
+                  </label>
+                  <select
+                    value={formData.tipo}
+                    onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:border-transparent text-sm"
+                    style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
+                    required
+                  >
+                    <option value="duvida">❓ Dúvida</option>
+                    <option value="treinamento">📚 Treinamento</option>
+                    <option value="problema">🐛 Problema Técnico</option>
+                    <option value="sugestao">💡 Sugestão</option>
+                    <option value="outro">📝 Outro</option>
+                  </select>
+                </div>
 
-            {/* Título */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Título *
-              </label>
-              <input
-                type="text"
-                value={formData.titulo}
-                onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
-                placeholder="Ex: Dúvida sobre cadastro de produtos"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:border-transparent text-sm"
-                style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
-                required
-                maxLength={200}
-              />
-            </div>
+                {/* Prioridade */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Prioridade
+                  </label>
+                  <select
+                    value={formData.prioridade}
+                    onChange={(e) => setFormData({ ...formData, prioridade: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:border-transparent text-sm"
+                    style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
+                  >
+                    <option value="baixa">🟢 Baixa</option>
+                    <option value="media">🟡 Média</option>
+                    <option value="alta">🟠 Alta</option>
+                    <option value="urgente">🔴 Urgente</option>
+                  </select>
+                </div>
 
-            {/* Descrição */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Descrição *
-              </label>
-              <textarea
-                value={formData.descricao}
-                onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                placeholder="Descreva detalhadamente sua dúvida, problema ou solicitação..."
-                rows={5}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:border-transparent resize-none text-sm"
-                style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
-                required
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Quanto mais detalhes você fornecer, mais rápido poderemos ajudar!
-              </p>
-            </div>
-
-            {/* Incluir Logs de Diagnóstico */}
-            {errorStats.total > 0 && (
-              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    id="incluirLogs"
-                    checked={incluirLogs}
-                    onChange={(e) => setIncluirLogs(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 border-gray-300 rounded focus:ring-2"
-                    style={{ accentColor: corPrimaria, '--tw-ring-color': corPrimaria } as React.CSSProperties}
-                  />
-                  <div className="flex-1">
-                    <label htmlFor="incluirLogs" className="text-sm font-medium text-amber-900 dark:text-amber-200 cursor-pointer">
-                      📊 Incluir logs de diagnóstico automático
-                    </label>
-                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                      Detectamos {errorStats.total} erro(s) recente(s):
-                      {errorStats.frontend > 0 && <span className="ml-1">🔴 {errorStats.frontend} frontend</span>}
-                      {errorStats.api > 0 && <span className="ml-1">🟢 {errorStats.api} API</span>}
-                      {errorStats.navegador > 0 && <span className="ml-1">🟡 {errorStats.navegador} navegador</span>}
-                    </p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      ✅ Recomendado: Isso ajuda nossa equipe a resolver seu problema mais rápido
-                    </p>
+                {/* Incluir Logs */}
+                {errorStats.total > 0 && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        id="incluirLogs"
+                        checked={incluirLogs}
+                        onChange={(e) => setIncluirLogs(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 border-gray-300 rounded focus:ring-2"
+                        style={{ accentColor: corPrimaria, '--tw-ring-color': corPrimaria } as React.CSSProperties}
+                      />
+                      <div className="flex-1">
+                        <label htmlFor="incluirLogs" className="text-sm font-medium text-amber-900 dark:text-amber-200 cursor-pointer">
+                          📊 Incluir logs de diagnóstico
+                        </label>
+                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                          {errorStats.total} erro(s) detectado(s)
+                          {errorStats.frontend > 0 && <span className="ml-1">· 🔴 {errorStats.frontend} frontend</span>}
+                          {errorStats.api > 0 && <span className="ml-1">· 🟢 {errorStats.api} API</span>}
+                        </p>
+                      </div>
+                    </div>
                   </div>
+                )}
+
+                {/* Tempo de resposta */}
+                <div
+                  className="p-3 rounded-lg border dark:border-opacity-30 mt-auto"
+                  style={{ backgroundColor: `${corPrimaria}14`, borderColor: `${corPrimaria}40` }}
+                >
+                  <h3 className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: corPrimaria }}>
+                    ⏱ Tempo de Resposta
+                  </h3>
+                  <ul className="text-xs space-y-1 opacity-90" style={{ color: corPrimaria }}>
+                    <li>• <strong>Urgente:</strong> Até 2 horas</li>
+                    <li>• <strong>Alta:</strong> Até 4 horas</li>
+                    <li>• <strong>Média:</strong> Até 24 horas</li>
+                    <li>• <strong>Baixa:</strong> Até 48 horas</li>
+                  </ul>
                 </div>
               </div>
-            )}
 
-            {/* Botões */}
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={onFechar}
-                className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
-                disabled={loading}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2.5 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium hover:opacity-90"
-                style={{ backgroundColor: corPrimaria }}
-                disabled={loading}
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Enviando...
-                  </span>
-                ) : (
-                  '📨 Enviar Chamado'
-                )}
-              </button>
+              {/* Coluna direita — conteúdo */}
+              <div className="p-6 space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Detalhes</h3>
+
+                {/* Título */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Título *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.titulo}
+                    onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
+                    placeholder="Ex: Dúvida sobre cadastro de produtos"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:border-transparent text-sm"
+                    style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
+                    required
+                    maxLength={200}
+                  />
+                </div>
+
+                {/* Descrição */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Descrição *
+                  </label>
+                  <textarea
+                    value={formData.descricao}
+                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                    placeholder="Descreva detalhadamente sua dúvida, problema ou solicitação..."
+                    rows={8}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:border-transparent resize-none text-sm"
+                    style={{ '--tw-ring-color': corPrimaria } as React.CSSProperties}
+                    required
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Quanto mais detalhes você fornecer, mais rápido poderemos ajudar!
+                  </p>
+                </div>
+
+                {/* Botões */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={onFechar}
+                    className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
+                    disabled={loading}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2.5 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium hover:opacity-90"
+                    style={{ backgroundColor: corPrimaria }}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Enviando...
+                      </span>
+                    ) : (
+                      '📨 Enviar Chamado'
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </form>
-
-          {/* Informações Adicionais */}
-          <div
-            className="mt-4 p-3 rounded-lg border dark:border-opacity-30"
-            style={{
-              backgroundColor: `${corPrimaria}14`,
-              borderColor: `${corPrimaria}40`,
-            }}
-          >
-            <h3 className="text-sm font-medium mb-2" style={{ color: corPrimaria }}>
-              ℹ️ Tempo de Resposta
-            </h3>
-            <ul className="text-xs space-y-1 opacity-90" style={{ color: corPrimaria }}>
-              <li>• <strong>Urgente:</strong> Até 2 horas</li>
-              <li>• <strong>Alta:</strong> Até 4 horas</li>
-              <li>• <strong>Média:</strong> Até 24 horas</li>
-              <li>• <strong>Baixa:</strong> Até 48 horas</li>
-            </ul>
-          </div>
         </div>
       </div>
     </div>

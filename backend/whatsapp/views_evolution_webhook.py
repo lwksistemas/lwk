@@ -185,7 +185,7 @@ class EvolutionWebhookView(View):
         ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
         if ',' in ip:
             ip = ip.split(',')[0].strip()
-        if ip.startswith('100.64.') or ip.startswith('10.') or ip == '127.0.0.1':
+        if ip.startswith('100.64.') or ip == '127.0.0.1':
             return True
 
         return False

@@ -14,6 +14,9 @@ def short_link_redirect(_request, code: str):
     Redireciona /r/<code>/ para a URL completa correspondente.
     Usado para encurtar links longos de assinatura enviados via WhatsApp.
     """
+    from clinica_beleza.throttles import check_rate_limit
+    if not check_rate_limit(_request, 'short_link', '60/min'):
+        return HttpResponseNotFound('Muitas tentativas.')
     from core.short_link import resolve_short_link
     full_url = resolve_short_link(code)
     if not full_url:

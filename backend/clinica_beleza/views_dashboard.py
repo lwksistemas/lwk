@@ -9,7 +9,7 @@ from django.db.models import Count, F, Q, Sum
 from django.utils.timezone import now
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .permissions import CLINICA_MEMBER
+from .permissions import CLINICA_RECEPCAO
 from rest_framework import status
 
 from .models import Patient, Procedure, Appointment, AppointmentProcedure, Payment, Consulta
@@ -182,7 +182,7 @@ def _top_soroterapia_periodo(period_start, period_end):
 
 class LojaInfoView(APIView):
     """GET /clinica-beleza/loja-info/"""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
         info = LojaContextHelper.get_loja_owner_info()
@@ -193,7 +193,7 @@ class LojaInfoView(APIView):
 
 class DashboardView(APIView):
     """GET /clinica-beleza/dashboard/"""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
         loja_id = get_current_loja_id()

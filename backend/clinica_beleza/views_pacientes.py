@@ -4,7 +4,7 @@ Views de Pacientes — Clínica da Beleza
 import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .permissions import CLINICA_MEMBER
+from .permissions import CLINICA_RECEPCAO
 from rest_framework import status
 
 from .models import Patient, Appointment
@@ -61,7 +61,7 @@ class PatientListView(APIView):
     GET /clinica-beleza/patients/
     POST /clinica-beleza/patients/
     """
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
         active_only = request.query_params.get('active', 'true').lower() == 'true'
@@ -95,7 +95,7 @@ class PatientListView(APIView):
 
 class PatientDetailView(GetObjectMixin, APIView):
     """GET /clinica-beleza/patients/<id>/  PUT  DELETE"""
-    permission_classes = CLINICA_MEMBER
+    permission_classes = CLINICA_RECEPCAO
     model_class = Patient
     not_found_message = 'Paciente não encontrado'
     select_related_fields = ('convenio',)

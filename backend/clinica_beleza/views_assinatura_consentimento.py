@@ -474,6 +474,13 @@ class ConsultaAssinaturaPublicaView(View):
 class ConsultaAssinaturaPdfPublicaView(View):
     """GET /api/clinica-beleza/assinar-consentimento/{token}/pdf/"""
 
+    def dispatch(self, request, *args, **kwargs):
+        from .throttles import check_rate_limit
+        from django.http import JsonResponse
+        if not check_rate_limit(request, 'public_assinatura', '30/min'):
+            return JsonResponse({'error': 'Muitas tentativas. Aguarde alguns segundos e tente novamente.'}, status=429)
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, token):
         from core.assinatura_service import decodificar_token, normalizar_token_url
 

@@ -149,9 +149,13 @@ class CampanhaPromocaoEnviarView(APIView):
                 return Response({'error': 'Nenhum paciente elegível na segmentação informada.'}, status=status.HTTP_400_BAD_REQUEST)
 
         enviados = 0
-        for p in pacientes:
+        for idx, p in enumerate(pacientes):
             if not (getattr(p, 'telefone', None) or '').strip():
                 continue
+            # Delay entre mensagens para evitar ban do WhatsApp (mínimo 5s entre envios)
+            if idx > 0 and not task_queue_enabled():
+                import time
+                time.sleep(5)
             try:
                 ok, _ = send_whatsapp(telefone=p.telefone, mensagem=campanha.mensagem, user=request.user, config=config)
                 if ok:

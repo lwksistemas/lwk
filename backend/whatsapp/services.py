@@ -586,6 +586,9 @@ def _contexto_confirmacao_agenda(agendamento, *, link_confirmacao=None) -> dict:
 
 def msg_confirmacao(agendamento, *, link_confirmacao=None, config=None):
     """Solicitação de confirmação de agendamento."""
+    from .message_templates import msg_confirmacao_agendamento
+    from clinica_beleza.agenda_display import format_agenda_data, format_agenda_hora
+
     custom = ''
     if config is not None:
         custom = (getattr(config, 'mensagem_confirmacao_agenda', None) or '').strip()
@@ -593,45 +596,28 @@ def msg_confirmacao(agendamento, *, link_confirmacao=None, config=None):
         ctx = _contexto_confirmacao_agenda(agendamento, link_confirmacao=link_confirmacao)
         return _render_mensagem_template(custom, ctx)
 
-    from clinica_beleza.agenda_display import format_agenda_data, format_agenda_hora
-
-    data = format_agenda_data(agendamento)
-    hora = format_agenda_hora(agendamento)
-    nome = getattr(agendamento.patient, 'name', '') or 'Cliente'
-    procedimento = _procedure_label(agendamento)
-    prof = getattr(agendamento.professional, 'nome', '') or ''
-    linhas = [
-        f"Olá {nome} 😊",
-        '',
-        'Você tem um agendamento:',
-        f'📅 {data}',
-        f'⏰ {hora}',
-        f'💆 {procedimento}',
-    ]
-    if prof:
-        linhas.append(f'👤 Profissional: {prof}')
-    linhas.extend([
-        '',
-        'Por favor, confirme ou cancele sua consulta:',
-    ])
-    if link_confirmacao:
-        linhas.append(f'🔗 {link_confirmacao}')
-    else:
-        linhas.append('Responda *CONFIRMAR* ou *CANCELAR*')
-    linhas.append('')
-    linhas.append('Qualquer dúvida, fale conosco.')
-    return '\n'.join(linhas)
+    nome = getattr(agendamento.patient, 'name', '') or getattr(agendamento.patient, 'nome', '') or 'Cliente'
+    prof = getattr(agendamento.professional, 'nome', '') if agendamento.professional else ''
+    return msg_confirmacao_agendamento(
+        nome=nome,
+        data=format_agenda_data(agendamento),
+        hora=format_agenda_hora(agendamento),
+        procedimento=_procedure_label(agendamento),
+        profissional=prof or None,
+        link=link_confirmacao,
+    )
 
 
 def msg_lembrete(agendamento):
     """Lembrete de atendimento (ex.: dia do atendimento)."""
+    from .message_templates import msg_lembrete_agendamento
     from clinica_beleza.agenda_display import format_agenda_hora
 
-    hora = format_agenda_hora(agendamento)
-    return (
-        f"Lembrete ⏰\n\n"
-        f"Você tem atendimento hoje às {hora}.\n"
-        f"Estamos te aguardando 😊"
+    nome = getattr(agendamento.patient, 'name', '') or getattr(agendamento.patient, 'nome', '') or 'Cliente'
+    return msg_lembrete_agendamento(
+        nome=nome,
+        hora=format_agenda_hora(agendamento),
+        procedimento=_procedure_label(agendamento),
     )
 
 
@@ -679,7 +665,7 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
 
 
 def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, config=None):
-    from .evolution_client import EvolutionAPIError, send_buttons, send_text
+    from .evolution_client import EvolutionAPIError, send_buttons, send_text, send_url_button
 
     phone = _normalize_phone(telefone)
     loja_id = _config_loja_id(config)
@@ -694,11 +680,43 @@ def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, conf
         return False, instance_or_err
 
     from clinica_beleza.agenda_display import format_agenda_data, format_agenda_hora
+    from clinica_beleza.agenda_confirmacao_service import gerar_token_confirmacao, url_confirmacao_frontend
 
     data_fmt = format_agenda_data(agendamento)
     hora_fmt = format_agenda_hora(agendamento)
     ap_id = agendamento.id
     proc = _procedure_label(agendamento)
+
+    # Gera link de confirmação para o botão
+    link_confirmacao = None
+    if loja_id and ap_id:
+        try:
+            token = gerar_token_confirmacao(loja_id, ap_id)
+            link_confirmacao = url_confirmacao_frontend(token)
+        except Exception:
+            pass
+
+    # Tenta botão de URL (abre link ao tocar) — mais profissional
+    if link_confirmacao:
+        try:
+            data = send_url_button(
+                instance_or_err, phone,
+                title='📅 Confirmação de Agendamento',
+                body_text=f'*{proc}*\n📆 {data_fmt} às {hora_fmt}\n\nToque no botão para confirmar ou cancelar sua consulta.',
+                button_label='✅ Confirmar ou Cancelar',
+                url=link_confirmacao,
+                footer='LWK Sistemas',
+            )
+            _write_whatsapp_log(
+                loja_id=loja_id, telefone=phone,
+                mensagem='[confirmacao agendamento + botao url]',
+                status='enviado', response=data, user=user,
+            )
+            return True, None
+        except EvolutionAPIError:
+            pass  # fallback para reply buttons
+
+    # Fallback: botões de reply (confirmar/cancelar)
     title = 'Confirmação de consulta'
     description = f'{proc}\n📅 {data_fmt} às {hora_fmt}\n\nConfirme ou cancele:'
     footer = 'Toque em uma opção'
@@ -716,12 +734,9 @@ def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, conf
             buttons=buttons,
         )
         _write_whatsapp_log(
-            loja_id=loja_id,
-            telefone=phone,
-            mensagem='[confirmacao agendamento + botoes]',
-            status='enviado',
-            response=data,
-            user=user,
+            loja_id=loja_id, telefone=phone,
+            mensagem='[confirmacao agendamento + botoes reply]',
+            status='enviado', response=data, user=user,
         )
         return True, None
     except EvolutionAPIError as exc:
@@ -729,22 +744,15 @@ def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, conf
         try:
             data = send_text(instance_or_err, phone, mensagem)
             _write_whatsapp_log(
-                loja_id=loja_id,
-                telefone=phone,
-                mensagem=mensagem,
-                status='enviado',
-                response=data,
-                user=user,
+                loja_id=loja_id, telefone=phone,
+                mensagem=mensagem, status='enviado', response=data, user=user,
             )
             return True, None
         except EvolutionAPIError as exc2:
             _write_whatsapp_log(
-                loja_id=loja_id,
-                telefone=phone,
-                mensagem=mensagem,
-                status='falhou',
-                response={'error': str(exc2)},
-                user=user,
+                loja_id=loja_id, telefone=phone,
+                mensagem=mensagem, status='falhou',
+                response={'error': str(exc2)}, user=user,
             )
             return False, str(exc2)
 

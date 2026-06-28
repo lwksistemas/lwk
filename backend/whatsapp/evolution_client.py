@@ -456,6 +456,33 @@ def send_buttons(instance_name, number, *, title, description, footer, buttons):
     return _request('POST', f'/message/sendButtons/{instance_name}', json_body=body)
 
 
+def send_url_button(instance_name, number, *, title, body_text, button_label, url, footer=''):
+    """
+    Mensagem com botão de URL (abre link ao tocar).
+    Usa sendButtons com tipo 'url' — disponível na Evolution API v2+.
+    Fallback automático: se o provider não suportar, lança EvolutionAPIError
+    e o chamador deve cair em send_text.
+
+    button_label: texto exibido no botão (ex.: '📝 Ler e Assinar')
+    url: URL completa que abre ao tocar o botão
+    """
+    resolved = resolve_recipient_number(instance_name, number)
+    body = {
+        'number': resolved,
+        'title': str(title)[:60],
+        'description': str(body_text)[:1024],
+        'footer': str(footer)[:60] if footer else '',
+        'buttons': [
+            {
+                'title': 'url',
+                'displayText': str(button_label)[:25],
+                'url': str(url),
+            }
+        ],
+    }
+    return _request('POST', f'/message/sendButtons/{instance_name}', json_body=body)
+
+
 def evolution_webhook_url():
     """
     URL pública do webhook LWK na API (não no frontend Vercel).

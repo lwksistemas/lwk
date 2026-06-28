@@ -12,6 +12,8 @@ def montar_mensagem_lembrete_atividade(
     antecedencia: str,
 ) -> str:
     """Mensagem de lembrete automático (24h ou 2h antes)."""
+    from whatsapp.message_templates import msg_lembrete_tarefa
+
     tipo = (
         atividade.get_tipo_display()
         if hasattr(atividade, 'get_tipo_display')
@@ -19,28 +21,23 @@ def montar_mensagem_lembrete_atividade(
     )
     data_local = timezone.localtime(atividade.data) if atividade.data else None
     data_str = data_local.strftime('%d/%m/%Y às %H:%M') if data_local else ''
-    quando = '24 horas' if antecedencia == '24h' else '2 horas'
-
-    linhas = [
-        f'🔔 *Lembrete — faltam {quando}*',
-        f'📅 *{loja_nome}*',
-        '',
-        f'*{tipo}:* {atividade.titulo}',
-        f'*Quando:* {data_str}',
-    ]
-
     lead = getattr(atividade, 'lead', None)
-    if lead:
-        lead_nome = (getattr(lead, 'nome', '') or '').strip()
-        if lead_nome:
-            linhas.append(f'*Cliente:* {lead_nome}')
+    lead_nome = (getattr(lead, 'nome', '') or '').strip() if lead else None
 
-    linhas.append('')
-    linhas.append('_Mensagem automática do calendário CRM._')
-    return '\n'.join(linhas)
+    return msg_lembrete_tarefa(
+        tipo=tipo,
+        titulo=atividade.titulo,
+        data_hora=data_str,
+        loja_nome=loja_nome,
+        lead_nome=lead_nome or None,
+        antecedencia=antecedencia,
+    )
 
 
 def montar_mensagem_atividade_whatsapp(atividade: Any, loja_nome: str) -> str:
+    """Mensagem de notificação de atividade (envio manual)."""
+    from whatsapp.message_templates import SEPARADOR
+
     tipo = (
         atividade.get_tipo_display()
         if hasattr(atividade, 'get_tipo_display')
@@ -58,6 +55,7 @@ def montar_mensagem_atividade_whatsapp(atividade: Any, loja_nome: str) -> str:
 
     linhas = [
         f'📅 *Atividade — {loja_nome}*',
+        SEPARADOR,
         '',
         f'*{tipo}:* {atividade.titulo}',
         f'*Quando:* {data_str}',
@@ -76,6 +74,7 @@ def montar_mensagem_atividade_whatsapp(atividade: Any, loja_nome: str) -> str:
     if obs:
         linhas.extend(['', obs])
 
+    linhas.extend(['', SEPARADOR])
     return '\n'.join(linhas)
 
 

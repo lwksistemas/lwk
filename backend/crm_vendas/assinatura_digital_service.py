@@ -577,15 +577,21 @@ def enviar_whatsapp_assinatura_vendedor(documento, assinatura, request, user=Non
     titulo = (getattr(documento, 'titulo', None) or getattr(documento, 'numero', None) or tipo_doc).strip()
     nome_vendedor = (assinatura.nome_assinante or 'Vendedor').strip()
 
+    # Nome do cliente para contexto
+    lead = documento.oportunidade.lead if hasattr(documento, 'oportunidade') else None
+    nome_cliente = getattr(lead, 'nome', None) if lead else None
+
     frontend_url = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')
     link = f'{frontend_url}/assinar/{quote(assinatura.token, safe="")}'
-    mensagem = (
-        f'Olá {nome_vendedor}!\n\n'
-        f'O cliente já assinou a *{tipo_doc}*'
-        f'{f" — {titulo}" if titulo else ""} '
-        f'de *{loja_nome}*.\n\n'
-        f'Finalize com sua assinatura pelo link:\n{link}\n\n'
-        f'Link válido por {TOKEN_EXPIRACAO_DIAS} dias.'
+
+    from whatsapp.message_templates import msg_assinatura_vendedor
+    mensagem = msg_assinatura_vendedor(
+        nome=nome_vendedor,
+        tipo_doc=tipo_doc,
+        titulo=titulo,
+        loja_nome=loja_nome,
+        link=link,
+        nome_cliente=nome_cliente,
     )
 
     ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, user=user, config=config)
@@ -700,13 +706,14 @@ def enviar_whatsapp_assinatura_cliente(documento, assinatura, request, user=None
 
     frontend_url = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')
     link = f'{frontend_url}/assinar/{quote(assinatura.token, safe="")}'
-    mensagem = (
-        f'Olá {lead.nome}!\n\n'
-        f'Você recebeu *{tipo_doc}*'
-        f'{f" — {titulo}" if titulo else ""} '
-        f'de *{loja_nome}* para assinatura digital.\n\n'
-        f'Leia e assine pelo link:\n{link}\n\n'
-        f'Link válido por {TOKEN_EXPIRACAO_DIAS} dias.'
+
+    from whatsapp.message_templates import msg_assinatura_cliente
+    mensagem = msg_assinatura_cliente(
+        nome=lead.nome,
+        tipo_doc=tipo_doc,
+        titulo=titulo,
+        loja_nome=loja_nome,
+        link=link,
     )
 
     ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, user=user, config=config)

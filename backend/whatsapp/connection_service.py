@@ -142,6 +142,24 @@ def update_evolution_connection_from_webhook(loja_id, data):
     status = _normalize_evolution_state(state_raw)
     phone = _extract_phone(payload)
     _apply_evolution_state_to_config(config, status, phone or None)
+
+    # Sincronizar status no schema public (fallback para envio sem tenant context)
+    try:
+        from django.db import connections
+        with connections['default'].cursor() as c:
+            c.execute('SET search_path TO public')
+            c.execute('''
+                UPDATE whatsapp_whatsappconfig
+                SET whatsapp_connection_status = %s, whatsapp_connected_phone = %s, updated_at = NOW()
+                WHERE loja_id = %s
+            ''', [config.whatsapp_connection_status, config.whatsapp_connected_phone or '', loja_id])
+    except Exception as exc:
+        logger.debug('Sync whatsapp status para public loja %s: %s', loja_id, exc)
+
+    # Invalidar cache para garantir que próximo envio leia o status correto
+    from django.core.cache import cache
+    cache.delete(f'whatsapp_config_{loja_id}')
+
     logger.info(
         'Evolution webhook connection loja=%s state=%r -> %s',
         loja_id,

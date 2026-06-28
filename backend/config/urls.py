@@ -16,7 +16,7 @@ def short_link_redirect(_request, code: str):
     """
     from clinica_beleza.throttles import check_rate_limit
     if not check_rate_limit(_request, 'short_link', '60/min'):
-        return HttpResponseNotFound('Muitas tentativas.')
+        return HttpResponse('Muitas tentativas.', status=429)
     from core.short_link import resolve_short_link
     full_url = resolve_short_link(code)
     if not full_url:

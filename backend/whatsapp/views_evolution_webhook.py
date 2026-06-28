@@ -161,34 +161,33 @@ class EvolutionWebhookView(View):
 
     def _authenticate_webhook(self, request) -> bool:
         """
-        Valida webhook via API key ou IP allowlist.
-        Evolution envia 'apikey' no header ao fazer POST no webhook configurado.
+        Valida webhook via API key (header Apikey / X-Api-Key ou campo apikey no JSON).
         """
         from django.conf import settings
 
         expected_key = (getattr(settings, 'EVOLUTION_API_KEY', None) or '').strip()
         if not expected_key:
-            # Sem key configurada: aceitar (fallback para dev)
-            return True
+            return bool(getattr(settings, 'DEBUG', False))
 
-        # Verificar header apikey (padrão Evolution)
-        received_key = (
+        received_key = self._extract_webhook_apikey(request)
+        return received_key == expected_key
+
+    @staticmethod
+    def _extract_webhook_apikey(request) -> str:
+        received = (
             request.headers.get('Apikey')
             or request.headers.get('X-Api-Key')
             or request.META.get('HTTP_APIKEY', '')
         ).strip()
-
-        if received_key == expected_key:
-            return True
-
-        # Verificar se é IP interno do Railway (range privado 100.64.x.x)
-        ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
-        if ',' in ip:
-            ip = ip.split(',')[0].strip()
-        if ip.startswith('100.64.') or ip == '127.0.0.1':
-            return True
-
-        return False
+        if received:
+            return received
+        try:
+            body = json.loads(request.body.decode('utf-8') or '{}')
+            if isinstance(body, dict):
+                return (body.get('apikey') or '').strip()
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            pass
+        return ''
 
     def _handle_event(self, event: dict):
         event_name = (event.get('event') or 'messages.upsert').lower().replace('_', '.')

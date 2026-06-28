@@ -509,13 +509,17 @@ def evolution_webhook_url():
 
 
 def set_instance_webhook(instance_name):
-    body = {
-        'webhook': {
-            'enabled': True,
-            'url': evolution_webhook_url(),
-            'webhookByEvents': False,
-            'webhookBase64': False,
-            'events': ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
-        }
+    from django.conf import settings
+
+    key = (getattr(settings, 'EVOLUTION_API_KEY', None) or '').strip()
+    webhook_cfg = {
+        'enabled': True,
+        'url': evolution_webhook_url(),
+        'webhookByEvents': False,
+        'webhookBase64': False,
+        'events': ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
     }
+    if key:
+        webhook_cfg['headers'] = {'Apikey': key}
+    body = {'webhook': webhook_cfg}
     return _request('POST', f'/webhook/set/{instance_name}', json_body=body)

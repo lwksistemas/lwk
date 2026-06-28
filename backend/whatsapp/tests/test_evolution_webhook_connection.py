@@ -35,7 +35,8 @@ class UpdateEvolutionConnectionFromWebhookTest(SimpleTestCase):
 
 class EvolutionWebhookConnectionUpdateTest(SimpleTestCase):
     @patch('whatsapp.connection_service.update_evolution_connection_from_webhook')
-    def test_post_connection_update_chama_handler(self, mock_update):
+    @patch.object(EvolutionWebhookView, '_authenticate_webhook', return_value=True)
+    def test_post_connection_update_chama_handler(self, _auth, mock_update):
         factory = RequestFactory()
         body = {
             'event': 'connection.update',

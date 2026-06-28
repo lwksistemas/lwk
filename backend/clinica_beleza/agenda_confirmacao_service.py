@@ -309,7 +309,16 @@ def processar_resposta_whatsapp(
     appointment = None
     try:
         if appointment_id:
-            appointment = Appointment.objects.filter(pk=appointment_id).first()
+            appointment = Appointment.objects.select_related('patient').filter(pk=appointment_id).first()
+            # SEGURANÇA: validar que o telefone do remetente é do paciente vinculado
+            if appointment:
+                patient_phone = getattr(appointment.patient, 'telefone', '') or ''
+                if not _phones_match(telefone, patient_phone):
+                    logger.warning(
+                        'processar_resposta_whatsapp: telefone %s não pertence ao paciente do agendamento %s',
+                        telefone[-4:], appointment_id,
+                    )
+                    appointment = None  # Bloqueia — não permite alterar sem match
 
         if not appointment:
             phone_digits = _normalize_phone_digits(telefone)

@@ -272,16 +272,17 @@ def criar_consulta_avulsa(
     if proc_list:
         criar_appointment_procedures(appointment, proc_list, convenio=convenio)
 
-    # Determinar valor da consulta:
+    # Determinar valor da consulta (taxa de consulta, NÃO valor dos procedimentos):
     # 1. Se valor_consulta fornecido explicitamente (override), usar esse
-    # 2. Se local_atendimento informado, usar valor do local
-    # 3. Caso contrário, usar valor total dos procedimentos (comportamento original)
+    # 2. Se local_atendimento informado, usar taxa do local
+    # 3. Sem local: taxa de consulta = 0 (procedimentos têm seus próprios valores)
+    #    Evita cobrança duplicada em _valor_pagamento_padrao (que soma vc + valor_total)
     if valor_consulta is not None and Decimal(str(valor_consulta)) > 0:
         valor_final = Decimal(str(valor_consulta))
     elif local_atendimento:
-        valor_final = local_atendimento.valor_consulta
+        valor_final = Decimal(str(local_atendimento.valor_consulta or 0))
     else:
-        valor_final = appointment.valor_total
+        valor_final = Decimal('0')
 
     consulta = Consulta.objects.create(
         appointment=appointment,

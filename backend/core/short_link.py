@@ -5,7 +5,7 @@ Gera códigos curtos (8 chars) para tokens longos de assinatura/confirmação.
 Sem dependência de serviços externos. Sem risco de ban por URL estranha.
 
 Exemplo:
-    https://lwksistemas.com.br/r/aB3xK9mQ
+    https://api.lwksistemas.com.br/r/aB3xK9mQ
     em vez de:
     https://lwksistemas.com.br/assinar/eyJkb2N...longa...
 
@@ -17,42 +17,20 @@ import string
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import models
 from django.utils import timezone
+
+from core.models import ShortLink
 
 ALPHABET = string.ascii_letters + string.digits  # 62 chars → 62^8 ≈ 218 trilhões de combinações
 CODE_LENGTH = 8
 SHORT_LINK_TTL_DAYS = 30  # links ficam no banco por 30 dias
 
 
-class ShortLink(models.Model):
-    """Mapeamento código-curto → URL completa."""
-    code = models.CharField(max_length=12, unique=True, db_index=True)
-    full_url = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        app_label = 'core'
-        db_table = 'core_short_links'
-        verbose_name = 'Link Curto'
-        verbose_name_plural = 'Links Curtos'
-
-    def __str__(self):
-        return f'{self.code} → {self.full_url[:60]}'
-
-    @property
-    def is_expired(self):
-        if not self.expires_at:
-            return False
-        return timezone.now() > self.expires_at
-
-
 def _generate_code() -> str:
     """Gera código único de 8 caracteres."""
     for _ in range(10):
         code = ''.join(secrets.choice(ALPHABET) for _ in range(CODE_LENGTH))
-        if not ShortLink.objects.filter(code=code).exists():
+        if not ShortLink.objects.using('default').filter(code=code).exists():
             return code
     # Fallback: 12 chars se colisão (extremamente raro)
     return ''.join(secrets.choice(ALPHABET) for _ in range(12))
@@ -64,14 +42,17 @@ def create_short_link(full_url: str, ttl_days: int = SHORT_LINK_TTL_DAYS) -> str
     Retorna o código curto (ex.: 'aB3xK9mQ').
 
     Se a mesma URL já tem um link válido, reutiliza (idempotente).
+    Tabela core_short_links fica SEMPRE no schema public (using='default').
     """
+    from django.db.models import Q
+
     # Reutilizar link existente não expirado
     existing = (
-        ShortLink.objects
+        ShortLink.objects.using('default')
         .filter(full_url=full_url)
         .filter(
-            models.Q(expires_at__isnull=True) |
-            models.Q(expires_at__gt=timezone.now())
+            Q(expires_at__isnull=True) |
+            Q(expires_at__gt=timezone.now())
         )
         .order_by('-created_at')
         .first()
@@ -80,7 +61,7 @@ def create_short_link(full_url: str, ttl_days: int = SHORT_LINK_TTL_DAYS) -> str
         return existing.code
 
     code = _generate_code()
-    ShortLink.objects.create(
+    ShortLink.objects.using('default').create(
         code=code,
         full_url=full_url,
         expires_at=timezone.now() + timedelta(days=ttl_days),
@@ -94,7 +75,7 @@ def resolve_short_link(code: str) -> str | None:
     Retorna None se não encontrado ou expirado.
     """
     try:
-        link = ShortLink.objects.get(code=code)
+        link = ShortLink.objects.using('default').get(code=code)
     except ShortLink.DoesNotExist:
         return None
     if link.is_expired:

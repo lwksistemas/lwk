@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { clearSessionAndRedirect, getLoginUrlForRedirect } from '@/lib/api-client';
+import { USE_JWT_HTTPONLY_COOKIES } from '@/lib/auth-cookies';
 
 /**
  * Logout automático após inatividade.
@@ -13,6 +14,10 @@ const STORAGE_KEY = 'lwk_last_activity';
 
 function hasActiveSession(): boolean {
   if (typeof window === 'undefined') return false;
+  // Quando usa cookies HttpOnly, o token fica no cookie — verificar session_id
+  if (USE_JWT_HTTPONLY_COOKIES) {
+    return Boolean(sessionStorage.getItem('session_id'));
+  }
   return Boolean(
     sessionStorage.getItem('access_token') || sessionStorage.getItem('session_id')
   );

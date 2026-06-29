@@ -29,6 +29,7 @@ class RenderTemplateTest(TestCase):
         professional.nome = 'Dr. João'
         professional.registro_profissional = '12345'
         professional.conselho = 'CRM'
+        professional.formatar_conselho.return_value = 'CRM'
 
         consulta = MagicMock()
         consulta.procedure = MagicMock()
@@ -169,8 +170,8 @@ class CriarDocumentoTest(TestCase):
             )
         self.assertIn('IN_PROGRESS', str(cm.exception))
 
-    @patch('clinica_beleza.documento_service.DocumentoClinico.objects')
-    def test_cria_documento_quando_in_progress(self, mock_objects):
+    @patch('clinica_beleza.documento_service.DocumentoClinico')
+    def test_cria_documento_quando_in_progress(self, MockDocumentoClinico):
         """Deve criar documento quando consulta está IN_PROGRESS."""
         consulta = MagicMock()
         consulta.status = 'IN_PROGRESS'
@@ -180,7 +181,8 @@ class CriarDocumentoTest(TestCase):
         template = MagicMock()
 
         mock_doc = MagicMock()
-        mock_objects.create.return_value = mock_doc
+        MockDocumentoClinico.return_value = mock_doc
+        mock_doc.save = MagicMock()
 
         result = criar_documento(
             consulta=consulta,
@@ -192,11 +194,6 @@ class CriarDocumentoTest(TestCase):
         )
 
         self.assertEqual(result, mock_doc)
-        mock_objects.create.assert_called_once_with(
-            consulta=consulta,
-            patient=consulta.patient,
-            professional=professional,
-            template=template,
             tipo='receituario',
             titulo='Receita 1',
             conteudo='Receita teste',

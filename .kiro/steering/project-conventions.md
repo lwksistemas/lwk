@@ -43,7 +43,7 @@ inclusion: always
 2. Verificar frontend: `getDiagnostics` nos arquivos alterados
 3. Git: `git add` apenas arquivos relevantes → `git commit` com mensagem descritiva → `git push`
 4. Backend: `npx railway up --detach` (a partir da raiz do projeto)
-5. Frontend: `npx vercel --prod --yes` (a partir de /frontend)
+5. Frontend: `npx vercel --prod --yes` (a partir da raiz do projeto — rootDirectory=frontend no Vercel)
 6. Se criou tabela nova: rodar SQL `CREATE TABLE IF NOT EXISTS` em todos os schemas via `npx railway run python3 -c "..."`
 
 ## Convenções de Commit

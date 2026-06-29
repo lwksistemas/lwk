@@ -11,7 +11,7 @@ from clinica_beleza.prontuario_pdf import _resolver_cabecalho
 class ResolverCabecalhoTest(TestCase):
     """Testes para a função _resolver_cabecalho (prioridade de cabeçalho)."""
 
-    @patch('clinica_beleza.prontuario_pdf.MemedTimbrado.objects')
+    @patch('clinica_beleza.prontuario_pdf.header.MemedTimbrado.objects')
     def test_retorna_timbrado_quando_pdf_existe(self, mock_timbrado_qs):
         """Deve retornar ('timbrado', bytes) quando MemedTimbrado tem PDF."""
         timbrado = MagicMock()
@@ -24,7 +24,7 @@ class ResolverCabecalhoTest(TestCase):
         self.assertEqual(dados, b'%PDF-1.4 fake content')
         mock_timbrado_qs.filter.assert_called_once_with(loja_id=1)
 
-    @patch('clinica_beleza.prontuario_pdf.MemedTimbrado.objects')
+    @patch('clinica_beleza.prontuario_pdf.header.MemedTimbrado.objects')
     @patch('superadmin.models.Loja.objects')
     def test_retorna_logo_quando_sem_timbrado_mas_tem_logo(self, mock_loja_qs, mock_timbrado_qs):
         """Deve retornar ('logo', url) quando não há timbrado mas Loja tem logo."""
@@ -39,7 +39,7 @@ class ResolverCabecalhoTest(TestCase):
         self.assertEqual(tipo, 'logo')
         self.assertEqual(dados, 'https://cdn.example.com/logo.png')
 
-    @patch('clinica_beleza.prontuario_pdf.MemedTimbrado.objects')
+    @patch('clinica_beleza.prontuario_pdf.header.MemedTimbrado.objects')
     @patch('superadmin.models.Loja.objects')
     def test_retorna_texto_quando_sem_timbrado_e_sem_logo(self, mock_loja_qs, mock_timbrado_qs):
         """Deve retornar ('texto', loja) quando não há timbrado nem logo."""
@@ -54,7 +54,7 @@ class ResolverCabecalhoTest(TestCase):
         self.assertEqual(tipo, 'texto')
         self.assertEqual(dados, loja)
 
-    @patch('clinica_beleza.prontuario_pdf.MemedTimbrado.objects')
+    @patch('clinica_beleza.prontuario_pdf.header.MemedTimbrado.objects')
     @patch('superadmin.models.Loja.objects')
     def test_retorna_texto_quando_loja_nao_existe(self, mock_loja_qs, mock_timbrado_qs):
         """Deve retornar ('texto', None) quando a loja não existe no banco."""
@@ -66,7 +66,7 @@ class ResolverCabecalhoTest(TestCase):
         self.assertEqual(tipo, 'texto')
         self.assertIsNone(dados)
 
-    @patch('clinica_beleza.prontuario_pdf.MemedTimbrado.objects')
+    @patch('clinica_beleza.prontuario_pdf.header.MemedTimbrado.objects')
     def test_timbrado_com_pdf_vazio_nao_usa_timbrado(self, mock_timbrado_qs):
         """Se MemedTimbrado existe mas pdf é vazio/None, deve fallback para logo/texto."""
         timbrado = MagicMock()
@@ -83,7 +83,7 @@ class ResolverCabecalhoTest(TestCase):
         self.assertEqual(tipo, 'logo')
         self.assertEqual(dados, 'https://cdn.example.com/logo.png')
 
-    @patch('clinica_beleza.prontuario_pdf.MemedTimbrado.objects')
+    @patch('clinica_beleza.prontuario_pdf.header.MemedTimbrado.objects')
     def test_timbrado_com_pdf_bytes_vazios_nao_usa_timbrado(self, mock_timbrado_qs):
         """Se MemedTimbrado existe mas pdf é b'', deve fallback para logo/texto."""
         timbrado = MagicMock()
@@ -101,7 +101,7 @@ class ResolverCabecalhoTest(TestCase):
         self.assertEqual(tipo, 'texto')
         self.assertEqual(dados, loja)
 
-    @patch('clinica_beleza.prontuario_pdf.MemedTimbrado.objects')
+    @patch('clinica_beleza.prontuario_pdf.header.MemedTimbrado.objects')
     def test_prioridade_timbrado_sobre_logo(self, mock_timbrado_qs):
         """Mesmo que Loja tenha logo, se MemedTimbrado tem PDF, usa timbrado."""
         timbrado = MagicMock()

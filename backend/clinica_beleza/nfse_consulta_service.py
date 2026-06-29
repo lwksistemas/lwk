@@ -9,6 +9,19 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _get_nfse_config(loja_id: int):
+    """
+    Obtém configuração de NFS-e para a loja.
+    Abstrai o acesso ao CRMConfig sem criar dependência direta do app CRM.
+    Cada app (clínica, CRM, etc.) usa a mesma tabela de config via este helper.
+    """
+    try:
+        from crm_vendas.models import CRMConfig
+        return CRMConfig.get_or_create_for_loja(loja_id)
+    except Exception:
+        return None
+
+
 def montar_payload_nfse_consulta(consulta, payment, config) -> dict[str, Any] | None:
     """Monta payload para emissão NFS-e a partir da consulta paga."""
     patient = consulta.patient
@@ -52,8 +65,9 @@ def montar_payload_nfse_consulta(consulta, payment, config) -> dict[str, Any] | 
 
 def tentar_emitir_nfse_consulta(consulta, payment, *, loja=None) -> None:
     """
-    Emite NFS-e após pagamento da consulta, se configurado em CRMConfig.
+    Emite NFS-e após pagamento da consulta, se configurado.
     Falhas são registradas em log e não impedem a finalização.
+    Usa config de NFS-e da loja (independente do app CRM).
     """
     if payment is None or getattr(payment, 'status', '') != 'PAID':
         return
@@ -61,13 +75,13 @@ def tentar_emitir_nfse_consulta(consulta, payment, *, loja=None) -> None:
     if valor is None or Decimal(str(valor)) <= 0:
         return
 
-    from crm_vendas.models import CRMConfig
-
     loja_id = getattr(consulta, 'loja_id', None) or getattr(payment, 'loja_id', None)
     if not loja_id:
         return
 
-    config = CRMConfig.get_or_create_for_loja(loja_id)
+    config = _get_nfse_config(loja_id)
+    if not config:
+        return
     if not getattr(config, 'emitir_nf_automaticamente', False):
         return
 

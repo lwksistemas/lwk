@@ -79,6 +79,7 @@ from .views_foto_paciente import (
 )
 from .views_agenda_confirmacao import ConfirmarAgendamentoPublicaView
 from .views_nfse_config import NFSeConfigView, NFSeConfigTestISSNetView
+from .views_asaas_webhook import clinica_beleza_asaas_webhook
 
 app_name = 'clinica_beleza'
 
@@ -218,4 +219,7 @@ urlpatterns = [
     # Configuração NFS-e (individual por loja)
     path('nfse-config/', NFSeConfigView.as_view(), name='nfse-config'),
     path('nfse-config/test-issnet/', NFSeConfigTestISSNetView.as_view(), name='nfse-config-test-issnet'),
+
+    # Webhook Asaas da loja (conta própria — configurar URL no painel Asaas)
+    path('webhooks/asaas/<str:loja_slug>/', clinica_beleza_asaas_webhook, name='asaas-webhook'),
 ]

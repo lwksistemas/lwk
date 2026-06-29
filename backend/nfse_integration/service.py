@@ -30,8 +30,19 @@ class NFSeService:
         validar_config_crm_loja(self.loja, self.config)
 
     def _get_config(self):
-        from crm_vendas.models import CRMConfig
+        """
+        Obtém config NFS-e da loja.
+        Clínica de beleza usa tabela própria; demais usam CRMConfig.
+        """
+        tipo_codigo = ''
+        if hasattr(self.loja, 'tipo_loja') and self.loja.tipo_loja:
+            tipo_codigo = getattr(self.loja.tipo_loja, 'codigo', '') or ''
 
+        if tipo_codigo in ('CLIEST', 'CLIBEL'):
+            from clinica_beleza.nfse_config_service import get_or_create_nfse_config
+            return get_or_create_nfse_config(self.loja.id)
+
+        from crm_vendas.models import CRMConfig
         return CRMConfig.get_or_create_for_loja(self.loja.id)
 
     def emitir_nfse(

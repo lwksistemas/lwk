@@ -44,6 +44,9 @@ export default function ClinicaNFSeForm({ configBackHref }: Props) {
 
   const [certificadoFile, setCertificadoFile] = useState<File | null>(null);
   const [issnetTestLoading, setIssnetTestLoading] = useState(false);
+  const [asaasApiKey, setAsaasApiKey] = useState('');
+  const [asaasWebhookToken, setAsaasWebhookToken] = useState('');
+  const [asaasSandbox, setAsaasSandbox] = useState(false);
 
   const [issnetTestMessage, setIssnetTestMessage] = useState<{
     type: 'ok' | 'error'; text: string;
@@ -77,6 +80,7 @@ export default function ClinicaNFSeForm({ configBackHref }: Props) {
         issnet_ambiente_homologacao: config.issnet_ambiente_homologacao ?? false,
         emitir_nf_automaticamente: config.emitir_nf_automaticamente ?? true,
       });
+      setAsaasSandbox(config.asaas_sandbox ?? false);
     }
   }, [config]);
 
@@ -101,6 +105,14 @@ export default function ClinicaNFSeForm({ configBackHref }: Props) {
       if (certificadoFile) {
         data.append('issnet_certificado', certificadoFile);
       }
+      // Campos Asaas
+      if (asaasApiKey.trim()) {
+        data.append('asaas_api_key', asaasApiKey.trim());
+      }
+      if (asaasWebhookToken.trim()) {
+        data.append('asaas_webhook_token', asaasWebhookToken.trim());
+      }
+      data.append('asaas_sandbox', asaasSandbox ? 'true' : 'false');
 
       await apiClient.patch('/clinica-beleza/nfse-config/', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -109,6 +121,8 @@ export default function ClinicaNFSeForm({ configBackHref }: Props) {
       await recarregar();
       setFormData(prev => ({ ...prev, issnet_senha: '', issnet_senha_certificado: '' }));
       setCertificadoFile(null);
+      setAsaasApiKey('');
+      setAsaasWebhookToken('');
     } catch (error: any) {
       logger.warn('Erro ao salvar config NFS-e clínica:', error);
       setMessage({
@@ -242,6 +256,68 @@ export default function ClinicaNFSeForm({ configBackHref }: Props) {
             })}
           </div>
         </div>
+
+        {/* Configuração Asaas (conta própria da loja) */}
+        {formData.provedor_nf === 'asaas' && (
+          <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Conta Asaas da Loja
+            </h2>
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <Info size={18} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-blue-800 dark:text-blue-200">
+                  Configure a API Key da conta Asaas da sua clínica para emissão de NFS-e.
+                  A chave fica no painel Asaas em Integrações → Chave de API.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  API Key Asaas
+                </label>
+                <input type="password" value={asaasApiKey}
+                  onChange={(e) => setAsaasApiKey(e.target.value)}
+                  placeholder={config?.asaas_api_key_configured ? '••• chave já salva — cole nova para alterar' : '$aact_prod_... ou $aact_hmlg_...'}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white font-mono text-sm" />
+                {config?.asaas_api_key_configured && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Chave configurada</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Token do Webhook (min. 32 caracteres)
+                </label>
+                <input type="password" value={asaasWebhookToken}
+                  onChange={(e) => setAsaasWebhookToken(e.target.value)}
+                  placeholder={config?.asaas_webhook_token_configured ? '••• token já salvo' : 'Token de autenticação'}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white font-mono text-sm" />
+                {config?.asaas_webhook_token_configured && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Token configurado</p>
+                )}
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={asaasSandbox}
+                  onChange={(e) => setAsaasSandbox(e.target.checked)}
+                  className="w-4 h-4" />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Sandbox (homologação)
+                </span>
+              </label>
+              {config?.asaas_webhook_url && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mt-2">
+                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    URL do Webhook (configurar no painel Asaas):
+                  </p>
+                  <code className="text-xs text-gray-600 dark:text-gray-400 break-all">
+                    {config.asaas_webhook_url}
+                  </code>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Credenciais ISSNet */}
         {formData.provedor_nf === 'issnet' && (

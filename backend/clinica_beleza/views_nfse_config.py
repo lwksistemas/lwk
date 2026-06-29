@@ -7,11 +7,11 @@ import logging
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework import status
 
 from tenants.middleware import get_current_loja_id
+from .permissions import CLINICA_ADMIN
 from .models import ClinicaBelezaNFSeConfig
 from .serializers.nfse_config import ClinicaBelezaNFSeConfigSerializer
 from .nfse_config_service import (
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class NFSeConfigView(APIView):
     """GET/PATCH da configuração de NFS-e individual da loja."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get(self, request):
@@ -54,7 +54,7 @@ class NFSeConfigView(APIView):
 
 class NFSeConfigTestISSNetView(APIView):
     """POST - Testa conexão com o WebService ISSNet."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_ADMIN
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def post(self, request):

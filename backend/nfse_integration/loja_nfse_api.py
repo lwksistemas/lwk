@@ -181,11 +181,30 @@ def xml_nfse_conteudo(nfse: Any) -> str:
     return nfse.xml_nfse or nfse.xml_rps or ''
 
 
+def _resolver_config_nfse_loja(loja_id: int):
+    """
+    Resolve a config NFS-e correta por loja: ClinicaBelezaNFSeConfig ou CRMConfig.
+    Verifica o tipo da loja (CLIEST/CLIBEL → tabela da clínica; demais → CRM).
+    """
+    from superadmin.models import Loja
+
+    loja = Loja.objects.using('default').filter(id=loja_id).select_related('tipo_loja').first()
+    tipo_codigo = ''
+    if loja and hasattr(loja, 'tipo_loja') and loja.tipo_loja:
+        tipo_codigo = getattr(loja.tipo_loja, 'codigo', '') or ''
+
+    if tipo_codigo in ('CLIEST', 'CLIBEL'):
+        from clinica_beleza.nfse_config_service import get_or_create_nfse_config
+        return get_or_create_nfse_config(loja_id)
+
+    from crm_vendas.models import CRMConfig
+    return CRMConfig.get_or_create_for_loja(loja_id)
+
+
 def sincronizar_nfse_asaas_loja(nfse: Any, loja_id: int) -> tuple[dict[str, Any], int]:
     """Consulta invoice no Asaas e atualiza o registro local."""
     from rest_framework import status as http_status
 
-    from crm_vendas.models import CRMConfig
     from nfse_integration.asaas_webhook_sync import sincronizar_nfse_via_api_asaas
     from nfse_integration.serializers import NFSeSerializer
 
@@ -195,14 +214,14 @@ def sincronizar_nfse_asaas_loja(nfse: Any, loja_id: int) -> tuple[dict[str, Any]
             http_status.HTTP_400_BAD_REQUEST,
         )
 
-    cfg = CRMConfig.get_or_create_for_loja(loja_id)
+    cfg = _resolver_config_nfse_loja(loja_id)
     api_key = (getattr(cfg, 'asaas_api_key', None) or '').strip()
     if not api_key:
         return (
             {
                 'error': (
                     'Configure a API Key do Asaas em Configurações → Nota Fiscal '
-                    '(CRM) para sincronizar.'
+                    'para sincronizar.'
                 ),
             },
             http_status.HTTP_400_BAD_REQUEST,
@@ -231,11 +250,10 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
     """Consulta o ISSNet e atualiza status local (ex.: cancelada no portal)."""
     from rest_framework import status as http_status
 
-    from crm_vendas.models import CRMConfig
     from nfse_integration.issnet_loja import issnet_client_loja
     from nfse_integration.serializers import NFSeSerializer
 
-    cfg = CRMConfig.get_or_create_for_loja(loja_id)
+    cfg = _resolver_config_nfse_loja(loja_id)
     cfg_provedor = (getattr(cfg, 'provedor_nf', '') or '').strip().lower()
     nf_provedor = (nfse.provedor or '').strip().lower()
     if nf_provedor != 'issnet' and cfg_provedor != 'issnet':

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { ClinicaBelezaAPI, clinicaBelezaFetch, type LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
-import { fetchHistoricoPaciente } from "@/lib/clinica-beleza-cadastros-api";
+import { fetchClinicaSchedulingProfessionals, fetchHistoricoPaciente } from "@/lib/clinica-beleza-cadastros-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
 import type { ConsultaPrintMeta } from "@/lib/consulta-print";
@@ -229,12 +229,8 @@ export function useConsultaDetailActions(loader: UseConsultaDetailActionsArgs) {
   const iniciarConsulta = async (professionalId?: number) => {
     if (!selected.professional && !professionalId) {
       try {
-        const res = await clinicaBelezaFetch("/professionals/");
-        if (res.ok) {
-          const json = await res.json();
-          const profs = json.results || json;
-          setProfissionaisDisponiveis(Array.isArray(profs) ? profs : []);
-        }
+        const profs = await fetchClinicaSchedulingProfessionals();
+        setProfissionaisDisponiveis(Array.isArray(profs) ? profs : []);
       } catch {
         /* fallback empty */
       }

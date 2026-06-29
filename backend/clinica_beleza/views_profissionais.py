@@ -5,7 +5,7 @@ import json
 import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .permissions import CLINICA_ADMIN
+from .permissions import CLINICA_ADMIN, CLINICA_AGENDA
 from rest_framework import status
 
 from .models import Professional, HorarioTrabalhoProfissional, Appointment, BloqueioHorario, ProfessionalCommission
@@ -92,6 +92,13 @@ class ProfessionalListView(APIView):
     POST /clinica-beleza/professionals/
     """
     permission_classes = CLINICA_ADMIN
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            scheduling = self.request.query_params.get('scheduling', '').lower() == 'true'
+            if scheduling:
+                return [perm() for perm in CLINICA_AGENDA]
+        return [perm() for perm in CLINICA_ADMIN]
 
     def get(self, request):
         active_only = request.query_params.get('active', 'true').lower() == 'true'

@@ -201,6 +201,14 @@ class ConsultaIniciarView(APIView):
                 prof = Professional.objects.get(pk=professional_id)
             except Professional.DoesNotExist:
                 return Response({'error': 'Profissional não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+            if prof.is_profissional is False:
+                return Response(
+                    {
+                        'error': 'Este cadastro não está habilitado como profissional para atendimento.',
+                        'code': 'PROFESSIONAL_NOT_SCHEDULABLE',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             appointment.professional = prof
             appointment.save(update_fields=['professional', 'updated_at'])
             consulta.professional = prof

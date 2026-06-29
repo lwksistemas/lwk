@@ -61,7 +61,10 @@ class LimpezaCadastros403Test(TestCase):
             professional_id=1,
             perfil=ProfissionalUsuario.PERFIL_LIMPEZA,
         )
+        from superadmin.authentication import invalidate_session_cache
+
         self.client = APIClient()
+        invalidate_session_cache(self.limpeza_user.id)
         token = str(RefreshToken.for_user(self.limpeza_user).access_token)
         sid = SessionManager.create_session(self.limpeza_user.id, token)
         self.client.credentials(
@@ -123,7 +126,10 @@ class ProfissionalAgendaAccessTest(TestCase):
             professional_id=10,
             perfil=ProfissionalUsuario.PERFIL_PROFISSIONAL,
         )
+        from superadmin.authentication import invalidate_session_cache
+
         self.client = APIClient()
+        invalidate_session_cache(self.prof_user.id)
         token = str(RefreshToken.for_user(self.prof_user).access_token)
         sid = SessionManager.create_session(self.prof_user.id, token)
         self.client.credentials(

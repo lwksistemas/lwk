@@ -2,7 +2,6 @@
 from datetime import timedelta
 from decimal import Decimal
 
-from django.test import TestCase
 from django.utils import timezone
 
 from clinica_beleza.models import (
@@ -22,25 +21,25 @@ from clinica_beleza.retorno_service import (
     verificar_retorno_consulta,
     verificar_retorno_procedimento,
 )
+from .tenant_test_case import ClinicaBelezaIntegrationTestCase
 
 
-class RetornoServiceTests(TestCase):
-    loja_id = 1
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.patient = Patient.objects.create(nome='Paciente Teste', loja_id=cls.loja_id)
-        cls.professional = Professional.objects.create(nome='Dr. Teste', loja_id=cls.loja_id)
-        cls.procedure = Procedure.objects.create(
+class RetornoServiceTests(ClinicaBelezaIntegrationTestCase):
+    def setUp(self):
+        super().setUp()
+        self.loja_id = self.loja.id
+        self.patient = Patient.objects.create(nome='Paciente Teste', loja_id=self.loja_id)
+        self.professional = Professional.objects.create(nome='Dr. Teste', loja_id=self.loja_id)
+        self.procedure = Procedure.objects.create(
             nome='Botox',
             preco=Decimal('500.00'),
             duracao_minutos=30,
-            loja_id=cls.loja_id,
+            loja_id=self.loja_id,
         )
-        cls.local = LocalAtendimento.objects.create(
+        self.local = LocalAtendimento.objects.create(
             nome='Consultório 1',
             valor_consulta=Decimal('150.00'),
-            loja_id=cls.loja_id,
+            loja_id=self.loja_id,
         )
 
     def _consulta_concluida(self, *, procedure=None, days_ago=5):

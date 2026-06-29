@@ -65,10 +65,10 @@ class NFSeConsultaServiceTest(TestCase):
 
     @patch('nfse_integration.loja_nfse_api.processar_emissao_nfse_loja_sync')
     @patch('nfse_integration.queue_dispatch.should_enqueue_nfse', return_value=False)
-    @patch('crm_vendas.models.CRMConfig.get_or_create_for_loja')
+    @patch('clinica_beleza.nfse_consulta_service._get_nfse_config')
     @patch('superadmin.models.Loja')
-    def test_emite_quando_pago_e_config_ativa(self, mock_loja, mock_config, _enqueue, mock_processar):
-        mock_config.return_value = self._config()
+    def test_emite_quando_pago_e_config_ativa(self, mock_loja, mock_get_config, _enqueue, mock_processar):
+        mock_get_config.return_value = self._config()
         mock_loja.objects.using.return_value.filter.return_value.first.return_value = MagicMock(id=10)
 
         tentar_emitir_nfse_consulta(self._consulta(), self._payment())
@@ -77,11 +77,11 @@ class NFSeConsultaServiceTest(TestCase):
 
     @patch('nfse_integration.queue_dispatch.enqueue_emissao_nfse_loja')
     @patch('nfse_integration.queue_dispatch.should_enqueue_nfse', return_value=True)
-    @patch('crm_vendas.models.CRMConfig.get_or_create_for_loja')
+    @patch('clinica_beleza.nfse_consulta_service._get_nfse_config')
     @patch('superadmin.models.Loja')
-    def test_enfileira_quando_fila_ativa(self, mock_loja, mock_config, _should, mock_enqueue):
+    def test_enfileira_quando_fila_ativa(self, mock_loja, mock_get_config, _should, mock_enqueue):
         loja = MagicMock(id=10)
-        mock_config.return_value = self._config()
+        mock_get_config.return_value = self._config()
         mock_loja.objects.using.return_value.filter.return_value.first.return_value = loja
 
         tentar_emitir_nfse_consulta(self._consulta(), self._payment())
@@ -90,9 +90,9 @@ class NFSeConsultaServiceTest(TestCase):
         self.assertEqual(mock_enqueue.call_args[0][0], 10)
 
     @patch('nfse_integration.loja_nfse_api.processar_emissao_nfse_loja_sync')
-    @patch('crm_vendas.models.CRMConfig.get_or_create_for_loja')
-    def test_nao_emite_se_provedor_desabilitado(self, mock_config, mock_processar):
-        mock_config.return_value = self._config(provedor='desabilitado')
+    @patch('clinica_beleza.nfse_consulta_service._get_nfse_config')
+    def test_nao_emite_se_provedor_desabilitado(self, mock_get_config, mock_processar):
+        mock_get_config.return_value = self._config(provedor='desabilitado')
 
         tentar_emitir_nfse_consulta(self._consulta(), self._payment())
 

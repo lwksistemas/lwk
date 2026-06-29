@@ -21,12 +21,8 @@ jobs:
         run: pip install -r requirements.txt
       - name: Django check
         run: python manage.py check
-      - name: Clinica da Beleza integration tests
-        run: |
-          python manage.py test \
-            clinica_beleza.tests.test_integracao_tenant \
-            clinica_beleza.tests.test_comissao_relatorio_service \
-            --verbosity=1
+      - name: Clinica da Beleza test suite
+        run: python manage.py test clinica_beleza.tests --verbosity=1
 
   backend-audit:
     runs-on: ubuntu-latest

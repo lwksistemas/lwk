@@ -78,6 +78,7 @@ from .views_foto_paciente import (
     EnviarFotoPublicaView,
 )
 from .views_agenda_confirmacao import ConfirmarAgendamentoPublicaView
+from .views_nfse_config import NFSeConfigView, NFSeConfigTestISSNetView
 
 app_name = 'clinica_beleza'
 
@@ -213,4 +214,8 @@ urlpatterns = [
     path('relatorios/faturamento/', RelatorioFaturamentoView.as_view(), name='relatorio-faturamento'),
     path('relatorios/repasse-consultas/', RelatorioRepasseConsultaView.as_view(), name='relatorio-repasse-consultas'),
     path('relatorios/repasse-consultas/pdf/', RelatorioRepasseConsultaPdfView.as_view(), name='relatorio-repasse-consultas-pdf'),
+
+    # Configuração NFS-e (individual por loja)
+    path('nfse-config/', NFSeConfigView.as_view(), name='nfse-config'),
+    path('nfse-config/test-issnet/', NFSeConfigTestISSNetView.as_view(), name='nfse-config-test-issnet'),
 ]

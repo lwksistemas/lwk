@@ -16,6 +16,7 @@ from .consultas import (
 )
 from .documentos import DocumentTemplate, DocumentoClinico
 from .fotos import PacienteFotoAcompanhamento
+from .nfse_config import ClinicaBelezaNFSeConfig
 
 __all__ = [
     'Procedure',
@@ -50,4 +51,5 @@ __all__ = [
     'DocumentTemplate',
     'DocumentoClinico',
     'PacienteFotoAcompanhamento',
+    'ClinicaBelezaNFSeConfig',
 ]

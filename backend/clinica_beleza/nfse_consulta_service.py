@@ -12,12 +12,45 @@ logger = logging.getLogger(__name__)
 def _get_nfse_config(loja_id: int):
     """
     Obtém configuração de NFS-e para a loja.
-    Abstrai o acesso ao CRMConfig sem criar dependência direta do app CRM.
-    Cada app (clínica, CRM, etc.) usa a mesma tabela de config via este helper.
+    Lê da tabela clinica_beleza_nfse_config (configuração individual da clínica).
+    Fallback: tabela crm_vendas_crmconfig para lojas que ainda não migraram.
     """
     try:
-        from crm_vendas.models import CRMConfig
-        return CRMConfig.get_or_create_for_loja(loja_id)
+        from django.db import connections
+        conn = connections['default']
+        with conn.cursor() as c:
+            c.execute('''
+                SELECT emitir_nf_automaticamente, provedor_nf,
+                       descricao_servico_padrao, codigo_servico_municipal,
+                       item_lista_servico
+                FROM clinica_beleza_nfse_config
+                WHERE loja_id = %s
+                LIMIT 1
+            ''', [loja_id])
+            row = c.fetchone()
+            if not row:
+                # Fallback: tabela antiga (CRM) para retrocompatibilidade
+                c.execute('''
+                    SELECT emitir_nf_automaticamente, provedor_nf,
+                           descricao_servico_padrao, codigo_servico_municipal,
+                           item_lista_servico
+                    FROM crm_vendas_crmconfig
+                    WHERE loja_id = %s
+                    LIMIT 1
+                ''', [loja_id])
+                row = c.fetchone()
+            if not row:
+                return None
+
+        class _NfseConfig:
+            """Config de NFS-e lida diretamente do banco."""
+            emitir_nf_automaticamente = row[0]
+            provedor_nf = row[1] or 'asaas'
+            descricao_servico_padrao = row[2] or ''
+            codigo_servico_municipal = row[3] or ''
+            item_lista_servico = row[4] or ''
+
+        return _NfseConfig()
     except Exception:
         return None
 

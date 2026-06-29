@@ -3,7 +3,6 @@ Views de Estoque — Clínica da Beleza
 Controle de produtos (botox, ácido hialurônico, soros, etc.)
 """
 import logging
-from decimal import Decimal
 
 from django.db.models import F, Sum
 from rest_framework.views import APIView
@@ -159,51 +158,25 @@ class MovimentacaoEstoqueView(GetObjectMixin, APIView):
         if error:
             return error
 
-        tipo = request.data.get('tipo', '').strip()
-        if tipo not in ('entrada', 'saida', 'ajuste'):
-            return Response({'error': 'Tipo deve ser: entrada, saida ou ajuste'}, status=status.HTTP_400_BAD_REQUEST)
+        from .estoque_movimentacao_service import registrar_movimentacao, EstoqueMovimentacaoError
 
         try:
-            quantidade = Decimal(str(request.data.get('quantidade', 0)))
-            if quantidade <= 0:
-                return Response({'error': 'Quantidade deve ser maior que zero'}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception:
-            return Response({'error': 'Quantidade inválida'}, status=status.HTTP_400_BAD_REQUEST)
-
-        motivo = (request.data.get('motivo') or '').strip()
-        profissional_id = request.data.get('profissional_id')
-        appointment_id = request.data.get('appointment_id')
-
-        # Atualizar quantidade
-        if tipo == 'entrada':
-            produto.quantidade_atual += quantidade
-        elif tipo == 'saida':
-            if produto.quantidade_atual < quantidade:
-                return Response(
-                    {'error': f'Estoque insuficiente. Disponível: {produto.quantidade_atual} {produto.unidade_medida}'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            produto.quantidade_atual -= quantidade
-        elif tipo == 'ajuste':
-            produto.quantidade_atual = quantidade
-
-        produto.save(update_fields=['quantidade_atual', 'updated_at'])
-
-        # Registrar movimentação
-        mov = MovimentacaoEstoque.objects.create(
-            produto=produto,
-            tipo=tipo,
-            quantidade=quantidade,
-            motivo=motivo,
-            profissional_id=profissional_id,
-            appointment_id=appointment_id,
-        )
+            mov = registrar_movimentacao(
+                produto=produto,
+                tipo=(request.data.get('tipo') or '').strip(),
+                quantidade_raw=request.data.get('quantidade', 0),
+                motivo=(request.data.get('motivo') or '').strip(),
+                profissional_id=request.data.get('profissional_id'),
+                appointment_id=request.data.get('appointment_id'),
+            )
+        except EstoqueMovimentacaoError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({
             'id': mov.id,
             'produto': produto.nome,
-            'tipo': tipo,
-            'quantidade': float(quantidade),
+            'tipo': mov.tipo,
+            'quantidade': float(mov.quantidade),
             'quantidade_atual': float(produto.quantidade_atual),
             'estoque_baixo': produto.estoque_baixo,
         })

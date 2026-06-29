@@ -70,9 +70,9 @@ class PatientAnamneseSerializer(serializers.ModelSerializer):
             'id', 'patient', 'patient_name',
             'queixa_principal', 'historico_medico', 'medicamentos_uso', 'alergias',
             'condicoes_clinicas', 'tipo_pele', 'pressao_arterial', 'peso', 'altura',
-            'observacoes', 'created_at', 'updated_at', 'loja_id',
+            'observacoes', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'loja_id', 'patient', 'patient_name']
+        read_only_fields = ['created_at', 'updated_at', 'patient', 'patient_name']
 
     @staticmethod
     def _empty_decimal_to_none(value):

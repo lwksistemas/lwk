@@ -111,15 +111,16 @@ class CampanhaPromocaoDetailView(GetObjectMixin, APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CampanhaPromocaoEnviarView(APIView):
+class CampanhaPromocaoEnviarView(GetObjectMixin, APIView):
     """POST /clinica-beleza/campanhas/<id>/enviar/"""
     permission_classes = CLINICA_ADMIN
+    model_class = CampanhaPromocao
+    not_found_message = 'Campanha não encontrada'
 
     def post(self, request, pk):
-        try:
-            campanha = CampanhaPromocao.objects.get(pk=pk)
-        except CampanhaPromocao.DoesNotExist:
-            return Response({'error': 'Campanha não encontrada'}, status=status.HTTP_404_NOT_FOUND)
+        campanha, err = self.object_or_404(pk)
+        if err:
+            return err
 
         erro_validacao = _validar_campanha_para_envio(campanha)
         if erro_validacao:

@@ -230,7 +230,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         return info.mensagem if info.elegivel else None
 
     def get_title(self, obj):
-        procs = obj.appointment_procedures.select_related('procedure').all()
+        procs = obj.appointment_procedures.all()
         if procs:
             nomes = ', '.join(ap.procedure.nome for ap in procs)
             return f"{obj.patient.nome} - {nomes}"
@@ -239,7 +239,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         return obj.patient.nome
 
     def get_procedure_name(self, obj):
-        procs = obj.appointment_procedures.select_related('procedure').all()
+        procs = obj.appointment_procedures.all()
         if procs:
             return ', '.join(ap.procedure.nome for ap in procs)
         if obj.procedure_id:
@@ -264,7 +264,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         return 'Particular'
 
     def get_procedures_list(self, obj):
-        procs = obj.appointment_procedures.select_related('procedure').all()
+        procs = obj.appointment_procedures.all()
         if not procs:
             if obj.procedure_id:
                 return [{

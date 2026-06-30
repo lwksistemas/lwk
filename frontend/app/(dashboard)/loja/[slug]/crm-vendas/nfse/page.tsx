@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
-import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { usePaginatedList, DEFAULT_PAGE_SIZE } from '@/hooks/usePaginatedList';
 import { useNfseQueuedPolling } from '@/hooks/useNfseQueuedPolling';
+import { fetchCrmPaginatedPage } from '@/lib/crm-utils';
 import {
   nfseIdentificador,
   nfseSyncEndpoint,
@@ -64,19 +65,29 @@ export default function NFSePage() {
     },
   });
 
-  const nfseListParams = {
-    status: filtroStatus || undefined,
-    busca: buscaDebounced || undefined,
-  };
-
   const handlePollingTick = useCallback(() => {
     void carregarNFSes(true);
   }, [carregarNFSes]);
 
-  const handlePollingFound = useCallback(() => {
+  const handlePollingFound = useCallback(async () => {
     setEmissaoPolling({ active: false, countBefore: 0 });
-    setSyncMsg({ type: 'ok', text: 'Emissão concluída. Verifique o status da nota na lista.' });
-  }, []);
+    await carregarNFSes(true);
+    try {
+      const data = await fetchCrmPaginatedPage<NFSe>('/nfse/', 1, DEFAULT_PAGE_SIZE, {});
+      const newest = data.results[0];
+      if (newest?.status === 'erro' && newest.erro) {
+        setSyncMsg({ type: 'err', text: `Falha na emissão: ${newest.erro}` });
+        return;
+      }
+      if (newest?.status === 'emitida' && newest.numero_nf) {
+        setSyncMsg({ type: 'ok', text: `NFS-e ${newest.numero_nf} emitida com sucesso.` });
+        return;
+      }
+    } catch {
+      // mantém mensagem genérica abaixo
+    }
+    setSyncMsg({ type: 'ok', text: 'Emissão processada. Verifique o status da nota na lista.' });
+  }, [carregarNFSes]);
 
   const handlePollingTimeout = useCallback(() => {
     setEmissaoPolling({ active: false, countBefore: 0 });
@@ -89,9 +100,11 @@ export default function NFSePage() {
   useNfseQueuedPolling({
     active: emissaoPolling.active,
     countBefore: emissaoPolling.countBefore,
-    queryParams: nfseListParams,
+    queryParams: {},
     onTick: handlePollingTick,
-    onFound: handlePollingFound,
+    onFound: () => {
+      void handlePollingFound();
+    },
     onTimeout: handlePollingTimeout,
   });
 

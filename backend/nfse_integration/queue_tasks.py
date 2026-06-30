@@ -23,18 +23,46 @@ def run_emitir_nfse_assinatura(pagamento_id: int, payment_id: str = '') -> None:
 
 
 def run_emissao_nfse_loja(loja_id: int, validated_data: dict) -> None:
+    from django.db import close_old_connections
+
     from nfse_integration.loja_nfse_api import processar_emissao_nfse_loja_sync
     from nfse_integration.queue_serialize import deserialize_validated_data
     from nfse_integration.sync_context import nfse_sync_only
     from superadmin.models import Loja
+    from tenants.middleware import _configure_tenant_db_for_loja, get_current_tenant_db
 
+    close_old_connections()
     token = nfse_sync_only.set(True)
     try:
-        loja = Loja.objects.filter(id=loja_id).first()
+        loja = Loja.objects.using('default').filter(id=loja_id).first()
         if not loja:
             logger.warning('NFS-e fila loja: loja_id=%s não encontrada', loja_id)
             return
-        processar_emissao_nfse_loja_sync(loja, loja_id, deserialize_validated_data(validated_data))
+        if not _configure_tenant_db_for_loja(loja):
+            logger.warning('NFS-e fila loja: tenant indisponível loja_id=%s', loja_id)
+            return
+
+        db_name = get_current_tenant_db()
+        if db_name and db_name != 'default':
+            try:
+                from nfse_integration.schema_patch import patch_nfse_asaas_columns_if_missing
+
+                patch_nfse_asaas_columns_if_missing(db_name)
+            except Exception:
+                logger.exception('NFS-e fila: falha patch schema %s', db_name)
+
+        body, http_status = processar_emissao_nfse_loja_sync(
+            loja, loja_id, deserialize_validated_data(validated_data)
+        )
+        if http_status >= 400:
+            logger.warning(
+                'NFS-e fila loja_id=%s falhou: %s',
+                loja_id,
+                body.get('error', body),
+            )
+    except Exception:
+        logger.exception('NFS-e fila loja_id=%s: exceção na emissão', loja_id)
+        raise
     finally:
         nfse_sync_only.reset(token)
 

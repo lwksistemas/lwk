@@ -7,11 +7,13 @@ from django.test import RequestFactory, TestCase
 
 from superadmin.services.assinatura_bloqueio_service import (
     DAYS_TO_BLOCK,
+    DAYS_TO_WARN_UI,
     aplicar_bloqueio_inadimplencia_loja,
     check_inadimplencia_block,
     dias_atraso_assinatura,
     loja_deve_estar_bloqueada,
     path_allowed_when_store_blocked,
+    situacao_aviso_assinatura,
 )
 
 User = get_user_model()
@@ -46,6 +48,43 @@ class TestDiasAtrasoAssinatura(TestCase):
             mock_pg.objects.filter.return_value.order_by.return_value.first.return_value = None
             self.assertEqual(dias_atraso_assinatura(loja), 7)
             self.assertTrue(loja_deve_estar_bloqueada(loja))
+
+
+class TestSituacaoAvisoAssinatura(TestCase):
+    def test_aviso_cinco_dias_antes(self):
+        loja = Mock()
+        loja.is_blocked = False
+        loja.financeiro.data_proxima_cobranca = date.today() + timedelta(days=5)
+        with patch(
+            'superadmin.services.assinatura_bloqueio_service.dias_atraso_assinatura',
+            return_value=0,
+        ):
+            out = situacao_aviso_assinatura(loja)
+        self.assertEqual(out['nivel'], 'aviso')
+        self.assertEqual(out['dias_restantes'], 5)
+        self.assertIn('Faltam 5 dias', out['mensagem'])
+
+    def test_sem_aviso_fora_da_janela(self):
+        loja = Mock()
+        loja.is_blocked = False
+        loja.financeiro.data_proxima_cobranca = date.today() + timedelta(days=DAYS_TO_WARN_UI + 3)
+        with patch(
+            'superadmin.services.assinatura_bloqueio_service.dias_atraso_assinatura',
+            return_value=0,
+        ):
+            self.assertIsNone(situacao_aviso_assinatura(loja))
+
+    def test_vence_hoje(self):
+        loja = Mock()
+        loja.is_blocked = False
+        loja.financeiro.data_proxima_cobranca = date.today()
+        with patch(
+            'superadmin.services.assinatura_bloqueio_service.dias_atraso_assinatura',
+            return_value=0,
+        ):
+            out = situacao_aviso_assinatura(loja)
+        self.assertEqual(out['nivel'], 'urgente')
+        self.assertIn('vence hoje', out['mensagem'])
 
 
 class TestAplicarBloqueio(TestCase):

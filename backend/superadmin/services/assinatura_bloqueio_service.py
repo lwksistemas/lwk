@@ -9,6 +9,7 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 DAYS_TO_WARN_BOLETO = 10
+DAYS_TO_WARN_UI = 5
 DAYS_TO_BLOCK = 5
 
 
@@ -44,6 +45,71 @@ def dias_atraso_assinatura(loja) -> int:
 
 def loja_deve_estar_bloqueada(loja) -> bool:
     return dias_atraso_assinatura(loja) >= DAYS_TO_BLOCK
+
+
+def situacao_aviso_assinatura(loja) -> dict | None:
+    """
+    Aviso para exibir na abertura do sistema (5 dias antes do vencimento até o bloqueio).
+    Retorna None se não houver aviso a mostrar.
+    """
+    if getattr(loja, 'is_blocked', False):
+        return None
+
+    try:
+        financeiro = loja.financeiro
+    except Exception:
+        return None
+
+    if not financeiro or not financeiro.data_proxima_cobranca:
+        return None
+
+    hoje = date.today()
+    dias_para = (financeiro.data_proxima_cobranca - hoje).days
+    dias_atraso = dias_atraso_assinatura(loja)
+    data_venc = financeiro.data_proxima_cobranca.isoformat()
+
+    if dias_para > DAYS_TO_WARN_UI:
+        return None
+
+    if dias_para >= 1:
+        dia_label = 'dia' if dias_para == 1 else 'dias'
+        return {
+            'nivel': 'aviso',
+            'dias_restantes': dias_para,
+            'data_vencimento': data_venc,
+            'mensagem': (
+                f'Faltam {dias_para} {dia_label} para vencer a assinatura. '
+                'Efetue o pagamento para evitar o bloqueio do sistema.'
+            ),
+        }
+
+    if dias_para == 0:
+        return {
+            'nivel': 'urgente',
+            'dias_restantes': 0,
+            'data_vencimento': data_venc,
+            'mensagem': (
+                'Sua assinatura vence hoje. Efetue o pagamento para evitar o bloqueio do sistema.'
+            ),
+        }
+
+    if dias_atraso > 0 and dias_atraso < DAYS_TO_BLOCK:
+        dias_ate_bloqueio = DAYS_TO_BLOCK - dias_atraso
+        bloqueio_label = 'dia' if dias_ate_bloqueio == 1 else 'dias'
+        atraso_label = 'dia' if dias_atraso == 1 else 'dias'
+        return {
+            'nivel': 'critico',
+            'dias_atraso': dias_atraso,
+            'dias_ate_bloqueio': dias_ate_bloqueio,
+            'data_vencimento': data_venc,
+            'mensagem': (
+                f'Assinatura vencida há {dias_atraso} {atraso_label}. '
+                f'O sistema será bloqueado em {dias_ate_bloqueio} {bloqueio_label} '
+                'se o pagamento não for efetuado.'
+            ),
+        }
+
+    return None
 
 
 def aplicar_bloqueio_inadimplencia_loja(loja, *, persistir: bool = True) -> dict:

@@ -296,8 +296,11 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
 
         is_blocked = False
         loja_slug = None
+        assinatura_aviso = None
         try:
             from core.store_membership import resolve_loja_for_user
+            from superadmin.services.assinatura_bloqueio_service import situacao_aviso_assinatura
+
             slug_hint = (
                 request.query_params.get('slug')
                 or request.headers.get('X-Tenant-Slug')
@@ -307,6 +310,8 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             if loja:
                 is_blocked = bool(loja.is_blocked)
                 loja_slug = loja.slug
+                if not is_blocked:
+                    assinatura_aviso = situacao_aviso_assinatura(loja)
         except Exception:
             pass
         
@@ -318,6 +323,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             'session': session_info,
             'is_blocked': is_blocked,
             'loja_slug': loja_slug,
+            'assinatura_aviso': assinatura_aviso,
         }, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'], permission_classes=[IsSuperAdmin])

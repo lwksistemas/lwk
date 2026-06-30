@@ -5,6 +5,7 @@
  */
 
 import apiClient from './api-client';
+import { clearAssinaturaAvisoDismissKeys } from '@/lib/assinatura-aviso';
 import { USE_JWT_HTTPONLY_COOKIES } from './auth-cookies';
 
 export type UserType = 'superadmin' | 'suporte' | 'loja';
@@ -170,6 +171,7 @@ class AuthService {
       sessionStorage.removeItem(this.INTERNAL_NAV_KEY);
       sessionStorage.removeItem('current_loja_id');
       sessionStorage.removeItem('session_id');
+      clearAssinaturaAvisoDismissKeys();
       
       // Limpar cookies também
       if (typeof document !== 'undefined') {

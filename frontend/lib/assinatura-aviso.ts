@@ -69,3 +69,14 @@ export function calcularAvisoAssinaturaLocal(
 
   return null;
 }
+
+/** Remove flags de “fechar aviso” (legado) ao sair. */
+export function clearAssinaturaAvisoDismissKeys(): void {
+  if (typeof window === 'undefined') return;
+  const keys: string[] = [];
+  for (let i = 0; i < sessionStorage.length; i += 1) {
+    const key = sessionStorage.key(i);
+    if (key?.startsWith('lwk_aviso_assinatura_')) keys.push(key);
+  }
+  keys.forEach((k) => sessionStorage.removeItem(k));
+}

@@ -1,14 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import type { AssinaturaAviso } from '@/lib/assinatura-aviso';
 
 type Props = {
   slug: string;
   aviso: AssinaturaAviso | null;
   visivel: boolean;
-  onDismiss: () => void;
 };
 
 const NIVEL_STYLES: Record<AssinaturaAviso['nivel'], string> = {
@@ -17,7 +16,7 @@ const NIVEL_STYLES: Record<AssinaturaAviso['nivel'], string> = {
   critico: 'bg-red-50 border-red-400 text-red-950 dark:bg-red-950/40 dark:border-red-700 dark:text-red-100',
 };
 
-export function LojaAssinaturaAvisoBanner({ slug, aviso, visivel, onDismiss }: Props) {
+export function LojaAssinaturaAvisoBanner({ slug, aviso, visivel }: Props) {
   if (!visivel || !aviso?.mensagem) return null;
 
   const assinaturaHref = `/loja/${slug}/assinatura`;
@@ -25,7 +24,7 @@ export function LojaAssinaturaAvisoBanner({ slug, aviso, visivel, onDismiss }: P
   return (
     <div
       role="alert"
-      className={`sticky top-0 z-[100] border-b px-3 py-2.5 sm:px-4 ${NIVEL_STYLES[aviso.nivel]}`}
+      className={`fixed top-0 left-0 right-0 z-[200] border-b px-3 py-2.5 sm:px-4 shadow-md ${NIVEL_STYLES[aviso.nivel]}`}
     >
       <div className="mx-auto flex max-w-7xl items-start gap-3">
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
@@ -38,15 +37,13 @@ export function LojaAssinaturaAvisoBanner({ slug, aviso, visivel, onDismiss }: P
             Ir para assinatura e pagar
           </Link>
         </div>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="shrink-0 rounded p-1 hover:bg-black/5 dark:hover:bg-white/10"
-          aria-label="Fechar aviso de hoje"
-        >
-          <X className="h-4 w-4" />
-        </button>
       </div>
     </div>
   );
+}
+
+/** Espaço para o banner fixo não cobrir o menu. */
+export function LojaAssinaturaAvisoSpacer({ visivel }: { visivel: boolean }) {
+  if (!visivel) return null;
+  return <div className="h-14 shrink-0" aria-hidden />;
 }

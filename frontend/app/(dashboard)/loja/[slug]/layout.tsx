@@ -9,7 +9,10 @@ import { registrarSincronizacaoAoVoltarOnline } from '@/lib/offline-sync';
 import CapturaErrosNavegador from '@/components/suporte/CapturaErrosNavegador';
 import { authService, syncLojaTenantSlug } from '@/lib/auth';
 import { useLojaInadimplenciaGuard } from '@/hooks/useLojaInadimplenciaGuard';
-import { LojaAssinaturaAvisoBanner } from '@/components/loja/LojaAssinaturaAvisoBanner';
+import {
+  LojaAssinaturaAvisoBanner,
+  LojaAssinaturaAvisoSpacer,
+} from '@/components/loja/LojaAssinaturaAvisoBanner';
 
 const PWA_LOJA_SLUG_KEY = 'pwa_loja_slug';
 
@@ -24,7 +27,8 @@ export default function LojaLayout({
   // Monitorar sessão em tempo real
   useSessionMonitor();
   useInactivityLogout();
-  const { aviso, avisoVisivel, dismissAviso } = useLojaInadimplenciaGuard(slug);
+  const { aviso, avisoVisivel, lojaSlugCanonico } = useLojaInadimplenciaGuard(slug);
+  const bannerSlug = lojaSlugCanonico || slug;
 
   // Modo offline: ao voltar online, sincronizar fila de agendamentos (e demais itens) pendentes
   useEffect(() => {
@@ -101,12 +105,8 @@ export default function LojaLayout({
   return (
     <RouteGuard allowedUserType="loja" requiredSlug={slug}>
       <CapturaErrosNavegador />
-      <LojaAssinaturaAvisoBanner
-        slug={slug}
-        aviso={aviso}
-        visivel={avisoVisivel}
-        onDismiss={dismissAviso}
-      />
+      <LojaAssinaturaAvisoBanner slug={bannerSlug} aviso={aviso} visivel={avisoVisivel} />
+      <LojaAssinaturaAvisoSpacer visivel={avisoVisivel} />
       {children}
     </RouteGuard>
   );

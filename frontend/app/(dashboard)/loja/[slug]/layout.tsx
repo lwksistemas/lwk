@@ -27,8 +27,7 @@ export default function LojaLayout({
   // Monitorar sessão em tempo real
   useSessionMonitor();
   useInactivityLogout();
-  const { aviso, avisoVisivel, lojaSlugCanonico } = useLojaInadimplenciaGuard(slug);
-  const bannerSlug = lojaSlugCanonico || slug;
+  const { aviso, avisoVisivel } = useLojaInadimplenciaGuard(slug);
 
   // Modo offline: ao voltar online, sincronizar fila de agendamentos (e demais itens) pendentes
   useEffect(() => {
@@ -105,7 +104,7 @@ export default function LojaLayout({
   return (
     <RouteGuard allowedUserType="loja" requiredSlug={slug}>
       <CapturaErrosNavegador />
-      <LojaAssinaturaAvisoBanner slug={bannerSlug} aviso={aviso} visivel={avisoVisivel} />
+      <LojaAssinaturaAvisoBanner slug={slug} aviso={aviso} visivel={avisoVisivel} />
       <LojaAssinaturaAvisoSpacer visivel={avisoVisivel} />
       {children}
     </RouteGuard>

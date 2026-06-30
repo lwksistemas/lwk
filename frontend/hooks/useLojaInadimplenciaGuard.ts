@@ -29,7 +29,6 @@ export function useLojaInadimplenciaGuard(slug: string) {
   const router = useRouter();
   const pathname = usePathname();
   const [aviso, setAviso] = useState<AssinaturaAviso | null>(null);
-  const [lojaSlugCanonico, setLojaSlugCanonico] = useState(slug);
   const fetchingRef = useRef(false);
 
   const applyAviso = useCallback((avisoData: AssinaturaAviso | null | undefined) => {
@@ -47,7 +46,9 @@ export function useLojaInadimplenciaGuard(slug: string) {
       const fin = data?.financeiro;
       const avisoApi = data?.assinatura_aviso as AssinaturaAviso | null | undefined;
       const avisoCalc = avisoApi ?? calcularAvisoAssinaturaLocal(fin?.data_proxima_cobranca);
-      if (data?.loja?.slug) setLojaSlugCanonico(data.loja.slug);
+      if (data?.loja?.id) {
+        sessionStorage.setItem('current_loja_id', String(data.loja.id));
+      }
       applyAviso(avisoCalc);
       return Boolean(avisoCalc?.mensagem);
     } catch {
@@ -66,8 +67,6 @@ export function useLojaInadimplenciaGuard(slug: string) {
       const { data } = await apiClient.get('/superadmin/lojas/heartbeat/', {
         params: { slug: slug.trim() },
       });
-
-      if (data?.loja_slug) setLojaSlugCanonico(data.loja_slug);
 
       if (data?.is_blocked) {
         setAviso(null);
@@ -128,5 +127,5 @@ export function useLojaInadimplenciaGuard(slug: string) {
 
   const avisoVisivel = Boolean(aviso?.mensagem);
 
-  return { aviso, avisoVisivel, lojaSlugCanonico };
+  return { aviso, avisoVisivel };
 }

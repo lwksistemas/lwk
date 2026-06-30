@@ -69,6 +69,23 @@ export default function RouteGuard({ children, allowedUserType, requiredSlug }: 
           return;
         }
         if (requiredSlug !== lojaSlug) {
+          const lojaId = typeof window !== 'undefined' ? sessionStorage.getItem('current_loja_id') : null;
+          if (lojaId) {
+            apiClient
+              .get(`/superadmin/lojas/info_publica/?slug=${encodeURIComponent(requiredSlug)}`)
+              .then((res) => {
+                if (res.data?.id && String(res.data.id) === lojaId) {
+                  authService.setLojaSlug(requiredSlug);
+                  if (typeof document !== 'undefined') {
+                    document.cookie = `loja_slug=${encodeURIComponent(requiredSlug)}; path=/; max-age=86400; SameSite=Lax`;
+                  }
+                  return;
+                }
+                router.replace(getLojaDashboardPath(lojaSlug));
+              })
+              .catch(() => router.replace(getLojaDashboardPath(lojaSlug)));
+            return;
+          }
           router.replace(getLojaDashboardPath(lojaSlug));
           return;
         }

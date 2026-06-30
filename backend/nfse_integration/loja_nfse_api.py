@@ -461,16 +461,65 @@ def processar_emissao_nfse_loja(
     return processar_emissao_nfse_loja_sync(loja, loja_id, validated_data)
 
 
+def _series_rps_candidatas(cfg: Any) -> list[str]:
+    principal = str(getattr(cfg, 'issnet_serie_rps', '1') or '1').strip() or '1'
+    series = [principal]
+    for alt in ('1', 'E', 'NF'):
+        if alt not in series:
+            series.append(alt)
+    return series
+
+
 def _consultar_nfse_issnet_por_rps(
     cfg: Any,
     loja: Any,
     numero_rps: int,
+    *,
+    serie_rps: str | None = None,
 ) -> tuple[dict[str, Any] | None, str | None]:
     """Consulta ISSNet por RPS; retorna (parsed, erro)."""
     from nfse_integration.issnet_loja import issnet_client_loja
     from nfse_integration.issnet_response import parse_resposta_xml
 
-    serie = getattr(cfg, 'issnet_serie_rps', '1') or '1'
+    cnpj_prestador = getattr(loja, 'cpf_cnpj', '') or ''
+    im_prestador = (
+        getattr(cfg, 'inscricao_municipal', '')
+        or getattr(loja, 'inscricao_municipal', '')
+        or ''
+    )
+    series = [serie_rps] if serie_rps else _series_rps_candidatas(cfg)
+    last_err = 'NFS-e não encontrada no ISSNet para este RPS.'
+    for serie in series:
+        with issnet_client_loja(cfg) as client:
+            out = client.consultar_nfse_por_rps(
+                numero_rps=int(numero_rps),
+                serie_rps=str(serie),
+                prestador_cnpj=str(cnpj_prestador),
+                inscricao_municipal=str(im_prestador),
+            )
+        if out.get('cancelada'):
+            return None, 'NFS-e consta como cancelada no ISSNet.'
+        raw_xml = out.get('raw_xml') or ''
+        if out.get('success') and out.get('numero_nf'):
+            out['serie_rps_usada'] = serie
+            return out, None
+        if not raw_xml and out.get('success') is False:
+            last_err = str(out.get('error') or last_err)
+            if 'E160' not in last_err and 'E183' not in last_err:
+                continue
+            continue
+        parsed = parse_resposta_xml(raw_xml) if raw_xml else out
+        if parsed.get('success') and parsed.get('numero_nf'):
+            parsed['serie_rps_usada'] = serie
+            return parsed, None
+        last_err = str(parsed.get('error') or out.get('error') or last_err)
+    return None, last_err
+
+
+def _consultar_url_nfse_issnet(cfg: Any, loja: Any, numero_nf: str) -> tuple[str | None, str | None]:
+    """Retorna (url_portal, erro)."""
+    from nfse_integration.issnet_loja import issnet_client_loja
+
     cnpj_prestador = getattr(loja, 'cpf_cnpj', '') or ''
     im_prestador = (
         getattr(cfg, 'inscricao_municipal', '')
@@ -478,21 +527,14 @@ def _consultar_nfse_issnet_por_rps(
         or ''
     )
     with issnet_client_loja(cfg) as client:
-        out = client.consultar_nfse_por_rps(
-            numero_rps=int(numero_rps),
-            serie_rps=str(serie),
+        out = client.consultar_url_nfse(
+            str(numero_nf),
             prestador_cnpj=str(cnpj_prestador),
             inscricao_municipal=str(im_prestador),
         )
-    if out.get('cancelada'):
-        return None, 'NFS-e consta como cancelada no ISSNet.'
-    raw_xml = out.get('raw_xml') or ''
-    if not raw_xml and out.get('success') is False:
-        return None, str(out.get('error') or 'NFS-e não encontrada no ISSNet para este RPS.')
-    parsed = parse_resposta_xml(raw_xml) if raw_xml else {}
-    if parsed.get('success') and parsed.get('numero_nf'):
-        return parsed, None
-    return None, str(parsed.get('error') or out.get('error') or 'NFS-e não encontrada no ISSNet.')
+    if out.get('success') and out.get('url'):
+        return str(out['url']), None
+    return None, str(out.get('error') or 'URL da NFS-e não encontrada no ISSNet.')
 
 
 def recuperar_nfse_issnet_loja(
@@ -524,49 +566,95 @@ def recuperar_nfse_issnet_loja(
 
     numero_nf_busca = (numero_nf or '').strip()
     rps = int(numero_rps) if numero_rps else 0
+    parsed: dict[str, Any] | None = None
+    url_portal: str | None = None
 
-    if not rps and numero_nf_busca:
-        from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps
-
-        if NFSe.objects.filter(loja_id=loja_id, numero_nf=numero_nf_busca).exists():
-            nfse = NFSe.objects.filter(loja_id=loja_id, numero_nf=numero_nf_busca).first()
+    if numero_nf_busca:
+        existente_nf = NFSe.objects.filter(loja_id=loja_id, numero_nf=numero_nf_busca).first()
+        if existente_nf:
             return (
                 {
                     'success': True,
                     'message': 'NFS-e já consta no sistema.',
-                    'nfse': NFSeSerializer(nfse).data,
+                    'nfse': NFSeSerializer(existente_nf).data,
                 },
                 http_status.HTTP_200_OK,
             )
+        url_portal, _url_err = _consultar_url_nfse_issnet(cfg, loja, numero_nf_busca)
+
+    if not rps and numero_nf_busca:
+        from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps
 
         proximo = gerar_proximo_numero_rps(loja_id, cfg)
         for candidato in range(max(1, proximo - 8), proximo + 3):
-            parsed, _err = _consultar_nfse_issnet_por_rps(cfg, loja, candidato)
-            if parsed and str(parsed.get('numero_nf', '')).strip() == numero_nf_busca:
+            candidato_parsed, _err = _consultar_nfse_issnet_por_rps(cfg, loja, candidato)
+            if candidato_parsed and str(candidato_parsed.get('numero_nf', '')).strip() == numero_nf_busca:
+                parsed = candidato_parsed
                 rps = candidato
                 break
-        if not rps:
+
+    if rps and not parsed:
+        parsed, erro = _consultar_nfse_issnet_por_rps(cfg, loja, rps)
+        if not parsed:
+            if url_portal:
+                resultado_url = {
+                    'numero_nf': numero_nf_busca or str(rps),
+                    'numero_rps': rps,
+                    'pdf_url': url_portal,
+                    'servico_descricao': 'Recuperada do ISSNet (consulta por URL)',
+                }
+                nfse = salvar_nfse_emitida(loja_id, resultado_url, '', provedor='issnet')
+                if nfse:
+                    return (
+                        {
+                            'success': True,
+                            'message': (
+                                f'NFS-e {numero_nf_busca or rps} importada pelo portal ISSNet. '
+                                'Confira tomador e valor na prefeitura.'
+                            ),
+                            'nfse': NFSeSerializer(nfse).data,
+                        },
+                        http_status.HTTP_201_CREATED,
+                    )
             return (
-                {
-                    'success': False,
-                    'error': (
-                        f'NFS-e {numero_nf_busca} não localizada no ISSNet nos RPS recentes. '
-                        'Informe o número do RPS usado na emissão.'
-                    ),
-                },
+                {'success': False, 'error': erro or 'NFS-e não encontrada no ISSNet.'},
                 http_status.HTTP_404_NOT_FOUND,
             )
+    elif not rps and numero_nf_busca and url_portal:
+        resultado_url = {
+            'numero_nf': numero_nf_busca,
+            'numero_rps': 0,
+            'pdf_url': url_portal,
+            'servico_descricao': 'Recuperada do ISSNet (consulta por URL)',
+        }
+        nfse = salvar_nfse_emitida(loja_id, resultado_url, '', provedor='issnet')
+        if nfse:
+            return (
+                {
+                    'success': True,
+                    'message': (
+                        f'NFS-e {numero_nf_busca} importada pelo portal ISSNet. '
+                        'Confira tomador e valor na prefeitura.'
+                    ),
+                    'nfse': NFSeSerializer(nfse).data,
+                },
+                http_status.HTTP_201_CREATED,
+            )
 
-    if not rps:
-        return (
-            {'success': False, 'error': 'Informe o número do RPS ou da NFS-e.'},
-            http_status.HTTP_400_BAD_REQUEST,
-        )
-
-    parsed, erro = _consultar_nfse_issnet_por_rps(cfg, loja, rps)
     if not parsed:
+        if not rps and not numero_nf_busca:
+            return (
+                {'success': False, 'error': 'Informe o número do RPS ou da NFS-e.'},
+                http_status.HTTP_400_BAD_REQUEST,
+            )
         return (
-            {'success': False, 'error': erro or 'NFS-e não encontrada no ISSNet.'},
+            {
+                'success': False,
+                'error': (
+                    f'NFS-e {numero_nf_busca or rps} não localizada no ISSNet. '
+                    'Verifique número/RPS e a série configurada em Nota fiscal.'
+                ),
+            },
             http_status.HTTP_404_NOT_FOUND,
         )
 
@@ -597,13 +685,14 @@ def recuperar_nfse_issnet_loja(
 
     resultado = {
         'numero_nf': numero_nf_final,
-        'numero_rps': rps,
+        'numero_rps': rps or int(parsed.get('numero_rps') or 0),
         'codigo_verificacao': parsed.get('codigo_verificacao', ''),
         'data_emissao': parsed.get('data_emissao'),
         'valor': float(valor_dec),
         'aliquota_iss': float(detalhes.get('aliquota_iss') or 0),
         'valor_iss': float(detalhes.get('valor_iss') or 0),
         'xml_nfse': parsed.get('xml_nfse', ''),
+        'pdf_url': url_portal or '',
         'tomador_nome': detalhes.get('tomador_nome', ''),
         'tomador_cpf_cnpj': detalhes.get('tomador_cpf_cnpj', ''),
         'servico_descricao': detalhes.get('servico_descricao', ''),

@@ -547,6 +547,10 @@ class ISSNetClient:
                 prestador_cnpj=prestador_cnpj or self.usuario or '',
                 inscricao_municipal=inscricao_municipal or '',
             )
+            try:
+                xml_consulta = self._assinar_xml(xml_consulta)
+            except Exception as e:
+                logger.warning('Erro ao assinar ConsultarNfsePorRps (tentando sem assinatura): %s', e)
 
             parsed, xml_body = self._post_soap_operacao(
                 nome_operacao='ConsultarNfsePorRps',
@@ -560,7 +564,12 @@ class ISSNetClient:
 
             # Erro de negócio (ListaMensagemRetorno), não confundir com sucesso de consulta.
             if re.search(r'<\s*ListaMensagemRetorno\b', resp_str, re.I):
-                return {'success': False, 'error': self._extrair_erros(resp_str), 'raw': resp_str[:500]}
+                return {
+                    'success': False,
+                    'error': self._extrair_erros(resp_str),
+                    'raw': resp_str[:500],
+                    'raw_xml': resp_str[:8000],
+                }
 
             cancelada = bool(
                 re.search(
@@ -573,13 +582,18 @@ class ISSNetClient:
             if cancelada:
                 return {'success': True, 'cancelada': True, 'raw_xml': resp_str[:8000]}
 
-            if parsed and parsed.get('success'):
-                return {'success': True, 'cancelada': False, 'raw_xml': resp_str[:8000]}
+            nf = self._parse_resposta_xml(resp_str)
+            if nf.get('success'):
+                return {**nf, 'cancelada': False, 'raw_xml': resp_str[:8000]}
 
             if parsed and parsed.get('success') is False:
-                return parsed
+                return {**parsed, 'raw_xml': resp_str[:8000]}
 
-            return {'success': True, 'cancelada': False, 'raw_xml': resp_str[:8000]}
+            return {
+                'success': False,
+                'error': nf.get('error') or 'NFS-e não encontrada na resposta do ISSNet.',
+                'raw_xml': resp_str[:8000],
+            }
         except Exception as e:
             logger.exception('Erro ao consultar NFS-e por RPS: %s', e)
             return {'success': False, 'error': str(e)}

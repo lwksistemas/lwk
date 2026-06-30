@@ -112,6 +112,15 @@ def assinar_xml_issnet(xml_str: str, certificado_path: str, senha_certificado: s
         logger.info('XML assinado com xmlsec (ConsultarUrlNfse)')
         return result
 
+    if root_local == 'ConsultarNfseRpsEnvio':
+        sig_consulta = _template_sig_enveloped_only(root, '')
+        ctx_c = xmlsec.SignatureContext()
+        ctx_c.key = key
+        ctx_c.sign(sig_consulta)
+        result = etree.tostring(root, encoding='unicode')
+        logger.info('XML assinado com xmlsec (ConsultarNfseRps)')
+        return result
+
     lista = root.find('.//{%s}ListaRps' % ns)
     outer_rps = lista.find('{%s}Rps' % ns) if lista is not None else None
 

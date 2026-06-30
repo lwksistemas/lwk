@@ -320,19 +320,17 @@ def construir_xml_consultar_nfse_por_rps(
     cnpj_digits = somente_digitos(prestador_cnpj)
     im = (inscricao_municipal or '').strip()
     serie = (serie_rps or '').strip() or '1'
-    return (
-        f'<ConsultarNfseRpsEnvio xmlns="{NS_NFSE}">'
-        f'<IdentificacaoRps>'
-        f'<Numero>{int(numero_rps)}</Numero>'
-        f'<Serie>{serie}</Serie>'
-        f'<Tipo>{tipo_rps}</Tipo>'
-        f'</IdentificacaoRps>'
-        f'<Prestador>'
-        f'<CpfCnpj><Cnpj>{cnpj_digits}</Cnpj></CpfCnpj>'
-        f'<InscricaoMunicipal>{im}</InscricaoMunicipal>'
-        f'</Prestador>'
-        f'</ConsultarNfseRpsEnvio>'
-    )
+    ns = NS_NFSE
+    root = etree.Element('{%s}ConsultarNfseRpsEnvio' % ns, nsmap={None: ns})
+    id_rps = etree.SubElement(root, '{%s}IdentificacaoRps' % ns)
+    etree.SubElement(id_rps, '{%s}Numero' % ns).text = str(int(numero_rps))
+    etree.SubElement(id_rps, '{%s}Serie' % ns).text = serie
+    etree.SubElement(id_rps, '{%s}Tipo' % ns).text = str(int(tipo_rps or 1))
+    prest = etree.SubElement(root, '{%s}Prestador' % ns)
+    cpf_cnpj = etree.SubElement(prest, '{%s}CpfCnpj' % ns)
+    etree.SubElement(cpf_cnpj, '{%s}Cnpj' % ns).text = cnpj_digits
+    etree.SubElement(prest, '{%s}InscricaoMunicipal' % ns).text = im
+    return etree.tostring(root, encoding='unicode')
 
 
 def construir_xml_consultar_nfse_por_rps_legado(numero_nf: str, prestador_cnpj: str) -> str:

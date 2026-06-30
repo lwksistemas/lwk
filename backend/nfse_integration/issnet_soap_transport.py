@@ -213,9 +213,9 @@ def _post_soap_manual(
     if nome_operacao == 'ConsultarNfsePorRps':
         strategies = (
             (
-                montar_soap_envelope_xsd_string(nome_operacao, dados_xml),
-                _headers('text/xml; charset=utf-8'),
-                'xsd:string (XML escapado) + text/xml',
+                montar_soap_envelope_aninhado(nome_operacao, dados_xml),
+                _headers('application/soap+xml; charset=utf-8'),
+                'XML aninhado + application/soap+xml (PHP)',
             ),
             (
                 montar_soap_envelope_cdata(nome_operacao, dados_xml),
@@ -223,9 +223,9 @@ def _post_soap_manual(
                 'CDATA + text/xml',
             ),
             (
-                montar_soap_envelope_aninhado(nome_operacao, dados_xml),
-                _headers('application/soap+xml; charset=utf-8'),
-                'XML aninhado + application/soap+xml (PHP)',
+                montar_soap_envelope_xsd_string(nome_operacao, dados_xml),
+                _headers('text/xml; charset=utf-8'),
+                'xsd:string (XML escapado) + text/xml',
             ),
         )
     else:

@@ -41,3 +41,17 @@ class IssnetRecuperacaoXmlTest(TestCase):
         det = extrair_detalhes_nfse_xml(SAMPLE_NFSE_XML)
         self.assertEqual(det.get('tomador_nome'), 'LWK SISTEMAS LTDA')
         self.assertEqual(det.get('valor'), '100.00')
+
+    def test_construir_xml_consultar_rps_tem_prestador(self):
+        from nfse_integration.issnet_xml_builder import construir_xml_consultar_nfse_por_rps
+
+        xml = construir_xml_consultar_nfse_por_rps(
+            numero_rps=155,
+            serie_rps='1',
+            tipo_rps='1',
+            prestador_cnpj='41449198000172',
+            inscricao_municipal='123456',
+        )
+        self.assertIn('ConsultarNfseRpsEnvio', xml)
+        self.assertIn('<Numero>155</Numero>', xml)
+        self.assertIn('41449198000172', xml)

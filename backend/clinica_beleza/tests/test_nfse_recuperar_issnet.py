@@ -42,6 +42,43 @@ class IssnetRecuperacaoXmlTest(TestCase):
         self.assertEqual(det.get('tomador_nome'), 'LWK SISTEMAS LTDA')
         self.assertEqual(det.get('valor'), '100.00')
 
+    def test_extrair_detalhes_portal_html(self):
+        from nfse_integration.issnet_portal import extrair_detalhes_portal_issnet_html
+
+        html = """
+        <table>
+          <tr><td>Razão Social</td><td>EMPRESA TESTE LTDA</td></tr>
+          <tr><td>CPF/CNPJ</td><td>12.345.678/0001-90</td></tr>
+          <tr><td>Valor dos Serviços</td><td>R$ 1.250,00</td></tr>
+          <tr><td>Número do RPS</td><td>155</td></tr>
+        </table>
+        """
+        det = extrair_detalhes_portal_issnet_html(html)
+        self.assertEqual(det.get('tomador_nome'), 'EMPRESA TESTE LTDA')
+        self.assertEqual(det.get('tomador_cpf_cnpj'), '12345678000190')
+        self.assertEqual(det.get('valor'), '1250.00')
+        self.assertEqual(det.get('numero_rps'), 155)
+
+    def test_nfse_importacao_incompleta(self):
+        from types import SimpleNamespace
+
+        from nfse_integration.persistencia_nfse_loja import nfse_importacao_incompleta
+
+        incompleta = SimpleNamespace(
+            valor=0,
+            tomador_nome='',
+            numero_rps=0,
+            servico_descricao='Recuperada do ISSNet (consulta por URL)',
+        )
+        completa = SimpleNamespace(
+            valor=100,
+            tomador_nome='Cliente',
+            numero_rps=155,
+            servico_descricao='Serviço prestado',
+        )
+        self.assertTrue(nfse_importacao_incompleta(incompleta))
+        self.assertFalse(nfse_importacao_incompleta(completa))
+
     def test_construir_xml_consultar_rps_tem_prestador(self):
         from nfse_integration.issnet_xml_builder import construir_xml_consultar_nfse_por_rps
 

@@ -537,6 +537,87 @@ def _consultar_url_nfse_issnet(cfg: Any, loja: Any, numero_nf: str) -> tuple[str
     return None, str(out.get('error') or 'URL da NFS-e não encontrada no ISSNet.')
 
 
+def _enriquecer_resultado_portal_issnet(url_portal: str | None, resultado: dict[str, Any]) -> dict[str, Any]:
+    """Completa tomador/valor a partir da página pública do ISSNet."""
+    from decimal import Decimal
+
+    from nfse_integration.issnet_portal import buscar_detalhes_portal_issnet
+
+    url = (url_portal or resultado.get('pdf_url') or '').strip()
+    if not url:
+        return resultado
+    portal = buscar_detalhes_portal_issnet(url)
+    if not portal:
+        return resultado
+    out = dict(resultado)
+    for key in (
+        'tomador_nome',
+        'tomador_cpf_cnpj',
+        'servico_descricao',
+        'codigo_verificacao',
+        'numero_rps',
+    ):
+        if portal.get(key) and not out.get(key):
+            out[key] = portal[key]
+    if portal.get('valor') and not Decimal(str(out.get('valor') or 0)):
+        try:
+            out['valor'] = float(Decimal(str(portal['valor'])))
+        except Exception:
+            pass
+    if not out.get('pdf_url'):
+        out['pdf_url'] = url
+    return out
+
+
+def _resultado_recuperacao_de_parsed(
+    parsed: dict[str, Any],
+    *,
+    rps: int,
+    url_portal: str | None,
+) -> dict[str, Any]:
+    from nfse_integration.issnet_response import extrair_detalhes_nfse_xml
+
+    detalhes = extrair_detalhes_nfse_xml(parsed.get('xml_nfse', '') or '')
+    valor = detalhes.get('valor') or 0
+    try:
+        valor_dec = Decimal(str(valor))
+    except Exception:
+        valor_dec = Decimal('0')
+    return {
+        'numero_nf': str(parsed.get('numero_nf', '')).strip(),
+        'numero_rps': rps or int(parsed.get('numero_rps') or 0),
+        'codigo_verificacao': parsed.get('codigo_verificacao', ''),
+        'data_emissao': parsed.get('data_emissao'),
+        'valor': float(valor_dec),
+        'aliquota_iss': float(detalhes.get('aliquota_iss') or 0),
+        'valor_iss': float(detalhes.get('valor_iss') or 0),
+        'xml_nfse': parsed.get('xml_nfse', ''),
+        'pdf_url': url_portal or parsed.get('url') or '',
+        'tomador_nome': detalhes.get('tomador_nome', ''),
+        'tomador_cpf_cnpj': detalhes.get('tomador_cpf_cnpj', ''),
+        'servico_descricao': detalhes.get('servico_descricao', ''),
+    }
+
+
+def _persistir_nfse_recuperada(
+    loja_id: int,
+    resultado: dict[str, Any],
+    *,
+    existente: Any | None = None,
+) -> Any | None:
+    from nfse_integration.persistencia_nfse_loja import (
+        atualizar_nfse_recuperada,
+        nfse_importacao_incompleta,
+        salvar_nfse_emitida,
+    )
+
+    if existente and nfse_importacao_incompleta(existente):
+        return atualizar_nfse_recuperada(existente, resultado)
+    if existente:
+        return existente
+    return salvar_nfse_emitida(loja_id, resultado, '', provedor='issnet')
+
+
 def recuperar_nfse_issnet_loja(
     loja: Any,
     loja_id: int,
@@ -552,9 +633,8 @@ def recuperar_nfse_issnet_loja(
 
     from rest_framework import status as http_status
 
-    from nfse_integration.issnet_response import extrair_detalhes_nfse_xml
     from nfse_integration.models import NFSe
-    from nfse_integration.persistencia_nfse_loja import salvar_nfse_emitida
+    from nfse_integration.persistencia_nfse_loja import nfse_importacao_incompleta
     from nfse_integration.serializers import NFSeSerializer
 
     cfg = _resolver_config_nfse_loja(loja_id)
@@ -568,10 +648,11 @@ def recuperar_nfse_issnet_loja(
     rps = int(numero_rps) if numero_rps else 0
     parsed: dict[str, Any] | None = None
     url_portal: str | None = None
+    existente_nf: Any | None = None
 
     if numero_nf_busca:
         existente_nf = NFSe.objects.filter(loja_id=loja_id, numero_nf=numero_nf_busca).first()
-        if existente_nf:
+        if existente_nf and not nfse_importacao_incompleta(existente_nf):
             return (
                 {
                     'success': True,
@@ -580,7 +661,9 @@ def recuperar_nfse_issnet_loja(
                 },
                 http_status.HTTP_200_OK,
             )
-        url_portal, _url_err = _consultar_url_nfse_issnet(cfg, loja, numero_nf_busca)
+        url_portal = (getattr(existente_nf, 'pdf_url', '') or '').strip() or None
+        if not url_portal:
+            url_portal, _url_err = _consultar_url_nfse_issnet(cfg, loja, numero_nf_busca)
 
     if not rps and numero_nf_busca:
         from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps
@@ -597,48 +680,74 @@ def recuperar_nfse_issnet_loja(
         parsed, erro = _consultar_nfse_issnet_por_rps(cfg, loja, rps)
         if not parsed:
             if url_portal:
-                resultado_url = {
-                    'numero_nf': numero_nf_busca or str(rps),
-                    'numero_rps': rps,
-                    'pdf_url': url_portal,
-                    'servico_descricao': 'Recuperada do ISSNet (consulta por URL)',
-                }
-                nfse = salvar_nfse_emitida(loja_id, resultado_url, '', provedor='issnet')
+                resultado_url = _enriquecer_resultado_portal_issnet(
+                    url_portal,
+                    {
+                        'numero_nf': numero_nf_busca or str(rps),
+                        'numero_rps': rps,
+                        'pdf_url': url_portal,
+                        'servico_descricao': 'Recuperada do ISSNet (consulta por URL)',
+                    },
+                )
+                nfse = _persistir_nfse_recuperada(
+                    loja_id, resultado_url, existente=existente_nf
+                )
                 if nfse:
+                    incompleta = not (
+                        (getattr(nfse, 'tomador_nome', '') or '').strip()
+                        and Decimal(str(getattr(nfse, 'valor', 0) or 0)) > 0
+                    )
+                    msg = (
+                        f'NFS-e {numero_nf_busca or rps} importada pelo portal ISSNet.'
+                        + (
+                            ' Confira tomador e valor na prefeitura.'
+                            if incompleta
+                            else ' Dados do tomador e valor preenchidos.'
+                        )
+                    )
                     return (
                         {
                             'success': True,
-                            'message': (
-                                f'NFS-e {numero_nf_busca or rps} importada pelo portal ISSNet. '
-                                'Confira tomador e valor na prefeitura.'
-                            ),
+                            'message': msg,
                             'nfse': NFSeSerializer(nfse).data,
                         },
-                        http_status.HTTP_201_CREATED,
+                        http_status.HTTP_200_OK if existente_nf else http_status.HTTP_201_CREATED,
                     )
             return (
                 {'success': False, 'error': erro or 'NFS-e não encontrada no ISSNet.'},
                 http_status.HTTP_404_NOT_FOUND,
             )
     elif not rps and numero_nf_busca and url_portal:
-        resultado_url = {
-            'numero_nf': numero_nf_busca,
-            'numero_rps': 0,
-            'pdf_url': url_portal,
-            'servico_descricao': 'Recuperada do ISSNet (consulta por URL)',
-        }
-        nfse = salvar_nfse_emitida(loja_id, resultado_url, '', provedor='issnet')
+        resultado_url = _enriquecer_resultado_portal_issnet(
+            url_portal,
+            {
+                'numero_nf': numero_nf_busca,
+                'numero_rps': 0,
+                'pdf_url': url_portal,
+                'servico_descricao': 'Recuperada do ISSNet (consulta por URL)',
+            },
+        )
+        nfse = _persistir_nfse_recuperada(loja_id, resultado_url, existente=existente_nf)
         if nfse:
+            incompleta = not (
+                (getattr(nfse, 'tomador_nome', '') or '').strip()
+                and Decimal(str(getattr(nfse, 'valor', 0) or 0)) > 0
+            )
+            msg = (
+                f'NFS-e {numero_nf_busca} importada pelo portal ISSNet.'
+                + (
+                    ' Confira tomador e valor na prefeitura.'
+                    if incompleta
+                    else ' Dados do tomador e valor preenchidos.'
+                )
+            )
             return (
                 {
                     'success': True,
-                    'message': (
-                        f'NFS-e {numero_nf_busca} importada pelo portal ISSNet. '
-                        'Confira tomador e valor na prefeitura.'
-                    ),
+                    'message': msg,
                     'nfse': NFSeSerializer(nfse).data,
                 },
-                http_status.HTTP_201_CREATED,
+                http_status.HTTP_200_OK if existente_nf else http_status.HTTP_201_CREATED,
             )
 
     if not parsed:
@@ -665,8 +774,8 @@ def recuperar_nfse_issnet_loja(
             http_status.HTTP_400_BAD_REQUEST,
         )
 
-    existente = NFSe.objects.filter(loja_id=loja_id, numero_nf=numero_nf_final).first()
-    if existente:
+    existente = existente_nf or NFSe.objects.filter(loja_id=loja_id, numero_nf=numero_nf_final).first()
+    if existente and not nfse_importacao_incompleta(existente):
         return (
             {
                 'success': True,
@@ -676,39 +785,27 @@ def recuperar_nfse_issnet_loja(
             http_status.HTTP_200_OK,
         )
 
-    detalhes = extrair_detalhes_nfse_xml(parsed.get('xml_nfse', '') or '')
-    valor = detalhes.get('valor') or 0
-    try:
-        valor_dec = Decimal(str(valor))
-    except Exception:
-        valor_dec = Decimal('0')
-
-    resultado = {
-        'numero_nf': numero_nf_final,
-        'numero_rps': rps or int(parsed.get('numero_rps') or 0),
-        'codigo_verificacao': parsed.get('codigo_verificacao', ''),
-        'data_emissao': parsed.get('data_emissao'),
-        'valor': float(valor_dec),
-        'aliquota_iss': float(detalhes.get('aliquota_iss') or 0),
-        'valor_iss': float(detalhes.get('valor_iss') or 0),
-        'xml_nfse': parsed.get('xml_nfse', ''),
-        'pdf_url': url_portal or '',
-        'tomador_nome': detalhes.get('tomador_nome', ''),
-        'tomador_cpf_cnpj': detalhes.get('tomador_cpf_cnpj', ''),
-        'servico_descricao': detalhes.get('servico_descricao', ''),
-    }
-    nfse = salvar_nfse_emitida(loja_id, resultado, '', provedor='issnet')
+    resultado = _resultado_recuperacao_de_parsed(parsed, rps=rps, url_portal=url_portal)
+    if not resultado.get('pdf_url') and url_portal:
+        resultado['pdf_url'] = url_portal
+    resultado = _enriquecer_resultado_portal_issnet(resultado.get('pdf_url') or url_portal, resultado)
+    nfse = _persistir_nfse_recuperada(loja_id, resultado, existente=existente)
     if not nfse:
         return (
             {'success': False, 'error': 'Falha ao gravar NFS-e recuperada no banco.'},
             http_status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+    atualizada = bool(existente)
     return (
         {
             'success': True,
-            'message': f'NFS-e {numero_nf_final} recuperada do ISSNet (RPS {rps}).',
+            'message': (
+                f'NFS-e {numero_nf_final} atualizada com dados do ISSNet (RPS {rps}).'
+                if atualizada
+                else f'NFS-e {numero_nf_final} recuperada do ISSNet (RPS {rps}).'
+            ),
             'nfse': NFSeSerializer(nfse).data,
         },
-        http_status.HTTP_201_CREATED,
+        http_status.HTTP_200_OK if atualizada else http_status.HTTP_201_CREATED,
     )

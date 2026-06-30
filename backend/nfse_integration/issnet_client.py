@@ -463,6 +463,20 @@ class ISSNetClient:
 
             resp_str = xml_body or ''
 
+            nf_parsed = self._parse_resposta_xml(resp_str)
+            if nf_parsed.get('success') and nf_parsed.get('numero_nf'):
+                url = ''
+                for tag in ('Url', 'url', 'Link', 'link', 'UrlNfse', 'urlNfse'):
+                    url_match = re.search(rf'<{tag}[^>]*>(.*?)</{tag}>', resp_str, re.IGNORECASE | re.DOTALL)
+                    if url_match:
+                        cand = url_match.group(1).strip()
+                        if cand.startswith('http') and not any(
+                            x in cand for x in ['abrasf.org.br', 'xmlsoap.org', 'w3.org', 'schemas.']
+                        ):
+                            url = cand
+                            break
+                return {**nf_parsed, 'success': True, 'url': url}
+
             # Tentar extrair URL da resposta XML — vários formatos possíveis
             for tag in ('Url', 'url', 'Link', 'link', 'UrlNfse', 'urlNfse'):
                 url_match = re.search(rf'<{tag}[^>]*>(.*?)</{tag}>', resp_str, re.IGNORECASE | re.DOTALL)
@@ -547,10 +561,7 @@ class ISSNetClient:
                 prestador_cnpj=prestador_cnpj or self.usuario or '',
                 inscricao_municipal=inscricao_municipal or '',
             )
-            try:
-                xml_consulta = self._assinar_xml(xml_consulta)
-            except Exception as e:
-                logger.warning('Erro ao assinar ConsultarNfsePorRps (tentando sem assinatura): %s', e)
+            # Consulta por RPS: mTLS obrigatório; XML de envio não deve ser assinado (ABRASF/ISSNet).
 
             parsed, xml_body = self._post_soap_operacao(
                 nome_operacao='ConsultarNfsePorRps',

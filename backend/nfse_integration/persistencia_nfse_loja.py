@@ -96,3 +96,64 @@ def registrar_falha_emissao_loja(
     except Exception as exc:
         logger.error('Erro ao registrar falha de NFS-e: %s', exc, exc_info=True)
         return None
+
+
+def nfse_importacao_incompleta(nfse: Any) -> bool:
+    """True quando a nota foi importada só com número/URL (sem tomador ou valor)."""
+    if not nfse:
+        return False
+    valor = Decimal(str(getattr(nfse, 'valor', 0) or 0))
+    tomador = (getattr(nfse, 'tomador_nome', '') or '').strip()
+    rps = int(getattr(nfse, 'numero_rps', 0) or 0)
+    desc = (getattr(nfse, 'servico_descricao', '') or '').strip()
+    desc_generica = desc.startswith('Recuperada do ISSNet')
+    return (valor <= 0 or not tomador) and (rps <= 0 or desc_generica or not tomador)
+
+
+def atualizar_nfse_recuperada(nfse: Any, resultado: dict[str, Any]) -> Any | None:
+    """Atualiza NFS-e incompleta com dados obtidos na recuperação."""
+    if not nfse:
+        return None
+    try:
+        update_fields: list[str] = []
+        if resultado.get('numero_rps'):
+            nfse.numero_rps = int(resultado['numero_rps'])
+            update_fields.append('numero_rps')
+        if resultado.get('codigo_verificacao'):
+            nfse.codigo_verificacao = str(resultado['codigo_verificacao'])[:50]
+            update_fields.append('codigo_verificacao')
+        if resultado.get('data_emissao'):
+            nfse.data_emissao = resultado['data_emissao']
+            update_fields.append('data_emissao')
+        valor = resultado.get('valor')
+        if valor is not None and Decimal(str(valor or 0)) > 0:
+            nfse.valor = valor
+            update_fields.append('valor')
+        if resultado.get('aliquota_iss') is not None:
+            nfse.aliquota_iss = Decimal(str(resultado.get('aliquota_iss') or 0))
+            update_fields.append('aliquota_iss')
+        if resultado.get('valor_iss') is not None:
+            nfse.valor_iss = Decimal(str(resultado.get('valor_iss') or 0))
+            update_fields.append('valor_iss')
+        if resultado.get('tomador_nome'):
+            nfse.tomador_nome = str(resultado['tomador_nome'])[:200]
+            update_fields.append('tomador_nome')
+        if resultado.get('tomador_cpf_cnpj'):
+            nfse.tomador_cpf_cnpj = normalizar_cpf_cnpj(str(resultado['tomador_cpf_cnpj']))[:18]
+            update_fields.append('tomador_cpf_cnpj')
+        if resultado.get('servico_descricao'):
+            nfse.servico_descricao = str(resultado['servico_descricao'])[:500]
+            update_fields.append('servico_descricao')
+        if resultado.get('xml_nfse'):
+            nfse.xml_nfse = resultado['xml_nfse']
+            update_fields.append('xml_nfse')
+        if resultado.get('pdf_url'):
+            nfse.pdf_url = str(resultado['pdf_url'])[:500]
+            update_fields.append('pdf_url')
+        if not update_fields:
+            return nfse
+        nfse.save(update_fields=update_fields)
+        return nfse
+    except Exception as exc:
+        logger.error('Erro ao atualizar NFS-e recuperada id=%s: %s', getattr(nfse, 'id', None), exc)
+        return None

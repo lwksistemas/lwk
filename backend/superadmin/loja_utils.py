@@ -35,3 +35,21 @@ def resolve_loja_by_slug_or_atalho(
     if loja:
         return loja
     return qs.filter(atalho__iexact=key).first()
+
+
+def invalidate_loja_info_publica_cache(loja) -> None:
+    """Limpa cache Redis de info_publica (slug e atalho) após mudar is_blocked."""
+    if not loja:
+        return
+    try:
+        from django.core.cache import cache
+
+        keys = set()
+        for raw in (getattr(loja, 'slug', None), getattr(loja, 'atalho', None)):
+            key = (raw or '').strip().lower()
+            if key:
+                keys.add(f'loja_info_publica_v4:{key}')
+        for cache_key in keys:
+            cache.delete(cache_key)
+    except Exception:
+        pass

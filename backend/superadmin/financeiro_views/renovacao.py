@@ -8,17 +8,30 @@ from rest_framework.response import Response
 
 from ..loja_utils import resolve_loja_by_slug_or_atalho
 from ..models import FinanceiroLoja
+from ..services.assinatura_bloqueio_service import situacao_geracao_boleto_assinatura
 from .helpers import _get_or_create_financeiro_loja
 
 logger = logging.getLogger(__name__)
 
-def _executar_renovar_financeiro(financeiro, data):
+def _executar_renovar_financeiro(financeiro, data, *, forcar: bool = False):
     """Lógica compartilhada para gerar cobrança (antecipada ou renovação)."""
     from superadmin.cobranca_service import CobrancaService
 
     loja = financeiro.loja
     dia_vencimento = data.get('dia_vencimento')
     antecipado = bool(data.get('antecipado', False))
+
+    if not forcar and not bool(data.get('forcar', False)):
+        geracao = situacao_geracao_boleto_assinatura(loja, financeiro)
+        if not geracao['pode_gerar']:
+            return Response(
+                {
+                    'success': False,
+                    'error': geracao['motivo'],
+                    'geracao_boleto': geracao,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     if dia_vencimento is not None and not antecipado:
         try:

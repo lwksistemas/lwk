@@ -61,6 +61,10 @@ export default function RouteGuard({ children, allowedUserType, requiredSlug }: 
       
       // Se é loja, sincronizar slug da URL quando session ainda não tem (evita bloquear menu)
       if (allowedUserType === 'loja' && requiredSlug) {
+        const onAssinaturaPage = pathname.includes('/assinatura');
+        if (onAssinaturaPage) {
+          return;
+        }
         if (!lojaSlug) {
           authService.setLojaSlug(requiredSlug);
           if (typeof document !== 'undefined') {
@@ -69,6 +73,17 @@ export default function RouteGuard({ children, allowedUserType, requiredSlug }: 
           return;
         }
         if (requiredSlug !== lojaSlug) {
+          // Atalho na URL (ex.: felix) vs slug real na sessão — na assinatura bloqueada não redirecionar ao CRM
+          if (onAssinaturaPage) {
+            const lojaId = typeof window !== 'undefined' ? sessionStorage.getItem('current_loja_id') : null;
+            if (lojaId) {
+              authService.setLojaSlug(requiredSlug);
+              if (typeof document !== 'undefined') {
+                document.cookie = `loja_slug=${encodeURIComponent(requiredSlug)}; path=/; max-age=86400; SameSite=Lax`;
+              }
+              return;
+            }
+          }
           const lojaId = typeof window !== 'undefined' ? sessionStorage.getItem('current_loja_id') : null;
           if (lojaId) {
             apiClient
@@ -81,12 +96,23 @@ export default function RouteGuard({ children, allowedUserType, requiredSlug }: 
                   }
                   return;
                 }
-                router.replace(getLojaDashboardPath(lojaSlug));
+                if (!onAssinaturaPage) {
+                  router.replace(getLojaDashboardPath(lojaSlug));
+                }
               })
-              .catch(() => router.replace(getLojaDashboardPath(lojaSlug)));
+              .catch((err: { response?: { data?: { code?: string } } }) => {
+                const code = err?.response?.data?.code;
+                if (code === 'STORE_BLOCKED_INADIMPLENCIA' || onAssinaturaPage) {
+                  authService.setLojaSlug(requiredSlug);
+                  return;
+                }
+                router.replace(getLojaDashboardPath(lojaSlug));
+              });
             return;
           }
-          router.replace(getLojaDashboardPath(lojaSlug));
+          if (!onAssinaturaPage) {
+            router.replace(getLojaDashboardPath(lojaSlug));
+          }
           return;
         }
 

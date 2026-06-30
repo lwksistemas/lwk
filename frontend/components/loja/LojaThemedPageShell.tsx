@@ -12,6 +12,7 @@ interface LojaThemedPageShellProps {
   title: string;
   subtitle?: string;
   backLabel?: string;
+  hideBackButton?: boolean;
   headerActions?: React.ReactNode;
   children: React.ReactNode;
 }
@@ -23,6 +24,7 @@ export function LojaThemedPageShell({
   title,
   subtitle,
   backLabel,
+  hideBackButton = false,
   headerActions,
   children,
 }: LojaThemedPageShellProps) {
@@ -47,6 +49,7 @@ export function LojaThemedPageShell({
             </div>
             <div className="flex flex-wrap items-center gap-2 shrink-0">
               {headerActions}
+              {!hideBackButton && (
               <Link
                 href={backHref}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors hover:opacity-90"
@@ -55,6 +58,7 @@ export function LojaThemedPageShell({
                 <ArrowLeft className="w-4 h-4" />
                 {backLabel || 'Voltar'}
               </Link>
+              )}
             </div>
           </div>
         </div>

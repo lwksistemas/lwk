@@ -46,12 +46,20 @@ export interface CobrancaAberta {
   pagamento_id?: number;
 }
 
+export interface GeracaoBoletoInfo {
+  pode_gerar: boolean;
+  motivo?: string | null;
+  data_liberacao?: string | null;
+  dias_ate_liberacao?: number | null;
+}
+
 interface Props {
   itens: HistoricoPagamentoItem[];
   slug: string;
   proximaCobranca?: string;
   valorMensalidade?: number;
   cobrancaAberta?: CobrancaAberta | null;
+  geracaoBoleto?: GeracaoBoletoInfo | null;
   onGerarCobranca?: () => void;
   gerandoCobranca?: boolean;
   onCopiarPix?: () => void;
@@ -80,6 +88,7 @@ export function HistoricoPagamentos({
   proximaCobranca,
   valorMensalidade,
   cobrancaAberta,
+  geracaoBoleto,
   onGerarCobranca,
   gerandoCobranca,
   onCopiarPix,
@@ -321,6 +330,12 @@ export function HistoricoPagamentos({
     : false;
 
   const mostrarProximaLinha = !cobrancaAberta && !temCobrancaAbertaNaLista && proximaCobranca;
+  const podeGerarBoleto = geracaoBoleto?.pode_gerar !== false;
+  const mensagemGeracaoBoleto =
+    geracaoBoleto?.motivo ||
+    (geracaoBoleto?.data_liberacao
+      ? `Disponível em ${formatDate(geracaoBoleto.data_liberacao)}`
+      : 'Aguardando janela de geração');
 
   return (
     <div
@@ -424,7 +439,7 @@ export function HistoricoPagamentos({
                 <Badge variant="outline">Aguardando</Badge>
               </td>
               <td className="py-3 px-3 text-right">
-                {onGerarCobranca && (
+                {onGerarCobranca && podeGerarBoleto && (
                   <Button
                     type="button"
                     size="sm"
@@ -440,6 +455,11 @@ export function HistoricoPagamentos({
                     )}
                     Gerar boleto
                   </Button>
+                )}
+                {onGerarCobranca && !podeGerarBoleto && (
+                  <span className="text-xs text-muted-foreground max-w-[11rem] inline-block text-right leading-snug">
+                    {mensagemGeracaoBoleto}
+                  </span>
                 )}
               </td>
               <td className="py-3 px-3 text-right text-xs text-muted-foreground">—</td>
@@ -480,7 +500,7 @@ export function HistoricoPagamentos({
           {!itens.length && !cobrancaAberta && !mostrarProximaLinha && (
             <tr>
               <td colSpan={6} className="py-10 px-4 text-center text-muted-foreground dark:text-gray-400">
-                Nenhum pagamento no histórico. Use &quot;Gerar boleto&quot; para antecipar a mensalidade.
+                Nenhum pagamento no histórico. O boleto ficará disponível 10 dias antes do vencimento.
               </td>
             </tr>
           )}

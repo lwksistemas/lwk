@@ -9,6 +9,7 @@ import { authService } from '@/lib/auth';
 import SidebarCrm from '@/components/crm-vendas/SidebarCrm';
 import HeaderCrm from '@/components/crm-vendas/HeaderCrm';
 import { CRMConfigProvider } from '@/contexts/CRMConfigContext';
+import { clearStoreBlockedMark, redirectToAssinatura } from '@/lib/loja-bloqueio-inadimplencia';
 
 interface LojaInfo {
   id: number;
@@ -16,6 +17,7 @@ interface LojaInfo {
   slug: string;
   tipo_loja_nome: string;
   cor_primaria: string;
+  is_blocked?: boolean;
 }
 
 const CACHE_KEY = 'crm_loja_info';
@@ -73,19 +75,14 @@ export function CrmVendasShell({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchLojaInfo = useCallback(async () => {
-    const cached = getCachedLojaInfo(slug);
-    if (cached) {
-      setLojaInfo(cached);
-      if (cached.id) {
-        sessionStorage.setItem('current_loja_id', String(cached.id));
-        if (cached.slug) sessionStorage.setItem('loja_slug', cached.slug);
-      }
-      await fetchCrmMe();
-      return;
-    }
     try {
       const r = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
       const data = r.data as LojaInfo;
+      if (data?.is_blocked) {
+        redirectToAssinatura(slug);
+        return;
+      }
+      clearStoreBlockedMark();
       setLojaInfo(data);
       setCachedLojaInfo(slug, data);
       if (typeof window !== 'undefined' && data?.id) {
@@ -95,6 +92,12 @@ export function CrmVendasShell({ children }: { children: ReactNode }) {
       }
       await fetchCrmMe();
     } catch (err: unknown) {
+      const cached = getCachedLojaInfo(slug);
+      if (cached && !cached.is_blocked) {
+        setLojaInfo(cached);
+        await fetchCrmMe();
+        return;
+      }
       setLojaInfo(null);
       const status = (err as { response?: { status?: number } })?.response?.status;
       if (status === 404) clearOrphanStorageForSlug(slug);

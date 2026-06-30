@@ -353,12 +353,12 @@ class CobrancaService:
         """
         Cria nova cobrança para o proprietário pagar (antecipado ou renovação).
         
-        antecipado=True: boleto com vencimento em 3 dias, sem alterar o ciclo futuro.
+        antecipado=True: boleto com vencimento na data_proxima_cobranca (sem alterar o ciclo futuro).
         """
         due_date_override = None
         if antecipado:
-            due_date_override = date.today() + timedelta(days=3)
-            logger.info('Cobrança antecipada loja %s, vencimento %s', loja.slug, due_date_override)
+            due_date_override = financeiro.data_proxima_cobranca or (date.today() + timedelta(days=3))
+            logger.info('Cobrança manual loja %s, vencimento %s', loja.slug, due_date_override)
         elif dia_vencimento is not None:
             financeiro.dia_vencimento = dia_vencimento
             financeiro.data_proxima_cobranca = self._calcular_proxima_cobranca(dia_vencimento, loja.tipo_assinatura)

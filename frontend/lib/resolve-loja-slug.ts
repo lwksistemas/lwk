@@ -19,6 +19,13 @@ export async function resolveLojaApiSlug(urlSlug: string): Promise<string> {
     cache.set(key, resolved);
     return resolved;
   } catch {
+    if (typeof window !== 'undefined') {
+      const fromSession = sessionStorage.getItem('loja_slug')?.trim();
+      if (fromSession) {
+        cache.set(key, fromSession);
+        return fromSession;
+      }
+    }
     return urlSlug;
   }
 }

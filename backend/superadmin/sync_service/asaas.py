@@ -251,6 +251,9 @@ class AsaasSyncService:
                 financeiro.status_pagamento = 'ativo'
                 financeiro.save()
                 
+                from superadmin.loja_utils import invalidate_loja_info_publica_cache
+                invalidate_loja_info_publica_cache(loja)
+                
                 logger.info(f"Loja {loja.nome} desbloqueada após pagamento")
                 
                 return {

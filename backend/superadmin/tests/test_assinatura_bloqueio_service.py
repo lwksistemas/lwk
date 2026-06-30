@@ -7,6 +7,7 @@ from django.test import RequestFactory, TestCase
 
 from superadmin.services.assinatura_bloqueio_service import (
     DAYS_TO_BLOCK,
+    DAYS_TO_WARN_BOLETO,
     DAYS_TO_WARN_UI,
     aplicar_bloqueio_inadimplencia_loja,
     check_inadimplencia_block,
@@ -14,6 +15,7 @@ from superadmin.services.assinatura_bloqueio_service import (
     loja_deve_estar_bloqueada,
     path_allowed_when_store_blocked,
     situacao_aviso_assinatura,
+    situacao_geracao_boleto_assinatura,
 )
 
 User = get_user_model()
@@ -28,6 +30,11 @@ class TestPathAllowedWhenBlocked(TestCase):
         self.assertTrue(path_allowed_when_store_blocked('/api/superadmin/loja/vendasbeta/financeiro/'))
         self.assertTrue(path_allowed_when_store_blocked('/api/superadmin/loja-financeiro/1/'))
         self.assertTrue(path_allowed_when_store_blocked('/api/superadmin/loja-pagamentos/99/baixar_boleto_pdf/'))
+
+    def test_info_publica_permitido(self):
+        self.assertTrue(path_allowed_when_store_blocked('/api/superadmin/lojas/info_publica/'))
+        self.assertTrue(path_allowed_when_store_blocked('/api/superadmin/lojas/verificar_senha_provisoria/'))
+        self.assertTrue(path_allowed_when_store_blocked('/api/suporte/registrar-erro-frontend/'))
 
     def test_crm_bloqueado(self):
         self.assertFalse(path_allowed_when_store_blocked('/api/crm-vendas/leads/'))
@@ -85,6 +92,37 @@ class TestSituacaoAvisoAssinatura(TestCase):
             out = situacao_aviso_assinatura(loja)
         self.assertEqual(out['nivel'], 'urgente')
         self.assertIn('vence hoje', out['mensagem'])
+
+
+class TestSituacaoGeracaoBoleto(TestCase):
+    def test_bloqueia_mais_de_dez_dias_antes(self):
+        loja = Mock()
+        financeiro = Mock()
+        financeiro.data_proxima_cobranca = date.today() + timedelta(days=DAYS_TO_WARN_BOLETO + 5)
+        with patch('superadmin.models.PagamentoLoja') as mock_pg:
+            mock_pg.objects.filter.return_value.exists.return_value = False
+            out = situacao_geracao_boleto_assinatura(loja, financeiro)
+        self.assertFalse(out['pode_gerar'])
+        self.assertIn('10 dias antes', out['motivo'])
+
+    def test_permite_dentro_da_janela(self):
+        loja = Mock()
+        financeiro = Mock()
+        financeiro.data_proxima_cobranca = date.today() + timedelta(days=5)
+        with patch('superadmin.models.PagamentoLoja') as mock_pg:
+            mock_pg.objects.filter.return_value.exists.return_value = False
+            out = situacao_geracao_boleto_assinatura(loja, financeiro)
+        self.assertTrue(out['pode_gerar'])
+
+    def test_bloqueia_com_pagamento_pendente(self):
+        loja = Mock()
+        financeiro = Mock()
+        financeiro.data_proxima_cobranca = date.today() + timedelta(days=2)
+        with patch('superadmin.models.PagamentoLoja') as mock_pg:
+            mock_pg.objects.filter.return_value.exists.return_value = True
+            out = situacao_geracao_boleto_assinatura(loja, financeiro)
+        self.assertFalse(out['pode_gerar'])
+        self.assertIn('boleto em aberto', out['motivo'])
 
 
 class TestAplicarBloqueio(TestCase):

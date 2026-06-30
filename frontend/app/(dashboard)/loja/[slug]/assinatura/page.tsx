@@ -33,6 +33,7 @@ import { NovaCobrancaModal } from './components/NovaCobrancaModal';
 import { HistoricoPagamentos, type HistoricoPagamentoItem } from './components/HistoricoPagamentos';
 import { AssinaturaAvisoAlert } from '@/components/loja/AssinaturaAvisoAlert';
 import { calcularAvisoAssinaturaLocal, type AssinaturaAviso } from '@/lib/assinatura-aviso';
+import { clearStoreBlockedMark } from '@/lib/loja-bloqueio-inadimplencia';
 
 interface AssinaturaData {
   loja: { id: number; nome: string; slug: string; plano: string; tipo_assinatura: string };
@@ -59,6 +60,13 @@ interface AssinaturaData {
   } | null;
   historico_pagamentos?: HistoricoPagamentoItem[];
   assinatura_aviso?: AssinaturaAviso | null;
+  is_blocked?: boolean;
+  geracao_boleto?: {
+    pode_gerar: boolean;
+    motivo?: string | null;
+    data_liberacao?: string | null;
+    dias_ate_liberacao?: number | null;
+  };
 }
 
 const STATUS_BADGE: Record<string, 'default' | 'secondary' | 'destructive'> = {
@@ -86,12 +94,18 @@ export default function AssinaturaLojaPage() {
     let cancel = false;
     (async () => {
       try {
-        const { data } = await apiClient.get<{ tipo_loja_nome?: string }>(
+        const { data } = await apiClient.get<{ tipo_loja_nome?: string; is_blocked?: boolean }>(
           `/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`,
         );
-        if (!cancel) setTipoLojaNome(data?.tipo_loja_nome || '');
+        if (!cancel) {
+          setTipoLojaNome(data?.tipo_loja_nome || '');
+          setLojaBloqueada(Boolean(data?.is_blocked));
+        }
       } catch {
-        if (!cancel) setTipoLojaNome('');
+        if (!cancel) {
+          setTipoLojaNome('');
+          setLojaBloqueada(false);
+        }
       }
     })();
     return () => {
@@ -107,18 +121,36 @@ export default function AssinaturaLojaPage() {
   const [data, setData] = useState<AssinaturaData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lojaBloqueada, setLojaBloqueada] = useState(false);
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
   const [gerandoCobranca, setGerandoCobranca] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [novaCobranca, setNovaCobranca] = useState<any>(null);
+
+  const sincronizarBloqueio = useCallback(async (blockedHint?: boolean) => {
+    try {
+      const { data: info } = await apiClient.get<{ is_blocked?: boolean }>(
+        `/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}&_t=${Date.now()}`,
+      );
+      const blocked = Boolean(info?.is_blocked ?? blockedHint);
+      setLojaBloqueada(blocked);
+      if (!blocked) clearStoreBlockedMark();
+    } catch {
+      if (typeof blockedHint === 'boolean') {
+        setLojaBloqueada(blockedHint);
+        if (!blockedHint) clearStoreBlockedMark();
+      }
+    }
+  }, [slug]);
 
   const carregarDados = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const apiSlug = await resolveLojaApiSlug(slug);
-      const { data: d } = await apiClient.get(`/superadmin/loja/${apiSlug}/financeiro/`);
+      const { data: d } = await apiClient.get<AssinaturaData>(`/superadmin/loja/${apiSlug}/financeiro/`);
       setData(d);
+      await sincronizarBloqueio(Boolean(d?.is_blocked));
     } catch (err: any) {
       const ax = err?.response;
       const detail = ax?.data?.error ?? ax?.data?.detail;
@@ -133,7 +165,7 @@ export default function AssinaturaLojaPage() {
     } finally {
       setLoading(false);
     }
-  }, [slug]);
+  }, [slug, sincronizarBloqueio]);
 
   useEffect(() => {
     carregarDados();
@@ -159,7 +191,7 @@ export default function AssinaturaLojaPage() {
       alert('Dados do financeiro não carregados. Recarregue a página e tente novamente.');
       return;
     }
-    const body = { antecipado: true };
+    const body = {};
     const apiSlug = await resolveLojaApiSlug(slug);
     const endpoints = [
       `/superadmin/loja/${apiSlug}/financeiro/`,
@@ -246,7 +278,7 @@ export default function AssinaturaLojaPage() {
     const historico = data.historico_pagamentos ?? [];
     const avisoAssinatura =
       data.assinatura_aviso ??
-      calcularAvisoAssinaturaLocal(fin.data_proxima_cobranca);
+      calcularAvisoAssinaturaLocal(fin.data_proxima_cobranca, lojaBloqueada);
     const temPagamentoAberto =
       (fin.tem_asaas || fin.tem_mercadopago) && (fin.boleto_url || fin.pix_copy_paste);
 
@@ -263,6 +295,25 @@ export default function AssinaturaLojaPage() {
 
     return (
       <>
+        {lojaBloqueada && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-sm leading-relaxed">
+              Sistema bloqueado por inadimplência. Regularize o pagamento abaixo para liberar o acesso.
+            </AlertDescription>
+          </Alert>
+        )}
+        {!lojaBloqueada && (
+          <Alert className="mb-4 border-green-400 bg-green-50 text-green-950 dark:bg-green-950/30 dark:border-green-700 dark:text-green-100">
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription className="text-sm leading-relaxed">
+              Pagamento em dia — sistema liberado.{' '}
+              <Link href={backHref} className="font-semibold underline underline-offset-2">
+                Acessar o sistema
+              </Link>
+            </AlertDescription>
+          </Alert>
+        )}
         <AssinaturaAvisoAlert slug={slug} aviso={avisoAssinatura} className="mb-4" />
         <HistoricoPagamentos
           itens={historico}
@@ -270,6 +321,7 @@ export default function AssinaturaLojaPage() {
           proximaCobranca={fin.data_proxima_cobranca}
           valorMensalidade={fin.valor_mensalidade}
           cobrancaAberta={cobrancaAberta}
+          geracaoBoleto={data.geracao_boleto}
           onGerarCobranca={gerarNovaCobranca}
           gerandoCobranca={gerandoCobranca}
           onCopiarPix={() => copiarPix(fin.pix_copy_paste)}
@@ -377,6 +429,7 @@ export default function AssinaturaLojaPage() {
         theme={theme}
         title="Assinatura"
         subtitle={loja?.nome}
+        hideBackButton={lojaBloqueada}
       >
         {renderHistorico(theme.corPrimaria, false)}
       </LojaThemedPageShell>
@@ -390,6 +443,7 @@ export default function AssinaturaLojaPage() {
       theme={theme}
       title="Assinatura"
       subtitle={subtitle}
+      hideBackButton={lojaBloqueada}
       headerActions={headerActionsThemed}
     >
       <Card

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 from django.utils import timezone
 
@@ -112,6 +112,62 @@ def situacao_aviso_assinatura(loja) -> dict | None:
     return None
 
 
+def situacao_geracao_boleto_assinatura(loja, financeiro) -> dict:
+    """
+    Regras para o proprietário gerar boleto manualmente na página Assinatura.
+    Alinhado ao cron criar_boletos_proximos: só dentro de DAYS_TO_WARN_BOLETO dias do vencimento.
+    """
+    from superadmin.models import PagamentoLoja
+
+    hoje = date.today()
+    venc = financeiro.data_proxima_cobranca
+
+    if not venc:
+        return {
+            'pode_gerar': False,
+            'motivo': 'Próximo vencimento não definido.',
+            'data_liberacao': None,
+            'dias_ate_liberacao': None,
+        }
+
+    data_liberacao = venc - timedelta(days=DAYS_TO_WARN_BOLETO)
+
+    tem_pendente = PagamentoLoja.objects.filter(
+        loja=loja,
+        status__in=['pendente', 'atrasado'],
+    ).exists()
+    if tem_pendente:
+        return {
+            'pode_gerar': False,
+            'motivo': (
+                'Já existe um boleto em aberto. Efetue o pagamento ou aguarde a confirmação '
+                'antes de gerar outro.'
+            ),
+            'data_liberacao': data_liberacao.isoformat(),
+            'dias_ate_liberacao': None,
+        }
+
+    dias_ate_vencimento = (venc - hoje).days
+    if dias_ate_vencimento > DAYS_TO_WARN_BOLETO:
+        dias_ate_liberacao = (data_liberacao - hoje).days
+        return {
+            'pode_gerar': False,
+            'motivo': (
+                f'O boleto só pode ser gerado a partir de {data_liberacao.strftime("%d/%m/%Y")} '
+                f'({DAYS_TO_WARN_BOLETO} dias antes do vencimento).'
+            ),
+            'data_liberacao': data_liberacao.isoformat(),
+            'dias_ate_liberacao': max(dias_ate_liberacao, 0),
+        }
+
+    return {
+        'pode_gerar': True,
+        'motivo': None,
+        'data_liberacao': data_liberacao.isoformat(),
+        'dias_ate_liberacao': 0,
+    }
+
+
 def aplicar_bloqueio_inadimplencia_loja(loja, *, persistir: bool = True) -> dict:
     """
     Atualiza status financeiro e is_blocked conforme dias de atraso.
@@ -177,6 +233,8 @@ def aplicar_bloqueio_inadimplencia_loja(loja, *, persistir: bool = True) -> dict
                 logger.warning('Loja %s bloqueada (%s dias de atraso)', loja.slug, dias)
             else:
                 logger.info('Loja %s desbloqueada (atraso=%s dias)', loja.slug, dias)
+            from superadmin.loja_utils import invalidate_loja_info_publica_cache
+            invalidate_loja_info_publica_cache(loja)
 
     return {
         'loja_id': loja.id,
@@ -220,6 +278,9 @@ def verificar_bloqueio_todas_lojas(*, apenas_ativas: bool = True) -> dict:
 BLOCKED_ALLOWED_PATH_FRAGMENTS = (
     '/alterar_senha_primeiro_acesso/',
     '/reenviar_senha/',
+    '/verificar_senha_provisoria/',
+    '/info_publica/',
+    '/registrar-erro-frontend/',
     '/financeiro/',
     '/loja-financeiro/',
     '/loja-pagamentos/',

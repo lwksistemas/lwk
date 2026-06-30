@@ -245,11 +245,21 @@ function applyLojaInterceptors(instance: AxiosInstance) {
       );
       if (handle507(error)) return Promise.reject(error);
       if (error.response?.status === 403 && code === 'STORE_BLOCKED_INADIMPLENCIA') {
-        const redirect = error.response?.data?.redirect as string | undefined;
-        const slug = error.response?.data?.loja_slug as string | undefined;
-        const target = redirect || (slug ? `/loja/${slug}/assinatura` : '');
-        if (typeof window !== 'undefined' && target && !window.location.pathname.startsWith(target)) {
-          window.location.replace(target);
+        if (typeof window !== 'undefined') {
+          const path = window.location.pathname;
+          if (!/\/assinatura\/?$/.test(path)) {
+            const m = path.match(/\/loja\/([^/]+)/);
+            const urlSlug = m?.[1];
+            if (urlSlug) {
+              const tsKey = 'lwk_store_blocked_redirect_ts';
+              const now = Date.now();
+              if (now - Number(sessionStorage.getItem(tsKey) || 0) > 2500) {
+                sessionStorage.setItem(tsKey, String(now));
+                sessionStorage.setItem('lwk_store_blocked', '1');
+                window.location.replace(`/loja/${urlSlug}/assinatura`);
+              }
+            }
+          }
         }
         return Promise.reject(error);
       }

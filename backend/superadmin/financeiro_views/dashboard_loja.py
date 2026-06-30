@@ -12,7 +12,10 @@ from ..models import FinanceiroLoja, PagamentoLoja
 from ..serializers import PagamentoLojaSerializer
 from .helpers import _build_historico_pagamentos_loja, _get_or_create_financeiro_loja
 from .renovacao import _executar_renovar_financeiro
-from superadmin.services.assinatura_bloqueio_service import situacao_aviso_assinatura
+from superadmin.services.assinatura_bloqueio_service import (
+    situacao_aviso_assinatura,
+    situacao_geracao_boleto_assinatura,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -275,4 +278,6 @@ def _dashboard_financeiro_loja_impl(request, loja_slug):
         'pagamentos_recentes': PagamentoLojaSerializer(pagamentos[:5], many=True).data,
         'historico_pagamentos': historico_pagamentos,
         'assinatura_aviso': situacao_aviso_assinatura(loja),
+        'is_blocked': bool(getattr(loja, 'is_blocked', False)),
+        'geracao_boleto': situacao_geracao_boleto_assinatura(loja, financeiro),
     })

@@ -28,6 +28,7 @@ export default function CapturaErrosNavegador() {
     if (typeof window === 'undefined') return;
     // Só capturar quando estiver em uma rota de loja (/loja/[slug]/...)
     if (!pathname?.startsWith('/loja/')) return;
+    if (sessionStorage.getItem('lwk_store_blocked') === '1') return;
 
     const ultimosEnvios = new Map<string, number>();
     const enviar = (mensagem: string, stack?: string, url?: string) => {

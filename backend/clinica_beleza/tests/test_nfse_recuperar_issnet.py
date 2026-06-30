@@ -93,6 +93,41 @@ class IssnetRecuperacaoXmlTest(TestCase):
         self.assertEqual(det.get('valor'), '2500.00')
         self.assertEqual(det.get('numero_rps'), 155)
 
+    def test_extrair_detalhes_portal_span_ids_issnet(self):
+        from nfse_integration.issnet_portal import extrair_detalhes_portal_issnet_html
+
+        html = """
+        <span id="lblNomeRazaoTomador">LWK SISTEMAS LTDA</span>
+        <span id="lblCpfCnpjTomador">24.758.458/0001-72</span>
+        <span id="lblValorTotalNota"><b>11,00</b></span>
+        <span id="lblValorISS">0,22</span>
+        <span id="lblNumRPS">155</span>
+        <span id="lblCodigoVerificacao"><b>CA6784EBE</b></span>
+        """
+        det = extrair_detalhes_portal_issnet_html(html, prestador_cnpj='41449198000172')
+        self.assertEqual(det.get('tomador_nome'), 'LWK SISTEMAS LTDA')
+        self.assertEqual(det.get('valor'), '11.00')
+        self.assertEqual(det.get('numero_rps'), 155)
+        self.assertEqual(det.get('codigo_verificacao'), 'CA6784EBE')
+
+    def test_parse_consultar_url_nfse_resposta(self):
+        from nfse_integration.issnet_response import parse_consultar_url_nfse_resposta
+
+        xml = """<ConsultarUrlNfseResposta xmlns="http://www.abrasf.org.br/nfse.xsd">
+          <ListaLinks>
+            <Links>
+              <IdentificacaoNfse><Numero>151</Numero></IdentificacaoNfse>
+              <IdentificacaoRps><Numero>155</Numero></IdentificacaoRps>
+              <UrlVisualizacaoNfse>https://issnet.example/nf151</UrlVisualizacaoNfse>
+            </Links>
+          </ListaLinks>
+        </ConsultarUrlNfseResposta>"""
+        parsed = parse_consultar_url_nfse_resposta(xml)
+        self.assertTrue(parsed.get('success'))
+        self.assertEqual(parsed.get('numero_nf'), '151')
+        self.assertEqual(parsed.get('numero_rps'), 155)
+        self.assertIn('issnet.example', parsed.get('url', ''))
+
     def test_nfse_importacao_incompleta(self):
         from types import SimpleNamespace
 

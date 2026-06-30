@@ -588,7 +588,7 @@ def _consultar_url_nfse_issnet(
             prestador_cnpj=str(cnpj_prestador),
             inscricao_municipal=str(im_prestador),
         )
-    if out.get('success') and out.get('numero_nf') and out.get('xml_nfse'):
+    if out.get('success') and out.get('numero_nf'):
         url = str(out.get('url') or '')
         return url or None, out, None
     if out.get('success') and out.get('url'):
@@ -622,6 +622,7 @@ def _enriquecer_resultado_portal_issnet(
         'servico_descricao',
         'codigo_verificacao',
         'numero_rps',
+        'valor_iss',
     ):
         novo = portal.get(key)
         if not novo:
@@ -633,6 +634,11 @@ def _enriquecer_resultado_portal_issnet(
     if portal.get('valor') and (forcar or not Decimal(str(out.get('valor') or 0))):
         try:
             out['valor'] = float(Decimal(str(portal['valor'])))
+        except Exception:
+            pass
+    if portal.get('valor_iss') and (forcar or not Decimal(str(out.get('valor_iss') or 0))):
+        try:
+            out['valor_iss'] = float(Decimal(str(portal['valor_iss'])))
         except Exception:
             pass
     if not out.get('pdf_url'):

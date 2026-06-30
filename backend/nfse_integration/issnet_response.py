@@ -126,6 +126,42 @@ def parse_resposta_xml(xml_str: str) -> Dict[str, Any]:
     }
 
 
+def parse_consultar_url_nfse_resposta(xml_str: str) -> Dict[str, Any]:
+    """Extrai número, RPS e URL de ConsultarUrlNfseResposta (ListaLinks)."""
+    if not (xml_str or '').strip():
+        return {'success': False, 'error': 'Resposta vazia do ConsultarUrlNfse.'}
+    try:
+        root = etree.fromstring(xml_str.encode('utf-8') if isinstance(xml_str, str) else xml_str)
+    except etree.XMLSyntaxError as exc:
+        return {'success': False, 'error': f'XML inválido na resposta do ConsultarUrlNfse: {exc}'}
+
+    ns = NS_NFSE
+    for links in root.iter('{%s}Links' % ns):
+        numero = (
+            links.findtext('.//{%s}IdentificacaoNfse/{%s}Numero' % (ns, ns), '')
+            or links.findtext('.//{%s}Numero' % ns, '')
+            or ''
+        ).strip()
+        if not numero:
+            continue
+        rps_txt = links.findtext('.//{%s}IdentificacaoRps/{%s}Numero' % (ns, ns), '') or ''
+        url = (
+            links.findtext('.//{%s}UrlVisualizacaoNfse' % ns, '')
+            or links.findtext('.//{%s}UrlNfse' % ns, '')
+            or ''
+        ).strip()
+        out: Dict[str, Any] = {
+            'success': True,
+            'numero_nf': numero,
+            'url': url,
+        }
+        if (rps_txt or '').strip().isdigit():
+            out['numero_rps'] = int((rps_txt or '').strip())
+        return out
+
+    return parse_resposta_xml(xml_str)
+
+
 def parse_resposta_xml_nfse_por_numero(xml_str: str, numero_nf: str) -> Dict[str, Any]:
     """Extrai CompNfse/InfNfse da resposta quando há lista (consulta por número/faixa)."""
     alvo = str(numero_nf or '').strip()

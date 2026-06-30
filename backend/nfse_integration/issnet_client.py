@@ -466,6 +466,26 @@ class ISSNetClient:
 
             resp_str = xml_body or ''
 
+            from nfse_integration.issnet_response import parse_consultar_url_nfse_resposta
+
+            url_parsed = parse_consultar_url_nfse_resposta(resp_str)
+            if url_parsed.get('success') and url_parsed.get('numero_nf'):
+                url = str(url_parsed.get('url') or '').strip()
+                if not url:
+                    for tag in ('UrlVisualizacaoNfse', 'UrlNfse', 'Url', 'url'):
+                        url_match = re.search(
+                            rf'<{tag}[^>]*>(.*?)</{tag}>', resp_str, re.IGNORECASE | re.DOTALL
+                        )
+                        if url_match:
+                            cand = url_match.group(1).strip()
+                            if cand.startswith('http'):
+                                url = cand
+                                break
+                if url:
+                    url_parsed['url'] = url
+                logger.info('ConsultarUrlNfse links extraídos: %s', url_parsed)
+                return url_parsed
+
             nf_parsed = self._parse_resposta_xml(resp_str)
             if nf_parsed.get('success') and nf_parsed.get('numero_nf'):
                 url = ''

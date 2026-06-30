@@ -111,6 +111,59 @@ def _somente_digitos_doc(valor_txt: str) -> str:
     return ''
 
 
+def _extrair_conteudo_span_id(html: str, span_id: str) -> str:
+    """Texto de <span id="...">, inclusive tags internas (<b>, etc.)."""
+    if not html or not span_id:
+        return ''
+    m = re.search(
+        rf'(?is)<span[^>]*\bid=["\']{re.escape(span_id)}["\'][^>]*>(.*?)</span>',
+        html,
+    )
+    if not m:
+        return ''
+    return _limpar_html(m.group(1))
+
+
+def _aplicar_campos_span_issnet(
+    html: str,
+    out: dict[str, Any],
+    *,
+    prestador_cnpj: str = '',
+) -> None:
+    """Campos da página Nota_Digital_204.aspx (Ribeirão Preto / ISSNet)."""
+    nome = _extrair_conteudo_span_id(html, 'lblNomeRazaoTomador')
+    if nome and nome.lower() not in ('tomador', 'prestador'):
+        out['tomador_nome'] = nome[:200]
+
+    doc = _somente_digitos_doc(_extrair_conteudo_span_id(html, 'lblCpfCnpjTomador'))
+    if doc and _doc_diferente_prestador(doc, prestador_cnpj):
+        out['tomador_cpf_cnpj'] = doc
+
+    valor = _parse_moeda_br(_extrair_conteudo_span_id(html, 'lblValorTotalNota'))
+    if valor:
+        out['valor'] = valor
+
+    iss_txt = _parse_moeda_br(_extrair_conteudo_span_id(html, 'lblValorISS'))
+    if iss_txt:
+        out['valor_iss'] = iss_txt
+
+    cod_ver = _extrair_conteudo_span_id(html, 'lblCodigoVerificacao')
+    if cod_ver:
+        out['codigo_verificacao'] = cod_ver[:50]
+
+    rps_txt = _extrair_conteudo_span_id(html, 'lblNumRPS')
+    rps_digits = re.sub(r'\D', '', rps_txt or '')
+    if rps_digits:
+        try:
+            out['numero_rps'] = int(rps_digits)
+        except ValueError:
+            pass
+
+    desc = _extrair_conteudo_span_id(html, 'lblDiscriminacao')
+    if desc:
+        out['servico_descricao'] = desc[:500]
+
+
 def _doc_diferente_prestador(doc_digits: str, prestador_cnpj: str) -> bool:
     prest = re.sub(r'\D', '', prestador_cnpj or '')
     return bool(doc_digits and doc_digits != prest)
@@ -126,37 +179,39 @@ def extrair_detalhes_portal_issnet_html(
     if not (html or '').strip():
         return out
 
+    _aplicar_campos_span_issnet(html, out, prestador_cnpj=prestador_cnpj)
+
     bloco_tomador = _extrair_bloco_tomador(html)
 
     tomador = _valor_por_rotulo_html(bloco_tomador, _ROTULOS_TOMADOR)
     if not tomador:
         tomador = _valor_por_rotulo_html(html, _ROTULOS_TOMADOR)
-    if tomador and tomador.lower() not in ('tomador', 'prestador'):
+    if tomador and tomador.lower() not in ('tomador', 'prestador') and not out.get('tomador_nome'):
         out['tomador_nome'] = tomador[:200]
 
     doc = _valor_por_rotulo_html(bloco_tomador, _ROTULOS_CPF_CNPJ_TOMADOR)
     if not doc:
         doc = _valor_por_rotulo_html(bloco_tomador, ('CPF/CNPJ', 'CNPJ/CPF'))
     doc_digits = _somente_digitos_doc(doc)
-    if doc_digits and _doc_diferente_prestador(doc_digits, prestador_cnpj):
+    if doc_digits and _doc_diferente_prestador(doc_digits, prestador_cnpj) and not out.get('tomador_cpf_cnpj'):
         out['tomador_cpf_cnpj'] = doc_digits
 
     valor_txt = _valor_por_rotulo_html(html, _ROTULOS_VALOR)
     valor = _parse_moeda_br(valor_txt)
-    if valor:
+    if valor and not out.get('valor'):
         out['valor'] = valor
 
     descricao = _valor_por_rotulo_html(html, _ROTULOS_DESCRICAO)
-    if descricao:
+    if descricao and not out.get('servico_descricao'):
         out['servico_descricao'] = descricao[:500]
 
     cod_ver = _valor_por_rotulo_html(html, _ROTULOS_COD_VER)
-    if cod_ver:
+    if cod_ver and not out.get('codigo_verificacao'):
         out['codigo_verificacao'] = cod_ver[:50]
 
     rps_txt = _valor_por_rotulo_html(html, _ROTULOS_RPS)
     rps_digits = re.sub(r'\D', '', rps_txt or '')
-    if rps_digits:
+    if rps_digits and not out.get('numero_rps'):
         try:
             out['numero_rps'] = int(rps_digits)
         except ValueError:

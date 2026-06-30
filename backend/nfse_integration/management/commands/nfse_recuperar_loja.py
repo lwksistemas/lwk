@@ -39,10 +39,11 @@ class Command(BaseCommand):
         )
         self.stdout.write(f'HTTP {status}: {body.get("message") or body.get("error")}')
 
+        tomador_nome = (options.get('tomador_nome') or '').replace('+', ' ').strip()
         overrides = {
             k: v
             for k, v in (
-                ('tomador_nome', options.get('tomador_nome')),
+                ('tomador_nome', tomador_nome),
                 ('tomador_cpf_cnpj', options.get('tomador_cnpj')),
                 ('tomador_email', options.get('tomador_email')),
             )
@@ -57,9 +58,6 @@ class Command(BaseCommand):
 
                     patch['tomador_cpf_cnpj'] = normalizar_cpf_cnpj(patch['tomador_cpf_cnpj'])
                 nf = atualizar_nfse_recuperada(nf, patch, loja=loja)
-                if nf and patch.get('tomador_email'):
-                    nf.tomador_email = patch['tomador_email']
-                    nf.save(update_fields=['tomador_email'])
                 self.stdout.write(self.style.WARNING(f'Overrides aplicados: {patch}'))
 
         nf = NFSe.objects.filter(loja_id=loja.id, numero_nf=numero_nf).first()

@@ -1,5 +1,6 @@
 """Testes de recuperação NFS-e ISSNet."""
 
+from decimal import Decimal
 from unittest import TestCase
 
 from nfse_integration.issnet_response import extrair_detalhes_nfse_xml, parse_resposta_xml
@@ -139,6 +140,10 @@ class IssnetRecuperacaoXmlTest(TestCase):
             numero_rps=0,
             servico_descricao='Recuperada do ISSNet (consulta por URL)',
             tomador_cpf_cnpj='',
+            provedor='issnet',
+            status='emitida',
+            xml_nfse='',
+            xml_rps='',
         )
         incompleta_prest = SimpleNamespace(
             valor=0,
@@ -146,6 +151,10 @@ class IssnetRecuperacaoXmlTest(TestCase):
             numero_rps=0,
             servico_descricao='Recuperada do ISSNet (consulta por URL)',
             tomador_cpf_cnpj='41449198000172',
+            provedor='issnet',
+            status='emitida',
+            xml_nfse='',
+            xml_rps='',
         )
         completa = SimpleNamespace(
             valor=100,
@@ -153,11 +162,50 @@ class IssnetRecuperacaoXmlTest(TestCase):
             numero_rps=155,
             servico_descricao='Serviço prestado',
             tomador_cpf_cnpj='24758458000172',
+            provedor='issnet',
+            status='emitida',
+            xml_nfse='<CompNfse/>',
+            xml_rps='',
+        )
+        sem_xml = SimpleNamespace(
+            valor=11,
+            tomador_nome='LWK SISTEMAS LTDA',
+            numero_rps=155,
+            servico_descricao='Serviço',
+            tomador_cpf_cnpj='24758458000172',
+            provedor='issnet',
+            status='emitida',
+            xml_nfse='',
+            xml_rps='',
         )
         loja = SimpleNamespace(cpf_cnpj='41449198000172')
         self.assertTrue(nfse_importacao_incompleta(incompleta, loja=loja))
         self.assertTrue(nfse_importacao_incompleta(incompleta_prest, loja=loja))
         self.assertFalse(nfse_importacao_incompleta(completa, loja=loja))
+        self.assertTrue(nfse_importacao_incompleta(sem_xml, loja=loja))
+
+    def test_gerar_xml_nfse_reconstruido(self):
+        from types import SimpleNamespace
+
+        from nfse_integration.xml_nfse_loja import gerar_xml_nfse_reconstruido
+
+        nf = SimpleNamespace(
+            numero_nf='151',
+            codigo_verificacao='ABC',
+            data_emissao=None,
+            numero_rps=155,
+            valor=Decimal('11.00'),
+            valor_iss=Decimal('0.22'),
+            aliquota_iss=Decimal('2.00'),
+            tomador_cpf_cnpj='24.758.458/0001-72',
+            tomador_nome='LWK SISTEMAS LTDA',
+            servico_descricao='Servico teste',
+        )
+        loja = SimpleNamespace(cpf_cnpj='41.449.198/0001-72', inscricao_municipal='20130440', nome='Felix')
+        xml = gerar_xml_nfse_reconstruido(nf, loja)
+        self.assertIn('<Numero>151</Numero>', xml)
+        self.assertIn('LWK SISTEMAS LTDA', xml)
+        self.assertIn('<ValorServicos>11.00</ValorServicos>', xml)
 
     def test_construir_xml_consultar_rps_tem_prestador(self):
         from nfse_integration.issnet_xml_builder import construir_xml_consultar_nfse_por_rps

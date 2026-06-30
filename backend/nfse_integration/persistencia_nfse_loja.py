@@ -100,7 +100,7 @@ def registrar_falha_emissao_loja(
 
 
 def nfse_importacao_incompleta(nfse: Any, loja: Any | None = None) -> bool:
-    """True quando a nota foi importada só com número/URL (sem tomador ou valor)."""
+    """True quando a nota foi importada só com número/URL (sem tomador, valor ou XML)."""
     if not nfse:
         return False
     valor = Decimal(str(getattr(nfse, 'valor', 0) or 0))
@@ -110,6 +110,10 @@ def nfse_importacao_incompleta(nfse: Any, loja: Any | None = None) -> bool:
     if prest_cnpj and tom_doc == prest_cnpj:
         return True
     if valor <= 0 or not tomador:
+        return True
+    from nfse_integration.xml_nfse_loja import nfse_precisa_buscar_xml
+
+    if nfse_precisa_buscar_xml(nfse):
         return True
     return False
 

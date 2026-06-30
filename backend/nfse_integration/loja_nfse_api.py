@@ -739,6 +739,11 @@ def recuperar_nfse_issnet_loja(
     if numero_nf_busca:
         existente_nf = NFSe.objects.filter(loja_id=loja_id, numero_nf=numero_nf_busca).first()
         if existente_nf and not nfse_importacao_incompleta(existente_nf, loja=loja):
+            from nfse_integration.xml_nfse_loja import nfse_precisa_buscar_xml, resolver_xml_nfse_loja
+
+            if nfse_precisa_buscar_xml(existente_nf):
+                resolver_xml_nfse_loja(existente_nf, loja, loja_id)
+                existente_nf.refresh_from_db()
             return (
                 {
                     'success': True,
@@ -879,6 +884,11 @@ def recuperar_nfse_issnet_loja(
 
     existente = existente_nf or NFSe.objects.filter(loja_id=loja_id, numero_nf=numero_nf_final).first()
     if existente and not nfse_importacao_incompleta(existente, loja=loja):
+        from nfse_integration.xml_nfse_loja import nfse_precisa_buscar_xml, resolver_xml_nfse_loja
+
+        if nfse_precisa_buscar_xml(existente):
+            resolver_xml_nfse_loja(existente, loja, loja_id)
+            existente.refresh_from_db()
         return (
             {
                 'success': True,

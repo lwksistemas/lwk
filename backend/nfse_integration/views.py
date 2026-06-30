@@ -26,6 +26,7 @@ from .loja_nfse_api import (
     validar_exclusao_nfse_loja,
     xml_nfse_conteudo,
 )
+from .xml_nfse_loja import resolver_xml_nfse_loja
 from .tomador_busca import buscar_tomador_nfse_loja
 from .pdf_download import resolver_download_pdf_loja
 from tenants.middleware import get_current_loja_id, get_current_tenant_db
@@ -259,7 +260,9 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
     def download_xml(self, request, pk=None):
         try:
             nfse = self.get_object()
-            xml_content = xml_nfse_conteudo(nfse)
+            _, loja = self._obter_loja_atual()
+            loja_id = get_current_loja_id()
+            xml_content = resolver_xml_nfse_loja(nfse, loja, loja_id) or xml_nfse_conteudo(nfse)
             if not xml_content:
                 return Response(
                     {'error': 'XML não disponível para esta NFS-e'},

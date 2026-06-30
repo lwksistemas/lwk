@@ -197,3 +197,30 @@ export async function downloadNfseXmlBlob(
   const res = await fetchBlob();
   downloadBlobFile(blobFromApiData(res.data), filename);
 }
+
+export type NfseEmitirResponse = {
+  success?: boolean;
+  queued?: boolean;
+  message?: string;
+  error?: string;
+};
+
+export type NfseEmissaoResult = {
+  queued: boolean;
+  message: string;
+};
+
+/** Interpreta resposta de POST /nfse/emitir/ (201 imediato ou 202 enfileirado). */
+export function parseNfseEmissaoResult(status: number, data: NfseEmitirResponse): NfseEmissaoResult {
+  const queued = Boolean(data.queued) || status === 202;
+  if (queued) {
+    return {
+      queued: true,
+      message: data.message || 'Nota enfileirada. Aguardando emissão…',
+    };
+  }
+  return {
+    queued: false,
+    message: data.message || 'NFS-e emitida com sucesso.',
+  };
+}

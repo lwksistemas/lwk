@@ -12,6 +12,7 @@ import {
   preencherFormTomador,
   somenteDigitosDocumento,
 } from '@/lib/nfse-emissao-form';
+import { parseNfseEmissaoResult, type NfseEmissaoResult, type NfseEmitirResponse } from '@/lib/nfse-helpers';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { ServicoFields } from './ServicoFields';
 import { ModalFormButtons } from './ModalFormButtons';
@@ -21,7 +22,7 @@ import { ModalEmitirNFSeEnderecoFields } from './ModalEmitirNFSeEnderecoFields';
 
 interface ModalEmitirNFSeProps {
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (result: NfseEmissaoResult) => void;
   onRefreshList?: () => void;
 }
 
@@ -136,8 +137,13 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
               tomador_cep: formData.tomador_cep,
             };
 
-      await apiClient.post('/nfse/emitir/', payload);
-      onSuccess();
+      const res = await apiClient.post<NfseEmitirResponse>('/nfse/emitir/', payload);
+      if (res.data.success === false) {
+        setError(res.data.error || 'Erro ao emitir NFS-e');
+        onRefreshList?.();
+        return;
+      }
+      onSuccess(parseNfseEmissaoResult(res.status, res.data));
     } catch (err: unknown) {
       logger.warn('Erro ao emitir NFS-e:', err);
       const ax = err as { response?: { data?: { error?: string } } };

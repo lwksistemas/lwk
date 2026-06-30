@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { useNfseQueuedPolling } from '@/hooks/useNfseQueuedPolling';
 import {
   nfseIdentificador,
   nfseSyncEndpoint,
@@ -33,9 +34,13 @@ export default function NFSePage() {
   const [busca, setBusca] = useState('');
   const [buscaDebounced, setBuscaDebounced] = useState('');
   const [syncingId, setSyncingId] = useState<number | null>(null);
-  const [syncMsg, setSyncMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [syncMsg, setSyncMsg] = useState<{ type: 'ok' | 'err' | 'info'; text: string } | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [nfWhatsapp, setNfWhatsapp] = useState<NFSe | null>(null);
+  const [emissaoPolling, setEmissaoPolling] = useState<{ active: boolean; countBefore: number }>({
+    active: false,
+    countBefore: 0,
+  });
   const { whatsappAtivo } = useWhatsappEnvioFlags();
 
   useEffect(() => {
@@ -57,6 +62,37 @@ export default function NFSePage() {
       status: filtroStatus || undefined,
       busca: buscaDebounced || undefined,
     },
+  });
+
+  const nfseListParams = {
+    status: filtroStatus || undefined,
+    busca: buscaDebounced || undefined,
+  };
+
+  const handlePollingTick = useCallback(() => {
+    void carregarNFSes(true);
+  }, [carregarNFSes]);
+
+  const handlePollingFound = useCallback(() => {
+    setEmissaoPolling({ active: false, countBefore: 0 });
+    setSyncMsg({ type: 'ok', text: 'Emissão concluída. Verifique o status da nota na lista.' });
+  }, []);
+
+  const handlePollingTimeout = useCallback(() => {
+    setEmissaoPolling({ active: false, countBefore: 0 });
+    setSyncMsg({
+      type: 'ok',
+      text: 'Lista atualizada. Se a nota não apareceu, aguarde mais um momento ou atualize a página.',
+    });
+  }, []);
+
+  useNfseQueuedPolling({
+    active: emissaoPolling.active,
+    countBefore: emissaoPolling.countBefore,
+    queryParams: nfseListParams,
+    onTick: handlePollingTick,
+    onFound: handlePollingFound,
+    onTimeout: handlePollingTimeout,
   });
 
   const sincronizarStatus = async (e: React.MouseEvent, nf: NFSe) => {
@@ -233,9 +269,16 @@ export default function NFSePage() {
       {showModal && (
         <ModalEmitirNFSe
           onClose={() => setShowModal(false)}
-          onSuccess={() => {
+          onSuccess={(result) => {
             setShowModal(false);
-            carregarNFSes(true);
+            const countBefore = totalCount;
+            void carregarNFSes(true);
+            if (result.queued) {
+              setEmissaoPolling({ active: true, countBefore });
+              setSyncMsg({ type: 'info', text: result.message });
+            } else {
+              setSyncMsg({ type: 'ok', text: result.message });
+            }
           }}
         />
       )}

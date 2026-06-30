@@ -40,6 +40,8 @@ ZEEP_OPERACOES_MTLS = frozenset({
     'ConsultarUrlNfse',
     'CancelarNfse',
     'ConsultarNfsePorRps',
+    'ConsultarNfseServicoPrestado',
+    'ConsultarNfsePorFaixa',
 })
 
 

@@ -126,6 +126,45 @@ def parse_resposta_xml(xml_str: str) -> Dict[str, Any]:
     }
 
 
+def parse_resposta_xml_nfse_por_numero(xml_str: str, numero_nf: str) -> Dict[str, Any]:
+    """Extrai CompNfse/InfNfse da resposta quando há lista (consulta por número/faixa)."""
+    alvo = str(numero_nf or '').strip()
+    if not alvo or not (xml_str or '').strip():
+        return {'success': False, 'error': 'Resposta vazia ou número da NFS-e não informado.'}
+    try:
+        root = etree.fromstring(xml_str.encode('utf-8') if isinstance(xml_str, str) else xml_str)
+    except etree.XMLSyntaxError as exc:
+        return {'success': False, 'error': f'XML inválido na resposta do ISSNet: {exc}'}
+
+    ns = NS_NFSE
+    for inf in root.iter('{%s}InfNfse' % ns):
+        numero = (inf.findtext('{%s}Numero' % ns, '') or '').strip()
+        if numero != alvo:
+            continue
+        cod_ver = inf.findtext('{%s}CodigoVerificacao' % ns, '')
+        dt_text = inf.findtext('{%s}DataEmissao' % ns, '')
+        dt_emissao = datetime.now()
+        if dt_text:
+            try:
+                dt_emissao = datetime.fromisoformat(dt_text.replace('Z', '+00:00'))
+            except Exception:
+                pass
+        comp = inf
+        for anc in inf.iterancestors():
+            if etree.QName(anc.tag).localname == 'CompNfse':
+                comp = anc
+                break
+        xml_nfse = etree.tostring(comp, encoding='unicode')
+        return {
+            'success': True,
+            'numero_nf': numero,
+            'codigo_verificacao': cod_ver,
+            'data_emissao': dt_emissao,
+            'xml_nfse': xml_nfse,
+        }
+    return parse_resposta_xml(xml_str)
+
+
 def extrair_detalhes_nfse_xml(xml_str: str) -> dict[str, Any]:
     """Extrai tomador, valores e descrição do XML ABRASF (consulta/recuperação)."""
     out: dict[str, Any] = {}

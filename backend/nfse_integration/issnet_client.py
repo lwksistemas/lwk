@@ -33,6 +33,7 @@ from nfse_integration.issnet_response import (
     interpretar_cancelamento,
     parse_resposta_cancelamento,
     parse_resposta_xml,
+    parse_resposta_xml_nfse_por_numero,
 )
 from nfse_integration.issnet_cert import carregar_certificado
 from nfse_integration.issnet_soap_transport import criar_soap_client, post_soap_operacao
@@ -42,6 +43,8 @@ from nfse_integration.issnet_xml_builder import (
     construir_xml_consultar_lote_rps,
     construir_xml_consultar_nfse_por_rps,
     construir_xml_consultar_nfse_por_rps_legado,
+    construir_xml_consultar_nfse_por_faixa,
+    construir_xml_consultar_nfse_servico_prestado,
     construir_xml_consultar_url_nfse,
     construir_xml_enviar_lote_rps,
     extrair_protocolo_lote,
@@ -522,6 +525,86 @@ class ISSNetClient:
             return {'success': True, 'cancelada': bool(cancelada)}
         except Exception as e:
             logger.warning('Erro ao verificar cancelamento via URL ISSNet: %s', e)
+            return {'success': False, 'error': str(e)}
+
+    def _executar_consulta_nfse(
+        self,
+        *,
+        nome_operacao: str,
+        soap_action_uri: str,
+        dados_xml: str,
+        numero_nf_esperado: str | None = None,
+    ) -> Dict[str, Any]:
+        parsed, xml_body = self._post_soap_operacao(
+            nome_operacao=nome_operacao,
+            soap_action_uri=soap_action_uri,
+            dados_xml=dados_xml,
+        )
+        resp_str = (xml_body or '').strip()
+        if not resp_str:
+            return {'success': False, 'error': f'Resposta vazia ao {nome_operacao}.'}
+        if re.search(r'<\s*ListaMensagemRetorno\b', resp_str, re.I):
+            return {
+                'success': False,
+                'error': self._extrair_erros(resp_str),
+                'raw_xml': resp_str[:8000],
+            }
+        if numero_nf_esperado:
+            nf = parse_resposta_xml_nfse_por_numero(resp_str, numero_nf_esperado)
+        else:
+            nf = self._parse_resposta_xml(resp_str)
+        if nf.get('success'):
+            return {**nf, 'cancelada': False, 'raw_xml': resp_str[:8000]}
+        if parsed and parsed.get('success') is False:
+            return {**parsed, 'raw_xml': resp_str[:8000]}
+        return {
+            'success': False,
+            'error': nf.get('error') or 'NFS-e não encontrada na resposta do ISSNet.',
+            'raw_xml': resp_str[:8000],
+        }
+
+    def consultar_nfse_servico_prestado(
+        self,
+        numero_nf: str,
+        prestador_cnpj: str = '',
+        inscricao_municipal: str = '',
+    ) -> Dict[str, Any]:
+        """Consulta NFS-e emitida pelo prestador (por número da nota)."""
+        try:
+            cnpj = somente_digitos(prestador_cnpj or self.usuario or '')
+            xml_consulta = construir_xml_consultar_nfse_servico_prestado(
+                str(numero_nf), cnpj, inscricao_municipal or ''
+            )
+            return self._executar_consulta_nfse(
+                nome_operacao='ConsultarNfseServicoPrestado',
+                soap_action_uri='http://nfse.abrasf.org.br/ConsultarNfseServicoPrestado',
+                dados_xml=xml_consulta,
+                numero_nf_esperado=str(numero_nf),
+            )
+        except Exception as e:
+            logger.exception('Erro ao consultar NFS-e por número: %s', e)
+            return {'success': False, 'error': str(e)}
+
+    def consultar_nfse_por_faixa(
+        self,
+        numero_nf: str,
+        prestador_cnpj: str = '',
+        inscricao_municipal: str = '',
+    ) -> Dict[str, Any]:
+        """Consulta NFS-e por faixa (inicial=final=numero)."""
+        try:
+            cnpj = somente_digitos(prestador_cnpj or self.usuario or '')
+            xml_consulta = construir_xml_consultar_nfse_por_faixa(
+                str(numero_nf), cnpj, inscricao_municipal or ''
+            )
+            return self._executar_consulta_nfse(
+                nome_operacao='ConsultarNfsePorFaixa',
+                soap_action_uri='http://nfse.abrasf.org.br/ConsultarNfsePorFaixa',
+                dados_xml=xml_consulta,
+                numero_nf_esperado=str(numero_nf),
+            )
+        except Exception as e:
+            logger.exception('Erro ao consultar NFS-e por faixa: %s', e)
             return {'success': False, 'error': str(e)}
 
     def consultar_nfse(self, numero_nf: str) -> Dict[str, Any]:

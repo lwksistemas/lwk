@@ -1,5 +1,6 @@
 """Persistencia de NFS-e no banco (contexto loja/CRM)."""
 import logging
+import re
 from decimal import Decimal
 from typing import Any
 from uuid import uuid4
@@ -98,7 +99,7 @@ def registrar_falha_emissao_loja(
         return None
 
 
-def nfse_importacao_incompleta(nfse: Any) -> bool:
+def nfse_importacao_incompleta(nfse: Any, loja: Any | None = None) -> bool:
     """True quando a nota foi importada só com número/URL (sem tomador ou valor)."""
     if not nfse:
         return False
@@ -107,7 +108,11 @@ def nfse_importacao_incompleta(nfse: Any) -> bool:
     rps = int(getattr(nfse, 'numero_rps', 0) or 0)
     desc = (getattr(nfse, 'servico_descricao', '') or '').strip()
     desc_generica = desc.startswith('Recuperada do ISSNet')
-    return (valor <= 0 or not tomador) and (rps <= 0 or desc_generica or not tomador)
+    prest_cnpj = re.sub(r'\D', '', getattr(loja, 'cpf_cnpj', '') or '') if loja else ''
+    tom_doc = re.sub(r'\D', '', getattr(nfse, 'tomador_cpf_cnpj', '') or '')
+    tomador_e_prestador = bool(prest_cnpj and tom_doc and tom_doc == prest_cnpj)
+    sem_dados = valor <= 0 or not tomador or tomador_e_prestador
+    return sem_dados and (rps <= 0 or desc_generica or not tomador or tomador_e_prestador)
 
 
 def atualizar_nfse_recuperada(nfse: Any, resultado: dict[str, Any]) -> Any | None:
@@ -139,8 +144,10 @@ def atualizar_nfse_recuperada(nfse: Any, resultado: dict[str, Any]) -> Any | Non
             nfse.tomador_nome = str(resultado['tomador_nome'])[:200]
             update_fields.append('tomador_nome')
         if resultado.get('tomador_cpf_cnpj'):
-            nfse.tomador_cpf_cnpj = normalizar_cpf_cnpj(str(resultado['tomador_cpf_cnpj']))[:18]
-            update_fields.append('tomador_cpf_cnpj')
+            novo_doc = normalizar_cpf_cnpj(str(resultado['tomador_cpf_cnpj']))[:18]
+            if novo_doc:
+                nfse.tomador_cpf_cnpj = novo_doc
+                update_fields.append('tomador_cpf_cnpj')
         if resultado.get('servico_descricao'):
             nfse.servico_descricao = str(resultado['servico_descricao'])[:500]
             update_fields.append('servico_descricao')

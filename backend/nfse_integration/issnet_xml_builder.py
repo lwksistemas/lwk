@@ -329,7 +329,49 @@ def construir_xml_consultar_nfse_por_rps(
     prest = etree.SubElement(root, '{%s}Prestador' % ns)
     cpf_cnpj = etree.SubElement(prest, '{%s}CpfCnpj' % ns)
     etree.SubElement(cpf_cnpj, '{%s}Cnpj' % ns).text = cnpj_digits
-    etree.SubElement(prest, '{%s}InscricaoMunicipal' % ns).text = im
+    if im:
+        etree.SubElement(prest, '{%s}InscricaoMunicipal' % ns).text = im
+    return etree.tostring(root, encoding='unicode')
+
+
+def _prestador_element(parent, ns: str, cnpj_digits: str, im: str):
+    prest = etree.SubElement(parent, '{%s}Prestador' % ns)
+    cpf_cnpj = etree.SubElement(prest, '{%s}CpfCnpj' % ns)
+    etree.SubElement(cpf_cnpj, '{%s}Cnpj' % ns).text = cnpj_digits
+    if (im or '').strip():
+        etree.SubElement(prest, '{%s}InscricaoMunicipal' % ns).text = im.strip()
+
+
+def construir_xml_consultar_nfse_servico_prestado(
+    numero_nf: str,
+    prestador_cnpj: str,
+    inscricao_municipal: str,
+) -> str:
+    cnpj_digits = somente_digitos(prestador_cnpj)
+    im = (inscricao_municipal or '').strip()
+    ns = NS_NFSE
+    root = etree.Element('{%s}ConsultarNfseServicoPrestadoEnvio' % ns, nsmap={None: ns})
+    _prestador_element(root, ns, cnpj_digits, im)
+    etree.SubElement(root, '{%s}NumeroNfse' % ns).text = str(int(numero_nf))
+    etree.SubElement(root, '{%s}Pagina' % ns).text = '1'
+    return etree.tostring(root, encoding='unicode')
+
+
+def construir_xml_consultar_nfse_por_faixa(
+    numero_nf: str,
+    prestador_cnpj: str,
+    inscricao_municipal: str,
+) -> str:
+    cnpj_digits = somente_digitos(prestador_cnpj)
+    im = (inscricao_municipal or '').strip()
+    ns = NS_NFSE
+    root = etree.Element('{%s}ConsultarNfsePorFaixaEnvio' % ns, nsmap={None: ns})
+    _prestador_element(root, ns, cnpj_digits, im)
+    faixa = etree.SubElement(root, '{%s}Faixa' % ns)
+    n = str(int(numero_nf))
+    etree.SubElement(faixa, '{%s}NumeroNfseInicial' % ns).text = n
+    etree.SubElement(faixa, '{%s}NumeroNfseFinal' % ns).text = n
+    etree.SubElement(root, '{%s}Pagina' % ns).text = '1'
     return etree.tostring(root, encoding='unicode')
 
 

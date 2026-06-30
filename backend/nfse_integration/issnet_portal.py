@@ -1,30 +1,41 @@
-"""Extração de tomador/valor da página de visualização ISSNet (fallback)."""
+"""Extração de tomador/valor da visualização ISSNet (HTML ou PDF)."""
 import logging
 import re
 from decimal import Decimal, InvalidOperation
+from io import BytesIO
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 _ROTULOS_TOMADOR = (
+    'Razão Social do Tomador',
+    'Razao Social do Tomador',
+    'Nome/Razão Social do Tomador',
     'Razão Social',
     'Razao Social',
     'Nome/Razão Social',
     'Nome/Razao Social',
-    'Tomador',
 )
-_ROTULOS_CPF_CNPJ = ('CPF/CNPJ', 'CNPJ/CPF', 'CPF', 'CNPJ')
+_ROTULOS_CPF_CNPJ_TOMADOR = (
+    'CPF/CNPJ do Tomador',
+    'CNPJ/CPF do Tomador',
+    'CPF/CNPJ Tomador',
+    'CNPJ Tomador',
+    'CPF Tomador',
+)
 _ROTULOS_VALOR = (
     'Valor dos Serviços',
     'Valor dos Servicos',
     'Valor do Serviço',
     'Valor do Servico',
+    'Valor Total dos Serviços',
     'Valor Total',
     'Valor da Nota',
+    'Valor Serviços',
 )
 _ROTULOS_DESCRICAO = ('Discriminação', 'Discriminacao', 'Descrição do Serviço', 'Descricao do Servico')
 _ROTULOS_COD_VER = ('Código de Verificação', 'Codigo de Verificacao', 'Cód. Verificação')
-_ROTULOS_RPS = ('Número do RPS', 'Numero do RPS', 'RPS')
+_ROTULOS_RPS = ('Número do RPS', 'Numero do RPS', 'Nº RPS', 'RPS')
 
 
 def _limpar_html(texto: str) -> str:
@@ -33,6 +44,20 @@ def _limpar_html(texto: str) -> str:
     s = re.sub(r'(?is)<[^>]+>', ' ', s)
     s = re.sub(r'\s+', ' ', s)
     return s.strip()
+
+
+def _extrair_bloco_tomador(html: str) -> str:
+    if not html:
+        return ''
+    padroes_bloco = (
+        r'(?is)Tomador\s*(?:do\s*Servi[cç]o)?.*?(?=Prestador|Servi[cç]o\s*Prestado|Discrimina|Valores|Valor\s*dos|ISS\b)',
+        r'(?is)Dados\s*do\s*Tomador.*?(?=Prestador|Discrimina|Valores)',
+    )
+    for pat in padroes_bloco:
+        m = re.search(pat, html)
+        if m:
+            return m.group(0)
+    return html
 
 
 def _valor_por_rotulo_html(html: str, rotulos: tuple[str, ...]) -> str:
@@ -86,19 +111,34 @@ def _somente_digitos_doc(valor_txt: str) -> str:
     return ''
 
 
-def extrair_detalhes_portal_issnet_html(html: str) -> dict[str, Any]:
+def _doc_diferente_prestador(doc_digits: str, prestador_cnpj: str) -> bool:
+    prest = re.sub(r'\D', '', prestador_cnpj or '')
+    return bool(doc_digits and doc_digits != prest)
+
+
+def extrair_detalhes_portal_issnet_html(
+    html: str,
+    *,
+    prestador_cnpj: str = '',
+) -> dict[str, Any]:
     """Tenta ler tomador, valor e RPS da página pública de visualização ISSNet."""
     out: dict[str, Any] = {}
     if not (html or '').strip():
         return out
 
-    tomador = _valor_por_rotulo_html(html, _ROTULOS_TOMADOR)
-    if tomador:
+    bloco_tomador = _extrair_bloco_tomador(html)
+
+    tomador = _valor_por_rotulo_html(bloco_tomador, _ROTULOS_TOMADOR)
+    if not tomador:
+        tomador = _valor_por_rotulo_html(html, _ROTULOS_TOMADOR)
+    if tomador and tomador.lower() not in ('tomador', 'prestador'):
         out['tomador_nome'] = tomador[:200]
 
-    doc = _valor_por_rotulo_html(html, _ROTULOS_CPF_CNPJ)
+    doc = _valor_por_rotulo_html(bloco_tomador, _ROTULOS_CPF_CNPJ_TOMADOR)
+    if not doc:
+        doc = _valor_por_rotulo_html(bloco_tomador, ('CPF/CNPJ', 'CNPJ/CPF'))
     doc_digits = _somente_digitos_doc(doc)
-    if doc_digits:
+    if doc_digits and _doc_diferente_prestador(doc_digits, prestador_cnpj):
         out['tomador_cpf_cnpj'] = doc_digits
 
     valor_txt = _valor_por_rotulo_html(html, _ROTULOS_VALOR)
@@ -125,8 +165,27 @@ def extrair_detalhes_portal_issnet_html(html: str) -> dict[str, Any]:
     return out
 
 
-def buscar_detalhes_portal_issnet(url: str, *, timeout: tuple[int, int] = (6, 20)) -> dict[str, Any]:
-    """GET na URL do portal ISSNet e extrai campos visíveis."""
+def _extrair_texto_pdf(content: bytes) -> str:
+    try:
+        from pypdf import PdfReader
+
+        reader = PdfReader(BytesIO(content))
+        partes = []
+        for page in reader.pages:
+            partes.append(page.extract_text() or '')
+        return '\n'.join(partes)
+    except Exception as exc:
+        logger.warning('Falha ao ler PDF ISSNet: %s', exc)
+        return ''
+
+
+def buscar_detalhes_portal_issnet(
+    url: str,
+    *,
+    prestador_cnpj: str = '',
+    timeout: tuple[int, int] = (6, 25),
+) -> dict[str, Any]:
+    """GET na URL do portal ISSNet e extrai campos visíveis (HTML ou PDF)."""
     u = (url or '').strip()
     if not u.startswith('http'):
         return {}
@@ -137,9 +196,18 @@ def buscar_detalhes_portal_issnet(url: str, *, timeout: tuple[int, int] = (6, 20
         if r.status_code >= 400:
             logger.warning('Portal ISSNet HTTP %s para %s', r.status_code, u[:120])
             return {}
-        det = extrair_detalhes_portal_issnet_html(r.text or '')
+        ctype = (r.headers.get('Content-Type') or '').lower()
+        raw = r.content or b''
+        if 'pdf' in ctype or u.lower().endswith('.pdf') or raw[:4] == b'%PDF':
+            texto = _extrair_texto_pdf(raw)
+            det = extrair_detalhes_portal_issnet_html(texto, prestador_cnpj=prestador_cnpj)
+        else:
+            det = extrair_detalhes_portal_issnet_html(r.text or '', prestador_cnpj=prestador_cnpj)
         if det:
-            logger.info('Portal ISSNet detalhes extraídos: %s', {k: det[k] for k in det if k != 'servico_descricao'})
+            logger.info(
+                'Portal ISSNet detalhes extraídos: %s',
+                {k: det[k] for k in det if k != 'servico_descricao'},
+            )
         return det
     except Exception as exc:
         logger.warning('Falha ao ler portal ISSNet: %s', exc)

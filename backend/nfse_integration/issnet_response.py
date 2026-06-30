@@ -126,6 +126,42 @@ def parse_resposta_xml(xml_str: str) -> Dict[str, Any]:
     }
 
 
+def extrair_detalhes_nfse_xml(xml_str: str) -> dict[str, Any]:
+    """Extrai tomador, valores e descrição do XML ABRASF (consulta/recuperação)."""
+    out: dict[str, Any] = {}
+    if not (xml_str or '').strip():
+        return out
+    try:
+        root = etree.fromstring(xml_str.encode('utf-8') if isinstance(xml_str, str) else xml_str)
+    except etree.XMLSyntaxError:
+        return out
+
+    ns = NS_NFSE
+    inf = root.find(f'.//{{{ns}}}InfNfse')
+    if inf is None:
+        return out
+
+    out['valor'] = inf.findtext(f'{{{ns}}}Servico/{{{ns}}}Valores/{{{ns}}}ValorServicos', '') or ''
+    out['aliquota_iss'] = inf.findtext(f'{{{ns}}}Servico/{{{ns}}}Valores/{{{ns}}}Aliquota', '') or ''
+    out['valor_iss'] = inf.findtext(f'{{{ns}}}Servico/{{{ns}}}Valores/{{{ns}}}ValorIss', '') or ''
+    out['servico_descricao'] = (
+        inf.findtext(f'{{{ns}}}Servico/{{{ns}}}Discriminacao', '')
+        or inf.findtext(f'{{{ns}}}Servico/{{{ns}}}ItemListaServico', '')
+        or ''
+    )
+    tomador = inf.find(f'.//{{{ns}}}TomadorServico')
+    if tomador is not None:
+        out['tomador_nome'] = (
+            tomador.findtext(f'{{{ns}}}RazaoSocial', '')
+            or tomador.findtext(f'.//{{{ns}}}RazaoSocial', '')
+            or ''
+        )
+        cpf = tomador.findtext(f'.//{{{ns}}}Cpf', '') or ''
+        cnpj = tomador.findtext(f'.//{{{ns}}}Cnpj', '') or ''
+        out['tomador_cpf_cnpj'] = cnpj or cpf or ''
+    return out
+
+
 def extrair_erros(texto: str) -> str:
     erros = re.findall(r'<Mensagem>(.*?)</Mensagem>', texto)
     return '; '.join(erros) if erros else texto[:500]

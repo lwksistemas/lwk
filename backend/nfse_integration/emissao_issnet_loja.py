@@ -106,7 +106,17 @@ def emitir_via_issnet_loja(
                 'tomador_cpf_cnpj': tomador_cpf_cnpj,
                 'servico_descricao': servico_descricao,
             }
-            salvar_nfse_emitida(loja.id, resultado_final, tomador_email, provedor='issnet')
+            if not salvar_nfse_emitida(loja.id, resultado_final, tomador_email, provedor='issnet'):
+                return {
+                    'success': False,
+                    'error': (
+                        f'NFS-e {resultado_final["numero_nf"]} aceita no ISSNet, mas falhou ao gravar no sistema. '
+                        'Use «Recuperar do ISSNet» informando o RPS '
+                        f'{numero_rps}.'
+                    ),
+                    'numero_rps': numero_rps,
+                    'numero_nf': resultado_final['numero_nf'],
+                }
             if enviar_email and tomador_email:
                 enviar_email_fn(
                     tomador_email=tomador_email,

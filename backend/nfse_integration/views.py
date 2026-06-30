@@ -22,6 +22,7 @@ from .loja_nfse_api import (
     reenviar_email_nfse_loja,
     sincronizar_nfse_issnet_loja,
     sincronizar_nfse_asaas_loja,
+    recuperar_nfse_issnet_loja,
     validar_exclusao_nfse_loja,
     xml_nfse_conteudo,
 )
@@ -151,6 +152,38 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             )
         except Exception as e:
             logger.exception('Erro ao emitir NFS-e: %s', e)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], url_path='recuperar-issnet')
+    def recuperar_issnet(self, request):
+        """Recupera NFS-e emitida no ISSNet que não consta no CRM (por RPS ou número da NF)."""
+        try:
+            loja_id, loja = self._obter_loja_atual()
+            if not loja_id:
+                return Response(
+                    {'error': 'Loja não identificada'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            numero_rps = request.data.get('numero_rps')
+            numero_nf = (request.data.get('numero_nf') or '').strip() or None
+            rps_int = None
+            if numero_rps is not None and str(numero_rps).strip() != '':
+                try:
+                    rps_int = int(numero_rps)
+                except (TypeError, ValueError):
+                    return Response(
+                        {'error': 'Número do RPS inválido.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            body, http_status = recuperar_nfse_issnet_loja(
+                loja,
+                loja_id,
+                numero_rps=rps_int,
+                numero_nf=numero_nf,
+            )
+            return Response(body, status=http_status)
+        except Exception as e:
+            logger.exception('Erro ao recuperar NFS-e do ISSNet: %s', e)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'])

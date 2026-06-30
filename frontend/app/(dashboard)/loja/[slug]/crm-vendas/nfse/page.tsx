@@ -17,6 +17,7 @@ import {
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import { telefoneInternacionalBr } from '@/lib/format-br';
 import { ModalEmitirNFSe } from './components/ModalEmitirNFSe';
+import { ModalRecuperarNFSe } from './components/ModalRecuperarNFSe';
 import ModalNfseEnviarWhatsapp from './components/ModalNfseEnviarWhatsapp';
 import { NfseLojaEmptyState } from './components/NfseLojaEmptyState';
 import { NfseLojaFilters } from './components/NfseLojaFilters';
@@ -31,6 +32,7 @@ export default function NFSePage() {
   const { config } = useCRMConfig();
   const lojaProvedor = config?.provedor_nf;
   const [showModal, setShowModal] = useState(false);
+  const [showRecuperarModal, setShowRecuperarModal] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState('');
   const [busca, setBusca] = useState('');
   const [buscaDebounced, setBuscaDebounced] = useState('');
@@ -229,7 +231,10 @@ export default function NFSePage() {
 
   return (
     <div className="space-y-6">
-      <NfseLojaHeader onEmitir={() => setShowModal(true)} />
+      <NfseLojaHeader
+        onEmitir={() => setShowModal(true)}
+        onRecuperar={lojaProvedor === 'issnet' ? () => setShowRecuperarModal(true) : undefined}
+      />
 
       {syncMsg && <NfseLojaSyncMessage type={syncMsg.type} text={syncMsg.text} />}
 
@@ -276,6 +281,17 @@ export default function NFSePage() {
           nf={nfWhatsapp}
           onClose={() => setNfWhatsapp(null)}
           onEnviar={enviarWhatsappNFSe}
+        />
+      )}
+
+      {showRecuperarModal && (
+        <ModalRecuperarNFSe
+          onClose={() => setShowRecuperarModal(false)}
+          onSuccess={(message) => {
+            setShowRecuperarModal(false);
+            setSyncMsg({ type: 'ok', text: message });
+            void carregarNFSes(true);
+          }}
         />
       )}
 

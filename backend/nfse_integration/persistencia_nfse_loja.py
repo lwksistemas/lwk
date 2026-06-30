@@ -32,13 +32,13 @@ def salvar_nfse_emitida(
     resultado: dict[str, Any],
     tomador_email: str,
     provedor: str = 'nacional',
-) -> None:
+) -> Any | None:
     from nfse_integration.models import NFSe
 
     try:
         aliquota_iss = Decimal(str(resultado.get('aliquota_iss', 0) or 0))
         valor_iss = Decimal(str(resultado.get('valor_iss', 0) or 0))
-        NFSe.objects.create(
+        nfse = NFSe.objects.create(
             loja_id=loja_id,
             numero_nf=resultado['numero_nf'],
             numero_rps=int(resultado.get('numero_rps') or 0),
@@ -57,8 +57,10 @@ def salvar_nfse_emitida(
             status='emitida',
         )
         logger.info('NFS-e %s salva (provedor=%s, loja_id=%s)', resultado['numero_nf'], provedor, loja_id)
+        return nfse
     except Exception as exc:
-        logger.error('Erro ao salvar NFS-e no banco: %s', exc)
+        logger.error('Erro ao salvar NFS-e no banco: %s', exc, exc_info=True)
+        return None
 
 
 def registrar_falha_emissao_loja(

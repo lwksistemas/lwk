@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { AlertTriangle, X } from 'lucide-react';
-import type { AssinaturaAviso } from '@/hooks/useLojaInadimplenciaGuard';
+import type { AssinaturaAviso } from '@/lib/assinatura-aviso';
 
 type Props = {
   slug: string;
@@ -25,7 +25,7 @@ export function LojaAssinaturaAvisoBanner({ slug, aviso, visivel, onDismiss }: P
   return (
     <div
       role="alert"
-      className={`sticky top-0 z-[60] border-b px-3 py-2.5 sm:px-4 ${NIVEL_STYLES[aviso.nivel]}`}
+      className={`sticky top-0 z-[100] border-b px-3 py-2.5 sm:px-4 ${NIVEL_STYLES[aviso.nivel]}`}
     >
       <div className="mx-auto flex max-w-7xl items-start gap-3">
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />

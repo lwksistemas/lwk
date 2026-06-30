@@ -1,22 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import type { AssinaturaAviso } from '@/lib/assinatura-aviso';
 
 const ASSINATURA_PATH_RE = /\/assinatura\/?$/;
 const LOGIN_PATH_RE = /\/login\/?$/;
 const TROCAR_SENHA_PATH = '/loja/trocar-senha';
 
-export type AssinaturaAviso = {
-  nivel: 'aviso' | 'urgente' | 'critico';
-  mensagem: string;
-  dias_restantes?: number;
-  dias_atraso?: number;
-  dias_ate_bloqueio?: number;
-  data_vencimento?: string;
-};
+export type { AssinaturaAviso };
 
 function dismissKey(slug: string) {
   const hoje = new Date().toISOString().slice(0, 10);
@@ -28,13 +22,17 @@ function isDismissedToday(slug: string) {
   return sessionStorage.getItem(dismissKey(slug)) === '1';
 }
 
+function hasLojaSession(): boolean {
+  if (typeof window === 'undefined') return false;
+  return Boolean(sessionStorage.getItem('session_id') || sessionStorage.getItem('access_token'));
+}
+
 /**
  * Bloqueio por inadimplência + aviso de vencimento (5 dias antes).
  */
 export function useLojaInadimplenciaGuard(slug: string) {
   const router = useRouter();
   const pathname = usePathname();
-  const checkedRef = useRef('');
   const [aviso, setAviso] = useState<AssinaturaAviso | null>(null);
   const [avisoVisivel, setAvisoVisivel] = useState(false);
 
@@ -47,20 +45,32 @@ export function useLojaInadimplenciaGuard(slug: string) {
 
   useEffect(() => {
     if (!slug?.trim()) return;
-    if (authService.getUserType() !== 'loja') return;
     if (LOGIN_PATH_RE.test(pathname) || pathname === TROCAR_SENHA_PATH) {
       return;
     }
 
-    const key = `${slug}:${pathname}`;
-    if (checkedRef.current === key) return;
-    checkedRef.current = key;
-
     let cancelled = false;
-    (async () => {
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const applyAviso = (avisoData: AssinaturaAviso | null | undefined) => {
+      if (avisoData?.mensagem) {
+        setAviso(avisoData);
+        setAvisoVisivel(!isDismissedToday(slug.trim()));
+      } else {
+        setAviso(null);
+        setAvisoVisivel(false);
+      }
+    };
+
+    const fetchStatus = async (): Promise<boolean> => {
+      if (!hasLojaSession()) return false;
+      if (authService.getUserType() !== 'loja') return false;
+
       try {
-        const { data } = await apiClient.get('/superadmin/lojas/heartbeat/');
-        if (cancelled) return;
+        const { data } = await apiClient.get('/superadmin/lojas/heartbeat/', {
+          params: { slug: slug.trim() },
+        });
+        if (cancelled) return true;
 
         if (data?.is_blocked) {
           setAviso(null);
@@ -69,24 +79,32 @@ export function useLojaInadimplenciaGuard(slug: string) {
           if (!ASSINATURA_PATH_RE.test(pathname) && !pathname.startsWith(target)) {
             router.replace(target);
           }
-          return;
+          return true;
         }
 
-        const avisoData = data?.assinatura_aviso as AssinaturaAviso | null | undefined;
-        if (avisoData?.mensagem) {
-          setAviso(avisoData);
-          setAvisoVisivel(!isDismissedToday(slug));
-        } else {
-          setAviso(null);
-          setAvisoVisivel(false);
-        }
+        applyAviso(data?.assinatura_aviso as AssinaturaAviso | null | undefined);
+        return true;
       } catch {
-        /* heartbeat falhou: middleware/API retorna 403 em rotas bloqueadas */
+        return false;
       }
+    };
+
+    const scheduleRetry = (attempt: number) => {
+      if (cancelled || attempt > 12) return;
+      retryTimer = setTimeout(async () => {
+        const ok = await fetchStatus();
+        if (!ok && !cancelled) scheduleRetry(attempt + 1);
+      }, 400);
+    };
+
+    void (async () => {
+      const ok = await fetchStatus();
+      if (!ok && !cancelled) scheduleRetry(1);
     })();
 
     return () => {
       cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [slug, pathname, router]);
 

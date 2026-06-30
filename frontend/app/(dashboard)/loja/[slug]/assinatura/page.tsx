@@ -31,6 +31,8 @@ import {
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import { NovaCobrancaModal } from './components/NovaCobrancaModal';
 import { HistoricoPagamentos, type HistoricoPagamentoItem } from './components/HistoricoPagamentos';
+import { AssinaturaAvisoAlert } from '@/components/loja/AssinaturaAvisoAlert';
+import { calcularAvisoAssinaturaLocal, type AssinaturaAviso } from '@/lib/assinatura-aviso';
 
 interface AssinaturaData {
   loja: { id: number; nome: string; slug: string; plano: string; tipo_assinatura: string };
@@ -56,6 +58,7 @@ interface AssinaturaData {
     asaas_payment_id?: string;
   } | null;
   historico_pagamentos?: HistoricoPagamentoItem[];
+  assinatura_aviso?: AssinaturaAviso | null;
 }
 
 const STATUS_BADGE: Record<string, 'default' | 'secondary' | 'destructive'> = {
@@ -241,6 +244,9 @@ export default function AssinaturaLojaPage() {
     const fin = data.financeiro;
     const pp = data.proximo_pagamento;
     const historico = data.historico_pagamentos ?? [];
+    const avisoAssinatura =
+      data.assinatura_aviso ??
+      calcularAvisoAssinaturaLocal(fin.data_proxima_cobranca);
     const temPagamentoAberto =
       (fin.tem_asaas || fin.tem_mercadopago) && (fin.boleto_url || fin.pix_copy_paste);
 
@@ -257,6 +263,7 @@ export default function AssinaturaLojaPage() {
 
     return (
       <>
+        <AssinaturaAvisoAlert slug={slug} aviso={avisoAssinatura} className="mb-4" />
         <HistoricoPagamentos
           itens={historico}
           slug={slug}

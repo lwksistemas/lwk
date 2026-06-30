@@ -527,6 +527,17 @@ class ISSNetClient:
             logger.warning('Erro ao verificar cancelamento via URL ISSNet: %s', e)
             return {'success': False, 'error': str(e)}
 
+    def _variantes_xml_consulta(self, xml_consulta: str, *, assinar: bool = True) -> list[str]:
+        variantes: list[str] = []
+        if assinar:
+            try:
+                variantes.append(self._assinar_xml(xml_consulta))
+            except Exception as exc:
+                logger.warning('Falha ao assinar consulta ISSNet: %s', exc)
+        if xml_consulta not in variantes:
+            variantes.append(xml_consulta)
+        return variantes
+
     def _executar_consulta_nfse(
         self,
         *,
@@ -575,12 +586,18 @@ class ISSNetClient:
             xml_consulta = construir_xml_consultar_nfse_servico_prestado(
                 str(numero_nf), cnpj, inscricao_municipal or ''
             )
-            return self._executar_consulta_nfse(
-                nome_operacao='ConsultarNfseServicoPrestado',
-                soap_action_uri='http://nfse.abrasf.org.br/ConsultarNfseServicoPrestado',
-                dados_xml=xml_consulta,
-                numero_nf_esperado=str(numero_nf),
-            )
+            last_err = 'NFS-e não encontrada no ISSNet.'
+            for dados in self._variantes_xml_consulta(xml_consulta, assinar=True):
+                out = self._executar_consulta_nfse(
+                    nome_operacao='ConsultarNfseServicoPrestado',
+                    soap_action_uri='http://nfse.abrasf.org.br/ConsultarNfseServicoPrestado',
+                    dados_xml=dados,
+                    numero_nf_esperado=str(numero_nf),
+                )
+                if out.get('success') and out.get('numero_nf'):
+                    return out
+                last_err = str(out.get('error') or last_err)
+            return {'success': False, 'error': last_err}
         except Exception as e:
             logger.exception('Erro ao consultar NFS-e por número: %s', e)
             return {'success': False, 'error': str(e)}
@@ -597,12 +614,18 @@ class ISSNetClient:
             xml_consulta = construir_xml_consultar_nfse_por_faixa(
                 str(numero_nf), cnpj, inscricao_municipal or ''
             )
-            return self._executar_consulta_nfse(
-                nome_operacao='ConsultarNfsePorFaixa',
-                soap_action_uri='http://nfse.abrasf.org.br/ConsultarNfsePorFaixa',
-                dados_xml=xml_consulta,
-                numero_nf_esperado=str(numero_nf),
-            )
+            last_err = 'NFS-e não encontrada no ISSNet.'
+            for dados in self._variantes_xml_consulta(xml_consulta, assinar=True):
+                out = self._executar_consulta_nfse(
+                    nome_operacao='ConsultarNfsePorFaixa',
+                    soap_action_uri='http://nfse.abrasf.org.br/ConsultarNfsePorFaixa',
+                    dados_xml=dados,
+                    numero_nf_esperado=str(numero_nf),
+                )
+                if out.get('success') and out.get('numero_nf'):
+                    return out
+                last_err = str(out.get('error') or last_err)
+            return {'success': False, 'error': last_err}
         except Exception as e:
             logger.exception('Erro ao consultar NFS-e por faixa: %s', e)
             return {'success': False, 'error': str(e)}
@@ -644,50 +667,40 @@ class ISSNetClient:
                 prestador_cnpj=prestador_cnpj or self.usuario or '',
                 inscricao_municipal=inscricao_municipal or '',
             )
-            # Consulta por RPS: mTLS obrigatório; XML de envio não deve ser assinado (ABRASF/ISSNet).
-
-            parsed, xml_body = self._post_soap_operacao(
-                nome_operacao='ConsultarNfsePorRps',
-                soap_action_uri='http://nfse.abrasf.org.br/ConsultarNfsePorRps',
-                dados_xml=xml_consulta,
-            )
-
-            resp_str = (xml_body or str(parsed or '')).strip()
-            if not resp_str:
-                return {'success': False, 'error': 'Resposta vazia ao consultar NFS-e por RPS.'}
-
-            # Erro de negócio (ListaMensagemRetorno), não confundir com sucesso de consulta.
-            if re.search(r'<\s*ListaMensagemRetorno\b', resp_str, re.I):
-                return {
-                    'success': False,
-                    'error': self._extrair_erros(resp_str),
-                    'raw': resp_str[:500],
-                    'raw_xml': resp_str[:8000],
-                }
-
-            cancelada = bool(
-                re.search(
-                    r'<\s*(Cancelamento|NfseCancelada|ConfirmacaoCancelamento)\b',
-                    resp_str,
-                    re.I,
-                )
-                or re.search(r'DataHoraCancelamento', resp_str, re.I)
-            )
-            if cancelada:
-                return {'success': True, 'cancelada': True, 'raw_xml': resp_str[:8000]}
-
-            nf = self._parse_resposta_xml(resp_str)
-            if nf.get('success'):
-                return {**nf, 'cancelada': False, 'raw_xml': resp_str[:8000]}
-
-            if parsed and parsed.get('success') is False:
-                return {**parsed, 'raw_xml': resp_str[:8000]}
-
-            return {
-                'success': False,
-                'error': nf.get('error') or 'NFS-e não encontrada na resposta do ISSNet.',
-                'raw_xml': resp_str[:8000],
-            }
+            last_err = 'NFS-e não encontrada na resposta do ISSNet.'
+            for dados in self._variantes_xml_consulta(xml_consulta, assinar=False):
+                try:
+                    dados_ass = self._assinar_xml(dados)
+                except Exception:
+                    dados_ass = None
+                for xml_try in [d for d in (dados, dados_ass) if d]:
+                    parsed, xml_body = self._post_soap_operacao(
+                        nome_operacao='ConsultarNfsePorRps',
+                        soap_action_uri='http://nfse.abrasf.org.br/ConsultarNfsePorRps',
+                        dados_xml=xml_try,
+                    )
+                    resp_str = (xml_body or '').strip()
+                    if not resp_str:
+                        continue
+                    if re.search(r'<\s*ListaMensagemRetorno\b', resp_str, re.I):
+                        last_err = self._extrair_erros(resp_str)
+                        continue
+                    cancelada = bool(
+                        re.search(
+                            r'<\s*(Cancelamento|NfseCancelada|ConfirmacaoCancelamento)\b',
+                            resp_str,
+                            re.I,
+                        )
+                        or re.search(r'DataHoraCancelamento', resp_str, re.I)
+                    )
+                    if cancelada:
+                        return {'success': True, 'cancelada': True, 'raw_xml': resp_str[:8000]}
+                    nf = self._parse_resposta_xml(resp_str)
+                    if nf.get('success'):
+                        return {**nf, 'cancelada': False, 'raw_xml': resp_str[:8000]}
+                    if parsed and parsed.get('success') is False:
+                        last_err = str(parsed.get('error') or last_err)
+            return {'success': False, 'error': last_err}
         except Exception as e:
             logger.exception('Erro ao consultar NFS-e por RPS: %s', e)
             return {'success': False, 'error': str(e)}

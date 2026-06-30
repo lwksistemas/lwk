@@ -517,6 +517,18 @@ def _consultar_nfse_issnet_por_rps(
     return None, last_err
 
 
+def _sanitizar_resultado_recuperacao(
+    resultado: dict[str, Any],
+    prestador_cnpj: str,
+) -> dict[str, Any]:
+    out = dict(resultado)
+    prest = re.sub(r'\D', '', prestador_cnpj or '')
+    tom = re.sub(r'\D', '', str(out.get('tomador_cpf_cnpj') or ''))
+    if prest and tom == prest:
+        out['tomador_cpf_cnpj'] = ''
+    return out
+
+
 def _consultar_nfse_issnet_por_numero(
     cfg: Any,
     loja: Any,
@@ -558,8 +570,10 @@ def _consultar_nfse_issnet_por_numero(
     return None, last_err
 
 
-def _consultar_url_nfse_issnet(cfg: Any, loja: Any, numero_nf: str) -> tuple[str | None, str | None]:
-    """Retorna (url_portal, erro)."""
+def _consultar_url_nfse_issnet(
+    cfg: Any, loja: Any, numero_nf: str
+) -> tuple[str | None, dict[str, Any] | None, str | None]:
+    """Retorna (url_portal, parsed_nfse, erro)."""
     from nfse_integration.issnet_loja import issnet_client_loja
 
     cnpj_prestador = getattr(loja, 'cpf_cnpj', '') or ''
@@ -574,9 +588,12 @@ def _consultar_url_nfse_issnet(cfg: Any, loja: Any, numero_nf: str) -> tuple[str
             prestador_cnpj=str(cnpj_prestador),
             inscricao_municipal=str(im_prestador),
         )
+    if out.get('success') and out.get('numero_nf') and out.get('xml_nfse'):
+        url = str(out.get('url') or '')
+        return url or None, out, None
     if out.get('success') and out.get('url'):
-        return str(out['url']), None
-    return None, str(out.get('error') or 'URL da NFS-e não encontrada no ISSNet.')
+        return str(out['url']), None, None
+    return None, None, str(out.get('error') or 'URL da NFS-e não encontrada no ISSNet.')
 
 
 def _enriquecer_resultado_portal_issnet(
@@ -639,7 +656,7 @@ def _resultado_recuperacao_de_parsed(
         valor_dec = Decimal('0')
     return {
         'numero_nf': str(parsed.get('numero_nf', '')).strip(),
-        'numero_rps': rps or int(parsed.get('numero_rps') or 0),
+        'numero_rps': rps or int(detalhes.get('numero_rps') or parsed.get('numero_rps') or 0),
         'codigo_verificacao': parsed.get('codigo_verificacao', ''),
         'data_emissao': parsed.get('data_emissao'),
         'valor': float(valor_dec),
@@ -658,6 +675,7 @@ def _persistir_nfse_recuperada(
     resultado: dict[str, Any],
     *,
     existente: Any | None = None,
+    loja: Any | None = None,
 ) -> Any | None:
     from nfse_integration.persistencia_nfse_loja import (
         atualizar_nfse_recuperada,
@@ -665,8 +683,8 @@ def _persistir_nfse_recuperada(
         salvar_nfse_emitida,
     )
 
-    if existente and nfse_importacao_incompleta(existente, loja=None):
-        return atualizar_nfse_recuperada(existente, resultado)
+    if existente and nfse_importacao_incompleta(existente, loja=loja):
+        return atualizar_nfse_recuperada(existente, resultado, loja=loja)
     if existente:
         return existente
     return salvar_nfse_emitida(loja_id, resultado, '', provedor='issnet')
@@ -727,8 +745,12 @@ def recuperar_nfse_issnet_loja(
         if parsed_numero and parsed_numero.get('numero_nf'):
             parsed = parsed_numero
         url_portal = (getattr(existente_nf, 'pdf_url', '') or '').strip() or None
-        if not url_portal:
-            url_portal, _url_err = _consultar_url_nfse_issnet(cfg, loja, numero_nf_busca)
+        if not url_portal or not parsed:
+            url_cand, parsed_url, _url_err = _consultar_url_nfse_issnet(cfg, loja, numero_nf_busca)
+            if url_cand:
+                url_portal = url_cand
+            if parsed_url and parsed_url.get('numero_nf') and not parsed:
+                parsed = parsed_url
 
     if not rps and numero_nf_busca:
         from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps
@@ -745,18 +767,21 @@ def recuperar_nfse_issnet_loja(
         parsed, erro = _consultar_nfse_issnet_por_rps(cfg, loja, rps)
         if not parsed:
             if url_portal:
-                resultado_url = _enriquecer_resultado_portal_issnet(
-                    url_portal,
-                    {
-                        'numero_nf': numero_nf_busca or str(rps),
-                        'numero_rps': rps,
-                        'pdf_url': url_portal,
-                        'servico_descricao': 'Recuperada do ISSNet (consulta por URL)',
-                    },
-                    **_kwargs_portal(),
+                resultado_url = _sanitizar_resultado_recuperacao(
+                    _enriquecer_resultado_portal_issnet(
+                        url_portal,
+                        {
+                            'numero_nf': numero_nf_busca or str(rps),
+                            'numero_rps': rps,
+                            'pdf_url': url_portal,
+                            'servico_descricao': 'Recuperada do ISSNet (consulta por URL)',
+                        },
+                        **_kwargs_portal(),
+                    ),
+                    cnpj_prestador,
                 )
                 nfse = _persistir_nfse_recuperada(
-                    loja_id, resultado_url, existente=existente_nf
+                    loja_id, resultado_url, existente=existente_nf, loja=loja
                 )
                 if nfse:
                     incompleta = not (
@@ -784,17 +809,22 @@ def recuperar_nfse_issnet_loja(
                 http_status.HTTP_404_NOT_FOUND,
             )
     elif not rps and numero_nf_busca and url_portal:
-        resultado_url = _enriquecer_resultado_portal_issnet(
-            url_portal,
-            {
-                'numero_nf': numero_nf_busca,
-                'numero_rps': 0,
-                'pdf_url': url_portal,
-                'servico_descricao': 'Recuperada do ISSNet (consulta por URL)',
-            },
-            **_kwargs_portal(),
+        resultado_url = _sanitizar_resultado_recuperacao(
+            _enriquecer_resultado_portal_issnet(
+                url_portal,
+                {
+                    'numero_nf': numero_nf_busca,
+                    'numero_rps': 0,
+                    'pdf_url': url_portal,
+                    'servico_descricao': 'Recuperada do ISSNet (consulta por URL)',
+                },
+                **_kwargs_portal(),
+            ),
+            cnpj_prestador,
         )
-        nfse = _persistir_nfse_recuperada(loja_id, resultado_url, existente=existente_nf)
+        nfse = _persistir_nfse_recuperada(
+            loja_id, resultado_url, existente=existente_nf, loja=loja
+        )
         if nfse:
             incompleta = not (
                 (getattr(nfse, 'tomador_nome', '') or '').strip()
@@ -860,7 +890,8 @@ def recuperar_nfse_issnet_loja(
         resultado,
         **_kwargs_portal(),
     )
-    nfse = _persistir_nfse_recuperada(loja_id, resultado, existente=existente)
+    resultado = _sanitizar_resultado_recuperacao(resultado, cnpj_prestador)
+    nfse = _persistir_nfse_recuperada(loja_id, resultado, existente=existente, loja=loja)
     if not nfse:
         return (
             {'success': False, 'error': 'Falha ao gravar NFS-e recuperada no banco.'},

@@ -103,12 +103,7 @@ class IssnetRecuperacaoXmlTest(TestCase):
             tomador_nome='',
             numero_rps=0,
             servico_descricao='Recuperada do ISSNet (consulta por URL)',
-        )
-        completa = SimpleNamespace(
-            valor=100,
-            tomador_nome='Cliente',
-            numero_rps=155,
-            servico_descricao='Serviço prestado',
+            tomador_cpf_cnpj='',
         )
         incompleta_prest = SimpleNamespace(
             valor=0,
@@ -117,10 +112,17 @@ class IssnetRecuperacaoXmlTest(TestCase):
             servico_descricao='Recuperada do ISSNet (consulta por URL)',
             tomador_cpf_cnpj='41449198000172',
         )
+        completa = SimpleNamespace(
+            valor=100,
+            tomador_nome='Cliente',
+            numero_rps=155,
+            servico_descricao='Serviço prestado',
+            tomador_cpf_cnpj='24758458000172',
+        )
         loja = SimpleNamespace(cpf_cnpj='41449198000172')
-        self.assertTrue(nfse_importacao_incompleta(incompleta))
+        self.assertTrue(nfse_importacao_incompleta(incompleta, loja=loja))
         self.assertTrue(nfse_importacao_incompleta(incompleta_prest, loja=loja))
-        self.assertFalse(nfse_importacao_incompleta(completa))
+        self.assertFalse(nfse_importacao_incompleta(completa, loja=loja))
 
     def test_construir_xml_consultar_rps_tem_prestador(self):
         from nfse_integration.issnet_xml_builder import construir_xml_consultar_nfse_por_rps

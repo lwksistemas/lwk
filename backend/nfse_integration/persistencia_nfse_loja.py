@@ -105,17 +105,21 @@ def nfse_importacao_incompleta(nfse: Any, loja: Any | None = None) -> bool:
         return False
     valor = Decimal(str(getattr(nfse, 'valor', 0) or 0))
     tomador = (getattr(nfse, 'tomador_nome', '') or '').strip()
-    rps = int(getattr(nfse, 'numero_rps', 0) or 0)
-    desc = (getattr(nfse, 'servico_descricao', '') or '').strip()
-    desc_generica = desc.startswith('Recuperada do ISSNet')
     prest_cnpj = re.sub(r'\D', '', getattr(loja, 'cpf_cnpj', '') or '') if loja else ''
     tom_doc = re.sub(r'\D', '', getattr(nfse, 'tomador_cpf_cnpj', '') or '')
-    tomador_e_prestador = bool(prest_cnpj and tom_doc and tom_doc == prest_cnpj)
-    sem_dados = valor <= 0 or not tomador or tomador_e_prestador
-    return sem_dados and (rps <= 0 or desc_generica or not tomador or tomador_e_prestador)
+    if prest_cnpj and tom_doc == prest_cnpj:
+        return True
+    if valor <= 0 or not tomador:
+        return True
+    return False
 
 
-def atualizar_nfse_recuperada(nfse: Any, resultado: dict[str, Any]) -> Any | None:
+def atualizar_nfse_recuperada(
+    nfse: Any,
+    resultado: dict[str, Any],
+    *,
+    loja: Any | None = None,
+) -> Any | None:
     """Atualiza NFS-e incompleta com dados obtidos na recuperação."""
     if not nfse:
         return None
@@ -143,10 +147,14 @@ def atualizar_nfse_recuperada(nfse: Any, resultado: dict[str, Any]) -> Any | Non
         if resultado.get('tomador_nome'):
             nfse.tomador_nome = str(resultado['tomador_nome'])[:200]
             update_fields.append('tomador_nome')
-        if resultado.get('tomador_cpf_cnpj'):
-            novo_doc = normalizar_cpf_cnpj(str(resultado['tomador_cpf_cnpj']))[:18]
-            if novo_doc:
+        if 'tomador_cpf_cnpj' in resultado:
+            novo_doc = normalizar_cpf_cnpj(str(resultado.get('tomador_cpf_cnpj') or ''))[:18]
+            prest = re.sub(r'\D', '', getattr(loja, 'cpf_cnpj', '') or '') if loja else ''
+            if not (prest and novo_doc == prest):
                 nfse.tomador_cpf_cnpj = novo_doc
+                update_fields.append('tomador_cpf_cnpj')
+            elif nfse.tomador_cpf_cnpj:
+                nfse.tomador_cpf_cnpj = ''
                 update_fields.append('tomador_cpf_cnpj')
         if resultado.get('servico_descricao'):
             nfse.servico_descricao = str(resultado['servico_descricao'])[:500]
@@ -157,6 +165,9 @@ def atualizar_nfse_recuperada(nfse: Any, resultado: dict[str, Any]) -> Any | Non
         if resultado.get('pdf_url'):
             nfse.pdf_url = str(resultado['pdf_url'])[:500]
             update_fields.append('pdf_url')
+        if resultado.get('tomador_email'):
+            nfse.tomador_email = str(resultado['tomador_email'])[:254]
+            update_fields.append('tomador_email')
         if not update_fields:
             return nfse
         nfse.save(update_fields=update_fields)

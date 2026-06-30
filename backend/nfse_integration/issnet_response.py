@@ -198,6 +198,9 @@ def extrair_detalhes_nfse_xml(xml_str: str) -> dict[str, Any]:
         cpf = tomador.findtext(f'.//{{{ns}}}Cpf', '') or ''
         cnpj = tomador.findtext(f'.//{{{ns}}}Cnpj', '') or ''
         out['tomador_cpf_cnpj'] = cnpj or cpf or ''
+    id_rps = inf.find(f'.//{{{ns}}}IdentificacaoRps/{{{ns}}}Numero')
+    if id_rps is not None and (id_rps.text or '').strip().isdigit():
+        out['numero_rps'] = int((id_rps.text or '').strip())
     return out
 
 

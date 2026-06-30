@@ -246,6 +246,7 @@ class SecurityIsolationMiddleware:
                 '/alterar_senha_primeiro_acesso/',
                 '/reenviar_senha/',
                 '/financeiro/',
+                '/loja-financeiro/',
                 '/loja-pagamentos/',  # baixar_boleto_pdf, gerar_pix, etc. (IsLojaOwner verifica)
             ]
             

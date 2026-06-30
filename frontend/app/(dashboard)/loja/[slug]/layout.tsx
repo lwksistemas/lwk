@@ -8,6 +8,7 @@ import { useInactivityLogout } from '@/hooks/useInactivityLogout';
 import { registrarSincronizacaoAoVoltarOnline } from '@/lib/offline-sync';
 import CapturaErrosNavegador from '@/components/suporte/CapturaErrosNavegador';
 import { authService, syncLojaTenantSlug } from '@/lib/auth';
+import { useLojaInadimplenciaGuard } from '@/hooks/useLojaInadimplenciaGuard';
 
 const PWA_LOJA_SLUG_KEY = 'pwa_loja_slug';
 
@@ -22,6 +23,7 @@ export default function LojaLayout({
   // Monitorar sessão em tempo real
   useSessionMonitor();
   useInactivityLogout();
+  useLojaInadimplenciaGuard(slug);
 
   // Modo offline: ao voltar online, sincronizar fila de agendamentos (e demais itens) pendentes
   useEffect(() => {

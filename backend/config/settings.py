@@ -54,6 +54,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',  # ✅ DEVE VIR ANTES do SecurityIsolationMiddleware
     'config.security_middleware.SecurityIsolationMiddleware',  # ✅ MOVIDO PARA DEPOIS do AuthenticationMiddleware
+    'superadmin.middleware.inadimplencia.LojaInadimplenciaMiddleware',
     'core.mixins.LojaContextMiddleware',
     'tenants.middleware.TenantMiddleware',
     'core.middleware.no_cache_api.NoCacheAPIMiddleware',  # ✅ v1375: Prevenir cache de APIs

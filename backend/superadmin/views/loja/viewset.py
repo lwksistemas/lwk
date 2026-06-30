@@ -80,7 +80,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             return Response({'error': 'slug é obrigatório'}, status=400)
         slug = slug.strip().lower()
         
-        cache_key = f'loja_info_publica_v3:{slug}'
+        cache_key = f'loja_info_publica_v4:{slug}'
         cached_data = cache.get(cache_key)
         if cached_data:
             logger.debug(f'✅ Cache HIT para loja {slug}')
@@ -163,6 +163,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
                 'requer_cpf_cnpj': False,
                 'endereco': endereco,
                 'cpf_cnpj': cpf_cnpj_digits,
+                'is_blocked': bool(getattr(loja, 'is_blocked', False)),
             }
             
             cache.set(cache_key, data, 300)
@@ -292,13 +293,31 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
         
         SessionManager.update_activity(request.user.id)
         session_info = SessionManager.get_session_info(request.user.id)
+
+        is_blocked = False
+        loja_slug = None
+        try:
+            from core.store_membership import resolve_loja_for_user
+            slug_hint = (
+                request.query_params.get('slug')
+                or request.headers.get('X-Tenant-Slug')
+                or request.headers.get('X-Store-Slug')
+            )
+            loja = resolve_loja_for_user(request.user, slug_hint)
+            if loja:
+                is_blocked = bool(loja.is_blocked)
+                loja_slug = loja.slug
+        except Exception:
+            pass
         
         return Response({
             'status': 'alive',
             'user': request.user.username,
             'user_id': request.user.id,
             'timestamp': timezone.now().isoformat(),
-            'session': session_info
+            'session': session_info,
+            'is_blocked': is_blocked,
+            'loja_slug': loja_slug,
         }, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'], permission_classes=[IsSuperAdmin])

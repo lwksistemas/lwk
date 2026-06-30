@@ -244,6 +244,15 @@ function applyLojaInterceptors(instance: AxiosInstance) {
         error.response != null ? (code ?? '') : ''
       );
       if (handle507(error)) return Promise.reject(error);
+      if (error.response?.status === 403 && code === 'STORE_BLOCKED_INADIMPLENCIA') {
+        const redirect = error.response?.data?.redirect as string | undefined;
+        const slug = error.response?.data?.loja_slug as string | undefined;
+        const target = redirect || (slug ? `/loja/${slug}/assinatura` : '');
+        if (typeof window !== 'undefined' && target && !window.location.pathname.startsWith(target)) {
+          window.location.replace(target);
+        }
+        return Promise.reject(error);
+      }
       if (error.response?.status === 401) {
         return handle401(error, instance);
       }

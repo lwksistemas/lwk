@@ -6,6 +6,7 @@ Executa a cada 15 minutos:
 - Lembretes WhatsApp de agendamentos clínica (2h; 24h entre 7h–9h)
 - Marca Faltou (NO_SHOW) 2h após horário sem chegada
 - Backups automáticos por email (no minuto :00)
+- Boletos de assinatura (~8h) e verificação de bloqueio por inadimplência
 
 Deploy:
   railway up --service lwks-cron -c railway.cron.toml
@@ -47,6 +48,11 @@ class Command(BaseCommand):
             cobranca = send_cobrancas_pendentes_whatsapp()
             self.stdout.write(f'  Clínica 24h: {clin_24h} | Cobranças WA: {cobranca}')
             call_command('notificar_tarefas_crm', verbosity=1)
+
+        if now.hour == 8 and now.minute < 15:
+            call_command('criar_boletos_proximos', verbosity=1)
+
+        call_command('aplicar_bloqueio_assinaturas', verbosity=1)
 
         from superadmin.tasks import detect_security_violations
         detect_security_violations()

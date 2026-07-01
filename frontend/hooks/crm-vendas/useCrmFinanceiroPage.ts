@@ -89,6 +89,7 @@ export function useCrmFinanceiroPage() {
   const [periodoRelatorio, setPeriodoRelatorio] = useState('mes_atual');
   const [dataInicioRel, setDataInicioRel] = useState('');
   const [dataFimRel, setDataFimRel] = useState('');
+  const [grupoFiltroRelatorio, setGrupoFiltroRelatorio] = useState('');
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
 
@@ -215,17 +216,21 @@ export function useCrmFinanceiroPage() {
     }
   };
 
-  const gerarRelatorioPdf = async () => {
+  const gerarRelatorioPdf = async (grupoIdOverride?: number) => {
     if (periodoRelatorio === 'personalizado' && (!dataInicioRel || !dataFimRel)) {
       alert('Informe data início e fim para o período personalizado.');
       return;
     }
     setGerandoPdf(true);
     try {
+      const grupoId =
+        grupoIdOverride ??
+        (grupoFiltroRelatorio ? Number(grupoFiltroRelatorio) : null);
       const payload: Record<string, unknown> = {
         periodo: periodoRelatorio,
         vendedor_id: vendedorFiltro ? Number(vendedorFiltro) : null,
       };
+      if (grupoId) payload.grupo_id = grupoId;
       if (periodoRelatorio === 'personalizado') {
         payload.data_inicio = dataInicioRel;
         payload.data_fim = dataFimRel;
@@ -233,10 +238,13 @@ export function useCrmFinanceiroPage() {
       const res = await apiClient.post('crm-vendas/financeiro/relatorio/', payload, {
         responseType: 'blob',
       });
+      const grupoSlug = grupoId
+        ? grupos.find((g) => g.id === grupoId)?.nome.replace(/\s+/g, '_').toLowerCase() ?? `grupo_${grupoId}`
+        : 'geral';
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `financeiro_crm_${periodoRelatorio}.pdf`;
+      link.download = `financeiro_crm_${periodoRelatorio}_${grupoSlug}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -308,6 +316,8 @@ export function useCrmFinanceiroPage() {
     setDataInicioRel,
     dataFimRel,
     setDataFimRel,
+    grupoFiltroRelatorio,
+    setGrupoFiltroRelatorio,
     gerandoPdf,
     gerarRelatorioPdf,
     sincronizando,

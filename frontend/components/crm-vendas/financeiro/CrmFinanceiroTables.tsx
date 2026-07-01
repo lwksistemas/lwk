@@ -128,6 +128,93 @@ export function CrmFinanceiroLancamentosTable({
   );
 }
 
+export function CrmFinanceiroResumoPorGrupo({
+  itens,
+  tipo,
+  gerandoPdf,
+  onGerarPdfGrupo,
+}: {
+  itens: LancamentoFinanceiro[];
+  tipo: TipoFinanceiro;
+  gerandoPdf: boolean;
+  onGerarPdfGrupo: (grupoId: number) => void;
+}) {
+  const cor = tipo === 'receita' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400';
+
+  const porGrupo = new Map<
+    number | null,
+    { nome: string; pago: number; pendente: number; qtd: number }
+  >();
+
+  for (const item of itens) {
+    const key = item.grupo ?? null;
+    const nome = item.grupo_nome || 'Sem grupo';
+    const row = porGrupo.get(key) ?? { nome, pago: 0, pendente: 0, qtd: 0 };
+    row.qtd += 1;
+    if (item.status === 'pago') row.pago += Number(item.valor);
+    else if (item.status === 'pendente') row.pendente += Number(item.valor);
+    porGrupo.set(key, row);
+  }
+
+  const linhas = [...porGrupo.entries()].sort((a, b) => {
+    const totalA = a[1].pago + a[1].pendente;
+    const totalB = b[1].pago + b[1].pendente;
+    return totalB - totalA;
+  });
+
+  if (!linhas.length) {
+    return (
+      <p className="text-sm text-gray-500 dark:text-gray-400 py-4 text-center">
+        Nenhum lançamento por grupo no período.
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50 dark:bg-gray-800/80">
+          <tr>
+            <th className="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-300">Grupo</th>
+            <th className="text-right py-2 px-3 font-medium text-gray-600 dark:text-gray-300">Qtd.</th>
+            <th className="text-right py-2 px-3 font-medium text-gray-600 dark:text-gray-300">Pago</th>
+            <th className="text-right py-2 px-3 font-medium text-gray-600 dark:text-gray-300">Pendente</th>
+            <th className="text-right py-2 px-3 font-medium text-gray-600 dark:text-gray-300">Total</th>
+            <th className="text-right py-2 px-3 font-medium text-gray-600 dark:text-gray-300">PDF</th>
+          </tr>
+        </thead>
+        <tbody>
+          {linhas.map(([grupoId, row]) => (
+            <tr key={grupoId ?? 'sem-grupo'} className="border-t border-gray-100 dark:border-gray-800">
+              <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">{row.nome}</td>
+              <td className="py-2 px-3 text-right text-gray-600 dark:text-gray-400">{row.qtd}</td>
+              <td className={`py-2 px-3 text-right font-medium ${cor}`}>{formatCurrency(row.pago)}</td>
+              <td className={`py-2 px-3 text-right font-medium ${cor}`}>{formatCurrency(row.pendente)}</td>
+              <td className={`py-2 px-3 text-right font-semibold ${cor}`}>
+                {formatCurrency(row.pago + row.pendente)}
+              </td>
+              <td className="py-2 px-3 text-right">
+                {grupoId ? (
+                  <button
+                    type="button"
+                    disabled={gerandoPdf}
+                    onClick={() => onGerarPdfGrupo(grupoId)}
+                    className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+                  >
+                    PDF
+                  </button>
+                ) : (
+                  <span className="text-xs text-gray-400">—</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function CrmFinanceiroResumoCards({
   resumo,
   loading,

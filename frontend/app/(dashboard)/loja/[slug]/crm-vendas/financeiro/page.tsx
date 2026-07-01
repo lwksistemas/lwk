@@ -8,6 +8,7 @@ import {
   CrmFinanceiroGruposTable,
   CrmFinanceiroLancamentosTable,
   CrmFinanceiroResumoCards,
+  CrmFinanceiroResumoPorGrupo,
 } from '@/components/crm-vendas/financeiro/CrmFinanceiroTables';
 import { CrmGrupoModal, CrmLancamentoModal } from '@/components/crm-vendas/financeiro/CrmFinanceiroModals';
 import { formatCurrency } from '@/lib/financeiro-helpers';
@@ -48,8 +49,14 @@ export default function CrmFinanceiroPage() {
 
   const cfg = TIPO_CONFIG[tipoAtivo];
   const lancamentos = tipoAtivo === 'despesa' ? f.lancamentosDespesa : f.lancamentosReceita;
+  const gruposTipo = f.grupos.filter((g) => g.tipo === tipoAtivo && g.is_active);
   const totalPago = f.resumo ? cfg.totalPago(f.resumo) : 0;
   const totalPendente = f.resumo ? cfg.totalPendente(f.resumo) : 0;
+
+  const selecionarTipo = (tipo: TipoFinanceiro) => {
+    setTipoAtivo(tipo);
+    f.setGrupoFiltroRelatorio('');
+  };
 
   return (
     <div className="w-full flex flex-col flex-1 min-h-0 gap-4 -m-2 sm:-m-4 lg:-m-6 p-2 sm:p-4 lg:p-6">
@@ -140,14 +147,27 @@ export default function CrmFinanceiroPage() {
             </div>
           </>
         )}
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Grupo (relatório)</label>
+          <select
+            value={f.grupoFiltroRelatorio}
+            onChange={(e) => f.setGrupoFiltroRelatorio(e.target.value)}
+            className="rounded border px-3 py-1.5 text-sm dark:bg-gray-800 dark:border-gray-700 min-w-[160px]"
+          >
+            <option value="">Todos os grupos</option>
+            {gruposTipo.map((g) => (
+              <option key={g.id} value={g.id}>{g.nome}</option>
+            ))}
+          </select>
+        </div>
         <button
           type="button"
-          onClick={f.gerarRelatorioPdf}
+          onClick={() => f.gerarRelatorioPdf()}
           disabled={f.gerandoPdf}
           className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded bg-gray-800 text-white hover:bg-gray-900 disabled:opacity-50 dark:bg-gray-700 ml-auto"
         >
           <FileText size={16} />
-          {f.gerandoPdf ? 'Gerando...' : 'PDF'}
+          {f.gerandoPdf ? 'Gerando...' : f.grupoFiltroRelatorio ? 'PDF do grupo' : 'PDF geral'}
         </button>
       </div>
 
@@ -191,7 +211,7 @@ export default function CrmFinanceiroPage() {
             <button
               key={tipo}
               type="button"
-              onClick={() => setTipoAtivo(tipo)}
+              onClick={() => selecionarTipo(tipo)}
               className={`px-5 py-2.5 text-sm font-semibold rounded-lg border transition-colors ${
                 ativo
                   ? tab.corTabAtiva
@@ -203,6 +223,23 @@ export default function CrmFinanceiroPage() {
           );
         })}
       </div>
+
+      <section className="shrink-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 className="font-semibold text-gray-900 dark:text-white">
+            Relatório por grupo — {cfg.titulo.toLowerCase()}
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Totais no período selecionado · clique em PDF para baixar por grupo
+          </p>
+        </div>
+        <CrmFinanceiroResumoPorGrupo
+          itens={lancamentos}
+          tipo={tipoAtivo}
+          gerandoPdf={f.gerandoPdf}
+          onGerarPdfGrupo={(grupoId) => f.gerarRelatorioPdf(grupoId)}
+        />
+      </section>
 
       <section className="flex flex-col flex-1 min-h-[min(70vh,720px)] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
         <header className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b ${cfg.corHeader}`}>

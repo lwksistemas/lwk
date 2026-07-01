@@ -14,8 +14,8 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .models import Vendedor
-from .models.financeiro import LancamentoFinanceiroCRM
-from .relatorios import _criar_cabecalho_relatorio, _obter_logo_loja, calcular_periodo
+from .models.financeiro import GrupoFinanceiroCRM, LancamentoFinanceiroCRM
+from .relatorios import _criar_cabecalho_relatorio, _obter_logo_loja
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,9 @@ def _resolver_periodo(periodo: str, data_inicio=None, data_fim=None):
         if isinstance(data_fim, str):
             data_fim = date.fromisoformat(data_fim[:10])
         return data_inicio, data_fim
-    return calcular_periodo(periodo or 'mes_atual')
+    from .services_financeiro import calcular_intervalo_vencimento
+
+    return calcular_intervalo_vencimento(periodo, data_inicio, data_fim)
 
 
 def gerar_relatorio_financeiro_vendedor(
@@ -63,6 +65,11 @@ def gerar_relatorio_financeiro_vendedor(
         v = Vendedor.objects.filter(id=vendedor_id).first()
         vendedor_nome = v.nome if v else f'Vendedor #{vendedor_id}'
 
+    grupo_nome = 'Todos os grupos'
+    if grupo_id:
+        g = GrupoFinanceiroCRM.objects.filter(loja_id=loja_id, id=grupo_id).first()
+        grupo_nome = g.nome if g else f'Grupo #{grupo_id}'
+
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.5 * cm, leftMargin=1.5 * cm, topMargin=1.5 * cm, bottomMargin=1.5 * cm)
     styles = getSampleStyleSheet()
@@ -72,10 +79,13 @@ def gerar_relatorio_financeiro_vendedor(
     elements = []
     logo = _obter_logo_loja(loja_id)
     titulo = 'Relatório Financeiro — CRM Vendas'
+    if grupo_id:
+        titulo = f'Relatório por Grupo — {grupo_nome}'
     elements.append(_criar_cabecalho_relatorio(logo, titulo))
     elements.append(Spacer(1, 0.4 * cm))
     elements.append(Paragraph(f'<b>Período:</b> {inicio.strftime("%d/%m/%Y")} a {fim.strftime("%d/%m/%Y")}', normal))
     elements.append(Paragraph(f'<b>Vendedor:</b> {vendedor_nome}', normal))
+    elements.append(Paragraph(f'<b>Grupo:</b> {grupo_nome}', normal))
     elements.append(Spacer(1, 0.5 * cm))
 
     receitas = qs.filter(tipo=LancamentoFinanceiroCRM.TIPO_RECEITA)
@@ -92,9 +102,11 @@ def gerar_relatorio_financeiro_vendedor(
 
     from .models import Oportunidade
     from .relatorios import _filtro_datas_fechamento_ganho
+    from .services_dashboard import calcular_intervalo_datas
 
+    inicio_opp, fim_opp = calcular_intervalo_datas(periodo, data_inicio, data_fim)
     opp_comissao_qs = Oportunidade.objects.filter(loja_id=loja_id, etapa='closed_won').filter(
-        _filtro_datas_fechamento_ganho(inicio, fim),
+        _filtro_datas_fechamento_ganho(inicio_opp, fim_opp),
     )
     if vendedor_id:
         opp_comissao_qs = opp_comissao_qs.filter(vendedor_id=vendedor_id)
@@ -116,33 +128,34 @@ def gerar_relatorio_financeiro_vendedor(
     elements.append(resumo_table)
     elements.append(Spacer(1, 0.6 * cm))
 
-    def tabela_por_grupo(tipo_label: str, tipo_val: str, cor_header):
-        elements.append(Paragraph(f'<b>{tipo_label} por grupo</b>', normal))
-        elements.append(Spacer(1, 0.2 * cm))
-        por_grupo = (
-            qs.filter(tipo=tipo_val)
-            .values('grupo__nome')
-            .annotate(total=Sum('valor'))
-            .order_by('-total')
-        )
-        rows = [['Grupo', 'Total']]
-        for row in por_grupo:
-            rows.append([row['grupo__nome'] or 'Sem grupo', _fmt_brl(row['total'])])
-        if len(rows) == 1:
-            rows.append(['—', _fmt_brl(0)])
-        tbl = Table(rows, colWidths=[12 * cm, 4 * cm])
-        tbl.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), cor_header),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ]))
-        elements.append(tbl)
-        elements.append(Spacer(1, 0.5 * cm))
+    if not grupo_id:
+        def tabela_por_grupo(tipo_label: str, tipo_val: str, cor_header):
+            elements.append(Paragraph(f'<b>{tipo_label} por grupo</b>', normal))
+            elements.append(Spacer(1, 0.2 * cm))
+            por_grupo = (
+                qs.filter(tipo=tipo_val)
+                .values('grupo__nome')
+                .annotate(total=Sum('valor'))
+                .order_by('-total')
+            )
+            rows = [['Grupo', 'Total']]
+            for row in por_grupo:
+                rows.append([row['grupo__nome'] or 'Sem grupo', _fmt_brl(row['total'])])
+            if len(rows) == 1:
+                rows.append(['—', _fmt_brl(0)])
+            tbl = Table(rows, colWidths=[12 * cm, 4 * cm])
+            tbl.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), cor_header),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ]))
+            elements.append(tbl)
+            elements.append(Spacer(1, 0.5 * cm))
 
-    tabela_por_grupo('Receitas', LancamentoFinanceiroCRM.TIPO_RECEITA, colors.HexColor('#2e7d32'))
-    tabela_por_grupo('Despesas', LancamentoFinanceiroCRM.TIPO_DESPESA, colors.HexColor('#c62828'))
+        tabela_por_grupo('Receitas', LancamentoFinanceiroCRM.TIPO_RECEITA, colors.HexColor('#2e7d32'))
+        tabela_por_grupo('Despesas', LancamentoFinanceiroCRM.TIPO_DESPESA, colors.HexColor('#c62828'))
 
     elements.append(Paragraph('<b>Detalhamento</b>', normal))
     elements.append(Spacer(1, 0.2 * cm))

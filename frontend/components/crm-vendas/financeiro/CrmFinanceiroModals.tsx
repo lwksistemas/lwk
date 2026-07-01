@@ -133,6 +133,46 @@ export function CrmLancamentoModal({
                   className={inputCls}
                 />
               </label>
+              {!editing && (
+                <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 p-3 space-y-3">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={recorrente}
+                      onChange={(e) => setRecorrente(e.target.checked)}
+                    />
+                    Pagamento recorrente
+                  </label>
+                  {recorrente && (
+                    <>
+                      <label className={labelCls}>
+                        <span className="text-gray-600 dark:text-gray-400">Frequência</span>
+                        <select
+                          value={frequencia}
+                          onChange={(e) => setFrequencia(e.target.value)}
+                          className={inputCls}
+                        >
+                          <option value="mensal">Mensal</option>
+                          <option value="trimestral">Trimestral</option>
+                          <option value="anual">Anual</option>
+                        </select>
+                      </label>
+                      <label className={labelCls}>
+                        <span className="text-gray-600 dark:text-gray-400">Encerrar em (opcional)</span>
+                        <input
+                          type="date"
+                          value={dataFimRecorrencia}
+                          onChange={(e) => setDataFimRecorrencia(e.target.value)}
+                          className={inputCls}
+                        />
+                      </label>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        O primeiro vencimento usa a data acima; os próximos são gerados automaticamente.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -175,46 +215,6 @@ export function CrmLancamentoModal({
                   className={inputCls}
                 />
               </label>
-              {!editing && (
-                <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 p-3 space-y-3">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    <input
-                      type="checkbox"
-                      checked={recorrente}
-                      onChange={(e) => setRecorrente(e.target.checked)}
-                    />
-                    Pagamento recorrente
-                  </label>
-                  {recorrente && (
-                    <>
-                      <label className={labelCls}>
-                        <span className="text-gray-600 dark:text-gray-400">Frequência</span>
-                        <select
-                          value={frequencia}
-                          onChange={(e) => setFrequencia(e.target.value)}
-                          className={inputCls}
-                        >
-                          <option value="mensal">Mensal</option>
-                          <option value="trimestral">Trimestral</option>
-                          <option value="anual">Anual</option>
-                        </select>
-                      </label>
-                      <label className={labelCls}>
-                        <span className="text-gray-600 dark:text-gray-400">Encerrar em (opcional)</span>
-                        <input
-                          type="date"
-                          value={dataFimRecorrencia}
-                          onChange={(e) => setDataFimRecorrencia(e.target.value)}
-                          className={inputCls}
-                        />
-                      </label>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        O primeiro vencimento usa a data acima; os próximos são gerados automaticamente.
-                      </p>
-                    </>
-                  )}
-                </div>
-              )}
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-5 mt-5 border-t border-gray-100 dark:border-gray-800">

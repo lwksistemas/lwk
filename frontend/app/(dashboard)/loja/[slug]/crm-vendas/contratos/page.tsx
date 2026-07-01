@@ -4,9 +4,8 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
-import {
-  getCrmApiErrorDetail,
-} from '@/lib/crm-utils';
+import { getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { useToast } from '@/components/ui/Toast';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
@@ -57,6 +56,7 @@ interface Contrato {
 type ModalType = 'view' | 'delete' | 'cancelar' | null;
 
 export default function CrmVendasContratosPage() {
+  const toast = useToast();
   const params = useParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
@@ -105,9 +105,9 @@ export default function CrmVendasContratosPage() {
         status: 'assinado',
       });
       await loadContratos();
-      alert('Contrato marcado como assinado com sucesso!');
+      toast.success('Contrato marcado como assinado com sucesso!');
     } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao atualizar status.'));
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao atualizar status.'));
     } finally {
       setAlterandoStatus(null);
     }
@@ -145,7 +145,7 @@ export default function CrmVendasContratosPage() {
       await loadContratos();
       closeModal();
     } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao excluir.'));
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao excluir.'));
     } finally {
       setSubmitting(false);
     }

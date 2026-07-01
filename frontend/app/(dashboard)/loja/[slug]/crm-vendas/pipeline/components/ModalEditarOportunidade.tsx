@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso, formatCrmBrl } from '@/lib/crm-utils';
 import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
+import { useToast } from '@/components/ui/Toast';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import OportunidadeItensEditor from '@/components/crm-vendas/OportunidadeItensEditor';
@@ -39,6 +40,7 @@ interface Props {
 }
 
 export default function ModalEditarOportunidade({ oportunidade, onClose, onSuccess, slug, etapas }: Props) {
+  const toast = useToast();
   const [etapaSelecionada, setEtapaSelecionada] = useState(oportunidade.etapa);
   const [valorComissaoEdit, setValorComissaoEdit] = useState(oportunidade.valor_comissao || '');
   const [dataFechamentoGanho, setDataFechamentoGanho] = useState(oportunidade.data_fechamento_ganho || '');
@@ -114,9 +116,9 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
     try {
       const segment = tipo === 'proposta' ? 'propostas' : 'contratos';
       const msg = await crmEnviarCliente(segment, id, canal);
-      alert(msg || crmMensagemEnvioCanalSucesso(canal));
+      toast.success(msg || crmMensagemEnvioCanalSucesso(canal));
     } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao enviar.'));
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao enviar.'));
     } finally {
       setEnviandoEnvio(false);
     }

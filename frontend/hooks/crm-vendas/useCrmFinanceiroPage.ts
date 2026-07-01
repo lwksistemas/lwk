@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { useToast } from '@/components/ui/Toast';
 
 export type TipoFinanceiro = 'receita' | 'despesa';
 
@@ -72,6 +73,7 @@ async function fetchLancamentosPorTipo(
 }
 
 export function useCrmFinanceiroPage() {
+  const toast = useToast();
   const [resumo, setResumo] = useState<ResumoFinanceiro | null>(null);
   const [lancamentosDespesa, setLancamentosDespesa] = useState<LancamentoFinanceiro[]>([]);
   const [lancamentosReceita, setLancamentosReceita] = useState<LancamentoFinanceiro[]>([]);
@@ -174,7 +176,7 @@ export function useCrmFinanceiroPage() {
       setShowModal(false);
       await loadAll();
     } catch (err) {
-      alert(getCrmApiErrorDetail(err, 'Não foi possível salvar o lançamento.'));
+      toast.error(getCrmApiErrorDetail(err, 'Não foi possível salvar o lançamento.'));
       throw err;
     } finally {
       setSaving(false);
@@ -189,9 +191,9 @@ export function useCrmFinanceiroPage() {
   const removerLancamento = async (item: LancamentoFinanceiro) => {
     if (!item.editavel) {
       if (item.origem === 'recorrencia') {
-        alert('Lançamentos gerados por recorrência não podem ser excluídos.');
+        toast.warning('Lançamentos gerados por recorrência não podem ser excluídos.');
       } else {
-        alert('Lançamentos de comissão automática não podem ser excluídos.');
+        toast.warning('Lançamentos de comissão automática não podem ser excluídos.');
       }
       return;
     }
@@ -222,13 +224,13 @@ export function useCrmFinanceiroPage() {
       await apiClient.delete(`crm-vendas/financeiro-grupos/${grupo.id}/`);
       await loadAll();
     } catch {
-      alert('Não foi possível excluir. O grupo pode estar em uso.');
+      toast.error('Não foi possível excluir. O grupo pode estar em uso.');
     }
   };
 
   const gerarRelatorioPdf = async (grupoIdOverride?: number) => {
     if (periodoRelatorio === 'personalizado' && (!dataInicioRel || !dataFimRel)) {
-      alert('Informe data início e fim para o período personalizado.');
+      toast.warning('Informe data início e fim para o período personalizado.');
       return;
     }
     setGerandoPdf(true);
@@ -260,7 +262,7 @@ export function useCrmFinanceiroPage() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      alert('Erro ao gerar relatório PDF.');
+      toast.error('Erro ao gerar relatório PDF.');
     } finally {
       setGerandoPdf(false);
     }
@@ -276,16 +278,13 @@ export function useCrmFinanceiroPage() {
         ignoradas: number;
         oportunidades_analisadas: number;
       }>('crm-vendas/financeiro/sync-comissoes/', {});
-      alert(
-        `Sincronização concluída.\n` +
-          `Analisadas: ${data.oportunidades_analisadas}\n` +
-          `Criadas: ${data.criadas}\n` +
-          `Atualizadas: ${data.atualizadas}\n` +
-          `Ignoradas: ${data.ignoradas}`,
+      toast.success(
+        `Sincronização concluída. Analisadas: ${data.oportunidades_analisadas}, ` +
+          `criadas: ${data.criadas}, atualizadas: ${data.atualizadas}, ignoradas: ${data.ignoradas}`,
       );
       await loadAll();
     } catch {
-      alert('Erro ao sincronizar comissões.');
+      toast.error('Erro ao sincronizar comissões.');
     } finally {
       setSincronizando(false);
     }

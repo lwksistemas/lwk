@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import apiClient from '@/lib/api-client';
 import { getCrmApiErrorDetail, normalizeListResponse } from '@/lib/crm-utils';
+import { useToast } from '@/components/ui/Toast';
 import { formatTelefone, telefoneInternacionalBr } from '@/lib/format-br';
 import { obterFeriadosBrasil } from '@/lib/feriados-brasil';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
@@ -94,6 +95,7 @@ function atividadeToEvent(a: Atividade): CalendarEvent {
 }
 
 export default function CalendarioCrmPage() {
+  const toast = useToast();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [plugins, setPlugins] = useState<any[]>([]);
@@ -478,7 +480,7 @@ export default function CalendarioCrmPage() {
       );
       await afterSaveSuccess();
       if (typeof window !== 'undefined') {
-        window.alert(res.data.message || 'Atividade salva e lembrete enviado por WhatsApp.');
+        toast.success(res.data.message || 'Atividade salva e lembrete enviado por WhatsApp.');
       }
     } catch (e: unknown) {
       setError(getCrmApiErrorDetail(e, 'Erro ao salvar ou enviar WhatsApp.'));
@@ -496,9 +498,7 @@ export default function CalendarioCrmPage() {
         `${API_CRM}/atividades/${modalAtividade.id}/enviar-whatsapp/`,
         { telefone },
       );
-      if (typeof window !== 'undefined') {
-        window.alert(res.data.message || 'Lembrete enviado por WhatsApp.');
-      }
+      toast.success(res.data.message || 'Lembrete enviado por WhatsApp.');
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string; detail?: string } } };
       setError(err.response?.data?.error || err.response?.data?.detail || 'Erro ao enviar WhatsApp.');
@@ -598,7 +598,7 @@ export default function CalendarioCrmPage() {
       
     } catch (e: any) {
       info.revert();
-      alert(e.response?.data?.detail || 'Erro ao mover atividade.');
+      toast.error(e.response?.data?.detail || 'Erro ao mover atividade.');
     }
   }, [range, fetchAtividades, googleStatus.connected, handleSyncGoogle]);
 
@@ -635,7 +635,7 @@ export default function CalendarioCrmPage() {
       
     } catch (e: any) {
       info.revert();
-      alert(e.response?.data?.detail || 'Erro ao redimensionar atividade.');
+      toast.error(e.response?.data?.detail || 'Erro ao redimensionar atividade.');
     }
   }, [range, fetchAtividades, googleStatus.connected, handleSyncGoogle]);
 

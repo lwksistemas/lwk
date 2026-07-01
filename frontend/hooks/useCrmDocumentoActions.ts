@@ -1,4 +1,7 @@
+'use client';
+
 import { useState } from 'react';
+import { useToast } from '@/components/ui/Toast';
 import {
   getCrmApiErrorDetail,
   crmMensagemEnvioCanalSucesso,
@@ -21,6 +24,7 @@ export function useCrmDocumentoActions(
   tipo: CrmDocumentoTipo,
   reload: (silent?: boolean) => void | Promise<void>,
 ) {
+  const toast = useToast();
   const [enviandoId, setEnviandoId] = useState<number | null>(null);
 
   const handleEnviarCliente = async (doc: CrmDocumentoEnvioFields, canal: 'email' | 'whatsapp') => {
@@ -32,10 +36,10 @@ export function useCrmDocumentoActions(
         vendedorEmail: doc.vendedor_email,
         vendedorTelefone: doc.vendedor_telefone,
       });
-      alert(msg || crmMensagemEnvioCanalSucesso(canal));
+      toast.success(msg || crmMensagemEnvioCanalSucesso(canal));
       await reload(true);
     } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao enviar.'));
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao enviar.'));
     } finally {
       setEnviandoId(null);
     }
@@ -45,7 +49,7 @@ export function useCrmDocumentoActions(
     try {
       await downloadCrmDocumento(tipo, id, titulo, 'pdf');
     } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao baixar PDF.'));
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao baixar PDF.'));
     }
   };
 
@@ -53,7 +57,7 @@ export function useCrmDocumentoActions(
     try {
       await downloadCrmDocumento(tipo, id, titulo, 'docx');
     } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao baixar Word.'));
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao baixar Word.'));
     }
   };
 

@@ -9,6 +9,7 @@ import { authService } from '@/lib/auth';
 import SidebarCrm from '@/components/crm-vendas/SidebarCrm';
 import HeaderCrm from '@/components/crm-vendas/HeaderCrm';
 import { CRMConfigProvider } from '@/contexts/CRMConfigContext';
+import { ToastProvider } from '@/components/ui/Toast';
 import { clearStoreBlockedMark, redirectToAssinatura } from '@/lib/loja-bloqueio-inadimplencia';
 
 interface LojaInfo {
@@ -124,21 +125,23 @@ export function CrmVendasShell({ children }: { children: ReactNode }) {
   if (!ready || !isLoja) return null;
 
   return (
-    <CRMConfigProvider>
-      <div className="flex min-h-screen bg-[#f3f2f2] dark:bg-[#0d1f3c]">
-        <SidebarCrm lojaNome={lojaInfo?.nome} onLogout={handleLogout} />
-        <div className="flex-1 flex flex-col min-w-0">
-          <HeaderCrm
-            title={lojaInfo ? `${lojaInfo.nome}` : 'Sales Cloud'}
-            userName={userDisplayName ?? lojaInfo?.nome ?? 'Admin'}
-            userRole={userRole}
-            slug={slug}
-          />
-          <main className="p-4 sm:p-6 lg:p-8 flex flex-col flex-1 min-h-0 overflow-y-auto bg-[#f3f2f2] dark:bg-[#0d1f3c] w-full">
-            {children}
-          </main>
+    <ToastProvider>
+      <CRMConfigProvider>
+        <div className="flex min-h-screen bg-[#f3f2f2] dark:bg-[#0d1f3c]">
+          <SidebarCrm lojaNome={lojaInfo?.nome} onLogout={handleLogout} />
+          <div className="flex-1 flex flex-col min-w-0">
+            <HeaderCrm
+              title={lojaInfo ? `${lojaInfo.nome}` : 'Sales Cloud'}
+              userName={userDisplayName ?? lojaInfo?.nome ?? 'Admin'}
+              userRole={userRole}
+              slug={slug}
+            />
+            <main className="p-4 sm:p-6 lg:p-8 flex flex-col flex-1 min-h-0 overflow-y-auto bg-[#f3f2f2] dark:bg-[#0d1f3c] w-full">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
-    </CRMConfigProvider>
+      </CRMConfigProvider>
+    </ToastProvider>
   );
 }

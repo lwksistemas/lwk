@@ -7,6 +7,7 @@ import { normalizeListResponse, getCrmApiErrorDetail, gerarTituloProposta, fetch
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
+import { useToast } from '@/components/ui/Toast';
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import PropostaFormContent from '@/components/crm-vendas/PropostaFormContent';
 import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
@@ -16,6 +17,7 @@ import type {
 } from '@/lib/crm-proposta-form-types';
 
 export default function NovaPropostaPage() {
+  const toast = useToast();
   const params = useParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
@@ -140,13 +142,13 @@ export default function NovaPropostaPage() {
       setSalvandoPadrao(true);
       await apiClient.patch('/crm-vendas/config/', { proposta_conteudo_padrao: conteudo });
       setPropostaConteudoPadrao(conteudo);
-      alert('Proposta PADRAO salva com sucesso! O conteúdo será usado em novas propostas.');
+      toast.success('Proposta padrão salva. O conteúdo será usado em novas propostas.');
     } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
     } finally {
       setSalvandoPadrao(false);
     }
-  }, []);
+  }, [toast]);
 
   const handleSave = async () => {
     setFormErro(null);

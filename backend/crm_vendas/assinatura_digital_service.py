@@ -7,6 +7,9 @@ import logging
 from django.utils import timezone
 
 from .assinatura_digital_token import (
+    AVISO_LINK_ANTERIOR,
+    MSG_LINK_SUBSTITUIDO,
+    TOKEN_EXPIRACAO_DIAS,
     criar_token_assinatura,
     normalizar_token_assinatura_url,
     verificar_token_assinatura,
@@ -203,8 +206,26 @@ from .assinatura_digital_notificacoes import (  # noqa: E402,F401
     notificar_vendedor_apos_assinatura_cliente,
     tentar_enviar_link_vendedor,
 )
-from .assinatura_digital_token import (  # noqa: E402,F401
-    MSG_LINK_SUBSTITUIDO,
-    AVISO_LINK_ANTERIOR,
-    TOKEN_EXPIRACAO_DIAS,
-)
+
+__all__ = [
+    # token
+    'criar_token_assinatura',
+    'normalizar_token_assinatura_url',
+    'verificar_token_assinatura',
+    'MSG_LINK_SUBSTITUIDO',
+    'AVISO_LINK_ANTERIOR',
+    'TOKEN_EXPIRACAO_DIAS',
+    # workflow
+    'registrar_assinatura',
+    'reenviar_link_assinatura_pendente',
+    # e-mail / PDF
+    'enviar_email_assinatura_cliente',
+    'enviar_pdf_final',
+    # notificações
+    '_telefone_vendedor_documento',
+    'enviar_link_assinatura_vendedor',
+    'enviar_whatsapp_assinatura_vendedor',
+    'enviar_whatsapp_assinatura_cliente',
+    'notificar_vendedor_apos_assinatura_cliente',
+    'tentar_enviar_link_vendedor',
+]

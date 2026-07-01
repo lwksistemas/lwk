@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse } from '@/lib/crm-utils';
+import { useToast } from '@/components/ui/Toast';
 import { StatsCards } from './components/StatsCards';
 import { RelatorioForm } from './components/RelatorioForm';
 import { RelatoriosComissao } from './components/RelatoriosComissao';
@@ -18,6 +19,7 @@ interface DashboardData {
 }
 
 export default function RelatoriosPage() {
+  const toast = useToast();
   const [periodo, setPeriodo] = useState('mes_atual');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
@@ -66,7 +68,7 @@ export default function RelatoriosPage() {
       const empresaPrestadoraPayload = empresaPrestadoraSelecionada !== 'todas' ? parseInt(empresaPrestadoraSelecionada, 10) : null;
       const payload: Record<string, unknown> = { tipo: tipoRelatorio, periodo, vendedor_id: vendedorIdPayload, empresa_prestadora_id: empresaPrestadoraPayload, acao };
       if (periodo === 'personalizado') {
-        if (!dataInicio || !dataFim) { alert('Informe a data de início e fim para o período personalizado.'); setGerando(false); return; }
+        if (!dataInicio || !dataFim) { toast.warning('Informe a data de início e fim para o período personalizado.'); setGerando(false); return; }
         payload.data_inicio = dataInicio;
         payload.data_fim = dataFim;
       }
@@ -81,10 +83,10 @@ export default function RelatoriosPage() {
         link.click();
         link.remove();
         window.URL.revokeObjectURL(url);
-        alert('PDF gerado com sucesso!');
+        toast.success('PDF gerado com sucesso!');
       } else {
         const res = await apiClient.post('/crm-vendas/relatorios/gerar/', payload);
-        alert(res.data.message || 'Relatório enviado por email!');
+        toast.success(res.data.message || 'Relatório enviado por email!');
       }
     } catch (error: any) {
       let msg = 'Erro ao gerar relatório.';
@@ -94,7 +96,7 @@ export default function RelatoriosPage() {
       } else if (typeof data === 'string') {
         try { msg = JSON.parse(data).detail || msg; } catch { msg = data || msg; }
       } else if (data?.detail) { msg = data.detail; }
-      alert(msg);
+      toast.error(msg);
     } finally { setGerando(false); }
   };
 

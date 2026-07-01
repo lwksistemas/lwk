@@ -55,6 +55,10 @@ export function CrmLancamentoModal({
 
   const gruposTipo = grupos.filter((g) => g.tipo === tipo && g.is_active);
 
+  const inputCls =
+    'mt-1 w-full rounded border border-gray-200 px-3 py-2 text-sm dark:bg-gray-800 dark:border-gray-700';
+  const labelCls = 'block text-sm';
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const payload: Record<string, unknown> = {
@@ -72,105 +76,108 @@ export function CrmLancamentoModal({
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
-          <h2 className="font-semibold text-gray-900 dark:text-white">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between px-5 py-4 border-b dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             {editing ? 'Editar' : 'Nova'} {tipo === 'receita' ? 'receita' : 'despesa'}
           </h2>
-          <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
             <X size={20} />
           </button>
         </div>
-        <form onSubmit={submit} className="p-4 space-y-3">
-          {isAdmin && (
-            <label className="block text-sm">
-              <span className="text-gray-600 dark:text-gray-400">Vendedor</span>
-              <select
-                required
-                value={vendedorId}
-                onChange={(e) => setVendedorId(e.target.value)}
-                className="mt-1 w-full rounded border px-3 py-2 dark:bg-gray-800 dark:border-gray-700"
-              >
-                <option value="">Selecione</option>
-                {vendedores.map((v) => (
-                  <option key={v.id} value={v.id}>{v.nome}</option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label className="block text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Grupo</span>
-            <select
-              value={grupoId}
-              onChange={(e) => setGrupoId(e.target.value)}
-              className="mt-1 w-full rounded border px-3 py-2 dark:bg-gray-800 dark:border-gray-700"
+        <form onSubmit={submit} className="p-5 md:p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
+            <div className="space-y-4">
+              {isAdmin && (
+                <label className={labelCls}>
+                  <span className="text-gray-600 dark:text-gray-400">Vendedor</span>
+                  <select
+                    required
+                    value={vendedorId}
+                    onChange={(e) => setVendedorId(e.target.value)}
+                    className={inputCls}
+                  >
+                    <option value="">Selecione</option>
+                    {vendedores.map((v) => (
+                      <option key={v.id} value={v.id}>{v.nome}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label className={labelCls}>
+                <span className="text-gray-600 dark:text-gray-400">Grupo</span>
+                <select value={grupoId} onChange={(e) => setGrupoId(e.target.value)} className={inputCls}>
+                  <option value="">Sem grupo</option>
+                  {gruposTipo.map((g) => (
+                    <option key={g.id} value={g.id}>{g.nome}</option>
+                  ))}
+                </select>
+              </label>
+              <label className={labelCls}>
+                <span className="text-gray-600 dark:text-gray-400">Descrição</span>
+                <input
+                  required
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value)}
+                  className={inputCls}
+                />
+              </label>
+            </div>
+
+            <div className="space-y-4">
+              <label className={labelCls}>
+                <span className="text-gray-600 dark:text-gray-400">Valor (R$)</span>
+                <input
+                  required
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={valor}
+                  onChange={(e) => setValor(e.target.value)}
+                  className={inputCls}
+                />
+              </label>
+              <label className={labelCls}>
+                <span className="text-gray-600 dark:text-gray-400">Vencimento</span>
+                <input
+                  required
+                  type="date"
+                  value={dataVencimento}
+                  onChange={(e) => setDataVencimento(e.target.value)}
+                  className={inputCls}
+                />
+              </label>
+              <label className={labelCls}>
+                <span className="text-gray-600 dark:text-gray-400">Status</span>
+                <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputCls}>
+                  <option value="pendente">Pendente</option>
+                  <option value="pago">Pago</option>
+                  <option value="cancelado">Cancelado</option>
+                </select>
+              </label>
+              <label className={labelCls}>
+                <span className="text-gray-600 dark:text-gray-400">Observações</span>
+                <textarea
+                  value={observacoes}
+                  onChange={(e) => setObservacoes(e.target.value)}
+                  rows={4}
+                  className={inputCls}
+                />
+              </label>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-5 mt-5 border-t border-gray-100 dark:border-gray-800">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
             >
-              <option value="">Sem grupo</option>
-              {gruposTipo.map((g) => (
-                <option key={g.id} value={g.id}>{g.nome}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Descrição</span>
-            <input
-              required
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              className="mt-1 w-full rounded border px-3 py-2 dark:bg-gray-800 dark:border-gray-700"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Valor (R$)</span>
-            <input
-              required
-              type="number"
-              step="0.01"
-              min="0"
-              value={valor}
-              onChange={(e) => setValor(e.target.value)}
-              className="mt-1 w-full rounded border px-3 py-2 dark:bg-gray-800 dark:border-gray-700"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Vencimento</span>
-            <input
-              required
-              type="date"
-              value={dataVencimento}
-              onChange={(e) => setDataVencimento(e.target.value)}
-              className="mt-1 w-full rounded border px-3 py-2 dark:bg-gray-800 dark:border-gray-700"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Status</span>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="mt-1 w-full rounded border px-3 py-2 dark:bg-gray-800 dark:border-gray-700"
-            >
-              <option value="pendente">Pendente</option>
-              <option value="pago">Pago</option>
-              <option value="cancelado">Cancelado</option>
-            </select>
-          </label>
-          <label className="block text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Observações</span>
-            <textarea
-              value={observacoes}
-              onChange={(e) => setObservacoes(e.target.value)}
-              rows={2}
-              className="mt-1 w-full rounded border px-3 py-2 dark:bg-gray-800 dark:border-gray-700"
-            />
-          </label>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded border">
               Cancelar
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 text-sm rounded bg-[#0176d3] text-white hover:bg-[#0159a8] disabled:opacity-50"
+              className="px-5 py-2 text-sm rounded-lg bg-[#0176d3] text-white hover:bg-[#0159a8] disabled:opacity-50"
             >
               {saving ? 'Salvando...' : 'Salvar'}
             </button>

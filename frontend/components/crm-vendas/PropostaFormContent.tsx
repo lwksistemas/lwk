@@ -2,6 +2,7 @@
 
 import type { LojaInfo, LeadInfo, OportunidadeItem, FormDataProposta } from './modals/ModalPropostaForm';
 import BuscarOportunidadeInput from '@/components/crm-vendas/BuscarOportunidadeInput';
+import { CrmClienteBlock, CrmLojaBlock } from '@/components/crm-vendas/CrmLojaClienteBlocks';
 
 export interface PropostaFormContentProps {
   form: FormDataProposta;
@@ -87,117 +88,22 @@ export default function PropostaFormContent({
     'text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-[#0d1f3c] pb-2';
 
   const renderLojaBlock = () => (
-    <>
-      <h3 className={pageLayout ? sectionTitleClass : sectionTitleCls}>Dados da Loja</h3>
-      {lojaInfo ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div className="sm:col-span-2">
-            <span className={labelCls}>Nome da loja</span>
-            <p className="font-medium text-gray-900 dark:text-white">{lojaInfo.nome}</p>
-          </div>
-          {lojaInfo.endereco && (
-            <div className="sm:col-span-2">
-              <span className={labelCls}>Endereço da loja</span>
-              <p className="text-gray-800 dark:text-gray-200">{lojaInfo.endereco}</p>
-            </div>
-          )}
-          {lojaInfo.cpf_cnpj && (
-            <div>
-              <span className={labelCls}>CPF ou CNPJ da loja</span>
-              <p className="text-gray-800 dark:text-gray-200">{lojaInfo.cpf_cnpj}</p>
-            </div>
-          )}
-          {lojaInfo.admin_nome && (
-            <div>
-              <span className={labelCls}>Nome do administrador</span>
-              <p className="text-gray-800 dark:text-gray-200">{lojaInfo.admin_nome}</p>
-            </div>
-          )}
-          {lojaInfo.admin_email && (
-            <div className="sm:col-span-2">
-              <span className={labelCls}>Email do administrador</span>
-              <p className="text-gray-800 dark:text-gray-200">{lojaInfo.admin_email}</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <p className="text-xs text-gray-500">Carregando...</p>
-      )}
-    </>
+    <CrmLojaBlock
+      lojaInfo={lojaInfo}
+      labelClass={labelCls}
+      titleClass={pageLayout ? sectionTitleClass : sectionTitleCls}
+      compact={!pageLayout}
+    />
   );
 
   const renderClienteBlock = () => (
-    <>
-      <h3 className={pageLayout ? sectionTitleClass : sectionTitleCls}>Dados do Cliente</h3>
-      {leadInfo ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div className="sm:col-span-2">
-            <span className={labelCls}>Nome</span>
-            <p className="font-medium text-gray-900 dark:text-white">
-              {leadInfo.conta_info?.nome ||
-                (leadInfo.cpf_cnpj?.replace(/\D/g, '').length === 11
-                  ? leadInfo.nome
-                  : leadInfo.empresa || leadInfo.nome)}
-            </p>
-          </div>
-          {leadInfo.conta_info?.razao_social && (
-            <div className="sm:col-span-2">
-              <span className={labelCls}>Razão Social</span>
-              <p className="text-gray-800 dark:text-gray-200">{leadInfo.conta_info.razao_social}</p>
-            </div>
-          )}
-          {(leadInfo.conta_info?.cnpj || leadInfo.cpf_cnpj) && (
-            <div>
-              <span className={labelCls}>CNPJ</span>
-              <p className="text-gray-800 dark:text-gray-200">{leadInfo.conta_info?.cnpj || leadInfo.cpf_cnpj}</p>
-            </div>
-          )}
-          {leadInfo.conta_info?.inscricao_estadual && (
-            <div>
-              <span className={labelCls}>Inscrição Estadual</span>
-              <p className="text-gray-800 dark:text-gray-200">{leadInfo.conta_info.inscricao_estadual}</p>
-            </div>
-          )}
-          <div>
-            <span className={labelCls}>Email</span>
-            <p className="text-gray-800 dark:text-gray-200">{leadInfo.conta_info?.email || leadInfo.email || '—'}</p>
-          </div>
-          <div>
-            <span className={labelCls}>Telefone</span>
-            <p className="text-gray-800 dark:text-gray-200">{leadInfo.conta_info?.telefone || leadInfo.telefone || '—'}</p>
-          </div>
-          {leadInfo.conta_info?.site && (
-            <div className="sm:col-span-2">
-              <span className={labelCls}>Site</span>
-              <p className="text-gray-800 dark:text-gray-200">{leadInfo.conta_info.site}</p>
-            </div>
-          )}
-          <div className="sm:col-span-2">
-            <span className={labelCls}>Endereço</span>
-            <p className="text-gray-800 dark:text-gray-200">
-              {(() => {
-                const endereco = leadInfo.conta_info || leadInfo;
-                const partes = [
-                  endereco.logradouro,
-                  endereco.numero ? `nº ${endereco.numero}` : '',
-                  endereco.complemento,
-                  endereco.bairro,
-                  endereco.cidade && endereco.uf
-                    ? `${endereco.cidade}/${endereco.uf}`
-                    : endereco.cidade || endereco.uf,
-                  endereco.cep ? `CEP ${endereco.cep}` : '',
-                ].filter(Boolean);
-                return partes.length > 0 ? partes.join(' - ') : '—';
-              })()}
-            </p>
-          </div>
-        </div>
-      ) : form.oportunidade_id ? (
-        <p className="text-xs text-gray-500">Carregando dados do cliente...</p>
-      ) : (
-        <p className="text-xs text-gray-500">Selecione uma oportunidade para ver os dados do cliente.</p>
-      )}
-    </>
+    <CrmClienteBlock
+      leadInfo={leadInfo}
+      oportunidadeSelecionada={!!form.oportunidade_id}
+      labelClass={labelCls}
+      titleClass={pageLayout ? sectionTitleClass : sectionTitleCls}
+      compact={!pageLayout}
+    />
   );
 
   const renderProdutosBlock = () => {
@@ -523,108 +429,18 @@ export default function PropostaFormContent({
 
       {/* Dados da Loja */}
       <div className={`${sectionWrapCls} ${spanClass}`}>
-        <p className={sectionTitleCls}>Dados da Loja</p>
-        {lojaInfo ? (
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <span className={labelCls}>Nome da loja</span>
-              <p className="font-medium">{lojaInfo.nome}</p>
-            </div>
-            {lojaInfo.endereco && (
-              <div className="col-span-2">
-                <span className={labelCls}>Endereço da loja</span>
-                <p>{lojaInfo.endereco}</p>
-              </div>
-            )}
-            {lojaInfo.cpf_cnpj && (
-              <div>
-                <span className={labelCls}>CPF ou CNPJ da loja</span>
-                <p>{lojaInfo.cpf_cnpj}</p>
-              </div>
-            )}
-            {lojaInfo.admin_nome && (
-              <div>
-                <span className={labelCls}>Nome do administrador</span>
-                <p>{lojaInfo.admin_nome}</p>
-              </div>
-            )}
-            {lojaInfo.admin_email && (
-              <div>
-                <span className={labelCls}>Email do administrador</span>
-                <p>{lojaInfo.admin_email}</p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs text-gray-500">Carregando...</p>
-        )}
+        <CrmLojaBlock lojaInfo={lojaInfo} labelClass={labelCls} titleClass={sectionTitleCls} compact />
       </div>
 
       {/* Dados do Cliente */}
       <div className={`${sectionWrapCls} ${spanClass}`}>
-        <p className={sectionTitleCls}>Dados do Cliente</p>
-        {leadInfo ? (
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <span className={labelCls}>Nome</span>
-              <p className="font-medium">{leadInfo.conta_info?.nome || (leadInfo.cpf_cnpj?.replace(/\D/g, '').length === 11 ? leadInfo.nome : (leadInfo.empresa || leadInfo.nome))}</p>
-            </div>
-            {leadInfo.conta_info?.razao_social && (
-              <div>
-                <span className={labelCls}>Razão Social</span>
-                <p>{leadInfo.conta_info.razao_social}</p>
-              </div>
-            )}
-            {(leadInfo.conta_info?.cnpj || leadInfo.cpf_cnpj) && (
-              <div>
-                <span className={labelCls}>CNPJ</span>
-                <p>{leadInfo.conta_info?.cnpj || leadInfo.cpf_cnpj}</p>
-              </div>
-            )}
-            {leadInfo.conta_info?.inscricao_estadual && (
-              <div>
-                <span className={labelCls}>Inscrição Estadual</span>
-                <p>{leadInfo.conta_info.inscricao_estadual}</p>
-              </div>
-            )}
-            <div>
-              <span className={labelCls}>Email</span>
-              <p>{leadInfo.conta_info?.email || leadInfo.email || '—'}</p>
-            </div>
-            <div>
-              <span className={labelCls}>Telefone</span>
-              <p>{leadInfo.conta_info?.telefone || leadInfo.telefone || '—'}</p>
-            </div>
-            {leadInfo.conta_info?.site && (
-              <div className="col-span-2">
-                <span className={labelCls}>Site</span>
-                <p>{leadInfo.conta_info.site}</p>
-              </div>
-            )}
-            <div className="col-span-2">
-              <span className={labelCls}>Endereço</span>
-              <p>
-                {(() => {
-                  // Priorizar endereço da conta
-                  const endereco = leadInfo.conta_info || leadInfo;
-                  const partes = [
-                    endereco.logradouro,
-                    endereco.numero ? `nº ${endereco.numero}` : '',
-                    endereco.complemento,
-                    endereco.bairro,
-                    endereco.cidade && endereco.uf ? `${endereco.cidade}/${endereco.uf}` : endereco.cidade || endereco.uf,
-                    endereco.cep ? `CEP ${endereco.cep}` : '',
-                  ].filter(Boolean);
-                  return partes.length > 0 ? partes.join(' - ') : '—';
-                })()}
-              </p>
-            </div>
-          </div>
-        ) : form.oportunidade_id ? (
-          <p className="text-xs text-gray-500">Carregando dados do cliente...</p>
-        ) : (
-          <p className="text-xs text-gray-500">Selecione uma oportunidade para ver os dados do cliente.</p>
-        )}
+        <CrmClienteBlock
+          leadInfo={leadInfo}
+          oportunidadeSelecionada={!!form.oportunidade_id}
+          labelClass={labelCls}
+          titleClass={sectionTitleCls}
+          compact
+        />
       </div>
 
       {/* Oportunidade */}

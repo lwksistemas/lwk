@@ -15,13 +15,17 @@ import {
   CRM_CONTRATO_STATUS_LABEL as STATUS_LABEL,
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
 } from '@/lib/crm-constants';
-import { Plus, Eye, Edit2, Trash2, FileSignature, ArrowRight, Ban, MoreVertical, FileText } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, FileSignature, Ban, MoreVertical, FileText } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import CrmEnviarAssinaturaColuna from '@/components/crm-vendas/CrmEnviarAssinaturaColuna';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
 import CrmCancelarModal from '@/components/crm-vendas/CrmCancelarModal';
 import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
 import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetalhesModal';
+import {
+  CrmDocumentoEmptyState,
+  CrmDocumentoListPageShell,
+} from '@/components/crm-vendas/documentos/CrmDocumentoListPageShell';
 
 interface Contrato {
   id: number;
@@ -145,6 +149,14 @@ export default function CrmVendasContratosPage() {
     }
   };
 
+  const filtroOpcoes = ['', 'rascunho', 'enviado', 'assinado', 'cancelado'].map((s) => ({
+    value: s,
+    label:
+      s === ''
+        ? `Todos (${contratos.length})`
+        : `${STATUS_LABEL[s] || s} (${contratos.filter((c) => c.status === s).length})`,
+  }));
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -155,15 +167,17 @@ export default function CrmVendasContratosPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Criar Contrato</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Gere contratos a partir das oportunidades fechadas como ganhas
-          </p>
-        </div>
-        <div className="flex gap-2">
+    <>
+    <CrmDocumentoListPageShell
+      titulo="Criar Contrato"
+      subtitulo="Gere contratos a partir das oportunidades fechadas como ganhas"
+      slug={slug}
+      error={error}
+      filtroStatus={filtroStatus}
+      onFiltroChange={setFiltroStatus}
+      filtroOpcoes={filtroOpcoes}
+      headerActions={
+        <>
           <Link
             href={`/loja/${slug}/crm-vendas/contrato-templates`}
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded text-sm font-medium transition-colors shadow-sm"
@@ -179,30 +193,9 @@ export default function CrmVendasContratosPage() {
             <Plus size={18} />
             <span>Novo Contrato</span>
           </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
-          {error}
-        </div>
-      )}
-
-      <div className="bg-white dark:bg-[#16325c] rounded-lg shadow border border-gray-200 dark:border-[#0d1f3c] overflow-hidden">
-        {/* Filtro de status */}
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c] flex items-center gap-3 flex-wrap">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Filtrar:</span>
-          {['', 'rascunho', 'enviado', 'assinado', 'cancelado'].map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setFiltroStatus(s)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${filtroStatus === s ? 'bg-[#0176d3] text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
-            >
-              {s === '' ? `Todos (${contratos.length})` : `${STATUS_LABEL[s] || s} (${contratos.filter(c => c.status === s).length})`}
-            </button>
-          ))}
-        </div>
+        </>
+      }
+    >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[500px]">
             <thead>
@@ -221,18 +214,12 @@ export default function CrmVendasContratosPage() {
             <tbody>
               {contratos.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-500 dark:text-gray-400">
-                    <FileSignature size={48} className="mx-auto mb-3 opacity-30" />
-                    <p className="font-medium">Nenhum contrato cadastrado</p>
-                    <p className="text-sm mt-1">Crie contratos a partir de oportunidades fechadas como ganhas</p>
-                    <Link
-                      href={`/loja/${slug}/crm-vendas/pipeline`}
-                      className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded-lg text-sm"
-                    >
-                      Ir para Pipeline
-                      <ArrowRight size={16} />
-                    </Link>
-                  </td>
+                  <CrmDocumentoEmptyState
+                    icon={FileSignature}
+                    titulo="Nenhum contrato cadastrado"
+                    subtitulo="Crie contratos a partir de oportunidades fechadas como ganhas"
+                    slug={slug}
+                  />
                 </tr>
               ) : (
                 contratosFiltrados.map((c) => (
@@ -371,7 +358,7 @@ export default function CrmVendasContratosPage() {
           itemLabel="contratos"
           onPageChange={setPage}
         />
-      </div>
+    </CrmDocumentoListPageShell>
 
       <div className="px-4 py-3 bg-gray-50 dark:bg-[#0d1f3c]/30 rounded-lg border border-gray-200 dark:border-[#0d1f3c]">
         <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
@@ -413,6 +400,6 @@ export default function CrmVendasContratosPage() {
           onClose={closeModal}
         />
       )}
-    </div>
+    </>
   );
 }

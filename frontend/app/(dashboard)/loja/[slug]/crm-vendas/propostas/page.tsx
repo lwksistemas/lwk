@@ -22,13 +22,17 @@ import {
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
 } from '@/lib/crm-constants';
 import { formatDate } from '@/lib/financeiro-helpers';
-import { Plus, Eye, Edit2, Trash2, ClipboardList, ArrowRight, FileText, FileSignature, Ban, MoreVertical, ShoppingCart } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, ClipboardList, FileText, FileSignature, Ban, MoreVertical, ShoppingCart } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import CrmEnviarAssinaturaColuna from '@/components/crm-vendas/CrmEnviarAssinaturaColuna';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
 import CrmCancelarModal from '@/components/crm-vendas/CrmCancelarModal';
 import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
 import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetalhesModal';
+import {
+  CrmDocumentoEmptyState,
+  CrmDocumentoListPageShell,
+} from '@/components/crm-vendas/documentos/CrmDocumentoListPageShell';
 import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
 import type {
   CrmOportunidadeItem,
@@ -98,8 +102,6 @@ export default function CrmVendasPropostasPage() {
   const exibirColunaAssinatura = propostas.some(
     (p) => !propostaOcultaColunaAssinatura(p),
   );
-
-  const colunasTabela = exibirColunaAssinatura ? 7 : 6;
 
   const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
   const [oportunidadeTituloInicial, setOportunidadeTituloInicial] = useState('');
@@ -369,6 +371,22 @@ export default function CrmVendasPropostasPage() {
     }
   };
 
+  const filtroOpcoes = ['', 'rascunho', 'enviada', 'pedido', 'cancelada'].map((s) => ({
+    value: s,
+    label:
+      s === ''
+        ? `Todos (${filtroStatus === '' ? totalCount : propostas.length})`
+        : `${STATUS_LABEL[s] || s} (${
+            filtroStatus === s
+              ? totalCount
+              : propostas.filter(
+                  (p) =>
+                    p.status === s ||
+                    (s === 'pedido' && (p.status === 'aceita' || p.status === 'pedido')),
+                ).length
+          })`,
+  }));
+
   if (loading && propostas.length === 0) {
     return (
       <div className="space-y-4">
@@ -379,15 +397,17 @@ export default function CrmVendasPropostasPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Criar Propostas</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Crie e gerencie propostas comerciais vinculadas às oportunidades
-          </p>
-        </div>
-        <div className="flex gap-2">
+    <>
+    <CrmDocumentoListPageShell
+      titulo="Criar Propostas"
+      subtitulo="Crie e gerencie propostas comerciais vinculadas às oportunidades"
+      slug={slug}
+      error={error}
+      filtroStatus={filtroStatus}
+      onFiltroChange={setFiltroStatus}
+      filtroOpcoes={filtroOpcoes}
+      headerActions={
+        <>
           <Link
             href={`/loja/${slug}/crm-vendas/proposta-templates`}
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded text-sm font-medium transition-colors shadow-sm"
@@ -402,40 +422,9 @@ export default function CrmVendasPropostasPage() {
             <Plus size={18} />
             <span>Nova Proposta</span>
           </Link>
-        </div>
-      </div>
-
-      {error && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
-          {error}
-        </div>
-      )}
-
-      <div className="bg-white dark:bg-[#16325c] rounded-lg shadow border border-gray-200 dark:border-[#0d1f3c] overflow-hidden">
-        {/* Filtro de status */}
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c] flex items-center gap-3 flex-wrap">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Filtrar:</span>
-          {['', 'rascunho', 'enviada', 'pedido', 'cancelada'].map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setFiltroStatus(s)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${filtroStatus === s ? 'bg-[#0176d3] text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
-            >
-              {s === ''
-                ? `Todos (${filtroStatus === '' ? totalCount : propostas.length})`
-                : `${STATUS_LABEL[s] || s} (${
-                    filtroStatus === s
-                      ? totalCount
-                      : propostas.filter(
-                          (p) =>
-                            p.status === s ||
-                            (s === 'pedido' && (p.status === 'aceita' || p.status === 'pedido')),
-                        ).length
-                  })`}
-            </button>
-          ))}
-        </div>
+        </>
+      }
+    >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[500px]">
             <thead>
@@ -457,18 +446,12 @@ export default function CrmVendasPropostasPage() {
             <tbody>
               {propostas.length === 0 ? (
                 <tr>
-                  <td colSpan={colunasTabela} className="py-12 text-center text-gray-500 dark:text-gray-400">
-                    <ClipboardList size={48} className="mx-auto mb-3 opacity-30" />
-                    <p className="font-medium">Nenhuma proposta cadastrada</p>
-                    <p className="text-sm mt-1">Clique em &quot;Nova Proposta&quot; ou vá ao Pipeline para criar</p>
-                    <Link
-                      href={`/loja/${slug}/crm-vendas/pipeline`}
-                      className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded-lg text-sm"
-                    >
-                      Ir para Pipeline
-                      <ArrowRight size={16} />
-                    </Link>
-                  </td>
+                  <CrmDocumentoEmptyState
+                    icon={ClipboardList}
+                    titulo="Nenhuma proposta cadastrada"
+                    subtitulo='Clique em "Nova Proposta" ou vá ao Pipeline para criar'
+                    slug={slug}
+                  />
                 </tr>
               ) : (
                 propostas.map((p) => (
@@ -626,8 +609,6 @@ export default function CrmVendasPropostasPage() {
             </tbody>
           </table>
         </div>
-      </div>
-
       <CrmPaginationBar
         page={page}
         totalPages={totalPages}
@@ -637,6 +618,7 @@ export default function CrmVendasPropostasPage() {
         itemLabel="propostas"
         onPageChange={setPage}
       />
+    </CrmDocumentoListPageShell>
 
       <div className="px-4 py-3 bg-gray-50 dark:bg-[#0d1f3c]/30 rounded-lg border border-gray-200 dark:border-[#0d1f3c]">
         <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
@@ -701,6 +683,6 @@ export default function CrmVendasPropostasPage() {
           onClose={closeModal}
         />
       )}
-    </div>
+    </>
   );
 }

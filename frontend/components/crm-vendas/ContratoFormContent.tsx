@@ -278,77 +278,16 @@ export default function ContratoFormContent({
       )}
 
       <div className={`${sectionClass} ${spanClass}`}>
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Dados da Loja</p>
-        {lojaInfo ? (
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <span className={labelCls}>Nome da loja</span>
-              <p className="font-medium">{lojaInfo.nome}</p>
-            </div>
-            {lojaInfo.endereco && (
-              <div className="col-span-2">
-                <span className={labelCls}>Endereço da loja</span>
-                <p>{lojaInfo.endereco}</p>
-              </div>
-            )}
-            {lojaInfo.cpf_cnpj && (
-              <div>
-                <span className={labelCls}>CPF ou CNPJ da loja</span>
-                <p>{lojaInfo.cpf_cnpj}</p>
-              </div>
-            )}
-            {lojaInfo.admin_nome && (
-              <div>
-                <span className={labelCls}>Nome do administrador</span>
-                <p>{lojaInfo.admin_nome}</p>
-              </div>
-            )}
-            {lojaInfo.admin_email && (
-              <div>
-                <span className={labelCls}>Email do administrador</span>
-                <p>{lojaInfo.admin_email}</p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs text-gray-500">Carregando...</p>
-        )}
+        <CrmLojaBlock lojaInfo={lojaInfo} compact titleClass="text-sm font-medium text-gray-700 dark:text-gray-300" />
       </div>
 
       <div className={`${sectionClass} ${spanClass}`}>
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Dados do Cliente</p>
-        {leadInfo ? (
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <span className={labelCls}>Nome</span>
-              <p className="font-medium">{leadInfo.nome}</p>
-            </div>
-            {leadInfo.empresa && leadInfo.cpf_cnpj?.replace(/\D/g, '').length !== 11 && (
-              <div>
-                <span className={labelCls}>Empresa</span>
-                <p>{leadInfo.empresa}</p>
-              </div>
-            )}
-            {leadInfo.cpf_cnpj && (
-              <div>
-                <span className={labelCls}>CPF/CNPJ</span>
-                <p>{leadInfo.cpf_cnpj}</p>
-              </div>
-            )}
-            <div>
-              <span className={labelCls}>Email</span>
-              <p>{leadInfo.email || '—'}</p>
-            </div>
-            <div>
-              <span className={labelCls}>Telefone</span>
-              <p>{leadInfo.telefone || '—'}</p>
-            </div>
-          </div>
-        ) : form.oportunidade_id ? (
-          <p className="text-xs text-gray-500">Carregando dados do cliente...</p>
-        ) : (
-          <p className="text-xs text-gray-500">Selecione uma oportunidade para ver os dados do cliente.</p>
-        )}
+        <CrmClienteBlock
+          leadInfo={leadInfo}
+          oportunidadeSelecionada={!!form.oportunidade_id}
+          compact
+          titleClass="text-sm font-medium text-gray-700 dark:text-gray-300"
+        />
       </div>
 
       <div className={spanClass}>{renderOportunidadeSelect()}</div>

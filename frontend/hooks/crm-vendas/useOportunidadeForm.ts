@@ -11,6 +11,7 @@ import {
   type CrmOportunidadeLeadOption,
   type CrmOportunidadeProdutoOption,
 } from '@/lib/crm-oportunidade-form-types';
+import { atualizarOportunidadeItem, calcularTotalOportunidadeItens } from '@/lib/crm-oportunidade-itens-utils';
 
 async function syncVendedorAposCriarOportunidade() {
   try {
@@ -24,13 +25,6 @@ async function syncVendedorAposCriarOportunidade() {
   } catch {
     /* ignore */
   }
-}
-
-function calcularTotalItens(itens: CrmOportunidadeFormState['itens']) {
-  return itens.reduce(
-    (s, i) => s + (parseFloat(i.quantidade) || 0) * (parseFloat(i.preco_unitario) || 0),
-    0,
-  );
 }
 
 export interface UseOportunidadeFormOptions {
@@ -131,19 +125,8 @@ export function useOportunidadeForm({ initialLeadId = '', enabled = true }: UseO
   const updateItem = useCallback(
     (idx: number, field: 'produto_servico_id' | 'quantidade' | 'preco_unitario', value: string | number) => {
       setForm((f) => {
-        const newItens = f.itens.map((item, i) => {
-          if (i !== idx) return item;
-          const updated = {
-            ...item,
-            [field]: field === 'produto_servico_id' ? Number(value) : String(value),
-          };
-          if (field === 'produto_servico_id') {
-            const ps = produtosServicos.find((p) => p.id === Number(value));
-            if (ps) updated.preco_unitario = ps.preco;
-          }
-          return updated;
-        });
-        const total = calcularTotalItens(newItens);
+        const newItens = atualizarOportunidadeItem(f.itens, idx, field, value, produtosServicos);
+        const total = calcularTotalOportunidadeItens(newItens);
         return { ...f, itens: newItens, valor: newItens.length > 0 ? String(total.toFixed(2)) : f.valor };
       });
     },
@@ -153,7 +136,7 @@ export function useOportunidadeForm({ initialLeadId = '', enabled = true }: UseO
   const removeItem = useCallback((idx: number) => {
     setForm((f) => {
       const newItens = f.itens.filter((_, i) => i !== idx);
-      const total = calcularTotalItens(newItens);
+      const total = calcularTotalOportunidadeItens(newItens);
       return { ...f, itens: newItens, valor: newItens.length > 0 ? String(total.toFixed(2)) : '0' };
     });
   }, []);
@@ -161,7 +144,7 @@ export function useOportunidadeForm({ initialLeadId = '', enabled = true }: UseO
   const adicionarProduto = useCallback((ps: CrmOportunidadeProdutoOption) => {
     setForm((f) => {
       const newItens = [...f.itens, { produto_servico_id: ps.id, quantidade: '1', preco_unitario: ps.preco }];
-      const total = calcularTotalItens(newItens);
+      const total = calcularTotalOportunidadeItens(newItens);
       return { ...f, itens: newItens, valor: String(total.toFixed(2)) };
     });
     setSeletorAberto(false);
@@ -187,7 +170,7 @@ export function useOportunidadeForm({ initialLeadId = '', enabled = true }: UseO
 
     let valor = parseFloat(form.valor) || 0;
     if (form.itens.length > 0) {
-      const totalItens = calcularTotalItens(form.itens);
+      const totalItens = calcularTotalOportunidadeItens(form.itens);
       if (totalItens > 0) valor = totalItens;
     }
 

@@ -22,7 +22,7 @@ import {
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
 } from '@/lib/crm-constants';
 import { formatDate } from '@/lib/financeiro-helpers';
-import { Plus, Eye, Edit2, Trash2, ClipboardList, FileText, FileSignature, Ban, MoreVertical, ShoppingCart } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, ClipboardList, FileText, FileSignature, Ban, ShoppingCart } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import CrmEnviarAssinaturaColuna from '@/components/crm-vendas/CrmEnviarAssinaturaColuna';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
@@ -33,6 +33,8 @@ import {
   CrmDocumentoEmptyState,
   CrmDocumentoListPageShell,
 } from '@/components/crm-vendas/documentos/CrmDocumentoListPageShell';
+import CrmDocumentoMaisAcoesMenu from '@/components/crm-vendas/documentos/CrmDocumentoMaisAcoesMenu';
+import CrmDocumentoArquivoAcoes from '@/components/crm-vendas/documentos/CrmDocumentoArquivoAcoes';
 import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
 import type {
   CrmOportunidadeItem,
@@ -491,116 +493,79 @@ export default function CrmVendasPropostasPage() {
                         {p.status !== 'cancelada' && (
                           <button type="button" onClick={() => openModal('edit', p)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Editar"><Edit2 size={16} /></button>
                         )}
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() => setMenuAberto(menuAberto === p.id ? null : p.id)}
-                            data-menu-id={p.id}
-                            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
-                            title="Mais ações"
-                          >
-                            <MoreVertical size={16} />
-                          </button>
-                          {menuAberto === p.id && (
+                        <CrmDocumentoMaisAcoesMenu
+                          itemId={p.id}
+                          aberto={menuAberto === p.id}
+                          onToggle={() => setMenuAberto(menuAberto === p.id ? null : p.id)}
+                          onClose={() => setMenuAberto(null)}
+                          placement="fixed"
+                        >
+                          <CrmDocumentoArquivoAcoes
+                            somentePdf={p.status === 'cancelada'}
+                            motivoCancelamento={p.status === 'cancelada' ? p.motivo_cancelamento : undefined}
+                            onDownloadPdf={() => {
+                              handleDownloadPdf(p.id, p.titulo);
+                              setMenuAberto(null);
+                            }}
+                            onDownloadDocx={() => {
+                              handleDownloadDocx(p.id, p.titulo);
+                              setMenuAberto(null);
+                            }}
+                          />
+                          {p.status !== 'cancelada' && (
                             <>
-                              <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
-                              <div className="fixed z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 max-h-64 overflow-y-auto"
-                                style={{
-                                  top: (() => {
-                                    const btn = document.querySelector(`[data-menu-id="${p.id}"]`);
-                                    if (!btn) return '0px';
-                                    const rect = btn.getBoundingClientRect();
-                                    const spaceBelow = window.innerHeight - rect.bottom;
-                                    if (spaceBelow < 280) return `${rect.top - 4}px`;
-                                    return `${rect.bottom + 4}px`;
-                                  })(),
-                                  right: '24px',
-                                  transform: (() => {
-                                    const btn = document.querySelector(`[data-menu-id="${p.id}"]`);
-                                    if (!btn) return 'none';
-                                    const rect = btn.getBoundingClientRect();
-                                    const spaceBelow = window.innerHeight - rect.bottom;
-                                    if (spaceBelow < 280) return 'translateY(-100%)';
-                                    return 'none';
-                                  })(),
-                                }}>
-                                {p.status === 'cancelada' ? (
-                                  // Menu reduzido para propostas canceladas
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => { handleDownloadPdf(p.id, p.titulo); setMenuAberto(null); }}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                    >
-                                      <FileText size={15} className="text-red-500" /> Baixar PDF
-                                    </button>
-                                    {p.motivo_cancelamento && (
-                                      <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-700">
-                                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Motivo do cancelamento:</p>
-                                        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{p.motivo_cancelamento}</p>
-                                      </div>
-                                    )}
-                                  </>
-                                ) : (
-                                  // Menu completo para propostas ativas
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => { handleDownloadPdf(p.id, p.titulo); setMenuAberto(null); }}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                    >
-                                      <FileText size={15} className="text-red-500" /> Baixar PDF
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => { handleDownloadDocx(p.id, p.titulo); setMenuAberto(null); }}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                    >
-                                      <FileText size={15} className="text-blue-600" /> Baixar Word
-                                    </button>
-                                    <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                                    {p.status_assinatura !== 'concluido' && (
-                                      <button
-                                        type="button"
-                                        onClick={() => { handleMarcarComoAssinado(p.id); setMenuAberto(null); }}
-                                        disabled={alterandoStatus !== null}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
-                                      >
-                                        <FileSignature size={15} className="text-purple-500" /> Marcar como assinado
-                                      </button>
-                                    )}
-                                    {p.status === 'aceita' && p.status_assinatura !== 'concluido' && (
-                                      <button
-                                        type="button"
-                                        onClick={() => { handleConfirmarPedido(p.id); setMenuAberto(null); }}
-                                        disabled={alterandoStatus !== null}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 disabled:opacity-50 font-medium"
-                                      >
-                                        <ShoppingCart size={15} className="text-emerald-600" /> Confirmar como Pedido
-                                      </button>
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() => { openModal('cancelar', p); setMenuAberto(null); }}
-                                      disabled={alterandoStatus !== null}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
-                                    >
-                                      <Ban size={15} className="text-red-500" /> Cancelar proposta
-                                    </button>
-                                    <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                                    <button
-                                      type="button"
-                                      onClick={() => { openModal('delete', p); setMenuAberto(null); }}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                    >
-                                      <Trash2 size={15} /> Excluir proposta
-                                    </button>
-                                  </>
-                                )}
-                              </div>
+                              <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                              {p.status_assinatura !== 'concluido' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleMarcarComoAssinado(p.id);
+                                    setMenuAberto(null);
+                                  }}
+                                  disabled={alterandoStatus !== null}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                                >
+                                  <FileSignature size={15} className="text-purple-500" /> Marcar como assinado
+                                </button>
+                              )}
+                              {p.status === 'aceita' && p.status_assinatura !== 'concluido' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleConfirmarPedido(p.id);
+                                    setMenuAberto(null);
+                                  }}
+                                  disabled={alterandoStatus !== null}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 disabled:opacity-50 font-medium"
+                                >
+                                  <ShoppingCart size={15} className="text-emerald-600" /> Confirmar como Pedido
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  openModal('cancelar', p);
+                                  setMenuAberto(null);
+                                }}
+                                disabled={alterandoStatus !== null}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                              >
+                                <Ban size={15} className="text-red-500" /> Cancelar proposta
+                              </button>
+                              <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  openModal('delete', p);
+                                  setMenuAberto(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              >
+                                <Trash2 size={15} /> Excluir proposta
+                              </button>
                             </>
                           )}
-                        </div>
+                        </CrmDocumentoMaisAcoesMenu>
                       </div>
                     </td>
                   </tr>

@@ -8,7 +8,12 @@ import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSuces
 import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
-import ProdutoSeletorCategoria from '@/components/crm-vendas/ProdutoSeletorCategoria';
+import OportunidadeItensEditor from '@/components/crm-vendas/OportunidadeItensEditor';
+import {
+  atualizarOportunidadeItem,
+  calcularTotalOportunidadeItens,
+  type OportunidadeItemRow,
+} from '@/lib/crm-oportunidade-itens-utils';
 
 interface ProdutoServicoOption {
   id: number;
@@ -37,7 +42,7 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
   const [valorComissaoEdit, setValorComissaoEdit] = useState(oportunidade.valor_comissao || '');
   const [dataFechamentoGanho, setDataFechamentoGanho] = useState(oportunidade.data_fechamento_ganho || '');
   const [dataFechamentoPerdido, setDataFechamentoPerdido] = useState(oportunidade.data_fechamento_perdido || '');
-  const [itensEditar, setItensEditar] = useState<{ id?: number; produto_servico_id: number; quantidade: string; preco_unitario: string }[]>([]);
+  const [itensEditar, setItensEditar] = useState<OportunidadeItemRow[]>([]);
   const [produtosServicos, setProdutosServicos] = useState<ProdutoServicoOption[]>([]);
   const [propostasOportunidade, setPropostasOportunidade] = useState<{ id: number; titulo: string }[]>([]);
   const [contratoOportunidade, setContratoOportunidade] = useState<{ id: number; titulo: string } | null>(null);
@@ -96,17 +101,7 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
   }, [oportunidade.id, oportunidade.etapa, etapaSelecionada]);
 
   const updateItemEditar = (idx: number, field: 'produto_servico_id' | 'quantidade' | 'preco_unitario', value: string | number) => {
-    setItensEditar((itens) =>
-      itens.map((item, i) => {
-        if (i !== idx) return item;
-        const updated = { ...item, [field]: field === 'produto_servico_id' ? Number(value) : String(value) };
-        if (field === 'produto_servico_id') {
-          const ps = produtosServicos.find((p) => p.id === Number(value));
-          if (ps) updated.preco_unitario = ps.preco;
-        }
-        return updated;
-      })
-    );
+    setItensEditar((itens) => atualizarOportunidadeItem(itens, idx, field, value, produtosServicos));
   };
 
   const removeItemEditar = (idx: number) => {
@@ -213,10 +208,7 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
       
       // Recalcular valor total da oportunidade
       if (itensEditar.length > 0) {
-        const valorTotal = itensEditar.reduce(
-          (sum, item) => sum + parseFloat(item.quantidade) * parseFloat(item.preco_unitario),
-          0
-        );
+        const valorTotal = calcularTotalOportunidadeItens(itensEditar);
         await apiClient.patch(`/crm-vendas/oportunidades/${oportunidade.id}/`, {
           valor: valorTotal,
         });
@@ -313,71 +305,22 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
           </div>
           
           {/* Produtos e Serviços */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Produtos e Serviços
-              </label>
-              <Link href={`/loja/${slug}/crm-vendas/produtos-servicos`} className="text-xs text-[#0176d3] hover:underline">
-                Cadastrar
-              </Link>
-            </div>
-            {itensEditar.map((item, idx) => {
-              const ps = produtosServicos.find(p => p.id === item.produto_servico_id);
-              return (
-                <div key={idx} className="flex gap-2 mb-2 items-center bg-gray-50 dark:bg-gray-700/50 rounded-lg px-2 py-1.5">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
-                      {ps?.codigo ? <span className="text-gray-400">[{ps.codigo}] </span> : null}
-                      {ps?.nome || 'Produto'}
-                    </p>
-                    {ps?.categoria_nome && (
-                      <p className="text-[10px] text-gray-500">{ps.categoria_nome}</p>
-                    )}
-                  </div>
-                  <input
-                    type="number" min="0.01" step="0.01"
-                    value={item.preco_unitario}
-                    onChange={(e) => updateItemEditar(idx, 'preco_unitario', e.target.value)}
-                    className="w-20 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
-                    placeholder="Preço"
-                  />
-                  <input
-                    type="number" min="0.01" step="0.01"
-                    value={item.quantidade}
-                    onChange={(e) => updateItemEditar(idx, 'quantidade', e.target.value)}
-                    className="w-14 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
-                    placeholder="Qtd"
-                  />
-                  <button type="button" onClick={() => removeItemEditar(idx)} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500">
-                    <X size={13} />
-                  </button>
-                </div>
-              );
-            })}
-            {seletorEditarAberto && produtosServicos.length > 0 && (
-              <div className="mb-2">
-                <ProdutoSeletorCategoria
-                  produtos={produtosServicos}
-                  itensSelecionados={itensEditar.map(i => i.produto_servico_id)}
-                  onSelecionar={(ps) => {
-                    setItensEditar(itens => [...itens, { produto_servico_id: ps.id, quantidade: '1', preco_unitario: ps.preco }]);
-                  }}
-                  onFechar={() => setSeletorEditarAberto(false)}
-                />
-              </div>
-            )}
-            {produtosServicos.length > 0 && !seletorEditarAberto && (
-              <button type="button" onClick={() => setSeletorEditarAberto(true)} className="text-sm text-[#0176d3] hover:underline">
-                + Adicionar item
-              </button>
-            )}
-            {produtosServicos.length === 0 && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                Cadastre produtos/serviços em <Link href={`/loja/${slug}/crm-vendas/produtos-servicos`} className="underline">Produtos e Serviços</Link>.
-              </p>
-            )}
-          </div>
+          <OportunidadeItensEditor
+            slug={slug}
+            produtos={produtosServicos}
+            itens={itensEditar}
+            seletorAberto={seletorEditarAberto}
+            onSeletorAbertoChange={setSeletorEditarAberto}
+            onUpdateItem={updateItemEditar}
+            onRemoveItem={removeItemEditar}
+            onAddProduto={(ps) => {
+              setItensEditar((itens) => [
+                ...itens,
+                { produto_servico_id: ps.id, quantidade: '1', preco_unitario: ps.preco },
+              ]);
+            }}
+            layout="modal"
+          />
           
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

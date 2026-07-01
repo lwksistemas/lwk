@@ -15,7 +15,7 @@ import {
   CRM_CONTRATO_STATUS_LABEL as STATUS_LABEL,
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
 } from '@/lib/crm-constants';
-import { Plus, Eye, Edit2, Trash2, FileSignature, Ban, MoreVertical, FileText } from 'lucide-react';
+import { Plus, Eye, Edit2, Trash2, FileSignature, Ban } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import CrmEnviarAssinaturaColuna from '@/components/crm-vendas/CrmEnviarAssinaturaColuna';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
@@ -26,6 +26,8 @@ import {
   CrmDocumentoEmptyState,
   CrmDocumentoListPageShell,
 } from '@/components/crm-vendas/documentos/CrmDocumentoListPageShell';
+import CrmDocumentoMaisAcoesMenu from '@/components/crm-vendas/documentos/CrmDocumentoMaisAcoesMenu';
+import CrmDocumentoArquivoAcoes from '@/components/crm-vendas/documentos/CrmDocumentoArquivoAcoes';
 
 interface Contrato {
   id: number;
@@ -251,71 +253,41 @@ export default function CrmVendasContratosPage() {
                     <td className="py-3 px-4">
                       <div className="flex justify-end gap-1 flex-wrap items-center">
                         {c.status === 'cancelado' ? (
-                          // Contrato cancelado: só PDF e motivo
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={() => setMenuAberto(menuAberto === c.id ? null : c.id)}
-                              className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
-                              title="Mais ações"
-                            >
-                              <MoreVertical size={16} />
-                            </button>
-                            {menuAberto === c.id && (
-                              <>
-                                <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
-                                <div className="absolute right-0 top-full mt-1 z-50 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => { handleDownloadPdf(c.id, c.titulo); setMenuAberto(null); }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                  >
-                                    <FileText size={15} className="text-red-500" /> Baixar PDF
-                                  </button>
-                                  {c.motivo_cancelamento && (
-                                    <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-700">
-                                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Motivo do cancelamento:</p>
-                                      <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{c.motivo_cancelamento}</p>
-                                    </div>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
+                          <CrmDocumentoMaisAcoesMenu
+                            itemId={c.id}
+                            aberto={menuAberto === c.id}
+                            onToggle={() => setMenuAberto(menuAberto === c.id ? null : c.id)}
+                            onClose={() => setMenuAberto(null)}
+                            menuClassName="w-64"
+                          >
+                            <CrmDocumentoArquivoAcoes
+                              somentePdf
+                              motivoCancelamento={c.motivo_cancelamento}
+                              onDownloadPdf={() => {
+                                handleDownloadPdf(c.id, c.titulo);
+                                setMenuAberto(null);
+                              }}
+                            />
+                          </CrmDocumentoMaisAcoesMenu>
                         ) : (
-                          // Contrato ativo: menu completo
                           <>
-                            <div className="relative">
-                              <button
-                                type="button"
-                                onClick={() => setMenuAberto(menuAberto === c.id ? null : c.id)}
-                                className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
-                                title="Mais ações"
-                              >
-                                <MoreVertical size={16} />
-                              </button>
-                              {menuAberto === c.id && (
-                                <>
-                                  <div className="fixed inset-0 z-40" onClick={() => setMenuAberto(null)} />
-                                  <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => { handleDownloadPdf(c.id, c.titulo); setMenuAberto(null); }}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                    >
-                                      <FileText size={15} className="text-red-500" /> Baixar PDF
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => { handleDownloadDocx(c.id, c.titulo); setMenuAberto(null); }}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                    >
-                                      <FileText size={15} className="text-blue-600" /> Baixar Word
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
+                            <CrmDocumentoMaisAcoesMenu
+                              itemId={c.id}
+                              aberto={menuAberto === c.id}
+                              onToggle={() => setMenuAberto(menuAberto === c.id ? null : c.id)}
+                              onClose={() => setMenuAberto(null)}
+                            >
+                              <CrmDocumentoArquivoAcoes
+                                onDownloadPdf={() => {
+                                  handleDownloadPdf(c.id, c.titulo);
+                                  setMenuAberto(null);
+                                }}
+                                onDownloadDocx={() => {
+                                  handleDownloadDocx(c.id, c.titulo);
+                                  setMenuAberto(null);
+                                }}
+                              />
+                            </CrmDocumentoMaisAcoesMenu>
                             {c.status_assinatura !== 'concluido' && (
                               <button
                                 type="button"

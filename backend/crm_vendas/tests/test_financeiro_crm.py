@@ -4,8 +4,25 @@ from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
+from rest_framework.response import Response
 
+from crm_vendas.mixins import CRMSchemaRecoveryMixin
 from crm_vendas.services_financeiro import sincronizar_receita_comissao_oportunidade
+
+
+class TestCRMSchemaRecoveryMixinSuper(TestCase):
+    """Regressão: super() dentro de lambda quebrava list/create no Python 3.12."""
+
+    def test_list_chama_super_sem_runtime_error(self):
+        class Parent:
+            def list(self, request, *args, **kwargs):
+                return Response({'ok': True})
+
+        class Child(CRMSchemaRecoveryMixin, Parent):
+            pass
+
+        resp = Child().list(MagicMock())
+        self.assertEqual(resp.data, {'ok': True})
 
 
 class TestSincronizarReceitaComissao(TestCase):

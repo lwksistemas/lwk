@@ -41,26 +41,30 @@ class CRMSchemaRecoveryMixin:
                     continue
                 raise
 
+    def _call_super_action(self, action_name, request, *args, **kwargs):
+        """Chama ação do próximo MRO sem lambda (super() em lambda quebra no Python 3.12)."""
+        def handler():
+            return getattr(super(CRMSchemaRecoveryMixin, self), action_name)(request, *args, **kwargs)
+
+        return self._com_recuperacao_schema(action_name, handler)
+
     def list(self, request, *args, **kwargs):
-        return self._com_recuperacao_schema('list', lambda: super().list(request, *args, **kwargs))
+        return self._call_super_action('list', request, *args, **kwargs)
 
     def retrieve(self, request, *args, **kwargs):
-        return self._com_recuperacao_schema('retrieve', lambda: super().retrieve(request, *args, **kwargs))
+        return self._call_super_action('retrieve', request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
-        return self._com_recuperacao_schema('create', lambda: super().create(request, *args, **kwargs))
+        return self._call_super_action('create', request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        return self._com_recuperacao_schema('update', lambda: super().update(request, *args, **kwargs))
+        return self._call_super_action('update', request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
-        return self._com_recuperacao_schema(
-            'partial_update',
-            lambda: super().partial_update(request, *args, **kwargs),
-        )
+        return self._call_super_action('partial_update', request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        return self._com_recuperacao_schema('destroy', lambda: super().destroy(request, *args, **kwargs))
+        return self._call_super_action('destroy', request, *args, **kwargs)
 
 
 class CRMPermissionMixin:

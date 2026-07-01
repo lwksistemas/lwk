@@ -10,7 +10,12 @@ from django.http import HttpResponse
 from core.views import BaseModelViewSet
 from tenants.middleware import get_current_loja_id
 
-from .mixins import CRMPermissionMixin, CacheInvalidationMixin, VendedorFilterMixin
+from .mixins import (
+    CRMPermissionMixin,
+    CacheInvalidationMixin,
+    CRMSchemaRecoveryMixin,
+    VendedorFilterMixin,
+)
 from .models.financeiro import GrupoFinanceiroCRM, LancamentoFinanceiroCRM
 from .serializers.financeiro import (
     GrupoFinanceiroCRMSerializer,
@@ -27,7 +32,12 @@ from .views_common import CRMPagination, filtrar_queryset_por_query_params
 logger = logging.getLogger(__name__)
 
 
-class GrupoFinanceiroCRMViewSet(CRMPermissionMixin, CacheInvalidationMixin, BaseModelViewSet):
+class GrupoFinanceiroCRMViewSet(
+    CRMSchemaRecoveryMixin,
+    CRMPermissionMixin,
+    CacheInvalidationMixin,
+    BaseModelViewSet,
+):
     queryset = GrupoFinanceiroCRM.objects.all()
     serializer_class = GrupoFinanceiroCRMSerializer
     pagination_class = CRMPagination
@@ -66,6 +76,7 @@ class GrupoFinanceiroCRMViewSet(CRMPermissionMixin, CacheInvalidationMixin, Base
 
 
 class LancamentoFinanceiroCRMViewSet(
+    CRMSchemaRecoveryMixin,
     CacheInvalidationMixin,
     VendedorFilterMixin,
     BaseModelViewSet,
@@ -139,6 +150,11 @@ class LancamentoFinanceiroCRMViewSet(
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def financeiro_crm_resumo(request):
+    from django.db.utils import OperationalError, ProgrammingError
+    from superadmin.models import Loja
+
+    from .schema_service import configurar_schema_crm_loja
+
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({'error': 'Loja não identificada'}, status=status.HTTP_400_BAD_REQUEST)
@@ -153,8 +169,20 @@ def financeiro_crm_resumo(request):
     elif not is_owner(request):
         vendedor_id = vendedor_id
 
-    garantir_grupos_padrao(loja_id)
-    return Response(resumo_financeiro_crm(loja_id, vendedor_id))
+    for attempt in range(2):
+        try:
+            garantir_grupos_padrao(loja_id)
+            return Response(resumo_financeiro_crm(loja_id, vendedor_id))
+        except (ProgrammingError, OperationalError):
+            if attempt == 0:
+                loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
+                if loja and configurar_schema_crm_loja(loja):
+                    continue
+            logger.exception('Erro no resumo financeiro CRM (loja_id=%s)', loja_id)
+            return Response(
+                {'detail': 'O banco de dados da loja precisa ser configurado.', 'code': 'SCHEMA_NOT_CONFIGURED'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 @api_view(['POST'])

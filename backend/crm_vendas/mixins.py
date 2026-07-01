@@ -2,10 +2,65 @@
 Mixins reutilizáveis para CRM Vendas.
 Elimina código duplicado e padroniza comportamento.
 """
+import logging
+
 from django.db.models import Q
+from django.db.utils import OperationalError, ProgrammingError
 from rest_framework import status
 from rest_framework.response import Response
+
 from .utils import get_current_vendedor_id, is_vendedor_usuario
+
+logger = logging.getLogger(__name__)
+
+
+class CRMSchemaRecoveryMixin:
+    """Reaplica migrations do schema CRM quando tabelas/colunas ainda não existem no tenant."""
+
+    def _recuperar_schema_crm(self) -> bool:
+        from superadmin.models import Loja
+        from tenants.middleware import get_current_loja_id
+
+        from .schema_service import configurar_schema_crm_loja
+
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return False
+        loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
+        if not loja:
+            return False
+        return configurar_schema_crm_loja(loja)
+
+    def _com_recuperacao_schema(self, action_name, handler):
+        for attempt in range(2):
+            try:
+                return handler()
+            except (ProgrammingError, OperationalError) as exc:
+                if attempt == 0 and self._recuperar_schema_crm():
+                    logger.warning('Schema CRM recuperado após erro em %s: %s', action_name, exc)
+                    continue
+                raise
+
+    def list(self, request, *args, **kwargs):
+        return self._com_recuperacao_schema('list', lambda: super().list(request, *args, **kwargs))
+
+    def retrieve(self, request, *args, **kwargs):
+        return self._com_recuperacao_schema('retrieve', lambda: super().retrieve(request, *args, **kwargs))
+
+    def create(self, request, *args, **kwargs):
+        return self._com_recuperacao_schema('create', lambda: super().create(request, *args, **kwargs))
+
+    def update(self, request, *args, **kwargs):
+        return self._com_recuperacao_schema('update', lambda: super().update(request, *args, **kwargs))
+
+    def partial_update(self, request, *args, **kwargs):
+        return self._com_recuperacao_schema(
+            'partial_update',
+            lambda: super().partial_update(request, *args, **kwargs),
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        return self._com_recuperacao_schema('destroy', lambda: super().destroy(request, *args, **kwargs))
 
 
 class CRMPermissionMixin:

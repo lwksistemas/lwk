@@ -51,6 +51,33 @@ interface DashboardData {
   comissao_total_mes: number;
 }
 
+const PERIODO_CARD_LABELS: Record<string, { receita: string; comissao: string; leads: string }> = {
+  mes_atual: {
+    receita: 'Receita do mês',
+    comissao: 'Comissão do mês',
+    leads: 'Novos leads',
+  },
+  mes_passado: {
+    receita: 'Receita do mês passado',
+    comissao: 'Comissão do mês passado',
+    leads: 'Novos leads',
+  },
+  trimestre_atual: {
+    receita: 'Receita do trimestre',
+    comissao: 'Comissão do trimestre',
+    leads: 'Novos leads no trimestre',
+  },
+  ano_atual: {
+    receita: 'Receita do ano',
+    comissao: 'Comissão do ano',
+    leads: 'Novos leads no ano',
+  },
+};
+
+function labelsPeriodo(periodo: string) {
+  return PERIODO_CARD_LABELS[periodo] ?? PERIODO_CARD_LABELS.mes_atual;
+}
+
 function formatMoney(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -202,6 +229,8 @@ export default function CrmVendasDashboardPage() {
 
   if (!data) return null;
 
+  const periodoLabels = labelsPeriodo(periodoFiltro);
+
   return (
     <div className="space-y-5">
       {/* Page Header - Estilo Salesforce */}
@@ -262,18 +291,18 @@ export default function CrmVendasDashboardPage() {
       {/* Cards de métricas – estilo Salesforce Lightning */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Receita do mês"
+          title={periodoLabels.receita}
           value={formatMoney(data.receita)}
           icon={Wallet}
           iconColor="text-[#0176d3]"
           iconBgColor="bg-[#e3f3ff]"
-          trend="up"
-          trendValue="+12%"
+          trend={data.receita > 0 ? 'up' : undefined}
+          trendValue={data.receita > 0 ? '+12%' : undefined}
         />
         <StatCard
-          title="Novos Leads"
+          title={periodoLabels.leads}
           value={String(data.leads)}
-          subtitle={`${data.oportunidades} em negociação`}
+          subtitle={`${data.oportunidades_em_andamento} em negociação`}
           icon={Users}
           iconColor="text-[#06a59a]"
           iconBgColor="bg-[#d9f5f3]"
@@ -323,7 +352,7 @@ export default function CrmVendasDashboardPage() {
               <DollarSign size={20} className="text-[#e287b2]" />
             </div>
             <h2 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-              Comissão do mês
+              {periodoLabels.comissao}
             </h2>
           </div>
           <p className="text-3xl font-bold text-[#e287b2] dark:text-[#e287b2]">

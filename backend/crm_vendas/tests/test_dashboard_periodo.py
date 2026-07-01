@@ -5,6 +5,17 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 
 
+class TestCalcularIntervaloTrimestre(TestCase):
+    def test_trimestre_rolante_tres_meses(self):
+        from crm_vendas.services_dashboard import calcular_intervalo_datas
+
+        with patch('crm_vendas.services_dashboard.timezone') as mock_tz:
+            mock_tz.now.return_value.date.return_value = date(2026, 7, 15)
+            inicio, fim = calcular_intervalo_datas('trimestre_atual')
+        self.assertEqual(inicio, date(2026, 5, 1))
+        self.assertEqual(fim, date(2026, 7, 15))
+
+
 class TestDashboardPipelinePeriodo(TestCase):
     def test_pipeline_aberto_respeita_mes_atual(self):
         from crm_vendas.services_dashboard import build_dashboard_payload

@@ -94,6 +94,16 @@ def empty_dashboard_response():
     }
 
 
+def _inicio_trimestre_rolante(hoje):
+    """Início do trimestre rolante: mês atual + 2 meses anteriores (ex.: jul → mai/1)."""
+    mes = hoje.month - 2
+    ano = hoje.year
+    while mes <= 0:
+        mes += 12
+        ano -= 1
+    return hoje.replace(year=ano, month=mes, day=1)
+
+
 def calcular_intervalo_datas(periodo, data_inicio_param=None, data_fim_param=None):
     """Calcula intervalo de datas baseado no período selecionado."""
     hoje = timezone.now().date()
@@ -124,9 +134,7 @@ def calcular_intervalo_datas(periodo, data_inicio_param=None, data_fim_param=Non
         primeiro_dia_mes_passado = ultimo_dia_mes_passado.replace(day=1)
         return primeiro_dia_mes_passado, ultimo_dia_mes_passado
     if periodo == 'trimestre_atual':
-        mes_inicio_trimestre = ((hoje.month - 1) // 3) * 3 + 1
-        inicio = hoje.replace(month=mes_inicio_trimestre, day=1)
-        return inicio, hoje
+        return _inicio_trimestre_rolante(hoje), hoje
     if periodo == 'ultimos_30_dias':
         return hoje - timedelta(days=30), hoje
     if periodo == 'ultimos_90_dias':

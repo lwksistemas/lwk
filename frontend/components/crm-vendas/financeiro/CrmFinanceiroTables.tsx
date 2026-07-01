@@ -157,7 +157,7 @@ export function CrmFinanceiroResumoCards({
     { label: 'Receitas pendentes', value: resumo.receitas_pendentes, color: 'text-green-500' },
     { label: 'Despesas pagas', value: resumo.despesas_pagas, color: 'text-red-600' },
     { label: 'Saldo realizado', value: resumo.saldo_realizado, color: 'text-[#0176d3]' },
-    { label: 'Comissão (vendas)', value: resumo.comissao_vendas_total, color: 'text-purple-600' },
+    { label: 'Comissão de vendas', value: resumo.comissao_vendas_total, color: 'text-purple-600' },
     { label: 'Saldo previsto', value: resumo.saldo_previsto, color: 'text-gray-800 dark:text-gray-200' },
   ];
 

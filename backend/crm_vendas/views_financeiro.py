@@ -22,6 +22,7 @@ from .serializers.financeiro import (
     LancamentoFinanceiroCRMSerializer,
 )
 from .services_financeiro import (
+    aplicar_filtro_periodo_lancamentos,
     garantir_grupos_padrao,
     resumo_financeiro_crm,
     sincronizar_comissoes_retroativas,
@@ -91,7 +92,7 @@ class LancamentoFinanceiroCRMViewSet(
 
     def get_queryset(self):
         qs = super().get_queryset()
-        return filtrar_queryset_por_query_params(
+        qs = filtrar_queryset_por_query_params(
             qs,
             self.request,
             {
@@ -100,6 +101,12 @@ class LancamentoFinanceiroCRMViewSet(
                 'vendedor_id': 'vendedor_id',
                 'grupo_id': 'grupo_id',
             },
+        )
+        return aplicar_filtro_periodo_lancamentos(
+            qs,
+            periodo=self.request.query_params.get('periodo', 'mes_atual'),
+            data_inicio=self.request.query_params.get('data_inicio'),
+            data_fim=self.request.query_params.get('data_fim'),
         )
 
     def perform_create(self, serializer):
@@ -172,7 +179,16 @@ def financeiro_crm_resumo(request):
     for attempt in range(2):
         try:
             garantir_grupos_padrao(loja_id)
-            return Response(resumo_financeiro_crm(loja_id, vendedor_id))
+            periodo = request.query_params.get('periodo', 'mes_atual')
+            return Response(
+                resumo_financeiro_crm(
+                    loja_id,
+                    vendedor_id,
+                    periodo=periodo,
+                    data_inicio=request.query_params.get('data_inicio'),
+                    data_fim=request.query_params.get('data_fim'),
+                )
+            )
         except (ProgrammingError, OperationalError):
             if attempt == 0:
                 loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()

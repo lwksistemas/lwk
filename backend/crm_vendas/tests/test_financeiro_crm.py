@@ -54,6 +54,40 @@ class TestSincronizarReceitaComissao(TestCase):
             existente.save.assert_called_once()
 
 
+class TestResumoFinanceiroComissao(TestCase):
+    def test_comissao_usa_soma_valor_comissao_oportunidades(self):
+        from unittest.mock import MagicMock, patch
+
+        from crm_vendas.services_financeiro import resumo_financeiro_crm
+
+        mock_lanc = MagicMock()
+        mock_lanc.objects.filter.return_value.exclude.return_value.filter.return_value = mock_lanc
+        mock_lanc.objects.filter.return_value.exclude.return_value.filter.return_value.filter.return_value = mock_lanc
+        mock_lanc.TIPO_RECEITA = 'receita'
+        mock_lanc.TIPO_DESPESA = 'despesa'
+        mock_lanc.STATUS_PAGO = 'pago'
+        mock_lanc.STATUS_PENDENTE = 'pendente'
+        mock_lanc.STATUS_CANCELADO = 'cancelado'
+        mock_lanc.objects.filter.return_value.exclude.return_value.filter.return_value.aggregate.return_value = {
+            't': 33375.0,
+        }
+
+        mock_opp = MagicMock()
+        mock_opp.objects.filter.return_value.filter.return_value.aggregate.return_value = {'t': 4875.0}
+
+        with patch('crm_vendas.models.financeiro.LancamentoFinanceiroCRM', mock_lanc), patch(
+            'crm_vendas.models.Oportunidade', mock_opp
+        ), patch(
+            'crm_vendas.services_dashboard.calcular_intervalo_datas',
+            return_value=(date(2026, 5, 1), date(2026, 5, 31)),
+        ), patch(
+            'crm_vendas.services_dashboard._filtro_fechamento_no_periodo',
+            return_value=MagicMock(),
+        ):
+            out = resumo_financeiro_crm(1, None, periodo='mes_passado')
+            self.assertEqual(out['comissao_vendas_total'], 4875.0)
+
+
 class TestSincronizarComissoesRetroativas(TestCase):
     def test_dry_run_conta_oportunidades(self):
         with patch('crm_vendas.models.Oportunidade') as mock_opp, patch(

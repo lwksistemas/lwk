@@ -54,9 +54,16 @@ export interface VendedorOption {
 async function fetchLancamentosPorTipo(
   tipo: TipoFinanceiro,
   vendedorFiltro: string,
+  periodo: string,
+  dataInicio: string,
+  dataFim: string,
 ): Promise<LancamentoFinanceiro[]> {
-  const params = new URLSearchParams({ tipo, page_size: '100' });
+  const params = new URLSearchParams({ tipo, page_size: '100', periodo });
   if (vendedorFiltro) params.set('vendedor_id', vendedorFiltro);
+  if (periodo === 'personalizado' && dataInicio && dataFim) {
+    params.set('data_inicio', dataInicio);
+    params.set('data_fim', dataFim);
+  }
   const { data } = await apiClient.get<{ results?: LancamentoFinanceiro[] } | LancamentoFinanceiro[]>(
     `crm-vendas/financeiro-lancamentos/?${params}`,
   );
@@ -87,19 +94,26 @@ export function useCrmFinanceiroPage() {
   const isAdmin = !authService.isVendedor();
 
   const loadResumo = useCallback(async () => {
-    const params = vendedorFiltro ? `?vendedor_id=${vendedorFiltro}` : '';
-    const { data } = await apiClient.get<ResumoFinanceiro>(`crm-vendas/financeiro/resumo/${params}`);
+    const params = new URLSearchParams({ periodo: periodoRelatorio });
+    if (vendedorFiltro) params.set('vendedor_id', vendedorFiltro);
+    if (periodoRelatorio === 'personalizado' && dataInicioRel && dataFimRel) {
+      params.set('data_inicio', dataInicioRel);
+      params.set('data_fim', dataFimRel);
+    }
+    const { data } = await apiClient.get<ResumoFinanceiro>(
+      `crm-vendas/financeiro/resumo/?${params}`,
+    );
     setResumo(data);
-  }, [vendedorFiltro]);
+  }, [vendedorFiltro, periodoRelatorio, dataInicioRel, dataFimRel]);
 
   const loadLancamentos = useCallback(async () => {
     const [despesas, receitas] = await Promise.all([
-      fetchLancamentosPorTipo('despesa', vendedorFiltro),
-      fetchLancamentosPorTipo('receita', vendedorFiltro),
+      fetchLancamentosPorTipo('despesa', vendedorFiltro, periodoRelatorio, dataInicioRel, dataFimRel),
+      fetchLancamentosPorTipo('receita', vendedorFiltro, periodoRelatorio, dataInicioRel, dataFimRel),
     ]);
     setLancamentosDespesa(despesas);
     setLancamentosReceita(receitas);
-  }, [vendedorFiltro]);
+  }, [vendedorFiltro, periodoRelatorio, dataInicioRel, dataFimRel]);
 
   const loadGrupos = useCallback(async () => {
     const { data } = await apiClient.get<{ results?: GrupoFinanceiro[] } | GrupoFinanceiro[]>(

@@ -90,10 +90,20 @@ def gerar_relatorio_financeiro_vendedor(
     desp_pago, desp_pend = totais(despesas)
     saldo = rec_pago - desp_pago
 
+    from .models import Oportunidade
+    from .relatorios import _filtro_datas_fechamento_ganho
+
+    opp_comissao_qs = Oportunidade.objects.filter(loja_id=loja_id, etapa='closed_won').filter(
+        _filtro_datas_fechamento_ganho(inicio, fim),
+    )
+    if vendedor_id:
+        opp_comissao_qs = opp_comissao_qs.filter(vendedor_id=vendedor_id)
+    total_comissao = opp_comissao_qs.aggregate(t=Sum('valor_comissao'))['t'] or Decimal('0')
+
     resumo_data = [
         ['Receitas pagas', _fmt_brl(rec_pago), 'Receitas pendentes', _fmt_brl(rec_pend)],
         ['Despesas pagas', _fmt_brl(desp_pago), 'Despesas pendentes', _fmt_brl(desp_pend)],
-        ['Saldo realizado', _fmt_brl(saldo), '', ''],
+        ['Comissão de vendas', _fmt_brl(total_comissao), 'Saldo realizado', _fmt_brl(saldo)],
     ]
     resumo_table = Table(resumo_data, colWidths=[4 * cm, 3.5 * cm, 4 * cm, 3.5 * cm])
     resumo_table.setStyle(TableStyle([
@@ -101,9 +111,7 @@ def gerar_relatorio_financeiro_vendedor(
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
-        ('SPAN', (0, 2), (1, 2)),
-        ('SPAN', (2, 2), (3, 2)),
-        ('FONTNAME', (0, 2), (1, 2), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 2), (0, 2), 'Helvetica-Bold'),
     ]))
     elements.append(resumo_table)
     elements.append(Spacer(1, 0.6 * cm))

@@ -118,7 +118,7 @@ export default function CrmFinanceiroPage() {
           </div>
         )}
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Período PDF</label>
+          <label className="block text-xs text-gray-500 mb-1">Período</label>
           <select
             value={f.periodoRelatorio}
             onChange={(e) => f.setPeriodoRelatorio(e.target.value)}

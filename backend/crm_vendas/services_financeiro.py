@@ -115,14 +115,33 @@ def sincronizar_receita_comissao_oportunidade(oportunidade) -> None:
     )
 
 
-def resumo_financeiro_crm(loja_id: int, vendedor_id: int | None = None) -> dict:
-    from django.db.models import Q, Sum
+def aplicar_filtro_periodo_lancamentos(queryset, *, periodo='mes_atual', data_inicio=None, data_fim=None):
+    """Filtra lançamentos por data_vencimento no intervalo do período."""
+    from .services_dashboard import calcular_intervalo_datas
 
+    inicio, fim = calcular_intervalo_datas(periodo, data_inicio, data_fim)
+    return queryset.filter(data_vencimento__gte=inicio, data_vencimento__lte=fim)
+
+
+def resumo_financeiro_crm(
+    loja_id: int,
+    vendedor_id: int | None = None,
+    *,
+    periodo: str = 'mes_atual',
+    data_inicio=None,
+    data_fim=None,
+) -> dict:
+    from django.db.models import Sum
+
+    from .models import Oportunidade
     from .models.financeiro import LancamentoFinanceiroCRM
+    from .services_dashboard import _filtro_fechamento_no_periodo, calcular_intervalo_datas
+
+    inicio, fim = calcular_intervalo_datas(periodo, data_inicio, data_fim)
 
     qs = LancamentoFinanceiroCRM.objects.filter(loja_id=loja_id).exclude(
         status=LancamentoFinanceiroCRM.STATUS_CANCELADO,
-    )
+    ).filter(data_vencimento__gte=inicio, data_vencimento__lte=fim)
     if vendedor_id:
         qs = qs.filter(vendedor_id=vendedor_id)
 
@@ -137,12 +156,14 @@ def resumo_financeiro_crm(loja_id: int, vendedor_id: int | None = None) -> dict:
     despesas_pagas = agg(LancamentoFinanceiroCRM.TIPO_DESPESA, LancamentoFinanceiroCRM.STATUS_PAGO)
     despesas_pendentes = agg(LancamentoFinanceiroCRM.TIPO_DESPESA, LancamentoFinanceiroCRM.STATUS_PENDENTE)
 
-    comissao_auto = float(
-        qs.filter(
-            tipo=LancamentoFinanceiroCRM.TIPO_RECEITA,
-            origem=LancamentoFinanceiroCRM.ORIGEM_COMISSAO,
-        ).aggregate(t=Sum('valor'))['t'] or 0
+    # Total de comissões = soma de valor_comissao das oportunidades ganhas no período
+    # (mesma lógica do dashboard — não usar valor do lançamento, que pode refletir venda total)
+    opp_qs = Oportunidade.objects.filter(loja_id=loja_id, etapa='closed_won').filter(
+        _filtro_fechamento_no_periodo(inicio, fim),
     )
+    if vendedor_id:
+        opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
+    comissao_vendas = float(opp_qs.aggregate(t=Sum('valor_comissao'))['t'] or 0)
 
     return {
         'receitas_pagas': receitas_pagas,
@@ -151,7 +172,9 @@ def resumo_financeiro_crm(loja_id: int, vendedor_id: int | None = None) -> dict:
         'despesas_pendentes': despesas_pendentes,
         'saldo_realizado': receitas_pagas - despesas_pagas,
         'saldo_previsto': (receitas_pagas + receitas_pendentes) - (despesas_pagas + despesas_pendentes),
-        'comissao_vendas_total': comissao_auto,
+        'comissao_vendas_total': comissao_vendas,
+        'periodo_inicio': inicio.isoformat(),
+        'periodo_fim': fim.isoformat(),
     }
 
 

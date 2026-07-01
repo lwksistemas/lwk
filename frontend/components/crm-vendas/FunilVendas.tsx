@@ -65,7 +65,7 @@ export default function FunilVendas({ dados, etapasConfig }: Props) {
     <div className="bg-white dark:bg-[#16325c] rounded-2xl border border-gray-200 dark:border-[#0d1f3c] p-6">
       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
         <TrendingUp size={16} className="text-[#0176d3]" /> Funil de Vendas
-        <span className="text-[10px] font-normal text-gray-400 dark:text-gray-500 ml-auto">Pipeline atual</span>
+        <span className="text-[10px] font-normal text-gray-400 dark:text-gray-500 ml-auto">No período</span>
       </h3>
       <div className="space-y-3">
         {etapasOrdenadas.map((etapa, idx) => {

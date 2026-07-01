@@ -188,15 +188,16 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
         opp_qs = opp_qs.filter(etapa__in=['closed_won', 'closed_lost'])
 
     filtro_opp_mes = _filtro_fechamento_no_periodo(data_inicio, data_fim)
-    # Filtro para oportunidades criadas no período (para pipeline aberto)
+    # Oportunidades abertas no período: criadas entre data_inicio e data_fim
     filtro_criado_periodo = Q(created_at__date__gte=data_inicio, created_at__date__lte=data_fim)
+    filtro_abertas_periodo = Q(etapa__in=ETAPAS_EM_ANDAMENTO) & filtro_criado_periodo
 
     # Agregações principais (1 query)
     agg = opp_qs.aggregate(
         total_oportunidades=Count('id'),
         receita=Sum('valor', filter=Q(etapa='closed_won') & filtro_opp_mes),
-        pipeline_aberto=Sum('valor', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),
-        oportunidades_em_andamento=Count('id', filter=Q(etapa__in=ETAPAS_EM_ANDAMENTO)),
+        pipeline_aberto=Sum('valor', filter=filtro_abertas_periodo),
+        oportunidades_em_andamento=Count('id', filter=filtro_abertas_periodo),
         total_fechados=Count('id', filter=Q(etapa__in=['closed_won', 'closed_lost']) & (filtro_opp_mes | Q(etapa='closed_lost', data_fechamento_perdido__gte=data_inicio, data_fechamento_perdido__lte=data_fim))),
         total_ganhos=Count('id', filter=Q(etapa='closed_won') & filtro_opp_mes),
         valor_perdido=Sum('valor', filter=Q(etapa='closed_lost') & Q(data_fechamento_perdido__gte=data_inicio, data_fechamento_perdido__lte=data_fim)),
@@ -206,11 +207,11 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
     taxa_conversao = round((total_ganhos / total_fechados * 100), 1) if total_fechados else 0
 
     # Pipeline por etapa (1 query)
-    # Etapas abertas: mostra todas (são o pipeline ativo)
-    # Etapas fechadas (ganho/perdido): filtra pelo período selecionado
+    # Etapas abertas: criadas no período selecionado
+    # Etapas fechadas (ganho/perdido): filtra pela data de fechamento no período
     pipeline_aberto_map = {
         row['etapa']: {'valor': float(row['valor'] or 0), 'quantidade': row['qtd'] or 0}
-        for row in opp_qs.filter(etapa__in=ETAPAS_EM_ANDAMENTO)
+        for row in opp_qs.filter(filtro_abertas_periodo)
         .values('etapa')
         .annotate(valor=Sum('valor'), qtd=Count('id'))
     }

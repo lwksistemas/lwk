@@ -4,8 +4,18 @@ import type { LojaInfo, LeadInfo, OportunidadeItem, FormDataProposta } from './m
 import BuscarOportunidadeInput from '@/components/crm-vendas/BuscarOportunidadeInput';
 import { CrmClienteBlock, CrmLojaBlock } from '@/components/crm-vendas/CrmLojaClienteBlocks';
 import CrmDocumentoAssinaturasFields from '@/components/crm-vendas/documentos/CrmDocumentoAssinaturasFields';
+import CrmDocumentoConteudoFields from '@/components/crm-vendas/documentos/CrmDocumentoConteudoFields';
+import CrmDocumentoFormActions from '@/components/crm-vendas/documentos/CrmDocumentoFormActions';
 import CrmDocumentoValoresFields from '@/components/crm-vendas/documentos/CrmDocumentoValoresFields';
 import CrmOportunidadeItensTabela from '@/components/crm-vendas/documentos/CrmOportunidadeItensTabela';
+import {
+  crmFormInputClass,
+  crmFormLabelClass,
+  crmFormPageInputClass,
+  crmFormPageLabelClass,
+  crmFormSectionClass,
+  crmFormSectionTitleClass,
+} from '@/lib/crm-form-styles';
 
 export interface PropostaFormContentProps {
   form: FormDataProposta;
@@ -41,9 +51,9 @@ export interface PropostaFormContentProps {
   vendedorNome?: string;
 }
 
-const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
-const labelClass = 'block text-xs text-gray-500 dark:text-gray-400 mb-0.5';
-const sectionClass = 'space-y-3 border-b border-gray-200 dark:border-gray-600 pb-4';
+const inputClass = crmFormInputClass;
+const labelClass = crmFormLabelClass;
+const sectionClass = crmFormSectionClass;
 
 export default function PropostaFormContent({
   form,
@@ -71,14 +81,10 @@ export default function PropostaFormContent({
   vendedorNome,
 }: PropostaFormContentProps) {
   const usePageStyles = pageLayout || fullWidth;
-  const inputCls = usePageStyles
-    ? 'w-full px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-[#1e3a5f] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0176d3] focus:ring-offset-0'
-    : inputClass;
-  const labelCls = usePageStyles
-    ? 'block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1'
-    : labelClass;
+  const inputCls = usePageStyles ? crmFormPageInputClass : inputClass;
+  const labelCls = usePageStyles ? crmFormPageLabelClass : labelClass;
   const sectionTitleCls = usePageStyles
-    ? 'text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-[#0d1f3c] pb-2'
+    ? crmFormSectionTitleClass
     : 'text-sm font-medium text-gray-700 dark:text-gray-300';
   const sectionWrapCls = usePageStyles ? 'space-y-4' : sectionClass;
   const formClass = pageLayout
@@ -87,14 +93,12 @@ export default function PropostaFormContent({
       ? 'space-y-4 w-full md:grid md:grid-cols-2 md:gap-x-6 lg:gap-x-8'
       : 'space-y-4 md:max-w-3xl md:mx-auto md:grid md:grid-cols-2 md:gap-x-6';
   const spanClass = pageLayout ? 'lg:col-span-2' : 'md:col-span-2';
-  const sectionTitleClass =
-    'text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-[#0d1f3c] pb-2';
 
   const renderLojaBlock = () => (
     <CrmLojaBlock
       lojaInfo={lojaInfo}
       labelClass={labelCls}
-      titleClass={pageLayout ? sectionTitleClass : sectionTitleCls}
+      titleClass={pageLayout ? crmFormSectionTitleClass : sectionTitleCls}
       compact={!pageLayout}
     />
   );
@@ -104,7 +108,7 @@ export default function PropostaFormContent({
       leadInfo={leadInfo}
       oportunidadeSelecionada={!!form.oportunidade_id}
       labelClass={labelCls}
-      titleClass={pageLayout ? sectionTitleClass : sectionTitleCls}
+      titleClass={pageLayout ? crmFormSectionTitleClass : sectionTitleCls}
       compact={!pageLayout}
     />
   );
@@ -131,52 +135,21 @@ export default function PropostaFormContent({
     );
   };
 
-  const renderConteudoBlock = () => (
-    <>
-      {templates.length > 0 && onSelecionarTemplate && (
-        <div>
-          <label className={labelCls}>Usar template</label>
-          <select
-            onChange={(e) => {
-              const template = templates.find((t) => String(t.id) === e.target.value);
-              if (template) onSelecionarTemplate(template.conteudo, template.nome);
-              e.target.value = '';
-            }}
-            className={inputCls}
-            defaultValue=""
-          >
-            <option value="">Selecione um template (opcional)</option>
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.nome} {t.is_padrao ? '(PADRÃO)' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      <div>
-        <div className="flex items-center justify-between gap-2 mb-1">
-          <label className={labelCls}>Conteúdo</label>
-          {onSalvarComoPadrao && form.conteudo.trim() && (
-            <button
-              type="button"
-              onClick={() => onSalvarComoPadrao(form.conteudo)}
-              disabled={salvandoPadrao}
-              className="text-xs text-[#0176d3] hover:underline disabled:opacity-50"
-            >
-              {salvandoPadrao ? 'Salvando...' : 'Salvar como Proposta PADRAO'}
-            </button>
-          )}
-        </div>
-        <textarea
-          value={form.conteudo}
-          onChange={(e) => onFormChange((f) => ({ ...f, conteudo: e.target.value }))}
-          className={`${inputCls} min-h-[200px] lg:min-h-[240px] resize-y`}
-          rows={10}
-          placeholder="Descrição detalhada da proposta..."
-        />
-      </div>
-    </>
+  const renderConteudoBlock = (opts?: { minHeightClass?: string; rows?: number }) => (
+    <CrmDocumentoConteudoFields
+      conteudo={form.conteudo}
+      onConteudoChange={(value) => onFormChange((f) => ({ ...f, conteudo: value }))}
+      inputCls={inputCls}
+      labelCls={labelCls}
+      placeholder="Descrição detalhada da proposta..."
+      templates={templates}
+      onSelecionarTemplate={onSelecionarTemplate}
+      onSalvarComoPadrao={onSalvarComoPadrao}
+      salvandoPadrao={salvandoPadrao}
+      minHeightClass={opts?.minHeightClass}
+      rows={opts?.rows}
+      wrapTemplateAndContent
+    />
   );
 
   const renderAssinaturasBlock = () => (
@@ -200,7 +173,7 @@ export default function PropostaFormContent({
             <section className="space-y-4">{renderLojaBlock()}</section>
             <section className="space-y-4">{renderClienteBlock()}</section>
             <section className="space-y-4">
-              <h3 className={sectionTitleClass}>Oportunidade</h3>
+              <h3 className={crmFormSectionTitleClass}>Oportunidade</h3>
               <div>
                 <label className={labelCls}>Buscar oportunidade *</label>
                 <BuscarOportunidadeInput
@@ -213,7 +186,7 @@ export default function PropostaFormContent({
               </div>
             </section>
             <section className="space-y-4">
-              <h3 className={sectionTitleClass}>Proposta</h3>
+              <h3 className={crmFormSectionTitleClass}>Proposta</h3>
               <div>
                 <label className={labelCls}>Título *</label>
                 <input
@@ -244,23 +217,23 @@ export default function PropostaFormContent({
 
           <div className="space-y-6">
             <section className="space-y-4">
-              <h3 className={sectionTitleClass}>Produtos e serviços</h3>
+              <h3 className={crmFormSectionTitleClass}>Produtos e serviços</h3>
               {renderProdutosBlock() || (
                 <p className="text-xs text-gray-500">Selecione uma oportunidade para ver os itens.</p>
               )}
             </section>
             {form.oportunidade_id && (
               <section className="space-y-4">
-                <h3 className={sectionTitleClass}>Valores</h3>
+                <h3 className={crmFormSectionTitleClass}>Valores</h3>
                 {renderValoresBlock()}
               </section>
             )}
             <section className="space-y-4">
-              <h3 className={sectionTitleClass}>Conteúdo</h3>
+              <h3 className={crmFormSectionTitleClass}>Conteúdo</h3>
               {renderConteudoBlock()}
             </section>
             <section className="space-y-4">
-              <h3 className={sectionTitleClass}>Assinaturas</h3>
+              <h3 className={crmFormSectionTitleClass}>Assinaturas</h3>
               {renderAssinaturasBlock()}
             </section>
           </div>
@@ -343,59 +316,22 @@ export default function PropostaFormContent({
         />
       </div>
 
-      {/* Seletor de Template */}
-      {templates.length > 0 && onSelecionarTemplate && (
-        <div className={spanClass}>
-          <label className={labelCls}>
-            Usar template
-          </label>
-          <select
-            onChange={(e) => {
-              const template = templates.find(t => String(t.id) === e.target.value);
-              if (template) {
-                onSelecionarTemplate(template.conteudo, template.nome);
-              }
-              e.target.value = ''; // Reset select
-            }}
-            className={inputCls}
-            defaultValue=""
-          >
-            <option value="">Selecione um template (opcional)</option>
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.nome} {t.is_padrao ? '(PADRÃO)' : ''}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Selecione um template para preencher o conteúdo automaticamente
-          </p>
-        </div>
-      )}
-
       {/* Conteúdo */}
-      <div className={spanClass}>
-        <div className="flex items-center justify-between gap-2 mb-1">
-          <label className={labelCls}>Conteúdo</label>
-          {onSalvarComoPadrao && form.conteudo.trim() && (
-            <button
-              type="button"
-              onClick={() => onSalvarComoPadrao(form.conteudo)}
-              disabled={salvandoPadrao}
-              className="text-xs text-[#0176d3] hover:underline disabled:opacity-50"
-            >
-              {salvandoPadrao ? 'Salvando...' : 'Salvar como Proposta PADRAO'}
-            </button>
-          )}
-        </div>
-        <textarea
-          value={form.conteudo}
-          onChange={(e) => onFormChange((f) => ({ ...f, conteudo: e.target.value }))}
-          className={`${inputCls} ${usePageStyles ? 'min-h-[200px] lg:min-h-[280px]' : 'min-h-[120px] md:min-h-[180px]'}`}
-          rows={usePageStyles ? 12 : 6}
-          placeholder="Descrição detalhada da proposta..."
-        />
-      </div>
+      <CrmDocumentoConteudoFields
+        conteudo={form.conteudo}
+        onConteudoChange={(value) => onFormChange((f) => ({ ...f, conteudo: value }))}
+        inputCls={inputCls}
+        labelCls={labelCls}
+        placeholder="Descrição detalhada da proposta..."
+        templates={templates}
+        onSelecionarTemplate={onSelecionarTemplate}
+        onSalvarComoPadrao={onSalvarComoPadrao}
+        salvandoPadrao={salvandoPadrao}
+        minHeightClass={usePageStyles ? 'min-h-[200px] lg:min-h-[280px]' : 'min-h-[120px] md:min-h-[180px]'}
+        rows={usePageStyles ? 12 : 6}
+        showTemplateHint
+        sectionClassName={spanClass}
+      />
 
       {/* Status */}
       <div>
@@ -419,24 +355,12 @@ export default function PropostaFormContent({
 
       {/* Botões (modal / formulário embutido) */}
       {!hideActions && (
-        <div className={`flex gap-2 pt-2 ${spanClass}`}>
-          {showCancel && onCancel && (
-            <button
-              type="button"
-              onClick={() => !enviando && onCancel()}
-              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              Cancelar
-            </button>
-          )}
-          <button
-            type="submit"
-            disabled={enviando}
-            className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium"
-          >
-            {enviando ? 'Salvando...' : 'Salvar'}
-          </button>
-        </div>
+        <CrmDocumentoFormActions
+          enviando={enviando}
+          showCancel={showCancel}
+          onCancel={onCancel}
+          className={spanClass}
+        />
       )}
     </form>
   );

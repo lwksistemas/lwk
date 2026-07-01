@@ -3,7 +3,17 @@
 import type { LojaInfo, LeadInfo } from './modals/ModalPropostaForm';
 import { CrmClienteBlock, CrmLojaBlock } from '@/components/crm-vendas/CrmLojaClienteBlocks';
 import CrmDocumentoAssinaturasFields from '@/components/crm-vendas/documentos/CrmDocumentoAssinaturasFields';
+import CrmDocumentoConteudoFields from '@/components/crm-vendas/documentos/CrmDocumentoConteudoFields';
+import CrmDocumentoFormActions from '@/components/crm-vendas/documentos/CrmDocumentoFormActions';
 import CrmDocumentoValoresFields from '@/components/crm-vendas/documentos/CrmDocumentoValoresFields';
+import {
+  crmFormInputClass,
+  crmFormLabelClass,
+  crmFormPageInputClass,
+  crmFormPageLabelClass,
+  crmFormSectionClass,
+  crmFormSectionTitleClass,
+} from '@/lib/crm-form-styles';
 import type { FormDataContrato } from './modals/ModalContratoForm';
 
 export interface OportunidadeContratoOption {
@@ -34,15 +44,9 @@ export interface ContratoFormContentProps {
   vendedorNome?: string;
 }
 
-const inputClass =
-  'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white';
-const labelClass = 'block text-xs text-gray-500 dark:text-gray-400 mb-0.5';
-const sectionClass = 'space-y-3 border-b border-gray-200 dark:border-gray-600 pb-4';
-const pageInputClass =
-  'w-full px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-[#1e3a5f] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0176d3] focus:ring-offset-0';
-const pageLabelClass = 'block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1';
-const sectionTitleClass =
-  'text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-[#0d1f3c] pb-2';
+const inputClass = crmFormInputClass;
+const labelClass = crmFormLabelClass;
+const sectionClass = crmFormSectionClass;
 
 export default function ContratoFormContent({
   form,
@@ -63,11 +67,11 @@ export default function ContratoFormContent({
   onCancel,
   vendedorNome,
 }: ContratoFormContentProps) {
-  const inputCls = pageLayout ? pageInputClass : inputClass;
-  const labelCls = pageLayout ? pageLabelClass : labelClass;
+  const inputCls = pageLayout ? crmFormPageInputClass : inputClass;
+  const labelCls = pageLayout ? crmFormPageLabelClass : labelClass;
 
   const renderLojaBlock = () => (
-    <CrmLojaBlock lojaInfo={lojaInfo} labelClass={labelCls} titleClass={sectionTitleClass} />
+    <CrmLojaBlock lojaInfo={lojaInfo} labelClass={labelCls} titleClass={crmFormSectionTitleClass} />
   );
 
   const renderClienteBlock = () => (
@@ -75,7 +79,7 @@ export default function ContratoFormContent({
       leadInfo={leadInfo}
       oportunidadeSelecionada={!!form.oportunidade_id}
       labelClass={labelCls}
-      titleClass={sectionTitleClass}
+      titleClass={crmFormSectionTitleClass}
     />
   );
 
@@ -118,17 +122,16 @@ export default function ContratoFormContent({
     />
   );
 
-  const renderConteudoBlock = () => (
-    <div>
-      <label className={labelCls}>Conteúdo</label>
-      <textarea
-        value={form.conteudo}
-        onChange={(e) => onFormChange((f) => ({ ...f, conteudo: e.target.value }))}
-        className={`${inputCls} min-h-[200px] lg:min-h-[240px] resize-y`}
-        rows={10}
-        placeholder="Descrição detalhada do contrato..."
-      />
-    </div>
+  const renderConteudoBlock = (opts?: { minHeightClass?: string; rows?: number }) => (
+    <CrmDocumentoConteudoFields
+      conteudo={form.conteudo}
+      onConteudoChange={(value) => onFormChange((f) => ({ ...f, conteudo: value }))}
+      inputCls={inputCls}
+      labelCls={labelCls}
+      placeholder="Descrição detalhada do contrato..."
+      minHeightClass={opts?.minHeightClass ?? 'min-h-[200px] lg:min-h-[240px]'}
+      rows={opts?.rows ?? 10}
+    />
   );
 
   const renderAssinaturasBlock = () => (
@@ -152,11 +155,11 @@ export default function ContratoFormContent({
             <section className="space-y-4">{renderLojaBlock()}</section>
             <section className="space-y-4">{renderClienteBlock()}</section>
             <section className="space-y-4">
-              <h3 className={sectionTitleClass}>Oportunidade</h3>
+              <h3 className={crmFormSectionTitleClass}>Oportunidade</h3>
               {renderOportunidadeSelect()}
             </section>
             <section className="space-y-4">
-              <h3 className={sectionTitleClass}>Contrato</h3>
+              <h3 className={crmFormSectionTitleClass}>Contrato</h3>
               <div>
                 <label className={labelCls}>Número</label>
                 <input
@@ -197,15 +200,15 @@ export default function ContratoFormContent({
 
           <div className="space-y-6">
             <section className="space-y-4">
-              <h3 className={sectionTitleClass}>Valores</h3>
+              <h3 className={crmFormSectionTitleClass}>Valores</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{renderValoresBlock()}</div>
             </section>
             <section className="space-y-4">
-              <h3 className={sectionTitleClass}>Conteúdo</h3>
+              <h3 className={crmFormSectionTitleClass}>Conteúdo</h3>
               {renderConteudoBlock()}
             </section>
             <section className="space-y-4">
-              <h3 className={sectionTitleClass}>Assinaturas</h3>
+              <h3 className={crmFormSectionTitleClass}>Assinaturas</h3>
               {renderAssinaturasBlock()}
             </section>
           </div>
@@ -274,16 +277,16 @@ export default function ContratoFormContent({
         sectionClassName={spanClass}
       />
 
-      <div className={spanClass}>
-        <label className={labelCls}>Conteúdo</label>
-        <textarea
-          value={form.conteudo}
-          onChange={(e) => onFormChange((f) => ({ ...f, conteudo: e.target.value }))}
-          className={`${inputCls} min-h-[100px]`}
-          rows={4}
-          placeholder="Descrição detalhada do contrato..."
-        />
-      </div>
+      <CrmDocumentoConteudoFields
+        conteudo={form.conteudo}
+        onConteudoChange={(value) => onFormChange((f) => ({ ...f, conteudo: value }))}
+        inputCls={inputCls}
+        labelCls={labelCls}
+        placeholder="Descrição detalhada do contrato..."
+        minHeightClass="min-h-[100px]"
+        rows={4}
+        sectionClassName={spanClass}
+      />
 
       <div>
         <label className={labelCls}>Status</label>
@@ -306,24 +309,12 @@ export default function ContratoFormContent({
       </div>
 
       {!hideActions && (
-        <div className={`flex gap-2 pt-2 ${spanClass}`}>
-          {showCancel && onCancel && (
-            <button
-              type="button"
-              onClick={() => !enviando && onCancel()}
-              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              Cancelar
-            </button>
-          )}
-          <button
-            type="submit"
-            disabled={enviando}
-            className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium"
-          >
-            {enviando ? 'Salvando...' : 'Salvar'}
-          </button>
-        </div>
+        <CrmDocumentoFormActions
+          enviando={enviando}
+          showCancel={showCancel}
+          onCancel={onCancel}
+          className={spanClass}
+        />
       )}
     </form>
   );

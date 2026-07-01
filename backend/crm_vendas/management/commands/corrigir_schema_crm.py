@@ -27,17 +27,17 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         loja_id = options.get('loja_id')
         
-        # Filtrar lojas CRM Vendas
+        # Filtrar lojas CRM Vendas (slug do tipo, não só nome legível)
         lojas_qs = Loja.objects.using('default').select_related('tipo_loja')
         if loja_id:
             lojas_qs = lojas_qs.filter(id=loja_id)
         else:
-            lojas_qs = lojas_qs.filter(tipo_loja__nome='CRM Vendas')
+            lojas_qs = lojas_qs.filter(tipo_loja__slug='crm-vendas')
         
         lojas = list(lojas_qs)
         
         if not lojas:
-            self.stdout.write(self.style.WARNING('Nenhuma loja CRM Vendas encontrada'))
+            self.stdout.write(self.style.WARNING('Nenhuma loja CRM Vendas (tipo crm-vendas) encontrada'))
             return
         
         self.stdout.write(f'Encontradas {len(lojas)} loja(s) CRM Vendas')

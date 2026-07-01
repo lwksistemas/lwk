@@ -31,21 +31,19 @@ Copie `frontend/.env.staging.local.example` → `frontend/.env.staging.local`:
 NEXT_PUBLIC_API_URL=https://lwks-backend-staging-staging.up.railway.app
 ```
 
-### 0.2 Deploy manual homologação (beta)
+### 0.2 Deploy homologação (beta) — script recomendado
 
 ```bash
 export PATH="$HOME/.local/npm-global/bin:$PATH"
-cd /caminho/para/lwksistemas
-
-# Backend staging
-cd backend
-railway environment staging
-railway up --service lwks-backend-staging --detach
-
-# Frontend: push na branch staging dispara Preview na Vercel.
+cd /home/luiz/Documentos/lwksistemas
+bash scripts/deploy-beta.sh
 ```
 
-#### Domínio beta → branch `staging` (configuração permanente)
+O script faz, em sequência: push `staging` → aguarda API staging → **deploy Vercel + alias beta** → `ensure`/`corrigir_schema` nos tenants via Railway SSH.
+
+Flags úteis: `--skip-push`, `--skip-railway`.
+
+#### Domínio beta → branch `staging` (manual / fallback)
 
 O beta **não** deve apontar para um deploy de **Production** (`main`). Cada push em `staging` gera um novo Preview; o domínio customizado precisa seguir a URL estável da branch:
 
@@ -61,6 +59,8 @@ O beta **não** deve apontar para um deploy de **Production** (`main`). Cada pus
 ```bash
 cd frontend
 bash scripts/vercel-link-beta-staging.sh
+# ou com build forçado:
+bash scripts/vercel-link-beta-staging.sh --deploy
 ```
 
 **Opção B — painel Vercel:**
@@ -96,13 +96,26 @@ Verificar build da API staging:
 curl -s https://lwks-backend-staging-staging.up.railway.app/api/superadmin/health/ | jq .build
 ```
 
-### 0.3 Promover para produção
+### 0.3 Promover para produção — script recomendado
+
+```bash
+export PATH="$HOME/.local/npm-global/bin:$PATH"
+cd /home/luiz/Documentos/lwksistemas
+bash scripts/deploy-prod.sh
+```
+
+Faz: merge `staging`→`main` → push → aguarda API prod → **`vercel deploy --prod`** (sempre builda frontend) → ensure tenant → merge `main`→`staging` para alinhar beta.
+
+Flags: `--skip-merge`, `--skip-beta-sync`.
+
+#### Promover manualmente (alternativa)
 
 ```bash
 git checkout main
 git merge staging
 git push origin main
-# Vercel (main) + Railway production disparam automaticamente se Git conectado
+# Se o último commit foi só backend, rode também:
+npx vercel deploy --prod --yes
 ```
 
 ### 0.3.1 Obrigatório após deploy em produção — atualizar beta

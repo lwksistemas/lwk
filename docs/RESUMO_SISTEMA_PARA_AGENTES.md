@@ -169,6 +169,13 @@ Guia completo: **`docs/DEPLOY_E_ROLLBACK.md`**.
 - **Railway:** mesmo repo, serviço `lwks-backend`, paths `backend/`, `Dockerfile.railway`, `railway.toml`
 - Todo push na `main` dispara deploy; Railway executa **`releaseCommand`** (migrations + ensure + collectstatic)
 
+**Scripts unificados (evitam beta preso / prod sem frontend):**
+
+| Comando | Quando usar |
+|---------|-------------|
+| `bash scripts/deploy-beta.sh` | Publicar homologação (`staging` → beta) |
+| `bash scripts/deploy-prod.sh` | Promover para produção + alinhar beta |
+
 ### 6.2 Manual (emergência)
 
 ```bash

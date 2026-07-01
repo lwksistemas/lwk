@@ -26,22 +26,24 @@ Beta fora do ar ou servindo `main`? `cd frontend && bash scripts/vercel-link-bet
 export PATH="$HOME/.local/npm-global/bin:$PATH"
 cd /home/luiz/Documentos/lwksistemas
 
-# 1) Commit + push main → Vercel (frontend) + Railway (lwks-backend) auto-deploy
-git push origin main   # branch protegida: pode pedir aprovação
-# Aguardar 5–10 min; Railway skipa deploy se "Wait for CI" ON e workflow Security falhar.
+# Beta (homologação) — push staging + Vercel alias + ensure tenant
+bash scripts/deploy-beta.sh
 
-# 2) OBRIGATÓRIO após push em main / deploy produção — alinhar beta (staging)
-git checkout staging
-git merge main
-git push origin staging
-git checkout main
-# Dispara Vercel Preview (beta) + Railway lwks-backend-staging.
-# Verificar: curl -s https://lwks-backend-staging-staging.up.railway.app/api/superadmin/health/ | jq .build
-# Beta fora do ar ou domínio errado: cd frontend && bash scripts/vercel-link-beta-staging.sh
+# Produção — merge staging→main + push + Vercel --prod + ensure + sync beta
+bash scripts/deploy-prod.sh
+```
 
-# 3) Backend — após mudar código Python ou Dockerfile.railway:
-#    a) Bump ARG BUILD_ID=... em Dockerfile.railway (invalida cache Docker)
-#    b) Push na main (GitHub) OU emergência: railway up --service lwks-backend --detach
+Detalhes: `docs/DEPLOY_E_ROLLBACK.md` §0.2 e §0.3.
+
+### Deploy manual (resumo)
+
+```bash
+# Push main dispara Railway; Vercel production sempre builda em main (vercel-should-build.sh).
+git push origin main
+
+# Após produção: alinhar beta
+git checkout staging && git merge main && git push origin staging && git checkout main
+cd frontend && bash scripts/vercel-link-beta-staging.sh --deploy
 ```
 
 - **Nunca** `railway up` no serviço `evolution-api` ou `lwks-cron` por engano.

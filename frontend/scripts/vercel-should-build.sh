@@ -16,9 +16,16 @@ if [[ -z "${VERCEL_GIT_COMMIT_SHA:-}" ]]; then
   exit 1
 fi
 
-# Commit sem arquivos em frontend/ (ex.: dependabot só no backend) → pular.
+# Produção (main): sempre buildar — evita deploy cancelado quando o último
+# commit do push é só backend mas commits anteriores tinham frontend.
+if [[ "${VERCEL_GIT_COMMIT_REF:-}" == "main" ]] || [[ "${VERCEL_ENV:-}" == "production" ]]; then
+  echo ">> Branch main / ambiente production — sempre executando build"
+  exit 1
+fi
+
+# Commit sem arquivos em frontend/ (ex.: dependabot só no backend) → pular preview.
 if ! git diff-tree --no-commit-id --name-only -r "$VERCEL_GIT_COMMIT_SHA" 2>/dev/null | grep -q '^frontend/'; then
-  echo ">> Nenhum arquivo em frontend/ neste commit — pulando build"
+  echo ">> Nenhum arquivo em frontend/ neste commit — pulando build (preview)"
   exit 0
 fi
 

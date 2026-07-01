@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Pencil, X } from 'lucide-react';
+import { formatCrmBrl } from '@/lib/crm-utils';
 import type { Lead } from '@/components/crm-vendas/LeadsTable';
 
 interface ModalLeadVerProps {
@@ -152,7 +153,7 @@ export default function ModalLeadVer({
               <div>
                 <dt className="text-gray-500 dark:text-gray-400 font-medium">Valor estimado</dt>
                 <dd className="text-gray-900 dark:text-white mt-0.5">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(lead.valor_estimado))}
+                  {formatCrmBrl(lead.valor_estimado)}
                 </dd>
               </div>
             )}

@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { X, Mail, MessageCircle } from 'lucide-react';
+import { X } from 'lucide-react';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
+import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso, formatCrmBrl } from '@/lib/crm-utils';
 import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import OportunidadeItensEditor from '@/components/crm-vendas/OportunidadeItensEditor';
+import CrmEnviarClienteIcones from '@/components/crm-vendas/CrmEnviarClienteIcones';
 import {
   atualizarOportunidadeItem,
   calcularTotalOportunidadeItens,
@@ -250,11 +251,11 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
           <p className="font-medium text-gray-900 dark:text-white">{oportunidade.titulo}</p>
           <p className="text-sm text-gray-500 dark:text-gray-400">{oportunidade.lead_nome}</p>
           <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
-            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(String(oportunidade.valor)))}
+            {formatCrmBrl(oportunidade.valor)}
           </p>
           {oportunidade.valor_comissao && (
             <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
-              Comissão: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(String(oportunidade.valor_comissao)))}
+              Comissão: {formatCrmBrl(oportunidade.valor_comissao)}
             </p>
           )}
           {oportunidade.empresa_prestadora_nome && (
@@ -372,55 +373,23 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
                   {propostasOportunidade.map((p) => (
                     <div key={p.id} className="flex items-center justify-between gap-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                       <span className="text-sm truncate">Proposta: {p.titulo || `#${p.id}`}</span>
-                      <div className="flex gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleEnviarCliente('proposta', p.id, 'email')}
-                          disabled={enviandoEnvio}
-                          className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50"
-                          title="Enviar por e-mail"
-                        >
-                          <Mail size={16} />
-                        </button>
-                        {propostaWhatsappHabilitada && (
-                          <button
-                            type="button"
-                            onClick={() => handleEnviarCliente('proposta', p.id, 'whatsapp')}
-                            disabled={enviandoEnvio}
-                            className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50"
-                            title="Enviar link ao cliente por WhatsApp — vendedor receberá por WhatsApp após assinar"
-                          >
-                            <MessageCircle size={16} />
-                          </button>
-                        )}
-                      </div>
+                      <CrmEnviarClienteIcones
+                        variant="modal"
+                        whatsappHabilitado={propostaWhatsappHabilitada}
+                        enviando={enviandoEnvio}
+                        onEnviar={(canal) => handleEnviarCliente('proposta', p.id, canal)}
+                      />
                     </div>
                   ))}
                   {contratoOportunidade && (
                     <div className="flex items-center justify-between gap-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                       <span className="text-sm truncate">Contrato: {contratoOportunidade.titulo || `#${contratoOportunidade.id}`}</span>
-                      <div className="flex gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleEnviarCliente('contrato', contratoOportunidade.id, 'email')}
-                          disabled={enviandoEnvio}
-                          className="p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50"
-                          title="Enviar por e-mail"
-                        >
-                          <Mail size={16} />
-                        </button>
-                        {contratoWhatsappHabilitado && (
-                          <button
-                            type="button"
-                            onClick={() => handleEnviarCliente('contrato', contratoOportunidade.id, 'whatsapp')}
-                            disabled={enviandoEnvio}
-                            className="p-1.5 rounded bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 disabled:opacity-50"
-                            title="Enviar link ao cliente por WhatsApp — vendedor receberá por WhatsApp após assinar"
-                          >
-                            <MessageCircle size={16} />
-                          </button>
-                        )}
-                      </div>
+                      <CrmEnviarClienteIcones
+                        variant="modal"
+                        whatsappHabilitado={contratoWhatsappHabilitado}
+                        enviando={enviandoEnvio}
+                        onEnviar={(canal) => handleEnviarCliente('contrato', contratoOportunidade.id, canal)}
+                      />
                     </div>
                   )}
                 </div>

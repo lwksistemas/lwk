@@ -241,9 +241,25 @@ export function rotuloExibicaoOportunidade(o: {
   return titulo || '—';
 }
 
-export function formatCrmBrl(valor: string | number | null | undefined): string {
+export function formatCrmBrl(
+  valor: string | number | null | undefined,
+  options?: { maximumFractionDigits?: number },
+): string {
   if (valor == null || valor === '') return '';
   const n = typeof valor === 'string' ? parseFloat(valor) : valor;
   if (Number.isNaN(n)) return String(valor);
-  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return n.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    ...(options?.maximumFractionDigits != null
+      ? { maximumFractionDigits: options.maximumFractionDigits }
+      : {}),
+  });
+}
+
+/** Valores grandes no funil/dashboard (ex.: R$ 1,2M, R$ 350K). */
+export function formatCrmBrlCompact(value: number): string {
+  if (value >= 1_000_000) return `R$ ${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `R$ ${(value / 1_000).toFixed(1)}K`;
+  return `R$ ${value.toFixed(0)}`;
 }

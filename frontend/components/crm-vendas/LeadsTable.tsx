@@ -1,6 +1,7 @@
 'use client';
 
 import { Eye, Pencil, RefreshCw, Trash2 } from 'lucide-react';
+import { formatCrmBrl } from '@/lib/crm-utils';
 
 export interface Lead {
   id: number;
@@ -162,9 +163,7 @@ export default function LeadsTable({
       case 'valor_estimado':
         return (
           <span className="text-gray-800 dark:text-white font-medium">
-            {lead.valor_estimado 
-              ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(lead.valor_estimado))
-              : '–'}
+            {lead.valor_estimado ? formatCrmBrl(lead.valor_estimado) : '–'}
           </span>
         );
       case 'created_at':

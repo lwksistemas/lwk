@@ -7,6 +7,7 @@ import { useCRMUIStore } from '@/store/crm-ui';
 import { Menu, Search, Grid, Plus, Bell, HelpCircle, User, Users, DollarSign, Building2, MessageCircle, FileText } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
+import { formatCrmBrl } from '@/lib/crm-utils';
 import ModalChamado from '@/components/suporte/ModalChamado';
 
 interface BuscaResult {
@@ -281,7 +282,7 @@ function HeaderCrm({ title = 'Sales Cloud', userName = 'Admin', userRole = 'admi
                             <span className="text-gray-500 dark:text-gray-400 truncate text-xs">• {o.titulo}</span>
                           )}
                           <span className="text-gray-500 dark:text-gray-400 shrink-0">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(Number(o.valor))}
+                            {formatCrmBrl(o.valor, { maximumFractionDigits: 0 })}
                           </span>
                         </Link>
                       ))}

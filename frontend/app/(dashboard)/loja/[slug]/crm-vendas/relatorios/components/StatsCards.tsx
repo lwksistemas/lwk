@@ -1,6 +1,7 @@
 'use client';
 
 import { DollarSign, Users, TrendingUp } from 'lucide-react';
+import { formatCrmBrl } from '@/lib/crm-utils';
 
 interface Props {
   totalVendas: number;
@@ -9,8 +10,7 @@ interface Props {
   loading: boolean;
 }
 
-const formatarMoeda = (valor: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+const formatarMoeda = (valor: number) => formatCrmBrl(valor);
 
 export function StatsCards({ totalVendas, vendedoresAtivos, totalComissoes, loading }: Props) {
   const cards = [

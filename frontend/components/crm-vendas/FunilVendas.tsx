@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { TrendingUp } from 'lucide-react';
+import { formatCrmBrlCompact } from '@/lib/crm-utils';
 
 interface EtapaFunil {
   etapa: string;
@@ -23,12 +24,6 @@ const CORES_FUNIL = [
   'bg-emerald-500',
   'bg-red-500',
 ];
-
-function formatMoney(value: number): string {
-  if (value >= 1000000) return `R$ ${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `R$ ${(value / 1000).toFixed(1)}K`;
-  return `R$ ${value.toFixed(0)}`;
-}
 
 export default function FunilVendas({ dados, etapasConfig }: Props) {
   const etapasOrdenadas = useMemo(() => {
@@ -82,7 +77,7 @@ export default function FunilVendas({ dados, etapasConfig }: Props) {
                     {etapa.quantidade}
                   </span>
                   <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                    {formatMoney(etapa.valor)}
+                    {formatCrmBrlCompact(etapa.valor)}
                   </span>
                 </div>
               </div>
@@ -105,7 +100,7 @@ export default function FunilVendas({ dados, etapasConfig }: Props) {
       {/* Resumo */}
       <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between text-xs text-gray-500 dark:text-gray-400">
         <span>Total no pipeline: <strong className="text-gray-900 dark:text-white">{total}</strong></span>
-        <span>Valor total: <strong className="text-green-600 dark:text-green-400">{formatMoney(etapasOrdenadas.reduce((s, e) => s + e.valor, 0))}</strong></span>
+        <span>Valor total: <strong className="text-green-600 dark:text-green-400">{formatCrmBrlCompact(etapasOrdenadas.reduce((s, e) => s + e.valor, 0))}</strong></span>
       </div>
     </div>
   );

@@ -51,19 +51,33 @@ export interface VendedorOption {
   nome: string;
 }
 
+async function fetchLancamentosPorTipo(
+  tipo: TipoFinanceiro,
+  vendedorFiltro: string,
+): Promise<LancamentoFinanceiro[]> {
+  const params = new URLSearchParams({ tipo, page_size: '100' });
+  if (vendedorFiltro) params.set('vendedor_id', vendedorFiltro);
+  const { data } = await apiClient.get<{ results?: LancamentoFinanceiro[] } | LancamentoFinanceiro[]>(
+    `crm-vendas/financeiro-lancamentos/?${params}`,
+  );
+  return Array.isArray(data) ? data : data.results ?? [];
+}
+
 export function useCrmFinanceiroPage() {
-  const [tab, setTab] = useState<TipoFinanceiro | 'grupos'>('receita');
   const [resumo, setResumo] = useState<ResumoFinanceiro | null>(null);
-  const [lancamentos, setLancamentos] = useState<LancamentoFinanceiro[]>([]);
+  const [lancamentosDespesa, setLancamentosDespesa] = useState<LancamentoFinanceiro[]>([]);
+  const [lancamentosReceita, setLancamentosReceita] = useState<LancamentoFinanceiro[]>([]);
   const [grupos, setGrupos] = useState<GrupoFinanceiro[]>([]);
   const [vendedores, setVendedores] = useState<VendedorOption[]>([]);
   const [vendedorFiltro, setVendedorFiltro] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [modalTipo, setModalTipo] = useState<TipoFinanceiro>('receita');
   const [editing, setEditing] = useState<LancamentoFinanceiro | null>(null);
   const [showGrupoModal, setShowGrupoModal] = useState(false);
   const [editingGrupo, setEditingGrupo] = useState<GrupoFinanceiro | null>(null);
+  const [showGrupos, setShowGrupos] = useState(false);
   const [periodoRelatorio, setPeriodoRelatorio] = useState('mes_atual');
   const [dataInicioRel, setDataInicioRel] = useState('');
   const [dataFimRel, setDataFimRel] = useState('');
@@ -79,14 +93,13 @@ export function useCrmFinanceiroPage() {
   }, [vendedorFiltro]);
 
   const loadLancamentos = useCallback(async () => {
-    if (tab === 'grupos') return;
-    const params = new URLSearchParams({ tipo: tab, page_size: '100' });
-    if (vendedorFiltro) params.set('vendedor_id', vendedorFiltro);
-    const { data } = await apiClient.get<{ results?: LancamentoFinanceiro[] } | LancamentoFinanceiro[]>(
-      `crm-vendas/financeiro-lancamentos/?${params}`,
-    );
-    setLancamentos(Array.isArray(data) ? data : data.results ?? []);
-  }, [tab, vendedorFiltro]);
+    const [despesas, receitas] = await Promise.all([
+      fetchLancamentosPorTipo('despesa', vendedorFiltro),
+      fetchLancamentosPorTipo('receita', vendedorFiltro),
+    ]);
+    setLancamentosDespesa(despesas);
+    setLancamentosReceita(receitas);
+  }, [vendedorFiltro]);
 
   const loadGrupos = useCallback(async () => {
     const { data } = await apiClient.get<{ results?: GrupoFinanceiro[] } | GrupoFinanceiro[]>(
@@ -116,17 +129,14 @@ export function useCrmFinanceiroPage() {
     loadAll();
   }, [loadAll]);
 
-  useEffect(() => {
-    if (!loading) loadLancamentos();
-  }, [tab, vendedorFiltro, loadLancamentos, loading]);
-
   const abrirNovo = (tipo: TipoFinanceiro) => {
+    setModalTipo(tipo);
     setEditing(null);
-    setTab(tipo);
     setShowModal(true);
   };
 
   const editar = (item: LancamentoFinanceiro) => {
+    setModalTipo(item.tipo);
     setEditing(item);
     setShowModal(true);
   };
@@ -246,10 +256,9 @@ export function useCrmFinanceiroPage() {
   };
 
   return {
-    tab,
-    setTab,
     resumo,
-    lancamentos,
+    lancamentosDespesa,
+    lancamentosReceita,
     grupos,
     vendedores,
     vendedorFiltro,
@@ -259,6 +268,7 @@ export function useCrmFinanceiroPage() {
     isAdmin,
     showModal,
     setShowModal,
+    modalTipo,
     editing,
     abrirNovo,
     editar,
@@ -271,6 +281,8 @@ export function useCrmFinanceiroPage() {
     setEditingGrupo,
     salvarGrupo,
     removerGrupo,
+    showGrupos,
+    setShowGrupos,
     loadAll,
     periodoRelatorio,
     setPeriodoRelatorio,

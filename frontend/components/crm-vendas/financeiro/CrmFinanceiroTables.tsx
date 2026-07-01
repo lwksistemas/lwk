@@ -10,51 +10,75 @@ interface Props {
   onEdit: (item: LancamentoFinanceiro) => void;
   onPagar: (id: number) => void;
   onRemove: (item: LancamentoFinanceiro) => void;
+  compact?: boolean;
+  showVendedor?: boolean;
 }
 
-export function CrmFinanceiroLancamentosTable({ itens, tipo, onEdit, onPagar, onRemove }: Props) {
+export function CrmFinanceiroLancamentosTable({
+  itens,
+  tipo,
+  onEdit,
+  onPagar,
+  onRemove,
+  compact = false,
+  showVendedor = true,
+}: Props) {
   const cor = tipo === 'receita' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400';
 
   if (!itens.length) {
     return (
-      <p className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">
+      <p className={`text-gray-500 dark:text-gray-400 py-8 text-center ${compact ? 'text-xs' : 'text-sm'}`}>
         Nenhum lançamento de {tipo === 'receita' ? 'receita' : 'despesa'} encontrado.
       </p>
     );
   }
 
+  const cellPad = compact ? 'py-2 px-2' : 'py-2.5 px-3';
+  const textSize = compact ? 'text-xs' : 'text-sm';
+
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 dark:bg-gray-800/80">
+    <div className={`overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 h-full ${compact ? 'bg-white dark:bg-gray-900' : ''}`}>
+      <table className={`w-full ${textSize}`}>
+        <thead className="bg-gray-50 dark:bg-gray-800/80 sticky top-0 z-10">
           <tr>
-            <th className="text-left py-2.5 px-3 font-medium text-gray-600 dark:text-gray-300">Vendedor</th>
-            <th className="text-left py-2.5 px-3 font-medium text-gray-600 dark:text-gray-300">Descrição</th>
-            <th className="text-left py-2.5 px-3 font-medium text-gray-600 dark:text-gray-300">Grupo</th>
-            <th className="text-left py-2.5 px-3 font-medium text-gray-600 dark:text-gray-300">Vencimento</th>
-            <th className="text-right py-2.5 px-3 font-medium text-gray-600 dark:text-gray-300">Valor</th>
-            <th className="text-left py-2.5 px-3 font-medium text-gray-600 dark:text-gray-300">Status</th>
-            <th className="text-right py-2.5 px-3 font-medium text-gray-600 dark:text-gray-300">Ações</th>
+            {showVendedor && (
+              <th className={`text-left ${cellPad} font-medium text-gray-600 dark:text-gray-300`}>Vendedor</th>
+            )}
+            <th className={`text-left ${cellPad} font-medium text-gray-600 dark:text-gray-300`}>Descrição</th>
+            {!compact && (
+              <th className={`text-left ${cellPad} font-medium text-gray-600 dark:text-gray-300`}>Grupo</th>
+            )}
+            <th className={`text-left ${cellPad} font-medium text-gray-600 dark:text-gray-300`}>Venc.</th>
+            <th className={`text-right ${cellPad} font-medium text-gray-600 dark:text-gray-300`}>Valor</th>
+            <th className={`text-left ${cellPad} font-medium text-gray-600 dark:text-gray-300`}>Status</th>
+            <th className={`text-right ${cellPad} font-medium text-gray-600 dark:text-gray-300`}>Ações</th>
           </tr>
         </thead>
         <tbody>
           {itens.map((item) => (
             <tr key={item.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
-              <td className="py-2.5 px-3">{item.vendedor_nome}</td>
-              <td className="py-2.5 px-3">
-                {item.descricao}
+              {showVendedor && <td className={cellPad}>{item.vendedor_nome}</td>}
+              <td className={cellPad}>
+                <span className="line-clamp-2">{item.descricao}</span>
                 {item.origem === 'comissao_venda' && (
-                  <span className="block text-xs text-[#0176d3]">Comissão automática</span>
+                  <span className="block text-[10px] text-[#0176d3]">Comissão auto</span>
+                )}
+                {compact && item.grupo_nome && (
+                  <span className="block text-[10px] text-gray-400">{item.grupo_nome}</span>
                 )}
               </td>
-              <td className="py-2.5 px-3 text-gray-600 dark:text-gray-400">{item.grupo_nome || '—'}</td>
-              <td className="py-2.5 px-3">{formatDate(item.data_vencimento)}</td>
-              <td className={`py-2.5 px-3 text-right font-semibold ${cor}`}>
+              {!compact && (
+                <td className={`${cellPad} text-gray-600 dark:text-gray-400`}>{item.grupo_nome || '—'}</td>
+              )}
+              <td className={cellPad}>{formatDate(item.data_vencimento)}</td>
+              <td className={`${cellPad} text-right font-semibold ${cor}`}>
                 {formatCurrency(item.valor)}
               </td>
-              <td className="py-2.5 px-3">
+              <td className={cellPad}>
                 <span
-                  className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                  className={`inline-flex px-1.5 py-0.5 rounded font-medium ${
+                    compact ? 'text-[10px]' : 'text-xs'
+                  } ${
                     item.status === 'pago'
                       ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
                       : item.status === 'cancelado'
@@ -65,7 +89,7 @@ export function CrmFinanceiroLancamentosTable({ itens, tipo, onEdit, onPagar, on
                   {item.status_display}
                 </span>
               </td>
-              <td className="py-2.5 px-3 text-right">
+              <td className={`${cellPad} text-right`}>
                 <div className="flex flex-wrap gap-1 justify-end">
                   {item.status === 'pendente' && (
                     <button

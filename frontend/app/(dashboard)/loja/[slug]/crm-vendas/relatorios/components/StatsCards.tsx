@@ -10,13 +10,11 @@ interface Props {
   loading: boolean;
 }
 
-const formatarMoeda = (valor: number) => formatCrmBrl(valor);
-
 export function StatsCards({ totalVendas, vendedoresAtivos, totalComissoes, loading }: Props) {
   const cards = [
-    { icon: DollarSign, label: 'Total de Vendas (Mês)', value: formatarMoeda(totalVendas), color: 'green' },
+    { icon: DollarSign, label: 'Total de Vendas (Mês)', value: formatCrmBrl(totalVendas), color: 'green' },
     { icon: Users, label: 'Vendedores Ativos', value: String(vendedoresAtivos), color: 'blue' },
-    { icon: TrendingUp, label: 'Comissões (Mês)', value: formatarMoeda(totalComissoes), color: 'purple' },
+    { icon: TrendingUp, label: 'Comissões (Mês)', value: formatCrmBrl(totalComissoes), color: 'purple' },
   ];
 
   const colorMap: Record<string, string> = {

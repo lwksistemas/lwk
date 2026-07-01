@@ -7,10 +7,9 @@ from django.conf import settings
 from urllib.parse import quote
 import logging
 
-logger = logging.getLogger(__name__)
+from .assinatura_digital_token import TOKEN_EXPIRACAO_DIAS
 
-# Configurações (espelhado do service para uso nos templates)
-TOKEN_EXPIRACAO_DIAS = 7  # Token válido por 7 dias
+logger = logging.getLogger(__name__)
 
 
 def enviar_email_assinatura_cliente(documento, assinatura, request):

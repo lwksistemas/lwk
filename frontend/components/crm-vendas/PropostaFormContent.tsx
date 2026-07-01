@@ -3,6 +3,9 @@
 import type { LojaInfo, LeadInfo, OportunidadeItem, FormDataProposta } from './modals/ModalPropostaForm';
 import BuscarOportunidadeInput from '@/components/crm-vendas/BuscarOportunidadeInput';
 import { CrmClienteBlock, CrmLojaBlock } from '@/components/crm-vendas/CrmLojaClienteBlocks';
+import CrmDocumentoAssinaturasFields from '@/components/crm-vendas/documentos/CrmDocumentoAssinaturasFields';
+import CrmDocumentoValoresFields from '@/components/crm-vendas/documentos/CrmDocumentoValoresFields';
+import CrmOportunidadeItensTabela from '@/components/crm-vendas/documentos/CrmOportunidadeItensTabela';
 
 export interface PropostaFormContentProps {
   form: FormDataProposta;
@@ -108,162 +111,23 @@ export default function PropostaFormContent({
 
   const renderProdutosBlock = () => {
     if (!form.oportunidade_id) return null;
-    if (itensOportunidade.length === 0) {
-      return <p className="text-xs text-gray-500">Esta oportunidade não possui produtos ou serviços cadastrados.</p>;
-    }
-    const RECORRENCIA_LABEL: Record<string, string> = {
-      unico: 'Único',
-      mensal: 'Mensal',
-      trimestral: 'Trimestral',
-      anual: 'Anual',
-    };
-    const valorUnico = itensOportunidade
-      .filter((i) => !i.produto_servico_recorrencia || i.produto_servico_recorrencia === 'unico')
-      .reduce((s, i) => s + i.subtotal, 0);
-    const valorMensal = itensOportunidade
-      .filter((i) => i.produto_servico_recorrencia === 'mensal')
-      .reduce((s, i) => s + i.subtotal, 0);
-    const valorTrimestral = itensOportunidade
-      .filter((i) => i.produto_servico_recorrencia === 'trimestral')
-      .reduce((s, i) => s + i.subtotal, 0);
-    const valorAnual = itensOportunidade
-      .filter((i) => i.produto_servico_recorrencia === 'anual')
-      .reduce((s, i) => s + i.subtotal, 0);
-    const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-    return (
-      <>
-        <div className="rounded-lg border border-gray-200 dark:border-neutral-600 overflow-x-auto">
-          <table className="w-full text-sm min-w-[480px]">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-[#0d1f3c]/50">
-                <th className="text-left py-2 px-3 font-medium">Item</th>
-                <th className="text-center py-2 px-3 font-medium">Recorrência</th>
-                <th className="text-right py-2 px-3 font-medium">Qtd</th>
-                <th className="text-right py-2 px-3 font-medium">Preço Unit.</th>
-                <th className="text-right py-2 px-3 font-medium">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {itensOportunidade.map((item) => (
-                <tr key={item.id} className="border-t border-gray-100 dark:border-[#0d1f3c]">
-                  <td className="py-2 px-3">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">
-                      {item.produto_servico_tipo === 'produto' ? 'Produto' : 'Serviço'}:
-                    </span>
-                    {item.produto_servico_nome}
-                  </td>
-                  <td className="py-2 px-3 text-center">
-                    <span
-                      className={`text-xs px-1.5 py-0.5 rounded ${
-                        item.produto_servico_recorrencia === 'mensal'
-                          ? 'bg-blue-100 text-blue-700'
-                          : item.produto_servico_recorrencia === 'anual'
-                            ? 'bg-purple-100 text-purple-700'
-                            : item.produto_servico_recorrencia === 'trimestral'
-                              ? 'bg-indigo-100 text-indigo-700'
-                              : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {RECORRENCIA_LABEL[item.produto_servico_recorrencia || 'unico'] || 'Único'}
-                    </span>
-                  </td>
-                  <td className="py-2 px-3 text-right">{item.quantidade}</td>
-                  <td className="py-2 px-3 text-right">
-                    {parseFloat(item.preco_unitario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </td>
-                  <td className="py-2 px-3 text-right font-medium">
-                    {item.subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {(valorMensal > 0 || valorTrimestral > 0 || valorAnual > 0) && (
-          <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 space-y-1">
-            {valorUnico > 0 && (
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-medium">Adesão/Implantação:</span> {fmt(valorUnico)}
-              </p>
-            )}
-            {valorMensal > 0 && (
-              <p className="text-sm text-blue-700 dark:text-blue-300 font-semibold">
-                Valor Mensal: {fmt(valorMensal)}/mês
-              </p>
-            )}
-            {valorTrimestral > 0 && (
-              <p className="text-sm text-indigo-700 dark:text-indigo-300 font-semibold">
-                Valor Trimestral: {fmt(valorTrimestral)}/trimestre
-              </p>
-            )}
-            {valorAnual > 0 && (
-              <p className="text-sm text-purple-700 dark:text-purple-300 font-semibold">
-                Valor Anual: {fmt(valorAnual)}/ano
-              </p>
-            )}
-          </div>
-        )}
-      </>
-    );
+    return <CrmOportunidadeItensTabela itens={itensOportunidade} />;
   };
 
   const renderValoresBlock = () => {
     if (!form.oportunidade_id) return null;
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className={labelCls}>Valor total (R$)</label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.valor_total}
-            onChange={(e) => onFormChange((f) => ({ ...f, valor_total: e.target.value }))}
-            className={inputCls}
-            placeholder="0,00"
-          />
-        </div>
-        <div>
-          <label className={labelCls}>Desconto</label>
-          <div className="flex gap-2">
-            <select
-              value={form.desconto_tipo || 'percentual'}
-              onChange={(e) =>
-                onFormChange((f) => ({ ...f, desconto_tipo: e.target.value as 'percentual' | 'valor' }))
-              }
-              className={`${inputCls} max-w-[120px]`}
-            >
-              <option value="percentual">%</option>
-              <option value="valor">R$</option>
-            </select>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              max={form.desconto_tipo === 'percentual' ? '100' : undefined}
-              value={form.desconto_valor || ''}
-              onChange={(e) => onFormChange((f) => ({ ...f, desconto_valor: e.target.value }))}
-              className={inputCls}
-              placeholder={form.desconto_tipo === 'percentual' ? '0%' : '0,00'}
-            />
-          </div>
-          {form.valor_total && form.desconto_valor && parseFloat(form.desconto_valor) > 0 && (
-            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-              Valor com desconto:{' '}
-              {(() => {
-                const base = parseFloat(form.valor_total) || 0;
-                const desc = parseFloat(form.desconto_valor) || 0;
-                const final_val =
-                  form.desconto_tipo === 'percentual'
-                    ? Math.max(base - (base * desc) / 100, 0)
-                    : Math.max(base - desc, 0);
-                return final_val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-              })()}
-            </p>
-          )}
-        </div>
-      </div>
+      <CrmDocumentoValoresFields
+        layout="grid"
+        valorTotal={form.valor_total}
+        descontoTipo={form.desconto_tipo}
+        descontoValor={form.desconto_valor || ''}
+        onValorTotalChange={(value) => onFormChange((f) => ({ ...f, valor_total: value }))}
+        onDescontoTipoChange={(tipo) => onFormChange((f) => ({ ...f, desconto_tipo: tipo }))}
+        onDescontoValorChange={(value) => onFormChange((f) => ({ ...f, desconto_valor: value }))}
+        inputCls={inputCls}
+        labelCls={labelCls}
+      />
     );
   };
 
@@ -316,30 +180,16 @@ export default function PropostaFormContent({
   );
 
   const renderAssinaturasBlock = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div>
-        <label className={labelCls}>Nome do Vendedor</label>
-        <input
-          type="text"
-          value={form.nome_vendedor_assinatura || ''}
-          onChange={(e) => onFormChange((f) => ({ ...f, nome_vendedor_assinatura: e.target.value }))}
-          className={inputCls}
-          placeholder={vendedorNome || 'Nome do vendedor'}
-        />
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nome que aparecerá na assinatura do PDF</p>
-      </div>
-      <div>
-        <label className={labelCls}>Nome do Cliente</label>
-        <input
-          type="text"
-          value={form.nome_cliente_assinatura || ''}
-          onChange={(e) => onFormChange((f) => ({ ...f, nome_cliente_assinatura: e.target.value }))}
-          className={inputCls}
-          placeholder={leadInfo?.nome || 'Nome do cliente'}
-        />
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nome que aparecerá na assinatura do PDF</p>
-      </div>
-    </div>
+    <CrmDocumentoAssinaturasFields
+      nomeVendedor={form.nome_vendedor_assinatura || ''}
+      nomeCliente={form.nome_cliente_assinatura || ''}
+      onNomeVendedorChange={(value) => onFormChange((f) => ({ ...f, nome_vendedor_assinatura: value }))}
+      onNomeClienteChange={(value) => onFormChange((f) => ({ ...f, nome_cliente_assinatura: value }))}
+      inputCls={inputCls}
+      labelCls={labelCls}
+      vendedorPlaceholder={vendedorNome}
+      clientePlaceholder={leadInfo?.nome}
+    />
   );
 
   if (pageLayout) {
@@ -456,143 +306,28 @@ export default function PropostaFormContent({
       </div>
 
       {/* Produtos e Serviços */}
-      {form.oportunidade_id && itensOportunidade.length > 0 && (() => {
-        const RECORRENCIA_LABEL: Record<string, string> = { unico: 'Único', mensal: 'Mensal', trimestral: 'Trimestral', anual: 'Anual' };
-        const valorUnico = itensOportunidade.filter(i => !i.produto_servico_recorrencia || i.produto_servico_recorrencia === 'unico').reduce((s, i) => s + i.subtotal, 0);
-        const valorMensal = itensOportunidade.filter(i => i.produto_servico_recorrencia === 'mensal').reduce((s, i) => s + i.subtotal, 0);
-        const valorTrimestral = itensOportunidade.filter(i => i.produto_servico_recorrencia === 'trimestral').reduce((s, i) => s + i.subtotal, 0);
-        const valorAnual = itensOportunidade.filter(i => i.produto_servico_recorrencia === 'anual').reduce((s, i) => s + i.subtotal, 0);
-        const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-        return (
-          <div className={spanClass}>
-            <label className={labelCls}>
-              Produtos e Serviços da Oportunidade
-            </label>
-            <div className="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 dark:bg-[#0d1f3c]/50">
-                    <th className="text-left py-2 px-3 font-medium">Item</th>
-                    <th className="text-center py-2 px-3 font-medium">Recorrência</th>
-                    <th className="text-right py-2 px-3 font-medium">Qtd</th>
-                    <th className="text-right py-2 px-3 font-medium">Preço Unit.</th>
-                    <th className="text-right py-2 px-3 font-medium">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {itensOportunidade.map((item) => (
-                    <tr key={item.id} className="border-t border-gray-100 dark:border-[#0d1f3c]">
-                      <td className="py-2 px-3">
-                        <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">
-                          {item.produto_servico_tipo === 'produto' ? 'Produto' : 'Serviço'}:
-                        </span>
-                        {item.produto_servico_nome}
-                      </td>
-                      <td className="py-2 px-3 text-center">
-                        <span className={`text-xs px-1.5 py-0.5 rounded ${item.produto_servico_recorrencia === 'mensal' ? 'bg-blue-100 text-blue-700' : item.produto_servico_recorrencia === 'anual' ? 'bg-purple-100 text-purple-700' : item.produto_servico_recorrencia === 'trimestral' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}>
-                          {RECORRENCIA_LABEL[item.produto_servico_recorrencia || 'unico'] || 'Único'}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-right">{item.quantidade}</td>
-                      <td className="py-2 px-3 text-right">
-                        {parseFloat(item.preco_unitario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </td>
-                      <td className="py-2 px-3 text-right font-medium">
-                        {item.subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {/* Resumo: Adesão + Mensal */}
-            {(valorMensal > 0 || valorTrimestral > 0 || valorAnual > 0) && (
-              <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 space-y-1">
-                {valorUnico > 0 && (
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    <span className="font-medium">Adesão/Implantação:</span> {fmt(valorUnico)}
-                  </p>
-                )}
-                {valorMensal > 0 && (
-                  <p className="text-sm text-blue-700 dark:text-blue-300 font-semibold">
-                    💰 Valor Mensal: {fmt(valorMensal)}/mês
-                  </p>
-                )}
-                {valorTrimestral > 0 && (
-                  <p className="text-sm text-indigo-700 dark:text-indigo-300 font-semibold">
-                    💰 Valor Trimestral: {fmt(valorTrimestral)}/trimestre
-                  </p>
-                )}
-                {valorAnual > 0 && (
-                  <p className="text-sm text-purple-700 dark:text-purple-300 font-semibold">
-                    💰 Valor Anual: {fmt(valorAnual)}/ano
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {form.oportunidade_id && itensOportunidade.length === 0 && (
-        <p className={`text-xs text-gray-500 ${spanClass}`}>Esta oportunidade não possui produtos ou serviços cadastrados.</p>
-      )}
-
-      {/* Valor total */}
       {form.oportunidade_id && (
         <div className={spanClass}>
-          <label className={labelCls}>Valor total (R$)</label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.valor_total}
-            onChange={(e) => onFormChange((f) => ({ ...f, valor_total: e.target.value }))}
-            className={`${inputCls} max-w-[200px]`}
-            placeholder="0,00"
-          />
+          <label className={labelCls}>Produtos e Serviços da Oportunidade</label>
+          <CrmOportunidadeItensTabela itens={itensOportunidade} />
         </div>
       )}
 
-      {/* Desconto */}
+      {/* Valor total e desconto */}
       {form.oportunidade_id && (
-        <div className={spanClass}>
-          <label className={labelCls}>Desconto</label>
-          <div className="flex gap-2 items-end">
-            <select
-              value={form.desconto_tipo || 'percentual'}
-              onChange={(e) => onFormChange((f) => ({ ...f, desconto_tipo: e.target.value as 'percentual' | 'valor' }))}
-              className={`${inputCls} max-w-[160px]`}
-            >
-              <option value="percentual">Percentual (%)</option>
-              <option value="valor">Valor fixo (R$)</option>
-            </select>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              max={form.desconto_tipo === 'percentual' ? '100' : undefined}
-              value={form.desconto_valor || ''}
-              onChange={(e) => onFormChange((f) => ({ ...f, desconto_valor: e.target.value }))}
-              className={`${inputCls} max-w-[160px]`}
-              placeholder={form.desconto_tipo === 'percentual' ? '0%' : '0,00'}
-            />
-          </div>
-          {form.valor_total && form.desconto_valor && parseFloat(form.desconto_valor) > 0 && (
-            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-              Valor com desconto:{' '}
-              {(() => {
-                const base = parseFloat(form.valor_total) || 0;
-                const desc = parseFloat(form.desconto_valor) || 0;
-                const final_val = form.desconto_tipo === 'percentual'
-                  ? Math.max(base - (base * desc / 100), 0)
-                  : Math.max(base - desc, 0);
-                return final_val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-              })()}
-            </p>
-          )}
-        </div>
+        <CrmDocumentoValoresFields
+          layout="compact"
+          valorTotal={form.valor_total}
+          descontoTipo={form.desconto_tipo}
+          descontoValor={form.desconto_valor || ''}
+          onValorTotalChange={(value) => onFormChange((f) => ({ ...f, valor_total: value }))}
+          onDescontoTipoChange={(tipo) => onFormChange((f) => ({ ...f, desconto_tipo: tipo }))}
+          onDescontoValorChange={(value) => onFormChange((f) => ({ ...f, desconto_valor: value }))}
+          inputCls={inputCls}
+          labelCls={labelCls}
+          valorInputClassName="max-w-[200px]"
+          sectionClassName={spanClass}
+        />
       )}
 
       {/* Título */}
@@ -679,38 +414,7 @@ export default function PropostaFormContent({
       {/* Assinaturas */}
       <div className={`${spanClass} border-t border-gray-100 dark:border-[#0d1f3c] pt-4 mt-2`}>
         <p className={`${sectionTitleCls} mb-3`}>Assinaturas</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>
-              Nome do Vendedor
-            </label>
-            <input
-              type="text"
-              value={form.nome_vendedor_assinatura || ''}
-              onChange={(e) => onFormChange((f) => ({ ...f, nome_vendedor_assinatura: e.target.value }))}
-              className={inputCls}
-              placeholder={vendedorNome || 'Nome do vendedor'}
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Nome que aparecerá na assinatura do PDF
-            </p>
-          </div>
-          <div>
-            <label className={labelCls}>
-              Nome do Cliente
-            </label>
-            <input
-              type="text"
-              value={form.nome_cliente_assinatura || ''}
-              onChange={(e) => onFormChange((f) => ({ ...f, nome_cliente_assinatura: e.target.value }))}
-              className={inputCls}
-              placeholder={leadInfo?.nome || 'Nome do cliente'}
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Nome que aparecerá na assinatura do PDF
-            </p>
-          </div>
-        </div>
+        {renderAssinaturasBlock()}
       </div>
 
       {/* Botões (modal / formulário embutido) */}

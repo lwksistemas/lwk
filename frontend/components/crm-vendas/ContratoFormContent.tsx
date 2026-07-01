@@ -2,6 +2,8 @@
 
 import type { LojaInfo, LeadInfo } from './modals/ModalPropostaForm';
 import { CrmClienteBlock, CrmLojaBlock } from '@/components/crm-vendas/CrmLojaClienteBlocks';
+import CrmDocumentoAssinaturasFields from '@/components/crm-vendas/documentos/CrmDocumentoAssinaturasFields';
+import CrmDocumentoValoresFields from '@/components/crm-vendas/documentos/CrmDocumentoValoresFields';
 import type { FormDataContrato } from './modals/ModalContratoForm';
 
 export interface OportunidadeContratoOption {
@@ -103,59 +105,17 @@ export default function ContratoFormContent({
   );
 
   const renderValoresBlock = () => (
-    <>
-      <div>
-        <label className={labelCls}>Valor total (R$)</label>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          value={form.valor_total}
-          onChange={(e) => onFormChange((f) => ({ ...f, valor_total: e.target.value }))}
-          className={inputCls}
-          placeholder="0,00"
-        />
-      </div>
-      <div>
-        <label className={labelCls}>Desconto</label>
-        <div className="flex gap-2">
-          <select
-            value={form.desconto_tipo || 'percentual'}
-            onChange={(e) =>
-              onFormChange((f) => ({ ...f, desconto_tipo: e.target.value as 'percentual' | 'valor' }))
-            }
-            className={`${inputCls} max-w-[120px]`}
-          >
-            <option value="percentual">%</option>
-            <option value="valor">R$</option>
-          </select>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            max={form.desconto_tipo === 'percentual' ? '100' : undefined}
-            value={form.desconto_valor || ''}
-            onChange={(e) => onFormChange((f) => ({ ...f, desconto_valor: e.target.value }))}
-            className={inputCls}
-            placeholder={form.desconto_tipo === 'percentual' ? '0%' : '0,00'}
-          />
-        </div>
-        {form.valor_total && form.desconto_valor && parseFloat(form.desconto_valor) > 0 && (
-          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-            Valor com desconto:{' '}
-            {(() => {
-              const base = parseFloat(form.valor_total) || 0;
-              const desc = parseFloat(form.desconto_valor) || 0;
-              const final_val =
-                form.desconto_tipo === 'percentual'
-                  ? Math.max(base - (base * desc) / 100, 0)
-                  : Math.max(base - desc, 0);
-              return final_val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            })()}
-          </p>
-        )}
-      </div>
-    </>
+    <CrmDocumentoValoresFields
+      layout="grid"
+      valorTotal={form.valor_total}
+      descontoTipo={form.desconto_tipo}
+      descontoValor={form.desconto_valor || ''}
+      onValorTotalChange={(value) => onFormChange((f) => ({ ...f, valor_total: value }))}
+      onDescontoTipoChange={(tipo) => onFormChange((f) => ({ ...f, desconto_tipo: tipo }))}
+      onDescontoValorChange={(value) => onFormChange((f) => ({ ...f, desconto_valor: value }))}
+      inputCls={inputCls}
+      labelCls={labelCls}
+    />
   );
 
   const renderConteudoBlock = () => (
@@ -172,30 +132,16 @@ export default function ContratoFormContent({
   );
 
   const renderAssinaturasBlock = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div>
-        <label className={labelCls}>Nome do Vendedor</label>
-        <input
-          type="text"
-          value={form.nome_vendedor_assinatura || ''}
-          onChange={(e) => onFormChange((f) => ({ ...f, nome_vendedor_assinatura: e.target.value }))}
-          className={inputCls}
-          placeholder={vendedorNome || 'Nome do vendedor'}
-        />
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nome que aparecerá na assinatura do PDF</p>
-      </div>
-      <div>
-        <label className={labelCls}>Nome do Cliente</label>
-        <input
-          type="text"
-          value={form.nome_cliente_assinatura || ''}
-          onChange={(e) => onFormChange((f) => ({ ...f, nome_cliente_assinatura: e.target.value }))}
-          className={inputCls}
-          placeholder={leadInfo?.nome || 'Nome do cliente'}
-        />
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Nome que aparecerá na assinatura do PDF</p>
-      </div>
-    </div>
+    <CrmDocumentoAssinaturasFields
+      nomeVendedor={form.nome_vendedor_assinatura || ''}
+      nomeCliente={form.nome_cliente_assinatura || ''}
+      onNomeVendedorChange={(value) => onFormChange((f) => ({ ...f, nome_vendedor_assinatura: value }))}
+      onNomeClienteChange={(value) => onFormChange((f) => ({ ...f, nome_cliente_assinatura: value }))}
+      inputCls={inputCls}
+      labelCls={labelCls}
+      vendedorPlaceholder={vendedorNome}
+      clientePlaceholder={leadInfo?.nome}
+    />
   );
 
   if (pageLayout) {
@@ -315,42 +261,18 @@ export default function ContratoFormContent({
         />
       </div>
 
-      <div>
-        <label className={labelCls}>Valor total (R$)</label>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          value={form.valor_total}
-          onChange={(e) => onFormChange((f) => ({ ...f, valor_total: e.target.value }))}
-          className={inputCls}
-          placeholder="0,00"
-        />
-      </div>
-
-      <div className={spanClass}>
-        <label className={labelCls}>Desconto</label>
-        <div className="flex gap-2 items-end">
-          <select
-            value={form.desconto_tipo || 'percentual'}
-            onChange={(e) => onFormChange((f) => ({ ...f, desconto_tipo: e.target.value as 'percentual' | 'valor' }))}
-            className={`${inputCls} max-w-[160px]`}
-          >
-            <option value="percentual">Percentual (%)</option>
-            <option value="valor">Valor fixo (R$)</option>
-          </select>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            max={form.desconto_tipo === 'percentual' ? '100' : undefined}
-            value={form.desconto_valor || ''}
-            onChange={(e) => onFormChange((f) => ({ ...f, desconto_valor: e.target.value }))}
-            className={`${inputCls} max-w-[160px]`}
-            placeholder={form.desconto_tipo === 'percentual' ? '0%' : '0,00'}
-          />
-        </div>
-      </div>
+      <CrmDocumentoValoresFields
+        layout="compact"
+        valorTotal={form.valor_total}
+        descontoTipo={form.desconto_tipo}
+        descontoValor={form.desconto_valor || ''}
+        onValorTotalChange={(value) => onFormChange((f) => ({ ...f, valor_total: value }))}
+        onDescontoTipoChange={(tipo) => onFormChange((f) => ({ ...f, desconto_tipo: tipo }))}
+        onDescontoValorChange={(value) => onFormChange((f) => ({ ...f, desconto_valor: value }))}
+        inputCls={inputCls}
+        labelCls={labelCls}
+        sectionClassName={spanClass}
+      />
 
       <div className={spanClass}>
         <label className={labelCls}>Conteúdo</label>

@@ -1,7 +1,9 @@
 """Serviço financeiro CRM — grupos padrão e sincronização de comissão."""
 from __future__ import annotations
 
+import calendar
 import logging
+from datetime import timedelta
 from decimal import Decimal
 
 from django.utils import timezone
@@ -115,11 +117,36 @@ def sincronizar_receita_comissao_oportunidade(oportunidade) -> None:
     )
 
 
-def aplicar_filtro_periodo_lancamentos(queryset, *, periodo='mes_atual', data_inicio=None, data_fim=None):
-    """Filtra lançamentos por data_vencimento no intervalo do período."""
+def calcular_intervalo_vencimento(periodo, data_inicio=None, data_fim=None):
+    """
+    Intervalo para filtrar data_vencimento.
+
+    Diferente do dashboard (até hoje), vencimentos no mês/semana/trimestre atuais
+    incluem datas futuras dentro do período calendário.
+    """
     from .services_dashboard import calcular_intervalo_datas
 
     inicio, fim = calcular_intervalo_datas(periodo, data_inicio, data_fim)
+    hoje = timezone.now().date()
+
+    if periodo == 'mes_atual':
+        ultimo_dia = calendar.monthrange(inicio.year, inicio.month)[1]
+        fim = inicio.replace(day=ultimo_dia)
+    elif periodo == 'semana_atual':
+        fim = inicio + timedelta(days=6)
+    elif periodo == 'trimestre_atual':
+        mes_fim_trimestre = ((hoje.month - 1) // 3 + 1) * 3
+        ultimo_dia = calendar.monthrange(hoje.year, mes_fim_trimestre)[1]
+        fim = hoje.replace(month=mes_fim_trimestre, day=ultimo_dia)
+    elif periodo in ('este_ano', 'ano_atual'):
+        fim = hoje.replace(month=12, day=31)
+
+    return inicio, fim
+
+
+def aplicar_filtro_periodo_lancamentos(queryset, *, periodo='mes_atual', data_inicio=None, data_fim=None):
+    """Filtra lançamentos por data_vencimento no intervalo do período."""
+    inicio, fim = calcular_intervalo_vencimento(periodo, data_inicio, data_fim)
     return queryset.filter(data_vencimento__gte=inicio, data_vencimento__lte=fim)
 
 
@@ -137,7 +164,8 @@ def resumo_financeiro_crm(
     from .models.financeiro import LancamentoFinanceiroCRM
     from .services_dashboard import _filtro_fechamento_no_periodo, calcular_intervalo_datas
 
-    inicio, fim = calcular_intervalo_datas(periodo, data_inicio, data_fim)
+    inicio, fim = calcular_intervalo_vencimento(periodo, data_inicio, data_fim)
+    inicio_opp, fim_opp = calcular_intervalo_datas(periodo, data_inicio, data_fim)
 
     qs = LancamentoFinanceiroCRM.objects.filter(loja_id=loja_id).exclude(
         status=LancamentoFinanceiroCRM.STATUS_CANCELADO,
@@ -159,7 +187,7 @@ def resumo_financeiro_crm(
     # Total de comissões = soma de valor_comissao das oportunidades ganhas no período
     # (mesma lógica do dashboard — não usar valor do lançamento, que pode refletir venda total)
     opp_qs = Oportunidade.objects.filter(loja_id=loja_id, etapa='closed_won').filter(
-        _filtro_fechamento_no_periodo(inicio, fim),
+        _filtro_fechamento_no_periodo(inicio_opp, fim_opp),
     )
     if vendedor_id:
         opp_qs = opp_qs.filter(vendedor_id=vendedor_id)

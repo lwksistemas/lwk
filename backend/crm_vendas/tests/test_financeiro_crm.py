@@ -25,6 +25,17 @@ class TestCRMSchemaRecoveryMixinSuper(TestCase):
         self.assertEqual(resp.data, {'ok': True})
 
 
+class TestCalcularIntervaloVencimento(TestCase):
+    def test_mes_atual_inclui_vencimentos_futuros_no_mes(self):
+        from crm_vendas.services_financeiro import calcular_intervalo_vencimento
+
+        with patch('crm_vendas.services_financeiro.timezone') as mock_tz:
+            mock_tz.now.return_value.date.return_value = date(2026, 7, 1)
+            inicio, fim = calcular_intervalo_vencimento('mes_atual')
+        self.assertEqual(inicio, date(2026, 7, 1))
+        self.assertEqual(fim, date(2026, 7, 31))
+
+
 class TestSincronizarReceitaComissao(TestCase):
     def test_cria_receita_quando_ganha_com_comissao(self):
         oportunidade = MagicMock()

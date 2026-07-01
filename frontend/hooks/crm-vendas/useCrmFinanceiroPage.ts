@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
+import { getCrmApiErrorDetail } from '@/lib/crm-utils';
 
 export type TipoFinanceiro = 'receita' | 'despesa';
 
@@ -165,6 +166,9 @@ export function useCrmFinanceiroPage() {
       }
       setShowModal(false);
       await loadAll();
+    } catch (err) {
+      alert(getCrmApiErrorDetail(err, 'Não foi possível salvar o lançamento.'));
+      throw err;
     } finally {
       setSaving(false);
     }

@@ -118,11 +118,12 @@ export function useCrmFinanceiroPage() {
   }, [vendedorFiltro, periodoRelatorio, dataInicioRel, dataFimRel]);
 
   const loadGrupos = useCallback(async () => {
+    const params = isAdmin ? '?incluir_inativos=true' : '';
     const { data } = await apiClient.get<{ results?: GrupoFinanceiro[] } | GrupoFinanceiro[]>(
-      'crm-vendas/financeiro-grupos/?page_size=200',
+      `crm-vendas/financeiro-grupos/${params}`,
     );
     setGrupos(Array.isArray(data) ? data : data.results ?? []);
-  }, []);
+  }, [isAdmin]);
 
   const loadVendedores = useCallback(async () => {
     if (!isAdmin) return;
@@ -135,7 +136,7 @@ export function useCrmFinanceiroPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      await Promise.all([loadResumo(), loadLancamentos(), loadGrupos(), loadVendedores()]);
+      await Promise.allSettled([loadResumo(), loadLancamentos(), loadGrupos(), loadVendedores()]);
     } finally {
       setLoading(false);
     }
@@ -145,9 +146,14 @@ export function useCrmFinanceiroPage() {
     loadAll();
   }, [loadAll]);
 
-  const abrirNovo = (tipo: TipoFinanceiro) => {
+  const abrirNovo = async (tipo: TipoFinanceiro) => {
     setModalTipo(tipo);
     setEditing(null);
+    try {
+      await loadGrupos();
+    } catch {
+      /* mantém lista em cache */
+    }
     setShowModal(true);
   };
 
@@ -182,7 +188,11 @@ export function useCrmFinanceiroPage() {
 
   const removerLancamento = async (item: LancamentoFinanceiro) => {
     if (!item.editavel) {
-      alert('Lançamentos de comissão automática não podem ser excluídos.');
+      if (item.origem === 'recorrencia') {
+        alert('Lançamentos gerados por recorrência não podem ser excluídos.');
+      } else {
+        alert('Lançamentos de comissão automática não podem ser excluídos.');
+      }
       return;
     }
     if (!confirm('Excluir este lançamento?')) return;
@@ -310,6 +320,7 @@ export function useCrmFinanceiroPage() {
     showGrupos,
     setShowGrupos,
     loadAll,
+    loadGrupos,
     periodoRelatorio,
     setPeriodoRelatorio,
     dataInicioRel,

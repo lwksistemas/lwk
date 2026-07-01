@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from django.http import HttpResponse
 
 from core.views import BaseModelViewSet
-from tenants.middleware import get_current_loja_id
+from tenants.middleware import ensure_loja_context, get_current_loja_id
 
 from .mixins import (
     CRMPermissionMixin,
@@ -27,6 +27,7 @@ from .services_financeiro import (
     resumo_financeiro_crm,
     sincronizar_comissoes_retroativas,
 )
+from .services_recorrencia_financeiro import criar_recorrencia_com_primeiro_lancamento
 from .utils import get_current_vendedor_id, is_owner
 from .views_common import CRMPagination, filtrar_queryset_por_query_params
 
@@ -41,14 +42,22 @@ class GrupoFinanceiroCRMViewSet(
 ):
     queryset = GrupoFinanceiroCRM.objects.all()
     serializer_class = GrupoFinanceiroCRMSerializer
-    pagination_class = CRMPagination
+    pagination_class = None
     cache_keys = ['financeiro_crm']
 
     def get_queryset(self):
+        if getattr(self, 'request', None):
+            ensure_loja_context(self.request)
         loja_id = get_current_loja_id()
         if loja_id:
             garantir_grupos_padrao(loja_id)
-        qs = super().get_queryset()
+        incluir_inativos = (
+            self.request.query_params.get('incluir_inativos', '').lower() in ('1', 'true', 'sim')
+        )
+        if incluir_inativos and loja_id:
+            qs = GrupoFinanceiroCRM.objects.filter(loja_id=loja_id)
+        else:
+            qs = super().get_queryset()
         return filtrar_queryset_por_query_params(qs, self.request, {'tipo': 'tipo'})
 
     def create(self, request, *args, **kwargs):
@@ -110,19 +119,54 @@ class LancamentoFinanceiroCRMViewSet(
         )
 
     def perform_create(self, serializer):
+        ensure_loja_context(self.request)
+        loja_id = get_current_loja_id()
+        recorrente = serializer.validated_data.pop('recorrente', False)
+        frequencia = serializer.validated_data.pop('frequencia', 'mensal') or 'mensal'
+        data_fim_rec = serializer.validated_data.pop('data_fim_recorrencia', None)
+        data = dict(serializer.validated_data)
+
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id and not is_owner(self.request):
-            serializer.save(
-                vendedor_id=vendedor_id,
-                origem=LancamentoFinanceiroCRM.ORIGEM_MANUAL,
+            data['vendedor_id'] = vendedor_id
+
+        if recorrente and loja_id:
+            vendedor = data.get('vendedor') or data.get('vendedor_id')
+            vendedor_id_final = getattr(vendedor, 'id', vendedor)
+            if not vendedor_id_final:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({'vendedor': 'Vendedor obrigatório para recorrência.'})
+            _, lanc = criar_recorrencia_com_primeiro_lancamento(
+                loja_id,
+                vendedor_id=vendedor_id_final,
+                tipo=data['tipo'],
+                descricao=data['descricao'],
+                valor=data['valor'],
+                data_vencimento=data['data_vencimento'],
+                frequencia=frequencia,
+                data_fim=data_fim_rec,
+                grupo=data.get('grupo'),
+                observacoes=data.get('observacoes') or '',
+                status=data.get('status', LancamentoFinanceiroCRM.STATUS_PENDENTE),
+                data_pagamento=data.get('data_pagamento'),
             )
+            serializer.instance = lanc
         else:
-            serializer.save(origem=LancamentoFinanceiroCRM.ORIGEM_MANUAL)
+            if vendedor_id and not is_owner(self.request):
+                serializer.save(
+                    vendedor_id=vendedor_id,
+                    origem=LancamentoFinanceiroCRM.ORIGEM_MANUAL,
+                )
+            else:
+                serializer.save(origem=LancamentoFinanceiroCRM.ORIGEM_MANUAL)
         self._invalidate_caches()
 
     def perform_update(self, serializer):
         inst = serializer.instance
-        if inst.origem == LancamentoFinanceiroCRM.ORIGEM_COMISSAO:
+        if inst.origem in (
+            LancamentoFinanceiroCRM.ORIGEM_COMISSAO,
+            LancamentoFinanceiroCRM.ORIGEM_RECORRENCIA,
+        ):
             allowed = {'status', 'data_pagamento', 'observacoes', 'grupo'}
             data = {k: v for k, v in serializer.validated_data.items() if k in allowed}
             for k, v in data.items():
@@ -138,6 +182,11 @@ class LancamentoFinanceiroCRMViewSet(
         if inst.origem == LancamentoFinanceiroCRM.ORIGEM_COMISSAO:
             return Response(
                 {'detail': 'Receitas de comissão automática não podem ser excluídas. Cancele na oportunidade.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if inst.origem == LancamentoFinanceiroCRM.ORIGEM_RECORRENCIA:
+            return Response(
+                {'detail': 'Lançamentos gerados por recorrência não podem ser excluídos. Cancele a recorrência.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return super().destroy(request, *args, **kwargs)

@@ -50,6 +50,7 @@ export default function CrmFinanceiroPage() {
   const cfg = TIPO_CONFIG[tipoAtivo];
   const lancamentos = tipoAtivo === 'despesa' ? f.lancamentosDespesa : f.lancamentosReceita;
   const gruposTipo = f.grupos.filter((g) => g.tipo === tipoAtivo && g.is_active);
+  const gruposModal = f.grupos.filter((g) => g.tipo === f.modalTipo && g.is_active);
   const totalPago = f.resumo ? cfg.totalPago(f.resumo) : 0;
   const totalPendente = f.resumo ? cfg.totalPendente(f.resumo) : 0;
 
@@ -148,7 +149,7 @@ export default function CrmFinanceiroPage() {
           </>
         )}
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Grupo (relatório)</label>
+          <label className="block text-xs text-gray-500 mb-1">Grupo</label>
           <select
             value={f.grupoFiltroRelatorio}
             onChange={(e) => f.setGrupoFiltroRelatorio(e.target.value)}
@@ -274,7 +275,7 @@ export default function CrmFinanceiroPage() {
         open={f.showModal}
         tipo={f.modalTipo}
         editing={f.editing}
-        grupos={f.grupos}
+        grupos={gruposModal}
         vendedores={f.vendedores}
         isAdmin={f.isAdmin}
         saving={f.saving}

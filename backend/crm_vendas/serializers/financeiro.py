@@ -23,6 +23,14 @@ class LancamentoFinanceiroCRMSerializer(serializers.ModelSerializer):
         default='',
     )
     editavel = serializers.SerializerMethodField()
+    recorrente = serializers.BooleanField(write_only=True, required=False, default=False)
+    frequencia = serializers.ChoiceField(
+        write_only=True,
+        required=False,
+        default='mensal',
+        choices=[('mensal', 'Mensal'), ('trimestral', 'Trimestral'), ('anual', 'Anual')],
+    )
+    data_fim_recorrencia = serializers.DateField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = LancamentoFinanceiroCRM
@@ -46,6 +54,9 @@ class LancamentoFinanceiroCRMSerializer(serializers.ModelSerializer):
             'oportunidade_titulo',
             'observacoes',
             'editavel',
+            'recorrente',
+            'frequencia',
+            'data_fim_recorrencia',
             'created_at',
             'updated_at',
         ]

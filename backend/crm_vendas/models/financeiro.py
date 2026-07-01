@@ -57,9 +57,11 @@ class LancamentoFinanceiroCRM(LojaIsolationMixin, models.Model):
 
     ORIGEM_MANUAL = 'manual'
     ORIGEM_COMISSAO = 'comissao_venda'
+    ORIGEM_RECORRENCIA = 'recorrencia'
     ORIGEM_CHOICES = (
         (ORIGEM_MANUAL, 'Manual'),
         (ORIGEM_COMISSAO, 'Comissão de venda'),
+        (ORIGEM_RECORRENCIA, 'Recorrência automática'),
     )
 
     vendedor = models.ForeignKey(
@@ -102,6 +104,14 @@ class LancamentoFinanceiroCRM(LojaIsolationMixin, models.Model):
         verbose_name='Oportunidade (comissão)',
     )
     observacoes = models.TextField(blank=True, default='', verbose_name='Observações')
+    recorrencia = models.ForeignKey(
+        'crm_vendas.RecorrenciaFinanceiroCRM',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lancamentos_gerados',
+        verbose_name='Recorrência',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -121,3 +131,62 @@ class LancamentoFinanceiroCRM(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f'{self.get_tipo_display()} {self.descricao} — R$ {self.valor}'
+
+
+class RecorrenciaFinanceiroCRM(LojaIsolationMixin, models.Model):
+    """Modelo de despesa/receita recorrente — gera lançamentos automaticamente."""
+
+    FREQ_MENSAL = 'mensal'
+    FREQ_TRIMESTRAL = 'trimestral'
+    FREQ_ANUAL = 'anual'
+    FREQ_CHOICES = (
+        (FREQ_MENSAL, 'Mensal'),
+        (FREQ_TRIMESTRAL, 'Trimestral'),
+        (FREQ_ANUAL, 'Anual'),
+    )
+
+    vendedor = models.ForeignKey(
+        'crm_vendas.Vendedor',
+        on_delete=models.CASCADE,
+        related_name='recorrencias_financeiras',
+        verbose_name='Vendedor',
+    )
+    grupo = models.ForeignKey(
+        GrupoFinanceiroCRM,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recorrencias',
+        verbose_name='Grupo',
+    )
+    tipo = models.CharField(max_length=10, choices=GrupoFinanceiroCRM.TIPO_CHOICES, verbose_name='Tipo')
+    descricao = models.CharField(max_length=200, verbose_name='Descrição')
+    valor = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Valor (R$)')
+    frequencia = models.CharField(
+        max_length=12,
+        choices=FREQ_CHOICES,
+        default=FREQ_MENSAL,
+        verbose_name='Frequência',
+    )
+    proximo_vencimento = models.DateField(verbose_name='Próximo vencimento')
+    data_fim = models.DateField(null=True, blank=True, verbose_name='Encerrar em')
+    is_active = models.BooleanField(default=True, verbose_name='Ativa')
+    observacoes = models.TextField(blank=True, default='', verbose_name='Observações')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'crm_vendas'
+        db_table = 'crm_financeiro_recorrencia'
+        verbose_name = 'Recorrência financeira CRM'
+        verbose_name_plural = 'Recorrências financeiras CRM'
+        ordering = ['tipo', 'descricao']
+        indexes = [
+            models.Index(fields=['loja_id', 'is_active', 'proximo_vencimento']),
+            models.Index(fields=['loja_id', 'vendedor_id', 'tipo']),
+        ]
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} recorrente — {self.descricao}'

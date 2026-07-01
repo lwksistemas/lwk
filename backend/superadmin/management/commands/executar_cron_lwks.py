@@ -49,6 +49,9 @@ class Command(BaseCommand):
             self.stdout.write(f'  Clínica 24h: {clin_24h} | Cobranças WA: {cobranca}')
             call_command('notificar_tarefas_crm', verbosity=1)
 
+        if now.hour == 6 and now.minute < 15:
+            call_command('gerar_recorrencias_financeiro_crm', verbosity=1)
+
         if now.hour == 8 and now.minute < 15:
             call_command('criar_boletos_proximos', verbosity=1)
 

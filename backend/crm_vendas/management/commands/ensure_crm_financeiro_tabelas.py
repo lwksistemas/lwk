@@ -15,10 +15,11 @@ from superadmin.models import Loja
 
 TABLE_GRUPO = 'crm_financeiro_grupo'
 TABLE_LANCAMENTO = 'crm_financeiro_lancamento'
+TABLE_RECORRENCIA = 'crm_financeiro_recorrencia'
 
 
 class Command(BaseCommand):
-    help = 'Aplica migration 0064 (financeiro CRM) em lojas que ainda não têm as tabelas.'
+    help = 'Aplica migrations financeiro CRM (0064+) em lojas que ainda não têm as tabelas.'
 
     def add_arguments(self, parser):
         parser.add_argument('--slug', type=str, help='Processar apenas loja com este slug/atalho')
@@ -51,15 +52,17 @@ class Command(BaseCommand):
                     cursor.execute(f'SET search_path TO "{schema_name}", public')
                     tem_grupo = table_exists(cursor, TABLE_GRUPO)
                     tem_lanc = table_exists(cursor, TABLE_LANCAMENTO)
+                    tem_rec = table_exists(cursor, TABLE_RECORRENCIA)
 
-                if tem_grupo and tem_lanc:
+                if tem_grupo and tem_lanc and tem_rec:
                     self.stdout.write(f'{loja.slug}: tabelas financeiro OK')
                     ok += 1
                     continue
 
                 self.stdout.write(
                     self.style.WARNING(
-                        f'{loja.slug}: faltam tabelas (grupo={tem_grupo}, lancamento={tem_lanc}) — aplicando migrations'
+                        f'{loja.slug}: faltam tabelas (grupo={tem_grupo}, lancamento={tem_lanc}, '
+                        f'recorrencia={tem_rec}) — aplicando migrations'
                     )
                 )
                 if configurar_schema_crm_loja(loja):

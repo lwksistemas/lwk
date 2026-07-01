@@ -129,3 +129,43 @@ class TestSincronizarComissoesRetroativas(TestCase):
             from crm_vendas.services_financeiro import sincronizar_comissoes_retroativas
             out = sincronizar_comissoes_retroativas(1, dry_run=True)
             self.assertEqual(out['oportunidades_analisadas'], 2)
+
+
+class TestRecorrenciaFinanceiro(TestCase):
+    def test_adicionar_periodo_mensal(self):
+        from crm_vendas.services_recorrencia_financeiro import _adicionar_periodo
+
+        self.assertEqual(_adicionar_periodo(date(2026, 1, 31), 'mensal'), date(2026, 2, 28))
+        self.assertEqual(_adicionar_periodo(date(2026, 6, 15), 'mensal'), date(2026, 7, 15))
+
+    def test_adicionar_periodo_trimestral(self):
+        from crm_vendas.services_recorrencia_financeiro import _adicionar_periodo
+
+        self.assertEqual(_adicionar_periodo(date(2026, 3, 10), 'trimestral'), date(2026, 6, 10))
+
+    def test_criar_recorrencia_vincula_primeiro_lancamento(self):
+        from crm_vendas.services_recorrencia_financeiro import criar_recorrencia_com_primeiro_lancamento
+
+        grupo = MagicMock(id=3)
+        with patch('crm_vendas.models.financeiro.RecorrenciaFinanceiroCRM') as mock_rec, patch(
+            'crm_vendas.models.financeiro.LancamentoFinanceiroCRM'
+        ) as mock_lanc:
+            mock_rec.objects.create.return_value = MagicMock(id=99)
+            mock_lanc.ORIGEM_MANUAL = 'manual'
+            mock_lanc.objects.create.return_value = MagicMock(id=100)
+            rec, lanc = criar_recorrencia_com_primeiro_lancamento(
+                1,
+                vendedor_id=5,
+                tipo='despesa',
+                descricao='Aluguel',
+                valor=Decimal('1200.00'),
+                data_vencimento=date(2026, 7, 5),
+                frequencia='mensal',
+                grupo=grupo,
+            )
+            self.assertEqual(rec.id, 99)
+            self.assertEqual(lanc.id, 100)
+            mock_lanc.objects.create.assert_called_once()
+            kwargs = mock_lanc.objects.create.call_args.kwargs
+            self.assertEqual(kwargs['recorrencia'].id, 99)
+            self.assertEqual(kwargs['grupo'], grupo)

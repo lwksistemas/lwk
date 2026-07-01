@@ -55,7 +55,9 @@ from .views_asaas_webhook import asaas_loja_webhook
 from .views_financeiro import (
     GrupoFinanceiroCRMViewSet,
     LancamentoFinanceiroCRMViewSet,
+    financeiro_crm_relatorio_pdf,
     financeiro_crm_resumo,
+    financeiro_crm_sync_comissoes,
 )
 
 router = DefaultRouter()
@@ -98,6 +100,8 @@ urlpatterns = [
     path('login-config/', LoginConfigView.as_view()),
     path('relatorios/gerar/', gerar_relatorio),
     path('financeiro/resumo/', financeiro_crm_resumo),
+    path('financeiro/relatorio/', financeiro_crm_relatorio_pdf),
+    path('financeiro/sync-comissoes/', financeiro_crm_sync_comissoes),
     # Relatórios de Comissão (workflow completo)
     path('relatorios-comissao/', listar_relatorios_comissao_view),
     path('relatorios-comissao/resumo/', resumo_relatorio_comissao_view),

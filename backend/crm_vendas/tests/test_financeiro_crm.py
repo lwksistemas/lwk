@@ -52,3 +52,18 @@ class TestSincronizarReceitaComissao(TestCase):
             sincronizar_receita_comissao_oportunidade(oportunidade)
             self.assertEqual(existente.status, 'cancelado')
             existente.save.assert_called_once()
+
+
+class TestSincronizarComissoesRetroativas(TestCase):
+    def test_dry_run_conta_oportunidades(self):
+        with patch('crm_vendas.models.Oportunidade') as mock_opp, patch(
+            'crm_vendas.services_financeiro.garantir_grupos_padrao',
+        ), patch('crm_vendas.models.financeiro.LancamentoFinanceiroCRM') as mock_lanc:
+            chain = mock_opp.objects.filter.return_value
+            chain.exclude.return_value.exclude.return_value.exclude.return_value.select_related.return_value.order_by.return_value.count.return_value = 2
+            chain.exclude.return_value.exclude.return_value.exclude.return_value.select_related.return_value.order_by.return_value.iterator.return_value = iter([])
+            mock_lanc.objects.filter.return_value.first.return_value = None
+            mock_lanc.ORIGEM_COMISSAO = 'comissao_venda'
+            from crm_vendas.services_financeiro import sincronizar_comissoes_retroativas
+            out = sincronizar_comissoes_retroativas(1, dry_run=True)
+            self.assertEqual(out['oportunidades_analisadas'], 2)

@@ -64,6 +64,11 @@ export function useCrmFinanceiroPage() {
   const [editing, setEditing] = useState<LancamentoFinanceiro | null>(null);
   const [showGrupoModal, setShowGrupoModal] = useState(false);
   const [editingGrupo, setEditingGrupo] = useState<GrupoFinanceiro | null>(null);
+  const [periodoRelatorio, setPeriodoRelatorio] = useState('mes_atual');
+  const [dataInicioRel, setDataInicioRel] = useState('');
+  const [dataFimRel, setDataFimRel] = useState('');
+  const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
 
   const isAdmin = !authService.isVendedor();
 
@@ -182,6 +187,64 @@ export function useCrmFinanceiroPage() {
     }
   };
 
+  const gerarRelatorioPdf = async () => {
+    if (periodoRelatorio === 'personalizado' && (!dataInicioRel || !dataFimRel)) {
+      alert('Informe data início e fim para o período personalizado.');
+      return;
+    }
+    setGerandoPdf(true);
+    try {
+      const payload: Record<string, unknown> = {
+        periodo: periodoRelatorio,
+        vendedor_id: vendedorFiltro ? Number(vendedorFiltro) : null,
+      };
+      if (periodoRelatorio === 'personalizado') {
+        payload.data_inicio = dataInicioRel;
+        payload.data_fim = dataFimRel;
+      }
+      const res = await apiClient.post('crm-vendas/financeiro/relatorio/', payload, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `financeiro_crm_${periodoRelatorio}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      alert('Erro ao gerar relatório PDF.');
+    } finally {
+      setGerandoPdf(false);
+    }
+  };
+
+  const sincronizarComissoes = async () => {
+    if (!confirm('Importar comissões das oportunidades já ganhas para o financeiro?')) return;
+    setSincronizando(true);
+    try {
+      const { data } = await apiClient.post<{
+        criadas: number;
+        atualizadas: number;
+        ignoradas: number;
+        oportunidades_analisadas: number;
+      }>('crm-vendas/financeiro/sync-comissoes/', {});
+      alert(
+        `Sincronização concluída.\n` +
+          `Analisadas: ${data.oportunidades_analisadas}\n` +
+          `Criadas: ${data.criadas}\n` +
+          `Atualizadas: ${data.atualizadas}\n` +
+          `Ignoradas: ${data.ignoradas}`,
+      );
+      await loadAll();
+    } catch {
+      alert('Erro ao sincronizar comissões.');
+    } finally {
+      setSincronizando(false);
+    }
+  };
+
   return {
     tab,
     setTab,
@@ -209,5 +272,15 @@ export function useCrmFinanceiroPage() {
     salvarGrupo,
     removerGrupo,
     loadAll,
+    periodoRelatorio,
+    setPeriodoRelatorio,
+    dataInicioRel,
+    setDataInicioRel,
+    dataFimRel,
+    setDataFimRel,
+    gerandoPdf,
+    gerarRelatorioPdf,
+    sincronizando,
+    sincronizarComissoes,
   };
 }

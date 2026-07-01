@@ -153,3 +153,60 @@ def resumo_financeiro_crm(loja_id: int, vendedor_id: int | None = None) -> dict:
         'saldo_previsto': (receitas_pagas + receitas_pendentes) - (despesas_pagas + despesas_pendentes),
         'comissao_vendas_total': comissao_auto,
     }
+
+
+def sincronizar_comissoes_retroativas(loja_id: int, *, dry_run: bool = False) -> dict:
+    """
+    Gera receitas de comissão para oportunidades closed_won já existentes.
+    Útil após ativar o módulo financeiro ou corrigir valor_comissao antigo.
+    """
+    from .models import Oportunidade
+
+    garantir_grupos_padrao(loja_id)
+    qs = (
+        Oportunidade.objects.filter(loja_id=loja_id, etapa='closed_won')
+        .exclude(vendedor_id__isnull=True)
+        .exclude(valor_comissao__isnull=True)
+        .exclude(valor_comissao=0)
+        .select_related('vendedor')
+        .order_by('id')
+    )
+
+    criadas = atualizadas = ignoradas = 0
+    total = qs.count()
+    for op in qs.iterator():
+        from .models.financeiro import LancamentoFinanceiroCRM
+
+        existente = LancamentoFinanceiroCRM.objects.filter(
+            loja_id=loja_id,
+            oportunidade_id=op.id,
+            origem=LancamentoFinanceiroCRM.ORIGEM_COMISSAO,
+        ).first()
+        if dry_run:
+            if existente:
+                atualizadas += 1
+            else:
+                criadas += 1
+            continue
+        antes_id = existente.id if existente else None
+        sincronizar_receita_comissao_oportunidade(op)
+        existente_depois = LancamentoFinanceiroCRM.objects.filter(
+            loja_id=loja_id,
+            oportunidade_id=op.id,
+            origem=LancamentoFinanceiroCRM.ORIGEM_COMISSAO,
+        ).first()
+        if not existente_depois or existente_depois.status == LancamentoFinanceiroCRM.STATUS_CANCELADO:
+            ignoradas += 1
+        elif antes_id:
+            atualizadas += 1
+        else:
+            criadas += 1
+
+    return {
+        'loja_id': loja_id,
+        'oportunidades_analisadas': total,
+        'criadas': criadas,
+        'atualizadas': atualizadas,
+        'ignoradas': ignoradas,
+        'dry_run': dry_run,
+    }

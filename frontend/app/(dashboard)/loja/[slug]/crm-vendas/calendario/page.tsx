@@ -10,8 +10,21 @@ import { formatTelefone, telefoneInternacionalBr } from '@/lib/format-br';
 import { obterFeriadosBrasil } from '@/lib/feriados-brasil';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import { AtividadeModal } from './components/AtividadeModal';
+import {
+  API_CRM_CALENDARIO as API_CRM,
+  API_GOOGLE_AUTH,
+  API_GOOGLE_DISCONNECT,
+  API_GOOGLE_STATUS,
+  API_GOOGLE_SYNC,
+  MOBILE_BREAKPOINT,
+  SYNC_RESULT_DISPLAY_MS,
+  atividadeToEvent,
+  toISO,
+  type Atividade,
+  type CalendarEvent,
+} from '@/lib/crm-calendario';
 
-const MOBILE_BREAKPOINT = 640;
+export type { Atividade } from '@/lib/crm-calendario';
 
 const FullCalendar = dynamic(() => import('@fullcalendar/react'), {
   ssr: false,
@@ -21,78 +34,6 @@ const FullCalendar = dynamic(() => import('@fullcalendar/react'), {
     </div>
   ),
 });
-
-const API_CRM = '/crm-vendas';
-const API_GOOGLE_STATUS = `${API_CRM}/google-calendar/status/`;
-const API_GOOGLE_AUTH = `${API_CRM}/google-calendar/auth/`;
-const API_GOOGLE_SYNC = `${API_CRM}/google-calendar/sync/`;
-const API_GOOGLE_DISCONNECT = `${API_CRM}/google-calendar/disconnect/`;
-
-const SYNC_RESULT_DISPLAY_MS = 5000;
-
-export interface Atividade {
-  id: number;
-  titulo: string;
-  tipo: 'call' | 'meeting' | 'email' | 'task';
-  oportunidade: number | null;
-  lead: number | null;
-  lead_nome?: string;
-  conta: number | null;
-  conta_nome?: string;
-  data: string;
-  duracao_minutos?: number;
-  concluido: boolean;
-  observacoes: string;
-  lembrete_whatsapp?: boolean;
-  lembrete_whatsapp_telefone?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  start: string;
-  end: string;
-  backgroundColor: string;
-  borderColor: string;
-  extendedProps: { atividade: Atividade };
-}
-
-const TIPO_LABEL: Record<string, string> = {
-  call: 'Ligação',
-  meeting: 'Reunião',
-  email: 'Email',
-  task: 'Tarefa',
-};
-
-const TIPO_COR: Record<string, { bg: string; border: string }> = {
-  call: { bg: '#0ea5e9', border: '#0284c7' },
-  meeting: { bg: '#6366f1', border: '#4f46e5' },
-  email: { bg: '#8b5cf6', border: '#7c3aed' },
-  task: { bg: '#22c55e', border: '#16a34a' },
-};
-
-function toISO(date: Date): string {
-  return date.toISOString().slice(0, 19) + 'Z';
-}
-
-function atividadeToEvent(a: Atividade): CalendarEvent {
-  const d = new Date(a.data);
-  const end = new Date(d);
-  const duracao = a.duracao_minutos ?? 60;
-  end.setMinutes(end.getMinutes() + duracao);
-  const cor = TIPO_COR[a.tipo] ?? TIPO_COR.task;
-  return {
-    id: String(a.id),
-    title: a.concluido ? `✓ ${a.titulo}` : a.titulo,
-    start: a.data,
-    end: toISO(end),
-    backgroundColor: a.concluido ? '#94a3b8' : cor.bg,
-    borderColor: a.concluido ? '#64748b' : cor.border,
-    extendedProps: { atividade: a },
-  };
-}
 
 export default function CalendarioCrmPage() {
   const toast = useToast();

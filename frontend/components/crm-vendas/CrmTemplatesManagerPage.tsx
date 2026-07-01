@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Plus, Edit2, Trash2, X, Star } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { useToast } from '@/components/ui/Toast';
 
 export interface CrmTemplateRecord {
   id: number;
@@ -38,6 +39,7 @@ export default function CrmTemplatesManagerPage({
   namePlaceholder,
   EmptyStateIcon,
 }: CrmTemplatesManagerPageProps) {
+  const toast = useToast();
   const base = `/crm-vendas/${apiSegment}`;
   const [templates, setTemplates] = useState<CrmTemplateRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +99,7 @@ export default function CrmTemplatesManagerPage({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.nome.trim()) {
-      alert('Nome é obrigatório');
+      toast.warning('Nome é obrigatório');
       return;
     }
     try {
@@ -116,7 +118,7 @@ export default function CrmTemplatesManagerPage({
       await loadTemplates();
       closeModal();
     } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
     } finally {
       setSubmitting(false);
     }
@@ -130,7 +132,7 @@ export default function CrmTemplatesManagerPage({
       await loadTemplates();
       closeModal();
     } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao excluir.'));
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao excluir.'));
     } finally {
       setSubmitting(false);
     }
@@ -141,7 +143,7 @@ export default function CrmTemplatesManagerPage({
       await apiClient.post(`${base}/${id}/marcar_padrao/`);
       await loadTemplates();
     } catch (err: unknown) {
-      alert(getCrmApiErrorDetail(err, 'Erro ao marcar como padrão.'));
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao marcar como padrão.'));
     }
   };
 

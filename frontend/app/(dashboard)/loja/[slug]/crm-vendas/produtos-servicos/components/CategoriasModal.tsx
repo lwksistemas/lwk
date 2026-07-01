@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { X, Plus, Edit2, Trash2, Save } from 'lucide-react';
 import { Categoria } from '@/hooks/useProdutosServicos';
 import { toUpperCase } from '@/lib/format-br';
+import { useToast } from '@/components/ui/Toast';
 
 interface CategoriasModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export function CategoriasModal({
   onEditar,
   onExcluir,
 }: CategoriasModalProps) {
+  const toast = useToast();
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [criandoNova, setCriandoNova] = useState(false);
   const [formData, setFormData] = useState({ nome: '', descricao: '', cor: '#3B82F6' });
@@ -36,7 +38,7 @@ export function CategoriasModal({
 
   const handleCriar = async () => {
     if (!formData.nome.trim()) {
-      alert('Nome é obrigatório');
+      toast.warning('Nome é obrigatório');
       return;
     }
 
@@ -46,7 +48,7 @@ export function CategoriasModal({
       setFormData({ nome: '', descricao: '', cor: '#3B82F6' });
       setCriandoNova(false);
     } catch (error) {
-      alert('Erro ao criar categoria');
+      toast.error('Erro ao criar categoria');
     } finally {
       setSubmitting(false);
     }
@@ -54,7 +56,7 @@ export function CategoriasModal({
 
   const handleEditar = async (id: number) => {
     if (!formData.nome.trim()) {
-      alert('Nome é obrigatório');
+      toast.warning('Nome é obrigatório');
       return;
     }
 
@@ -64,7 +66,7 @@ export function CategoriasModal({
       setEditandoId(null);
       setFormData({ nome: '', descricao: '', cor: '#3B82F6' });
     } catch (error) {
-      alert('Erro ao editar categoria');
+      toast.error('Erro ao editar categoria');
     } finally {
       setSubmitting(false);
     }
@@ -77,7 +79,7 @@ export function CategoriasModal({
       setSubmitting(true);
       await onExcluir(id);
     } catch (error) {
-      alert('Erro ao excluir categoria');
+      toast.error('Erro ao excluir categoria');
     } finally {
       setSubmitting(false);
     }

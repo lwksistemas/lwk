@@ -7,11 +7,13 @@ import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { consultaCep } from '@/lib/consulta-cep';
 import { consultaCnpj, formatCpfCnpj } from '@/lib/consulta-cnpj';
+import { useToast } from '@/components/ui/Toast';
 import { buildCrmLeadPayload } from '@/lib/crm-utils';
 import { formatCep, toUpperCase } from '@/lib/format-br';
 import { LeadCadastroForm } from '@/components/crm-vendas/LeadCadastroForm';
 
 export default function NovoLeadPage() {
+  const toast = useToast();
   const params = useParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
@@ -55,7 +57,7 @@ export default function NovoLeadPage() {
   const handleBuscarCnpj = async () => {
     const cnpj = form.cpf_cnpj.replace(/\D/g, '');
     if (cnpj.length !== 14) {
-      alert('Informe um CNPJ válido com 14 dígitos para buscar.');
+      toast.warning('Informe um CNPJ válido com 14 dígitos para buscar.');
       return;
     }
     setBuscarCnpjLoading(true);
@@ -75,10 +77,10 @@ export default function NovoLeadPage() {
           uf: data.uf || f.uf,
         }));
       } else {
-        alert('CNPJ não encontrado ou serviço indisponível.');
+        toast.warning('CNPJ não encontrado ou serviço indisponível.');
       }
     } catch {
-      alert('Erro ao consultar CNPJ. Tente novamente.');
+      toast.error('Erro ao consultar CNPJ. Tente novamente.');
     } finally {
       setBuscarCnpjLoading(false);
     }
@@ -91,7 +93,7 @@ export default function NovoLeadPage() {
   const handleBuscarCep = async () => {
     const cep = form.cep.replace(/\D/g, '');
     if (cep.length !== 8) {
-      alert('Informe um CEP válido com 8 dígitos.');
+      toast.warning('Informe um CEP válido com 8 dígitos.');
       return;
     }
     setBuscarCepLoading(true);
@@ -106,7 +108,7 @@ export default function NovoLeadPage() {
           uf: endereco.uf.toUpperCase(),
         }));
       } else {
-        alert('Erro ao consultar CEP. Verifique sua conexão ou tente novamente em instantes.');
+        toast.error('Erro ao consultar CEP. Verifique sua conexão ou tente novamente em instantes.');
       }
     } finally {
       setBuscarCepLoading(false);

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 import { consultaCep } from '@/lib/consulta-cep';
 import { consultaCnpj, formatCpfCnpj } from '@/lib/consulta-cnpj';
 import { formatCep, formatTelefone, toUpperCase } from '@/lib/format-br';
@@ -50,13 +51,14 @@ export default function ModalLeadForm({
   onClose,
   fullScreenOnDesktop = false,
 }: ModalLeadFormProps) {
+  const toast = useToast();
   const [buscarCepLoading, setBuscarCepLoading] = useState(false);
   const [buscarCnpjLoading, setBuscarCnpjLoading] = useState(false);
 
   const handleBuscarCnpj = async () => {
     const cnpj = form.cpf_cnpj.replace(/\D/g, '');
     if (cnpj.length !== 14) {
-      alert('Informe um CNPJ válido com 14 dígitos para buscar.');
+      toast.warning('Informe um CNPJ válido com 14 dígitos para buscar.');
       return;
     }
     setBuscarCnpjLoading(true);
@@ -76,10 +78,10 @@ export default function ModalLeadForm({
           uf: data.uf || f.uf,
         }));
       } else {
-        alert('CNPJ não encontrado ou serviço indisponível.');
+        toast.warning('CNPJ não encontrado ou serviço indisponível.');
       }
     } catch {
-      alert('Erro ao consultar CNPJ. Tente novamente.');
+      toast.error('Erro ao consultar CNPJ. Tente novamente.');
     } finally {
       setBuscarCnpjLoading(false);
     }
@@ -98,7 +100,7 @@ export default function ModalLeadForm({
   const handleBuscarCep = async () => {
     const cep = form.cep.replace(/\D/g, '');
     if (cep.length !== 8) {
-      alert('Informe um CEP válido com 8 dígitos.');
+      toast.warning('Informe um CEP válido com 8 dígitos.');
       return;
     }
     setBuscarCepLoading(true);
@@ -113,7 +115,7 @@ export default function ModalLeadForm({
           uf: endereco.uf,
         }));
       } else {
-        alert('Erro ao consultar CEP. Verifique sua conexão ou tente novamente em instantes.');
+        toast.error('Erro ao consultar CEP. Verifique sua conexão ou tente novamente em instantes.');
       }
     } finally {
       setBuscarCepLoading(false);

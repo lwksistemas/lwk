@@ -6,7 +6,7 @@ import { formatTelefone, telefoneInternacionalBr } from '@/lib/format-br';
 import apiClient from '@/lib/api-client';
 import BuscarContaInput from '@/components/crm-vendas/BuscarContaInput';
 import BuscarLeadInput from '@/components/crm-vendas/BuscarLeadInput';
-import type { Atividade } from '../page';
+import type { Atividade } from '@/lib/crm-calendario';
 
 const TIPO_LABEL: Record<string, string> = {
   call: 'Ligação', meeting: 'Reunião', email: 'Email', task: 'Tarefa',

@@ -2,6 +2,7 @@
 
 import { Download, FileText, Mail, MessageCircle, RefreshCw, Trash2, X } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import { useToast } from '@/components/ui/Toast';
 import { formatDateTime } from '@/lib/financeiro-helpers';
 import { NfseStatusPill } from '@/components/nfse/NfseStatusPill';
 import {
@@ -98,6 +99,7 @@ function NfseLojaRow({
   syncingId: number | null;
   deletingId: number | null;
 } & NfseLojaRowHandlers) {
+  const toast = useToast();
   const aliquota = Number(nf.aliquota_iss ?? 0).toFixed(2);
   const podeBaixar = nfsePodeBaixar(nf.status);
   const podeSincronizar = nfsePodeSincronizar(nf.status);
@@ -146,7 +148,7 @@ function NfseLojaRow({
                   downloadNfseXmlBlob(
                     () => apiClient.get(`/nfse/${nf.id}/download_xml/`, { responseType: 'blob' }),
                     `nfse_${nf.numero_nf || nf.id}.xml`,
-                  ).catch(() => alert('XML não disponível'));
+                  ).catch(() => toast.error('XML não disponível'));
                 }}
                 className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
               >

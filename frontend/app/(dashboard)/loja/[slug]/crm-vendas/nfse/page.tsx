@@ -27,8 +27,10 @@ import { NfseLojaSyncMessage } from './components/NfseLojaSyncMessage';
 import { NfseLojaTable } from './components/NfseLojaTable';
 import type { NFSe } from './types';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
+import { useToast } from '@/components/ui/Toast';
 
 export default function NFSePage() {
+  const toast = useToast();
   const { config } = useCRMConfig();
   const lojaProvedor = config?.provedor_nf;
   const [showModal, setShowModal] = useState(false);
@@ -177,7 +179,7 @@ export default function NFSePage() {
         resBlob.data instanceof Blob ? resBlob.data : new Blob([resBlob.data], { type: 'application/pdf' });
       openBlobInNewTab(blob);
     } catch {
-      alert('PDF não disponível.');
+      toast.error('PDF não disponível.');
     }
   };
 
@@ -189,11 +191,11 @@ export default function NFSePage() {
         motivo: escolha.motivo,
         codigo_cancelamento: escolha.codigo,
       });
-      alert('Cancelamento enviado. Se aprovado pela prefeitura, o status será atualizado.');
+      toast.success('Cancelamento enviado. Se aprovado pela prefeitura, o status será atualizado.');
       await carregarNFSes(true);
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { error?: string } } };
-      alert(ax.response?.data?.error || 'Erro ao cancelar NFS-e');
+      toast.error(ax.response?.data?.error || 'Erro ao cancelar NFS-e');
     }
   };
 
@@ -216,7 +218,7 @@ export default function NFSePage() {
     e.preventDefault();
     e.stopPropagation();
     if (!nf.tomador_email) {
-      alert('Esta NFS-e não possui email do tomador cadastrado.');
+      toast.warning('Esta NFS-e não possui email do tomador cadastrado.');
       return;
     }
     if (!confirm(`Reenviar nota fiscal por email para ${nf.tomador_email}?`)) return;

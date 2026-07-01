@@ -18,11 +18,13 @@ import { ProdutoServicoFilters } from './components/ProdutoServicoFilters';
 import { ProdutoServicoTable } from './components/ProdutoServicoTable';
 import { ProdutoServicoModal } from './components/ProdutoServicoModal';
 import { CategoriasModal } from './components/CategoriasModal';
+import { useToast } from '@/components/ui/Toast';
 import { CategoriasProdutosGrid } from './components/CategoriasProdutosGrid';
 
 type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
 
 export default function CrmVendasProdutosServicosPage() {
+  const toast = useToast();
   const {
     itens,
     page,
@@ -163,7 +165,7 @@ export default function CrmVendasProdutosServicosPage() {
     e.preventDefault();
 
     if (!formData.nome.trim()) {
-      alert('Nome é obrigatório');
+      toast.warning('Nome é obrigatório');
       return;
     }
 
@@ -181,7 +183,7 @@ export default function CrmVendasProdutosServicosPage() {
       closeModal();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || 'Erro ao salvar.');
+      toast.error(e.response?.data?.detail || 'Erro ao salvar.');
     } finally {
       setSubmitting(false);
     }
@@ -198,7 +200,7 @@ export default function CrmVendasProdutosServicosPage() {
       closeModal();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || 'Erro ao excluir.');
+      toast.error(e.response?.data?.detail || 'Erro ao excluir.');
     } finally {
       setSubmitting(false);
     }

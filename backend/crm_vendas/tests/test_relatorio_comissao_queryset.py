@@ -1,72 +1,41 @@
-"""Queryset do relatório de comissão — vendas sem empresa prestadora."""
+"""Queryset do relatório de comissão — filtros de empresa prestadora."""
 from datetime import date
-from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
+from django.db.models import Q
+from django.test import SimpleTestCase
 
-from crm_vendas.models import Conta, Lead, Oportunidade
 from crm_vendas.services_relatorio_comissao import queryset_oportunidades_comissao
 
 
-class RelatorioComissaoQuerysetTest(TestCase):
-    loja_id = 1
+class RelatorioComissaoQuerysetTest(SimpleTestCase):
+    def _run(self, loja_id=1, empresa_id=10, vendedor_id=None):
+        inicio, fim = date(2026, 6, 1), date(2026, 6, 30)
+        chain = MagicMock()
+        with patch('crm_vendas.models.Oportunidade') as mock_opp:
+            mock_opp.objects.filter.return_value = chain
+            chain.filter.return_value = chain
+            chain.select_related.return_value = chain
+            result = queryset_oportunidades_comissao(loja_id, empresa_id, vendedor_id, inicio, fim)
+        return mock_opp, chain, result
 
-    def setUp(self):
-        self.ep = Conta.objects.create(
-            loja_id=self.loja_id,
-            nome='Empresa A',
-            tipo='empresa_prestadora',
-            cnpj='12345678000199',
-        )
-        self.lead = Lead.objects.create(
-            loja_id=self.loja_id,
-            nome='Cliente Teste',
-            cpf_cnpj='12345678901',
-        )
-        self.inicio = date(2026, 6, 1)
-        self.fim = date(2026, 6, 30)
+    def test_filtra_loja_e_closed_won(self):
+        mock_opp, chain, result = self._run()
+        mock_opp.objects.filter.assert_called_once_with(loja_id=1, etapa='closed_won')
+        chain.select_related.assert_called_once_with('lead', 'lead__conta', 'vendedor')
+        self.assertIs(result, chain)
 
-    def _criar_venda(self, *, empresa_prestadora=None, titulo='Venda'):
-        return Oportunidade.objects.create(
-            loja_id=self.loja_id,
-            titulo=titulo,
-            lead=self.lead,
-            valor=Decimal('1000.00'),
-            valor_comissao=Decimal('100.00'),
-            etapa='closed_won',
-            empresa_prestadora=empresa_prestadora,
-            data_fechamento_ganho=date(2026, 6, 5),
+    def test_inclui_empresa_prestadora_ou_nula_no_filtro(self):
+        _, chain, _ = self._run(empresa_id=42)
+        empresa_q = chain.filter.call_args_list[0].args[0]
+        self.assertIsInstance(empresa_q, Q)
+        self.assertEqual(
+            str(empresa_q),
+            str(Q(empresa_prestadora_id=42) | Q(empresa_prestadora_id__isnull=True)),
         )
 
-    def test_inclui_venda_sem_empresa_prestadora(self):
-        self._criar_venda(empresa_prestadora=self.ep, titulo='Com EP')
-        self._criar_venda(empresa_prestadora=None, titulo='Sem EP')
-
-        qs = queryset_oportunidades_comissao(
-            self.loja_id,
-            self.ep.id,
-            None,
-            self.inicio,
-            self.fim,
-        )
-        self.assertEqual(qs.count(), 2)
-
-    def test_exclui_venda_de_outra_empresa_prestadora(self):
-        outra = Conta.objects.create(
-            loja_id=self.loja_id,
-            nome='Empresa B',
-            tipo='empresa_prestadora',
-            cnpj='98765432000188',
-        )
-        self._criar_venda(empresa_prestadora=self.ep)
-        self._criar_venda(empresa_prestadora=outra, titulo='Outra EP')
-
-        qs = queryset_oportunidades_comissao(
-            self.loja_id,
-            self.ep.id,
-            None,
-            self.inicio,
-            self.fim,
-        )
-        self.assertEqual(qs.count(), 1)
+    def test_filtra_vendedor_quando_informado(self):
+        with patch('crm_vendas.utils.get_vendedor_destino_merge_loja', return_value=None):
+            _, chain, _ = self._run(vendedor_id=7)
+        vendedor_call = chain.filter.call_args_list[-1]
+        self.assertEqual(vendedor_call.kwargs, {'vendedor_id': 7})

@@ -11,6 +11,7 @@ import { ContaViewModal } from './components/ContaViewModal';
 import { formatTelefone } from '@/lib/format-br';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { formatDate } from '@/lib/financeiro-helpers';
+import { useToast } from '@/components/ui/Toast';
 
 interface Conta {
   id: number; nome: string; razao_social?: string; cnpj?: string; inscricao_estadual?: string;
@@ -22,6 +23,7 @@ interface Conta {
 type ModalType = 'view' | 'delete' | null;
 
 export default function CrmVendasCustomersPage() {
+  const toast = useToast();
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -114,7 +116,7 @@ export default function CrmVendasCustomersPage() {
       setSubmitting(true);
       await apiClient.delete(`/crm-vendas/contas/${selectedConta.id}/`);
       await loadContas(true); closeModal();
-    } catch (err: any) { alert(err.response?.data?.detail || 'Erro ao excluir.'); } finally { setSubmitting(false); }
+    } catch (err: any) { toast.error(err.response?.data?.detail || 'Erro ao excluir.'); } finally { setSubmitting(false); }
   };
 
   if (loading && contas.length === 0) {

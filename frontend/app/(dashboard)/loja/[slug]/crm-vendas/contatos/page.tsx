@@ -13,6 +13,7 @@ import { ContatoDeleteModal } from './components/ContatoDeleteModal';
 import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { formatDate } from '@/lib/financeiro-helpers';
+import { useToast } from '@/components/ui/Toast';
 
 interface Contato {
   id: number; nome: string; email?: string; telefone?: string;
@@ -24,6 +25,7 @@ type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
 const EMPTY_FORM = { nome: '', email: '', telefone: '', cargo: '', conta: '', observacoes: '' };
 
 export default function CrmVendasContatosPage() {
+  const toast = useToast();
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -159,8 +161,8 @@ export default function CrmVendasContatosPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.nome.trim()) { alert('Nome é obrigatório'); return; }
-    if (!formData.conta) { alert('Conta é obrigatória'); return; }
+    if (!formData.nome.trim()) { toast.warning('Nome é obrigatório'); return; }
+    if (!formData.conta) { toast.warning('Conta é obrigatória'); return; }
     try {
       setSubmitting(true);
       const payload = applyTelefoneInternacionalPayload({ ...formData, conta: parseInt(formData.conta, 10) });
@@ -178,9 +180,9 @@ export default function CrmVendasContatosPage() {
             complemento: conta.complemento || '', bairro: conta.bairro || '', cidade: conta.cidade || '', uf: conta.uf || '',
           };
           await apiClient.post('/crm-vendas/leads/', leadPayload);
-          alert(`✅ Contato e Lead criados com sucesso!`);
+          toast.success('Contato e Lead criados com sucesso!');
         } catch (leadErr: any) {
-          alert(`✅ Contato criado!\n\n⚠️ Lead automático falhou: ${leadErr.response?.data?.detail || leadErr.message}`);
+          toast.warning(`Contato criado, mas o Lead automático falhou: ${leadErr.response?.data?.detail || leadErr.message}`);
         }
       } else if (modalType === 'edit' && selectedContato) {
         await apiClient.put(`/crm-vendas/contatos/${selectedContato.id}/`, payload);
@@ -188,7 +190,7 @@ export default function CrmVendasContatosPage() {
       await reloadContatos(true);
       closeModal();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erro ao salvar contato.');
+      toast.error(err.response?.data?.detail || 'Erro ao salvar contato.');
     } finally {
       setSubmitting(false);
     }
@@ -202,7 +204,7 @@ export default function CrmVendasContatosPage() {
       await reloadContatos(true);
       closeModal();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erro ao excluir contato.');
+      toast.error(err.response?.data?.detail || 'Erro ao excluir contato.');
     } finally {
       setSubmitting(false);
     }

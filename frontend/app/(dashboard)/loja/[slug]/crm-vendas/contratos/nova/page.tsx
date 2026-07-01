@@ -10,19 +10,7 @@ import { CRM_CONTRATO_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import ContratoFormContent, { type OportunidadeContratoOption } from '@/components/crm-vendas/ContratoFormContent';
 import type { FormDataContrato } from '@/components/crm-vendas/modals/ModalContratoForm';
-
-const EMPTY_FORM: FormDataContrato = {
-  oportunidade_id: '',
-  numero: '',
-  titulo: '',
-  conteudo: '',
-  valor_total: '',
-  desconto_tipo: 'percentual',
-  desconto_valor: '',
-  status: 'rascunho',
-  nome_vendedor_assinatura: '',
-  nome_cliente_assinatura: '',
-};
+import { EMPTY_FORM_CONTRATO } from '@/components/crm-vendas/modals/ModalContratoForm';
 
 export default function NovoContratoPage() {
   const params = useParams();
@@ -30,7 +18,7 @@ export default function NovoContratoPage() {
   const slug = (params?.slug as string) ?? '';
   const listPath = `/loja/${slug}/crm-vendas/contratos`;
 
-  const [formData, setFormData] = useState<FormDataContrato>(EMPTY_FORM);
+  const [formData, setFormData] = useState<FormDataContrato>(EMPTY_FORM_CONTRATO);
   const [oportunidades, setOportunidades] = useState<OportunidadeContratoOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);

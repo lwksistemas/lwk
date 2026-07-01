@@ -99,16 +99,25 @@ class AssinaturaPublicaView(View):
             loja_id = payload.get('loja_id')
             logger.info(f'📦 Token decodificado - loja_id={loja_id}, doc_type={payload.get("doc_type")}, doc_id={payload.get("doc_id")}')
         except (BadSignature, Exception) as e:
-            logger.error(f'❌ Erro ao decodificar token: {e}')
+            logger.warning(
+                '[AssinaturaPublica] GET token_decode_falhou token_len=%s erro=%s',
+                len(token),
+                e,
+            )
             return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
 
         if not loja_id:
-            logger.error('❌ Token não contém loja_id')
+            logger.warning('[AssinaturaPublica] GET sem_loja_id token_len=%s', len(token))
             return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
 
         # PASSO 2: Configurar tenant (obrigatório — antes caía em default sem schema)
         cfg_err = _configurar_tenant_para_assinatura_publica(loja_id)
         if cfg_err:
+            logger.warning(
+                '[AssinaturaPublica] GET tenant_config_falhou loja_id=%s erro=%s',
+                loja_id,
+                cfg_err,
+            )
             status = 503 if 'indisponível' in cfg_err.lower() else 400
             return JsonResponse({'error': cfg_err}, status=status)
 
@@ -116,7 +125,14 @@ class AssinaturaPublicaView(View):
         assinatura, erro, _, meta = verificar_token_assinatura(token, loja_id=loja_id)
         
         if erro:
-            logger.warning(f'❌ Erro ao verificar token: {erro}')
+            logger.warning(
+                '[AssinaturaPublica] GET verificar_token_falhou loja_id=%s error_code=%s doc_type=%s doc_id=%s mensagem=%s',
+                loja_id,
+                meta.get('error_code', 'invalido'),
+                payload.get('doc_type'),
+                payload.get('doc_id'),
+                erro,
+            )
             return JsonResponse({
                 'error': erro,
                 'error_code': meta.get('error_code', 'invalido'),

@@ -11,6 +11,7 @@ import { CRM_CONTRATO_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import ContratoFormContent, { type OportunidadeContratoOption } from '@/components/crm-vendas/ContratoFormContent';
 import type { FormDataContrato } from '@/components/crm-vendas/modals/ModalContratoForm';
+import { EMPTY_FORM_CONTRATO } from '@/components/crm-vendas/modals/ModalContratoForm';
 
 interface Contrato {
   id: number;
@@ -32,7 +33,7 @@ export default function EditarContratoPage() {
   const id = parseInt(String(params?.id ?? ''), 10);
   const listPath = `/loja/${slug}/crm-vendas/contratos`;
 
-  const [formData, setFormData] = useState<FormDataContrato | null>(null);
+  const [formData, setFormData] = useState<FormDataContrato>(EMPTY_FORM_CONTRATO);
   const [statusAssinaturaAntes, setStatusAssinaturaAntes] = useState<string | undefined>();
   const [oportunidades, setOportunidades] = useState<OportunidadeContratoOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -41,17 +42,8 @@ export default function EditarContratoPage() {
 
   const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
   const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } = useCrmLeadEVendedorForm(
-    formData || {
-      oportunidade_id: '',
-      numero: '',
-      titulo: '',
-      conteudo: '',
-      valor_total: '',
-      desconto_tipo: 'percentual',
-      desconto_valor: '',
-      status: 'rascunho',
-    },
-    (updater) => setFormData((f) => (f ? updater(f) : f)),
+    formData,
+    setFormData,
   );
 
   const loadOportunidades = useCallback(async () => {
@@ -116,17 +108,12 @@ export default function EditarContratoPage() {
   }, [formData?.oportunidade_id, oportunidades, loadLeadInfo, setLeadInfo]);
 
   const handleOportunidadeChange = (oppId: string) => {
-    if (!formData) return;
     const opp = oportunidades.find((o) => String(o.id) === oppId);
-    setFormData((f) =>
-      f
-        ? {
-            ...f,
-            oportunidade_id: oppId,
-            valor_total: opp?.valor ? String(opp.valor) : f.valor_total,
-          }
-        : f,
-    );
+    setFormData((f) => ({
+      ...f,
+      oportunidade_id: oppId,
+      valor_total: opp?.valor ? String(opp.valor) : f.valor_total,
+    }));
     if (opp?.lead) {
       loadLeadInfo(opp.lead);
     } else {
@@ -135,7 +122,6 @@ export default function EditarContratoPage() {
   };
 
   const handleSave = async () => {
-    if (!formData) return;
     setFormErro(null);
     if (!formData.titulo.trim()) {
       setFormErro('Título é obrigatório');
@@ -168,7 +154,7 @@ export default function EditarContratoPage() {
     }
   };
 
-  if (loading || !formData) {
+  if (loading) {
     return (
       <div className="-m-4 sm:-m-6 lg:-m-8 flex flex-1 items-center justify-center min-h-[calc(100dvh-3.5rem)] bg-[#f3f2f2] dark:bg-[#0d1f3c]">
         <p className="text-gray-500 dark:text-gray-400">Carregando...</p>

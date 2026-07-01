@@ -17,6 +17,19 @@ export interface FormDataContrato {
   nome_cliente_assinatura?: string;
 }
 
+export const EMPTY_FORM_CONTRATO: FormDataContrato = {
+  oportunidade_id: '',
+  numero: '',
+  titulo: '',
+  conteudo: '',
+  valor_total: '',
+  desconto_tipo: 'percentual',
+  desconto_valor: '',
+  status: 'rascunho',
+  nome_vendedor_assinatura: '',
+  nome_cliente_assinatura: '',
+};
+
 interface ModalContratoFormProps {
   title: string;
   form: FormDataContrato;

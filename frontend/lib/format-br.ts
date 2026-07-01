@@ -66,7 +66,7 @@ export function isTelefoneField(name: string): boolean {
 }
 
 /** Converte campos de telefone para 55... antes de enviar à API. */
-export function applyTelefoneInternacionalPayload<T extends Record<string, unknown>>(
+export function applyTelefoneInternacionalPayload<T extends object>(
   data: T,
   fields: readonly string[] = TELEFONE_FIELD_NAMES,
 ): T {
@@ -81,7 +81,7 @@ export function applyTelefoneInternacionalPayload<T extends Record<string, unkno
 }
 
 /** Formata campos de telefone para exibição no formulário (DD) XXXXX-XXXX. */
-export function applyTelefoneFormatPayload<T extends Record<string, unknown>>(
+export function applyTelefoneFormatPayload<T extends object>(
   data: T,
   fields: readonly string[] = TELEFONE_FIELD_NAMES,
 ): T {

@@ -8,6 +8,7 @@ import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { Plus, Eye, Edit2, Trash2, Building2, Download } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import { ContaViewModal } from './components/ContaViewModal';
+import { ContaDeleteModal } from './components/ContaDeleteModal';
 import { formatTelefone } from '@/lib/format-br';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { formatDate } from '@/lib/financeiro-helpers';

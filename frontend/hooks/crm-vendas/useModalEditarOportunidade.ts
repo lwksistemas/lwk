@@ -27,6 +27,13 @@ interface ContaPrestadoraOption {
   nome: string;
 }
 
+interface OportunidadeItemApi {
+  id: number;
+  produto_servico: number;
+  quantidade: number;
+  preco_unitario: number;
+}
+
 export function useModalEditarOportunidade(
   oportunidade: Oportunidade,
   onClose: () => void,
@@ -56,9 +63,9 @@ export function useModalEditarOportunidade(
     apiClient
       .get(`/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidade.id}`)
       .then((res) => {
-        const itens = normalizeListResponse(res.data);
+        const itens = normalizeListResponse<OportunidadeItemApi>(res.data);
         setItensEditar(
-          itens.map((item: { id: number; produto_servico: number; quantidade: number; preco_unitario: number }) => ({
+          itens.map((item) => ({
             id: item.id,
             produto_servico_id: item.produto_servico,
             quantidade: String(item.quantidade),
@@ -171,8 +178,8 @@ export function useModalEditarOportunidade(
       await apiClient.patch(`/crm-vendas/oportunidades/${oportunidade.id}/`, payload);
 
       const resItens = await apiClient.get(`/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidade.id}`);
-      const itensAtuais = normalizeListResponse(resItens.data);
-      const idsAtuais = itensAtuais.map((item: { id: number }) => item.id);
+      const itensAtuais = normalizeListResponse<OportunidadeItemApi>(resItens.data);
+      const idsAtuais = itensAtuais.map((item) => item.id);
       const idsEditados = itensEditar.filter((item) => item.id).map((item) => item.id);
 
       for (const id of idsAtuais) {

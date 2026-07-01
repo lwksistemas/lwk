@@ -1,246 +1,47 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import apiClient from '@/lib/api-client';
-import { authService } from '@/lib/auth';
-import { normalizeListResponse, getCrmApiErrorDetail, fetchAllPaginatedResults } from '@/lib/crm-utils';
 import { DollarSign, LayoutDashboard, LayoutGrid, List, Plus, Printer } from 'lucide-react';
-import PipelineBoard, { type Oportunidade } from '@/components/crm-vendas/PipelineBoard';
+import PipelineBoard from '@/components/crm-vendas/PipelineBoard';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import ModalCriarOportunidade from './components/ModalCriarOportunidade';
 import ModalEditarOportunidade from './components/ModalEditarOportunidade';
-
-const ETAPAS_FECHADAS = new Set(['closed_won', 'closed_lost']);
-
-/** Período filtra por data de criação (abertas) ou data de fechamento (ganho/perdido). */
-function oportunidadeNoPeriodo(
-  op: Oportunidade,
-  dataInicio: string,
-  dataFim: string,
-): boolean {
-  if (!dataInicio && !dataFim) return true;
-
-  // Determinar a data de referência:
-  // - Ganho: data_fechamento_ganho
-  // - Perdido: data_fechamento_perdido
-  // - Abertas: created_at (data de criação)
-  let dataRef = '';
-  if (op.etapa === 'closed_won') {
-    dataRef = op.data_fechamento_ganho || op.data_fechamento || op.created_at || '';
-  } else if (op.etapa === 'closed_lost') {
-    dataRef = op.data_fechamento_perdido || op.created_at || '';
-  } else {
-    dataRef = op.created_at || '';
-  }
-
-  if (!dataRef) return true;
-  const dataOp = new Date(dataRef);
-  if (Number.isNaN(dataOp.getTime())) return true;
-  if (dataInicio && dataOp < new Date(dataInicio)) return false;
-  if (dataFim) {
-    const dataFimDate = new Date(dataFim);
-    dataFimDate.setHours(23, 59, 59, 999);
-    if (dataOp > dataFimDate) return false;
-  }
-  return true;
-}
-
-function filtrarOportunidadesPipeline(
-  oportunidades: Oportunidade[],
-  opts: { etapa?: string; vendedor?: string; dataInicio: string; dataFim: string },
-): Oportunidade[] {
-  return oportunidades.filter((op) => {
-    if (opts.etapa && op.etapa !== opts.etapa) return false;
-    if (opts.vendedor && String(op.vendedor) !== opts.vendedor) return false;
-    return oportunidadeNoPeriodo(op, opts.dataInicio, opts.dataFim);
-  });
-}
-
-function dataReferenciaOportunidade(op: Oportunidade): string {
-  if (op.etapa === 'closed_won') {
-    return (op.data_fechamento_ganho || op.data_fechamento || op.created_at || '').slice(0, 10);
-  }
-  if (op.etapa === 'closed_lost') {
-    return (op.data_fechamento_perdido || op.created_at || '').slice(0, 10);
-  }
-  return (op.created_at || '').slice(0, 10);
-}
-
-function loadOportunidades(setOportunidades: (o: Oportunidade[]) => void, setError: (e: string | null) => void) {
-  fetchAllPaginatedResults<Oportunidade>('/crm-vendas/oportunidades/', { _t: Date.now() })
-    .then((items) => {
-      setOportunidades(items);
-      setError(null);
-    })
-    .catch((err: unknown) => {
-      setError(getCrmApiErrorDetail(err, 'Erro ao carregar oportunidades.'));
-    });
-}
+import { useCrmPipelinePage } from '@/hooks/crm-vendas/useCrmPipelinePage';
 
 export default function CrmVendasPipelinePage() {
-  const params = useParams();
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const slug = (params?.slug as string) ?? '';
-  const verParam = searchParams.get('ver');
   const { etapasAtivas } = useCRMConfig();
-  
-  const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [vendedorIdSynced, setVendedorIdSynced] = useState(false);
-  const [oportunidadeEditar, setOportunidadeEditar] = useState<Oportunidade | null>(null);
-  const [modalCriar, setModalCriar] = useState(false);
-  const [initialLeadId, setInitialLeadId] = useState<string | undefined>(undefined);
-  const [viewPipeline, setViewPipeline] = useState<'board' | 'list'>('list');
-  const [filtroEtapaPipeline, setFiltroEtapaPipeline] = useState('');
-  const [filtroVendedor, setFiltroVendedor] = useState('');
-  const [vendedores, setVendedores] = useState<{ id: number; nome: string }[]>([]);
-  // Sem filtro de período por padrão — o mês corrente ocultava oportunidades de meses anteriores
-  const [dataInicio, setDataInicio] = useState('');
-  const [dataFim, setDataFim] = useState('');
-  const [imprimindo, setImprimindo] = useState(false);
-
-  // Sincronizar vendedor_id com backend ao montar componente
-  useEffect(() => {
-    apiClient
-      .get<{ vendedor_id: number | null; is_vendedor: boolean }>('/crm-vendas/me/')
-      .then((res) => {
-        const { vendedor_id, is_vendedor } = res.data;
-        // Só sincronizar vendedor_id se o backend explicitamente disser que é vendedor
-        // Owner pode ter vendedor_id mas não deve ser marcado como vendedor
-        if (vendedor_id && is_vendedor === true) {
-          authService.setVendedorId(vendedor_id);
-        } else if (vendedor_id) {
-          // Owner tem vendedor_id mas não é vendedor - só salva o ID sem marcar como vendedor
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('current_vendedor_id', String(vendedor_id));
-          }
-        }
-        setVendedorIdSynced(true);
-      })
-      .catch(() => {
-        setVendedorIdSynced(true);
-      });
-  }, []);
-
-  useEffect(() => {
-    if (!vendedorIdSynced) return;
-    setLoading(true);
-    setError(null);
-    let cancelled = false;
-    fetchAllPaginatedResults<Oportunidade>('/crm-vendas/oportunidades/')
-      .then((items) => {
-        if (cancelled) return;
-        setOportunidades(items);
-        setError(null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(getCrmApiErrorDetail(err, 'Erro ao carregar oportunidades.'));
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [vendedorIdSynced, slug]);
-
-  // Carregar lista de vendedores para o filtro (apenas admin/owner)
-  useEffect(() => {
-    apiClient
-      .get<{ id: number; nome: string }[] | { results: { id: number; nome: string }[] }>('/crm-vendas/vendedores/')
-      .then((res) => setVendedores(normalizeListResponse(res.data)))
-      .catch(() => setVendedores([]));
-  }, []);
-
-  // Abrir modal ao clicar em oportunidade na busca global (?ver=ID)
-  useEffect(() => {
-    if (!verParam) return;
-    const id = parseInt(verParam, 10);
-    if (isNaN(id)) return;
-
-    const abrirOportunidade = (op: Oportunidade) => {
-      const dataRef = dataReferenciaOportunidade(op);
-      if (dataRef) {
-        setDataInicio((ini) => (!ini || dataRef < ini ? dataRef : ini));
-        setDataFim((fim) => (!fim || dataRef > fim ? dataRef : fim));
-      }
-      setOportunidadeEditar(op);
-      router.replace(`/loja/${slug}/crm-vendas/pipeline`, { scroll: false });
-    };
-
-    const found = oportunidades.find((o) => o.id === id);
-    if (found) {
-      abrirOportunidade(found);
-      return;
-    }
-    if (!loading) {
-      apiClient
-        .get<Oportunidade>(`/crm-vendas/oportunidades/${id}/`)
-        .then((res) => abrirOportunidade(res.data))
-        .catch(() => {});
-    }
-  }, [verParam, oportunidades, loading, router, slug]);
-
-  useEffect(() => {
-    const leadIdParam = searchParams.get('lead_id');
-    if (searchParams.get('novo') === '1') {
-      // Redirecionar para a página dedicada de nova oportunidade
-      const url = leadIdParam
-        ? `/loja/${slug}/crm-vendas/pipeline/nova-oportunidade?lead_id=${leadIdParam}`
-        : `/loja/${slug}/crm-vendas/pipeline/nova-oportunidade`;
-      router.replace(url);
-      return;
-    }
-  }, [searchParams, router, slug]);
-
-  const handleAbrirCriar = () => {
-    router.push(`/loja/${slug}/crm-vendas/pipeline/nova-oportunidade`);
-  };
-
-  const handleCardClick = (op: Oportunidade) => {
-    setOportunidadeEditar(op);
-  };
-
-  const handleExportarPDF = () => {
-    setImprimindo(true);
-    setTimeout(() => {
-      window.print();
-      setImprimindo(false);
-    }, 100);
-  };
-
-  const handleModalSuccess = () => {
-    loadOportunidades(setOportunidades, setError);
-  };
-
-  const oportunidadesBase = useMemo(
-    () => filtrarOportunidadesPipeline(oportunidades, {
-      vendedor: filtroVendedor,
-      dataInicio,
-      dataFim,
-    }),
-    [oportunidades, filtroVendedor, dataInicio, dataFim],
-  );
-
-  const oportunidadesFiltradas = useMemo(
-    () => filtrarOportunidadesPipeline(oportunidades, {
-      etapa: filtroEtapaPipeline || undefined,
-      vendedor: filtroVendedor,
-      dataInicio,
-      dataFim,
-    }),
-    [oportunidades, filtroEtapaPipeline, filtroVendedor, dataInicio, dataFim],
-  );
+  const {
+    slug,
+    oportunidades,
+    loading,
+    error,
+    oportunidadeEditar,
+    setOportunidadeEditar,
+    modalCriar,
+    setModalCriar,
+    initialLeadId,
+    viewPipeline,
+    setViewPipeline,
+    filtroEtapaPipeline,
+    setFiltroEtapaPipeline,
+    filtroVendedor,
+    setFiltroVendedor,
+    vendedores,
+    dataInicio,
+    setDataInicio,
+    dataFim,
+    setDataFim,
+    imprimindo,
+    oportunidadesBase,
+    oportunidadesFiltradas,
+    handleAbrirCriar,
+    handleCardClick,
+    handleExportarPDF,
+    handleModalSuccess,
+  } = useCrmPipelinePage();
 
   return (
     <div className="space-y-8">
-      {/* Filtros de período e exportação PDF */}
       {error && (
         <div className="rounded-xl bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
           {error}
@@ -277,7 +78,6 @@ export default function CrmVendasPipelinePage() {
       </div>
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm p-6 hover:shadow-md hover:border-blue-100 dark:hover:border-slate-600 transition-all space-y-4 print:shadow-none print:border-gray-300">
         <div className="flex flex-col gap-3 print:hidden">
-          {/* Linha 1: Visualização e Etapa */}
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 p-0.5 bg-gray-50 dark:bg-gray-800/80">
               <button
@@ -347,8 +147,7 @@ export default function CrmVendasPipelinePage() {
               )}
             </div>
           </div>
-          
-          {/* Linha 2: Período (início/fim) + Imprimir/PDF na mesma linha */}
+
           <div className="flex flex-wrap items-end gap-3">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300 pb-2 shrink-0">
               Período:

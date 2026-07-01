@@ -11,7 +11,7 @@ from .assinatura_digital_token import (
     normalizar_token_assinatura_url,
     verificar_token_assinatura,
 )
-from .assinatura_digital_emails import enviar_email_assinatura_cliente
+from .assinatura_digital_emails import enviar_email_assinatura_cliente, enviar_pdf_final
 from .assinatura_digital_notificacoes import (
     _email_vendedor_documento,
     _notificar_cliente_assinou,
@@ -194,7 +194,7 @@ def reenviar_link_assinatura_pendente(documento, loja_id, request, canal='email'
 
 
 # Re-exports (compatibilidade com imports existentes)
-from .assinatura_digital_emails import enviar_email_assinatura_cliente  # noqa: E402,F401
+from .assinatura_digital_emails import enviar_email_assinatura_cliente, enviar_pdf_final  # noqa: E402,F401
 from .assinatura_digital_notificacoes import (  # noqa: E402,F401
     _telefone_vendedor_documento,
     enviar_link_assinatura_vendedor,

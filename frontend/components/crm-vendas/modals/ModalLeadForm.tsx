@@ -23,6 +23,24 @@ export interface FormDataLead {
   observacoes: string;
 }
 
+export const EMPTY_FORM_LEAD: FormDataLead = {
+  nome: '',
+  empresa: '',
+  cpf_cnpj: '',
+  email: '',
+  telefone: '',
+  origem: 'site',
+  status: 'novo',
+  cep: '',
+  logradouro: '',
+  numero: '',
+  complemento: '',
+  bairro: '',
+  cidade: '',
+  uf: '',
+  observacoes: '',
+};
+
 interface ModalLeadFormProps {
   title: string;
   form: FormDataLead;

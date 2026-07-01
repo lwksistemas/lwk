@@ -1,68 +1,45 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useSearchParams, useRouter, useParams } from 'next/navigation';
-import apiClient from '@/lib/api-client';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
-import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { Plus, Eye, Edit2, Trash2, User } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import { ContatoFormModal } from './components/ContatoFormModal';
 import { ContatoViewModal } from './components/ContatoViewModal';
 import { ContatoDeleteModal } from './components/ContatoDeleteModal';
-import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
-import { useCRMConfig } from '@/contexts/CRMConfigContext';
+import { formatTelefone } from '@/lib/format-br';
 import { formatDate } from '@/lib/financeiro-helpers';
-import { useToast } from '@/components/ui/Toast';
+import { useCrmContatosPage, type CrmContato } from '@/hooks/crm-vendas/useCrmContatosPage';
 
-interface Contato {
-  id: number; nome: string; email?: string; telefone?: string;
-  cargo?: string; conta: number; conta_nome?: string; observacoes?: string; created_at: string;
+function renderCelulaContato(c: CrmContato, coluna: string) {
+  switch (coluna) {
+    case 'nome':
+      return (
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#06a59a] to-[#0d9dda] flex items-center justify-center text-white font-semibold text-xs shrink-0">
+            {c.nome.charAt(0).toUpperCase()}
+          </div>
+          <span className="font-medium text-gray-900 dark:text-white">{c.nome}</span>
+        </div>
+      );
+    case 'conta':
+      return <span className="text-gray-700 dark:text-gray-300">{c.conta_nome || '–'}</span>;
+    case 'cargo':
+      return <span className="text-gray-700 dark:text-gray-300">{c.cargo || '–'}</span>;
+    case 'email':
+      return <span className="text-gray-700 dark:text-gray-300">{c.email || '–'}</span>;
+    case 'telefone':
+      return <span className="text-gray-700 dark:text-gray-300">{c.telefone ? formatTelefone(c.telefone) : '–'}</span>;
+    case 'created_at':
+      return <span className="text-gray-700 dark:text-gray-300">{formatDate(c.created_at)}</span>;
+    default:
+      return <span className="text-gray-700 dark:text-gray-300">–</span>;
+  }
 }
 
-type ModalType = 'create' | 'edit' | 'view' | 'delete' | null;
-
-const EMPTY_FORM = { nome: '', email: '', telefone: '', cargo: '', conta: '', observacoes: '' };
-
 export default function CrmVendasContatosPage() {
-  const toast = useToast();
-  const params = useParams();
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const slug = (params?.slug as string) ?? '';
-
-  const { colunasContatosVisiveis } = useCRMConfig();
-  const colunasVisiveis = colunasContatosVisiveis();
-
-  const renderCelulaContato = (c: Contato, coluna: string) => {
-    switch (coluna) {
-      case 'nome':
-        return (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#06a59a] to-[#0d9dda] flex items-center justify-center text-white font-semibold text-xs shrink-0">{c.nome.charAt(0).toUpperCase()}</div>
-            <span className="font-medium text-gray-900 dark:text-white">{c.nome}</span>
-          </div>
-        );
-      case 'conta':
-        return <span className="text-gray-700 dark:text-gray-300">{c.conta_nome || '–'}</span>;
-      case 'cargo':
-        return <span className="text-gray-700 dark:text-gray-300">{c.cargo || '–'}</span>;
-      case 'email':
-        return <span className="text-gray-700 dark:text-gray-300">{c.email || '–'}</span>;
-      case 'telefone':
-        return <span className="text-gray-700 dark:text-gray-300">{c.telefone ? formatTelefone(c.telefone) : '–'}</span>;
-      case 'created_at':
-        return <span className="text-gray-700 dark:text-gray-300">{formatDate(c.created_at)}</span>;
-      default:
-        return <span className="text-gray-700 dark:text-gray-300">–</span>;
-    }
-  };
-
-  const [contaFiltro, setContaFiltro] = useState<number | null>(null);
-  const [contaFiltroNome, setContaFiltroNome] = useState<string | null>(null);
-
   const {
-    items: contatos,
+    slug,
+    contatos,
     page,
     setPage,
     totalCount,
@@ -70,145 +47,21 @@ export default function CrmVendasContatosPage() {
     pageSize,
     loading,
     error,
-    reload: reloadContatos,
-  } = usePaginatedList<Contato>('/crm-vendas/contatos/', {
-    params: { conta_id: contaFiltro ?? undefined },
-    errorFallback: 'Erro ao carregar contatos.',
-  });
-
-  const [modalType, setModalType] = useState<ModalType>(null);
-  const [selectedContato, setSelectedContato] = useState<Contato | null>(null);
-  const [formData, setFormData] = useState(EMPTY_FORM);
-  const [contaNomeForm, setContaNomeForm] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const contaIdNaUrl = searchParams.get('conta_id');
-  const verParam = searchParams.get('ver');
-
-  const openModal = useCallback((type: ModalType, contato?: Contato) => {
-    setModalType(type);
-    setSelectedContato(contato || null);
-    if (type === 'edit' && contato) {
-      setFormData({
-        nome: contato.nome || '',
-        email: contato.email || '',
-        telefone: formatTelefone(contato.telefone || ''),
-        cargo: contato.cargo || '',
-        conta: String(contato.conta) || '',
-        observacoes: contato.observacoes || '',
-      });
-      setContaNomeForm(contato.conta_nome || '');
-    } else if (type === 'create') {
-      setFormData(EMPTY_FORM);
-      setContaNomeForm('');
-    }
-  }, []);
-
-  const closeModal = useCallback(() => {
-    setModalType(null);
-    setSelectedContato(null);
-    setFormData(EMPTY_FORM);
-    setContaNomeForm('');
-  }, []);
-
-  useEffect(() => {
-    if (contaIdNaUrl) {
-      const id = parseInt(contaIdNaUrl, 10);
-      if (!isNaN(id)) { setContaFiltro(id); return; }
-    }
-    setContaFiltro(null);
-  }, [contaIdNaUrl]);
-
-  useEffect(() => {
-    if (!contaFiltro) {
-      setContaFiltroNome(null);
-      return;
-    }
-    let cancelled = false;
-    apiClient
-      .get<{ nome: string }>(`/crm-vendas/contas/${contaFiltro}/`)
-      .then((res) => {
-        if (!cancelled) setContaFiltroNome(res.data.nome);
-      })
-      .catch(() => {
-        if (!cancelled) setContaFiltroNome(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [contaFiltro]);
-
-  useEffect(() => {
-    if (searchParams.get('criar') !== '1') return;
-    const cid = searchParams.get('conta_id');
-    if (cid) setFormData((f) => ({ ...f, conta: cid }));
-    openModal('create');
-    router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
-  }, [searchParams, router, slug, openModal]);
-
-  useEffect(() => {
-    if (!verParam) return;
-    const id = parseInt(verParam, 10);
-    if (isNaN(id)) return;
-    const found = contatos.find((c) => c.id === id);
-    if (found) { openModal('view', found); router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false }); }
-    else if (!loading) {
-      apiClient.get<Contato>(`/crm-vendas/contatos/${id}/`).then((res) => {
-        openModal('view', res.data); router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
-      }).catch(() => {});
-    }
-  }, [verParam, contatos, loading, slug, router, openModal]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.nome.trim()) { toast.warning('Nome é obrigatório'); return; }
-    if (!formData.conta) { toast.warning('Conta é obrigatória'); return; }
-    try {
-      setSubmitting(true);
-      const payload = applyTelefoneInternacionalPayload({ ...formData, conta: parseInt(formData.conta, 10) });
-      if (modalType === 'create') {
-        const res = await apiClient.post('/crm-vendas/contatos/', payload);
-        const novoContato = res.data;
-        try {
-          const contaRes = await apiClient.get(`/crm-vendas/contas/${payload.conta}/`);
-          const conta = contaRes.data;
-          const leadPayload = {
-            nome: novoContato.nome, empresa: conta.nome, email: novoContato.email || conta.email || '',
-            telefone: novoContato.telefone || conta.telefone || '', origem: 'site', status: 'novo',
-            conta: conta.id, contato: novoContato.id, cpf_cnpj: conta.cnpj || '',
-            cep: conta.cep || '', logradouro: conta.logradouro || '', numero: conta.numero || '',
-            complemento: conta.complemento || '', bairro: conta.bairro || '', cidade: conta.cidade || '', uf: conta.uf || '',
-          };
-          await apiClient.post('/crm-vendas/leads/', leadPayload);
-          toast.success('Contato e Lead criados com sucesso!');
-        } catch (leadErr: any) {
-          toast.warning(`Contato criado, mas o Lead automático falhou: ${leadErr.response?.data?.detail || leadErr.message}`);
-        }
-      } else if (modalType === 'edit' && selectedContato) {
-        await apiClient.put(`/crm-vendas/contatos/${selectedContato.id}/`, payload);
-      }
-      await reloadContatos(true);
-      closeModal();
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Erro ao salvar contato.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!selectedContato) return;
-    try {
-      setSubmitting(true);
-      await apiClient.delete(`/crm-vendas/contatos/${selectedContato.id}/`);
-      await reloadContatos(true);
-      closeModal();
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Erro ao excluir contato.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    colunasVisiveis,
+    contaFiltro,
+    contaFiltroNome,
+    modalType,
+    selectedContato,
+    formData,
+    setFormData,
+    contaNomeForm,
+    submitting,
+    openModal,
+    closeModal,
+    limparFiltroConta,
+    handleSubmit,
+    handleDelete,
+  } = useCrmContatosPage();
 
   if (loading && contatos.length === 0) {
     return (
@@ -224,7 +77,6 @@ export default function CrmVendasContatosPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Contatos</h1>
@@ -234,7 +86,11 @@ export default function CrmVendasContatosPage() {
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                 {contaFiltroNome || `ID ${contaFiltro}`}
               </span>
-              <button type="button" onClick={() => { setContaFiltro(null); router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false }); }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+              <button
+                type="button"
+                onClick={limparFiltroConta}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
                 Limpar filtro
               </button>
             </div>
@@ -242,46 +98,90 @@ export default function CrmVendasContatosPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Pessoas vinculadas às contas</p>
           )}
         </div>
-        <button type="button" onClick={() => openModal('create')} className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm">
+        <button
+          type="button"
+          onClick={() => openModal('create')}
+          className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm"
+        >
           <Plus size={18} /> <span>Novo Contato</span>
         </button>
       </div>
 
-      {error && <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">{error}</div>}
+      {error && (
+        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
+          {error}
+        </div>
+      )}
 
-      {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[600px]">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
                 {colunasVisiveis.map((col) => (
-                  <th key={col.key} className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">{col.label}</th>
+                  <th
+                    key={col.key}
+                    className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                  >
+                    {col.label}
+                  </th>
                 ))}
-                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Ações</th>
+                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  Ações
+                </th>
               </tr>
             </thead>
             <tbody>
               {contatos.length === 0 ? (
-                <tr><td colSpan={colunasVisiveis.length + 1} className="py-12 text-center text-gray-500 dark:text-gray-400">
-                  <User size={48} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">Nenhum contato cadastrado</p>
-                  <p className="text-sm mt-1">Clique em &quot;Novo Contato&quot; para começar</p>
-                </td></tr>
-              ) : contatos.map((c) => (
-                <tr key={c.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                  {colunasVisiveis.map((col) => (
-                    <td key={col.key} className="py-3 px-4">{renderCelulaContato(c, col.key)}</td>
-                  ))}
-                  <td className="py-3 px-4">
-                    <div className="flex items-center justify-end gap-1">
-                      <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Visualizar"><Eye size={16} /></button>
-                      <button type="button" onClick={() => openModal('edit', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Editar"><Edit2 size={16} /></button>
-                      <button type="button" onClick={() => openModal('delete', c)} className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400" title="Excluir"><Trash2 size={16} /></button>
-                    </div>
+                <tr>
+                  <td colSpan={colunasVisiveis.length + 1} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                    <User size={48} className="mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">Nenhum contato cadastrado</p>
+                    <p className="text-sm mt-1">Clique em &quot;Novo Contato&quot; para começar</p>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                contatos.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                  >
+                    {colunasVisiveis.map((col) => (
+                      <td key={col.key} className="py-3 px-4">
+                        {renderCelulaContato(c, col.key)}
+                      </td>
+                    ))}
+                    <td className="py-3 px-4">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openModal('view', c)}
+                          className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
+                          title="Visualizar"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openModal('edit', c)}
+                          className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
+                          title="Editar"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openModal('delete', c)}
+                          className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400"
+                          title="Excluir"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -296,7 +196,6 @@ export default function CrmVendasContatosPage() {
         />
       </div>
 
-      {/* Modals */}
       {(modalType === 'create' || modalType === 'edit') && (
         <ContatoFormModal
           title={modalType === 'create' ? 'Novo Contato' : 'Editar Contato'}
@@ -309,10 +208,19 @@ export default function CrmVendasContatosPage() {
         />
       )}
       {modalType === 'view' && selectedContato && (
-        <ContatoViewModal contato={selectedContato} onClose={closeModal} onEdit={() => openModal('edit', selectedContato)} />
+        <ContatoViewModal
+          contato={selectedContato}
+          onClose={closeModal}
+          onEdit={() => openModal('edit', selectedContato)}
+        />
       )}
       {modalType === 'delete' && selectedContato && (
-        <ContatoDeleteModal contato={selectedContato} submitting={submitting} onClose={closeModal} onConfirm={handleDelete} />
+        <ContatoDeleteModal
+          contato={selectedContato}
+          submitting={submitting}
+          onClose={closeModal}
+          onConfirm={handleDelete}
+        />
       )}
     </div>
   );

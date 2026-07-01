@@ -9,6 +9,7 @@ import { formatCpfCnpj } from '@/lib/consulta-cnpj';
 import { buildCrmLeadPayload } from '@/lib/crm-utils';
 import { formatCep } from '@/lib/format-br';
 import { LeadCadastroForm } from '@/components/crm-vendas/LeadCadastroForm';
+import { EMPTY_FORM_LEAD } from '@/components/crm-vendas/modals/ModalLeadForm';
 import { useCrmCepCnpjLookup } from '@/hooks/crm-vendas/useCrmCepCnpjLookup';
 
 export default function NovoLeadPage() {
@@ -17,23 +18,7 @@ export default function NovoLeadPage() {
   const slug = (params?.slug as string) ?? '';
   const basePath = `/loja/${slug}/crm-vendas/leads`;
   const { origensAtivas } = useCRMConfig();
-  const [form, setForm] = useState({
-    nome: '',
-    empresa: '',
-    cpf_cnpj: '',
-    email: '',
-    telefone: '',
-    origem: 'site',
-    status: 'novo',
-    cep: '',
-    logradouro: '',
-    numero: '',
-    complemento: '',
-    bairro: '',
-    cidade: '',
-    uf: '',
-    observacoes: '',
-  });
+  const [form, setForm] = useState(EMPTY_FORM_LEAD);
   const [enviando, setEnviando] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
 

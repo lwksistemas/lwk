@@ -1,217 +1,57 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import apiClient from '@/lib/api-client';
-import { buildCrmLeadPayload, fetchCrmPaginatedPage, getCrmApiErrorDetail } from '@/lib/crm-utils';
-import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { Plus, Download } from 'lucide-react';
-import LeadsTable, { type Lead } from '@/components/crm-vendas/LeadsTable';
-import { formatTelefone } from '@/lib/format-br';
-import { useCRMConfig } from '@/contexts/CRMConfigContext';
+import LeadsTable from '@/components/crm-vendas/LeadsTable';
+import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import { useCrmLeadsPage } from '@/hooks/crm-vendas/useCrmLeadsPage';
 
 const ModalLeadVer = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadVer'), { ssr: false });
 const ModalLeadForm = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadForm'), { ssr: false });
 const ModalLeadExcluir = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadExcluir'), { ssr: false });
 const ModalLeadMudarStatus = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadMudarStatus'), { ssr: false });
 
-const LEADS_PAGE_SIZE = 50;
-
-function loadLeadsPage(
-  page: number,
-  setLeads: (l: Lead[]) => void,
-  setTotalCount: (n: number) => void,
-  setTotalPages: (n: number) => void,
-  setError: (e: string | null) => void,
-  setLoading: (v: boolean) => void,
-) {
-  setLoading(true);
-  fetchCrmPaginatedPage<Lead>('/crm-vendas/leads/', page, LEADS_PAGE_SIZE, { _t: Date.now() })
-    .then((data) => {
-      setLeads(data.results);
-      setTotalCount(data.count);
-      setTotalPages(data.totalPages);
-      setError(null);
-    })
-    .catch((err) => {
-      setError(getCrmApiErrorDetail(err, 'Erro ao carregar leads.'));
-    })
-    .finally(() => setLoading(false));
-}
-
-function formatarData(s: string) {
-  if (!s) return '–';
-  try {
-    const d = new Date(s);
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  } catch {
-    return s;
-  }
-}
-
 export default function CrmVendasLeadsPage() {
-  const params = useParams();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const slug = (params?.slug as string) ?? '';
-  const verParam = searchParams.get('ver');
-  const { colunasLeadsVisiveis, origensAtivas } = useCRMConfig();
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [leadVer, setLeadVer] = useState<Lead | null>(null);
-  const [leadEditar, setLeadEditar] = useState<Lead | null>(null);
-  const [leadExcluir, setLeadExcluir] = useState<Lead | null>(null);
-  const [leadMudarStatus, setLeadMudarStatus] = useState<Lead | null>(null);
-  const [novoStatus, setNovoStatus] = useState('');
-  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
-  const [salvandoStatus, setSalvandoStatus] = useState(false);
-  const [excluindo, setExcluindo] = useState(false);
-  const [formErro, setFormErro] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    nome: '',
-    empresa: '',
-    cpf_cnpj: '',
-    email: '',
-    telefone: '',
-    origem: 'site',
-    status: 'novo',
-    cep: '',
-    logradouro: '',
-    numero: '',
-    complemento: '',
-    bairro: '',
-    cidade: '',
-    uf: '',
-    observacoes: '',
-  });
-
-  useEffect(() => {
-    loadLeadsPage(page, setLeads, setTotalCount, setTotalPages, setError, setLoading);
-  }, [page, slug]);
-
-  const reloadLeads = () => {
-    loadLeadsPage(page, setLeads, setTotalCount, setTotalPages, setError, setLoading);
-  };
-
-  useEffect(() => {
-    if (searchParams.get('novo') === '1') {
-      router.replace(`/loja/${slug}/crm-vendas/leads/novo`, { scroll: false });
-    }
-  }, [searchParams, router, slug]);
-
-  // Abrir modal de visualização quando ?ver=ID (ex.: vindo da busca global)
-  useEffect(() => {
-    if (!verParam) return;
-    const id = parseInt(verParam, 10);
-    if (isNaN(id)) return;
-    const found = leads.find((l) => l.id === id);
-    if (found) {
-      setLeadVer(found);
-      router.replace(`/loja/${slug}/crm-vendas/leads`, { scroll: false });
-    } else if (!loading) {
-      apiClient
-        .get<Lead>(`/crm-vendas/leads/${id}/`)
-        .then((res) => {
-          setLeadVer(res.data);
-          router.replace(`/loja/${slug}/crm-vendas/leads`, { scroll: false });
-        })
-        .catch(() => {});
-    }
-  }, [verParam, leads, loading, router, slug]);
-
-  const origemLabel = (value: string) => origensAtivas().find((o) => o.key === value)?.label ?? value;
-  const statusLabel = (value: string) => STATUS_LEAD_OPCOES.find((o) => o.value === value)?.label ?? value;
-
-  const handleEditarLead = (lead: Lead) => {
-    setLeadEditar(lead);
-    setForm({
-      nome: lead.nome,
-      empresa: lead.empresa || '',
-      cpf_cnpj: lead.cpf_cnpj || '',
-      email: lead.email || '',
-      telefone: formatTelefone(lead.telefone || ''),
-      origem: lead.origem,
-      status: lead.status,
-      cep: lead.cep || '',
-      logradouro: lead.logradouro || '',
-      numero: lead.numero || '',
-      complemento: lead.complemento || '',
-      bairro: lead.bairro || '',
-      cidade: lead.cidade || '',
-      uf: lead.uf || '',
-      observacoes: lead.observacoes || '',
-    });
-    setFormErro(null);
-  };
-
-  const handleSalvarEdicao = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!leadEditar || salvandoEdicao) return;
-    setFormErro(null);
-    if (!form.nome.trim()) {
-      setFormErro('Informe o nome.');
-      return;
-    }
-    setSalvandoEdicao(true);
-    try {
-      await apiClient.patch(
-        `/crm-vendas/leads/${leadEditar.id}/`,
-        buildCrmLeadPayload(form),
-      );
-      setLeadEditar(null);
-      reloadLeads();
-    } catch (err) {
-      setFormErro(getCrmApiErrorDetail(err, 'Erro ao salvar lead.'));
-    } finally {
-      setSalvandoEdicao(false);
-    }
-  };
-
-  const confirmarExcluir = () => {
-    if (!leadExcluir) return;
-    setExcluindo(true);
-    apiClient
-      .delete(`/crm-vendas/leads/${leadExcluir.id}/`)
-      .then(() => {
-        setLeadExcluir(null);
-        reloadLeads();
-      })
-      .catch((err) => {
-        setError(err.response?.data?.detail || 'Erro ao excluir lead.');
-      })
-      .finally(() => setExcluindo(false));
-  };
-
-  const handleMudarStatus = (lead: Lead) => {
-    setLeadMudarStatus(lead);
-    setNovoStatus(lead.status);
-  };
-
-  const salvarNovoStatus = async () => {
-    if (!leadMudarStatus || novoStatus === leadMudarStatus.status) {
-      setLeadMudarStatus(null);
-      return;
-    }
-    if (salvandoStatus) return;
-    setFormErro(null);
-    setSalvandoStatus(true);
-    try {
-      await apiClient.patch(`/crm-vendas/leads/${leadMudarStatus.id}/`, { status: novoStatus });
-      setLeadMudarStatus(null);
-      reloadLeads();
-    } catch (err) {
-      setFormErro(getCrmApiErrorDetail(err, 'Erro ao atualizar status.'));
-    } finally {
-      setSalvandoStatus(false);
-    }
-  };
+  const {
+    slug,
+    leads,
+    page,
+    setPage,
+    totalCount,
+    totalPages,
+    loading,
+    error,
+    leadVer,
+    setLeadVer,
+    leadEditar,
+    setLeadEditar,
+    leadExcluir,
+    setLeadExcluir,
+    leadMudarStatus,
+    setLeadMudarStatus,
+    novoStatus,
+    setNovoStatus,
+    salvandoEdicao,
+    salvandoStatus,
+    excluindo,
+    formErro,
+    setFormErro,
+    form,
+    setForm,
+    colunasLeadsVisiveis,
+    origensAtivas,
+    origemLabel,
+    statusLabel,
+    formatarDataLead,
+    handleEditarLead,
+    handleSalvarEdicao,
+    confirmarExcluir,
+    handleMudarStatus,
+    salvarNovoStatus,
+    exportLeadsCsv,
+    leadsPageSize,
+  } = useCrmLeadsPage();
 
   if (error) {
     return (
@@ -232,18 +72,7 @@ export default function CrmVendasLeadsPage() {
           {leads.length > 0 && (
             <button
               type="button"
-              onClick={() => {
-                const headers = ['Nome', 'Empresa', 'Email', 'Telefone', 'CPF/CNPJ', 'Status'];
-                const rows = leads.map(l => [l.nome, l.empresa || '', l.email || '', l.telefone || '', (l as any).cpf_cnpj || '', l.status]);
-                const csv = [headers.join(';'), ...rows.map(r => r.map(c => `"${(c || '').replace(/"/g, '""')}"`).join(';'))].join('\n');
-                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `leads_${new Date().toISOString().slice(0, 10)}.csv`;
-                link.click();
-                URL.revokeObjectURL(url);
-              }}
+              onClick={() => exportLeadsCsv(leads)}
               className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 font-medium transition text-sm inline-flex items-center gap-2"
             >
               <Download size={16} />
@@ -274,7 +103,7 @@ export default function CrmVendasLeadsPage() {
         page={page}
         totalPages={totalPages}
         totalCount={totalCount}
-        pageSize={LEADS_PAGE_SIZE}
+        pageSize={leadsPageSize}
         loading={loading}
         itemLabel="leads"
         onPageChange={setPage}
@@ -286,7 +115,7 @@ export default function CrmVendasLeadsPage() {
           slug={slug}
           origemLabel={origemLabel}
           statusLabel={statusLabel}
-          formatarData={formatarData}
+          formatarData={formatarDataLead}
           onClose={() => setLeadVer(null)}
           onEditar={(lead) => {
             setLeadVer(null);
@@ -327,10 +156,12 @@ export default function CrmVendasLeadsPage() {
           statusOpcoes={[...STATUS_LEAD_OPCOES]}
           onNovoStatusChange={setNovoStatus}
           onSalvar={salvarNovoStatus}
-          onClose={() => { if (!salvandoStatus) setLeadMudarStatus(null); setFormErro(null); }}
+          onClose={() => {
+            if (!salvandoStatus) setLeadMudarStatus(null);
+            setFormErro(null);
+          }}
         />
       )}
-
     </div>
   );
 }

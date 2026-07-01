@@ -9,17 +9,17 @@ from django.db.models import Sum, Count, Q
 from django.utils import timezone
 
 from .cache import CRMCacheManager
+from .periodo import (
+    PERIODOS_PIPELINE_CRIACAO_ESTRITA,
+    calcular_intervalo_datas,
+    filtro_fechamento_no_periodo as _filtro_fechamento_no_periodo,
+)
 from .utils import get_current_vendedor_id, get_vendedor_destino_merge_loja
 
 logger = logging.getLogger(__name__)
 
 ETAPAS_EM_ANDAMENTO = ['prospecting', 'qualification', 'proposal', 'negotiation']
 ETAPAS_PIPELINE = ['prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost']
-
-# Mês/semana: só oportunidades criadas no intervalo. Trimestre/ano: pipeline aberto atual.
-PERIODOS_PIPELINE_CRIACAO_ESTRITA = frozenset({
-    'mes_atual', 'mes_passado', 'hoje', 'ontem', 'semana_atual', 'semana_passada', 'personalizado',
-})
 
 
 def _filtro_oportunidades_abertas_periodo(periodo, data_inicio, data_fim):
@@ -92,77 +92,6 @@ def empty_dashboard_response():
         'performance_vendedores': [],
         'comissao_total_mes': 0,
     }
-
-
-def _inicio_trimestre_rolante(hoje):
-    """Início do trimestre rolante: mês atual + 2 meses anteriores (ex.: jul → mai/1)."""
-    mes = hoje.month - 2
-    ano = hoje.year
-    while mes <= 0:
-        mes += 12
-        ano -= 1
-    return hoje.replace(year=ano, month=mes, day=1)
-
-
-def calcular_intervalo_datas(periodo, data_inicio_param=None, data_fim_param=None):
-    """Calcula intervalo de datas baseado no período selecionado."""
-    hoje = timezone.now().date()
-    if periodo == 'personalizado' and data_inicio_param and data_fim_param:
-        try:
-            from datetime import datetime
-            return (
-                datetime.strptime(data_inicio_param, '%Y-%m-%d').date(),
-                datetime.strptime(data_fim_param, '%Y-%m-%d').date(),
-            )
-        except (ValueError, TypeError):
-            pass
-    if periodo == 'hoje':
-        return hoje, hoje
-    if periodo == 'ontem':
-        ontem = hoje - timedelta(days=1)
-        return ontem, ontem
-    if periodo == 'semana_atual':
-        inicio = hoje - timedelta(days=hoje.weekday())
-        return inicio, hoje
-    if periodo == 'semana_passada':
-        fim = hoje - timedelta(days=hoje.weekday() + 1)
-        inicio = fim - timedelta(days=6)
-        return inicio, fim
-    if periodo == 'mes_passado':
-        primeiro_dia_mes_atual = hoje.replace(day=1)
-        ultimo_dia_mes_passado = primeiro_dia_mes_atual - timedelta(days=1)
-        primeiro_dia_mes_passado = ultimo_dia_mes_passado.replace(day=1)
-        return primeiro_dia_mes_passado, ultimo_dia_mes_passado
-    if periodo == 'trimestre_atual':
-        return _inicio_trimestre_rolante(hoje), hoje
-    if periodo == 'ultimos_30_dias':
-        return hoje - timedelta(days=30), hoje
-    if periodo == 'ultimos_90_dias':
-        return hoje - timedelta(days=90), hoje
-    if periodo in ('este_ano', 'ano_atual'):
-        return hoje.replace(month=1, day=1), hoje
-    # mes_atual (padrão)
-    return hoje.replace(day=1), hoje
-
-
-def _filtro_fechamento_no_periodo(data_inicio, data_fim, prefix=''):
-    """Filtro Q para oportunidades fechadas no período (com ou sem data_fechamento_ganho).
-    
-    Prioridade: data_fechamento_ganho > data_fechamento > created_at.
-    """
-    p = f'{prefix}__' if prefix else ''
-    return (
-        Q(**{f'{p}data_fechamento_ganho__gte': data_inicio, f'{p}data_fechamento_ganho__lte': data_fim})
-        | (
-            Q(**{f'{p}data_fechamento_ganho__isnull': True})
-            & Q(**{f'{p}data_fechamento__gte': data_inicio, f'{p}data_fechamento__lte': data_fim})
-        )
-        | (
-            Q(**{f'{p}data_fechamento_ganho__isnull': True})
-            & Q(**{f'{p}data_fechamento__isnull': True})
-            & Q(**{f'{p}created_at__date__gte': data_inicio, f'{p}created_at__date__lte': data_fim})
-        )
-    )
 
 
 def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,

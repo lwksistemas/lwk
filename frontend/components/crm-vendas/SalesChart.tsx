@@ -12,6 +12,7 @@ import {
   Legend,
 } from 'recharts';
 import { Filter, X } from 'lucide-react';
+import { CRM_PERIODO_PADRAO } from '@/lib/crm-periodos';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { logger } from '@/lib/logger';
@@ -191,11 +192,9 @@ export default function SalesChart({ data, title = 'Pipeline por etapa' }: Sales
                 onChange={(e) => setPeriodo(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               >
-                <option value="mes_atual">Este mês</option>
-                <option value="mes_passado">Mês passado</option>
-                <option value="trimestre_atual">Este trimestre</option>
-                <option value="ano_atual">Este ano</option>
-                <option value="personalizado">Personalizado</option>
+                {CRM_PERIODO_PADRAO.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
               </select>
             </div>
 

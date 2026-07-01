@@ -1,6 +1,6 @@
 'use client';
 
-import { rotuloExibicaoOportunidade } from '@/lib/crm-utils';
+import { formatCrmBrl, rotuloExibicaoOportunidade } from '@/lib/crm-utils';
 
 export interface Oportunidade {
   id: number;
@@ -25,16 +25,6 @@ interface Etapa {
   key: string;
   label: string;
   ordem: number;
-}
-
-function formatMoney(value: string | number): string {
-  const n = typeof value === 'string' ? parseFloat(value) : value;
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
 }
 
 interface PipelineBoardProps {
@@ -163,7 +153,7 @@ export default function PipelineBoard({
                     )}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400 whitespace-nowrap">
-                    {formatMoney(o.valor)}
+                    {formatCrmBrl(o.valor)}
                   </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
                     {o.vendedor_nome ?? '—'}
@@ -192,7 +182,7 @@ export default function PipelineBoard({
               {col.items.length} oportunidade(s)
             </p>
             <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-1">
-              {formatMoney(
+              {formatCrmBrl(
                 col.items.reduce((s, i) => s + parseFloat(String(i.valor)), 0)
               )}
             </p>
@@ -217,7 +207,7 @@ export default function PipelineBoard({
                     {o.empresa_prestadora_nome || o.lead_nome}
                   </p>
                   <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
-                    {formatMoney(o.valor)}
+                    {formatCrmBrl(o.valor)}
                   </p>
                   {o.empresa_prestadora_nome && (
                     <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 truncate">
@@ -231,7 +221,7 @@ export default function PipelineBoard({
                   )}
                   {o.valor_comissao && (
                     <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-                      Comissão: {formatMoney(o.valor_comissao)}
+                      Comissão: {formatCrmBrl(o.valor_comissao)}
                     </p>
                   )}
                   {o.data_fechamento_ganho && (

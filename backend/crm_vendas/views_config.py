@@ -37,16 +37,6 @@ def _empty_dashboard_response():
     return empty_dashboard_response()
 
 
-ETAPAS_PIPELINE = [
-    'prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost',
-]
-
-# Etapas em andamento (excluindo fechadas)
-ETAPAS_EM_ANDAMENTO = [
-    'prospecting', 'qualification', 'proposal', 'negotiation',
-]
-
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def crm_me(request):

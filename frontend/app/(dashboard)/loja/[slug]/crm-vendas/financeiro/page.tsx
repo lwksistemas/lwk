@@ -12,6 +12,7 @@ import {
 } from '@/components/crm-vendas/financeiro/CrmFinanceiroTables';
 import { CrmGrupoModal, CrmLancamentoModal } from '@/components/crm-vendas/financeiro/CrmFinanceiroModals';
 import { formatCurrency } from '@/lib/financeiro-helpers';
+import { CRM_PERIODO_FINANCEIRO } from '@/lib/crm-periodos';
 
 const TIPO_CONFIG: Record<
   TipoFinanceiro,
@@ -129,11 +130,9 @@ export default function CrmFinanceiroPage() {
             onChange={(e) => f.setPeriodoRelatorio(e.target.value)}
             className="rounded border px-3 py-1.5 text-sm dark:bg-gray-800 dark:border-gray-700"
           >
-            <option value="mes_atual">Mês atual</option>
-            <option value="mes_passado">Mês passado</option>
-            <option value="trimestre_atual">Trimestre atual</option>
-            <option value="ano_atual">Ano atual</option>
-            <option value="personalizado">Personalizado</option>
+            {CRM_PERIODO_FINANCEIRO.map((p) => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
           </select>
         </div>
         {f.periodoRelatorio === 'personalizado' && (

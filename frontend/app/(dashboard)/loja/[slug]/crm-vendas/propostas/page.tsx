@@ -62,7 +62,7 @@ interface Proposta {
   created_at: string;
 }
 
-type ModalType = 'create' | 'edit' | 'view' | 'delete' | 'cancelar' | null;
+type ModalType = 'edit' | 'view' | 'delete' | 'cancelar' | null;
 
 /** Proposta finalizada — não exibe coluna de envio de assinatura. */
 function propostaOcultaColunaAssinatura(p: Proposta): boolean {
@@ -341,9 +341,7 @@ export default function CrmVendasPropostasPage() {
         nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
         nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
       };
-      if (modalType === 'create') {
-        await apiClient.post('/crm-vendas/propostas/', payload);
-      } else if (modalType === 'edit' && selected) {
+      if (modalType === 'edit' && selected) {
         const assinaturaAntes = selected.status_assinatura;
         await apiClient.put(`/crm-vendas/propostas/${selected.id}/`, payload);
         await reenviarAssinaturaAposEdicaoSeNecessario('proposta', selected.id, assinaturaAntes);

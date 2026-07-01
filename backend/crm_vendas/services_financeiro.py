@@ -1,9 +1,7 @@
 """Serviço financeiro CRM — grupos padrão e sincronização de comissão."""
 from __future__ import annotations
 
-import calendar
 import logging
-from datetime import timedelta
 from decimal import Decimal
 
 from django.utils import timezone
@@ -118,30 +116,9 @@ def sincronizar_receita_comissao_oportunidade(oportunidade) -> None:
 
 
 def calcular_intervalo_vencimento(periodo, data_inicio=None, data_fim=None):
-    """
-    Intervalo para filtrar data_vencimento.
+    from .periodo import calcular_intervalo_vencimento as _calcular_intervalo_vencimento
 
-    Diferente do dashboard (até hoje), vencimentos no mês/semana/trimestre atuais
-    incluem datas futuras dentro do período calendário.
-    """
-    from .services_dashboard import calcular_intervalo_datas
-
-    inicio, fim = calcular_intervalo_datas(periodo, data_inicio, data_fim)
-    hoje = timezone.now().date()
-
-    if periodo == 'mes_atual':
-        ultimo_dia = calendar.monthrange(inicio.year, inicio.month)[1]
-        fim = inicio.replace(day=ultimo_dia)
-    elif periodo == 'semana_atual':
-        fim = inicio + timedelta(days=6)
-    elif periodo == 'trimestre_atual':
-        mes_fim_trimestre = ((hoje.month - 1) // 3 + 1) * 3
-        ultimo_dia = calendar.monthrange(hoje.year, mes_fim_trimestre)[1]
-        fim = hoje.replace(month=mes_fim_trimestre, day=ultimo_dia)
-    elif periodo in ('este_ano', 'ano_atual'):
-        fim = hoje.replace(month=12, day=31)
-
-    return inicio, fim
+    return _calcular_intervalo_vencimento(periodo, data_inicio, data_fim)
 
 
 def aplicar_filtro_periodo_lancamentos(queryset, *, periodo='mes_atual', data_inicio=None, data_fim=None):
@@ -162,7 +139,7 @@ def resumo_financeiro_crm(
 
     from .models import Oportunidade
     from .models.financeiro import LancamentoFinanceiroCRM
-    from .services_dashboard import _filtro_fechamento_no_periodo, calcular_intervalo_datas
+    from .periodo import calcular_intervalo_datas, filtro_fechamento_no_periodo as _filtro_fechamento_no_periodo
 
     inicio, fim = calcular_intervalo_vencimento(periodo, data_inicio, data_fim)
     inicio_opp, fim_opp = calcular_intervalo_datas(periodo, data_inicio, data_fim)

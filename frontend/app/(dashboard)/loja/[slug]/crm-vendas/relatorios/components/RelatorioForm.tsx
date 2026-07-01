@@ -1,6 +1,7 @@
 'use client';
 
 import { Download, Mail, Calendar, DollarSign, Users, TrendingUp, Building2 } from 'lucide-react';
+import { CRM_PERIODO_RELATORIO } from '@/lib/crm-periodos';
 
 interface Vendedor { id: number; nome: string; }
 interface EmpresaPrestadora { id: number; nome: string; cnpj?: string; }
@@ -30,18 +31,6 @@ const TIPOS = [
   { key: 'vendas_total', label: 'Total de Vendas', desc: 'Todos os vendedores', icon: DollarSign, adminOnly: true },
   { key: 'vendas_vendedor', label: 'Vendas por Vendedor', desc: 'Com comissões', icon: Users, adminOnly: false },
   { key: 'comissoes', label: 'Apenas Comissões', desc: 'Detalhamento completo', icon: TrendingUp, adminOnly: false },
-];
-
-const PERIODOS = [
-  { value: 'hoje', label: 'Hoje' },
-  { value: 'ontem', label: 'Ontem' },
-  { value: 'semana_atual', label: 'Esta Semana' },
-  { value: 'semana_passada', label: 'Semana Passada' },
-  { value: 'mes_atual', label: 'Este Mês' },
-  { value: 'mes_passado', label: 'Mês Passado' },
-  { value: 'trimestre_atual', label: 'Este Trimestre' },
-  { value: 'ano_atual', label: 'Este Ano' },
-  { value: 'personalizado', label: 'Período Personalizado' },
 ];
 
 export function RelatorioForm({ tipoRelatorio, periodo, dataInicio, dataFim, vendedorSelecionado, vendedores, empresasPrestadoras, empresaPrestadoraSelecionada, isVendedor, gerando, loading, onTipoChange, onPeriodoChange, onDataInicioChange, onDataFimChange, onVendedorChange, onEmpresaPrestadoraChange, onGerar }: Props) {
@@ -75,7 +64,7 @@ export function RelatorioForm({ tipoRelatorio, periodo, dataInicio, dataFim, ven
             <Calendar size={16} className="inline mr-1" /> Período
           </label>
           <select value={periodo} onChange={(e) => onPeriodoChange(e.target.value)} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-            {PERIODOS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+            {CRM_PERIODO_RELATORIO.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
           {periodo === 'personalizado' && (
             <div className="grid grid-cols-2 gap-3 mt-3">

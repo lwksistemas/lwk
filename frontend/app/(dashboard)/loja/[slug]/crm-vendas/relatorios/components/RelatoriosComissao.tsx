@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FileCheck, Download, ExternalLink, RefreshCw, Plus, Trash2, CheckCircle2, FileText } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import { CRM_PERIODO_COMISSAO } from '@/lib/crm-periodos';
 
 interface RelatorioComissao {
   id: number;
@@ -169,13 +170,6 @@ export function RelatoriosComissao({ empresasPrestadoras, vendedores, isVendedor
     }
   };
 
-  const PERIODOS = [
-    { value: 'mes_atual', label: 'Este Mês' },
-    { value: 'mes_passado', label: 'Mês Passado' },
-    { value: 'trimestre_atual', label: 'Este Trimestre' },
-    { value: 'personalizado', label: 'Personalizado' },
-  ];
-
   return (
     <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6">
       <div className="flex items-center justify-between mb-4">
@@ -227,7 +221,7 @@ export function RelatoriosComissao({ empresasPrestadoras, vendedores, isVendedor
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Período</label>
               <select value={formPeriodo} onChange={e => setFormPeriodo(e.target.value)}
                 className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white">
-                {PERIODOS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                {CRM_PERIODO_COMISSAO.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
             </div>
             {formPeriodo === 'personalizado' && (

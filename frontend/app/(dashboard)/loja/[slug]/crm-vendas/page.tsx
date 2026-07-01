@@ -31,7 +31,12 @@ import {
 } from 'lucide-react';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { authService } from '@/lib/auth';
-import { normalizeListResponse } from '@/lib/crm-utils';
+import { formatCrmBrl, normalizeListResponse } from '@/lib/crm-utils';
+import {
+  CRM_PERIODO_DASHBOARD_FILTRO,
+  CRM_PERIODO_NOME,
+  crmLabelsPeriodo,
+} from '@/lib/crm-periodos';
 
 function toISO(date: Date): string {
   return date.toISOString().slice(0, 19) + 'Z';
@@ -51,52 +56,7 @@ interface DashboardData {
   comissao_total_mes: number;
 }
 
-const PERIODO_CARD_LABELS: Record<string, { receita: string; comissao: string; leads: string; comissaoSub: string }> = {
-  mes_atual: {
-    receita: 'Receita do mês',
-    comissao: 'Comissão do mês',
-    leads: 'Novos leads',
-    comissaoSub: 'Vendas ganhas neste mês',
-  },
-  mes_passado: {
-    receita: 'Receita do mês passado',
-    comissao: 'Comissão do mês passado',
-    leads: 'Novos leads',
-    comissaoSub: 'Vendas ganhas no mês passado',
-  },
-  trimestre_atual: {
-    receita: 'Receita do trimestre',
-    comissao: 'Comissão do trimestre',
-    leads: 'Novos leads no trimestre',
-    comissaoSub: 'Vendas ganhas no trimestre (últimos 3 meses)',
-  },
-  ano_atual: {
-    receita: 'Receita do ano',
-    comissao: 'Comissão do ano',
-    leads: 'Novos leads no ano',
-    comissaoSub: 'Vendas ganhas neste ano',
-  },
-};
-
-const PERIODO_NOME: Record<string, string> = {
-  mes_atual: 'Este mês',
-  mes_passado: 'Mês passado',
-  trimestre_atual: 'Este trimestre',
-  ano_atual: 'Este ano',
-};
-
-function labelsPeriodo(periodo: string) {
-  return PERIODO_CARD_LABELS[periodo] ?? PERIODO_CARD_LABELS.mes_atual;
-}
-
-function formatMoney(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
+const labelsPeriodo = crmLabelsPeriodo;
 
 const ETAPAS_LABEL: Record<string, string> = {
   prospecting: 'Prospecção',
@@ -256,7 +216,7 @@ export default function CrmVendasDashboardPage() {
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Visão geral do seu pipeline de vendas
             <span className="ml-2 text-xs font-medium text-[#0176d3]">
-              · {PERIODO_NOME[periodoFiltro] ?? 'Este mês'}
+              · {CRM_PERIODO_NOME[periodoFiltro] ?? 'Este mês'}
             </span>
           </p>
         </div>
@@ -267,26 +227,21 @@ export default function CrmVendasDashboardPage() {
               onClick={toggleFiltro}
               className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#16325c] border border-gray-300 dark:border-[#0d1f3c] rounded hover:bg-gray-50 dark:hover:bg-[#0d1f3c] transition-colors"
             >
-              {PERIODO_NOME[periodoFiltro] ?? 'Filtrar'} ▾
+              {CRM_PERIODO_NOME[periodoFiltro] ?? 'Filtrar'} ▾
             </button>
             {showFiltro && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#16325c] rounded-lg shadow-lg border border-gray-200 dark:border-[#0d1f3c] py-1 z-20">
                 <div className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-[#0d1f3c]">
                   Período
                 </div>
-                {[
-                  { key: 'mes_atual', label: 'Este mês' },
-                  { key: 'mes_passado', label: 'Mês passado' },
-                  { key: 'trimestre_atual', label: 'Este trimestre' },
-                  { key: 'ano_atual', label: 'Este ano' },
-                ].map((p) => (
+                {CRM_PERIODO_DASHBOARD_FILTRO.map((p) => (
                   <button
-                    key={p.key}
+                    key={p.value}
                     type="button"
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-[#0d1f3c] ${periodoFiltro === p.key ? 'text-[#0176d3] font-semibold' : 'text-gray-700 dark:text-gray-200'}`}
-                    onClick={() => selecionarPeriodo(p.key)}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-[#0d1f3c] ${periodoFiltro === p.value ? 'text-[#0176d3] font-semibold' : 'text-gray-700 dark:text-gray-200'}`}
+                    onClick={() => selecionarPeriodo(p.value)}
                   >
-                    {p.label} {periodoFiltro === p.key ? '✓' : ''}
+                    {p.label} {periodoFiltro === p.value ? '✓' : ''}
                   </button>
                 ))}
               </div>
@@ -306,7 +261,7 @@ export default function CrmVendasDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title={periodoLabels.receita}
-          value={formatMoney(data.receita)}
+          value={formatCrmBrl(data.receita)}
           icon={Wallet}
           iconColor="text-[#0176d3]"
           iconBgColor="bg-[#e3f3ff]"
@@ -332,7 +287,7 @@ export default function CrmVendasDashboardPage() {
         />
         <StatCard
           title="Valor das vendas (perdido)"
-          value={formatMoney(data.valor_perdido ?? 0)}
+          value={formatCrmBrl(data.valor_perdido ?? 0)}
           icon={TrendingDown}
           iconColor="text-[#e287b2]"
           iconBgColor="bg-[#fef0f7]"
@@ -352,7 +307,7 @@ export default function CrmVendasDashboardPage() {
             </h2>
           </div>
           <p className="text-3xl font-bold text-[#06a59a] dark:text-[#06a59a]">
-            {formatMoney(data.pipeline_aberto)}
+            {formatCrmBrl(data.pipeline_aberto)}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             {data.oportunidades_em_andamento} oportunidade(s) em negociação
@@ -370,7 +325,7 @@ export default function CrmVendasDashboardPage() {
             </h2>
           </div>
           <p className="text-3xl font-bold text-[#e287b2] dark:text-[#e287b2]">
-            {formatMoney(data.comissao_total_mes || 0)}
+            {formatCrmBrl(data.comissao_total_mes || 0)}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             {periodoLabels.comissaoSub}
@@ -405,7 +360,7 @@ export default function CrmVendasDashboardPage() {
                   {e.label}
                 </p>
                 <p className="text-lg font-bold text-gray-900 dark:text-white">
-                  {formatMoney(e.valor)}
+                  {formatCrmBrl(e.valor)}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {e.quantidade} {e.quantidade === 1 ? 'negócio' : 'negócios'}
@@ -553,11 +508,11 @@ export default function CrmVendasDashboardPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-semibold text-[#06a59a] text-sm">
-                      {formatMoney(v.receita_mes)}
+                      {formatCrmBrl(v.receita_mes)}
                     </p>
                     {v.comissao_mes > 0 && (
                       <p className="text-xs text-purple-600 dark:text-purple-400 mt-0.5">
-                        Comissão: {formatMoney(v.comissao_mes)}
+                        Comissão: {formatCrmBrl(v.comissao_mes)}
                       </p>
                     )}
                   </div>

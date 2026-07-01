@@ -17,6 +17,8 @@ import requests
 from PIL import Image as PILImage
 
 from .models import Oportunidade, Vendedor
+from .periodo import calcular_intervalo_datas as calcular_periodo
+from .periodo import filtro_fechamento_no_periodo as _filtro_datas_fechamento_ganho
 from .utils import get_vendedor_destino_merge_loja
 
 
@@ -130,65 +132,6 @@ def _criar_cabecalho_relatorio(logo_url, titulo, max_width=6*cm, max_height=3*cm
         logger.warning(f"⚠️ Erro ao adicionar logo no relatório: {e}")
         title_style.alignment = TA_CENTER
         return Paragraph(titulo, title_style)
-
-
-def calcular_periodo(periodo_tipo: str):
-    """
-    Calcula data_inicio e data_fim baseado no tipo de período.
-    """
-    hoje = timezone.now().date()
-    
-    if periodo_tipo == 'hoje':
-        return hoje, hoje
-    elif periodo_tipo == 'ontem':
-        ontem = hoje - timedelta(days=1)
-        return ontem, ontem
-    elif periodo_tipo == 'semana_atual':
-        inicio = hoje - timedelta(days=hoje.weekday())
-        return inicio, hoje
-    elif periodo_tipo == 'semana_passada':
-        fim = hoje - timedelta(days=hoje.weekday() + 1)
-        inicio = fim - timedelta(days=6)
-        return inicio, fim
-    elif periodo_tipo == 'mes_atual':
-        inicio = hoje.replace(day=1)
-        return inicio, hoje
-    elif periodo_tipo == 'mes_passado':
-        primeiro_dia_mes_atual = hoje.replace(day=1)
-        ultimo_dia_mes_passado = primeiro_dia_mes_atual - timedelta(days=1)
-        primeiro_dia_mes_passado = ultimo_dia_mes_passado.replace(day=1)
-        return primeiro_dia_mes_passado, ultimo_dia_mes_passado
-    elif periodo_tipo == 'trimestre_atual':
-        mes_atual = hoje.month
-        mes_inicio_trimestre = ((mes_atual - 1) // 3) * 3 + 1
-        inicio = hoje.replace(month=mes_inicio_trimestre, day=1)
-        return inicio, hoje
-    elif periodo_tipo == 'ano_atual':
-        inicio = hoje.replace(month=1, day=1)
-        return inicio, hoje
-    # Fallback: mês atual
-    inicio = hoje.replace(day=1)
-    return inicio, hoje
-
-
-def _filtro_datas_fechamento_ganho(data_inicio, data_fim):
-    """Mesmo critério do dashboard e de gerar_relatorio_vendas_* (DateField).
-    
-    Prioridade: data_fechamento_ganho > data_fechamento > created_at.
-    Garante que oportunidades closed_won sem datas preenchidas não fiquem invisíveis.
-    """
-    return (
-        Q(data_fechamento_ganho__gte=data_inicio, data_fechamento_ganho__lte=data_fim)
-        | (
-            Q(data_fechamento_ganho__isnull=True)
-            & Q(data_fechamento__gte=data_inicio, data_fechamento__lte=data_fim)
-        )
-        | (
-            Q(data_fechamento_ganho__isnull=True)
-            & Q(data_fechamento__isnull=True)
-            & Q(created_at__date__gte=data_inicio, created_at__date__lte=data_fim)
-        )
-    )
 
 
 def _merge_detalhamento_vendedores_pdf(loja_id: int, vendedores_stats_raw: list) -> list:

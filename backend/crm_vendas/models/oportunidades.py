@@ -2,7 +2,6 @@ from django.db import models
 
 from core.mixins import LojaIsolationMixin, LojaIsolationManager
 
-from ..managers import OportunidadeManager
 from .contas import Conta
 from .leads import Lead
 from .vendedores import Vendedor
@@ -51,7 +50,7 @@ class Oportunidade(LojaIsolationMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = OportunidadeManager()
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'crm_vendas_oportunidade'

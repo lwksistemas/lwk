@@ -4,7 +4,6 @@ from core.mixins import LojaIsolationMixin, LojaIsolationManager
 
 from decimal import Decimal
 
-from ..managers import ContratoManager, PropostaManager
 from .oportunidades import Oportunidade
 
 class Proposta(LojaIsolationMixin, models.Model):
@@ -74,7 +73,7 @@ class Proposta(LojaIsolationMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = PropostaManager()
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'crm_vendas_proposta'
@@ -196,7 +195,7 @@ class Contrato(LojaIsolationMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = ContratoManager()
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'crm_vendas_contrato'

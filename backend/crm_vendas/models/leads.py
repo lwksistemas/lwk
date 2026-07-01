@@ -2,7 +2,6 @@ from django.db import models
 
 from core.mixins import LojaIsolationMixin, LojaIsolationManager
 
-from ..managers import LeadManager
 from .contas import Conta
 
 class Lead(LojaIsolationMixin, models.Model):
@@ -71,7 +70,7 @@ class Lead(LojaIsolationMixin, models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = LeadManager()
+    objects = LojaIsolationManager()
 
     class Meta:
         db_table = 'crm_vendas_lead'

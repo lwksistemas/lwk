@@ -51,27 +51,38 @@ interface DashboardData {
   comissao_total_mes: number;
 }
 
-const PERIODO_CARD_LABELS: Record<string, { receita: string; comissao: string; leads: string }> = {
+const PERIODO_CARD_LABELS: Record<string, { receita: string; comissao: string; leads: string; comissaoSub: string }> = {
   mes_atual: {
     receita: 'Receita do mês',
     comissao: 'Comissão do mês',
     leads: 'Novos leads',
+    comissaoSub: 'Vendas ganhas neste mês',
   },
   mes_passado: {
     receita: 'Receita do mês passado',
     comissao: 'Comissão do mês passado',
     leads: 'Novos leads',
+    comissaoSub: 'Vendas ganhas no mês passado',
   },
   trimestre_atual: {
     receita: 'Receita do trimestre',
     comissao: 'Comissão do trimestre',
     leads: 'Novos leads no trimestre',
+    comissaoSub: 'Vendas ganhas no trimestre (últimos 3 meses)',
   },
   ano_atual: {
     receita: 'Receita do ano',
     comissao: 'Comissão do ano',
     leads: 'Novos leads no ano',
+    comissaoSub: 'Vendas ganhas neste ano',
   },
+};
+
+const PERIODO_NOME: Record<string, string> = {
+  mes_atual: 'Este mês',
+  mes_passado: 'Mês passado',
+  trimestre_atual: 'Este trimestre',
+  ano_atual: 'Este ano',
 };
 
 function labelsPeriodo(periodo: string) {
@@ -244,6 +255,9 @@ export default function CrmVendasDashboardPage() {
           </Link>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Visão geral do seu pipeline de vendas
+            <span className="ml-2 text-xs font-medium text-[#0176d3]">
+              · {PERIODO_NOME[periodoFiltro] ?? 'Este mês'}
+            </span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -253,7 +267,7 @@ export default function CrmVendasDashboardPage() {
               onClick={toggleFiltro}
               className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#16325c] border border-gray-300 dark:border-[#0d1f3c] rounded hover:bg-gray-50 dark:hover:bg-[#0d1f3c] transition-colors"
             >
-              Filtrar
+              {PERIODO_NOME[periodoFiltro] ?? 'Filtrar'} ▾
             </button>
             {showFiltro && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#16325c] rounded-lg shadow-lg border border-gray-200 dark:border-[#0d1f3c] py-1 z-20">
@@ -359,7 +373,7 @@ export default function CrmVendasDashboardPage() {
             {formatMoney(data.comissao_total_mes || 0)}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            Total de comissões
+            {periodoLabels.comissaoSub}
           </p>
         </div>
 

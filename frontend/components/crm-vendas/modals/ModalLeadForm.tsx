@@ -1,11 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { X } from 'lucide-react';
-import { useToast } from '@/components/ui/Toast';
-import { consultaCep } from '@/lib/consulta-cep';
-import { consultaCnpj, formatCpfCnpj } from '@/lib/consulta-cnpj';
+import { formatCpfCnpj } from '@/lib/consulta-cnpj';
 import { formatCep, formatTelefone, toUpperCase } from '@/lib/format-br';
+import { useCrmCepCnpjLookup } from '@/hooks/crm-vendas/useCrmCepCnpjLookup';
 
 export interface FormDataLead {
   nome: string;
@@ -51,41 +49,11 @@ export default function ModalLeadForm({
   onClose,
   fullScreenOnDesktop = false,
 }: ModalLeadFormProps) {
-  const toast = useToast();
-  const [buscarCepLoading, setBuscarCepLoading] = useState(false);
-  const [buscarCnpjLoading, setBuscarCnpjLoading] = useState(false);
+  const { handleBuscarCnpj, handleBuscarCep, buscarCepLoading, buscarCnpjLoading } =
+    useCrmCepCnpjLookup<FormDataLead>(onFormChange);
 
-  const handleBuscarCnpj = async () => {
-    const cnpj = form.cpf_cnpj.replace(/\D/g, '');
-    if (cnpj.length !== 14) {
-      toast.warning('Informe um CNPJ válido com 14 dígitos para buscar.');
-      return;
-    }
-    setBuscarCnpjLoading(true);
-    try {
-      const data = await consultaCnpj(form.cpf_cnpj);
-      if (data) {
-        onFormChange((f) => ({
-          ...f,
-          nome: data.razao_social || f.nome,
-          empresa: data.nome_fantasia || f.empresa,
-          cep: data.cep || f.cep,
-          logradouro: data.logradouro || f.logradouro,
-          numero: data.numero || f.numero,
-          complemento: data.complemento || f.complemento,
-          bairro: data.bairro || f.bairro,
-          cidade: data.municipio || f.cidade,
-          uf: data.uf || f.uf,
-        }));
-      } else {
-        toast.warning('CNPJ não encontrado ou serviço indisponível.');
-      }
-    } catch {
-      toast.error('Erro ao consultar CNPJ. Tente novamente.');
-    } finally {
-      setBuscarCnpjLoading(false);
-    }
-  };
+  const handleBuscarCnpjClick = () => handleBuscarCnpj(form.cpf_cnpj);
+  const handleBuscarCepClick = () => handleBuscarCep(form.cep);
 
   const handleCpfCnpjChange = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 14);
@@ -94,31 +62,6 @@ export default function ModalLeadForm({
       onFormChange((f) => ({ ...f, cpf_cnpj: formatCpfCnpj(digits), empresa: '' }));
     } else {
       onFormChange((f) => ({ ...f, cpf_cnpj: formatCpfCnpj(digits) }));
-    }
-  };
-
-  const handleBuscarCep = async () => {
-    const cep = form.cep.replace(/\D/g, '');
-    if (cep.length !== 8) {
-      toast.warning('Informe um CEP válido com 8 dígitos.');
-      return;
-    }
-    setBuscarCepLoading(true);
-    try {
-      const endereco = await consultaCep(form.cep);
-      if (endereco) {
-        onFormChange((f) => ({
-          ...f,
-          logradouro: endereco.logradouro,
-          bairro: endereco.bairro,
-          cidade: endereco.cidade,
-          uf: endereco.uf,
-        }));
-      } else {
-        toast.error('Erro ao consultar CEP. Verifique sua conexão ou tente novamente em instantes.');
-      }
-    } finally {
-      setBuscarCepLoading(false);
     }
   };
 
@@ -181,7 +124,7 @@ export default function ModalLeadForm({
                 />
                 <button
                   type="button"
-                  onClick={handleBuscarCnpj}
+                  onClick={handleBuscarCnpjClick}
                   disabled={buscarCnpjLoading || form.cpf_cnpj.replace(/\D/g, '').length !== 14}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm"
                   title="Buscar dados do CNPJ na Receita Federal"
@@ -271,7 +214,7 @@ export default function ModalLeadForm({
                   type="text"
                   value={form.cep}
                   onChange={(e) => handleCepChange(e.target.value)}
-                  onBlur={() => !enviando && form.cep.replace(/\D/g, '').length === 8 && handleBuscarCep()}
+                  onBlur={() => !enviando && form.cep.replace(/\D/g, '').length === 8 && handleBuscarCepClick()}
                   maxLength={9}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   placeholder="00000-000"
@@ -280,7 +223,7 @@ export default function ModalLeadForm({
               <div className="flex items-end">
                 <button
                   type="button"
-                  onClick={handleBuscarCep}
+                  onClick={handleBuscarCepClick}
                   disabled={buscarCepLoading || form.cep.replace(/\D/g, '').length !== 8}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm"
                   title="Buscar endereço pelo CEP"

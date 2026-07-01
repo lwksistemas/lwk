@@ -1,28 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import apiClient from '@/lib/api-client';
-import { getCrmApiErrorDetail, normalizeListResponse } from '@/lib/crm-utils';
-import { useToast } from '@/components/ui/Toast';
-import { formatTelefone, telefoneInternacionalBr } from '@/lib/format-br';
-import { obterFeriadosBrasil } from '@/lib/feriados-brasil';
-import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
+import { useCrmCalendarioPage } from '@/hooks/crm-vendas/useCrmCalendarioPage';
 import { AtividadeModal } from './components/AtividadeModal';
-import {
-  API_CRM_CALENDARIO as API_CRM,
-  API_GOOGLE_AUTH,
-  API_GOOGLE_DISCONNECT,
-  API_GOOGLE_STATUS,
-  API_GOOGLE_SYNC,
-  MOBILE_BREAKPOINT,
-  SYNC_RESULT_DISPLAY_MS,
-  atividadeToEvent,
-  toISO,
-  type Atividade,
-  type CalendarEvent,
-} from '@/lib/crm-calendario';
+import { CalendarioEventContent } from './components/CalendarioEventContent';
+import { CalendarioGooglePanel } from './components/CalendarioGooglePanel';
 
 export type { Atividade } from '@/lib/crm-calendario';
 
@@ -36,588 +19,48 @@ const FullCalendar = dynamic(() => import('@fullcalendar/react'), {
 });
 
 export default function CalendarioCrmPage() {
-  const toast = useToast();
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [plugins, setPlugins] = useState<any[]>([]);
-  const [locale, setLocale] = useState<any>(null);
-  const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT
+  const {
+    searchParams,
+    loading,
+    plugins,
+    locale,
+    isMobile,
+    modalOpen,
+    modalAtividade,
+    form,
+    patchForm,
+    saving,
+    error,
+    whatsappAtivo,
+    googleStatus,
+    googleLoading,
+    googleSyncResult,
+    syncError,
+    eventosComFeriados,
+    handleConnectGoogle,
+    handleSyncGoogle,
+    handleDisconnectGoogle,
+    handleDatesSet,
+    openNovaAtividade,
+    handleDateClick,
+    handleSelect,
+    handleEventClick,
+    handleCloseModal,
+    handleSave,
+    handleSaveAndWhatsapp,
+    handleEnviarWhatsapp,
+    handleToggleConcluido,
+    handleDelete,
+    handleEventDrop,
+    handleEventResize,
+  } = useCrmCalendarioPage();
+
+  const renderEventContent = useCallback(
+    (eventInfo: Parameters<typeof CalendarioEventContent>[0]['eventInfo']) => (
+      <CalendarioEventContent eventInfo={eventInfo} />
+    ),
+    [],
   );
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalAtividade, setModalAtividade] = useState<Atividade | null>(null);
-  const [form, setForm] = useState({
-    titulo: '',
-    tipo: 'task' as Atividade['tipo'],
-    data: '',
-    duracao_minutos: 60,
-    observacoes: '',
-    conta: null as number | null,
-    lead: null as number | null,
-    lembrete_whatsapp: false,
-    lembrete_whatsapp_telefone: '',
-  });
-  const patchForm = useCallback((patch: Partial<typeof form>) => {
-    setForm((prev) => ({ ...prev, ...patch }));
-  }, []);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { whatsappAtivo } = useWhatsappEnvioFlags();
-  const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email: string | null }>({ connected: false, email: null });
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [googleSyncResult, setGoogleSyncResult] = useState<{ pushed: number; pulled: number } | null>(null);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const syncingRef = useRef(false);
-  const searchParams = useSearchParams();
-
-  const loadPlugins = useCallback(async () => {
-    const [dayGrid, timeGrid, interaction, ptBr] = await Promise.all([
-      import('@fullcalendar/daygrid').then((m) => m.default),
-      import('@fullcalendar/timegrid').then((m) => m.default),
-      import('@fullcalendar/interaction').then((m) => m.default),
-      import('@fullcalendar/core/locales/pt-br').then((m) => m.default),
-    ]);
-    setPlugins([dayGrid, timeGrid, interaction]);
-    setLocale(ptBr);
-  }, []);
-
-  const fetchAtividades = useCallback(
-    async (start: Date, end: Date) => {
-      const dataInicio = toISO(start);
-      const dataFim = toISO(end);
-      try {
-        const res = await apiClient.get<Atividade[] | { results: Atividade[] }>(
-          `${API_CRM}/atividades/`,
-          { params: { data_inicio: dataInicio, data_fim: dataFim } }
-        );
-        const list = normalizeListResponse(res.data);
-        setEvents(list.map(atividadeToEvent));
-      } catch (e) {
-        setError('Erro ao carregar atividades.');
-        setEvents([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  const loadGoogleStatus = useCallback(async () => {
-    try {
-      const res = await apiClient.get<{ connected: boolean; email?: string | null }>(API_GOOGLE_STATUS);
-      setGoogleStatus({ connected: !!res.data.connected, email: res.data.email ?? null });
-    } catch {
-      setGoogleStatus({ connected: false, email: null });
-    }
-  }, []);
-
-  useEffect(() => {
-    loadGoogleStatus();
-  }, [loadGoogleStatus]);
-
-  useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const handle = () => setIsMobile(mql.matches);
-    mql.addEventListener('change', handle);
-    handle();
-    return () => mql.removeEventListener('change', handle);
-  }, []);
-
-  useEffect(() => {
-    const connected = searchParams.get('google_connected');
-    const err = searchParams.get('google_error');
-    if (connected === '1') {
-      setSyncError(null);
-      loadGoogleStatus();
-      if (typeof window !== 'undefined') {
-        window.history.replaceState({}, '', window.location.pathname);
-      }
-    }
-    if (err === '1' && typeof window !== 'undefined') {
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, [searchParams, loadGoogleStatus]);
-
-  const handleConnectGoogle = useCallback(async () => {
-    setGoogleLoading(true);
-    setSyncError(null);
-    try {
-      const res = await apiClient.get<{ auth_url: string }>(API_GOOGLE_AUTH);
-      if (res.data?.auth_url) {
-        window.location.href = res.data.auth_url;
-        return;
-      }
-    } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        'Google Calendar não configurado. Entre em contato com o suporte.';
-      setSyncError(msg);
-    } finally {
-      setGoogleLoading(false);
-    }
-  }, []);
-
-  const handleSyncGoogle = useCallback(async (direction: 'push_only' | 'pull' | 'both' = 'both') => {
-    if (syncingRef.current) return;
-    syncingRef.current = true;
-    setGoogleLoading(true);
-    setGoogleSyncResult(null);
-    setSyncError(null);
-    try {
-      const res = await apiClient.post<{ pushed: number; pulled: number }>(API_GOOGLE_SYNC, {
-        direction,
-      });
-      setGoogleSyncResult({ pushed: res.data.pushed, pulled: res.data.pulled });
-      if (range) await fetchAtividades(range.start, range.end);
-      if (SYNC_RESULT_DISPLAY_MS > 0 && typeof window !== 'undefined') {
-        window.setTimeout(() => setGoogleSyncResult(null), SYNC_RESULT_DISPLAY_MS);
-      }
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string }; status?: number } };
-      let msg = err?.response?.data?.detail || 'Erro ao sincronizar com o Google Calendar.';
-      if (msg.includes('Contexto de loja') || msg.includes('não identificado')) {
-        msg += ' Atualize a página e tente novamente.';
-      } else if (err?.response?.status === 502 || err?.response?.status === 503) {
-        msg = 'Servidor temporariamente indisponível. Tente novamente em alguns segundos.';
-      }
-      setSyncError(msg);
-      if (msg.includes('Token expirado') || msg.includes('inválido')) {
-        setGoogleStatus({ connected: false, email: null });
-        loadGoogleStatus();
-      }
-    } finally {
-      syncingRef.current = false;
-      setGoogleLoading(false);
-    }
-  }, [range, fetchAtividades, loadGoogleStatus]);
-
-  const handleDisconnectGoogle = useCallback(async () => {
-    if (
-      !confirm(
-        'Desconectar o Google Calendar? Os eventos já enviados permanecem no Google.'
-      )
-    )
-      return;
-    setGoogleLoading(true);
-    setSyncError(null);
-    try {
-      await apiClient.delete(API_GOOGLE_DISCONNECT);
-      setGoogleStatus({ connected: false, email: null });
-      setGoogleSyncResult(null);
-    } finally {
-      setGoogleLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadPlugins();
-  }, [loadPlugins]);
-
-  useEffect(() => {
-    if (!range) return;
-    fetchAtividades(range.start, range.end);
-  }, [range, fetchAtividades]);
-
-  const handleDatesSet = useCallback((arg: { start: Date; end: Date }) => {
-    setRange({ start: arg.start, end: arg.end });
-  }, []);
-
-  const eventosComFeriados = useMemo(() => {
-    const feriados = range ? obterFeriadosBrasil(range.start, range.end) : [];
-    return [...events, ...feriados];
-  }, [events, range]);
-
-  const openNovaAtividade = useCallback(() => {
-    const now = new Date();
-    const start = new Date(now);
-    start.setMinutes(Math.ceil(start.getMinutes() / 15) * 15);
-    start.setSeconds(0, 0);
-    // Converter para formato local (sem ajuste de timezone)
-    const year = start.getFullYear();
-    const month = String(start.getMonth() + 1).padStart(2, '0');
-    const day = String(start.getDate()).padStart(2, '0');
-    const hours = String(start.getHours()).padStart(2, '0');
-    const minutes = String(start.getMinutes()).padStart(2, '0');
-    const localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-    
-    setModalAtividade(null);
-    setForm({
-      titulo: '',
-      tipo: 'task',
-      data: localDateTime,
-      duracao_minutos: 60,
-      observacoes: '',
-      conta: null,
-      lead: null,
-      lembrete_whatsapp: whatsappAtivo,
-      lembrete_whatsapp_telefone: '',
-    });
-    setModalOpen(true);
-    setError(null);
-  }, [whatsappAtivo]);
-
-  const handleDateClick = useCallback((arg: { date: Date; dateStr: string; allDay: boolean }) => {
-    // Função para criar tarefa ao clicar em um dia/horário vazio
-    // Funciona tanto no desktop quanto no mobile
-    const clickedDate = arg.date;
-    
-    // Se for all-day, usar 9:00 como padrão
-    if (arg.allDay) {
-      clickedDate.setHours(9, 0, 0, 0);
-    }
-    
-    // Converter para formato local
-    const year = clickedDate.getFullYear();
-    const month = String(clickedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(clickedDate.getDate()).padStart(2, '0');
-    const hours = String(clickedDate.getHours()).padStart(2, '0');
-    const minutes = String(clickedDate.getMinutes()).padStart(2, '0');
-    const localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-    
-    setModalAtividade(null);
-    setForm({
-      titulo: '',
-      tipo: 'task',
-      data: localDateTime,
-      duracao_minutos: 60,
-      observacoes: '',
-      conta: null,
-      lead: null,
-      lembrete_whatsapp: whatsappAtivo,
-      lembrete_whatsapp_telefone: '',
-    });
-    setModalOpen(true);
-    setError(null);
-  }, [whatsappAtivo]);
-
-  const handleSelect = useCallback((arg: { start: Date; end: Date }) => {
-    // Corrigir timezone: FullCalendar retorna em UTC, precisamos converter para local
-    const localDate = new Date(arg.start.getTime() - arg.start.getTimezoneOffset() * 60000);
-    setModalAtividade(null);
-    setForm({
-      titulo: '',
-      tipo: 'task',
-      data: localDate.toISOString().slice(0, 16),
-      duracao_minutos: 60,
-      observacoes: '',
-      conta: null,
-      lead: null,
-      lembrete_whatsapp: whatsappAtivo,
-      lembrete_whatsapp_telefone: '',
-    });
-    setModalOpen(true);
-    setError(null);
-  }, [whatsappAtivo]);
-
-  const handleEventClick = useCallback((arg: { event: { extendedProps?: { atividade?: Atividade; tipo?: string } }; jsEvent: MouseEvent }) => {
-    arg.jsEvent.preventDefault();
-    if (arg.event.extendedProps?.tipo === 'feriado') return;
-    const a = arg.event.extendedProps?.atividade;
-    if (!a) return;
-    
-    // Converter data UTC para local
-    const dataUTC = new Date(a.data);
-    const year = dataUTC.getFullYear();
-    const month = String(dataUTC.getMonth() + 1).padStart(2, '0');
-    const day = String(dataUTC.getDate()).padStart(2, '0');
-    const hours = String(dataUTC.getHours()).padStart(2, '0');
-    const minutes = String(dataUTC.getMinutes()).padStart(2, '0');
-    const localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-    
-    setModalAtividade(a);
-    setForm({
-      titulo: a.titulo,
-      tipo: a.tipo,
-      data: localDateTime,
-      duracao_minutos: a.duracao_minutos ?? 60,
-      observacoes: a.observacoes || '',
-      conta: (a as any).conta ?? null,
-      lead: (a as any).lead ?? null,
-      lembrete_whatsapp: a.lembrete_whatsapp ?? false,
-      lembrete_whatsapp_telefone: a.lembrete_whatsapp_telefone
-        ? formatTelefone(a.lembrete_whatsapp_telefone)
-        : '',
-    });
-    setModalOpen(true);
-    setError(null);
-  }, []);
-
-  const handleCloseModal = useCallback(() => {
-    setModalOpen(false);
-    setModalAtividade(null);
-    setError(null);
-  }, []);
-
-  const buildAtividadePayload = useCallback(() => ({
-    titulo: form.titulo.trim(),
-    tipo: form.tipo,
-    data: new Date(form.data).toISOString(),
-    duracao_minutos: form.duracao_minutos,
-    observacoes: form.observacoes.trim(),
-    conta: form.conta || null,
-    lead: form.lead || null,
-    lembrete_whatsapp: form.lembrete_whatsapp,
-    lembrete_whatsapp_telefone: form.lembrete_whatsapp
-      ? telefoneInternacionalBr(form.lembrete_whatsapp_telefone)
-      : '',
-  }), [form]);
-
-  const persistAtividade = useCallback(async (): Promise<number> => {
-    const payload = buildAtividadePayload();
-    if (modalAtividade) {
-      await apiClient.patch(`${API_CRM}/atividades/${modalAtividade.id}/`, payload);
-      return modalAtividade.id;
-    }
-    const res = await apiClient.post<{ id: number }>(`${API_CRM}/atividades/`, payload);
-    return res.data.id;
-  }, [buildAtividadePayload, modalAtividade]);
-
-  const afterSaveSuccess = useCallback(async () => {
-    if (range) {
-      await fetchAtividades(range.start, range.end);
-    }
-    handleCloseModal();
-    if (googleStatus.connected && !syncingRef.current) {
-      setTimeout(() => {
-        handleSyncGoogle('push_only').catch(() => {});
-      }, 100);
-    }
-  }, [range, fetchAtividades, handleCloseModal, googleStatus.connected, handleSyncGoogle]);
-
-  const handleSave = useCallback(async () => {
-    if (!form.titulo.trim()) {
-      setError('Preencha o título.');
-      return;
-    }
-    if (form.lembrete_whatsapp && form.lembrete_whatsapp_telefone.replace(/\D/g, '').length < 10) {
-      setError('Informe um WhatsApp válido para os lembretes automáticos.');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      await persistAtividade();
-      await afterSaveSuccess();
-    } catch (e: unknown) {
-      setError(getCrmApiErrorDetail(e, 'Erro ao salvar.'));
-    } finally {
-      setSaving(false);
-    }
-  }, [form.titulo, form.lembrete_whatsapp, form.lembrete_whatsapp_telefone, persistAtividade, afterSaveSuccess]);
-
-  const handleSaveAndWhatsapp = useCallback(async (telefone: string) => {
-    if (!form.titulo.trim()) {
-      setError('Preencha o título.');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const id = await persistAtividade();
-      const res = await apiClient.post<{ message?: string }>(
-        `${API_CRM}/atividades/${id}/enviar-whatsapp/`,
-        { telefone },
-      );
-      await afterSaveSuccess();
-      if (typeof window !== 'undefined') {
-        toast.success(res.data.message || 'Atividade salva e lembrete enviado por WhatsApp.');
-      }
-    } catch (e: unknown) {
-      setError(getCrmApiErrorDetail(e, 'Erro ao salvar ou enviar WhatsApp.'));
-    } finally {
-      setSaving(false);
-    }
-  }, [form.titulo, persistAtividade, afterSaveSuccess]);
-
-  const handleEnviarWhatsapp = useCallback(async (telefone: string) => {
-    if (!modalAtividade) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const res = await apiClient.post<{ message?: string }>(
-        `${API_CRM}/atividades/${modalAtividade.id}/enviar-whatsapp/`,
-        { telefone },
-      );
-      toast.success(res.data.message || 'Lembrete enviado por WhatsApp.');
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { error?: string; detail?: string } } };
-      setError(err.response?.data?.error || err.response?.data?.detail || 'Erro ao enviar WhatsApp.');
-    } finally {
-      setSaving(false);
-    }
-  }, [modalAtividade]);
-
-  const handleToggleConcluido = useCallback(async () => {
-    if (!modalAtividade) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await apiClient.patch(`${API_CRM}/atividades/${modalAtividade.id}/`, {
-        concluido: !modalAtividade.concluido,
-      });
-      
-      // ESPERAR recarregar antes de fechar o modal
-      if (range) {
-        await fetchAtividades(range.start, range.end);
-      }
-      
-      handleCloseModal();
-      
-      // Sincronizar com Google em background (não esperar)
-      if (googleStatus.connected && !syncingRef.current) {
-        setTimeout(() => {
-          handleSyncGoogle('push_only').catch(() => {});
-        }, 100);
-      }
-      
-    } catch (e: any) {
-      setError(e.response?.data?.detail || 'Erro ao atualizar.');
-    } finally {
-      setSaving(false);
-    }
-  }, [modalAtividade, range, fetchAtividades, handleCloseModal, googleStatus.connected, handleSyncGoogle]);
-
-  const handleDelete = useCallback(async () => {
-    if (!modalAtividade || !confirm('Excluir esta atividade?')) return;
-    setSaving(true);
-    setError(null);
-    
-    // Atualização otimista: remover da UI imediatamente
-    const atividadeId = modalAtividade.id;
-    setEvents(prevEvents => prevEvents.filter(e => e.id !== String(atividadeId)));
-    handleCloseModal();
-    
-    try {
-      await apiClient.delete(`${API_CRM}/atividades/${atividadeId}/`);
-      
-      // Recarregar em background para garantir consistência
-      if (range) {
-        fetchAtividades(range.start, range.end).catch(() => {});
-      }
-      
-    } catch (e: any) {
-      // Se falhar, recarregar para restaurar o estado correto
-      if (range) {
-        await fetchAtividades(range.start, range.end);
-      }
-      setError(e.response?.data?.detail || 'Erro ao excluir.');
-      setModalOpen(true);
-      setModalAtividade(modalAtividade);
-    } finally {
-      setSaving(false);
-    }
-  }, [modalAtividade, range, fetchAtividades, handleCloseModal]);
-
-  const handleEventDrop = useCallback(async (info: { event: any; revert: () => void }) => {
-    const atividade = info.event.extendedProps?.atividade;
-    if (!atividade) {
-      info.revert();
-      return;
-    }
-    try {
-      const newStart = info.event.start;
-      if (!newStart) {
-        info.revert();
-        return;
-      }
-      
-      await apiClient.patch(`${API_CRM}/atividades/${atividade.id}/`, {
-        data: newStart.toISOString(),
-      });
-      
-      // Recarregar e sincronizar em PARALELO
-      const reloadPromise = range ? fetchAtividades(range.start, range.end) : Promise.resolve();
-      const syncPromise = (googleStatus.connected && !syncingRef.current) 
-        ? new Promise<void>(resolve => setTimeout(() => {
-            handleSyncGoogle('push_only').finally(() => resolve());
-          }, 100))
-        : Promise.resolve();
-      
-      // Não esperar - deixar rodar em background
-      Promise.all([reloadPromise, syncPromise]).catch(() => {});
-      
-    } catch (e: any) {
-      info.revert();
-      toast.error(e.response?.data?.detail || 'Erro ao mover atividade.');
-    }
-  }, [range, fetchAtividades, googleStatus.connected, handleSyncGoogle]);
-
-  const handleEventResize = useCallback(async (info: { event: any; revert: () => void }) => {
-    const atividade = info.event.extendedProps?.atividade;
-    if (!atividade) {
-      info.revert();
-      return;
-    }
-    try {
-      const newStart = info.event.start;
-      const newEnd = info.event.end;
-      if (!newStart || !newEnd) {
-        info.revert();
-        return;
-      }
-      const duracaoMs = newEnd.getTime() - newStart.getTime();
-      const duracaoMinutos = Math.round(duracaoMs / 60000);
-      
-      await apiClient.patch(`${API_CRM}/atividades/${atividade.id}/`, {
-        duracao_minutos: duracaoMinutos,
-      });
-      
-      // Recarregar e sincronizar em PARALELO
-      const reloadPromise = range ? fetchAtividades(range.start, range.end) : Promise.resolve();
-      const syncPromise = (googleStatus.connected && !syncingRef.current) 
-        ? new Promise<void>(resolve => setTimeout(() => {
-            handleSyncGoogle('push_only').finally(() => resolve());
-          }, 100))
-        : Promise.resolve();
-      
-      // Não esperar - deixar rodar em background
-      Promise.all([reloadPromise, syncPromise]).catch(() => {});
-      
-    } catch (e: any) {
-      info.revert();
-      toast.error(e.response?.data?.detail || 'Erro ao redimensionar atividade.');
-    }
-  }, [range, fetchAtividades, googleStatus.connected, handleSyncGoogle]);
-
-  const renderEventContent = useCallback((eventInfo: any) => {
-    const atividade = eventInfo.event.extendedProps?.atividade;
-    const isFeriado = eventInfo.event.extendedProps?.tipo === 'feriado';
-
-    if (isFeriado) {
-      return (
-        <div className="fc-event-main-frame">
-          <div className="fc-event-title-container">
-            <div className="fc-event-title fc-sticky">{eventInfo.event.title}</div>
-          </div>
-        </div>
-      );
-    }
-
-    if (!atividade) return null;
-
-    const tipoEmoji: Record<string, string> = {
-      call: '📞',
-      meeting: '🤝',
-      email: '📧',
-      task: '✅',
-    };
-
-    const emoji = tipoEmoji[atividade.tipo] || '✅';
-
-    return (
-      <div className="fc-event-main-frame">
-        <div className="fc-event-time">{eventInfo.timeText}</div>
-        <div className="fc-event-title-container">
-          <div className="fc-event-title fc-sticky">
-            <span className="mr-1">{emoji}</span>
-            {atividade.concluido && <span className="mr-1">✓</span>}
-            {eventInfo.event.title.replace(/^(✓\s*)?(📞|🤝|📧|✅)\s*/, '')}
-          </div>
-        </div>
-      </div>
-    );
-  }, []);
 
   return (
     <div className="h-full min-h-0 flex flex-col">
@@ -630,57 +73,13 @@ export default function CalendarioCrmPage() {
             Sincronizado com as atividades do CRM • Feriados nacionais exibidos
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0">
-          {googleStatus.connected ? (
-            <>
-              <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 truncate max-w-[120px] sm:max-w-none" title={googleStatus.email ?? undefined}>
-                {googleStatus.email ? `Google: ${googleStatus.email}` : 'Google conectado'}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleSyncGoogle('both')}
-                disabled={googleLoading}
-                className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-[#0176d3] hover:bg-[#0159a8] text-white disabled:opacity-50 touch-manipulation"
-              >
-                {googleLoading ? '...' : 'Sincronizar'}
-              </button>
-              <button
-                type="button"
-                onClick={handleDisconnectGoogle}
-                disabled={googleLoading}
-                className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 touch-manipulation"
-              >
-                Desconectar
-              </button>
-            </>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Para sincronizar, conecte sua conta Google e autorize o acesso ao calendário.
-              </p>
-              <details className="text-xs text-gray-500 dark:text-gray-400 group">
-                <summary className="cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 list-none [&::-webkit-details-marker]:hidden">
-                  <span className="inline-flex items-center gap-1">
-                    <span className="group-open:rotate-90 transition-transform">▶</span>
-                    Ver aviso sobre a tela do Google
-                  </span>
-                </summary>
-                <p className="mt-2 pl-4 border-l-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
-                  O Google pode exibir &quot;O app não foi verificado&quot; — isso é normal. O LWK Sistemas usa a integração de forma segura apenas para sincronizar seu calendário. Clique em <strong>Continuar</strong> ou <strong>Avançado → Acessar</strong> para autorizar.
-                </p>
-              </details>
-              <button
-                type="button"
-                onClick={handleConnectGoogle}
-                disabled={googleLoading}
-                className="px-3 py-2 rounded-lg text-sm font-medium bg-[#4285f4] hover:bg-[#3367d6] text-white disabled:opacity-50 flex items-center gap-2 w-fit"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                Conectar Google Calendar
-              </button>
-            </div>
-          )}
-        </div>
+        <CalendarioGooglePanel
+          googleStatus={googleStatus}
+          googleLoading={googleLoading}
+          onConnect={handleConnectGoogle}
+          onSync={() => handleSyncGoogle('both')}
+          onDisconnect={handleDisconnectGoogle}
+        />
       </div>
       {(searchParams.get('google_error') === '1' || syncError) && (
         <p className="mb-3 text-sm text-amber-600 dark:text-amber-400">
@@ -713,7 +112,7 @@ export default function CalendarioCrmPage() {
             }
             slotMinTime="06:00:00"
             slotMaxTime="22:00:00"
-            allDaySlot={true}
+            allDaySlot
             editable
             selectable
             selectMirror
@@ -730,16 +129,8 @@ export default function CalendarioCrmPage() {
             eventDisplay="block"
             nowIndicator
             navLinks
-            eventTimeFormat={{
-              hour: '2-digit',
-              minute: '2-digit',
-              meridiem: false,
-            }}
-            slotLabelFormat={{
-              hour: '2-digit',
-              minute: '2-digit',
-              meridiem: false,
-            }}
+            eventTimeFormat={{ hour: '2-digit', minute: '2-digit', meridiem: false }}
+            slotLabelFormat={{ hour: '2-digit', minute: '2-digit', meridiem: false }}
             eventContent={renderEventContent}
           />
         )}
@@ -748,7 +139,6 @@ export default function CalendarioCrmPage() {
             Carregando...
           </div>
         )}
-        {/* Botão flutuante Nova atividade — facilita criação no celular (select no calendário é difícil em touch) */}
         <button
           type="button"
           onClick={openNovaAtividade}
@@ -756,7 +146,7 @@ export default function CalendarioCrmPage() {
           aria-label="Nova atividade"
           title="Nova atividade"
         >
-          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
         </button>

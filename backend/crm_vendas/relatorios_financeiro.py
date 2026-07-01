@@ -15,7 +15,8 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 
 from .models import Vendedor
 from .models.financeiro import GrupoFinanceiroCRM, LancamentoFinanceiroCRM
-from .relatorios import _criar_cabecalho_relatorio, _obter_logo_loja
+from .periodo import filtro_fechamento_no_periodo as _filtro_datas_fechamento_ganho
+from .relatorios_pdf_common import _criar_cabecalho_relatorio, _obter_logo_loja
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,6 @@ def gerar_relatorio_financeiro_vendedor(
     saldo = rec_pago - desp_pago
 
     from .models import Oportunidade
-    from .relatorios import _filtro_datas_fechamento_ganho
     from .services_dashboard import calcular_intervalo_datas
 
     inicio_opp, fim_opp = calcular_intervalo_datas(periodo, data_inicio, data_fim)

@@ -188,14 +188,24 @@ class AssinaturaPublicaView(View):
             payload = loads(token)
             loja_id = payload.get('loja_id')
         except (BadSignature, Exception) as e:
-            logger.error(f'❌ Erro ao decodificar token: {e}')
+            logger.warning(
+                '[AssinaturaPublica] POST token_decode_falhou token_len=%s erro=%s',
+                len(token),
+                e,
+            )
             return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
 
         if not loja_id:
+            logger.warning('[AssinaturaPublica] POST sem_loja_id token_len=%s', len(token))
             return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
 
         cfg_err = _configurar_tenant_para_assinatura_publica(loja_id)
         if cfg_err:
+            logger.warning(
+                '[AssinaturaPublica] POST tenant_config_falhou loja_id=%s erro=%s',
+                loja_id,
+                cfg_err,
+            )
             status = 503 if 'indisponível' in cfg_err.lower() else 400
             return JsonResponse({'error': cfg_err}, status=status)
 
@@ -203,6 +213,14 @@ class AssinaturaPublicaView(View):
         assinatura, erro, _, meta = verificar_token_assinatura(token, loja_id=loja_id)
         
         if erro:
+            logger.warning(
+                '[AssinaturaPublica] POST verificar_token_falhou loja_id=%s error_code=%s doc_type=%s doc_id=%s mensagem=%s',
+                loja_id,
+                meta.get('error_code', 'invalido'),
+                payload.get('doc_type'),
+                payload.get('doc_id'),
+                erro,
+            )
             return JsonResponse({
                 'error': erro,
                 'error_code': meta.get('error_code', 'invalido'),
@@ -219,6 +237,13 @@ class AssinaturaPublicaView(View):
         
         # Registrar assinatura
         proximo_status = registrar_assinatura(assinatura, ip_address, user_agent)
+        logger.info(
+            '[AssinaturaPublica] POST assinatura_registrada loja_id=%s assinatura_id=%s proximo_status=%s ip=%s',
+            loja_id,
+            assinatura.id,
+            proximo_status,
+            ip_address,
+        )
         
         documento = assinatura.documento
         

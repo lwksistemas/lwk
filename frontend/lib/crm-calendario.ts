@@ -93,3 +93,20 @@ export const EMPTY_ATIVIDADE_FORM: AtividadeFormState = {
   lembrete_whatsapp: false,
   lembrete_whatsapp_telefone: '',
 };
+
+/** Formato `datetime-local` a partir de Date no fuso local. */
+export function localDateTimeInputFromDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+export function emptyAtividadeForm(whatsappAtivo: boolean): AtividadeFormState {
+  return {
+    ...EMPTY_ATIVIDADE_FORM,
+    lembrete_whatsapp: whatsappAtivo,
+  };
+}

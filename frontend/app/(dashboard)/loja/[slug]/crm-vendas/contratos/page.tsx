@@ -1,15 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import apiClient from '@/lib/api-client';
-import { getCrmApiErrorDetail } from '@/lib/crm-utils';
-import { useToast } from '@/components/ui/Toast';
-import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
-import { usePaginatedList } from '@/hooks/usePaginatedList';
-import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
-import { useCrmDocumentoActions } from '@/hooks/useCrmDocumentoActions';
+import { useParams } from 'next/navigation';
 import {
   CRM_CONTRATO_STATUS_LABEL as STATUS_LABEL,
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
@@ -27,43 +19,16 @@ import {
 } from '@/components/crm-vendas/documentos/CrmDocumentoListPageShell';
 import CrmDocumentoMaisAcoesMenu from '@/components/crm-vendas/documentos/CrmDocumentoMaisAcoesMenu';
 import CrmDocumentoArquivoAcoes from '@/components/crm-vendas/documentos/CrmDocumentoArquivoAcoes';
-
-interface Contrato {
-  id: number;
-  oportunidade: number;
-  oportunidade_titulo: string;
-  lead_nome: string;
-  lead_email?: string;
-  lead_telefone?: string;
-  vendedor_nome?: string;
-  vendedor_email?: string;
-  vendedor_telefone?: string;
-  numero: string;
-  titulo: string;
-  conteudo: string;
-  valor_total: string | null;
-  desconto_tipo: 'percentual' | 'valor';
-  desconto_valor: string;
-  valor_com_desconto: string | null;
-  status: string;
-  status_assinatura?: string;
-  motivo_cancelamento?: string;
-  data_envio: string | null;
-  data_assinatura: string | null;
-  created_at: string;
-}
-
-type ModalType = 'view' | 'delete' | 'cancelar' | null;
+import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import { useCrmContratosPage } from '@/hooks/crm-vendas/useCrmContratosPage';
 
 export default function CrmVendasContratosPage() {
-  const toast = useToast();
   const params = useParams();
-  const router = useRouter();
   const slug = (params?.slug as string) ?? '';
-  const [filtroStatus, setFiltroStatus] = useState('');
 
   const {
-    items: contratos,
+    contratos,
+    contratosFiltrados,
     page,
     setPage,
     totalCount,
@@ -71,95 +36,30 @@ export default function CrmVendasContratosPage() {
     pageSize,
     loading,
     error,
-    reload: loadContratos,
-  } = usePaginatedList<Contrato>('/crm-vendas/contratos/', {
-    params: { status: filtroStatus || undefined },
-    errorFallback: 'Erro ao carregar contratos.',
-  });
+    filtroStatus,
+    setFiltroStatus,
+    filtroOpcoes,
+    modalType,
+    selected,
+    submitting,
+    alterandoStatus,
+    menuAberto,
+    setMenuAberto,
+    enviandoId,
+    contratoWhatsappHabilitado,
+    handleEnviarCliente,
+    handleDownloadPdf,
+    handleDownloadDocx,
+    openModal,
+    closeModal,
+    handleMarcarComoAssinado,
+    handleCancelarContrato,
+    handleDelete,
+    irParaNovoContrato,
+    irParaEditarContrato,
+  } = useCrmContratosPage(slug);
 
-  const contratosFiltrados = contratos.filter(
-    (c) => !filtroStatus || c.status === filtroStatus,
-  );
-
-  const [modalType, setModalType] = useState<ModalType>(null);
-  const [selected, setSelected] = useState<Contrato | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
-  const [menuAberto, setMenuAberto] = useState<number | null>(null);
-
-  const { enviandoId, handleEnviarCliente, handleDownloadPdf, handleDownloadDocx } = useCrmDocumentoActions(
-    'contratos',
-    loadContratos,
-  );
-
-  const { contrato: contratoWhatsappHabilitado } = useWhatsappEnvioFlags();
-
-  const handleMarcarComoAssinado = async (contratoId: number) => {
-    if (!confirm('Marcar este contrato como assinado manualmente?\n\nUse esta opção quando o cliente assinar de outra forma (manual, gov.br, etc).')) {
-      return;
-    }
-    try {
-      setAlterandoStatus(contratoId);
-      await apiClient.patch(`/crm-vendas/contratos/${contratoId}/`, {
-        status_assinatura: 'concluido',
-        status: 'assinado',
-      });
-      await loadContratos();
-      toast.success('Contrato marcado como assinado com sucesso!');
-    } catch (err: unknown) {
-      toast.error(getCrmApiErrorDetail(err, 'Erro ao atualizar status.'));
-    } finally {
-      setAlterandoStatus(null);
-    }
-  };
-
-  const handleCancelarContrato = async (motivo: string) => {
-    if (!selected) return;
-    try {
-      setAlterandoStatus(selected.id);
-      await apiClient.post(`/crm-vendas/contratos/${selected.id}/cancelar/`, { motivo });
-      await loadContratos();
-      closeModal();
-    } catch (err: unknown) {
-      throw new Error(getCrmApiErrorDetail(err, 'Erro ao cancelar contrato.'));
-    } finally {
-      setAlterandoStatus(null);
-    }
-  };
-
-  const openModal = (type: ModalType, item?: Contrato) => {
-    setModalType(type);
-    setSelected(item || null);
-  };
-
-  const closeModal = () => {
-    setModalType(null);
-    setSelected(null);
-  };
-
-  const handleDelete = async () => {
-    if (!selected) return;
-    try {
-      setSubmitting(true);
-      await apiClient.delete(`/crm-vendas/contratos/${selected.id}/`);
-      await loadContratos();
-      closeModal();
-    } catch (err: unknown) {
-      toast.error(getCrmApiErrorDetail(err, 'Erro ao excluir.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const filtroOpcoes = ['', 'rascunho', 'enviado', 'assinado', 'cancelado'].map((s) => ({
-    value: s,
-    label:
-      s === ''
-        ? `Todos (${contratos.length})`
-        : `${STATUS_LABEL[s] || s} (${contratos.filter((c) => c.status === s).length})`,
-  }));
-
-  if (loading) {
+  if (loading && contratos.length === 0) {
     return (
       <div className="space-y-4">
         <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse" />
@@ -170,34 +70,34 @@ export default function CrmVendasContratosPage() {
 
   return (
     <>
-    <CrmDocumentoListPageShell
-      titulo="Criar Contrato"
-      subtitulo="Gere contratos a partir das oportunidades fechadas como ganhas"
-      slug={slug}
-      error={error}
-      filtroStatus={filtroStatus}
-      onFiltroChange={setFiltroStatus}
-      filtroOpcoes={filtroOpcoes}
-      headerActions={
-        <>
-          <Link
-            href={`/loja/${slug}/crm-vendas/contrato-templates`}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded text-sm font-medium transition-colors shadow-sm"
-          >
-            <FileSignature size={18} />
-            <span>Gerenciar Templates</span>
-          </Link>
-          <button
-            type="button"
-            onClick={() => router.push(`/loja/${slug}/crm-vendas/contratos/nova`)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm"
-          >
-            <Plus size={18} />
-            <span>Novo Contrato</span>
-          </button>
-        </>
-      }
-    >
+      <CrmDocumentoListPageShell
+        titulo="Criar Contrato"
+        subtitulo="Gere contratos a partir das oportunidades fechadas como ganhas"
+        slug={slug}
+        error={error}
+        filtroStatus={filtroStatus}
+        onFiltroChange={setFiltroStatus}
+        filtroOpcoes={filtroOpcoes}
+        headerActions={
+          <>
+            <Link
+              href={`/loja/${slug}/crm-vendas/contrato-templates`}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded text-sm font-medium transition-colors shadow-sm"
+            >
+              <FileSignature size={18} />
+              <span>Gerenciar Templates</span>
+            </Link>
+            <button
+              type="button"
+              onClick={irParaNovoContrato}
+              className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm"
+            >
+              <Plus size={18} />
+              <span>Novo Contrato</span>
+            </button>
+          </>
+        }
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[500px]">
             <thead>
@@ -300,10 +200,10 @@ export default function CrmVendasContratosPage() {
                               </button>
                             )}
                             <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>
-                            <button type="button" onClick={() => router.push(`/loja/${slug}/crm-vendas/contratos/${c.id}/editar`)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>
+                            <button type="button" onClick={() => irParaEditarContrato(c.id)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>
                             <button
                               type="button"
-                              onClick={() => { openModal('cancelar', c); }}
+                              onClick={() => openModal('cancelar', c)}
                               disabled={alterandoStatus !== null}
                               className="p-1.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-900/50 disabled:opacity-50"
                               title="Cancelar contrato"
@@ -330,7 +230,7 @@ export default function CrmVendasContratosPage() {
           itemLabel="contratos"
           onPageChange={setPage}
         />
-    </CrmDocumentoListPageShell>
+      </CrmDocumentoListPageShell>
 
       <div className="px-4 py-3 bg-gray-50 dark:bg-[#0d1f3c]/30 rounded-lg border border-gray-200 dark:border-[#0d1f3c]">
         <p className="text-xs text-gray-500 dark:text-gray-400 text-center">

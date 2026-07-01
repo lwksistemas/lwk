@@ -13,6 +13,10 @@ from .documentos import (
 from .leads import LeadListSerializer, LeadSerializer
 from .oportunidade_items import OportunidadeItemSerializer
 from .oportunidades import OportunidadeSerializer
+from .financeiro import (
+    GrupoFinanceiroCRMSerializer,
+    LancamentoFinanceiroCRMSerializer,
+)
 from .vendedores import VendedorSerializer
 
 __all__ = [
@@ -32,4 +36,6 @@ __all__ = [
     'ContratoTemplateSerializer',
     'ContratoSerializer',
     'CRMConfigSerializer',
+    'GrupoFinanceiroCRMSerializer',
+    'LancamentoFinanceiroCRMSerializer',
 ]

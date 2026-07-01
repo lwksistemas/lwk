@@ -52,6 +52,11 @@ from .views_google_calendar import (
     google_calendar_disconnect,
 )
 from .views_asaas_webhook import asaas_loja_webhook
+from .views_financeiro import (
+    GrupoFinanceiroCRMViewSet,
+    LancamentoFinanceiroCRMViewSet,
+    financeiro_crm_resumo,
+)
 
 router = DefaultRouter()
 router.register(r'vendedores', VendedorViewSet, basename='crm-vendedores')
@@ -67,6 +72,8 @@ router.register(r'propostas', PropostaViewSet, basename='crm-propostas')
 router.register(r'proposta-templates', PropostaTemplateViewSet, basename='crm-proposta-templates')
 router.register(r'contratos', ContratoViewSet, basename='crm-contratos')
 router.register(r'contrato-templates', ContratoTemplateViewSet, basename='crm-contrato-templates')
+router.register(r'financeiro-grupos', GrupoFinanceiroCRMViewSet, basename='crm-financeiro-grupos')
+router.register(r'financeiro-lancamentos', LancamentoFinanceiroCRMViewSet, basename='crm-financeiro-lancamentos')
 
 urlpatterns = [
     # Webhook Asaas por loja (conta própria no Asaas — configurar URL no painel da loja)
@@ -90,6 +97,7 @@ urlpatterns = [
     path('whatsapp-config/disconnect/', CRMWhatsAppDisconnectView.as_view()),
     path('login-config/', LoginConfigView.as_view()),
     path('relatorios/gerar/', gerar_relatorio),
+    path('financeiro/resumo/', financeiro_crm_resumo),
     # Relatórios de Comissão (workflow completo)
     path('relatorios-comissao/', listar_relatorios_comissao_view),
     path('relatorios-comissao/resumo/', resumo_relatorio_comissao_view),

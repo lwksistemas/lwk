@@ -186,6 +186,13 @@ class OportunidadeService:
             setattr(instance, attr, value)
         instance.save()
 
+        # Receita automática de comissão ao fechar venda
+        try:
+            from .services_financeiro import sincronizar_receita_comissao_oportunidade
+            sincronizar_receita_comissao_oportunidade(instance)
+        except Exception as exc:
+            logger.warning('Falha ao sincronizar receita comissão opp=%s: %s', instance.id, exc)
+
         # Sincronizar valor_total das propostas em rascunho quando valor da oportunidade muda
         if 'valor' in validated_data:
             from .models import Proposta, Contrato

@@ -12,10 +12,12 @@ from .oportunidade_items import OportunidadeItem
 from .documentos import Contrato, Proposta
 from .templates import ContratoTemplate, PropostaTemplate
 from .assinaturas import AssinaturaDigital
+from .financeiro import GrupoFinanceiroCRM, LancamentoFinanceiroCRM
 
 __all__ = [
     'Vendedor', 'Conta', 'Lead', 'Contato', 'Oportunidade', 'Atividade',
     'CategoriaProdutoServico', 'ProdutoServico', 'OportunidadeItem',
     'Proposta', 'Contrato', 'PropostaTemplate', 'ContratoTemplate',
     'AssinaturaDigital', 'CRMConfig', 'RelatorioComissao',
+    'GrupoFinanceiroCRM', 'LancamentoFinanceiroCRM',
 ]

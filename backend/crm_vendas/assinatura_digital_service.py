@@ -345,6 +345,11 @@ def _fechar_oportunidade_como_ganha(documento):
             oportunidade.valor = valor_com_desconto
             update_fields.append('valor')
         oportunidade.save(update_fields=update_fields)
+        try:
+            from .services_financeiro import sincronizar_receita_comissao_oportunidade
+            sincronizar_receita_comissao_oportunidade(oportunidade)
+        except Exception as sync_exc:
+            logger.warning('Erro ao sincronizar receita comissão opp=%s: %s', oportunidade.id, sync_exc)
         logger.info(
             'Oportunidade %s fechada como ganha automaticamente (assinatura concluída do documento %s)',
             oportunidade.id, documento.id,

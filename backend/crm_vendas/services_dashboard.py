@@ -16,6 +16,19 @@ logger = logging.getLogger(__name__)
 ETAPAS_EM_ANDAMENTO = ['prospecting', 'qualification', 'proposal', 'negotiation']
 ETAPAS_PIPELINE = ['prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost']
 
+# Mês/semana: só oportunidades criadas no intervalo. Trimestre/ano: pipeline aberto atual.
+PERIODOS_PIPELINE_CRIACAO_ESTRITA = frozenset({
+    'mes_atual', 'mes_passado', 'hoje', 'ontem', 'semana_atual', 'semana_passada', 'personalizado',
+})
+
+
+def _filtro_oportunidades_abertas_periodo(periodo, data_inicio, data_fim):
+    """Etapas abertas no dashboard conforme o tipo de período."""
+    base = Q(etapa__in=ETAPAS_EM_ANDAMENTO)
+    if periodo in PERIODOS_PIPELINE_CRIACAO_ESTRITA:
+        return base & Q(created_at__date__gte=data_inicio, created_at__date__lte=data_fim)
+    return base
+
 _ATIVIDADE_VALUES = (
     'id', 'titulo', 'tipo', 'data', 'concluido', 'observacoes', 'lead__nome',
 )
@@ -188,9 +201,7 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
         opp_qs = opp_qs.filter(etapa__in=['closed_won', 'closed_lost'])
 
     filtro_opp_mes = _filtro_fechamento_no_periodo(data_inicio, data_fim)
-    # Oportunidades abertas no período: criadas entre data_inicio e data_fim
-    filtro_criado_periodo = Q(created_at__date__gte=data_inicio, created_at__date__lte=data_fim)
-    filtro_abertas_periodo = Q(etapa__in=ETAPAS_EM_ANDAMENTO) & filtro_criado_periodo
+    filtro_abertas_periodo = _filtro_oportunidades_abertas_periodo(periodo, data_inicio, data_fim)
 
     # Agregações principais (1 query)
     agg = opp_qs.aggregate(

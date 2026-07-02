@@ -19,7 +19,7 @@
 ### 📋 Pendente (baixo risco, opcional):
 - **Backend `pdf_proposta_contrato/`** — reduzir duplicação proposta/contrato (funcional, não urgente)
 - **Secrets E2E** — configurados no GitHub (`CRM_E2E_EMAIL`, `CRM_E2E_PASSWORD`, `CRM_E2E_LOJA_SLUG=vendasbeta`); opcional `CRM_E2E_ASSINATURA_TOKEN`
-- **CI** — `lxml` no `requirements.txt`; job E2E autenticado sem `if` inválido em secrets
+- **CI** — `lxml>=6.1.0` no requirements; E2E login aguarda saída de `/login`
 - **API com tenant real** — migrations CRM não rodam em SQLite; smoke com mocks cobre rotas principais
 
 ## Hooks / páginas

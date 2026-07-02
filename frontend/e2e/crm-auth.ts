@@ -9,6 +9,10 @@ export function crmE2eCredentials(): { email: string; password: string } | null 
   return { email, password };
 }
 
+function slugRegex(slug: string): string {
+  return slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /** Login na loja; retorna false se a loja não estiver disponível (skip do teste). */
 export async function loginCrmLoja(page: Page, slug = CRM_E2E_SLUG): Promise<boolean> {
   await page.goto(`/loja/${slug}/login`);
@@ -32,8 +36,14 @@ export async function loginCrmLoja(page: Page, slug = CRM_E2E_SLUG): Promise<boo
   }
   await senha.fill(creds.password);
   await page.getByRole('button', { name: /entrar/i }).click();
-  await page.waitForURL(new RegExp(`/loja/${slug}/`), { timeout: 45000 });
-  return true;
+
+  const posLogin = new RegExp(`/loja/${slugRegex(slug)}/(crm-vendas|dashboard|trocar-senha)`);
+  try {
+    await page.waitForURL(posLogin, { timeout: 45000 });
+  } catch {
+    return false;
+  }
+  return !page.url().includes('/login');
 }
 
 export async function visitarCrmAutenticado(
@@ -44,5 +54,6 @@ export async function visitarCrmAutenticado(
   await page.goto(`/loja/${slug}/crm-vendas${path}`);
   await page.waitForLoadState('networkidle');
   const url = page.url();
-  expect(url).toMatch(new RegExp(`/loja/${slug}/crm-vendas`));
+  expect(url).toMatch(new RegExp(`/loja/${slugRegex(slug)}/crm-vendas`));
+  expect(url).not.toMatch(/\/login/);
 }

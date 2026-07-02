@@ -2,18 +2,16 @@
 Views para OAuth e sincronização com Google Calendar.
 """
 import logging
-from datetime import timedelta
 
 from django.conf import settings
-from django.shortcuts import redirect
-from django.utils import timezone
-from django.utils.dateparse import parse_datetime
+from django.core.cache import cache
+from django.db.models import Q
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from superadmin.models import GoogleCalendarConnection, Loja
+from superadmin.models import GoogleCalendarConnection
 from tenants.middleware import get_current_loja_id, set_current_loja_id
 
 from .utils import get_current_vendedor_id
@@ -24,66 +22,25 @@ from .google_calendar_service import (
     pull_events_from_google,
     push_atividade_to_google,
 )
+from .google_calendar_helpers import (
+    MAX_SYNC_ERRORS_RETURNED,
+    SYNC_DIRECTION_BOTH,
+    SYNC_DIRECTION_PULL,
+    SYNC_DIRECTION_PUSH_ONLY,
+    VALID_SYNC_DIRECTIONS,
+    extract_email_from_credentials,
+    get_connection_for_loja_and_vendedor,
+    get_loja_slug_by_id,
+    get_redirect_uri,
+    normalize_token_expiry,
+    parse_google_event_start,
+    pull_events_time_range,
+    redirect_calendario,
+)
 from .models import Atividade
 from core.oauth_state import encode_oauth_state, parse_oauth_state
 
 logger = logging.getLogger(__name__)
-
-# Constantes
-FRONTEND_BASE = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')
-SYNC_DIRECTION_PUSH_ONLY = 'push_only'
-SYNC_DIRECTION_PULL = 'pull'
-SYNC_DIRECTION_BOTH = 'both'
-VALID_SYNC_DIRECTIONS = (SYNC_DIRECTION_PUSH_ONLY, SYNC_DIRECTION_PULL, SYNC_DIRECTION_BOTH)
-PULL_EVENTS_DAYS = 365
-MAX_SYNC_ERRORS_RETURNED = 10
-
-
-def _normalize_token_expiry(expiry):
-    """Normaliza expiry para UTC aware (evita erro naive/aware no refresh)."""
-    if not expiry:
-        return None
-    if timezone.is_naive(expiry):
-        return timezone.make_aware(expiry, timezone.utc)
-    return expiry.astimezone(timezone.utc)
-
-
-def _get_redirect_uri(request):
-    """Monta a URL de callback para OAuth (deve coincidir com a configurada no Google Cloud)."""
-    scheme = request.META.get('HTTP_X_FORWARDED_PROTO', request.scheme)
-    if not getattr(settings, 'DEBUG', False) and scheme != 'https':
-        scheme = 'https'
-    host = request.get_host()
-    return f'{scheme}://{host}/api/crm-vendas/google-calendar/callback/'
-
-
-def _get_loja_slug_by_id(loja_id):
-    """Retorna o slug da loja pelo id (consulta no banco default)."""
-    if not loja_id:
-        return None
-    loja = Loja.objects.using('default').filter(id=loja_id).first()
-    return loja.slug if loja else None
-
-
-def _get_connection_for_loja_and_vendedor(loja_id, vendedor_id=None):
-    """
-    Retorna a conexão Google Calendar da loja (e vendedor, se houver).
-    vendedor_id=None = conexão do proprietário.
-    """
-    if not loja_id:
-        return None
-    qs = GoogleCalendarConnection.objects.using('default').filter(loja_id=loja_id)
-    if vendedor_id is None:
-        qs = qs.filter(vendedor_id__isnull=True)
-    else:
-        qs = qs.filter(vendedor_id=vendedor_id)
-    return qs.first()
-
-
-def _redirect_calendario(slug, success=True):
-    """URL de redirecionamento para a página de calendário do CRM."""
-    param = 'google_connected=1' if success else 'google_error=1'
-    return redirect(f'{FRONTEND_BASE}/loja/{slug or "unknown"}/crm-vendas/calendario?{param}')
 
 
 @api_view(['GET'])
@@ -101,7 +58,7 @@ def google_calendar_auth(request):
         )
     vendedor_id = get_current_vendedor_id(request)
     try:
-        redirect_uri = _get_redirect_uri(request)
+        redirect_uri = get_redirect_uri(request)
         flow = get_flow(redirect_uri)
         auth_url, _ = flow.authorization_url(
             access_type='offline',
@@ -139,8 +96,8 @@ def google_calendar_callback(request):
         logger.warning('Google OAuth error: %s', error)
         state = request.GET.get('state')
         loja_id, _ = parse_oauth_state(state)
-        slug = _get_loja_slug_by_id(loja_id)
-        return _redirect_calendario(slug, success=False)
+        slug = get_loja_slug_by_id(loja_id)
+        return redirect_calendario(slug, success=False)
 
     code = request.GET.get('code')
     if not code:
@@ -158,12 +115,12 @@ def google_calendar_callback(request):
 
     set_current_loja_id(loja_id)
     try:
-        redirect_uri = _get_redirect_uri(request)
+        redirect_uri = get_redirect_uri(request)
         flow = get_flow(redirect_uri)
         flow.fetch_token(code=code)
         credentials = flow.credentials
-        email = _extract_email_from_credentials(credentials)
-        token_expiry = _normalize_token_expiry(credentials.expiry)
+        email = extract_email_from_credentials(credentials)
+        token_expiry = normalize_token_expiry(credentials.expiry)
         defaults = {
             'access_token': credentials.token,
             'refresh_token': credentials.refresh_token or '',
@@ -190,42 +147,21 @@ def google_calendar_callback(request):
                 conn.refresh_token = credentials.refresh_token
                 update_fields.append('refresh_token')
             conn.save(update_fields=update_fields)
-        slug = _get_loja_slug_by_id(loja_id)
-        from django.core.cache import cache
+        slug = get_loja_slug_by_id(loja_id)
         cache.delete(f'gcal_status:{loja_id}:owner')
         if vendedor_id is not None:
             cache.delete(f'gcal_status:{loja_id}:{vendedor_id}')
-        return _redirect_calendario(slug, success=True)
+        return redirect_calendario(slug, success=True)
     except Exception as e:
         logger.exception('Erro no callback Google Calendar: %s', e)
-        slug = _get_loja_slug_by_id(loja_id)
-        return _redirect_calendario(slug, success=False)
-
-
-def _extract_email_from_credentials(credentials):
-    """Extrai email do id_token das credenciais OAuth, se disponível."""
-    if not getattr(credentials, 'id_token', None):
-        return None
-    try:
-        from google.oauth2 import id_token
-        from google.auth.transport.requests import Request as GoogleRequest
-        decoded = id_token.verify_oauth2_token(
-            credentials.id_token,
-            GoogleRequest(),
-            settings.GOOGLE_CLIENT_ID,
-        )
-        return decoded.get('email')
-    except Exception as e:
-        logger.debug('Não foi possível extrair email do id_token: %s', e)
-        return None
+        slug = get_loja_slug_by_id(loja_id)
+        return redirect_calendario(slug, success=False)
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def google_calendar_status(request):
     """Retorna se a loja (ou vendedor) tem conexão com Google Calendar e email (se houver)."""
-    from django.core.cache import cache
-
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({'connected': False, 'email': None})
@@ -234,7 +170,7 @@ def google_calendar_status(request):
     cached = cache.get(cache_key)
     if cached is not None:
         return Response(cached)
-    conn = _get_connection_for_loja_and_vendedor(loja_id, vendedor_id)
+    conn = get_connection_for_loja_and_vendedor(loja_id, vendedor_id)
     if not conn:
         payload = {'connected': False, 'email': None}
     else:
@@ -267,7 +203,7 @@ def google_calendar_sync(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     vendedor_id = get_current_vendedor_id(request)
-    conn = _get_connection_for_loja_and_vendedor(loja_id, vendedor_id)
+    conn = get_connection_for_loja_and_vendedor(loja_id, vendedor_id)
     if not conn:
         return Response(
             {'detail': 'Conecte o Google Calendar antes de sincronizar.'},
@@ -289,7 +225,6 @@ def google_calendar_sync(request):
                 {'detail': 'Token expirado ou inválido. Desconecte e conecte o Google Calendar novamente.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        from django.db.models import Q
         atividades_qs = Atividade.objects.filter(loja_id=loja_id).order_by('data')
         if vendedor_id is not None:
             atividades_qs = atividades_qs.filter(
@@ -306,8 +241,7 @@ def google_calendar_sync(request):
 
     pulled = 0
     if direction in (SYNC_DIRECTION_PULL, SYNC_DIRECTION_BOTH):
-        time_min = timezone.now()
-        time_max = time_min + timedelta(days=PULL_EVENTS_DAYS)
+        time_min, time_max = pull_events_time_range()
         events = pull_events_from_google(conn, time_min, time_max)
         existing_ids = set(
             Atividade.objects.filter(loja_id=loja_id)
@@ -319,7 +253,7 @@ def google_calendar_sync(request):
             gid = ev.get('id')
             if not gid or gid in existing_ids:
                 continue
-            dt = _parse_google_event_start(ev)
+            dt = parse_google_event_start(ev)
             if not dt:
                 continue
             summary = (ev.get('summary') or 'Evento Google')[:255]
@@ -342,27 +276,6 @@ def google_calendar_sync(request):
     })
 
 
-def _parse_google_event_start(ev):
-    """
-    Extrai datetime de início de um evento da API Google Calendar.
-    Suporta dateTime (com hora) e date (all-day, usa 09:00 como hora padrão).
-    """
-    start = ev.get('start') or {}
-    dt_str = start.get('dateTime')
-    date_str = start.get('date')
-    if dt_str:
-        dt = parse_datetime(dt_str)
-        if dt:
-            if timezone.is_naive(dt):
-                return timezone.make_aware(dt)
-            return dt
-    if date_str:
-        parsed = parse_datetime(f'{date_str}T09:00:00')
-        if parsed:
-            return timezone.make_aware(parsed) if timezone.is_naive(parsed) else parsed
-    return None
-
-
 @api_view(['DELETE', 'POST'])
 @permission_classes([IsAuthenticated])
 def google_calendar_disconnect(request):
@@ -381,7 +294,6 @@ def google_calendar_disconnect(request):
         qs = qs.filter(vendedor_id=vendedor_id)
     deleted, _ = qs.delete()
     if deleted:
-        from django.core.cache import cache
         cache.delete(f'gcal_status:{loja_id}:owner')
         if vendedor_id is not None:
             cache.delete(f'gcal_status:{loja_id}:{vendedor_id}')

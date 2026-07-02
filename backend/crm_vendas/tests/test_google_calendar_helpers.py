@@ -4,36 +4,36 @@ from datetime import datetime, timezone as dt_timezone
 from django.test import SimpleTestCase
 from django.utils import timezone
 
-from crm_vendas.views_google_calendar import (
+from crm_vendas.google_calendar_helpers import (
     SYNC_DIRECTION_BOTH,
     SYNC_DIRECTION_PULL,
     SYNC_DIRECTION_PUSH_ONLY,
     VALID_SYNC_DIRECTIONS,
-    _normalize_token_expiry,
-    _parse_google_event_start,
+    normalize_token_expiry,
+    parse_google_event_start,
 )
 
 
 class GoogleCalendarHelpersTest(SimpleTestCase):
     def test_parse_event_start_datetime(self):
         ev = {'start': {'dateTime': '2026-06-15T14:30:00+00:00'}}
-        dt = _parse_google_event_start(ev)
+        dt = parse_google_event_start(ev)
         self.assertIsNotNone(dt)
         self.assertTrue(timezone.is_aware(dt))
 
     def test_parse_event_start_all_day(self):
         ev = {'start': {'date': '2026-06-15'}}
-        dt = _parse_google_event_start(ev)
+        dt = parse_google_event_start(ev)
         self.assertIsNotNone(dt)
         self.assertEqual(dt.hour, 9)
 
     def test_parse_event_start_vazio(self):
-        self.assertIsNone(_parse_google_event_start({}))
-        self.assertIsNone(_parse_google_event_start({'start': {}}))
+        self.assertIsNone(parse_google_event_start({}))
+        self.assertIsNone(parse_google_event_start({'start': {}}))
 
     def test_normalize_token_expiry_naive(self):
         naive = datetime(2026, 6, 1, 12, 0, 0)
-        aware = _normalize_token_expiry(naive)
+        aware = normalize_token_expiry(naive)
         self.assertTrue(timezone.is_aware(aware))
         self.assertEqual(aware.tzinfo, dt_timezone.utc)
 

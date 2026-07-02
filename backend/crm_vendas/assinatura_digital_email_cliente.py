@@ -1,141 +1,54 @@
 """Template de e-mail: convite cliente."""
-from django.utils import timezone
-
-from .assinatura_digital_token import TOKEN_EXPIRACAO_DIAS
+from .assinatura_digital_email_layout import (
+    TOKEN_EXPIRACAO_DIAS,
+    cta_assinar_html,
+    doc_info_box_html,
+    header_html,
+    info_box_amarelo_html,
+    montar_email_html,
+    rodape_texto_padrao,
+)
 
 
 def montar_email_cliente_assinatura(*, lead, documento, loja_nome, link_assinatura, tipo_doc):
-    html_content = f"""
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Assinatura Digital - {tipo_doc}</title>
-    </head>
-    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px 0;">
-            <tr>
-                <td align="center">
-                    <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <!-- Header (Outlook-compatible: bgcolor + background-color sólido, gradient como enhancement) -->
-                        <tr>
-                            <td bgcolor="#667eea" style="background-color: #667eea; background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; border-radius: 8px 8px 0 0; text-align: center;">
-                                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">
-                                    📄 Assinatura Digital
-                                </h1>
-                                <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
-                                    {tipo_doc} aguardando sua assinatura
-                                </p>
-                            </td>
-                        </tr>
-                        
-                        <!-- Body -->
-                        <tr>
-                            <td style="padding: 40px 30px;">
+    valor = documento.valor_total or '0,00'
+    body = f"""
                                 <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
                                     Olá <strong>{lead.nome}</strong>,
                                 </p>
-                                
                                 <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 30px 0;">
                                     Você recebeu um(a) <strong>{tipo_doc.lower()}</strong> de <strong>{loja_nome}</strong> para assinatura digital.
                                 </p>
-                                
-                                <!-- Document Info Box -->
-                                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid #667eea; border-radius: 4px; margin-bottom: 30px;">
-                                    <tr>
-                                        <td style="padding: 20px;">
-                                            <table width="100%" cellpadding="0" cellspacing="0">
-                                                <tr>
-                                                    <td style="color: #666666; font-size: 13px; padding-bottom: 8px;">
-                                                        <strong>Título:</strong>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td style="color: #333333; font-size: 16px; font-weight: 600; padding-bottom: 15px;">
-                                                        {documento.titulo}
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td style="color: #666666; font-size: 13px; padding-bottom: 8px;">
-                                                        <strong>Valor Total:</strong>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td style="color: #10b981; font-size: 20px; font-weight: 700;">
-                                                        R$ {documento.valor_total or "0,00"}
-                                                    </td>
-                                                </tr>
-                                            </table>
-                                        </td>
-                                    </tr>
-                                </table>
-                                
-                                <!-- CTA Button (bulletproof Outlook-compatible) -->
-                                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
-                                    <tr>
-                                        <td align="center">
-                                            <!--[if mso]>
-                                            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{link_assinatura}" style="height:52px;v-text-anchor:middle;width:340px;" arcsize="12%" strokecolor="#667eea" fillcolor="#667eea">
-                                                <w:anchorlock/>
-                                                <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">&#9997; Visualizar e Assinar Documento</center>
-                                            </v:roundrect>
-                                            <![endif]-->
-                                            <!--[if !mso]><!-- -->
-                                            <a href="{link_assinatura}" style="display: inline-block; background-color: #667eea; background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff !important; text-decoration: none; padding: 16px 40px; border-radius: 6px; font-size: 16px; font-weight: 600; mso-hide: all;">
-                                                ✍️ Visualizar e Assinar Documento
-                                            </a>
-                                            <!--<![endif]-->
-                                        </td>
-                                    </tr>
-                                </table>
-                                
-                                <!-- Info Box -->
-                                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fff3cd; border-radius: 4px; margin-bottom: 20px;">
-                                    <tr>
-                                        <td style="padding: 15px;">
-                                            <p style="color: #856404; font-size: 13px; margin: 0; line-height: 1.5;">
-                                                ⏰ <strong>Atenção:</strong> Este link é válido por <strong>{TOKEN_EXPIRACAO_DIAS} dias</strong>. Após este período, será necessário solicitar um novo link de assinatura.
-                                            </p>
-                                        </td>
-                                    </tr>
-                                </table>
-                                
+                                {doc_info_box_html(
+                                    rows=[
+                                        ('Título', documento.titulo),
+                                        ('Valor Total', f'R$ {valor}'),
+                                    ],
+                                    border_color='#667eea',
+                                    bg_color='#f8f9fa',
+                                )}
+                                {cta_assinar_html(link=link_assinatura, color='#667eea', gradient_end='#764ba2')}
+                                {info_box_amarelo_html(
+                                    f'⏰ <strong>Atenção:</strong> Este link é válido por <strong>{TOKEN_EXPIRACAO_DIAS} dias</strong>. '
+                                    'Após este período, será necessário solicitar um novo link de assinatura.'
+                                )}
                                 <p style="color: #666666; font-size: 14px; line-height: 1.6; margin: 0;">
                                     Se você tiver alguma dúvida sobre este documento, entre em contato conosco.
-                                </p>
-                            </td>
-                        </tr>
-                        
-                        <!-- Footer -->
-                        <tr>
-                            <td style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; text-align: center; border-top: 1px solid #e9ecef;">
-                                <p style="color: #333333; font-size: 15px; font-weight: 600; margin: 0 0 10px 0;">
-                                    {loja_nome}
-                                </p>
-                                <p style="color: #666666; font-size: 13px; margin: 0; line-height: 1.5;">
-                                    Este é um email automático. Por favor, não responda.
-                                </p>
-                            </td>
-                        </tr>
-                    </table>
-                    
-                    <!-- Footer Text -->
-                    <table width="600" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
-                        <tr>
-                            <td align="center">
-                                <p style="color: #999999; font-size: 12px; margin: 0;">
-                                    © {timezone.now().year} {loja_nome}. Todos os direitos reservados.
-                                </p>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </body>
-    </html>
-    """
+                                </p>"""
+
+    html_content = montar_email_html(
+        title=f'Assinatura Digital - {tipo_doc}',
+        loja_nome=loja_nome,
+        header=header_html(
+            bgcolor='#667eea',
+            gradient_end='#764ba2',
+            title='📄 Assinatura Digital',
+            subtitle=f'{tipo_doc} aguardando sua assinatura',
+        ),
+        body=body,
+        footer_tagline='Este é um email automático. Por favor, não responda.',
+    )
+
     texto_plano = f"""
 Olá {lead.nome},
 
@@ -144,7 +57,7 @@ Você recebeu um(a) {tipo_doc.lower()} de {loja_nome} para assinatura digital.
 DETALHES DO DOCUMENTO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Título: {documento.titulo}
-Valor Total: R$ {documento.valor_total or "0,00"}
+Valor Total: R$ {valor}
 
 ASSINAR DOCUMENTO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -157,11 +70,6 @@ Se você tiver alguma dúvida sobre este documento, entre em contato conosco.
 
 Atenciosamente,
 {loja_nome}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Este é um email automático. Por favor, não responda.
-© {timezone.now().year} {loja_nome}. Todos os direitos reservados.
+{rodape_texto_padrao(loja_nome)}
     """
     return html_content, texto_plano
-
-

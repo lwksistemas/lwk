@@ -1,13 +1,27 @@
 'use client';
 
-import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import apiClient from '@/lib/api-client';
 import StatCard from '@/components/crm-vendas/StatCard';
 import SkeletonDashboard from '@/components/crm-vendas/SkeletonDashboard';
 import FunilVendas from '@/components/crm-vendas/FunilVendas';
+import {
+  Wallet,
+  Users,
+  Percent,
+  Calendar,
+  ChevronRight,
+  DollarSign,
+  TrendingDown,
+} from 'lucide-react';
+import { formatCrmBrl } from '@/lib/crm-utils';
+import { CRM_PERIODO_DASHBOARD_FILTRO, CRM_PERIODO_NOME } from '@/lib/crm-periodos';
+import {
+  formatarDataAtividade,
+  iconPorTipoAtividade,
+  labelTipoAtividade,
+  useCrmDashboardPage,
+} from '@/hooks/crm-vendas/useCrmDashboardPage';
 
 const SalesChart = dynamic(() => import('@/components/crm-vendas/SalesChart'), {
   ssr: false,
@@ -17,174 +31,26 @@ const SalesChart = dynamic(() => import('@/components/crm-vendas/SalesChart'), {
     </div>
   ),
 });
-import {
-  Wallet,
-  Users,
-  Percent,
-  Calendar,
-  Phone,
-  FileText,
-  Flag,
-  ChevronRight,
-  DollarSign,
-  TrendingDown,
-} from 'lucide-react';
-import { useCRMConfig } from '@/contexts/CRMConfigContext';
-import { authService } from '@/lib/auth';
-import { formatCrmBrl, normalizeListResponse } from '@/lib/crm-utils';
-import {
-  CRM_PERIODO_DASHBOARD_FILTRO,
-  CRM_PERIODO_NOME,
-  crmLabelsPeriodo,
-} from '@/lib/crm-periodos';
-
-function toISO(date: Date): string {
-  return date.toISOString().slice(0, 19) + 'Z';
-}
-
-interface DashboardData {
-  leads: number;
-  oportunidades: number;
-  receita: number;
-  pipeline_aberto: number;
-  oportunidades_em_andamento: number;
-  valor_perdido?: number;
-  taxa_conversao: number;
-  pipeline_por_etapa: { etapa: string; valor: number; quantidade: number }[];
-  atividades_hoje: unknown[];
-  performance_vendedores: { id: number | null; nome: string; receita_mes: number; comissao_mes: number }[];
-  comissao_total_mes: number;
-}
-
-const labelsPeriodo = crmLabelsPeriodo;
-
-const ETAPAS_LABEL: Record<string, string> = {
-  prospecting: 'Prospecção',
-  qualification: 'Qualificação',
-  proposal: 'Proposta',
-  negotiation: 'Negociação',
-  closed_won: 'Fechado (ganho)',
-  closed_lost: 'Fechado (perdido)',
-};
-
-const TIPO_LABEL_DASHBOARD: Record<string, string> = {
-  call: 'Ligação',
-  meeting: 'Reunião',
-  email: 'E-mail',
-  task: 'Tarefa',
-};
-
-function iconPorTipo(tipo: string) {
-  const t = (tipo || '').toLowerCase();
-  if (t.includes('reunião') || t.includes('reuniao')) return Calendar;
-  if (t.includes('ligar') || t.includes('call')) return Phone;
-  if (t.includes('proposta') || t.includes('enviar')) return FileText;
-  return Flag;
-}
 
 export default function CrmVendasDashboardPage() {
-  const params = useParams();
-  const slug = (params?.slug as string) ?? '';
-  const { etapasAtivas } = useCRMConfig();
-  const isVendedor = authService.isVendedor();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [proximasAtividades, setProximasAtividades] = useState<
-    { id: number; titulo: string; tipo: string; data: string; lead_nome?: string; concluido?: boolean }[]
-  >([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showFiltro, setShowFiltro] = useState(false);
-  const [periodoFiltro, setPeriodoFiltro] = useState('mes_atual');
-  const filtroRef = useRef<HTMLDivElement>(null);
-
-  const pipelineMap = useMemo(() => 
-    new Map(
-      (data?.pipeline_por_etapa || []).map((p) => [p.etapa, { valor: p.valor, quantidade: p.quantidade }])
-    )
-  , [data?.pipeline_por_etapa]);
-
-  // Apenas etapas ativas na configuração (respeita desmarcar em Personalizar)
-  const etapasComValor = useMemo(() => 
-    etapasAtivas().map((e) => ({
-      key: e.key,
-      label: e.label,
-      ...(pipelineMap.get(e.key) || { valor: 0, quantidade: 0 }),
-    }))
-  , [etapasAtivas, pipelineMap]);
-
-  const chartData = useMemo(() => 
-    etapasComValor.map((p) => ({
-      name: p.label,
-      valor: p.valor,
-      quantidade: p.quantidade,
-    }))
-  , [etapasComValor]);
-
-  // useCallback para event handlers
-  const handleClickOutside = useCallback((e: MouseEvent) => {
-    if (filtroRef.current && !filtroRef.current.contains(e.target as Node)) {
-      setShowFiltro(false);
-    }
-  }, []);
-
-  const toggleFiltro = useCallback(() => {
-    setShowFiltro((v) => !v);
-  }, []);
-
-  const selecionarPeriodo = useCallback((periodo: string) => {
-    setPeriodoFiltro(periodo);
-    setShowFiltro(false);
-  }, []);
-
-  useEffect(() => {
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [handleClickOutside]);
-
-  useEffect(() => {
-    setLoading(true);
-    const inicio = new Date();
-    inicio.setHours(0, 0, 0, 0);
-    const fim = new Date(inicio);
-    fim.setDate(fim.getDate() + 60);
-
-    Promise.allSettled([
-      apiClient.get<DashboardData>(`/crm-vendas/dashboard/?periodo=${periodoFiltro}`),
-      apiClient.get('/crm-vendas/atividades/', {
-        params: {
-          data_inicio: toISO(inicio),
-          data_fim: toISO(fim),
-          concluido: 'false',
-          page_size: 10,
-        },
-      }),
-    ])
-      .then(([dashResult, ativResult]) => {
-        if (dashResult.status === 'rejected') {
-          const err = dashResult.reason as { response?: { data?: { detail?: string } } };
-          throw new Error(err.response?.data?.detail || 'Erro ao carregar dashboard.');
-        }
-        setData(dashResult.value.data);
-        if (ativResult.status === 'fulfilled') {
-          const list = normalizeListResponse<{
-            id: number;
-            titulo: string;
-            tipo: string;
-            data: string;
-            concluido?: boolean;
-          }>(ativResult.value.data);
-          list.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
-          setProximasAtividades(list.slice(0, 5));
-        } else {
-          setProximasAtividades([]);
-        }
-      })
-      .catch((err: Error) => {
-        setError(err.message || 'Erro ao carregar dashboard.');
-        setProximasAtividades([]);
-      })
-      .finally(() => setLoading(false));
-  }, [periodoFiltro]);
+  const {
+    slug,
+    isVendedor,
+    etapasAtivas,
+    data,
+    proximasAtividades,
+    loading,
+    error,
+    showFiltro,
+    periodoFiltro,
+    filtroRef,
+    etapasComValor,
+    chartData,
+    periodoLabels,
+    chartTitle,
+    toggleFiltro,
+    selecionarPeriodo,
+  } = useCrmDashboardPage();
 
   if (loading) {
     return <SkeletonDashboard />;
@@ -200,11 +66,8 @@ export default function CrmVendasDashboardPage() {
 
   if (!data) return null;
 
-  const periodoLabels = labelsPeriodo(periodoFiltro);
-
   return (
     <div className="space-y-5">
-      {/* Page Header - Estilo Salesforce */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <Link
@@ -247,7 +110,7 @@ export default function CrmVendasDashboardPage() {
               </div>
             )}
           </div>
-          
+
           <a
             href={`/loja/${slug}/crm-vendas/leads/novo`}
             className="px-4 py-2 text-sm font-medium text-white bg-[#0176d3] hover:bg-[#0159a8] rounded transition-colors"
@@ -257,7 +120,6 @@ export default function CrmVendasDashboardPage() {
         </div>
       </div>
 
-      {/* Cards de métricas – estilo Salesforce Lightning */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title={periodoLabels.receita}
@@ -294,9 +156,7 @@ export default function CrmVendasDashboardPage() {
         />
       </div>
 
-      {/* Pipeline aberto + Comissão Total + resumo por etapa - Estilo Salesforce */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* Card de Pipeline Aberto */}
         <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-lg bg-[#d9f5f3] dark:bg-opacity-20">
@@ -314,7 +174,6 @@ export default function CrmVendasDashboardPage() {
           </p>
         </div>
 
-        {/* Card de Comissão Total do Mês */}
         <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-lg bg-[#fef0f7] dark:bg-opacity-20">
@@ -332,7 +191,6 @@ export default function CrmVendasDashboardPage() {
           </p>
         </div>
 
-        {/* Pipeline por Etapa */}
         <div className="lg:col-span-2 bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-5 overflow-hidden">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -371,15 +229,15 @@ export default function CrmVendasDashboardPage() {
         </div>
       </div>
 
-      {/* Gráfico Pipeline por etapa + Funil de Vendas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <SalesChart data={chartData.length > 0 ? chartData : undefined} title={`Pipeline por etapa — ${periodoFiltro === 'mes_atual' ? 'Mês Atual' : periodoFiltro === 'mes_passado' ? 'Mês Passado' : periodoFiltro === 'trimestre_atual' ? 'Trimestre' : 'Ano'}`} />
+        <SalesChart
+          data={chartData.length > 0 ? chartData : undefined}
+          title={`Pipeline por etapa — ${chartTitle}`}
+        />
         <FunilVendas dados={data?.pipeline_por_etapa || []} etapasConfig={etapasAtivas()} />
       </div>
 
-      {/* Atividades de hoje + Top Vendedores – duas colunas - Estilo Salesforce */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Atividades de hoje */}
         <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -413,35 +271,8 @@ export default function CrmVendasDashboardPage() {
           ) : (
             <ul className="space-y-3">
               {proximasAtividades.map((a) => {
-                const Icon = iconPorTipo(a.tipo);
-                let dataFormatada = '';
-                let atrasada = false;
-                if (a.data) {
-                  try {
-                    const date = new Date(a.data);
-                    const agora = new Date();
-                    const hoje = new Date();
-                    const amanha = new Date(hoje);
-                    amanha.setDate(amanha.getDate() + 1);
-                    atrasada = date.getTime() < agora.getTime();
-                    const isHoje = date.toDateString() === hoje.toDateString();
-                    const isAmanha = date.toDateString() === amanha.toDateString();
-                    const hora = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    if (atrasada) {
-                      const dia = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-                      dataFormatada = `Atrasada — ${dia} às ${hora}`;
-                    } else if (isHoje) {
-                      dataFormatada = `Hoje às ${hora}`;
-                    } else if (isAmanha) {
-                      dataFormatada = `Amanhã às ${hora}`;
-                    } else {
-                      const dia = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                      dataFormatada = `${dia} às ${hora}`;
-                    }
-                  } catch {
-                    dataFormatada = a.data;
-                  }
-                }
+                const Icon = iconPorTipoAtividade(a.tipo);
+                const { texto: dataFormatada } = a.data ? formatarDataAtividade(a.data) : { texto: '' };
 
                 return (
                   <li key={a.id}>
@@ -457,7 +288,7 @@ export default function CrmVendasDashboardPage() {
                           {a.titulo}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {TIPO_LABEL_DASHBOARD[a.tipo] || a.tipo}
+                          {labelTipoAtividade(a.tipo)}
                           {a.lead_nome ? ` • ${a.lead_nome}` : ''}
                           {dataFormatada ? ` • ${dataFormatada}` : ''}
                         </p>
@@ -471,7 +302,6 @@ export default function CrmVendasDashboardPage() {
           )}
         </div>
 
-        {/* Top Vendedores – oculto para vendedores (informação já disponível em relatórios) */}
         {!isVendedor && data.performance_vendedores && data.performance_vendedores.length > 0 && (
           <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">

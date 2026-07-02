@@ -25,6 +25,7 @@ ENSURES = [
     ('ensure_financeiro_lojas', {}),
     ('ensure_relatorio_comissao_table', {}),
     ('ensure_crm_config_colunas', {}),
+    ('ensure_crm_atividade_colunas', {}),
     ('ensure_crm_financeiro_tabelas', {}),
     ('ensure_clinica_beleza_consultas', {}),
     ('ensure_appointment_duracao_minutos', {}),

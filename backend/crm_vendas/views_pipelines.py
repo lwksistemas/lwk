@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from core.views import BaseModelViewSet
-from tenants.middleware import get_current_loja_id, get_current_tenant_db
+from tenants.middleware import get_current_loja_id
 from .activities_google_sync import (
     sync_atividade_create,
     sync_atividade_delete,
@@ -18,7 +18,12 @@ from .activities_google_sync import (
 from .atividade_whatsapp_service import enviar_atividade_whatsapp
 from .cache import CRMCacheManager
 from .decorators import cache_list_response
-from .mixins import CacheInvalidationMixin, CrmGranularPermissionMixin, VendedorFilterMixin
+from .mixins import (
+    CacheInvalidationMixin,
+    CrmGranularPermissionMixin,
+    CRMSchemaRecoveryMixin,
+    VendedorFilterMixin,
+)
 from .models import Atividade, Oportunidade, Vendedor
 from .serializers import (
     AtividadeListSerializer,
@@ -32,7 +37,13 @@ from .views_common import CRMPagination, aplicar_cache_control_sem_store, filtra
 logger = logging.getLogger(__name__)
 
 
-class OportunidadeViewSet(CrmGranularPermissionMixin, CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
+class OportunidadeViewSet(
+    CRMSchemaRecoveryMixin,
+    CrmGranularPermissionMixin,
+    CacheInvalidationMixin,
+    VendedorFilterMixin,
+    BaseModelViewSet,
+):
     queryset = Oportunidade.objects.select_related(
         'lead', 'vendedor', 'lead__conta', 'empresa_prestadora'
     ).prefetch_related('atividades').all()
@@ -43,22 +54,6 @@ class OportunidadeViewSet(CrmGranularPermissionMixin, CacheInvalidationMixin, Ve
     vendedor_filter_related = []
     cache_keys = ['oportunidades', 'dashboard']
     crm_permission_model = 'oportunidade'
-
-    def initial(self, request, *args, **kwargs):
-        super().initial(request, *args, **kwargs)
-        db_name = get_current_tenant_db()
-        if db_name and db_name != 'default':
-            try:
-                from django.db import connections
-
-                conn = connections[db_name]
-                with conn.cursor() as cur:
-                    cur.execute(
-                        'ALTER TABLE crm_vendas_atividade '
-                        'ADD COLUMN IF NOT EXISTS conta_id BIGINT NULL;'
-                    )
-            except Exception:
-                pass
 
     def _sanitize_vendedor_for_create(self, data):
         vendedor_id = data.get('vendedor')
@@ -119,7 +114,13 @@ class OportunidadeViewSet(CrmGranularPermissionMixin, CacheInvalidationMixin, Ve
         return filtrar_queryset_por_query_params(qs, self.request, {'etapa': 'etapa'})
 
 
-class AtividadeViewSet(CrmGranularPermissionMixin, CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
+class AtividadeViewSet(
+    CRMSchemaRecoveryMixin,
+    CrmGranularPermissionMixin,
+    CacheInvalidationMixin,
+    VendedorFilterMixin,
+    BaseModelViewSet,
+):
     queryset = (
         Atividade.objects.select_related(
             'oportunidade',
@@ -137,19 +138,6 @@ class AtividadeViewSet(CrmGranularPermissionMixin, CacheInvalidationMixin, Vende
     vendedor_filter_related = ['lead__oportunidades__vendedor_id']
     cache_keys = ['atividades', 'dashboard']
     crm_permission_model = 'atividade'
-
-    def _ensure_atividade_schema(self):
-        db_name = get_current_tenant_db()
-        if db_name and db_name != 'default':
-            from .schema_service import patch_atividade_lembrete_columns_if_missing
-            patch_atividade_lembrete_columns_if_missing(db_name)
-
-    def dispatch(self, request, *args, **kwargs):
-        try:
-            self._ensure_atividade_schema()
-        except Exception:
-            logger.exception('Falha ao aplicar patch de lembrete em atividades')
-        return super().dispatch(request, *args, **kwargs)
 
     def filter_by_vendedor(self, queryset):
         vendedor_id = get_current_vendedor_id(self.request)
@@ -238,7 +226,6 @@ class AtividadeViewSet(CrmGranularPermissionMixin, CacheInvalidationMixin, Vende
         extra_keys=['data_inicio', 'data_fim', 'concluido'],
     )
     def list(self, request, *args, **kwargs):
-        self._ensure_atividade_schema()
         return aplicar_cache_control_sem_store(super().list(request, *args, **kwargs))
 
     @action(detail=True, methods=['post'], url_path='enviar-whatsapp')

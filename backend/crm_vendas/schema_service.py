@@ -82,7 +82,13 @@ def configurar_schema_crm_loja(loja) -> bool:
             Loja.objects.filter(pk=loja.pk).update(database_created=True)
             logger.info(f"Loja {loja.slug} marcada como database_created=True")
 
-        # 5. Fechar conexão para forçar nova conexão com schema correto no retry
+        # 5. Patches SQL idempotentes (colunas que migrations podem não ter aplicado em tenants legados)
+        try:
+            apply_crm_tenant_schema_patches(db_name)
+        except Exception as patch_exc:
+            logger.warning('configurar_schema_crm_loja: patches SQL em %s: %s', db_name, patch_exc)
+
+        # 6. Fechar conexão para forçar nova conexão com schema correto no retry
         if db_name in connections:
             try:
                 connections[db_name].close()
@@ -93,6 +99,36 @@ def configurar_schema_crm_loja(loja) -> bool:
     except Exception as e:
         logger.exception("configurar_schema_crm_loja: %s", e)
         return False
+
+
+def apply_crm_tenant_schema_patches(db_name: str) -> None:
+    """
+    Aplica todos os patches SQL idempotentes do CRM no schema do tenant.
+    Usar em provisionamento, release (ensure_*) e recovery — nunca no hot path de requests.
+    """
+    patch_crm_vendas_asaas_columns_if_missing(db_name)
+    patch_crm_vendas_atividade_columns_if_missing(db_name)
+
+
+def patch_atividade_schema_on_column_error(exc: Exception, db_name: str | None) -> bool:
+    """
+    Recovery pontual quando ORM falha por coluna ausente em crm_vendas_atividade.
+    Retorna True se um patch foi aplicado (caller pode repetir a operação).
+    """
+    from django.db.utils import OperationalError, ProgrammingError
+
+    if not db_name or db_name == 'default':
+        return False
+    if not isinstance(exc, (ProgrammingError, OperationalError)):
+        return False
+    err_txt = str(exc).lower()
+    if 'does not exist' not in err_txt and 'column' not in err_txt:
+        return False
+    triggers = ('crm_vendas_atividade', 'lembrete_whatsapp', 'conta_id')
+    if not any(t in err_txt for t in triggers):
+        return False
+    patch_crm_vendas_atividade_columns_if_missing(db_name)
+    return True
 
 
 def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
@@ -170,7 +206,6 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
             '0046_add_portal_emissor_fields',
             '0047_certificado_binary',
             '0049_crmconfig_issnet_ambiente_homologacao',
-            '0056_atividade_conta',
             '0059_crmconfig_asaas_webhook_token',
         ]:
             cursor.execute(
@@ -181,19 +216,10 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
                 ");",
                 ['crm_vendas', mig_name, timezone.now(), 'crm_vendas', mig_name],
             )
-        # Migration 0056: campo conta_id na tabela atividade
-        cursor.execute(
-            "ALTER TABLE crm_vendas_atividade "
-            "ADD COLUMN IF NOT EXISTS conta_id BIGINT NULL;"
-        )
-        cursor.execute(
-            "CREATE INDEX IF NOT EXISTS crm_ativ_loja_conta_idx "
-            "ON crm_vendas_atividade (loja_id, conta_id);"
-        )
 
 
-def patch_atividade_lembrete_columns_if_missing(db_name: str) -> None:
-    """Garante colunas da migration 0061 (lembretes WhatsApp) no schema do tenant."""
+def patch_crm_vendas_atividade_columns_if_missing(db_name: str) -> None:
+    """Garante colunas das migrations 0056 (conta) e 0061 (lembretes WhatsApp) no tenant."""
     from django.db import connections
     from django.utils import timezone
     from core.db_config import ensure_loja_database_config
@@ -203,6 +229,14 @@ def patch_atividade_lembrete_columns_if_missing(db_name: str) -> None:
 
     conn = connections[db_name]
     with conn.cursor() as cursor:
+        cursor.execute(
+            "ALTER TABLE crm_vendas_atividade "
+            "ADD COLUMN IF NOT EXISTS conta_id BIGINT NULL;"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS crm_ativ_loja_conta_idx "
+            "ON crm_vendas_atividade (loja_id, conta_id);"
+        )
         cursor.execute(
             "ALTER TABLE crm_vendas_atividade "
             "ADD COLUMN IF NOT EXISTS lembrete_whatsapp boolean NOT NULL DEFAULT false;"
@@ -219,17 +253,17 @@ def patch_atividade_lembrete_columns_if_missing(db_name: str) -> None:
             "ALTER TABLE crm_vendas_atividade "
             "ADD COLUMN IF NOT EXISTS lembrete_2h_enviado_em TIMESTAMP WITH TIME ZONE NULL;"
         )
-        cursor.execute(
-            "INSERT INTO django_migrations (app, name, applied) "
-            "SELECT %s, %s, %s "
-            "WHERE NOT EXISTS ("
-            "  SELECT 1 FROM django_migrations WHERE app = %s AND name = %s"
-            ");",
-            [
-                'crm_vendas',
-                '0061_atividade_lembrete_whatsapp',
-                timezone.now(),
-                'crm_vendas',
-                '0061_atividade_lembrete_whatsapp',
-            ],
-        )
+        for mig_name in ('0056_atividade_conta', '0061_atividade_lembrete_whatsapp'):
+            cursor.execute(
+                "INSERT INTO django_migrations (app, name, applied) "
+                "SELECT %s, %s, %s "
+                "WHERE NOT EXISTS ("
+                "  SELECT 1 FROM django_migrations WHERE app = %s AND name = %s"
+                ");",
+                ['crm_vendas', mig_name, timezone.now(), 'crm_vendas', mig_name],
+            )
+
+
+def patch_atividade_lembrete_columns_if_missing(db_name: str) -> None:
+    """Alias legado — preferir patch_crm_vendas_atividade_columns_if_missing."""
+    patch_crm_vendas_atividade_columns_if_missing(db_name)

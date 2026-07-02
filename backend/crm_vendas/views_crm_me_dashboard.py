@@ -165,15 +165,14 @@ def dashboard_data(request):
         except Exception as e:
             from django.db.utils import ProgrammingError, OperationalError
             if isinstance(e, (ProgrammingError, OperationalError)) and attempt == 0:
-                err_txt = str(e).lower()
-                if 'lembrete_whatsapp' in err_txt:
-                    from tenants.middleware import get_current_tenant_db
-                    from .schema_service import patch_atividade_lembrete_columns_if_missing
-                    db_name = get_current_tenant_db()
-                    if db_name and db_name != 'default':
-                        patch_atividade_lembrete_columns_if_missing(db_name)
-                        continue
-                from .schema_service import configurar_schema_crm_loja
+                from .schema_service import (
+                    configurar_schema_crm_loja,
+                    patch_atividade_schema_on_column_error,
+                )
+
+                db_name = get_current_tenant_db()
+                if patch_atividade_schema_on_column_error(e, db_name):
+                    continue
                 loja_obj = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
                 if loja_obj and configurar_schema_crm_loja(loja_obj):
                     continue

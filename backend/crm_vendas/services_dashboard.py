@@ -185,15 +185,6 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
         for e in ETAPAS_PIPELINE
     ]
 
-    try:
-        from tenants.middleware import get_current_tenant_db
-        db_name = get_current_tenant_db()
-        if db_name and db_name != 'default':
-            from .schema_service import patch_atividade_lembrete_columns_if_missing
-            patch_atividade_lembrete_columns_if_missing(db_name)
-    except Exception:
-        logger.exception('patch lembrete atividades no dashboard')
-
     atividades_data = _fetch_proximas_atividades(atividades_qs, limit=10)
 
     # Performance vendedores (usa período selecionado pelo filtro)

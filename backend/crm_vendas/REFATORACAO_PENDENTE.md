@@ -5,14 +5,17 @@
 ### ✅ Concluído:
 1. **Backend `views.py`** — dividido em módulos por responsabilidade
 2. **Frontend pipeline** — `pipeline/page.tsx` usa `useCrmPipelinePage` (247 linhas)
-3. **Testes backend** — 153+ testes unitários/smoke + integração API (`test_api_crm_integration.py`)
+3. **Testes backend** — 160+ testes unitários/smoke + integração API (`test_api_crm_integration.py`, `test_api_crm_documentos.py`)
 4. **PDFs** — smoke proposta, contrato, comissão, financeiro
 5. **Webhooks/fila** — Asaas loja + envio assíncrono de documentos
-6. **Frontend** — `lib/crm-pipeline.test.ts` + E2E smoke ampliado (`e2e/crm-smoke.spec.ts`)
+6. **Frontend** — Vitest `lib/crm-*.test.ts` (pipeline, utils, permissões, etc.)
+7. **E2E** — helper `e2e/crm-auth.ts` + fluxo autenticado pipeline → leads → propostas → contratos → financeiro
+8. **CI** — `crm_vendas.tests` + Vitest CRM no workflow Security
 
 ### 📋 Pendente (baixo risco, opcional):
 - **Backend `pdf_proposta_contrato/`** — reduzir duplicação proposta/contrato (funcional, não urgente)
-- **E2E completo** — fluxo pipeline → proposta → assinatura com credenciais em CI (requer secrets)
+- **E2E assinatura completa** — pipeline → proposta → link público de assinatura (requer secrets `CRM_E2E_*` em CI)
+- **API com tenant real** — migrations CRM não rodam em SQLite; smoke com mocks cobre rotas principais
 
 ## Hooks / páginas
 - `useCrmPipelinePage.ts` — pipeline (criar, editar, filtros, PDF)
@@ -26,4 +29,4 @@
 - ✅ Mixins DRY no backend
 - ✅ Cache com invalidação automática
 - ✅ Isolamento multi-tenant seguro
-- ✅ Suite de testes alinhada ao nível produção (~160+ backend)
+- ✅ Suite de testes alinhada ao nível produção (~165+ backend, 7 arquivos Vitest CRM)

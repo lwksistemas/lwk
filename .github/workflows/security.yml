@@ -64,6 +64,34 @@ jobs:
           PLAYWRIGHT_BASE_URL: https://beta.lwksistemas.com.br
         run: npm run test:e2e:crm-public
 
+  frontend-e2e-authenticated:
+    if: ${{ secrets.CRM_E2E_EMAIL != '' && secrets.CRM_E2E_PASSWORD != '' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: CRM E2E autenticado (beta)
+        env:
+          PLAYWRIGHT_BASE_URL: https://beta.lwksistemas.com.br
+          CRM_E2E_EMAIL: ${{ secrets.CRM_E2E_EMAIL }}
+          CRM_E2E_PASSWORD: ${{ secrets.CRM_E2E_PASSWORD }}
+          CRM_E2E_LOJA_SLUG: ${{ secrets.CRM_E2E_LOJA_SLUG }}
+          CRM_E2E_ASSINATURA_TOKEN: ${{ secrets.CRM_E2E_ASSINATURA_TOKEN }}
+        run: |
+          npm run test:e2e:crm-auth
+          npx playwright test e2e/crm-assinatura-publica.spec.ts --grep "token válido"
+
   backend-audit:
     runs-on: ubuntu-latest
     defaults:

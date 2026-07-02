@@ -12,10 +12,13 @@
 7. **E2E** — helper `e2e/crm-auth.ts` + fluxo autenticado pipeline → leads → propostas → contratos → financeiro
 8. **E2E assinatura** — `e2e/crm-assinatura-publica.spec.ts` (token inválido + opcional `CRM_E2E_ASSINATURA_TOKEN`)
 9. **CI** — `crm_vendas.tests` + Vitest CRM + Playwright smoke público no workflow Security
+10. **API cadastros/config** — smoke contas, contatos, atividades, `GET /config/`
+11. **Vitest** — `crm-documento-valores`, `crm-periodos`
+12. **CI E2E autenticado** — job opcional quando secrets `CRM_E2E_*` configurados no repositório
 
 ### 📋 Pendente (baixo risco, opcional):
 - **Backend `pdf_proposta_contrato/`** — reduzir duplicação proposta/contrato (funcional, não urgente)
-- **E2E autenticado em CI** — fluxo completo com secrets `CRM_E2E_EMAIL` / `CRM_E2E_PASSWORD` (local ou job manual)
+- **Secrets E2E** — configurados no GitHub (`CRM_E2E_EMAIL`, `CRM_E2E_PASSWORD`, `CRM_E2E_LOJA_SLUG=vendasbeta`); opcional `CRM_E2E_ASSINATURA_TOKEN`
 - **API com tenant real** — migrations CRM não rodam em SQLite; smoke com mocks cobre rotas principais
 
 ## Hooks / páginas
@@ -30,4 +33,4 @@
 - ✅ Mixins DRY no backend
 - ✅ Cache com invalidação automática
 - ✅ Isolamento multi-tenant seguro
-- ✅ Suite de testes alinhada ao nível produção (~170+ backend, 7 arquivos Vitest CRM, E2E público no CI)
+- ✅ Suite de testes alinhada ao nível produção (~175+ backend, 9 arquivos Vitest CRM, E2E público + autenticado opcional no CI)

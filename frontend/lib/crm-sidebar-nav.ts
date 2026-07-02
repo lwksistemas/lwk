@@ -54,3 +54,19 @@ export function isCrmSidebarNavActive(currentPath: string, item: CrmSidebarNavIt
   }
   return currentPath.startsWith(item.href);
 }
+
+export function filterCrmSidebarNavItems(
+  items: CrmSidebarNavItem[],
+  opts: {
+    moduloAtivo: (modulo: CrmSidebarModuloKey) => boolean;
+    hasAcessoTotal: () => boolean;
+    temPermissao: (codename: string | undefined) => boolean;
+  },
+): CrmSidebarNavItem[] {
+  return items.filter((item) => {
+    if (item.modulo && !opts.moduloAtivo(item.modulo)) return false;
+    if (item.requiresAcessoTotal && !opts.hasAcessoTotal()) return false;
+    if (item.permission && !opts.temPermissao(item.permission)) return false;
+    return true;
+  });
+}

@@ -3,7 +3,11 @@
 import Link from 'next/link';
 import { Bell, HelpCircle, LogOut, Settings } from 'lucide-react';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
-import { buildCrmSidebarNavItems, isCrmSidebarNavActive } from '@/lib/crm-sidebar-nav';
+import {
+  buildCrmSidebarNavItems,
+  filterCrmSidebarNavItems,
+  isCrmSidebarNavActive,
+} from '@/lib/crm-sidebar-nav';
 import { hasCrmAcessoTotal, temPermissaoCrm } from '@/lib/crm-permissoes';
 import { SidebarCrmNavLink } from '@/components/crm-vendas/sidebar/SidebarCrmNavLink';
 
@@ -25,11 +29,10 @@ export function SidebarCrmNav({
   onLogout,
 }: Props) {
   const { moduloAtivo } = useCRMConfig();
-  const items = buildCrmSidebarNavItems(base).filter((item) => {
-    if (item.modulo && !moduloAtivo(item.modulo)) return false;
-    if (item.requiresAcessoTotal && !hasCrmAcessoTotal()) return false;
-    if (item.permission && !temPermissaoCrm(item.permission)) return false;
-    return true;
+  const items = filterCrmSidebarNavItems(buildCrmSidebarNavItems(base), {
+    moduloAtivo,
+    hasAcessoTotal: hasCrmAcessoTotal,
+    temPermissao: temPermissaoCrm,
   });
 
   return (

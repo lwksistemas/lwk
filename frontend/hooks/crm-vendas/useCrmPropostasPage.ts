@@ -9,6 +9,10 @@ import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import { useCrmDocumentoActions } from '@/hooks/useCrmDocumentoActions';
 import { CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
+import { propostaOcultaColunaAssinatura } from '@/lib/crm-propostas-helpers';
+
+export type { PropostasConfirmAction } from '@/lib/crm-propostas-helpers';
+export { propostaOcultaColunaAssinatura } from '@/lib/crm-propostas-helpers';
 
 export interface CrmProposta {
   id: number;
@@ -36,14 +40,6 @@ export interface CrmProposta {
 }
 
 export type CrmPropostaModalType = 'view' | 'delete' | 'cancelar' | null;
-
-export function propostaOcultaColunaAssinatura(p: CrmProposta): boolean {
-  return (
-    p.status === 'cancelada' ||
-    p.status === 'pedido' ||
-    p.status_assinatura === 'concluido'
-  );
-}
 
 export function useCrmPropostasPage(slug: string) {
   const toast = useToast();

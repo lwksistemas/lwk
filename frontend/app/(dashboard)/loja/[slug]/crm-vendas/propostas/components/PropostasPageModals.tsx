@@ -8,7 +8,7 @@ import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetal
 import {
   propostaConfirmCopy,
   type PropostasConfirmAction,
-} from '@/app/(dashboard)/loja/[slug]/crm-vendas/propostas/components/PropostasTable';
+} from '@/lib/crm-propostas-helpers';
 import type { CrmProposta, CrmPropostaModalType } from '@/hooks/crm-vendas/useCrmPropostasPage';
 
 export type PropostasPageModalsProps = {

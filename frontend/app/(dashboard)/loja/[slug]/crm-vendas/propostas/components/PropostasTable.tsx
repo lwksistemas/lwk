@@ -13,8 +13,8 @@ import CrmDocumentoMaisAcoesMenu from '@/components/crm-vendas/documentos/CrmDoc
 import CrmDocumentoArquivoAcoes from '@/components/crm-vendas/documentos/CrmDocumentoArquivoAcoes';
 import {
   propostaOcultaColunaAssinatura,
-  type CrmProposta,
-} from '@/hooks/crm-vendas/useCrmPropostasPage';
+} from '@/lib/crm-propostas-helpers';
+import type { CrmProposta, CrmPropostaModalType } from '@/hooks/crm-vendas/useCrmPropostasPage';
 
 export type PropostasTableProps = {
   slug: string;
@@ -237,27 +237,4 @@ export function PropostasTable({
       </table>
     </div>
   );
-}
-
-export type PropostasConfirmAction =
-  | { type: 'marcar_assinado'; id: number; titulo: string }
-  | { type: 'confirmar_pedido'; id: number; titulo: string }
-  | null;
-
-export function propostaConfirmCopy(confirmAction: PropostasConfirmAction) {
-  if (!confirmAction) return null;
-  if (confirmAction.type === 'marcar_assinado') {
-    return {
-      title: 'Marcar como assinada',
-      message: `Marcar "${confirmAction.titulo}" como assinada manualmente?\n\nUse quando o cliente assinar de outra forma (manual, gov.br, etc).`,
-      confirmLabel: 'Marcar assinada',
-      variant: 'primary' as const,
-    };
-  }
-  return {
-    title: 'Confirmar pedido',
-    message: `Confirmar "${confirmAction.titulo}" como pedido?\n\nIsso indica que o cliente confirmou o pedido formal e está pronto para gerar o contrato.`,
-    confirmLabel: 'Confirmar pedido',
-    variant: 'primary' as const,
-  };
 }

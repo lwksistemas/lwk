@@ -57,6 +57,39 @@ def ensure_evolution_instance_name(config):
     return name
 
 
+def _invalidate_whatsapp_config_cache(loja_id):
+    from django.core.cache import cache
+
+    cache.delete(f'whatsapp_config_{loja_id}')
+
+
+def _sync_whatsapp_status_to_public(loja_id, config):
+    """Espelha status no schema public (envio sem tenant context)."""
+    try:
+        from django.db import connections
+
+        with connections['default'].cursor() as c:
+            c.execute('SET search_path TO public')
+            c.execute(
+                '''
+                UPDATE whatsapp_whatsappconfig
+                SET whatsapp_connection_status = %s,
+                    whatsapp_connected_phone = %s,
+                    whatsapp_connected_at = %s,
+                    updated_at = NOW()
+                WHERE loja_id = %s
+                ''',
+                [
+                    config.whatsapp_connection_status,
+                    config.whatsapp_connected_phone or '',
+                    config.whatsapp_connected_at,
+                    loja_id,
+                ],
+            )
+    except Exception as exc:
+        logger.debug('Sync whatsapp status para public loja %s: %s', loja_id, exc)
+
+
 def _connection_payload(config, instance_name, qr_base64=None, pairing_code=None, error=None):
     return {
         'provider': WhatsAppConfig.PROVIDER_EVOLUTION,
@@ -143,22 +176,8 @@ def update_evolution_connection_from_webhook(loja_id, data):
     phone = _extract_phone(payload)
     _apply_evolution_state_to_config(config, status, phone or None)
 
-    # Sincronizar status no schema public (fallback para envio sem tenant context)
-    try:
-        from django.db import connections
-        with connections['default'].cursor() as c:
-            c.execute('SET search_path TO public')
-            c.execute('''
-                UPDATE whatsapp_whatsappconfig
-                SET whatsapp_connection_status = %s, whatsapp_connected_phone = %s, updated_at = NOW()
-                WHERE loja_id = %s
-            ''', [config.whatsapp_connection_status, config.whatsapp_connected_phone or '', loja_id])
-    except Exception as exc:
-        logger.debug('Sync whatsapp status para public loja %s: %s', loja_id, exc)
-
-    # Invalidar cache para garantir que próximo envio leia o status correto
-    from django.core.cache import cache
-    cache.delete(f'whatsapp_config_{loja_id}')
+    _sync_whatsapp_status_to_public(loja_id, config)
+    _invalidate_whatsapp_config_cache(loja_id)
 
     logger.info(
         'Evolution webhook connection loja=%s state=%r -> %s',
@@ -214,6 +233,19 @@ def sync_evolution_connection(config, fetch_qr=False):
         phone = (state_info.get('phone') or '').strip()
 
         if status == WhatsAppConfig.CONNECTION_CONNECTED:
+            local = config.whatsapp_connection_status
+            # Sessão fantasma na Evolution (open após logout/delete ou falha de envio):
+            # não re-promover disconnected/error para connected só pelo polling.
+            if local in (
+                WhatsAppConfig.CONNECTION_DISCONNECTED,
+                WhatsAppConfig.CONNECTION_ERROR,
+            ):
+                logger.warning(
+                    'Evolution loja %s: estado open ignorado (local=%s)',
+                    config.loja_id,
+                    local,
+                )
+                return _connection_payload(config, instance_name)
             _apply_evolution_state_to_config(config, status, phone or None)
             _ensure_evolution_webhook(instance_name)
             return _connection_payload(config, instance_name)
@@ -234,6 +266,10 @@ def sync_evolution_connection(config, fetch_qr=False):
 
     except EvolutionAPIError as exc:
         logger.warning('Evolution sync loja %s: %s', config.loja_id, exc)
+        if exc.status_code == 404:
+            if config.whatsapp_connection_status == WhatsAppConfig.CONNECTION_CONNECTED:
+                _apply_evolution_state_to_config(config, WhatsAppConfig.CONNECTION_DISCONNECTED)
+            return _connection_payload(config, instance_name)
         error = str(exc)
         config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_ERROR
         config.save(update_fields=['whatsapp_connection_status', 'updated_at'])
@@ -306,7 +342,9 @@ def disconnect_evolution(config):
         'whatsapp_connected_at',
         'updated_at',
     ])
-    return sync_evolution_connection(config, fetch_qr=False)
+    _sync_whatsapp_status_to_public(config.loja_id, config)
+    _invalidate_whatsapp_config_cache(config.loja_id)
+    return _connection_payload(config, instance_name)
 
 
 def reset_evolution_connection(config):
@@ -331,6 +369,40 @@ def reset_evolution_connection(config):
 
     delete_evolution_for_loja(config.loja_id, instance_name=instance_name)
 
+    if instance_exists(instance_name):
+        try:
+            state_info = get_connection_state(instance_name)
+            if state_info['state'] == WhatsAppConfig.CONNECTION_CONNECTED:
+                logger.warning(
+                    'Evolution reset loja %s: instância %s ainda conectada após delete — recriando',
+                    config.loja_id,
+                    instance_name,
+                )
+                qr_data = recreate_instance(instance_name)
+                config.whatsapp_provider = WhatsAppConfig.PROVIDER_EVOLUTION
+                config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_QR_PENDING
+                config.whatsapp_connected_phone = ''
+                config.whatsapp_connected_at = None
+                config.save(update_fields=[
+                    'whatsapp_provider',
+                    'whatsapp_connection_status',
+                    'whatsapp_connected_phone',
+                    'whatsapp_connected_at',
+                    'updated_at',
+                ])
+                _invalidate_whatsapp_config_cache(config.loja_id)
+                if _has_qr_payload(qr_data):
+                    return _apply_qr_from_data(config, instance_name, qr_data)
+                qr_data = wait_for_qr(instance_name, attempts=12, delay=2.0)
+                return _apply_qr_from_data(config, instance_name, qr_data)
+        except EvolutionAPIError as exc:
+            logger.warning(
+                'Evolution reset loja %s: falha ao recriar instância pendente %s: %s',
+                config.loja_id,
+                instance_name,
+                exc,
+            )
+
     config.whatsapp_provider = WhatsAppConfig.PROVIDER_EVOLUTION
     config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_QR_PENDING
     config.whatsapp_connected_phone = ''
@@ -342,6 +414,8 @@ def reset_evolution_connection(config):
         'whatsapp_connected_at',
         'updated_at',
     ])
+
+    _invalidate_whatsapp_config_cache(config.loja_id)
 
     try:
         qr_data = create_instance(instance_name)

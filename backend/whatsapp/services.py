@@ -159,7 +159,22 @@ def _mark_evolution_disconnected(config):
         return
     config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_DISCONNECTED
     config.whatsapp_connected_at = None
-    config.save(update_fields=['whatsapp_connection_status', 'whatsapp_connected_at', 'updated_at'])
+    config.whatsapp_connected_phone = ''
+    config.save(update_fields=[
+        'whatsapp_connection_status',
+        'whatsapp_connected_at',
+        'whatsapp_connected_phone',
+        'updated_at',
+    ])
+    loja_id = getattr(config, 'loja_id', None)
+    if loja_id:
+        try:
+            from .connection_service import _invalidate_whatsapp_config_cache, _sync_whatsapp_status_to_public
+
+            _sync_whatsapp_status_to_public(loja_id, config)
+            _invalidate_whatsapp_config_cache(loja_id)
+        except Exception:
+            pass
 
 
 def _evolution_ready(config):

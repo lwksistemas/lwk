@@ -4,6 +4,9 @@ Remove instâncias Evolution (lwk_loja_{id}) sem loja correspondente no LWK.
 Uso:
     python manage.py limpar_evolution_orfaos              # listar
     python manage.py limpar_evolution_orfaos --execute    # remover
+
+Duplicatas/fantasmas (loja ativa com várias instâncias): use
+    python manage.py limpar_evolution_instancias --execute
 """
 from django.core.management.base import BaseCommand
 

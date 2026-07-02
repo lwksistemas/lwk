@@ -12,7 +12,7 @@ class ResetEvolutionConnectionTest(SimpleTestCase):
     @patch('whatsapp.connection_service._obtain_evolution_qr', return_value=({'base64': 'qr'}, 'lwk_loja_6_123'))
     @patch('whatsapp.connection_service._rotate_evolution_instance_name', return_value='lwk_loja_6_123')
     @patch('whatsapp.connection_service._prepare_evolution_qr_config')
-    @patch('whatsapp.evolution_cleanup.delete_evolution_for_loja', return_value={'ok': True})
+    @patch('whatsapp.evolution_cleanup.delete_all_evolution_instances_for_loja', return_value=[])
     @patch('whatsapp.connection_service.logout_instance')
     @patch('whatsapp.connection_service.evolution_configured', return_value=True)
     @patch('whatsapp.connection_service.ensure_evolution_instance_name', return_value='lwk_loja_6')

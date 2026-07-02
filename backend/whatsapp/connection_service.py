@@ -210,9 +210,11 @@ def _apply_qr_from_data(config, instance_name, qr_data):
 
 
 def _rotate_evolution_instance_name(config):
+    from .evolution_cleanup import delete_all_evolution_instances_for_loja
     from .evolution_client import rotate_evolution_instance_name as _rotate_name
 
     old = ensure_evolution_instance_name(config)
+    delete_all_evolution_instances_for_loja(config.loja_id)
     new_name = _rotate_name(config.loja_id, old)
     config.evolution_instance_name = new_name
     config.save(update_fields=['evolution_instance_name', 'updated_at'])
@@ -399,6 +401,8 @@ def start_evolution_connection(config):
 
 
 def disconnect_evolution(config):
+    from .evolution_cleanup import delete_all_evolution_instances_for_loja
+
     instance_name = ensure_evolution_instance_name(config)
     _invalidate_evolution_webhook_cache(instance_name)
     try:
@@ -406,16 +410,14 @@ def disconnect_evolution(config):
     except EvolutionAPIError as exc:
         logger.warning('Evolution logout loja %s: %s', config.loja_id, exc)
 
-    # Remover instância da Evolution para evitar sessão fantasma (close mas não removida)
-    try:
-        delete_instance(instance_name)
-    except EvolutionAPIError as exc:
-        logger.warning('Evolution delete após disconnect loja %s: %s', config.loja_id, exc)
+    delete_all_evolution_instances_for_loja(config.loja_id)
 
+    config.evolution_instance_name = evolution_instance_name(config.loja_id)
     config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_DISCONNECTED
     config.whatsapp_connected_phone = ''
     config.whatsapp_connected_at = None
     config.save(update_fields=[
+        'evolution_instance_name',
         'whatsapp_connection_status',
         'whatsapp_connected_phone',
         'whatsapp_connected_at',
@@ -423,7 +425,7 @@ def disconnect_evolution(config):
     ])
     _sync_whatsapp_status_to_public(config.loja_id, config)
     _invalidate_whatsapp_config_cache(config.loja_id)
-    return _connection_payload(config, instance_name)
+    return _connection_payload(config, config.evolution_instance_name)
 
 
 def reset_evolution_connection(config):
@@ -444,9 +446,9 @@ def reset_evolution_connection(config):
     except EvolutionAPIError as exc:
         logger.warning('Evolution logout antes do reset loja %s: %s', config.loja_id, exc)
 
-    from .evolution_cleanup import delete_evolution_for_loja
+    from .evolution_cleanup import delete_all_evolution_instances_for_loja
 
-    delete_evolution_for_loja(config.loja_id, instance_name=instance_name)
+    delete_all_evolution_instances_for_loja(config.loja_id)
 
     # Sempre novo nome — evita reutilizar sessão open fantasma sem escanear QR.
     instance_name = _rotate_evolution_instance_name(config)

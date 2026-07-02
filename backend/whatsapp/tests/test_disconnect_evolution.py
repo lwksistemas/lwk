@@ -9,13 +9,13 @@ from whatsapp.models import WhatsAppConfig
 
 
 class DisconnectEvolutionTest(SimpleTestCase):
+    @patch('whatsapp.evolution_cleanup.delete_all_evolution_instances_for_loja', return_value=[])
     @patch('whatsapp.connection_service._invalidate_whatsapp_config_cache')
     @patch('whatsapp.connection_service._sync_whatsapp_status_to_public')
-    @patch('whatsapp.connection_service.delete_instance')
     @patch('whatsapp.connection_service.logout_instance')
     @patch('whatsapp.connection_service.ensure_evolution_instance_name', return_value='lwk_loja_9')
     def test_disconnect_nao_chama_sync_que_reverte_status(
-        self, _name, _logout, _delete, _sync_public, _cache,
+        self, _name, _logout, _sync_public, _cache, _delete_all,
     ):
         config = MagicMock()
         config.loja_id = 9
@@ -27,6 +27,7 @@ class DisconnectEvolutionTest(SimpleTestCase):
             result = disconnect_evolution(config)
 
         mock_sync.assert_not_called()
+        _delete_all.assert_called_once_with(9)
         self.assertEqual(config.whatsapp_connection_status, WhatsAppConfig.CONNECTION_DISCONNECTED)
         self.assertEqual(result['connection_status'], 'disconnected')
 

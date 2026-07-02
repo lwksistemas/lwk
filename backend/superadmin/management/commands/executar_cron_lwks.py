@@ -5,6 +5,7 @@ Executa a cada 15 minutos:
 - Lembretes WhatsApp de atividades CRM (24h e 2h antes)
 - Lembretes WhatsApp de agendamentos clínica (2h; 24h entre 7h–9h)
 - Marca Faltou (NO_SHOW) 2h após horário sem chegada
+- Limpeza Evolution órfãs/fantasmas (diário ~4h)
 - Backups automáticos por email (no minuto :00)
 - Boletos de assinatura (~8h) e verificação de bloqueio por inadimplência
 
@@ -59,6 +60,9 @@ class Command(BaseCommand):
 
         from superadmin.tasks import detect_security_violations
         detect_security_violations()
+
+        if now.hour == 4 and now.minute < 15:
+            call_command('limpar_evolution_instancias', '--execute', verbosity=1)
 
         if now.minute == 0:
             call_command('executar_backups_automaticos', verbosity=1)

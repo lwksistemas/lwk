@@ -105,7 +105,9 @@ jobs:
           CRM_E2E_ASSINATURA_TOKEN: ${{ secrets.CRM_E2E_ASSINATURA_TOKEN }}
         run: |
           npm run test:e2e:crm-auth
-          npx playwright test e2e/crm-assinatura-publica.spec.ts --grep "token válido"
+          if [ -n "$CRM_E2E_ASSINATURA_TOKEN" ]; then
+            npx playwright test e2e/crm-assinatura-publica.spec.ts --grep "token válido"
+          fi
 
   backend-audit:
     runs-on: ubuntu-latest

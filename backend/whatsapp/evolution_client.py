@@ -29,6 +29,26 @@ def evolution_instance_name(loja_id):
     return f'lwk_loja_{int(loja_id)}'
 
 
+def rotate_evolution_instance_name(loja_id, current_name=None):
+    """Novo nome quando lwk_loja_N fica travado na memória da Evolution."""
+    base = evolution_instance_name(loja_id)
+    current = (current_name or base).strip() or base
+    suffix = int(time.time()) % 100000
+    if current == base:
+        return f'{base}_{suffix}'
+    # Já tinha sufixo — gera outro para não colidir
+    return f'{base}_{suffix}'
+
+
+def evolution_instance_name_stuck(exc: EvolutionAPIError) -> bool:
+    combined = f'{exc} {exc.response}'.lower()
+    return (
+        exc.status_code in (400, 403, 409, 500)
+        or 'already in use' in combined
+        or 'bad request' in combined
+    )
+
+
 def _base_url():
     url = (getattr(settings, 'EVOLUTION_API_URL', None) or '').strip().rstrip('/')
     if not url:
@@ -349,19 +369,43 @@ def connect_instance(instance_name):
     return _request('GET', f'/instance/connect/{instance_name}')
 
 
+def connect_instance_for_qr(instance_name, *, wait_attempts=12, wait_delay=2.0):
+    """Obtém QR em instância existente (sem delete — logout/delete podem falhar na Evolution)."""
+    data = connect_instance(instance_name)
+    if _has_qr_payload(data):
+        return data
+    return wait_for_qr(instance_name, attempts=wait_attempts, delay=wait_delay)
+
+
 def recreate_instance(instance_name):
-    """Remove instância travada e cria nova sessão com QR."""
+    """Remove instância travada e cria nova sessão com QR (delete é best-effort)."""
     delete_instance(instance_name)
     time.sleep(1.5)
-    return create_instance(instance_name)
+    try:
+        return create_instance(instance_name)
+    except EvolutionAPIError as exc:
+        if exc.status_code in (400, 403, 409):
+            logger.warning(
+                'Evolution create após delete %s: %s — tentando connect',
+                instance_name,
+                exc,
+            )
+            return connect_instance_for_qr(instance_name)
+        raise
 
 
 def create_evolution_instance_with_qr(instance_name):
     """
     Garante instância Evolution com QR.
-    Recria quando já existe — create em instância existente retorna Bad Request (400).
+    Prioriza connect em instância existente; recria se necessário.
     """
     if instance_exists(instance_name):
+        try:
+            data = connect_instance_for_qr(instance_name, wait_attempts=8, wait_delay=2.0)
+            if _has_qr_payload(data) or _extract_pairing_code(data):
+                return data
+        except EvolutionAPIError as exc:
+            logger.warning('Evolution connect QR %s: %s', instance_name, exc)
         return recreate_instance(instance_name)
     try:
         return create_instance(instance_name)
@@ -409,7 +453,9 @@ def logout_instance(instance_name):
     try:
         return _request('DELETE', f'/instance/logout/{instance_name}')
     except EvolutionAPIError as exc:
-        if exc.status_code == 404:
+        # Logout costuma fechar a sessão Baileys mesmo com HTTP 500 (bug Prisma Evolution).
+        if exc.status_code in (404, 400, 500):
+            logger.warning('Evolution logout %s: %s (best-effort)', instance_name, exc)
             return {}
         raise
 
@@ -418,7 +464,9 @@ def delete_instance(instance_name):
     try:
         return _request('DELETE', f'/instance/delete/{instance_name}')
     except EvolutionAPIError as exc:
-        if exc.status_code == 404:
+        # Instância corrompida pode retornar 400 mas ainda bloquear o nome em memória.
+        if exc.status_code in (404, 400, 500):
+            logger.warning('Evolution delete %s: %s (best-effort)', instance_name, exc)
             return {}
         raise
 

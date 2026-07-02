@@ -15,7 +15,7 @@ from whatsapp.evolution_client import (
 
 logger = logging.getLogger(__name__)
 
-INSTANCE_RE = re.compile(r'^lwk_loja_(\d+)$', re.IGNORECASE)
+INSTANCE_RE = re.compile(r'^lwk_loja_(\d+)(?:_\d+)?$', re.IGNORECASE)
 
 
 def _instance_name_from_item(item: dict) -> str:

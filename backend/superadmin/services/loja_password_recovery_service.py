@@ -19,6 +19,93 @@ _RECOVERY_OK_MESSAGE = (
     'Se o email estiver cadastrado para esta loja, você receberá uma senha provisória em instantes.'
 )
 
+_REQUEST_LIMIT_PER_IP = 30
+_REQUEST_WINDOW_SECONDS = 3600
+_SEND_LIMIT_PER_EMAIL = 3
+_SEND_LIMIT_PER_IP = 5
+_SEND_WINDOW_SECONDS = 3600
+
+
+def _client_ip(request) -> str:
+    from core.rate_limit import _get_client_ip
+
+    return _get_client_ip(request)
+
+
+def _retry_after_seconds(cache_key: str, window_seconds: int) -> int:
+    from django.core.cache import cache
+
+    if hasattr(cache, 'ttl'):
+        ttl = cache.ttl(cache_key)
+        if ttl is not None and ttl > 0:
+            return int(ttl)
+    return window_seconds
+
+
+def _rate_limit_response(retry_after: int) -> Tuple[Dict[str, Any], int]:
+    minutes = max(1, (retry_after + 59) // 60)
+    return (
+        {
+            'detail': (
+                f'Muitas solicitações de recuperação de senha. '
+                f'Tente novamente em cerca de {minutes} minuto(s).'
+            ),
+            'retry_after': retry_after,
+        },
+        http_status.HTTP_429_TOO_MANY_REQUESTS,
+    )
+
+
+def check_loja_password_recovery_request_limit(request) -> Optional[Tuple[Dict[str, Any], int]]:
+    """Limite leve por IP para evitar abuso do endpoint (não bloqueia testes normais)."""
+    if request is None:
+        return None
+    from django.core.cache import cache
+
+    ip = _client_ip(request)
+    cache_key = f'pwd_recovery_req:{ip}'
+    count = cache.get(cache_key, 0)
+    if count >= _REQUEST_LIMIT_PER_IP:
+        return _rate_limit_response(_retry_after_seconds(cache_key, _REQUEST_WINDOW_SECONDS))
+    if count == 0:
+        cache.set(cache_key, 1, _REQUEST_WINDOW_SECONDS)
+    else:
+        ttl = cache.ttl(cache_key) if hasattr(cache, 'ttl') else _REQUEST_WINDOW_SECONDS
+        cache.set(cache_key, count + 1, ttl or _REQUEST_WINDOW_SECONDS)
+    return None
+
+
+def check_loja_password_recovery_send_limit(
+    request,
+    email: str,
+    slug: str,
+) -> Optional[Tuple[Dict[str, Any], int]]:
+    """Limite apenas quando um email de recuperação será enviado de fato."""
+    if request is None:
+        return None
+    from django.core.cache import cache
+
+    ip = _client_ip(request)
+    email_norm = (email or '').strip().lower()
+    slug_norm = (slug or '').strip().lower()
+    keys = [
+        (f'pwd_recovery_send:ip:{ip}', _SEND_LIMIT_PER_IP),
+        (f'pwd_recovery_send:{slug_norm}:{email_norm}', _SEND_LIMIT_PER_EMAIL),
+    ]
+    for cache_key, limit in keys:
+        if cache.get(cache_key, 0) >= limit:
+            return _rate_limit_response(
+                _retry_after_seconds(cache_key, _SEND_WINDOW_SECONDS),
+            )
+    for cache_key, limit in keys:
+        count = cache.get(cache_key, 0)
+        if count == 0:
+            cache.set(cache_key, 1, _SEND_WINDOW_SECONDS)
+        else:
+            ttl = cache.ttl(cache_key) if hasattr(cache, 'ttl') else _SEND_WINDOW_SECONDS
+            cache.set(cache_key, count + 1, ttl or _SEND_WINDOW_SECONDS)
+    return None
+
 
 def resolve_loja_user_for_password_recovery(loja, email: str) -> Optional[User]:
     """
@@ -125,12 +212,16 @@ def _find_tenant_vendedor_id(loja, db: str, email_norm: str, tipo_slug: str, tip
 class LojaPasswordRecoveryService:
     """Encapsula validação, geração de senha e envio de email."""
 
-    def execute(self, email: str, slug: str) -> Tuple[Dict[str, Any], int]:
+    def execute(self, email: str, slug: str, request=None) -> Tuple[Dict[str, Any], int]:
         if not email or not slug:
             return (
                 {'detail': 'Email e slug são obrigatórios'},
                 http_status.HTTP_400_BAD_REQUEST,
             )
+
+        limited = check_loja_password_recovery_request_limit(request)
+        if limited:
+            return limited
 
         loja = resolve_loja_by_slug_or_atalho(
             slug,
@@ -145,6 +236,10 @@ class LojaPasswordRecoveryService:
                 bool(loja),
             )
             return ({'message': _RECOVERY_OK_MESSAGE}, http_status.HTTP_200_OK)
+
+        limited = check_loja_password_recovery_send_limit(request, email, slug)
+        if limited:
+            return limited
 
         from core.password_validation import generate_provisional_password
 

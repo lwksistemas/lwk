@@ -130,3 +130,52 @@ class LojaPasswordRecoveryServiceTest(TestCase):
 
         self.assertEqual(code, http_status.HTTP_200_OK)
         mock_send.assert_not_called()
+
+    @patch('core.email_delivery.send_prepared')
+    def test_email_incorreto_nao_consome_limite_de_envio(self, mock_send):
+        from django.test import RequestFactory
+
+        factory = RequestFactory()
+        request = factory.post('/api/superadmin/lojas/recuperar_senha/')
+        request.META['REMOTE_ADDR'] = '10.0.0.99'
+
+        for _ in range(5):
+            payload, code = LojaPasswordRecoveryService().execute(
+                'outro@email.test',
+                'felix',
+                request=request,
+            )
+            self.assertEqual(code, http_status.HTTP_200_OK)
+
+        payload, code = LojaPasswordRecoveryService().execute(
+            'owner@felix.test',
+            'felix',
+            request=request,
+        )
+        self.assertEqual(code, http_status.HTTP_200_OK)
+        mock_send.assert_called_once()
+
+    def test_limite_de_envio_por_email(self):
+        from django.test import RequestFactory
+
+        factory = RequestFactory()
+        request = factory.post('/api/superadmin/lojas/recuperar_senha/')
+        request.META['REMOTE_ADDR'] = '10.0.0.100'
+
+        with patch('core.email_delivery.send_prepared'):
+            for _ in range(3):
+                payload, code = LojaPasswordRecoveryService().execute(
+                    'owner@felix.test',
+                    'felix',
+                    request=request,
+                )
+                self.assertEqual(code, http_status.HTTP_200_OK)
+
+            payload, code = LojaPasswordRecoveryService().execute(
+                'owner@felix.test',
+                'felix',
+                request=request,
+            )
+
+        self.assertEqual(code, http_status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn('retry_after', payload)

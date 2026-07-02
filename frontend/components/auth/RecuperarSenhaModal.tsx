@@ -3,6 +3,27 @@
 import { useState, FormEvent } from 'react';
 import apiClient from '@/lib/api-client';
 
+function formatRecoveryError(err: any): string {
+  const data = err.response?.data;
+  const detail = data?.detail || data?.error;
+  if (typeof detail === 'string' && detail.trim()) {
+    if (err.response?.status === 429) {
+      const retryAfter = Number(data?.retry_after);
+      if (Number.isFinite(retryAfter) && retryAfter > 0) {
+        const minutes = Math.max(1, Math.ceil(retryAfter / 60));
+        return `Muitas tentativas. Aguarde cerca de ${minutes} minuto(s) e tente novamente.`;
+      }
+      const secondsMatch = detail.match(/(\d+)\s*seconds?/i);
+      if (secondsMatch) {
+        const minutes = Math.max(1, Math.ceil(Number(secondsMatch[1]) / 60));
+        return `Muitas tentativas. Aguarde cerca de ${minutes} minuto(s) e tente novamente.`;
+      }
+    }
+    return detail;
+  }
+  return 'Erro ao recuperar senha. Verifique o email.';
+}
+
 interface RecuperarSenhaModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -47,10 +68,7 @@ export default function RecuperarSenhaModal({
       }, 3000);
     } catch (err: any) {
       setTipoMensagem('error');
-      const errorMessage = err.response?.data?.detail 
-        || err.response?.data?.error 
-        || '❌ Erro ao recuperar senha. Verifique o email.';
-      setMensagem(errorMessage);
+      setMensagem(formatRecoveryError(err));
     } finally {
       setLoading(false);
     }

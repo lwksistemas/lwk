@@ -544,7 +544,6 @@ def sync_mercadopago_loja(request):
 
 @api_view(['POST'])
 @permission_classes([])
-@throttle_classes([PasswordResetThrottle])
 def recuperar_senha_loja(request):
     """Recuperar senha de loja pelo email e slug"""
     from ..services.loja_password_recovery_service import LojaPasswordRecoveryService
@@ -552,5 +551,6 @@ def recuperar_senha_loja(request):
     payload, http_status = LojaPasswordRecoveryService().execute(
         request.data.get('email'),
         request.data.get('slug'),
+        request=request,
     )
     return Response(payload, status=http_status)

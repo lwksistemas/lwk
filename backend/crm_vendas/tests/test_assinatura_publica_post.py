@@ -21,13 +21,13 @@ class TestAssinaturaPublicaPost(SimpleTestCase):
     )
     return AssinaturaPublicaView.as_view()(request, token=self.token)
 
-  @patch('crm_vendas.views_assinatura_publica.cache')
-  @patch('crm_vendas.views_assinatura_publica._configurar_tenant_para_assinatura_publica', return_value=None)
+  @patch('crm_vendas.assinatura_publica_helpers.cache')
+  @patch('crm_vendas.views_assinatura_publica.configurar_tenant_para_assinatura_publica', return_value=None)
   @patch('crm_vendas.assinatura_digital_service.notificar_vendedor_apos_assinatura_cliente', return_value=(True, None))
   @patch('crm_vendas.assinatura_digital_service.registrar_assinatura', return_value='aguardando_vendedor')
   @patch('crm_vendas.assinatura_digital_service.verificar_token_assinatura')
   @patch('crm_vendas.assinatura_digital_service.normalizar_token_assinatura_url', side_effect=lambda t: t)
-  @patch('django.core.signing.loads')
+  @patch('crm_vendas.assinatura_publica_helpers.loads')
   def test_post_cliente_assina_retorna_sucesso(
     self,
     mock_loads,
@@ -53,13 +53,13 @@ class TestAssinaturaPublicaPost(SimpleTestCase):
     self.assertTrue(body.get('success'))
     mock_registrar.assert_called_once()
 
-  @patch('crm_vendas.views_assinatura_publica.cache')
-  @patch('crm_vendas.views_assinatura_publica._configurar_tenant_para_assinatura_publica', return_value=None)
+  @patch('crm_vendas.assinatura_publica_helpers.cache')
+  @patch('crm_vendas.views_assinatura_publica.configurar_tenant_para_assinatura_publica', return_value=None)
   @patch('crm_vendas.assinatura_digital_service.enviar_pdf_final', return_value=(True, None))
   @patch('crm_vendas.assinatura_digital_service.registrar_assinatura', return_value='concluido')
   @patch('crm_vendas.assinatura_digital_service.verificar_token_assinatura')
   @patch('crm_vendas.assinatura_digital_service.normalizar_token_assinatura_url', side_effect=lambda t: t)
-  @patch('django.core.signing.loads')
+  @patch('crm_vendas.assinatura_publica_helpers.loads')
   def test_post_vendedor_assina_chama_enviar_pdf_final(
     self,
     mock_loads,

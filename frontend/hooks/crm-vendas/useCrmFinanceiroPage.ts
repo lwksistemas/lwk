@@ -1,86 +1,23 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import apiClient from '@/lib/api-client';
-import { authService } from '@/lib/auth';
 import { getCrmApiErrorDetail } from '@/lib/crm-utils';
 import { useToast } from '@/components/ui/Toast';
+import { useCrmFinanceiroData } from '@/hooks/crm-vendas/useCrmFinanceiroData';
+import type {
+  FinanceiroConfirmAction,
+  GrupoFinanceiro,
+  LancamentoFinanceiro,
+  TipoFinanceiro,
+} from '@/lib/crm-financeiro-types';
 
-export type TipoFinanceiro = 'receita' | 'despesa';
-
-export interface GrupoFinanceiro {
-  id: number;
-  nome: string;
-  tipo: TipoFinanceiro;
-  is_active: boolean;
-  ordem: number;
-}
-
-export interface LancamentoFinanceiro {
-  id: number;
-  vendedor: number;
-  vendedor_nome: string;
-  grupo: number | null;
-  grupo_nome: string;
-  tipo: TipoFinanceiro;
-  tipo_display: string;
-  origem: string;
-  origem_display: string;
-  descricao: string;
-  valor: number;
-  status: string;
-  status_display: string;
-  data_vencimento: string;
-  data_pagamento: string | null;
-  oportunidade: number | null;
-  oportunidade_titulo: string;
-  observacoes: string;
-  editavel: boolean;
-}
-
-export interface ResumoFinanceiro {
-  receitas_pagas: number;
-  receitas_pendentes: number;
-  despesas_pagas: number;
-  despesas_pendentes: number;
-  saldo_realizado: number;
-  saldo_previsto: number;
-  comissao_vendas_total: number;
-}
-
-export interface VendedorOption {
-  id: number;
-  nome: string;
-}
-
-async function fetchLancamentosPorTipo(
-  tipo: TipoFinanceiro,
-  vendedorFiltro: string,
-  periodo: string,
-  dataInicio: string,
-  dataFim: string,
-): Promise<LancamentoFinanceiro[]> {
-  const params = new URLSearchParams({ tipo, page_size: '100', periodo });
-  if (vendedorFiltro) params.set('vendedor_id', vendedorFiltro);
-  if (periodo === 'personalizado' && dataInicio && dataFim) {
-    params.set('data_inicio', dataInicio);
-    params.set('data_fim', dataFim);
-  }
-  const { data } = await apiClient.get<{ results?: LancamentoFinanceiro[] } | LancamentoFinanceiro[]>(
-    `crm-vendas/financeiro-lancamentos/?${params}`,
-  );
-  return Array.isArray(data) ? data : data.results ?? [];
-}
+export type { TipoFinanceiro, GrupoFinanceiro, LancamentoFinanceiro, ResumoFinanceiro, VendedorOption } from '@/lib/crm-financeiro-types';
 
 export function useCrmFinanceiroPage() {
   const toast = useToast();
-  const [resumo, setResumo] = useState<ResumoFinanceiro | null>(null);
-  const [lancamentosDespesa, setLancamentosDespesa] = useState<LancamentoFinanceiro[]>([]);
-  const [lancamentosReceita, setLancamentosReceita] = useState<LancamentoFinanceiro[]>([]);
-  const [grupos, setGrupos] = useState<GrupoFinanceiro[]>([]);
-  const [vendedores, setVendedores] = useState<VendedorOption[]>([]);
-  const [vendedorFiltro, setVendedorFiltro] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  const data = useCrmFinanceiroData();
+
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalTipo, setModalTipo] = useState<TipoFinanceiro>('receita');
@@ -88,80 +25,18 @@ export function useCrmFinanceiroPage() {
   const [showGrupoModal, setShowGrupoModal] = useState(false);
   const [editingGrupo, setEditingGrupo] = useState<GrupoFinanceiro | null>(null);
   const [showGrupos, setShowGrupos] = useState(false);
-  const [periodoRelatorio, setPeriodoRelatorio] = useState('mes_atual');
-  const [dataInicioRel, setDataInicioRel] = useState('');
-  const [dataFimRel, setDataFimRel] = useState('');
-  const [grupoFiltroRelatorio, setGrupoFiltroRelatorio] = useState('');
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<
-    | { type: 'excluir_lancamento'; item: LancamentoFinanceiro }
-    | { type: 'excluir_grupo'; grupo: GrupoFinanceiro }
-    | { type: 'sync_comissoes' }
-    | null
-  >(null);
+  const [confirmAction, setConfirmAction] = useState<FinanceiroConfirmAction>(null);
   const [confirmando, setConfirmando] = useState(false);
-
-  const isAdmin = !authService.isVendedor();
-
-  const loadResumo = useCallback(async () => {
-    const params = new URLSearchParams({ periodo: periodoRelatorio });
-    if (vendedorFiltro) params.set('vendedor_id', vendedorFiltro);
-    if (periodoRelatorio === 'personalizado' && dataInicioRel && dataFimRel) {
-      params.set('data_inicio', dataInicioRel);
-      params.set('data_fim', dataFimRel);
-    }
-    const { data } = await apiClient.get<ResumoFinanceiro>(
-      `crm-vendas/financeiro/resumo/?${params}`,
-    );
-    setResumo(data);
-  }, [vendedorFiltro, periodoRelatorio, dataInicioRel, dataFimRel]);
-
-  const loadLancamentos = useCallback(async () => {
-    const [despesas, receitas] = await Promise.all([
-      fetchLancamentosPorTipo('despesa', vendedorFiltro, periodoRelatorio, dataInicioRel, dataFimRel),
-      fetchLancamentosPorTipo('receita', vendedorFiltro, periodoRelatorio, dataInicioRel, dataFimRel),
-    ]);
-    setLancamentosDespesa(despesas);
-    setLancamentosReceita(receitas);
-  }, [vendedorFiltro, periodoRelatorio, dataInicioRel, dataFimRel]);
-
-  const loadGrupos = useCallback(async () => {
-    const params = isAdmin ? '?incluir_inativos=true' : '';
-    const { data } = await apiClient.get<{ results?: GrupoFinanceiro[] } | GrupoFinanceiro[]>(
-      `crm-vendas/financeiro-grupos/${params}`,
-    );
-    setGrupos(Array.isArray(data) ? data : data.results ?? []);
-  }, [isAdmin]);
-
-  const loadVendedores = useCallback(async () => {
-    if (!isAdmin) return;
-    const { data } = await apiClient.get<{ results?: VendedorOption[] } | VendedorOption[]>(
-      'crm-vendas/vendedores/?page_size=200',
-    );
-    setVendedores(Array.isArray(data) ? data : data.results ?? []);
-  }, [isAdmin]);
-
-  const loadAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      await Promise.allSettled([loadResumo(), loadLancamentos(), loadGrupos(), loadVendedores()]);
-    } finally {
-      setLoading(false);
-    }
-  }, [loadResumo, loadLancamentos, loadGrupos, loadVendedores]);
-
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
 
   const abrirNovo = async (tipo: TipoFinanceiro) => {
     setModalTipo(tipo);
     setEditing(null);
     try {
-      await loadGrupos();
+      await data.loadGrupos();
     } catch {
-      /* mantém lista em cache */
+      /* cache */
     }
     setShowModal(true);
   };
@@ -181,7 +56,7 @@ export function useCrmFinanceiroPage() {
         await apiClient.post('crm-vendas/financeiro-lancamentos/', payload);
       }
       setShowModal(false);
-      await loadAll();
+      await data.loadAll();
     } catch (err) {
       toast.error(getCrmApiErrorDetail(err, 'Não foi possível salvar o lançamento.'));
       throw err;
@@ -192,7 +67,7 @@ export function useCrmFinanceiroPage() {
 
   const marcarPago = async (id: number) => {
     await apiClient.post(`crm-vendas/financeiro-lancamentos/${id}/marcar_pago/`, {});
-    await loadAll();
+    await data.loadAll();
   };
 
   const requestRemoverLancamento = (item: LancamentoFinanceiro) => {
@@ -209,7 +84,7 @@ export function useCrmFinanceiroPage() {
 
   const executeRemoverLancamento = async (item: LancamentoFinanceiro) => {
     await apiClient.delete(`crm-vendas/financeiro-lancamentos/${item.id}/`);
-    await loadAll();
+    await data.loadAll();
   };
 
   const requestRemoverGrupo = (grupo: GrupoFinanceiro) => {
@@ -219,31 +94,27 @@ export function useCrmFinanceiroPage() {
   const executeRemoverGrupo = async (grupo: GrupoFinanceiro) => {
     try {
       await apiClient.delete(`crm-vendas/financeiro-grupos/${grupo.id}/`);
-      await loadAll();
+      await data.loadAll();
     } catch {
       toast.error('Não foi possível excluir. O grupo pode estar em uso.');
       throw new Error('excluir_grupo');
     }
   };
 
-  const requestSincronizarComissoes = () => {
-    setConfirmAction({ type: 'sync_comissoes' });
-  };
-
   const executeSincronizarComissoes = async () => {
     setSincronizando(true);
     try {
-      const { data } = await apiClient.post<{
+      const { data: syncData } = await apiClient.post<{
         criadas: number;
         atualizadas: number;
         ignoradas: number;
         oportunidades_analisadas: number;
       }>('crm-vendas/financeiro/sync-comissoes/', {});
       toast.success(
-        `Sincronização concluída. Analisadas: ${data.oportunidades_analisadas}, ` +
-          `criadas: ${data.criadas}, atualizadas: ${data.atualizadas}, ignoradas: ${data.ignoradas}`,
+        `Sincronização concluída. Analisadas: ${syncData.oportunidades_analisadas}, ` +
+          `criadas: ${syncData.criadas}, atualizadas: ${syncData.atualizadas}, ignoradas: ${syncData.ignoradas}`,
       );
-      await loadAll();
+      await data.loadAll();
     } catch {
       toast.error('Erro ao sincronizar comissões.');
       throw new Error('sync_comissoes');
@@ -276,8 +147,6 @@ export function useCrmFinanceiroPage() {
     }
   };
 
-  const removerLancamento = requestRemoverLancamento;
-
   const salvarGrupo = async (payload: Record<string, unknown>) => {
     setSaving(true);
     try {
@@ -288,43 +157,40 @@ export function useCrmFinanceiroPage() {
       }
       setShowGrupoModal(false);
       setEditingGrupo(null);
-      await loadAll();
+      await data.loadAll();
     } finally {
       setSaving(false);
     }
   };
 
-  const removerGrupo = requestRemoverGrupo;
-
   const gerarRelatorioPdf = async (grupoIdOverride?: number) => {
-    if (periodoRelatorio === 'personalizado' && (!dataInicioRel || !dataFimRel)) {
+    if (data.periodoRelatorio === 'personalizado' && (!data.dataInicioRel || !data.dataFimRel)) {
       toast.warning('Informe data início e fim para o período personalizado.');
       return;
     }
     setGerandoPdf(true);
     try {
       const grupoId =
-        grupoIdOverride ??
-        (grupoFiltroRelatorio ? Number(grupoFiltroRelatorio) : null);
+        grupoIdOverride ?? (data.grupoFiltroRelatorio ? Number(data.grupoFiltroRelatorio) : null);
       const payload: Record<string, unknown> = {
-        periodo: periodoRelatorio,
-        vendedor_id: vendedorFiltro ? Number(vendedorFiltro) : null,
+        periodo: data.periodoRelatorio,
+        vendedor_id: data.vendedorFiltro ? Number(data.vendedorFiltro) : null,
       };
       if (grupoId) payload.grupo_id = grupoId;
-      if (periodoRelatorio === 'personalizado') {
-        payload.data_inicio = dataInicioRel;
-        payload.data_fim = dataFimRel;
+      if (data.periodoRelatorio === 'personalizado') {
+        payload.data_inicio = data.dataInicioRel;
+        payload.data_fim = data.dataFimRel;
       }
       const res = await apiClient.post('crm-vendas/financeiro/relatorio/', payload, {
         responseType: 'blob',
       });
       const grupoSlug = grupoId
-        ? grupos.find((g) => g.id === grupoId)?.nome.replace(/\s+/g, '_').toLowerCase() ?? `grupo_${grupoId}`
+        ? data.grupos.find((g) => g.id === grupoId)?.nome.replace(/\s+/g, '_').toLowerCase() ?? `grupo_${grupoId}`
         : 'geral';
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `financeiro_crm_${periodoRelatorio}_${grupoSlug}.pdf`;
+      link.download = `financeiro_crm_${data.periodoRelatorio}_${grupoSlug}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -336,19 +202,9 @@ export function useCrmFinanceiroPage() {
     }
   };
 
-  const sincronizarComissoes = requestSincronizarComissoes;
-
   return {
-    resumo,
-    lancamentosDespesa,
-    lancamentosReceita,
-    grupos,
-    vendedores,
-    vendedorFiltro,
-    setVendedorFiltro,
-    loading,
+    ...data,
     saving,
-    isAdmin,
     showModal,
     setShowModal,
     modalTipo,
@@ -357,29 +213,19 @@ export function useCrmFinanceiroPage() {
     editar,
     salvarLancamento,
     marcarPago,
-    removerLancamento,
+    removerLancamento: requestRemoverLancamento,
     showGrupoModal,
     setShowGrupoModal,
     editingGrupo,
     setEditingGrupo,
     salvarGrupo,
-    removerGrupo,
+    removerGrupo: requestRemoverGrupo,
     showGrupos,
     setShowGrupos,
-    loadAll,
-    loadGrupos,
-    periodoRelatorio,
-    setPeriodoRelatorio,
-    dataInicioRel,
-    setDataInicioRel,
-    dataFimRel,
-    setDataFimRel,
-    grupoFiltroRelatorio,
-    setGrupoFiltroRelatorio,
     gerandoPdf,
     gerarRelatorioPdf,
     sincronizando,
-    sincronizarComissoes,
+    sincronizarComissoes: () => setConfirmAction({ type: 'sync_comissoes' }),
     confirmAction,
     confirmando,
     closeConfirm,

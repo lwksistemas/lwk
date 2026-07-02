@@ -1,257 +1,97 @@
 """
 Views públicas de assinatura digital (sem autenticação).
-Extraído de views.py para melhor organização.
 """
-import json
 import logging
-from functools import wraps
 
-from django.views import View
 from django.http import HttpResponse, JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.core.cache import cache
-from django.conf import settings
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 
-from tenants.middleware import set_current_loja_id, set_current_tenant_db, get_current_loja_id
+from .assinatura_publica_helpers import (
+    assinatura_publica_rate_limit,
+    configurar_tenant_para_assinatura_publica,
+    decodificar_payload_token_assinatura,
+    ip_cliente_assinatura,
+    json_erro_assinatura_publica,
+    montar_json_documento_assinatura,
+    status_http_erro_tenant,
+)
 
 logger = logging.getLogger(__name__)
 
+# Compatibilidade com testes que fazem patch neste módulo
+_configurar_tenant_para_assinatura_publica = configurar_tenant_para_assinatura_publica
+_rate_limit = assinatura_publica_rate_limit
 
-def _rate_limit(key_prefix, max_requests=10, window=60):
-    """Rate limiting simples por IP. Bloqueia após max_requests em window segundos."""
-    def decorator(view_func):
-        @wraps(view_func)
-        def wrapper(self, request, *args, **kwargs):
-            ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
-            if ',' in ip:
-                ip = ip.split(',')[0].strip()
-            cache_key = f'rate_limit:{key_prefix}:{ip}'
-            count = cache.get(cache_key, 0)
-            if count >= max_requests:
-                return JsonResponse({'error': 'Muitas tentativas. Aguarde um momento.'}, status=429)
-            cache.set(cache_key, count + 1, window)
-            return view_func(self, request, *args, **kwargs)
-        return wrapper
-    return decorator
 
-def _configurar_tenant_para_assinatura_publica(loja_id):
-    """
-    Garante search_path / banco do tenant antes de consultar AssinaturaDigital.
-    Sem isso, o manager usa apenas 'default' e o token não é encontrado no schema da loja.
-    Retorna None se OK, ou string de erro para o cliente.
-    """
-    from tenants.middleware import set_current_loja_id, set_current_tenant_db
-    from superadmin.models import Loja
-    from core.db_config import ensure_loja_database_config
+def _preparar_contexto_token(request, token, log_prefix: str):
+    from .assinatura_digital_service import normalizar_token_assinatura_url, verificar_token_assinatura
 
-    set_current_loja_id(loja_id)
-    loja = Loja.objects.using('default').filter(id=loja_id).first()
-    if not loja:
-        logger.error(f'[AssinaturaPublica] Loja id={loja_id} inexistente (token válido mas loja apagada?)')
-        return 'Link de assinatura inválido.'
+    token = normalizar_token_assinatura_url(token)
+    payload, decode_err = decodificar_payload_token_assinatura(token)
+    if decode_err:
+        logger.warning('[%s] token_decode_falhou token_len=%s', log_prefix, len(token))
+        return None, json_erro_assinatura_publica(decode_err)
 
-    db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", "")}'
-    if not ensure_loja_database_config(db_name, conn_max_age=0) or db_name not in settings.DATABASES:
-        logger.error(f'[AssinaturaPublica] Falha ensure_loja_database_config para db_name={db_name!r}')
-        return 'Serviço temporariamente indisponível. Tente novamente ou solicite um novo link de assinatura.'
+    loja_id = payload.get('loja_id')
+    cfg_err = configurar_tenant_para_assinatura_publica(loja_id)
+    if cfg_err:
+        logger.warning('[%s] tenant_config_falhou loja_id=%s erro=%s', log_prefix, loja_id, cfg_err)
+        return None, json_erro_assinatura_publica(cfg_err, status=status_http_erro_tenant(cfg_err))
 
-    set_current_tenant_db(db_name)
-    logger.info(f'✅ [AssinaturaPublica] tenant db={db_name} loja_id={loja_id}')
-    return None
+    assinatura, erro, _, meta = verificar_token_assinatura(token, loja_id=loja_id)
+    if erro:
+        logger.warning(
+            '[%s] verificar_token_falhou loja_id=%s error_code=%s doc_type=%s doc_id=%s mensagem=%s',
+            log_prefix,
+            loja_id,
+            meta.get('error_code', 'invalido'),
+            payload.get('doc_type'),
+            payload.get('doc_id'),
+            erro,
+        )
+        return None, JsonResponse({'error': erro, 'error_code': meta.get('error_code', 'invalido')}, status=400)
+
+    return (assinatura, payload, meta), None
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AssinaturaPublicaView(View):
     """
-    View pública para assinatura digital de propostas e contratos.
-    GET /api/crm-vendas/assinar/{token}/ - Retorna dados do documento
-    POST /api/crm-vendas/assinar/{token}/ - Registra assinatura
+    GET /api/crm-vendas/assinar/{token}/ — dados do documento
+    POST /api/crm-vendas/assinar/{token}/ — registra assinatura
     """
 
-    def _calcular_valor_por_recorrencia(self, oportunidade, recorrencia_tipo):
-        """Calcula soma dos itens por tipo de recorrência."""
-        if not oportunidade:
-            return 0
-        try:
-            itens = oportunidade.itens.select_related('produto_servico').all()
-            total = sum(
-                float(item.quantidade * item.preco_unitario)
-                for item in itens
-                if getattr(item.produto_servico, 'recorrencia', 'unico') == recorrencia_tipo
-            )
-            return round(total, 2)
-        except Exception:
-            return 0
-    
-    @_rate_limit('assinatura_get', max_requests=30, window=60)
+    @assinatura_publica_rate_limit('assinatura_get', max_requests=30, window=60)
     def get(self, request, token):
-        """Retorna dados do documento para assinatura"""
-        from .assinatura_digital_service import verificar_token_assinatura, normalizar_token_assinatura_url
-        from django.core.signing import loads, BadSignature
-
-        token = normalizar_token_assinatura_url(token)
         logger.info('Recebendo requisição de assinatura: token_tamanho=%s', len(token))
+        ctx, err = _preparar_contexto_token(request, token, 'AssinaturaPublica GET')
+        if err:
+            return err
 
-        # PASSO 1: Decodificar token para extrair loja_id
-        try:
-            payload = loads(token)
-            loja_id = payload.get('loja_id')
-            logger.info(f'📦 Token decodificado - loja_id={loja_id}, doc_type={payload.get("doc_type")}, doc_id={payload.get("doc_id")}')
-        except (BadSignature, Exception) as e:
-            logger.warning(
-                '[AssinaturaPublica] GET token_decode_falhou token_len=%s erro=%s',
-                len(token),
-                e,
-            )
-            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
-
-        if not loja_id:
-            logger.warning('[AssinaturaPublica] GET sem_loja_id token_len=%s', len(token))
-            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
-
-        # PASSO 2: Configurar tenant (obrigatório — antes caía em default sem schema)
-        cfg_err = _configurar_tenant_para_assinatura_publica(loja_id)
-        if cfg_err:
-            logger.warning(
-                '[AssinaturaPublica] GET tenant_config_falhou loja_id=%s erro=%s',
-                loja_id,
-                cfg_err,
-            )
-            status = 503 if 'indisponível' in cfg_err.lower() else 400
-            return JsonResponse({'error': cfg_err}, status=status)
-
-        # PASSO 3: Buscar token no banco (agora com contexto correto)
-        assinatura, erro, _, meta = verificar_token_assinatura(token, loja_id=loja_id)
-        
-        if erro:
-            logger.warning(
-                '[AssinaturaPublica] GET verificar_token_falhou loja_id=%s error_code=%s doc_type=%s doc_id=%s mensagem=%s',
-                loja_id,
-                meta.get('error_code', 'invalido'),
-                payload.get('doc_type'),
-                payload.get('doc_id'),
-                erro,
-            )
-            return JsonResponse({
-                'error': erro,
-                'error_code': meta.get('error_code', 'invalido'),
-            }, status=400)
-        
-        logger.info(f'✅ Token válido - Assinatura ID: {assinatura.id}, Loja ID: {assinatura.loja_id}')
-        
+        assinatura, _payload, meta = ctx
         documento = assinatura.documento
-        
-        # Determinar tipo de documento
-        tipo_documento = 'proposta' if assinatura.proposta else 'contrato'
-        
-        # Retornar dados do documento
-        oportunidade = getattr(documento, 'oportunidade', None)
-        lead = getattr(oportunidade, 'lead', None) if oportunidade else None
-        vendedor = getattr(oportunidade, 'vendedor', None) if oportunidade else None
+        logger.info('✅ Token válido - Assinatura ID: %s, Loja ID: %s', assinatura.id, assinatura.loja_id)
+        return JsonResponse(montar_json_documento_assinatura(assinatura, documento, meta))
 
-        desconto_valor = getattr(documento, 'desconto_valor', None) or 0
-        tem_desconto = float(desconto_valor) > 0
-        desconto_tipo = getattr(documento, 'desconto_tipo', 'percentual') or 'percentual'
-        if tem_desconto and desconto_tipo == 'percentual':
-            desconto_display = f'{desconto_valor}%'
-        elif tem_desconto:
-            desconto_display = str(desconto_valor)
-        else:
-            desconto_display = ''
-
-        valor_com_desconto = getattr(documento, 'valor_com_desconto', None)
-        if valor_com_desconto is None:
-            valor_com_desconto = documento.valor_total or 0
-
-        return JsonResponse({
-            'tipo_documento': tipo_documento,
-            'titulo': documento.titulo,
-            'valor_total': str(documento.valor_total or '0.00'),
-            'valor_adesao': str(self._calcular_valor_por_recorrencia(oportunidade, 'unico')),
-            'valor_mensal': str(self._calcular_valor_por_recorrencia(oportunidade, 'mensal')),
-            'tem_desconto': tem_desconto,
-            'desconto_tipo': desconto_tipo,
-            'desconto_valor': str(desconto_valor),
-            'desconto_display': desconto_display,
-            'valor_com_desconto': str(valor_com_desconto),
-            'nome_assinante': assinatura.nome_assinante,
-            'tipo_assinante': assinatura.tipo,
-            'tipo_assinante_display': assinatura.get_tipo_display(),
-            'lead_nome': getattr(lead, 'nome', '') or '',
-            'lead_email': getattr(lead, 'email', '') or '',
-            'lead_empresa': getattr(lead, 'empresa', '') or '',
-            'vendedor_email': getattr(vendedor, 'email', '') or '',
-            **({'link_anterior': True, 'aviso': meta['aviso']} if meta.get('link_anterior') else {}),
-        })
-    
-    @_rate_limit('assinatura_post', max_requests=5, window=60)
+    @assinatura_publica_rate_limit('assinatura_post', max_requests=5, window=60)
     def post(self, request, token):
-        """Registra a assinatura"""
         from .assinatura_digital_service import (
-            verificar_token_assinatura,
-            registrar_assinatura,
-            notificar_vendedor_apos_assinatura_cliente,
             enviar_pdf_final,
-            normalizar_token_assinatura_url,
+            notificar_vendedor_apos_assinatura_cliente,
+            registrar_assinatura,
         )
-        from django.core.signing import loads, BadSignature
 
-        token = normalizar_token_assinatura_url(token)
+        ctx, err = _preparar_contexto_token(request, token, 'AssinaturaPublica POST')
+        if err:
+            return err
 
-        # PASSO 1: Decodificar token para extrair loja_id
-        try:
-            payload = loads(token)
-            loja_id = payload.get('loja_id')
-        except (BadSignature, Exception) as e:
-            logger.warning(
-                '[AssinaturaPublica] POST token_decode_falhou token_len=%s erro=%s',
-                len(token),
-                e,
-            )
-            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
-
-        if not loja_id:
-            logger.warning('[AssinaturaPublica] POST sem_loja_id token_len=%s', len(token))
-            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
-
-        cfg_err = _configurar_tenant_para_assinatura_publica(loja_id)
-        if cfg_err:
-            logger.warning(
-                '[AssinaturaPublica] POST tenant_config_falhou loja_id=%s erro=%s',
-                loja_id,
-                cfg_err,
-            )
-            status = 503 if 'indisponível' in cfg_err.lower() else 400
-            return JsonResponse({'error': cfg_err}, status=status)
-
-        # PASSO 3: Buscar token no banco (agora com contexto correto)
-        assinatura, erro, _, meta = verificar_token_assinatura(token, loja_id=loja_id)
-        
-        if erro:
-            logger.warning(
-                '[AssinaturaPublica] POST verificar_token_falhou loja_id=%s error_code=%s doc_type=%s doc_id=%s mensagem=%s',
-                loja_id,
-                meta.get('error_code', 'invalido'),
-                payload.get('doc_type'),
-                payload.get('doc_id'),
-                erro,
-            )
-            return JsonResponse({
-                'error': erro,
-                'error_code': meta.get('error_code', 'invalido'),
-            }, status=400)
-        
-        # Obter IP do cliente
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip_address = x_forwarded_for.split(',')[0].strip()
-        else:
-            ip_address = request.META.get('REMOTE_ADDR', '0.0.0.0')
-        
+        assinatura, _payload, _meta = ctx
+        loja_id = assinatura.loja_id
+        ip_address = ip_cliente_assinatura(request)
         user_agent = request.META.get('HTTP_USER_AGENT', '')
-        
-        # Registrar assinatura
+
         proximo_status = registrar_assinatura(assinatura, ip_address, user_agent)
         logger.info(
             '[AssinaturaPublica] POST assinatura_registrada loja_id=%s assinatura_id=%s proximo_status=%s ip=%s',
@@ -260,10 +100,9 @@ class AssinaturaPublicaView(View):
             proximo_status,
             ip_address,
         )
-        
+
         documento = assinatura.documento
-        
-        # Se cliente assinou, criar token e enviar para vendedor
+
         if proximo_status == 'aguardando_vendedor':
             try:
                 ok_v, err_v = notificar_vendedor_apos_assinatura_cliente(documento, loja_id, request)
@@ -276,95 +115,72 @@ class AssinaturaPublicaView(View):
                     )
                 else:
                     logger.warning('Falha ao enviar link ao vendedor: %s', err_v)
-            except Exception as e:
-                logger.exception(f'Erro ao enviar link para vendedor: {e}')
-                # Não falha a assinatura do cliente se envio ao vendedor falhar
-        
-        # Se vendedor assinou, enviar PDF final
+            except Exception as exc:
+                logger.exception('Erro ao enviar link para vendedor: %s', exc)
+
         elif proximo_status == 'concluido':
             try:
-                # Enviar PDF final de forma síncrona (rápido, não precisa de background)
                 enviar_pdf_final(documento, loja_id)
                 logger.info(
-                    f'Vendedor assinou, PDF final enviado: '
-                    f'documento={documento.__class__.__name__}#{documento.id}'
+                    'Vendedor assinou, PDF final enviado: documento=%s#%s',
+                    documento.__class__.__name__,
+                    documento.id,
                 )
-            except Exception as e:
-                logger.exception(f'Erro ao enviar PDF final: {e}')
-                # Não falha a assinatura se envio do PDF falhar
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Documento assinado com sucesso!',
-            'proximo_status': proximo_status,
-            'proximo_status_display': documento.get_status_assinatura_display() if hasattr(documento, 'get_status_assinatura_display') else proximo_status
-        })
+            except Exception as exc:
+                logger.exception('Erro ao enviar PDF final: %s', exc)
 
+        return JsonResponse(
+            {
+                'success': True,
+                'message': 'Documento assinado com sucesso!',
+                'proximo_status': proximo_status,
+                'proximo_status_display': documento.get_status_assinatura_display()
+                if hasattr(documento, 'get_status_assinatura_display')
+                else proximo_status,
+            }
+        )
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AssinaturaPdfView(View):
-    """
-    View pública para visualizar/baixar PDF do documento antes de assinar.
-    GET /api/crm-vendas/assinar/{token}/pdf/ - Retorna PDF do documento
-    """
-    
-    @_rate_limit('assinatura_pdf', max_requests=20, window=60)
+    """GET /api/crm-vendas/assinar/{token}/pdf/ — PDF do documento."""
+
+    @assinatura_publica_rate_limit('assinatura_pdf', max_requests=20, window=60)
     def get(self, request, token):
-        """Retorna PDF do documento para visualização"""
-        from .assinatura_digital_service import verificar_token_assinatura, normalizar_token_assinatura_url
-        from .pdf_proposta_contrato import gerar_pdf_proposta, gerar_pdf_contrato
-        from django.http import HttpResponse
-        from django.core.signing import loads, BadSignature
+        from .assinatura_digital_service import normalizar_token_assinatura_url, verificar_token_assinatura
+        from .pdf_proposta_contrato import gerar_pdf_contrato, gerar_pdf_proposta
 
         token = normalizar_token_assinatura_url(token)
         logger.info('Requisição de PDF de assinatura: token_tamanho=%s', len(token))
 
-        # PASSO 1: Decodificar token para extrair loja_id
-        try:
-            payload = loads(token)
-            loja_id = payload.get('loja_id')
-        except (BadSignature, Exception) as e:
-            logger.error(f'❌ Erro ao decodificar token para PDF: {e}')
-            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
+        payload, decode_err = decodificar_payload_token_assinatura(token)
+        if decode_err:
+            return json_erro_assinatura_publica(decode_err)
 
-        if not loja_id:
-            return JsonResponse({'error': 'Link de assinatura inválido.'}, status=400)
-
-        cfg_err = _configurar_tenant_para_assinatura_publica(loja_id)
+        loja_id = payload.get('loja_id')
+        cfg_err = configurar_tenant_para_assinatura_publica(loja_id)
         if cfg_err:
-            status = 503 if 'indisponível' in cfg_err.lower() else 400
-            return JsonResponse({'error': cfg_err}, status=status)
+            return json_erro_assinatura_publica(cfg_err, status=status_http_erro_tenant(cfg_err))
 
-        # PASSO 3: Buscar token no banco (agora com contexto correto)
         assinatura, erro, _, meta = verificar_token_assinatura(token, loja_id=loja_id)
-        
         if erro:
-            logger.warning(f'❌ Erro ao verificar token para PDF: {erro}')
-            return JsonResponse({
-                'error': erro,
-                'error_code': meta.get('error_code', 'invalido'),
-            }, status=400)
-        
+            logger.warning('❌ Erro ao verificar token para PDF: %s', erro)
+            return JsonResponse({'error': erro, 'error_code': meta.get('error_code', 'invalido')}, status=400)
+
         documento = assinatura.documento
-        
         try:
-            # Gerar PDF sem assinaturas (documento ainda não foi assinado)
             if assinatura.proposta:
                 pdf_buffer = gerar_pdf_proposta(documento, incluir_assinaturas=False)
                 filename = f'proposta_{documento.titulo or documento.id}.pdf'
             else:
                 pdf_buffer = gerar_pdf_contrato(documento, incluir_assinaturas=False)
                 filename = f'contrato_{documento.titulo or documento.id}.pdf'
-            
+
             pdf_buffer.seek(0)
-            
-            logger.info(f'✅ PDF gerado com sucesso: {filename}')
-            
+            logger.info('✅ PDF gerado com sucesso: %s', filename)
             response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
             response['Content-Disposition'] = f'inline; filename="{filename}"'
             return response
-            
-        except Exception as e:
-            logger.exception(f'Erro ao gerar PDF: {e}')
+        except Exception as exc:
+            logger.exception('Erro ao gerar PDF: %s', exc)
             return JsonResponse({'error': 'Erro ao gerar PDF'}, status=500)

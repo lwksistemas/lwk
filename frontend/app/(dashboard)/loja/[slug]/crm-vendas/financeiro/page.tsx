@@ -1,19 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { RefreshCw, Plus, FileText, Download, FolderOpen } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useCrmFinanceiroPage } from '@/hooks/crm-vendas/useCrmFinanceiroPage';
-import type { TipoFinanceiro } from '@/hooks/crm-vendas/useCrmFinanceiroPage';
+import type { TipoFinanceiro } from '@/lib/crm-financeiro-types';
 import {
   CrmFinanceiroGruposTable,
   CrmFinanceiroLancamentosTable,
   CrmFinanceiroResumoCards,
   CrmFinanceiroResumoPorGrupo,
 } from '@/components/crm-vendas/financeiro/CrmFinanceiroTables';
-import { CrmGrupoModal, CrmLancamentoModal } from '@/components/crm-vendas/financeiro/CrmFinanceiroModals';
-import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
+import { CrmFinanceiroToolbar } from '@/components/crm-vendas/financeiro/CrmFinanceiroToolbar';
+import { CrmFinanceiroPageModals } from '@/components/crm-vendas/financeiro/CrmFinanceiroPageModals';
 import { formatCurrency } from '@/lib/financeiro-helpers';
-import { CRM_PERIODO_FINANCEIRO } from '@/lib/crm-periodos';
 
 const TIPO_CONFIG: Record<
   TipoFinanceiro,
@@ -56,34 +55,6 @@ export default function CrmFinanceiroPage() {
   const totalPago = f.resumo ? cfg.totalPago(f.resumo) : 0;
   const totalPendente = f.resumo ? cfg.totalPendente(f.resumo) : 0;
 
-  const financeiroConfirmCopy = (() => {
-    const action = f.confirmAction;
-    if (!action) return null;
-    if (action.type === 'excluir_lancamento') {
-      return {
-        title: 'Excluir lançamento',
-        message: `Excluir o lançamento "${action.item.descricao}"?`,
-        confirmLabel: 'Excluir',
-        variant: 'danger' as const,
-      };
-    }
-    if (action.type === 'excluir_grupo') {
-      return {
-        title: 'Excluir grupo',
-        message: `Excluir o grupo "${action.grupo.nome}"?`,
-        confirmLabel: 'Excluir',
-        variant: 'danger' as const,
-      };
-    }
-    return {
-      title: 'Sincronizar comissões',
-      message:
-        'Importar comissões das oportunidades já ganhas para o financeiro?',
-      confirmLabel: 'Sincronizar',
-      variant: 'primary' as const,
-    };
-  })();
-
   const selecionarTipo = (tipo: TipoFinanceiro) => {
     setTipoAtivo(tipo);
     f.setGrupoFiltroRelatorio('');
@@ -91,114 +62,7 @@ export default function CrmFinanceiroPage() {
 
   return (
     <div className="w-full flex flex-col flex-1 min-h-0 gap-4 -m-2 sm:-m-4 lg:-m-6 p-2 sm:p-4 lg:p-6">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 shrink-0">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Financeiro do vendedor</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Escolha despesas ou receitas — lista em tela cheia
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {f.isAdmin && (
-            <>
-              <button
-                type="button"
-                onClick={() => f.setShowGrupos((v) => !v)}
-                className={`inline-flex items-center gap-2 px-3 py-2 text-sm rounded border ${
-                  f.showGrupos
-                    ? 'bg-[#0176d3] text-white border-[#0176d3]'
-                    : 'border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
-              >
-                <FolderOpen size={16} />
-                Grupos
-              </button>
-              <button
-                type="button"
-                onClick={f.sincronizarComissoes}
-                disabled={f.sincronizando}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded border border-[#0176d3] text-[#0176d3] hover:bg-blue-50 dark:hover:bg-blue-950/30 disabled:opacity-50"
-              >
-                <Download size={16} className={f.sincronizando ? 'animate-pulse' : ''} />
-                {f.sincronizando ? 'Sync...' : 'Sync comissões'}
-              </button>
-            </>
-          )}
-          <button
-            type="button"
-            onClick={() => f.loadAll()}
-            disabled={f.loading}
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded bg-[#0176d3] text-white hover:bg-[#0159a8] disabled:opacity-50"
-          >
-            <RefreshCw size={16} className={f.loading ? 'animate-spin' : ''} />
-            Atualizar
-          </button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-end gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-900/40 shrink-0">
-        {f.isAdmin && (
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Vendedor</label>
-            <select
-              value={f.vendedorFiltro}
-              onChange={(e) => f.setVendedorFiltro(e.target.value)}
-              className="rounded border px-3 py-1.5 text-sm dark:bg-gray-800 dark:border-gray-700 min-w-[180px]"
-            >
-              <option value="">Todos</option>
-              {f.vendedores.map((v) => (
-                <option key={v.id} value={v.id}>{v.nome}</option>
-              ))}
-            </select>
-          </div>
-        )}
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Período</label>
-          <select
-            value={f.periodoRelatorio}
-            onChange={(e) => f.setPeriodoRelatorio(e.target.value)}
-            className="rounded border px-3 py-1.5 text-sm dark:bg-gray-800 dark:border-gray-700"
-          >
-            {CRM_PERIODO_FINANCEIRO.map((p) => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-          </select>
-        </div>
-        {f.periodoRelatorio === 'personalizado' && (
-          <>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">De</label>
-              <input type="date" value={f.dataInicioRel} onChange={(e) => f.setDataInicioRel(e.target.value)} className="rounded border px-2 py-1.5 text-sm dark:bg-gray-800" />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Até</label>
-              <input type="date" value={f.dataFimRel} onChange={(e) => f.setDataFimRel(e.target.value)} className="rounded border px-2 py-1.5 text-sm dark:bg-gray-800" />
-            </div>
-          </>
-        )}
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Grupo</label>
-          <select
-            value={f.grupoFiltroRelatorio}
-            onChange={(e) => f.setGrupoFiltroRelatorio(e.target.value)}
-            className="rounded border px-3 py-1.5 text-sm dark:bg-gray-800 dark:border-gray-700 min-w-[160px]"
-          >
-            <option value="">Todos os grupos</option>
-            {gruposTipo.map((g) => (
-              <option key={g.id} value={g.id}>{g.nome}</option>
-            ))}
-          </select>
-        </div>
-        <button
-          type="button"
-          onClick={() => f.gerarRelatorioPdf()}
-          disabled={f.gerandoPdf}
-          className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded bg-gray-800 text-white hover:bg-gray-900 disabled:opacity-50 dark:bg-gray-700 ml-auto"
-        >
-          <FileText size={16} />
-          {f.gerandoPdf ? 'Gerando...' : f.grupoFiltroRelatorio ? 'PDF do grupo' : 'PDF geral'}
-        </button>
-      </div>
+      <CrmFinanceiroToolbar f={f} tipoAtivo={tipoAtivo} gruposTipo={gruposTipo} />
 
       <div className="shrink-0">
         <CrmFinanceiroResumoCards resumo={f.resumo} loading={f.loading} />
@@ -299,39 +163,7 @@ export default function CrmFinanceiroPage() {
         </div>
       </section>
 
-      <CrmLancamentoModal
-        open={f.showModal}
-        tipo={f.modalTipo}
-        editing={f.editing}
-        grupos={gruposModal}
-        vendedores={f.vendedores}
-        isAdmin={f.isAdmin}
-        saving={f.saving}
-        onClose={() => f.setShowModal(false)}
-        onSave={f.salvarLancamento}
-      />
-
-      <CrmGrupoModal
-        open={f.showGrupoModal}
-        editing={f.editingGrupo}
-        tipoInicial={tipoAtivo}
-        saving={f.saving}
-        onClose={() => f.setShowGrupoModal(false)}
-        onSave={f.salvarGrupo}
-      />
-
-      {financeiroConfirmCopy && (
-        <CrmConfirmActionModal
-          open
-          title={financeiroConfirmCopy.title}
-          message={financeiroConfirmCopy.message}
-          confirmLabel={financeiroConfirmCopy.confirmLabel}
-          variant={financeiroConfirmCopy.variant}
-          loading={f.confirmando || f.sincronizando}
-          onClose={f.closeConfirm}
-          onConfirm={f.executeConfirm}
-        />
-      )}
+      <CrmFinanceiroPageModals f={f} tipoAtivo={tipoAtivo} gruposModal={gruposModal} />
     </div>
   );
 }

@@ -5,10 +5,8 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
-from crm_vendas.relatorios_vendas_pdf import (
-    _merge_detalhamento_vendedores_pdf,
-    gerar_relatorio_vendas_total,
-)
+from crm_vendas.relatorios_vendas_pdf import gerar_relatorio_vendas_total
+from crm_vendas.relatorios_vendas_pdf_helpers import merge_detalhamento_vendedores_pdf
 
 
 class RelatoriosPdfSmokeTest(SimpleTestCase):
@@ -55,8 +53,8 @@ class RelatoriosPdfSmokeTest(SimpleTestCase):
             {'vendedor_id': 5, 'vendedor__nome': 'ADMIN', 'vendedor__is_active': True, 'total': 100, 'comissao': 10, 'qtd': 1},
             {'vendedor_id': None, 'vendedor__nome': None, 'vendedor__is_active': None, 'total': 50, 'comissao': 5, 'qtd': 1},
         ]
-        with patch('crm_vendas.relatorios_vendas_pdf.get_vendedor_destino_merge_loja', return_value=destino):
-            merged = _merge_detalhamento_vendedores_pdf(1, raw)
+        with patch('crm_vendas.relatorios_vendas_pdf_helpers.get_vendedor_destino_merge_loja', return_value=destino):
+            merged = merge_detalhamento_vendedores_pdf(1, raw)
 
         self.assertEqual(len(merged), 1)
         self.assertEqual(merged[0]['vendedor_id'], 5)

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { getCrmApiErrorDetail } from '@/lib/crm-utils';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { useToast } from '@/components/ui/Toast';
@@ -18,8 +19,6 @@ export interface CrmContato {
   observacoes?: string;
   created_at: string;
 }
-
-export type CrmContatoModalType = 'view' | 'delete' | null;
 
 export function useCrmContatosPage() {
   const toast = useToast();
@@ -49,22 +48,11 @@ export function useCrmContatosPage() {
     errorFallback: 'Erro ao carregar contatos.',
   });
 
-  const [modalType, setModalType] = useState<CrmContatoModalType>(null);
-  const [selectedContato, setSelectedContato] = useState<CrmContato | null>(null);
+  const [contatoParaExcluir, setContatoParaExcluir] = useState<CrmContato | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const contaIdNaUrl = searchParams.get('conta_id');
   const verParam = searchParams.get('ver');
-
-  const openModal = useCallback((type: CrmContatoModalType, contato?: CrmContato) => {
-    setModalType(type);
-    setSelectedContato(contato || null);
-  }, []);
-
-  const closeModal = useCallback(() => {
-    setModalType(null);
-    setSelectedContato(null);
-  }, []);
 
   const irParaNovoContato = useCallback(() => {
     const qs = contaFiltro ? `?conta_id=${contaFiltro}${contaFiltroNome ? `&conta_nome=${encodeURIComponent(contaFiltroNome)}` : ''}` : '';
@@ -74,6 +62,13 @@ export function useCrmContatosPage() {
   const irParaEditarContato = useCallback(
     (id: number) => {
       router.push(`${basePath}/${id}/editar`);
+    },
+    [basePath, router],
+  );
+
+  const irParaVerContato = useCallback(
+    (id: number) => {
+      router.push(`${basePath}/${id}`);
     },
     [basePath, router],
   );
@@ -122,20 +117,8 @@ export function useCrmContatosPage() {
     if (!verParam) return;
     const id = parseInt(verParam, 10);
     if (isNaN(id)) return;
-    const found = contatos.find((c) => c.id === id);
-    if (found) {
-      openModal('view', found);
-      router.replace(basePath, { scroll: false });
-    } else if (!loading) {
-      apiClient
-        .get<CrmContato>(`/crm-vendas/contatos/${id}/`)
-        .then((res) => {
-          openModal('view', res.data);
-          router.replace(basePath, { scroll: false });
-        })
-        .catch(() => {});
-    }
-  }, [verParam, contatos, loading, basePath, router, openModal]);
+    router.replace(`${basePath}/${id}`, { scroll: false });
+  }, [basePath, router, verParam]);
 
   const limparFiltroConta = () => {
     setContaFiltro(null);
@@ -143,16 +126,15 @@ export function useCrmContatosPage() {
   };
 
   const handleDelete = async () => {
-    if (!selectedContato) return;
+    if (!contatoParaExcluir) return;
     try {
       setSubmitting(true);
-      await apiClient.delete(`/crm-vendas/contatos/${selectedContato.id}/`);
+      await apiClient.delete(`/crm-vendas/contatos/${contatoParaExcluir.id}/`);
       await reloadContatos(true);
-      closeModal();
+      setContatoParaExcluir(null);
       toast.success('Contato excluído.');
     } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      toast.error(detail || 'Erro ao excluir contato.');
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao excluir contato.'));
     } finally {
       setSubmitting(false);
     }
@@ -171,13 +153,12 @@ export function useCrmContatosPage() {
     colunasVisiveis,
     contaFiltro,
     contaFiltroNome,
-    modalType,
-    selectedContato,
+    contatoParaExcluir,
+    setContatoParaExcluir,
     submitting,
-    openModal,
-    closeModal,
     irParaNovoContato,
     irParaEditarContato,
+    irParaVerContato,
     limparFiltroConta,
     handleDelete,
   };

@@ -1,10 +1,9 @@
 'use client';
 
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
 import { Plus, Eye, Edit2, Trash2, User } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
-import { ContatoViewModal } from './components/ContatoViewModal';
-import { ContatoDeleteModal } from './components/ContatoDeleteModal';
 import { formatTelefone } from '@/lib/format-br';
 import { formatDate } from '@/lib/financeiro-helpers';
 import { useCrmContatosPage, type CrmContato } from '@/hooks/crm-vendas/useCrmContatosPage';
@@ -48,13 +47,12 @@ export default function CrmVendasContatosPage() {
     colunasVisiveis,
     contaFiltro,
     contaFiltroNome,
-    modalType,
-    selectedContato,
+    contatoParaExcluir,
+    setContatoParaExcluir,
     submitting,
-    openModal,
-    closeModal,
     irParaNovoContato,
     irParaEditarContato,
+    irParaVerContato,
     limparFiltroConta,
     handleDelete,
   } = useCrmContatosPage();
@@ -151,7 +149,7 @@ export default function CrmVendasContatosPage() {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           type="button"
-                          onClick={() => openModal('view', c)}
+                          onClick={() => irParaVerContato(c.id)}
                           className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
                           title="Visualizar"
                         >
@@ -167,7 +165,7 @@ export default function CrmVendasContatosPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => openModal('delete', c)}
+                          onClick={() => setContatoParaExcluir(c)}
                           className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400"
                           title="Excluir"
                         >
@@ -192,21 +190,11 @@ export default function CrmVendasContatosPage() {
         />
       </div>
 
-      {modalType === 'view' && selectedContato && (
-        <ContatoViewModal
-          contato={selectedContato}
-          onClose={closeModal}
-          onEdit={() => {
-            closeModal();
-            irParaEditarContato(selectedContato.id);
-          }}
-        />
-      )}
-      {modalType === 'delete' && selectedContato && (
-        <ContatoDeleteModal
-          contato={selectedContato}
-          submitting={submitting}
-          onClose={closeModal}
+      {contatoParaExcluir && (
+        <CrmConfirmDeleteModal
+          tituloItem={contatoParaExcluir.nome}
+          enviando={submitting}
+          onClose={() => setContatoParaExcluir(null)}
           onConfirm={handleDelete}
         />
       )}

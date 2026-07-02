@@ -28,6 +28,22 @@ interface WhatsAppWebConnectProps {
   accentColor?: string;
 }
 
+function extractApiError(e: unknown, fallback: string): string {
+  const err = e as {
+    response?: { data?: { error?: string; detail?: string }; statusText?: string };
+    message?: string;
+  };
+  return (
+    err?.response?.data?.error ||
+    err?.response?.data?.detail ||
+    (err?.response?.statusText && err.response.statusText !== 'Bad Request'
+      ? err.response.statusText
+      : '') ||
+    err?.message ||
+    fallback
+  );
+}
+
 function qrSrc(base64?: string | null) {
   if (!base64) return '';
   if (base64.startsWith('data:image')) return base64;
@@ -127,8 +143,7 @@ export function WhatsAppWebConnect({
         setGeneratingQr(false);
       }
     } catch (e) {
-      const err = e as { response?: { data?: { error?: string } }; message?: string };
-      setError(err?.response?.data?.error || err?.message || 'Erro ao iniciar conexão.');
+      setError(extractApiError(e, 'Erro ao iniciar conexão.'));
     } finally {
       setLoading(false);
     }
@@ -142,8 +157,7 @@ export function WhatsAppWebConnect({
       onConnectionUpdate(data);
       setQrBase64(null);
     } catch (e) {
-      const err = e as { response?: { data?: { error?: string } }; message?: string };
-      setError(err?.response?.data?.error || err?.message || 'Erro ao desconectar.');
+      setError(extractApiError(e, 'Erro ao desconectar.'));
     } finally {
       setLoading(false);
     }
@@ -178,8 +192,7 @@ export function WhatsAppWebConnect({
         setGeneratingQr(false);
       }
     } catch (e) {
-      const err = e as { response?: { data?: { error?: string } }; message?: string };
-      setError(err?.response?.data?.error || err?.message || 'Erro ao resetar sessão.');
+      setError(extractApiError(e, 'Erro ao resetar sessão.'));
       setGeneratingQr(false);
     } finally {
       setLoading(false);

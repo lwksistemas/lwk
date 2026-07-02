@@ -97,11 +97,6 @@ class WhatsAppResetSessionView(WhatsAppConnectionMixin, APIView):
             )
         if config is None:
             return Response({'error': 'Contexto de loja não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-        if getattr(config, 'whatsapp_provider', WhatsAppConfig.PROVIDER_META) != WhatsAppConfig.PROVIDER_EVOLUTION:
-            return Response(
-                {'error': 'Reset de sessão só se aplica ao WhatsApp Web (QR).'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         try:
             payload = reset_evolution_connection(config)
             return Response(payload)

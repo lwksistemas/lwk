@@ -11,6 +11,7 @@ from .evolution_client import (
     _extract_qr_base64,
     _has_qr_payload,
     connect_instance,
+    create_evolution_instance_with_qr,
     create_instance,
     delete_instance,
     evolution_configured,
@@ -299,10 +300,7 @@ def start_evolution_connection(config):
     ])
 
     try:
-        if instance_exists(instance_name):
-            qr_data = recreate_instance(instance_name)
-        else:
-            qr_data = create_instance(instance_name)
+        qr_data = create_evolution_instance_with_qr(instance_name)
 
         if _has_qr_payload(qr_data):
             return _apply_qr_from_data(config, instance_name, qr_data)
@@ -311,9 +309,15 @@ def start_evolution_connection(config):
         return _apply_qr_from_data(config, instance_name, qr_data)
 
     except EvolutionAPIError as exc:
-        if exc.status_code == 409:
-            qr_data = wait_for_qr(instance_name, attempts=12, delay=2.0)
-            return _apply_qr_from_data(config, instance_name, qr_data)
+        if exc.status_code in (400, 403, 409):
+            try:
+                qr_data = recreate_instance(instance_name)
+                if _has_qr_payload(qr_data):
+                    return _apply_qr_from_data(config, instance_name, qr_data)
+                qr_data = wait_for_qr(instance_name, attempts=12, delay=2.0)
+                return _apply_qr_from_data(config, instance_name, qr_data)
+            except EvolutionAPIError:
+                pass
         config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_ERROR
         config.save(update_fields=['whatsapp_connection_status', 'updated_at'])
         raise
@@ -369,40 +373,6 @@ def reset_evolution_connection(config):
 
     delete_evolution_for_loja(config.loja_id, instance_name=instance_name)
 
-    if instance_exists(instance_name):
-        try:
-            state_info = get_connection_state(instance_name)
-            if state_info['state'] == WhatsAppConfig.CONNECTION_CONNECTED:
-                logger.warning(
-                    'Evolution reset loja %s: instância %s ainda conectada após delete — recriando',
-                    config.loja_id,
-                    instance_name,
-                )
-                qr_data = recreate_instance(instance_name)
-                config.whatsapp_provider = WhatsAppConfig.PROVIDER_EVOLUTION
-                config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_QR_PENDING
-                config.whatsapp_connected_phone = ''
-                config.whatsapp_connected_at = None
-                config.save(update_fields=[
-                    'whatsapp_provider',
-                    'whatsapp_connection_status',
-                    'whatsapp_connected_phone',
-                    'whatsapp_connected_at',
-                    'updated_at',
-                ])
-                _invalidate_whatsapp_config_cache(config.loja_id)
-                if _has_qr_payload(qr_data):
-                    return _apply_qr_from_data(config, instance_name, qr_data)
-                qr_data = wait_for_qr(instance_name, attempts=12, delay=2.0)
-                return _apply_qr_from_data(config, instance_name, qr_data)
-        except EvolutionAPIError as exc:
-            logger.warning(
-                'Evolution reset loja %s: falha ao recriar instância pendente %s: %s',
-                config.loja_id,
-                instance_name,
-                exc,
-            )
-
     config.whatsapp_provider = WhatsAppConfig.PROVIDER_EVOLUTION
     config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_QR_PENDING
     config.whatsapp_connected_phone = ''
@@ -418,7 +388,7 @@ def reset_evolution_connection(config):
     _invalidate_whatsapp_config_cache(config.loja_id)
 
     try:
-        qr_data = create_instance(instance_name)
+        qr_data = create_evolution_instance_with_qr(instance_name)
         if _has_qr_payload(qr_data):
             logger.info('Evolution reset loja %s: nova instância %s com QR', config.loja_id, instance_name)
             return _apply_qr_from_data(config, instance_name, qr_data)
@@ -427,9 +397,15 @@ def reset_evolution_connection(config):
         logger.info('Evolution reset loja %s: QR após aguardar (%s)', config.loja_id, instance_name)
         return _apply_qr_from_data(config, instance_name, qr_data)
     except EvolutionAPIError as exc:
-        if exc.status_code == 409:
-            qr_data = wait_for_qr(instance_name, attempts=12, delay=2.0)
-            return _apply_qr_from_data(config, instance_name, qr_data)
+        if exc.status_code in (400, 403, 409):
+            try:
+                qr_data = recreate_instance(instance_name)
+                if _has_qr_payload(qr_data):
+                    return _apply_qr_from_data(config, instance_name, qr_data)
+                qr_data = wait_for_qr(instance_name, attempts=12, delay=2.0)
+                return _apply_qr_from_data(config, instance_name, qr_data)
+            except EvolutionAPIError:
+                pass
         config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_ERROR
         config.save(update_fields=['whatsapp_connection_status', 'updated_at'])
         raise

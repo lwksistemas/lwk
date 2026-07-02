@@ -356,6 +356,21 @@ def recreate_instance(instance_name):
     return create_instance(instance_name)
 
 
+def create_evolution_instance_with_qr(instance_name):
+    """
+    Garante instância Evolution com QR.
+    Recria quando já existe — create em instância existente retorna Bad Request (400).
+    """
+    if instance_exists(instance_name):
+        return recreate_instance(instance_name)
+    try:
+        return create_instance(instance_name)
+    except EvolutionAPIError as exc:
+        if exc.status_code in (400, 403, 409):
+            return recreate_instance(instance_name)
+        raise
+
+
 def wait_for_qr(instance_name, attempts=6, delay=4.0):
     """
     Aguarda QR da Evolution. Uma chamada connect por ciclo (evita loop Baileys).

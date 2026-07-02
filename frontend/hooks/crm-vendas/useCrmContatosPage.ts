@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
-import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { useToast } from '@/components/ui/Toast';
 
@@ -20,9 +19,7 @@ export interface CrmContato {
   created_at: string;
 }
 
-export type CrmContatoModalType = 'create' | 'edit' | 'view' | 'delete' | null;
-
-const EMPTY_FORM = { nome: '', email: '', telefone: '', cargo: '', conta: '', observacoes: '' };
+export type CrmContatoModalType = 'view' | 'delete' | null;
 
 export function useCrmContatosPage() {
   const toast = useToast();
@@ -30,6 +27,7 @@ export function useCrmContatosPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
+  const basePath = `/loja/${slug}/crm-vendas/contatos`;
   const { colunasContatosVisiveis } = useCRMConfig();
   const colunasVisiveis = colunasContatosVisiveis();
 
@@ -53,8 +51,6 @@ export function useCrmContatosPage() {
 
   const [modalType, setModalType] = useState<CrmContatoModalType>(null);
   const [selectedContato, setSelectedContato] = useState<CrmContato | null>(null);
-  const [formData, setFormData] = useState(EMPTY_FORM);
-  const [contaNomeForm, setContaNomeForm] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const contaIdNaUrl = searchParams.get('conta_id');
@@ -63,28 +59,24 @@ export function useCrmContatosPage() {
   const openModal = useCallback((type: CrmContatoModalType, contato?: CrmContato) => {
     setModalType(type);
     setSelectedContato(contato || null);
-    if (type === 'edit' && contato) {
-      setFormData({
-        nome: contato.nome || '',
-        email: contato.email || '',
-        telefone: formatTelefone(contato.telefone || ''),
-        cargo: contato.cargo || '',
-        conta: String(contato.conta) || '',
-        observacoes: contato.observacoes || '',
-      });
-      setContaNomeForm(contato.conta_nome || '');
-    } else if (type === 'create') {
-      setFormData(EMPTY_FORM);
-      setContaNomeForm('');
-    }
   }, []);
 
   const closeModal = useCallback(() => {
     setModalType(null);
     setSelectedContato(null);
-    setFormData(EMPTY_FORM);
-    setContaNomeForm('');
   }, []);
+
+  const irParaNovoContato = useCallback(() => {
+    const qs = contaFiltro ? `?conta_id=${contaFiltro}${contaFiltroNome ? `&conta_nome=${encodeURIComponent(contaFiltroNome)}` : ''}` : '';
+    router.push(`${basePath}/novo${qs}`);
+  }, [basePath, contaFiltro, contaFiltroNome, router]);
+
+  const irParaEditarContato = useCallback(
+    (id: number) => {
+      router.push(`${basePath}/${id}/editar`);
+    },
+    [basePath, router],
+  );
 
   useEffect(() => {
     if (contaIdNaUrl) {
@@ -119,10 +111,12 @@ export function useCrmContatosPage() {
   useEffect(() => {
     if (searchParams.get('criar') !== '1') return;
     const cid = searchParams.get('conta_id');
-    if (cid) setFormData((f) => ({ ...f, conta: cid }));
-    openModal('create');
-    router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
-  }, [searchParams, router, slug, openModal]);
+    const cname = searchParams.get('conta_nome');
+    const qs = cid
+      ? `?conta_id=${cid}${cname ? `&conta_nome=${encodeURIComponent(cname)}` : ''}`
+      : '';
+    router.replace(`${basePath}/novo${qs}`, { scroll: false });
+  }, [basePath, router, searchParams]);
 
   useEffect(() => {
     if (!verParam) return;
@@ -131,79 +125,21 @@ export function useCrmContatosPage() {
     const found = contatos.find((c) => c.id === id);
     if (found) {
       openModal('view', found);
-      router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
+      router.replace(basePath, { scroll: false });
     } else if (!loading) {
       apiClient
         .get<CrmContato>(`/crm-vendas/contatos/${id}/`)
         .then((res) => {
           openModal('view', res.data);
-          router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
+          router.replace(basePath, { scroll: false });
         })
         .catch(() => {});
     }
-  }, [verParam, contatos, loading, slug, router, openModal]);
+  }, [verParam, contatos, loading, basePath, router, openModal]);
 
   const limparFiltroConta = () => {
     setContaFiltro(null);
-    router.replace(`/loja/${slug}/crm-vendas/contatos`, { scroll: false });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.nome.trim()) {
-      toast.warning('Nome é obrigatório');
-      return;
-    }
-    if (!formData.conta) {
-      toast.warning('Conta é obrigatória');
-      return;
-    }
-    try {
-      setSubmitting(true);
-      const payload = applyTelefoneInternacionalPayload({ ...formData, conta: parseInt(formData.conta, 10) });
-      if (modalType === 'create') {
-        const res = await apiClient.post('/crm-vendas/contatos/', payload);
-        const novoContato = res.data;
-        try {
-          const contaRes = await apiClient.get(`/crm-vendas/contas/${payload.conta}/`);
-          const conta = contaRes.data;
-          const leadPayload = {
-            nome: novoContato.nome,
-            empresa: conta.nome,
-            email: novoContato.email || conta.email || '',
-            telefone: novoContato.telefone || conta.telefone || '',
-            origem: 'site',
-            status: 'novo',
-            conta: conta.id,
-            contato: novoContato.id,
-            cpf_cnpj: conta.cnpj || '',
-            cep: conta.cep || '',
-            logradouro: conta.logradouro || '',
-            numero: conta.numero || '',
-            complemento: conta.complemento || '',
-            bairro: conta.bairro || '',
-            cidade: conta.cidade || '',
-            uf: conta.uf || '',
-          };
-          await apiClient.post('/crm-vendas/leads/', leadPayload);
-          toast.success('Contato e Lead criados com sucesso!');
-        } catch (leadErr: unknown) {
-          const detail = (leadErr as { response?: { data?: { detail?: string } }; message?: string })?.response?.data
-            ?.detail;
-          toast.warning(`Contato criado, mas o Lead automático falhou: ${detail || (leadErr as Error).message}`);
-        }
-      } else if (modalType === 'edit' && selectedContato) {
-        await apiClient.put(`/crm-vendas/contatos/${selectedContato.id}/`, payload);
-        toast.success('Contato atualizado.');
-      }
-      await reloadContatos(true);
-      closeModal();
-    } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      toast.error(detail || 'Erro ao salvar contato.');
-    } finally {
-      setSubmitting(false);
-    }
+    router.replace(basePath, { scroll: false });
   };
 
   const handleDelete = async () => {
@@ -237,14 +173,12 @@ export function useCrmContatosPage() {
     contaFiltroNome,
     modalType,
     selectedContato,
-    formData,
-    setFormData,
-    contaNomeForm,
     submitting,
     openModal,
     closeModal,
+    irParaNovoContato,
+    irParaEditarContato,
     limparFiltroConta,
-    handleSubmit,
     handleDelete,
   };
 }

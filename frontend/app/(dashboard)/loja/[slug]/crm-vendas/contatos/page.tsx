@@ -3,7 +3,6 @@
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { Plus, Eye, Edit2, Trash2, User } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
-import { ContatoFormModal } from './components/ContatoFormModal';
 import { ContatoViewModal } from './components/ContatoViewModal';
 import { ContatoDeleteModal } from './components/ContatoDeleteModal';
 import { formatTelefone } from '@/lib/format-br';
@@ -38,7 +37,6 @@ function renderCelulaContato(c: CrmContato, coluna: string) {
 
 export default function CrmVendasContatosPage() {
   const {
-    slug,
     contatos,
     page,
     setPage,
@@ -52,14 +50,12 @@ export default function CrmVendasContatosPage() {
     contaFiltroNome,
     modalType,
     selectedContato,
-    formData,
-    setFormData,
-    contaNomeForm,
     submitting,
     openModal,
     closeModal,
+    irParaNovoContato,
+    irParaEditarContato,
     limparFiltroConta,
-    handleSubmit,
     handleDelete,
   } = useCrmContatosPage();
 
@@ -100,7 +96,7 @@ export default function CrmVendasContatosPage() {
         </div>
         <button
           type="button"
-          onClick={() => openModal('create')}
+          onClick={irParaNovoContato}
           className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm"
         >
           <Plus size={18} /> <span>Novo Contato</span>
@@ -163,7 +159,7 @@ export default function CrmVendasContatosPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => openModal('edit', c)}
+                          onClick={() => irParaEditarContato(c.id)}
                           className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
                           title="Editar"
                         >
@@ -196,22 +192,14 @@ export default function CrmVendasContatosPage() {
         />
       </div>
 
-      {(modalType === 'create' || modalType === 'edit') && (
-        <ContatoFormModal
-          title={modalType === 'create' ? 'Novo Contato' : 'Editar Contato'}
-          formData={formData}
-          contaNomeInicial={contaNomeForm}
-          submitting={submitting}
-          onChange={setFormData}
-          onSubmit={handleSubmit}
-          onClose={closeModal}
-        />
-      )}
       {modalType === 'view' && selectedContato && (
         <ContatoViewModal
           contato={selectedContato}
           onClose={closeModal}
-          onEdit={() => openModal('edit', selectedContato)}
+          onEdit={() => {
+            closeModal();
+            irParaEditarContato(selectedContato.id);
+          }}
         />
       )}
       {modalType === 'delete' && selectedContato && (

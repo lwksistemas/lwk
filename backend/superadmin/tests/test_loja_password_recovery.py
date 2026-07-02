@@ -92,7 +92,7 @@ class LojaPasswordRecoveryServiceTest(TestCase):
     def test_resolve_profissional_por_email(self):
         prof_user = User.objects.create_user(
             username='recep',
-            email='recep@harmonis.test',
+            email='',
             password='x',
         )
         ProfissionalUsuario.objects.create(
@@ -102,6 +102,23 @@ class LojaPasswordRecoveryServiceTest(TestCase):
             perfil=ProfissionalUsuario.PERFIL_RECEPCIONISTA,
         )
         resolved = resolve_loja_user_for_password_recovery(self.loja, 'recep@harmonis.test')
+        self.assertIsNone(resolved)
+
+    @patch('superadmin.services.loja_password_recovery_service._find_tenant_professional_id')
+    def test_resolve_profissional_por_email_tenant(self, mock_find_prof):
+        prof_user = User.objects.create_user(
+            username='luiz_harmonis',
+            email='',
+            password='x',
+        )
+        ProfissionalUsuario.objects.create(
+            user=prof_user,
+            loja=self.loja,
+            professional_id=99,
+            perfil=ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+        )
+        mock_find_prof.return_value = 99
+        resolved = resolve_loja_user_for_password_recovery(self.loja, 'pjluiz25@hotmail.com')
         self.assertEqual(resolved, prof_user)
 
     def test_email_incorreto_nao_envia(self):

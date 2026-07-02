@@ -23,6 +23,7 @@ _RECOVERY_OK_MESSAGE = (
 def resolve_loja_user_for_password_recovery(loja, email: str) -> Optional[User]:
     """
     Usuário com acesso à loja cujo email coincide (proprietário, profissional ou vendedor).
+    Busca também o email no cadastro do tenant (Professional/Vendedor), pois pode divergir do User.email.
     """
     email_norm = (email or '').strip().lower()
     if not email_norm or not loja:
@@ -33,15 +34,92 @@ def resolve_loja_user_for_password_recovery(loja, email: str) -> Optional[User]:
         return owner
 
     user = User.objects.filter(email__iexact=email.strip()).first()
-    if not user:
+    if user:
+        if ProfissionalUsuario.objects.filter(user=user, loja=loja).exists():
+            return user
+        if VendedorUsuario.objects.filter(user=user, loja=loja).exists():
+            return user
+
+    return _resolve_user_by_tenant_email(loja, email_norm)
+
+
+def _resolve_user_by_tenant_email(loja, email_norm: str) -> Optional[User]:
+    """Resolve User via email cadastrado no profissional/vendedor do schema da loja."""
+    db = getattr(loja, 'database_name', None)
+    if not db or not getattr(loja, 'database_created', False):
         return None
 
-    if ProfissionalUsuario.objects.filter(user=user, loja=loja).exists():
-        return user
-    if VendedorUsuario.objects.filter(user=user, loja=loja).exists():
-        return user
+    from core.db_config import ensure_loja_database_config
+
+    if not ensure_loja_database_config(db, conn_max_age=60):
+        return None
+
+    tipo_slug = (getattr(loja.tipo_loja, 'slug', None) or '').strip().lower()
+    tipo_nome = (getattr(loja.tipo_loja, 'nome', None) or '').strip()
+
+    prof_id = _find_tenant_professional_id(loja, db, email_norm, tipo_slug, tipo_nome)
+    if prof_id is not None:
+        pu = (
+            ProfissionalUsuario.objects.filter(loja=loja, professional_id=prof_id)
+            .select_related('user')
+            .first()
+        )
+        if pu and pu.user_id:
+            return pu.user
+
+    vendedor_id = _find_tenant_vendedor_id(loja, db, email_norm, tipo_slug, tipo_nome)
+    if vendedor_id is not None:
+        vu = (
+            VendedorUsuario.objects.filter(loja=loja, vendedor_id=vendedor_id)
+            .select_related('user')
+            .first()
+        )
+        if vu and vu.user_id:
+            return vu.user
 
     return None
+
+
+def _find_tenant_professional_id(loja, db: str, email_norm: str, tipo_slug: str, tipo_nome: str):
+    prof_model = None
+    if tipo_slug == 'clinica-beleza' or tipo_nome == 'Clínica da Beleza':
+        from clinica_beleza.models import Professional as prof_model
+    elif tipo_slug == 'clinica-estetica' or tipo_nome == 'Clínica de Estética':
+        from clinica_estetica.models import Profissional as prof_model
+    elif tipo_slug == 'cabeleireiro' or tipo_nome == 'Cabeleireiro':
+        from cabeleireiro.models import Profissional as prof_model
+
+    if prof_model is None:
+        return None
+
+    try:
+        prof = (
+            prof_model.objects.using(db)
+            .filter(loja_id=loja.id, email__iexact=email_norm, is_active=True)
+            .values_list('id', flat=True)
+            .first()
+        )
+        return prof
+    except Exception as exc:
+        logger.debug('Recuperação de senha: busca profissional tenant falhou (loja=%s): %s', loja.slug, exc)
+        return None
+
+
+def _find_tenant_vendedor_id(loja, db: str, email_norm: str, tipo_slug: str, tipo_nome: str):
+    if tipo_slug != 'crm-vendas' and tipo_nome != 'CRM Vendas':
+        return None
+    try:
+        from crm_vendas.models import Vendedor
+
+        return (
+            Vendedor.objects.using(db)
+            .filter(loja_id=loja.id, email__iexact=email_norm, is_active=True)
+            .values_list('id', flat=True)
+            .first()
+        )
+    except Exception as exc:
+        logger.debug('Recuperação de senha: busca vendedor tenant falhou (loja=%s): %s', loja.slug, exc)
+        return None
 
 
 class LojaPasswordRecoveryService:

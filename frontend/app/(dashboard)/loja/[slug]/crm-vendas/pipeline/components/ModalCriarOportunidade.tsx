@@ -15,7 +15,7 @@ interface Props {
 
 export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug, etapas, initialLeadId }: Props) {
   const formState = useOportunidadeForm({ initialLeadId, enabled: open });
-  const { enviando, formErro, leads, criarOportunidade } = formState;
+  const { enviando, formErro, criarOportunidade } = formState;
 
   const handleCriarOportunidade = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +65,7 @@ export default function ModalCriarOportunidade({ open, onClose, onSuccess, slug,
             </button>
             <button
               type="submit"
-              disabled={enviando || leads.length === 0}
+              disabled={enviando}
               className="flex-1 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium"
             >
               {enviando ? 'Criando...' : 'Criar'}

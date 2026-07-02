@@ -45,7 +45,9 @@ def crm_busca(request):
     leads_qs = Lead.objects.filter(q_filter)
     if vendedor_id is not None and not is_owner(request):
         leads_qs = leads_qs.filter(
-            Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id)
+            Q(oportunidades__vendedor_id=vendedor_id)
+            | Q(vendedor_id=vendedor_id)
+            | Q(vendedor_id__isnull=True)
         ).distinct()
     leads_qs = list(leads_qs.values('id', 'nome', 'empresa', 'status', 'cpf_cnpj')[:limit])
 

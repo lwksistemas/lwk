@@ -21,7 +21,7 @@ export default function NovaOportunidadePage() {
   const initialLeadId = searchParams.get('lead_id') || '';
 
   const formState = useOportunidadeForm({ initialLeadId, enabled: true });
-  const { enviando, formErro, loading, leads, criarOportunidade } = formState;
+  const { enviando, formErro, loading, criarOportunidade } = formState;
 
   const handleSave = async () => {
     const id = await criarOportunidade();
@@ -44,7 +44,6 @@ export default function NovaOportunidadePage() {
       savingLabel="Criando..."
       onSave={handleSave}
       onCancel={() => router.push(pipelinePath)}
-      saveDisabled={leads.length === 0}
     >
       <OportunidadeFormFields slug={slug} etapas={etapas} layout="page" formState={formState} />
     </CrmFormPageShell>

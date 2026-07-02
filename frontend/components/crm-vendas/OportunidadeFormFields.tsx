@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import BuscarLeadInput from '@/components/crm-vendas/BuscarLeadInput';
 import OportunidadeItensEditor from '@/components/crm-vendas/OportunidadeItensEditor';
 import type { UseOportunidadeFormReturn } from '@/hooks/crm-vendas/useOportunidadeForm';
 
@@ -24,11 +25,9 @@ export default function OportunidadeFormFields({ slug, etapas, layout, formState
   const {
     form,
     setForm,
-    leads,
-    leadBusca,
-    setLeadBusca,
-    leadsFiltrados,
-    selecionarLead,
+    leadLabel,
+    handleLeadChange,
+    leadResumo,
     contas,
     produtosServicos,
     seletorAberto,
@@ -45,53 +44,31 @@ export default function OportunidadeFormFields({ slug, etapas, layout, formState
   const leadField = (
     <div>
       <label className={labelCls}>Lead *</label>
-      <input
-        type="text"
-        placeholder={isPage ? 'Digite o nome do lead...' : 'Buscar lead pelo nome...'}
-        value={leadBusca}
-        onChange={(e) => {
-          setLeadBusca(e.target.value);
-          setForm((f) => ({ ...f, lead_id: '' }));
-        }}
-        className={inputCls}
+      <BuscarLeadInput
+        leadId={form.lead_id}
+        onLeadChange={handleLeadChange}
+        initialNome={leadLabel}
+        placeholder={
+          isPage
+            ? 'Buscar lead pelo nome, empresa, e-mail ou CPF/CNPJ...'
+            : 'Buscar lead pelo nome, empresa ou CPF/CNPJ...'
+        }
+        required
+        inputClassName={inputCls}
+        limit={15}
       />
-      {leadBusca.trim() && !form.lead_id && leadsFiltrados.length > 0 && (
-        <div
-          className={`w-full mt-1 border rounded-lg bg-white dark:bg-gray-700 max-h-40 overflow-y-auto shadow-sm ${
-            isPage ? 'border-gray-200 dark:border-neutral-600 dark:bg-[#1e3a5f] max-h-48' : 'border-gray-300 dark:border-gray-600'
-          }`}
-        >
-          {leadsFiltrados.map((l) => (
-            <button
-              key={l.id}
-              type="button"
-              onClick={() => selecionarLead(l)}
-              className={`w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-100 dark:border-gray-600 last:border-b-0 ${
-                isPage ? 'py-2.5 dark:hover:bg-[#264a73] transition' : ''
-              }`}
-            >
-              {l.nome}
-            </button>
-          ))}
-        </div>
-      )}
-      {leadBusca.trim() && !form.lead_id && leadsFiltrados.length === 0 && (
-        <p className="text-xs text-gray-500 mt-1">Nenhum lead encontrado.</p>
-      )}
-      {form.lead_id && (
+      {form.lead_id && leadResumo && (
         <p className={`text-xs text-green-600 dark:text-green-400 mt-1 ${isPage ? 'font-medium' : ''}`}>
-          ✓ {leads.find((l) => String(l.id) === form.lead_id)?.nome}
+          ✓ {leadResumo.nome}
         </p>
       )}
-      {leads.length === 0 && (
-        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-          Nenhum lead cadastrado.{' '}
-          <Link href={`/loja/${slug}/crm-vendas/leads`} className={`underline ${isPage ? 'font-medium' : ''}`}>
-            Cadastre em Leads
-          </Link>
-          .
-        </p>
-      )}
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+        Não encontrou?{' '}
+        <Link href={`/loja/${slug}/crm-vendas/leads/novo`} className={`underline ${isPage ? 'font-medium' : ''}`}>
+          Cadastrar novo lead
+        </Link>
+        .
+      </p>
     </div>
   );
 

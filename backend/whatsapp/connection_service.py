@@ -237,32 +237,74 @@ def _prepare_evolution_qr_config(config):
     _invalidate_whatsapp_config_cache(config.loja_id)
 
 
-def _obtain_evolution_qr(config, instance_name):
+def _create_fresh_instance_qr(instance_name):
+    """Cria instância nova na Evolution e aguarda QR (sem reutilizar sessão open)."""
+    qr_data = create_instance(instance_name)
+    if _has_qr_payload(qr_data) or _extract_pairing_code(qr_data):
+        _ensure_evolution_webhook(instance_name)
+        return qr_data
+    qr_data = wait_for_qr(instance_name, attempts=12, delay=2.0)
+    _ensure_evolution_webhook(instance_name)
+    return qr_data
+
+
+def _obtain_evolution_qr(config, instance_name, *, fresh_only=False):
     """
-    Obtém QR da Evolution com fallbacks: connect → recreate → novo nome de instância.
-  """
+    Obtém QR da Evolution.
+    fresh_only=True (reset): sempre instância nova, sem connect na sessão antiga.
+    """
+    if fresh_only:
+        try:
+            return _create_fresh_instance_qr(instance_name), instance_name
+        except EvolutionAPIError as exc:
+            if not evolution_instance_name_stuck(exc):
+                raise
+            instance_name = _rotate_evolution_instance_name(config)
+            return _create_fresh_instance_qr(instance_name), instance_name
+
     try:
+        if instance_exists(instance_name):
+            try:
+                state_info = get_connection_state(instance_name)
+                if state_info['state'] == WhatsAppConfig.CONNECTION_CONNECTED:
+                    logger.warning(
+                        'Evolution loja %s: %s já conectada — rotacionando para novo QR',
+                        config.loja_id,
+                        instance_name,
+                    )
+                    instance_name = _rotate_evolution_instance_name(config)
+                    return _create_fresh_instance_qr(instance_name), instance_name
+            except EvolutionAPIError as exc:
+                if exc.status_code != 404:
+                    logger.warning('Evolution state %s: %s', instance_name, exc)
+
         qr_data = create_evolution_instance_with_qr(instance_name)
         if _has_qr_payload(qr_data) or _extract_pairing_code(qr_data):
+            _ensure_evolution_webhook(instance_name)
             return qr_data, instance_name
         qr_data = wait_for_qr(instance_name, attempts=12, delay=2.0)
+        if not (_has_qr_payload(qr_data) or _extract_pairing_code(qr_data)):
+            try:
+                state_info = get_connection_state(instance_name)
+                if state_info['state'] == WhatsAppConfig.CONNECTION_CONNECTED:
+                    instance_name = _rotate_evolution_instance_name(config)
+                    qr_data = _create_fresh_instance_qr(instance_name)
+            except EvolutionAPIError:
+                pass
         return qr_data, instance_name
     except EvolutionAPIError as exc:
         if not evolution_instance_name_stuck(exc):
             raise
-        new_name = _rotate_evolution_instance_name(config)
+        stuck_name = instance_name
+        instance_name = _rotate_evolution_instance_name(config)
         logger.warning(
             'Evolution loja %s: instância %s travada (%s) — usando %s',
             config.loja_id,
-            instance_name,
+            stuck_name,
             exc,
-            new_name,
+            instance_name,
         )
-        qr_data = create_instance(new_name)
-        if _has_qr_payload(qr_data) or _extract_pairing_code(qr_data):
-            return qr_data, new_name
-        qr_data = wait_for_qr(new_name, attempts=12, delay=2.0)
-        return qr_data, new_name
+        return _create_fresh_instance_qr(instance_name), instance_name
 
 
 def sync_evolution_connection(config, fetch_qr=False):
@@ -292,11 +334,12 @@ def sync_evolution_connection(config, fetch_qr=False):
 
         if status == WhatsAppConfig.CONNECTION_CONNECTED:
             local = config.whatsapp_connection_status
-            # Sessão fantasma na Evolution (open após logout/delete ou falha de envio):
-            # não re-promover disconnected/error para connected só pelo polling.
+            # Sessão fantasma ou reset aguardando scan: não promover via polling.
+            # Conexão real após escanear o QR vem pelo webhook connection.update.
             if local in (
                 WhatsAppConfig.CONNECTION_DISCONNECTED,
                 WhatsAppConfig.CONNECTION_ERROR,
+                WhatsAppConfig.CONNECTION_QR_PENDING,
             ):
                 logger.warning(
                     'Evolution loja %s: estado open ignorado (local=%s)',
@@ -405,10 +448,12 @@ def reset_evolution_connection(config):
 
     delete_evolution_for_loja(config.loja_id, instance_name=instance_name)
 
+    # Sempre novo nome — evita reutilizar sessão open fantasma sem escanear QR.
+    instance_name = _rotate_evolution_instance_name(config)
     _prepare_evolution_qr_config(config)
 
     try:
-        qr_data, used_name = _obtain_evolution_qr(config, instance_name)
+        qr_data, used_name = _obtain_evolution_qr(config, instance_name, fresh_only=True)
         logger.info('Evolution reset loja %s: QR em %s', config.loja_id, used_name)
         return _apply_qr_from_data(config, used_name, qr_data)
     except EvolutionAPIError as exc:

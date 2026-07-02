@@ -397,9 +397,16 @@ def recreate_instance(instance_name):
 def create_evolution_instance_with_qr(instance_name):
     """
     Garante instância Evolution com QR.
-    Prioriza connect em instância existente; recria se necessário.
+    Não reutiliza sessão já conectada (open) — isso exige recreate/rotate no caller.
     """
     if instance_exists(instance_name):
+        try:
+            state_info = get_connection_state(instance_name)
+            if state_info['state'] == 'connected':
+                return recreate_instance(instance_name)
+        except EvolutionAPIError as exc:
+            if exc.status_code != 404:
+                logger.warning('Evolution state antes do QR %s: %s', instance_name, exc)
         try:
             data = connect_instance_for_qr(instance_name, wait_attempts=8, wait_delay=2.0)
             if _has_qr_payload(data) or _extract_pairing_code(data):

@@ -55,7 +55,7 @@ class SyncEvolutionStaleSessionTest(SimpleTestCase):
     @patch('whatsapp.connection_service.get_connection_state')
     @patch('whatsapp.connection_service.evolution_configured', return_value=True)
     @patch('whatsapp.connection_service.ensure_evolution_instance_name', return_value='lwk_loja_9')
-    def test_sync_promove_qr_pending_para_connected(
+    def test_sync_nao_promove_qr_pending_para_connected(
         self, _name, _cfg, mock_state, mock_apply,
     ):
         config = MagicMock()
@@ -67,7 +67,7 @@ class SyncEvolutionStaleSessionTest(SimpleTestCase):
 
         result = sync_evolution_connection(config, fetch_qr=False)
 
-        mock_apply.assert_called_once()
+        mock_apply.assert_not_called()
         self.assertEqual(result['connection_status'], WhatsAppConfig.CONNECTION_QR_PENDING)
 
     @patch('whatsapp.connection_service._apply_evolution_state_to_config')

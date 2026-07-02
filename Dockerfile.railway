@@ -21,7 +21,7 @@ WORKDIR /app
 # Dependências: backend (base) + raiz (NFS-e, docs, etc.)
 # django-q importa pkg_resources; manter setuptools abaixo da faixa que remove/alerta esse shim.
 ARG PIP_CACHE_BUST=2026-06-12-agenda-client-confirmed
-ARG BUILD_ID=crm-funcionarios-fullscreen-20260620a
+ARG BUILD_ID=crm-backend-split-views-email-20260620b
 ENV LWK_BUILD=${BUILD_ID}
 COPY backend/requirements.txt ./requirements-backend.txt
 COPY requirements.txt ./requirements-root.txt

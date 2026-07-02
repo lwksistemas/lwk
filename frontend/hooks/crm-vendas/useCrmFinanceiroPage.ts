@@ -94,6 +94,13 @@ export function useCrmFinanceiroPage() {
   const [grupoFiltroRelatorio, setGrupoFiltroRelatorio] = useState('');
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<
+    | { type: 'excluir_lancamento'; item: LancamentoFinanceiro }
+    | { type: 'excluir_grupo'; grupo: GrupoFinanceiro }
+    | { type: 'sync_comissoes' }
+    | null
+  >(null);
+  const [confirmando, setConfirmando] = useState(false);
 
   const isAdmin = !authService.isVendedor();
 
@@ -188,7 +195,7 @@ export function useCrmFinanceiroPage() {
     await loadAll();
   };
 
-  const removerLancamento = async (item: LancamentoFinanceiro) => {
+  const requestRemoverLancamento = (item: LancamentoFinanceiro) => {
     if (!item.editavel) {
       if (item.origem === 'recorrencia') {
         toast.warning('Lançamentos gerados por recorrência não podem ser excluídos.');
@@ -197,10 +204,79 @@ export function useCrmFinanceiroPage() {
       }
       return;
     }
-    if (!confirm('Excluir este lançamento?')) return;
+    setConfirmAction({ type: 'excluir_lancamento', item });
+  };
+
+  const executeRemoverLancamento = async (item: LancamentoFinanceiro) => {
     await apiClient.delete(`crm-vendas/financeiro-lancamentos/${item.id}/`);
     await loadAll();
   };
+
+  const requestRemoverGrupo = (grupo: GrupoFinanceiro) => {
+    setConfirmAction({ type: 'excluir_grupo', grupo });
+  };
+
+  const executeRemoverGrupo = async (grupo: GrupoFinanceiro) => {
+    try {
+      await apiClient.delete(`crm-vendas/financeiro-grupos/${grupo.id}/`);
+      await loadAll();
+    } catch {
+      toast.error('Não foi possível excluir. O grupo pode estar em uso.');
+      throw new Error('excluir_grupo');
+    }
+  };
+
+  const requestSincronizarComissoes = () => {
+    setConfirmAction({ type: 'sync_comissoes' });
+  };
+
+  const executeSincronizarComissoes = async () => {
+    setSincronizando(true);
+    try {
+      const { data } = await apiClient.post<{
+        criadas: number;
+        atualizadas: number;
+        ignoradas: number;
+        oportunidades_analisadas: number;
+      }>('crm-vendas/financeiro/sync-comissoes/', {});
+      toast.success(
+        `Sincronização concluída. Analisadas: ${data.oportunidades_analisadas}, ` +
+          `criadas: ${data.criadas}, atualizadas: ${data.atualizadas}, ignoradas: ${data.ignoradas}`,
+      );
+      await loadAll();
+    } catch {
+      toast.error('Erro ao sincronizar comissões.');
+      throw new Error('sync_comissoes');
+    } finally {
+      setSincronizando(false);
+    }
+  };
+
+  const closeConfirm = () => {
+    if (confirmando || sincronizando) return;
+    setConfirmAction(null);
+  };
+
+  const executeConfirm = async () => {
+    if (!confirmAction) return;
+    setConfirmando(true);
+    try {
+      if (confirmAction.type === 'excluir_lancamento') {
+        await executeRemoverLancamento(confirmAction.item);
+      } else if (confirmAction.type === 'excluir_grupo') {
+        await executeRemoverGrupo(confirmAction.grupo);
+      } else {
+        await executeSincronizarComissoes();
+      }
+      setConfirmAction(null);
+    } catch {
+      /* toast já exibido */
+    } finally {
+      setConfirmando(false);
+    }
+  };
+
+  const removerLancamento = requestRemoverLancamento;
 
   const salvarGrupo = async (payload: Record<string, unknown>) => {
     setSaving(true);
@@ -218,15 +294,7 @@ export function useCrmFinanceiroPage() {
     }
   };
 
-  const removerGrupo = async (grupo: GrupoFinanceiro) => {
-    if (!confirm(`Excluir grupo "${grupo.nome}"?`)) return;
-    try {
-      await apiClient.delete(`crm-vendas/financeiro-grupos/${grupo.id}/`);
-      await loadAll();
-    } catch {
-      toast.error('Não foi possível excluir. O grupo pode estar em uso.');
-    }
-  };
+  const removerGrupo = requestRemoverGrupo;
 
   const gerarRelatorioPdf = async (grupoIdOverride?: number) => {
     if (periodoRelatorio === 'personalizado' && (!dataInicioRel || !dataFimRel)) {
@@ -268,27 +336,7 @@ export function useCrmFinanceiroPage() {
     }
   };
 
-  const sincronizarComissoes = async () => {
-    if (!confirm('Importar comissões das oportunidades já ganhas para o financeiro?')) return;
-    setSincronizando(true);
-    try {
-      const { data } = await apiClient.post<{
-        criadas: number;
-        atualizadas: number;
-        ignoradas: number;
-        oportunidades_analisadas: number;
-      }>('crm-vendas/financeiro/sync-comissoes/', {});
-      toast.success(
-        `Sincronização concluída. Analisadas: ${data.oportunidades_analisadas}, ` +
-          `criadas: ${data.criadas}, atualizadas: ${data.atualizadas}, ignoradas: ${data.ignoradas}`,
-      );
-      await loadAll();
-    } catch {
-      toast.error('Erro ao sincronizar comissões.');
-    } finally {
-      setSincronizando(false);
-    }
-  };
+  const sincronizarComissoes = requestSincronizarComissoes;
 
   return {
     resumo,
@@ -332,5 +380,9 @@ export function useCrmFinanceiroPage() {
     gerarRelatorioPdf,
     sincronizando,
     sincronizarComissoes,
+    confirmAction,
+    confirmando,
+    closeConfirm,
+    executeConfirm,
   };
 }

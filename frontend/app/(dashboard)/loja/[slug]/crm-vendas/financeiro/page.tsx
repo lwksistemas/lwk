@@ -11,6 +11,7 @@ import {
   CrmFinanceiroResumoPorGrupo,
 } from '@/components/crm-vendas/financeiro/CrmFinanceiroTables';
 import { CrmGrupoModal, CrmLancamentoModal } from '@/components/crm-vendas/financeiro/CrmFinanceiroModals';
+import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { CRM_PERIODO_FINANCEIRO } from '@/lib/crm-periodos';
 
@@ -54,6 +55,34 @@ export default function CrmFinanceiroPage() {
   const gruposModal = f.grupos.filter((g) => g.tipo === f.modalTipo && g.is_active);
   const totalPago = f.resumo ? cfg.totalPago(f.resumo) : 0;
   const totalPendente = f.resumo ? cfg.totalPendente(f.resumo) : 0;
+
+  const financeiroConfirmCopy = (() => {
+    const action = f.confirmAction;
+    if (!action) return null;
+    if (action.type === 'excluir_lancamento') {
+      return {
+        title: 'Excluir lançamento',
+        message: `Excluir o lançamento "${action.item.descricao}"?`,
+        confirmLabel: 'Excluir',
+        variant: 'danger' as const,
+      };
+    }
+    if (action.type === 'excluir_grupo') {
+      return {
+        title: 'Excluir grupo',
+        message: `Excluir o grupo "${action.grupo.nome}"?`,
+        confirmLabel: 'Excluir',
+        variant: 'danger' as const,
+      };
+    }
+    return {
+      title: 'Sincronizar comissões',
+      message:
+        'Importar comissões das oportunidades já ganhas para o financeiro?',
+      confirmLabel: 'Sincronizar',
+      variant: 'primary' as const,
+    };
+  })();
 
   const selecionarTipo = (tipo: TipoFinanceiro) => {
     setTipoAtivo(tipo);
@@ -290,6 +319,19 @@ export default function CrmFinanceiroPage() {
         onClose={() => f.setShowGrupoModal(false)}
         onSave={f.salvarGrupo}
       />
+
+      {financeiroConfirmCopy && (
+        <CrmConfirmActionModal
+          open
+          title={financeiroConfirmCopy.title}
+          message={financeiroConfirmCopy.message}
+          confirmLabel={financeiroConfirmCopy.confirmLabel}
+          variant={financeiroConfirmCopy.variant}
+          loading={f.confirmando || f.sincronizando}
+          onClose={f.closeConfirm}
+          onConfirm={f.executeConfirm}
+        />
+      )}
     </div>
   );
 }

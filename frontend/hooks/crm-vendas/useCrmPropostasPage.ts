@@ -96,6 +96,12 @@ export function useCrmPropostasPage(slug: string) {
   const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
   const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
   const [menuAberto, setMenuAberto] = useState<number | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    | { type: 'marcar_assinado'; id: number; titulo: string }
+    | { type: 'confirmar_pedido'; id: number; titulo: string }
+    | null
+  >(null);
+  const [confirmando, setConfirmando] = useState(false);
 
   const { enviandoId, handleEnviarCliente, handleDownloadPdf, handleDownloadDocx } =
     useCrmDocumentoActions('propostas', loadPropostas);
@@ -156,47 +162,65 @@ export function useCrmPropostasPage(slug: string) {
     [toast],
   );
 
-  const handleMarcarComoAssinado = async (propostaId: number) => {
-    if (
-      !confirm(
-        'Marcar esta proposta como assinada manualmente?\n\nUse esta opção quando o cliente assinar de outra forma (manual, gov.br, etc).',
-      )
-    ) {
-      return;
-    }
+  const requestMarcarComoAssinado = (proposta: CrmProposta) => {
+    setConfirmAction({
+      type: 'marcar_assinado',
+      id: proposta.id,
+      titulo: proposta.titulo || proposta.numero || 'esta proposta',
+    });
+  };
+
+  const requestConfirmarPedido = (proposta: CrmProposta) => {
+    setConfirmAction({
+      type: 'confirmar_pedido',
+      id: proposta.id,
+      titulo: proposta.titulo || proposta.numero || 'esta proposta',
+    });
+  };
+
+  const closeConfirm = () => {
+    if (confirmando) return;
+    setConfirmAction(null);
+  };
+
+  const executeConfirm = async () => {
+    if (!confirmAction) return;
+    setConfirmando(true);
+    const { type, id } = confirmAction;
     try {
-      setAlterandoStatus(propostaId);
-      await apiClient.patch(`/crm-vendas/propostas/${propostaId}/`, {
-        status_assinatura: 'concluido',
-        status: 'aceita',
-      });
-      await loadPropostas(true);
-      toast.success('Proposta marcada como assinada com sucesso!');
+      if (type === 'marcar_assinado') {
+        setAlterandoStatus(id);
+        await apiClient.patch(`/crm-vendas/propostas/${id}/`, {
+          status_assinatura: 'concluido',
+          status: 'aceita',
+        });
+        await loadPropostas(true);
+        toast.success('Proposta marcada como assinada com sucesso!');
+      } else {
+        setAlterandoStatus(id);
+        await apiClient.post(`/crm-vendas/propostas/${id}/confirmar_pedido/`);
+        await loadPropostas(true);
+        toast.success('Proposta confirmada como pedido.');
+      }
+      setConfirmAction(null);
     } catch (err: unknown) {
-      toast.error(getCrmApiErrorDetail(err, 'Erro ao atualizar status.'));
+      const fallback =
+        type === 'marcar_assinado' ? 'Erro ao atualizar status.' : 'Erro ao confirmar pedido.';
+      toast.error(getCrmApiErrorDetail(err, fallback));
     } finally {
       setAlterandoStatus(null);
+      setConfirmando(false);
     }
   };
 
-  const handleConfirmarPedido = async (propostaId: number) => {
-    if (
-      !confirm(
-        'Confirmar esta proposta como Pedido?\n\nIsso indica que o cliente confirmou o pedido formal e está pronto para gerar o contrato.',
-      )
-    ) {
-      return;
-    }
-    try {
-      setAlterandoStatus(propostaId);
-      await apiClient.post(`/crm-vendas/propostas/${propostaId}/confirmar_pedido/`);
-      await loadPropostas(true);
-      toast.success('Proposta confirmada como pedido.');
-    } catch (err: unknown) {
-      toast.error(getCrmApiErrorDetail(err, 'Erro ao confirmar pedido.'));
-    } finally {
-      setAlterandoStatus(null);
-    }
+  const handleMarcarComoAssinado = (propostaId: number) => {
+    const proposta = propostas.find((p) => p.id === propostaId);
+    if (proposta) requestMarcarComoAssinado(proposta);
+  };
+
+  const handleConfirmarPedido = (propostaId: number) => {
+    const proposta = propostas.find((p) => p.id === propostaId);
+    if (proposta) requestConfirmarPedido(proposta);
   };
 
   const handleCancelarProposta = async (motivo: string) => {
@@ -405,5 +429,9 @@ export function useCrmPropostasPage(slug: string) {
     handleMarcarComoAssinado,
     handleConfirmarPedido,
     handleCancelarProposta,
+    confirmAction,
+    confirmando,
+    closeConfirm,
+    executeConfirm,
   };
 }

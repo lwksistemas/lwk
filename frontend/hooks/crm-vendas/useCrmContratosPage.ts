@@ -67,6 +67,12 @@ export function useCrmContratosPage(slug: string) {
   const [submitting, setSubmitting] = useState(false);
   const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
   const [menuAberto, setMenuAberto] = useState<number | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: 'marcar_assinado';
+    id: number;
+    titulo: string;
+  } | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
 
   const { enviandoId, handleEnviarCliente, handleDownloadPdf, handleDownloadDocx } =
     useCrmDocumentoActions('contratos', loadContratos);
@@ -95,27 +101,43 @@ export function useCrmContratosPage(slug: string) {
     setSelected(null);
   };
 
-  const handleMarcarComoAssinado = async (contratoId: number) => {
-    if (
-      !confirm(
-        'Marcar este contrato como assinado manualmente?\n\nUse esta opção quando o cliente assinar de outra forma (manual, gov.br, etc).',
-      )
-    ) {
-      return;
-    }
+  const requestMarcarComoAssinado = (contrato: CrmContrato) => {
+    setConfirmAction({
+      type: 'marcar_assinado',
+      id: contrato.id,
+      titulo: contrato.titulo || contrato.numero || 'este contrato',
+    });
+  };
+
+  const closeConfirm = () => {
+    if (confirmando) return;
+    setConfirmAction(null);
+  };
+
+  const executeConfirm = async () => {
+    if (!confirmAction) return;
+    setConfirmando(true);
+    const { id } = confirmAction;
     try {
-      setAlterandoStatus(contratoId);
-      await apiClient.patch(`/crm-vendas/contratos/${contratoId}/`, {
+      setAlterandoStatus(id);
+      await apiClient.patch(`/crm-vendas/contratos/${id}/`, {
         status_assinatura: 'concluido',
         status: 'assinado',
       });
       await loadContratos(true);
       toast.success('Contrato marcado como assinado com sucesso!');
+      setConfirmAction(null);
     } catch (err: unknown) {
       toast.error(getCrmApiErrorDetail(err, 'Erro ao atualizar status.'));
     } finally {
       setAlterandoStatus(null);
+      setConfirmando(false);
     }
+  };
+
+  const handleMarcarComoAssinado = (contratoId: number) => {
+    const contrato = contratos.find((c) => c.id === contratoId);
+    if (contrato) requestMarcarComoAssinado(contrato);
   };
 
   const handleCancelarContrato = async (motivo: string) => {
@@ -186,6 +208,10 @@ export function useCrmContratosPage(slug: string) {
     handleMarcarComoAssinado,
     handleCancelarContrato,
     handleDelete,
+    confirmAction,
+    confirmando,
+    closeConfirm,
+    executeConfirm,
     irParaNovoContrato,
     irParaEditarContrato,
   };

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, Trash2, Edit2, Save, X } from 'lucide-react';
+import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
 
 interface Origem { key: string; label: string; ativo: boolean; }
 
@@ -16,6 +17,7 @@ export function OrigensSection({ origens, saving, onSave, onError }: Props) {
   const [editandoOrigem, setEditandoOrigem] = useState<string | null>(null);
   const [novaOrigem, setNovaOrigem] = useState({ key: '', label: '' });
   const [mostrarNova, setMostrarNova] = useState(false);
+  const [origemParaRemover, setOrigemParaRemover] = useState<Origem | null>(null);
 
   const adicionar = () => {
     if (!novaOrigem.label) { onError('Preencha o nome da origem.'); return; }
@@ -29,8 +31,14 @@ export function OrigensSection({ origens, saving, onSave, onError }: Props) {
   };
 
   const remover = (key: string) => {
-    if (!confirm('Remover esta origem?')) return;
-    onSave(origens.filter((o) => o.key !== key));
+    const origem = origens.find((o) => o.key === key);
+    if (origem) setOrigemParaRemover(origem);
+  };
+
+  const confirmarRemocao = () => {
+    if (!origemParaRemover) return;
+    onSave(origens.filter((o) => o.key !== origemParaRemover.key));
+    setOrigemParaRemover(null);
   };
 
   const toggle = (key: string) => onSave(origens.map((o) => o.key === key ? { ...o, ativo: !o.ativo } : o));
@@ -86,6 +94,17 @@ export function OrigensSection({ origens, saving, onSave, onError }: Props) {
           </div>
         ))}
       </div>
+
+      <CrmConfirmActionModal
+        open={origemParaRemover != null}
+        title="Remover origem"
+        message={`Remover a origem "${origemParaRemover?.label || ''}"?`}
+        confirmLabel="Remover"
+        variant="danger"
+        loading={saving}
+        onClose={() => !saving && setOrigemParaRemover(null)}
+        onConfirm={confirmarRemocao}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useCrmCalendarioPage } from '@/hooks/crm-vendas/useCrmCalendarioPage';
 import { AtividadeModal } from './components/AtividadeModal';
 import { CalendarioEventContent } from './components/CalendarioEventContent';
 import { CalendarioGooglePanel } from './components/CalendarioGooglePanel';
+import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
 
 export type { Atividade } from '@/lib/crm-calendario';
 
@@ -53,7 +54,29 @@ export default function CalendarioCrmPage() {
     handleDelete,
     handleEventDrop,
     handleEventResize,
+    confirmAction,
+    confirmando,
+    closeConfirm,
+    executeConfirm,
   } = useCrmCalendarioPage();
+
+  const confirmCopy =
+    confirmAction === 'delete_atividade'
+      ? {
+          title: 'Excluir atividade',
+          message: `Excluir "${modalAtividade?.titulo || 'esta atividade'}"?`,
+          confirmLabel: 'Excluir',
+          variant: 'danger' as const,
+        }
+      : confirmAction === 'disconnect_google'
+        ? {
+            title: 'Desconectar Google Calendar',
+            message:
+              'Desconectar o Google Calendar? Os eventos já enviados permanecem no Google.',
+            confirmLabel: 'Desconectar',
+            variant: 'danger' as const,
+          }
+        : null;
 
   const renderEventContent = useCallback(
     (eventInfo: Parameters<typeof CalendarioEventContent>[0]['eventInfo']) => (
@@ -166,6 +189,19 @@ export default function CalendarioCrmPage() {
           onClose={handleCloseModal}
           onToggleConcluido={modalAtividade ? handleToggleConcluido : undefined}
           onDelete={modalAtividade ? handleDelete : undefined}
+        />
+      )}
+
+      {confirmCopy && (
+        <CrmConfirmActionModal
+          open
+          title={confirmCopy.title}
+          message={confirmCopy.message}
+          confirmLabel={confirmCopy.confirmLabel}
+          variant={confirmCopy.variant}
+          loading={confirmando || saving}
+          onClose={closeConfirm}
+          onConfirm={executeConfirm}
         />
       )}
     </div>

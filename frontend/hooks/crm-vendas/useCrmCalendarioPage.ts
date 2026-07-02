@@ -60,6 +60,8 @@ export function useCrmCalendarioPage() {
   const [googleSyncResult, setGoogleSyncResult] = useState<{ pushed: number; pulled: number } | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const syncingRef = useRef(false);
+  const [confirmAction, setConfirmAction] = useState<'delete_atividade' | 'disconnect_google' | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
 
   const loadPlugins = useCallback(async () => {
   const [dayGrid, timeGrid, interaction, ptBr] = await Promise.all([
@@ -182,23 +184,24 @@ export function useCrmCalendarioPage() {
   }
   }, [range, fetchAtividades, loadGoogleStatus]);
 
-  const handleDisconnectGoogle = useCallback(async () => {
-  if (
-    !confirm(
-      'Desconectar o Google Calendar? Os eventos já enviados permanecem no Google.'
-    )
-  )
-    return;
-  setGoogleLoading(true);
-  setSyncError(null);
-  try {
-    await apiClient.delete(API_GOOGLE_DISCONNECT);
-    setGoogleStatus({ connected: false, email: null });
-    setGoogleSyncResult(null);
-  } finally {
-    setGoogleLoading(false);
-  }
+  const requestDisconnectGoogle = useCallback(() => {
+    setConfirmAction('disconnect_google');
   }, []);
+
+  const executeDisconnectGoogle = useCallback(async () => {
+    setGoogleLoading(true);
+    setSyncError(null);
+    try {
+      await apiClient.delete(API_GOOGLE_DISCONNECT);
+      setGoogleStatus({ connected: false, email: null });
+      setGoogleSyncResult(null);
+      setConfirmAction(null);
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, []);
+
+  const handleDisconnectGoogle = requestDisconnectGoogle;
 
   useEffect(() => {
   loadPlugins();
@@ -468,36 +471,59 @@ export function useCrmCalendarioPage() {
   }
   }, [modalAtividade, range, fetchAtividades, handleCloseModal, googleStatus.connected, handleSyncGoogle]);
 
-  const handleDelete = useCallback(async () => {
-  if (!modalAtividade || !confirm('Excluir esta atividade?')) return;
-  setSaving(true);
-  setError(null);
-  
-  // Atualização otimista: remover da UI imediatamente
-  const atividadeId = modalAtividade.id;
-  setEvents(prevEvents => prevEvents.filter(e => e.id !== String(atividadeId)));
-  handleCloseModal();
-  
-  try {
-    await apiClient.delete(`${API_CRM}/atividades/${atividadeId}/`);
-    
-    // Recarregar em background para garantir consistência
-    if (range) {
-      fetchAtividades(range.start, range.end).catch(() => {});
+  const executeDeleteAtividade = useCallback(async () => {
+    if (!modalAtividade) return;
+    setSaving(true);
+    setError(null);
+
+    const atividadeId = modalAtividade.id;
+    setEvents((prevEvents) => prevEvents.filter((e) => e.id !== String(atividadeId)));
+    handleCloseModal();
+    setConfirmAction(null);
+
+    try {
+      await apiClient.delete(`${API_CRM}/atividades/${atividadeId}/`);
+      if (range) {
+        fetchAtividades(range.start, range.end).catch(() => {});
+      }
+    } catch (e: unknown) {
+      if (range) {
+        await fetchAtividades(range.start, range.end);
+      }
+      const err = e as { response?: { data?: { detail?: string } } };
+      setError(err.response?.data?.detail || 'Erro ao excluir.');
+      setModalOpen(true);
+      setModalAtividade(modalAtividade);
+    } finally {
+      setSaving(false);
     }
-    
-  } catch (e: any) {
-    // Se falhar, recarregar para restaurar o estado correto
-    if (range) {
-      await fetchAtividades(range.start, range.end);
-    }
-    setError(e.response?.data?.detail || 'Erro ao excluir.');
-    setModalOpen(true);
-    setModalAtividade(modalAtividade);
-  } finally {
-    setSaving(false);
-  }
   }, [modalAtividade, range, fetchAtividades, handleCloseModal]);
+
+  const requestDeleteAtividade = useCallback(() => {
+    if (!modalAtividade) return;
+    setConfirmAction('delete_atividade');
+  }, [modalAtividade]);
+
+  const closeConfirm = useCallback(() => {
+    if (confirmando || saving) return;
+    setConfirmAction(null);
+  }, [confirmando, saving]);
+
+  const executeConfirm = useCallback(async () => {
+    if (!confirmAction) return;
+    setConfirmando(true);
+    try {
+      if (confirmAction === 'delete_atividade') {
+        await executeDeleteAtividade();
+      } else {
+        await executeDisconnectGoogle();
+      }
+    } finally {
+      setConfirmando(false);
+    }
+  }, [confirmAction, executeDeleteAtividade, executeDisconnectGoogle]);
+
+  const handleDelete = requestDeleteAtividade;
 
   const handleEventDrop = useCallback(async (info: { event: any; revert: () => void }) => {
   const atividade = info.event.extendedProps?.atividade;
@@ -604,5 +630,9 @@ export function useCrmCalendarioPage() {
       handleDelete,
       handleEventDrop,
       handleEventResize,
+      confirmAction,
+      confirmando,
+      closeConfirm,
+      executeConfirm,
     };
 }

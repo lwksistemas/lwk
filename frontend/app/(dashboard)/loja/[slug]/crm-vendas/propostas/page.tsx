@@ -12,6 +12,7 @@ import { Plus, Eye, Edit2, Trash2, ClipboardList, FileText, FileSignature, Ban, 
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import CrmEnviarAssinaturaColuna from '@/components/crm-vendas/CrmEnviarAssinaturaColuna';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
+import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
 import CrmCancelarModal from '@/components/crm-vendas/CrmCancelarModal';
 import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
 import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetalhesModal';
@@ -75,7 +76,29 @@ export default function CrmVendasPropostasPage() {
     handleMarcarComoAssinado,
     handleConfirmarPedido,
     handleCancelarProposta,
+    confirmAction,
+    confirmando,
+    closeConfirm,
+    executeConfirm,
   } = useCrmPropostasPage(slug);
+
+  const propostaConfirmCopy = (() => {
+    if (!confirmAction) return null;
+    if (confirmAction.type === 'marcar_assinado') {
+      return {
+        title: 'Marcar como assinada',
+        message: `Marcar "${confirmAction.titulo}" como assinada manualmente?\n\nUse quando o cliente assinar de outra forma (manual, gov.br, etc).`,
+        confirmLabel: 'Marcar assinada',
+        variant: 'primary' as const,
+      };
+    }
+    return {
+      title: 'Confirmar pedido',
+      message: `Confirmar "${confirmAction.titulo}" como pedido?\n\nIsso indica que o cliente confirmou o pedido formal e está pronto para gerar o contrato.`,
+      confirmLabel: 'Confirmar pedido',
+      variant: 'primary' as const,
+    };
+  })();
 
   if (loading && propostas.length === 0) {
     return (
@@ -334,6 +357,19 @@ export default function CrmVendasPropostasPage() {
           tipo="proposta"
           onConfirm={handleCancelarProposta}
           onClose={closeModal}
+        />
+      )}
+
+      {propostaConfirmCopy && (
+        <CrmConfirmActionModal
+          open
+          title={propostaConfirmCopy.title}
+          message={propostaConfirmCopy.message}
+          confirmLabel={propostaConfirmCopy.confirmLabel}
+          variant={propostaConfirmCopy.variant}
+          loading={confirmando}
+          onClose={closeConfirm}
+          onConfirm={executeConfirm}
         />
       )}
     </>

@@ -10,6 +10,7 @@ import { X, Plus, Edit2, Trash2, Save } from 'lucide-react';
 import { Categoria } from '@/hooks/useProdutosServicos';
 import { toUpperCase } from '@/lib/format-br';
 import { useToast } from '@/components/ui/Toast';
+import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
 
 interface CategoriasModalProps {
   isOpen: boolean;
@@ -33,6 +34,8 @@ export function CategoriasModal({
   const [criandoNova, setCriandoNova] = useState(false);
   const [formData, setFormData] = useState({ nome: '', descricao: '', cor: '#3B82F6' });
   const [submitting, setSubmitting] = useState(false);
+  const [excluirId, setExcluirId] = useState<number | null>(null);
+  const [excluirNome, setExcluirNome] = useState('');
 
   if (!isOpen) return null;
 
@@ -72,13 +75,19 @@ export function CategoriasModal({
     }
   };
 
-  const handleExcluir = async (id: number) => {
-    if (!confirm('Tem certeza que deseja excluir esta categoria?')) return;
+  const requestExcluir = (categoria: Categoria) => {
+    setExcluirId(categoria.id);
+    setExcluirNome(categoria.nome);
+  };
 
+  const executeExcluir = async () => {
+    if (excluirId == null) return;
     try {
       setSubmitting(true);
-      await onExcluir(id);
-    } catch (error) {
+      await onExcluir(excluirId);
+      setExcluirId(null);
+      setExcluirNome('');
+    } catch {
       toast.error('Erro ao excluir categoria');
     } finally {
       setSubmitting(false);
@@ -278,7 +287,7 @@ export function CategoriasModal({
                         <Edit2 size={18} />
                       </button>
                       <button
-                        onClick={() => handleExcluir(categoria.id)}
+                        onClick={() => requestExcluir(categoria)}
                         disabled={submitting}
                         className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                         title="Excluir"
@@ -309,6 +318,17 @@ export function CategoriasModal({
           </button>
         </div>
       </div>
+
+      <CrmConfirmActionModal
+        open={excluirId != null}
+        title="Excluir categoria"
+        message={`Tem certeza que deseja excluir a categoria "${excluirNome}"?`}
+        confirmLabel="Excluir"
+        variant="danger"
+        loading={submitting}
+        onClose={() => !submitting && setExcluirId(null)}
+        onConfirm={executeExcluir}
+      />
     </div>
   );
 }

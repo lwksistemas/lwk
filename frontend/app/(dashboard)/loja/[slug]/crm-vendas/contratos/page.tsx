@@ -10,6 +10,7 @@ import { Plus, Eye, Edit2, Trash2, FileSignature, Ban } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import CrmEnviarAssinaturaColuna from '@/components/crm-vendas/CrmEnviarAssinaturaColuna';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
+import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
 import CrmCancelarModal from '@/components/crm-vendas/CrmCancelarModal';
 import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
 import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetalhesModal';
@@ -55,6 +56,10 @@ export default function CrmVendasContratosPage() {
     handleMarcarComoAssinado,
     handleCancelarContrato,
     handleDelete,
+    confirmAction,
+    confirmando,
+    closeConfirm,
+    executeConfirm,
     irParaNovoContrato,
     irParaEditarContrato,
   } = useCrmContratosPage(slug);
@@ -270,6 +275,18 @@ export default function CrmVendasContratosPage() {
           tipo="contrato"
           onConfirm={handleCancelarContrato}
           onClose={closeModal}
+        />
+      )}
+
+      {confirmAction && (
+        <CrmConfirmActionModal
+          open
+          title="Marcar como assinado"
+          message={`Marcar "${confirmAction.titulo}" como assinado manualmente?\n\nUse quando o cliente assinar de outra forma (manual, gov.br, etc).`}
+          confirmLabel="Marcar assinado"
+          loading={confirmando}
+          onClose={closeConfirm}
+          onConfirm={executeConfirm}
         />
       )}
     </>

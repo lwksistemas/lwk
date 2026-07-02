@@ -31,14 +31,13 @@ export interface CrmConta {
   created_at: string;
 }
 
-export type CrmContaModalType = 'view' | 'delete' | null;
-
 export function useCrmCustomersPage() {
   const toast = useToast();
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
+  const basePath = `/loja/${slug}/crm-vendas/customers`;
   const verParam = searchParams.get('ver');
   const { colunasContasVisiveis } = useCRMConfig();
 
@@ -56,46 +55,30 @@ export function useCrmCustomersPage() {
     errorFallback: 'Erro ao carregar clientes.',
   });
 
-  const [modalType, setModalType] = useState<CrmContaModalType>(null);
-  const [selectedConta, setSelectedConta] = useState<CrmConta | null>(null);
+  const [contaParaExcluir, setContaParaExcluir] = useState<CrmConta | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const openModal = useCallback((type: CrmContaModalType, conta?: CrmConta) => {
-    setModalType(type);
-    setSelectedConta(conta || null);
-  }, []);
-
-  const closeModal = useCallback(() => {
-    setModalType(null);
-    setSelectedConta(null);
-  }, []);
+  const irParaVerConta = useCallback(
+    (id: number) => {
+      router.push(`${basePath}/${id}`);
+    },
+    [basePath, router],
+  );
 
   useEffect(() => {
     if (!verParam) return;
     const id = parseInt(verParam, 10);
     if (isNaN(id)) return;
-    const found = contas.find((c) => c.id === id);
-    if (found) {
-      openModal('view', found);
-      router.replace(`/loja/${slug}/crm-vendas/customers`, { scroll: false });
-    } else if (!loading) {
-      apiClient
-        .get<CrmConta>(`/crm-vendas/contas/${id}/`)
-        .then((res) => {
-          openModal('view', res.data);
-          router.replace(`/loja/${slug}/crm-vendas/customers`, { scroll: false });
-        })
-        .catch(() => {});
-    }
-  }, [verParam, contas, loading, slug, router, openModal]);
+    router.replace(`${basePath}/${id}`, { scroll: false });
+  }, [basePath, router, verParam]);
 
   const handleDelete = async () => {
-    if (!selectedConta) return;
+    if (!contaParaExcluir) return;
     try {
       setSubmitting(true);
-      await apiClient.delete(`/crm-vendas/contas/${selectedConta.id}/`);
+      await apiClient.delete(`/crm-vendas/contas/${contaParaExcluir.id}/`);
       await loadContas(true);
-      closeModal();
+      setContaParaExcluir(null);
       toast.success('Conta excluída.');
     } catch (err: unknown) {
       toast.error(getCrmApiErrorDetail(err, 'Erro ao excluir.'));
@@ -105,11 +88,11 @@ export function useCrmCustomersPage() {
   };
 
   const irParaNovaConta = () => {
-    router.push(`/loja/${slug}/crm-vendas/customers/nova-conta`);
+    router.push(`${basePath}/nova-conta`);
   };
 
   const irParaEditarConta = (id: number) => {
-    router.push(`/loja/${slug}/crm-vendas/customers/${id}/editar`);
+    router.push(`${basePath}/${id}/editar`);
   };
 
   return {
@@ -123,14 +106,13 @@ export function useCrmCustomersPage() {
     loading,
     error,
     colunasVisiveis: colunasContasVisiveis(),
-    modalType,
-    selectedConta,
+    contaParaExcluir,
+    setContaParaExcluir,
     submitting,
-    openModal,
-    closeModal,
     handleDelete,
     irParaNovaConta,
     irParaEditarConta,
+    irParaVerConta,
     exportContasCsv,
   };
 }

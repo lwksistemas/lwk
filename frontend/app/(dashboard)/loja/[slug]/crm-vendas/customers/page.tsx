@@ -1,10 +1,9 @@
 'use client';
 
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
 import { Plus, Eye, Edit2, Trash2, Building2, Download } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
-import { ContaViewModal } from './components/ContaViewModal';
-import { ContaDeleteModal } from './components/ContaDeleteModal';
 import { formatTelefone } from '@/lib/format-br';
 import { formatDate } from '@/lib/financeiro-helpers';
 import { useCrmCustomersPage, type CrmConta } from '@/hooks/crm-vendas/useCrmCustomersPage';
@@ -57,7 +56,6 @@ function renderCelulaConta(c: CrmConta, coluna: string) {
 
 export default function CrmVendasCustomersPage() {
   const {
-    slug,
     contas,
     page,
     setPage,
@@ -67,14 +65,13 @@ export default function CrmVendasCustomersPage() {
     loading,
     error,
     colunasVisiveis,
-    modalType,
-    selectedConta,
+    contaParaExcluir,
+    setContaParaExcluir,
     submitting,
-    openModal,
-    closeModal,
     handleDelete,
     irParaNovaConta,
     irParaEditarConta,
+    irParaVerConta,
     exportContasCsv,
   } = useCrmCustomersPage();
 
@@ -162,7 +159,7 @@ export default function CrmVendasCustomersPage() {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           type="button"
-                          onClick={() => openModal('view', c)}
+                          onClick={() => irParaVerConta(c.id)}
                           className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
                           title="Visualizar"
                         >
@@ -178,7 +175,7 @@ export default function CrmVendasCustomersPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => openModal('delete', c)}
+                          onClick={() => setContaParaExcluir(c)}
                           className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400"
                           title="Excluir"
                         >
@@ -203,19 +200,11 @@ export default function CrmVendasCustomersPage() {
         />
       </div>
 
-      {modalType === 'view' && selectedConta && (
-        <ContaViewModal
-          conta={selectedConta}
-          onClose={closeModal}
-          onEdit={() => irParaEditarConta(selectedConta.id)}
-        />
-      )}
-      {modalType === 'delete' && selectedConta && (
-        <ContaDeleteModal
-          nome={selectedConta.nome}
-          segmento={selectedConta.segmento}
-          submitting={submitting}
-          onClose={closeModal}
+      {contaParaExcluir && (
+        <CrmConfirmDeleteModal
+          tituloItem={contaParaExcluir.nome}
+          enviando={submitting}
+          onClose={() => setContaParaExcluir(null)}
           onConfirm={handleDelete}
         />
       )}

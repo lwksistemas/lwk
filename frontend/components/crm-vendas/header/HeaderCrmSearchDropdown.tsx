@@ -92,7 +92,7 @@ export function HeaderCrmSearchDropdown({
               {searchResults!.contas.map((c) => (
                 <Link
                   key={`conta-${c.id}`}
-                  href={slug ? `/loja/${slug}/crm-vendas/customers?ver=${c.id}` : '#'}
+                  href={slug ? `/loja/${slug}/crm-vendas/customers/${c.id}` : '#'}
                   onClick={onSelect}
                   className="flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] text-sm text-gray-900 dark:text-white"
                 >

@@ -10,11 +10,12 @@
 5. **Webhooks/fila** — Asaas loja + envio assíncrono de documentos
 6. **Frontend** — Vitest `lib/crm-*.test.ts` (pipeline, utils, permissões, etc.)
 7. **E2E** — helper `e2e/crm-auth.ts` + fluxo autenticado pipeline → leads → propostas → contratos → financeiro
-8. **CI** — `crm_vendas.tests` + Vitest CRM no workflow Security
+8. **E2E assinatura** — `e2e/crm-assinatura-publica.spec.ts` (token inválido + opcional `CRM_E2E_ASSINATURA_TOKEN`)
+9. **CI** — `crm_vendas.tests` + Vitest CRM + Playwright smoke público no workflow Security
 
 ### 📋 Pendente (baixo risco, opcional):
 - **Backend `pdf_proposta_contrato/`** — reduzir duplicação proposta/contrato (funcional, não urgente)
-- **E2E assinatura completa** — pipeline → proposta → link público de assinatura (requer secrets `CRM_E2E_*` em CI)
+- **E2E autenticado em CI** — fluxo completo com secrets `CRM_E2E_EMAIL` / `CRM_E2E_PASSWORD` (local ou job manual)
 - **API com tenant real** — migrations CRM não rodam em SQLite; smoke com mocks cobre rotas principais
 
 ## Hooks / páginas
@@ -29,4 +30,4 @@
 - ✅ Mixins DRY no backend
 - ✅ Cache com invalidação automática
 - ✅ Isolamento multi-tenant seguro
-- ✅ Suite de testes alinhada ao nível produção (~165+ backend, 7 arquivos Vitest CRM)
+- ✅ Suite de testes alinhada ao nível produção (~170+ backend, 7 arquivos Vitest CRM, E2E público no CI)

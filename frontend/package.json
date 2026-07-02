@@ -10,6 +10,7 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:crm-public": "playwright test e2e/crm-smoke.spec.ts e2e/crm-assinatura-publica.spec.ts --grep-invert autenticado",
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {

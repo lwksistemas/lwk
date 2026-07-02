@@ -158,6 +158,8 @@ class VendedorFilterMixin:
     # Configurar em cada ViewSet
     vendedor_filter_field = 'vendedor_id'  # Campo direto
     vendedor_filter_related = []  # Campos relacionados
+    # True: vendedor vê registros sem vendedor (pool compartilhado da loja). False: só os dele.
+    vendedor_include_unassigned_pool = True
     
     def filter_by_vendedor(self, queryset):
         """
@@ -182,11 +184,11 @@ class VendedorFilterMixin:
             # Proprietário sem vendedor: vê tudo
             return queryset
         
-        # Construir filtro Q: vendedor OU oportunidades não atribuídas (pool compartilhado)
+        # Construir filtro Q: vendedor (+ pool compartilhado, se habilitado)
         filters = Q(**{self.vendedor_filter_field: vendedor_id})
-        # Incluir registros onde o campo de vendedor é NULL (ex: oportunidade sem vendedor)
-        null_field = f'{self.vendedor_filter_field}__isnull'
-        filters |= Q(**{null_field: True})
+        if getattr(self, 'vendedor_include_unassigned_pool', True):
+            null_field = f'{self.vendedor_filter_field}__isnull'
+            filters |= Q(**{null_field: True})
         for related_field in self.vendedor_filter_related:
             filters |= Q(**{related_field: vendedor_id})
         
@@ -211,7 +213,7 @@ class CacheInvalidationMixin:
     Usage:
         class OportunidadeViewSet(CacheInvalidationMixin, BaseModelViewSet):
             cache_keys = ['oportunidades', 'dashboard']
-            # Não precisa mais dos decorators @invalidate_cache_on_change!
+            # CacheInvalidationMixin invalida caches em perform_create/update/destroy
     """
     
     # Definir em cada ViewSet que precisa invalidar cache

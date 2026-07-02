@@ -6,7 +6,10 @@ from django.test import TestCase
 from rest_framework import status as http_status
 
 from superadmin.models import Loja, PlanoAssinatura, ProfissionalUsuario, TipoLoja
-from superadmin.services.loja_password_recovery_service import LojaPasswordRecoveryService
+from superadmin.services.loja_password_recovery_service import (
+    LojaPasswordRecoveryService,
+    resolve_loja_user_for_password_recovery,
+)
 
 
 class LojaPasswordRecoveryServiceTest(TestCase):
@@ -61,6 +64,45 @@ class LojaPasswordRecoveryServiceTest(TestCase):
         pu = ProfissionalUsuario.objects.get(user=self.owner, loja=self.loja)
         self.assertTrue(pu.precisa_trocar_senha)
         mock_send.assert_called_once()
+
+    @patch('core.email_delivery.send_prepared')
+    def test_recuperacao_por_email_profissional(self, mock_send):
+        prof_user = User.objects.create_user(
+            username='admin_harmonis',
+            email='admin@harmonis.test',
+            password='old-pass',
+        )
+        ProfissionalUsuario.objects.create(
+            user=prof_user,
+            loja=self.loja,
+            professional_id=1,
+            perfil=ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+            precisa_trocar_senha=False,
+        )
+        payload, code = LojaPasswordRecoveryService().execute(
+            'admin@harmonis.test',
+            'felix',
+        )
+
+        self.assertEqual(code, http_status.HTTP_200_OK)
+        mock_send.assert_called_once()
+        pu = ProfissionalUsuario.objects.get(user=prof_user, loja=self.loja)
+        self.assertTrue(pu.precisa_trocar_senha)
+
+    def test_resolve_profissional_por_email(self):
+        prof_user = User.objects.create_user(
+            username='recep',
+            email='recep@harmonis.test',
+            password='x',
+        )
+        ProfissionalUsuario.objects.create(
+            user=prof_user,
+            loja=self.loja,
+            professional_id=2,
+            perfil=ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+        )
+        resolved = resolve_loja_user_for_password_recovery(self.loja, 'recep@harmonis.test')
+        self.assertEqual(resolved, prof_user)
 
     def test_email_incorreto_nao_envia(self):
         with patch('core.email_delivery.send_prepared') as mock_send:

@@ -33,13 +33,13 @@ export default function RecuperarSenhaModal({
     setLoading(true);
 
     try {
-      await apiClient.post(endpoint, {
+      const res = await apiClient.post(endpoint, {
         email,
         ...extraData
       });
       
       setTipoMensagem('success');
-      setMensagem('✅ Senha provisória enviada para o email cadastrado!');
+      setMensagem(res.data?.message || 'Se o email estiver cadastrado, você receberá uma senha provisória em instantes.');
       
       // Fechar modal após 3 segundos
       setTimeout(() => {

@@ -73,6 +73,7 @@ class BackupEmailService:
             
             # Multipart texto + HTML (Resend API exige alternatives, não content_subtype)
             from core.email_delivery import create_email_multipart, send_prepared
+            from core.email_sync_context import email_sync_only
             email = create_email_multipart(
                 subject=assunto,
                 body=corpo_texto,
@@ -86,7 +87,11 @@ class BackupEmailService:
                 except Exception as e:
                     logger.warning(f"⚠️ Não foi possível anexar arquivo: {e}")
 
-            send_prepared(email, fail_silently=False)
+            token = email_sync_only.set(True)
+            try:
+                send_prepared(email, fail_silently=False)
+            finally:
+                email_sync_only.reset(token)
             
             # Marcar como enviado
             historico.marcar_email_enviado(destinatario)

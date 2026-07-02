@@ -12,6 +12,8 @@ import { NfseLojaHeader } from './components/NfseLojaHeader';
 import { NfseLojaLoading } from './components/NfseLojaLoading';
 import { NfseLojaSyncMessage } from './components/NfseLojaSyncMessage';
 import { NfseLojaTable } from './components/NfseLojaTable';
+import { NfseCancelamentoModal } from '@/components/nfse/NfseCancelamentoModal';
+import { nfseIdentificador } from '@/lib/nfse-helpers';
 
 export default function NFSePage() {
   const {
@@ -45,7 +47,11 @@ export default function NFSePage() {
     sincronizarStatus,
     requestExcluirNFSe,
     baixarPdfNFSe,
-    cancelarNFSe,
+    requestCancelarNFSe,
+    nfCancelamento,
+    setNfCancelamento,
+    confirmarCancelamentoNFSe,
+    cancelandoNFSe,
     abrirModalWhatsapp,
     enviarWhatsappNFSe,
     requestReenviarEmail,
@@ -85,7 +91,7 @@ export default function NFSePage() {
             onDownloadPdf={baixarPdfNFSe}
             onReenviarEmail={requestReenviarEmail}
             onEnviarWhatsapp={abrirModalWhatsapp}
-            onCancelar={cancelarNFSe}
+            onCancelar={requestCancelarNFSe}
             whatsappHabilitado={whatsappAtivo}
           />
           <CrmPaginationBar
@@ -114,6 +120,16 @@ export default function NFSePage() {
 
       {showModal && (
         <ModalEmitirNFSe onClose={() => setShowModal(false)} onSuccess={handleEmitirSuccess} />
+      )}
+
+      {nfCancelamento && (
+        <NfseCancelamentoModal
+          identificador={nfseIdentificador(nfCancelamento)}
+          provedor={nfCancelamento.provedor}
+          loading={cancelandoNFSe}
+          onClose={() => !cancelandoNFSe && setNfCancelamento(null)}
+          onConfirm={confirmarCancelamentoNFSe}
+        />
       )}
 
       {confirmAction && confirmCopy && (

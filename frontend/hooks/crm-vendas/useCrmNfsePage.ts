@@ -15,7 +15,7 @@ import {
   nfUsaIssnet,
   openBlobInNewTab,
   openPdfFromJsonUrl,
-  solicitarCancelamentoNFSe,
+  type NfseCancelamentoEscolha,
   type NfseEmissaoResult,
 } from '@/lib/nfse-helpers';
 import type { NFSe } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/types';
@@ -70,6 +70,8 @@ export function useCrmNfsePage() {
   });
   const [confirmAction, setConfirmAction] = useState<NfseConfirmAction | null>(null);
   const [confirmando, setConfirmando] = useState(false);
+  const [nfCancelamento, setNfCancelamento] = useState<NFSe | null>(null);
+  const [cancelandoNFSe, setCancelandoNFSe] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setBuscaDebounced(busca.trim()), 400);
@@ -231,18 +233,25 @@ export function useCrmNfsePage() {
     }
   };
 
-  const cancelarNFSe = async (nf: NFSe) => {
-    const escolha = solicitarCancelamentoNFSe(nfseIdentificador(nf), { provedor: nf.provedor });
-    if (!escolha) return;
+  const requestCancelarNFSe = (nf: NFSe) => {
+    setNfCancelamento(nf);
+  };
+
+  const confirmarCancelamentoNFSe = async (escolha: NfseCancelamentoEscolha) => {
+    if (!nfCancelamento) return;
+    setCancelandoNFSe(true);
     try {
-      await apiClient.post(`/nfse/${nf.id}/cancelar/`, {
+      await apiClient.post(`/nfse/${nfCancelamento.id}/cancelar/`, {
         motivo: escolha.motivo,
         codigo_cancelamento: escolha.codigo,
       });
       toast.success('Cancelamento enviado. Se aprovado pela prefeitura, o status será atualizado.');
+      setNfCancelamento(null);
       await carregarNFSes(true);
     } catch (err: unknown) {
       toast.error(getCrmApiErrorDetail(err, 'Erro ao cancelar NFS-e'));
+    } finally {
+      setCancelandoNFSe(false);
     }
   };
 
@@ -312,7 +321,11 @@ export function useCrmNfsePage() {
     sincronizarStatus,
     requestExcluirNFSe,
     baixarPdfNFSe,
-    cancelarNFSe,
+    requestCancelarNFSe,
+    nfCancelamento,
+    setNfCancelamento,
+    confirmarCancelamentoNFSe,
+    cancelandoNFSe,
     abrirModalWhatsapp,
     enviarWhatsappNFSe,
     requestReenviarEmail,

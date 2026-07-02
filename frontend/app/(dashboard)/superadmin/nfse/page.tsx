@@ -7,8 +7,9 @@ import {
   downloadBlobFile,
   nfseIdentificador,
   openPdfFromApiBlobResponse,
-  solicitarCancelamentoNFSe,
+  type NfseCancelamentoEscolha,
 } from '@/lib/nfse-helpers';
+import { NfseCancelamentoModal } from '@/components/nfse/NfseCancelamentoModal';
 import { ModalEmitirNFSeManual } from './components/ModalEmitirNFSeManual';
 import { NfseSuperadminFilters } from './components/NfseSuperadminFilters';
 import { NfseSuperadminHeader } from './components/NfseSuperadminHeader';
@@ -23,6 +24,8 @@ export default function NFSeEmitidasPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [filtroStatus, setFiltroStatus] = useState('');
   const [showModalEmitir, setShowModalEmitir] = useState(false);
+  const [nfCancelamento, setNfCancelamento] = useState<NFSeEmitida | null>(null);
+  const [cancelandoNFSe, setCancelandoNFSe] = useState(false);
 
   useEffect(() => {
     loadNotas();
@@ -80,25 +83,29 @@ export default function NFSeEmitidasPage() {
     }
   };
 
-  const handleCancelar = async (nf: NFSeEmitida) => {
-    const escolha = solicitarCancelamentoNFSe(nfseIdentificador(nf), {
-      provedor: nf.provedor,
-      avisarIssnetErroEmissao: true,
-    });
-    if (!escolha) return;
+  const handleCancelar = (nf: NFSeEmitida) => {
+    setNfCancelamento(nf);
+  };
+
+  const confirmarCancelamento = async (escolha: NfseCancelamentoEscolha) => {
+    if (!nfCancelamento) return;
+    setCancelandoNFSe(true);
     try {
-      const { data } = await apiClient.post(`/superadmin/nfse-emitidas/${nf.id}/cancelar/`, {
+      const { data } = await apiClient.post(`/superadmin/nfse-emitidas/${nfCancelamento.id}/cancelar/`, {
         codigo_cancelamento: escolha.codigo,
         motivo: escolha.motivo,
       });
       if (data.success) {
         setMessage({ type: 'success', text: data.message });
+        setNfCancelamento(null);
         loadNotas();
       } else {
         setMessage({ type: 'error', text: data.error });
       }
     } catch {
       setMessage({ type: 'error', text: 'Erro ao cancelar' });
+    } finally {
+      setCancelandoNFSe(false);
     }
   };
 
@@ -149,6 +156,16 @@ export default function NFSeEmitidasPage() {
             setMessage({ type: 'success', text: 'NFS-e emitida com sucesso!' });
             loadNotas();
           }}
+        />
+      )}
+
+      {nfCancelamento && (
+        <NfseCancelamentoModal
+          identificador={nfseIdentificador(nfCancelamento)}
+          provedor={nfCancelamento.provedor}
+          loading={cancelandoNFSe}
+          onClose={() => !cancelandoNFSe && setNfCancelamento(null)}
+          onConfirm={confirmarCancelamento}
         />
       )}
     </div>

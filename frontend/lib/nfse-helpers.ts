@@ -7,14 +7,14 @@ import { downloadBlobFile } from '@/lib/download-blob';
 
 export { downloadBlobFile };
 
-/** Opções exibidas no prompt de cancelamento (subset alinhado ao backend ISSNet). */
+/** Opções de motivo de cancelamento (subset alinhado ao backend ISSNet). */
 export const NFSE_CANCELAMENTO_OPCOES: Record<string, string> = {
   '1': 'Erro na emissão',
   '2': 'Serviço não prestado',
   '4': 'Duplicidade da nota',
 };
 
-const ISSNET_ERRO_EMISSAO_AVISO =
+export const NFSE_ISSNET_ERRO_EMISSAO_AVISO =
   'A prefeitura/ISSNet costuma recusar cancelamento por "Erro na emissão" (E206) e exigir substituição.\n\n' +
   'Recomendado: usar "2 - Serviço não prestado" ou "4 - Duplicidade".\n\nDeseja continuar mesmo assim?';
 
@@ -33,6 +33,12 @@ export function buildCancelamentoPromptText(identificador: string): string {
     .map(([cod, label]) => `${cod} - ${label}`)
     .join('\n');
   return `CANCELAR NFS-e ${identificador}?\n\nEscolha o motivo:\n${linhas}\n\nDigite o número (1, 2 ou 4):`;
+}
+
+/** Monta texto do motivo enviado à API (descrição opcional ou label padrão). */
+export function montarMotivoCancelamento(codigo: string, textoOpcional?: string): string {
+  const trim = (textoOpcional || '').trim();
+  return trim || NFSE_CANCELAMENTO_OPCOES[codigo] || '';
 }
 
 export function isIssnetProvedor(provedor?: string | null): boolean {
@@ -64,23 +70,6 @@ export function nfseSyncEndpoint(
 }
 
 export type NfseCancelamentoEscolha = { codigo: string; motivo: string };
-
-/** Retorna null se o usuário cancelar ou escolher opção inválida. */
-export function solicitarCancelamentoNFSe(
-  identificador: string,
-  options?: { provedor?: string | null; avisarIssnetErroEmissao?: boolean },
-): NfseCancelamentoEscolha | null {
-  const opcao = prompt(buildCancelamentoPromptText(identificador));
-  if (!opcao || !NFSE_CANCELAMENTO_OPCOES[opcao]) return null;
-
-  const avisar = options?.avisarIssnetErroEmissao !== false;
-  if (avisar && opcao === '1' && isIssnetProvedor(options?.provedor)) {
-    if (!confirm(ISSNET_ERRO_EMISSAO_AVISO)) return null;
-  }
-
-  const motivo = prompt('Descreva o motivo (opcional):') || NFSE_CANCELAMENTO_OPCOES[opcao];
-  return { codigo: opcao, motivo };
-}
 
 export function openBlobInNewTab(blob: Blob, mime = 'application/pdf'): void {
   const typed = blob.type ? blob : new Blob([blob], { type: mime });

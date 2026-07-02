@@ -278,9 +278,6 @@ def reenviar_senha_vendedor(loja_id: int, vendedor) -> tuple[dict | None, str | 
 
 
 def listar_grupos_crm_disponiveis() -> list[dict]:
-    return list(
-        Group.objects.using('default')
-        .filter(name__in=['Gerente de Vendas', 'Vendedor'])
-        .values('id', 'name')
-        .order_by('name')
-    )
+    from .vendedor_permissoes_service import listar_grupos_crm_com_permissoes
+
+    return listar_grupos_crm_com_permissoes()

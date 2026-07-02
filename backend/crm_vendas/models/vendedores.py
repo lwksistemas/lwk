@@ -16,6 +16,11 @@ class Vendedor(LojaIsolationMixin, models.Model):
     )
     is_admin = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    config_acesso = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Configuração de grupo/permissões (grupo_id, permissoes_ids) para acesso ao CRM',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

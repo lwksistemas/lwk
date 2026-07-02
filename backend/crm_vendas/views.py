@@ -32,6 +32,7 @@ from .vendedor_admin_service import (
     reenviar_senha_vendedor,
     resposta_vendedor_me,
 )
+from .vendedor_permissoes_service import listar_permissoes_crm_disponiveis
 
 from .views_common import (
     CRMPagination,
@@ -176,6 +177,12 @@ class VendedorViewSet(CRMPermissionMixin, BaseModelViewSet):
     def grupos_disponiveis(self, request):
         """Lista grupos disponíveis para atribuir a vendedores."""
         return Response(listar_grupos_crm_disponiveis())
+
+    @action(detail=False, methods=['get'], url_path='permissoes_disponiveis')
+    @require_admin_access('Vendedores não têm permissão para acessar configurações de funcionários.')
+    def permissoes_disponiveis(self, request):
+        """Lista permissões CRM agrupadas por categoria."""
+        return Response(listar_permissoes_crm_disponiveis())
 
 
 class CategoriaProdutoServicoViewSet(LojaScopedCatalogMixin, BaseModelViewSet):

@@ -2,30 +2,13 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import {
-  CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL,
-  CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
-} from '@/lib/crm-constants';
-import { formatDate } from '@/lib/financeiro-helpers';
-import { Plus, Eye, Edit2, Trash2, ClipboardList, FileText, FileSignature, Ban, ShoppingCart } from 'lucide-react';
+import { Plus, FileText } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
-import CrmEnviarAssinaturaColuna from '@/components/crm-vendas/CrmEnviarAssinaturaColuna';
-import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
-import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
-import CrmCancelarModal from '@/components/crm-vendas/CrmCancelarModal';
-import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
-import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetalhesModal';
-import {
-  CrmDocumentoEmptyState,
-  CrmDocumentoListPageShell,
-} from '@/components/crm-vendas/documentos/CrmDocumentoListPageShell';
-import CrmDocumentoMaisAcoesMenu from '@/components/crm-vendas/documentos/CrmDocumentoMaisAcoesMenu';
-import CrmDocumentoArquivoAcoes from '@/components/crm-vendas/documentos/CrmDocumentoArquivoAcoes';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
-import {
-  propostaOcultaColunaAssinatura,
-  useCrmPropostasPage,
-} from '@/hooks/crm-vendas/useCrmPropostasPage';
+import { CrmDocumentoListPageShell } from '@/components/crm-vendas/documentos/CrmDocumentoListPageShell';
+import { useCrmPropostasPage } from '@/hooks/crm-vendas/useCrmPropostasPage';
+import { PropostasTable } from './components/PropostasTable';
+import { PropostasPageModals } from './components/PropostasPageModals';
 
 export default function CrmVendasPropostasPage() {
   const params = useParams();
@@ -68,24 +51,6 @@ export default function CrmVendasPropostasPage() {
     executeConfirm,
   } = useCrmPropostasPage(slug);
 
-  const propostaConfirmCopy = (() => {
-    if (!confirmAction) return null;
-    if (confirmAction.type === 'marcar_assinado') {
-      return {
-        title: 'Marcar como assinada',
-        message: `Marcar "${confirmAction.titulo}" como assinada manualmente?\n\nUse quando o cliente assinar de outra forma (manual, gov.br, etc).`,
-        confirmLabel: 'Marcar assinada',
-        variant: 'primary' as const,
-      };
-    }
-    return {
-      title: 'Confirmar pedido',
-      message: `Confirmar "${confirmAction.titulo}" como pedido?\n\nIsso indica que o cliente confirmou o pedido formal e está pronto para gerar o contrato.`,
-      confirmLabel: 'Confirmar pedido',
-      variant: 'primary' as const,
-    };
-  })();
-
   if (loading && propostas.length === 0) {
     return (
       <div className="space-y-4">
@@ -124,153 +89,25 @@ export default function CrmVendasPropostasPage() {
           </>
         }
       >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[500px]">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-[#0d1f3c] bg-gray-50 dark:bg-[#0d1f3c]/50">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Número</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Título</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Oportunidade</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                {exibirColunaAssinatura && (
-                  <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase w-28">
-                    <span className="block">Assinatura</span>
-                    <span className="block text-[9px] font-normal normal-case text-gray-500 dark:text-gray-400">Cliente / vendedor</span>
-                  </th>
-                )}
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase whitespace-nowrap">Emissão</th>
-                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {propostas.length === 0 ? (
-                <tr>
-                  <CrmDocumentoEmptyState
-                    icon={ClipboardList}
-                    titulo="Nenhuma proposta cadastrada"
-                    subtitulo='Clique em "Nova Proposta" ou vá ao Pipeline para criar'
-                    slug={slug}
-                  />
-                </tr>
-              ) : (
-                propostas.map((p) => (
-                  <tr key={p.id} className="border-b border-gray-100 dark:border-[#0d1f3c] hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/30">
-                    <td className="py-3 px-4 font-mono text-sm text-gray-600 dark:text-gray-400">#{p.numero || '---'}</td>
-                    <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{p.titulo}</td>
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{p.oportunidade_titulo}</td>
-                    <td className="py-3 px-4">
-                      <CrmDocumentoStatusBadge
-                        statusAssinatura={p.status_assinatura}
-                        status={p.status}
-                        labelsComercial={STATUS_LABEL}
-                        labelsAssinatura={STATUS_ASSINATURA_LABEL}
-                        variante="proposta"
-                      />
-                    </td>
-                    {exibirColunaAssinatura && (
-                      <td className="py-3 px-4">
-                        {propostaOcultaColunaAssinatura(p) ? (
-                          <span className="text-gray-300 dark:text-gray-600 text-center block">—</span>
-                        ) : (
-                          <CrmEnviarAssinaturaColuna
-                            statusAssinatura={p.status_assinatura}
-                            whatsappHabilitado={propostaWhatsappHabilitada}
-                            enviando={enviandoId === p.id}
-                            onEnviar={(canal) => handleEnviarCliente(p, canal)}
-                          />
-                        )}
-                      </td>
-                    )}
-                    <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                      {formatDate(p.created_at)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex justify-end items-center gap-1">
-                        <button type="button" onClick={() => openModal('view', p)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Visualizar"><Eye size={16} /></button>
-                        {p.status !== 'cancelada' && (
-                          <button type="button" onClick={() => irParaEditarProposta(p.id)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Editar"><Edit2 size={16} /></button>
-                        )}
-                        <CrmDocumentoMaisAcoesMenu
-                          itemId={p.id}
-                          aberto={menuAberto === p.id}
-                          onToggle={() => setMenuAberto(menuAberto === p.id ? null : p.id)}
-                          onClose={() => setMenuAberto(null)}
-                          placement="fixed"
-                        >
-                          <CrmDocumentoArquivoAcoes
-                            somentePdf={p.status === 'cancelada'}
-                            motivoCancelamento={p.status === 'cancelada' ? p.motivo_cancelamento : undefined}
-                            onDownloadPdf={() => {
-                              handleDownloadPdf(p.id, p.titulo);
-                              setMenuAberto(null);
-                            }}
-                            onDownloadDocx={() => {
-                              handleDownloadDocx(p.id, p.titulo);
-                              setMenuAberto(null);
-                            }}
-                          />
-                          {p.status !== 'cancelada' && (
-                            <>
-                              <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                              {p.status_assinatura !== 'concluido' && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleMarcarComoAssinado(p.id);
-                                    setMenuAberto(null);
-                                  }}
-                                  disabled={alterandoStatus !== null}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
-                                >
-                                  <FileSignature size={15} className="text-purple-500" /> Marcar como assinado
-                                </button>
-                              )}
-                              {p.status === 'aceita' && p.status_assinatura !== 'concluido' && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleConfirmarPedido(p.id);
-                                    setMenuAberto(null);
-                                  }}
-                                  disabled={alterandoStatus !== null}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 disabled:opacity-50 font-medium"
-                                >
-                                  <ShoppingCart size={15} className="text-emerald-600" /> Confirmar como Pedido
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  openModal('cancelar', p);
-                                  setMenuAberto(null);
-                                }}
-                                disabled={alterandoStatus !== null}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
-                              >
-                                <Ban size={15} className="text-red-500" /> Cancelar proposta
-                              </button>
-                              <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  openModal('delete', p);
-                                  setMenuAberto(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                              >
-                                <Trash2 size={15} /> Excluir proposta
-                              </button>
-                            </>
-                          )}
-                        </CrmDocumentoMaisAcoesMenu>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <PropostasTable
+          slug={slug}
+          propostas={propostas}
+          exibirColunaAssinatura={exibirColunaAssinatura}
+          propostaWhatsappHabilitada={propostaWhatsappHabilitada}
+          enviandoId={enviandoId}
+          alterandoStatus={alterandoStatus}
+          menuAberto={menuAberto}
+          setMenuAberto={setMenuAberto}
+          onEnviarCliente={handleEnviarCliente}
+          onDownloadPdf={handleDownloadPdf}
+          onDownloadDocx={handleDownloadDocx}
+          onView={(p) => openModal('view', p)}
+          onEditar={irParaEditarProposta}
+          onMarcarComoAssinado={handleMarcarComoAssinado}
+          onConfirmarPedido={handleConfirmarPedido}
+          onCancelar={(p) => openModal('cancelar', p)}
+          onExcluir={(p) => openModal('delete', p)}
+        />
         <CrmPaginationBar
           page={page}
           totalPages={totalPages}
@@ -284,56 +121,23 @@ export default function CrmVendasPropostasPage() {
 
       <div className="px-4 py-3 bg-gray-50 dark:bg-[#0d1f3c]/30 rounded-lg border border-gray-200 dark:border-[#0d1f3c]">
         <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-          Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
+          Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com
+          registro de data, hora e endereço IP.
         </p>
       </div>
 
-      {modalType === 'view' && selected && (
-        <CrmDocumentoDetalhesModal
-          aberto
-          onClose={closeModal}
-          titulo={selected.titulo}
-          oportunidadeTitulo={selected.oportunidade_titulo}
-          leadNome={selected.lead_nome}
-          statusExibicao={STATUS_LABEL[selected.status] || selected.status}
-          valorTotal={selected.valor_total}
-          descontoTipo={selected.desconto_tipo}
-          descontoValor={selected.desconto_valor}
-          valorComDesconto={selected.valor_com_desconto}
-          conteudo={selected.conteudo}
-        />
-      )}
-
-      {modalType === 'delete' && selected && (
-        <CrmConfirmDeleteModal
-          tituloItem={selected.titulo}
-          enviando={submitting}
-          onClose={closeModal}
-          onConfirm={handleDelete}
-        />
-      )}
-
-      {modalType === 'cancelar' && selected && (
-        <CrmCancelarModal
-          titulo={selected.titulo}
-          tipo="proposta"
-          onConfirm={handleCancelarProposta}
-          onClose={closeModal}
-        />
-      )}
-
-      {propostaConfirmCopy && (
-        <CrmConfirmActionModal
-          open
-          title={propostaConfirmCopy.title}
-          message={propostaConfirmCopy.message}
-          confirmLabel={propostaConfirmCopy.confirmLabel}
-          variant={propostaConfirmCopy.variant}
-          loading={confirmando}
-          onClose={closeConfirm}
-          onConfirm={executeConfirm}
-        />
-      )}
+      <PropostasPageModals
+        modalType={modalType}
+        selected={selected}
+        submitting={submitting}
+        confirmAction={confirmAction}
+        confirmando={confirmando}
+        onClose={closeModal}
+        onDelete={handleDelete}
+        onCancelar={handleCancelarProposta}
+        onCloseConfirm={closeConfirm}
+        onExecuteConfirm={executeConfirm}
+      />
     </>
   );
 }

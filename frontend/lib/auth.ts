@@ -7,6 +7,7 @@
 import apiClient from './api-client';
 import { clearAssinaturaAvisoDismissKeys } from '@/lib/assinatura-aviso';
 import { clearStoreBlockedMark } from '@/lib/loja-bloqueio-inadimplencia';
+import { syncCrmPermissoesSession } from '@/lib/crm-permissoes';
 import { USE_JWT_HTTPONLY_COOKIES } from './auth-cookies';
 
 export type UserType = 'superadmin' | 'suporte' | 'loja';
@@ -281,7 +282,12 @@ class AuthService {
    * Deve remover is_vendedor quando o backend retorna false (ex.: dono da loja com vínculo de vendedor),
    * senão um valor antigo esconde NFS-e, backup, etc. na tela de configurações.
    */
-  syncCrmMeFlags(d: { is_vendedor?: boolean; vendedor_id?: number | null }): void {
+  syncCrmMeFlags(d: {
+    is_vendedor?: boolean;
+    vendedor_id?: number | null;
+    acesso_total?: boolean;
+    permissoes?: string[];
+  }): void {
     if (typeof window === 'undefined') return;
     if (d.is_vendedor === true && typeof d.vendedor_id === 'number') {
       sessionStorage.setItem('is_vendedor', '1');
@@ -294,6 +300,10 @@ class AuthService {
         sessionStorage.removeItem('current_vendedor_id');
       }
     }
+    syncCrmPermissoesSession({
+      acesso_total: d.acesso_total,
+      permissoes: d.permissoes,
+    });
   }
 
   /**

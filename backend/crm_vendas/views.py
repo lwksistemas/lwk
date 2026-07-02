@@ -14,7 +14,7 @@ from .serializers import (
     CategoriaProdutoServicoSerializer,
     OportunidadeItemSerializer,
 )
-from .mixins import VendedorFilterMixin, CacheInvalidationMixin
+from .mixins import VendedorFilterMixin, CacheInvalidationMixin, CrmGranularPermissionMixin
 from .views_common import (
     CRMPagination,
     LojaScopedCatalogMixin,
@@ -38,13 +38,14 @@ class CategoriaProdutoServicoViewSet(LojaScopedCatalogMixin, BaseModelViewSet):
         return filtrar_ativo_query_param(qs, self.request)
 
 
-class ProdutoServicoViewSet(LojaScopedCatalogMixin, BaseModelViewSet):
+class ProdutoServicoViewSet(CrmGranularPermissionMixin, LojaScopedCatalogMixin, BaseModelViewSet):
     """CRUD de produtos e serviços para uso em oportunidades."""
     queryset = ProdutoServico.objects.select_related('loja', 'categoria').all()
     serializer_class = ProdutoServicoSerializer
     pagination_class = CRMPagination
     loja_catalog_model = ProdutoServico
     loja_catalog_label = 'ProdutoServicoViewSet'
+    crm_permission_model = 'produtoservico'
 
     def get_queryset(self):
         qs = self.get_loja_catalog_base_qs()

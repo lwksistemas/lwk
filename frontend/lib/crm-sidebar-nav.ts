@@ -20,22 +20,31 @@ export interface CrmSidebarNavItem {
   icon: LucideIcon;
   exact?: boolean;
   modulo?: CrmSidebarModuloKey;
+  /** Codename Django (ex.: view_lead) */
+  permission?: string;
+  /** Somente owner / vendedor admin */
+  requiresAcessoTotal?: boolean;
 }
 
 export function buildCrmSidebarNavItems(base: string): CrmSidebarNavItem[] {
   return [
     { href: base, label: 'Home', icon: LayoutDashboard, exact: true },
-    { href: `${base}/leads`, label: 'Leads', icon: Users },
-    { href: `${base}/pipeline`, label: 'Oportunidades', icon: DollarSign },
-    { href: `${base}/customers`, label: 'Contas', icon: User, modulo: 'contas' },
-    { href: `${base}/contatos`, label: 'Contatos', icon: User, modulo: 'contatos' },
-    { href: `${base}/calendario`, label: 'Calendário', icon: Calendar },
-    { href: `${base}/financeiro`, label: 'Financeiro', icon: Wallet },
-    { href: `${base}/relatorios`, label: 'Relatórios', icon: FileText },
-    { href: `${base}/nfse`, label: 'NFS-e', icon: FileText },
-    { href: `${base}/propostas`, label: 'Criar Propostas', icon: ClipboardList },
-    { href: `${base}/contratos`, label: 'Criar Contrato', icon: FileSignature },
-    { href: `${base}/produtos-servicos`, label: 'Cadastrar Serviço e Produto', icon: Package },
+    { href: `${base}/leads`, label: 'Leads', icon: Users, permission: 'view_lead' },
+    { href: `${base}/pipeline`, label: 'Oportunidades', icon: DollarSign, permission: 'view_oportunidade' },
+    { href: `${base}/customers`, label: 'Contas', icon: User, modulo: 'contas', permission: 'view_conta' },
+    { href: `${base}/contatos`, label: 'Contatos', icon: User, modulo: 'contatos', permission: 'view_contato' },
+    { href: `${base}/calendario`, label: 'Calendário', icon: Calendar, permission: 'view_atividade' },
+    { href: `${base}/financeiro`, label: 'Financeiro', icon: Wallet, requiresAcessoTotal: true },
+    { href: `${base}/relatorios`, label: 'Relatórios', icon: FileText, permission: 'view_oportunidade' },
+    { href: `${base}/nfse`, label: 'NFS-e', icon: FileText, requiresAcessoTotal: true },
+    { href: `${base}/propostas`, label: 'Criar Propostas', icon: ClipboardList, permission: 'view_proposta' },
+    { href: `${base}/contratos`, label: 'Criar Contrato', icon: FileSignature, permission: 'view_contrato' },
+    {
+      href: `${base}/produtos-servicos`,
+      label: 'Cadastrar Serviço e Produto',
+      icon: Package,
+      permission: 'view_produtoservico',
+    },
   ];
 }
 

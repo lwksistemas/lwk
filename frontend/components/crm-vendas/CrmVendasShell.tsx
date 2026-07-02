@@ -62,11 +62,15 @@ export function CrmVendasShell({ children }: { children: ReactNode }) {
         is_vendedor: boolean;
         user_display_name?: string | null;
         user_role?: 'vendedor' | 'administrador';
+        acesso_total?: boolean;
+        permissoes?: string[];
       }>('/crm-vendas/me/');
       const d = r.data;
       authService.syncCrmMeFlags({
         is_vendedor: d?.is_vendedor,
         vendedor_id: d?.vendedor_id ?? null,
+        acesso_total: d?.acesso_total,
+        permissoes: d?.permissoes,
       });
       setUserDisplayName(d?.user_display_name ?? null);
       setUserRole(d?.user_role === 'vendedor' ? 'vendedor' : 'administrador');

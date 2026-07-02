@@ -154,6 +154,60 @@ def aplicar_permissoes_usuario_crm(user, grupo_id: int | None, permissoes_ids: l
         user.user_permissions.add(*Permission.objects.filter(id__in=selected))
 
 
+def permissoes_codenames_usuario_crm(user) -> list[str]:
+    """Codenames Django efetivos (diretas + via grupo) no escopo CRM."""
+    crm_ids = set(obter_queryset_permissoes_crm().values_list('id', flat=True))
+    codenames: set[str] = set()
+    for codename in user.user_permissions.filter(id__in=crm_ids).values_list('codename', flat=True):
+        codenames.add(codename)
+    for codename in Permission.objects.filter(group__user=user, id__in=crm_ids).values_list(
+        'codename', flat=True
+    ):
+        codenames.add(codename)
+    return sorted(codenames)
+
+
+def todas_permissoes_codenames_crm() -> list[str]:
+    return sorted(obter_queryset_permissoes_crm().values_list('codename', flat=True))
+
+
+def _map_drf_action_para_permissao(action: str) -> str:
+    if action in ('list', 'retrieve'):
+        return 'view'
+    if action == 'create':
+        return 'add'
+    if action in ('update', 'partial_update', 'destroy'):
+        return 'change' if action != 'destroy' else 'delete'
+    return 'change'
+
+
+def verificar_permissao_crm_action(request, model: str, action: str):
+    """Retorna Response 403 ou None se permitido."""
+    from rest_framework import status as http_status
+    from rest_framework.response import Response
+
+    from .utils import is_owner
+
+    if is_owner(request):
+        return None
+
+    user = request.user
+    codenames = permissoes_codenames_usuario_crm(user)
+    if not codenames:
+        return None
+
+    acao = _map_drf_action_para_permissao(action)
+    needed = f'{acao}_{model}'
+    for app_label in ('crm_vendas', 'superadmin'):
+        if user.has_perm(f'{app_label}.{needed}'):
+            return None
+
+    return Response(
+        {'detail': 'Você não tem permissão para esta ação.'},
+        status=http_status.HTTP_403_FORBIDDEN,
+    )
+
+
 def permissoes_ids_usuario_crm(user) -> list[int]:
     crm_qs = obter_queryset_permissoes_crm()
     crm_ids = set(crm_qs.values_list('id', flat=True))

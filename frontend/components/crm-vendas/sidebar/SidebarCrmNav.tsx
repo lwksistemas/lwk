@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Bell, HelpCircle, LogOut, Settings } from 'lucide-react';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { buildCrmSidebarNavItems, isCrmSidebarNavActive } from '@/lib/crm-sidebar-nav';
+import { hasCrmAcessoTotal, temPermissaoCrm } from '@/lib/crm-permissoes';
 import { SidebarCrmNavLink } from '@/components/crm-vendas/sidebar/SidebarCrmNavLink';
 
 interface Props {
@@ -24,9 +25,12 @@ export function SidebarCrmNav({
   onLogout,
 }: Props) {
   const { moduloAtivo } = useCRMConfig();
-  const items = buildCrmSidebarNavItems(base).filter(
-    (item) => !item.modulo || moduloAtivo(item.modulo),
-  );
+  const items = buildCrmSidebarNavItems(base).filter((item) => {
+    if (item.modulo && !moduloAtivo(item.modulo)) return false;
+    if (item.requiresAcessoTotal && !hasCrmAcessoTotal()) return false;
+    if (item.permission && !temPermissaoCrm(item.permission)) return false;
+    return true;
+  });
 
   return (
     <>
@@ -69,8 +73,12 @@ export function SidebarCrmNav({
             })
               ? 'bg-[#0176d3] text-white shadow-sm'
               : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c]'
-          }`}
+          } ${!hasCrmAcessoTotal() ? 'pointer-events-none opacity-40' : ''}`}
           title={collapsed ? 'Configurações' : undefined}
+          aria-disabled={!hasCrmAcessoTotal()}
+          onClick={(e) => {
+            if (!hasCrmAcessoTotal()) e.preventDefault();
+          }}
         >
           <Settings size={18} className="shrink-0" />
           {!collapsed && <span>Configurações</span>}

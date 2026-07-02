@@ -116,6 +116,27 @@ class CRMPermissionMixin:
         return None
 
 
+class CrmGranularPermissionMixin:
+    """
+    Verifica permissões Django granulares (view/add/change/delete) por model.
+    Owner e usuários sem permissões CRM configuradas mantêm acesso legado.
+    """
+
+    crm_permission_model: str | None = None
+
+    def initial(self, request, *args, **kwargs):
+        from rest_framework.exceptions import PermissionDenied
+
+        from .vendedor_permissoes_service import verificar_permissao_crm_action
+
+        model = getattr(self, 'crm_permission_model', None)
+        if model:
+            denied = verificar_permissao_crm_action(request, model, self.action)
+            if denied is not None:
+                raise PermissionDenied(detail=denied.data.get('detail'))
+        super().initial(request, *args, **kwargs)
+
+
 class VendedorFilterMixin:
     """
     Mixin para filtrar queryset por vendedor.

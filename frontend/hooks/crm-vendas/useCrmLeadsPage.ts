@@ -3,13 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { buildCrmLeadPayload, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { getCrmApiErrorDetail } from '@/lib/crm-utils';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
-import { formatTelefone } from '@/lib/format-br';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { useToast } from '@/components/ui/Toast';
 import type { Lead } from '@/components/crm-vendas/LeadsTable';
-import { EMPTY_FORM_LEAD, type FormDataLead } from '@/components/crm-vendas/modals/ModalLeadForm';
 import { LEADS_PAGE_SIZE, loadLeadsPage, formatarDataLead, exportLeadsCsv } from '@/lib/crm-leads';
 
 export function useCrmLeadsPage() {
@@ -28,15 +26,12 @@ export function useCrmLeadsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [leadVer, setLeadVer] = useState<Lead | null>(null);
-  const [leadEditar, setLeadEditar] = useState<Lead | null>(null);
   const [leadExcluir, setLeadExcluir] = useState<Lead | null>(null);
   const [leadMudarStatus, setLeadMudarStatus] = useState<Lead | null>(null);
   const [novoStatus, setNovoStatus] = useState('');
-  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const [salvandoStatus, setSalvandoStatus] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
-  const [form, setForm] = useState<FormDataLead>(EMPTY_FORM_LEAD);
 
   useEffect(() => {
     loadLeadsPage(page, setLeads, setTotalCount, setTotalPages, setError, setLoading);
@@ -74,47 +69,8 @@ export function useCrmLeadsPage() {
   const origemLabel = (value: string) => origensAtivas().find((o) => o.key === value)?.label ?? value;
   const statusLabel = (value: string) => STATUS_LEAD_OPCOES.find((o) => o.value === value)?.label ?? value;
 
-  const handleEditarLead = (lead: Lead) => {
-    setLeadEditar(lead);
-    setForm({
-      nome: lead.nome,
-      empresa: lead.empresa || '',
-      cpf_cnpj: lead.cpf_cnpj || '',
-      email: lead.email || '',
-      telefone: formatTelefone(lead.telefone || ''),
-      origem: lead.origem,
-      status: lead.status,
-      cep: lead.cep || '',
-      logradouro: lead.logradouro || '',
-      numero: lead.numero || '',
-      complemento: lead.complemento || '',
-      bairro: lead.bairro || '',
-      cidade: lead.cidade || '',
-      uf: lead.uf || '',
-      observacoes: lead.observacoes || '',
-    });
-    setFormErro(null);
-  };
-
-  const handleSalvarEdicao = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!leadEditar || salvandoEdicao) return;
-    setFormErro(null);
-    if (!form.nome.trim()) {
-      setFormErro('Informe o nome.');
-      return;
-    }
-    setSalvandoEdicao(true);
-    try {
-      await apiClient.patch(`/crm-vendas/leads/${leadEditar.id}/`, buildCrmLeadPayload(form));
-      setLeadEditar(null);
-      reloadLeads();
-      toast.success('Lead atualizado.');
-    } catch (err) {
-      setFormErro(getCrmApiErrorDetail(err, 'Erro ao salvar lead.'));
-    } finally {
-      setSalvandoEdicao(false);
-    }
+  const irParaEditarLead = (lead: Lead) => {
+    router.push(`/loja/${slug}/crm-vendas/leads/${lead.id}/editar`);
   };
 
   const confirmarExcluir = () => {
@@ -169,28 +125,22 @@ export function useCrmLeadsPage() {
     error,
     leadVer,
     setLeadVer,
-    leadEditar,
-    setLeadEditar,
     leadExcluir,
     setLeadExcluir,
     leadMudarStatus,
     setLeadMudarStatus,
     novoStatus,
     setNovoStatus,
-    salvandoEdicao,
     salvandoStatus,
     excluindo,
     formErro,
     setFormErro,
-    form,
-    setForm,
     colunasLeadsVisiveis,
     origensAtivas,
     origemLabel,
     statusLabel,
     formatarDataLead,
-    handleEditarLead,
-    handleSalvarEdicao,
+    irParaEditarLead,
     confirmarExcluir,
     handleMudarStatus,
     salvarNovoStatus,

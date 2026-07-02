@@ -3,7 +3,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import {
+  getCrmApiErrorDetail,
+  fetchCrmOportunidade,
+  normalizeListResponse,
+} from '@/lib/crm-utils';
 import {
   deveConfirmarReenvioAssinatura,
   executarReenvioAssinatura,
@@ -12,18 +16,18 @@ import {
 } from '@/lib/crm-reenviar-assinatura';
 import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
 import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
-import { CRM_CONTRATO_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
+import { CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
 import { useToast } from '@/components/ui/Toast';
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
-import ContratoFormContent, { type OportunidadeContratoOption } from '@/components/crm-vendas/ContratoFormContent';
-import type { FormDataContrato } from '@/components/crm-vendas/modals/ModalContratoForm';
-import { EMPTY_FORM_CONTRATO } from '@/components/crm-vendas/modals/ModalContratoForm';
+import PropostaFormContent from '@/components/crm-vendas/PropostaFormContent';
+import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type { CrmOportunidadeItem, CrmPropostaTemplate } from '@/lib/crm-proposta-form-types';
 
-interface Contrato {
+interface Proposta {
   id: number;
   oportunidade: number;
-  numero: string;
+  oportunidade_titulo?: string;
   titulo: string;
   conteudo: string;
   valor_total: string | null;
@@ -33,18 +37,31 @@ interface Contrato {
   status_assinatura?: string;
 }
 
-export default function EditarContratoPage() {
+export default function EditarPropostaPage() {
   const toast = useToast();
   const params = useParams();
   const router = useRouter();
   const slug = (params?.slug as string) ?? '';
   const id = parseInt(String(params?.id ?? ''), 10);
-  const listPath = `/loja/${slug}/crm-vendas/contratos`;
+  const listPath = `/loja/${slug}/crm-vendas/propostas`;
 
-  const [formData, setFormData] = useState<FormDataContrato>(EMPTY_FORM_CONTRATO);
+  const [formData, setFormData] = useState<FormDataProposta>({
+    oportunidade_id: '',
+    titulo: '',
+    conteudo: '',
+    valor_total: '',
+    desconto_tipo: 'percentual',
+    desconto_valor: '',
+    status: 'rascunho',
+    nome_vendedor_assinatura: '',
+    nome_cliente_assinatura: '',
+  });
   const [statusAssinaturaAntes, setStatusAssinaturaAntes] = useState<string | undefined>();
-  const [oportunidades, setOportunidades] = useState<OportunidadeContratoOption[]>([]);
+  const [oportunidadeTituloInicial, setOportunidadeTituloInicial] = useState('');
+  const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
+  const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [salvandoPadrao, setSalvandoPadrao] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [reenvioPendente, setReenvioPendente] = useState(false);
@@ -56,14 +73,29 @@ export default function EditarContratoPage() {
     setFormData,
   );
 
-  const loadOportunidades = useCallback(async () => {
+  const loadItensOportunidade = useCallback(async (oportunidadeId: string) => {
+    if (!oportunidadeId) {
+      setItensOportunidade([]);
+      return;
+    }
     try {
-      const res = await apiClient.get<OportunidadeContratoOption[] | { results: OportunidadeContratoOption[] }>(
-        '/crm-vendas/oportunidades/?etapa=closed_won',
+      const res = await apiClient.get<CrmOportunidadeItem[] | { results: CrmOportunidadeItem[] }>(
+        `/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidadeId}`,
       );
-      setOportunidades(normalizeListResponse(res.data));
+      setItensOportunidade(normalizeListResponse(res.data));
     } catch {
-      setOportunidades([]);
+      setItensOportunidade([]);
+    }
+  }, []);
+
+  const loadTemplates = useCallback(async () => {
+    try {
+      const res = await apiClient.get<CrmPropostaTemplate[] | { results: CrmPropostaTemplate[] }>(
+        '/crm-vendas/proposta-templates/',
+      );
+      setTemplates(normalizeListResponse(res.data));
+    } catch {
+      setTemplates([]);
     }
   }, []);
 
@@ -74,27 +106,34 @@ export default function EditarContratoPage() {
     }
     let cancelled = false;
     Promise.all([
-      apiClient.get<Contrato>(`/crm-vendas/contratos/${id}/`),
-      loadOportunidades(),
+      apiClient.get<Proposta>(`/crm-vendas/propostas/${id}/`),
+      loadTemplates(),
       loadLojaInfo(),
       loadVendedorInfo(),
     ])
-      .then(([contratoRes]) => {
+      .then(([propostaRes]) => {
         if (cancelled) return;
-        const c = contratoRes.data;
-        setStatusAssinaturaAntes(c.status_assinatura);
+        const p = propostaRes.data;
+        setStatusAssinaturaAntes(p.status_assinatura);
+        setOportunidadeTituloInicial(p.oportunidade_titulo || '');
         setFormData({
-          oportunidade_id: String(c.oportunidade),
-          numero: c.numero || '',
-          titulo: c.titulo || '',
-          conteudo: c.conteudo || '',
-          valor_total: c.valor_total || '',
-          desconto_tipo: c.desconto_tipo || 'percentual',
-          desconto_valor: String(c.desconto_valor || ''),
-          status: c.status || 'rascunho',
+          oportunidade_id: String(p.oportunidade),
+          titulo: p.titulo || '',
+          conteudo: p.conteudo || '',
+          valor_total: p.valor_total || '',
+          desconto_tipo: p.desconto_tipo || 'percentual',
+          desconto_valor: String(p.desconto_valor || ''),
+          status: p.status || 'rascunho',
           nome_vendedor_assinatura: '',
           nome_cliente_assinatura: '',
         });
+        return loadItensOportunidade(String(p.oportunidade)).then(() =>
+          fetchCrmOportunidade(String(p.oportunidade))
+            .then((opp) => {
+              if (opp.lead) loadLeadInfo(opp.lead);
+            })
+            .catch(() => setLeadInfo(null)),
+        );
       })
       .catch(() => {
         if (!cancelled) router.replace(listPath);
@@ -105,31 +144,49 @@ export default function EditarContratoPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, listPath, loadLojaInfo, loadOportunidades, loadVendedorInfo, router]);
+  }, [id, listPath, loadItensOportunidade, loadLeadInfo, loadLojaInfo, loadTemplates, loadVendedorInfo, router, setLeadInfo]);
 
-  useEffect(() => {
-    if (!formData?.oportunidade_id || oportunidades.length === 0) return;
-    const opp = oportunidades.find((o) => String(o.id) === formData.oportunidade_id);
-    if (opp?.lead) {
-      loadLeadInfo(opp.lead);
-    } else {
-      setLeadInfo(null);
-    }
-  }, [formData?.oportunidade_id, oportunidades, loadLeadInfo, setLeadInfo]);
+  const handleOportunidadeChange = useCallback(
+    async (oppId: string) => {
+      setFormData((f) => ({ ...f, oportunidade_id: oppId }));
+      if (!oppId) {
+        setItensOportunidade([]);
+        setLeadInfo(null);
+        setOportunidadeTituloInicial('');
+        return;
+      }
+      loadItensOportunidade(oppId);
+      try {
+        const opp = await fetchCrmOportunidade(oppId);
+        setOportunidadeTituloInicial(opp.titulo);
+        setFormData((f) => ({
+          ...f,
+          oportunidade_id: oppId,
+          valor_total: opp.valor ? String(opp.valor) : f.valor_total,
+        }));
+        if (opp.lead) loadLeadInfo(opp.lead);
+        else setLeadInfo(null);
+      } catch {
+        setLeadInfo(null);
+      }
+    },
+    [loadItensOportunidade, loadLeadInfo, setLeadInfo],
+  );
 
-  const handleOportunidadeChange = (oppId: string) => {
-    const opp = oportunidades.find((o) => String(o.id) === oppId);
-    setFormData((f) => ({
-      ...f,
-      oportunidade_id: oppId,
-      valor_total: opp?.valor ? String(opp.valor) : f.valor_total,
-    }));
-    if (opp?.lead) {
-      loadLeadInfo(opp.lead);
-    } else {
-      setLeadInfo(null);
-    }
-  };
+  const handleSalvarComoPadrao = useCallback(
+    async (conteudo: string) => {
+      try {
+        setSalvandoPadrao(true);
+        await apiClient.patch('/crm-vendas/config/', { proposta_conteudo_padrao: conteudo });
+        toast.success('Proposta padrão salva. O conteúdo será usado em novas propostas.');
+      } catch (err: unknown) {
+        toast.error(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
+      } finally {
+        setSalvandoPadrao(false);
+      }
+    },
+    [toast],
+  );
 
   const handleSave = async () => {
     setFormErro(null);
@@ -138,14 +195,13 @@ export default function EditarContratoPage() {
       return;
     }
     if (!formData.oportunidade_id) {
-      setFormErro('Selecione uma oportunidade fechada como ganha');
+      setFormErro('Selecione uma oportunidade');
       return;
     }
     try {
       setSubmitting(true);
-      await apiClient.put(`/crm-vendas/contratos/${id}/`, {
+      await apiClient.put(`/crm-vendas/propostas/${id}/`, {
         oportunidade: parseInt(formData.oportunidade_id, 10),
-        numero: formData.numero || undefined,
         titulo: formData.titulo.trim(),
         conteudo: formData.conteudo,
         valor_total: formData.valor_total ? parseFloat(formData.valor_total) : null,
@@ -185,12 +241,13 @@ export default function EditarContratoPage() {
       onSave={handleSave}
       onCancel={() => router.push(listPath)}
     >
-      <ContratoFormContent
+      <PropostaFormContent
         form={formData}
+        formErro={formErro}
         enviando={submitting}
         lojaInfo={lojaInfo}
         leadInfo={leadInfo}
-        oportunidades={oportunidades}
+        itensOportunidade={itensOportunidade}
         statusOpcoes={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
         onFormChange={setFormData}
         onOportunidadeChange={handleOportunidadeChange}
@@ -199,8 +256,14 @@ export default function EditarContratoPage() {
           void handleSave();
         }}
         isEdit
+        oportunidadeTituloInicial={oportunidadeTituloInicial}
+        onSalvarComoPadrao={handleSalvarComoPadrao}
+        salvandoPadrao={salvandoPadrao}
         pageLayout
+        hideError
         hideActions
+        templates={templates}
+        onSelecionarTemplate={(conteudo) => setFormData((f) => ({ ...f, conteudo }))}
         vendedorNome={vendedorNome}
       />
 
@@ -213,7 +276,7 @@ export default function EditarContratoPage() {
     <CrmConfirmActionModal
       open={reenvioPendente}
       title="Reenviar assinatura digital?"
-      message={textoConfirmacaoReenvioAssinatura('contrato', statusAssinaturaAntes)}
+      message={textoConfirmacaoReenvioAssinatura('proposta', statusAssinaturaAntes)}
       confirmLabel="Reenviar e-mail"
       variant="primary"
       loading={reenviando}
@@ -225,7 +288,7 @@ export default function EditarContratoPage() {
       onConfirm={async () => {
         setReenviando(true);
         try {
-          const msg = await executarReenvioAssinatura('contrato', id);
+          const msg = await executarReenvioAssinatura('proposta', id);
           toast.success(msg);
           setReenvioPendente(false);
           router.push(listPath);

@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from core.views import BaseModelViewSet
-from .mixins import VendedorFilterMixin
+from .mixins import VendedorFilterMixin, CrmGranularPermissionMixin
 from .mixins_assinatura import AssinaturaDigitalMixin
 from .mixins_documento import DocumentoQuerysetMixin, EnviarClienteMixin, TemplateViewSetMixin
 from .models import Contrato, ContratoTemplate, Proposta, PropostaTemplate
@@ -20,6 +20,7 @@ from .views_common import CRMPagination
 
 
 class PropostaViewSet(
+    CrmGranularPermissionMixin,
     AssinaturaDigitalMixin,
     EnviarClienteMixin,
     DocumentoQuerysetMixin,
@@ -36,6 +37,7 @@ class PropostaViewSet(
     assinatura_doc_label = 'Proposta'
     assinatura_cache_key = 'propostas'
     enviar_cliente_label = 'Proposta'
+    crm_permission_model = 'proposta'
 
     @action(detail=True, methods=['post'])
     def confirmar_pedido(self, request, pk=None):
@@ -144,6 +146,7 @@ class ContratoTemplateViewSet(TemplateViewSetMixin, BaseModelViewSet):
 
 
 class ContratoViewSet(
+    CrmGranularPermissionMixin,
     AssinaturaDigitalMixin,
     EnviarClienteMixin,
     DocumentoQuerysetMixin,
@@ -156,6 +159,7 @@ class ContratoViewSet(
     assinatura_doc_label = 'Contrato'
     assinatura_cache_key = 'contratos'
     enviar_cliente_label = 'Contrato'
+    crm_permission_model = 'contrato'
 
     @action(detail=True, methods=['post'])
     def cancelar(self, request, pk=None):

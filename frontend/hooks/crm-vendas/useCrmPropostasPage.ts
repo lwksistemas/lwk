@@ -1,22 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import {
-  normalizeListResponse,
-  getCrmApiErrorDetail,
-  fetchCrmOportunidade,
-} from '@/lib/crm-utils';
+import { getCrmApiErrorDetail } from '@/lib/crm-utils';
 import { useToast } from '@/components/ui/Toast';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
-import { useCrmLojaInfoPublica } from '@/hooks/useCrmLojaInfoPublica';
-import { useCrmLeadEVendedorForm } from '@/hooks/useCrmLeadEVendedorForm';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import { useCrmDocumentoActions } from '@/hooks/useCrmDocumentoActions';
-import { reenviarAssinaturaAposEdicaoSeNecessario } from '@/lib/crm-reenviar-assinatura';
 import { CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
-import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
-import type { CrmOportunidadeItem, CrmPropostaTemplate } from '@/lib/crm-proposta-form-types';
 
 export interface CrmProposta {
   id: number;
@@ -43,7 +35,7 @@ export interface CrmProposta {
   created_at: string;
 }
 
-export type CrmPropostaModalType = 'edit' | 'view' | 'delete' | 'cancelar' | null;
+export type CrmPropostaModalType = 'view' | 'delete' | 'cancelar' | null;
 
 export function propostaOcultaColunaAssinatura(p: CrmProposta): boolean {
   return (
@@ -55,6 +47,7 @@ export function propostaOcultaColunaAssinatura(p: CrmProposta): boolean {
 
 export function useCrmPropostasPage(slug: string) {
   const toast = useToast();
+  const router = useRouter();
   const [filtroStatus, setFiltroStatus] = useState('');
   const statusParam = filtroStatus || undefined;
 
@@ -75,25 +68,9 @@ export function useCrmPropostasPage(slug: string) {
 
   const exibirColunaAssinatura = propostas.some((p) => !propostaOcultaColunaAssinatura(p));
 
-  const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
-  const [oportunidadeTituloInicial, setOportunidadeTituloInicial] = useState('');
   const [modalType, setModalType] = useState<CrmPropostaModalType>(null);
   const [selected, setSelected] = useState<CrmProposta | null>(null);
-  const [formData, setFormData] = useState<FormDataProposta>({
-    oportunidade_id: '',
-    titulo: '',
-    conteudo: '',
-    valor_total: '',
-    desconto_tipo: 'percentual',
-    desconto_valor: '',
-    status: 'rascunho',
-    nome_vendedor_assinatura: '',
-    nome_cliente_assinatura: '',
-  });
   const [submitting, setSubmitting] = useState(false);
-  const [salvandoPadrao, setSalvandoPadrao] = useState(false);
-  const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
-  const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
   const [alterandoStatus, setAlterandoStatus] = useState<number | null>(null);
   const [menuAberto, setMenuAberto] = useState<number | null>(null);
   const [confirmAction, setConfirmAction] = useState<
@@ -106,61 +83,7 @@ export function useCrmPropostasPage(slug: string) {
   const { enviandoId, handleEnviarCliente, handleDownloadPdf, handleDownloadDocx } =
     useCrmDocumentoActions('propostas', loadPropostas);
 
-  const { lojaInfo, loadLojaInfo } = useCrmLojaInfoPublica(slug);
   const { proposta: propostaWhatsappHabilitada } = useWhatsappEnvioFlags();
-  const { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo } =
-    useCrmLeadEVendedorForm(formData, setFormData);
-
-  const loadItensOportunidade = useCallback(async (oportunidadeId: string) => {
-    if (!oportunidadeId) {
-      setItensOportunidade([]);
-      return;
-    }
-    try {
-      const res = await apiClient.get<CrmOportunidadeItem[] | { results: CrmOportunidadeItem[] }>(
-        `/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidadeId}`,
-      );
-      setItensOportunidade(normalizeListResponse(res.data));
-    } catch {
-      setItensOportunidade([]);
-    }
-  }, []);
-
-  const loadCrmConfig = useCallback(async () => {
-    try {
-      const res = await apiClient.get<{ proposta_conteudo_padrao?: string }>('/crm-vendas/config/');
-      setPropostaConteudoPadrao(res.data?.proposta_conteudo_padrao ?? '');
-    } catch {
-      setPropostaConteudoPadrao('');
-    }
-  }, []);
-
-  const loadTemplates = useCallback(async () => {
-    try {
-      const res = await apiClient.get<CrmPropostaTemplate[] | { results: CrmPropostaTemplate[] }>(
-        '/crm-vendas/proposta-templates/',
-      );
-      setTemplates(normalizeListResponse(res.data));
-    } catch {
-      setTemplates([]);
-    }
-  }, []);
-
-  const handleSalvarComoPadrao = useCallback(
-    async (conteudo: string) => {
-      try {
-        setSalvandoPadrao(true);
-        await apiClient.patch('/crm-vendas/config/', { proposta_conteudo_padrao: conteudo });
-        setPropostaConteudoPadrao(conteudo);
-        toast.success('Proposta padrão salva. O conteúdo será usado em novas propostas.');
-      } catch (err: unknown) {
-        toast.error(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
-      } finally {
-        setSalvandoPadrao(false);
-      }
-    },
-    [toast],
-  );
 
   const requestMarcarComoAssinado = (proposta: CrmProposta) => {
     setConfirmAction({
@@ -238,122 +161,22 @@ export function useCrmPropostasPage(slug: string) {
     }
   };
 
-  useEffect(() => {
-    if (modalType === 'edit') {
-      loadLojaInfo();
-      loadCrmConfig();
-      loadTemplates();
-      loadVendedorInfo();
-      if (formData.oportunidade_id) {
-        loadItensOportunidade(formData.oportunidade_id);
-        fetchCrmOportunidade(formData.oportunidade_id)
-          .then((opp) => {
-            if (opp.lead) loadLeadInfo(opp.lead);
-          })
-          .catch(() => setLeadInfo(null));
-      }
-    }
-  }, [
-    modalType,
-    formData.oportunidade_id,
-    loadLojaInfo,
-    loadCrmConfig,
-    loadTemplates,
-    loadVendedorInfo,
-    loadItensOportunidade,
-    loadLeadInfo,
-    setLeadInfo,
-  ]);
-
   const openModal = (type: CrmPropostaModalType, item?: CrmProposta) => {
     setModalType(type);
     setSelected(item || null);
-    if (type === 'edit' && item) {
-      setOportunidadeTituloInicial(item.oportunidade_titulo || '');
-      setFormData({
-        oportunidade_id: String(item.oportunidade),
-        titulo: item.titulo || '',
-        conteudo: item.conteudo || '',
-        valor_total: item.valor_total || '',
-        desconto_tipo: item.desconto_tipo || 'percentual',
-        desconto_valor: String(item.desconto_valor || ''),
-        status: item.status || 'rascunho',
-        nome_vendedor_assinatura: '',
-        nome_cliente_assinatura: '',
-      });
-    }
   };
-
-  const handleOportunidadeChange = useCallback(
-    async (id: string) => {
-      setFormData((f) => ({ ...f, oportunidade_id: id }));
-      if (!id) {
-        setItensOportunidade([]);
-        setLeadInfo(null);
-        setOportunidadeTituloInicial('');
-        return;
-      }
-      loadItensOportunidade(id);
-      try {
-        const opp = await fetchCrmOportunidade(id);
-        setOportunidadeTituloInicial(opp.titulo);
-        setFormData((f) => ({
-          ...f,
-          oportunidade_id: id,
-          valor_total: opp.valor ? String(opp.valor) : f.valor_total,
-        }));
-        if (opp.lead) loadLeadInfo(opp.lead);
-        else setLeadInfo(null);
-      } catch {
-        setLeadInfo(null);
-      }
-    },
-    [loadItensOportunidade, loadLeadInfo, setLeadInfo],
-  );
 
   const closeModal = () => {
     setModalType(null);
     setSelected(null);
-    setOportunidadeTituloInicial('');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.titulo.trim()) {
-      toast.warning('Título é obrigatório');
-      return;
-    }
-    if (!formData.oportunidade_id) {
-      toast.warning('Selecione uma oportunidade');
-      return;
-    }
-    try {
-      setSubmitting(true);
-      const payload = {
-        oportunidade: parseInt(formData.oportunidade_id, 10),
-        titulo: formData.titulo.trim(),
-        conteudo: formData.conteudo,
-        valor_total: formData.valor_total ? parseFloat(formData.valor_total) : null,
-        desconto_tipo: formData.desconto_tipo || 'percentual',
-        desconto_valor: formData.desconto_valor ? parseFloat(formData.desconto_valor) : 0,
-        status: formData.status,
-        nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
-        nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
-      };
-      if (modalType === 'edit' && selected) {
-        const assinaturaAntes = selected.status_assinatura;
-        await apiClient.put(`/crm-vendas/propostas/${selected.id}/`, payload);
-        await reenviarAssinaturaAposEdicaoSeNecessario('proposta', selected.id, assinaturaAntes);
-      }
-      await loadPropostas(true);
-      closeModal();
-      toast.success('Proposta salva com sucesso.');
-    } catch (err: unknown) {
-      toast.error(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const irParaEditarProposta = useCallback(
+    (propostaId: number) => {
+      router.push(`/loja/${slug}/crm-vendas/propostas/${propostaId}/editar`);
+    },
+    [router, slug],
+  );
 
   const handleDelete = async () => {
     if (!selected) return;
@@ -407,25 +230,14 @@ export function useCrmPropostasPage(slug: string) {
     handleDownloadDocx,
     modalType,
     selected,
-    formData,
-    setFormData,
     submitting,
-    salvandoPadrao,
-    templates,
     alterandoStatus,
     menuAberto,
     setMenuAberto,
-    lojaInfo,
-    leadInfo,
-    vendedorNome,
-    itensOportunidade,
-    oportunidadeTituloInicial,
     openModal,
     closeModal,
-    handleOportunidadeChange,
-    handleSubmit,
+    irParaEditarProposta,
     handleDelete,
-    handleSalvarComoPadrao,
     handleMarcarComoAssinado,
     handleConfirmarPedido,
     handleCancelarProposta,

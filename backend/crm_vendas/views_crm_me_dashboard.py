@@ -11,6 +11,10 @@ from rest_framework.response import Response
 from tenants.middleware import get_current_loja_id, get_current_tenant_db, ensure_loja_context
 from .utils import get_current_vendedor_id
 from .cache import CRMCacheManager
+from .vendedor_permissoes_service import (
+    permissoes_codenames_usuario_crm,
+    todas_permissoes_codenames_crm,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,12 +79,31 @@ def crm_me(request):
             
     except Exception as e:
         logger.warning('crm_me: erro ao obter display_name: %s', e)
-    
+
+    acesso_total = not is_vendedor
+    if is_vendedor and vendedor_id is not None:
+        try:
+            from .models import Vendedor as VendedorModel
+            v = VendedorModel.objects.filter(id=vendedor_id, loja_id=loja_id).first()
+            if v and v.is_admin:
+                acesso_total = True
+                is_vendedor = False
+                user_role = 'administrador'
+        except Exception:
+            pass
+
+    if acesso_total:
+        permissoes = todas_permissoes_codenames_crm()
+    else:
+        permissoes = permissoes_codenames_usuario_crm(request.user)
+
     return Response({
         'vendedor_id': vendedor_id,
         'is_vendedor': is_vendedor,
         'user_display_name': user_display_name,
         'user_role': user_role,
+        'acesso_total': acesso_total,
+        'permissoes': permissoes,
     }, status=200)
 
 

@@ -1,6 +1,5 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -28,8 +27,6 @@ import {
   useCrmPropostasPage,
 } from '@/hooks/crm-vendas/useCrmPropostasPage';
 
-const ModalPropostaForm = dynamic(() => import('@/components/crm-vendas/modals/ModalPropostaForm'), { ssr: false });
-
 export default function CrmVendasPropostasPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
@@ -54,25 +51,14 @@ export default function CrmVendasPropostasPage() {
     handleDownloadDocx,
     modalType,
     selected,
-    formData,
-    setFormData,
     submitting,
-    salvandoPadrao,
-    templates,
     alterandoStatus,
     menuAberto,
     setMenuAberto,
-    lojaInfo,
-    leadInfo,
-    vendedorNome,
-    itensOportunidade,
-    oportunidadeTituloInicial,
     openModal,
     closeModal,
-    handleOportunidadeChange,
-    handleSubmit,
+    irParaEditarProposta,
     handleDelete,
-    handleSalvarComoPadrao,
     handleMarcarComoAssinado,
     handleConfirmarPedido,
     handleCancelarProposta,
@@ -202,7 +188,7 @@ export default function CrmVendasPropostasPage() {
                       <div className="flex justify-end items-center gap-1">
                         <button type="button" onClick={() => openModal('view', p)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Visualizar"><Eye size={16} /></button>
                         {p.status !== 'cancelada' && (
-                          <button type="button" onClick={() => openModal('edit', p)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Editar"><Edit2 size={16} /></button>
+                          <button type="button" onClick={() => irParaEditarProposta(p.id)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300" title="Editar"><Edit2 size={16} /></button>
                         )}
                         <CrmDocumentoMaisAcoesMenu
                           itemId={p.id}
@@ -301,30 +287,6 @@ export default function CrmVendasPropostasPage() {
           Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
         </p>
       </div>
-
-      {modalType === 'edit' && (
-        <ModalPropostaForm
-          title="Editar Proposta"
-          form={formData}
-          formErro={null}
-          enviando={submitting}
-          lojaInfo={lojaInfo}
-          leadInfo={leadInfo}
-          itensOportunidade={itensOportunidade}
-          statusOpcoes={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
-          onFormChange={setFormData}
-          onOportunidadeChange={handleOportunidadeChange}
-          onSubmit={handleSubmit}
-          onClose={closeModal}
-          isEdit
-          oportunidadeTituloInicial={oportunidadeTituloInicial}
-          onSalvarComoPadrao={handleSalvarComoPadrao}
-          salvandoPadrao={salvandoPadrao}
-          templates={templates}
-          onSelecionarTemplate={(conteudo) => setFormData((f) => ({ ...f, conteudo }))}
-          vendedorNome={vendedorNome}
-        />
-      )}
 
       {modalType === 'view' && selected && (
         <CrmDocumentoDetalhesModal

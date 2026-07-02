@@ -18,7 +18,7 @@ from .activities_google_sync import (
 from .atividade_whatsapp_service import enviar_atividade_whatsapp
 from .cache import CRMCacheManager
 from .decorators import cache_list_response
-from .mixins import CacheInvalidationMixin, VendedorFilterMixin
+from .mixins import CacheInvalidationMixin, CrmGranularPermissionMixin, VendedorFilterMixin
 from .models import Atividade, Oportunidade, Vendedor
 from .serializers import (
     AtividadeListSerializer,
@@ -32,7 +32,7 @@ from .views_common import CRMPagination, aplicar_cache_control_sem_store, filtra
 logger = logging.getLogger(__name__)
 
 
-class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
+class OportunidadeViewSet(CrmGranularPermissionMixin, CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
     queryset = Oportunidade.objects.select_related(
         'lead', 'vendedor', 'lead__conta', 'empresa_prestadora'
     ).prefetch_related('atividades').all()
@@ -42,6 +42,7 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
     vendedor_filter_field = 'vendedor_id'
     vendedor_filter_related = []
     cache_keys = ['oportunidades', 'dashboard']
+    crm_permission_model = 'oportunidade'
 
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
@@ -118,7 +119,7 @@ class OportunidadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModel
         return filtrar_queryset_por_query_params(qs, self.request, {'etapa': 'etapa'})
 
 
-class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
+class AtividadeViewSet(CrmGranularPermissionMixin, CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
     queryset = (
         Atividade.objects.select_related(
             'oportunidade',
@@ -135,6 +136,7 @@ class AtividadeViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelVie
     vendedor_filter_field = 'oportunidade__vendedor_id'
     vendedor_filter_related = ['lead__oportunidades__vendedor_id']
     cache_keys = ['atividades', 'dashboard']
+    crm_permission_model = 'atividade'
 
     def _ensure_atividade_schema(self):
         db_name = get_current_tenant_db()

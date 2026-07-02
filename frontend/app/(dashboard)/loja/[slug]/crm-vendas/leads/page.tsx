@@ -8,7 +8,6 @@ import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { useCrmLeadsPage } from '@/hooks/crm-vendas/useCrmLeadsPage';
 
 const ModalLeadVer = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadVer'), { ssr: false });
-const ModalLeadForm = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadForm'), { ssr: false });
 const ModalLeadExcluir = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadExcluir'), { ssr: false });
 const ModalLeadMudarStatus = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadMudarStatus'), { ssr: false });
 
@@ -24,28 +23,22 @@ export default function CrmVendasLeadsPage() {
     error,
     leadVer,
     setLeadVer,
-    leadEditar,
-    setLeadEditar,
     leadExcluir,
     setLeadExcluir,
     leadMudarStatus,
     setLeadMudarStatus,
     novoStatus,
     setNovoStatus,
-    salvandoEdicao,
     salvandoStatus,
     excluindo,
     formErro,
     setFormErro,
-    form,
-    setForm,
     colunasLeadsVisiveis,
     origensAtivas,
     origemLabel,
     statusLabel,
     formatarDataLead,
-    handleEditarLead,
-    handleSalvarEdicao,
+    irParaEditarLead,
     confirmarExcluir,
     handleMudarStatus,
     salvarNovoStatus,
@@ -94,7 +87,7 @@ export default function CrmVendasLeadsPage() {
         loading={loading}
         colunas={colunasLeadsVisiveis()}
         onVerLead={setLeadVer}
-        onEditarLead={handleEditarLead}
+        onEditarLead={irParaEditarLead}
         onExcluirLead={setLeadExcluir}
         onMudarStatus={handleMudarStatus}
       />
@@ -119,22 +112,8 @@ export default function CrmVendasLeadsPage() {
           onClose={() => setLeadVer(null)}
           onEditar={(lead) => {
             setLeadVer(null);
-            handleEditarLead(lead);
+            irParaEditarLead(lead);
           }}
-        />
-      )}
-
-      {leadEditar && (
-        <ModalLeadForm
-          title="Editar lead"
-          form={form}
-          formErro={formErro}
-          enviando={salvandoEdicao}
-          origensAtivas={origensAtivas}
-          statusOpcoes={[...STATUS_LEAD_OPCOES]}
-          onFormChange={(updater) => setForm(updater)}
-          onSubmit={handleSalvarEdicao}
-          onClose={() => !salvandoEdicao && setLeadEditar(null)}
         />
       )}
 

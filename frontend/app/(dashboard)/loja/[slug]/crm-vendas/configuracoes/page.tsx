@@ -34,6 +34,8 @@ export default function CrmVendasConfiguracoesPage() {
         const r = await apiClient.get<{
           is_vendedor?: boolean;
           vendedor_id?: number | null;
+          acesso_total?: boolean;
+          permissoes?: string[];
         }>('/crm-vendas/me/');
         authService.syncCrmMeFlags(r.data);
         if (!cancel) setAcessoAdmin(authService.hasAdminAccess());

@@ -336,12 +336,11 @@ def sync_evolution_connection(config, fetch_qr=False):
 
         if status == WhatsAppConfig.CONNECTION_CONNECTED:
             local = config.whatsapp_connection_status
-            # Sessão fantasma ou reset aguardando scan: não promover via polling.
-            # Conexão real após escanear o QR vem pelo webhook connection.update.
+            # Sessão fantasma: disconnected/error com open na Evolution (sem scan).
+            # qr_pending + open = QR escaneado — promover (webhook pode falhar no sufixo _NNNNN).
             if local in (
                 WhatsAppConfig.CONNECTION_DISCONNECTED,
                 WhatsAppConfig.CONNECTION_ERROR,
-                WhatsAppConfig.CONNECTION_QR_PENDING,
             ):
                 logger.warning(
                     'Evolution loja %s: estado open ignorado (local=%s)',

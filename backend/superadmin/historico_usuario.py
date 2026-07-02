@@ -130,10 +130,9 @@ def _nome_assinatura_crm_token(token: str) -> tuple[str, str, int | None]:
 
 
 def _loja_id_from_evolution_instance(instance_name: str) -> int | None:
-    import re
+    from whatsapp.evolution_client import loja_id_from_evolution_instance
 
-    m = re.match(r'^lwk_loja_(\d+)$', (instance_name or '').strip())
-    return int(m.group(1)) if m else None
+    return loja_id_from_evolution_instance(instance_name)
 
 
 def _identidade_evolution_webhook(request) -> tuple[None, str, str, int | None]:

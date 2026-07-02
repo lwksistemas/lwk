@@ -29,6 +29,12 @@ def evolution_instance_name(loja_id):
     return f'lwk_loja_{int(loja_id)}'
 
 
+def loja_id_from_evolution_instance(instance_name: str) -> int | None:
+    """lwk_loja_4 ou lwk_loja_4_96990 → loja_id 4."""
+    m = re.match(r'^lwk_loja_(\d+)(?:_\d+)?$', (instance_name or '').strip(), re.IGNORECASE)
+    return int(m.group(1)) if m else None
+
+
 def rotate_evolution_instance_name(loja_id, current_name=None):
     """Novo nome quando lwk_loja_N fica travado na memória da Evolution."""
     base = evolution_instance_name(loja_id)

@@ -13,9 +13,11 @@ from django.views.decorators.csrf import csrf_exempt
 logger = logging.getLogger(__name__)
 
 
+from whatsapp.evolution_client import loja_id_from_evolution_instance
+
+
 def _loja_id_from_instance(instance_name: str) -> int | None:
-    m = re.match(r'^lwk_loja_(\d+)$', (instance_name or '').strip())
-    return int(m.group(1)) if m else None
+    return loja_id_from_evolution_instance(instance_name)
 
 
 def _extract_phone_from_jid(jid: str) -> str:

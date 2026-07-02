@@ -1,21 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import apiClient from '@/lib/api-client';
+import { X } from 'lucide-react';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
-import { usePaginatedList, DEFAULT_PAGE_SIZE } from '@/hooks/usePaginatedList';
-import { useNfseQueuedPolling } from '@/hooks/useNfseQueuedPolling';
-import { fetchCrmPaginatedPage } from '@/lib/crm-utils';
-import {
-  nfseIdentificador,
-  nfseSyncEndpoint,
-  nfUsaIssnet,
-  openBlobInNewTab,
-  openPdfFromJsonUrl,
-  solicitarCancelamentoNFSe,
-} from '@/lib/nfse-helpers';
-import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
-import { telefoneInternacionalBr } from '@/lib/format-br';
+import { useCrmNfsePage } from '@/hooks/crm-vendas/useCrmNfsePage';
 import { ModalEmitirNFSe } from './components/ModalEmitirNFSe';
 import { ModalRecuperarNFSe } from './components/ModalRecuperarNFSe';
 import ModalNfseEnviarWhatsapp from './components/ModalNfseEnviarWhatsapp';
@@ -25,211 +12,46 @@ import { NfseLojaHeader } from './components/NfseLojaHeader';
 import { NfseLojaLoading } from './components/NfseLojaLoading';
 import { NfseLojaSyncMessage } from './components/NfseLojaSyncMessage';
 import { NfseLojaTable } from './components/NfseLojaTable';
-import type { NFSe } from './types';
-import { useCRMConfig } from '@/contexts/CRMConfigContext';
-import { useToast } from '@/components/ui/Toast';
 
 export default function NFSePage() {
-  const toast = useToast();
-  const { config } = useCRMConfig();
-  const lojaProvedor = config?.provedor_nf;
-  const [showModal, setShowModal] = useState(false);
-  const [showRecuperarModal, setShowRecuperarModal] = useState(false);
-  const [filtroStatus, setFiltroStatus] = useState('');
-  const [busca, setBusca] = useState('');
-  const [buscaDebounced, setBuscaDebounced] = useState('');
-  const [syncingId, setSyncingId] = useState<number | null>(null);
-  const [syncMsg, setSyncMsg] = useState<{ type: 'ok' | 'err' | 'info'; text: string } | null>(null);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [nfWhatsapp, setNfWhatsapp] = useState<NFSe | null>(null);
-  const [emissaoPolling, setEmissaoPolling] = useState<{ active: boolean; countBefore: number }>({
-    active: false,
-    countBefore: 0,
-  });
-  const { whatsappAtivo } = useWhatsappEnvioFlags();
-
-  useEffect(() => {
-    const timer = setTimeout(() => setBuscaDebounced(busca.trim()), 400);
-    return () => clearTimeout(timer);
-  }, [busca]);
-
   const {
-    items: nfses,
+    lojaProvedor,
+    whatsappAtivo,
+    showModal,
+    setShowModal,
+    showRecuperarModal,
+    setShowRecuperarModal,
+    filtroStatus,
+    setFiltroStatus,
+    busca,
+    setBusca,
+    syncMsg,
+    syncingId,
+    deletingId,
+    nfWhatsapp,
+    setNfWhatsapp,
+    nfses,
     page,
     setPage,
     totalCount,
     totalPages,
     pageSize,
     loading,
-    reload: carregarNFSes,
-  } = usePaginatedList<NFSe>('/nfse/', {
-    params: {
-      status: filtroStatus || undefined,
-      busca: buscaDebounced || undefined,
-    },
-  });
-
-  const handlePollingTick = useCallback(() => {
-    void carregarNFSes(true);
-  }, [carregarNFSes]);
-
-  const handlePollingFound = useCallback(async () => {
-    setEmissaoPolling({ active: false, countBefore: 0 });
-    await carregarNFSes(true);
-    try {
-      const data = await fetchCrmPaginatedPage<NFSe>('/nfse/', 1, DEFAULT_PAGE_SIZE, {});
-      const newest = data.results[0];
-      if (newest?.status === 'erro' && newest.erro) {
-        setSyncMsg({ type: 'err', text: `Falha na emissão: ${newest.erro}` });
-        return;
-      }
-      if (newest?.status === 'emitida' && newest.numero_nf) {
-        setSyncMsg({ type: 'ok', text: `NFS-e ${newest.numero_nf} emitida com sucesso.` });
-        return;
-      }
-    } catch {
-      // mantém mensagem genérica abaixo
-    }
-    setSyncMsg({ type: 'ok', text: 'Emissão processada. Verifique o status da nota na lista.' });
-  }, [carregarNFSes]);
-
-  const handlePollingTimeout = useCallback(() => {
-    setEmissaoPolling({ active: false, countBefore: 0 });
-    setSyncMsg({
-      type: 'ok',
-      text: 'Lista atualizada. Se a nota não apareceu, aguarde mais um momento ou atualize a página.',
-    });
-  }, []);
-
-  useNfseQueuedPolling({
-    active: emissaoPolling.active,
-    countBefore: emissaoPolling.countBefore,
-    queryParams: {},
-    onTick: handlePollingTick,
-    onFound: () => {
-      void handlePollingFound();
-    },
-    onTimeout: handlePollingTimeout,
-  });
-
-  const sincronizarStatus = async (e: React.MouseEvent, nf: NFSe) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const endpoint = nfseSyncEndpoint(nf, lojaProvedor);
-    if (!endpoint) {
-      setSyncMsg({ type: 'err', text: 'Sincronização não disponível para este provedor.' });
-      return;
-    }
-    setSyncMsg(null);
-    setSyncingId(nf.id);
-    try {
-      const res = await apiClient.post(`/nfse/${nf.id}/${endpoint}/`);
-      const msg =
-        (res.data as { message?: string })?.message ||
-        (endpoint === 'sincronizar-issnet'
-          ? 'Status atualizado conforme o ISSNet.'
-          : 'Status atualizado conforme o Asaas.');
-      setSyncMsg({ type: 'ok', text: msg });
-      await carregarNFSes(true);
-    } catch (err: unknown) {
-      const ax = err as { response?: { data?: { error?: string } } };
-      setSyncMsg({ type: 'err', text: ax.response?.data?.error || 'Não foi possível sincronizar.' });
-    } finally {
-      setSyncingId(null);
-    }
-  };
-
-  const excluirNFSe = async (e: React.MouseEvent, nf: NFSe) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!confirm(`Tem certeza que deseja excluir a NFS-e ${nf.numero_nf}?`)) return;
-    setDeletingId(nf.id);
-    try {
-      await apiClient.delete(`/nfse/${nf.id}/`);
-      setSyncMsg({ type: 'ok', text: 'NFS-e excluída com sucesso.' });
-      await carregarNFSes(true);
-    } catch (err: unknown) {
-      const ax = err as { response?: { data?: { error?: string } } };
-      setSyncMsg({ type: 'err', text: ax.response?.data?.error || 'Não foi possível excluir.' });
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const baixarPdfNFSe = async (e: React.MouseEvent, nf: NFSe) => {
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      const res = await apiClient.get(`/nfse/${nf.id}/download_pdf/`);
-
-      if (openPdfFromJsonUrl(res.data)) {
-        if (nfUsaIssnet(nf, lojaProvedor)) {
-          try {
-            await apiClient.post(`/nfse/${nf.id}/sincronizar-issnet/`);
-            await carregarNFSes(true);
-          } catch {
-            // silencioso: download do PDF não deve falhar por causa da sincronização
-          }
-        }
-        return;
-      }
-
-      const resBlob = await apiClient.get(`/nfse/${nf.id}/download_pdf/`, { responseType: 'blob' });
-      const blob =
-        resBlob.data instanceof Blob ? resBlob.data : new Blob([resBlob.data], { type: 'application/pdf' });
-      openBlobInNewTab(blob);
-    } catch {
-      toast.error('PDF não disponível.');
-    }
-  };
-
-  const cancelarNFSe = async (nf: NFSe) => {
-    const escolha = solicitarCancelamentoNFSe(nfseIdentificador(nf), { provedor: nf.provedor });
-    if (!escolha) return;
-    try {
-      await apiClient.post(`/nfse/${nf.id}/cancelar/`, {
-        motivo: escolha.motivo,
-        codigo_cancelamento: escolha.codigo,
-      });
-      toast.success('Cancelamento enviado. Se aprovado pela prefeitura, o status será atualizado.');
-      await carregarNFSes(true);
-    } catch (err: unknown) {
-      const ax = err as { response?: { data?: { error?: string } } };
-      toast.error(ax.response?.data?.error || 'Erro ao cancelar NFS-e');
-    }
-  };
-
-  const abrirModalWhatsapp = (e: React.MouseEvent, nf: NFSe) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setNfWhatsapp(nf);
-  };
-
-  const enviarWhatsappNFSe = async (telefone: string) => {
-    if (!nfWhatsapp) return;
-    const res = await apiClient.post<{ message?: string }>(`/nfse/${nfWhatsapp.id}/enviar_whatsapp/`, {
-      telefone: telefoneInternacionalBr(telefone),
-    });
-    setSyncMsg({ type: 'ok', text: res.data.message || 'NFS-e enviada por WhatsApp.' });
-    setNfWhatsapp(null);
-  };
-
-  const reenviarEmailNFSe = async (e: React.MouseEvent, nf: NFSe) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!nf.tomador_email) {
-      toast.warning('Esta NFS-e não possui email do tomador cadastrado.');
-      return;
-    }
-    if (!confirm(`Reenviar nota fiscal por email para ${nf.tomador_email}?`)) return;
-    try {
-      await apiClient.post(`/nfse/${nf.id}/reenviar_email/`);
-      setSyncMsg({ type: 'ok', text: `Email reenviado para ${nf.tomador_email}` });
-    } catch (err: unknown) {
-      const ax = err as { response?: { data?: { error?: string } } };
-      setSyncMsg({ type: 'err', text: ax.response?.data?.error || 'Erro ao reenviar email.' });
-    }
-  };
+    confirmAction,
+    setConfirmAction,
+    confirmando,
+    confirmCopy,
+    executeConfirm,
+    sincronizarStatus,
+    requestExcluirNFSe,
+    baixarPdfNFSe,
+    cancelarNFSe,
+    abrirModalWhatsapp,
+    enviarWhatsappNFSe,
+    requestReenviarEmail,
+    handleEmitirSuccess,
+    handleRecuperarSuccess,
+  } = useCrmNfsePage();
 
   return (
     <div className="space-y-6">
@@ -259,9 +81,9 @@ export default function NFSePage() {
             syncingId={syncingId}
             deletingId={deletingId}
             onSync={sincronizarStatus}
-            onDelete={excluirNFSe}
+            onDelete={requestExcluirNFSe}
             onDownloadPdf={baixarPdfNFSe}
-            onReenviarEmail={reenviarEmailNFSe}
+            onReenviarEmail={requestReenviarEmail}
             onEnviarWhatsapp={abrirModalWhatsapp}
             onCancelar={cancelarNFSe}
             whatsappHabilitado={whatsappAtivo}
@@ -287,31 +109,59 @@ export default function NFSePage() {
       )}
 
       {showRecuperarModal && (
-        <ModalRecuperarNFSe
-          onClose={() => setShowRecuperarModal(false)}
-          onSuccess={(message) => {
-            setShowRecuperarModal(false);
-            setSyncMsg({ type: 'ok', text: message });
-            void carregarNFSes(true);
-          }}
-        />
+        <ModalRecuperarNFSe onClose={() => setShowRecuperarModal(false)} onSuccess={handleRecuperarSuccess} />
       )}
 
       {showModal && (
-        <ModalEmitirNFSe
-          onClose={() => setShowModal(false)}
-          onSuccess={(result) => {
-            setShowModal(false);
-            const countBefore = totalCount;
-            void carregarNFSes(true);
-            if (result.queued) {
-              setEmissaoPolling({ active: true, countBefore });
-              setSyncMsg({ type: 'info', text: result.message });
-            } else {
-              setSyncMsg({ type: 'ok', text: result.message });
-            }
-          }}
-        />
+        <ModalEmitirNFSe onClose={() => setShowModal(false)} onSuccess={handleEmitirSuccess} />
+      )}
+
+      {confirmAction && confirmCopy && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-[80]"
+            onClick={() => !confirmando && setConfirmAction(null)}
+          />
+          <div className="fixed inset-0 z-[81] flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{confirmCopy.title}</h2>
+                <button
+                  type="button"
+                  onClick={() => !confirmando && setConfirmAction(null)}
+                  className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-gray-600 dark:text-gray-400">{confirmCopy.message(confirmAction.nf)}</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmAction(null)}
+                    disabled={confirmando}
+                    className="flex-1 px-4 py-2 border rounded-lg disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={executeConfirm}
+                    disabled={confirmando}
+                    className={`flex-1 px-4 py-2 text-white rounded-lg disabled:opacity-50 ${
+                      confirmCopy.variant === 'danger'
+                        ? 'bg-red-600 hover:bg-red-700'
+                        : 'bg-[#0176d3] hover:bg-[#0159a8]'
+                    }`}
+                  >
+                    {confirmando ? 'Processando...' : confirmCopy.confirmLabel}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

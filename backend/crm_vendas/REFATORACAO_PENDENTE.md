@@ -3,16 +3,20 @@
 ## Status
 
 ### ✅ Concluído:
-1. **Backend `views.py`** — dividido em 4 arquivos (2337 → 1303 + 746 + 133 + 258)
-2. **Frontend hooks** — lógica de criar/editar oportunidade extraída para hooks reutilizáveis
+1. **Backend `views.py`** — dividido em módulos por responsabilidade
+2. **Frontend pipeline** — `pipeline/page.tsx` usa `useCrmPipelinePage` (247 linhas)
+3. **Testes backend** — 153+ testes unitários/smoke + integração API (`test_api_crm_integration.py`)
+4. **PDFs** — smoke proposta, contrato, comissão, financeiro
+5. **Webhooks/fila** — Asaas loja + envio assíncrono de documentos
+6. **Frontend** — `lib/crm-pipeline.test.ts` + E2E smoke ampliado (`e2e/crm-smoke.spec.ts`)
 
-### 📋 Pendente (baixo risco, fazer quando necessário):
-- **Frontend `pipeline/page.tsx`** — usar os hooks criados para reduzir o arquivo
-- **Backend `pdf_proposta_contrato.py`** — duplicação entre proposta/contrato (funcional, não urgente)
+### 📋 Pendente (baixo risco, opcional):
+- **Backend `pdf_proposta_contrato/`** — reduzir duplicação proposta/contrato (funcional, não urgente)
+- **E2E completo** — fluxo pipeline → proposta → assinatura com credenciais em CI (requer secrets)
 
-## Hooks criados:
-- `usePipelineCriarOportunidade.ts` — toda lógica de criação de oportunidade
-- `usePipelineEditarOportunidade.ts` — toda lógica de edição de oportunidade
+## Hooks / páginas
+- `useCrmPipelinePage.ts` — pipeline (criar, editar, filtros, PDF)
+- Modais em `pipeline/components/ModalCriarOportunidade` e `ModalEditarOportunidade`
 
 ## Boas práticas aplicadas:
 - ✅ Separação por responsabilidade (config, relatórios, assinatura pública)
@@ -22,3 +26,4 @@
 - ✅ Mixins DRY no backend
 - ✅ Cache com invalidação automática
 - ✅ Isolamento multi-tenant seguro
+- ✅ Suite de testes alinhada ao nível produção (~160+ backend)

@@ -23,6 +23,8 @@ jobs:
         run: python manage.py check
       - name: Clinica da Beleza test suite
         run: python manage.py test clinica_beleza.tests --verbosity=1
+      - name: CRM Vendas test suite
+        run: python manage.py test crm_vendas.tests --verbosity=1
 
   backend-audit:
     runs-on: ubuntu-latest

@@ -1,79 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { Loader2, MessageCircle, RotateCcw, X } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { whatsappConfigApi } from "@/lib/whatsapp-config-api";
+import { MensagemWhatsAppAjudaPanel } from "./mensagens-whatsapp-agenda/MensagemWhatsAppAjudaPanel";
+import { MensagemWhatsAppEditorPanel } from "./mensagens-whatsapp-agenda/MensagemWhatsAppEditorPanel";
+import { useMensagensWhatsAppAgenda } from "./mensagens-whatsapp-agenda/useMensagensWhatsAppAgenda";
 
 interface MensagensWhatsAppAgendaModalProps {
   open: boolean;
   onClose: () => void;
 }
 
-const PLACEHOLDERS = ["{nome}", "{data}", "{hora}", "{procedimento}", "{profissional}", "{link}"];
-
-const MENSAGEM_PADRAO = `Olá {nome} 😊
-
-Você tem um agendamento:
-📅 {data}
-⏰ {hora}
-💆 {procedimento}
-👤 Profissional: {profissional}
-
-Por favor, confirme ou cancele sua consulta:
-🔗 {link}
-
-Qualquer dúvida, fale conosco.`;
-
-function extractApiError(err: unknown, fallback: string): string {
-  if (!err || typeof err !== "object") return fallback;
-  const body = err as Record<string, unknown>;
-  if (typeof body.error === "string") return body.error;
-  if (typeof body.detail === "string") return body.detail;
-  for (const val of Object.values(body)) {
-    if (Array.isArray(val) && typeof val[0] === "string") return val[0];
-    if (typeof val === "string") return val;
-  }
-  return fallback;
-}
-
 export function MensagensWhatsAppAgendaModal({ open, onClose }: MensagensWhatsAppAgendaModalProps) {
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [mensagem, setMensagem] = useState("");
-  const [error, setError] = useState("");
-
-  const loadConfig = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await whatsappConfigApi.get();
-      setMensagem((data.mensagem_confirmacao_agenda ?? "").toString());
-    } catch {
-      setError("Erro ao carregar mensagem.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (open) {
-      loadConfig();
-    }
-  }, [open, loadConfig]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    setError("");
-    try {
-      await whatsappConfigApi.save({ mensagem_confirmacao_agenda: mensagem.trim() });
-      onClose();
-    } catch (err) {
-      setError(extractApiError(err, "Erro ao salvar mensagem."));
-    } finally {
-      setSaving(false);
-    }
-  };
+  const { loading, saving, mensagem, error, setMensagem, usarPadraoSistema, salvar } =
+    useMensagensWhatsAppAgenda(open, onClose);
 
   if (!open) return null;
 
@@ -99,56 +39,20 @@ export function MensagensWhatsAppAgendaModal({ open, onClose }: MensagensWhatsAp
 
         <div className="p-4 sm:p-6 overflow-y-auto flex-1">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Texto enviado ao paciente com o link para confirmar ou cancelar o agendamento. Deixe em branco
-                para usar a mensagem padrão do sistema.
-              </p>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Variáveis disponíveis</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {PLACEHOLDERS.map((ph) => (
-                    <code
-                      key={ph}
-                      className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300"
-                    >
-                      {ph}
-                    </code>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-dashed border-gray-200 dark:border-neutral-700 p-3 text-xs text-gray-500 dark:text-gray-400 font-mono whitespace-pre-wrap hidden lg:block">
-                {MENSAGEM_PADRAO}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {loading ? (
-                <div className="flex items-center justify-center py-8 text-gray-500">
-                  <Loader2 size={20} className="animate-spin mr-2" />
-                  Carregando...
-                </div>
-              ) : (
-                <textarea
-                  value={mensagem}
-                  onChange={(e) => setMensagem(e.target.value)}
-                  rows={14}
-                  placeholder={MENSAGEM_PADRAO}
-                  className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 font-mono leading-relaxed resize-y min-h-[280px]"
-                />
-              )}
-
-              {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-            </div>
+            <MensagemWhatsAppAjudaPanel />
+            <MensagemWhatsAppEditorPanel
+              loading={loading}
+              mensagem={mensagem}
+              error={error}
+              onMensagemChange={setMensagem}
+            />
           </div>
         </div>
 
         <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-neutral-700 shrink-0">
           <button
             type="button"
-            onClick={() => setMensagem("")}
+            onClick={usarPadraoSistema}
             disabled={saving || loading}
             className="inline-flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 disabled:opacity-50"
           >
@@ -166,7 +70,7 @@ export function MensagensWhatsAppAgendaModal({ open, onClose }: MensagensWhatsAp
             </button>
             <button
               type="button"
-              onClick={handleSave}
+              onClick={() => void salvar()}
               disabled={saving || loading}
               className="px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
               style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}

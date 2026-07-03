@@ -135,3 +135,36 @@ class CrmBuscaApiSmokeTest(_CrmApiTestBase):
         response = self.client.get('/api/crm-vendas/busca/?q=maria')
         self.assertEqual(response.status_code, 200)
         self.assertIn('leads', response.json())
+
+    @patch('crm_vendas.views_crm_busca.is_owner', return_value=False)
+    @patch('crm_vendas.views_crm_busca.get_current_vendedor_id', return_value=7)
+    @patch('crm_vendas.models.Proposta')
+    @patch('crm_vendas.models.Conta')
+    @patch('crm_vendas.models.Oportunidade')
+    @patch('crm_vendas.models.Lead')
+    @patch('crm_vendas.views_crm_busca.get_current_loja_id')
+    def test_busca_vendedor_nao_ve_pool_sem_dono(
+        self, mock_loja_id, mock_lead, mock_opp, mock_conta, mock_prop, _vend, _owner,
+    ):
+        mock_loja_id.return_value = self.loja.id
+        lead_chain = MagicMock()
+        lead_chain.filter.return_value = lead_chain
+        lead_chain.distinct.return_value = lead_chain
+        lead_chain.values.return_value = lead_chain
+        lead_chain.__getitem__ = lambda self, key: []
+        mock_lead.objects = MagicMock()
+        mock_lead.objects.filter.return_value = lead_chain
+        for mock_model in (mock_opp, mock_conta, mock_prop):
+            chain = MagicMock()
+            chain.filter.return_value = chain
+            chain.distinct.return_value = chain
+            chain.values.return_value = chain
+            chain.__getitem__ = lambda self, key: []
+            mock_model.objects = MagicMock()
+            mock_model.objects.filter.return_value = chain
+
+        response = self.client.get('/api/crm-vendas/busca/?q=maria')
+        self.assertEqual(response.status_code, 200)
+
+        lead_filter_q = lead_chain.filter.call_args.args[0]
+        self.assertNotIn('vendedor_id__isnull', str(lead_filter_q))

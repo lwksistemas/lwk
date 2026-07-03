@@ -3,7 +3,6 @@ Testes de Segurança Multi-Tenant
 
 Valida isolamento de dados entre lojas e previne acesso cross-tenant.
 """
-import pytest
 from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
@@ -197,7 +196,3 @@ class SecurityViolationTestCase(TestCase):
         """Testa detecção de mudança suspeita de IP."""
         # TODO: Implementar quando monitoramento de IP estiver pronto
         pass
-
-
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])

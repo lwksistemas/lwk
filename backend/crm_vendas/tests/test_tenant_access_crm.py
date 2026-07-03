@@ -125,19 +125,19 @@ class VendedorFilterMixinPoolTest(SimpleTestCase):
             vendedor_filter_field = 'vendedor_id'
             vendedor_filter_related = ['oportunidades__vendedor_id']
 
-        class _StrictViewStub(VendedorFilterMixin):
+        class _PoolViewStub(VendedorFilterMixin):
             vendedor_filter_field = 'vendedor_id'
-            vendedor_include_unassigned_pool = False
+            vendedor_include_unassigned_pool = True
 
         self.factory = RequestFactory()
         self.view = _LeadViewStub()
-        self.strict_view = _StrictViewStub()
+        self.pool_view = _PoolViewStub()
         self.view.request = self.factory.get('/crm-vendas/leads/')
-        self.strict_view.request = self.factory.get('/crm-vendas/leads/')
+        self.pool_view.request = self.factory.get('/crm-vendas/leads/')
 
     @patch('crm_vendas.utils.is_owner', return_value=False)
     @patch('crm_vendas.mixins.get_current_vendedor_id', return_value=5)
-    def test_pool_sem_vendedor_incluido_por_padrao(self, _vid, _owner):
+    def test_pool_sem_vendedor_excluido_por_padrao(self, _vid, _owner):
         qs = MagicMock()
         qs.filter.return_value.distinct.return_value = 'filtered'
 
@@ -145,19 +145,19 @@ class VendedorFilterMixinPoolTest(SimpleTestCase):
 
         q_arg = qs.filter.call_args.args[0]
         self.assertIsInstance(q_arg, Q)
-        self.assertIn('vendedor_id__isnull', str(q_arg))
+        self.assertNotIn('vendedor_id__isnull', str(q_arg))
         self.assertIs(result, 'filtered')
 
     @patch('crm_vendas.utils.is_owner', return_value=False)
     @patch('crm_vendas.mixins.get_current_vendedor_id', return_value=5)
-    def test_pool_sem_vendedor_excluido_quando_flag_false(self, _vid, _owner):
+    def test_pool_sem_vendedor_incluido_quando_flag_true(self, _vid, _owner):
         qs = MagicMock()
-        qs.filter.return_value.distinct.return_value = 'strict'
+        qs.filter.return_value.distinct.return_value = 'pool'
 
-        self.strict_view.filter_by_vendedor(qs)
+        self.pool_view.filter_by_vendedor(qs)
 
         q_arg = qs.filter.call_args.args[0]
-        self.assertNotIn('vendedor_id__isnull', str(q_arg))
+        self.assertIn('vendedor_id__isnull', str(q_arg))
 
     @patch('crm_vendas.utils.is_owner', return_value=True)
     @patch('crm_vendas.mixins.get_current_vendedor_id', return_value=5)

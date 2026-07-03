@@ -32,6 +32,7 @@ interface Proposta {
   oportunidade: number;
   oportunidade_titulo?: string;
   lead_nome?: string;
+  conta_nome?: string;
   titulo: string;
   conteudo: string;
   valor_total: string | null;
@@ -120,6 +121,7 @@ export default function EditarPropostaPage() {
             titulo: p.oportunidade_titulo,
             lead_nome: p.lead_nome,
             valor: p.valor_total,
+            conta_nome: p.conta_nome,
           }),
         );
         setFormData({
@@ -128,7 +130,7 @@ export default function EditarPropostaPage() {
           conteudo: p.conteudo || '',
           valor_total: p.valor_total || '',
           desconto_tipo: p.desconto_tipo || 'percentual',
-          desconto_valor: String(p.desconto_valor || ''),
+          desconto_valor: String(p.desconto_valor ?? ''),
           status: p.status || 'rascunho',
           nome_vendedor_assinatura: '',
           nome_cliente_assinatura: '',
@@ -146,6 +148,7 @@ export default function EditarPropostaPage() {
                 titulo: opp.titulo,
                 lead_nome: opp.lead_nome,
                 valor: opp.valor,
+                conta_nome: opp.conta_nome,
                 empresa_prestadora_nome: opp.empresa_prestadora_nome,
               }),
             );
@@ -176,7 +179,15 @@ export default function EditarPropostaPage() {
       loadItensOportunidade(oppId);
       try {
         const opp = await fetchCrmOportunidade(oppId);
-        setOportunidadeTituloInicial(opp.titulo);
+        setOportunidadeTituloInicial(
+          formatOportunidadeVinculoLabel({
+            titulo: opp.titulo,
+            lead_nome: opp.lead_nome,
+            valor: opp.valor,
+            conta_nome: opp.conta_nome,
+            empresa_prestadora_nome: opp.empresa_prestadora_nome,
+          }),
+        );
         setFormData((f) => ({
           ...f,
           oportunidade_id: oppId,

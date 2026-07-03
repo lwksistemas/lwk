@@ -180,6 +180,7 @@ export default function PropostaFormContent({
       <form onSubmit={onSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full">
           <div className="space-y-6">
+            <section className="space-y-4">{renderLojaBlock()}</section>
             <section className="space-y-4">
               <h3 className={crmFormSectionTitleClass}>Oportunidade</h3>
               <div>
@@ -194,7 +195,6 @@ export default function PropostaFormContent({
               </div>
             </section>
             <section className="space-y-4">{renderClienteBlock()}</section>
-            <section className="space-y-4">{renderLojaBlock()}</section>
             <section className="space-y-4">
               <h3 className={crmFormSectionTitleClass}>Proposta</h3>
               <div>
@@ -265,17 +265,6 @@ export default function PropostaFormContent({
         {renderLojaBlock()}
       </div>
 
-      {/* Dados do Cliente */}
-      <div className={`${sectionWrapCls} ${spanClass}`}>
-        <CrmClienteBlock
-          leadInfo={leadInfo}
-          oportunidadeSelecionada={!!form.oportunidade_id}
-          labelClass={labelCls}
-          titleClass={sectionTitleCls}
-          compact
-        />
-      </div>
-
       {/* Oportunidade */}
       <div className={spanClass}>
         <label className={labelCls}>Oportunidade *</label>
@@ -285,6 +274,17 @@ export default function PropostaFormContent({
           onOportunidadeChange={onOportunidadeChange}
           required
           disabled={isEdit || enviando}
+        />
+      </div>
+
+      {/* Dados do Cliente */}
+      <div className={`${sectionWrapCls} ${spanClass}`}>
+        <CrmClienteBlock
+          leadInfo={leadInfo}
+          oportunidadeSelecionada={!!form.oportunidade_id}
+          labelClass={labelCls}
+          titleClass={sectionTitleCls}
+          compact
         />
       </div>
 

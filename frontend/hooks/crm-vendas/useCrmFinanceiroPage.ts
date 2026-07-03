@@ -71,33 +71,50 @@ export function useCrmFinanceiroPage() {
   };
 
   const marcarPagoEmLote = async (ids: number[]) => {
-    const results = await Promise.allSettled(
-      ids.map((id) => apiClient.post(`crm-vendas/financeiro-lancamentos/${id}/marcar_pago/`, {})),
-    );
-    const ok = results.filter((r) => r.status === 'fulfilled').length;
-    const falhas = ids.length - ok;
-    if (falhas) {
-      toast.warning(`${ok} recebida(s), ${falhas} falha(s).`);
-    } else {
-      toast.success(`${ok} comissão(ões) marcada(s) como recebida(s).`);
+    try {
+      const { data: batch } = await apiClient.post<{
+        atualizados: number;
+        ignorados: number;
+        solicitados: number;
+      }>('crm-vendas/financeiro-lancamentos/acoes-lote/', {
+        ids,
+        acao: 'marcar_pago',
+      });
+      if (batch.atualizados === 0) {
+        toast.warning('Nenhuma comissão foi marcada como recebida.');
+      } else if (batch.ignorados > 0) {
+        toast.warning(`${batch.atualizados} recebida(s), ${batch.ignorados} ignorada(s).`);
+      } else {
+        toast.success(`${batch.atualizados} comissão(ões) marcada(s) como recebida(s).`);
+      }
+      await data.loadAll();
+    } catch (err) {
+      toast.error(getCrmApiErrorDetail(err, 'Não foi possível marcar as comissões como recebidas.'));
+      throw err;
     }
-    await data.loadAll();
   };
 
   const cancelarComissaoEmLote = async (ids: number[]) => {
-    const results = await Promise.allSettled(
-      ids.map((id) =>
-        apiClient.patch(`crm-vendas/financeiro-lancamentos/${id}/`, { status: 'cancelado' }),
-      ),
-    );
-    const ok = results.filter((r) => r.status === 'fulfilled').length;
-    const falhas = ids.length - ok;
-    if (falhas) {
-      toast.warning(`${ok} cancelada(s), ${falhas} falha(s).`);
-    } else {
-      toast.success(`${ok} comissão(ões) cancelada(s).`);
+    try {
+      const { data: batch } = await apiClient.post<{
+        atualizados: number;
+        ignorados: number;
+      }>('crm-vendas/financeiro-lancamentos/acoes-lote/', {
+        ids,
+        acao: 'cancelar',
+      });
+      if (batch.atualizados === 0) {
+        toast.warning('Nenhuma comissão foi cancelada.');
+      } else if (batch.ignorados > 0) {
+        toast.warning(`${batch.atualizados} cancelada(s), ${batch.ignorados} ignorada(s).`);
+      } else {
+        toast.success(`${batch.atualizados} comissão(ões) cancelada(s).`);
+      }
+      await data.loadAll();
+    } catch (err) {
+      toast.error(getCrmApiErrorDetail(err, 'Não foi possível cancelar as comissões.'));
+      throw err;
     }
-    await data.loadAll();
   };
 
   const requestReceberComissao = (item: LancamentoFinanceiro) => {

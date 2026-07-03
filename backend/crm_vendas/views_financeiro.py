@@ -136,12 +136,15 @@ class LancamentoFinanceiroCRMViewSet(
                 'grupo_id': 'grupo_id',
             },
         )
-        return aplicar_filtro_periodo_lancamentos(
-            qs,
-            periodo=self.request.query_params.get('periodo', 'mes_atual'),
-            data_inicio=self.request.query_params.get('data_inicio'),
-            data_fim=self.request.query_params.get('data_fim'),
-        )
+        # Período só na listagem — marcar_pago/patch precisam achar o id fora do mês exibido.
+        if getattr(self, 'action', None) == 'list':
+            qs = aplicar_filtro_periodo_lancamentos(
+                qs,
+                periodo=self.request.query_params.get('periodo', 'mes_atual'),
+                data_inicio=self.request.query_params.get('data_inicio'),
+                data_fim=self.request.query_params.get('data_fim'),
+            )
+        return qs
 
     def perform_create(self, serializer):
         ensure_loja_context(self.request)
@@ -198,12 +201,66 @@ class LancamentoFinanceiroCRMViewSet(
     def marcar_pago(self, request, pk=None):
         from django.utils import timezone
 
+        ensure_loja_context(request)
         inst = self.get_object()
         inst.status = LancamentoFinanceiroCRM.STATUS_PAGO
         inst.data_pagamento = request.data.get('data_pagamento') or timezone.now().date()
         inst.save(update_fields=['status', 'data_pagamento', 'updated_at'])
         self._invalidate_caches()
         return Response(self.get_serializer(inst).data)
+
+    @action(detail=False, methods=['post'], url_path='acoes-lote')
+    def acoes_lote(self, request):
+        """Marca vários lançamentos como pagos ou cancelados (ex.: comissões agregadas na UI)."""
+        from django.utils import timezone
+
+        ensure_loja_context(request)
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response({'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ids_raw = request.data.get('ids') or []
+        if not isinstance(ids_raw, list):
+            return Response({'detail': 'ids deve ser uma lista.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            ids = [int(x) for x in ids_raw]
+        except (TypeError, ValueError):
+            return Response({'detail': 'ids inválidos.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not ids:
+            return Response({'detail': 'Informe ao menos um id.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        acao = (request.data.get('acao') or '').strip()
+        if acao not in ('marcar_pago', 'cancelar'):
+            return Response({'detail': 'Ação inválida.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = self.get_queryset().filter(id__in=ids)
+        atualizados = 0
+        hoje = timezone.now().date()
+        for inst in qs:
+            if acao == 'marcar_pago':
+                if inst.status != LancamentoFinanceiroCRM.STATUS_PENDENTE:
+                    continue
+                inst.status = LancamentoFinanceiroCRM.STATUS_PAGO
+                inst.data_pagamento = request.data.get('data_pagamento') or hoje
+                inst.save(update_fields=['status', 'data_pagamento', 'updated_at'])
+                atualizados += 1
+            elif inst.origem == LancamentoFinanceiroCRM.ORIGEM_COMISSAO:
+                if inst.status == LancamentoFinanceiroCRM.STATUS_CANCELADO:
+                    continue
+                inst.status = LancamentoFinanceiroCRM.STATUS_CANCELADO
+                inst.save(update_fields=['status', 'updated_at'])
+                atualizados += 1
+
+        self._invalidate_caches()
+        return Response(
+            {
+                'success': True,
+                'acao': acao,
+                'solicitados': len(ids),
+                'atualizados': atualizados,
+                'ignorados': len(ids) - atualizados,
+            }
+        )
 
 
 @api_view(['GET'])

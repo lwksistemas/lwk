@@ -21,7 +21,7 @@ class CRMSchemaRecoveryMixin:
         from superadmin.models import Loja
         from tenants.middleware import get_current_loja_id
 
-        from .schema_service import configurar_schema_crm_loja
+        from .schema_service import apply_crm_tenant_schema_patches, configurar_schema_crm_loja
 
         loja_id = get_current_loja_id()
         if not loja_id:
@@ -29,6 +29,10 @@ class CRMSchemaRecoveryMixin:
         loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
         if not loja:
             return False
+        try:
+            apply_crm_tenant_schema_patches(loja.database_name)
+        except Exception as exc:
+            logger.warning('Patches SQL CRM antes do recovery falharam: %s', exc)
         return configurar_schema_crm_loja(loja)
 
     def _com_recuperacao_schema(self, action_name, handler):

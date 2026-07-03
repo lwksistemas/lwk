@@ -34,6 +34,31 @@ from .views_common import CRMPagination, filtrar_queryset_por_query_params
 logger = logging.getLogger(__name__)
 
 
+def _financeiro_com_recuperacao_schema(handler):
+    """Executa handler financeiro com retry após patches/migrations do tenant."""
+    from django.db.utils import OperationalError, ProgrammingError
+    from superadmin.models import Loja
+
+    from .schema_service import apply_crm_tenant_schema_patches, configurar_schema_crm_loja
+
+    loja_id = get_current_loja_id()
+    for attempt in range(2):
+        try:
+            return handler()
+        except (ProgrammingError, OperationalError) as exc:
+            if attempt == 0 and loja_id:
+                loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
+                if loja:
+                    try:
+                        apply_crm_tenant_schema_patches(loja.database_name)
+                    except Exception as patch_exc:
+                        logger.warning('Patches financeiro CRM falharam: %s', patch_exc)
+                    if configurar_schema_crm_loja(loja):
+                        logger.warning('Schema CRM recuperado após erro financeiro: %s', exc)
+                        continue
+            raise
+
+
 class GrupoFinanceiroCRMViewSet(
     CRMSchemaRecoveryMixin,
     CRMPermissionMixin,
@@ -185,10 +210,8 @@ class LancamentoFinanceiroCRMViewSet(
 @permission_classes([IsAuthenticated])
 def financeiro_crm_resumo(request):
     from django.db.utils import OperationalError, ProgrammingError
-    from superadmin.models import Loja
 
-    from .schema_service import configurar_schema_crm_loja
-
+    ensure_loja_context(request)
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({'error': 'Loja não identificada'}, status=status.HTTP_400_BAD_REQUEST)
@@ -203,8 +226,8 @@ def financeiro_crm_resumo(request):
     elif not is_owner(request):
         vendedor_id = vendedor_id
 
-    for attempt in range(2):
-        try:
+    try:
+        def _handler():
             garantir_grupos_padrao(loja_id)
             periodo = request.query_params.get('periodo', 'mes_atual')
             return Response(
@@ -216,22 +239,21 @@ def financeiro_crm_resumo(request):
                     data_fim=request.query_params.get('data_fim'),
                 )
             )
-        except (ProgrammingError, OperationalError):
-            if attempt == 0:
-                loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
-                if loja and configurar_schema_crm_loja(loja):
-                    continue
-            logger.exception('Erro no resumo financeiro CRM (loja_id=%s)', loja_id)
-            return Response(
-                {'detail': 'O banco de dados da loja precisa ser configurado.', 'code': 'SCHEMA_NOT_CONFIGURED'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+
+        return _financeiro_com_recuperacao_schema(_handler)
+    except (ProgrammingError, OperationalError):
+        logger.exception('Erro no resumo financeiro CRM (loja_id=%s)', loja_id)
+        return Response(
+            {'detail': 'O banco de dados da loja precisa ser configurado.', 'code': 'SCHEMA_NOT_CONFIGURED'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def financeiro_crm_relatorio_pdf(request):
     """Gera PDF do financeiro por vendedor/grupo no período."""
+    ensure_loja_context(request)
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -286,6 +308,9 @@ def financeiro_crm_relatorio_pdf(request):
 @permission_classes([IsAuthenticated])
 def financeiro_crm_sync_comissoes(request):
     """Sincroniza receitas de comissão a partir de oportunidades já ganhas."""
+    from django.db.utils import OperationalError, ProgrammingError
+
+    ensure_loja_context(request)
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -297,5 +322,15 @@ def financeiro_crm_sync_comissoes(request):
         )
 
     dry_run = bool(request.data.get('dry_run', False))
-    result = sincronizar_comissoes_retroativas(loja_id, dry_run=dry_run)
-    return Response({'success': True, **result})
+
+    try:
+        def _handler():
+            return Response({'success': True, **sincronizar_comissoes_retroativas(loja_id, dry_run=dry_run)})
+
+        return _financeiro_com_recuperacao_schema(_handler)
+    except (ProgrammingError, OperationalError):
+        logger.exception('Erro ao sincronizar comissões CRM (loja_id=%s)', loja_id)
+        return Response(
+            {'detail': 'Não foi possível sincronizar comissões. Tente novamente em instantes.', 'code': 'SCHEMA_NOT_CONFIGURED'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

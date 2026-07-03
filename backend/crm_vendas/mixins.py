@@ -158,8 +158,8 @@ class VendedorFilterMixin:
     # Configurar em cada ViewSet
     vendedor_filter_field = 'vendedor_id'  # Campo direto
     vendedor_filter_related = []  # Campos relacionados
-    # True: vendedor vê registros sem vendedor (pool compartilhado da loja). False: só os dele.
-    vendedor_include_unassigned_pool = True
+    # True: vendedor vê registros sem vendedor (pool compartilhado). False (padrão): só admin.
+    vendedor_include_unassigned_pool = False
     
     def filter_by_vendedor(self, queryset):
         """
@@ -186,7 +186,7 @@ class VendedorFilterMixin:
         
         # Construir filtro Q: vendedor (+ pool compartilhado, se habilitado)
         filters = Q(**{self.vendedor_filter_field: vendedor_id})
-        if getattr(self, 'vendedor_include_unassigned_pool', True):
+        if getattr(self, 'vendedor_include_unassigned_pool', False):
             null_field = f'{self.vendedor_filter_field}__isnull'
             filters |= Q(**{null_field: True})
         for related_field in self.vendedor_filter_related:

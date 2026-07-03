@@ -32,16 +32,19 @@ class ContaViewSet(
     CRMNoCacheListMixin,
     CacheInvalidationMixin,
     VendedorAutoAssignCreateMixin,
+    VendedorFilterMixin,
     BaseModelViewSet,
 ):
     queryset = Conta.objects.select_related('vendedor').prefetch_related('leads', 'contatos').all()
     serializer_class = ContaSerializer
     pagination_class = CRMPagination
+    vendedor_filter_field = 'vendedor_id'
     cache_keys = ['contas']
     crm_permission_model = 'conta'
 
     def get_queryset(self):
         qs = super().get_queryset()
+        qs = self.filter_by_vendedor(qs)
         qs = qs.select_related('vendedor').prefetch_related('leads', 'contatos')
         tipo = self.request.query_params.get('tipo')
         if tipo:

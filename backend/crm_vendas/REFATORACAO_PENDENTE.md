@@ -14,6 +14,7 @@
 9. **CI** — `crm_vendas.tests` + Vitest CRM + Playwright no workflow Security
 10. **DDL hot path** — patches SQL centralizados em `schema_service` + `ensure_crm_atividade_colunas` no release
 11. **Isolamento cross-loja** — `test_tenant_access_crm.py` (403 API, `user_can_access_loja`, pool vendedor opt-in)
+14. **Pool sem vendedor** — padrão `vendedor_include_unassigned_pool=False` (lead/conta sem dono = só admin); busca global alinhada
 12. **Cache** — removido decorator morto `invalidate_cache_on_change`; `CacheInvalidationMixin` é o padrão
 13. **Google Calendar** — sync create/update/delete enfileirado via `activities_google_sync_queue` (fallback sync inline sem worker)
 
@@ -21,8 +22,6 @@
 - **Backend `pdf_proposta_contrato/`** — reduzir duplicação proposta/contrato (funcional, não urgente)
 - **Secret E2E** — opcional `CRM_E2E_ASSINATURA_TOKEN` para fluxo assinatura com link real
 - **API com tenant Postgres real no CI** — SQLite não materializa `crm_vendas_*` no default; testes de acesso cobrem camada de permissão
-- **Pool sem vendedor** — flag `vendedor_include_unassigned_pool=False` por ViewSet se negócio exigir restrição (padrão atual: pool compartilhado)
-
 ## Hooks / páginas
 - `useCrmPipelinePage.ts` — pipeline (criar, editar, filtros, PDF)
 - Modais em `pipeline/components/ModalCriarOportunidade` e `ModalEditarOportunidade`

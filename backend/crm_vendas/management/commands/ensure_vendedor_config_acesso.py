@@ -53,7 +53,7 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 changed = False
-                removed = patch_clinica_beleza_migration_orphans(db_name)
+                removed = patch_clinica_beleza_migration_orphans(db_name, tipo_slug=tipo)
                 with conn.cursor() as cursor:
                     if removed:
                         self.stdout.write(

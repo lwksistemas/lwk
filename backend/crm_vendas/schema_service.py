@@ -57,7 +57,7 @@ def configurar_schema_crm_loja(loja) -> bool:
 
         # 2b. Limpar migrations clinica_beleza órfãs/inconsistentes (bloqueiam migrate em lojas CRM)
         try:
-            patch_clinica_beleza_migration_orphans(db_name)
+            patch_clinica_beleza_migration_orphans(db_name, tipo_slug=tipo_slug)
         except Exception as patch_exc:
             logger.warning('configurar_schema_crm_loja: patch clinica migrations em %s: %s', db_name, patch_exc)
 
@@ -117,9 +117,10 @@ def apply_crm_tenant_schema_patches(db_name: str) -> None:
     patch_crm_vendas_atividade_columns_if_missing(db_name)
 
 
-def patch_clinica_beleza_migration_orphans(db_name: str) -> int:
+def patch_clinica_beleza_migration_orphans(db_name: str, *, tipo_slug: str | None = None) -> int:
     """
     Remove registros clinica_beleza órfãos ou corrige 0025 sem 0024 em django_migrations.
+    Lojas CRM não devem ter histórico clinica_beleza (quebra migrate de qualquer app).
     Retorna quantidade de registros removidos ou 0 se apenas corrigiu ordem.
     """
     from clinica_beleza.schema_ensure import column_exists, table_exists
@@ -131,6 +132,10 @@ def patch_clinica_beleza_migration_orphans(db_name: str) -> int:
     removed = 0
     conn = connections[db_name]
     with conn.cursor() as cursor:
+        if (tipo_slug or '').strip() == 'crm-vendas':
+            cursor.execute("DELETE FROM django_migrations WHERE app = %s", ['clinica_beleza'])
+            return cursor.rowcount
+
         cursor.execute(
             """
             SELECT COUNT(*) FROM information_schema.tables

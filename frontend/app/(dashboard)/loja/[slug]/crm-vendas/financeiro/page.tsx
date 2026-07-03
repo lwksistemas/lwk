@@ -13,6 +13,7 @@ import {
 import { CrmFinanceiroToolbar } from '@/components/crm-vendas/financeiro/CrmFinanceiroToolbar';
 import { CrmFinanceiroPageModals } from '@/components/crm-vendas/financeiro/CrmFinanceiroPageModals';
 import { formatCurrency } from '@/lib/financeiro-helpers';
+import { prepararLancamentosParaTabela } from '@/lib/crm-financeiro-display';
 
 const TIPO_CONFIG: Record<
   TipoFinanceiro,
@@ -49,7 +50,9 @@ export default function CrmFinanceiroPage() {
   const showVendedorCol = f.isAdmin && !f.vendedorFiltro;
 
   const cfg = TIPO_CONFIG[tipoAtivo];
-  const lancamentos = tipoAtivo === 'despesa' ? f.lancamentosDespesa : f.lancamentosReceita;
+  const lancamentosBrutos = tipoAtivo === 'despesa' ? f.lancamentosDespesa : f.lancamentosReceita;
+  const lancamentos =
+    tipoAtivo === 'receita' ? prepararLancamentosParaTabela(lancamentosBrutos) : lancamentosBrutos;
   const gruposTipo = f.grupos.filter((g) => g.tipo === tipoAtivo && g.is_active);
   const gruposModal = f.grupos.filter((g) => g.tipo === f.modalTipo && g.is_active);
   const totalPago = f.resumo ? cfg.totalPago(f.resumo) : 0;
@@ -127,7 +130,7 @@ export default function CrmFinanceiroPage() {
           </p>
         </div>
         <CrmFinanceiroResumoPorGrupo
-          itens={lancamentos}
+          itens={lancamentosBrutos}
           tipo={tipoAtivo}
           gerandoPdf={f.gerandoPdf}
           onGerarPdfGrupo={(grupoId) => f.gerarRelatorioPdf(grupoId)}

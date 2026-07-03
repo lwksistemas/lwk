@@ -3,6 +3,7 @@
 import { Loader2 } from 'lucide-react';
 import type { GrupoFinanceiro, LancamentoFinanceiro, TipoFinanceiro } from '@/hooks/crm-vendas/useCrmFinanceiroPage';
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
+import { isLancamentoComissaoAgregado } from '@/lib/crm-financeiro-display';
 
 interface Props {
   itens: LancamentoFinanceiro[];
@@ -60,7 +61,7 @@ export function CrmFinanceiroLancamentosTable({
               {showVendedor && <td className={cellPad}>{item.vendedor_nome}</td>}
               <td className={cellPad}>
                 <span className="line-clamp-2">{item.descricao}</span>
-                {item.origem === 'comissao_venda' && (
+                {item.origem === 'comissao_venda' && !isLancamentoComissaoAgregado(item) && (
                   <span className="block text-[10px] text-[#0176d3]">Comissão auto</span>
                 )}
                 {compact && item.grupo_nome && (
@@ -91,7 +92,7 @@ export function CrmFinanceiroLancamentosTable({
               </td>
               <td className={`${cellPad} text-right`}>
                 <div className="flex flex-wrap gap-1 justify-end">
-                  {item.status === 'pendente' && (
+                  {!isLancamentoComissaoAgregado(item) && item.status === 'pendente' && (
                     <button
                       type="button"
                       onClick={() => onPagar(item.id)}

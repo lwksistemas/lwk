@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass
 from datetime import timedelta
 
+from urllib.parse import quote
+
 from django.conf import settings
 from django.core.signing import BadSignature, dumps, loads
 from django.utils import timezone
@@ -58,7 +60,8 @@ def decodificar_token_confirmacao(token: str) -> dict | None:
 
 def url_confirmacao_frontend(token: str) -> str:
     base = getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br').rstrip('/')
-    full_url = f'{base}/confirmar-agendamento/{token}'
+    token_encoded = quote(token, safe='')
+    full_url = f'{base}/confirmar-agendamento/{token_encoded}'
     # Encurtar para WhatsApp (evita URL enorme)
     try:
         from core.short_link import build_short_url

@@ -2,7 +2,12 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
-from clinica_beleza.agenda_confirmacao_service import processar_resposta_confirmacao
+from django.test import SimpleTestCase, override_settings
+
+from clinica_beleza.agenda_confirmacao_service import (
+    processar_resposta_confirmacao,
+    url_confirmacao_frontend,
+)
 from clinica_beleza.consulta_service import sync_consulta_from_appointment_status
 
 
@@ -43,3 +48,12 @@ class ProcessarRespostaConfirmacaoTest(TestCase):
         self.assertEqual(result.status, 'CLIENT_CONFIRMED')
         mock_atualizar.assert_called_once()
         self.assertEqual(mock_atualizar.call_args.kwargs['new_status'], 'CLIENT_CONFIRMED')
+
+
+class UrlConfirmacaoFrontendTest(SimpleTestCase):
+    @override_settings(FRONTEND_URL='https://beta.lwksistemas.com.br')
+    @patch('core.short_link.build_short_url', side_effect=lambda url, **_: url)
+    def test_token_com_dois_pontos_e_codificado_na_url(self, _short):
+        url = url_confirmacao_frontend('parte1:parte2:assinatura')
+        self.assertIn('/confirmar-agendamento/parte1%3Aparte2%3Aassinatura', url)
+        self.assertNotIn('/confirmar-agendamento/parte1:parte2', url)

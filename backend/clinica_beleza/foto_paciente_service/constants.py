@@ -1,0 +1,6 @@
+TOKEN_EXPIRACAO_HORAS = 24
+CLOUDINARY_HOST = "res.cloudinary.com"
+MODULO = "clinica_beleza"
+PATH_PUBLICO = "/enviar-foto/"
+LIMITE_UPLOAD_BYTES = 9 * 1024 * 1024
+MAX_LADO_IMAGEM = 1920

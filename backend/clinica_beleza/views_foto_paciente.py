@@ -28,7 +28,7 @@ from .foto_paciente_service import (
 )
 from .models import Consulta, PacienteFotoAcompanhamento
 from .permissions import CLINICA_CLINICAL
-from .views_assinatura_consentimento import _configurar_tenant
+from .consentimento_assinatura_publica_service import configurar_tenant_publico_clinica
 from .views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
@@ -143,7 +143,7 @@ class EnviarFotoPublicaView(View):
         if not payload:
             return JsonResponse({'error': 'Link inválido ou expirado.'}, status=400)
 
-        err = _configurar_tenant(payload['loja_id'])
+        err = configurar_tenant_publico_clinica(payload['loja_id'])
         if err:
             return JsonResponse({'error': err}, status=400)
 
@@ -174,7 +174,7 @@ class EnviarFotoPublicaView(View):
         })
 
     def _validar_consulta_post(self, payload):
-        err = _configurar_tenant(payload['loja_id'])
+        err = configurar_tenant_publico_clinica(payload['loja_id'])
         if err:
             return None, JsonResponse({'error': err}, status=400)
 

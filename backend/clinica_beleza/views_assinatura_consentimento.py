@@ -12,13 +12,19 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .consentimento_assinatura_publica_service import (
+    STATUS_DISPLAY,
+    configurar_tenant_publico_clinica,
+    documento_da_assinatura,
+    preencher_termo_se_vazio,
+    resolver_termo_procedimento,
+)
 from .consentimento_assinatura_adapter import ConsultaTermoAssinaturaAdapter
 from .consentimento_service import (
     aviso_email_paciente_suspeito,
     consulta_exige_termo_consentimento,
     garantir_termos_procedimento,
     limpar_conteudo_termo_exibicao,
-    montar_conteudo_termo_procedimento,
     serializar_termos_procedimento,
     sincronizar_status_consulta,
 )
@@ -27,50 +33,6 @@ from .permissions import CLINICA_CLINICAL
 from .views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
-
-STATUS_DISPLAY = {
-    'aguardando_profissional': 'Aguardando Profissional',
-    'concluido': 'Concluído',
-}
-
-
-def _configurar_tenant(loja_id: int) -> str | None:
-    from core.db_config import ensure_loja_database_config
-    from tenants.middleware import set_current_loja_id, set_current_tenant_db
-    from superadmin.models import Loja
-
-    loja = Loja.objects.using('default').filter(id=loja_id, is_active=True).first()
-    if not loja:
-        return 'Loja não encontrada.'
-    db_name = loja.database_name
-    if not ensure_loja_database_config(db_name):
-        return 'Banco da loja indisponível.'
-    set_current_tenant_db(db_name)
-    set_current_loja_id(loja_id)
-    return None
-
-
-def _resolver_termo_procedimento(consulta, procedure_id) -> ConsultaTermoProcedimento | None:
-    termos = garantir_termos_procedimento(consulta)
-    for t in termos:
-        if t.procedure_id == int(procedure_id):
-            return t
-    return None
-
-
-def _preencher_termo_se_vazio(termo_proc: ConsultaTermoProcedimento):
-    if not (termo_proc.conteudo_termo or '').strip():
-        termo_proc.conteudo_termo = montar_conteudo_termo_procedimento(
-            termo_proc.consulta, termo_proc.procedure,
-        )
-        termo_proc.save(update_fields=['conteudo_termo', 'updated_at'])
-
-
-def _documento_da_assinatura(adapter, assinatura):
-    try:
-        return adapter.get_documento_da_assinatura(assinatura)
-    except ValueError:
-        return None
 
 
 class ConsultaTermoConsentimentoStatusView(GetObjectMixin, APIView):
@@ -108,7 +70,7 @@ class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
         from whatsapp.assinatura_whatsapp import enviar_whatsapp_link_assinatura, whatsapp_envio_permitido
         from whatsapp.models import WhatsAppConfig
 
-        _preencher_termo_se_vazio(termo_proc)
+        preencher_termo_se_vazio(termo_proc)
         paciente = consulta.patient
         nome_proc = termo_proc.procedure.nome
 
@@ -171,7 +133,7 @@ class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
         termos = garantir_termos_procedimento(consulta)
 
         if procedure_id:
-            termo_proc = _resolver_termo_procedimento(consulta, procedure_id)
+            termo_proc = resolver_termo_procedimento(consulta, procedure_id)
             if not termo_proc:
                 return Response({'detail': 'Procedimento não encontrado nesta consulta.'}, status=400)
             if termo_proc.status_assinatura_termo != 'rascunho':
@@ -272,7 +234,7 @@ class ConsultaReenviarTermoAssinaturaView(GetObjectMixin, APIView):
         if canal not in ('email', 'whatsapp'):
             return Response({'detail': 'Informe o canal: email ou whatsapp.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        termo_proc = _resolver_termo_procedimento(consulta, procedure_id)
+        termo_proc = resolver_termo_procedimento(consulta, procedure_id)
         if not termo_proc:
             return Response({'detail': 'Procedimento não encontrado nesta consulta.'}, status=400)
 
@@ -343,12 +305,12 @@ class ConsultaDownloadTermoPdfView(GetObjectMixin, APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        termo_proc = _resolver_termo_procedimento(consulta, procedure_id)
+        termo_proc = resolver_termo_procedimento(consulta, procedure_id)
         if not termo_proc:
             return Response({'detail': 'Procedimento não encontrado nesta consulta.'}, status=400)
 
         adapter = ConsultaTermoAssinaturaAdapter()
-        _preencher_termo_se_vazio(termo_proc)
+        preencher_termo_se_vazio(termo_proc)
         incluir = termo_proc.status_assinatura_termo == 'concluido'
         pdf = adapter.gerar_pdf(termo_proc, incluir_assinaturas=incluir)
         nome_proc = termo_proc.procedure.nome.replace(' ', '_')[:40]
@@ -378,7 +340,7 @@ class ConsultaAssinaturaPublicaView(View):
         if not payload or not payload.get('loja_id'):
             return JsonResponse({'error': 'Link inválido.'}, status=400)
 
-        err = _configurar_tenant(payload['loja_id'])
+        err = configurar_tenant_publico_clinica(payload['loja_id'])
         if err:
             return JsonResponse({'error': err}, status=400)
 
@@ -391,11 +353,11 @@ class ConsultaAssinaturaPublicaView(View):
         if assinatura.is_expirado:
             return JsonResponse({'error': 'Este link expirou.'}, status=400)
 
-        termo_proc = _documento_da_assinatura(adapter, assinatura)
+        termo_proc = documento_da_assinatura(adapter, assinatura)
         if not termo_proc:
             return JsonResponse({'error': 'Termo não encontrado. Solicite novo envio à clínica.'}, status=400)
 
-        _preencher_termo_se_vazio(termo_proc)
+        preencher_termo_se_vazio(termo_proc)
         consulta = termo_proc.consulta
         loja_nome = ''
         from superadmin.models import Loja
@@ -431,7 +393,7 @@ class ConsultaAssinaturaPublicaView(View):
             return JsonResponse({'error': 'Link inválido.'}, status=400)
 
         loja_id = payload['loja_id']
-        err = _configurar_tenant(loja_id)
+        err = configurar_tenant_publico_clinica(loja_id)
         if err:
             return JsonResponse({'error': err}, status=400)
 
@@ -444,7 +406,7 @@ class ConsultaAssinaturaPublicaView(View):
         if assinatura.is_expirado:
             return JsonResponse({'error': 'Este link expirou.'}, status=400)
 
-        termo_proc = _documento_da_assinatura(adapter, assinatura)
+        termo_proc = documento_da_assinatura(adapter, assinatura)
         if not termo_proc:
             return JsonResponse({'error': 'Termo não encontrado. Solicite novo envio à clínica.'}, status=400)
 
@@ -489,7 +451,7 @@ class ConsultaAssinaturaPdfPublicaView(View):
         if not payload or not payload.get('loja_id'):
             return JsonResponse({'error': 'Link inválido.'}, status=400)
 
-        err = _configurar_tenant(payload['loja_id'])
+        err = configurar_tenant_publico_clinica(payload['loja_id'])
         if err:
             return JsonResponse({'error': err}, status=400)
 
@@ -502,11 +464,11 @@ class ConsultaAssinaturaPdfPublicaView(View):
         if assinatura.is_expirado:
             return JsonResponse({'error': 'Este link expirou.'}, status=400)
 
-        termo_proc = _documento_da_assinatura(adapter, assinatura)
+        termo_proc = documento_da_assinatura(adapter, assinatura)
         if not termo_proc:
             return JsonResponse({'error': 'Termo não encontrado.'}, status=400)
 
-        _preencher_termo_se_vazio(termo_proc)
+        preencher_termo_se_vazio(termo_proc)
         pdf = adapter.gerar_pdf(termo_proc, incluir_assinaturas=False)
         nome_proc = termo_proc.procedure.nome.replace(' ', '_')[:40]
         response = HttpResponse(pdf.getvalue(), content_type='application/pdf')

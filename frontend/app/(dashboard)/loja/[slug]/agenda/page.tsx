@@ -15,7 +15,6 @@ import {
   CLINICA_AGENDA_SLOT_LABEL_INTERVAL,
   CLINICA_AGENDA_SNAP_DURATION,
 } from "@/lib/clinica-beleza-constants";
-import { parseEventDate } from "@/lib/clinica-beleza-datetime";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { useAgendaMutations } from "@/hooks/useAgendaMutations";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
@@ -25,14 +24,10 @@ import { ModalConflitoAgenda } from "@/components/clinica-beleza/ModalConflitoAg
 import { ModalCriarAgendamento } from "@/components/clinica-beleza/ModalCriarAgendamento";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 import { searchClinicaPatients } from "@/lib/clinica-beleza-cadastros-api";
-import type { BloqueioHorario } from "@/lib/clinica-beleza-entities";
-import {
-  type HorarioTrabalho,
-  workHoursRejectionMessage,
-} from "@/lib/clinica-beleza-work-hours";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { useAgendaData } from "@/hooks/clinica-beleza/useAgendaData";
 import { useAgendaCalendarConfig } from "@/hooks/clinica-beleza/useAgendaCalendarConfig";
+import { useAgendaPageHandlers } from "@/hooks/clinica-beleza/useAgendaPageHandlers";
 import { ModalDetalheAgendamento } from "./components/ModalDetalheAgendamento";
 import { ModalBloqueio } from "./components/ModalBloqueio";
 import { AgendaListaColunas } from "./components/AgendaListaColunas";
@@ -205,83 +200,16 @@ export default function AgendaPage() {
     setShowModal,
   });
 
-  const handleEventClick = (info: {
-    event: {
-      id: string;
-      title: string;
-      start: Date | null;
-      end: Date | null;
-      backgroundColor: string;
-      borderColor: string;
-      textColor: string;
-      extendedProps: AgendaEventData["extendedProps"] & { isIntervalo?: boolean; isBloqueio?: boolean; bloqueioId?: number; motivo?: string; professional_name?: string };
-    };
-  }) => {
-    if (info.event.extendedProps?.isIntervalo) return;
-    if (info.event.extendedProps?.isBloqueio) {
-      setSelectedBloqueio({
-        id: info.event.extendedProps.bloqueioId!,
-        motivo: info.event.extendedProps.motivo || info.event.title,
-        professional_name: info.event.extendedProps.professional_name || "Todos",
-      });
-      return;
-    }
-    setSelectedEvent({
-      id: info.event.id,
-      title: info.event.title,
-      start: info.event.start!,
-      end: info.event.end!,
-      backgroundColor: info.event.backgroundColor,
-      borderColor: info.event.borderColor,
-      textColor: info.event.textColor,
-      extendedProps: info.event.extendedProps,
-    });
-    setShowModal(true);
-  };
-
-  const abrirEventoDaLista = (evt: AgendaEventData) => {
-    handleEventClick({
-      event: {
-        id: evt.id,
-        title: evt.title,
-        start: parseEventDate(evt.start),
-        end: parseEventDate(evt.end),
-        backgroundColor: evt.backgroundColor,
-        borderColor: evt.borderColor,
-        textColor: evt.textColor,
-        extendedProps: evt.extendedProps,
-      },
-    });
-  };
-
-  const conflitoComBloqueio = (date: Date, durationMin = 30) => {
-    const apptEnd = new Date(date.getTime() + durationMin * 60000);
-    return bloqueios.some((b: BloqueioHorario) => {
-      const profMatch = !b.professional || selectedProfessional === String(b.professional);
-      if (!profMatch) return false;
-      const bStart = new Date(b.data_inicio);
-      const bEnd = new Date(b.data_fim);
-      if (Number.isNaN(bStart.getTime()) || Number.isNaN(bEnd.getTime())) return false;
-      return date < bEnd && apptEnd > bStart;
-    });
-  };
-
-  const handleDateClick = (info: { date: Date }) => {
-    const date = info.date;
-    if (selectedProfessional) {
-      const msg = workHoursRejectionMessage(date, 30, horariosTrabalho as HorarioTrabalho[]);
-      if (msg) {
-        alert(msg);
-        return;
-      }
-      if (conflitoComBloqueio(date)) {
-        alert('Horário bloqueado. Escolha outro horário ou gerencie bloqueios no botão "Bloquear horário".');
-        return;
-      }
-    }
-    setSelectedDate(date);
-    setShowCreateModal(true);
-  };
+  const { handleEventClick, abrirEventoDaLista, handleDateClick } = useAgendaPageHandlers({
+    selectedProfessional,
+    horariosTrabalho,
+    bloqueios,
+    setSelectedEvent,
+    setShowModal,
+    setSelectedBloqueio,
+    setSelectedDate,
+    setShowCreateModal,
+  });
 
   if (loading) {
     return (

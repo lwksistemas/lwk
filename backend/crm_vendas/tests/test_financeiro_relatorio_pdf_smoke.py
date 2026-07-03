@@ -1,5 +1,6 @@
 """Smoke: PDF do financeiro CRM."""
 from io import BytesIO
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
@@ -53,3 +54,33 @@ class GerarRelatorioFinanceiroPdfSmokeTest(SimpleTestCase):
         self.assertIsInstance(buffer, BytesIO)
         data = buffer.getvalue()
         self.assertTrue(data.startswith(b'%PDF'))
+        self.assertNotIn(b'Detalhamento', data)
+
+    def test_pdf_grupo_comissao_sem_detalhamento(self, mock_vend, mock_grupo, mock_lanc, _logo, mock_opp, _periodo):
+        grupo = MagicMock()
+        grupo.nome = 'Comissão de vendas'
+        mock_grupo.objects.filter.return_value.first.return_value = grupo
+
+        chain = MagicMock()
+        mock_lanc.objects.filter.return_value = chain
+        chain.exclude.return_value = chain
+        chain.filter.return_value = chain
+        chain.select_related.return_value = chain
+        chain.order_by.return_value = chain
+        chain.aggregate.return_value = {'t': Decimal('4875')}
+        chain.count.return_value = 0
+        chain.__iter__ = lambda self: iter([])
+        mock_lanc.TIPO_RECEITA = 'receita'
+        mock_lanc.TIPO_DESPESA = 'despesa'
+        mock_lanc.STATUS_PAGO = 'pago'
+        mock_lanc.STATUS_PENDENTE = 'pendente'
+        mock_lanc.STATUS_CANCELADO = 'cancelado'
+
+        opp_chain = mock_opp.objects.filter.return_value.filter.return_value
+        opp_chain.aggregate.return_value = {'t': Decimal('4875')}
+        opp_chain.count.return_value = 9
+
+        buffer = gerar_relatorio_financeiro_vendedor(1, periodo='mes_passado', grupo_id=1)
+        data = buffer.getvalue()
+        self.assertTrue(data.startswith(b'%PDF'))
+        self.assertNotIn(b'Detalhamento', data)

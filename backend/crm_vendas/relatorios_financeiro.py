@@ -9,7 +9,7 @@ from io import BytesIO
 from django.db.models import Sum
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
@@ -46,7 +46,7 @@ def gerar_relatorio_financeiro_vendedor(
     data_inicio=None,
     data_fim=None,
 ) -> BytesIO:
-    """PDF com resumo, totais por grupo e detalhamento de lançamentos."""
+    """PDF com resumo e totais por grupo (sem listagem linha a linha)."""
     inicio, fim = _resolver_periodo(periodo, data_inicio, data_fim)
 
     qs = (
@@ -67,15 +67,15 @@ def gerar_relatorio_financeiro_vendedor(
         vendedor_nome = v.nome if v else f'Vendedor #{vendedor_id}'
 
     grupo_nome = 'Todos os grupos'
+    grupo_obj = None
     if grupo_id:
-        g = GrupoFinanceiroCRM.objects.filter(loja_id=loja_id, id=grupo_id).first()
-        grupo_nome = g.nome if g else f'Grupo #{grupo_id}'
+        grupo_obj = GrupoFinanceiroCRM.objects.filter(loja_id=loja_id, id=grupo_id).first()
+        grupo_nome = grupo_obj.nome if grupo_obj else f'Grupo #{grupo_id}'
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.5 * cm, leftMargin=1.5 * cm, topMargin=1.5 * cm, bottomMargin=1.5 * cm)
     styles = getSampleStyleSheet()
     normal = styles['Normal']
-    subtitle = ParagraphStyle('Sub', parent=normal, fontSize=10, textColor=colors.grey)
 
     elements = []
     logo = _obter_logo_loja(loja_id)
@@ -157,40 +157,25 @@ def gerar_relatorio_financeiro_vendedor(
         tabela_por_grupo('Receitas', LancamentoFinanceiroCRM.TIPO_RECEITA, colors.HexColor('#2e7d32'))
         tabela_por_grupo('Despesas', LancamentoFinanceiroCRM.TIPO_DESPESA, colors.HexColor('#c62828'))
 
-    elements.append(Paragraph('<b>Detalhamento</b>', normal))
-    elements.append(Spacer(1, 0.2 * cm))
-    detalhe_rows = [['Venc.', 'Vendedor', 'Tipo', 'Grupo', 'Descrição', 'Valor', 'Status']]
-    for item in qs[:200]:
-        detalhe_rows.append([
-            item.data_vencimento.strftime('%d/%m/%Y'),
-            (item.vendedor.nome or '')[:18],
-            item.get_tipo_display(),
-            (item.grupo.nome if item.grupo else '—')[:14],
-            item.descricao[:28],
-            _fmt_brl(item.valor),
-            item.get_status_display(),
-        ])
-    if len(detalhe_rows) == 1:
-        detalhe_rows.append(['—', '—', '—', '—', 'Nenhum lançamento no período', '—', '—'])
-
-    detalhe_table = Table(
-        detalhe_rows,
-        colWidths=[1.8 * cm, 2.5 * cm, 1.6 * cm, 2.2 * cm, 4.5 * cm, 2.2 * cm, 1.8 * cm],
-        repeatRows=1,
-    )
-    detalhe_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0176d3')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 7),
-        ('GRID', (0, 0), (-1, -1), 0.25, colors.lightgrey),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ]))
-    elements.append(detalhe_table)
-
-    if qs.count() > 200:
-        elements.append(Spacer(1, 0.3 * cm))
-        elements.append(Paragraph('(Exibindo os primeiros 200 lançamentos do período)', subtitle))
+    if grupo_id and grupo_obj and (grupo_obj.nome or '').strip().lower() == 'comissão de vendas':
+        n_opps = opp_comissao_qs.count()
+        comissao_rows = [
+            ['Oportunidades ganhas no período', str(n_opps)],
+            ['Comissão total (oportunidades)', _fmt_brl(total_comissao)],
+            ['Recebido', _fmt_brl(rec_pago)],
+            ['Pendente', _fmt_brl(rec_pend)],
+        ]
+        comissao_table = Table(comissao_rows, colWidths=[10 * cm, 6 * cm])
+        comissao_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e8f5e9')),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
+        ]))
+        elements.append(Paragraph('<b>Comissão de vendas</b>', normal))
+        elements.append(Spacer(1, 0.2 * cm))
+        elements.append(comissao_table)
 
     doc.build(elements)
     buffer.seek(0)

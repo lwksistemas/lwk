@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   deleteClinicaBelezaEntity,
   saveClinicaBelezaEntity,
-} from "@/lib/clinica-beleza-crud";
+} from "@/hooks/clinica-beleza";
 import { useToast } from "@/components/ui/Toast";
 import {
   buildCampanhaSaveBody,

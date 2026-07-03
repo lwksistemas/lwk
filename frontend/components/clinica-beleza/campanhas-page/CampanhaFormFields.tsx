@@ -1,5 +1,5 @@
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { CLINICA_FORM_INPUT } from "@/lib/clinica-beleza-crud";
+import { CLINICA_FORM_INPUT } from "@/hooks/clinica-beleza";
 import { toUpperCase } from "@/lib/format-br";
 import type { CampanhaFormState } from "./campanhas-page-types";
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { imprimirConsultaPdf } from "@/lib/consulta-print";
+import { imprimirConsultaPdfLazy } from "@/lib/consulta-print-lazy";
 import type { Consulta } from "../consultas-types";
 import { ConsultaPrintButton } from "../ConsultaPrintButton";
 
@@ -57,7 +57,7 @@ export function HistoricoAtendimentosSection({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {conteudo && (
-                    <ConsultaPrintButton onPrint={() => imprimirConsultaPdf(h.id, "atendimento")} />
+                    <ConsultaPrintButton onPrint={() => imprimirConsultaPdfLazy(h.id, "atendimento")} />
                   )}
                   {h.id !== selectedId &&
                     (conteudo ? (

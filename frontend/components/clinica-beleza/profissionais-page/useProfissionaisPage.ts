@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useParams } from "next/navigation";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
-import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
+import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/hooks/clinica-beleza";
 import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
 import { entityActive, entityName, type ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 import { buscarProfissionaisOffline, salvarProfissionaisOffline } from "@/lib/offline-db";

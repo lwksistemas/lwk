@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { buscarProcedimentosOffline, salvarProcedimentosOffline } from "@/lib/offline-db";
-import { useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
+import { useClinicaBelezaEntityList } from "@/hooks/clinica-beleza";
 import { defaultCategoriaForModule } from "@/lib/clinica-beleza-categories";
 import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
 import { useLojaTheme } from "@/hooks/useLojaTheme";

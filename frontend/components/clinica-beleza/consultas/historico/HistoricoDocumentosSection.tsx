@@ -1,6 +1,6 @@
 import type { DocumentoClinicoItem, PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
 import { abrirPdfPrescricaoMemed } from "@/lib/memed-prescricao-pdf";
-import { imprimirDocumentoPdf } from "@/lib/consulta-print";
+import { imprimirDocumentoPdfLazy } from "@/lib/consulta-print-lazy";
 import type { Consulta } from "../consultas-types";
 import { ConsultaPrintButton } from "../ConsultaPrintButton";
 import { agruparPrescricoesPorConsulta, labelPrescricaoMemed, TIPO_LABELS } from "./historico-utils";
@@ -114,7 +114,7 @@ export function HistoricoDocumentosSection({
                         {doc.professional_name ? ` · ${doc.professional_name}` : ""}
                       </p>
                     </div>
-                    <ConsultaPrintButton onPrint={() => imprimirDocumentoPdf(doc)} />
+                    <ConsultaPrintButton onPrint={() => imprimirDocumentoPdfLazy(doc)} />
                   </div>
                   {doc.conteudo && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 whitespace-pre-wrap line-clamp-4">

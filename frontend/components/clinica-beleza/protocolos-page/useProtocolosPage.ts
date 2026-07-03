@@ -3,7 +3,7 @@ import { useParams } from "next/navigation";
 import {
   CLINICA_BELEZA_ONLINE_ONLY,
   useClinicaBelezaEntityList,
-} from "@/lib/clinica-beleza-crud";
+} from "@/hooks/clinica-beleza";
 import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
 import { useLojaTheme } from "@/hooks/useLojaTheme";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";

@@ -1,6 +1,6 @@
 import { Loader2, Trash2 } from "lucide-react";
 import type { DocumentoClinicoItem, PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
-import { imprimirDocumentoPdf } from "@/lib/consulta-print";
+import { imprimirDocumentoPdfLazy } from "@/lib/consulta-print-lazy";
 import { abrirPdfPrescricaoMemed } from "@/lib/memed-prescricao-pdf";
 import { ConsultaPrintButton } from "../ConsultaPrintButton";
 import { labelPrescricaoMemed, TIPO_LABELS } from "../historico/historico-utils";
@@ -108,7 +108,7 @@ export function DocumentoListaSection({
               </div>
 
               <div className="flex-shrink-0 flex items-center gap-1">
-                <ConsultaPrintButton onPrint={() => imprimirDocumentoPdf(doc)} />
+                <ConsultaPrintButton onPrint={() => imprimirDocumentoPdfLazy(doc)} />
                 {consultaAtiva && (
                   <>
                     {confirmDeleteId === doc.id ? (

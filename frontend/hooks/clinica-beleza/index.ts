@@ -1,2 +1,10 @@
-export { useClinicaBelezaPaginatedList } from "@/lib/clinica-beleza-crud";
-export { useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
+/** Hooks e helpers CRUD compartilhados — Clínica da Beleza. */
+export {
+  CLINICA_BELEZA_ONLINE_ONLY,
+  CLINICA_FORM_INPUT,
+  deleteClinicaBelezaEntity,
+  loadClinicaBelezaListPage,
+  saveClinicaBelezaEntity,
+  useClinicaBelezaEntityList,
+  useClinicaBelezaPaginatedList,
+} from "@/lib/clinica-beleza-crud";

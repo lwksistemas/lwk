@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
-import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
+import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import type { DespesaItem } from "@/app/(dashboard)/loja/[slug]/clinica-beleza/financeiro/DespesaFormModal";
 import type {
   FinanceiroPayment,

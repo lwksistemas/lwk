@@ -7,7 +7,7 @@ import {
 import {
   deleteClinicaBelezaEntity,
   saveClinicaBelezaEntity,
-} from "@/lib/clinica-beleza-crud";
+} from "@/hooks/clinica-beleza";
 import { isBrowserOffline } from "@/lib/clinica-beleza-offline";
 import { salvarProcedimentosOffline } from "@/lib/offline-db";
 import { entityName } from "@/lib/clinica-beleza-entities";

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
-import { imprimirConsultaPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
+import { imprimirConsultaPdfLazy, type ConsultaPrintMeta } from "@/lib/consulta-print-lazy";
 import type { Consulta, Evolucao } from "../consultas-types";
 import { ConsultaPrintButton } from "../ConsultaPrintButton";
 
@@ -58,7 +58,7 @@ function EvolucaoConsultaBlock({
         {!loading && evolucoes.length > 0 && (
           <ConsultaPrintButton
             label={evolucoes.length > 1 ? "Imprimir todas" : "Imprimir"}
-            onPrint={() => imprimirConsultaPdf(consulta.id, "evolucao")}
+            onPrint={() => imprimirConsultaPdfLazy(consulta.id, "evolucao")}
           />
         )}
       </div>

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
-import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
+import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { isConvenioParticularNome } from "@/lib/convenio-precos";
 import {
   buildConveniosBasePath,

@@ -1,4 +1,4 @@
-import { imprimirConsultaPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
+import { imprimirConsultaPdfLazy, type ConsultaPrintMeta } from "@/lib/consulta-print-lazy";
 import type { Anamnese } from "../consultas-types";
 import { ANAMNESE_FIELDS } from "../consultas-types";
 import { ConsultaPrintButton } from "../ConsultaPrintButton";
@@ -22,7 +22,7 @@ export function HistoricoAnamneseSection({
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <ConsultaPrintButton onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "anamnese")} />
+        <ConsultaPrintButton onPrint={() => imprimirConsultaPdfLazy(printMeta.consultaId, "anamnese")} />
       </div>
       {preenchidos.map(([key, label]) => (
         <div key={key}>

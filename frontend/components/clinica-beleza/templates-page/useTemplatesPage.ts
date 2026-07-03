@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ClinicaBelezaAPI, type DocumentTemplateItem } from "@/lib/clinica-beleza-api";
-import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
+import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { buildTemplateNovoPath } from "./templates-page-utils";
 
 export function useTemplatesPage() {

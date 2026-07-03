@@ -174,23 +174,23 @@ class ComissaoRelatorioHelpersTest(TestCase):
         self.assertIs(_resolver_regra_procedimento(proc_map, 10, 1), regra_unimed)
         self.assertIs(_resolver_regra_procedimento(proc_map, 10, 2), regra_geral)
 
-    @patch('clinica_beleza.comissao_relatorio_service._calcular_comissao_regra', return_value=Decimal('45'))
-    @patch('clinica_beleza.comissao_relatorio_service._resolver_regra_consulta')
+    @patch('clinica_beleza.comissao_relatorio.atendimento._calcular_comissao_regra', return_value=Decimal('45'))
+    @patch('clinica_beleza.comissao_relatorio.atendimento._resolver_regra_consulta')
     @patch(
-        'clinica_beleza.comissao_relatorio_service._resolver_local_atendimento_efetivo',
+        'clinica_beleza.comissao_relatorio.atendimento._resolver_local_atendimento_efetivo',
         return_value=(1, 'Consultório'),
     )
     @patch(
-        'clinica_beleza.comissao_relatorio_service._alocar_valores_pagamento',
+        'clinica_beleza.comissao_relatorio.atendimento._alocar_valores_pagamento',
         return_value=(Decimal('150'), {}),
     )
     @patch(
-        'clinica_beleza.comissao_relatorio_service._resolver_valor_consulta_cadastro',
+        'clinica_beleza.comissao_relatorio.atendimento._resolver_valor_consulta_cadastro',
         return_value=Decimal('150'),
     )
-    @patch('clinica_beleza.comissao_relatorio_service.resolver_convenio_atendimento_comissao', return_value=None)
-    @patch('clinica_beleza.comissao_relatorio_service._regras_profissional')
-    @patch('clinica_beleza.comissao_relatorio_service._procedimentos_vinculados_consulta', return_value=[])
+    @patch('clinica_beleza.comissao_relatorio.atendimento.resolver_convenio_atendimento_comissao', return_value=None)
+    @patch('clinica_beleza.comissao_relatorio.atendimento._regras_profissional')
+    @patch('clinica_beleza.comissao_relatorio.atendimento._procedimentos_vinculados_consulta', return_value=[])
     def test_calcular_comissao_pagamento_somente_taxa_consulta(
         self,
         _mock_procs,

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Download, Search } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
@@ -43,13 +43,21 @@ const AGRUPAMENTO_TITULOS: Record<Agrupamento, string> = {
   convenio: 'Faturamento por Convênio',
 };
 
+function parseAgrupamento(raw: string | null): Agrupamento {
+  if (raw === 'procedimento' || raw === 'local' || raw === 'convenio' || raw === 'profissional') {
+    return raw;
+  }
+  return 'profissional';
+}
+
 export default function FaturamentoPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const slug = params.slug as string;
 
-  const agrupamentoParam = (searchParams.get('agrupar') || 'profissional') as Agrupamento;
-  const [agrupamento, setAgrupamento] = useState<Agrupamento>(agrupamentoParam);
+  const agrupamento = parseAgrupamento(searchParams.get('agrupar'));
 
   const [dataInicio, setDataInicio] = useState(() => {
     const d = new Date();
@@ -60,6 +68,12 @@ export default function FaturamentoPage() {
   const [data, setData] = useState<FaturamentoData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const setAgrupamento = (value: Agrupamento) => {
+    const qp = new URLSearchParams(searchParams.toString());
+    qp.set('agrupar', value);
+    router.replace(`${pathname}?${qp.toString()}`);
+  };
 
   const buscar = useCallback(async () => {
     setLoading(true);

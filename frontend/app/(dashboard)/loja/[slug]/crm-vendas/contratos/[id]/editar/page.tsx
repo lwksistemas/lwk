@@ -19,6 +19,7 @@ import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal
 import ContratoFormContent, { type OportunidadeContratoOption } from '@/components/crm-vendas/ContratoFormContent';
 import type { FormDataContrato } from '@/components/crm-vendas/modals/ModalContratoForm';
 import { EMPTY_FORM_CONTRATO } from '@/components/crm-vendas/modals/ModalContratoForm';
+import { emitenteFieldsFromApi, emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
 
 interface Contrato {
   id: number;
@@ -31,6 +32,11 @@ interface Contrato {
   desconto_valor: string;
   status: string;
   status_assinatura?: string;
+  emitente_nome?: string;
+  emitente_endereco?: string;
+  emitente_cpf_cnpj?: string;
+  emitente_responsavel?: string;
+  emitente_email?: string;
 }
 
 export default function EditarContratoPage() {
@@ -94,6 +100,7 @@ export default function EditarContratoPage() {
           status: c.status || 'rascunho',
           nome_vendedor_assinatura: '',
           nome_cliente_assinatura: '',
+          ...emitenteFieldsFromApi(c),
         });
       })
       .catch(() => {
@@ -141,6 +148,10 @@ export default function EditarContratoPage() {
       setFormErro('Selecione uma oportunidade fechada como ganha');
       return;
     }
+    if (formData.emitente_personalizado && !formData.emitente_nome.trim()) {
+      setFormErro('Informe o nome do emitente personalizado');
+      return;
+    }
     try {
       setSubmitting(true);
       await apiClient.put(`/crm-vendas/contratos/${id}/`, {
@@ -154,6 +165,7 @@ export default function EditarContratoPage() {
         status: formData.status,
         nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
         nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
+        ...emitentePayloadFromForm(formData),
       });
       if (deveConfirmarReenvioAssinatura(statusAssinaturaAntes)) {
         setReenvioPendente(true);

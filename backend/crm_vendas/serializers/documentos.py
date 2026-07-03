@@ -1,7 +1,14 @@
 """Serializers de propostas e contratos."""
 from rest_framework import serializers
 
+from ..emitente_documento import limpar_emitente_se_vazio
 from ..models import Contrato, ContratoTemplate, Proposta, PropostaTemplate
+
+_EMITENTE_FIELDS = [
+    'emitente_nome', 'emitente_endereco', 'emitente_cpf_cnpj',
+    'emitente_responsavel', 'emitente_email',
+]
+
 
 class PropostaSerializer(serializers.ModelSerializer):
     oportunidade_titulo = serializers.CharField(source='oportunidade.titulo', read_only=True)
@@ -23,9 +30,13 @@ class PropostaSerializer(serializers.ModelSerializer):
             'status', 'status_assinatura', 'motivo_cancelamento',
             'data_envio', 'data_resposta', 'observacoes',
             'nome_vendedor_assinatura', 'nome_cliente_assinatura',
+            *_EMITENTE_FIELDS,
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at', 'numero']
+
+    def validate(self, attrs):
+        return limpar_emitente_se_vazio(attrs)
 
     def update(self, instance, validated_data):
         """Ao marcar como assinado manualmente, fecha oportunidade como ganha."""
@@ -91,7 +102,11 @@ class ContratoSerializer(serializers.ModelSerializer):
             'status', 'status_assinatura', 'motivo_cancelamento',
             'data_envio', 'data_assinatura', 'observacoes',
             'nome_vendedor_assinatura', 'nome_cliente_assinatura',
+            *_EMITENTE_FIELDS,
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at', 'numero']
+
+    def validate(self, attrs):
+        return limpar_emitente_se_vazio(attrs)
 

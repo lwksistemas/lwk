@@ -60,7 +60,7 @@ def _mock_contrato():
 
 
 @patch(
-    'crm_vendas.pdf_proposta_contrato.generators._obter_dados_loja',
+    'crm_vendas.pdf_proposta_contrato.generators.obter_dados_emitente_documento',
     return_value={'nome': 'Loja Teste', 'logo': None},
 )
 @patch('crm_vendas.models.AssinaturaDigital')
@@ -88,12 +88,14 @@ class PdfPropostaContratoSmokeTest(SimpleTestCase):
         buffer = gerar_pdf_contrato(_mock_contrato(), incluir_assinaturas=True)
         self.assertTrue(buffer.getvalue().startswith(b'%PDF'))
 
-    def test_proposta_sem_loja_id_ainda_gera_pdf(self, _assin, _loja):
+    def test_proposta_sem_loja_id_ainda_gera_pdf(self, _assin, mock_emitente):
         proposta = _mock_proposta()
         proposta.loja_id = None
+        proposta.emitente_nome = ''
+        mock_emitente.return_value = {}
         buffer = gerar_pdf_proposta(proposta, incluir_assinaturas=False)
         self.assertTrue(buffer.getvalue().startswith(b'%PDF'))
-        _loja.assert_not_called()
+        mock_emitente.assert_called_once_with(proposta)
 
     def test_contrato_sem_itens_ainda_gera_pdf(self, _assin, _loja):
         contrato = _mock_contrato()

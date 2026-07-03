@@ -13,6 +13,8 @@ from io import BytesIO
 from html.parser import HTMLParser
 
 from core.phone_utils import telefone_exibicao_brasileiro
+
+from .emitente_documento import obter_dados_emitente_documento
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 
@@ -221,20 +223,18 @@ def gerar_docx_proposta(proposta) -> BytesIO:
     doc.add_paragraph(f"Título: {getattr(proposta, 'titulo', '') or '—'}")
     doc.add_paragraph(f"Valor total: {_formatar_valor(getattr(proposta, 'valor_total', None))}")
 
-    loja_id = getattr(proposta, "loja_id", None)
-    if loja_id:
-        loja = _obter_dados_loja(loja_id)
-        if loja:
-            doc.add_heading("Dados da Empresa", level=2)
-            doc.add_paragraph(f"Nome: {loja.get('nome') or '—'}")
-            if loja.get("endereco"):
-                doc.add_paragraph(f"Endereço: {loja.get('endereco')}")
-            if loja.get("cpf_cnpj"):
-                doc.add_paragraph(f"CPF/CNPJ: {loja.get('cpf_cnpj')}")
-            if loja.get("admin_nome"):
-                doc.add_paragraph(f"Administrador: {loja.get('admin_nome')}")
-            if loja.get("admin_email"):
-                doc.add_paragraph(f"Email do administrador: {loja.get('admin_email')}")
+    loja = obter_dados_emitente_documento(proposta)
+    if loja:
+        doc.add_heading("Dados da Empresa", level=2)
+        doc.add_paragraph(f"Nome: {loja.get('nome') or '—'}")
+        if loja.get("endereco"):
+            doc.add_paragraph(f"Endereço: {loja.get('endereco')}")
+        if loja.get("cpf_cnpj"):
+            doc.add_paragraph(f"CPF/CNPJ: {loja.get('cpf_cnpj')}")
+        if loja.get("admin_nome"):
+            doc.add_paragraph(f"Administrador: {loja.get('admin_nome')}")
+        if loja.get("admin_email"):
+            doc.add_paragraph(f"Email do administrador: {loja.get('admin_email')}")
 
     lead = (
         proposta.oportunidade.lead
@@ -311,20 +311,18 @@ def gerar_docx_contrato(contrato) -> BytesIO:
     doc.add_paragraph(f"Título: {getattr(contrato, 'titulo', '') or '—'}")
     doc.add_paragraph(f"Valor total: {_formatar_valor(getattr(contrato, 'valor_total', None))}")
 
-    loja_id = getattr(contrato, "loja_id", None)
-    if loja_id:
-        loja = _obter_dados_loja(loja_id)
-        if loja:
-            doc.add_heading("Dados da Empresa", level=2)
-            doc.add_paragraph(f"Nome: {loja.get('nome') or '—'}")
-            if loja.get("endereco"):
-                doc.add_paragraph(f"Endereço: {loja.get('endereco')}")
-            if loja.get("cpf_cnpj"):
-                doc.add_paragraph(f"CPF/CNPJ: {loja.get('cpf_cnpj')}")
-            if loja.get("admin_nome"):
-                doc.add_paragraph(f"Administrador: {loja.get('admin_nome')}")
-            if loja.get("admin_email"):
-                doc.add_paragraph(f"Email do administrador: {loja.get('admin_email')}")
+    loja = obter_dados_emitente_documento(contrato)
+    if loja:
+        doc.add_heading("Dados da Empresa", level=2)
+        doc.add_paragraph(f"Nome: {loja.get('nome') or '—'}")
+        if loja.get("endereco"):
+            doc.add_paragraph(f"Endereço: {loja.get('endereco')}")
+        if loja.get("cpf_cnpj"):
+            doc.add_paragraph(f"CPF/CNPJ: {loja.get('cpf_cnpj')}")
+        if loja.get("admin_nome"):
+            doc.add_paragraph(f"Administrador: {loja.get('admin_nome')}")
+        if loja.get("admin_email"):
+            doc.add_paragraph(f"Email do administrador: {loja.get('admin_email')}")
 
     lead = (
         contrato.oportunidade.lead

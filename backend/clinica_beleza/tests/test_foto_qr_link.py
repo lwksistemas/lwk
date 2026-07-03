@@ -16,9 +16,20 @@ from core.cloudinary_upload_preset import server_image_upload_options
 
 
 class FotoQrLinkTests(TestCase):
-    def test_build_link_usa_base_beta(self):
+    @patch('core.short_link.build_short_url', side_effect=lambda url, **_: url)
+    def test_build_link_usa_query_token(self, _short):
         url = build_link_foto('abc:token', 'https://beta.lwksistemas.com.br')
-        self.assertTrue(url.startswith('https://beta.lwksistemas.com.br/enviar-foto/'))
+        self.assertTrue(url.startswith('https://beta.lwksistemas.com.br/enviar-foto?t='))
+        self.assertIn('abc%3Atoken', url)
+        self.assertNotIn('/enviar-foto/abc:token', url)
+
+    @patch('core.short_link.build_short_url')
+    def test_build_link_encurta_para_qr(self, mock_short):
+        mock_short.return_value = 'https://api.lwksistemas.com.br/r/abc12345'
+        url = build_link_foto('abc:token', 'https://lwksistemas.com.br')
+        self.assertEqual(url, 'https://api.lwksistemas.com.br/r/abc12345')
+        full = mock_short.call_args[0][0]
+        self.assertIn('/enviar-foto?t=abc%3Atoken', full)
 
     def test_frontend_base_permitido_beta(self):
         self.assertEqual(
@@ -48,19 +59,25 @@ class FotoQrLinkTests(TestCase):
         )
         self.assertEqual(base, 'https://beta.lwksistemas.com.br')
 
-    def test_gerar_qr_foto_usa_frontend_beta(self):
+    @patch('clinica_beleza.foto_paciente_service.build_link_foto')
+    def test_gerar_qr_foto_usa_frontend_beta(self, mock_link):
         from types import SimpleNamespace
         from clinica_beleza.foto_paciente_service import gerar_qr_foto
 
+        mock_link.return_value = 'https://beta.lwksistemas.com.br/enviar-foto?t=tok'
         consulta = SimpleNamespace(id=2, patient_id=1, loja_id=2)
         data = gerar_qr_foto(consulta, frontend_base='https://beta.lwksistemas.com.br')
-        self.assertTrue(data['url'].startswith('https://beta.lwksistemas.com.br/enviar-foto/'))
+        self.assertEqual(data['url'], 'https://beta.lwksistemas.com.br/enviar-foto?t=tok')
+        mock_link.assert_called_once()
+        self.assertEqual(mock_link.call_args[0][1], 'https://beta.lwksistemas.com.br')
 
-    @patch('clinica_beleza.foto_paciente_service.getattr')
-    def test_fallback_settings_quando_sem_origin(self, mock_getattr):
-        mock_getattr.return_value = 'https://lwksistemas.com.br'
-        url = build_link_foto('tok')
-        self.assertTrue(url.startswith('https://lwksistemas.com.br/enviar-foto/'))
+    @patch('core.short_link.build_short_url', side_effect=lambda url, **kwargs: url)
+    def test_fallback_settings_quando_sem_origin(self, _short):
+        from django.test import override_settings
+
+        with override_settings(FRONTEND_URL='https://lwksistemas.com.br'):
+            url = build_link_foto('tok')
+        self.assertTrue(url.startswith('https://lwksistemas.com.br/enviar-foto?t='))
 
     def test_resolve_ambiente_beta(self):
         self.assertEqual(

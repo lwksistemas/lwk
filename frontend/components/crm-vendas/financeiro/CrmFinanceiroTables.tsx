@@ -10,6 +10,8 @@ interface Props {
   tipo: TipoFinanceiro;
   onEdit: (item: LancamentoFinanceiro) => void;
   onPagar: (id: number) => void;
+  onReceberComissao: (item: LancamentoFinanceiro) => void;
+  onCancelarComissao: (item: LancamentoFinanceiro) => void;
   onRemove: (item: LancamentoFinanceiro) => void;
   compact?: boolean;
   showVendedor?: boolean;
@@ -20,11 +22,14 @@ export function CrmFinanceiroLancamentosTable({
   tipo,
   onEdit,
   onPagar,
+  onReceberComissao,
+  onCancelarComissao,
   onRemove,
   compact = false,
   showVendedor = true,
 }: Props) {
   const cor = tipo === 'receita' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400';
+  const labelReceber = tipo === 'receita' ? 'Receber' : 'Pagar';
 
   if (!itens.length) {
     return (
@@ -92,13 +97,31 @@ export function CrmFinanceiroLancamentosTable({
               </td>
               <td className={`${cellPad} text-right`}>
                 <div className="flex flex-wrap gap-1 justify-end">
+                  {isLancamentoComissaoAgregado(item) && item.status === 'pendente' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onReceberComissao(item)}
+                        className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
+                      >
+                        Receber
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onCancelarComissao(item)}
+                        className="px-2 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  )}
                   {!isLancamentoComissaoAgregado(item) && item.status === 'pendente' && (
                     <button
                       type="button"
                       onClick={() => onPagar(item.id)}
                       className="px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
                     >
-                      Pagar
+                      {labelReceber}
                     </button>
                   )}
                   {item.editavel && (

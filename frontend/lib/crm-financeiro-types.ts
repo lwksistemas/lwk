@@ -30,6 +30,8 @@ export interface LancamentoFinanceiro {
   oportunidade_titulo: string;
   observacoes: string;
   editavel: boolean;
+  /** IDs reais quando a linha é comissão agregada na tabela. */
+  ids_agregados?: number[];
 }
 
 export interface ResumoFinanceiro {
@@ -51,6 +53,8 @@ export type FinanceiroConfirmAction =
   | { type: 'excluir_lancamento'; item: LancamentoFinanceiro }
   | { type: 'excluir_grupo'; grupo: GrupoFinanceiro }
   | { type: 'sync_comissoes' }
+  | { type: 'receber_comissoes'; item: LancamentoFinanceiro; ids: number[] }
+  | { type: 'cancelar_comissoes'; item: LancamentoFinanceiro; ids: number[] }
   | null;
 
 export async function fetchLancamentosPorTipo(

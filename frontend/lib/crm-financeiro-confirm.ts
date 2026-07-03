@@ -19,6 +19,22 @@ export function getFinanceiroConfirmCopy(action: FinanceiroConfirmAction) {
       variant: 'danger' as CrmConfirmVariant,
     };
   }
+  if (action.type === 'receber_comissoes') {
+    return {
+      title: 'Receber comissões',
+      message: `Marcar como recebidas ${action.ids.length} comissão(ões) de vendas (${action.item.descricao})?`,
+      confirmLabel: 'Receber',
+      variant: 'primary' as CrmConfirmVariant,
+    };
+  }
+  if (action.type === 'cancelar_comissoes') {
+    return {
+      title: 'Cancelar comissões',
+      message: `Cancelar ${action.ids.length} comissão(ões) de vendas no período? Elas deixam de aparecer nos totais.`,
+      confirmLabel: 'Cancelar comissões',
+      variant: 'danger' as CrmConfirmVariant,
+    };
+  }
   return {
     title: 'Sincronizar comissões',
     message: 'Importar comissões das oportunidades já ganhas para o financeiro?',

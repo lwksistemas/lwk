@@ -40,6 +40,7 @@ describe('prepararLancamentosParaTabela', () => {
     expect(out[0].id).toBe(COMISSAO_AGREGADO_ID.pendente);
     expect(out[0].descricao).toBe('Comissão de vendas');
     expect(out[0].valor).toBe(1125);
+    expect(out[0].ids_agregados).toEqual([1, 2]);
     expect(out[1].descricao).toBe('Bônus');
   });
 

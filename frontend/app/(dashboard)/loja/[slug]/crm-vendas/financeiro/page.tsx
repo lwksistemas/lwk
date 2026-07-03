@@ -161,6 +161,8 @@ export default function CrmFinanceiroPage() {
             showVendedor={showVendedorCol}
             onEdit={f.editar}
             onPagar={f.marcarPago}
+            onReceberComissao={f.receberComissao}
+            onCancelarComissao={f.cancelarComissao}
             onRemove={f.removerLancamento}
           />
         </div>

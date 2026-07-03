@@ -70,6 +70,48 @@ export function useCrmFinanceiroPage() {
     await data.loadAll();
   };
 
+  const marcarPagoEmLote = async (ids: number[]) => {
+    const results = await Promise.allSettled(
+      ids.map((id) => apiClient.post(`crm-vendas/financeiro-lancamentos/${id}/marcar_pago/`, {})),
+    );
+    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    const falhas = ids.length - ok;
+    if (falhas) {
+      toast.warning(`${ok} recebida(s), ${falhas} falha(s).`);
+    } else {
+      toast.success(`${ok} comissão(ões) marcada(s) como recebida(s).`);
+    }
+    await data.loadAll();
+  };
+
+  const cancelarComissaoEmLote = async (ids: number[]) => {
+    const results = await Promise.allSettled(
+      ids.map((id) =>
+        apiClient.patch(`crm-vendas/financeiro-lancamentos/${id}/`, { status: 'cancelado' }),
+      ),
+    );
+    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    const falhas = ids.length - ok;
+    if (falhas) {
+      toast.warning(`${ok} cancelada(s), ${falhas} falha(s).`);
+    } else {
+      toast.success(`${ok} comissão(ões) cancelada(s).`);
+    }
+    await data.loadAll();
+  };
+
+  const requestReceberComissao = (item: LancamentoFinanceiro) => {
+    const ids = item.ids_agregados ?? [];
+    if (!ids.length) return;
+    setConfirmAction({ type: 'receber_comissoes', item, ids });
+  };
+
+  const requestCancelarComissao = (item: LancamentoFinanceiro) => {
+    const ids = item.ids_agregados ?? [];
+    if (!ids.length) return;
+    setConfirmAction({ type: 'cancelar_comissoes', item, ids });
+  };
+
   const requestRemoverLancamento = (item: LancamentoFinanceiro) => {
     if (!item.editavel) {
       if (item.origem === 'recorrencia') {
@@ -136,6 +178,10 @@ export function useCrmFinanceiroPage() {
         await executeRemoverLancamento(confirmAction.item);
       } else if (confirmAction.type === 'excluir_grupo') {
         await executeRemoverGrupo(confirmAction.grupo);
+      } else if (confirmAction.type === 'receber_comissoes') {
+        await marcarPagoEmLote(confirmAction.ids);
+      } else if (confirmAction.type === 'cancelar_comissoes') {
+        await cancelarComissaoEmLote(confirmAction.ids);
       } else {
         await executeSincronizarComissoes();
       }
@@ -213,6 +259,8 @@ export function useCrmFinanceiroPage() {
     editar,
     salvarLancamento,
     marcarPago,
+    receberComissao: requestReceberComissao,
+    cancelarComissao: requestCancelarComissao,
     removerLancamento: requestRemoverLancamento,
     showGrupoModal,
     setShowGrupoModal,

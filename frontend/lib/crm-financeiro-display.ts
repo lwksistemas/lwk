@@ -7,7 +7,7 @@ export const COMISSAO_AGREGADO_ID = {
 } as const;
 
 export function isLancamentoComissaoAgregado(item: LancamentoFinanceiro): boolean {
-  return item.id < 0;
+  return item.id < 0 || (item.ids_agregados?.length ?? 0) > 0;
 }
 
 /**
@@ -37,6 +37,7 @@ export function prepararLancamentosParaTabela(itens: LancamentoFinanceiro[]): La
       status,
       status_display: status === 'pago' ? 'Pago' : 'Pendente',
       editavel: false,
+      ids_agregados: subset.map((c) => c.id),
       data_vencimento: subset[0]?.data_vencimento ?? base.data_vencimento,
       data_pagamento: status === 'pago' ? subset[0]?.data_pagamento ?? null : null,
       oportunidade: null,

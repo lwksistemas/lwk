@@ -9,7 +9,7 @@ import {
   deleteClinicaBelezaEntity,
   saveClinicaBelezaEntity,
   useClinicaBelezaEntityList,
-} from '@/lib/clinica-beleza-crud';
+} from '@/hooks/clinica-beleza';
 import { entityName, procedureCategoria } from '@/lib/clinica-beleza-entities';
 import { procedureMatchesModule } from '@/lib/clinica-beleza-categories';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';

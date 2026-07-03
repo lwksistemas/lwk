@@ -20,7 +20,7 @@ import {
   deleteClinicaBelezaEntity,
   saveClinicaBelezaEntity,
   useClinicaBelezaEntityList,
-} from "@/lib/clinica-beleza-crud";
+} from "@/hooks/clinica-beleza";
 import { formatClinicaDataCurta, formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
 import { toUpperCase } from "@/lib/format-br";

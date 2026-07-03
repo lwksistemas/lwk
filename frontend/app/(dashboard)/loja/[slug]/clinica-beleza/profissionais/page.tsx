@@ -12,7 +12,7 @@ import { ModalTempoConsulta } from '@/components/clinica-beleza/ModalTempoConsul
 import { ClinicaBelezaAPI } from '@/lib/clinica-beleza-api';
 import { ProfissionalFormPageContent } from '@/components/clinica-beleza/ProfissionalFormPageContent';
 import { AdminProfissionalToggle } from '@/components/clinica-beleza/AdminProfissionalToggle';
-import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from '@/lib/clinica-beleza-crud';
+import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from '@/hooks/clinica-beleza';
 import { useClinicaBelezaFormRouting } from '@/hooks/clinica-beleza/useClinicaBelezaFormRouting';
 import {
   entityActive,

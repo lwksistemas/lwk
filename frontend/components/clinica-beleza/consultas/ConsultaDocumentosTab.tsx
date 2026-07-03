@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type DocumentoClinicoItem, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
-import { imprimirDocumentoPdf } from "@/lib/consulta-print";
+import { imprimirDocumentoPdfLazy } from "@/lib/consulta-print-lazy";
 import { logger } from "@/lib/logger";
 import { abrirPdfPrescricaoMemed } from "@/lib/memed-prescricao-pdf";
 import { ConsultaPrintButton } from "./ConsultaPrintButton";
@@ -353,7 +353,7 @@ export function ConsultaDocumentosTab({
 
                 <div className="flex-shrink-0 flex items-center gap-1">
                   <ConsultaPrintButton
-                    onPrint={() => imprimirDocumentoPdf(doc)}
+                    onPrint={() => imprimirDocumentoPdfLazy(doc)}
                   />
                   {/* Botão excluir — só se consulta ativa */}
                   {consultaAtiva && (

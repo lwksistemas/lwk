@@ -13,7 +13,7 @@ import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBel
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type DocumentTemplateItem } from "@/lib/clinica-beleza-api";
-import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
+import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 
 const TIPO_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Todos os tipos" },

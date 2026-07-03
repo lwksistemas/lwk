@@ -11,7 +11,7 @@ import {
   Camera,
 } from "lucide-react";
 import { ClinicaBelezaAPI, type DocumentoClinicoItem, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
-import { imprimirConsultaPdf, imprimirDocumentoPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
+import { imprimirConsultaPdfLazy, imprimirDocumentoPdfLazy, type ConsultaPrintMeta } from "@/lib/consulta-print-lazy";
 import type { Anamnese, Consulta, Evolucao } from "./consultas-types";
 import { ANAMNESE_FIELDS } from "./consultas-types";
 import type { PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
@@ -265,7 +265,7 @@ function HistoricoAnamnese({
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <ConsultaPrintButton onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "anamnese")} />
+        <ConsultaPrintButton onPrint={() => imprimirConsultaPdfLazy(printMeta.consultaId, "anamnese")} />
       </div>
       {preenchidos.map(([key, label]) => (
         <div key={key}>
@@ -368,7 +368,7 @@ function HistoricoAtendimentos({
                 <div className="flex items-center gap-2 shrink-0">
                 {conteudo && (
                   <ConsultaPrintButton
-                    onPrint={() => imprimirConsultaPdf(h.id, "atendimento")}
+                    onPrint={() => imprimirConsultaPdfLazy(h.id, "atendimento")}
                   />
                 )}
                 {h.id !== selectedId && (
@@ -536,7 +536,7 @@ function HistoricoDocumentos({
                         {doc.professional_name ? ` · ${doc.professional_name}` : ""}
                       </p>
                     </div>
-                    <ConsultaPrintButton onPrint={() => imprimirDocumentoPdf(doc)} />
+                    <ConsultaPrintButton onPrint={() => imprimirDocumentoPdfLazy(doc)} />
                   </div>
                   {doc.conteudo && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 whitespace-pre-wrap line-clamp-4">
@@ -600,7 +600,7 @@ function EvolucaoConsultaBlock({
         {!loading && evolucoes.length > 0 && (
           <ConsultaPrintButton
             label={evolucoes.length > 1 ? "Imprimir todas" : "Imprimir"}
-            onPrint={() => imprimirConsultaPdf(consulta.id, "evolucao")}
+            onPrint={() => imprimirConsultaPdfLazy(consulta.id, "evolucao")}
           />
         )}
       </div>

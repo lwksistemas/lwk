@@ -15,7 +15,7 @@ import {
   deleteClinicaBelezaEntity,
   saveClinicaBelezaEntity,
   useClinicaBelezaEntityList,
-} from "@/lib/clinica-beleza-crud";
+} from "@/hooks/clinica-beleza";
 import { isBrowserOffline } from "@/lib/clinica-beleza-offline";
 import { buscarProcedimentosOffline, salvarProcedimentosOffline } from "@/lib/offline-db";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";

@@ -8,7 +8,7 @@ import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMo
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
-import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza/useClinicaBelezaPaginatedList";
+import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { toUpperCase } from "@/lib/format-br";
 import { isConvenioParticularNome, ordenarConveniosComParticularPrimeiro } from "@/lib/convenio-precos";
 

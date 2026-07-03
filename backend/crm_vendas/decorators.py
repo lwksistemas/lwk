@@ -49,14 +49,16 @@ def cache_list_response(cache_prefix, ttl=120, extra_keys=None):
                     if value:
                         cache_kwargs[key] = value
             
-            # Para atividades, incluir versão na chave
-            if cache_prefix == CRMCacheManager.ATIVIDADES:
-                version_key = CRMCacheManager.get_cache_key(
-                    CRMCacheManager.ATIVIDADES_VERSION,
-                    loja_id
-                )
-                version = cache.get(version_key, 0)
-                cache_kwargs['v'] = version
+            # Incluir versão na chave para qualquer prefix que tenha versão mapeada
+            # Isso invalida automaticamente todas as variações sem precisar de DB query
+            version_map = CRMCacheManager._get_prefix_version_map()
+            version_prefix = version_map.get(cache_prefix) or (
+                CRMCacheManager.ATIVIDADES_VERSION
+                if cache_prefix == CRMCacheManager.ATIVIDADES else None
+            )
+            if version_prefix and loja_id:
+                vkey = CRMCacheManager.get_cache_key(version_prefix, loja_id)
+                cache_kwargs['v'] = cache.get(vkey, 0)
             
             # Gerar chave de cache
             cache_key = CRMCacheManager.get_cache_key(

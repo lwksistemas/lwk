@@ -84,6 +84,7 @@ class Lead(LojaIsolationMixin, models.Model):
             models.Index(fields=['loja_id', 'created_at'], name='crm_lead_loja_created_idx'),
             models.Index(fields=['loja_id', 'conta'], name='crm_lead_loja_conta_idx'),
             models.Index(fields=['loja_id', 'contato'], name='crm_lead_loja_contato_idx'),
+            models.Index(fields=['loja_id', 'cpf_cnpj'], name='crm_lead_loja_cpfcnpj_idx'),
         ]
 
     def __str__(self):

@@ -67,6 +67,12 @@ class Oportunidade(LojaIsolationMixin, models.Model):
             models.Index(fields=['loja_id', 'etapa', 'vendedor'], name='crm_opor_loja_etapa_vend_idx'),
             models.Index(fields=['loja_id', 'created_at'], name='crm_opor_loja_created_idx'),
         ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(probabilidade__gte=0) & models.Q(probabilidade__lte=100),
+                name='crm_opor_prob_range',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.titulo} - R$ {self.valor}"

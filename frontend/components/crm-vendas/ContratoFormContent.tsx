@@ -3,6 +3,8 @@
 import type { LojaInfo, LeadInfo } from './modals/ModalPropostaForm';
 import { CrmClienteBlock } from '@/components/crm-vendas/CrmLojaClienteBlocks';
 import { CrmEmitenteLojaSection } from '@/components/crm-vendas/CrmEmitenteLojaSection';
+import CrmOportunidadeVinculadaReadonly from '@/components/crm-vendas/CrmOportunidadeVinculadaReadonly';
+import { formatOportunidadeVinculoLabel } from '@/lib/crm-utils';
 import CrmDocumentoAssinaturasFields from '@/components/crm-vendas/documentos/CrmDocumentoAssinaturasFields';
 import CrmDocumentoConteudoFields from '@/components/crm-vendas/documentos/CrmDocumentoConteudoFields';
 import CrmDocumentoFormActions from '@/components/crm-vendas/documentos/CrmDocumentoFormActions';
@@ -43,6 +45,7 @@ export interface ContratoFormContentProps {
   showCancel?: boolean;
   onCancel?: () => void;
   vendedorNome?: string;
+  oportunidadeExibicao?: string;
 }
 
 const inputClass = crmFormInputClass;
@@ -67,6 +70,7 @@ export default function ContratoFormContent({
   showCancel = true,
   onCancel,
   vendedorNome,
+  oportunidadeExibicao = '',
 }: ContratoFormContentProps) {
   const inputCls = pageLayout ? crmFormPageInputClass : inputClass;
   const labelCls = pageLayout ? crmFormPageLabelClass : labelClass;
@@ -98,30 +102,55 @@ export default function ContratoFormContent({
     />
   );
 
-  const renderOportunidadeSelect = () => (
-    <>
-      <label className={labelCls}>Oportunidade (fechada ganha) *</label>
-      <select
-        value={form.oportunidade_id}
-        onChange={(e) => onOportunidadeChange(e.target.value)}
-        className={inputCls}
-        required
-        disabled={isEdit || enviando}
-      >
-        <option value="">Selecione</option>
-        {oportunidades.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.titulo} — {o.lead_nome}
-          </option>
-        ))}
-      </select>
-      {oportunidades.length === 0 && (
-        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-          Nenhuma oportunidade fechada como ganha. Feche uma oportunidade no pipeline primeiro.
-        </p>
-      )}
-    </>
-  );
+  const renderOportunidadeSelect = () => {
+    if (isEdit && form.oportunidade_id) {
+      const opp = oportunidades.find((o) => String(o.id) === form.oportunidade_id);
+      const valor =
+        oportunidadeExibicao ||
+        (opp
+          ? formatOportunidadeVinculoLabel({
+              titulo: opp.titulo,
+              lead_nome: opp.lead_nome,
+              valor: opp.valor,
+            })
+          : '');
+      return (
+        <CrmOportunidadeVinculadaReadonly
+          label="Oportunidade vinculada (fechada ganha)"
+          valor={valor}
+          labelClass={labelCls}
+        />
+      );
+    }
+    return (
+      <>
+        <label className={labelCls}>Oportunidade (fechada ganha) *</label>
+        <select
+          value={form.oportunidade_id}
+          onChange={(e) => onOportunidadeChange(e.target.value)}
+          className={inputCls}
+          required
+          disabled={enviando}
+        >
+          <option value="">Selecione</option>
+          {oportunidades.map((o) => (
+            <option key={o.id} value={o.id}>
+              {formatOportunidadeVinculoLabel({
+                titulo: o.titulo,
+                lead_nome: o.lead_nome,
+                valor: o.valor,
+              })}
+            </option>
+          ))}
+        </select>
+        {oportunidades.length === 0 && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+            Nenhuma oportunidade fechada como ganha. Feche uma oportunidade no pipeline primeiro.
+          </p>
+        )}
+      </>
+    );
+  };
 
   const renderValoresBlock = () => (
     <CrmDocumentoValoresFields

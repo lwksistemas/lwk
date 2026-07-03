@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatCrmBrl,
   formatCrmBrlCompact,
+  formatOportunidadeVinculoLabel,
   gerarTituloOportunidade,
   gerarTituloProposta,
   normalizeListResponse,
@@ -39,6 +40,19 @@ describe('gerarTituloProposta', () => {
         conta_info: { razao_social: 'Empresa XYZ Ltda' },
       }),
     ).toBe('Empresa XYZ Ltda');
+  });
+});
+
+describe('formatOportunidadeVinculoLabel', () => {
+  it('prioriza nome do cliente em vez do titulo da prestadora', () => {
+    expect(
+      formatOportunidadeVinculoLabel({
+        titulo: 'Felix Representações',
+        lead_nome: 'Maria Silva',
+        valor: '1500',
+        empresa_prestadora_nome: 'Felix Representações',
+      }),
+    ).toBe('Maria Silva — R$ 1.500,00');
   });
 });
 

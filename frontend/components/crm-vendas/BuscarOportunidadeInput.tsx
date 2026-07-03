@@ -2,6 +2,8 @@
 
 import { useCallback } from 'react';
 import apiClient from '@/lib/api-client';
+import { formatOportunidadeVinculoLabel } from '@/lib/crm-utils';
+import type { CrmPropostaOportunidadeOption } from '@/lib/crm-proposta-form-types';
 import CrmSearchInput, { type CrmSearchInputProps } from '@/components/crm-vendas/CrmSearchInput';
 
 export interface CrmOportunidadeBuscaItem {
@@ -43,8 +45,14 @@ export default function BuscarOportunidadeInput({
   limit = 10,
 }: BuscarOportunidadeInputProps) {
   const fetchById = useCallback(async (id: string) => {
-    const res = await apiClient.get<{ titulo: string }>(`/crm-vendas/oportunidades/${id}/`);
-    return { label: res.data.titulo };
+    const res = await apiClient.get<CrmPropostaOportunidadeOption>(`/crm-vendas/oportunidades/${id}/`);
+    const label = formatOportunidadeVinculoLabel({
+      titulo: res.data.titulo,
+      lead_nome: res.data.lead_nome,
+      valor: res.data.valor,
+      empresa_prestadora_nome: res.data.empresa_prestadora_nome,
+    });
+    return { label };
   }, []);
 
   const fetchResults = useCallback(async (q: string, lim: number) => {

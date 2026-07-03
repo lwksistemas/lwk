@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { normalizeListResponse, getCrmApiErrorDetail, formatOportunidadeVinculoLabel } from '@/lib/crm-utils';
 import {
   deveConfirmarReenvioAssinatura,
   executarReenvioAssinatura,
@@ -24,6 +24,8 @@ import { emitenteFieldsFromApi, emitentePayloadFromForm } from '@/lib/crm-emiten
 interface Contrato {
   id: number;
   oportunidade: number;
+  oportunidade_titulo?: string;
+  lead_nome?: string;
   numero: string;
   titulo: string;
   conteudo: string;
@@ -50,6 +52,7 @@ export default function EditarContratoPage() {
   const [formData, setFormData] = useState<FormDataContrato>(EMPTY_FORM_CONTRATO);
   const [statusAssinaturaAntes, setStatusAssinaturaAntes] = useState<string | undefined>();
   const [oportunidades, setOportunidades] = useState<OportunidadeContratoOption[]>([]);
+  const [oportunidadeExibicao, setOportunidadeExibicao] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,6 +92,13 @@ export default function EditarContratoPage() {
         if (cancelled) return;
         const c = contratoRes.data;
         setStatusAssinaturaAntes(c.status_assinatura);
+        setOportunidadeExibicao(
+          formatOportunidadeVinculoLabel({
+            titulo: c.oportunidade_titulo,
+            lead_nome: c.lead_nome,
+            valor: c.valor_total,
+          }),
+        );
         setFormData({
           oportunidade_id: String(c.oportunidade),
           numero: c.numero || '',
@@ -214,6 +224,7 @@ export default function EditarContratoPage() {
         pageLayout
         hideActions
         vendedorNome={vendedorNome}
+        oportunidadeExibicao={oportunidadeExibicao}
       />
 
       <p className="mt-6 pt-4 border-t border-gray-100 dark:border-[#0d1f3c] text-xs text-gray-500 dark:text-gray-400 text-center">

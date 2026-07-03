@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from core.views import BaseModelViewSet
-from .mixins import VendedorFilterMixin, CrmGranularPermissionMixin
+from .mixins import CRMSchemaRecoveryMixin, VendedorFilterMixin, CrmGranularPermissionMixin
 from .mixins_assinatura import AssinaturaDigitalMixin
 from .mixins_documento import DocumentoQuerysetMixin, EnviarClienteMixin, TemplateViewSetMixin
 from .models import Contrato, ContratoTemplate, Proposta, PropostaTemplate
@@ -20,6 +20,7 @@ from .views_common import CRMPagination
 
 
 class PropostaViewSet(
+    CRMSchemaRecoveryMixin,
     CrmGranularPermissionMixin,
     AssinaturaDigitalMixin,
     EnviarClienteMixin,
@@ -146,6 +147,7 @@ class ContratoTemplateViewSet(TemplateViewSetMixin, BaseModelViewSet):
 
 
 class ContratoViewSet(
+    CRMSchemaRecoveryMixin,
     CrmGranularPermissionMixin,
     AssinaturaDigitalMixin,
     EnviarClienteMixin,

@@ -114,8 +114,33 @@ def apply_crm_tenant_schema_patches(db_name: str) -> None:
     """
     patch_clinica_beleza_migration_orphans(db_name)
     patch_crm_financeiro_tables_if_missing(db_name)
+    patch_crm_emitente_documento_columns_if_missing(db_name)
     patch_crm_vendas_asaas_columns_if_missing(db_name)
     patch_crm_vendas_atividade_columns_if_missing(db_name)
+
+
+def patch_crm_emitente_documento_columns_if_missing(db_name: str) -> bool:
+    """Adiciona colunas emitente_* quando migration 0068 não rodou no schema do tenant."""
+    from core.db_config import ensure_loja_database_config
+    from crm_vendas.emitente_documento_schema_ensure import (
+        emitente_columns_missing,
+        ensure_emitente_documento_columns,
+    )
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        return False
+
+    schema_name = db_name.replace('-', '_')
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(f'SET search_path TO "{schema_name}", public')
+        if not emitente_columns_missing(cursor):
+            return False
+        logger.warning(
+            'patch_crm_emitente_documento_columns_if_missing: %s sem colunas emitente — aplicando SQL',
+            db_name,
+        )
+        return ensure_emitente_documento_columns(cursor, schema_name)
 
 
 def patch_crm_financeiro_tables_if_missing(db_name: str) -> bool:

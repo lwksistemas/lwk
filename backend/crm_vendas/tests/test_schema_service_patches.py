@@ -30,12 +30,14 @@ class PatchAtividadeSchemaOnColumnErrorTest(SimpleTestCase):
 class ApplyCrmTenantSchemaPatchesTest(SimpleTestCase):
     @patch('crm_vendas.schema_service.patch_clinica_beleza_migration_orphans')
     @patch('crm_vendas.schema_service.patch_crm_financeiro_tables_if_missing')
+    @patch('crm_vendas.schema_service.patch_crm_emitente_documento_columns_if_missing')
     @patch('crm_vendas.schema_service.patch_crm_vendas_atividade_columns_if_missing')
     @patch('crm_vendas.schema_service.patch_crm_vendas_asaas_columns_if_missing')
-    def test_chama_todos_patches(self, mock_asaas, mock_atividade, mock_financeiro, mock_clinica):
+    def test_chama_todos_patches(self, mock_asaas, mock_atividade, mock_emitente, mock_financeiro, mock_clinica):
         apply_crm_tenant_schema_patches('loja_99')
         mock_clinica.assert_called_once_with('loja_99')
         mock_financeiro.assert_called_once_with('loja_99')
+        mock_emitente.assert_called_once_with('loja_99')
         mock_asaas.assert_called_once_with('loja_99')
         mock_atividade.assert_called_once_with('loja_99')
 

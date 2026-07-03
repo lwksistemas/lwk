@@ -519,22 +519,17 @@ export default function AssinaturaPage() {
             </div>
           </div>
           
-          {/* PDF obrigatório na página antes de assinar */}
+          {/* PDF obrigatório antes de assinar — só botões e declaração */}
           <div className="mt-6 pt-6 border-t">
-            <p className="text-sm font-semibold text-gray-800 mb-1">Documento completo (PDF)</p>
-            <p className="text-xs text-gray-500 mb-3">
-              Use um dos botões abaixo para abrir o PDF em nova aba ou baixar. Por segurança, a assinatura só é liberada depois dessa etapa e da confirmação de leitura.
-            </p>
-
             {pdfInlineLoading && !pdfBlobUrl && (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-gray-50 py-16 text-gray-600">
+              <div className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-gray-50 py-10 text-gray-600 mb-4">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3" />
                 <span className="text-sm">Carregando PDF…</span>
               </div>
             )}
 
             {pdfInlineError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center mb-4">
                 <p className="text-sm text-red-800 mb-3">Não foi possível carregar o PDF. Verifique a conexão ou tente outro navegador.</p>
                 <button
                   type="button"
@@ -546,17 +541,7 @@ export default function AssinaturaPage() {
               </div>
             )}
 
-            {pdfBlobUrl && !pdfInlineError && (
-              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center">
-                <FileText className="mx-auto mb-2 h-10 w-10 text-gray-400" aria-hidden />
-                <p className="text-sm font-medium text-gray-800">Documento pronto</p>
-                <p className="mt-1 text-xs text-gray-600">
-                  Abra em nova aba ou baixe o arquivo para ler com calma antes de assinar.
-                </p>
-              </div>
-            )}
-
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => void visualizarPdf()}

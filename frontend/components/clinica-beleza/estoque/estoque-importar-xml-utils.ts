@@ -1,0 +1,60 @@
+import type { ImportResult, ProdutoPreview } from "./estoque-importar-xml-types";
+
+export const ESTOQUE_IMPORT_CATEGORIAS = [
+  { value: "injetavel", label: "Injetável" },
+  { value: "soroterapia", label: "Soroterapia" },
+  { value: "cosmético", label: "Cosmético" },
+  { value: "medicamentos", label: "Medicamentos" },
+  { value: "descartavel", label: "Descartável" },
+  { value: "equipamento", label: "Equipamento" },
+  { value: "outro", label: "Outro" },
+] as const;
+
+export const DEFAULT_ESTOQUE_IMPORT_CATEGORIA = "outro";
+
+export function formatXmlFileSizeKb(sizeBytes: number): string {
+  return `${(sizeBytes / 1024).toFixed(0)} KB`;
+}
+
+export function formatImportResultSummary(criados: number, atualizados: number): string {
+  const parts: string[] = [];
+  if (criados > 0) parts.push(`${criados} novo${criados !== 1 ? "s" : ""}`);
+  if (atualizados > 0) {
+    parts.push(`${atualizados} atualizado${atualizados !== 1 ? "s" : ""} (estoque somado)`);
+  }
+  return parts.join(" · ");
+}
+
+export function formatProdutoPreviewLine(p: ProdutoPreview): string {
+  const preco = parseFloat(p.preco_custo || "0").toFixed(2);
+  const lote = p.lote ? ` · Lote: ${p.lote}` : "";
+  return `${p.quantidade} ${p.unidade_medida} × R$ ${preco}${lote}`;
+}
+
+export function buildEstoqueImportFormData(
+  arquivo: File,
+  categoria: string,
+  confirmar: boolean,
+): FormData {
+  const formData = new FormData();
+  formData.append("arquivo", arquivo);
+  formData.append("categoria", categoria);
+  if (confirmar) formData.append("confirmar", "true");
+  return formData;
+}
+
+export function hasEstoqueImportChanges(resultado: ImportResult): boolean {
+  return resultado.criados > 0 || resultado.atualizados > 0;
+}
+
+export function extractEstoqueImportError(data: unknown): string {
+  if (
+    data &&
+    typeof data === "object" &&
+    "error" in data &&
+    typeof (data as { error?: unknown }).error === "string"
+  ) {
+    return (data as { error: string }).error;
+  }
+  return "Erro ao processar XML.";
+}

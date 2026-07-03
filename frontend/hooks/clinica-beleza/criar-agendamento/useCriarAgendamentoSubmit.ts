@@ -3,46 +3,27 @@ import {
   resolveDefaultLocalId,
   resolveDefaultNomeAgendaId,
 } from "@/components/clinica-beleza/criar-agendamento/criar-agendamento-utils";
-import { formatApiErrorBody } from "@/lib/api-errors";
-import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { calcularDuracaoAgendamento } from "@/lib/clinica-beleza-duracao";
 import { isBrowserOffline, isFetchNetworkError } from "@/lib/clinica-beleza-offline";
-import { workHoursRejectionMessage, type HorarioTrabalho } from "@/lib/clinica-beleza-work-hours";
+import { workHoursRejectionMessage } from "@/lib/clinica-beleza-work-hours";
 import { buildAppointmentDate, buildCriarAgendamentoPayload } from "./criar-agendamento-builders";
 import {
   buildOfflineAgendaEvent,
   enqueueAgendamentoOffline,
   enqueueConsultaOffline,
 } from "./criar-agendamento-offline";
-import type { UseCriarAgendamentoOptions } from "./criar-agendamento-types";
+import { createQuickPatient, submitAgendamentoOnline, submitConsultaOnline } from "./criar-agendamento-submit-api";
+import type { CriarAgendamentoSubmitContext, CriarAgendamentoSubmitOptions } from "./criar-agendamento-submit-types";
+import {
+  CRIAR_AGENDAMENTO_DEFAULT_TIME,
+  CRIAR_AGENDAMENTO_OFFLINE_SAVE_ERROR,
+  extractCriarAgendamentoSubmitError,
+  mapSubmitValidationError,
+} from "./criar-agendamento-submit-utils";
 
 export function useCriarAgendamentoSubmit(
-  options: UseCriarAgendamentoOptions,
-  ctx: {
-    isConsulta: boolean;
-    validateBase: () => string | null;
-    resetForm: () => void;
-    patientId: number | "";
-    professionalId: number | "";
-    convenioId: number | "";
-    selectedProcedures: number[];
-    resumo: { duracao: number; valor: number };
-    dateInput: string;
-    time: string;
-    notes: string;
-    nomeAgendaId: number | "";
-    localAtendimentoId: number | "";
-    retornoProcedureId: number | "";
-    horariosProfissional: HorarioTrabalho[];
-    createLoading: boolean;
-    setCreateLoading: (v: boolean) => void;
-    setCreateError: (v: string) => void;
-    setTime: (v: string) => void;
-    setDateInput: (v: string) => void;
-    setNotes: (v: string) => void;
-    setNomeAgendaId: (v: number | "") => void;
-    setLocalAtendimentoId: (v: number | "") => void;
-  },
+  options: CriarAgendamentoSubmitOptions,
+  ctx: CriarAgendamentoSubmitContext,
 ) {
   const {
     selectedDate,
@@ -84,7 +65,7 @@ export function useCriarAgendamentoSubmit(
 
   const resetAndClose = useCallback(() => {
     resetForm();
-    setTime("09:00");
+    setTime(CRIAR_AGENDAMENTO_DEFAULT_TIME);
     setDateInput("");
     setNotes("");
     setNomeAgendaId("");
@@ -104,26 +85,16 @@ export function useCriarAgendamentoSubmit(
     setTime,
   ]);
 
-  const handleCreatePatient = useCallback(async (data: { nome: string; telefone: string; cpf: string }) => {
-    const body: Record<string, string> = { nome: data.nome };
-    if (data.telefone) body.telefone = data.telefone.replace(/\D/g, "");
-    if (data.cpf) body.cpf = data.cpf.replace(/\D/g, "");
-    const res = await clinicaBelezaFetch("/patients/", {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(formatApiErrorBody(err) || "Erro ao cadastrar paciente");
-    }
-    return res.json();
-  }, []);
+  const handleCreatePatient = useCallback(
+    async (data: { nome: string; telefone: string; cpf: string }) => createQuickPatient(data),
+    [],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationError = validateBase();
     if (validationError) {
-      setCreateError(validationError.replace("cliente", "paciente"));
+      setCreateError(mapSubmitValidationError(validationError));
       return;
     }
     const agendaId = nomeAgendaId || resolveDefaultNomeAgendaId(nomesAgenda);
@@ -204,42 +175,18 @@ export function useCriarAgendamentoSubmit(
       }
 
       if (isConsulta) {
-        const consulta = await ClinicaBelezaAPI.consultas.criar(
-          basePayload as {
-            patient: number;
-            professional: number;
-            procedure?: number;
-            procedures_ids?: number[];
-            local_atendimento?: number;
-            convenio?: number | null;
-          },
-        );
+        const consulta = await submitConsultaOnline(basePayload);
         resetAndClose();
         onSuccess();
         if (consulta?.id != null) onConsultaCreated?.(Number(consulta.id));
         return;
       }
 
-      const payload = { ...basePayload, status: "SCHEDULED" };
-      const res = await clinicaBelezaFetch("/agenda/create/", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(formatApiErrorBody(data) || "Erro ao criar agendamento");
-      }
+      await submitAgendamentoOnline(basePayload);
       resetAndClose();
       onSuccess();
     } catch (err: unknown) {
-      const apiMsg =
-        err && typeof err === "object" && "error" in err && typeof (err as { error?: unknown }).error === "string"
-          ? (err as { error: string }).error
-          : null;
-      const msg =
-        apiMsg ||
-        (err instanceof Error ? err.message : null) ||
-        (isConsulta ? "Erro ao abrir consulta" : "Erro ao criar agendamento");
+      const msg = extractCriarAgendamentoSubmitError(err, isConsulta);
 
       if (isFetchNetworkError(msg)) {
         try {
@@ -250,7 +197,7 @@ export function useCriarAgendamentoSubmit(
           await finishAgendamentoOffline();
           return;
         } catch {
-          setCreateError("Sem conexão. Não foi possível salvar offline.");
+          setCreateError(CRIAR_AGENDAMENTO_OFFLINE_SAVE_ERROR);
           return;
         }
       }

@@ -81,7 +81,6 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     localAtendimentoId,
     retornoProcedureId,
     horariosProfissional,
-    createLoading,
     setCreateLoading,
     setCreateError,
     setTime,

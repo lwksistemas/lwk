@@ -4,6 +4,11 @@ import {
   buildCriarAgendamentoPayload,
   computeCriarAgendamentoPricing,
 } from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-builders";
+import {
+  buildQuickPatientBody,
+  extractCriarAgendamentoSubmitError,
+  mapSubmitValidationError,
+} from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-submit-utils";
 
 describe("buildAppointmentDate", () => {
   it("combina data e hora", () => {
@@ -45,5 +50,29 @@ describe("computeCriarAgendamentoPricing", () => {
       50,
     );
     expect(result.totalEstimado).toBe(50);
+  });
+});
+
+describe("buildQuickPatientBody", () => {
+  it("normaliza telefone e cpf", () => {
+    const body = buildQuickPatientBody({
+      nome: "Ana",
+      telefone: "(11) 99999-0000",
+      cpf: "123.456.789-00",
+    });
+    expect(body.telefone).toBe("11999990000");
+    expect(body.cpf).toBe("12345678900");
+  });
+});
+
+describe("mapSubmitValidationError", () => {
+  it("troca cliente por paciente", () => {
+    expect(mapSubmitValidationError("Selecione o cliente.")).toBe("Selecione o paciente.");
+  });
+});
+
+describe("extractCriarAgendamentoSubmitError", () => {
+  it("usa mensagem de Error", () => {
+    expect(extractCriarAgendamentoSubmitError(new Error("Falha rede"), false)).toBe("Falha rede");
   });
 });

@@ -26,6 +26,7 @@ interface Contrato {
   oportunidade: number;
   oportunidade_titulo?: string;
   lead_nome?: string;
+  conta_nome?: string;
   numero: string;
   titulo: string;
   conteudo: string;
@@ -97,6 +98,7 @@ export default function EditarContratoPage() {
             titulo: c.oportunidade_titulo,
             lead_nome: c.lead_nome,
             valor: c.valor_total,
+            conta_nome: c.conta_nome,
           }),
         );
         setFormData({
@@ -106,7 +108,7 @@ export default function EditarContratoPage() {
           conteudo: c.conteudo || '',
           valor_total: c.valor_total || '',
           desconto_tipo: c.desconto_tipo || 'percentual',
-          desconto_valor: String(c.desconto_valor || ''),
+          desconto_valor: String(c.desconto_valor ?? ''),
           status: c.status || 'rascunho',
           nome_vendedor_assinatura: '',
           nome_cliente_assinatura: '',
@@ -127,6 +129,17 @@ export default function EditarContratoPage() {
   useEffect(() => {
     if (!formData?.oportunidade_id || oportunidades.length === 0) return;
     const opp = oportunidades.find((o) => String(o.id) === formData.oportunidade_id);
+    if (opp) {
+      setOportunidadeExibicao(
+        formatOportunidadeVinculoLabel({
+          titulo: opp.titulo,
+          lead_nome: opp.lead_nome,
+          valor: opp.valor,
+          conta_nome: opp.conta_nome,
+          empresa_prestadora_nome: opp.empresa_prestadora_nome,
+        }),
+      );
+    }
     if (opp?.lead) {
       loadLeadInfo(opp.lead);
     } else {
@@ -141,6 +154,17 @@ export default function EditarContratoPage() {
       oportunidade_id: oppId,
       valor_total: opp?.valor ? String(opp.valor) : f.valor_total,
     }));
+    if (opp) {
+      setOportunidadeExibicao(
+        formatOportunidadeVinculoLabel({
+          titulo: opp.titulo,
+          lead_nome: opp.lead_nome,
+          valor: opp.valor,
+          conta_nome: opp.conta_nome,
+          empresa_prestadora_nome: opp.empresa_prestadora_nome,
+        }),
+      );
+    }
     if (opp?.lead) {
       loadLeadInfo(opp.lead);
     } else {

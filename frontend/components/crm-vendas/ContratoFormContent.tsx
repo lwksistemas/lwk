@@ -25,6 +25,8 @@ export interface OportunidadeContratoOption {
   lead_nome: string;
   lead?: number;
   valor?: string;
+  conta_nome?: string | null;
+  empresa_prestadora_nome?: string | null;
 }
 
 export interface ContratoFormContentProps {
@@ -112,6 +114,8 @@ export default function ContratoFormContent({
               titulo: opp.titulo,
               lead_nome: opp.lead_nome,
               valor: opp.valor,
+              conta_nome: opp.conta_nome,
+              empresa_prestadora_nome: opp.empresa_prestadora_nome,
             })
           : '');
       return (
@@ -139,6 +143,8 @@ export default function ContratoFormContent({
                 titulo: o.titulo,
                 lead_nome: o.lead_nome,
                 valor: o.valor,
+                conta_nome: o.conta_nome,
+                empresa_prestadora_nome: o.empresa_prestadora_nome,
               })}
             </option>
           ))}

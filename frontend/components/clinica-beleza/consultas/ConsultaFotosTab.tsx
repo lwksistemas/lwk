@@ -317,22 +317,23 @@ export function ConsultaFotosTab({
                 className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800"
               >
                 <ExternalLink size={16} />
-                Abrir link no celular
+                Abrir link (teste no PC)
               </a>
               <button
                 type="button"
                 onClick={() => {
                   void navigator.clipboard.writeText(qrData.url);
-                  alert("Link copiado! Cole no navegador do seu celular.");
+                  alert("Link copiado! Cole no navegador do celular (Chrome/Safari).");
                 }}
                 className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium text-white"
                 style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
               >
                 <Copy size={16} />
-                Copiar link
+                Copiar link para o celular
               </button>
             </div>
-            <p className="mt-3 text-[10px] text-gray-400 text-center">Válido por 24h · só durante esta consulta</p>
+            <p className="mt-2 text-[11px] text-gray-500 text-center break-all px-1">{qrData.url}</p>
+            <p className="mt-2 text-[10px] text-gray-400 text-center">Válido por 24h · só durante esta consulta</p>
           </div>
         </div>
       )}

@@ -300,8 +300,20 @@ def decodificar_token_foto(token: str) -> dict | None:
 
 
 def build_link_foto(token: str, frontend_base: str | None = None) -> str:
+    """
+    Link público para o celular do profissional.
+
+    Usa query ``?t=`` (evita quebra do token Django com ``:`` no path do Next.js)
+    e encurta via ``/r/<code>`` para o QR (URL curta, sem %3A).
+    """
     base = (frontend_base or getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')).rstrip('/')
-    return f'{base}{PATH_PUBLICO}{quote(token, safe="")}'
+    # Sem barra antes de ? — Next serve /enviar-foto e /enviar-foto/
+    full_url = f'{base}/enviar-foto?t={quote(token, safe="")}'
+    try:
+        from core.short_link import build_short_url
+        return build_short_url(full_url, ttl_days=2)
+    except Exception:
+        return full_url
 
 
 def frontend_base_permitido(origin: str | None) -> str | None:

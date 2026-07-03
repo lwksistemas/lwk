@@ -50,6 +50,7 @@ export default function BuscarOportunidadeInput({
       titulo: res.data.titulo,
       lead_nome: res.data.lead_nome,
       valor: res.data.valor,
+      conta_nome: res.data.conta_nome,
       empresa_prestadora_nome: res.data.empresa_prestadora_nome,
     });
     return { label };

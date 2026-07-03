@@ -45,14 +45,27 @@ describe('gerarTituloProposta', () => {
 
 describe('formatOportunidadeVinculoLabel', () => {
   it('prioriza nome do cliente em vez do titulo da prestadora', () => {
-    expect(
-      formatOportunidadeVinculoLabel({
-        titulo: 'Felix Representações',
-        lead_nome: 'Maria Silva',
-        valor: '1500',
-        empresa_prestadora_nome: 'Felix Representações',
-      }),
-    ).toBe('Maria Silva — R$ 1.500,00');
+    const label = formatOportunidadeVinculoLabel({
+      titulo: 'Felix Representações',
+      lead_nome: 'Maria Silva',
+      valor: '1500',
+      empresa_prestadora_nome: 'Felix Representações',
+    });
+    expect(label.startsWith('Maria Silva — R$')).toBe(true);
+    expect(label).not.toContain('Felix Representações');
+  });
+
+  it('mostra empresa do cliente (conta), não some ao carregar prestadora', () => {
+    const label = formatOportunidadeVinculoLabel({
+      titulo: 'Felix Representações',
+      lead_nome: 'CAROLINE ALETÉIA VIEIRA DO AMARAL',
+      valor: '1142',
+      conta_nome: 'ULTRASIS INFORMATICA LTDA',
+      empresa_prestadora_nome: 'Felix Representações',
+    });
+    expect(label).toContain('CAROLINE ALETÉIA VIEIRA DO AMARAL · ULTRASIS INFORMATICA LTDA');
+    expect(label).toContain('R$');
+    expect(label).not.toContain('Felix Representações');
   });
 });
 

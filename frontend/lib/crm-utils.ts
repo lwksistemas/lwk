@@ -257,26 +257,31 @@ export function rotuloExibicaoOportunidade(o: {
   return titulo || '—';
 }
 
-/** Rótulo da oportunidade em proposta/contrato — cliente em destaque, não só titulo interno/prestadora. */
+/** Rótulo da oportunidade em proposta/contrato — cliente em destaque, não prestadora. */
 export function formatOportunidadeVinculoLabel(opts: {
   titulo?: string | null;
   lead_nome?: string | null;
   valor?: string | number | null;
   empresa_prestadora_nome?: string | null;
+  /** Empresa do cliente (conta/lead.empresa), ex.: ULTRASIS — não confundir com prestadora. */
+  conta_nome?: string | null;
 }): string {
   const lead = (opts.lead_nome || '').trim();
   const titulo = (opts.titulo || '').trim();
   const prestadora = (opts.empresa_prestadora_nome || '').trim();
+  const conta = (opts.conta_nome || '').trim();
   const valorFmt =
     opts.valor != null && opts.valor !== '' ? ` — ${formatCrmBrl(opts.valor)}` : '';
 
+  const secundario =
+    (conta && conta !== lead && conta !== prestadora ? conta : '') ||
+    (titulo && titulo !== lead && titulo !== prestadora ? titulo : '');
+
   if (lead) {
-    if (titulo && titulo !== lead && titulo !== prestadora) {
-      return `${lead} · ${titulo}${valorFmt}`;
-    }
+    if (secundario) return `${lead} · ${secundario}${valorFmt}`;
     return `${lead}${valorFmt}`;
   }
-  if (titulo && titulo !== prestadora) return `${titulo}${valorFmt}`;
+  if (secundario) return `${secundario}${valorFmt}`;
   return `${titulo || prestadora || '—'}${valorFmt}`;
 }
 

@@ -18,6 +18,7 @@ export function useCrmLeadEVendedorForm<T extends FormComNomesAssinatura>(
   const [leadInfo, setLeadInfo] = useState<LeadInfo | null>(null);
   const [vendedorNome, setVendedorNome] = useState<string>('');
 
+  // Callbacks estáveis: não depender de formData (evita recarregar proposta/contrato a cada tecla).
   const loadLeadInfo = useCallback(
     async (leadId: number) => {
       if (!leadId) {
@@ -27,27 +28,33 @@ export function useCrmLeadEVendedorForm<T extends FormComNomesAssinatura>(
       try {
         const res = await apiClient.get<LeadInfo>(`/crm-vendas/leads/${leadId}/`);
         setLeadInfo(res.data);
-        if (res.data.nome && !formData.nome_cliente_assinatura) {
-          setFormData((f) => ({ ...f, nome_cliente_assinatura: res.data.nome }));
+        const nome = (res.data.nome || '').trim();
+        if (nome) {
+          setFormData((f) =>
+            f.nome_cliente_assinatura ? f : { ...f, nome_cliente_assinatura: nome },
+          );
         }
       } catch {
         setLeadInfo(null);
       }
     },
-    [formData.nome_cliente_assinatura, setFormData]
+    [setFormData],
   );
 
   const loadVendedorInfo = useCallback(async () => {
     try {
       const res = await apiClient.get<{ nome: string }>('/crm-vendas/vendedores/me/');
-      setVendedorNome(res.data.nome);
-      if (res.data.nome && !formData.nome_vendedor_assinatura) {
-        setFormData((f) => ({ ...f, nome_vendedor_assinatura: res.data.nome }));
+      const nome = (res.data.nome || '').trim();
+      setVendedorNome(nome);
+      if (nome) {
+        setFormData((f) =>
+          f.nome_vendedor_assinatura ? f : { ...f, nome_vendedor_assinatura: nome },
+        );
       }
     } catch {
       setVendedorNome('');
     }
-  }, [formData.nome_vendedor_assinatura, setFormData]);
+  }, [setFormData]);
 
   return { leadInfo, setLeadInfo, vendedorNome, loadLeadInfo, loadVendedorInfo };
 }

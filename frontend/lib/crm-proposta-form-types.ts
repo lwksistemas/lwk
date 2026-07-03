@@ -9,6 +9,7 @@ export interface CrmPropostaOportunidadeOption {
   lead_nome: string;
   valor: string;
   etapa: string;
+  conta_nome?: string | null;
   empresa_prestadora?: number | null;
   empresa_prestadora_nome?: string | null;
 }

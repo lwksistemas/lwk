@@ -496,6 +496,9 @@ WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')
 WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', '')
 EVOLUTION_API_URL = os.environ.get('EVOLUTION_API_URL', '').rstrip('/')
 EVOLUTION_API_KEY = os.environ.get('EVOLUTION_API_KEY', '')
+EVOLUTION_WEBHOOK_URL = os.environ.get('EVOLUTION_WEBHOOK_URL', '').rstrip('/')
+LWK_ENVIRONMENT = os.environ.get('LWK_ENVIRONMENT', 'production').strip().lower()
+EVOLUTION_DEDICATED = os.environ.get('EVOLUTION_DEDICATED', '').lower() in ('true', '1', 'yes')
 
 # OpenAPI (drf-spectacular) — /api/schema/ (staff)
 SPECTACULAR_SETTINGS = {

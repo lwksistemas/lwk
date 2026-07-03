@@ -187,9 +187,21 @@ API_BASE_URL=https://lwks-backend-staging-staging.up.railway.app
 
 Redeploy do `lwks-backend-staging`. Cada loja no beta usa instância `lwk_loja_{id}` (ID do banco staging — não conflita com produção se o ID for diferente).
 
-**Opção B — Evolution dedicada no staging:** subir `evolution-api` no ambiente staging (Postgres + Redis próprios). Ver `docs/WHATSAPP_EVOLUTION.md`.
+**Opção B — Evolution dedicada no staging (recomendado):** serviço `evolution-api` no ambiente staging com Postgres + Redis próprios. Configure no `lwks-backend-staging`:
 
-Depois do redeploy, confirme `evolution_available: true` e recarregue https://beta.lwksistemas.com.br/loja/sorriso/configuracoes/whatsapp .
+```env
+LWK_ENVIRONMENT=staging
+EVOLUTION_DEDICATED=true
+EVOLUTION_API_URL=https://<evolution-staging>.up.railway.app
+EVOLUTION_API_KEY=<chave da Evolution staging>
+EVOLUTION_WEBHOOK_URL=https://lwks-backend-staging-staging.up.railway.app/api/whatsapp/evolution/webhook
+API_BASE_URL=https://lwks-backend-staging-staging.up.railway.app
+FRONTEND_URL=https://beta.lwksistemas.com.br
+```
+
+**Limpeza segura:** com Evolution compartilhada, `python manage.py limpar_evolution_instancias --execute` **não remove** instâncias de outro ambiente. Use `--force-cross-environment` só se souber o que está fazendo.
+
+Depois do redeploy, confirme `evolution_available: true` e recarregue https://beta.lwksistemas.com.br/loja/beta/configuracoes/whatsapp .
 
 #### Checklist manual (Superadmin → NFS-e config no beta)
 

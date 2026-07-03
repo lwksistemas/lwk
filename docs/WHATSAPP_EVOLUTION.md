@@ -98,6 +98,17 @@ Se a loja **já estava conectada** antes deste deploy, registre o webhook manual
 python manage.py ensure_evolution_webhooks --slug novaimagem
 ```
 
+## Staging vs produção
+
+| | Produção | Staging (beta) |
+|---|----------|----------------|
+| Evolution | `evolution-api` (production) | **`evolution-api` dedicado** no env staging |
+| `LWK_ENVIRONMENT` | `production` | `staging` |
+| `EVOLUTION_DEDICATED` | `true` | `true` |
+| Webhook | `api.lwksistemas.com.br/.../webhook/` | `lwks-backend-staging-.../.../webhook/` |
+
+**Nunca** compartilhe a mesma Evolution entre staging e produção — instâncias `lwk_loja_{id}` se misturam e a limpeza pode apagar WhatsApp do ambiente errado.
+
 ## Riscos
 
 - **Banimento Meta**: clientes não oficiais violam os Termos do WhatsApp.

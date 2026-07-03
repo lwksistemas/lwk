@@ -146,20 +146,72 @@ def get_active_evolution_instance_by_loja() -> dict[int, str]:
 
 
 def find_orphan_evolution_instances(active_loja_ids: set[int] | None = None) -> list[dict]:
-    """Instâncias lwk_loja_{id} cujo id não existe mais em superadmin_loja."""
+    """
+    Instâncias lwk_loja_{id} cujo id não existe em superadmin_loja **deste ambiente**.
+
+    Em Evolution compartilhada (staging + prod no mesmo servidor), muitas entradas
+    são de outro ambiente — use find_cross_environment_evolution_instances().
+    """
+    return find_cross_environment_evolution_instances(active_loja_ids)
+
+
+def find_cross_environment_evolution_instances(active_loja_ids: set[int] | None = None) -> list[dict]:
+    """Instâncias válidas lwk_loja_{id} sem loja correspondente no banco local."""
     if active_loja_ids is None:
         from superadmin.models import Loja
 
         active_loja_ids = set(Loja.objects.values_list('id', flat=True))
 
-    orphans = []
+    cross = []
     for row in list_evolution_instances():
         lid = row.get('loja_id')
         if lid is None:
             continue
         if lid not in active_loja_ids:
-            orphans.append(row)
-    return orphans
+            cross.append(row)
+    return cross
+
+
+def evolution_shared_with_other_environment(active_loja_ids: set[int] | None = None) -> bool:
+    """
+    True quando há instâncias de lojas que existem só em outro ambiente LWK
+    (Evolution API compartilhada entre staging e produção).
+    """
+    from django.conf import settings
+
+    if getattr(settings, 'EVOLUTION_DEDICATED', False):
+        return False
+    return bool(find_cross_environment_evolution_instances(active_loja_ids))
+
+
+def classify_evolution_instances(active_loja_ids: set[int] | None = None) -> dict:
+    """Agrupa instâncias para auditoria e limpeza segura."""
+    if active_loja_ids is None:
+        from superadmin.models import Loja
+
+        active_loja_ids = set(Loja.objects.values_list('id', flat=True))
+
+    active_by_loja = get_active_evolution_instance_by_loja()
+    local = []
+    cross = []
+    non_standard = []
+    for row in list_evolution_instances():
+        lid = row.get('loja_id')
+        name = row['instance_name']
+        if lid is None:
+            non_standard.append(row)
+        elif lid not in active_loja_ids:
+            cross.append(row)
+        else:
+            local.append({**row, 'active_instance': active_by_loja.get(lid)})
+    stale = find_stale_evolution_instances(active_by_loja)
+    return {
+        'local': local,
+        'cross_environment': cross,
+        'non_standard': non_standard,
+        'stale': stale,
+        'shared_evolution': evolution_shared_with_other_environment(active_loja_ids),
+    }
 
 
 def find_stale_evolution_instances(
@@ -187,9 +239,13 @@ def find_stale_evolution_instances(
 def cleanup_stale_and_orphan_evolution_instances(
     *,
     active_loja_ids: set[int] | None = None,
+    allow_cross_environment: bool = False,
 ) -> dict:
     """
-    Remove instâncias órfãs (loja inexistente) e duplicatas (nome != ativo no DB).
+    Remove duplicatas (stale) e, opcionalmente, instâncias sem loja local.
+
+    Com Evolution compartilhada entre ambientes, NÃO remove cross-environment
+    sem allow_cross_environment=True (evita apagar WhatsApp de produção no staging).
     """
     if not evolution_configured():
         return {'skipped': True, 'reason': 'evolution_not_configured'}
@@ -200,9 +256,21 @@ def cleanup_stale_and_orphan_evolution_instances(
         active_loja_ids = set(Loja.objects.values_list('id', flat=True))
 
     results: list[dict] = []
+    shared = evolution_shared_with_other_environment(active_loja_ids)
+    cross = find_cross_environment_evolution_instances(active_loja_ids)
 
-    for row in find_orphan_evolution_instances(active_loja_ids):
-        results.append(_best_effort_remove_instance(row['instance_name'], row.get('loja_id')))
+    if cross and not allow_cross_environment:
+        if shared:
+            logger.warning(
+                'Evolution compartilhada: %s instância(s) cross-env ignoradas na limpeza',
+                len(cross),
+            )
+        else:
+            for row in cross:
+                results.append(_best_effort_remove_instance(row['instance_name'], row.get('loja_id')))
+    elif cross and allow_cross_environment:
+        for row in cross:
+            results.append(_best_effort_remove_instance(row['instance_name'], row.get('loja_id')))
 
     active_by_loja = get_active_evolution_instance_by_loja()
     for row in find_stale_evolution_instances(active_by_loja):
@@ -213,12 +281,20 @@ def cleanup_stale_and_orphan_evolution_instances(
         'removed': ok,
         'failed': len(results) - ok,
         'total': len(results),
+        'shared_evolution': shared,
+        'cross_environment_skipped': len(cross) if shared and not allow_cross_environment else 0,
         'details': results,
     }
 
 
-def delete_orphan_evolution_instances(active_loja_ids: set[int] | None = None) -> list[dict]:
+def delete_orphan_evolution_instances(
+    active_loja_ids: set[int] | None = None,
+    *,
+    allow_cross_environment: bool = False,
+) -> list[dict]:
+    if evolution_shared_with_other_environment(active_loja_ids) and not allow_cross_environment:
+        return []
     results = []
-    for row in find_orphan_evolution_instances(active_loja_ids):
+    for row in find_cross_environment_evolution_instances(active_loja_ids):
         results.append(_best_effort_remove_instance(row['instance_name'], row.get('loja_id')))
     return results

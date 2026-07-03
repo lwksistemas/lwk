@@ -4,17 +4,21 @@ Limpeza Evolution: órfãs (loja inexistente) + duplicatas/fantasmas (nome != at
 Uso:
     python manage.py limpar_evolution_instancias
     python manage.py limpar_evolution_instancias --execute
-    python manage.py limpar_evolution_instancias --slug felix --execute
+    python manage.py limpar_evolution_instancias --slug beta --execute
+
+Com Evolution compartilhada (staging + prod no mesmo servidor), --execute só remove
+duplicatas locais. Cross-environment exige --force-cross-environment (perigoso).
 """
+from django.conf import settings
+
 from django.core.management.base import BaseCommand
 
 from superadmin.models import Loja
 from whatsapp.evolution_cleanup import (
+    classify_evolution_instances,
     cleanup_stale_and_orphan_evolution_instances,
     delete_all_evolution_instances_for_loja,
     find_instances_for_loja,
-    find_orphan_evolution_instances,
-    find_stale_evolution_instances,
     get_active_evolution_instance_by_loja,
     list_evolution_instances,
 )
@@ -28,7 +32,12 @@ class Command(BaseCommand):
         parser.add_argument(
             '--execute',
             action='store_true',
-            help='Remove instâncias órfãs/duplicadas no Evolution API',
+            help='Remove duplicatas locais; órfãs cross-env só com --force-cross-environment',
+        )
+        parser.add_argument(
+            '--force-cross-environment',
+            action='store_true',
+            help='Permite remover instâncias de lojas de OUTRO ambiente (Evolution compartilhada)',
         )
         parser.add_argument(
             '--slug',
@@ -38,10 +47,14 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         execute = options['execute']
+        force_cross = options['force_cross_environment']
         slug = (options.get('slug') or '').strip()
 
         self.stdout.write('\n' + '=' * 60)
         self.stdout.write('  Evolution API — limpeza órfãs e fantasmas')
+        env = getattr(settings, 'LWK_ENVIRONMENT', 'production')
+        dedicated = getattr(settings, 'EVOLUTION_DEDICATED', False)
+        self.stdout.write(f'  Ambiente: {env} | Evolution dedicada: {dedicated}')
         self.stdout.write('=' * 60 + '\n')
 
         if not evolution_configured():
@@ -57,43 +70,69 @@ class Command(BaseCommand):
         todas = list_evolution_instances()
         self.stdout.write(f'Instâncias no Evolution: {len(todas)}')
 
+        classified = classify_evolution_instances()
         active_by_loja = get_active_evolution_instance_by_loja()
-        orphans = find_orphan_evolution_instances()
-        stale = find_stale_evolution_instances(active_by_loja)
 
-        for row in active_by_loja.items():
-            lid, name = row
+        for row in classified['local']:
+            lid = row.get('loja_id')
             extras = find_instances_for_loja(lid)
             if len(extras) > 1:
                 names = ', '.join(r['instance_name'] for r in extras)
                 self.stdout.write(self.style.WARNING(
-                    f'  Loja {lid}: {len(extras)} instância(s) [{names}] — ativa no DB: {name}'
+                    f'  Loja {lid}: {len(extras)} instância(s) [{names}] — ativa no DB: {active_by_loja.get(lid)}'
                 ))
 
-        if orphans:
-            self.stdout.write(self.style.WARNING(f'\n{len(orphans)} órfã(s) (loja inexistente):'))
-            for row in orphans:
-                self.stdout.write(f"  - {row['instance_name']}")
+        cross = classified['cross_environment']
+        stale = classified['stale']
+        shared = classified['shared_evolution']
+
+        if shared:
+            self.stdout.write(self.style.WARNING(
+                '\nEvolution COMPARTILHADA com outro ambiente LWK detectada.'
+            ))
+            self.stdout.write(
+                '  Não use --execute sozinho para remover instâncias cross-env '
+                '(risco de derrubar WhatsApp de produção no staging).'
+            )
+
+        if cross:
+            label = 'cross-environment (outro ambiente LWK)' if shared else 'órfã(s) (loja inexistente)'
+            self.stdout.write(self.style.WARNING(f'\n{len(cross)} {label}:'))
+            for row in cross:
+                self.stdout.write(f"  - {row['instance_name']} (loja_id={row['loja_id']})")
 
         if stale:
-            self.stdout.write(self.style.WARNING(f'\n{len(stale)} duplicata(s)/fantasma(s):'))
+            self.stdout.write(self.style.WARNING(f'\n{len(stale)} duplicata(s)/fantasma(s) local(is):'))
             for row in stale:
                 self.stdout.write(
                     f"  - {row['instance_name']} (ativa: {row.get('active_instance')})"
                 )
 
-        if not orphans and not stale:
-            self.stdout.write(self.style.SUCCESS('\nNenhuma órfã ou duplicata.'))
+        if not cross and not stale:
+            self.stdout.write(self.style.SUCCESS('\nNenhuma órfã, cross-env ou duplicata local.'))
             return
 
         if not execute:
-            self.stdout.write(self.style.WARNING('\nUse --execute para remover.'))
+            self.stdout.write(self.style.WARNING('\nUse --execute para remover duplicatas locais.'))
+            if cross and shared:
+                self.stdout.write(self.style.ERROR(
+                    '  Cross-environment: só com --force-cross-environment (não recomendado).'
+                ))
             return
 
-        summary = cleanup_stale_and_orphan_evolution_instances()
+        if cross and shared and not force_cross:
+            self.stdout.write(self.style.WARNING(
+                f'\nIgnorando {len(cross)} instância(s) cross-environment '
+                '(use --force-cross-environment para remover — perigoso).'
+            ))
+
+        summary = cleanup_stale_and_orphan_evolution_instances(
+            allow_cross_environment=force_cross,
+        )
         self.stdout.write(self.style.SUCCESS(
             f"\nRemovidas: {summary.get('removed', 0)}, "
-            f"falhas: {summary.get('failed', 0)}"
+            f"falhas: {summary.get('failed', 0)}, "
+            f"cross-env ignoradas: {summary.get('cross_environment_skipped', 0)}"
         ))
 
     def _handle_loja(self, slug: str, execute: bool):

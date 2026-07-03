@@ -238,6 +238,18 @@ class AgendaReenviarMensagemView(APIView):
         if not getattr(config, 'whatsapp_ativo', False):
             return Response({'sent': False, 'message': 'WhatsApp não está ativo. Ative em Configurações → WhatsApp.'})
 
+        from clinica_beleza.agenda_confirmacao_service import STATUS_ACIONAVEIS
+
+        if appointment.status not in STATUS_ACIONAVEIS:
+            return Response({
+                'sent': False,
+                'message': (
+                    'Só é possível enviar confirmação quando o status é '
+                    '"Aguardando confirmação". '
+                    f'Status atual: {appointment.get_status_display()}.'
+                ),
+            })
+
         from whatsapp.services import enviar_confirmacao_agendamento
         try:
             ok, err_msg = enviar_confirmacao_agendamento(appointment, user=request.user, config=config)

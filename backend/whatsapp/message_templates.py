@@ -166,6 +166,8 @@ def msg_confirmacao_agendamento(
             f'👇 *Abra o link e toque em Confirmar ou Cancelar:*',
             link,
             '',
+            f'_Ou responda neste chat:_ *CONFIRMAR* ou *CANCELAR*',
+            '',
             SEPARADOR,
             '_Qualquer dúvida, entre em contato conosco._',
         ])

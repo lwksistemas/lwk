@@ -1,11 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { CheckCircle2, Trash2 } from "lucide-react";
+import { useRef, useState, type ReactNode } from "react";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { useConsultaDetailLoader } from "@/hooks/clinica-beleza/useConsultaDetailLoader";
 import { useConsultaDetailActions } from "@/hooks/clinica-beleza/useConsultaDetailActions";
 import { toUpperCase } from "@/lib/format-br";
@@ -14,10 +12,12 @@ import {
   consultaProcedimentosNomes,
   type TabId,
 } from "./consultas-types";
+import { ConsultaDetailHeaderActions } from "./ConsultaDetailHeaderActions";
 import { ConsultaDetailStatusBar } from "./ConsultaDetailStatusBar";
 import { ConsultaDetailTabBar } from "./ConsultaDetailTabBar";
 import { ConsultaDetailTabPanels } from "./ConsultaDetailTabPanels";
 import { ConsultaProfessionalSelectModal } from "./ConsultaProfessionalSelectModal";
+import { useConsultaDetailShellEffects } from "./useConsultaDetailShellEffects";
 
 const ConsultaFinalizarModal = dynamic(
   () => import("./ConsultaFinalizarModal").then((m) => ({ default: m.ConsultaFinalizarModal })),
@@ -88,40 +88,12 @@ export function ConsultaDetailShell({
     resetTabEdits();
   };
 
-  useEffect(() => {
-    if (tab !== "fotos") setFotosToolbar(null);
-  }, [tab]);
-
-  useEffect(() => {
-    if (tab === "historico" && !temHistoricoAnterior) {
-      setTab("atendimento");
-    }
-  }, [tab, temHistoricoAnterior, setTab]);
-
-  const headerExtraActions = actions.consultaAtiva ? (
-    <>
-      <button
-        type="button"
-        onClick={actions.abrirFinalizarModal}
-        className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-white text-xs sm:text-sm font-medium"
-        style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-      >
-        <CheckCircle2 size={15} />
-        <span className="hidden sm:inline">Finalizar consulta</span>
-        <span className="sm:hidden">Finalizar</span>
-      </button>
-      {actions.podeExcluir && (
-        <button
-          type="button"
-          onClick={actions.excluirConsulta}
-          className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-        >
-          <Trash2 size={15} />
-          <span className="hidden sm:inline">Excluir</span>
-        </button>
-      )}
-    </>
-  ) : null;
+  useConsultaDetailShellEffects({
+    tab,
+    setTab,
+    temHistoricoAnterior,
+    setFotosToolbar,
+  });
 
   return (
     <>
@@ -137,7 +109,14 @@ export function ConsultaDetailShell({
           />
         }
         toolbarActions={tab === "fotos" ? fotosToolbar : undefined}
-        extraActions={headerExtraActions}
+        extraActions={
+          <ConsultaDetailHeaderActions
+            consultaAtiva={actions.consultaAtiva}
+            podeExcluir={actions.podeExcluir}
+            onFinalizar={actions.abrirFinalizarModal}
+            onExcluir={actions.excluirConsulta}
+          />
+        }
       />
       <div className="min-h-full bg-[#f7f2f4] dark:bg-gray-950 flex flex-col">
         <div className="px-4 md:px-6 pt-2 pb-4 border-b border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80">

@@ -5,37 +5,21 @@
  * Calendário fullscreen com drag & drop + Bloqueio de Horários
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
-import { Plus, Lock, List, CalendarDays } from "lucide-react";
-import { entityName } from "@/lib/clinica-beleza-entities";
-import {
-  CLINICA_AGENDA_SLOT_DURATION,
-  CLINICA_AGENDA_SLOT_LABEL_INTERVAL,
-  CLINICA_AGENDA_SNAP_DURATION,
-} from "@/lib/clinica-beleza-constants";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { useAgendaMutations } from "@/hooks/useAgendaMutations";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioHorario";
-import { ModalConflitoAgenda } from "@/components/clinica-beleza/ModalConflitoAgenda";
-import { ModalCriarAgendamento } from "@/components/clinica-beleza/ModalCriarAgendamento";
-import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 import { searchClinicaPatients } from "@/lib/clinica-beleza-cadastros-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { useAgendaData } from "@/hooks/clinica-beleza/useAgendaData";
 import { useAgendaCalendarConfig } from "@/hooks/clinica-beleza/useAgendaCalendarConfig";
+import { useAgendaPageEffects } from "@/hooks/clinica-beleza/useAgendaPageEffects";
 import { useAgendaPageHandlers } from "@/hooks/clinica-beleza/useAgendaPageHandlers";
-import { ModalDetalheAgendamento } from "./components/ModalDetalheAgendamento";
-import { ModalBloqueio } from "./components/ModalBloqueio";
-import { AgendaListaColunas } from "./components/AgendaListaColunas";
-
-const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
-  ssr: false,
-  loading: () => <div className="flex items-center justify-center h-full">Carregando calendário...</div>,
-});
+import { AgendaCalendarSection } from "./components/AgendaCalendarSection";
+import { AgendaPageHeaderActions } from "./components/AgendaPageHeaderActions";
+import { AgendaPageModals } from "./components/AgendaPageModals";
 
 export default function AgendaPage() {
   const params = useParams();
@@ -53,13 +37,7 @@ export default function AgendaPage() {
     motivo: string;
     professional_name: string;
   } | null>(null);
-  const [calendarPlugins, setCalendarPlugins] = useState<unknown[]>([]);
-  const [ptBrLocale, setPtBrLocale] = useState<unknown>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [modoAgenda, setModoAgenda] = useState<"grade" | "lista">("grade");
-  const carregarDadosRef = useRef<() => Promise<void>>(async () => {});
-  const userScrollingRef = useRef(false);
-  const scrollPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useClinicaBelezaDark();
 
@@ -78,7 +56,17 @@ export default function AgendaPage() {
     carregarDados,
   } = useAgendaData(selectedProfessional);
 
-  carregarDadosRef.current = carregarDados;
+  const { calendarPlugins, ptBrLocale, isMobile } = useAgendaPageEffects({
+    searchParams,
+    selectedProfessional,
+    carregarDados,
+    showModal,
+    selectedEvent,
+    eventos,
+    setSelectedEvent,
+    setSelectedDate,
+    setShowCreateModal,
+  });
 
   const {
     temHorarioExpediente,
@@ -89,96 +77,6 @@ export default function AgendaPage() {
   } = useAgendaCalendarConfig(selectedProfessional, horariosTrabalho);
 
   const searchPatients = useCallback((query: string) => searchClinicaPatients(query), []);
-
-  useEffect(() => {
-    if (searchParams.get("novo") === "1") {
-      setSelectedDate(new Date());
-      setShowCreateModal(true);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    const loadPlugins = async () => {
-      const [dayGrid, timeGrid, interaction, ptBr] = await Promise.all([
-        import("@fullcalendar/daygrid"),
-        import("@fullcalendar/timegrid"),
-        import("@fullcalendar/interaction"),
-        import("@fullcalendar/core/locales/pt-br"),
-      ]);
-      setCalendarPlugins([dayGrid.default, timeGrid.default, interaction.default]);
-      setPtBrLocale(ptBr.default);
-    };
-    loadPlugins();
-  }, []);
-
-  useEffect(() => {
-    if (calendarPlugins.length > 0) void carregarDadosRef.current();
-  }, [selectedProfessional, calendarPlugins]);
-
-  useEffect(() => {
-    const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 640);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  useEffect(() => {
-    const markScrolling = () => {
-      userScrollingRef.current = true;
-      if (scrollPauseTimerRef.current) clearTimeout(scrollPauseTimerRef.current);
-      scrollPauseTimerRef.current = setTimeout(() => {
-        userScrollingRef.current = false;
-      }, 4000);
-    };
-    const onScroll = (e: Event) => {
-      const el = e.target as HTMLElement | null;
-      if (el?.closest?.(".fc-scroller") || el?.closest?.(".fc-agenda-calendar-root")) markScrolling();
-    };
-    document.addEventListener("scroll", onScroll, true);
-    return () => {
-      document.removeEventListener("scroll", onScroll, true);
-      if (scrollPauseTimerRef.current) clearTimeout(scrollPauseTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handler = () => setTimeout(() => void carregarDadosRef.current(), 1200);
-    window.addEventListener("offline-sync-done", handler);
-    return () => window.removeEventListener("offline-sync-done", handler);
-  }, []);
-
-  useEffect(() => {
-    if (!calendarPlugins.length) return;
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    const aguardando =
-      showModal &&
-      (selectedEvent?.extendedProps.status === "SCHEDULED" ||
-        selectedEvent?.extendedProps.status === "PENDING");
-    const intervalMs = aguardando ? 5000 : 15000;
-    const timer = window.setInterval(() => {
-      if (userScrollingRef.current) return;
-      void carregarDadosRef.current();
-    }, intervalMs);
-    return () => window.clearInterval(timer);
-  }, [
-    calendarPlugins.length,
-    selectedProfessional,
-    showModal,
-    selectedEvent?.extendedProps.status,
-  ]);
-
-  useEffect(() => {
-    if (!showModal || !selectedEvent?.extendedProps?.dbId) return;
-    const dbId = String(selectedEvent.extendedProps.dbId);
-    const atualizado = eventos.find((e) => String(e.extendedProps.dbId) === dbId);
-    if (!atualizado) return;
-    if (
-      atualizado.extendedProps.status !== selectedEvent.extendedProps.status ||
-      atualizado.backgroundColor !== selectedEvent.backgroundColor
-    ) {
-      setSelectedEvent(atualizado);
-    }
-  }, [eventos, showModal, selectedEvent?.extendedProps?.dbId, selectedEvent?.extendedProps.status, selectedEvent?.backgroundColor]);
 
   const {
     updatingStatus,
@@ -233,124 +131,62 @@ export default function AgendaPage() {
         backHref={`/loja/${slug}/dashboard`}
         showOffline={false}
         extraActions={
-          <>
-            <OfflineIndicator />
-            <button
-              type="button"
-              onClick={() => setModoAgenda((m) => (m === "grade" ? "lista" : "grade"))}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs sm:text-sm hover:bg-gray-50 dark:hover:bg-gray-600 shrink-0 transition-colors"
-              title={modoAgenda === "grade" ? "Ver agenda em lista" : "Ver agenda em calendário"}
-            >
-              {modoAgenda === "grade" ? <List size={16} className="sm:w-4 sm:h-4" /> : <CalendarDays size={16} className="sm:w-4 sm:h-4" />}
-              <span className="hidden sm:inline">{modoAgenda === "grade" ? "Lista" : "Calendário"}</span>
-            </button>
-            <select
-              value={selectedProfessional}
-              onChange={(e) => setSelectedProfessional(e.target.value)}
-              className="px-2.5 sm:px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#8B3D52]/30 max-w-[120px] sm:max-w-none"
-            >
-              <option value="">Todos</option>
-              {professionals.map((prof) => (
-                <option key={prof.id} value={prof.id}>{entityName(prof)}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => setShowModalBloqueio(true)}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shrink-0 text-xs sm:text-sm"
-              title="Bloquear horário"
-            >
-              <Lock size={16} className="sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Bloquear</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedDate(new Date());
-                setShowCreateModal(true);
-              }}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-white rounded-lg hover:opacity-90 transition-opacity shrink-0 text-xs sm:text-sm font-medium"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
-              title="Novo agendamento"
-            >
-              <Plus size={16} className="sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Novo</span>
-            </button>
-          </>
+          <AgendaPageHeaderActions
+            modoAgenda={modoAgenda}
+            onToggleModo={() => setModoAgenda((m) => (m === "grade" ? "lista" : "grade"))}
+            selectedProfessional={selectedProfessional}
+            onSelectProfessional={setSelectedProfessional}
+            professionals={professionals}
+            onBloquear={() => setShowModalBloqueio(true)}
+            onNovo={() => {
+              setSelectedDate(new Date());
+              setShowCreateModal(true);
+            }}
+          />
         }
       />
 
       <div className="flex flex-col flex-1 min-h-0 p-3 sm:p-4 lg:p-6">
         <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div
-            className={`flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain ${
-              modoAgenda === "grade" ? "fc-agenda-calendar-root" : ""
-            }`}
-            style={{ WebkitOverflowScrolling: "touch" }}
-          >
-            {modoAgenda === "lista" ? (
-              <AgendaListaColunas eventos={eventos} onAbrir={abrirEventoDaLista} />
-            ) : calendarPlugins.length > 0 && ptBrLocale ? (
-              <FullCalendar
-                key={`${isMobile ? "mobile" : "desktop"}-${selectedProfessional}`}
-                plugins={calendarPlugins as never[]}
-                initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
-                locale={ptBrLocale as never}
-                editable
-                eventStartEditable
-                eventDurationEditable
-                selectable
-                selectMirror
-                selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
-                dayMaxEvents={isMobile ? 6 : true}
-                weekends
-                events={eventos}
-                eventDrop={(info) => { void moverEvento(info); }}
-                eventResize={(info) => { void redimensionarEvento(info); }}
-                eventClick={handleEventClick}
-                dateClick={handleDateClick}
-                height="auto"
-                headerToolbar={
-                  isMobile
-                    ? { left: "prev,next", center: "title", right: "today" }
-                    : { left: "prev,next today", center: "title", right: "timeGridDay,timeGridWeek,dayGridMonth" }
-                }
-                buttonText={isMobile ? { today: "Hoje" } : undefined}
-                slotMinTime={slotMinTime}
-                slotMaxTime={slotMaxTime}
-                allDaySlot={false}
-                slotDuration={CLINICA_AGENDA_SLOT_DURATION}
-                slotLabelInterval={CLINICA_AGENDA_SLOT_LABEL_INTERVAL}
-                snapDuration={CLINICA_AGENDA_SNAP_DURATION}
-                businessHours={businessHours}
-                hiddenDays={hiddenDays}
-              />
-            ) : null}
-          </div>
+          <AgendaCalendarSection
+            modoAgenda={modoAgenda}
+            eventos={eventos}
+            calendarPlugins={calendarPlugins}
+            ptBrLocale={ptBrLocale}
+            isMobile={isMobile}
+            selectedProfessional={selectedProfessional}
+            temHorarioExpediente={temHorarioExpediente}
+            businessHours={businessHours}
+            hiddenDays={hiddenDays}
+            slotMinTime={slotMinTime}
+            slotMaxTime={slotMaxTime}
+            onAbrirLista={abrirEventoDaLista}
+            onEventClick={handleEventClick}
+            onDateClick={handleDateClick}
+            onEventDrop={(info) => {
+              void moverEvento(info);
+            }}
+            onEventResize={(info) => {
+              void redimensionarEvento(info);
+            }}
+          />
         </div>
       </div>
 
-      <ModalBloqueio
-        open={selectedBloqueio != null}
-        onClose={() => setSelectedBloqueio(null)}
-        onSuccess={carregarDados}
-        bloqueio={selectedBloqueio}
-      />
-      <ModalDetalheAgendamento
-        open={showModal && selectedEvent != null}
-        onClose={() => setShowModal(false)}
-        onSuccess={carregarDados}
-        event={selectedEvent!}
+      <AgendaPageModals
+        selectedBloqueio={selectedBloqueio}
+        onCloseBloqueio={() => setSelectedBloqueio(null)}
+        showModal={showModal}
+        selectedEvent={selectedEvent}
+        onCloseDetalhe={() => setShowModal(false)}
+        onReload={carregarDados}
         onUpdateStatus={atualizarStatusAgendamento}
         onDelete={deletarEvento}
         onReenviarWhatsApp={reenviarMensagemWhatsApp}
         updatingStatus={updatingStatus}
         reenviandoMensagem={reenviandoMensagem}
-      />
-      <ModalCriarAgendamento
-        open={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSuccess={carregarDados}
+        showCreateModal={showCreateModal}
+        onCloseCreate={() => setShowCreateModal(false)}
         selectedDate={selectedDate}
         defaultProfessionalId={selectedProfessional}
         professionals={professionals}
@@ -361,21 +197,13 @@ export default function AgendaPage() {
         onPatientsChange={setPatients}
         onSearchPatients={searchPatients}
         onOfflineEventCreated={(evt) => setEventos((prev) => [...prev, evt as AgendaEventData])}
-      />
-      <ModalBloqueioHorario
-        isOpen={showModalBloqueio}
-        onClose={() => setShowModalBloqueio(false)}
-        onSuccess={carregarDados}
-        professionals={professionals}
-        defaultProfessionalId={selectedProfessional}
-      />
-      <ModalConflitoAgenda
-        open={conflictData != null}
-        onClose={closeConflictModal}
-        data={conflictData}
+        showModalBloqueio={showModalBloqueio}
+        onCloseModalBloqueio={() => setShowModalBloqueio(false)}
+        conflictData={conflictData}
+        onCloseConflict={closeConflictModal}
         onUseServer={handleConflitoUseServer}
         onUseLocal={handleConflitoUseLocal}
-        resolving={conflictResolving}
+        conflictResolving={conflictResolving}
       />
     </div>
   );

@@ -13,7 +13,7 @@ import {
   patientNotes,
 } from '@/lib/clinica-beleza-entities';
 import { formatTelefone, formatCpf, formatCep } from '@/lib/format-br';
-import type { PacienteFormState } from '../components/PacienteCadastroForm';
+import type { PacienteFormState } from '@/components/clinica-beleza/paciente-cadastro/paciente-cadastro-types';
 
 export interface Patient {
   id: number;

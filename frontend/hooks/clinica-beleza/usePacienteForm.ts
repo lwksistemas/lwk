@@ -12,7 +12,7 @@ import { useOfflineSave } from "@/hooks/clinica-beleza/useOfflineSave";
 import {
   PACIENTE_EMPTY_FORM,
   type PacienteFormState,
-} from "@/app/(dashboard)/loja/[slug]/clinica-beleza/pacientes/components/PacienteCadastroForm";
+} from "@/components/clinica-beleza/paciente-cadastro/paciente-cadastro-types";
 import {
   montarEnderecoPaciente,
   patientToForm,

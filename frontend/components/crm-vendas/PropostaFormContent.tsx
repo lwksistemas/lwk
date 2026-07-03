@@ -2,6 +2,7 @@
 
 import type { LojaInfo, LeadInfo, OportunidadeItem, FormDataProposta } from './modals/ModalPropostaForm';
 import BuscarOportunidadeInput from '@/components/crm-vendas/BuscarOportunidadeInput';
+import CrmOportunidadeVinculadaReadonly from '@/components/crm-vendas/CrmOportunidadeVinculadaReadonly';
 import { CrmClienteBlock } from '@/components/crm-vendas/CrmLojaClienteBlocks';
 import { CrmEmitenteLojaSection } from '@/components/crm-vendas/CrmEmitenteLojaSection';
 import CrmDocumentoAssinaturasFields from '@/components/crm-vendas/documentos/CrmDocumentoAssinaturasFields';
@@ -175,6 +176,30 @@ export default function PropostaFormContent({
     />
   );
 
+  const renderOportunidadeField = () => {
+    if (isEdit && form.oportunidade_id) {
+      return (
+        <CrmOportunidadeVinculadaReadonly
+          label="Oportunidade vinculada"
+          valor={oportunidadeTituloInicial}
+          labelClass={labelCls}
+        />
+      );
+    }
+    return (
+      <>
+        <label className={labelCls}>Buscar oportunidade *</label>
+        <BuscarOportunidadeInput
+          oportunidadeId={form.oportunidade_id}
+          initialTitulo={oportunidadeTituloInicial}
+          onOportunidadeChange={onOportunidadeChange}
+          required
+          disabled={enviando}
+        />
+      </>
+    );
+  };
+
   if (pageLayout) {
     return (
       <form onSubmit={onSubmit}>
@@ -183,16 +208,7 @@ export default function PropostaFormContent({
             <section className="space-y-4">{renderLojaBlock()}</section>
             <section className="space-y-4">
               <h3 className={crmFormSectionTitleClass}>Oportunidade</h3>
-              <div>
-                <label className={labelCls}>Buscar oportunidade *</label>
-                <BuscarOportunidadeInput
-                  oportunidadeId={form.oportunidade_id}
-                  initialTitulo={oportunidadeTituloInicial}
-                  onOportunidadeChange={onOportunidadeChange}
-                  required
-                  disabled={isEdit || enviando}
-                />
-              </div>
+              <div>{renderOportunidadeField()}</div>
             </section>
             <section className="space-y-4">{renderClienteBlock()}</section>
             <section className="space-y-4">
@@ -266,16 +282,7 @@ export default function PropostaFormContent({
       </div>
 
       {/* Oportunidade */}
-      <div className={spanClass}>
-        <label className={labelCls}>Oportunidade *</label>
-        <BuscarOportunidadeInput
-          oportunidadeId={form.oportunidade_id}
-          initialTitulo={oportunidadeTituloInicial}
-          onOportunidadeChange={onOportunidadeChange}
-          required
-          disabled={isEdit || enviando}
-        />
-      </div>
+      <div className={spanClass}>{renderOportunidadeField()}</div>
 
       {/* Dados do Cliente */}
       <div className={`${sectionWrapCls} ${spanClass}`}>

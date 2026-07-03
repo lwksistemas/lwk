@@ -257,6 +257,29 @@ export function rotuloExibicaoOportunidade(o: {
   return titulo || '—';
 }
 
+/** Rótulo da oportunidade em proposta/contrato — cliente em destaque, não só titulo interno/prestadora. */
+export function formatOportunidadeVinculoLabel(opts: {
+  titulo?: string | null;
+  lead_nome?: string | null;
+  valor?: string | number | null;
+  empresa_prestadora_nome?: string | null;
+}): string {
+  const lead = (opts.lead_nome || '').trim();
+  const titulo = (opts.titulo || '').trim();
+  const prestadora = (opts.empresa_prestadora_nome || '').trim();
+  const valorFmt =
+    opts.valor != null && opts.valor !== '' ? ` — ${formatCrmBrl(opts.valor)}` : '';
+
+  if (lead) {
+    if (titulo && titulo !== lead && titulo !== prestadora) {
+      return `${lead} · ${titulo}${valorFmt}`;
+    }
+    return `${lead}${valorFmt}`;
+  }
+  if (titulo && titulo !== prestadora) return `${titulo}${valorFmt}`;
+  return `${titulo || prestadora || '—'}${valorFmt}`;
+}
+
 export function formatCrmBrl(
   valor: string | number | null | undefined,
   options?: { maximumFractionDigits?: number },

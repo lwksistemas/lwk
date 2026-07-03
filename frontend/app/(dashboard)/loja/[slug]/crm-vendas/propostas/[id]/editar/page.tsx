@@ -6,6 +6,7 @@ import apiClient from '@/lib/api-client';
 import {
   getCrmApiErrorDetail,
   fetchCrmOportunidade,
+  formatOportunidadeVinculoLabel,
   normalizeListResponse,
 } from '@/lib/crm-utils';
 import {
@@ -30,6 +31,7 @@ interface Proposta {
   id: number;
   oportunidade: number;
   oportunidade_titulo?: string;
+  lead_nome?: string;
   titulo: string;
   conteudo: string;
   valor_total: string | null;
@@ -102,17 +104,24 @@ export default function EditarPropostaPage() {
       return;
     }
     let cancelled = false;
-    Promise.all([
-      apiClient.get<Proposta>(`/crm-vendas/propostas/${id}/`),
-      loadTemplates(),
-      loadLojaInfo(),
-      loadVendedorInfo(),
-    ])
-      .then(([propostaRes]) => {
+    (async () => {
+      try {
+        const [propostaRes] = await Promise.all([
+          apiClient.get<Proposta>(`/crm-vendas/propostas/${id}/`),
+          loadTemplates(),
+          loadLojaInfo(),
+          loadVendedorInfo(),
+        ]);
         if (cancelled) return;
         const p = propostaRes.data;
         setStatusAssinaturaAntes(p.status_assinatura);
-        setOportunidadeTituloInicial(p.oportunidade_titulo || '');
+        setOportunidadeTituloInicial(
+          formatOportunidadeVinculoLabel({
+            titulo: p.oportunidade_titulo,
+            lead_nome: p.lead_nome,
+            valor: p.valor_total,
+          }),
+        );
         setFormData({
           oportunidade_id: String(p.oportunidade),
           titulo: p.titulo || '',
@@ -125,20 +134,31 @@ export default function EditarPropostaPage() {
           nome_cliente_assinatura: '',
           ...emitenteFieldsFromApi(p),
         });
-        return loadItensOportunidade(String(p.oportunidade)).then(() =>
-          fetchCrmOportunidade(String(p.oportunidade))
-            .then((opp) => {
-              if (opp.lead) loadLeadInfo(opp.lead);
-            })
-            .catch(() => setLeadInfo(null)),
-        );
-      })
-      .catch(() => {
+        setLoading(false);
+
+        const oppId = String(p.oportunidade);
+        void loadItensOportunidade(oppId);
+        void fetchCrmOportunidade(oppId)
+          .then((opp) => {
+            if (cancelled) return;
+            setOportunidadeTituloInicial(
+              formatOportunidadeVinculoLabel({
+                titulo: opp.titulo,
+                lead_nome: opp.lead_nome,
+                valor: opp.valor,
+                empresa_prestadora_nome: opp.empresa_prestadora_nome,
+              }),
+            );
+            if (opp.lead) loadLeadInfo(opp.lead);
+            else setLeadInfo(null);
+          })
+          .catch(() => {
+            if (!cancelled) setLeadInfo(null);
+          });
+      } catch {
         if (!cancelled) router.replace(listPath);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };

@@ -28,10 +28,12 @@ class PatchAtividadeSchemaOnColumnErrorTest(SimpleTestCase):
 
 
 class ApplyCrmTenantSchemaPatchesTest(SimpleTestCase):
+    @patch('crm_vendas.schema_service.patch_clinica_beleza_migration_orphans')
     @patch('crm_vendas.schema_service.patch_crm_vendas_atividade_columns_if_missing')
     @patch('crm_vendas.schema_service.patch_crm_vendas_asaas_columns_if_missing')
-    def test_chama_ambos_patches(self, mock_asaas, mock_atividade):
+    def test_chama_todos_patches(self, mock_asaas, mock_atividade, mock_clinica):
         apply_crm_tenant_schema_patches('loja_99')
+        mock_clinica.assert_called_once_with('loja_99')
         mock_asaas.assert_called_once_with('loja_99')
         mock_atividade.assert_called_once_with('loja_99')
 
@@ -49,3 +51,20 @@ class PatchCrmVendasAtividadeColumnsTest(SimpleTestCase):
         self.assertTrue(any('conta_id' in sql for sql in sql_calls))
         self.assertTrue(any('lembrete_whatsapp' in sql for sql in sql_calls))
         self.assertTrue(any('django_migrations' in sql for sql in sql_calls))
+
+
+class PatchClinicaBelezaMigrationOrphansTest(SimpleTestCase):
+    @patch('core.db_config.ensure_loja_database_config', return_value=True)
+    @patch('crm_vendas.schema_service.connections')
+    def test_remove_orfas_sem_tabelas_clinica(self, mock_connections, _mock_ensure):
+        from crm_vendas.schema_service import patch_clinica_beleza_migration_orphans
+
+        cursor = MagicMock()
+        cursor.fetchone.return_value = [0]
+        cursor.rowcount = 3
+        mock_connections.__getitem__.return_value.cursor.return_value.__enter__.return_value = cursor
+
+        removed = patch_clinica_beleza_migration_orphans('loja_felix')
+        self.assertEqual(removed, 3)
+        delete_calls = [c for c in cursor.execute.call_args_list if 'DELETE FROM django_migrations' in c.args[0]]
+        self.assertEqual(len(delete_calls), 1)

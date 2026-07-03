@@ -55,6 +55,12 @@ def configurar_schema_crm_loja(loja) -> bool:
                 cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
                 logger.info(f"Schema '{schema_name}' criado")
 
+        # 2b. Limpar migrations clinica_beleza órfãs/inconsistentes (bloqueiam migrate em lojas CRM)
+        try:
+            patch_clinica_beleza_migration_orphans(db_name)
+        except Exception as patch_exc:
+            logger.warning('configurar_schema_crm_loja: patch clinica migrations em %s: %s', db_name, patch_exc)
+
         # 3. Aplicar migrations (mesma lista que criar loja: get_apps_esperados_para_loja)
         apps = get_apps_esperados_para_loja(loja)
 
@@ -106,8 +112,73 @@ def apply_crm_tenant_schema_patches(db_name: str) -> None:
     Aplica todos os patches SQL idempotentes do CRM no schema do tenant.
     Usar em provisionamento, release (ensure_*) e recovery — nunca no hot path de requests.
     """
+    patch_clinica_beleza_migration_orphans(db_name)
     patch_crm_vendas_asaas_columns_if_missing(db_name)
     patch_crm_vendas_atividade_columns_if_missing(db_name)
+
+
+def patch_clinica_beleza_migration_orphans(db_name: str) -> int:
+    """
+    Remove registros clinica_beleza órfãos ou corrige 0025 sem 0024 em django_migrations.
+    Retorna quantidade de registros removidos ou 0 se apenas corrigiu ordem.
+    """
+    from clinica_beleza.schema_ensure import column_exists, table_exists
+    from core.db_config import ensure_loja_database_config
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        return 0
+
+    removed = 0
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT COUNT(*) FROM information_schema.tables
+            WHERE table_schema = current_schema()
+              AND table_name LIKE 'clinica_beleza_%%'
+            """
+        )
+        clinica_tables = (cursor.fetchone() or [0])[0]
+
+        if clinica_tables == 0:
+            cursor.execute("DELETE FROM django_migrations WHERE app = %s", ['clinica_beleza'])
+            removed = cursor.rowcount
+            return removed
+
+        cursor.execute(
+            "SELECT 1 FROM django_migrations WHERE app = %s AND name = %s",
+            ['clinica_beleza', '0025_memed_timbrado'],
+        )
+        has_0025 = cursor.fetchone() is not None
+        cursor.execute(
+            "SELECT 1 FROM django_migrations WHERE app = %s AND name = %s",
+            ['clinica_beleza', '0024_professional_nascimento_sexo'],
+        )
+        has_0024 = cursor.fetchone() is not None
+
+        if has_0025 and not has_0024:
+            if table_exists(cursor, 'clinica_beleza_professional'):
+                for coluna, tipo in (
+                    ('data_nascimento', 'DATE NULL'),
+                    ('sexo', 'VARCHAR(1) NULL'),
+                ):
+                    if not column_exists(cursor, 'clinica_beleza_professional', coluna):
+                        cursor.execute(
+                            f'ALTER TABLE clinica_beleza_professional ADD COLUMN {coluna} {tipo}'
+                        )
+            cursor.execute(
+                """
+                INSERT INTO django_migrations (app, name, applied)
+                SELECT 'clinica_beleza', %s, NOW()
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM django_migrations
+                    WHERE app = 'clinica_beleza' AND name = %s
+                )
+                """,
+                ['0024_professional_nascimento_sexo', '0024_professional_nascimento_sexo'],
+            )
+
+    return removed
 
 
 def patch_atividade_schema_on_column_error(exc: Exception, db_name: str | None) -> bool:

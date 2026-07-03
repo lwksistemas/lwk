@@ -1,0 +1,79 @@
+import { useCallback, useState } from "react";
+import { useParams } from "next/navigation";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/lib/clinica-beleza-crud";
+import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
+import { entityActive, entityName, type ClinicaProfessional } from "@/lib/clinica-beleza-entities";
+import { buscarProfissionaisOffline, salvarProfissionaisOffline } from "@/lib/offline-db";
+import { buildProfissionaisBasePath, extractProfissionalToggleError } from "./profissionais-page-utils";
+
+export function useProfissionaisPage() {
+  const slug = useParams().slug as string;
+  const basePath = buildProfissionaisBasePath(slug);
+  const { isNovo, editIdParam, isFormView, voltarLista, abrirNovo, abrirEditar } =
+    useClinicaBelezaFormRouting(basePath);
+
+  const { list, loading, load, page, setPage, totalPages, pageSize, totalCount } =
+    useClinicaBelezaEntityList<ClinicaProfessional>({
+      path: "/professionals/",
+      fetchOffline: buscarProfissionaisOffline,
+      saveOffline: salvarProfissionaisOffline,
+    });
+
+  const [horariosProfessional, setHorariosProfessional] = useState<ClinicaProfessional | null>(null);
+  const [tempoConsultaProfessional, setTempoConsultaProfessional] = useState<ClinicaProfessional | null>(
+    null,
+  );
+
+  const exclude = useCallback(
+    async (p: ClinicaProfessional) => {
+      if (!confirm(`Desativar o profissional "${entityName(p)}"?`)) return;
+      try {
+        await deleteClinicaBelezaEntity(`/professionals/${p.id}/`);
+        load();
+      } catch {
+        alert("Erro ao desativar.");
+      }
+    },
+    [load],
+  );
+
+  const toggleProfissional = useCallback(
+    async (p: ClinicaProfessional) => {
+      const novoValor = !(p.is_profissional ?? true);
+      try {
+        await ClinicaBelezaAPI.patch(`/professionals/${p.id}/`, { is_profissional: novoValor });
+        load();
+      } catch (err: unknown) {
+        alert(extractProfissionalToggleError(err));
+      }
+    },
+    [load],
+  );
+
+  const activeList = list.filter((p) => entityActive(p));
+
+  return {
+    slug,
+    isNovo,
+    editIdParam,
+    isFormView,
+    voltarLista,
+    abrirNovo,
+    abrirEditar,
+    activeList,
+    loading,
+    load,
+    page,
+    setPage,
+    totalPages,
+    pageSize,
+    totalCount,
+    horariosProfessional,
+    setHorariosProfessional,
+    tempoConsultaProfessional,
+    setTempoConsultaProfessional,
+    exclude,
+    toggleProfissional,
+  };
+}

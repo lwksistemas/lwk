@@ -1,31 +1,20 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useRef, useState, type ReactNode } from "react";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
-import { useConsultaDetailLoader } from "@/hooks/clinica-beleza/useConsultaDetailLoader";
-import { useConsultaDetailActions } from "@/hooks/clinica-beleza/useConsultaDetailActions";
 import { toUpperCase } from "@/lib/format-br";
-import {
-  type Consulta,
-  consultaProcedimentosNomes,
-  type TabId,
-} from "./consultas-types";
+import { type Consulta, consultaProcedimentosNomes } from "./consultas-types";
 import { ConsultaDetailHeaderActions } from "./ConsultaDetailHeaderActions";
 import { ConsultaDetailStatusBar } from "./ConsultaDetailStatusBar";
 import { ConsultaDetailTabBar } from "./ConsultaDetailTabBar";
-import { ConsultaDetailTabPanels } from "./ConsultaDetailTabPanels";
-import { ConsultaProfessionalSelectModal } from "./ConsultaProfessionalSelectModal";
-import { useConsultaDetailShellEffects } from "./useConsultaDetailShellEffects";
-
-const ConsultaFinalizarModal = dynamic(
-  () => import("./ConsultaFinalizarModal").then((m) => ({ default: m.ConsultaFinalizarModal })),
-);
+import { ConsultaDetailShellContent } from "./consulta-detail-shell/ConsultaDetailShellContent";
+import { ConsultaDetailShellModals } from "./consulta-detail-shell/ConsultaDetailShellModals";
+import { useConsultaDetailShell } from "./consulta-detail-shell/useConsultaDetailShell";
 
 const MemedPrescricao = dynamic(() => import("./MemedPrescricao"), { ssr: false });
 
-interface Props {
+interface ConsultaDetailShellProps {
   consulta: Consulta;
   detailPreloaded?: boolean;
   onBack: () => void;
@@ -39,61 +28,23 @@ export function ConsultaDetailShell({
   onBack,
   onSelectConsulta,
   onListRefresh,
-}: Props) {
-  const [fotosToolbar, setFotosToolbar] = useState<ReactNode | null>(null);
-  const resetEditsRef = useRef<() => void>(() => {});
-
-  const loader = useConsultaDetailLoader({
+}: ConsultaDetailShellProps) {
+  const {
+    loader,
+    actions,
+    fotosToolbar,
+    setFotosToolbar,
+    historicoAnterior,
+    handleTabChange,
+  } = useConsultaDetailShell({
     consulta,
     detailPreloaded,
+    onBack,
     onSelectConsulta,
     onListRefresh,
-    onLoadStart: () => resetEditsRef.current(),
   });
 
-  const actions = useConsultaDetailActions({
-    ...loader,
-    onBack,
-    onListRefresh,
-  });
-
-  resetEditsRef.current = actions.resetEditsOnLoad;
-
-  const {
-    selected,
-    tab,
-    setTab,
-    loadingDetalhe,
-    tabLoading,
-    protocolos,
-    evolucoes,
-    historico,
-    prescricoes,
-    refreshConsulta,
-    loadDetalhes,
-  } = loader;
-
-  const temHistoricoAnterior = historico.length > 1;
-
-  const resetTabEdits = () => {
-    actions.setEditAtendimento(false);
-    actions.setEditAnamnese(false);
-    actions.setEditEvolucao(false);
-    actions.setProtocoloPreview(null);
-    actions.setProtocoloPendingId(null);
-  };
-
-  const handleTabChange = (id: TabId) => {
-    setTab(id);
-    resetTabEdits();
-  };
-
-  useConsultaDetailShellEffects({
-    tab,
-    setTab,
-    temHistoricoAnterior,
-    setFotosToolbar,
-  });
+  const { selected, tab, refreshConsulta } = loader;
 
   return (
     <>
@@ -141,7 +92,7 @@ export function ConsultaDetailShell({
             selected={selected}
             consultaAtiva={actions.consultaAtiva}
             consultaFinalizada={actions.consultaFinalizada}
-            temHistoricoAnterior={temHistoricoAnterior}
+            temHistoricoAnterior={historicoAnterior}
             onTabChange={handleTabChange}
             onRefreshConsulta={refreshConsulta}
           />
@@ -159,110 +110,15 @@ export function ConsultaDetailShell({
         )}
 
         <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
-          {loadingDetalhe || tabLoading ? (
-            <div className="text-center py-16 text-gray-500">
-              {loadingDetalhe ? "Carregando consulta..." : "Carregando aba..."}
-            </div>
-          ) : !actions.consultaAtiva && !actions.consultaFinalizada && tab !== "historico" ? (
-            <div className="text-center py-16">
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                Consulta aguardando início. O profissional deve clicar em{" "}
-                <strong>&quot;Iniciar consulta&quot;</strong> para habilitar o atendimento.
-              </p>
-            </div>
-          ) : (
-            <ConsultaDetailTabPanels
-              tab={tab}
-              selected={selected}
-              consultaAtiva={actions.consultaAtiva}
-              consultaFinalizada={actions.consultaFinalizada}
-              protocolos={protocolos}
-              protocoloPreview={actions.protocoloPreview}
-              editAtendimento={actions.editAtendimento}
-              editAnamnese={actions.editAnamnese}
-              editEvolucao={actions.editEvolucao}
-              observacoes={actions.observacoes}
-              observacoesDraft={actions.observacoesDraft}
-              anamnese={actions.anamnese}
-              anamneseDraft={actions.anamneseDraft}
-              evolucoes={evolucoes}
-              evolucaoForm={actions.evolucaoForm}
-              historico={historico}
-              prescricoes={prescricoes}
-              saving={actions.saving}
-              printMeta={actions.printMeta}
-              procedimentosRealizados={actions.procedimentosRealizados}
-              prescricoesRefresh={actions.prescricoesRefresh}
-              formatData={actions.formatData}
-              onSelectProtocolo={actions.selecionarProtocolo}
-              onConfirmProtocolo={actions.confirmarProtocolo}
-              onCancelProtocolo={() => {
-                actions.setProtocoloPreview(null);
-                actions.setProtocoloPendingId(null);
-              }}
-              onStartEditAtendimento={() => {
-                actions.setObservacoesDraft(actions.observacoes);
-                actions.setEditAtendimento(true);
-              }}
-              onCancelEditAtendimento={() => {
-                actions.setObservacoesDraft(actions.observacoes);
-                actions.setEditAtendimento(false);
-              }}
-              onChangeObservacoesDraft={actions.setObservacoesDraft}
-              onSaveAtendimento={actions.salvarObservacoes}
-              onRefreshConsulta={refreshConsulta}
-              onStartEditAnamnese={() => {
-                actions.setAnamneseDraft(actions.anamnese);
-                actions.setEditAnamnese(true);
-              }}
-              onCancelEditAnamnese={() => {
-                actions.setAnamneseDraft(actions.anamnese);
-                actions.setEditAnamnese(false);
-              }}
-              onChangeAnamneseDraft={actions.setAnamneseDraft}
-              onSaveAnamnese={actions.salvarAnamnese}
-              onStartEditEvolucao={() => actions.setEditEvolucao(true)}
-              onCancelEditEvolucao={() => {
-                actions.setEditEvolucao(false);
-                actions.setEvolucaoForm({
-                  descricao: "",
-                  procedimento_realizado: "",
-                  produtos_utilizados: "",
-                  orientacoes: "",
-                  satisfacao: "",
-                });
-              }}
-              onChangeEvolucaoForm={actions.setEvolucaoForm}
-              onSaveEvolucao={actions.salvarEvolucao}
-              onLoadDetalhes={loadDetalhes}
-              onUsarMemed={actions.abrirMemed}
-              onToolbarChange={setFotosToolbar}
-            />
-          )}
+          <ConsultaDetailShellContent
+            loader={loader}
+            actions={actions}
+            onToolbarChange={setFotosToolbar}
+          />
         </div>
       </div>
 
-      <ConsultaFinalizarModal
-        open={actions.showFinalizarModal}
-        finalizando={actions.finalizando}
-        form={actions.finalizarForm}
-        valorConsulta={selected.valor_consulta}
-        valorProcedimentos={selected.valor_procedimentos}
-        locais={actions.locaisAtendimento}
-        onClose={() => actions.setShowFinalizarModal(false)}
-        onChange={actions.setFinalizarForm}
-        onConfirm={actions.finalizarConsulta}
-      />
-
-      <ConsultaProfessionalSelectModal
-        open={actions.showProfessionalModal}
-        profissionais={actions.profissionaisDisponiveis}
-        onSelect={(id) => {
-          actions.setShowProfessionalModal(false);
-          void actions.iniciarConsulta(id);
-        }}
-        onClose={() => actions.setShowProfessionalModal(false)}
-      />
+      <ConsultaDetailShellModals selected={selected} actions={actions} />
     </>
   );
 }

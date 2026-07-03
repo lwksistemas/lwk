@@ -58,6 +58,11 @@ class Proposta(LojaIsolationMixin, models.Model):
     observacoes = models.TextField(blank=True)
     nome_vendedor_assinatura = models.CharField(max_length=255, blank=True, help_text='Nome do vendedor para assinatura no PDF')
     nome_cliente_assinatura = models.CharField(max_length=255, blank=True, help_text='Nome do cliente para assinatura no PDF')
+    emitente_nome = models.CharField(max_length=255, blank=True, default='', help_text='Snapshot: nome do emitente (vazio = dados da loja)')
+    emitente_endereco = models.CharField(max_length=500, blank=True, default='')
+    emitente_cpf_cnpj = models.CharField(max_length=18, blank=True, default='')
+    emitente_responsavel = models.CharField(max_length=255, blank=True, default='')
+    emitente_email = models.EmailField(blank=True, default='')
     status_assinatura = models.CharField(
         max_length=20,
         choices=STATUS_ASSINATURA_CHOICES,
@@ -180,6 +185,11 @@ class Contrato(LojaIsolationMixin, models.Model):
     observacoes = models.TextField(blank=True)
     nome_vendedor_assinatura = models.CharField(max_length=255, blank=True, help_text='Nome do vendedor para assinatura no PDF')
     nome_cliente_assinatura = models.CharField(max_length=255, blank=True, help_text='Nome do cliente para assinatura no PDF')
+    emitente_nome = models.CharField(max_length=255, blank=True, default='', help_text='Snapshot: nome do emitente (vazio = dados da loja)')
+    emitente_endereco = models.CharField(max_length=500, blank=True, default='')
+    emitente_cpf_cnpj = models.CharField(max_length=18, blank=True, default='')
+    emitente_responsavel = models.CharField(max_length=255, blank=True, default='')
+    emitente_email = models.EmailField(blank=True, default='')
     status_assinatura = models.CharField(
         max_length=20,
         choices=STATUS_ASSINATURA_CHOICES,

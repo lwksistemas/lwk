@@ -2,6 +2,8 @@
 
 import { X } from 'lucide-react';
 import PropostaFormContent from '../PropostaFormContent';
+import type { EmitenteLojaFields } from '@/lib/crm-emitente-loja';
+import { EMPTY_EMITENTE_LOJA } from '@/lib/crm-emitente-loja';
 
 export interface LojaInfo {
   id: number;
@@ -59,7 +61,7 @@ export interface OportunidadeItem {
   observacao?: string;
 }
 
-export interface FormDataProposta {
+export interface FormDataProposta extends EmitenteLojaFields {
   oportunidade_id: string;
   titulo: string;
   conteudo: string;
@@ -70,6 +72,19 @@ export interface FormDataProposta {
   nome_vendedor_assinatura?: string;
   nome_cliente_assinatura?: string;
 }
+
+export const EMPTY_FORM_PROPOSTA: FormDataProposta = {
+  oportunidade_id: '',
+  titulo: '',
+  conteudo: '',
+  valor_total: '',
+  desconto_tipo: 'percentual',
+  desconto_valor: '',
+  status: 'rascunho',
+  nome_vendedor_assinatura: '',
+  nome_cliente_assinatura: '',
+  ...EMPTY_EMITENTE_LOJA,
+};
 
 interface ModalPropostaFormProps {
   title: string;

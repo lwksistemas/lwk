@@ -22,6 +22,8 @@ import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
 import PropostaFormContent from '@/components/crm-vendas/PropostaFormContent';
 import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import { EMPTY_FORM_PROPOSTA } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import { emitenteFieldsFromApi, emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
 import type { CrmOportunidadeItem, CrmPropostaTemplate } from '@/lib/crm-proposta-form-types';
 
 interface Proposta {
@@ -35,6 +37,11 @@ interface Proposta {
   desconto_valor: string;
   status: string;
   status_assinatura?: string;
+  emitente_nome?: string;
+  emitente_endereco?: string;
+  emitente_cpf_cnpj?: string;
+  emitente_responsavel?: string;
+  emitente_email?: string;
 }
 
 export default function EditarPropostaPage() {
@@ -45,17 +52,7 @@ export default function EditarPropostaPage() {
   const id = parseInt(String(params?.id ?? ''), 10);
   const listPath = `/loja/${slug}/crm-vendas/propostas`;
 
-  const [formData, setFormData] = useState<FormDataProposta>({
-    oportunidade_id: '',
-    titulo: '',
-    conteudo: '',
-    valor_total: '',
-    desconto_tipo: 'percentual',
-    desconto_valor: '',
-    status: 'rascunho',
-    nome_vendedor_assinatura: '',
-    nome_cliente_assinatura: '',
-  });
+  const [formData, setFormData] = useState<FormDataProposta>({ ...EMPTY_FORM_PROPOSTA });
   const [statusAssinaturaAntes, setStatusAssinaturaAntes] = useState<string | undefined>();
   const [oportunidadeTituloInicial, setOportunidadeTituloInicial] = useState('');
   const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
@@ -126,6 +123,7 @@ export default function EditarPropostaPage() {
           status: p.status || 'rascunho',
           nome_vendedor_assinatura: '',
           nome_cliente_assinatura: '',
+          ...emitenteFieldsFromApi(p),
         });
         return loadItensOportunidade(String(p.oportunidade)).then(() =>
           fetchCrmOportunidade(String(p.oportunidade))
@@ -198,6 +196,10 @@ export default function EditarPropostaPage() {
       setFormErro('Selecione uma oportunidade');
       return;
     }
+    if (formData.emitente_personalizado && !formData.emitente_nome.trim()) {
+      setFormErro('Informe o nome do emitente personalizado');
+      return;
+    }
     try {
       setSubmitting(true);
       await apiClient.put(`/crm-vendas/propostas/${id}/`, {
@@ -210,6 +212,7 @@ export default function EditarPropostaPage() {
         status: formData.status,
         nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
         nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
+        ...emitentePayloadFromForm(formData),
       });
       if (deveConfirmarReenvioAssinatura(statusAssinaturaAntes)) {
         setReenvioPendente(true);

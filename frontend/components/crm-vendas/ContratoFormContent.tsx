@@ -1,7 +1,8 @@
 'use client';
 
 import type { LojaInfo, LeadInfo } from './modals/ModalPropostaForm';
-import { CrmClienteBlock, CrmLojaBlock } from '@/components/crm-vendas/CrmLojaClienteBlocks';
+import { CrmClienteBlock } from '@/components/crm-vendas/CrmLojaClienteBlocks';
+import { CrmEmitenteLojaSection } from '@/components/crm-vendas/CrmEmitenteLojaSection';
 import CrmDocumentoAssinaturasFields from '@/components/crm-vendas/documentos/CrmDocumentoAssinaturasFields';
 import CrmDocumentoConteudoFields from '@/components/crm-vendas/documentos/CrmDocumentoConteudoFields';
 import CrmDocumentoFormActions from '@/components/crm-vendas/documentos/CrmDocumentoFormActions';
@@ -71,7 +72,21 @@ export default function ContratoFormContent({
   const labelCls = pageLayout ? crmFormPageLabelClass : labelClass;
 
   const renderLojaBlock = () => (
-    <CrmLojaBlock lojaInfo={lojaInfo} labelClass={labelCls} titleClass={crmFormSectionTitleClass} />
+    <CrmEmitenteLojaSection
+      lojaInfo={lojaInfo}
+      emitente={{
+        emitente_personalizado: form.emitente_personalizado,
+        emitente_nome: form.emitente_nome,
+        emitente_endereco: form.emitente_endereco,
+        emitente_cpf_cnpj: form.emitente_cpf_cnpj,
+        emitente_responsavel: form.emitente_responsavel,
+        emitente_email: form.emitente_email,
+      }}
+      onEmitenteChange={(patch) => onFormChange((f) => ({ ...f, ...patch }))}
+      labelClass={labelCls}
+      titleClass={crmFormSectionTitleClass}
+      inputClass={inputCls}
+    />
   );
 
   const renderClienteBlock = () => (
@@ -152,12 +167,12 @@ export default function ContratoFormContent({
       <form onSubmit={onSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full">
           <div className="space-y-6">
-            <section className="space-y-4">{renderLojaBlock()}</section>
-            <section className="space-y-4">{renderClienteBlock()}</section>
             <section className="space-y-4">
               <h3 className={crmFormSectionTitleClass}>Oportunidade</h3>
               {renderOportunidadeSelect()}
             </section>
+            <section className="space-y-4">{renderClienteBlock()}</section>
+            <section className="space-y-4">{renderLojaBlock()}</section>
             <section className="space-y-4">
               <h3 className={crmFormSectionTitleClass}>Contrato</h3>
               <div>
@@ -227,7 +242,7 @@ export default function ContratoFormContent({
       )}
 
       <div className={`${sectionClass} ${spanClass}`}>
-        <CrmLojaBlock lojaInfo={lojaInfo} compact titleClass="text-sm font-medium text-gray-700 dark:text-gray-300" />
+        {renderLojaBlock()}
       </div>
 
       <div className={`${sectionClass} ${spanClass}`}>

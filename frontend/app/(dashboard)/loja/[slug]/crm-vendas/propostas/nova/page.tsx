@@ -11,6 +11,8 @@ import { useToast } from '@/components/ui/Toast';
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import PropostaFormContent from '@/components/crm-vendas/PropostaFormContent';
 import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import { EMPTY_FORM_PROPOSTA } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import { emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
 import type {
   CrmOportunidadeItem,
   CrmPropostaTemplate,
@@ -23,17 +25,7 @@ export default function NovaPropostaPage() {
   const slug = (params?.slug as string) ?? '';
   const listPath = `/loja/${slug}/crm-vendas/propostas`;
 
-  const [formData, setFormData] = useState<FormDataProposta>({
-    oportunidade_id: '',
-    titulo: '',
-    conteudo: '',
-    valor_total: '',
-    desconto_tipo: 'percentual',
-    desconto_valor: '',
-    status: 'rascunho' as string,
-    nome_vendedor_assinatura: '',
-    nome_cliente_assinatura: '',
-  });
+  const [formData, setFormData] = useState<FormDataProposta>({ ...EMPTY_FORM_PROPOSTA });
   const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
   const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
   const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
@@ -160,6 +152,10 @@ export default function NovaPropostaPage() {
       setFormErro('Selecione uma oportunidade');
       return;
     }
+    if (formData.emitente_personalizado && !formData.emitente_nome.trim()) {
+      setFormErro('Informe o nome do emitente personalizado');
+      return;
+    }
     try {
       setSubmitting(true);
       await apiClient.post('/crm-vendas/propostas/', {
@@ -172,6 +168,7 @@ export default function NovaPropostaPage() {
         status: formData.status,
         nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
         nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
+        ...emitentePayloadFromForm(formData),
       });
       router.push(listPath);
     } catch (err: unknown) {

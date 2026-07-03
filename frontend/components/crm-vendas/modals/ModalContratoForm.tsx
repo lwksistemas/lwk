@@ -3,8 +3,10 @@
 import { X } from 'lucide-react';
 import ContratoFormContent from '../ContratoFormContent';
 import type { LojaInfo, LeadInfo } from './ModalPropostaForm';
+import type { EmitenteLojaFields } from '@/lib/crm-emitente-loja';
+import { EMPTY_EMITENTE_LOJA } from '@/lib/crm-emitente-loja';
 
-export interface FormDataContrato {
+export interface FormDataContrato extends EmitenteLojaFields {
   oportunidade_id: string;
   numero: string;
   titulo: string;
@@ -28,6 +30,7 @@ export const EMPTY_FORM_CONTRATO: FormDataContrato = {
   status: 'rascunho',
   nome_vendedor_assinatura: '',
   nome_cliente_assinatura: '',
+  ...EMPTY_EMITENTE_LOJA,
 };
 
 interface ModalContratoFormProps {

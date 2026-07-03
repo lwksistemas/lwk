@@ -11,6 +11,7 @@ import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import ContratoFormContent, { type OportunidadeContratoOption } from '@/components/crm-vendas/ContratoFormContent';
 import type { FormDataContrato } from '@/components/crm-vendas/modals/ModalContratoForm';
 import { EMPTY_FORM_CONTRATO } from '@/components/crm-vendas/modals/ModalContratoForm';
+import { emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
 
 export default function NovoContratoPage() {
   const params = useParams();
@@ -69,6 +70,10 @@ export default function NovoContratoPage() {
       setFormErro('Selecione uma oportunidade fechada como ganha');
       return;
     }
+    if (formData.emitente_personalizado && !formData.emitente_nome.trim()) {
+      setFormErro('Informe o nome do emitente personalizado');
+      return;
+    }
     try {
       setSubmitting(true);
       await apiClient.post('/crm-vendas/contratos/', {
@@ -82,6 +87,7 @@ export default function NovoContratoPage() {
         status: formData.status,
         nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
         nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
+        ...emitentePayloadFromForm(formData),
       });
       router.push(listPath);
     } catch (err: unknown) {

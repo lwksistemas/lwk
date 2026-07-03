@@ -7,6 +7,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from .formatters import _obter_dados_loja
+from ..emitente_documento import obter_dados_emitente_documento
 from .sections import (
     _build_cabecalho,
     _build_secao_assinaturas,
@@ -28,7 +29,9 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     compact = ParagraphStyle('Compact', parent=styles['Normal'], fontSize=9, spaceBefore=0, spaceAfter=1, leading=11)
 
     loja_id = getattr(proposta, 'loja_id', None)
-    loja_data = _obter_dados_loja(loja_id) if loja_id else {}
+    loja_data = obter_dados_emitente_documento(proposta)
+    if loja_id and not loja_data.get('logo'):
+        loja_data = {**loja_data, 'logo': (_obter_dados_loja(loja_id) or {}).get('logo')}
     logo_url = loja_data.get('logo')
     _build_cabecalho(elements, logo_url, 'PROPOSTA COMERCIAL')
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', compact))
@@ -64,7 +67,9 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     normal = styles['Normal']
 
     loja_id = getattr(contrato, 'loja_id', None)
-    loja_data = _obter_dados_loja(loja_id) if loja_id else {}
+    loja_data = obter_dados_emitente_documento(contrato)
+    if loja_id and not loja_data.get('logo'):
+        loja_data = {**loja_data, 'logo': (_obter_dados_loja(loja_id) or {}).get('logo')}
     logo_url = loja_data.get('logo')
     _build_cabecalho(elements, logo_url, 'CONTRATO')
     elements.append(Spacer(1, 0.4 * cm))

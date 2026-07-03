@@ -40,19 +40,19 @@ const CATEGORIAS: CategoriaRelatorio[] = [
       {
         titulo: 'Comissão por Profissional',
         descricao: 'Resumo consolidado de comissões — consultas e procedimentos no período',
-        href: 'comissoes',
+        href: 'comissoes?agrupar=profissional',
         icon: User,
       },
       {
         titulo: 'Comissão por Local de Atendimento',
         descricao: 'Comissões detalhadas por sala ou local onde o atendimento foi realizado',
-        href: 'comissoes',
+        href: 'comissoes?agrupar=local',
         icon: MapPin,
       },
       {
         titulo: 'Comissão por Convênio',
         descricao: 'Comissões com detalhamento por convênio do paciente',
-        href: 'comissoes',
+        href: 'comissoes?agrupar=convenio',
         icon: Heart,
       },
       {
@@ -135,7 +135,7 @@ export default function RelatoriosHubPage() {
                   const Icon = rel.icon;
                   return (
                     <Link
-                      key={rel.href}
+                      key={rel.titulo}
                       href={`/loja/${slug}/relatorios/${rel.href}`}
                       className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-750"
                     >

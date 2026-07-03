@@ -136,7 +136,23 @@ export async function fetchAllPaginatedResults<T>(
 
 /** Extrai mensagem de erro de respostas DRF/axios (uso comum em páginas CRM). */
 export function getCrmApiErrorDetail(err: unknown, fallback: string): string {
-  const e = err as { response?: { data?: unknown }; code?: string; message?: string };
+  const e = err as {
+    response?: { status?: number; data?: unknown; headers?: Record<string, string> };
+    code?: string;
+    message?: string;
+  };
+  if (e.response?.status === 429) {
+    const fromBody = formatApiErrorBody(e.response?.data);
+    const waitMatch = fromBody.match(/(\d+)\s*second/i);
+    if (waitMatch) {
+      return `Muitas requisições em sequência. Aguarde ${waitMatch[1]} segundos e atualize a página.`;
+    }
+    const retryAfter = e.response?.headers?.['retry-after'];
+    if (retryAfter) {
+      return `Muitas requisições em sequência. Aguarde ${retryAfter} segundos e tente novamente.`;
+    }
+    return 'Muitas requisições em sequência. Aguarde alguns segundos e atualize a página.';
+  }
   const fromBody = formatApiErrorBody(e.response?.data);
   if (fromBody) return fromBody;
   if (e.code === 'ECONNABORTED') {

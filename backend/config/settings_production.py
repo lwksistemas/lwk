@@ -340,8 +340,9 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '60/minute',
-        'user': '200/minute',
+        # SPA CRM dispara várias chamadas por tela; 200/min bloqueava listagens (ex.: propostas Felix).
+        'anon': os.environ.get('DRF_THROTTLE_ANON_RATE', '500/hour'),
+        'user': os.environ.get('DRF_THROTTLE_USER_RATE', '10000/hour'),
         'public_loja_create': '5/hour',
         'public_loja_lookup': '20/hour',
         'auth_login': '20/minute',

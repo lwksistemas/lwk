@@ -14,27 +14,13 @@ from django.db import connections
 
 from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
+from crm_vendas.schema_service import patch_clinica_beleza_migration_orphans
 from superadmin.models import Loja
 
 TABLE = 'crm_vendas_vendedor'
 COLUMN = 'config_acesso'
 DDL = "JSONB NOT NULL DEFAULT '{}'::jsonb"
 MIGRATION = '0066_vendedor_config_acesso'
-
-
-def _limpar_migrations_clinica_orfas(cursor) -> int:
-    """Remove clinica_beleza de django_migrations se não houver tabelas de clínica."""
-    cursor.execute(
-        """
-        SELECT COUNT(*) FROM information_schema.tables
-        WHERE table_schema = current_schema()
-          AND table_name LIKE 'clinica_beleza_%'
-        """
-    )
-    if (cursor.fetchone() or [0])[0] > 0:
-        return 0
-    cursor.execute("DELETE FROM django_migrations WHERE app = %s", ['clinica_beleza'])
-    return cursor.rowcount
 
 
 class Command(BaseCommand):
@@ -67,8 +53,8 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 changed = False
+                removed = patch_clinica_beleza_migration_orphans(db_name, tipo_slug=tipo)
                 with conn.cursor() as cursor:
-                    removed = _limpar_migrations_clinica_orfas(cursor)
                     if removed:
                         self.stdout.write(
                             f'{loja.slug}: removidos {removed} registro(s) clinica_beleza órfão(s)'

@@ -34,6 +34,31 @@ from .views_common import CRMPagination, filtrar_queryset_por_query_params
 logger = logging.getLogger(__name__)
 
 
+def _financeiro_com_recuperacao_schema(handler):
+    """Executa handler financeiro com retry após patches/migrations do tenant."""
+    from django.db.utils import OperationalError, ProgrammingError
+    from superadmin.models import Loja
+
+    from .schema_service import apply_crm_tenant_schema_patches, configurar_schema_crm_loja
+
+    loja_id = get_current_loja_id()
+    for attempt in range(2):
+        try:
+            return handler()
+        except (ProgrammingError, OperationalError) as exc:
+            if attempt == 0 and loja_id:
+                loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
+                if loja:
+                    try:
+                        apply_crm_tenant_schema_patches(loja.database_name)
+                    except Exception as patch_exc:
+                        logger.warning('Patches financeiro CRM falharam: %s', patch_exc)
+                    if configurar_schema_crm_loja(loja):
+                        logger.warning('Schema CRM recuperado após erro financeiro: %s', exc)
+                        continue
+            raise
+
+
 class GrupoFinanceiroCRMViewSet(
     CRMSchemaRecoveryMixin,
     CRMPermissionMixin,
@@ -111,12 +136,15 @@ class LancamentoFinanceiroCRMViewSet(
                 'grupo_id': 'grupo_id',
             },
         )
-        return aplicar_filtro_periodo_lancamentos(
-            qs,
-            periodo=self.request.query_params.get('periodo', 'mes_atual'),
-            data_inicio=self.request.query_params.get('data_inicio'),
-            data_fim=self.request.query_params.get('data_fim'),
-        )
+        # Período só na listagem — marcar_pago/patch precisam achar o id fora do mês exibido.
+        if getattr(self, 'action', None) == 'list':
+            qs = aplicar_filtro_periodo_lancamentos(
+                qs,
+                periodo=self.request.query_params.get('periodo', 'mes_atual'),
+                data_inicio=self.request.query_params.get('data_inicio'),
+                data_fim=self.request.query_params.get('data_fim'),
+            )
+        return qs
 
     def perform_create(self, serializer):
         ensure_loja_context(self.request)
@@ -173,6 +201,7 @@ class LancamentoFinanceiroCRMViewSet(
     def marcar_pago(self, request, pk=None):
         from django.utils import timezone
 
+        ensure_loja_context(request)
         inst = self.get_object()
         inst.status = LancamentoFinanceiroCRM.STATUS_PAGO
         inst.data_pagamento = request.data.get('data_pagamento') or timezone.now().date()
@@ -180,15 +209,66 @@ class LancamentoFinanceiroCRMViewSet(
         self._invalidate_caches()
         return Response(self.get_serializer(inst).data)
 
+    @action(detail=False, methods=['post'], url_path='acoes-lote')
+    def acoes_lote(self, request):
+        """Marca vários lançamentos como pagos ou cancelados (ex.: comissões agregadas na UI)."""
+        from django.utils import timezone
+
+        ensure_loja_context(request)
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return Response({'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ids_raw = request.data.get('ids') or []
+        if not isinstance(ids_raw, list):
+            return Response({'detail': 'ids deve ser uma lista.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            ids = [int(x) for x in ids_raw]
+        except (TypeError, ValueError):
+            return Response({'detail': 'ids inválidos.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not ids:
+            return Response({'detail': 'Informe ao menos um id.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        acao = (request.data.get('acao') or '').strip()
+        if acao not in ('marcar_pago', 'cancelar'):
+            return Response({'detail': 'Ação inválida.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = self.get_queryset().filter(id__in=ids)
+        atualizados = 0
+        hoje = timezone.now().date()
+        for inst in qs:
+            if acao == 'marcar_pago':
+                if inst.status != LancamentoFinanceiroCRM.STATUS_PENDENTE:
+                    continue
+                inst.status = LancamentoFinanceiroCRM.STATUS_PAGO
+                inst.data_pagamento = request.data.get('data_pagamento') or hoje
+                inst.save(update_fields=['status', 'data_pagamento', 'updated_at'])
+                atualizados += 1
+            elif inst.origem == LancamentoFinanceiroCRM.ORIGEM_COMISSAO:
+                if inst.status == LancamentoFinanceiroCRM.STATUS_CANCELADO:
+                    continue
+                inst.status = LancamentoFinanceiroCRM.STATUS_CANCELADO
+                inst.save(update_fields=['status', 'updated_at'])
+                atualizados += 1
+
+        self._invalidate_caches()
+        return Response(
+            {
+                'success': True,
+                'acao': acao,
+                'solicitados': len(ids),
+                'atualizados': atualizados,
+                'ignorados': len(ids) - atualizados,
+            }
+        )
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def financeiro_crm_resumo(request):
     from django.db.utils import OperationalError, ProgrammingError
-    from superadmin.models import Loja
 
-    from .schema_service import configurar_schema_crm_loja
-
+    ensure_loja_context(request)
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({'error': 'Loja não identificada'}, status=status.HTTP_400_BAD_REQUEST)
@@ -203,8 +283,8 @@ def financeiro_crm_resumo(request):
     elif not is_owner(request):
         vendedor_id = vendedor_id
 
-    for attempt in range(2):
-        try:
+    try:
+        def _handler():
             garantir_grupos_padrao(loja_id)
             periodo = request.query_params.get('periodo', 'mes_atual')
             return Response(
@@ -216,22 +296,21 @@ def financeiro_crm_resumo(request):
                     data_fim=request.query_params.get('data_fim'),
                 )
             )
-        except (ProgrammingError, OperationalError):
-            if attempt == 0:
-                loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
-                if loja and configurar_schema_crm_loja(loja):
-                    continue
-            logger.exception('Erro no resumo financeiro CRM (loja_id=%s)', loja_id)
-            return Response(
-                {'detail': 'O banco de dados da loja precisa ser configurado.', 'code': 'SCHEMA_NOT_CONFIGURED'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+
+        return _financeiro_com_recuperacao_schema(_handler)
+    except (ProgrammingError, OperationalError):
+        logger.exception('Erro no resumo financeiro CRM (loja_id=%s)', loja_id)
+        return Response(
+            {'detail': 'O banco de dados da loja precisa ser configurado.', 'code': 'SCHEMA_NOT_CONFIGURED'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def financeiro_crm_relatorio_pdf(request):
     """Gera PDF do financeiro por vendedor/grupo no período."""
+    ensure_loja_context(request)
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -286,6 +365,9 @@ def financeiro_crm_relatorio_pdf(request):
 @permission_classes([IsAuthenticated])
 def financeiro_crm_sync_comissoes(request):
     """Sincroniza receitas de comissão a partir de oportunidades já ganhas."""
+    from django.db.utils import OperationalError, ProgrammingError
+
+    ensure_loja_context(request)
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -297,5 +379,15 @@ def financeiro_crm_sync_comissoes(request):
         )
 
     dry_run = bool(request.data.get('dry_run', False))
-    result = sincronizar_comissoes_retroativas(loja_id, dry_run=dry_run)
-    return Response({'success': True, **result})
+
+    try:
+        def _handler():
+            return Response({'success': True, **sincronizar_comissoes_retroativas(loja_id, dry_run=dry_run)})
+
+        return _financeiro_com_recuperacao_schema(_handler)
+    except (ProgrammingError, OperationalError):
+        logger.exception('Erro ao sincronizar comissões CRM (loja_id=%s)', loja_id)
+        return Response(
+            {'detail': 'Não foi possível sincronizar comissões. Tente novamente em instantes.', 'code': 'SCHEMA_NOT_CONFIGURED'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

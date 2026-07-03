@@ -70,6 +70,65 @@ export function useCrmFinanceiroPage() {
     await data.loadAll();
   };
 
+  const marcarPagoEmLote = async (ids: number[]) => {
+    try {
+      const { data: batch } = await apiClient.post<{
+        atualizados: number;
+        ignorados: number;
+        solicitados: number;
+      }>('crm-vendas/financeiro-lancamentos/acoes-lote/', {
+        ids,
+        acao: 'marcar_pago',
+      });
+      if (batch.atualizados === 0) {
+        toast.warning('Nenhuma comissão foi marcada como recebida.');
+      } else if (batch.ignorados > 0) {
+        toast.warning(`${batch.atualizados} recebida(s), ${batch.ignorados} ignorada(s).`);
+      } else {
+        toast.success(`${batch.atualizados} comissão(ões) marcada(s) como recebida(s).`);
+      }
+      await data.loadAll();
+    } catch (err) {
+      toast.error(getCrmApiErrorDetail(err, 'Não foi possível marcar as comissões como recebidas.'));
+      throw err;
+    }
+  };
+
+  const cancelarComissaoEmLote = async (ids: number[]) => {
+    try {
+      const { data: batch } = await apiClient.post<{
+        atualizados: number;
+        ignorados: number;
+      }>('crm-vendas/financeiro-lancamentos/acoes-lote/', {
+        ids,
+        acao: 'cancelar',
+      });
+      if (batch.atualizados === 0) {
+        toast.warning('Nenhuma comissão foi cancelada.');
+      } else if (batch.ignorados > 0) {
+        toast.warning(`${batch.atualizados} cancelada(s), ${batch.ignorados} ignorada(s).`);
+      } else {
+        toast.success(`${batch.atualizados} comissão(ões) cancelada(s).`);
+      }
+      await data.loadAll();
+    } catch (err) {
+      toast.error(getCrmApiErrorDetail(err, 'Não foi possível cancelar as comissões.'));
+      throw err;
+    }
+  };
+
+  const requestReceberComissao = (item: LancamentoFinanceiro) => {
+    const ids = item.ids_agregados ?? [];
+    if (!ids.length) return;
+    setConfirmAction({ type: 'receber_comissoes', item, ids });
+  };
+
+  const requestCancelarComissao = (item: LancamentoFinanceiro) => {
+    const ids = item.ids_agregados ?? [];
+    if (!ids.length) return;
+    setConfirmAction({ type: 'cancelar_comissoes', item, ids });
+  };
+
   const requestRemoverLancamento = (item: LancamentoFinanceiro) => {
     if (!item.editavel) {
       if (item.origem === 'recorrencia') {
@@ -136,6 +195,10 @@ export function useCrmFinanceiroPage() {
         await executeRemoverLancamento(confirmAction.item);
       } else if (confirmAction.type === 'excluir_grupo') {
         await executeRemoverGrupo(confirmAction.grupo);
+      } else if (confirmAction.type === 'receber_comissoes') {
+        await marcarPagoEmLote(confirmAction.ids);
+      } else if (confirmAction.type === 'cancelar_comissoes') {
+        await cancelarComissaoEmLote(confirmAction.ids);
       } else {
         await executeSincronizarComissoes();
       }
@@ -213,6 +276,8 @@ export function useCrmFinanceiroPage() {
     editar,
     salvarLancamento,
     marcarPago,
+    receberComissao: requestReceberComissao,
+    cancelarComissao: requestCancelarComissao,
     removerLancamento: requestRemoverLancamento,
     showGrupoModal,
     setShowGrupoModal,

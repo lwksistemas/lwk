@@ -84,8 +84,6 @@ class TestSincronizarReceitaComissao(TestCase):
 
 class TestResumoFinanceiroComissao(TestCase):
     def test_comissao_usa_soma_valor_comissao_oportunidades(self):
-        from unittest.mock import MagicMock, patch
-
         from crm_vendas.services_financeiro import resumo_financeiro_crm
 
         mock_lanc = MagicMock()
@@ -106,14 +104,47 @@ class TestResumoFinanceiroComissao(TestCase):
         with patch('crm_vendas.models.financeiro.LancamentoFinanceiroCRM', mock_lanc), patch(
             'crm_vendas.models.Oportunidade', mock_opp
         ), patch(
-            'crm_vendas.services_dashboard.calcular_intervalo_datas',
+            'crm_vendas.services_financeiro.calcular_intervalo_vencimento',
             return_value=(date(2026, 5, 1), date(2026, 5, 31)),
         ), patch(
-            'crm_vendas.services_dashboard._filtro_fechamento_no_periodo',
+            'crm_vendas.periodo.calcular_intervalo_datas',
+            return_value=(date(2026, 5, 1), date(2026, 5, 31)),
+        ), patch(
+            'crm_vendas.periodo.filtro_fechamento_no_periodo',
             return_value=MagicMock(),
         ):
             out = resumo_financeiro_crm(1, None, periodo='mes_passado')
             self.assertEqual(out['comissao_vendas_total'], 4875.0)
+
+
+class TestLancamentoFinanceiroQuerysetPeriodo(TestCase):
+    def test_periodo_aplicado_apenas_na_listagem(self):
+        from crm_vendas.views_financeiro import LancamentoFinanceiroCRMViewSet
+
+        view = LancamentoFinanceiroCRMViewSet()
+        view.request = MagicMock(query_params={'periodo': 'mes_passado'})
+        view.action = 'list'
+        with patch.object(LancamentoFinanceiroCRMViewSet.__bases__[3], 'get_queryset', return_value=MagicMock()), patch(
+            'crm_vendas.views_financeiro.filtrar_queryset_por_query_params',
+            side_effect=lambda qs, *_a, **_k: qs,
+        ) as mock_filtro, patch(
+            'crm_vendas.views_financeiro.aplicar_filtro_periodo_lancamentos',
+            return_value='com_periodo',
+        ) as mock_periodo:
+            out = view.get_queryset()
+            self.assertEqual(out, 'com_periodo')
+            mock_periodo.assert_called_once()
+            mock_filtro.assert_called_once()
+
+        view.action = 'marcar_pago'
+        with patch.object(LancamentoFinanceiroCRMViewSet.__bases__[3], 'get_queryset', return_value=MagicMock()), patch(
+            'crm_vendas.views_financeiro.filtrar_queryset_por_query_params',
+            side_effect=lambda qs, *_a, **_k: qs,
+        ), patch(
+            'crm_vendas.views_financeiro.aplicar_filtro_periodo_lancamentos',
+        ) as mock_periodo:
+            view.get_queryset()
+            mock_periodo.assert_not_called()
 
 
 class TestSincronizarComissoesRetroativas(TestCase):

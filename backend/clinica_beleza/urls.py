@@ -119,6 +119,7 @@ urlpatterns = [
     path('consultas/<int:pk>/fotos/', ConsultaFotosPacienteView.as_view(), name='consultas-fotos'),
     path('consultas/<int:pk>/fotos/qr/', ConsultaFotoQrView.as_view(), name='consultas-fotos-qr'),
     path('consultas/<int:pk>/fotos/<int:foto_id>/', ConsultaFotoDeleteView.as_view(), name='consultas-fotos-delete'),
+    path('enviar-foto/', EnviarFotoPublicaView.as_view(), name='enviar-foto-query'),
     path('enviar-foto/<path:token>/', EnviarFotoPublicaView.as_view(), name='enviar-foto'),
 
     # Locais de atendimento

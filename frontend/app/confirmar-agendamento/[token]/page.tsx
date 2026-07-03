@@ -16,6 +16,7 @@ interface AgendamentoData {
   status_display: string;
   clinica_nome: string;
   pode_responder: boolean;
+  motivo_bloqueio?: 'confirmado' | 'cancelado' | 'indisponivel' | null;
 }
 
 const MOBILE_MAX_WIDTH = 639;
@@ -223,6 +224,18 @@ export default function ConfirmarAgendamentoPage() {
     agendamento.status === 'CONFIRMED';
   const cancelado = agendamento.status === 'CANCELLED';
   const jaRespondido = (confirmado || cancelado) && !agendamento.pode_responder;
+  const bloqueadoSemResposta =
+    !agendamento.pode_responder && !jaRespondido && !resultado?.ok;
+
+  const mensagemBloqueio = (() => {
+    if (agendamento.motivo_bloqueio === 'confirmado') {
+      return 'Este agendamento já foi confirmado.';
+    }
+    if (agendamento.motivo_bloqueio === 'cancelado') {
+      return 'Este agendamento já foi cancelado.';
+    }
+    return `Não é possível confirmar ou cancelar online. Status atual: ${agendamento.status_display}. Entre em contato com a clínica.`;
+  })();
 
   return (
     <ConfirmacaoShell isMobile={isMobile}>
@@ -317,6 +330,20 @@ export default function ConfirmarAgendamentoPage() {
               Cancelar
             </button>
             </div>
+          </div>
+        )}
+
+        {bloqueadoSemResposta && (
+          <div className="p-3 md:p-4 rounded-xl bg-amber-50 border border-amber-200 text-center text-sm">
+            <AlertCircle className="w-7 h-7 text-amber-600 mx-auto mb-2" />
+            <p className="text-amber-900 font-medium">{mensagemBloqueio}</p>
+            <button
+              type="button"
+              onClick={tentarFechar}
+              className="mt-3 w-full py-2 text-sm font-medium text-amber-900 border border-amber-300 rounded-xl hover:bg-amber-100 transition"
+            >
+              Fechar
+            </button>
           </div>
         )}
 

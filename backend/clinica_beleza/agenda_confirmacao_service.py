@@ -111,6 +111,15 @@ def _procedure_label(appointment) -> str:
 
 
 def serializar_agendamento_publico(appointment, loja_nome: str = '') -> dict:
+    pode_responder = appointment.status in STATUS_ACIONAVEIS
+    motivo_bloqueio = None
+    if not pode_responder:
+        if appointment.status in ('CLIENT_CONFIRMED', 'PHONE_CONFIRMED', 'CONFIRMED'):
+            motivo_bloqueio = 'confirmado'
+        elif appointment.status == 'CANCELLED':
+            motivo_bloqueio = 'cancelado'
+        else:
+            motivo_bloqueio = 'indisponivel'
     return {
         'appointment_id': appointment.id,
         'paciente_nome': getattr(appointment.patient, 'name', '') or getattr(appointment.patient, 'nome', ''),
@@ -121,7 +130,8 @@ def serializar_agendamento_publico(appointment, loja_nome: str = '') -> dict:
         'status': appointment.status,
         'status_display': appointment.get_status_display(),
         'clinica_nome': loja_nome,
-        'pode_responder': appointment.status in STATUS_ACIONAVEIS,
+        'pode_responder': pode_responder,
+        'motivo_bloqueio': motivo_bloqueio,
     }
 
 

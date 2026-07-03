@@ -46,6 +46,7 @@ run_best_effort "ensure_evolution_webhooks" python manage.py ensure_evolution_we
 
 run_best_effort "corrigir_schema_clinica_beleza" python manage.py corrigir_schema_clinica_beleza
 run_best_effort "corrigir_schema_crm" python manage.py corrigir_schema_crm
+run_best_effort "ensure_crm_financeiro_tabelas" python manage.py ensure_crm_financeiro_tabelas
 
 run_best_effort "setup_initial_data" python manage.py setup_initial_data
 

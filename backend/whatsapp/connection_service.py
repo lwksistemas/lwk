@@ -147,8 +147,11 @@ def update_evolution_connection_from_webhook(loja_id, data):
     """
     Atualiza status quando o celular desconecta a sessão Web (webhook connection.update).
     """
+    from django.conf import settings
+
     from core.db_config import ensure_loja_database_config
     from superadmin.models import Loja
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
 
     from .evolution_client import _extract_phone, _normalize_evolution_state
 
@@ -157,36 +160,52 @@ def update_evolution_connection_from_webhook(loja_id, data):
         logger.debug('Evolution webhook connection: loja %s inexistente', loja_id)
         return
 
-    db = loja.database_name
-    ensure_loja_database_config(db, conn_max_age=0)
+    db = (
+        getattr(loja, 'database_name', None)
+        or f'loja_{getattr(loja, "slug", loja_id)}'.replace('-', '_')
+    )
+    if not ensure_loja_database_config(db, conn_max_age=0) or db not in settings.DATABASES:
+        logger.warning('Evolution webhook connection loja %s: schema %s indisponível', loja_id, db)
+        return
+
+    set_current_loja_id(loja_id)
+    set_current_tenant_db(db)
+
     try:
-        config = WhatsAppConfig.objects.using(db).filter(loja_id=loja_id).first()
+        try:
+            config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+        except Exception as exc:
+            logger.warning('Evolution webhook connection loja %s: %s', loja_id, exc)
+            return
+        if not config:
+            return
+
+        payload = data if isinstance(data, dict) else {}
+        state_raw = (
+            payload.get('state')
+            or payload.get('status')
+            or payload.get('connectionStatus')
+            or ''
+        )
+        status = _normalize_evolution_state(state_raw)
+        phone = _extract_phone(payload)
+        _apply_evolution_state_to_config(config, status, phone or None)
+
+        _sync_whatsapp_status_to_public(loja_id, config)
+        _invalidate_whatsapp_config_cache(loja_id)
+
+        logger.info(
+            'Evolution webhook connection loja=%s state=%r -> %s',
+            loja_id,
+            state_raw,
+            config.whatsapp_connection_status,
+        )
     except Exception as exc:
-        logger.warning('Evolution webhook connection loja %s: %s', loja_id, exc)
-        return
-    if not config:
-        return
-
-    payload = data if isinstance(data, dict) else {}
-    state_raw = (
-        payload.get('state')
-        or payload.get('status')
-        or payload.get('connectionStatus')
-        or ''
-    )
-    status = _normalize_evolution_state(state_raw)
-    phone = _extract_phone(payload)
-    _apply_evolution_state_to_config(config, status, phone or None)
-
-    _sync_whatsapp_status_to_public(loja_id, config)
-    _invalidate_whatsapp_config_cache(loja_id)
-
-    logger.info(
-        'Evolution webhook connection loja=%s state=%r -> %s',
-        loja_id,
-        state_raw,
-        config.whatsapp_connection_status,
-    )
+        logger.exception(
+            'Evolution webhook connection loja=%s: erro ao persistir status: %s',
+            loja_id,
+            exc,
+        )
 
 
 def _apply_qr_from_data(config, instance_name, qr_data):

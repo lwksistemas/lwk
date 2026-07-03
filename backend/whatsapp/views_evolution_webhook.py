@@ -205,7 +205,14 @@ class EvolutionWebhookView(View):
                 data = {}
             from whatsapp.connection_service import update_evolution_connection_from_webhook
 
-            update_evolution_connection_from_webhook(loja_id, data)
+            try:
+                update_evolution_connection_from_webhook(loja_id, data)
+            except Exception as exc:
+                logger.exception(
+                    'Evolution webhook connection.update loja=%s: %s',
+                    loja_id,
+                    exc,
+                )
             return
 
         if event_name not in ('messages.upsert', ''):

@@ -163,7 +163,7 @@ def msg_confirmacao_agendamento(
         linhas.extend([
             f'Por favor, confirme ou cancele sua consulta:',
             '',
-            f'👇 *Toque para confirmar ou cancelar:*',
+            f'👇 *Abra o link e toque em Confirmar ou Cancelar:*',
             link,
             '',
             SEPARADOR,

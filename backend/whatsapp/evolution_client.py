@@ -522,7 +522,7 @@ def send_buttons(instance_name, number, *, title, description, footer, buttons):
         'footer': str(footer)[:60],
         'buttons': [
             {
-                'title': 'reply',
+                'type': 'reply',
                 'displayText': str(b.get('displayText', ''))[:25],
                 'id': str(b.get('id', ''))[:128],
             }
@@ -550,7 +550,7 @@ def send_url_button(instance_name, number, *, title, body_text, button_label, ur
         'footer': str(footer)[:60] if footer else '',
         'buttons': [
             {
-                'title': 'url',
+                'type': 'url',
                 'displayText': str(button_label)[:25],
                 'url': str(url),
             }

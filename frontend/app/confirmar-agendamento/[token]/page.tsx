@@ -293,7 +293,11 @@ export default function ConfirmarAgendamentoPage() {
         )}
 
         {!resultado?.ok && agendamento.pode_responder && (
-          <div className="flex flex-col sm:flex-row gap-2.5">
+          <div className="space-y-3">
+            <p className="text-center text-sm font-medium text-gray-700">
+              Confirme ou cancele sua consulta:
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2.5">
             <button
               type="button"
               disabled={processando}
@@ -312,6 +316,7 @@ export default function ConfirmarAgendamentoPage() {
               <XCircle className="w-4 h-4" />
               Cancelar
             </button>
+            </div>
           </div>
         )}
 

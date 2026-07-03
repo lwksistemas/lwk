@@ -10,10 +10,10 @@ from rest_framework.response import Response
 
 from core.views import BaseModelViewSet
 from tenants.middleware import get_current_loja_id
-from .activities_google_sync import (
-    sync_atividade_create,
-    sync_atividade_delete,
-    sync_atividade_update,
+from .activities_google_sync_queue import (
+    dispatch_sync_atividade_create,
+    dispatch_sync_atividade_delete,
+    dispatch_sync_atividade_update,
 )
 from .atividade_whatsapp_service import enviar_atividade_whatsapp
 from .cache import CRMCacheManager
@@ -201,7 +201,7 @@ class AtividadeViewSet(
             except Exception:
                 pass
 
-            sync_atividade_create(self.request, atividade)
+            dispatch_sync_atividade_create(self.request, atividade)
         self._disparar_lembretes_atividade(atividade)
         self._invalidate_caches()
 
@@ -260,7 +260,7 @@ class AtividadeViewSet(
         super().perform_update(serializer)
         atividade = serializer.instance
         if atividade and getattr(atividade, 'loja_id', None):
-            sync_atividade_update(self.request, atividade)
+            dispatch_sync_atividade_update(self.request, atividade)
             self._disparar_lembretes_atividade(atividade)
 
     def perform_destroy(self, instance):
@@ -285,7 +285,7 @@ class AtividadeViewSet(
             logger.warning('Erro ao remover notificações da atividade: %s', e)
 
         if instance.google_event_id:
-            sync_atividade_delete(get_current_loja_id(), instance)
+            dispatch_sync_atividade_delete(self.request, instance, loja_id=get_current_loja_id())
 
         super().perform_destroy(instance)
 

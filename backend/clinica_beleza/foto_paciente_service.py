@@ -299,20 +299,37 @@ def decodificar_token_foto(token: str) -> dict | None:
     return payload
 
 
+def default_frontend_base_foto() -> str:
+    """Frontend correto por ambiente (lojas novas no beta não herdam URL de produção)."""
+    env = (getattr(settings, 'LWK_ENVIRONMENT', '') or '').strip().lower()
+    if env in ('staging', 'beta', 'homologacao', 'homologação'):
+        return 'https://beta.lwksistemas.com.br'
+    return (getattr(settings, 'FRONTEND_URL', None) or 'https://lwksistemas.com.br').rstrip('/')
+
+
 def build_link_foto(token: str, frontend_base: str | None = None) -> str:
     """
-    Link público para o celular do profissional.
+    Link público para o celular do profissional (qualquer loja).
 
     Usa query ``?t=`` (evita quebra do token Django com ``:`` no path do Next.js)
     e encurta via ``/r/<code>`` para o QR (URL curta, sem %3A).
+    Nunca coloca o token assinado no path — vale para lojas novas e existentes.
     """
-    base = (frontend_base or getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br')).rstrip('/')
-    # Sem barra antes de ? — Next serve /enviar-foto e /enviar-foto/
+    base = (frontend_base or default_frontend_base_foto()).rstrip('/')
     full_url = f'{base}/enviar-foto?t={quote(token, safe="")}'
+    # Guarda: path sem query não pode carregar ``:`` do token Django
+    path_part = full_url.split('?', 1)[0]
+    if ':' in path_part.replace('https:', '').replace('http:', ''):
+        logger.error('build_link_foto gerou path inválido com token: %s', path_part)
+        full_url = f'{base}/enviar-foto?t={quote(token, safe="")}'
     try:
         from core.short_link import build_short_url
-        return build_short_url(full_url, ttl_days=2)
-    except Exception:
+        short = build_short_url(full_url, ttl_days=2)
+        if short and '/r/' in short:
+            return short
+        return full_url
+    except Exception as exc:
+        logger.warning('build_link_foto: encurtador indisponível, usando URL completa: %s', exc)
         return full_url
 
 

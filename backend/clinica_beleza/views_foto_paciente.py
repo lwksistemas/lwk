@@ -95,6 +95,10 @@ class ConsultaFotoQrView(GetObjectMixin, APIView):
             return bloqueio
         origin = (request.data.get('frontend_origin') or '').strip()
         frontend_base = resolver_frontend_base_qr(request, origin or None)
+        # Sem Origin (cron/API): usa beta ou produção conforme LWK_ENVIRONMENT
+        if not frontend_base:
+            from .foto_paciente_service import default_frontend_base_foto
+            frontend_base = default_frontend_base_foto()
         data = gerar_qr_foto(consulta, frontend_base=frontend_base)
         return Response(data)
 
@@ -125,7 +129,7 @@ class ConsultaFotoDeleteView(GetObjectMixin, APIView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class EnviarFotoPublicaView(View):
-    """GET/POST /api/clinica-beleza/enviar-foto/{token}/"""
+    """GET/POST /api/clinica-beleza/enviar-foto/{token}/ ou ?t=token"""
 
     def dispatch(self, request, *args, **kwargs):
         from .throttles import check_rate_limit
@@ -134,11 +138,16 @@ class EnviarFotoPublicaView(View):
             return JsonResponse({'error': 'Muitas tentativas. Aguarde alguns segundos e tente novamente.'}, status=429)
         return super().dispatch(request, *args, **kwargs)
 
-    def get(self, request, token):
+    @staticmethod
+    def _token_da_requisicao(request, token=None) -> str:
         from core.assinatura_service import normalizar_token_url
+        raw = token or request.GET.get('t') or request.GET.get('token') or ''
+        return normalizar_token_url(raw)
+
+    def get(self, request, token=None):
         from superadmin.models import Loja
 
-        token = normalizar_token_url(token)
+        token = self._token_da_requisicao(request, token)
         payload = decodificar_token_foto(token)
         if not payload:
             return JsonResponse({'error': 'Link inválido ou expirado.'}, status=400)
@@ -193,11 +202,10 @@ class EnviarFotoPublicaView(View):
             )
         return consulta, None
 
-    def post(self, request, token):
-        from core.assinatura_service import normalizar_token_url
+    def post(self, request, token=None):
         from superadmin.models import Loja
 
-        token = normalizar_token_url(token)
+        token = self._token_da_requisicao(request, token)
         payload = decodificar_token_foto(token)
         if not payload:
             return JsonResponse({'error': 'Link inválido ou expirado.'}, status=400)

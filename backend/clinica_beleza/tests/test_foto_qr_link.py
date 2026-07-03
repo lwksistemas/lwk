@@ -7,6 +7,7 @@ from clinica_beleza.foto_paciente_service import (
     ambiente_do_token_foto,
     build_link_foto,
     cloudinary_upload_config,
+    default_frontend_base_foto,
     frontend_base_permitido,
     gerar_token_foto,
     resolver_frontend_base_qr,
@@ -22,6 +23,17 @@ class FotoQrLinkTests(TestCase):
         self.assertTrue(url.startswith('https://beta.lwksistemas.com.br/enviar-foto?t='))
         self.assertIn('abc%3Atoken', url)
         self.assertNotIn('/enviar-foto/abc:token', url)
+        # Token Django nunca no path (lojas novas e existentes)
+        path = url.split('?', 1)[0]
+        self.assertNotIn('abc:token', path)
+
+    def test_default_frontend_beta_por_ambiente(self):
+        from django.test import override_settings
+
+        with override_settings(LWK_ENVIRONMENT='staging'):
+            self.assertEqual(default_frontend_base_foto(), 'https://beta.lwksistemas.com.br')
+        with override_settings(LWK_ENVIRONMENT='production', FRONTEND_URL='https://lwksistemas.com.br'):
+            self.assertEqual(default_frontend_base_foto(), 'https://lwksistemas.com.br')
 
     @patch('core.short_link.build_short_url')
     def test_build_link_encurta_para_qr(self, mock_short):

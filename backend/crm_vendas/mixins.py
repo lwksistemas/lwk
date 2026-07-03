@@ -275,7 +275,7 @@ class CacheInvalidationMixin:
             # Log erro mas não interrompe operação
             import logging
             logger = logging.getLogger(__name__)
-            logger.warning(f'Erro ao invalidar cache: {e}')
+            logger.warning('Erro ao invalidar cache: %s', e)
 
 
 class VendedorAutoAssignCreateMixin:

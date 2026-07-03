@@ -78,13 +78,14 @@ class OportunidadeService:
                 validated_data['vendedor_id'] = self.vendedor_id
                 validated_data.pop('vendedor', None)
                 logger.info(
-                    f'Oportunidade criada com vendedor logado: '
-                    f'vendedor_id={self.vendedor_id}, user_id={self.user_id}'
+                    'Oportunidade criada com vendedor logado: vendedor_id=%s, user_id=%s',
+                    self.vendedor_id, self.user_id,
                 )
                 return Oportunidade.objects.create(**validated_data)
             else:
                 logger.warning(
-                    f'Vendedor logado vendedor_id={self.vendedor_id} não existe no tenant, ignorando'
+                    'Vendedor logado vendedor_id=%s não existe no tenant, ignorando',
+                    self.vendedor_id,
                 )
 
         # Regra 2: Herdar vendedor do lead — validar que existe no tenant
@@ -94,8 +95,8 @@ class OportunidadeService:
                 validated_data['vendedor_id'] = lead.vendedor_id
                 validated_data.pop('vendedor', None)
                 logger.info(
-                    f'Oportunidade herdou vendedor do lead: '
-                    f'lead_id={lead.id}, vendedor_id={lead.vendedor_id}'
+                    'Oportunidade herdou vendedor do lead: lead_id=%s, vendedor_id=%s',
+                    lead.id, lead.vendedor_id,
                 )
                 return Oportunidade.objects.create(**validated_data)
 
@@ -112,14 +113,14 @@ class OportunidadeService:
                 )
                 return Oportunidade.objects.create(**validated_data)
             elif padrao:
-                logger.warning(f'Vendedor admin vendedor_id={padrao} não existe no tenant, ignorando')
+                logger.warning('Vendedor admin vendedor_id=%s não existe no tenant, ignorando', padrao)
 
         # Regra 4: Criar sem vendedor (warning)
         if not _oportunidade_tem_vendedor(validated_data):
             logger.warning(
-                f'Oportunidade criada SEM vendedor: '
-                f'user_id={self.user_id}, lead_id={lead.id if lead else None}. '
-                f'Vendedores não verão esta oportunidade na lista.'
+                'Oportunidade criada SEM vendedor: user_id=%s, lead_id=%s. '
+                'Vendedores não verão esta oportunidade na lista.',
+                self.user_id, lead.id if lead else None,
             )
 
         return Oportunidade.objects.create(**validated_data)

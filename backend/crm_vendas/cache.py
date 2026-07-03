@@ -16,13 +16,20 @@ class CRMCacheManager:
     - crm_atividades_v: Versão do cache de atividades
     """
     
-    # Prefixos de cache
-    # v6: próximas atividades alinhadas ao calendário (janela 30d atrás + 90d à frente)
-    DASHBOARD = 'crm_dashboard_v7'
-    CONTAS = 'crm_contas_list'
-    LEADS = 'crm_leads_list'
-    CONTATOS = 'crm_contatos_list'
-    OPORTUNIDADES = 'crm_oportunidades_list'
+    # Prefixos de versão para cada tipo de cache (mesmo padrão das atividades)
+    CONTAS_VERSION        = 'crm_contas_v'
+    LEADS_VERSION         = 'crm_leads_v'
+    CONTATOS_VERSION      = 'crm_contatos_v'
+    OPORTUNIDADES_VERSION = 'crm_opor_v'
+    DASHBOARD_VERSION     = 'crm_dash_v'
+    FINANCEIRO_VERSION    = 'crm_financeiro_v'
+
+    # Prefixos de cache (dados em si)
+    DASHBOARD    = 'crm_dashboard_v7'
+    CONTAS       = 'crm_contas_list'
+    LEADS        = 'crm_leads_list'
+    CONTATOS     = 'crm_contatos_list'
+    OPORTUNIDADES= 'crm_oportunidades_list'
     ATIVIDADES = 'crm_atividades'
     ATIVIDADES_VERSION = 'crm_atividades_v'
     
@@ -63,25 +70,47 @@ class CRMCacheManager:
         
         return key
     
+    # Mapa: prefix → versão correspondente (para invalidação por versão sem DB query)
+    _PREFIX_VERSION_MAP = None  # inicializado como property para evitar referência circular
+
+    @classmethod
+    def _get_prefix_version_map(cls):
+        return {
+            cls.DASHBOARD:     cls.DASHBOARD_VERSION,
+            cls.CONTAS:        cls.CONTAS_VERSION,
+            cls.LEADS:         cls.LEADS_VERSION,
+            cls.CONTATOS:      cls.CONTATOS_VERSION,
+            cls.OPORTUNIDADES: cls.OPORTUNIDADES_VERSION,
+        }
+
     @classmethod
     def _invalidate_for_prefix(cls, prefix, loja_id, owner_key_value=None):
         """
-        Invalida cache para um prefixo, removendo chaves do owner e de todos os vendedores.
-        
-        Args:
-            prefix: Prefixo do cache (ex: cls.CONTAS)
-            loja_id: ID da loja
-            owner_key_value: Valor para owner (None = owner, ou True para DASHBOARD)
+        Invalida cache por incremento de versão (sem DB query).
+        O cache_list_response decorator inclui a versão na chave,
+        tornando as chaves antigas automaticamente stale.
         """
         if not loja_id:
             return
-        cache.delete(cls.get_cache_key(prefix, loja_id, owner_key_value))
-        try:
-            from superadmin.models import VendedorUsuario
-            for vid in VendedorUsuario.objects.filter(loja_id=loja_id).values_list('vendedor_id', flat=True).distinct():
-                cache.delete(cls.get_cache_key(prefix, loja_id, vid))
-        except Exception:
-            pass
+        version_map = cls._get_prefix_version_map()
+        version_key_prefix = version_map.get(prefix)
+        if version_key_prefix:
+            # Estratégia de versionamento: incrementar versão invalida
+            # todas as variações de uma vez (owner + todos os vendedores)
+            vkey = cls.get_cache_key(version_key_prefix, loja_id)
+            v = cache.get(vkey, 0) + 1
+            cache.set(vkey, v, 604800)  # 7 dias
+        else:
+            # Fallback para prefixes não mapeados (ex: financeiro)
+            cache.delete(cls.get_cache_key(prefix, loja_id, owner_key_value))
+            try:
+                from superadmin.models import VendedorUsuario
+                for vid in VendedorUsuario.objects.filter(
+                    loja_id=loja_id
+                ).values_list('vendedor_id', flat=True).distinct():
+                    cache.delete(cls.get_cache_key(prefix, loja_id, vid))
+            except Exception:
+                pass
 
     @classmethod
     def invalidate_dashboard(cls, loja_id):

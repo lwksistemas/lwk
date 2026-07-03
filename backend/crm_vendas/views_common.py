@@ -63,10 +63,10 @@ def filtrar_queryset_por_documento(queryset, request, campo_documento: str):
     if matching_ids:
         return queryset.filter(pk__in=matching_ids)
 
-    # Fallback: varredura completa (cadastros por loja são pequenos)
+    # Fallback: varredura completa — limitada a 1000 para evitar full scan em lojas grandes
     matching_ids = [
         row['pk']
-        for row in queryset.exclude(**{f'{campo_documento}__isnull': True}).values('pk', campo_documento)
+        for row in queryset.exclude(**{f'{campo_documento}__isnull': True}).values('pk', campo_documento)[:1000]
         if _documento_digitos_match(row.get(campo_documento), documento)
     ]
     return queryset.filter(pk__in=matching_ids) if matching_ids else queryset.none()

@@ -126,39 +126,17 @@ class LancamentoFinanceiroCRMViewSet(
         data_fim_rec = serializer.validated_data.pop('data_fim_recorrencia', None)
         data = dict(serializer.validated_data)
 
-        vendedor_id = get_current_vendedor_id(self.request)
-        if vendedor_id and not is_owner(self.request):
-            data['vendedor_id'] = vendedor_id
-
-        if recorrente and loja_id:
-            vendedor = data.get('vendedor') or data.get('vendedor_id')
-            vendedor_id_final = getattr(vendedor, 'id', vendedor)
-            if not vendedor_id_final:
-                from rest_framework.exceptions import ValidationError
-                raise ValidationError({'vendedor': 'Vendedor obrigatório para recorrência.'})
-            _, lanc = criar_recorrencia_com_primeiro_lancamento(
-                loja_id,
-                vendedor_id=vendedor_id_final,
-                tipo=data['tipo'],
-                descricao=data['descricao'],
-                valor=data['valor'],
-                data_vencimento=data['data_vencimento'],
-                frequencia=frequencia,
-                data_fim=data_fim_rec,
-                grupo=data.get('grupo'),
-                observacoes=data.get('observacoes') or '',
-                status=data.get('status', LancamentoFinanceiroCRM.STATUS_PENDENTE),
-                data_pagamento=data.get('data_pagamento'),
-            )
-            serializer.instance = lanc
-        else:
-            if vendedor_id and not is_owner(self.request):
-                serializer.save(
-                    vendedor_id=vendedor_id,
-                    origem=LancamentoFinanceiroCRM.ORIGEM_MANUAL,
-                )
-            else:
-                serializer.save(origem=LancamentoFinanceiroCRM.ORIGEM_MANUAL)
+        from .services_financeiro import criar_lancamento_crm
+        lanc = criar_lancamento_crm(
+            loja_id=loja_id,
+            data=data,
+            vendedor_id=get_current_vendedor_id(self.request),
+            is_owner=is_owner(self.request),
+            recorrente=recorrente,
+            frequencia=frequencia,
+            data_fim_recorrencia=data_fim_rec,
+        )
+        serializer.instance = lanc
         self._invalidate_caches()
 
     def perform_update(self, serializer):

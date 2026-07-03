@@ -44,7 +44,6 @@ def asaas_loja_webhook(request, loja_slug: str):
                 'ok': True,
                 'message': 'Webhook Asaas da loja ativo. Use esta URL no painel Asaas (POST).',
                 'loja_slug': loja.slug,
-                'loja_id': loja.id,
                 'metodo': request.method,
             },
             status=status.HTTP_200_OK,

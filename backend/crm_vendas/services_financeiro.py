@@ -238,3 +238,66 @@ def sincronizar_comissoes_retroativas(loja_id: int, *, dry_run: bool = False) ->
         'ignoradas': ignoradas,
         'dry_run': dry_run,
     }
+
+
+def criar_lancamento_crm(
+    loja_id: int,
+    data: dict,
+    vendedor_id: int | None,
+    is_owner: bool,
+    recorrente: bool = False,
+    frequencia: str = 'mensal',
+    data_fim_recorrencia=None,
+):
+    """
+    Cria lançamento financeiro ou recorrência no CRM.
+
+    - Se recorrente=True: cria série de recorrência e retorna o primeiro lançamento.
+    - Se recorrente=False: cria lançamento avulso com origem MANUAL.
+
+    Args:
+        loja_id: ID da loja
+        data: dict com os dados validados (sem os campos de recorrência)
+        vendedor_id: ID do vendedor logado (None se owner)
+        is_owner: True se o usuário é owner da loja
+        recorrente: Se deve criar série de recorrência
+        frequencia: Frequência da recorrência ('mensal', 'semanal', etc.)
+        data_fim_recorrencia: Data final da série (opcional)
+
+    Returns:
+        LancamentoFinanceiroCRM: instância criada
+    """
+    from rest_framework.exceptions import ValidationError
+
+    from .models.financeiro import LancamentoFinanceiroCRM
+    from .services_recorrencia_financeiro import criar_recorrencia_com_primeiro_lancamento
+
+    if vendedor_id and not is_owner:
+        data['vendedor_id'] = vendedor_id
+
+    if recorrente:
+        vendedor = data.get('vendedor') or data.get('vendedor_id')
+        vendedor_id_final = getattr(vendedor, 'id', vendedor)
+        if not vendedor_id_final:
+            raise ValidationError({'vendedor': 'Vendedor obrigatório para recorrência.'})
+        _, lanc = criar_recorrencia_com_primeiro_lancamento(
+            loja_id,
+            vendedor_id=vendedor_id_final,
+            tipo=data['tipo'],
+            descricao=data['descricao'],
+            valor=data['valor'],
+            data_vencimento=data['data_vencimento'],
+            frequencia=frequencia,
+            data_fim=data_fim_recorrencia,
+            grupo=data.get('grupo'),
+            observacoes=data.get('observacoes') or '',
+            status=data.get('status', LancamentoFinanceiroCRM.STATUS_PENDENTE),
+            data_pagamento=data.get('data_pagamento'),
+        )
+        return lanc
+
+    # Lançamento avulso
+    extra = {'origem': LancamentoFinanceiroCRM.ORIGEM_MANUAL}
+    if vendedor_id and not is_owner:
+        extra['vendedor_id'] = vendedor_id
+    return LancamentoFinanceiroCRM.objects.create(**data, **extra)

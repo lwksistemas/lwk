@@ -42,6 +42,8 @@ jobs:
         run: npm ci
       - name: CRM Vitest suite
         run: npm test -- lib/crm-*.test.ts
+      - name: Clínica Memed parser (Vitest)
+        run: npm test -- lib/memed-prescricao-parser.test.ts
 
   frontend-e2e:
     runs-on: ubuntu-latest
@@ -62,7 +64,9 @@ jobs:
       - name: CRM E2E smoke (público, beta)
         env:
           PLAYWRIGHT_BASE_URL: https://beta.lwksistemas.com.br
-        run: npm run test:e2e:crm-public
+        run: |
+          npm run test:e2e:crm-public
+          npm run test:e2e:clinica-public
 
   frontend-e2e-authenticated:
     runs-on: ubuntu-latest
@@ -102,9 +106,11 @@ jobs:
           CRM_E2E_EMAIL: ${{ secrets.CRM_E2E_EMAIL }}
           CRM_E2E_PASSWORD: ${{ secrets.CRM_E2E_PASSWORD }}
           CRM_E2E_LOJA_SLUG: ${{ secrets.CRM_E2E_LOJA_SLUG }}
+          CLINICA_E2E_LOJA_SLUG: ${{ secrets.CLINICA_E2E_LOJA_SLUG }}
           CRM_E2E_ASSINATURA_TOKEN: ${{ secrets.CRM_E2E_ASSINATURA_TOKEN }}
         run: |
           npm run test:e2e:crm-auth
+          npm run test:e2e:clinica-auth
           if [ -n "$CRM_E2E_ASSINATURA_TOKEN" ]; then
             npx playwright test e2e/crm-assinatura-publica.spec.ts --grep "token válido"
           fi

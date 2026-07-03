@@ -167,12 +167,12 @@ export default function ContratoFormContent({
       <form onSubmit={onSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full">
           <div className="space-y-6">
+            <section className="space-y-4">{renderLojaBlock()}</section>
             <section className="space-y-4">
               <h3 className={crmFormSectionTitleClass}>Oportunidade</h3>
               {renderOportunidadeSelect()}
             </section>
             <section className="space-y-4">{renderClienteBlock()}</section>
-            <section className="space-y-4">{renderLojaBlock()}</section>
             <section className="space-y-4">
               <h3 className={crmFormSectionTitleClass}>Contrato</h3>
               <div>
@@ -245,6 +245,8 @@ export default function ContratoFormContent({
         {renderLojaBlock()}
       </div>
 
+      <div className={spanClass}>{renderOportunidadeSelect()}</div>
+
       <div className={`${sectionClass} ${spanClass}`}>
         <CrmClienteBlock
           leadInfo={leadInfo}
@@ -253,8 +255,6 @@ export default function ContratoFormContent({
           titleClass="text-sm font-medium text-gray-700 dark:text-gray-300"
         />
       </div>
-
-      <div className={spanClass}>{renderOportunidadeSelect()}</div>
 
       <div>
         <label className={labelCls}>Número</label>

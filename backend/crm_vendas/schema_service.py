@@ -113,8 +113,42 @@ def apply_crm_tenant_schema_patches(db_name: str) -> None:
     Usar em provisionamento, release (ensure_*) e recovery — nunca no hot path de requests.
     """
     patch_clinica_beleza_migration_orphans(db_name)
+    patch_crm_financeiro_tables_if_missing(db_name)
     patch_crm_vendas_asaas_columns_if_missing(db_name)
     patch_crm_vendas_atividade_columns_if_missing(db_name)
+
+
+def patch_crm_financeiro_tables_if_missing(db_name: str) -> bool:
+    """
+    Cria tabelas financeiro CRM quando migrations 0064/0065 estão marcadas mas tabelas não existem.
+    """
+    from clinica_beleza.schema_ensure import table_exists
+    from core.db_config import ensure_loja_database_config
+    from crm_vendas.financeiro_schema_ensure import (
+        TABLE_LANCAMENTO,
+        ensure_financeiro_tabelas,
+    )
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        return False
+
+    schema_name = db_name.replace('-', '_')
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(f'SET search_path TO "{schema_name}", public')
+        if table_exists(cursor, TABLE_LANCAMENTO):
+            return False
+        cursor.execute(
+            "SELECT 1 FROM django_migrations WHERE app = %s AND name = %s",
+            ['crm_vendas', '0064_financeiro_crm'],
+        )
+        if not cursor.fetchone():
+            return False
+        logger.warning(
+            'patch_crm_financeiro_tables_if_missing: %s tem migration 0064 sem tabelas — aplicando SQL',
+            db_name,
+        )
+        return ensure_financeiro_tabelas(cursor, schema_name)
 
 
 def patch_clinica_beleza_migration_orphans(db_name: str, *, tipo_slug: str | None = None) -> int:

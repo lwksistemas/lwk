@@ -10,6 +10,26 @@ _EMITENTE_FIELDS = [
 ]
 
 
+def _conta_nome_do_documento(obj) -> str | None:
+    """Empresa do cliente (conta/lead), não prestadora — proposta e contrato."""
+    lead = getattr(obj.oportunidade, 'lead', None) if getattr(obj, 'oportunidade_id', None) else None
+    if not lead:
+        return None
+    from core.cpf_utils import label_empresa_lead
+
+    conta_nome = None
+    if getattr(lead, 'conta_id', None):
+        try:
+            conta_nome = lead.conta.nome
+        except Exception:
+            pass
+    return label_empresa_lead(
+        lead.cpf_cnpj,
+        empresa=getattr(lead, 'empresa', None),
+        conta_nome=conta_nome,
+    )
+
+
 class PropostaSerializer(serializers.ModelSerializer):
     oportunidade_titulo = serializers.CharField(source='oportunidade.titulo', read_only=True)
     lead_nome = serializers.CharField(source='oportunidade.lead.nome', read_only=True)
@@ -38,22 +58,7 @@ class PropostaSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at', 'numero']
 
     def get_conta_nome(self, obj):
-        lead = getattr(obj.oportunidade, 'lead', None) if obj.oportunidade_id else None
-        if not lead:
-            return None
-        from core.cpf_utils import label_empresa_lead
-
-        conta_nome = None
-        if getattr(lead, 'conta_id', None):
-            try:
-                conta_nome = lead.conta.nome
-            except Exception:
-                pass
-        return label_empresa_lead(
-            lead.cpf_cnpj,
-            empresa=getattr(lead, 'empresa', None),
-            conta_nome=conta_nome,
-        )
+        return _conta_nome_do_documento(obj)
 
     def validate(self, attrs):
         return limpar_emitente_se_vazio(attrs)
@@ -107,6 +112,7 @@ class ContratoSerializer(serializers.ModelSerializer):
     lead_nome = serializers.CharField(source='oportunidade.lead.nome', read_only=True)
     lead_email = serializers.CharField(source='oportunidade.lead.email', read_only=True)
     lead_telefone = serializers.CharField(source='oportunidade.lead.telefone', read_only=True)
+    conta_nome = serializers.SerializerMethodField()
     vendedor_nome = serializers.CharField(source='oportunidade.vendedor.nome', read_only=True)
     vendedor_email = serializers.CharField(source='oportunidade.vendedor.email', read_only=True)
     vendedor_telefone = serializers.CharField(source='oportunidade.vendedor.telefone', read_only=True)
@@ -116,6 +122,7 @@ class ContratoSerializer(serializers.ModelSerializer):
         model = Contrato
         fields = [
             'id', 'oportunidade', 'oportunidade_titulo', 'lead_nome', 'lead_email', 'lead_telefone',
+            'conta_nome',
             'vendedor_nome', 'vendedor_email', 'vendedor_telefone', 'canal_assinatura_vendedor',
             'numero', 'titulo', 'conteudo', 'valor_total',
             'desconto_tipo', 'desconto_valor', 'valor_com_desconto',
@@ -126,6 +133,9 @@ class ContratoSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at', 'numero']
+
+    def get_conta_nome(self, obj):
+        return _conta_nome_do_documento(obj)
 
     def validate(self, attrs):
         return limpar_emitente_se_vazio(attrs)

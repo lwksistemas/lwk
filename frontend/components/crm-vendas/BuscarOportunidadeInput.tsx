@@ -16,11 +16,12 @@ export interface CrmOportunidadeBuscaItem {
 }
 
 function rotuloOportunidade(item: CrmOportunidadeBuscaItem): string {
-  const cliente = item.lead_empresa || item.lead_nome;
-  const valor = item.valor
-    ? ` — R$ ${parseFloat(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-    : '';
-  return cliente ? `${item.titulo} (${cliente})${valor}` : `${item.titulo}${valor}`;
+  return formatOportunidadeVinculoLabel({
+    titulo: item.titulo,
+    lead_nome: item.lead_nome,
+    valor: item.valor,
+    conta_nome: item.lead_empresa,
+  });
 }
 
 interface BuscarOportunidadeInputProps {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { ETAPAS_PIPELINE_PADRAO } from '@/constants/crm';
 import { formatCrmBrl, rotuloExibicaoOportunidade, subtituloExibicaoOportunidade } from '@/lib/crm-utils';
 
@@ -36,6 +37,9 @@ interface PipelineBoardProps {
   loading?: boolean;
   etapas?: Etapa[];
   onCardClick?: (oportunidade: Oportunidade) => void;
+  onEditClick?: (oportunidade: Oportunidade) => void;
+  /** Ao soltar em etapa fechada (ganho/perdido), abre edição para motivo/datas */
+  onClosedStageDrop?: (oportunidade: Oportunidade) => void;
   onEtapaChange?: (oportunidade: Oportunidade, novaEtapa: string) => void;
   /** Quadro (Kanban) ou lista tabular */
   viewMode?: 'board' | 'list';
@@ -50,6 +54,8 @@ export default function PipelineBoard({
   loading,
   etapas,
   onCardClick,
+  onEditClick,
+  onClosedStageDrop,
   onEtapaChange,
   viewMode = 'board',
   filtroEtapa = '',
@@ -80,7 +86,7 @@ export default function PipelineBoard({
     const opp = oportunidades.find((o) => o.id === draggingId);
     if (!opp || opp.etapa === etapaKey) return;
     if (ETAPAS_FECHADAS.has(etapaKey)) {
-      onCardClick?.(opp);
+      (onClosedStageDrop ?? onEditClick ?? onCardClick)?.(opp);
       return;
     }
     onEtapaChange?.(opp, etapaKey);
@@ -131,12 +137,15 @@ export default function PipelineBoard({
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Prestadora</th>
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 text-right">Valor</th>
               <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Vendedor</th>
+              {onEditClick && (
+                <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 w-10" aria-label="Ações" />
+              )}
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={onEditClick ? 6 : 5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                   Nenhuma oportunidade neste filtro.
                 </td>
               </tr>
@@ -168,6 +177,22 @@ export default function PipelineBoard({
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
                     {o.vendedor_nome ?? '—'}
                   </td>
+                  {onEditClick && (
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditClick(o);
+                        }}
+                        className="p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                        title="Editar oportunidade"
+                        aria-label="Editar oportunidade"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))
             )}
@@ -219,8 +244,8 @@ export default function PipelineBoard({
               </p>
             ) : (
               col.items.map((o) => (
+                <div key={o.id} className="relative group">
                 <button
-                  key={o.id}
                   type="button"
                   draggable={!!onEtapaChange}
                   onDragStart={(e) => {
@@ -235,7 +260,7 @@ export default function PipelineBoard({
                   onClick={() => onCardClick?.(o)}
                   className={`w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left ${
                     draggingId === o.id ? 'opacity-50' : ''
-                  } ${onEtapaChange ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                  } ${onEtapaChange ? 'cursor-grab active:cursor-grabbing' : ''} ${onEditClick ? 'pr-9' : ''}`}
                 >
                   <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
                     {rotuloExibicaoOportunidade(o)}
@@ -269,9 +294,24 @@ export default function PipelineBoard({
                     </p>
                   )}
                   <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                    {onEtapaChange ? 'Arraste ou clique para editar' : 'Clique para editar / fechar venda'}
+                    {onEtapaChange ? 'Clique para histórico · arraste para mover' : 'Clique para histórico'}
                   </p>
                 </button>
+                {onEditClick && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditClick(o);
+                    }}
+                    className="absolute top-2 right-2 p-1 rounded-md text-gray-400 hover:text-blue-600 hover:bg-white/80 dark:hover:bg-gray-600 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                    title="Editar oportunidade"
+                    aria-label="Editar oportunidade"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                )}
+                </div>
               ))
             )}
           </div>

@@ -6,6 +6,7 @@ import PipelineBoard from '@/components/crm-vendas/PipelineBoard';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import ModalCriarOportunidade from './components/ModalCriarOportunidade';
 import ModalEditarOportunidade from './components/ModalEditarOportunidade';
+import ModalHistoricoNegociacao from './components/ModalHistoricoNegociacao';
 import { useCrmPipelinePage } from '@/hooks/crm-vendas/useCrmPipelinePage';
 import { CRM_PERIODO_PIPELINE } from '@/lib/crm-periodos';
 
@@ -18,6 +19,8 @@ export default function CrmVendasPipelinePage() {
     error,
     oportunidadeEditar,
     setOportunidadeEditar,
+    oportunidadeHistorico,
+    setOportunidadeHistorico,
     modalCriar,
     setModalCriar,
     initialLeadId,
@@ -40,6 +43,8 @@ export default function CrmVendasPipelinePage() {
     oportunidadesFiltradas,
     handleAbrirCriar,
     handleCardClick,
+    handleEditarClick,
+    handleAbrirEditarDeHistorico,
     handleExportarPDF,
     handleModalSuccess,
     handleEtapaChange,
@@ -238,6 +243,8 @@ export default function CrmVendasPipelinePage() {
           loading={loading && oportunidades.length === 0}
           etapas={etapasAtivas()}
           onCardClick={handleCardClick}
+          onEditClick={handleEditarClick}
+          onClosedStageDrop={handleEditarClick}
           onEtapaChange={handleEtapaChange}
           viewMode={viewPipeline}
           filtroEtapa={filtroEtapaPipeline}
@@ -252,6 +259,15 @@ export default function CrmVendasPipelinePage() {
         etapas={etapasAtivas()}
         initialLeadId={initialLeadId}
       />
+
+      {oportunidadeHistorico && (
+        <ModalHistoricoNegociacao
+          oportunidade={oportunidadeHistorico}
+          etapas={etapasAtivas()}
+          onClose={() => setOportunidadeHistorico(null)}
+          onEditar={handleAbrirEditarDeHistorico}
+        />
+      )}
 
       {oportunidadeEditar && (
         <ModalEditarOportunidade

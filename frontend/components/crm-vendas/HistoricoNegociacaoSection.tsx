@@ -17,6 +17,8 @@ interface Props {
   etapas: { key: string; label: string }[];
   motivoPerda?: string;
   feedbackPosVenda?: string;
+  /** embedded = dentro do modal Editar; modal = modal dedicado de histórico */
+  variant?: 'embedded' | 'modal';
 }
 
 function labelEtapa(key: string, etapas: { key: string; label: string }[]): string {
@@ -106,6 +108,7 @@ export default function HistoricoNegociacaoSection({
   etapas,
   motivoPerda,
   feedbackPosVenda,
+  variant = 'embedded',
 }: Props) {
   const { notas, loading, salvando, erro, adicionarNota } = useOportunidadeNotas(oportunidade.id);
   const [tipoNova, setTipoNova] = useState<TipoNotaNegociacao>('resposta_cliente');
@@ -158,23 +161,37 @@ export default function HistoricoNegociacaoSection({
   };
 
   return (
-    <div className="border-t border-gray-200 dark:border-gray-600 pt-4 space-y-3">
+    <div className={`space-y-3 ${variant === 'embedded' ? 'border-t border-gray-200 dark:border-gray-600 pt-4' : ''}`}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <MessageSquare size={16} className="text-blue-600 dark:text-blue-400" />
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-            Histórico de negociação
-          </h3>
-        </div>
-        <button
-          type="button"
-          onClick={handleImprimir}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
-        >
-          <Printer size={13} />
-          Imprimir histórico
-        </button>
+        {variant === 'embedded' && (
+          <div className="flex items-center gap-2">
+            <MessageSquare size={16} className="text-blue-600 dark:text-blue-400" />
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+              Histórico de negociação
+            </h3>
+          </div>
+        )}
+        {variant === 'embedded' ? (
+          <button
+            type="button"
+            onClick={handleImprimir}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 ml-auto"
+          >
+            <Printer size={13} />
+            Imprimir histórico
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleImprimir}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 w-full sm:w-auto"
+          >
+            <Printer size={14} />
+            Imprimir histórico
+          </button>
+        )}
       </div>
 
       <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -185,7 +202,9 @@ export default function HistoricoNegociacaoSection({
         <p className="text-xs text-red-600 dark:text-red-400">{formErro || erro}</p>
       )}
 
-      <div className="max-h-48 overflow-y-auto space-y-2 rounded-lg border border-gray-200 dark:border-gray-600 p-2 bg-gray-50/80 dark:bg-gray-900/40">
+      <div className={`overflow-y-auto space-y-2 rounded-lg border border-gray-200 dark:border-gray-600 p-2 bg-gray-50/80 dark:bg-gray-900/40 ${
+        variant === 'modal' ? 'max-h-[min(50vh,28rem)]' : 'max-h-48'
+      }`}>
         {loading ? (
           <p className="text-xs text-gray-500 dark:text-gray-400 p-2">Carregando...</p>
         ) : notas.length === 0 ? (

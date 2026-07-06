@@ -30,6 +30,7 @@ export function useCrmPipelinePage() {
   const [error, setError] = useState<string | null>(null);
   const [vendedorIdSynced, setVendedorIdSynced] = useState(false);
   const [oportunidadeEditar, setOportunidadeEditar] = useState<Oportunidade | null>(null);
+  const [oportunidadeHistorico, setOportunidadeHistorico] = useState<Oportunidade | null>(null);
   const [modalCriar, setModalCriar] = useState(false);
   const [initialLeadId, setInitialLeadId] = useState<string | undefined>(undefined);
   const [viewPipeline, setViewPipeline] = useState<'board' | 'list'>('board');
@@ -103,7 +104,7 @@ export function useCrmPipelinePage() {
         setDataInicio((ini) => (!ini || dataRef < ini ? dataRef : ini));
         setDataFim((fim) => (!fim || dataRef > fim ? dataRef : fim));
       }
-      setOportunidadeEditar(op);
+      setOportunidadeHistorico(op);
       router.replace(`/loja/${slug}/crm-vendas/pipeline`, { scroll: false });
     };
 
@@ -135,6 +136,18 @@ export function useCrmPipelinePage() {
   };
 
   const handleCardClick = (op: Oportunidade) => {
+    setOportunidadeHistorico(op);
+  };
+
+  const handleEditarClick = (op: Oportunidade) => {
+    setOportunidadeHistorico(null);
+    setOportunidadeEditar(op);
+  };
+
+  const handleAbrirEditarDeHistorico = () => {
+    if (!oportunidadeHistorico) return;
+    const op = oportunidadeHistorico;
+    setOportunidadeHistorico(null);
     setOportunidadeEditar(op);
   };
 
@@ -220,6 +233,8 @@ export function useCrmPipelinePage() {
     error,
     oportunidadeEditar,
     setOportunidadeEditar,
+    oportunidadeHistorico,
+    setOportunidadeHistorico,
     modalCriar,
     setModalCriar,
     initialLeadId,
@@ -242,6 +257,8 @@ export function useCrmPipelinePage() {
     oportunidadesFiltradas,
     handleAbrirCriar,
     handleCardClick,
+    handleEditarClick,
+    handleAbrirEditarDeHistorico,
     handleExportarPDF,
     handleModalSuccess,
     handleEtapaChange,

@@ -136,12 +136,16 @@ def aplicar_filtro_periodo_lancamentos(queryset, *, periodo='mes_atual', data_in
     from .models.financeiro import LancamentoFinanceiroCRM
 
     inicio, fim = calcular_intervalo_vencimento(periodo, data_inicio, data_fim)
-    return queryset.filter(
-        Q(status=LancamentoFinanceiroCRM.STATUS_PAGO,
-          data_pagamento__gte=inicio, data_pagamento__lte=fim)
-        | Q(data_vencimento__gte=inicio, data_vencimento__lte=fim)
+    q_pago = Q(
+        status=LancamentoFinanceiroCRM.STATUS_PAGO,
+        data_pagamento__gte=inicio,
+        data_pagamento__lte=fim,
+    )
+    q_pendente_no_vencimento = (
+        Q(data_vencimento__gte=inicio, data_vencimento__lte=fim)
         & ~Q(status=LancamentoFinanceiroCRM.STATUS_PAGO)
     )
+    return queryset.filter(q_pago | q_pendente_no_vencimento)
 
 
 def resumo_financeiro_crm(
@@ -164,14 +168,18 @@ def resumo_financeiro_crm(
     # Lançamentos pagos: usa data_pagamento (mês em que o dinheiro entrou/saiu)
     # Lançamentos pendentes: usa data_vencimento (mês de competência)
     from django.db.models import Q as _Q
-    qs_base = LancamentoFinanceiroCRM.objects.filter(loja_id=loja_id).exclude(
-        status=LancamentoFinanceiroCRM.STATUS_CANCELADO,
-    ).filter(
-        _Q(status=LancamentoFinanceiroCRM.STATUS_PAGO,
-           data_pagamento__gte=inicio, data_pagamento__lte=fim)
-        | _Q(data_vencimento__gte=inicio, data_vencimento__lte=fim)
+    _q_pago = _Q(
+        status=LancamentoFinanceiroCRM.STATUS_PAGO,
+        data_pagamento__gte=inicio,
+        data_pagamento__lte=fim,
+    )
+    _q_pendente = (
+        _Q(data_vencimento__gte=inicio, data_vencimento__lte=fim)
         & ~_Q(status=LancamentoFinanceiroCRM.STATUS_PAGO)
     )
+    qs_base = LancamentoFinanceiroCRM.objects.filter(loja_id=loja_id).exclude(
+        status=LancamentoFinanceiroCRM.STATUS_CANCELADO,
+    ).filter(_q_pago | _q_pendente)
     qs = qs_base
     if vendedor_id:
         qs = qs.filter(vendedor_id=vendedor_id)

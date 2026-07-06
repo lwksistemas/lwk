@@ -127,6 +127,7 @@ class LancamentoFinanceiroCRM(LojaIsolationMixin, models.Model):
             models.Index(fields=['loja_id', 'tipo', 'status']),
             models.Index(fields=['loja_id', 'vendedor_id', 'tipo']),
             models.Index(fields=['loja_id', 'data_vencimento']),
+            models.Index(fields=['loja_id', 'data_pagamento'], name='crm_lanc_loja_dtpag_idx'),
         ]
 
     def __str__(self):

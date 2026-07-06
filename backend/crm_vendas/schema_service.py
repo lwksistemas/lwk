@@ -117,6 +117,31 @@ def apply_crm_tenant_schema_patches(db_name: str) -> None:
     patch_crm_emitente_documento_columns_if_missing(db_name)
     patch_crm_vendas_asaas_columns_if_missing(db_name)
     patch_crm_vendas_atividade_columns_if_missing(db_name)
+    patch_crm_negociacao_historico_if_missing(db_name)
+
+
+def patch_crm_negociacao_historico_if_missing(db_name: str) -> bool:
+    """Colunas motivo_perda/feedback_pos_venda e tabela de notas (migration 0069)."""
+    from core.db_config import ensure_loja_database_config
+    from crm_vendas.negociacao_historico_schema_ensure import (
+        ensure_negociacao_historico_schema,
+        negociacao_historico_schema_missing,
+    )
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        return False
+
+    schema_name = db_name.replace('-', '_')
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(f'SET search_path TO "{schema_name}", public')
+        if not negociacao_historico_schema_missing(cursor):
+            return False
+        logger.warning(
+            'patch_crm_negociacao_historico_if_missing: %s sem schema 0069 — aplicando SQL',
+            db_name,
+        )
+        return ensure_negociacao_historico_schema(cursor, schema_name)
 
 
 def patch_crm_emitente_documento_columns_if_missing(db_name: str) -> bool:

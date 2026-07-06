@@ -28,6 +28,7 @@ ENSURES = [
     ('ensure_crm_atividade_colunas', {}),
     ('ensure_crm_financeiro_tabelas', {}),
     ('ensure_crm_emitente_documento_colunas', {}),
+    ('ensure_crm_negociacao_historico', {}),
     ('ensure_clinica_beleza_consultas', {}),
     ('ensure_appointment_duracao_minutos', {}),
     ('ensure_professional_nascimento_sexo', {}),

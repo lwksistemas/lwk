@@ -48,6 +48,7 @@ run_best_effort "corrigir_schema_clinica_beleza" python manage.py corrigir_schem
 run_best_effort "corrigir_schema_crm" python manage.py corrigir_schema_crm
 run_best_effort "ensure_crm_financeiro_tabelas" python manage.py ensure_crm_financeiro_tabelas
 run_best_effort "ensure_crm_emitente_documento_colunas" python manage.py ensure_crm_emitente_documento_colunas
+run_best_effort "ensure_crm_negociacao_historico" python manage.py ensure_crm_negociacao_historico
 
 run_best_effort "setup_initial_data" python manage.py setup_initial_data
 

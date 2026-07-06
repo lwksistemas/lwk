@@ -37,6 +37,7 @@ class Command(BaseCommand):
                 continue
             schema_name = db_name.replace('-', '_')
             try:
+                patch_crm_migration_0067_if_orphan(db_name)
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
                     applied = ensure_negociacao_historico_schema(cursor, schema_name)

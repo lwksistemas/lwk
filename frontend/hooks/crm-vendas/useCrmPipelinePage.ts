@@ -11,6 +11,10 @@ import {
   loadOportunidades,
 } from '@/lib/crm-pipeline';
 import { useToast } from '@/components/ui/Toast';
+import {
+  CRM_PIPELINE_PERIODO_PADRAO,
+  crmDatasPeriodo,
+} from '@/lib/crm-periodos';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 
 export function useCrmPipelinePage() {
@@ -32,8 +36,10 @@ export function useCrmPipelinePage() {
   const [filtroEtapaPipeline, setFiltroEtapaPipeline] = useState('');
   const [filtroVendedor, setFiltroVendedor] = useState('');
   const [vendedores, setVendedores] = useState<{ id: number; nome: string }[]>([]);
-  const [dataInicio, setDataInicio] = useState('');
-  const [dataFim, setDataFim] = useState('');
+  const periodoInicial = crmDatasPeriodo(CRM_PIPELINE_PERIODO_PADRAO);
+  const [periodoPipeline, setPeriodoPipeline] = useState(CRM_PIPELINE_PERIODO_PADRAO);
+  const [dataInicio, setDataInicio] = useState(periodoInicial?.dataInicio ?? '');
+  const [dataFim, setDataFim] = useState(periodoInicial?.dataFim ?? '');
   const [imprimindo, setImprimindo] = useState(false);
 
   useEffect(() => {
@@ -144,6 +150,35 @@ export function useCrmPipelinePage() {
     loadOportunidades(setOportunidades, setError);
   };
 
+  const selecionarPeriodoPipeline = (periodo: string) => {
+    setPeriodoPipeline(periodo);
+    if (periodo === 'todos') {
+      setDataInicio('');
+      setDataFim('');
+      return;
+    }
+    if (periodo === 'personalizado') return;
+    const range = crmDatasPeriodo(periodo);
+    if (range) {
+      setDataInicio(range.dataInicio);
+      setDataFim(range.dataFim);
+    }
+  };
+
+  const alterarDataInicio = (value: string) => {
+    setDataInicio(value);
+    setPeriodoPipeline('personalizado');
+  };
+
+  const alterarDataFim = (value: string) => {
+    setDataFim(value);
+    setPeriodoPipeline('personalizado');
+  };
+
+  const limparPeriodoPipeline = () => {
+    selecionarPeriodoPipeline(CRM_PIPELINE_PERIODO_PADRAO);
+  };
+
   const handleEtapaChange = async (opp: Oportunidade, novaEtapa: string) => {
     if (opp.etapa === novaEtapa) return;
     try {
@@ -195,10 +230,13 @@ export function useCrmPipelinePage() {
     filtroVendedor,
     setFiltroVendedor,
     vendedores,
+    periodoPipeline,
+    selecionarPeriodoPipeline,
     dataInicio,
-    setDataInicio,
+    setDataInicio: alterarDataInicio,
     dataFim,
-    setDataFim,
+    setDataFim: alterarDataFim,
+    limparPeriodoPipeline,
     imprimindo,
     oportunidadesBase,
     oportunidadesFiltradas,

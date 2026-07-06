@@ -7,6 +7,7 @@ import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import ModalCriarOportunidade from './components/ModalCriarOportunidade';
 import ModalEditarOportunidade from './components/ModalEditarOportunidade';
 import { useCrmPipelinePage } from '@/hooks/crm-vendas/useCrmPipelinePage';
+import { CRM_PERIODO_PIPELINE } from '@/lib/crm-periodos';
 
 export default function CrmVendasPipelinePage() {
   const { etapasAtivas } = useCRMConfig();
@@ -27,10 +28,13 @@ export default function CrmVendasPipelinePage() {
     filtroVendedor,
     setFiltroVendedor,
     vendedores,
+    periodoPipeline,
+    selecionarPeriodoPipeline,
     dataInicio,
     setDataInicio,
     dataFim,
     setDataFim,
+    limparPeriodoPipeline,
     imprimindo,
     oportunidadesBase,
     oportunidadesFiltradas,
@@ -154,6 +158,23 @@ export default function CrmVendasPipelinePage() {
               Período:
             </span>
             <div className="flex flex-col gap-0.5 min-w-0">
+              <label htmlFor="periodo-pipeline" className="text-xs text-gray-500 dark:text-gray-400">
+                Preset
+              </label>
+              <select
+                id="periodo-pipeline"
+                value={periodoPipeline}
+                onChange={(e) => selecionarPeriodoPipeline(e.target.value)}
+                className="min-w-[11rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              >
+                {CRM_PERIODO_PIPELINE.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-0.5 min-w-0">
               <label htmlFor="data-inicio" className="text-xs text-gray-500 dark:text-gray-400">
                 Data início
               </label>
@@ -178,16 +199,13 @@ export default function CrmVendasPipelinePage() {
                 className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               />
             </div>
-            {(dataInicio || dataFim) && (
+            {periodoPipeline !== 'mes_atual' && (
               <button
                 type="button"
-                onClick={() => {
-                  setDataInicio('');
-                  setDataFim('');
-                }}
+                onClick={limparPeriodoPipeline}
                 className="text-sm text-red-600 dark:text-red-400 hover:underline pb-2"
               >
-                Limpar período
+                Restaurar mês atual
               </button>
             )}
             <button

@@ -125,8 +125,8 @@ def dashboard_data(request):
         loja = Loja.objects.using('default').filter(id=loja_id).first()
         if loja and loja.owner_id == request.user.id:
             is_owner_flag = True
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning('dashboard_data: erro ao verificar owner loja_id=%s: %s', loja_id, e)
 
     periodo = request.GET.get('periodo', 'mes_atual')
     data_inicio_param = request.GET.get('data_inicio')

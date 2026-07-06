@@ -122,9 +122,26 @@ def calcular_intervalo_vencimento(periodo, data_inicio=None, data_fim=None):
 
 
 def aplicar_filtro_periodo_lancamentos(queryset, *, periodo='mes_atual', data_inicio=None, data_fim=None):
-    """Filtra lançamentos por data_vencimento no intervalo do período."""
+    """
+    Filtra lançamentos pelo período.
+
+    Lógica:
+    - Lançamentos PAGOS: filtrados por data_pagamento (mês em que o dinheiro entrou/saiu).
+    - Lançamentos PENDENTES/outros: filtrados por data_vencimento (mês de competência).
+
+    Isso garante que uma comissão recebida em julho apareça em julho,
+    mesmo que o vencimento fosse em junho.
+    """
+    from django.db.models import Q
+    from .models.financeiro import LancamentoFinanceiroCRM
+
     inicio, fim = calcular_intervalo_vencimento(periodo, data_inicio, data_fim)
-    return queryset.filter(data_vencimento__gte=inicio, data_vencimento__lte=fim)
+    return queryset.filter(
+        Q(status=LancamentoFinanceiroCRM.STATUS_PAGO,
+          data_pagamento__gte=inicio, data_pagamento__lte=fim)
+        | Q(data_vencimento__gte=inicio, data_vencimento__lte=fim)
+        & ~Q(status=LancamentoFinanceiroCRM.STATUS_PAGO)
+    )
 
 
 def resumo_financeiro_crm(
@@ -144,9 +161,18 @@ def resumo_financeiro_crm(
     inicio, fim = calcular_intervalo_vencimento(periodo, data_inicio, data_fim)
     inicio_opp, fim_opp = calcular_intervalo_datas(periodo, data_inicio, data_fim)
 
-    qs = LancamentoFinanceiroCRM.objects.filter(loja_id=loja_id).exclude(
+    # Lançamentos pagos: usa data_pagamento (mês em que o dinheiro entrou/saiu)
+    # Lançamentos pendentes: usa data_vencimento (mês de competência)
+    from django.db.models import Q as _Q
+    qs_base = LancamentoFinanceiroCRM.objects.filter(loja_id=loja_id).exclude(
         status=LancamentoFinanceiroCRM.STATUS_CANCELADO,
-    ).filter(data_vencimento__gte=inicio, data_vencimento__lte=fim)
+    ).filter(
+        _Q(status=LancamentoFinanceiroCRM.STATUS_PAGO,
+           data_pagamento__gte=inicio, data_pagamento__lte=fim)
+        | _Q(data_vencimento__gte=inicio, data_vencimento__lte=fim)
+        & ~_Q(status=LancamentoFinanceiroCRM.STATUS_PAGO)
+    )
+    qs = qs_base
     if vendedor_id:
         qs = qs.filter(vendedor_id=vendedor_id)
 

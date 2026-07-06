@@ -61,6 +61,11 @@ export function CrmFinanceiroToolbar({ f, tipoAtivo, gruposTipo }: Props) {
         </div>
       </div>
 
+      <p className="text-xs text-gray-500 dark:text-gray-400 shrink-0 px-1">
+        Receitas pagas entram no período pela data do pagamento (caixa). Pendentes, pela data de vencimento
+        (competência). Comissões costumam ser recebidas no mês seguinte ao fechamento da venda.
+      </p>
+
       <div className="flex flex-wrap items-end gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-900/40 shrink-0">
         {f.isAdmin && (
           <div>

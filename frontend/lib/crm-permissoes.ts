@@ -8,6 +8,7 @@ export interface CrmMePermissoes {
 
 const STORAGE_ACESSO_TOTAL = 'crm_acesso_total';
 const STORAGE_PERMISSOES = 'crm_permissoes';
+const STORAGE_PERMISSOES_SYNCED = 'crm_permissoes_synced';
 
 export function syncCrmPermissoesSession(d: CrmMePermissoes): void {
   if (typeof window === 'undefined') return;
@@ -21,6 +22,12 @@ export function syncCrmPermissoesSession(d: CrmMePermissoes): void {
   } else {
     sessionStorage.removeItem(STORAGE_PERMISSOES);
   }
+  sessionStorage.setItem(STORAGE_PERMISSOES_SYNCED, '1');
+}
+
+export function crmPermissoesForamCarregadas(): boolean {
+  if (typeof window === 'undefined') return false;
+  return sessionStorage.getItem(STORAGE_PERMISSOES_SYNCED) === '1';
 }
 
 export function hasCrmAcessoTotal(): boolean {
@@ -41,11 +48,12 @@ export function getCrmPermissoes(): CrmPermissaoCodename[] {
   }
 }
 
-/** Verifica permissão CRM; sem lista carregada mantém comportamento legado (libera). */
+/** Verifica permissão CRM; vendedor sem permissões após sync = bloqueado. */
 export function temPermissaoCrm(codename: CrmPermissaoCodename | undefined): boolean {
   if (!codename) return true;
   if (hasCrmAcessoTotal()) return true;
+  if (!crmPermissoesForamCarregadas()) return true;
   const permissoes = getCrmPermissoes();
-  if (permissoes.length === 0) return true;
+  if (permissoes.length === 0) return false;
   return permissoes.includes(codename);
 }

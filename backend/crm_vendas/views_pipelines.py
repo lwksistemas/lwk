@@ -198,10 +198,11 @@ class AtividadeViewSet(
                             'loja_id': loja.id,
                         },
                     )
-            except Exception:
-                pass
-
-            dispatch_sync_atividade_create(self.request, atividade)
+            except Exception as e:
+                logger.warning(
+                    'Falha ao enviar notificação in-app de atividade=%s loja_id=%s: %s',
+                    atividade.id, atividade.loja_id, e,
+                )
         self._disparar_lembretes_atividade(atividade)
         self._invalidate_caches()
 

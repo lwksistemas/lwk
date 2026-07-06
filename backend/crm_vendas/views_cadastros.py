@@ -19,6 +19,8 @@ from .serializers import (
 from .views_common import (
     CRMNoCacheListMixin,
     CRMPagination,
+    filtrar_contas_busca_lista,
+    filtrar_leads_busca_lista,
     filtrar_leads_por_documento,
     filtrar_queryset_por_documento,
     filtrar_queryset_por_query_params,
@@ -54,7 +56,10 @@ class ContaViewSet(
                 qs = qs.filter(tipo__in=['cliente', 'ambos'])
             else:
                 qs = qs.filter(tipo=tipo)
-        return filtrar_queryset_por_documento(qs, self.request, 'cnpj')
+        return filtrar_contas_busca_lista(
+            filtrar_queryset_por_documento(qs, self.request, 'cnpj'),
+            self.request,
+        )
 
     vendedor_create_entity_label = 'conta'
 
@@ -108,16 +113,17 @@ class LeadViewSet(
                             self.request,
                             {'status': 'status', 'origem': 'origem'},
                         )
-                except Exception:
-                    pass
-
-        qs = self.filter_by_vendedor(qs)
+                except Exception as e:
+                    logger.warning('crm_me: erro ao determinar loja_id=%s: %s', loja_id, e)
         qs = filtrar_queryset_por_query_params(
             qs,
             self.request,
             {'status': 'status', 'origem': 'origem'},
         )
-        return filtrar_leads_por_documento(qs, self.request)
+        return filtrar_leads_busca_lista(
+            filtrar_leads_por_documento(qs, self.request),
+            self.request,
+        )
 
     vendedor_create_entity_label = 'lead'
 
@@ -165,7 +171,7 @@ class ContatoViewSet(CrmGranularPermissionMixin, CRMNoCacheListMixin, CacheInval
                 )
                 try:
                     CRMCacheManager.invalidate_dashboard(getattr(instance, 'loja_id', None))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning('Falha ao invalidar cache dashboard contato_id=%s: %s', instance.id, e)
 
         self._invalidate_caches()

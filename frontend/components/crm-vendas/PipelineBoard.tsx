@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { ETAPAS_PIPELINE_PADRAO } from '@/constants/crm';
 import { formatCrmBrl, rotuloExibicaoOportunidade } from '@/lib/crm-utils';
 
 export interface Oportunidade {
@@ -32,35 +34,28 @@ interface PipelineBoardProps {
   loading?: boolean;
   etapas?: Etapa[];
   onCardClick?: (oportunidade: Oportunidade) => void;
+  onEtapaChange?: (oportunidade: Oportunidade, novaEtapa: string) => void;
   /** Quadro (Kanban) ou lista tabular */
   viewMode?: 'board' | 'list';
   /** Chave da etapa para filtrar; vazio = todas */
   filtroEtapa?: string;
 }
 
-function labelEtapa(etapas: Etapa[], key: string): string {
-  return etapas.find((e) => e.key === key)?.label ?? key;
-}
+const ETAPAS_FECHADAS = new Set(['closed_won', 'closed_lost']);
 
 export default function PipelineBoard({
   oportunidades,
   loading,
   etapas,
   onCardClick,
+  onEtapaChange,
   viewMode = 'board',
   filtroEtapa = '',
 }: PipelineBoardProps) {
-  // Etapas padrão se não fornecidas
-  const ETAPAS_DEFAULT = [
-    { key: 'prospecting', label: 'Prospecção', ordem: 1 },
-    { key: 'qualification', label: 'Qualificação', ordem: 2 },
-    { key: 'proposal', label: 'Proposta', ordem: 3 },
-    { key: 'negotiation', label: 'Negociação', ordem: 4 },
-    { key: 'closed_won', label: 'Fechado ganho', ordem: 5 },
-    { key: 'closed_lost', label: 'Fechado perdido', ordem: 6 },
-  ];
-  
-  const etapasVisiveis = etapas || ETAPAS_DEFAULT;
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  const etapasVisiveis = etapas || ETAPAS_PIPELINE_PADRAO.map(({ key, label, ordem }) => ({ key, label, ordem }));
   const colunasBoard =
     filtroEtapa.trim() !== ''
       ? etapasVisiveis.filter((e) => e.key === filtroEtapa)
@@ -75,6 +70,19 @@ export default function PipelineBoard({
     ...e,
     items: oportunidades.filter((o) => o.etapa === e.key),
   }));
+
+  const handleDrop = (etapaKey: string) => {
+    setDropTarget(null);
+    setDraggingId(null);
+    if (draggingId == null) return;
+    const opp = oportunidades.find((o) => o.id === draggingId);
+    if (!opp || opp.etapa === etapaKey) return;
+    if (ETAPAS_FECHADAS.has(etapaKey)) {
+      onCardClick?.(opp);
+      return;
+    }
+    onEtapaChange?.(opp, etapaKey);
+  };
 
   if (loading) {
     if (viewMode === 'list') {
@@ -172,7 +180,22 @@ export default function PipelineBoard({
       {byEtapa.map((col) => (
         <div
           key={col.key}
-          className="w-72 shrink-0 bg-gray-50 dark:bg-gray-700/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600 flex flex-col max-h-[calc(100vh-14rem)]"
+          className={`w-72 shrink-0 bg-gray-50 dark:bg-gray-700/50 rounded-xl shadow-sm border flex flex-col max-h-[calc(100vh-14rem)] transition-colors ${
+            dropTarget === col.key
+              ? 'border-blue-400 dark:border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800'
+              : 'border-gray-200 dark:border-gray-600'
+          }`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDropTarget(col.key);
+          }}
+          onDragLeave={() => {
+            if (dropTarget === col.key) setDropTarget(null);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            handleDrop(col.key);
+          }}
         >
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <h3 className="font-semibold text-gray-900 dark:text-white">
@@ -190,15 +213,27 @@ export default function PipelineBoard({
           <div className="p-2 flex-1 overflow-y-auto space-y-2">
             {col.items.length === 0 ? (
               <p className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">
-                Nenhuma
+                {draggingId != null ? 'Solte aqui' : 'Nenhuma'}
               </p>
             ) : (
               col.items.map((o) => (
                 <button
                   key={o.id}
                   type="button"
+                  draggable={!!onEtapaChange}
+                  onDragStart={(e) => {
+                    setDraggingId(o.id);
+                    e.dataTransfer.setData('text/plain', String(o.id));
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragEnd={() => {
+                    setDraggingId(null);
+                    setDropTarget(null);
+                  }}
                   onClick={() => onCardClick?.(o)}
-                  className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
+                  className={`w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left ${
+                    draggingId === o.id ? 'opacity-50' : ''
+                  } ${onEtapaChange ? 'cursor-grab active:cursor-grabbing' : ''}`}
                 >
                   <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
                     {rotuloExibicaoOportunidade(o)}
@@ -234,7 +269,9 @@ export default function PipelineBoard({
                       Perdido em: {new Date(o.data_fechamento_perdido).toLocaleDateString('pt-BR')}
                     </p>
                   )}
-                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">Clique para editar / fechar venda</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    {onEtapaChange ? 'Arraste ou clique para editar' : 'Clique para editar / fechar venda'}
+                  </p>
                 </button>
               ))
             )}

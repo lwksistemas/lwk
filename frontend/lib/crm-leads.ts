@@ -1,4 +1,4 @@
-import { fetchCrmPaginatedPage, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { fetchAllPaginatedResults, fetchCrmPaginatedPage, getCrmApiErrorDetail } from '@/lib/crm-utils';
 import type { Lead } from '@/components/crm-vendas/LeadsTable';
 
 export const LEADS_PAGE_SIZE = 50;
@@ -13,6 +13,29 @@ export function formatarDataLead(s: string) {
   }
 }
 
+function buildLeadsCsv(leads: Lead[]) {
+  const headers = ['Nome', 'Empresa', 'Email', 'Telefone', 'CPF/CNPJ', 'Status'];
+  const rows = leads.map((l) => [
+    l.nome,
+    l.empresa || '',
+    l.email || '',
+    l.telefone || '',
+    l.cpf_cnpj || '',
+    l.status,
+  ]);
+  return [headers.join(';'), ...rows.map((r) => r.map((c) => `"${(c || '').replace(/"/g, '""')}"`).join(';'))].join('\n');
+}
+
+function downloadCsv(csv: string, filename: string) {
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function loadLeadsPage(
   page: number,
   setLeads: (l: Lead[]) => void,
@@ -20,9 +43,13 @@ export function loadLeadsPage(
   setTotalPages: (n: number) => void,
   setError: (e: string | null) => void,
   setLoading: (v: boolean) => void,
+  busca = '',
 ) {
   setLoading(true);
-  fetchCrmPaginatedPage<Lead>('/crm-vendas/leads/', page, LEADS_PAGE_SIZE, { _t: Date.now() })
+  const params: Record<string, string | number> = { _t: Date.now() };
+  if (busca.trim().length >= 2) params.q = busca.trim();
+
+  fetchCrmPaginatedPage<Lead>('/crm-vendas/leads/', page, LEADS_PAGE_SIZE, params)
     .then((data) => {
       setLeads(data.results);
       setTotalCount(data.count);
@@ -36,21 +63,13 @@ export function loadLeadsPage(
 }
 
 export function exportLeadsCsv(leads: Lead[]) {
-  const headers = ['Nome', 'Empresa', 'Email', 'Telefone', 'CPF/CNPJ', 'Status'];
-  const rows = leads.map((l) => [
-    l.nome,
-    l.empresa || '',
-    l.email || '',
-    l.telefone || '',
-    l.cpf_cnpj || '',
-    l.status,
-  ]);
-  const csv = [headers.join(';'), ...rows.map((r) => r.map((c) => `"${(c || '').replace(/"/g, '""')}"`).join(';'))].join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `leads_${new Date().toISOString().slice(0, 10)}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadCsv(buildLeadsCsv(leads), `leads_${new Date().toISOString().slice(0, 10)}.csv`);
+}
+
+export async function exportAllLeadsCsv(busca = ''): Promise<number> {
+  const params: Record<string, string | number> = { _t: Date.now() };
+  if (busca.trim().length >= 2) params.q = busca.trim();
+  const leads = await fetchAllPaginatedResults<Lead>('/crm-vendas/leads/', params);
+  downloadCsv(buildLeadsCsv(leads), `leads_${new Date().toISOString().slice(0, 10)}.csv`);
+  return leads.length;
 }

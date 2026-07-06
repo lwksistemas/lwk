@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { Grid, Menu, Search } from 'lucide-react';
+import { Menu, Search } from 'lucide-react';
 import { useCRMUIStore } from '@/store/crm-ui';
 import { useCrmHeaderSearch } from '@/hooks/crm-vendas/useCrmHeaderSearch';
 import { useCrmHeaderNotifications } from '@/hooks/crm-vendas/useCrmHeaderNotifications';
@@ -55,13 +55,6 @@ function HeaderCrm({
           aria-label="Mostrar menu lateral"
         >
           <Menu size={20} />
-        </button>
-        <button
-          type="button"
-          className="hidden sm:flex p-2 rounded hover:bg-gray-100 dark:hover:bg-[#0d1f3c] transition-colors text-gray-600 dark:text-gray-300"
-          aria-label="App Launcher"
-        >
-          <Grid size={20} />
         </button>
         <div className="hidden md:flex items-center gap-2">
           <h1 className="text-sm font-semibold text-gray-900 dark:text-white">{title}</h1>

@@ -5,6 +5,7 @@ import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { Plus, Download } from 'lucide-react';
 import LeadsTable from '@/components/crm-vendas/LeadsTable';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import CrmListSearchInput from '@/components/crm-vendas/CrmListSearchInput';
 import { useCrmLeadsPage } from '@/hooks/crm-vendas/useCrmLeadsPage';
 
 const ModalLeadVer = dynamic(() => import('@/components/crm-vendas/modals/ModalLeadVer'), { ssr: false });
@@ -42,7 +43,10 @@ export default function CrmVendasLeadsPage() {
     confirmarExcluir,
     handleMudarStatus,
     salvarNovoStatus,
-    exportLeadsCsv,
+    busca,
+    setBusca,
+    exportando,
+    handleExportarCsv,
     leadsPageSize,
   } = useCrmLeadsPage();
 
@@ -62,14 +66,15 @@ export default function CrmVendasLeadsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Leads</h1>
         <div className="flex items-center gap-2">
-          {leads.length > 0 && (
+          {(totalCount > 0 || leads.length > 0) && (
             <button
               type="button"
-              onClick={() => exportLeadsCsv(leads)}
-              className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 font-medium transition text-sm inline-flex items-center gap-2"
+              onClick={handleExportarCsv}
+              disabled={exportando}
+              className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 font-medium transition text-sm inline-flex items-center gap-2 disabled:opacity-50"
             >
               <Download size={16} />
-              Exportar CSV
+              {exportando ? 'Exportando...' : 'Exportar CSV'}
             </button>
           )}
           <a
@@ -81,6 +86,8 @@ export default function CrmVendasLeadsPage() {
           </a>
         </div>
       </div>
+
+      <CrmListSearchInput value={busca} onChange={setBusca} />
 
       <LeadsTable
         leads={leads}

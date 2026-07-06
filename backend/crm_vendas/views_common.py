@@ -32,6 +32,55 @@ def filtrar_queryset_por_query_params(queryset, request, param_field_map: dict[s
     return queryset
 
 
+def filtrar_queryset_busca_texto(queryset, request, q_filter_builder):
+    """
+    Filtra ?q=termo (mín. 2 caracteres) usando builder que recebe (term, term_digits).
+    """
+    term = (request.query_params.get('q') or '').strip()
+    if len(term) < 2:
+        return queryset
+    term_digits = ''.join(c for c in term if c.isdigit())
+    return queryset.filter(q_filter_builder(term, term_digits))
+
+
+def _build_q_lead_busca(term: str, term_digits: str):
+    from django.db.models import Q
+
+    from core.text_search import q_icontains_sem_acento
+
+    q_filter = (
+        q_icontains_sem_acento(term, 'nome', 'empresa', 'email')
+        | Q(telefone__icontains=term)
+        | Q(cpf_cnpj__icontains=term)
+    )
+    if term_digits and len(term_digits) >= 3:
+        q_filter |= Q(cpf_cnpj__icontains=term_digits)
+    return q_filter
+
+
+def _build_q_conta_busca(term: str, term_digits: str):
+    from django.db.models import Q
+
+    from core.text_search import q_icontains_sem_acento
+
+    q_filter = (
+        q_icontains_sem_acento(term, 'nome', 'razao_social', 'email', 'segmento')
+        | Q(telefone__icontains=term)
+        | Q(cnpj__icontains=term)
+    )
+    if term_digits and len(term_digits) >= 3:
+        q_filter |= Q(cnpj__icontains=term_digits)
+    return q_filter
+
+
+def filtrar_leads_busca_lista(queryset, request):
+    return filtrar_queryset_busca_texto(queryset, request, _build_q_lead_busca)
+
+
+def filtrar_contas_busca_lista(queryset, request):
+    return filtrar_queryset_busca_texto(queryset, request, _build_q_conta_busca)
+
+
 def _documento_digitos_match(stored: str | None, documento: str) -> bool:
     a = re.sub(r'\D', '', stored or '')
     if not a:

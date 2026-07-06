@@ -61,9 +61,15 @@ describe('crm-permissoes', () => {
     expect(hasCrmAcessoTotal()).toBe(false);
   });
 
-  it('temPermissaoCrm libera quando não há lista (legado)', () => {
+  it('temPermissaoCrm libera enquanto permissões não foram sincronizadas', () => {
     sessionStorage.setItem('is_vendedor', '1');
     expect(temPermissaoCrm('view_lead')).toBe(true);
+  });
+
+  it('temPermissaoCrm bloqueia vendedor com lista vazia após sync', () => {
+    sessionStorage.setItem('is_vendedor', '1');
+    syncCrmPermissoesSession({ acesso_total: false, permissoes: [] });
+    expect(temPermissaoCrm('view_lead')).toBe(false);
   });
 
   it('temPermissaoCrm bloqueia codename ausente na lista', () => {

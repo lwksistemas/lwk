@@ -10,9 +10,11 @@ import {
   filtrarOportunidadesPipeline,
   loadOportunidades,
 } from '@/lib/crm-pipeline';
+import { useToast } from '@/components/ui/Toast';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 
 export function useCrmPipelinePage() {
+  const toast = useToast();
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -26,7 +28,7 @@ export function useCrmPipelinePage() {
   const [oportunidadeEditar, setOportunidadeEditar] = useState<Oportunidade | null>(null);
   const [modalCriar, setModalCriar] = useState(false);
   const [initialLeadId, setInitialLeadId] = useState<string | undefined>(undefined);
-  const [viewPipeline, setViewPipeline] = useState<'board' | 'list'>('list');
+  const [viewPipeline, setViewPipeline] = useState<'board' | 'list'>('board');
   const [filtroEtapaPipeline, setFiltroEtapaPipeline] = useState('');
   const [filtroVendedor, setFiltroVendedor] = useState('');
   const [vendedores, setVendedores] = useState<{ id: number; nome: string }[]>([]);
@@ -142,6 +144,19 @@ export function useCrmPipelinePage() {
     loadOportunidades(setOportunidades, setError);
   };
 
+  const handleEtapaChange = async (opp: Oportunidade, novaEtapa: string) => {
+    if (opp.etapa === novaEtapa) return;
+    try {
+      await apiClient.patch(`/crm-vendas/oportunidades/${opp.id}/`, { etapa: novaEtapa });
+      setOportunidades((prev) =>
+        prev.map((o) => (o.id === opp.id ? { ...o, etapa: novaEtapa } : o)),
+      );
+      toast.success('Etapa atualizada.');
+    } catch (err) {
+      toast.error(getCrmApiErrorDetail(err, 'Não foi possível mover a oportunidade.'));
+    }
+  };
+
   const oportunidadesBase = useMemo(
     () =>
       filtrarOportunidadesPipeline(oportunidades, {
@@ -191,5 +206,6 @@ export function useCrmPipelinePage() {
     handleCardClick,
     handleExportarPDF,
     handleModalSuccess,
+    handleEtapaChange,
   };
 }

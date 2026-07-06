@@ -12,6 +12,7 @@ import {
   DEFAULT_COLUNAS_CONTATOS,
   colunasVisiveisFromConfig,
 } from '@/lib/crm-colunas-config';
+import { ETAPAS_PIPELINE_PADRAO } from '@/constants/crm';
 
 interface CRMConfig {
   id: number;
@@ -127,34 +128,18 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
 
   const etapasAtivas = () => {
     if (!config || !config.etapas_pipeline || config.etapas_pipeline.length === 0) {
-      // Retornar etapas padrão se não carregou ou está vazio
-      return [
-        { key: 'prospecting', label: 'Prospecção', ordem: 1 },
-        { key: 'qualification', label: 'Qualificação', ordem: 2 },
-        { key: 'proposal', label: 'Proposta', ordem: 3 },
-        { key: 'negotiation', label: 'Negociação', ordem: 4 },
-        { key: 'closed_won', label: 'Fechado (ganho)', ordem: 5 },
-        { key: 'closed_lost', label: 'Fechado (perdido)', ordem: 6 },
-      ];
+      return ETAPAS_PIPELINE_PADRAO.map(({ key, label, ordem }) => ({ key, label, ordem }));
     }
-    
+
     const ativas = config.etapas_pipeline
-      .filter(e => e.ativo)
+      .filter((e) => e.ativo)
       .sort((a, b) => a.ordem - b.ordem)
-      .map(e => ({ key: e.key, label: e.label, ordem: e.ordem }));
-    
-    // Se não há etapas ativas, retornar padrão
+      .map((e) => ({ key: e.key, label: e.label, ordem: e.ordem }));
+
     if (ativas.length === 0) {
-      return [
-        { key: 'prospecting', label: 'Prospecção', ordem: 1 },
-        { key: 'qualification', label: 'Qualificação', ordem: 2 },
-        { key: 'proposal', label: 'Proposta', ordem: 3 },
-        { key: 'negotiation', label: 'Negociação', ordem: 4 },
-        { key: 'closed_won', label: 'Fechado (ganho)', ordem: 5 },
-        { key: 'closed_lost', label: 'Fechado (perdido)', ordem: 6 },
-      ];
+      return ETAPAS_PIPELINE_PADRAO.map(({ key, label, ordem }) => ({ key, label, ordem }));
     }
-    
+
     return ativas;
   };
 

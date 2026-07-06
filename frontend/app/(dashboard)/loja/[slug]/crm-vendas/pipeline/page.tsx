@@ -38,6 +38,7 @@ export default function CrmVendasPipelinePage() {
     handleCardClick,
     handleExportarPDF,
     handleModalSuccess,
+    handleEtapaChange,
   } = useCrmPipelinePage();
 
   return (
@@ -219,6 +220,7 @@ export default function CrmVendasPipelinePage() {
           loading={loading && oportunidades.length === 0}
           etapas={etapasAtivas()}
           onCardClick={handleCardClick}
+          onEtapaChange={handleEtapaChange}
           viewMode={viewPipeline}
           filtroEtapa={filtroEtapaPipeline}
         />

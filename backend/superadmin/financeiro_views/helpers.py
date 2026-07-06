@@ -1,9 +1,21 @@
 """Helpers compartilhados do financeiro das lojas."""
 import logging
+from datetime import date
 
 from ..models import FinanceiroLoja, PagamentoLoja
 
 logger = logging.getLogger(__name__)
+
+
+def _boleto_pix_liberado_para_vencimento(due_date) -> bool:
+    """Alinhado ao cron e à UI: boleto/PIX só dentro de 10 dias do vencimento."""
+    from superadmin.services.assinatura_bloqueio_service import DAYS_TO_WARN_BOLETO
+
+    if not due_date:
+        return True
+    if not isinstance(due_date, date):
+        return True
+    return (due_date - date.today()).days <= DAYS_TO_WARN_BOLETO
 
 def _mercadopago_payment_ids_for_boleto(pagamento):
     """IDs MP únicos para tentar obter URL do boleto (linha do pagamento + financeiro)."""
@@ -304,6 +316,13 @@ def _build_historico_pagamentos_loja(
             pix_qr = pix_qr or (ap.pix_qr_code or '').strip()
         if not pix_copy and is_pending:
             pix_copy = (pix_copy_fallback or '').strip()
+
+        if (is_pending or is_overdue) and pl.data_vencimento and not _boleto_pix_liberado_para_vencimento(
+            pl.data_vencimento
+        ):
+            boleto_url = ''
+            pix_copy = ''
+            pix_qr = ''
 
         data_pagamento = None
         if pl.data_pagamento:

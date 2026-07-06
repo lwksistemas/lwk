@@ -10,7 +10,11 @@ from django.utils import timezone
 from ..loja_utils import resolve_loja_by_slug_or_atalho
 from ..models import FinanceiroLoja, PagamentoLoja
 from ..serializers import PagamentoLojaSerializer
-from .helpers import _build_historico_pagamentos_loja, _get_or_create_financeiro_loja
+from .helpers import (
+    _build_historico_pagamentos_loja,
+    _boleto_pix_liberado_para_vencimento,
+    _get_or_create_financeiro_loja,
+)
 from .renovacao import _executar_renovar_financeiro
 from superadmin.services.assinatura_bloqueio_service import (
     situacao_aviso_assinatura,
@@ -242,6 +246,16 @@ def _dashboard_financeiro_loja_impl(request, loja_slug):
                 logger.info(f"Usando chave PIX estática como fallback para loja {loja.nome}")
         except Exception:
             pass
+
+    vencimento_boleto = (
+        proximo_boleto.due_date
+        if proximo_boleto and proximo_boleto.due_date
+        else financeiro.data_proxima_cobranca
+    )
+    if vencimento_boleto and not _boleto_pix_liberado_para_vencimento(vencimento_boleto):
+        boleto_url = None
+        pix_qr_code = None
+        pix_copy_paste = None
 
     return Response({
         'loja': {

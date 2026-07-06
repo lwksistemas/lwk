@@ -1,4 +1,5 @@
 export const DAYS_TO_WARN_UI = 5;
+export const DAYS_TO_WARN_BOLETO = 10;
 export const DAYS_TO_BLOCK = 5;
 
 export type AssinaturaAviso = {
@@ -79,4 +80,45 @@ export function clearAssinaturaAvisoDismissKeys(): void {
     if (key?.startsWith('lwk_aviso_assinatura_')) keys.push(key);
   }
   keys.forEach((k) => sessionStorage.removeItem(k));
+}
+
+export type CobrancaBoletoDisponivel = {
+  disponivel: boolean;
+  mensagem: string;
+  dataLiberacao: string | null;
+};
+
+/** Boleto/PIX só ficam acessíveis até DAYS_TO_WARN_BOLETO dias antes do vencimento. */
+export function cobrancaBoletoPixDisponivel(
+  dataVencimento: string | null | undefined,
+): CobrancaBoletoDisponivel {
+  if (!dataVencimento) {
+    return {
+      disponivel: false,
+      mensagem:
+        'O boleto e o PIX ficam disponíveis 10 dias antes do vencimento da mensalidade.',
+      dataLiberacao: null,
+    };
+  }
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const venc = parseDateOnly(dataVencimento);
+  const diasAteVenc = daysBetween(hoje, venc);
+
+  if (diasAteVenc <= DAYS_TO_WARN_BOLETO) {
+    return { disponivel: true, mensagem: '', dataLiberacao: null };
+  }
+
+  const liberacao = new Date(venc);
+  liberacao.setDate(liberacao.getDate() - DAYS_TO_WARN_BOLETO);
+  const dia = String(liberacao.getDate()).padStart(2, '0');
+  const mes = String(liberacao.getMonth() + 1).padStart(2, '0');
+  const ano = liberacao.getFullYear();
+
+  return {
+    disponivel: false,
+    dataLiberacao: `${ano}-${mes}-${dia}`,
+    mensagem: `O boleto e o PIX ficam disponíveis a partir de ${dia}/${mes}/${ano} (10 dias antes do vencimento).`,
+  };
 }

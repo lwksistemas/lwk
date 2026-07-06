@@ -14,6 +14,7 @@ import {
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 import apiClient from '@/lib/api-client';
 import { hexToRgba } from '@/lib/loja-theme';
+import { cobrancaBoletoPixDisponivel } from '@/lib/assinatura-aviso';
 
 export interface HistoricoPagamentoItem {
   pagamento_loja_id: number;
@@ -109,6 +110,25 @@ export function HistoricoPagamentos({
   const headerBg = neutralStyle ? undefined : hexToRgba(corPrimaria, 0.14);
   const [loadingBoleto, setLoadingBoleto] = useState<number | null>(null);
   const [loadingNf, setLoadingNf] = useState<number | null>(null);
+
+  const avisarBoletoIndisponivel = (dataVencimento: string | null | undefined) => {
+    const situacao = cobrancaBoletoPixDisponivel(dataVencimento);
+    if (!situacao.disponivel) {
+      alert(situacao.mensagem);
+      return false;
+    }
+    return true;
+  };
+
+  const renderAvisoBoletoIndisponivel = (dataVencimento: string | null | undefined) => {
+    const situacao = cobrancaBoletoPixDisponivel(dataVencimento);
+    if (situacao.disponivel) return null;
+    return (
+      <span className="text-xs text-muted-foreground max-w-[12rem] inline-block text-right leading-snug">
+        {situacao.mensagem}
+      </span>
+    );
+  };
 
   const baixarBoleto = async (item: HistoricoPagamentoItem) => {
     const pagamentoId = item.pagamento_loja_id || item.id;
@@ -270,6 +290,9 @@ export function HistoricoPagamentos({
       return <span className="text-xs text-muted-foreground">—</span>;
     }
 
+    const avisoIndisponivel = renderAvisoBoletoIndisponivel(item.data_vencimento);
+    if (avisoIndisponivel) return avisoIndisponivel;
+
     const pid = item.pagamento_loja_id || item.id;
     const podeBoleto =
       item.pode_baixar_boleto !== false &&
@@ -284,7 +307,15 @@ export function HistoricoPagamentos({
     return (
       <div className="flex flex-wrap gap-1 justify-end">
         {item.boleto_url && (
-          <Button type="button" variant="outline" size="sm" onClick={() => window.open(item.boleto_url, '_blank')}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (!avisarBoletoIndisponivel(item.data_vencimento)) return;
+              window.open(item.boleto_url, '_blank');
+            }}
+          >
             <ExternalLink className="w-3.5 h-3.5 mr-1" />
             Ver
           </Button>
@@ -295,7 +326,10 @@ export function HistoricoPagamentos({
             variant="outline"
             size="sm"
             disabled={loadingBoleto === pid || loadingBoleto === -1}
-            onClick={() => baixarBoleto(item)}
+            onClick={() => {
+              if (!avisarBoletoIndisponivel(item.data_vencimento)) return;
+              baixarBoleto(item);
+            }}
           >
             {loadingBoleto === pid || (loadingBoleto === -1 && !pid) ? (
               <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
@@ -408,13 +442,17 @@ export function HistoricoPagamentos({
                 <Badge variant="secondary">Pendente</Badge>
               </td>
               <td className="py-3 px-3">
+                {renderAvisoBoletoIndisponivel(cobrancaAberta.data_vencimento) || (
                 <div className="flex flex-wrap gap-1 justify-end">
                   {cobrancaAberta.boleto_url && (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(cobrancaAberta.boleto_url, '_blank')}
+                      onClick={() => {
+                        if (!avisarBoletoIndisponivel(cobrancaAberta.data_vencimento)) return;
+                        window.open(cobrancaAberta.boleto_url, '_blank');
+                      }}
                     >
                       <ExternalLink className="w-3.5 h-3.5 mr-1" />
                       Ver
@@ -426,9 +464,10 @@ export function HistoricoPagamentos({
                       variant="outline"
                       size="sm"
                       disabled={loadingBoleto === cobrancaAberta.pagamento_id}
-                      onClick={() =>
-                        baixarBoletoPorId(cobrancaAberta.pagamento_id!, cobrancaAberta.boleto_url)
-                      }
+                      onClick={() => {
+                        if (!avisarBoletoIndisponivel(cobrancaAberta.data_vencimento)) return;
+                        baixarBoletoPorId(cobrancaAberta.pagamento_id!, cobrancaAberta.boleto_url);
+                      }}
                     >
                       {loadingBoleto === cobrancaAberta.pagamento_id ? (
                         <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
@@ -439,12 +478,21 @@ export function HistoricoPagamentos({
                     </Button>
                   )}
                   {cobrancaAberta.pix_copy_paste && onCopiarPix && (
-                    <Button type="button" variant="outline" size="sm" onClick={onCopiarPix}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (!avisarBoletoIndisponivel(cobrancaAberta.data_vencimento)) return;
+                        onCopiarPix();
+                      }}
+                    >
                       <Copy className="w-3.5 h-3.5 mr-1" />
                       PIX
                     </Button>
                   )}
                 </div>
+                )}
               </td>
               <td className="py-3 px-3 text-right text-xs text-muted-foreground">Após pagamento</td>
             </tr>

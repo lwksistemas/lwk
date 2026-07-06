@@ -131,9 +131,10 @@ export default function AssinaturaLojaPage() {
     }
   }, [slug]);
 
-  const carregarDados = useCallback(async () => {
+  const carregarDados = useCallback(async (opts?: { silencioso?: boolean }) => {
+    const silencioso = opts?.silencioso ?? false;
     try {
-      setLoading(true);
+      if (!silencioso) setLoading(true);
       setError(null);
       const apiSlug = await resolveLojaApiSlug(slug);
       const { data: d } = await apiClient.get<AssinaturaData>(`/superadmin/loja/${apiSlug}/financeiro/`);
@@ -151,7 +152,7 @@ export default function AssinaturaLojaPage() {
         setError('Erro de conexão com o servidor. Verifique sua internet e tente novamente.');
       else setError('Não foi possível carregar os dados. Faça login novamente se o problema continuar.');
     } finally {
-      setLoading(false);
+      if (!silencioso) setLoading(false);
     }
   }, [slug, sincronizarBloqueio]);
 
@@ -159,15 +160,15 @@ export default function AssinaturaLojaPage() {
     carregarDados();
   }, [carregarDados]);
 
-  const atualizarStatus = async () => {
-    if (!data?.financeiro.tem_asaas) return;
+  const atualizarPagina = async () => {
     try {
       setAtualizandoStatus(true);
-      await apiClient.post(`/superadmin/loja-financeiro/${data.loja.id}/atualizar_status_asaas/`);
-      await carregarDados();
-      alert('Status atualizado!');
+      if (data?.financeiro.tem_asaas && data?.loja?.id) {
+        await apiClient.post(`/superadmin/loja-financeiro/${data.loja.id}/atualizar_status_asaas/`);
+      }
+      await carregarDados({ silencioso: true });
     } catch {
-      alert('Erro ao atualizar status');
+      alert('Erro ao atualizar. Tente novamente.');
     } finally {
       setAtualizandoStatus(false);
     }
@@ -340,23 +341,12 @@ export default function AssinaturaLojaPage() {
         variant="secondary"
         size="sm"
         className="bg-white/15 text-white border-white/20 hover:bg-white/25"
-        onClick={carregarDados}
+        onClick={atualizarPagina}
+        disabled={atualizandoStatus}
       >
-        <RefreshCw className="w-4 h-4 sm:mr-2" />
+        <RefreshCw className={`w-4 h-4 sm:mr-2 ${atualizandoStatus ? 'animate-spin' : ''}`} />
         <span className="hidden sm:inline">Atualizar</span>
       </Button>
-      {data.financeiro.tem_asaas && (
-        <Button
-          variant="secondary"
-          size="sm"
-          className="bg-white/15 text-white border-white/20 hover:bg-white/25"
-          onClick={atualizarStatus}
-          disabled={atualizandoStatus}
-        >
-          <RefreshCw className={`w-4 h-4 sm:mr-2 ${atualizandoStatus ? 'animate-spin' : ''}`} />
-          <span className="hidden lg:inline">Sync Asaas</span>
-        </Button>
-      )}
     </>
   ) : null;
 

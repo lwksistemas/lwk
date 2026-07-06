@@ -257,6 +257,39 @@ export function rotuloExibicaoOportunidade(o: {
   return titulo || '—';
 }
 
+/** Subtítulo no card do pipeline — prestadora, conta ou título, sem repetir o rótulo principal. */
+export function subtituloExibicaoOportunidade(o: {
+  titulo: string;
+  lead_nome?: string;
+  conta_nome?: string | null;
+  empresa_prestadora_nome?: string | null;
+}): string {
+  const primary = rotuloExibicaoOportunidade(o);
+  const prestadora = (o.empresa_prestadora_nome || '').trim();
+  if (prestadora && prestadora !== primary) return prestadora;
+  const conta = (o.conta_nome || '').trim();
+  if (conta && conta !== primary) return conta;
+  const titulo = (o.titulo || '').trim();
+  if (titulo && titulo !== primary && titulo !== prestadora) return titulo;
+  return '';
+}
+
+/** Subtítulo no modal de edição — empresa do cliente ou título útil; não repete a prestadora (já no select). */
+export function subtituloModalOportunidade(o: {
+  titulo: string;
+  lead_nome?: string;
+  conta_nome?: string | null;
+  empresa_prestadora_nome?: string | null;
+}): string {
+  const primary = rotuloExibicaoOportunidade(o);
+  const prestadora = (o.empresa_prestadora_nome || '').trim();
+  const conta = (o.conta_nome || '').trim();
+  if (conta && conta !== primary && conta !== prestadora) return conta;
+  const titulo = (o.titulo || '').trim();
+  if (titulo && titulo !== primary && titulo !== prestadora) return titulo;
+  return '';
+}
+
 /** Rótulo da oportunidade em proposta/contrato — cliente em destaque, não prestadora. */
 export function formatOportunidadeVinculoLabel(opts: {
   titulo?: string | null;

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { X } from 'lucide-react';
-import { formatCrmBrl } from '@/lib/crm-utils';
+import { formatCrmBrl, rotuloExibicaoOportunidade, subtituloModalOportunidade } from '@/lib/crm-utils';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import OportunidadeItensEditor from '@/components/crm-vendas/OportunidadeItensEditor';
 import CrmEnviarClienteIcones from '@/components/crm-vendas/CrmEnviarClienteIcones';
@@ -51,6 +51,8 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
     handleSalvarEtapa,
   } = useModalEditarOportunidade(oportunidade, onClose, onSuccess);
 
+  const resumoSubtitulo = subtituloModalOportunidade(oportunidade);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
@@ -74,19 +76,20 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
           </button>
         </div>
         <div className="p-4 flex-shrink-0">
-          <p className="font-medium text-gray-900 dark:text-white">{oportunidade.titulo}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{oportunidade.lead_nome}</p>
+          <p className="font-medium text-gray-900 dark:text-white">
+            {rotuloExibicaoOportunidade(oportunidade)}
+          </p>
+          {resumoSubtitulo && (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {resumoSubtitulo}
+            </p>
+          )}
           <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
             {formatCrmBrl(oportunidade.valor)}
           </p>
           {oportunidade.valor_comissao && (
             <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
               Comissão: {formatCrmBrl(oportunidade.valor_comissao)}
-            </p>
-          )}
-          {oportunidade.empresa_prestadora_nome && (
-            <p className="text-sm text-indigo-600 dark:text-indigo-400 mt-1">
-              Prestadora atual: {oportunidade.empresa_prestadora_nome}
             </p>
           )}
         </div>

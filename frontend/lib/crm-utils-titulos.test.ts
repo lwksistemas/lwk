@@ -7,6 +7,8 @@ import {
   gerarTituloProposta,
   normalizeListResponse,
   rotuloExibicaoOportunidade,
+  subtituloExibicaoOportunidade,
+  subtituloModalOportunidade,
 } from './crm-utils';
 
 describe('gerarTituloOportunidade', () => {
@@ -81,6 +83,51 @@ describe('rotuloExibicaoOportunidade', () => {
         empresa_prestadora_nome: 'Prestadora Y',
       }),
     ).toBe('Projeto X');
+  });
+});
+
+describe('subtituloExibicaoOportunidade', () => {
+  it('mostra prestadora no card quando lead é o título', () => {
+    expect(
+      subtituloExibicaoOportunidade({
+        titulo: 'ULTRASIS INFORMATICA LTDA',
+        lead_nome: 'JOANA ROSA',
+        empresa_prestadora_nome: 'ULTRASIS INFORMATICA LTDA',
+      }),
+    ).toBe('ULTRASIS INFORMATICA LTDA');
+  });
+
+  it('não repete lead no subtítulo do card', () => {
+    expect(
+      subtituloExibicaoOportunidade({
+        titulo: 'João',
+        lead_nome: 'João',
+      }),
+    ).toBe('');
+  });
+});
+
+describe('subtituloModalOportunidade', () => {
+  it('não repete prestadora no cabeçalho do modal (fica só no select)', () => {
+    expect(
+      subtituloModalOportunidade({
+        titulo: 'ULTRASIS INFORMATICA LTDA',
+        lead_nome: 'JOANA ROSA',
+        conta_nome: 'ULTRASIS INFORMATICA LTDA',
+        empresa_prestadora_nome: 'ULTRASIS INFORMATICA LTDA',
+      }),
+    ).toBe('');
+  });
+
+  it('mostra empresa do cliente quando diferente da prestadora', () => {
+    expect(
+      subtituloModalOportunidade({
+        titulo: 'Felix Representações',
+        lead_nome: 'CAROLINE',
+        conta_nome: 'ULTRASIS INFORMATICA LTDA',
+        empresa_prestadora_nome: 'Felix Representações',
+      }),
+    ).toBe('ULTRASIS INFORMATICA LTDA');
   });
 });
 

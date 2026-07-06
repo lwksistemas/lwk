@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ETAPAS_PIPELINE_PADRAO } from '@/constants/crm';
-import { formatCrmBrl, rotuloExibicaoOportunidade } from '@/lib/crm-utils';
+import { formatCrmBrl, rotuloExibicaoOportunidade, subtituloExibicaoOportunidade } from '@/lib/crm-utils';
 
 export interface Oportunidade {
   id: number;
@@ -238,17 +238,14 @@ export default function PipelineBoard({
                   <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
                     {rotuloExibicaoOportunidade(o)}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {o.empresa_prestadora_nome || o.lead_nome}
-                  </p>
+                  {subtituloExibicaoOportunidade(o) && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                      {subtituloExibicaoOportunidade(o)}
+                    </p>
+                  )}
                   <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
                     {formatCrmBrl(o.valor)}
                   </p>
-                  {o.empresa_prestadora_nome && (
-                    <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 truncate">
-                      {o.empresa_prestadora_nome}
-                    </p>
-                  )}
                   {o.vendedor_nome && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {o.vendedor_nome}

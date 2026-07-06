@@ -61,6 +61,12 @@ def configurar_schema_crm_loja(loja) -> bool:
         except Exception as patch_exc:
             logger.warning('configurar_schema_crm_loja: patch clinica migrations em %s: %s', db_name, patch_exc)
 
+        # 2c. 0068 sem 0067 no django_migrations bloqueia todo migrate do tenant
+        try:
+            patch_crm_migration_0067_if_orphan(db_name)
+        except Exception as patch_exc:
+            logger.warning('configurar_schema_crm_loja: patch 0067 em %s: %s', db_name, patch_exc)
+
         # 3. Aplicar migrations (mesma lista que criar loja: get_apps_esperados_para_loja)
         apps = get_apps_esperados_para_loja(loja)
 

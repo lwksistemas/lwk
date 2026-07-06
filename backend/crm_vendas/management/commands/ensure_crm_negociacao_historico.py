@@ -10,6 +10,7 @@ from django.db import connections
 
 from core.db_config import ensure_loja_database_config
 from crm_vendas.negociacao_historico_schema_ensure import ensure_negociacao_historico_schema
+from crm_vendas.schema_service import patch_crm_migration_0067_if_orphan
 from superadmin.models import Loja
 
 

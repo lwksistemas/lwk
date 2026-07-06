@@ -6,7 +6,7 @@ export PATH="${HOME}/.local/npm-global/bin:${PATH}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-log() { echo ">> $*"; }
+log() { echo ">> $*" >&2; }
 warn() { echo ">> WARN: $*" >&2; }
 
 get_expected_build_id() {
@@ -47,20 +47,32 @@ extract_vercel_deploy_url() {
 vercel_deploy_preview() {
   cd "$REPO_ROOT"
   log "Vercel deploy (preview) a partir da raiz do repo..."
-  npx vercel deploy --yes 2>&1 | tee /tmp/lwk-vercel-deploy.out
+  if ! npx vercel deploy --yes > /tmp/lwk-vercel-deploy.out 2>&1; then
+    cat /tmp/lwk-vercel-deploy.out >&2
+    return 1
+  fi
+  cat /tmp/lwk-vercel-deploy.out >&2
   extract_vercel_deploy_url /tmp/lwk-vercel-deploy.out
 }
 
 vercel_deploy_production() {
   cd "$REPO_ROOT"
   log "Vercel deploy --prod a partir da raiz do repo..."
-  npx vercel deploy --prod --yes 2>&1 | tee /tmp/lwk-vercel-deploy.out
+  if ! npx vercel deploy --prod --yes > /tmp/lwk-vercel-deploy.out 2>&1; then
+    cat /tmp/lwk-vercel-deploy.out >&2
+    return 1
+  fi
+  cat /tmp/lwk-vercel-deploy.out >&2
   extract_vercel_deploy_url /tmp/lwk-vercel-deploy.out
 }
 
 link_beta_domains() {
   local target="$1"
-  [[ "$target" != https://* ]] && target="https://${target}"
+  target=$(printf '%s\n' "$target" | grep -oE 'https://frontend-[a-z0-9]+-lwks-projects[^[:space:]]*' | tail -1)
+  if [[ -z "$target" ]]; then
+    warn "URL de deploy Vercel inválida — não foi possível criar alias beta"
+    return 1
+  fi
   cd "$REPO_ROOT/frontend"
   for domain in beta.lwksistemas.com.br staging.lwksistemas.com.br; do
     log "Alias $domain → $target"

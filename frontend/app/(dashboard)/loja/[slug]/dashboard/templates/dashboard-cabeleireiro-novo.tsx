@@ -99,7 +99,7 @@ export default function DashboardCabeleireiro({ loja }: { loja: LojaInfo }) {
     { title: "Clientes", icon: Users, onClick: () => openModal('cliente'), show: canView(userRole, 'clientes') },
     { title: "Serviços", icon: Scissors, onClick: () => openModal('servico'), show: canView(userRole, 'servicos') },
     { title: "Profissionais", icon: Users, onClick: () => openModal('funcionarios'), show: canView(userRole, 'funcionarios') },
-    { title: "Financeiro", icon: Wallet, onClick: () => router.push(`/loja/${loja.slug}/financeiro`), show: permissions.verFinanceiro },
+    { title: "Assinatura", icon: Wallet, onClick: () => router.push(`/loja/${loja.slug}/assinatura`), show: permissions.verFinanceiro },
   ].filter(shortcut => shortcut.show);
 
   // Filtrar agendamentos se for profissional (apenas seus próprios)

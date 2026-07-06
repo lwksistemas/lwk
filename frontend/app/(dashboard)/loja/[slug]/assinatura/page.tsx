@@ -12,23 +12,12 @@ import {
   CheckCircle,
   Clock,
   AlertTriangle,
-  CreditCard,
 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { resolveLojaApiSlug } from '@/lib/resolve-loja-slug';
 import { useLojaTheme } from '@/hooks/useLojaTheme';
 import { LojaThemedPageShell } from '@/components/loja/LojaThemedPageShell';
 import { assinaturaBackPath } from '@/lib/loja-theme';
-import { resolveIsClinicaBeleza } from '@/lib/loja-tipo';
-import {
-  ClinicaBelezaPageContent,
-  ClinicaBelezaPanel,
-} from '@/components/clinica-beleza/ClinicaBelezaPageContent';
-import {
-  ClinicaBelezaStandardPageHeader,
-  useClinicaBelezaShellActions,
-} from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
-import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import { NovaCobrancaModal } from './components/NovaCobrancaModal';
 import { HistoricoPagamentos, type HistoricoPagamentoItem } from './components/HistoricoPagamentos';
 import { AssinaturaAvisoAlert } from '@/components/loja/AssinaturaAvisoAlert';
@@ -86,7 +75,6 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 export default function AssinaturaLojaPage() {
   const params = useParams();
   const slug = params.slug as string;
-  const shellActions = useClinicaBelezaShellActions();
   const { loja, theme, loading: loadingTheme } = useLojaTheme(slug);
   const [tipoLojaNome, setTipoLojaNome] = useState('');
 
@@ -240,23 +228,19 @@ export default function AssinaturaLojaPage() {
 
   const tipoNome = loja?.tipo_loja_nome || tipoLojaNome;
   const backHref = assinaturaBackPath(slug, tipoNome);
-  const clinicaBeleza =
-    Boolean(shellActions) ||
-    resolveIsClinicaBeleza(tipoNome, tipoLojaNome, data?.loja?.plano);
-  const accent = clinicaBeleza ? CLINICA_BELEZA_PRIMARY : theme.corPrimaria;
 
   if (loadingTheme || loading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center dark:bg-gray-950"
-        style={{ backgroundColor: clinicaBeleza ? '#f7f2f4' : theme.pageBg }}
+        style={{ backgroundColor: theme.pageBg }}
       >
         <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  const renderHistorico = (corPrimaria: string, neutralStyle: boolean) => {
+  const renderHistorico = () => {
     if (error || !data) {
       return (
         <>
@@ -264,11 +248,9 @@ export default function AssinaturaLojaPage() {
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>{error || 'Dados não encontrados'}</AlertDescription>
           </Alert>
-          {!clinicaBeleza && (
-            <Button variant="outline" className="mt-4" asChild>
-              <Link href={backHref}>Voltar</Link>
-            </Button>
-          )}
+          <Button variant="outline" className="mt-4" asChild>
+            <Link href={backHref}>Voltar</Link>
+          </Button>
         </>
       );
     }
@@ -329,8 +311,8 @@ export default function AssinaturaLojaPage() {
           onGerarCobranca={gerarNovaCobranca}
           gerandoCobranca={gerandoCobranca}
           onCopiarPix={() => copiarPix(fin.pix_copy_paste)}
-          corPrimaria={corPrimaria}
-          neutralStyle={neutralStyle}
+          corPrimaria={theme.corPrimaria}
+          neutralStyle={false}
         />
         {showModal && novaCobranca && (
           <NovaCobrancaModal
@@ -348,7 +330,7 @@ export default function AssinaturaLojaPage() {
     ? `${data.loja.nome} · ${data.loja.plano} (${data.loja.tipo_assinatura})`
     : loja?.nome || '';
 
-  const headerActionsThemed = data ? (
+  const headerActions = data ? (
     <>
       <Badge variant={STATUS_BADGE[st] || 'secondary'} className="text-xs sm:text-sm gap-1 bg-white/20 text-white border-white/30">
         {STATUS_ICON[st] || <Clock className="w-4 h-4" />}
@@ -378,68 +360,6 @@ export default function AssinaturaLojaPage() {
     </>
   ) : null;
 
-  const headerActionsClinica = data ? (
-    <>
-      <Badge variant={STATUS_BADGE[st] || 'secondary'} className="text-xs sm:text-sm gap-1">
-        {STATUS_ICON[st] || <Clock className="w-4 h-4" />}
-        {data.financeiro.status_pagamento}
-      </Badge>
-      <button
-        type="button"
-        onClick={carregarDados}
-        className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
-      >
-        <RefreshCw className="w-4 h-4" />
-        <span className="hidden sm:inline">Atualizar</span>
-      </button>
-      {data.financeiro.tem_asaas && (
-        <button
-          type="button"
-          onClick={atualizarStatus}
-          disabled={atualizandoStatus}
-          className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${atualizandoStatus ? 'animate-spin' : ''}`} />
-          <span className="hidden lg:inline">Sync Asaas</span>
-        </button>
-      )}
-    </>
-  ) : null;
-
-  if (clinicaBeleza) {
-    return (
-      <>
-        <ClinicaBelezaStandardPageHeader
-          title="Assinatura"
-          subtitle={subtitle}
-          icon={CreditCard}
-          backHref={backHref}
-          extraActions={headerActionsClinica}
-        />
-        <ClinicaBelezaPageContent>
-          <ClinicaBelezaPanel className="p-4 sm:p-6">
-            {renderHistorico(accent, true)}
-          </ClinicaBelezaPanel>
-        </ClinicaBelezaPageContent>
-      </>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <LojaThemedPageShell
-        slug={slug}
-        tipoLojaNome={tipoNome}
-        theme={theme}
-        title="Assinatura"
-        subtitle={loja?.nome}
-        hideBackButton={lojaBloqueada}
-      >
-        {renderHistorico(theme.corPrimaria, false)}
-      </LojaThemedPageShell>
-    );
-  }
-
   return (
     <LojaThemedPageShell
       slug={slug}
@@ -448,15 +368,13 @@ export default function AssinaturaLojaPage() {
       title="Assinatura"
       subtitle={subtitle}
       hideBackButton={lojaBloqueada}
-      headerActions={headerActionsThemed}
+      headerActions={headerActions}
     >
       <Card
         className="w-full bg-white/95 dark:bg-slate-900/95 shadow-sm"
         style={{ borderColor: theme.cardBorder }}
       >
-        <CardContent className="pt-6">
-          {renderHistorico(theme.corPrimaria, false)}
-        </CardContent>
+        <CardContent className="pt-6">{renderHistorico()}</CardContent>
       </Card>
     </LojaThemedPageShell>
   );

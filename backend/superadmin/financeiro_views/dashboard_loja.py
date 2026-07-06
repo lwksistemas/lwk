@@ -80,8 +80,8 @@ def _dashboard_financeiro_loja_impl(request, loja_slug):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
     
-    # Buscar dados financeiros
-    pagamentos = PagamentoLoja.objects.filter(loja=loja).order_by('-data_vencimento')
+    # Próximo pagamento (ignora cancelados e duplicatas já quitadas)
+    pagamentos = PagamentoLoja.objects.filter(loja=loja).exclude(status='cancelado').order_by('-data_vencimento')
     
     # Estatísticas baseadas em PagamentoLoja
     total_pagamentos_loja = pagamentos.count()

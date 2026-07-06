@@ -99,6 +99,75 @@ def _nfse_para_pagamento(pagamento, asaas_id=''):
         return None
 
 
+def _cancelar_pagamentos_loja_obsoletos(loja):
+    """
+    Cancela PagamentoLoja pendente/atrasado quando já existe pago na mesma
+    referência ou vencimento (cobrança duplicada após confirmação de pagamento).
+    """
+    pagos = PagamentoLoja.objects.filter(loja=loja, status='pago')
+    if not pagos.exists():
+        return 0
+
+    cancelados = 0
+    pendentes = PagamentoLoja.objects.filter(loja=loja, status__in=['pendente', 'atrasado'])
+    for p in pendentes:
+        base = pagos.filter(valor=p.valor)
+        duplicado = False
+        if p.referencia_mes and base.filter(referencia_mes=p.referencia_mes).exists():
+            duplicado = True
+        elif p.data_vencimento and base.filter(data_vencimento=p.data_vencimento).exists():
+            duplicado = True
+        if not duplicado:
+            continue
+        p.status = 'cancelado'
+        p.observacoes = (
+            (p.observacoes or '').strip()
+            + '\n[auto] Cancelado: já existe pagamento confirmado para esta referência/vencimento.'
+        ).strip()
+        p.save(update_fields=['status', 'observacoes'])
+        cancelados += 1
+        logger.info(
+            'PagamentoLoja %s cancelado (duplicado obsoleto) loja=%s ref=%s venc=%s',
+            p.id,
+            loja.slug,
+            p.referencia_mes,
+            p.data_vencimento,
+        )
+    return cancelados
+
+
+def _suprimir_pendentes_obsoletos_historico(historico):
+    """Remove do histórico cobranças em aberto já quitadas em outro lançamento."""
+    if not historico:
+        return historico
+
+    paid_by_due = set()
+    paid_by_ref = set()
+    for item in historico:
+        if not item.get('is_paid'):
+            continue
+        valor = round(float(item.get('valor') or 0), 2)
+        due = item.get('data_vencimento') or ''
+        if due:
+            paid_by_due.add((due, valor))
+        ref = item.get('referencia_mes') or ''
+        if ref:
+            paid_by_ref.add((ref, valor))
+
+    result = []
+    for item in historico:
+        if item.get('is_pending') or item.get('is_overdue'):
+            valor = round(float(item.get('valor') or 0), 2)
+            due = item.get('data_vencimento') or ''
+            ref = item.get('referencia_mes') or ''
+            if due and (due, valor) in paid_by_due:
+                continue
+            if ref and (ref, valor) in paid_by_ref:
+                continue
+        result.append(item)
+    return result
+
+
 def _deduplicar_historico_pagamentos(historico):
     """Remove cobranças duplicadas (mesmo asaas_id ou mesma fatura em aberto)."""
     if not historico:
@@ -161,6 +230,8 @@ def _build_historico_pagamentos_loja(
     """
     from asaas_integration.models import LojaAssinatura, AsaasPayment
 
+    _cancelar_pagamentos_loja_obsoletos(loja)
+
     asaas_by_id = {}
     asaas_by_due = {}
     try:
@@ -175,7 +246,12 @@ def _build_historico_pagamentos_loja(
         logger.warning('historico loja %s: AsaasPayment: %s', loja.slug, e)
 
     historico = []
-    pls = PagamentoLoja.objects.filter(loja=loja).select_related('financeiro').order_by('-data_vencimento')
+    pls = (
+        PagamentoLoja.objects.filter(loja=loja)
+        .exclude(status='cancelado')
+        .select_related('financeiro')
+        .order_by('-data_vencimento')
+    )
 
     for pl in pls:
         asaas_id = (pl.asaas_payment_id or '').strip()
@@ -262,6 +338,7 @@ def _build_historico_pagamentos_loja(
         })
 
     historico = _deduplicar_historico_pagamentos(historico)
+    historico = _suprimir_pendentes_obsoletos_historico(historico)
 
     if not historico and boleto_url_fallback:
         mp_id = (getattr(financeiro, 'mercadopago_payment_id', None) or '').strip()

@@ -1,6 +1,9 @@
 from django.test import SimpleTestCase
 
-from superadmin.financeiro_views.helpers import _deduplicar_historico_pagamentos
+from superadmin.financeiro_views.helpers import (
+    _deduplicar_historico_pagamentos,
+    _suprimir_pendentes_obsoletos_historico,
+)
 
 
 class DeduplicarHistoricoPagamentosTest(SimpleTestCase):
@@ -83,4 +86,59 @@ class DeduplicarHistoricoPagamentosTest(SimpleTestCase):
             },
         ]
         out = _deduplicar_historico_pagamentos(historico)
+        self.assertEqual(len(out), 2)
+
+
+class SuprimirPendentesObsoletosHistoricoTest(SimpleTestCase):
+    def test_remove_pendente_quando_mesma_referencia_ja_paga(self):
+        historico = [
+            {
+                'pagamento_loja_id': 1,
+                'id': 1,
+                'referencia_mes': '2026-06-01',
+                'data_vencimento': '2026-07-03',
+                'valor': 7.0,
+                'is_paid': True,
+                'is_pending': False,
+                'is_overdue': False,
+            },
+            {
+                'pagamento_loja_id': 2,
+                'id': 2,
+                'referencia_mes': '2026-06-01',
+                'data_vencimento': '2026-07-03',
+                'valor': 7.0,
+                'is_paid': False,
+                'is_pending': True,
+                'is_overdue': False,
+            },
+        ]
+        out = _suprimir_pendentes_obsoletos_historico(historico)
+        self.assertEqual(len(out), 1)
+        self.assertTrue(out[0]['is_paid'])
+
+    def test_mantem_pendente_de_outro_mes(self):
+        historico = [
+            {
+                'pagamento_loja_id': 1,
+                'id': 1,
+                'referencia_mes': '2026-06-01',
+                'data_vencimento': '2026-07-03',
+                'valor': 7.0,
+                'is_paid': True,
+                'is_pending': False,
+                'is_overdue': False,
+            },
+            {
+                'pagamento_loja_id': 2,
+                'id': 2,
+                'referencia_mes': '2026-07-01',
+                'data_vencimento': '2026-08-03',
+                'valor': 7.0,
+                'is_paid': False,
+                'is_pending': True,
+                'is_overdue': False,
+            },
+        ]
+        out = _suprimir_pendentes_obsoletos_historico(historico)
         self.assertEqual(len(out), 2)

@@ -136,7 +136,12 @@ class OportunidadeNotaViewSet(
     VendedorFilterMixin,
     BaseModelViewSet,
 ):
-    """Notas cronológicas da negociação (respostas do cliente e notas internas)."""
+    """Notas cronológicas da negociação (respostas do cliente e notas internas).
+
+    Design intencional: append-only (sem PUT/PATCH/DELETE).
+    O histórico de negociação é imutável — notas não podem ser editadas ou removidas,
+    apenas adicionadas. Isso garante rastreabilidade completa da conversa com o cliente.
+    """
     queryset = OportunidadeNota.objects.select_related('oportunidade').all()
     serializer_class = OportunidadeNotaSerializer
     pagination_class = CRMPagination

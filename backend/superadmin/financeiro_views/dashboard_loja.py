@@ -99,6 +99,7 @@ def _dashboard_financeiro_loja_impl(request, loja_slug):
     boleto_url = None
     pix_qr_code = None
     pix_copy_paste = None
+    proximo_boleto = None
     
     # Estatísticas do Asaas (mais precisas)
     total_pagamentos_asaas = 0
@@ -145,11 +146,10 @@ def _dashboard_financeiro_loja_impl(request, loja_slug):
 
             logger.debug('Total pagamentos Asaas loja %s: %s', loja.slug, todos_pagamentos.count())
 
-            # Buscar próximo pagamento pendente (mais recente)
+            # Próxima cobrança em aberto (pendente ou vencida no Asaas)
             proximo_boleto = AsaasPayment.objects.filter(
                 customer=loja_assinatura.asaas_customer,
-                status='PENDING',
-                due_date__gte=timezone.now().date()
+                status__in=['PENDING', 'OVERDUE'],
             ).order_by('due_date').first()
 
             if proximo_boleto:
@@ -166,7 +166,7 @@ def _dashboard_financeiro_loja_impl(request, loja_slug):
             else:
                 logger.warning(f"⚠️ Nenhum boleto pendente encontrado para {loja.nome}")
                 logger.warning(f"   - Data atual: {timezone.now().date()}")
-                logger.warning(f"   - Filtro: status=PENDING, due_date >= {timezone.now().date()}")
+                logger.warning('   - Filtro: status in PENDING/OVERDUE')
 
             # Calcular estatísticas do Asaas
             total_pagamentos_asaas = todos_pagamentos.count()
@@ -220,7 +220,11 @@ def _dashboard_financeiro_loja_impl(request, loja_slug):
     
     try:
         historico_pagamentos = _build_historico_pagamentos_loja(
-            loja, financeiro, boleto_url or '', pix_copy_paste or ''
+            loja,
+            financeiro,
+            boleto_url or '',
+            pix_copy_paste or '',
+            proximo_boleto.due_date if proximo_boleto else None,
         )
         logger.info(f"✅ Histórico loja {loja.slug}: {len(historico_pagamentos)} itens")
     except Exception as e:

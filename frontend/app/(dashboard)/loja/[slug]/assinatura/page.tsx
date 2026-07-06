@@ -281,8 +281,12 @@ export default function AssinaturaLojaPage() {
       calcularAvisoAssinaturaLocal(fin.data_proxima_cobranca, lojaBloqueada);
     const temPagamentoAberto =
       (fin.tem_asaas || fin.tem_mercadopago) && (fin.boleto_url || fin.pix_copy_paste);
+    const temCobrancaEmAbertoNoHistorico = historico.some(
+      (i) => i.is_pending || i.is_overdue,
+    );
 
-    const cobrancaAberta = temPagamentoAberto
+    const cobrancaAberta =
+      temPagamentoAberto && !temCobrancaEmAbertoNoHistorico
       ? {
           valor: pp?.valor ?? fin.valor_mensalidade,
           data_vencimento: pp?.data_vencimento ?? fin.data_proxima_cobranca,

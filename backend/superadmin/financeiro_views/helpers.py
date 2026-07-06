@@ -99,7 +99,62 @@ def _nfse_para_pagamento(pagamento, asaas_id=''):
         return None
 
 
-def _build_historico_pagamentos_loja(loja, financeiro, boleto_url_fallback='', pix_copy_fallback=''):
+def _deduplicar_historico_pagamentos(historico):
+    """Remove cobranças duplicadas (mesmo asaas_id ou mesma fatura em aberto)."""
+    if not historico:
+        return historico
+
+    def item_rank(item):
+        rank = 0
+        if (item.get('asaas_id') or '').strip():
+            rank += 8
+        if (item.get('boleto_url') or '').strip():
+            rank += 4
+        if item.get('pagamento_loja_id'):
+            rank += 2
+        return rank
+
+    ordered = sorted(historico, key=item_rank, reverse=True)
+    seen_asaas = set()
+    seen_open = set()
+    kept_ids = set()
+    result = []
+
+    for item in ordered:
+        asaas_id = (item.get('asaas_id') or '').strip()
+        is_open = item.get('is_pending') or item.get('is_overdue')
+        open_key = None
+        if is_open:
+            open_key = (
+                item.get('data_vencimento') or '',
+                round(float(item.get('valor') or 0), 2),
+            )
+        if asaas_id:
+            if asaas_id in seen_asaas:
+                continue
+            seen_asaas.add(asaas_id)
+        elif open_key:
+            if open_key in seen_open:
+                continue
+            seen_open.add(open_key)
+        pid = item.get('pagamento_loja_id') or item.get('id')
+        if pid and pid in kept_ids:
+            continue
+        if pid:
+            kept_ids.add(pid)
+        result.append(item)
+
+    result.sort(key=lambda x: x.get('data_vencimento') or '', reverse=True)
+    return result
+
+
+def _build_historico_pagamentos_loja(
+    loja,
+    financeiro,
+    boleto_url_fallback='',
+    pix_copy_fallback='',
+    asaas_due_fallback=None,
+):
     """
     Histórico unificado para o painel da loja (PagamentoLoja + dados Asaas quando existir).
     Cada item usa pagamento_loja_id para baixar boleto / NFS-e.
@@ -107,12 +162,15 @@ def _build_historico_pagamentos_loja(loja, financeiro, boleto_url_fallback='', p
     from asaas_integration.models import LojaAssinatura, AsaasPayment
 
     asaas_by_id = {}
+    asaas_by_due = {}
     try:
         ass = LojaAssinatura.objects.filter(loja_slug=loja.slug).select_related('asaas_customer').first()
         if ass:
             for ap in AsaasPayment.objects.filter(customer=ass.asaas_customer).order_by('-due_date'):
                 if ap.asaas_id:
                     asaas_by_id[ap.asaas_id] = ap
+                    if ap.due_date:
+                        asaas_by_due[ap.due_date] = ap
     except Exception as e:
         logger.warning('historico loja %s: AsaasPayment: %s', loja.slug, e)
 
@@ -124,6 +182,10 @@ def _build_historico_pagamentos_loja(loja, financeiro, boleto_url_fallback='', p
         if not asaas_id and getattr(pl, 'financeiro', None):
             asaas_id = (pl.financeiro.asaas_payment_id or '').strip()
         ap = asaas_by_id.get(asaas_id) if asaas_id else None
+        if ap is None and pl.data_vencimento:
+            ap = asaas_by_due.get(pl.data_vencimento)
+            if ap and ap.asaas_id:
+                asaas_id = ap.asaas_id
         provedor = (getattr(pl, 'provedor_boleto', None) or getattr(financeiro, 'provedor_boleto', None) or 'asaas')
 
         if pl.status == 'pago':
@@ -155,7 +217,9 @@ def _build_historico_pagamentos_loja(loja, financeiro, boleto_url_fallback='', p
         if not boleto_url and ap:
             boleto_url = (ap.bank_slip_url or ap.invoice_url or '').strip()
         if not boleto_url and is_pending and boleto_url_fallback:
-            boleto_url = boleto_url_fallback
+            pl_due = pl.data_vencimento
+            if asaas_due_fallback and pl_due == asaas_due_fallback:
+                boleto_url = boleto_url_fallback
 
         pix_copy = (pl.pix_copy_paste or '').strip()
         pix_qr = (pl.pix_qr_code or '').strip()
@@ -196,6 +260,8 @@ def _build_historico_pagamentos_loja(loja, financeiro, boleto_url_fallback='', p
             'referencia_mes': pl.referencia_mes.strftime('%Y-%m-%d') if pl.referencia_mes else None,
             'pode_baixar_boleto': bool(asaas_id or boleto_url or pl.mercadopago_payment_id),
         })
+
+    historico = _deduplicar_historico_pagamentos(historico)
 
     if not historico and boleto_url_fallback:
         mp_id = (getattr(financeiro, 'mercadopago_payment_id', None) or '').strip()

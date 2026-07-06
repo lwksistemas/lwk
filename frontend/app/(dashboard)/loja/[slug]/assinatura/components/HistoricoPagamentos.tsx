@@ -68,6 +68,15 @@ interface Props {
   neutralStyle?: boolean;
 }
 
+function normalizeDateKey(value?: string | null): string {
+  if (!value) return '';
+  return value.slice(0, 10);
+}
+
+function itemCobrancaEmAberto(item: HistoricoPagamentoItem): boolean {
+  return item.is_pending || item.is_overdue;
+}
+
 function StatusBadge({ item }: { item: HistoricoPagamentoItem }) {
   if (item.is_paid) {
     return (
@@ -321,12 +330,21 @@ export function HistoricoPagamentos({
   };
 
   const temCobrancaAbertaNaLista = cobrancaAberta
-    ? itens.some(
-        (i) =>
-          i.is_pending &&
-          i.data_vencimento === cobrancaAberta.data_vencimento &&
+    ? itens.some((i) => {
+        if (!itemCobrancaEmAberto(i)) return false;
+        if (
+          cobrancaAberta.pagamento_id &&
+          (i.pagamento_loja_id === cobrancaAberta.pagamento_id ||
+            i.id === cobrancaAberta.pagamento_id)
+        ) {
+          return true;
+        }
+        return (
+          normalizeDateKey(i.data_vencimento) ===
+            normalizeDateKey(cobrancaAberta.data_vencimento) &&
           Math.abs(i.valor - cobrancaAberta.valor) < 0.01
-      )
+        );
+      })
     : false;
 
   const mostrarProximaLinha = !cobrancaAberta && !temCobrancaAbertaNaLista && proximaCobranca;

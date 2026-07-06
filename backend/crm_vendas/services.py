@@ -10,7 +10,7 @@ Segue o padrão recomendado em Two Scoops of Django:
 import logging
 from typing import Dict, Any
 from django.db import transaction
-from .models import Oportunidade, Lead
+from .models import Oportunidade, Lead, Vendedor, Proposta, Contrato
 from .utils import get_current_vendedor_id, get_vendedor_padrao_admin_loja
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ class OportunidadeService:
         Returns:
             Oportunidade: Instância criada
         """
-        from .models import Vendedor
+        from django.utils import timezone
         
         # Garantir datas de fechamento ao criar com etapa fechada
         etapa = validated_data.get('etapa', 'prospecting')
@@ -196,7 +196,6 @@ class OportunidadeService:
 
         # Sincronizar valor_total das propostas em rascunho quando valor da oportunidade muda
         if 'valor' in validated_data:
-            from .models import Proposta, Contrato
             novo_valor = validated_data['valor']
             propostas_atualizadas = Proposta.objects.filter(
                 oportunidade_id=instance.id,

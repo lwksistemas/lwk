@@ -108,10 +108,8 @@ class LeadViewSet(
                             self.request,
                             {'status': 'status', 'origem': 'origem'},
                         )
-                except Exception:
-                    pass
-
-        qs = self.filter_by_vendedor(qs)
+                except Exception as e:
+                    logger.warning('crm_me: erro ao determinar loja_id=%s: %s', loja_id, e)
         qs = filtrar_queryset_por_query_params(
             qs,
             self.request,
@@ -165,7 +163,7 @@ class ContatoViewSet(CrmGranularPermissionMixin, CRMNoCacheListMixin, CacheInval
                 )
                 try:
                     CRMCacheManager.invalidate_dashboard(getattr(instance, 'loja_id', None))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning('Falha ao invalidar cache dashboard contato_id=%s: %s', instance.id, e)
 
         self._invalidate_caches()

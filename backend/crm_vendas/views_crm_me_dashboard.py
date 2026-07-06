@@ -89,10 +89,8 @@ def crm_me(request):
                 acesso_total = True
                 is_vendedor = False
                 user_role = 'administrador'
-        except Exception:
-            pass
-
-    if acesso_total:
+        except Exception as e:
+            logger.warning('crm_me: erro ao verificar acesso admin vendedor_id=%s: %s', vendedor_id, e)
         permissoes = todas_permissoes_codenames_crm()
     else:
         permissoes = permissoes_codenames_usuario_crm(request.user)

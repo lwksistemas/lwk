@@ -84,3 +84,57 @@ export const CRM_PERIODO_CARD_LABELS: Record<
 export function crmLabelsPeriodo(periodo: string) {
   return CRM_PERIODO_CARD_LABELS[periodo] ?? CRM_PERIODO_CARD_LABELS.mes_atual;
 }
+
+/** Período anterior para comparação de tendência no dashboard. */
+export function crmPeriodoAnteriorComparavel(
+  periodo: string,
+): { periodo: string; data_inicio?: string; data_fim?: string } | null {
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const hoje = new Date();
+
+  if (periodo === 'mes_atual') {
+    return { periodo: 'mes_passado' };
+  }
+
+  if (periodo === 'mes_passado') {
+    const primeiroMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const ultimoMesAnterior = new Date(primeiroMesAtual.getTime() - 86400000);
+    const inicio = new Date(ultimoMesAnterior.getFullYear(), ultimoMesAnterior.getMonth(), 1);
+    const fim = new Date(inicio.getFullYear(), inicio.getMonth() + 1, 0);
+    return { periodo: 'personalizado', data_inicio: fmt(inicio), data_fim: fmt(fim) };
+  }
+
+  if (periodo === 'trimestre_atual') {
+    const fimAtual = hoje;
+    const inicioAtual = new Date(hoje.getFullYear(), hoje.getMonth() - 2, 1);
+    const dias = Math.round((fimAtual.getTime() - inicioAtual.getTime()) / 86400000);
+    const fimAnterior = new Date(inicioAtual.getTime() - 86400000);
+    const inicioAnterior = new Date(fimAnterior.getTime() - dias * 86400000);
+    return { periodo: 'personalizado', data_inicio: fmt(inicioAnterior), data_fim: fmt(fimAnterior) };
+  }
+
+  if (periodo === 'ano_atual') {
+    const inicioAnoPassado = new Date(hoje.getFullYear() - 1, 0, 1);
+    const fimAnoPassado = new Date(hoje.getFullYear() - 1, hoje.getMonth(), hoje.getDate());
+    return { periodo: 'personalizado', data_inicio: fmt(inicioAnoPassado), data_fim: fmt(fimAnoPassado) };
+  }
+
+  return null;
+}
+
+export function calcularVariacaoPct(
+  atual: number,
+  anterior: number,
+): { trend?: 'up' | 'down'; trendValue?: string } {
+  if (anterior === 0) {
+    if (atual > 0) return { trend: 'up', trendValue: 'novo' };
+    return {};
+  }
+  const pct = ((atual - anterior) / Math.abs(anterior)) * 100;
+  const rounded = Math.round(pct * 10) / 10;
+  const sign = rounded > 0 ? '+' : '';
+  return {
+    trend: rounded >= 0 ? 'up' : 'down',
+    trendValue: `${sign}${rounded}%`,
+  };
+}

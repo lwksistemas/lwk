@@ -33,14 +33,7 @@ function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
       {!collapsed && (
         <div
           className="fixed inset-0 bg-black/50 z-[60] md:hidden cursor-pointer touch-manipulation"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggle();
-          }}
-          onTouchStart={(e) => {
-            e.stopPropagation();
-            toggle();
-          }}
+          onClick={() => toggle()}
           aria-hidden="true"
         />
       )}
@@ -72,10 +65,6 @@ function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
             <button
               type="button"
               onClick={(e) => {
-                e.stopPropagation();
-                toggle();
-              }}
-              onTouchStart={(e) => {
                 e.stopPropagation();
                 toggle();
               }}

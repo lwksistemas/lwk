@@ -8,7 +8,7 @@ import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { useToast } from '@/components/ui/Toast';
 import type { Lead } from '@/components/crm-vendas/LeadsTable';
-import { LEADS_PAGE_SIZE, loadLeadsPage, formatarDataLead, exportLeadsCsv } from '@/lib/crm-leads';
+import { LEADS_PAGE_SIZE, loadLeadsPage, formatarDataLead, exportAllLeadsCsv } from '@/lib/crm-leads';
 
 export function useCrmLeadsPage() {
   const toast = useToast();
@@ -32,13 +32,25 @@ export function useCrmLeadsPage() {
   const [salvandoStatus, setSalvandoStatus] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
+  const [busca, setBusca] = useState('');
+  const [buscaDebounced, setBuscaDebounced] = useState('');
+  const [exportando, setExportando] = useState(false);
 
   useEffect(() => {
-    loadLeadsPage(page, setLeads, setTotalCount, setTotalPages, setError, setLoading);
-  }, [page, slug]);
+    const t = setTimeout(() => setBuscaDebounced(busca), 300);
+    return () => clearTimeout(t);
+  }, [busca]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [buscaDebounced, slug]);
+
+  useEffect(() => {
+    loadLeadsPage(page, setLeads, setTotalCount, setTotalPages, setError, setLoading, buscaDebounced);
+  }, [page, slug, buscaDebounced]);
 
   const reloadLeads = () => {
-    loadLeadsPage(page, setLeads, setTotalCount, setTotalPages, setError, setLoading);
+    loadLeadsPage(page, setLeads, setTotalCount, setTotalPages, setError, setLoading, buscaDebounced);
   };
 
   useEffect(() => {
@@ -114,6 +126,18 @@ export function useCrmLeadsPage() {
     }
   };
 
+  const handleExportarCsv = async () => {
+    setExportando(true);
+    try {
+      const total = await exportAllLeadsCsv(buscaDebounced);
+      toast.success(`${total} lead(s) exportado(s).`);
+    } catch (err) {
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao exportar leads.'));
+    } finally {
+      setExportando(false);
+    }
+  };
+
   return {
     slug,
     leads,
@@ -144,7 +168,10 @@ export function useCrmLeadsPage() {
     confirmarExcluir,
     handleMudarStatus,
     salvarNovoStatus,
-    exportLeadsCsv,
+    busca,
+    setBusca,
+    exportando,
+    handleExportarCsv,
     leadsPageSize: LEADS_PAGE_SIZE,
   };
 }

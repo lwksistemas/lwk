@@ -25,3 +25,15 @@ export const ETAPAS_DEFAULT = [
   'proposal',
   'negotiation',
 ] as const;
+
+/** Etapas completas do pipeline (config + Kanban) — fonte única no frontend */
+export const ETAPAS_PIPELINE_PADRAO = [
+  { key: 'prospecting', label: 'Prospecção', ordem: 1, ativo: true },
+  { key: 'qualification', label: 'Qualificação', ordem: 2, ativo: true },
+  { key: 'proposal', label: 'Proposta', ordem: 3, ativo: true },
+  { key: 'negotiation', label: 'Negociação', ordem: 4, ativo: true },
+  { key: 'closed_won', label: 'Fechado ganho', ordem: 5, ativo: true },
+  { key: 'closed_lost', label: 'Fechado perdido', ordem: 6, ativo: true },
+] as const;
+
+export type CrmEtapaPipeline = { key: string; label: string; ordem: number };

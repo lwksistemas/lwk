@@ -48,6 +48,7 @@ export default function CrmVendasDashboardPage() {
     chartData,
     periodoLabels,
     chartTitle,
+    trends,
     toggleFiltro,
     selecionarPeriodo,
   } = useCrmDashboardPage();
@@ -127,8 +128,8 @@ export default function CrmVendasDashboardPage() {
           icon={Wallet}
           iconColor="text-[#0176d3]"
           iconBgColor="bg-[#e3f3ff]"
-          trend={data.receita > 0 ? 'up' : undefined}
-          trendValue={data.receita > 0 ? '+12%' : undefined}
+          trend={trends.receita?.trend}
+          trendValue={trends.receita?.trendValue}
         />
         <StatCard
           title={periodoLabels.leads}
@@ -144,8 +145,8 @@ export default function CrmVendasDashboardPage() {
           icon={Percent}
           iconColor="text-[#ffb75d]"
           iconBgColor="bg-[#fff4e6]"
-          trend={data.taxa_conversao > 20 ? 'up' : 'down'}
-          trendValue={data.taxa_conversao > 20 ? '+5%' : '-2%'}
+          trend={trends.taxaConversao?.trend}
+          trendValue={trends.taxaConversao?.trendValue}
         />
         <StatCard
           title="Valor das vendas (perdido)"

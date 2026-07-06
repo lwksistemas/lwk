@@ -12,7 +12,7 @@ import {
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { normalizeListResponse } from '@/lib/crm-utils';
-import { crmLabelsPeriodo } from '@/lib/crm-periodos';
+import { crmLabelsPeriodo, crmPeriodoAnteriorComparavel, calcularVariacaoPct } from '@/lib/crm-periodos';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 
 function toISO(date: Date): string {
@@ -99,6 +99,11 @@ export function tituloGraficoPeriodo(periodoFiltro: string): string {
   return 'Ano';
 }
 
+export interface DashboardTrends {
+  receita?: { trend?: 'up' | 'down'; trendValue?: string };
+  taxaConversao?: { trend?: 'up' | 'down'; trendValue?: string };
+}
+
 export function useCrmDashboardPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
@@ -111,6 +116,7 @@ export function useCrmDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [showFiltro, setShowFiltro] = useState(false);
   const [periodoFiltro, setPeriodoFiltro] = useState('mes_atual');
+  const [trends, setTrends] = useState<DashboardTrends>({});
   const filtroRef = useRef<HTMLDivElement>(null);
 
   const pipelineMap = useMemo(
@@ -171,8 +177,19 @@ export function useCrmDashboardPage() {
     const fim = new Date(inicio);
     fim.setDate(fim.getDate() + 60);
 
+    const anterior = crmPeriodoAnteriorComparavel(periodoFiltro);
+    const dashUrl = `/crm-vendas/dashboard/?periodo=${periodoFiltro}`;
+    const anteriorUrl = anterior
+      ? `/crm-vendas/dashboard/?periodo=${anterior.periodo}${
+          anterior.data_inicio && anterior.data_fim
+            ? `&data_inicio=${anterior.data_inicio}&data_fim=${anterior.data_fim}`
+            : ''
+        }`
+      : null;
+
     Promise.allSettled([
-      apiClient.get<DashboardData>(`/crm-vendas/dashboard/?periodo=${periodoFiltro}`),
+      apiClient.get<DashboardData>(dashUrl),
+      anteriorUrl ? apiClient.get<DashboardData>(anteriorUrl) : Promise.resolve(null),
       apiClient.get('/crm-vendas/atividades/', {
         params: {
           data_inicio: toISO(inicio),
@@ -182,12 +199,28 @@ export function useCrmDashboardPage() {
         },
       }),
     ])
-      .then(([dashResult, ativResult]) => {
+      .then(([dashResult, anteriorResult, ativResult]) => {
         if (dashResult.status === 'rejected') {
           const err = dashResult.reason as { response?: { data?: { detail?: string } } };
           throw new Error(err.response?.data?.detail || 'Erro ao carregar dashboard.');
         }
-        setData(dashResult.value.data);
+        const dashData = dashResult.value.data;
+        setData(dashData);
+
+        if (
+          anteriorResult &&
+          anteriorResult.status === 'fulfilled' &&
+          anteriorResult.value?.data
+        ) {
+          const prev = anteriorResult.value.data;
+          setTrends({
+            receita: calcularVariacaoPct(dashData.receita, prev.receita),
+            taxaConversao: calcularVariacaoPct(dashData.taxa_conversao, prev.taxa_conversao),
+          });
+        } else {
+          setTrends({});
+        }
+
         if (ativResult.status === 'fulfilled') {
           const list = normalizeListResponse<ProximaAtividade>(ativResult.value.data);
           list.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
@@ -218,6 +251,7 @@ export function useCrmDashboardPage() {
     chartData,
     periodoLabels,
     chartTitle,
+    trends,
     toggleFiltro,
     selecionarPeriodo,
   };

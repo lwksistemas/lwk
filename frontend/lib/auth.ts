@@ -173,6 +173,9 @@ class AuthService {
       sessionStorage.removeItem(this.INTERNAL_NAV_KEY);
       sessionStorage.removeItem('current_loja_id');
       sessionStorage.removeItem('session_id');
+      sessionStorage.removeItem('crm_acesso_total');
+      sessionStorage.removeItem('crm_permissoes');
+      sessionStorage.removeItem('crm_permissoes_synced');
       clearAssinaturaAvisoDismissKeys();
       clearStoreBlockedMark();
       

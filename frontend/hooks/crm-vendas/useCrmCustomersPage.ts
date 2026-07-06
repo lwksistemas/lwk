@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { getCrmApiErrorDetail } from '@/lib/crm-utils';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { useToast } from '@/components/ui/Toast';
-import { exportContasCsv } from '@/lib/crm-contas';
+import { exportAllContasCsv } from '@/lib/crm-contas';
 
 export interface CrmConta {
   id: number;
@@ -41,6 +41,23 @@ export function useCrmCustomersPage() {
   const verParam = searchParams.get('ver');
   const { colunasContasVisiveis } = useCRMConfig();
 
+  const [contaParaExcluir, setContaParaExcluir] = useState<CrmConta | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [busca, setBusca] = useState('');
+  const [buscaDebounced, setBuscaDebounced] = useState('');
+  const [exportando, setExportando] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaDebounced(busca), 300);
+    return () => clearTimeout(t);
+  }, [busca]);
+
+  const listParams = useMemo(() => {
+    const p: Record<string, string> = {};
+    if (buscaDebounced.trim().length >= 2) p.q = buscaDebounced.trim();
+    return p;
+  }, [buscaDebounced]);
+
   const {
     items: contas,
     page,
@@ -53,10 +70,8 @@ export function useCrmCustomersPage() {
     reload: loadContas,
   } = usePaginatedList<CrmConta>('/crm-vendas/contas/', {
     errorFallback: 'Erro ao carregar clientes.',
+    params: listParams,
   });
-
-  const [contaParaExcluir, setContaParaExcluir] = useState<CrmConta | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   const irParaVerConta = useCallback(
     (id: number) => {
@@ -95,6 +110,18 @@ export function useCrmCustomersPage() {
     router.push(`${basePath}/${id}/editar`);
   };
 
+  const handleExportarCsv = async () => {
+    setExportando(true);
+    try {
+      const total = await exportAllContasCsv(buscaDebounced);
+      toast.success(`${total} conta(s) exportada(s).`);
+    } catch (err) {
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao exportar contas.'));
+    } finally {
+      setExportando(false);
+    }
+  };
+
   return {
     slug,
     contas,
@@ -113,6 +140,9 @@ export function useCrmCustomersPage() {
     irParaNovaConta,
     irParaEditarConta,
     irParaVerConta,
-    exportContasCsv,
+    busca,
+    setBusca,
+    exportando,
+    handleExportarCsv,
   };
 }

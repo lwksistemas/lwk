@@ -1,6 +1,7 @@
 'use client';
 
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import CrmListSearchInput from '@/components/crm-vendas/CrmListSearchInput';
 import CrmConfirmDeleteModal from '@/components/crm-vendas/CrmConfirmDeleteModal';
 import { Plus, Eye, Edit2, Trash2, Building2, Download } from 'lucide-react';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
@@ -72,7 +73,10 @@ export default function CrmVendasCustomersPage() {
     irParaNovaConta,
     irParaEditarConta,
     irParaVerConta,
-    exportContasCsv,
+    busca,
+    setBusca,
+    exportando,
+    handleExportarCsv,
   } = useCrmCustomersPage();
 
   if (loading && contas.length === 0) {
@@ -92,13 +96,14 @@ export default function CrmVendasCustomersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Contas</h1>
         <div className="flex items-center gap-2">
-          {contas.length > 0 && (
+          {(totalCount > 0 || contas.length > 0) && (
             <button
               type="button"
-              onClick={() => exportContasCsv(contas)}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600"
+              onClick={handleExportarCsv}
+              disabled={exportando}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
             >
-              <Download size={16} /> Exportar CSV
+              <Download size={16} /> {exportando ? 'Exportando...' : 'Exportar CSV'}
             </button>
           )}
           <button
@@ -116,6 +121,12 @@ export default function CrmVendasCustomersPage() {
           {error}
         </div>
       )}
+
+      <CrmListSearchInput
+        value={busca}
+        onChange={setBusca}
+        placeholder="Buscar por nome, CNPJ, email..."
+      />
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">

@@ -29,20 +29,31 @@ export function prepararLancamentosParaTabela(itens: LancamentoFinanceiro[]): La
     const subset = comissoes.filter((c) => c.status === status);
     if (!subset.length) return;
     const total = subset.reduce((s, c) => s + Number(c.valor), 0);
+    const datasVenc = subset.map((c) => c.data_vencimento).filter(Boolean) as string[];
+    const datasPag = subset.map((c) => c.data_pagamento).filter(Boolean) as string[];
+    const dataVencimento = datasVenc.sort()[0] ?? base.data_vencimento;
+    const dataPagamento =
+      status === 'pago'
+        ? (datasPag.sort().reverse()[0] ?? subset[0]?.data_pagamento ?? null)
+        : null;
+    const qtd = subset.length;
     sinteticos.push({
       ...base,
       id,
-      descricao: label,
+      descricao: qtd > 1 ? `${label} (${qtd} vendas)` : label,
       valor: total,
       status,
       status_display: status === 'pago' ? 'Pago' : 'Pendente',
       editavel: false,
       ids_agregados: subset.map((c) => c.id),
-      data_vencimento: subset[0]?.data_vencimento ?? base.data_vencimento,
-      data_pagamento: status === 'pago' ? subset[0]?.data_pagamento ?? null : null,
+      data_vencimento: dataVencimento,
+      data_pagamento: dataPagamento,
       oportunidade: null,
       oportunidade_titulo: '',
-      observacoes: '',
+      observacoes:
+        status === 'pago'
+          ? 'Filtrado pelo mês em que o pagamento foi registrado (caixa).'
+          : 'Filtrado pelo mês de vencimento (competência).',
     });
   };
 

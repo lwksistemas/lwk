@@ -266,6 +266,10 @@ export function HistoricoPagamentos({
   };
 
   const renderAcoesBoleto = (item: HistoricoPagamentoItem) => {
+    if (item.is_paid) {
+      return <span className="text-xs text-muted-foreground">—</span>;
+    }
+
     const pid = item.pagamento_loja_id || item.id;
     const podeBoleto =
       item.pode_baixar_boleto !== false &&

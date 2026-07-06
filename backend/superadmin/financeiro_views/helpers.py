@@ -334,7 +334,10 @@ def _build_historico_pagamentos_loja(
             'numero_nf': (nf.numero_nf or '') if nf else '',
             'nf_pdf_url': (nf.pdf_url or '') if nf else '',
             'referencia_mes': pl.referencia_mes.strftime('%Y-%m-%d') if pl.referencia_mes else None,
-            'pode_baixar_boleto': bool(asaas_id or boleto_url or pl.mercadopago_payment_id),
+            'pode_baixar_boleto': (
+                not is_paid
+                and bool(asaas_id or boleto_url or pl.mercadopago_payment_id)
+            ),
         })
 
     historico = _deduplicar_historico_pagamentos(historico)

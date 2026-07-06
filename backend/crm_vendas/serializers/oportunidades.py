@@ -25,7 +25,8 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
             'valor', 'etapa', 'vendedor', 'vendedor_nome',
             'probabilidade', 'data_fechamento_prevista', 'data_fechamento',
             'data_fechamento_ganho', 'data_fechamento_perdido', 'valor_comissao',
-            'observacoes', 'created_at', 'updated_at',
+            'observacoes', 'motivo_perda', 'feedback_pos_venda',
+            'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
 
@@ -64,12 +65,25 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
 
     def validate(self, attrs):
         """Empresa prestadora é obrigatória ao criar uma oportunidade."""
-        # Só valida na criação (POST), não em updates parciais (PATCH)
         request = self.context.get('request')
         is_create = request and request.method == 'POST'
         if is_create and not attrs.get('empresa_prestadora'):
             raise serializers.ValidationError({
                 'empresa_prestadora': 'Empresa prestadora é obrigatória. Selecione a empresa que irá prestar o serviço.'
             })
+
+        etapa = attrs.get('etapa')
+        if etapa is None and self.instance:
+            etapa = self.instance.etapa
+
+        if etapa == 'closed_lost':
+            motivo = attrs.get('motivo_perda')
+            if motivo is None and self.instance:
+                motivo = self.instance.motivo_perda
+            if not (motivo or '').strip():
+                raise serializers.ValidationError({
+                    'motivo_perda': 'Informe o motivo da perda ou cancelamento da negociação.',
+                })
+
         return attrs
 

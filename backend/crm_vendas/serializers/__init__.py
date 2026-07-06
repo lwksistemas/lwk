@@ -12,6 +12,7 @@ from .documentos import (
 )
 from .leads import LeadListSerializer, LeadSerializer
 from .oportunidade_items import OportunidadeItemSerializer
+from .oportunidade_notas import OportunidadeNotaSerializer
 from .oportunidades import OportunidadeSerializer
 from .financeiro import (
     GrupoFinanceiroCRMSerializer,
@@ -31,6 +32,7 @@ __all__ = [
     'CategoriaProdutoServicoSerializer',
     'ProdutoServicoSerializer',
     'OportunidadeItemSerializer',
+    'OportunidadeNotaSerializer',
     'PropostaSerializer',
     'PropostaTemplateSerializer',
     'ContratoTemplateSerializer',

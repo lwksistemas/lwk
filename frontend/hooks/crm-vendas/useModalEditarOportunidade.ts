@@ -44,6 +44,8 @@ export function useModalEditarOportunidade(
   const [valorComissaoEdit, setValorComissaoEdit] = useState(oportunidade.valor_comissao || '');
   const [dataFechamentoGanho, setDataFechamentoGanho] = useState(oportunidade.data_fechamento_ganho || '');
   const [dataFechamentoPerdido, setDataFechamentoPerdido] = useState(oportunidade.data_fechamento_perdido || '');
+  const [motivoPerda, setMotivoPerda] = useState(oportunidade.motivo_perda || '');
+  const [feedbackPosVenda, setFeedbackPosVenda] = useState(oportunidade.feedback_pos_venda || '');
   const [itensEditar, setItensEditar] = useState<OportunidadeItemRow[]>([]);
   const [produtosServicos, setProdutosServicos] = useState<ProdutoServicoOption[]>([]);
   const [propostasOportunidade, setPropostasOportunidade] = useState<{ id: number; titulo: string }[]>([]);
@@ -154,6 +156,12 @@ export function useModalEditarOportunidade(
         return;
       }
 
+      if (etapaSelecionada === 'closed_lost' && !motivoPerda.trim()) {
+        setFormErro('Informe o motivo da perda ou cancelamento da negociação.');
+        setEnviando(false);
+        return;
+      }
+
       const payload: Record<string, unknown> = {
         etapa: etapaSelecionada,
         empresa_prestadora: parseInt(empresaPrestadoraId, 10),
@@ -174,6 +182,9 @@ export function useModalEditarOportunidade(
       } else if (dataFechamentoPerdido) {
         payload.data_fechamento_perdido = dataFechamentoPerdido;
       }
+
+      payload.motivo_perda = motivoPerda.trim();
+      payload.feedback_pos_venda = feedbackPosVenda.trim();
 
       await apiClient.patch(`/crm-vendas/oportunidades/${oportunidade.id}/`, payload);
 
@@ -230,6 +241,10 @@ export function useModalEditarOportunidade(
     setDataFechamentoGanho,
     dataFechamentoPerdido,
     setDataFechamentoPerdido,
+    motivoPerda,
+    setMotivoPerda,
+    feedbackPosVenda,
+    setFeedbackPosVenda,
     itensEditar,
     setItensEditar,
     produtosServicos,

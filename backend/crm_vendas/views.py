@@ -132,5 +132,5 @@ from .views_documentos import (  # noqa: F401, E402
     PropostaTemplateViewSet,
     PropostaViewSet,
 )
-from .views_pipelines import AtividadeViewSet, OportunidadeViewSet  # noqa: F401, E402
+from .views_pipelines import AtividadeViewSet, OportunidadeNotaViewSet, OportunidadeViewSet  # noqa: F401, E402
 from .views_vendedor import VendedorViewSet  # noqa: F401, E402

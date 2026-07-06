@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { formatCrmBrl, rotuloExibicaoOportunidade, subtituloModalOportunidade } from '@/lib/crm-utils';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import OportunidadeItensEditor from '@/components/crm-vendas/OportunidadeItensEditor';
+import HistoricoNegociacaoSection from '@/components/crm-vendas/HistoricoNegociacaoSection';
 import CrmEnviarClienteIcones from '@/components/crm-vendas/CrmEnviarClienteIcones';
 import { useModalEditarOportunidade } from '@/hooks/crm-vendas/useModalEditarOportunidade';
 
@@ -27,6 +28,10 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
     setDataFechamentoGanho,
     dataFechamentoPerdido,
     setDataFechamentoPerdido,
+    motivoPerda,
+    setMotivoPerda,
+    feedbackPosVenda,
+    setFeedbackPosVenda,
     itensEditar,
     setItensEditar,
     produtosServicos,
@@ -151,6 +156,13 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
             layout="modal"
           />
 
+          <HistoricoNegociacaoSection
+            oportunidade={oportunidade}
+            etapas={etapas}
+            motivoPerda={motivoPerda}
+            feedbackPosVenda={feedbackPosVenda}
+          />
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Valor da Comissão (R$)
@@ -165,6 +177,41 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
               placeholder="0"
             />
           </div>
+          {(etapaSelecionada === 'closed_lost' || oportunidade.etapa === 'closed_lost') && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Motivo da perda / cancelamento <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={motivoPerda}
+                onChange={(e) => setMotivoPerda(e.target.value)}
+                rows={3}
+                required
+                placeholder="Ex.: Cliente desistiu por preço, escolheu concorrente, adiou a compra..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Obrigatório ao fechar como perdido. Fica registrado no histórico e na impressão.
+              </p>
+            </div>
+          )}
+          {(etapaSelecionada === 'closed_won' || oportunidade.etapa === 'closed_won') && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Opinião do cliente (pós-venda)
+              </label>
+              <textarea
+                value={feedbackPosVenda}
+                onChange={(e) => setFeedbackPosVenda(e.target.value)}
+                rows={3}
+                placeholder="Ex.: Cliente elogiou o atendimento, sugeriu melhoria no prazo de entrega..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Registre a percepção do cliente sobre o serviço ou o sistema após a compra finalizada.
+              </p>
+            </div>
+          )}
           {(etapaSelecionada === 'closed_won' || oportunidade.data_fechamento_ganho) && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

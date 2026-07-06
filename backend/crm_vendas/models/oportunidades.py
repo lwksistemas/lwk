@@ -47,6 +47,16 @@ class Oportunidade(LojaIsolationMixin, models.Model):
     data_fechamento_perdido = models.DateField(null=True, blank=True, help_text='Data em que a oportunidade foi fechada como perdida')
     valor_comissao = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text='Valor da comissão para esta oportunidade')
     observacoes = models.TextField(blank=True)
+    motivo_perda = models.TextField(
+        blank=True,
+        default='',
+        help_text='Motivo pelo qual a negociação foi perdida ou cancelada',
+    )
+    feedback_pos_venda = models.TextField(
+        blank=True,
+        default='',
+        help_text='Opinião do cliente após fechamento ganho (sobre o serviço/sistema)',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

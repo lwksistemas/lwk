@@ -24,10 +24,11 @@ from .mixins import (
     CRMSchemaRecoveryMixin,
     VendedorFilterMixin,
 )
-from .models import Atividade, Oportunidade, Vendedor
+from .models import Atividade, Oportunidade, OportunidadeNota, Vendedor
 from .serializers import (
     AtividadeListSerializer,
     AtividadeSerializer,
+    OportunidadeNotaSerializer,
     OportunidadeSerializer,
 )
 from .services import OportunidadeService
@@ -112,6 +113,51 @@ class OportunidadeViewSet(
         if get_current_vendedor_id(self.request) is None:
             qs = filtrar_queryset_por_query_params(qs, self.request, {'vendedor_id': 'vendedor_id'})
         return filtrar_queryset_por_query_params(qs, self.request, {'etapa': 'etapa'})
+
+
+def _autor_nome_negociacao(request) -> str:
+    vid = get_current_vendedor_id(request)
+    if vid:
+        vendedor = Vendedor.objects.filter(id=vid).only('nome').first()
+        if vendedor and vendedor.nome:
+            return vendedor.nome
+    user = getattr(request, 'user', None)
+    if user and user.is_authenticated:
+        nome = (user.get_full_name() or '').strip() or getattr(user, 'username', '')
+        if nome:
+            return nome
+    return 'Equipe'
+
+
+class OportunidadeNotaViewSet(
+    CRMSchemaRecoveryMixin,
+    CrmGranularPermissionMixin,
+    CacheInvalidationMixin,
+    VendedorFilterMixin,
+    BaseModelViewSet,
+):
+    """Notas cronológicas da negociação (respostas do cliente e notas internas)."""
+    queryset = OportunidadeNota.objects.select_related('oportunidade').all()
+    serializer_class = OportunidadeNotaSerializer
+    pagination_class = CRMPagination
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    vendedor_filter_field = 'oportunidade__vendedor_id'
+    vendedor_filter_related = []
+    cache_keys = ['oportunidades']
+    crm_permission_model = 'oportunidade'
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return filtrar_queryset_por_query_params(
+            qs,
+            self.request,
+            {'oportunidade_id': 'oportunidade_id'},
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(autor_nome=_autor_nome_negociacao(self.request))
+        self._invalidate_caches()
 
 
 class AtividadeViewSet(

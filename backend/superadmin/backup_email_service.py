@@ -60,10 +60,9 @@ class BackupEmailService:
                 return False
             
             # Email do destinatário
-            destinatario = loja.owner.email
-            
+            destinatario = (loja.owner.email or '').strip()
             if not destinatario:
-                logger.error(f"❌ Loja {loja.nome} não possui email do owner")
+                logger.error('❌ Loja %s (id=%s) não possui email do owner — backup gerado mas não enviado', loja.nome, loja.id)
                 return False
             
             # Preparar email
@@ -225,21 +224,32 @@ Este é um email automático, não responda.
         return texto.strip()
     
     def _anexar_arquivo(self, email: EmailMessage, historico):
-        """Anexa arquivo de backup ao email"""
+        """Anexa arquivo de backup ao email.
+
+        Tenta ler do filesystem. Se o arquivo não existir (ex: após redeploy do
+        Railway onde o container é efêmero), loga um aviso e retorna sem anexo
+        — o email ainda é enviado com as informações do backup no corpo.
+        """
         import os
-        
-        if not historico.arquivo_path or not os.path.exists(historico.arquivo_path):
-            raise FileNotFoundError(f"Arquivo de backup não encontrado: {historico.arquivo_path}")
-        
-        # Ler arquivo
+
+        if not historico.arquivo_path:
+            logger.warning(
+                '⚠️ Backup %s (loja=%s) não tem arquivo_path — email enviado sem anexo',
+                historico.id, historico.loja_id,
+            )
+            return
+
+        if not os.path.exists(historico.arquivo_path):
+            logger.warning(
+                '⚠️ Arquivo de backup não encontrado no disco (%s) — '
+                'container pode ter sido reiniciado após o backup. '
+                'Email enviado sem anexo.',
+                historico.arquivo_path,
+            )
+            return
+
         with open(historico.arquivo_path, 'rb') as f:
             arquivo_bytes = f.read()
-        
-        # Anexar
-        email.attach(
-            historico.arquivo_nome,
-            arquivo_bytes,
-            'application/zip'
-        )
-        
-        logger.info(f"📎 Arquivo {historico.arquivo_nome} anexado ao email")
+
+        email.attach(historico.arquivo_nome, arquivo_bytes, 'application/zip')
+        logger.info('📎 Arquivo %s anexado ao email (%s bytes)', historico.arquivo_nome, len(arquivo_bytes))

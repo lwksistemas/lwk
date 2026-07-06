@@ -106,13 +106,17 @@ def executar_backups_automaticos():
                 continue
             
             # Verificar se está no horário (com margem de 1 hora)
+            # Usa datetime aware para evitar bug com horários após 23:00
             horario_inicio = config.horario_envio
-            horario_fim = (
-                datetime.combine(datetime.today(), horario_inicio) + 
-                timedelta(hours=1)
-            ).time()
-            
-            if not (horario_inicio <= hora_atual <= horario_fim):
+            now_dt = now_local.replace(second=0, microsecond=0)
+            agendado_dt = now_local.replace(
+                hour=horario_inicio.hour,
+                minute=horario_inicio.minute,
+                second=0,
+                microsecond=0,
+            )
+            diff_minutos = (now_dt - agendado_dt).total_seconds() / 60
+            if not (0 <= diff_minutos < 60):
                 continue
             
             # Só pula se backup AUTOMÁTICO já concluiu hoje (manual não bloqueia o agendado)

@@ -382,26 +382,36 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
                 f"ALTER TABLE crm_vendas_config "
                 f"ADD COLUMN IF NOT EXISTS {col_name} {col_def};"
             )
-        # Migration 0047: certificado como BinaryField + nome
+        # Migration 0047: certificado como BinaryField + nome (nunca apagar bytea existente)
         cursor.execute(
             "ALTER TABLE crm_vendas_config "
             "ADD COLUMN IF NOT EXISTS issnet_certificado_nome VARCHAR(255) NOT NULL DEFAULT '';"
         )
-        # Se issnet_certificado era FileField (varchar), dropar e recriar como bytea
-        try:
+        cursor.execute(
+            """
+            SELECT data_type FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'crm_vendas_config'
+              AND column_name = 'issnet_certificado'
+            """
+        )
+        cert_col = cursor.fetchone()
+        if cert_col is None:
             cursor.execute(
                 "ALTER TABLE crm_vendas_config "
-                "DROP COLUMN IF EXISTS issnet_certificado;"
+                "ADD COLUMN issnet_certificado bytea;"
+            )
+        elif cert_col[0] in ('character varying', 'text'):
+            # Legado FileField (caminho em varchar) → bytea; perde arquivo em disco antigo
+            cursor.execute(
+                "ALTER TABLE crm_vendas_config "
+                "DROP COLUMN issnet_certificado;"
             )
             cursor.execute(
                 "ALTER TABLE crm_vendas_config "
-                "ADD COLUMN IF NOT EXISTS issnet_certificado bytea;"
+                "ADD COLUMN issnet_certificado bytea;"
             )
-        except Exception:
-            cursor.execute(
-                "ALTER TABLE crm_vendas_config "
-                "ADD COLUMN IF NOT EXISTS issnet_certificado bytea;"
-            )
+        # Se já é bytea: preservar dados do certificado
         cursor.execute(
             "ALTER TABLE crm_vendas_config "
             "ADD COLUMN IF NOT EXISTS issnet_ambiente_homologacao boolean NOT NULL DEFAULT false;"

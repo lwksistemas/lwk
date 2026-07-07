@@ -42,8 +42,22 @@ def issnet_client_from_pfx(
 
 
 def _cert_bytes(config: Any) -> bytes:
-    data = getattr(config, 'issnet_certificado', None) or getattr(config, 'nacional_certificado', None)
-    return bytes(data) if data else b''
+    for attr in ('issnet_certificado', 'nacional_certificado'):
+        raw = getattr(config, attr, None)
+        if not raw:
+            continue
+        try:
+            data = bytes(raw)
+        except Exception:
+            continue
+        if len(data) > 0:
+            return data
+    return b''
+
+
+def certificado_configurado(config: Any) -> bool:
+    """True somente quando há conteúdo binário do certificado (não só nome do arquivo)."""
+    return len(_cert_bytes(config)) > 0
 
 
 def _senha_cert(config: Any) -> str:

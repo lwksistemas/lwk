@@ -57,6 +57,22 @@ class PatchCrmVendasAtividadeColumnsTest(SimpleTestCase):
         self.assertTrue(any('django_migrations' in sql for sql in sql_calls))
 
 
+class PatchCrmVendasAsaasColumnsTest(SimpleTestCase):
+    @patch('core.db_config.ensure_loja_database_config', return_value=True)
+    @patch('django.db.connections')
+    def test_nao_apaga_coluna_certificado_bytea(self, mock_connections, _mock_ensure):
+        from crm_vendas.schema_service import patch_crm_vendas_asaas_columns_if_missing
+
+        cursor = MagicMock()
+        cursor.fetchone.return_value = ('bytea',)
+        mock_connections.__getitem__.return_value.cursor.return_value.__enter__.return_value = cursor
+
+        patch_crm_vendas_asaas_columns_if_missing('loja_felix')
+
+        sql_calls = [call.args[0] for call in cursor.execute.call_args_list]
+        self.assertFalse(any('DROP COLUMN' in sql and 'issnet_certificado' in sql for sql in sql_calls))
+
+
 class PatchClinicaBelezaMigrationOrphansTest(SimpleTestCase):
     @patch('core.db_config.ensure_loja_database_config', return_value=True)
     @patch('crm_vendas.schema_service.connections')

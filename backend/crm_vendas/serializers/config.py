@@ -55,9 +55,15 @@ class CRMConfigSerializer(serializers.ModelSerializer):
         )
 
     def get_issnet_certificado(self, obj):
-        """Retorna nome do arquivo se certificado está salvo no banco."""
+        """Retorna nome do arquivo se o certificado (.pfx) está salvo com conteúdo no banco."""
         nome = getattr(obj, 'issnet_certificado_nome', '') or ''
-        has_data = bool(getattr(obj, 'issnet_certificado', None))
+        raw = getattr(obj, 'issnet_certificado', None)
+        if not raw:
+            return ''
+        try:
+            has_data = len(bytes(raw)) > 0
+        except Exception:
+            has_data = False
         return nome if has_data else ''
 
     def to_internal_value(self, data):

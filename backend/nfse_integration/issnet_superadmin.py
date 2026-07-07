@@ -4,7 +4,10 @@ from typing import Any
 
 from django.utils import timezone
 
-from nfse_integration.issnet_client_factory import issnet_client_superadmin
+from nfse_integration.issnet_client_factory import (
+    certificado_configurado as certificado_tem_bytes,
+    issnet_client_superadmin,
+)
 from nfse_integration.issnet_shared import CODIGOS_CANCELAMENTO, normalizar_codigo_cancelamento
 from nfse_integration.issnet_status_sync import consultar_nfse_cancelada_issnet
 
@@ -20,7 +23,7 @@ __all__ = [
 
 
 def certificado_configurado(config: Any) -> bool:
-    return bool(config.issnet_certificado or config.nacional_certificado)
+    return certificado_tem_bytes(config)
 
 
 def senha_certificado_configurada(config: Any) -> bool:

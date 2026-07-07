@@ -1,0 +1,48 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+fix = true
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (deixar para o formatter)
+    "B904",   # raise from (muitos legados)
+    "SIM108", # ternary (legibilidade)
+    "SIM117", # nested with (legibilidade)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "config",
+    "core",
+    "superadmin",
+    "tenants",
+    "crm_vendas",
+    "clinica_estetica",
+    "clinica_beleza",
+    "cabeleireiro",
+    "asaas_integration",
+    "nfse_integration",
+    "whatsapp",
+    "notificacoes",
+    "push",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"migrations/*.py" = ["E", "F", "I", "UP"]
+"tests/*.py" = ["B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "crm_vendas/tests", "clinica_estetica/tests", "core"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-q --tb=short"

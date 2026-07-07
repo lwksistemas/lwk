@@ -64,7 +64,7 @@ class Command(BaseCommand):
         if now.hour == 4 and now.minute < 15:
             call_command('limpar_evolution_instancias', '--execute', verbosity=1)
 
-        if now.minute == 0:
+        if now.minute < 15:
             call_command('executar_backups_automaticos', verbosity=1)
 
         self.stdout.write(self.style.SUCCESS('=== Cron LWK concluído ==='))

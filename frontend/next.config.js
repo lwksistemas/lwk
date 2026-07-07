@@ -175,15 +175,15 @@ const nextConfig = {
   
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-    NEXT_PUBLIC_BUILD_ID: 'v1390-hero-images',
-    NEXT_PUBLIC_VERSION: '1390',
-    NEXT_PUBLIC_SW_VERSION: 'v1390',
+    NEXT_PUBLIC_BUILD_ID: process.env.NEXT_PUBLIC_BUILD_ID || process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 8) || 'dev',
+    NEXT_PUBLIC_VERSION: process.env.NEXT_PUBLIC_VERSION || '1390',
+    NEXT_PUBLIC_SW_VERSION: process.env.NEXT_PUBLIC_SW_VERSION || 'v1390',
     NEXT_PUBLIC_PWA_ENABLED: process.env.NEXT_PUBLIC_PWA_ENABLED || 'false',
   },
   
-  // Build ID estável preserva cache entre builds equivalentes.
+  // Build ID: usa commit SHA (Vercel injeta VERCEL_GIT_COMMIT_SHA) ou env explícito.
   generateBuildId: async () => {
-    return process.env.NEXT_PUBLIC_BUILD_ID || 'v1390-hero-images';
+    return process.env.NEXT_PUBLIC_BUILD_ID || process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 8) || 'dev';
   },
 }
 

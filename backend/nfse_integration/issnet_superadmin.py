@@ -45,12 +45,11 @@ def cancelar_nfse_emitida_superadmin(
 
     if nf.provedor == 'issnet' and nf.numero_nf:
         if not certificado_configurado(config):
-            _marcar_cancelada(nf)
             return {
-                'success': True,
-                'message': (
-                    f'NFS-e {nf.numero_nf} cancelada no sistema '
-                    '(certificado não configurado para cancelar no portal).'
+                'success': False,
+                'error': (
+                    'Certificado digital não configurado. '
+                    'Configure o certificado ISSNet para cancelar no portal da prefeitura.'
                 ),
             }
 
@@ -103,8 +102,19 @@ def cancelar_nfse_emitida_superadmin(
             logger.exception('Erro ao cancelar NFS-e superadmin via ISSNet: %s', exc)
             return {'success': False, 'error': str(exc)}
 
-    _marcar_cancelada(nf)
-    return {'success': True, 'message': 'NFS-e marcada como cancelada'}
+    if nf.provedor == 'nacional':
+        return {
+            'success': False,
+            'error': (
+                'Cancelamento via API Nacional ainda não disponível. '
+                'Cancele no portal da prefeitura e sincronize o status.'
+            ),
+        }
+
+    return {
+        'success': False,
+        'error': f'Cancelamento automático não disponível para o provedor «{nf.provedor}».',
+    }
 
 
 def consultar_url_nfse_superadmin(nf: Any, config: Any) -> dict[str, Any]:

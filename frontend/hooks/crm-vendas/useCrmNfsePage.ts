@@ -245,7 +245,7 @@ export function useCrmNfsePage() {
         motivo: escolha.motivo,
         codigo_cancelamento: escolha.codigo,
       });
-      toast.success('Cancelamento enviado. Se aprovado pela prefeitura, o status será atualizado.');
+      toast.success('NFS-e cancelada no ISSNet com sucesso.');
       setNfCancelamento(null);
       await carregarNFSes(true);
     } catch (err: unknown) {

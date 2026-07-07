@@ -123,8 +123,14 @@ export function nfsePodeBaixar(status: string): boolean {
   return status === 'emitida' || status === 'cancelada';
 }
 
-export function nfsePodeSincronizar(status: string): boolean {
-  return status !== 'emitida' && status !== 'cancelada';
+export function nfsePodeSincronizar(
+  status: string,
+  nf?: NfseProvedorRef,
+  lojaProvedor?: string,
+): boolean {
+  if (status === 'erro' || status === 'pendente') return true;
+  if (status === 'cancelada' && nf && nfUsaIssnet(nf, lojaProvedor)) return true;
+  return false;
 }
 
 export function nfsePodeEnviarWhatsapp(status: string): boolean {

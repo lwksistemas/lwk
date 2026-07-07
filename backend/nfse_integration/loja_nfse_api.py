@@ -312,7 +312,16 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
         else:
             message = 'NFS-e já constava como cancelada no sistema.'
     else:
-        message = 'ISSNet indica nota ainda emitida; nenhuma alteração no CRM.'
+        if nfse.status == 'cancelada':
+            nfse.status = 'emitida'
+            nfse.data_cancelamento = None
+            nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
+            message = (
+                'Status corrigido: ISSNet indica nota ainda emitida '
+                '(cancelamento local foi revertido).'
+            )
+        else:
+            message = 'ISSNet indica nota ainda emitida; nenhuma alteração no CRM.'
 
     nfse.refresh_from_db()
     return (

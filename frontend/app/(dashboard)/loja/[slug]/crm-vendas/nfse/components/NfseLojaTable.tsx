@@ -102,7 +102,7 @@ function NfseLojaRow({
   const toast = useToast();
   const aliquota = Number(nf.aliquota_iss ?? 0).toFixed(2);
   const podeBaixar = nfsePodeBaixar(nf.status);
-  const podeSincronizar = nfsePodeSincronizar(nf.status);
+  const podeSincronizar = nfsePodeSincronizar(nf.status, nf, lojaProvedor);
 
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/50">

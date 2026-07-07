@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from core.views import BaseModelViewSet
 from tenants.middleware import get_current_loja_id
 from .cache import CRMCacheManager
-from .mixins import CacheInvalidationMixin, CrmGranularPermissionMixin, VendedorAutoAssignCreateMixin, VendedorFilterMixin
+from .mixins import CacheInvalidationMixin, CrmGranularPermissionMixin, CRMSchemaRecoveryMixin, VendedorAutoAssignCreateMixin, VendedorFilterMixin
 from .models import Atividade, Conta, Contato, Lead
 from .serializers import (
     AtividadeListSerializer,
@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class ContaViewSet(
+    CRMSchemaRecoveryMixin,
     CrmGranularPermissionMixin,
     CRMNoCacheListMixin,
     CacheInvalidationMixin,
@@ -72,6 +73,7 @@ class ContaViewSet(
 
 
 class LeadViewSet(
+    CRMSchemaRecoveryMixin,
     CrmGranularPermissionMixin,
     CRMNoCacheListMixin,
     CacheInvalidationMixin,
@@ -128,7 +130,7 @@ class LeadViewSet(
     vendedor_create_entity_label = 'lead'
 
 
-class ContatoViewSet(CrmGranularPermissionMixin, CRMNoCacheListMixin, CacheInvalidationMixin, BaseModelViewSet):
+class ContatoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, CRMNoCacheListMixin, CacheInvalidationMixin, BaseModelViewSet):
     queryset = Contato.objects.select_related('conta').all()
     serializer_class = ContatoSerializer
     pagination_class = CRMPagination

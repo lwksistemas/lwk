@@ -14,7 +14,7 @@ from .serializers import (
     CategoriaProdutoServicoSerializer,
     OportunidadeItemSerializer,
 )
-from .mixins import VendedorFilterMixin, CacheInvalidationMixin, CrmGranularPermissionMixin
+from .mixins import CRMSchemaRecoveryMixin, VendedorFilterMixin, CacheInvalidationMixin, CrmGranularPermissionMixin
 from .views_common import (
     CRMPagination,
     LojaScopedCatalogMixin,
@@ -25,7 +25,7 @@ from .views_common import (
 logger = logging.getLogger(__name__)
 
 
-class CategoriaProdutoServicoViewSet(LojaScopedCatalogMixin, BaseModelViewSet):
+class CategoriaProdutoServicoViewSet(CRMSchemaRecoveryMixin, LojaScopedCatalogMixin, BaseModelViewSet):
     """CRUD de categorias para organizar produtos e serviços."""
     queryset = CategoriaProdutoServico.objects.select_related('loja').all()
     serializer_class = CategoriaProdutoServicoSerializer
@@ -38,7 +38,7 @@ class CategoriaProdutoServicoViewSet(LojaScopedCatalogMixin, BaseModelViewSet):
         return filtrar_ativo_query_param(qs, self.request)
 
 
-class ProdutoServicoViewSet(CrmGranularPermissionMixin, LojaScopedCatalogMixin, BaseModelViewSet):
+class ProdutoServicoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, LojaScopedCatalogMixin, BaseModelViewSet):
     """CRUD de produtos e serviços para uso em oportunidades."""
     queryset = ProdutoServico.objects.select_related('loja', 'categoria').all()
     serializer_class = ProdutoServicoSerializer
@@ -57,7 +57,7 @@ class ProdutoServicoViewSet(CrmGranularPermissionMixin, LojaScopedCatalogMixin, 
         return filtrar_queryset_por_query_params(qs, self.request, {'categoria': 'categoria_id'})
 
 
-class OportunidadeItemViewSet(CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
+class OportunidadeItemViewSet(CRMSchemaRecoveryMixin, CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):
     """Itens (produtos/serviços) de uma oportunidade."""
     queryset = OportunidadeItem.objects.select_related('oportunidade', 'produto_servico').all()
     serializer_class = OportunidadeItemSerializer

@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
 from core.serializer_mixins import (
@@ -237,75 +239,59 @@ class BloqueioAgendaSerializer(serializers.ModelSerializer):
     
     def validate_profissional(self, value):
         """
-        Valida se o profissional existe na loja atual
-        
-        IMPORTANTE: Usa SQL direto com search_path explícito para garantir
-        que estamos consultando o schema correto da loja.
+        Valida se o profissional existe na loja atual.
+        Usa SQL parametrizado com identifier quoting para prevenir SQL injection.
         """
-        import logging
-        logger = logging.getLogger(__name__)
-        
         if value is not None:
             from tenants.middleware import get_current_loja_id
             from django.db import connection
+            from django.utils.encoding import force_str
             from superadmin.models import Loja
-            
+
             loja_id = get_current_loja_id()
-            
+
             if not loja_id:
                 raise serializers.ValidationError(
                     "Contexto de loja não encontrado"
                 )
-            
-            logger.info(f"[BloqueioAgenda] Validando profissional_id={value} na loja_id={loja_id}")
-            
-            # Buscar schema da loja
+
             try:
                 loja = Loja.objects.get(id=loja_id)
                 schema_name = loja.database_name.replace('-', '_')
-                logger.info(f"[BloqueioAgenda] Schema da loja: {schema_name}")
             except Loja.DoesNotExist:
                 raise serializers.ValidationError(
                     f"Loja {loja_id} não encontrada"
                 )
-            
-            # Consultar diretamente no schema correto usando SQL
+
+            # Sanitizar schema_name: apenas alfanuméricos e underscore
+            import re
+            if not re.match(r'^[a-zA-Z0-9_]+$', schema_name):
+                raise serializers.ValidationError("Nome de schema inválido")
+
             with connection.cursor() as cursor:
-                cursor.execute(f"SET search_path TO {schema_name}, public")
+                cursor.execute(
+                    "SET search_path TO %s, public" % connection.ops.quote_name(schema_name)
+                )
                 cursor.execute(
                     "SELECT EXISTS(SELECT 1 FROM clinica_profissionais WHERE id = %s AND is_active = true)",
                     [value]
                 )
                 existe = cursor.fetchone()[0]
-            
-            logger.info(f"[BloqueioAgenda] Profissional {value} existe no schema {schema_name}? {existe}")
-            
+
             if not existe:
-                logger.error(f"[BloqueioAgenda] ERRO: Profissional {value} não existe no schema {schema_name}")
                 raise serializers.ValidationError(
                     f"Profissional ID {value} não existe nesta loja. "
                     f"Por favor, recarregue a página (Ctrl+Shift+R) e tente novamente."
                 )
-        
+
         return value
     
     def create(self, validated_data):
-        """
-        Cria bloqueio convertendo profissional_id para ForeignKey
-        """
-        import logging
-        logger = logging.getLogger(__name__)
-        
+        """Cria bloqueio convertendo profissional_id para ForeignKey."""
         profissional_id = validated_data.pop('profissional', None)
-        
-        # Criar bloqueio
         bloqueio = BloqueioAgenda(**validated_data)
-        
-        # Atribuir profissional_id diretamente (evita carregar objeto do schema errado)
         if profissional_id:
             bloqueio.profissional_id = profissional_id
-            logger.info(f"[BloqueioAgenda] Criando bloqueio com profissional_id={profissional_id}")
-        
         bloqueio.save()
         return bloqueio
     

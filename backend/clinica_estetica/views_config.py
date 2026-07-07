@@ -1,10 +1,14 @@
+from django.core.cache import cache
+from django.db.models import Q, Count
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from django.db.models import Q, Count
+
 from core.views import BaseModelViewSet
+from superadmin.models import Loja
+from tenants.middleware import get_current_loja_id
 from .serializers import HistoricoLoginSerializer
 
 
@@ -89,19 +93,11 @@ class HistoricoAcessosLojaViewSet(BaseModelViewSet):
     
     def get_queryset(self):
         """
-        Retorna histórico filtrado pela loja atual
-        
-        Suporta filtros:
-        - usuario: Nome ou email do usuário
-        - acao: Tipo de ação (criar, editar, excluir, etc.)
-        - recurso: Tipo de recurso (Cliente, Procedimento, etc.)
-        - data_inicio: Data inicial (YYYY-MM-DD)
-        - data_fim: Data final (YYYY-MM-DD)
-        - sucesso: true/false
+        Retorna histórico filtrado pela loja atual.
+        Suporta filtros: usuario, acao, recurso, data_inicio, data_fim, sucesso.
         """
         from superadmin.models import HistoricoAcessoGlobal
-        from tenants.middleware import get_current_loja_id
-        
+
         loja_id = get_current_loja_id()
         
         if not loja_id:
@@ -165,9 +161,7 @@ class HistoricoAcessosLojaViewSet(BaseModelViewSet):
         - Recursos mais acessados
         """
         from superadmin.models import HistoricoAcessoGlobal
-        from tenants.middleware import get_current_loja_id
-        from django.db.models import Count
-        
+
         loja_id = get_current_loja_id()
         
         if not loja_id:
@@ -228,9 +222,6 @@ class LoginConfigView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from tenants.middleware import get_current_loja_id
-        from superadmin.models import Loja
-        
         loja_id = get_current_loja_id()
         if not loja_id:
             return Response(
@@ -260,9 +251,6 @@ class LoginConfigView(APIView):
         })
 
     def patch(self, request):
-        from tenants.middleware import get_current_loja_id
-        from superadmin.models import Loja
-        
         loja_id = get_current_loja_id()
         if not loja_id:
             return Response(
@@ -309,8 +297,6 @@ class LoginConfigView(APIView):
         
         loja.save(update_fields=update_fields)
         
-        # Limpar cache
-        from django.core.cache import cache
         cache_key = f'loja_info_publica:{loja.slug}'
         cache.delete(cache_key)
         

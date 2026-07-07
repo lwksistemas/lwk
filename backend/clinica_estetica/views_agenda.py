@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,6 +9,7 @@ from django.utils import timezone
 from datetime import date, datetime, timedelta
 from core.views import BaseModelViewSet
 from core.throttling import DashboardRateThrottle
+from tenants.middleware import get_current_loja_id, get_current_tenant_db
 from .models import (
     Cliente, Profissional, Procedimento, Agendamento,
     BloqueioAgenda, Consulta, HorarioTrabalhoProfissional,
@@ -14,6 +17,8 @@ from .models import (
 from .serializers import (
     AgendamentoSerializer, BloqueioAgendaSerializer, ConsultaSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AgendamentoViewSet(BaseModelViewSet):
@@ -148,41 +153,26 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Retorna bloqueios filtrados por loja, data e profissional"""
-        from tenants.middleware import get_current_loja_id, get_current_tenant_db
-        import logging
-        logger = logging.getLogger(__name__)
-        
+        """Retorna bloqueios filtrados por loja, data e profissional."""
         loja_id = get_current_loja_id()
         tenant_db = get_current_tenant_db()
-        
-        logger.info(f"🔍 [BloqueioAgendaViewSet] loja_id={loja_id}, tenant_db={tenant_db}")
-        
+
         if not loja_id:
-            logger.warning("⚠️ [BloqueioAgendaViewSet] Nenhuma loja no contexto")
+            logger.warning('BloqueioAgendaViewSet: nenhuma loja no contexto')
             return BloqueioAgenda.objects.none()
-        
-        # CRÍTICO: Usar o banco correto (schema isolado)
+
         queryset = BloqueioAgenda.objects.all()
-        
-        # Se temos um tenant_db específico, usar ele
         if tenant_db and tenant_db != 'default':
             queryset = queryset.using(tenant_db)
-            logger.info(f"✅ [BloqueioAgendaViewSet] Usando banco: {tenant_db}")
-        
-        # Filtrar por loja_id explicitamente (camada extra de segurança)
-        queryset = queryset.filter(loja_id=loja_id).select_related('profissional')
-        
-        params = getattr(self.request, "query_params", self.request.GET)
+
+        queryset = queryset.filter(loja_id=loja_id, is_active=True).select_related('profissional')
+
+        params = getattr(self.request, 'query_params', self.request.GET)
         data_inicio_str = params.get('data_inicio')
         data_fim_str = params.get('data_fim')
         profissional_id = params.get('profissional_id')
 
-        # Apenas bloqueios ativos
-        queryset = queryset.filter(is_active=True)
-        
         if data_inicio_str and data_fim_str:
-            from datetime import datetime
             try:
                 data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date()
                 data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date()
@@ -191,78 +181,28 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
             if data_inicio is not None and data_fim is not None:
                 queryset = queryset.filter(
                     data_inicio__lte=data_fim,
-                    data_fim__gte=data_inicio
+                    data_fim__gte=data_inicio,
                 )
-                logger.info(f"🔍 [BloqueioAgendaViewSet] Filtro de data: {data_inicio} a {data_fim}")
 
-        # Se filtrar por profissional, incluir bloqueios do profissional E bloqueios globais (profissional null)
         if profissional_id:
             queryset = queryset.filter(Q(profissional_id=profissional_id) | Q(profissional__isnull=True))
-            logger.info(f"🔍 [BloqueioAgendaViewSet] Filtro profissional_id={profissional_id}")
-        
-        # Query completa apenas em debug para evitar ruído e detalhes internos em produção.
-        logger.debug("[BloqueioAgendaViewSet] SQL: %s", queryset.query)
-        
-        count = queryset.count()
-        logger.info(f"✅ [BloqueioAgendaViewSet] Retornando {count} bloqueios para loja_id={loja_id}")
-        
-        # Aviso só quando não há filtro de data: 0 resultados pode indicar problema de tenant/DB
-        if count == 0 and not (data_inicio_str and data_fim_str):
-            from django.db import connection, connections
-            conn = connections[tenant_db] if (tenant_db and tenant_db != 'default') else connection
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT COUNT(*) FROM clinica_bloqueios_agenda WHERE loja_id = %s", [loja_id])
-                total_bloqueios = cursor.fetchone()[0]
-                if total_bloqueios > 0:
-                    logger.warning(
-                        "⚠️ [BloqueioAgendaViewSet] Query retornou 0, mas existem %s bloqueios no banco para loja_id=%s (verifique tenant/DB)",
-                        total_bloqueios, loja_id
-                    )
-        
+
+        logger.debug('BloqueioAgendaViewSet: loja_id=%s, tenant_db=%s', loja_id, tenant_db)
         return queryset
     
     def create(self, request, *args, **kwargs):
-        """Sobrescreve create para logar erros de validação"""
-        import logging
-        logger = logging.getLogger(__name__)
-        
+        """Sobrescreve create para logar erros de validação."""
         try:
             return super().create(request, *args, **kwargs)
         except Exception as e:
-            logger.error(f"[BloqueioAgenda] Erro ao criar bloqueio: {str(e)}")
-            logger.debug("[BloqueioAgenda] Campos recebidos: %s", sorted(request.data.keys()))
+            logger.error('BloqueioAgenda: erro ao criar bloqueio: %s', e)
             raise
     
     def perform_create(self, serializer):
-        """
-        Preenche automaticamente o loja_id do contexto
-        
-        Logs detalhados para debug de problemas de isolamento multi-tenant
-        """
-        from tenants.middleware import get_current_loja_id
-        import logging
-        logger = logging.getLogger(__name__)
-        
+        """Preenche automaticamente o loja_id do contexto."""
         loja_id = get_current_loja_id()
-        profissional_id = self.request.data.get('profissional')
-        
-        # Evitar registrar payload completo do request.
-        logger.debug("[BloqueioAgenda] Campos recebidos: %s", sorted(self.request.data.keys()))
-        logger.info(f"[BloqueioAgenda] loja_id do contexto: {loja_id}")
-        logger.info(f"[BloqueioAgenda] profissional_id recebido: {profissional_id}")
-        
-        # Verificar se profissional existe no schema da loja (antes de salvar)
-        if profissional_id:
-            existe = Profissional.objects.filter(id=profissional_id, is_active=True).exists()
-            logger.info(f"[BloqueioAgenda] Profissional {profissional_id} existe no schema da loja? {existe}")
-            
-            if not existe:
-                logger.error(f"[BloqueioAgenda] ERRO CRÍTICO: Tentativa de criar bloqueio com profissional_id={profissional_id} que não existe no schema da loja {loja_id}")
-        
-        # Salvar e logar o que foi realmente salvo
         bloqueio = serializer.save(loja_id=loja_id)
-        logger.info(f"🔍 [BloqueioAgenda] SALVO NO BANCO: id={bloqueio.id}, data_inicio={bloqueio.data_inicio}, data_fim={bloqueio.data_fim}")
-        
+        logger.debug('BloqueioAgenda criado: id=%s loja_id=%s', bloqueio.id, loja_id)
         return bloqueio
 
 
@@ -276,7 +216,6 @@ class ConsultaViewSet(BaseModelViewSet):
             self.request, 'META', {}
         ).get('HTTP_X_LOJA_ID')
         if not loja_id:
-            from tenants.middleware import get_current_loja_id
             loja_id = get_current_loja_id()
         if not loja_id:
             return Consulta.objects.none()
@@ -363,8 +302,6 @@ class ConsultaViewSet(BaseModelViewSet):
         Cria Consulta para Agendamentos que ainda não têm.
         Assim agendamentos já cadastrados passam a aparecer na Lista de Consultas.
         """
-        from tenants.middleware import get_current_loja_id
-
         loja_id = get_current_loja_id()
         if not loja_id:
             return Response(
@@ -399,7 +336,7 @@ class ConsultaViewSet(BaseModelViewSet):
     @action(detail=False, methods=['get'])
     def em_andamento(self, request):
         """Retorna consultas em andamento"""
-        consultas = self.queryset.filter(status='em_andamento')
+        consultas = self.get_queryset().filter(status='em_andamento')
         serializer = self.get_serializer(consultas, many=True)
         return Response(serializer.data)
 
@@ -407,6 +344,6 @@ class ConsultaViewSet(BaseModelViewSet):
     def hoje(self, request):
         """Retorna consultas de hoje"""
         hoje = date.today()
-        consultas = self.queryset.filter(agendamento__data=hoje)
+        consultas = self.get_queryset().filter(agendamento__data=hoje)
         serializer = self.get_serializer(consultas, many=True)
         return Response(serializer.data)

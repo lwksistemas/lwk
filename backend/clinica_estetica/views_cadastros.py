@@ -20,22 +20,10 @@ from .serializers import (
 
 
 class ClienteViewSet(ClienteSearchMixin, BaseModelViewSet):
+    queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
     search_serializer_class = ClienteBuscaSerializer
     permission_classes = [IsAuthenticated]
-    
-    def get_queryset(self):
-        """
-        Retorna queryset filtrado por loja e is_active
-        IMPORTANTE: Não usar queryset como atributo de classe para evitar cache
-        """
-        queryset = Cliente.objects.all()
-        
-        # Aplicar filtro is_active
-        if hasattr(Cliente, 'is_active'):
-            queryset = queryset.filter(is_active=True)
-        
-        return queryset
 
     @action(detail=False, methods=['get'])
     def buscar(self, request):
@@ -44,18 +32,9 @@ class ClienteViewSet(ClienteSearchMixin, BaseModelViewSet):
 
 
 class ProfissionalViewSet(BaseModelViewSet):
+    queryset = Profissional.objects.all()
     serializer_class = ProfissionalSerializer
     permission_classes = [IsAuthenticated]
-    
-    def get_queryset(self):
-        """Retorna queryset filtrado por loja e is_active"""
-        queryset = Profissional.objects.all()
-        
-        # Aplicar filtro is_active
-        if hasattr(Profissional, 'is_active'):
-            queryset = queryset.filter(is_active=True)
-        
-        return queryset
 
 
 class HorarioTrabalhoProfissionalView(APIView):
@@ -104,41 +83,29 @@ class HorarioTrabalhoProfissionalView(APIView):
 
 
 class ProcedimentoViewSet(BaseModelViewSet):
+    queryset = Procedimento.objects.all()
     serializer_class = ProcedimentoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Retorna queryset filtrado por loja e categoria"""
-        queryset = Procedimento.objects.all()
-        
-        # Aplicar filtro is_active do BaseModelViewSet
-        if hasattr(Procedimento, 'is_active'):
-            queryset = queryset.filter(is_active=True)
-        
-        params = getattr(self.request, 'query_params', self.request.GET)
-        categoria = params.get('categoria')
+        qs = super().get_queryset()
+        categoria = self.request.query_params.get('categoria')
         if categoria:
-            queryset = queryset.filter(categoria=categoria)
-        return queryset
+            qs = qs.filter(categoria=categoria)
+        return qs
 
 
 class ProtocoloProcedimentoViewSet(BaseModelViewSet):
+    queryset = ProtocoloProcedimento.objects.all()
     serializer_class = ProtocoloProcedimentoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Retorna queryset filtrado por loja e procedimento"""
-        queryset = ProtocoloProcedimento.objects.all()
-        
-        # Aplicar filtro is_active
-        if hasattr(ProtocoloProcedimento, 'is_active'):
-            queryset = queryset.filter(is_active=True)
-        
-        params = getattr(self.request, 'query_params', self.request.GET)
-        procedimento_id = params.get('procedimento_id')
+        qs = super().get_queryset()
+        procedimento_id = self.request.query_params.get('procedimento_id')
         if procedimento_id:
-            queryset = queryset.filter(procedimento_id=procedimento_id)
-        return queryset
+            qs = qs.filter(procedimento_id=procedimento_id)
+        return qs
 
 
 class FuncionarioViewSet(BaseFuncionarioViewSet):
@@ -149,50 +116,42 @@ class FuncionarioViewSet(BaseFuncionarioViewSet):
 
 
 class EvolucaoPacienteViewSet(BaseModelViewSet):
+    queryset = EvolucaoPaciente.objects.select_related('cliente', 'profissional', 'agendamento').all()
     serializer_class = EvolucaoPacienteSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Retorna queryset filtrado por loja e cliente"""
-        queryset = EvolucaoPaciente.objects.select_related('cliente', 'profissional', 'agendamento')
-        
-        # Aplicar filtro is_active
-        if hasattr(EvolucaoPaciente, 'is_active'):
-            queryset = queryset.filter(is_active=True)
-        cliente_id = getattr(self.request, "query_params", self.request.GET).get('cliente_id')
+        qs = super().get_queryset()
+        cliente_id = self.request.query_params.get('cliente_id')
         if cliente_id:
-            queryset = queryset.filter(cliente_id=cliente_id)
-        return queryset
+            qs = qs.filter(cliente_id=cliente_id)
+        return qs
 
 
 class AnamnesesTemplateViewSet(BaseModelViewSet):
+    queryset = AnamnesesTemplate.objects.select_related('procedimento').all()
     serializer_class = AnamnesesTemplateSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Retorna queryset filtrado por loja e procedimento"""
-        queryset = AnamnesesTemplate.objects.select_related('procedimento')
-        
-        # Aplicar filtro is_active
-        if hasattr(AnamnesesTemplate, 'is_active'):
-            queryset = queryset.filter(is_active=True)
-        procedimento_id = getattr(self.request, "query_params", self.request.GET).get('procedimento_id')
+        qs = super().get_queryset()
+        procedimento_id = self.request.query_params.get('procedimento_id')
         if procedimento_id:
-            queryset = queryset.filter(procedimento_id=procedimento_id)
-        return queryset
+            qs = qs.filter(procedimento_id=procedimento_id)
+        return qs
 
 
 class AnamneseViewSet(BaseModelViewSet):
+    queryset = Anamnese.objects.select_related('cliente', 'template', 'agendamento').all()
     serializer_class = AnamneseSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Retorna queryset filtrado por loja e cliente"""
-        queryset = Anamnese.objects.select_related('cliente', 'template', 'agendamento')
-        cliente_id = getattr(self.request, "query_params", self.request.GET).get('cliente_id')
+        qs = super().get_queryset()
+        cliente_id = self.request.query_params.get('cliente_id')
         if cliente_id:
-            queryset = queryset.filter(cliente_id=cliente_id)
-        return queryset
+            qs = qs.filter(cliente_id=cliente_id)
+        return qs
 
 
 class HorarioFuncionamentoViewSet(BaseModelViewSet):

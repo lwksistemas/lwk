@@ -132,14 +132,14 @@ class PropostaViewSet(
             )
 
 
-class PropostaTemplateViewSet(TemplateViewSetMixin, BaseModelViewSet):
+class PropostaTemplateViewSet(CRMSchemaRecoveryMixin, TemplateViewSetMixin, BaseModelViewSet):
     queryset = PropostaTemplate.objects.all()
     serializer_class = PropostaTemplateSerializer
     pagination_class = CRMPagination
     template_model = PropostaTemplate
 
 
-class ContratoTemplateViewSet(TemplateViewSetMixin, BaseModelViewSet):
+class ContratoTemplateViewSet(CRMSchemaRecoveryMixin, TemplateViewSetMixin, BaseModelViewSet):
     queryset = ContratoTemplate.objects.all()
     serializer_class = ContratoTemplateSerializer
     pagination_class = CRMPagination

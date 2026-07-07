@@ -39,8 +39,6 @@ class LojaIsolationManager(models.Manager):
         4. Performance: índice em loja_id torna o filtro muito rápido
         """
         from tenants.middleware import get_current_loja_id, get_current_tenant_db
-        import logging
-        logger = logging.getLogger(__name__)
         
         # Obter loja_id e database do contexto da thread
         loja_id = get_current_loja_id()

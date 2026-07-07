@@ -168,7 +168,7 @@ class BloqueioAgendaViewSet(BaseModelViewSet):
 
         queryset = queryset.filter(loja_id=loja_id, is_active=True).select_related('profissional')
 
-        params = getattr(self.request, 'query_params', self.request.GET)
+        params = self.request.query_params
         data_inicio_str = params.get('data_inicio')
         data_fim_str = params.get('data_fim')
         profissional_id = params.get('profissional_id')
@@ -230,7 +230,7 @@ class ConsultaViewSet(BaseModelViewSet):
             'cliente', 'profissional', 'procedimento', 'agendamento'
         )
 
-        params = getattr(self.request, 'query_params', self.request.GET)
+        params = self.request.query_params
         if params.get('cliente_id'):
             base = base.filter(cliente_id=params.get('cliente_id'))
         if params.get('profissional_id'):

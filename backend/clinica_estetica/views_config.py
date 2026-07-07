@@ -28,7 +28,7 @@ class HistoricoLoginViewSet(BaseModelViewSet):
         from clinica_estetica.models import HistoricoLogin
         
         queryset = HistoricoLogin.objects.all().order_by('-created_at')
-        params = getattr(self.request, 'query_params', self.request.GET)
+        params = self.request.query_params
         
         # Filtro por usuário
         usuario = params.get('usuario')
@@ -108,7 +108,7 @@ class HistoricoAcessosLojaViewSet(BaseModelViewSet):
             loja_id=loja_id
         ).select_related('user', 'loja').order_by('-created_at')
         
-        params = getattr(self.request, 'query_params', self.request.GET)
+        params = self.request.query_params
         
         # Filtro por usuário (nome ou email)
         usuario = params.get('usuario')
@@ -173,7 +173,7 @@ class HistoricoAcessosLojaViewSet(BaseModelViewSet):
             })
         
         # Filtrar por loja e período (se fornecido)
-        params = getattr(request, 'query_params', request.GET)
+        params = request.query_params
         queryset = HistoricoAcessoGlobal.objects.filter(loja_id=loja_id)
         
         data_inicio = params.get('data_inicio')

@@ -1,4 +1,4 @@
-import logging
+import re
 
 from rest_framework import serializers
 from core.serializers import BaseLojaSerializer
@@ -247,7 +247,6 @@ class BloqueioAgendaSerializer(serializers.ModelSerializer):
                 )
 
             # Sanitizar schema_name: apenas alfanuméricos e underscore
-            import re
             if not re.match(r'^[a-zA-Z0-9_]+$', schema_name):
                 raise serializers.ValidationError("Nome de schema inválido")
 

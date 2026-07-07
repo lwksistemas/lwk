@@ -169,7 +169,7 @@ class HistoricoAcessoMiddleware:
                     erro = str(response.data)[:500]  # Limitar tamanho
                 elif hasattr(response, 'content'):
                     erro = response.content.decode('utf-8')[:500]
-            except:
+            except Exception:
                 erro = f'HTTP {response.status_code}'
         
         # Criar registro (usar create para evitar signals)
@@ -300,7 +300,7 @@ class HistoricoAcessoMiddleware:
             try:
                 if hasattr(request, 'body'):
                     detalhes['body_size'] = len(request.body)
-            except:
+            except Exception:
                 pass
         
         # Adicionar informações de autenticação

@@ -2,6 +2,7 @@
 Middleware para detectar o tenant (loja) e configurar o banco correto.
 Aplica limite de tamanho (512 MB) no banco isolado por loja quando o arquivo existe.
 """
+import logging
 import os
 from pathlib import Path
 from threading import local
@@ -9,6 +10,8 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.db import connection
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 _thread_locals = local()
 
@@ -38,8 +41,6 @@ def _configure_tenant_db_for_loja(loja, request=None):
     Configura database_name + thread-local (mesma lógica do TenantMiddleware).
     Sem isso, só loja_id no contexto consulta o schema/banco errado → listas vazias intermitentes.
     """
-    import logging
-    logger = logging.getLogger(__name__)
     loja_id = loja.id
     db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", "")}'
     try:
@@ -172,9 +173,6 @@ class TenantMiddleware:
         self._loja_cache = {}  # Cache em memória {slug: loja_data}
     
     def __call__(self, request):
-        import logging
-        logger = logging.getLogger(__name__)
-        
         # 🧹 LIMPAR contexto da requisição ANTERIOR no INÍCIO desta requisição
         # Isso garante que não há vazamento entre requisições mas não quebra a serialização
         set_current_loja_id(None)
@@ -336,8 +334,6 @@ class TenantMiddleware:
         
         SEGURANÇA: Valida que o usuário autenticado pertence à loja solicitada
         """
-        import logging
-        logger = logging.getLogger(__name__)
         
         # 1. X-Tenant-Slug primeiro (alinhado à URL /loja/[slug]/… no frontend).
         # X-Loja-ID no sessionStorage pode ficar desatualizado ao trocar de loja → loja_id no
@@ -431,8 +427,6 @@ class TenantMiddleware:
     
     def _validate_user_owns_loja(self, request, loja):
         """Valida que usuário autenticado pode acessar a loja."""
-        import logging
-        logger = logging.getLogger(__name__)
 
         if not hasattr(request, 'user') or not request.user.is_authenticated:
             logger.warning("⚠️ Usuário não autenticado tentando acessar loja")
@@ -460,8 +454,6 @@ class TenantMiddleware:
     
     def _validate_user_owns_loja_by_slug(self, request, tenant_slug):
         """Valida que usuário autenticado é owner da loja (por slug)"""
-        import logging
-        logger = logging.getLogger(__name__)
         
         if not hasattr(request, 'user') or not request.user.is_authenticated:
             logger.warning("⚠️ Usuário não autenticado tentando acessar loja")

@@ -29,6 +29,26 @@ _CRM_VENDAS_CLINICA_BELEZA_ALLOWED_PREFIXES = (
     '/api/crm-vendas/login-config/',
 )
 
+# Endpoints superadmin acessíveis sem autenticação (cadastro público, health, webhooks)
+_SUPERADMIN_PUBLIC_ENDPOINTS = (
+    '/api/superadmin/lojas/info_publica/',
+    '/api/superadmin/lojas/info_publica',
+    '/api/superadmin/lojas/verificar_senha_provisoria/',
+    '/api/superadmin/lojas/verificar_senha_provisoria',
+    '/api/superadmin/lojas/por-atalho/',
+    '/api/superadmin/lojas/por-atalho',
+    '/api/superadmin/lojas/buscar-por-documento/',
+    '/api/superadmin/lojas/buscar-por-documento',
+    '/api/superadmin/lojas/recuperar_senha/',
+    '/api/superadmin/lojas/recuperar_senha',
+    '/api/superadmin/usuarios/recuperar_senha/',
+    '/api/superadmin/usuarios/recuperar_senha',
+    '/api/superadmin/mercadopago-webhook/',
+    '/api/superadmin/public/',
+    '/api/superadmin/health/',
+    '/api/superadmin/health',
+)
+
 _CLINICA_BELEZA_TIPO_SLUGS = frozenset({
     'clinica-beleza',
     'clinica-da-beleza',
@@ -99,26 +119,7 @@ class SecurityIsolationMiddleware:
         
         # Endpoints públicos do superadmin
         if path.startswith('/api/superadmin/'):
-            public_endpoints = [
-                '/api/superadmin/lojas/info_publica/',
-                '/api/superadmin/lojas/info_publica',
-                '/api/superadmin/lojas/verificar_senha_provisoria/',
-                '/api/superadmin/lojas/verificar_senha_provisoria',
-                '/api/superadmin/lojas/por-atalho/',
-                '/api/superadmin/lojas/por-atalho',
-                '/api/superadmin/lojas/buscar-por-documento/',
-                '/api/superadmin/lojas/buscar-por-documento',
-                '/api/superadmin/lojas/recuperar_senha/',
-                '/api/superadmin/lojas/recuperar_senha',
-                '/api/superadmin/usuarios/recuperar_senha/',
-                '/api/superadmin/usuarios/recuperar_senha',
-                '/api/superadmin/mercadopago-webhook/',
-                '/api/superadmin/public/',
-                '/api/superadmin/health/',
-                '/api/superadmin/health',
-            ]
-            
-            if any(path.startswith(endpoint) for endpoint in public_endpoints):
+            if any(path.startswith(ep) for ep in _SUPERADMIN_PUBLIC_ENDPOINTS):
                 return True
             
             # POST para criar loja (cadastro público)
@@ -129,49 +130,35 @@ class SecurityIsolationMiddleware:
     
     def _authenticate_jwt(self, request):
         """
-        Processa autenticação JWT com retry logic
-        ✅ FIX v916: Retry logic para evitar timeout do PostgreSQL
+        Processa autenticação JWT com retry em timeout do PostgreSQL.
         """
         if not hasattr(request, 'user') or request.user.is_anonymous:
+            from core.retry import execute_with_db_retry
             from django.db import OperationalError
-            import time
-            
-            max_retries = 3
-            retry_delay = 1
-            
-            for attempt in range(max_retries):
-                try:
-                    auth_result = self.jwt_authenticator.authenticate(request)
-                    if auth_result is not None:
-                        user, token = auth_result
-                        request.user = user
-                        request.auth = token
-                    else:
-                        if not hasattr(request, 'user'):
-                            request.user = AnonymousUser()
-                    break  # Sucesso, sair do loop
-                    
-                except (InvalidToken, TokenError):
+
+            try:
+                auth_result = execute_with_db_retry(
+                    lambda: self.jwt_authenticator.authenticate(request),
+                    max_retries=3,
+                    initial_delay=1,
+                )
+                if auth_result is not None:
+                    user, token = auth_result
+                    request.user = user
+                    request.auth = token
+                elif not hasattr(request, 'user'):
                     request.user = AnonymousUser()
-                    break
-                    
-                except OperationalError as e:
-                    if 'timeout' in str(e).lower() and attempt < max_retries - 1:
-                        logger.warning(
-                            f"⚠️ Timeout na autenticação JWT (tentativa {attempt + 1}/{max_retries}). "
-                            f"Tentando novamente em {retry_delay}s..."
-                        )
-                        time.sleep(retry_delay)
-                        retry_delay *= 2
-                    else:
-                        logger.error(f"❌ Falha na autenticação JWT após {max_retries} tentativas: {e}")
-                        request.user = AnonymousUser()
-                        break
-                        
-                except Exception as e:
-                    logger.warning(f"Erro na autenticação JWT: {e}")
-                    request.user = AnonymousUser()
-                    break
+
+            except (InvalidToken, TokenError):
+                request.user = AnonymousUser()
+
+            except OperationalError as e:
+                logger.error("Falha na autenticação JWT após retries: %s", e)
+                request.user = AnonymousUser()
+
+            except Exception as e:
+                logger.warning("Erro na autenticação JWT: %s", e)
+                request.user = AnonymousUser()
     
     def _check_route_isolation(self, request):
         """
@@ -205,22 +192,7 @@ class SecurityIsolationMiddleware:
         # ========================================
         if path.startswith('/api/superadmin/'):
             # Endpoints públicos (sem autenticação)
-            public_endpoints = [
-                '/api/superadmin/lojas/info_publica/',
-                '/api/superadmin/lojas/info_publica',  # Sem barra final
-                '/api/superadmin/lojas/verificar_senha_provisoria/',
-                '/api/superadmin/lojas/verificar_senha_provisoria',  # Sem barra final
-                '/api/superadmin/lojas/por-atalho/',  # ✅ NOVO v1431: Buscar loja por atalho
-                '/api/superadmin/lojas/por-atalho',  # ✅ Sem barra final
-                '/api/superadmin/lojas/buscar-por-documento/',  # Buscar loja por CPF/CNPJ
-                '/api/superadmin/lojas/buscar-por-documento',  # Sem barra final
-                '/api/superadmin/mercadopago-webhook/',  # Webhook MP (notificações de pagamento)
-                '/api/superadmin/public/',  # ✅ NOVO: Rotas públicas para cadastro de lojas
-                '/api/superadmin/health/',
-                '/api/superadmin/health',
-            ]
-            
-            if any(path.startswith(endpoint) for endpoint in public_endpoints):
+            if any(path.startswith(ep) for ep in _SUPERADMIN_PUBLIC_ENDPOINTS):
                 return None  # Permitir acesso público
             
             # POST para criar loja (cadastro público)
@@ -476,7 +448,7 @@ class SecurityIsolationMiddleware:
                     return 'suporte'
                 elif usuario_sistema.tipo == 'superadmin':
                     return 'superadmin'
-        except:
+        except Exception:
             pass
         
         # Proprietário, profissional ou vendedor vinculado a loja ativa

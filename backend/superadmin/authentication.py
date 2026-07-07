@@ -7,7 +7,6 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from superadmin.session_manager import SessionManager, SESSION_TIMEOUT_MINUTES
 import logging
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -44,34 +43,23 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         Autentica o usuário e verifica sessão única.
         """
         from core.auth_cookies import inject_bearer_from_cookie, get_session_id_from_request
+        from core.retry import execute_with_db_retry
         from django.db import OperationalError
 
         inject_bearer_from_cookie(request)
         
-        # Retry logic para autenticação JWT (evitar timeout do PostgreSQL)
-        max_retries = 3
-        retry_delay = 1
-        result = None
-        
-        for attempt in range(max_retries):
-            try:
-                result = super().authenticate(request)
-                break
-                
-            except OperationalError as e:
-                if 'timeout' in str(e).lower() and attempt < max_retries - 1:
-                    logger.warning(
-                        "⚠️ Timeout na autenticação JWT (tentativa %d/%d). Retrying em %ds...",
-                        attempt + 1, max_retries, retry_delay
-                    )
-                    time.sleep(retry_delay)
-                    retry_delay *= 2
-                else:
-                    logger.error("❌ Falha na autenticação JWT após %d tentativas: %s", max_retries, e)
-                    raise AuthenticationFailed({
-                        'detail': 'Erro ao conectar ao banco de dados. Tente novamente.',
-                        'code': 'database_timeout'
-                    })
+        try:
+            result = execute_with_db_retry(
+                lambda: super(SessionAwareJWTAuthentication, self).authenticate(request),
+                max_retries=3,
+                initial_delay=1,
+            )
+        except OperationalError as e:
+            logger.error("Falha na autenticação JWT após retries: %s", e)
+            raise AuthenticationFailed({
+                'detail': 'Erro ao conectar ao banco de dados. Tente novamente.',
+                'code': 'database_timeout'
+            })
         
         if result is None:
             return None

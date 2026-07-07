@@ -2,11 +2,16 @@ from pathlib import Path
 from decouple import config
 from datetime import timedelta
 import os
+import logging
+
+_settings_logger = logging.getLogger('django.setup')
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-change-in-production-12345')
 DEBUG = config('DEBUG', default=True, cast=bool)
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-change-in-production-12345')
+if not DEBUG and 'insecure' in SECRET_KEY:
+    raise ValueError("SEGURANÇA: SECRET_KEY de produção não pode conter valor default inseguro. Defina SECRET_KEY no ambiente.")
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
 INSTALLED_APPS = [
@@ -193,9 +198,7 @@ if 'DATABASE_URL' in os.environ:
         'CONN_HEALTH_CHECKS': True,
     }
     
-    print(f"✅ PostgreSQL configurado com timeouts otimizados")
-    print(f"   - default: connect_timeout=10s, statement_timeout=25s")
-    print(f"   - suporte: schema isolado (search_path=suporte,public)")
+    _settings_logger.info("PostgreSQL configurado: default connect_timeout=10s, statement_timeout=25s; suporte schema isolado")
 
 # Database Router para isolamento
 DATABASE_ROUTERS = ['config.db_router.MultiTenantRouter']
@@ -230,7 +233,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ============================================
 # REDIS CACHE CONFIGURATION
 # ============================================
-import os
 
 USE_REDIS = os.environ.get('USE_REDIS', 'false').lower() == 'true'
 
@@ -254,9 +256,9 @@ if USE_REDIS:
                 'TIMEOUT': 300,  # 5 minutos padrão
             }
         }
-        print("✅ Redis cache ativado:", REDIS_URL[:30] + "...")
+        _settings_logger.info("Redis cache ativado: %s...", REDIS_URL[:30])
     else:
-        print("⚠️ USE_REDIS=true mas REDIS_URL não encontrado")
+        _settings_logger.warning("USE_REDIS=true mas REDIS_URL não encontrado")
         # Fallback para LocMemCache
         CACHES = {
             'default': {
@@ -278,7 +280,7 @@ else:
             }
         }
     }
-    print("ℹ️ Redis cache desativado (USE_REDIS=false)")
+    _settings_logger.info("Redis cache desativado (USE_REDIS=false)")
 
 # ✅ OTIMIZAÇÃO: GZip compression
 GZIP_COMPRESSIBLE_TYPES = [

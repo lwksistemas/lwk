@@ -1,11 +1,15 @@
 """
 ViewSets genéricos para evitar duplicação de código
 """
+import logging
+
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework import status
 
 from core.permissions import HasLojaAccess
+
+logger = logging.getLogger(__name__)
 
 
 class BaseModelViewSet(viewsets.ModelViewSet):
@@ -21,8 +25,6 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         
         SEGURANÇA: Valida que loja_id está no contexto para modelos isolados
         """
-        import logging
-        logger = logging.getLogger(__name__)
         
         queryset = self.queryset
         model = queryset.model if queryset is not None else None
@@ -130,10 +132,7 @@ class BaseFuncionarioViewSet(BaseModelViewSet):
         Lista funcionários garantindo que o admin existe e o queryset é avaliado
         ANTES do contexto ser limpo pelo middleware.
         """
-        import logging
         from tenants.middleware import get_current_loja_id
-        from rest_framework import status
-        logger = logging.getLogger(__name__)
         
         loja_id = get_current_loja_id()
         
@@ -169,9 +168,7 @@ class BaseFuncionarioViewSet(BaseModelViewSet):
         Retorna queryset filtrado por loja.
         IMPORTANTE: Obter queryset dinamicamente (não usar atributo de classe)
         """
-        import logging
         from tenants.middleware import get_current_loja_id, ensure_loja_context
-        logger = logging.getLogger(__name__)
         
         if hasattr(self, 'request') and self.request:
             ensure_loja_context(self.request)

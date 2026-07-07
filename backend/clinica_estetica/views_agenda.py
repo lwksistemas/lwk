@@ -1,12 +1,14 @@
 import logging
 
+from django.core.cache import cache
+from django.db.models import Sum, Q
+from django.utils import timezone
+from datetime import date, datetime, timedelta
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Sum, Q
-from django.utils import timezone
-from datetime import date, datetime, timedelta
+
 from core.views import BaseModelViewSet
 from core.throttling import DashboardRateThrottle
 from tenants.middleware import get_current_loja_id, get_current_tenant_db
@@ -22,41 +24,32 @@ logger = logging.getLogger(__name__)
 
 
 class AgendamentoViewSet(BaseModelViewSet):
+    queryset = Agendamento.objects.select_related('cliente', 'profissional', 'procedimento').all()
     serializer_class = AgendamentoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Retorna queryset filtrado por loja com select_related"""
-        queryset = Agendamento.objects.select_related('cliente', 'profissional', 'procedimento')
-        
-        # Aplicar filtro is_active
-        if hasattr(Agendamento, 'is_active'):
-            queryset = queryset.filter(is_active=True)
-        params = getattr(self.request, 'query_params', self.request.GET)
-        
-        # Filtros
+        qs = super().get_queryset()
+        params = self.request.query_params
+
         data = params.get('data')
         if data:
-            queryset = queryset.filter(data=data)
-        
+            qs = qs.filter(data=data)
         status_param = params.get('status')
         if status_param:
-            queryset = queryset.filter(status=status_param)
-        
+            qs = qs.filter(status=status_param)
         cliente_id = params.get('cliente_id')
         if cliente_id:
-            queryset = queryset.filter(cliente_id=cliente_id)
-        
+            qs = qs.filter(cliente_id=cliente_id)
         profissional_id = params.get('profissional_id')
         if profissional_id:
-            queryset = queryset.filter(profissional_id=profissional_id)
-        
-        return queryset
+            qs = qs.filter(profissional_id=profissional_id)
+        return qs
 
     @action(detail=False, methods=['get'])
     def calendario(self, request):
-        """Retorna agendamentos para visualização em calendário"""
-        params = getattr(request, 'query_params', request.GET)
+        """Retorna agendamentos para visualização em calendário."""
+        params = request.query_params
         data_inicio = params.get('data_inicio')
         data_fim = params.get('data_fim')
         
@@ -115,9 +108,15 @@ class AgendamentoViewSet(BaseModelViewSet):
     @action(detail=False, methods=['get'], throttle_classes=[DashboardRateThrottle])
     def dashboard(self, request):
         """
-        Retorna estatísticas + próximos agendamentos em uma única resposta (menos round-trips).
-        Rate limited: 10 requisições por minuto para prevenir loops infinitos.
+        Retorna estatísticas + próximos agendamentos em uma única resposta.
+        Cached por 60s para reduzir carga no banco.
         """
+        loja_id = get_current_loja_id()
+        cache_key = f'clinica:dashboard:{loja_id}'
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
         hoje = date.today()
         primeiro_dia_mes = hoje.replace(day=1)
         qs = self.get_queryset()
@@ -142,10 +141,12 @@ class AgendamentoViewSet(BaseModelViewSet):
         ).order_by('data', 'horario')[:10]
         serializer = self.get_serializer(agendamentos, many=True)
 
-        return Response({
+        payload = {
             'estatisticas': stats,
             'proximos': serializer.data,
-        })
+        }
+        cache.set(cache_key, payload, 60)
+        return Response(payload)
 
 
 class BloqueioAgendaViewSet(BaseModelViewSet):

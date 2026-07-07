@@ -128,24 +128,7 @@ class AgendamentoSerializer(BaseLojaSerializer):
 
     def create(self, validated_data):
         """Cria agendamento e consulta associada."""
-        # BaseLojaSerializer já adiciona loja_id
         agendamento = super().create(validated_data)
-
-        # Criar Consulta com status 'agendada' para aparecer no Sistema de Consultas
-        Consulta.objects.get_or_create(
-            agendamento=agendamento,
-            defaults={
-                'cliente_id': agendamento.cliente_id,
-                'profissional_id': agendamento.profissional_id,
-                'procedimento_id': agendamento.procedimento_id,
-                'status': 'agendada',
-                'valor_consulta': agendamento.valor,
-                'loja_id': agendamento.loja_id,
-            }
-        )
-        return agendamento
-
-        # Criar Consulta com status 'agendada' para aparecer no Sistema de Consultas
         Consulta.objects.get_or_create(
             agendamento=agendamento,
             defaults={

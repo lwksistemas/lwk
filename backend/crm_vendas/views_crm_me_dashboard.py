@@ -4,9 +4,11 @@ CRM: contexto do usuário (me) e dashboard.
 import logging
 
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from core.throttling import DashboardRateThrottle
 
 from tenants.middleware import get_current_loja_id, get_current_tenant_db, ensure_loja_context
 from .utils import get_current_vendedor_id
@@ -107,6 +109,7 @@ def crm_me(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([DashboardRateThrottle])
 def dashboard_data(request):
     """
     Dados do dashboard CRM. Lógica de negócio delegada para services_dashboard.

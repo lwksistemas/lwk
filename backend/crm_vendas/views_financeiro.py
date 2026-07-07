@@ -2,12 +2,13 @@
 import logging
 
 from rest_framework import status
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.http import HttpResponse
 
 from core.views import BaseModelViewSet
+from core.throttling import DashboardRateThrottle, ReportsThrottle
 from tenants.middleware import ensure_loja_context, get_current_loja_id
 
 from .mixins import (
@@ -265,6 +266,7 @@ class LancamentoFinanceiroCRMViewSet(
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([DashboardRateThrottle])
 def financeiro_crm_resumo(request):
     from django.db.utils import OperationalError, ProgrammingError
 
@@ -308,6 +310,7 @@ def financeiro_crm_resumo(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([ReportsThrottle])
 def financeiro_crm_relatorio_pdf(request):
     """Gera PDF do financeiro por vendedor/grupo no período."""
     ensure_loja_context(request)
@@ -363,6 +366,7 @@ def financeiro_crm_relatorio_pdf(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([ReportsThrottle])
 def financeiro_crm_sync_comissoes(request):
     """Sincroniza receitas de comissão a partir de oportunidades já ganhas."""
     from django.db.utils import OperationalError, ProgrammingError

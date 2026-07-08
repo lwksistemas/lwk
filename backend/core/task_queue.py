@@ -48,9 +48,19 @@ def enqueue_task(task_name: str, func_path: str, *args: Any, **kwargs: Any):
         func = _resolve_callable(func_path)
         return func(*args, **kwargs)
 
-    from django_q.tasks import async_task
+    try:
+        from django_q.tasks import async_task
 
-    return async_task(func_path, *args, task_name=task_name, **kwargs)
+        return async_task(func_path, *args, task_name=task_name, **kwargs)
+    except Exception as exc:
+        logger.warning(
+            'Fila indisponível (%s) — executando sync: %s: %s',
+            task_name,
+            type(exc).__name__,
+            exc,
+        )
+        func = _resolve_callable(func_path)
+        return func(*args, **kwargs)
 
 
 def queue_status() -> dict:

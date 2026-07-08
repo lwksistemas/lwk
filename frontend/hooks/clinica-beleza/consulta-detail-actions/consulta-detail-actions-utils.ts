@@ -29,18 +29,35 @@ export function buildConsultaPrintMeta(selected: Consulta): ConsultaPrintMeta {
   };
 }
 
+export function saldoReceberConsulta(c: Consulta): number {
+  const total = valorPagamentoConsulta(c);
+  const pago = Number(c.valor_pago ?? 0);
+  return Math.max(0, total - pago);
+}
+
 export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) {
   const outraConsultaEmAndamento = historico.find(
     (c) => c.id !== selected.id && c.status === "IN_PROGRESS",
   );
   const consultaConcluida = consultaEstaConcluida(selected);
+  const emAtendimento =
+    selected.status === "IN_PROGRESS" ||
+    (selected.status === "RECEBER" && !!selected.data_inicio);
+  const paymentPendente =
+    selected.payment_status === "PENDING" || selected.payment_status === "PARTIAL";
   return {
     outraConsultaEmAndamento,
-    podeIniciar: selected.status === "SCHEDULED" && !outraConsultaEmAndamento,
-    podeFinalizar: selected.status === "IN_PROGRESS",
+    podeIniciar:
+      (selected.status === "SCHEDULED" || selected.status === "RECEBER") &&
+      !selected.data_inicio &&
+      !outraConsultaEmAndamento,
+    podeFinalizar:
+      selected.status === "IN_PROGRESS" ||
+      (selected.status === "RECEBER" && !!selected.data_inicio),
     podeExcluir: !consultaConcluida,
-    consultaAtiva: selected.status === "IN_PROGRESS",
+    consultaAtiva: emAtendimento,
     consultaFinalizada: consultaConcluida,
+    mostrarReceber: selected.status === "RECEBER" || paymentPendente,
   };
 }
 

@@ -12,6 +12,8 @@ type LifecycleUiSlice = {
   setIniciando: (v: boolean) => void;
   setShowProfessionalModal: (v: boolean) => void;
   setProfissionaisDisponiveis: (p: { id: number; nome?: string; name?: string }[]) => void;
+  setShowReceberModal: (v: boolean) => void;
+  setRecebendo: (v: boolean) => void;
   setShowFinalizarModal: (v: boolean) => void;
   setFinalizando: (v: boolean) => void;
   setFinalizarForm: Dispatch<SetStateAction<FinalizarFormState>>;
@@ -42,6 +44,8 @@ export function useConsultaLifecycleHandlers(
     setIniciando,
     setShowProfessionalModal,
     setProfissionaisDisponiveis,
+    setShowReceberModal,
+    setRecebendo,
     setShowFinalizarModal,
     setFinalizando,
     setFinalizarForm,
@@ -87,6 +91,32 @@ export function useConsultaLifecycleHandlers(
       setProfissionaisDisponiveis,
       setSelected,
       setShowProfessionalModal,
+    ],
+  );
+
+  const abrirReceberModal = useCallback(() => {
+    setShowReceberModal(true);
+  }, [setShowReceberModal]);
+
+  const aposRecebimento = useCallback(
+    async (consultaAtualizada: Consulta) => {
+      setRecebendo(true);
+      try {
+        setSelected({ ...selected, ...consultaAtualizada });
+        await loadDetalhes(consultaAtualizada);
+        await onListRefresh();
+        setShowReceberModal(false);
+      } finally {
+        setRecebendo(false);
+      }
+    },
+    [
+      loadDetalhes,
+      onListRefresh,
+      selected,
+      setRecebendo,
+      setSelected,
+      setShowReceberModal,
     ],
   );
 
@@ -167,6 +197,8 @@ export function useConsultaLifecycleHandlers(
 
   return {
     iniciarConsulta,
+    abrirReceberModal,
+    aposRecebimento,
     abrirFinalizarModal,
     finalizarConsulta,
     abrirMemed,

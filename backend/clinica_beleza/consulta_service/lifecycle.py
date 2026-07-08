@@ -37,7 +37,6 @@ def criar_consulta_avulsa(
     from ..models import LocalAtendimento, NomeAgenda, Procedure
 
     ts = appointment_date or now()
-    status_inicial = 'IN_PROGRESS' if iniciar else 'SCHEDULED'
     loja_id = loja_id or getattr(patient, 'loja_id', None)
 
     proc_list = procedures or ([procedure] if procedure else [])
@@ -65,9 +64,23 @@ def criar_consulta_avulsa(
     if retorno_procedure_id:
         retorno_procedure = Procedure.objects.filter(pk=retorno_procedure_id, is_active=True).first()
 
+    if valor_consulta is not None and Decimal(str(valor_consulta)) > 0:
+        valor_final = Decimal(str(valor_consulta))
+    elif local_atendimento:
+        valor_final = Decimal(str(local_atendimento.valor_consulta or 0))
+    else:
+        valor_final = Decimal('0')
+
+    if iniciar:
+        appointment_status = 'IN_PROGRESS'
+        consulta_status = 'IN_PROGRESS'
+    else:
+        appointment_status = 'CONFIRMED'
+        consulta_status = 'RECEBER'
+
     appointment = consulta_service.Appointment.objects.create(
         date=ts,
-        status=status_inicial,
+        status=appointment_status,
         patient=patient,
         professional=professional,
         procedure=primary_procedure,
@@ -81,19 +94,12 @@ def criar_consulta_avulsa(
     if proc_list:
         criar_appointment_procedures(appointment, proc_list, convenio=convenio)
 
-    if valor_consulta is not None and Decimal(str(valor_consulta)) > 0:
-        valor_final = Decimal(str(valor_consulta))
-    elif local_atendimento:
-        valor_final = Decimal(str(local_atendimento.valor_consulta or 0))
-    else:
-        valor_final = Decimal('0')
-
     consulta = consulta_service.Consulta.objects.create(
         appointment=appointment,
         patient=patient,
         professional=professional,
         procedure=primary_procedure,
-        status=status_inicial,
+        status=consulta_status,
         data_inicio=ts if iniciar else None,
         valor_consulta=valor_final,
         local_atendimento=local_atendimento,
@@ -104,6 +110,11 @@ def criar_consulta_avulsa(
 
     aplicar_retorno_em_consulta(consulta, appointment)
     consulta.refresh_from_db()
+    if not iniciar:
+        total = consulta_service._valor_pagamento_padrao(appointment, consulta)
+        if consulta.retorno_gratuito or total <= 0:
+            consulta.status = 'SCHEDULED'
+            consulta.save(update_fields=['status', 'updated_at'])
     return consulta
 
 
@@ -114,8 +125,8 @@ def iniciar_consulta(consulta):
     from clinica_beleza import consulta_service
 
     appointment = consulta.appointment
-    if consulta.status != 'SCHEDULED':
-        raise ValueError('A consulta precisa estar agendada para ser iniciada.')
+    if consulta.status not in ('SCHEDULED', 'RECEBER'):
+        raise ValueError('A consulta precisa estar aguardando início ou recebimento para ser iniciada.')
     if appointment.status != 'CONFIRMED':
         raise ValueError('Registre a chegada do cliente na agenda (status Cliente presente) antes de iniciar a consulta.')
 
@@ -186,7 +197,9 @@ def finalizar_consulta(
         consulta.refresh_from_db()
         return consulta
 
-    if consulta.status != 'IN_PROGRESS':
+    if consulta.status not in ('IN_PROGRESS', 'RECEBER'):
+        raise ValueError('Inicie a consulta antes de finalizar.')
+    if consulta.status == 'RECEBER' and not consulta.data_inicio:
         raise ValueError('Inicie a consulta antes de finalizar.')
 
     if not skip_estoque:

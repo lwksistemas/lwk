@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import type { Consulta } from "../consultas-types";
 import { ConsultaProfessionalSelectModal } from "../ConsultaProfessionalSelectModal";
+import { ModalReceberConsulta } from "../ModalReceberConsulta";
 import type { ConsultaDetailActionsState } from "./useConsultaDetailShell";
 
 const ConsultaFinalizarModal = dynamic(
@@ -17,6 +18,13 @@ interface ConsultaDetailShellModalsProps {
 export function ConsultaDetailShellModals({ selected, actions }: ConsultaDetailShellModalsProps) {
   return (
     <>
+      <ModalReceberConsulta
+        open={actions.showReceberModal}
+        consulta={selected}
+        onClose={() => actions.setShowReceberModal(false)}
+        onSuccess={(c) => void actions.aposRecebimento(c)}
+      />
+
       <ConsultaFinalizarModal
         open={actions.showFinalizarModal}
         finalizando={actions.finalizando}

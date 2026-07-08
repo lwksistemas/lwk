@@ -3,6 +3,16 @@ from django.utils.timezone import now
 from .valores import _consulta_defaults_from_appointment
 
 
+def _status_inicial_consulta(appointment, defaults: dict) -> str:
+    """RECEBER quando há valor a cobrar; SCHEDULED se gratuito ou retorno isento."""
+    if defaults.get('retorno_gratuito'):
+        return 'SCHEDULED'
+    from decimal import Decimal
+    vc = Decimal(str(defaults.get('valor_consulta') or 0))
+    vp = Decimal(str(getattr(appointment, 'valor_total', None) or 0))
+    return 'SCHEDULED' if (vc + vp) <= 0 else 'RECEBER'
+
+
 def sync_consulta_from_appointment_status(appointment, new_status, old_status=None):
     """
     Cria ou atualiza Consulta conforme o novo status do agendamento.
@@ -16,12 +26,14 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
     ts = now()
 
     if new_status == 'CONFIRMED':
+        defaults = _consulta_defaults_from_appointment(appointment)
+        status_inicial = _status_inicial_consulta(appointment, defaults)
         consulta, created = consulta_service.Consulta.objects.get_or_create(
             appointment=appointment,
-            defaults=_consulta_defaults_from_appointment(appointment, status='SCHEDULED'),
+            defaults={**defaults, 'status': status_inicial},
         )
         if not created and consulta.status not in ('IN_PROGRESS', 'COMPLETED'):
-            consulta.status = 'SCHEDULED'
+            consulta.status = status_inicial
             consulta.save(update_fields=['status', 'updated_at'])
         return consulta
 

@@ -40,6 +40,21 @@ describe("computeConsultaFlags", () => {
     expect(flags.outraConsultaEmAndamento?.id).toBe(2);
   });
 
+  it("permite iniciar em RECEBER sem pagamento", () => {
+    const flags = computeConsultaFlags(consulta({ status: "RECEBER" }), []);
+    expect(flags.podeIniciar).toBe(true);
+    expect(flags.mostrarReceber).toBe(true);
+  });
+
+  it("finaliza RECEBER com atendimento já iniciado", () => {
+    const flags = computeConsultaFlags(
+      consulta({ status: "RECEBER", data_inicio: "2026-07-08T10:00:00Z" }),
+      [],
+    );
+    expect(flags.podeFinalizar).toBe(true);
+    expect(flags.consultaAtiva).toBe(true);
+  });
+
   it("consulta ativa quando IN_PROGRESS", () => {
     const flags = computeConsultaFlags(consulta({ status: "IN_PROGRESS" }), []);
     expect(flags.consultaAtiva).toBe(true);

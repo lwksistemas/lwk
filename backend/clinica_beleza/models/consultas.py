@@ -24,6 +24,7 @@ from .professionals import Professional
 class Consulta(LojaIsolationMixin, models.Model):
     """Consulta clínica — criada automaticamente ao mudar status do agendamento na agenda."""
     STATUS_CHOICES = (
+        ('RECEBER', 'Receber'),
         ('SCHEDULED', 'Agendada'),
         ('IN_PROGRESS', 'Em Atendimento'),
         ('COMPLETED', 'Concluída'),

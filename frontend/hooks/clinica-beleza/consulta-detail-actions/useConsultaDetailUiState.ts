@@ -15,6 +15,8 @@ export function useConsultaDetailUiState(recarregarPrescricoesBase: () => Promis
   const [editEvolucao, setEditEvolucao] = useState(false);
   const [protocoloPreview, setProtocoloPreview] = useState<Protocolo | null>(null);
   const [protocoloPendingId, setProtocoloPendingId] = useState<number | null>(null);
+  const [showReceberModal, setShowReceberModal] = useState(false);
+  const [recebendo, setRecebendo] = useState(false);
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [iniciando, setIniciando] = useState(false);
@@ -68,6 +70,10 @@ export function useConsultaDetailUiState(recarregarPrescricoesBase: () => Promis
     setProtocoloPreview,
     protocoloPendingId,
     setProtocoloPendingId,
+    showReceberModal,
+    setShowReceberModal,
+    recebendo,
+    setRecebendo,
     showFinalizarModal,
     setShowFinalizarModal,
     finalizando,

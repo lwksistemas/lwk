@@ -1,8 +1,11 @@
 "use client";
 
-import { CheckCircle2, Play, Trash2 } from "lucide-react";
+import { CheckCircle2, DollarSign, Play, Trash2 } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import { CLINICA_CONSULTA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
+import {
+  CLINICA_CONSULTA_STATUS_COLORS,
+  CLINICA_CONSULTA_STATUS_LABEL,
+} from "@/lib/clinica-beleza-constants";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { toUpperCase } from "@/lib/format-br";
 import type { Consulta, ConsultaProcedimento } from "./consultas-types";
@@ -16,8 +19,11 @@ interface ConsultaDetailStatusBarProps {
   podeIniciar: boolean;
   podeFinalizar: boolean;
   podeExcluir: boolean;
+  mostrarReceber: boolean;
+  recebendo: boolean;
   iniciando: boolean;
   onIniciar: () => void;
+  onReceber: () => void;
   onFinalizar: () => void;
   onExcluir: () => void;
 }
@@ -31,11 +37,17 @@ export function ConsultaDetailStatusBar({
   podeIniciar,
   podeFinalizar,
   podeExcluir,
+  mostrarReceber,
+  recebendo,
   iniciando,
   onIniciar,
+  onReceber,
   onFinalizar,
   onExcluir,
 }: ConsultaDetailStatusBarProps) {
+  const statusColors =
+    CLINICA_CONSULTA_STATUS_COLORS[selected.status] ?? CLINICA_CONSULTA_STATUS_COLORS.SCHEDULED;
+
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
       <span>Agendado: {formatData(selected.appointment_date)}</span>
@@ -52,7 +64,9 @@ export function ConsultaDetailStatusBar({
           </strong>
         </span>
       )}
-      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 uppercase">
+      <span
+        className={`px-2 py-0.5 rounded-full text-xs font-medium uppercase ${statusColors.bg} ${statusColors.text}`}
+      >
         {CLINICA_CONSULTA_STATUS_LABEL[selected.status] || toUpperCase(selected.status)}
       </span>
       {selected.protocol_name && (
@@ -78,10 +92,22 @@ export function ConsultaDetailStatusBar({
         </strong>
       </span>
       <div className="ml-auto flex flex-wrap gap-2">
-        {outraConsultaEmAndamento && selected.status === "SCHEDULED" && (
+        {outraConsultaEmAndamento &&
+          (selected.status === "SCHEDULED" || selected.status === "RECEBER") && (
           <p className="text-xs text-amber-700 dark:text-amber-400 max-w-xs">
             Já existe consulta em andamento para este paciente. Finalize-a antes de iniciar outra.
           </p>
+        )}
+        {mostrarReceber && (
+          <button
+            type="button"
+            onClick={onReceber}
+            disabled={recebendo}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50 bg-amber-600 hover:bg-amber-700"
+          >
+            <DollarSign size={16} />
+            {recebendo ? "Registrando…" : "Receber"}
+          </button>
         )}
         {podeIniciar && (
           <button

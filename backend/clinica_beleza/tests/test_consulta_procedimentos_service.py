@@ -23,10 +23,11 @@ class ConsultaProcedimentosServiceTest(SimpleTestCase):
     with self.assertRaisesMessage(ValueError, 'finalizar'):
       remover_procedimento_consulta(consulta, 1)
 
+  @patch('clinica_beleza.consulta_procedimentos_service._reabrir_recebimento_apos_procedimento')
   @patch('clinica_beleza.consulta_procedimentos_service.Procedure')
   @patch('clinica_beleza.consulta_procedimentos_service.AppointmentProcedure')
   @patch('clinica_beleza.consulta_procedimentos_service.resolver_preco_procedimento')
-  def test_adicionar_cria_item_com_preco(self, mock_preco, mock_ap_model, mock_proc_model):
+  def test_adicionar_cria_item_com_preco(self, mock_preco, mock_ap_model, mock_proc_model, mock_reabrir):
     mock_preco.return_value = Decimal('150.00')
     procedure = MagicMock()
     procedure.id = 7
@@ -55,3 +56,4 @@ class ConsultaProcedimentosServiceTest(SimpleTestCase):
     kwargs = mock_ap_model.objects.create.call_args.kwargs
     self.assertEqual(kwargs['procedure'], procedure)
     self.assertEqual(kwargs['valor'], Decimal('150.00'))
+    mock_reabrir.assert_called_once_with(consulta)

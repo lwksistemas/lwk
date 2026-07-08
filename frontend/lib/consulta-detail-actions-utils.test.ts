@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import {
   computeConsultaFlags,
+  consultaPagamentoUi,
   valorPagamentoConsulta,
 } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 
@@ -59,5 +60,40 @@ describe("computeConsultaFlags", () => {
     const flags = computeConsultaFlags(consulta({ status: "IN_PROGRESS" }), []);
     expect(flags.consultaAtiva).toBe(true);
     expect(flags.podeFinalizar).toBe(true);
+  });
+});
+
+describe("consultaPagamentoUi", () => {
+  it("mostra Receber em RECEBER", () => {
+    expect(consultaPagamentoUi(consulta({ status: "RECEBER" }))).toEqual({
+      mostrarReceber: true,
+      mostrarPago: false,
+    });
+  });
+
+  it("mostra Pago após quitar total", () => {
+    expect(
+      consultaPagamentoUi(
+        consulta({
+          status: "SCHEDULED",
+          payment_status: "PAID",
+          valor_pagamento: 150,
+          valor_pago: 150,
+        }),
+      ),
+    ).toEqual({ mostrarReceber: false, mostrarPago: true });
+  });
+
+  it("volta para Receber após procedimento extra", () => {
+    expect(
+      consultaPagamentoUi(
+        consulta({
+          status: "RECEBER",
+          payment_status: "PARTIAL",
+          valor_pagamento: 200,
+          valor_pago: 150,
+        }),
+      ),
+    ).toEqual({ mostrarReceber: true, mostrarPago: false });
   });
 });

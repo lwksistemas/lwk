@@ -20,6 +20,7 @@ interface ConsultaDetailStatusBarProps {
   podeFinalizar: boolean;
   podeExcluir: boolean;
   mostrarReceber: boolean;
+  mostrarPago: boolean;
   recebendo: boolean;
   iniciando: boolean;
   onIniciar: () => void;
@@ -38,6 +39,7 @@ export function ConsultaDetailStatusBar({
   podeFinalizar,
   podeExcluir,
   mostrarReceber,
+  mostrarPago,
   recebendo,
   iniciando,
   onIniciar,
@@ -108,6 +110,12 @@ export function ConsultaDetailStatusBar({
             <DollarSign size={16} />
             {recebendo ? "Registrando…" : "Receber"}
           </button>
+        )}
+        {mostrarPago && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium bg-green-600">
+            <CheckCircle2 size={16} />
+            Pago
+          </span>
         )}
         {podeIniciar && (
           <button

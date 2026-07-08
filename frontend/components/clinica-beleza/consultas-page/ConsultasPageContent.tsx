@@ -1,9 +1,11 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { useParams } from "next/navigation";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { useAgendamentoCadastros } from "@/hooks/clinica-beleza/useAgendamentoCadastros";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { ModalReceberConsulta } from "@/components/clinica-beleza/consultas/ModalReceberConsulta";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import { ConsultaDetailView, ConsultasListView } from "./ConsultasListView";
 import { ConsultasPageModals } from "./ConsultasPageModals";
@@ -16,6 +18,9 @@ import {
 export function ConsultasPageContent() {
   const params = useParams();
   const slug = params.slug as string;
+
+  const [receberConsulta, setReceberConsulta] = useState<Consulta | null>(null);
+  const [abrindoReceberId, setAbrindoReceberId] = useState<number | null>(null);
 
   const {
     list: consultas,
@@ -32,6 +37,27 @@ export function ConsultasPageContent() {
   const agendaModals = useConsultasAgendaModals();
   const novaConsulta = useConsultasNovaConsulta(slug);
   const deepLink = useConsultasDeepLink(slug, consultas);
+
+  const abrirReceberNaLista = useCallback(async (c: Consulta) => {
+    setAbrindoReceberId(c.id);
+    try {
+      const fresh = (await ClinicaBelezaAPI.consultas.get(c.id)) as Consulta;
+      setReceberConsulta(fresh);
+    } catch {
+      setReceberConsulta(c);
+    } finally {
+      setAbrindoReceberId(null);
+    }
+  }, []);
+
+  const aposRecebimentoLista = useCallback(
+    async (atualizada: Consulta) => {
+      setReceberConsulta(atualizada);
+      await loadConsultas();
+      setReceberConsulta(null);
+    },
+    [loadConsultas],
+  );
 
   if (deepLink.selected) {
     return (
@@ -58,6 +84,8 @@ export function ConsultasPageContent() {
         onNovaConsulta={novaConsulta.abrirNovaConsulta}
         onOpenConfigAgenda={() => agendaModals.setShowConfigAgendaMenu(true)}
         onSelectConsulta={(c) => deepLink.abrirConsulta(c, false)}
+        onReceberConsulta={abrirReceberNaLista}
+        recebendoConsultaId={abrindoReceberId}
         onPageChange={setPage}
         onLimparDeepLinkError={deepLink.limparDeepLinkError}
       />
@@ -80,6 +108,14 @@ export function ConsultasPageContent() {
         cadastros={cadastros}
         agendaModals={agendaModals}
       />
+      {receberConsulta && (
+        <ModalReceberConsulta
+          open
+          consulta={receberConsulta}
+          onClose={() => setReceberConsulta(null)}
+          onSuccess={(c) => void aposRecebimentoLista(c)}
+        />
+      )}
     </>
   );
 }

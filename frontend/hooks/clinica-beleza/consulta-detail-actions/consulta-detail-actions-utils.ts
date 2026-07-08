@@ -35,6 +35,25 @@ export function saldoReceberConsulta(c: Consulta): number {
   return Math.max(0, total - pago);
 }
 
+/** Botão Receber (âmbar) ou Pago (verde) na lista e no detalhe da consulta. */
+export function consultaPagamentoUi(c: Consulta): {
+  mostrarReceber: boolean;
+  mostrarPago: boolean;
+} {
+  if (c.status === "CANCELLED") {
+    return { mostrarReceber: false, mostrarPago: false };
+  }
+
+  const saldo = saldoReceberConsulta(c);
+  const paymentPendente =
+    c.payment_status === "PENDING" || c.payment_status === "PARTIAL";
+  const mostrarReceber =
+    c.status === "RECEBER" || paymentPendente || saldo > 0;
+  const mostrarPago = !mostrarReceber && c.payment_status === "PAID";
+
+  return { mostrarReceber, mostrarPago };
+}
+
 export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) {
   const outraConsultaEmAndamento = historico.find(
     (c) => c.id !== selected.id && c.status === "IN_PROGRESS",
@@ -43,8 +62,7 @@ export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) 
   const emAtendimento =
     selected.status === "IN_PROGRESS" ||
     (selected.status === "RECEBER" && !!selected.data_inicio);
-  const paymentPendente =
-    selected.payment_status === "PENDING" || selected.payment_status === "PARTIAL";
+  const { mostrarReceber, mostrarPago } = consultaPagamentoUi(selected);
   return {
     outraConsultaEmAndamento,
     podeIniciar:
@@ -57,7 +75,8 @@ export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) 
     podeExcluir: !consultaConcluida,
     consultaAtiva: emAtendimento,
     consultaFinalizada: consultaConcluida,
-    mostrarReceber: selected.status === "RECEBER" || paymentPendente,
+    mostrarReceber,
+    mostrarPago,
   };
 }
 

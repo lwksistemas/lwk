@@ -21,6 +21,8 @@ interface ConsultasListViewProps {
   onNovaConsulta: () => void;
   onOpenConfigAgenda: () => void;
   onSelectConsulta: (c: Consulta) => void;
+  onReceberConsulta?: (c: Consulta) => void;
+  recebendoConsultaId?: number | null;
   onPageChange: (page: number) => void;
   onLimparDeepLinkError: () => void;
 }
@@ -36,6 +38,8 @@ export function ConsultasListView({
   onNovaConsulta,
   onOpenConfigAgenda,
   onSelectConsulta,
+  onReceberConsulta,
+  recebendoConsultaId = null,
   onPageChange,
   onLimparDeepLinkError,
 }: ConsultasListViewProps) {
@@ -86,6 +90,8 @@ export function ConsultasListView({
             <ConsultasListTable
               consultas={consultas}
               onSelect={onSelectConsulta}
+              onReceber={onReceberConsulta}
+              recebendoConsultaId={recebendoConsultaId}
               formatData={formatConsultaListDate}
             />
             <EntityListLoadMore

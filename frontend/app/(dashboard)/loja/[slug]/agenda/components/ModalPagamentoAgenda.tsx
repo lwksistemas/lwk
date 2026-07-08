@@ -29,10 +29,15 @@ export function ModalPagamentoAgenda({
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [markAsPaid, setMarkAsPaid] = useState(true);
   const [amount, setAmount] = useState(String(procedurePrice || ""));
+  const [desconto, setDesconto] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   if (!open) return null;
+
+  const valorBase = Number(amount) || 0;
+  const valorDesconto = Number(desconto) || 0;
+  const valorFinal = Math.max(0, valorBase - valorDesconto);
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -43,7 +48,7 @@ export function ModalPagamentoAgenda({
         body: JSON.stringify({
           payment_method: paymentMethod,
           mark_as_paid: markAsPaid,
-          amount: amount || undefined,
+          amount: valorFinal > 0 ? String(valorFinal) : (amount || undefined),
         }),
       });
       if (!res.ok) {
@@ -86,17 +91,36 @@ export function ModalPagamentoAgenda({
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Valor (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
-              placeholder="Valor do atendimento"
-            />
+          <div className="space-y-2">
+            <div>
+              <label className="block text-sm font-medium mb-1">Valor (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                placeholder="Valor do atendimento"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Desconto (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={desconto}
+                onChange={(e) => setDesconto(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                placeholder="0,00"
+              />
+            </div>
+            {valorDesconto > 0 && (
+              <p className="text-sm font-semibold text-green-700 dark:text-green-400">
+                Valor final a cobrar: {formatCurrency(valorFinal)}
+              </p>
+            )}
           </div>
 
           <div>

@@ -72,6 +72,8 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     valor_procedimentos = serializers.SerializerMethodField()
     valor_pagamento = serializers.SerializerMethodField()
     exige_termo_consentimento = serializers.SerializerMethodField()
+    valor_pago = serializers.SerializerMethodField()
+    payment_status = serializers.SerializerMethodField()
     status_assinatura_termo_display = serializers.CharField(
         source='get_status_assinatura_termo_display', read_only=True,
     )
@@ -83,7 +85,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             'professional', 'professional_name',
             'procedure', 'procedure_name', 'procedures_list', 'protocol', 'protocol_name', 'status',
             'data_inicio', 'data_fim', 'duracao_minutos', 'observacoes_gerais', 'protocolo_notas',
-            'valor_consulta', 'valor_procedimentos', 'valor_pagamento',
+            'valor_consulta', 'valor_procedimentos', 'valor_pagamento', 'valor_pago', 'payment_status',
             'retorno_gratuito', 'retorno_tipo',
             'local_atendimento', 'local_atendimento_name',
             'convenio', 'convenio_name',
@@ -149,6 +151,26 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     def get_valor_pagamento(self, obj):
         vc = Decimal(str(obj.valor_consulta or 0))
         return float(vc + self._appointment_valor_procedimentos(obj))
+
+    def get_valor_pago(self, obj):
+        from ..models import Payment
+        appointment = getattr(obj, 'appointment', None)
+        if not appointment:
+            return None
+        payment = Payment.objects.filter(appointment=appointment).order_by('-id').first()
+        if not payment:
+            return None
+        return float(payment.amount or 0)
+
+    def get_payment_status(self, obj):
+        from ..models import Payment
+        appointment = getattr(obj, 'appointment', None)
+        if not appointment:
+            return None
+        payment = Payment.objects.filter(appointment=appointment).order_by('-id').first()
+        if not payment:
+            return None
+        return payment.status
 
     def get_convenio_name(self, obj):
         if obj.convenio_id and obj.convenio:

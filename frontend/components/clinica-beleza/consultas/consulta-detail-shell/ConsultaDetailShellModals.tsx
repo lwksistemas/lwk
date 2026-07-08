@@ -23,6 +23,8 @@ export function ConsultaDetailShellModals({ selected, actions }: ConsultaDetailS
         form={actions.finalizarForm}
         valorConsulta={selected.valor_consulta}
         valorProcedimentos={selected.valor_procedimentos}
+        valorPago={selected.valor_pago}
+        paymentStatus={selected.payment_status}
         locais={actions.locaisAtendimento}
         onClose={() => actions.setShowFinalizarModal(false)}
         onChange={actions.setFinalizarForm}

@@ -18,6 +18,8 @@ export function ConsultaFinalizarModal({
   form,
   valorConsulta,
   valorProcedimentos,
+  valorPago,
+  paymentStatus,
   locais,
   onClose,
   onChange,
@@ -28,6 +30,8 @@ export function ConsultaFinalizarModal({
   form: FinalizarForm;
   valorConsulta?: string | number;
   valorProcedimentos?: string | number;
+  valorPago?: number | null;
+  paymentStatus?: string | null;
   locais: LocalAtendimentoItem[];
   onClose: () => void;
   onChange: (form: FinalizarForm) => void;
@@ -38,6 +42,9 @@ export function ConsultaFinalizarModal({
   const taxa = taxaLocal > 0 ? taxaLocal : Number(valorConsulta ?? 0);
   const procs = Number(valorProcedimentos ?? 0);
   const mostraDetalhe = taxa > 0 || procs > 0;
+  const totalAtual = taxa + procs;
+  const jaPago = paymentStatus === "PAID" && valorPago != null ? Number(valorPago) : 0;
+  const diferenca = jaPago > 0 ? totalAtual - jaPago : 0;
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -52,6 +59,20 @@ export function ConsultaFinalizarModal({
           <p className="text-sm text-gray-600 dark:text-gray-400">
             A agenda será marcada como <strong>Concluída</strong>.
           </p>
+          {jaPago > 0 && (
+            <div className={`p-3 rounded-lg text-sm ${diferenca > 0 ? "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700" : "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700"}`}>
+              <p className="font-medium mb-1">
+                {diferenca > 0 ? "⚠️ Saldo a receber pela secretaria" : "✅ Pagamento coberto"}
+              </p>
+              <p className="text-gray-600 dark:text-gray-400">Pago na chegada: <strong>{formatCurrency(jaPago)}</strong></p>
+              <p className="text-gray-600 dark:text-gray-400">Total atual: <strong>{formatCurrency(totalAtual)}</strong></p>
+              {diferenca > 0 && (
+                <p className="mt-1 font-semibold text-amber-700 dark:text-amber-300">
+                  Diferença a cobrar: {formatCurrency(diferenca)}
+                </p>
+              )}
+            </div>
+          )}
           {locais.length > 0 && (
             <div>
               <label className="block text-sm font-medium mb-1">Local de atendimento</label>

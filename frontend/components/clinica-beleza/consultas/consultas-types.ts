@@ -38,6 +38,10 @@ export interface Consulta {
   valor_procedimentos?: string | number;
   /** Total a cobrar: taxa de consulta + procedimentos. */
   valor_pagamento?: string | number;
+  /** Valor já pago pelo cliente (pagamento antecipado na recepção). */
+  valor_pago?: number | null;
+  /** Status do pagamento existente: PAID, PENDING ou null. */
+  payment_status?: string | null;
   local_atendimento?: number | null;
   local_atendimento_name?: string | null;
   convenio?: number | null;

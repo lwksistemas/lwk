@@ -5,15 +5,24 @@ import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
 import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
 import { CLINICA_CONSULTA_STATUS_COLORS, CLINICA_CONSULTA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import { toUpperCase } from "@/lib/format-br";
+import { ConsultaPagamentoButton } from "./ConsultaPagamentoButton";
 import { consultaProcedimentosNomes, type Consulta } from "./consultas-types";
 
 interface Props {
   consultas: Consulta[];
   onSelect: (consulta: Consulta) => void;
+  onReceber?: (consulta: Consulta) => void;
+  recebendoConsultaId?: number | null;
   formatData: (d?: string | null) => string;
 }
 
-export function ConsultasListTable({ consultas, onSelect, formatData }: Props) {
+export function ConsultasListTable({
+  consultas,
+  onSelect,
+  onReceber,
+  recebendoConsultaId = null,
+  formatData,
+}: Props) {
   return (
     <EntityListTable
       rows={consultas}
@@ -74,6 +83,17 @@ export function ConsultasListTable({ consultas, onSelect, formatData }: Props) {
             <span className="text-gray-600 dark:text-gray-400 uppercase">
               {c.professional_name ? toUpperCase(c.professional_name) : "—"}
             </span>
+          ),
+        },
+        {
+          key: "pagamento",
+          header: "PAGAMENTO",
+          render: (c) => (
+            <ConsultaPagamentoButton
+              consulta={c}
+              onReceber={onReceber}
+              loading={recebendoConsultaId === c.id}
+            />
           ),
         },
         {

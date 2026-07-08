@@ -82,6 +82,7 @@ export function ConsultaDetailShell({
               podeFinalizar={actions.podeFinalizar}
               podeExcluir={actions.podeExcluir}
               mostrarReceber={actions.mostrarReceber}
+              mostrarPago={actions.mostrarPago}
               recebendo={actions.recebendo}
               iniciando={actions.iniciando}
               onIniciar={() => actions.iniciarConsulta()}

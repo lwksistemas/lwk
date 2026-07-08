@@ -95,8 +95,8 @@ def finalizar_consultas_esquecidas() -> int:
                     if agora < limite:
                         continue
 
-                    # Auto-finalizar a consulta
-                    finalizar_consulta(consulta)
+                    # Auto-finalizar a consulta (pula verificação de estoque)
+                    finalizar_consulta(consulta, skip_estoque=True)
                     total += 1
                     logger.info(
                         'Auto-finalização: consulta=%s loja=%s paciente=%s '

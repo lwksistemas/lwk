@@ -146,6 +146,7 @@ def finalizar_consulta(
     mark_as_paid=False,
     amount=None,
     local_atendimento_id=None,
+    skip_estoque=False,
 ):
     """
     Finaliza consulta clínica: agenda → COMPLETED, consulta concluída e lançamento financeiro.
@@ -188,13 +189,14 @@ def finalizar_consulta(
     if consulta.status != 'IN_PROGRESS':
         raise ValueError('Inicie a consulta antes de finalizar.')
 
-    insuficientes = produtos_estoque_insuficiente(consulta)
-    if insuficientes:
-        linhas = '\n'.join(f'• {msg}' for msg in insuficientes)
-        raise ValueError(
-            f'Estoque insuficiente para finalizar a consulta. Regularize o estoque ou '
-            f'remova/ajuste os produtos registrados:\n{linhas}',
-        )
+    if not skip_estoque:
+        insuficientes = produtos_estoque_insuficiente(consulta)
+        if insuficientes:
+            linhas = '\n'.join(f'• {msg}' for msg in insuficientes)
+            raise ValueError(
+                f'Estoque insuficiente para finalizar a consulta. Regularize o estoque ou '
+                f'remova/ajuste os produtos registrados:\n{linhas}',
+            )
 
     ts = now()
 

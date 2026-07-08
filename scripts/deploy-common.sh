@@ -91,6 +91,7 @@ railway_tenant_ensure() {
   railway environment "$environment" >/dev/null 2>&1 || true
   log "Schemas tenant ($service / $environment)..."
   railway ssh --service "$service" python manage.py ensure_all 2>&1 | tail -20 || warn "ensure_all falhou (ver logs Railway)"
+  railway ssh --service "$service" python manage.py corrigir_schema_clinica_beleza 2>&1 | tail -15 || warn "corrigir_schema_clinica_beleza falhou"
   railway ssh --service "$service" python manage.py corrigir_schema_crm 2>&1 | tail -15 || warn "corrigir_schema_crm falhou"
   railway ssh --service "$service" python manage.py ensure_crm_financeiro_tabelas 2>&1 | tail -10 || true
 }

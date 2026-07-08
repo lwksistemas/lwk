@@ -5,6 +5,7 @@ from .crud import (
     ConsultaFinalizarView,
     ConsultaIniciarView,
     ConsultaListView,
+    ConsultaReceberView,
 )
 from .clinical import (
     ConsultaEvolucaoListView,
@@ -24,6 +25,7 @@ __all__ = [
     'ConsultaListView',
     'ConsultaDetailView',
     'ConsultaIniciarView',
+    'ConsultaReceberView',
     'ConsultaFinalizarView',
     'ConsultaAplicarProtocoloView',
     'PatientAnamneseView',

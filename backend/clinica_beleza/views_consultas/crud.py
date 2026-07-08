@@ -9,6 +9,7 @@ from ..consulta_service import (
     finalizar_consulta,
     iniciar_consulta,
     motivo_bloqueio_exclusao_consulta,
+    registrar_recebimento_consulta,
 )
 from ..models import Consulta, Patient, Procedure, ProcedureProtocol, Professional
 from ..pagination import paginate_queryset
@@ -223,6 +224,43 @@ class ConsultaIniciarView(APIView):
             'patient', 'professional', 'procedure', 'protocol', 'appointment',
         ).get(pk=pk)
         return Response(ConsultaSerializer(consulta).data)
+
+
+class ConsultaReceberView(APIView):
+    """POST /clinica-beleza/consultas/<id>/receber/ — registra pagamento (total ou parcial)."""
+    permission_classes = CLINICA_CLINICAL
+
+    def post(self, request, pk):
+        consulta, error = get_consulta_or_404(pk, select_related=(
+            'patient', 'professional', 'procedure', 'protocol', 'appointment',
+            'appointment__procedure',
+        ))
+        if error:
+            return error
+
+        mark_as_paid = bool(request.data.get('mark_as_paid'))
+        payment_method = (request.data.get('payment_method') or 'CASH').strip()
+        amount = request.data.get('amount')
+
+        try:
+            payment = registrar_recebimento_consulta(
+                consulta,
+                payment_method=payment_method,
+                amount=amount,
+                mark_as_paid=mark_as_paid,
+            )
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        from ..serializers.financeiro import PaymentSerializer
+
+        consulta = Consulta.objects.select_related(
+            'patient', 'professional', 'procedure', 'protocol', 'appointment',
+        ).get(pk=pk)
+        return Response({
+            'consulta': ConsultaSerializer(consulta).data,
+            'payment': PaymentSerializer(payment).data,
+        }, status=status.HTTP_201_CREATED)
 
 
 class ConsultaFinalizarView(APIView):

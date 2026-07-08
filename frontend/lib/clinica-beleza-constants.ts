@@ -80,10 +80,19 @@ export function getAgendaStatusOpcoesModal(currentStatus: string) {
 
 /** Status da consulta clínica (fluxo em Consultas). */
 export const CLINICA_CONSULTA_STATUS_LABEL: Record<string, string> = {
+  RECEBER: 'RECEBER',
   SCHEDULED: 'AGUARDANDO INÍCIO',
   IN_PROGRESS: 'EM ATENDIMENTO',
   COMPLETED: 'CONSULTA FINALIZADA',
   CANCELLED: 'CANCELADA',
+};
+
+export const CLINICA_CONSULTA_STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  RECEBER: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-800 dark:text-amber-300' },
+  SCHEDULED: { bg: 'bg-gray-100 dark:bg-neutral-800', text: 'text-gray-700 dark:text-gray-300' },
+  IN_PROGRESS: { bg: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-800 dark:text-violet-300' },
+  COMPLETED: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-800 dark:text-emerald-300' },
+  CANCELLED: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-800 dark:text-red-300' },
 };
 
 export const CLINICA_AGENDA_DURACAO_MIN_MIN = 5;

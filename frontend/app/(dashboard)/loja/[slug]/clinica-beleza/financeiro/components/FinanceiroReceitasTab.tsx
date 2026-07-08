@@ -64,6 +64,7 @@ export function FinanceiroReceitasTab({
           <option value="">Todos os status</option>
           <option value="PAID">Pago</option>
           <option value="PENDING">Pendente</option>
+          <option value="PARTIAL">Parcial</option>
           <option value="CANCELLED">Cancelado</option>
         </select>
         <select

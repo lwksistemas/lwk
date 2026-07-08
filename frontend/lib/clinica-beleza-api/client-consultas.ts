@@ -22,6 +22,14 @@ export const consultasApi = {
     cbPost(`/consultas/${id}/aplicar-protocolo/`, { protocol_id: protocolId }),
   iniciar: (id: number, body?: { professional?: number }) =>
     cbPost(`/consultas/${id}/iniciar/`, body || {}),
+  receber: (
+    id: number,
+    data: {
+      payment_method?: string;
+      mark_as_paid?: boolean;
+      amount?: number | string;
+    },
+  ) => cbPost(`/consultas/${id}/receber/`, data),
   finalizar: (
     id: number,
     data?: {

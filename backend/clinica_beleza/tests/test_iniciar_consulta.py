@@ -36,3 +36,17 @@ class IniciarConsultaPacienteEmAndamentoTest(SimpleTestCase):
         iniciar_consulta(consulta)
 
         mock_validar.assert_called_once_with(10, exclude_consulta_id=4)
+
+    @patch('clinica_beleza.consulta_service.validar_paciente_sem_consulta_em_andamento')
+    @patch('clinica_beleza.consulta_service.sync_consulta_from_appointment_status')
+    def test_iniciar_aceita_status_receber(self, _mock_sync, mock_validar):
+        consulta = MagicMock()
+        consulta.status = 'RECEBER'
+        consulta.patient_id = 10
+        consulta.id = 4
+        consulta.appointment = MagicMock(status='CONFIRMED')
+
+        iniciar_consulta(consulta)
+
+        mock_validar.assert_called_once_with(10, exclude_consulta_id=4)
+        self.assertEqual(consulta.status, 'IN_PROGRESS')

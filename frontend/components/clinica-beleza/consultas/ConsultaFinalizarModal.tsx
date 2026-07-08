@@ -50,7 +50,7 @@ export function ConsultaFinalizarModal({
         </div>
         <div className="p-4 space-y-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            A agenda será marcada como <strong>Concluída</strong> e um lançamento será criado no Financeiro.
+            A agenda será marcada como <strong>Concluída</strong>.
           </p>
           {locais.length > 0 && (
             <div>

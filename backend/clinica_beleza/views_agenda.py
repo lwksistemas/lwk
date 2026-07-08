@@ -191,6 +191,87 @@ class AgendaCreateView(APIView):
             )
 
 
+class AgendaPagamentoView(APIView):
+    """
+    POST /clinica-beleza/agenda/<id>/pagamento/
+    Registra pagamento antecipado (recepção) quando cliente chega (CONFIRMED).
+    """
+    permission_classes = CLINICA_AGENDA
+
+    def post(self, request, pk):
+        try:
+            appointment = (
+                Appointment.objects
+                .select_related('patient', 'professional', 'procedure', 'local_atendimento')
+                .prefetch_related('appointment_procedures__procedure')
+                .get(pk=pk)
+            )
+        except Appointment.DoesNotExist:
+            return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        scope = resolve_agenda_professional_scope(request)
+        if not appointment_in_agenda_scope(appointment, scope):
+            return _agenda_scope_forbidden_response()
+
+        from .models import Payment
+        from .consulta_service import (
+            _valor_pagamento_padrao, _garantir_valor_consulta_consulta,
+            calcular_comissao_payment_atendimento,
+        )
+        from django.utils.timezone import now as tz_now
+        from decimal import Decimal
+
+        mark_as_paid = bool(request.data.get('mark_as_paid'))
+        payment_method = (request.data.get('payment_method') or '').strip() or 'CASH'
+        amount_raw = request.data.get('amount')
+
+        # Calcular valor padrão
+        consulta = getattr(appointment, 'consulta', None)
+        if amount_raw:
+            valor = Decimal(str(amount_raw))
+        elif consulta:
+            _garantir_valor_consulta_consulta(consulta)
+            valor = _valor_pagamento_padrao(appointment, consulta)
+        else:
+            from .consulta_service import _valor_consulta
+            vc = _valor_consulta(appointment)
+            vp = appointment.valor_total or Decimal('0')
+            valor = vc + vp
+
+        comissao_pct, comissao_val = calcular_comissao_payment_atendimento(
+            appointment=appointment,
+            consulta=consulta,
+            amount=valor,
+        )
+
+        payment = Payment.objects.filter(appointment=appointment).first()
+        ts = tz_now()
+        if not payment:
+            payment = Payment.objects.create(
+                appointment=appointment,
+                amount=valor,
+                payment_method=payment_method,
+                status='PAID' if mark_as_paid else 'PENDING',
+                payment_date=ts if mark_as_paid else None,
+                comissao_percentual=comissao_pct,
+                comissao_valor=comissao_val,
+                loja_id=appointment.loja_id,
+            )
+        else:
+            payment.amount = valor
+            payment.payment_method = payment_method
+            if mark_as_paid:
+                payment.status = 'PAID'
+                if not payment.payment_date:
+                    payment.payment_date = ts
+            payment.comissao_percentual = comissao_pct
+            payment.comissao_valor = comissao_val
+            payment.save()
+
+        from .serializers.financeiro import PaymentSerializer
+        return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
+
+
 class AgendaDeleteView(GetObjectMixin, APIView):
     """DELETE /clinica-beleza/agenda/<id>/delete/"""
     permission_classes = CLINICA_AGENDA

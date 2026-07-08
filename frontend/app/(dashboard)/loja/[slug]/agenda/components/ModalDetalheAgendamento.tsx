@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { X, MessageCircle } from "lucide-react";
 import {
   CLINICA_AGENDA_STATUS_COLORS,
@@ -7,6 +8,7 @@ import {
   normalizeAgendaStatus,
 } from "@/lib/clinica-beleza-constants";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
+import { ModalPagamentoAgenda } from "./ModalPagamentoAgenda";
 
 export type { AgendaEventData };
 
@@ -53,9 +55,11 @@ export function ModalDetalheAgendamento({
   updatingStatus,
   reenviandoMensagem,
 }: ModalDetalheAgendamentoProps) {
+  const [showPagamento, setShowPagamento] = useState(false);
+
   if (!open || !event) return null;
 
-  const status = event.extendedProps.status;
+  const status = event.extendedProps.status || "SCHEDULED";
   const statusSomenteLeitura = status === "IN_PROGRESS" || status === "COMPLETED";
   const statusLabel = getAgendaStatusLabel(status);
   const opcoesStatus = opcoesStatusModal(status);
@@ -135,7 +139,13 @@ export function ModalDetalheAgendamento({
                 />
                 <select
                   value={normalizeAgendaStatus(status)}
-                  onChange={(e) => onUpdateStatus(e.target.value)}
+                  onChange={async (e) => {
+                    const novoStatus = e.target.value;
+                    await onUpdateStatus(novoStatus);
+                    if (novoStatus === "CONFIRMED") {
+                      setShowPagamento(true);
+                    }
+                  }}
                   disabled={updatingStatus}
                   className="flex-1 px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm disabled:opacity-70"
                 >
@@ -214,6 +224,16 @@ export function ModalDetalheAgendamento({
           </button>
         </div>
       </div>
+
+      <ModalPagamentoAgenda
+        open={showPagamento}
+        onClose={() => setShowPagamento(false)}
+        onSuccess={() => setShowPagamento(false)}
+        appointmentId={Number(event.extendedProps.dbId)}
+        patientName={event.extendedProps.patient_name || ""}
+        procedureName={event.extendedProps.procedure_name || ""}
+        procedurePrice={event.extendedProps.procedure_price || ""}
+      />
     </div>
   );
 }

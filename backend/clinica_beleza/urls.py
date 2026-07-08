@@ -14,7 +14,7 @@ from .views import (
     PaymentListView, PaymentDetailView,
     FinanceiroResumoView, CategoriaDespesaListView, DespesaListView, DespesaDetailView,
     AgendaView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView,
-    AgendaReenviarMensagemView,
+    AgendaPagamentoView, AgendaReenviarMensagemView,
     BloqueioHorarioListView, BloqueioHorarioDetailView,
     CampanhaPromocaoListView, CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView,
 )
@@ -184,6 +184,7 @@ urlpatterns = [
     path('agenda/create/', AgendaCreateView.as_view(), name='agenda-create'),
     path('agenda/<int:pk>/update/', AgendaUpdateView.as_view(), name='agenda-update'),
     path('agenda/<int:pk>/delete/', AgendaDeleteView.as_view(), name='agenda-delete'),
+    path('agenda/<int:pk>/pagamento/', AgendaPagamentoView.as_view(), name='agenda-pagamento'),
     path('agenda/<int:pk>/reenviar-mensagem/', AgendaReenviarMensagemView.as_view(), name='agenda-reenviar-mensagem'),
     path('confirmar-agendamento/<path:token>/', ConfirmarAgendamentoPublicaView.as_view(), name='confirmar-agendamento'),
     # Bloqueio de Horários

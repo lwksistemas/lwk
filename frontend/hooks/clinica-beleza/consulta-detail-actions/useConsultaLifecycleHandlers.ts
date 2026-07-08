@@ -91,33 +91,29 @@ export function useConsultaLifecycleHandlers(
   );
 
   const abrirFinalizarModal = useCallback(async () => {
-    let consultaAtual = selected;
-    try {
-      const fresh = await ClinicaBelezaAPI.consultas.get(selected.id);
-      consultaAtual = { ...selected, ...fresh };
-      setSelected(consultaAtual);
-    } catch (e) {
-      logger.warn("Erro ao atualizar valor da consulta:", e);
-    }
-    const total = valorPagamentoConsulta(consultaAtual);
-    setFinalizarForm({
-      payment_method: "CASH",
-      mark_as_paid: false,
-      amount: total > 0 ? String(total) : "",
-      local_atendimento: consultaAtual.local_atendimento ?? "",
-    });
-    setShowFinalizarModal(true);
-  }, [selected, setFinalizarForm, setSelected, setShowFinalizarModal]);
-
-  const finalizarConsulta = useCallback(async () => {
+    if (!confirm("Finalizar consulta? A agenda será marcada como Concluída.")) return;
     setFinalizando(true);
     try {
-      const updated = (await ClinicaBelezaAPI.consultas.finalizar(selected.id, {
-        payment_method: finalizarForm.payment_method,
-        mark_as_paid: finalizarForm.mark_as_paid,
-        amount: finalizarForm.amount || valorPagamentoConsulta(selected) || undefined,
-        local_atendimento: finalizarForm.local_atendimento || undefined,
-      })) as Consulta & { error?: string };
+      const updated = (await ClinicaBelezaAPI.consultas.finalizar(selected.id, {})) as Consulta & { error?: string };
+      if (updated?.error) throw new Error(updated.error);
+      const consultaAtualizada = { ...selected, ...updated };
+      setSelected(consultaAtualizada);
+      setTab("atendimento");
+      await loadDetalhes(consultaAtualizada);
+      await onListRefresh();
+      alert("Consulta finalizada. Agenda marcada como Concluída.");
+    } catch (e: unknown) {
+      alert(formatApiErrorBody(e) || "Erro ao finalizar consulta.");
+    } finally {
+      setFinalizando(false);
+    }
+  }, [selected, setSelected, setTab, loadDetalhes, onListRefresh, setFinalizando]);
+
+  const finalizarConsulta = useCallback(async () => {
+    // Mantido para retrocompatibilidade — chamado se o modal ainda estiver aberto
+    setFinalizando(true);
+    try {
+      const updated = (await ClinicaBelezaAPI.consultas.finalizar(selected.id, {})) as Consulta & { error?: string };
       if (updated?.error) throw new Error(updated.error);
       const consultaAtualizada = { ...selected, ...updated };
       setSelected(consultaAtualizada);
@@ -125,18 +121,13 @@ export function useConsultaLifecycleHandlers(
       setTab("atendimento");
       await loadDetalhes(consultaAtualizada);
       await onListRefresh();
-      alert(
-        finalizarForm.mark_as_paid
-          ? "Consulta finalizada. Pagamento registrado no Financeiro."
-          : "Consulta finalizada. Lançamento pendente criado no Financeiro e agenda atualizada.",
-      );
+      alert("Consulta finalizada. Agenda marcada como Concluída.");
     } catch (e: unknown) {
       alert(formatApiErrorBody(e) || "Erro ao finalizar consulta.");
     } finally {
       setFinalizando(false);
     }
   }, [
-    finalizarForm,
     loadDetalhes,
     onListRefresh,
     selected,

@@ -174,10 +174,14 @@ def finalizar_consulta(
             MotorRegras().executar('AGENDAMENTO_FINALIZADO', {'appointment': appointment})
         except Exception:
             logger.exception('Erro ao executar regra financeira (consulta %s)', consulta.id)
-        consulta_service._ensure_payment_for_appointment(
-            appointment, consulta,
-            payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
-        )
+        # Só cria pagamento se não existir um já pago (pagamento antecipado pela recepção)
+        from ..models import Payment
+        pagamento_existente = Payment.objects.filter(appointment=appointment, status='PAID').exists()
+        if not pagamento_existente:
+            consulta_service._ensure_payment_for_appointment(
+                appointment, consulta,
+                payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
+            )
         consulta.refresh_from_db()
         return consulta
 
@@ -214,9 +218,13 @@ def finalizar_consulta(
     except Exception:
         logger.exception('Erro ao executar regra financeira (consulta %s)', consulta.id)
 
-    consulta_service._ensure_payment_for_appointment(
-        appointment, consulta,
-        payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
-    )
+    # Só cria pagamento se não existir um já pago (pagamento antecipado pela recepção)
+    from ..models import Payment
+    pagamento_existente = Payment.objects.filter(appointment=appointment, status='PAID').exists()
+    if not pagamento_existente:
+        consulta_service._ensure_payment_for_appointment(
+            appointment, consulta,
+            payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
+        )
     consulta.refresh_from_db()
     return consulta

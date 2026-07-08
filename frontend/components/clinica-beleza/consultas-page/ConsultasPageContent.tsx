@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { useAgendamentoCadastros } from "@/hooks/clinica-beleza/useAgendamentoCadastros";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
+import { ModalPagamentoAgenda } from "@/app/(dashboard)/loja/[slug]/agenda/components/ModalPagamentoAgenda";
 import { ConsultaDetailView, ConsultasListView } from "./ConsultasListView";
 import { ConsultasPageModals } from "./ConsultasPageModals";
 import {
@@ -13,9 +15,26 @@ import {
   useConsultasNovaConsulta,
 } from "./useConsultasPage";
 
+interface PagamentoNovaConsultaState {
+  open: boolean;
+  appointmentId: number;
+  patientName: string;
+  procedureName: string;
+  procedurePrice: number | string;
+}
+
+const PAGAMENTO_INITIAL: PagamentoNovaConsultaState = {
+  open: false,
+  appointmentId: 0,
+  patientName: "",
+  procedureName: "",
+  procedurePrice: "",
+};
+
 export function ConsultasPageContent() {
   const params = useParams();
   const slug = params.slug as string;
+  const [pagamento, setPagamento] = useState<PagamentoNovaConsultaState>(PAGAMENTO_INITIAL);
 
   const {
     list: consultas,
@@ -68,7 +87,20 @@ export function ConsultasPageContent() {
         onConsultaCreated={(consultaId) => {
           ClinicaBelezaAPI.consultas
             .get(consultaId)
-            .then((c) => deepLink.abrirConsulta(c as Consulta, true))
+            .then((c) => {
+              const consulta = c as Consulta & { appointment?: number };
+              deepLink.abrirConsulta(consulta, true);
+              // Abrir modal de pagamento para nova consulta
+              if (consulta.appointment || consultaId) {
+                setPagamento({
+                  open: true,
+                  appointmentId: Number(consulta.appointment || consultaId),
+                  patientName: consulta.patient_name || "",
+                  procedureName: consulta.procedure_name || "",
+                  procedurePrice: consulta.valor_pagamento || consulta.valor_consulta || "",
+                });
+              }
+            })
             .catch(() => {});
         }}
         onAgendamentoSuccess={() => {
@@ -77,6 +109,18 @@ export function ConsultasPageContent() {
         }}
         cadastros={cadastros}
         agendaModals={agendaModals}
+      />
+      <ModalPagamentoAgenda
+        open={pagamento.open}
+        onClose={() => setPagamento(PAGAMENTO_INITIAL)}
+        onSuccess={() => {
+          setPagamento(PAGAMENTO_INITIAL);
+          void loadConsultas();
+        }}
+        appointmentId={pagamento.appointmentId}
+        patientName={pagamento.patientName}
+        procedureName={pagamento.procedureName}
+        procedurePrice={pagamento.procedurePrice}
       />
     </>
   );

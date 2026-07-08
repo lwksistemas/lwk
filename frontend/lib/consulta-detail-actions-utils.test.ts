@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import {
   computeConsultaFlags,
-  deveAbrirReceberAutomatico,
   valorPagamentoConsulta,
 } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 
@@ -29,18 +28,6 @@ describe("valorPagamentoConsulta", () => {
 
   it("soma taxa e procedimentos quando valor_pagamento zero", () => {
     expect(valorPagamentoConsulta(consulta({ valor_pagamento: 0 }))).toBe(150);
-  });
-  it("abre receber automatico para consulta RECEBER com saldo", () => {
-    expect(
-      deveAbrirReceberAutomatico(
-        consulta({ status: "RECEBER", valor_pagamento: 200, valor_pago: 0 }),
-      ),
-    ).toBe(true);
-    expect(
-      deveAbrirReceberAutomatico(
-        consulta({ status: "SCHEDULED", valor_pagamento: 200 }),
-      ),
-    ).toBe(false);
   });
 });
 

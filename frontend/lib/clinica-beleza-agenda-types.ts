@@ -33,6 +33,7 @@ export interface AgendaEventData {
     professional?: number | null;
     intervalo_inicio?: string;
     intervalo_fim?: string;
+    consulta_id?: number;
   };
 }
 

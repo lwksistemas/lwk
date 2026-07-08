@@ -219,7 +219,18 @@ export function useAgendaMutations({
         return;
       }
       if (!res.ok) throw new Error(data.error || "Erro ao atualizar status");
-      setSelectedEvent((prev) => prev ? { ...prev, extendedProps: { ...prev.extendedProps, status: novoStatus } } : null);
+      setSelectedEvent((prev) =>
+        prev
+          ? {
+              ...prev,
+              extendedProps: {
+                ...prev.extendedProps,
+                status: novoStatus,
+                ...(data.consulta_id != null ? { consulta_id: Number(data.consulta_id) } : {}),
+              },
+            }
+          : null,
+      );
       if (data.consulta_error) alert(data.consulta_error);
       onReload();
     } catch (error) {

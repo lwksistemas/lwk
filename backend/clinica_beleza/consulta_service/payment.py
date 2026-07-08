@@ -67,6 +67,16 @@ def garantir_conta_pendente_consulta(consulta) -> None:
     """Cria conta a receber (Payment PENDING) quando a consulta está em RECEBER."""
     if consulta.status != 'RECEBER':
         return
+    try:
+        _garantir_conta_pendente_consulta_inner(consulta)
+    except Exception:
+        logger.exception(
+            'Falha ao garantir conta pendente (consulta %s) — consulta mantida em RECEBER',
+            getattr(consulta, 'id', None),
+        )
+
+
+def _garantir_conta_pendente_consulta_inner(consulta) -> None:
     from clinica_beleza import consulta_service
 
     appointment = getattr(consulta, 'appointment', None)

@@ -2,6 +2,7 @@
 from rest_framework import serializers
 
 from ..models import CategoriaDespesa, Despesa, Payment
+from ..models.financeiro import PaymentParcela
 from .appointments import AppointmentListSerializer
 
 
@@ -44,6 +45,19 @@ def _procedimentos_nome_agendamento(appointment) -> str:
     return ''
 
 
+class PaymentParcelaSerializer(serializers.ModelSerializer):
+    """Serializer para parcelas de pagamento."""
+    payment_method_label = serializers.SerializerMethodField()
+
+    def get_payment_method_label(self, obj):
+        return dict(Payment.PAYMENT_METHOD_CHOICES).get(obj.payment_method, obj.payment_method)
+
+    class Meta:
+        model = PaymentParcela
+        exclude = ['loja_id']
+        read_only_fields = ['created_at']
+
+
 class PaymentSerializer(serializers.ModelSerializer):
     """Serializer para Pagamentos (financeiro da clínica)."""
     appointment_details = AppointmentListSerializer(source='appointment', read_only=True)
@@ -51,9 +65,17 @@ class PaymentSerializer(serializers.ModelSerializer):
     profissional_nome = serializers.CharField(source='appointment.professional.nome', read_only=True)
     procedimento_nome = serializers.SerializerMethodField()
     data_atendimento = serializers.DateTimeField(source='appointment.date', read_only=True)
+    valor_total_efetivo = serializers.SerializerMethodField()
+    saldo_devedor = serializers.SerializerMethodField()
 
     def get_procedimento_nome(self, obj):
         return _procedimentos_nome_agendamento(obj.appointment)
+
+    def get_valor_total_efetivo(self, obj):
+        return float(obj.valor_total_efetivo)
+
+    def get_saldo_devedor(self, obj):
+        return float(obj.saldo_devedor)
 
     class Meta:
         model = Payment

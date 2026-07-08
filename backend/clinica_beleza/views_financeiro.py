@@ -9,8 +9,8 @@ from django.utils.timezone import now
 from django.db.models import Sum
 
 from .models import CategoriaDespesa, Despesa, Payment
-from .models.financeiro import CATEGORIAS_DESPESA_PADRAO
-from .serializers.financeiro import CategoriaDespesaSerializer, DespesaSerializer, PaymentSerializer
+from .models.financeiro import CATEGORIAS_DESPESA_PADRAO, PaymentParcela
+from .serializers.financeiro import CategoriaDespesaSerializer, DespesaSerializer, PaymentParcelaSerializer, PaymentSerializer
 from .pagination import paginate_queryset
 from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
@@ -85,6 +85,86 @@ class PaymentDetailView(GetObjectMixin, APIView):
             return err
         obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PaymentParcelaView(APIView):
+    """
+    GET  /clinica-beleza/payments/<id>/parcelas/ — lista parcelas de um pagamento
+    POST /clinica-beleza/payments/<id>/parcelas/ — registra nova entrada parcial
+    """
+    permission_classes = CLINICA_FINANCEIRO
+
+    def _get_payment(self, pk):
+        try:
+            return Payment.objects.get(pk=pk), None
+        except Payment.DoesNotExist:
+            return None, Response({'error': 'Pagamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    def get(self, request, pk):
+        payment, err = self._get_payment(pk)
+        if err:
+            return err
+        parcelas = payment.parcelas.all()
+        return Response({
+            'valor_total': float(payment.valor_total_efetivo),
+            'valor_pago': float(payment.valor_pago_parcelas),
+            'saldo_devedor': float(payment.saldo_devedor),
+            'status': payment.status,
+            'parcelas': PaymentParcelaSerializer(parcelas, many=True).data,
+        })
+
+    def post(self, request, pk):
+        from decimal import Decimal, InvalidOperation
+        payment, err = self._get_payment(pk)
+        if err:
+            return err
+
+        if payment.status == 'CANCELLED':
+            return Response({'error': 'Pagamento cancelado.'}, status=status.HTTP_400_BAD_REQUEST)
+        if payment.status == 'PAID':
+            return Response({'error': 'Pagamento já está quitado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            valor = Decimal(str(request.data.get('valor') or '0'))
+        except InvalidOperation:
+            return Response({'error': 'Valor inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if valor <= 0:
+            return Response({'error': 'Valor deve ser maior que zero.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        payment_method = (request.data.get('payment_method') or 'CASH').strip()
+        payment_date = request.data.get('payment_date') or now().date().isoformat()
+        observacoes = request.data.get('observacoes') or ''
+
+        parcela = PaymentParcela.objects.create(
+            payment=payment,
+            valor=valor,
+            payment_method=payment_method,
+            payment_date=payment_date,
+            observacoes=observacoes,
+            loja_id=payment.loja_id,
+        )
+
+        total_pago = payment.valor_pago_parcelas
+        total_devedor = payment.valor_total_efetivo
+
+        if total_pago >= total_devedor:
+            payment.status = 'PAID'
+            payment.amount = total_pago
+            payment.payment_date = now()
+        else:
+            payment.status = 'PARTIAL'
+            payment.amount = total_pago
+
+        payment.save(update_fields=['status', 'amount', 'payment_date', 'updated_at'])
+
+        return Response({
+            'parcela': PaymentParcelaSerializer(parcela).data,
+            'valor_total': float(payment.valor_total_efetivo),
+            'valor_pago': float(total_pago),
+            'saldo_devedor': float(payment.saldo_devedor),
+            'status': payment.status,
+        }, status=status.HTTP_201_CREATED)
 
 
 class FinanceiroResumoView(APIView):

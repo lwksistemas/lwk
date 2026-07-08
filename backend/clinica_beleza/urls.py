@@ -11,7 +11,7 @@ from .views import (
     ProfessionalCommissionView,
     ProcedureListView, ProcedureDetailView,
     ProcedimentoConvenioPrecosMatrixView, ProcedurePrecosConvenioView,
-    PaymentListView, PaymentDetailView,
+    PaymentListView, PaymentDetailView, PaymentParcelaView,
     FinanceiroResumoView, CategoriaDespesaListView, DespesaListView, DespesaDetailView,
     AgendaView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView,
     AgendaPagamentoView, AgendaReenviarMensagemView,
@@ -174,6 +174,7 @@ urlpatterns = [
     # Pagamentos / Financeiro
     path('payments/', PaymentListView.as_view(), name='payments-list'),
     path('payments/<int:pk>/', PaymentDetailView.as_view(), name='payments-detail'),
+    path('payments/<int:pk>/parcelas/', PaymentParcelaView.as_view(), name='payments-parcelas'),
     path('financeiro/resumo/', FinanceiroResumoView.as_view(), name='financeiro-resumo'),
     path('despesas/categorias/', CategoriaDespesaListView.as_view(), name='despesas-categorias'),
     path('despesas/', DespesaListView.as_view(), name='despesas-list'),

@@ -19,8 +19,11 @@ export const lojaApi = {
 export const financeiroApi = {
   resumo: (params?: { mes?: number; ano?: number }) => cbGet("/financeiro/resumo/", params),
   payments: {
-    baixa: (id: number, data: { amount: number; payment_method: string; payment_date?: string }) =>
-      cbPut(`/payments/${id}/`, { ...data, status: "PAID", mark_as_paid: true }),
+    parcelas: {
+      list: (paymentId: number) => cbGet(`/payments/${paymentId}/parcelas/`),
+      add: (paymentId: number, data: { valor: number; payment_method: string; payment_date: string; observacoes?: string }) =>
+        cbPost(`/payments/${paymentId}/parcelas/`, data),
+    },
   },
   despesas: {
     list: (params?: { status?: string; categoria?: number; date?: string; page?: number; page_size?: number }) =>

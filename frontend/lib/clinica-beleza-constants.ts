@@ -13,6 +13,7 @@ export const CLINICA_FORMA_PAGAMENTO_LABEL: Record<string, string> = {
 export const CLINICA_PAGAMENTO_STATUS_LABEL: Record<string, string> = {
   PENDING: 'Pendente',
   PAID: 'Pago',
+  PARTIAL: 'Parcial',
   CANCELLED: 'Cancelado',
 };
 

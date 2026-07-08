@@ -28,11 +28,17 @@ class Payment(LojaIsolationMixin, models.Model):
     STATUS_CHOICES = (
         ('PENDING', 'Pendente'),
         ('PAID', 'Pago'),
+        ('PARTIAL', 'Parcialmente pago'),
         ('CANCELLED', 'Cancelado'),
     )
 
     appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, verbose_name="Agendamento")
-    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor cobrado")
+    valor_total = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        verbose_name="Valor total original",
+        help_text="Valor total do atendimento. Quando há parcelas, amount pode diferir.",
+    )
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, verbose_name="Método de Pagamento")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING', verbose_name="Status")
     payment_date = models.DateTimeField(blank=True, null=True, verbose_name="Data do Pagamento")
@@ -41,7 +47,7 @@ class Payment(LojaIsolationMixin, models.Model):
     comissao_valor = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Comissão R$")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
-    
+
     objects = LojaIsolationManager()
 
     class Meta:
@@ -57,6 +63,58 @@ class Payment(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f"Pagamento {self.id} - R$ {self.amount}"
+
+    @property
+    def valor_total_efetivo(self):
+        """Valor total do atendimento (usa valor_total se definido, senão amount)."""
+        from decimal import Decimal
+        return self.valor_total if self.valor_total is not None else self.amount
+
+    @property
+    def valor_pago_parcelas(self):
+        """Soma de todos os pagamentos parciais já quitados."""
+        from decimal import Decimal
+        return self.parcelas.filter(status='PAID').aggregate(
+            total=models.Sum('valor')
+        )['total'] or Decimal('0')
+
+    @property
+    def saldo_devedor(self):
+        """Valor ainda em aberto = total - parcelas pagas."""
+        return self.valor_total_efetivo - self.valor_pago_parcelas
+
+
+class PaymentParcela(LojaIsolationMixin, models.Model):
+    """Registro de cada entrada de pagamento parcial de um Payment."""
+    PAYMENT_METHOD_CHOICES = Payment.PAYMENT_METHOD_CHOICES
+    STATUS_CHOICES = (
+        ('PAID', 'Pago'),
+        ('CANCELLED', 'Cancelado'),
+    )
+
+    payment = models.ForeignKey(
+        Payment, on_delete=models.CASCADE, related_name='parcelas',
+        verbose_name="Pagamento",
+    )
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor recebido")
+    payment_method = models.CharField(
+        max_length=20, choices=PAYMENT_METHOD_CHOICES, verbose_name="Forma de pagamento",
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PAID', verbose_name="Status")
+    payment_date = models.DateField(verbose_name="Data do pagamento")
+    observacoes = models.TextField(blank=True, default='', verbose_name="Observações")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = 'clinica_beleza'
+        verbose_name = "Parcela de pagamento"
+        verbose_name_plural = "Parcelas de pagamento"
+        ordering = ['payment_date', 'created_at']
+
+    def __str__(self):
+        return f"Parcela {self.id} — R$ {self.valor} em {self.payment_date}"
 
 
 

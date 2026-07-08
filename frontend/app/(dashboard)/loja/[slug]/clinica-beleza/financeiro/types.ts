@@ -13,6 +13,9 @@ export interface FinanceiroPayment {
   id: number;
   appointment: number;
   amount: string;
+  valor_total: string | null;
+  valor_total_efetivo: number;
+  saldo_devedor: number;
   payment_method: string;
   status: string;
   payment_date: string | null;

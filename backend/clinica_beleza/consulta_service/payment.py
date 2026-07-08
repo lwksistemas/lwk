@@ -63,6 +63,50 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
     return payment
 
 
+def garantir_conta_pendente_consulta(consulta) -> None:
+    """Cria conta a receber (Payment PENDING) quando a consulta está em RECEBER."""
+    if consulta.status != 'RECEBER':
+        return
+    from clinica_beleza import consulta_service
+
+    appointment = getattr(consulta, 'appointment', None)
+    if not appointment:
+        return
+
+    consulta_service._garantir_valor_consulta_consulta(consulta)
+    valor_total = consulta_service._valor_pagamento_padrao(appointment, consulta)
+    if valor_total <= 0:
+        return
+
+    comissao_pct, comissao_val = consulta_service.calcular_comissao_payment_atendimento(
+        appointment=appointment,
+        consulta=consulta,
+        amount=valor_total,
+    )
+
+    payment = consulta_service.Payment.objects.filter(appointment=appointment).first()
+    if not payment:
+        consulta_service.Payment.objects.create(
+            appointment=appointment,
+            amount=Decimal('0'),
+            valor_total=valor_total,
+            payment_method='CASH',
+            status='PENDING',
+            comissao_percentual=comissao_pct,
+            comissao_valor=comissao_val,
+            loja_id=appointment.loja_id,
+        )
+        return
+
+    if payment.status in ('PENDING', 'PARTIAL'):
+        payment.valor_total = valor_total
+        payment.comissao_percentual = comissao_pct
+        payment.comissao_valor = comissao_val
+        payment.save(update_fields=[
+            'valor_total', 'comissao_percentual', 'comissao_valor', 'updated_at',
+        ])
+
+
 def _atualizar_status_consulta_apos_recebimento(consulta, payment) -> None:
     """Após recebimento: SCHEDULED se quitou e não iniciou; IN_PROGRESS se já em atendimento."""
     try:

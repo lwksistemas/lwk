@@ -117,3 +117,39 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         consulta = MagicMock(status='COMPLETED', appointment=MagicMock())
         with self.assertRaisesMessage(ValueError, 'aberta para recebimento'):
             registrar_recebimento_consulta(consulta, amount=Decimal('50'))
+
+
+class GarantirContaPendenteConsultaTest(SimpleTestCase):
+    @patch('clinica_beleza.consulta_service.Payment')
+    @patch('clinica_beleza.consulta_service._garantir_valor_consulta_consulta')
+    @patch('clinica_beleza.consulta_service._valor_pagamento_padrao')
+    @patch('clinica_beleza.consulta_service.calcular_comissao_payment_atendimento')
+    def test_cria_payment_pendente_quando_receber(
+        self,
+        mock_comissao,
+        mock_valor_padrao,
+        _mock_garantir,
+        mock_payment_model,
+    ):
+        from clinica_beleza.consulta_service.payment import garantir_conta_pendente_consulta
+
+        mock_comissao.return_value = (Decimal('10'), Decimal('20'))
+        mock_valor_padrao.return_value = Decimal('250')
+        mock_payment_model.objects.filter.return_value.first.return_value = None
+
+        consulta = MagicMock(status='RECEBER', appointment=MagicMock(loja_id=1))
+
+        garantir_conta_pendente_consulta(consulta)
+
+        mock_payment_model.objects.create.assert_called_once()
+        kwargs = mock_payment_model.objects.create.call_args.kwargs
+        self.assertEqual(kwargs['status'], 'PENDING')
+        self.assertEqual(kwargs['valor_total'], Decimal('250'))
+        self.assertEqual(kwargs['amount'], Decimal('0'))
+
+    def test_ignora_quando_nao_receber(self):
+        from clinica_beleza.consulta_service.payment import garantir_conta_pendente_consulta
+
+        consulta = MagicMock(status='SCHEDULED', appointment=MagicMock())
+        garantir_conta_pendente_consulta(consulta)
+        consulta.appointment.assert_not_called()

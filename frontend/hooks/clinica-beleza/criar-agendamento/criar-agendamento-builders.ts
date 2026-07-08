@@ -76,7 +76,9 @@ export function computeCriarAgendamentoPricing(
 export function getCriarAgendamentoModalLabels(isConsulta: boolean, createLoading: boolean) {
   return {
     modalTitle: isConsulta ? "Nova consulta" : "Novo agendamento",
-    modalSubtitle: isConsulta ? "Abrir consulta na clínica" : "Agendar atendimento na clínica",
+    modalSubtitle: isConsulta
+      ? "Abrir consulta na clínica — receba o pagamento em Consultas"
+      : "Agendar atendimento na clínica",
     submitLabel: isConsulta
       ? createLoading
         ? "Abrindo..."

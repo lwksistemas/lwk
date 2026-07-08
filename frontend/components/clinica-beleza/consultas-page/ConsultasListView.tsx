@@ -118,6 +118,7 @@ const ConsultaDetailShell = dynamic(
 interface ConsultaDetailViewProps {
   consulta: Consulta;
   detailPreloaded: boolean;
+  autoAbrirReceber?: boolean;
   onBack: () => void;
   onSelectConsulta: (c: Consulta) => void;
   onListRefresh: () => void;
@@ -126,6 +127,7 @@ interface ConsultaDetailViewProps {
 export function ConsultaDetailView({
   consulta,
   detailPreloaded,
+  autoAbrirReceber = false,
   onBack,
   onSelectConsulta,
   onListRefresh,
@@ -134,6 +136,7 @@ export function ConsultaDetailView({
     <ConsultaDetailShell
       consulta={consulta}
       detailPreloaded={detailPreloaded}
+      autoAbrirReceber={autoAbrirReceber}
       onBack={onBack}
       onSelectConsulta={onSelectConsulta}
       onListRefresh={onListRefresh}

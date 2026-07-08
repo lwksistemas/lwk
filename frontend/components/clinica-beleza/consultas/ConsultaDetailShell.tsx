@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
 import { toUpperCase } from "@/lib/format-br";
+import { deveAbrirReceberAutomatico } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import { type Consulta, consultaProcedimentosNomes } from "./consultas-types";
 import { ConsultaDetailHeaderActions } from "./ConsultaDetailHeaderActions";
 import { ConsultaDetailStatusBar } from "./ConsultaDetailStatusBar";
@@ -17,6 +19,7 @@ const MemedPrescricao = dynamic(() => import("./MemedPrescricao"), { ssr: false 
 interface ConsultaDetailShellProps {
   consulta: Consulta;
   detailPreloaded?: boolean;
+  autoAbrirReceber?: boolean;
   onBack: () => void;
   onSelectConsulta: (c: Consulta) => void;
   onListRefresh: () => void | Promise<void>;
@@ -25,6 +28,7 @@ interface ConsultaDetailShellProps {
 export function ConsultaDetailShell({
   consulta,
   detailPreloaded = false,
+  autoAbrirReceber = false,
   onBack,
   onSelectConsulta,
   onListRefresh,
@@ -45,6 +49,14 @@ export function ConsultaDetailShell({
   });
 
   const { selected, tab, refreshConsulta } = loader;
+  const autoReceberDisparado = useRef(false);
+
+  useEffect(() => {
+    if (!autoAbrirReceber || autoReceberDisparado.current) return;
+    if (!deveAbrirReceberAutomatico(selected)) return;
+    autoReceberDisparado.current = true;
+    actions.setShowReceberModal(true);
+  }, [actions, autoAbrirReceber, selected]);
 
   return (
     <>

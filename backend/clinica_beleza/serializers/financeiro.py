@@ -72,10 +72,16 @@ class PaymentSerializer(serializers.ModelSerializer):
         return _procedimentos_nome_agendamento(obj.appointment)
 
     def get_valor_total_efetivo(self, obj):
-        return float(obj.valor_total_efetivo)
+        try:
+            return float(obj.valor_total_efetivo)
+        except Exception:
+            return float(obj.amount or 0)
 
     def get_saldo_devedor(self, obj):
-        return float(obj.saldo_devedor)
+        try:
+            return float(obj.saldo_devedor)
+        except Exception:
+            return float(obj.amount or 0)
 
     class Meta:
         model = Payment

@@ -152,25 +152,33 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         vc = Decimal(str(obj.valor_consulta or 0))
         return float(vc + self._appointment_valor_procedimentos(obj))
 
+    def _get_latest_payment_row(self, obj):
+        try:
+            from ..models import Payment
+            appointment = getattr(obj, 'appointment', None)
+            if not appointment:
+                return None
+            return (
+                Payment.objects
+                .filter(appointment=appointment)
+                .values('amount', 'status')
+                .order_by('-id')
+                .first()
+            )
+        except Exception:
+            return None
+
     def get_valor_pago(self, obj):
-        from ..models import Payment
-        appointment = getattr(obj, 'appointment', None)
-        if not appointment:
+        row = self._get_latest_payment_row(obj)
+        if row is None:
             return None
-        payment = Payment.objects.filter(appointment=appointment).order_by('-id').first()
-        if not payment:
-            return None
-        return float(payment.amount or 0)
+        return float(row['amount'] or 0)
 
     def get_payment_status(self, obj):
-        from ..models import Payment
-        appointment = getattr(obj, 'appointment', None)
-        if not appointment:
+        row = self._get_latest_payment_row(obj)
+        if row is None:
             return None
-        payment = Payment.objects.filter(appointment=appointment).order_by('-id').first()
-        if not payment:
-            return None
-        return payment.status
+        return row['status']
 
     def get_convenio_name(self, obj):
         if obj.convenio_id and obj.convenio:

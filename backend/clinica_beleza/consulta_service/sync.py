@@ -35,6 +35,9 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
         if not created and consulta.status not in ('IN_PROGRESS', 'COMPLETED'):
             consulta.status = status_inicial
             consulta.save(update_fields=['status', 'updated_at'])
+        if consulta.status == 'RECEBER':
+            from .payment import garantir_conta_pendente_consulta
+            garantir_conta_pendente_consulta(consulta)
         return consulta
 
     if new_status in ('CLIENT_CONFIRMED', 'PHONE_CONFIRMED'):

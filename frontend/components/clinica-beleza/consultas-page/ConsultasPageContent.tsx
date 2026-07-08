@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { useAgendamentoCadastros } from "@/hooks/clinica-beleza/useAgendamentoCadastros";
@@ -32,13 +33,18 @@ export function ConsultasPageContent() {
   const agendaModals = useConsultasAgendaModals();
   const novaConsulta = useConsultasNovaConsulta(slug);
   const deepLink = useConsultasDeepLink(slug, consultas);
+  const [autoAbrirReceber, setAutoAbrirReceber] = useState(false);
 
   if (deepLink.selected) {
     return (
       <ConsultaDetailView
         consulta={deepLink.selected}
         detailPreloaded={deepLink.detailPreloaded}
-        onBack={deepLink.voltarLista}
+        autoAbrirReceber={autoAbrirReceber}
+        onBack={() => {
+          setAutoAbrirReceber(false);
+          deepLink.voltarLista();
+        }}
         onSelectConsulta={(c) => deepLink.abrirConsulta(c, false)}
         onListRefresh={loadConsultas}
       />
@@ -66,12 +72,15 @@ export function ConsultasPageContent() {
         novaConsultaDate={novaConsulta.novaConsultaDate}
         onFecharNovaConsulta={novaConsulta.fecharNovaConsulta}
         onConsultaCreated={(consultaId) => {
+          setAutoAbrirReceber(true);
           ClinicaBelezaAPI.consultas
             .get(consultaId)
             .then((c) => {
               deepLink.abrirConsulta(c as Consulta, true);
             })
-            .catch(() => {});
+            .catch(() => {
+              setAutoAbrirReceber(false);
+            });
         }}
         onAgendamentoSuccess={() => {
           void loadConsultas();

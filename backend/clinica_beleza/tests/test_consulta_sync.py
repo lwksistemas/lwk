@@ -28,9 +28,10 @@ class StatusInicialConsultaTest(SimpleTestCase):
 
 
 class SyncConsultaConfirmedTest(SimpleTestCase):
+    @patch('clinica_beleza.consulta_service.payment.garantir_conta_pendente_consulta')
     @patch('clinica_beleza.consulta_service.Consulta')
     @patch('clinica_beleza.consulta_service.sync._consulta_defaults_from_appointment')
-    def test_confirmed_cria_consulta_receber(self, mock_defaults, mock_consulta_model):
+    def test_confirmed_cria_consulta_receber(self, mock_defaults, mock_consulta_model, mock_conta):
         appointment = MagicMock(valor_total=Decimal('0'))
         mock_defaults.return_value = {
             'valor_consulta': Decimal('80'),
@@ -44,6 +45,7 @@ class SyncConsultaConfirmedTest(SimpleTestCase):
         self.assertIs(result, consulta)
         kwargs = mock_consulta_model.objects.get_or_create.call_args.kwargs
         self.assertEqual(kwargs['defaults']['status'], 'RECEBER')
+        mock_conta.assert_called_once_with(consulta)
 
     @patch('clinica_beleza.consulta_service.Consulta')
     @patch('clinica_beleza.consulta_service.sync._consulta_defaults_from_appointment')

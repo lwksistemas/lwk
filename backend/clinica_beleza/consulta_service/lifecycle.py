@@ -115,6 +115,9 @@ def criar_consulta_avulsa(
         if consulta.retorno_gratuito or total <= 0:
             consulta.status = 'SCHEDULED'
             consulta.save(update_fields=['status', 'updated_at'])
+    if consulta.status == 'RECEBER':
+        from .payment import garantir_conta_pendente_consulta
+        garantir_conta_pendente_consulta(consulta)
     return consulta
 
 

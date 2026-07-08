@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
@@ -10,9 +11,12 @@ import { FinanceiroDespesasTab } from "./components/FinanceiroDespesasTab";
 import { FinanceiroReceitasTab } from "./components/FinanceiroReceitasTab";
 import { FinanceiroResumoCards } from "./components/FinanceiroResumoCards";
 import { FinanceiroTabBar } from "./components/FinanceiroTabBar";
+import { ModalBaixaPayment } from "./components/ModalBaixaPayment";
+import type { FinanceiroPayment } from "./types";
 
 export default function FinanceiroClinicaPage() {
   const f = useFinanceiroPage();
+  const [baixaPayment, setBaixaPayment] = useState<FinanceiroPayment | null>(null);
 
   return (
     <>
@@ -62,6 +66,7 @@ export default function FinanceiroClinicaPage() {
                 onProfessionalFilterChange={f.setProfessionalFilter}
                 onDateFilterChange={f.setDateFilter}
                 onPageChange={f.setPaymentsPage}
+                onBaixa={(p) => setBaixaPayment(p)}
               />
             ) : (
               <FinanceiroDespesasTab
@@ -85,6 +90,11 @@ export default function FinanceiroClinicaPage() {
         )}
       </ClinicaBelezaPageContent>
 
+      <ModalBaixaPayment
+        payment={baixaPayment}
+        onClose={() => setBaixaPayment(null)}
+        onSuccess={() => { setBaixaPayment(null); void f.loadAll(); }}
+      />
       <DespesaFormModal
         open={f.showDespesaModal}
         editing={f.editingDespesa}

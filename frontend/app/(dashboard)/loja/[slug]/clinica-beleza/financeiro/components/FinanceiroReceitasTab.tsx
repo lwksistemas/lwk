@@ -26,6 +26,7 @@ interface FinanceiroReceitasTabProps {
   onProfessionalFilterChange: (value: string) => void;
   onDateFilterChange: (value: string) => void;
   onPageChange: (page: number) => void;
+  onBaixa: (payment: FinanceiroPayment) => void;
 }
 
 export function FinanceiroReceitasTab({
@@ -44,6 +45,7 @@ export function FinanceiroReceitasTab({
   onProfessionalFilterChange,
   onDateFilterChange,
   onPageChange,
+  onBaixa,
 }: FinanceiroReceitasTabProps) {
   return (
     <>
@@ -90,6 +92,7 @@ export function FinanceiroReceitasTab({
                 <th className="text-left py-3 px-4 font-semibold">Pagamento</th>
                 <th className="text-left py-3 px-4 font-semibold">Status</th>
                 <th className="text-right py-3 px-4 font-semibold">Comissão</th>
+                <th className="py-3 px-4"></th>
               </tr>
             </thead>
             <tbody>
@@ -119,7 +122,13 @@ export function FinanceiroReceitasTab({
                       {CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}
                     </td>
                     <td className="py-3 px-4">
-                      <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-neutral-600">
+                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                        p.status === "PAID"
+                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                          : p.status === "PENDING"
+                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                          : "bg-gray-100 dark:bg-neutral-600"
+                      }`}>
                         {CLINICA_PAGAMENTO_STATUS_LABEL[p.status] || p.status}
                       </span>
                     </td>
@@ -130,6 +139,17 @@ export function FinanceiroReceitasTab({
                           ref. {p.comissao_percentual}% do total
                         </span>
                       ) : null}
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      {p.status === "PENDING" && (
+                        <button
+                          type="button"
+                          onClick={() => onBaixa(p)}
+                          className="text-xs px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium whitespace-nowrap"
+                        >
+                          Dar Baixa
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

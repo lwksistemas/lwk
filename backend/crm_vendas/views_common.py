@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class CRMPagination(PageNumberPagination):
     page_size = 50
     page_size_query_param = 'page_size'
-    max_page_size = 100
+    max_page_size = 500
 
 
 def aplicar_cache_control_sem_store(response):

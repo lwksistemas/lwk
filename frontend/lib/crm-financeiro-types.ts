@@ -64,7 +64,7 @@ export async function fetchLancamentosPorTipo(
   dataInicio: string,
   dataFim: string,
 ): Promise<LancamentoFinanceiro[]> {
-  const params = new URLSearchParams({ tipo, page_size: '100', periodo });
+  const params = new URLSearchParams({ tipo, page_size: '500', periodo });
   if (vendedorFiltro) params.set('vendedor_id', vendedorFiltro);
   if (periodo === 'personalizado' && dataInicio && dataFim) {
     params.set('data_inicio', dataInicio);

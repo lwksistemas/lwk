@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { X, MessageCircle } from "lucide-react";
 import {
   CLINICA_AGENDA_STATUS_COLORS,
   getAgendaStatusLabel,
   normalizeAgendaStatus,
 } from "@/lib/clinica-beleza-constants";
+import { buildConsultaDetailHref } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 
 export type { AgendaEventData };
@@ -53,6 +56,9 @@ export function ModalDetalheAgendamento({
   updatingStatus,
   reenviandoMensagem,
 }: ModalDetalheAgendamentoProps) {
+  const params = useParams();
+  const slug = params.slug as string;
+
   if (!open || !event) return null;
 
   const status = event.extendedProps.status || "SCHEDULED";
@@ -168,9 +174,21 @@ export function ModalDetalheAgendamento({
                 Confirmado por ligação (recepção). Quando o cliente chegar, altere para &quot;Cliente presente&quot;.
               </p>
             ) : status === "CONFIRMED" ? (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                Consulta criada. Receba o pagamento em Consultas antes ou durante o atendimento.
-              </p>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 space-y-2">
+                <p>
+                  Consulta criada com status <strong className="text-amber-700 dark:text-amber-400">RECEBER</strong>.
+                  O pagamento é feito em Consultas (botão Receber), antes ou durante o atendimento — sem bloquear o início.
+                </p>
+                {event.extendedProps.consulta_id != null && (
+                  <Link
+                    href={buildConsultaDetailHref(slug, event.extendedProps.consulta_id)}
+                    className="inline-flex text-sm font-medium text-amber-700 dark:text-amber-300 hover:underline"
+                    onClick={onClose}
+                  >
+                    Abrir consulta em Consultas →
+                  </Link>
+                )}
+              </div>
             ) : status === "CANCELLED" ? (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
                 Cancelado pelo cliente (WhatsApp) ou pela recepção.

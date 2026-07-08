@@ -28,6 +28,8 @@ export function ModalReceberConsulta({
 }: ModalReceberConsultaProps) {
   const saldo = saldoReceberConsulta(consulta);
   const total = valorPagamentoConsulta(consulta);
+  const valorConsulta = Number(consulta.valor_consulta ?? 0);
+  const valorProcedimentos = Number(consulta.valor_procedimentos ?? 0);
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [markAsPaid, setMarkAsPaid] = useState(true);
   const [amount, setAmount] = useState(String(saldo || total || ""));
@@ -102,6 +104,12 @@ export function ModalReceberConsulta({
               <strong>Procedimento:</strong> {consultaProcedimentosNomes(consulta)}
             </p>
             <p>
+              <strong>Valor da consulta:</strong> {formatCurrency(valorConsulta)}
+            </p>
+            <p>
+              <strong>Valor do procedimento:</strong> {formatCurrency(valorProcedimentos)}
+            </p>
+            <p className="font-semibold text-gray-800 dark:text-gray-200 pt-0.5">
               <strong>Total:</strong> {formatCurrency(total)}
             </p>
             {Number(consulta.valor_pago ?? 0) > 0 && (

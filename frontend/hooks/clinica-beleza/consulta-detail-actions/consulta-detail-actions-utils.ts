@@ -35,10 +35,6 @@ export function saldoReceberConsulta(c: Consulta): number {
   return Math.max(0, total - pago);
 }
 
-export function deveAbrirReceberAutomatico(c: Consulta): boolean {
-  return c.status === "RECEBER" && saldoReceberConsulta(c) > 0;
-}
-
 export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) {
   const outraConsultaEmAndamento = historico.find(
     (c) => c.id !== selected.id && c.status === "IN_PROGRESS",

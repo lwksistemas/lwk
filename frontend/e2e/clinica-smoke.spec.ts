@@ -55,4 +55,23 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     await visitarClinicaAutenticado(page, '/agenda', slug);
     await expect(page.getByRole('heading', { name: /^agenda$/i })).toBeVisible({ timeout: 20000 });
   });
+
+  test('fluxo autenticado — coluna pagamento e financeiro', async ({ page }) => {
+    test.skip(!clinicaE2eCredentials(), 'Defina CLINICA_E2E_* ou CRM_E2E_*');
+
+    const ok = await loginClinicaLoja(page, slug);
+    test.skip(!ok, 'Loja clínica indisponível neste ambiente');
+
+    await visitarClinicaAutenticado(page, '/clinica-beleza/consultas', slug);
+    await expect(page.getByRole('heading', { name: /^consultas$/i })).toBeVisible({ timeout: 20000 });
+    // Coluna PAGAMENTO da lista (Receber / Pago / Parcial)
+    const pagamentoHeader = page.getByRole('columnheader', { name: /pagamento/i });
+    const temColuna = (await pagamentoHeader.count()) > 0;
+    const temBotaoReceber = (await page.getByRole('button', { name: /receber|parcial|pago/i }).count()) > 0;
+    const listaVazia = /nenhuma consulta/i.test(await page.locator('body').innerText());
+    expect(temColuna || temBotaoReceber || listaVazia).toBeTruthy();
+
+    await visitarClinicaAutenticado(page, '/clinica-beleza/financeiro', slug);
+    await expect(page.getByRole('heading', { name: /financeiro/i })).toBeVisible({ timeout: 20000 });
+  });
 });

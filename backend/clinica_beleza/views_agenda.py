@@ -194,7 +194,7 @@ class AgendaCreateView(APIView):
 class AgendaPagamentoView(APIView):
     """
     POST /clinica-beleza/agenda/<id>/pagamento/
-    Registra pagamento antecipado (recepção) quando cliente chega (CONFIRMED).
+    Delega ao mesmo fluxo de recebimento da consulta (parcelas + status RECEBER).
     """
     permission_classes = CLINICA_AGENDA
 
@@ -202,7 +202,9 @@ class AgendaPagamentoView(APIView):
         try:
             appointment = (
                 Appointment.objects
-                .select_related('patient', 'professional', 'procedure', 'local_atendimento')
+                .select_related(
+                    'patient', 'professional', 'procedure', 'local_atendimento', 'consulta',
+                )
                 .prefetch_related('appointment_procedures__procedure')
                 .get(pk=pk)
             )
@@ -213,62 +215,35 @@ class AgendaPagamentoView(APIView):
         if not appointment_in_agenda_scope(appointment, scope):
             return _agenda_scope_forbidden_response()
 
-        from .models import Payment
-        from .consulta_service import (
-            _valor_pagamento_padrao, _garantir_valor_consulta_consulta,
-            calcular_comissao_payment_atendimento,
-        )
-        from django.utils.timezone import now as tz_now
-        from decimal import Decimal
+        from .consulta_service import registrar_recebimento_consulta, sync_consulta_from_appointment_status
+        from .serializers.financeiro import PaymentSerializer
+
+        consulta = getattr(appointment, 'consulta', None)
+        if not consulta:
+            # Garante consulta RECEBER a partir do agendamento
+            sync_consulta_from_appointment_status(appointment, appointment.status)
+            appointment.refresh_from_db()
+            consulta = getattr(appointment, 'consulta', None)
+        if not consulta:
+            return Response(
+                {'error': 'Consulta não encontrada para este agendamento. Marque Cliente presente primeiro.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         mark_as_paid = bool(request.data.get('mark_as_paid'))
         payment_method = (request.data.get('payment_method') or '').strip() or 'CASH'
         amount_raw = request.data.get('amount')
 
-        # Calcular valor padrão
-        consulta = getattr(appointment, 'consulta', None)
-        if amount_raw:
-            valor = Decimal(str(amount_raw))
-        elif consulta:
-            _garantir_valor_consulta_consulta(consulta)
-            valor = _valor_pagamento_padrao(appointment, consulta)
-        else:
-            from .consulta_service import _valor_consulta
-            vc = _valor_consulta(appointment)
-            vp = appointment.valor_total or Decimal('0')
-            valor = vc + vp
-
-        comissao_pct, comissao_val = calcular_comissao_payment_atendimento(
-            appointment=appointment,
-            consulta=consulta,
-            amount=valor,
-        )
-
-        payment = Payment.objects.filter(appointment=appointment).first()
-        ts = tz_now()
-        if not payment:
-            payment = Payment.objects.create(
-                appointment=appointment,
-                amount=valor,
+        try:
+            payment = registrar_recebimento_consulta(
+                consulta,
                 payment_method=payment_method,
-                status='PAID' if mark_as_paid else 'PENDING',
-                payment_date=ts if mark_as_paid else None,
-                comissao_percentual=comissao_pct,
-                comissao_valor=comissao_val,
-                loja_id=appointment.loja_id,
+                amount=amount_raw,
+                mark_as_paid=mark_as_paid,
             )
-        else:
-            payment.amount = valor
-            payment.payment_method = payment_method
-            if mark_as_paid:
-                payment.status = 'PAID'
-                if not payment.payment_date:
-                    payment.payment_date = ts
-            payment.comissao_percentual = comissao_pct
-            payment.comissao_valor = comissao_val
-            payment.save()
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        from .serializers.financeiro import PaymentSerializer
         return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
 

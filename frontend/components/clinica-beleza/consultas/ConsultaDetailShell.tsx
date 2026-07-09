@@ -71,26 +71,23 @@ export function ConsultaDetailShell({
       />
       <div className="min-h-full bg-[#f7f2f4] dark:bg-gray-950 flex flex-col">
         <div className="px-4 md:px-6 pt-2 pb-4 border-b border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80">
-          {!actions.consultaAtiva && (
-            <ConsultaDetailStatusBar
-              selected={selected}
-              procedimentosRealizados={actions.procedimentosRealizados}
-              formatData={actions.formatData}
-              valorPagamentoConsulta={actions.valorPagamentoConsulta}
-              outraConsultaEmAndamento={actions.outraConsultaEmAndamento}
-              podeIniciar={actions.podeIniciar}
-              podeFinalizar={actions.podeFinalizar}
-              podeExcluir={actions.podeExcluir}
-              mostrarReceber={actions.mostrarReceber}
-              mostrarPago={actions.mostrarPago}
-              recebendo={actions.recebendo}
-              iniciando={actions.iniciando}
-              onIniciar={() => actions.iniciarConsulta()}
-              onReceber={actions.abrirReceberModal}
-              onFinalizar={actions.abrirFinalizarModal}
-              onExcluir={actions.excluirConsulta}
-            />
-          )}
+          <ConsultaDetailStatusBar
+            selected={selected}
+            procedimentosRealizados={actions.procedimentosRealizados}
+            formatData={actions.formatData}
+            valorPagamentoConsulta={actions.valorPagamentoConsulta}
+            outraConsultaEmAndamento={actions.outraConsultaEmAndamento}
+            podeIniciar={actions.podeIniciar}
+            podeFinalizar={actions.podeFinalizar}
+            podeExcluir={actions.podeExcluir}
+            consultaAtiva={actions.consultaAtiva}
+            recebendo={actions.recebendo}
+            iniciando={actions.iniciando}
+            onIniciar={() => actions.iniciarConsulta()}
+            onReceber={actions.abrirReceberModal}
+            onFinalizar={actions.abrirFinalizarModal}
+            onExcluir={actions.excluirConsulta}
+          />
           <ConsultaDetailTabBar
             tab={tab}
             selected={selected}

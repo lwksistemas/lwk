@@ -54,7 +54,8 @@ export function ConsultasPageContent() {
     async (atualizada: Consulta) => {
       setReceberConsulta(atualizada);
       await loadConsultas();
-      setReceberConsulta(null);
+      // NÃO fechar o modal aqui — o modal mostra tela de recibo após confirmar.
+      // O usuário fecha manualmente via onClose após imprimir/enviar recibo.
     },
     [loadConsultas],
   );

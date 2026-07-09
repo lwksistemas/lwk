@@ -96,7 +96,11 @@ class PaymentParcelaView(APIView):
 
     def _get_payment(self, pk):
         try:
-            return Payment.objects.get(pk=pk), None
+            return (
+                Payment.objects
+                .select_related('appointment', 'appointment__consulta')
+                .get(pk=pk)
+            ), None
         except Payment.DoesNotExist:
             return None, Response({'error': 'Pagamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -136,35 +140,99 @@ class PaymentParcelaView(APIView):
         payment_date = request.data.get('payment_date') or now().date().isoformat()
         observacoes = request.data.get('observacoes') or ''
 
-        parcela = PaymentParcela.objects.create(
-            payment=payment,
-            valor=valor,
-            payment_method=payment_method,
-            payment_date=payment_date,
-            observacoes=observacoes,
-            loja_id=payment.loja_id,
-        )
-
-        total_pago = payment.valor_pago_parcelas
-        total_devedor = payment.valor_total_efetivo
-
-        if total_pago >= total_devedor:
-            payment.status = 'PAID'
-            payment.amount = total_pago
-            payment.payment_date = now()
+        consulta = getattr(payment.appointment, 'consulta', None)
+        if consulta and consulta.status not in ('COMPLETED', 'CANCELLED'):
+            from .consulta_service import registrar_recebimento_consulta
+            try:
+                payment = registrar_recebimento_consulta(
+                    consulta,
+                    payment_method=payment_method,
+                    amount=valor,
+                    mark_as_paid=False,
+                )
+            except ValueError as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            parcela = payment.parcelas.order_by('-id').first()
         else:
-            payment.status = 'PARTIAL'
-            payment.amount = total_pago
-
-        payment.save(update_fields=['status', 'amount', 'payment_date', 'updated_at'])
+            parcela = PaymentParcela.objects.create(
+                payment=payment,
+                valor=valor,
+                payment_method=payment_method,
+                payment_date=payment_date,
+                observacoes=observacoes,
+                loja_id=payment.loja_id,
+            )
+            total_pago = payment.valor_pago_parcelas
+            total_devedor = payment.valor_total_efetivo
+            if total_pago >= total_devedor:
+                payment.status = 'PAID'
+                payment.amount = total_pago
+                payment.payment_date = now()
+            else:
+                payment.status = 'PARTIAL'
+                payment.amount = total_pago
+            payment.save(update_fields=['status', 'amount', 'payment_date', 'updated_at'])
 
         return Response({
-            'parcela': PaymentParcelaSerializer(parcela).data,
+            'parcela': PaymentParcelaSerializer(parcela).data if parcela else None,
             'valor_total': float(payment.valor_total_efetivo),
-            'valor_pago': float(total_pago),
+            'valor_pago': float(payment.valor_pago_parcelas),
             'saldo_devedor': float(payment.saldo_devedor),
             'status': payment.status,
         }, status=status.HTTP_201_CREATED)
+
+
+class PaymentEnviarReciboView(GetObjectMixin, APIView):
+    """POST /clinica-beleza/payments/<id>/enviar-recibo/ — envia recibo por email ou WhatsApp."""
+    permission_classes = CLINICA_FINANCEIRO
+    model_class = Payment
+    not_found_message = 'Pagamento não encontrado'
+    select_related_fields = ('appointment', 'appointment__patient')
+
+    def post(self, request, pk):
+        from .recibo_service import enviar_recibo_pagamento
+
+        payment, err = self.object_or_404(pk)
+        if err:
+            return err
+
+        canal = (request.data.get('canal') or '').strip()
+        if canal not in ('email', 'whatsapp'):
+            return Response({'error': 'Canal deve ser "email" ou "whatsapp".'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ok, msg = enviar_recibo_pagamento(payment, canal=canal)
+        if ok:
+            return Response({'success': True, 'message': msg})
+        return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ReciboPdfPublicView(APIView):
+    """GET /clinica-beleza/payments/<id>/recibo-pdf/<token>/ — retorna PDF público (para WhatsApp)."""
+    permission_classes = []
+    authentication_classes = []
+
+    def get(self, request, pk, token):
+        from django.core.cache import cache as django_cache
+        from django.http import HttpResponse
+
+        cache_key = f'recibo_pdf_{token}'
+        cached = django_cache.get(cache_key)
+        if not cached:
+            return Response({'error': 'Recibo expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Token amarrado ao payment id (dict) ou bytes legados
+        if isinstance(cached, dict):
+            if cached.get('payment_id') != pk:
+                return Response({'error': 'Recibo expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
+            pdf_bytes = cached.get('pdf')
+        else:
+            pdf_bytes = cached
+        if not pdf_bytes:
+            return Response({'error': 'Recibo expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
+
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="recibo_{pk}.pdf"'
+        return response
 
 
 class FinanceiroResumoView(APIView):
@@ -200,7 +268,15 @@ class FinanceiroResumoView(APIView):
             payment_date__date__gte=first_day,
             payment_date__date__lte=period_end,
         ))
-        contas_a_receber = _sum(Payment.objects.filter(status='PENDING'))
+        # PENDING: amount costuma ser 0 com valor_total; PARTIAL: saldo = valor_total - amount
+        contas_pendentes = Payment.objects.filter(status='PENDING')
+        contas_parciais = Payment.objects.filter(status='PARTIAL')
+        total_pendente = 0.0
+        for p in contas_pendentes.only('amount', 'valor_total', 'status'):
+            total_pendente += float(p.saldo_devedor)
+        for p in contas_parciais.only('amount', 'valor_total', 'status'):
+            total_pendente += float(p.saldo_devedor)
+        contas_a_receber = total_pendente
         comissao_mes = float(
             Payment.objects.filter(
                 status='PAID',

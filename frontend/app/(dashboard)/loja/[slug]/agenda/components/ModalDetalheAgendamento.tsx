@@ -6,33 +6,13 @@ import { X, MessageCircle } from "lucide-react";
 import {
   CLINICA_AGENDA_STATUS_COLORS,
   getAgendaStatusLabel,
+  getAgendaStatusOpcoesModal,
   normalizeAgendaStatus,
 } from "@/lib/clinica-beleza-constants";
 import { buildConsultaDetailHref } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 
 export type { AgendaEventData };
-
-/** Mesma ordem da legenda — no modal para evitar cache de chunk compartilhado desatualizado. */
-const AGENDA_STATUS_OPCOES_MODAL = [
-  { value: "SCHEDULED", label: "Aguardando confirmação" },
-  { value: "CLIENT_CONFIRMED", label: "Confirmado pelo WhatsApp" },
-  { value: "PHONE_CONFIRMED", label: "Confirmado por ligação" },
-  { value: "CONFIRMED", label: "Cliente presente" },
-  { value: "NO_SHOW", label: "Faltou" },
-  { value: "CANCELLED", label: "Cancelado" },
-] as const;
-
-function opcoesStatusModal(currentStatus: string) {
-  const normalized = normalizeAgendaStatus(currentStatus);
-  if (AGENDA_STATUS_OPCOES_MODAL.some((o) => o.value === normalized)) {
-    return AGENDA_STATUS_OPCOES_MODAL;
-  }
-  return [
-    { value: currentStatus, label: getAgendaStatusLabel(currentStatus) },
-    ...AGENDA_STATUS_OPCOES_MODAL,
-  ];
-}
 
 interface ModalDetalheAgendamentoProps {
   open: boolean;
@@ -64,7 +44,7 @@ export function ModalDetalheAgendamento({
   const status = event.extendedProps.status || "SCHEDULED";
   const statusSomenteLeitura = status === "IN_PROGRESS" || status === "COMPLETED";
   const statusLabel = getAgendaStatusLabel(status);
-  const opcoesStatus = opcoesStatusModal(status);
+  const opcoesStatus = getAgendaStatusOpcoesModal(status);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

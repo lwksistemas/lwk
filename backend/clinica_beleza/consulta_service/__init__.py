@@ -17,7 +17,9 @@ from .messages import (
 from .payment import (
     _ensure_payment_for_appointment,
     _reabrir_recebimento_apos_procedimento,
+    _sincronizar_recebimento_apos_procedimento,
     _tentar_nfse_pos_pagamento,
+    garantir_conta_pendente_consulta,
     registrar_recebimento_consulta,
 )
 from .sync import sync_consulta_from_appointment_status
@@ -51,7 +53,9 @@ __all__ = [
     'iniciar_consulta',
     'logger',
     'motivo_bloqueio_exclusao_consulta',
+    'garantir_conta_pendente_consulta',
     'registrar_recebimento_consulta',
     'sync_consulta_from_appointment_status',
     'validar_paciente_sem_consulta_em_andamento',
+    '_sincronizar_recebimento_apos_procedimento',
 ]

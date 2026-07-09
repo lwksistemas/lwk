@@ -270,6 +270,9 @@ class PrescricaoMemed(LojaIsolationMixin, models.Model):
         ordering = ['-created_at']
         verbose_name = 'Prescrição Memed'
         verbose_name_plural = 'Prescrições Memed'
+        indexes = [
+            models.Index(fields=['patient', '-created_at'], name='cb_prescricao_patient_idx'),
+        ]
 
     def __str__(self):
         return f'Prescrição {self.patient.nome} — {self.created_at:%d/%m/%Y %H:%M}'
@@ -306,6 +309,9 @@ class ConsultaEvolucao(LojaIsolationMixin, models.Model):
         ordering = ['-created_at']
         verbose_name = 'Evolução da consulta'
         verbose_name_plural = 'Evoluções das consultas'
+        indexes = [
+            models.Index(fields=['consulta', '-created_at'], name='cb_evolucao_consulta_idx'),
+        ]
 
     def __str__(self):
         return f'Evolução {self.patient.nome} — {self.created_at:%d/%m/%Y %H:%M}'

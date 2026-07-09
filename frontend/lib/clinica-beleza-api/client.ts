@@ -72,4 +72,9 @@ export class ClinicaBelezaAPI {
   static protocolos = protocolosApi;
   static procedures = proceduresApi;
   static convenios = conveniosApi;
+
+  static payments = {
+    enviarRecibo: (paymentId: number, canal: 'email' | 'whatsapp') =>
+      ClinicaBelezaAPI.post(`/payments/${paymentId}/enviar-recibo/`, { canal }),
+  };
 }

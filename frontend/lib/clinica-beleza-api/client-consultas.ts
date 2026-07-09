@@ -28,6 +28,8 @@ export const consultasApi = {
       payment_method?: string;
       mark_as_paid?: boolean;
       amount?: number | string;
+      parcelas?: number;
+      valor_parcela?: string;
     },
   ) => cbPost(`/consultas/${id}/receber/`, data),
   finalizar: (

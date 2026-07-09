@@ -119,12 +119,14 @@ def _garantir_conta_pendente_consulta_inner(consulta) -> None:
 
 def _atualizar_status_consulta_apos_recebimento(consulta, payment) -> None:
     """Após recebimento: SCHEDULED se quitou e não iniciou; IN_PROGRESS se já em atendimento."""
-    try:
-        saldo = payment.saldo_devedor
-    except Exception:
-        saldo = Decimal('0')
+    quitado = payment.status == 'PAID'
+    if not quitado:
+        try:
+            quitado = payment.saldo_devedor <= 0
+        except Exception:
+            quitado = False
 
-    if saldo > 0:
+    if not quitado:
         consulta.status = 'RECEBER'
     elif consulta.data_inicio:
         consulta.status = 'IN_PROGRESS'
@@ -133,27 +135,51 @@ def _atualizar_status_consulta_apos_recebimento(consulta, payment) -> None:
     consulta.save(update_fields=['status', 'updated_at'])
 
 
-def _reabrir_recebimento_apos_procedimento(consulta) -> None:
-    """Se procedimento extra aumenta total após pagamento quitado, volta para RECEBER."""
+def _sincronizar_recebimento_apos_procedimento(consulta) -> None:
+    """
+    Após incluir/remover procedimento: atualiza valor_total do Payment.
+    Se total sobe após PAID → RECEBER/PARTIAL; se total cai e cobre o pago → PAID.
+    """
     from clinica_beleza import consulta_service
 
-    appointment = consulta.appointment
+    appointment = getattr(consulta, 'appointment', None)
+    if not appointment:
+        return
+
     payment = consulta_service.Payment.objects.filter(appointment=appointment).first()
-    if not payment or payment.status != 'PAID':
+    if not payment or payment.status == 'CANCELLED':
         return
 
     consulta_service._garantir_valor_consulta_consulta(consulta)
     novo_total = consulta_service._valor_pagamento_padrao(appointment, consulta)
-    pago = payment.valor_pago_parcelas if payment.parcelas.exists() else Decimal(str(payment.amount or 0))
-    if novo_total <= pago:
-        return
+    pago = payment.valor_pago_parcelas
 
     payment.valor_total = novo_total
+    if novo_total <= 0:
+        payment.status = 'PAID'
+        payment.amount = pago
+        payment.save(update_fields=['valor_total', 'status', 'amount', 'updated_at'])
+        _atualizar_status_consulta_apos_recebimento(consulta, payment)
+        return
+
+    if pago >= novo_total:
+        payment.status = 'PAID'
+        payment.amount = pago
+        payment.save(update_fields=['valor_total', 'status', 'amount', 'updated_at'])
+        _atualizar_status_consulta_apos_recebimento(consulta, payment)
+        return
+
     payment.status = 'PARTIAL' if pago > 0 else 'PENDING'
     payment.amount = pago
     payment.save(update_fields=['valor_total', 'status', 'amount', 'updated_at'])
-    consulta.status = 'RECEBER'
-    consulta.save(update_fields=['status', 'updated_at'])
+    if consulta.status not in ('COMPLETED', 'CANCELLED'):
+        consulta.status = 'RECEBER'
+        consulta.save(update_fields=['status', 'updated_at'])
+
+
+def _reabrir_recebimento_apos_procedimento(consulta) -> None:
+    """Compat: alias para sincronizar após procedimento."""
+    _sincronizar_recebimento_apos_procedimento(consulta)
 
 
 def registrar_recebimento_consulta(
@@ -215,48 +241,30 @@ def registrar_recebimento_consulta(
     except Exception:
         saldo = valor_total
 
-    if mark_as_paid and valor_recebido >= saldo:
-        if payment.parcelas.exists():
-            restante = saldo
-            if restante > 0:
-                PaymentParcela.objects.create(
-                    payment=payment,
-                    valor=restante,
-                    payment_method=payment_method,
-                    payment_date=ts.date(),
-                    loja_id=payment.loja_id,
-                )
-            payment.amount = payment.valor_pago_parcelas
-        else:
-            payment.amount = valor_recebido
-        payment.status = 'PAID'
-        payment.payment_date = ts
-        payment.save(update_fields=[
-            'amount', 'valor_total', 'payment_method', 'status', 'payment_date',
-            'comissao_percentual', 'comissao_valor', 'updated_at',
-        ])
-        _tentar_nfse_pos_pagamento(consulta, payment)
-    else:
+    # Sempre registra parcela — saldo_devedor e financeiro usam a mesma fonte
+    valor_parcela = saldo if (mark_as_paid and valor_recebido >= saldo) else valor_recebido
+    if valor_parcela > 0:
         PaymentParcela.objects.create(
             payment=payment,
-            valor=valor_recebido,
+            valor=valor_parcela,
             payment_method=payment_method,
             payment_date=ts.date(),
             loja_id=payment.loja_id,
         )
-        total_pago = payment.valor_pago_parcelas
-        if total_pago >= valor_total:
-            payment.status = 'PAID'
-            payment.amount = total_pago
-            payment.payment_date = ts
-            _tentar_nfse_pos_pagamento(consulta, payment)
-        else:
-            payment.status = 'PARTIAL'
-            payment.amount = total_pago
-        payment.save(update_fields=[
-            'amount', 'valor_total', 'payment_method', 'status', 'payment_date',
-            'comissao_percentual', 'comissao_valor', 'updated_at',
-        ])
+
+    total_pago = payment.valor_pago_parcelas
+    if total_pago >= valor_total or (mark_as_paid and valor_recebido >= saldo):
+        payment.status = 'PAID'
+        payment.amount = max(total_pago, valor_total)
+        payment.payment_date = ts
+        _tentar_nfse_pos_pagamento(consulta, payment)
+    else:
+        payment.status = 'PARTIAL'
+        payment.amount = total_pago
+    payment.save(update_fields=[
+        'amount', 'valor_total', 'payment_method', 'status', 'payment_date',
+        'comissao_percentual', 'comissao_valor', 'updated_at',
+    ])
 
     _atualizar_status_consulta_apos_recebimento(consulta, payment)
     return payment

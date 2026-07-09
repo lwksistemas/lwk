@@ -110,3 +110,4 @@ def remover_procedimento_consulta(consulta: Consulta, appointment_procedure_id: 
 
     _sync_primary_procedure(appointment, consulta)
     garantir_termos_procedimento(consulta)
+    _reabrir_recebimento_apos_procedimento(consulta)

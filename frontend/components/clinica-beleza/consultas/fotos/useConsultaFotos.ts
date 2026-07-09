@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
+import { useToast } from "@/components/ui/Toast";
 import { MAX_FOTOS_COMPARAR } from "./fotos-constants";
 
 export function useConsultaFotos(consultaId: number, ativa?: boolean) {
+  const toast = useToast();
   const [fotos, setFotos] = useState<PacienteFotoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrAberto, setQrAberto] = useState(false);
@@ -44,11 +46,11 @@ export function useConsultaFotos(consultaId: number, ativa?: boolean) {
       setQrData({ url: res.url, qr_base64: res.qr_base64 });
       setQrAberto(true);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Erro ao gerar QR.");
+      toast.error(e instanceof Error ? e.message : "Erro ao gerar QR.");
     } finally {
       setQrLoading(false);
     }
-  }, [consultaId]);
+  }, [consultaId, toast]);
 
   const salvarUploadPainel = async (url: string) => {
     if (!url) return;
@@ -58,7 +60,7 @@ export function useConsultaFotos(consultaId: number, ativa?: boolean) {
       setUploadUrl("");
       await carregar();
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Erro ao salvar foto.");
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar foto.");
     } finally {
       setSalvando(false);
     }
@@ -71,7 +73,7 @@ export function useConsultaFotos(consultaId: number, ativa?: boolean) {
       setSelecionadas((s) => s.filter((id) => id !== fotoId));
       await carregar();
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Erro ao remover.");
+      toast.error(e instanceof Error ? e.message : "Erro ao remover.");
     }
   };
 

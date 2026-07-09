@@ -17,6 +17,7 @@ import { ImageUpload } from "@/components/ImageUpload";
 import { cloudinaryLojaClinicaFotos, useLojaCloudinaryDocument } from "@/lib/cloudinary-folders";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
+import { useToast } from "@/components/ui/Toast";
 import { PacienteFotoZoomModal } from "./PacienteFotoZoomModal";
 
 const MIN_COMPARAR = 2;
@@ -34,6 +35,7 @@ export function ConsultaFotosTab({
   ativa?: boolean;
   onToolbarChange?: (toolbar: ReactNode | null) => void;
 }) {
+  const toast = useToast();
   const params = useParams();
   const slug = (params.slug as string) || "loja";
   const { documento: lojaDoc, ready: lojaDocReady, loading: lojaDocLoading } = useLojaCloudinaryDocument(slug);
@@ -79,11 +81,11 @@ export function ConsultaFotosTab({
       setQrData({ url: res.url, qr_base64: res.qr_base64 });
       setQrAberto(true);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Erro ao gerar QR.");
+      toast.error(e instanceof Error ? e.message : "Erro ao gerar QR.");
     } finally {
       setQrLoading(false);
     }
-  }, [consultaId]);
+  }, [consultaId, toast]);
 
   const salvarUploadPainel = async (url: string) => {
     if (!url) return;
@@ -93,7 +95,7 @@ export function ConsultaFotosTab({
       setUploadUrl("");
       await carregar();
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Erro ao salvar foto.");
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar foto.");
     } finally {
       setSalvando(false);
     }
@@ -106,7 +108,7 @@ export function ConsultaFotosTab({
       setSelecionadas((s) => s.filter((id) => id !== fotoId));
       await carregar();
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Erro ao remover.");
+      toast.error(e instanceof Error ? e.message : "Erro ao remover.");
     }
   };
 
@@ -323,7 +325,7 @@ export function ConsultaFotosTab({
                 type="button"
                 onClick={() => {
                   void navigator.clipboard.writeText(qrData.url);
-                  alert("Link copiado! Cole no navegador do celular (Chrome/Safari).");
+                  toast.success("Link copiado! Cole no navegador do celular (Chrome/Safari).");
                 }}
                 className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium text-white"
                 style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}

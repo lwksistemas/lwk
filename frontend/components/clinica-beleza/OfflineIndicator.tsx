@@ -8,12 +8,14 @@ import { limparFilaSync, obterFilaSync } from "@/lib/offline-db";
 import { sincronizarFila } from "@/lib/offline-sync";
 import { logger } from "@/lib/logger";
 import { Trash2, Info, RefreshCw } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 
 /**
  * Indicador de status offline/online e fila de sincronização.
  * Exibir no header da agenda, dashboard, etc.
  */
 export function OfflineIndicator() {
+  const toast = useToast();
   const online = useOnline();
   const pendingCount = useSyncPending();
   const [clearing, setClearing] = useState(false);
@@ -33,7 +35,7 @@ export function OfflineIndicator() {
       logger.log("✅ [offline] Fila limpa com sucesso");
     } catch (error) {
       logger.warn("❌ [offline] Erro ao limpar fila:", error);
-      alert("Erro ao limpar fila. Tente novamente.");
+      toast.error("Erro ao limpar fila. Tente novamente.");
     } finally {
       setClearing(false);
     }
@@ -41,7 +43,7 @@ export function OfflineIndicator() {
 
   const handleSyncNow = async () => {
     if (!online) {
-      alert("Você está offline. Conecte-se à internet para sincronizar.");
+      toast.warning("Você está offline. Conecte-se à internet para sincronizar.");
       return;
     }
 
@@ -54,15 +56,15 @@ export function OfflineIndicator() {
       if (enviados > 0) {
         notificarFilaAtualizada();
         window.dispatchEvent(new CustomEvent("offline-sync-done", { detail: { enviados, erros } }));
-        alert(`✅ Sincronização concluída!\n\n${enviados} ${enviados === 1 ? 'item sincronizado' : 'itens sincronizados'} com sucesso.`);
+        toast.success(`Sincronização concluída! ${enviados} ${enviados === 1 ? 'item sincronizado' : 'itens sincronizados'} com sucesso.`);
       } else if (erros > 0) {
-        alert(`⚠️ Sincronização concluída com erros.\n\n${erros} ${erros === 1 ? 'item falhou' : 'itens falharam'}.\n\nTente novamente em instantes.`);
+        toast.warning(`Sincronização concluída com erros. ${erros} ${erros === 1 ? 'item falhou' : 'itens falharam'}. Tente novamente em instantes.`);
       } else {
-        alert("ℹ️ Nenhum item para sincronizar.");
+        toast.info("Nenhum item para sincronizar.");
       }
     } catch (error) {
       logger.warn("❌ [offline] Erro na sincronização manual:", error);
-      alert("Erro ao sincronizar. Verifique sua conexão e tente novamente.");
+      toast.error("Erro ao sincronizar. Verifique sua conexão e tente novamente.");
     } finally {
       setSyncing(false);
     }
@@ -76,7 +78,7 @@ export function OfflineIndicator() {
       logger.log("📋 [offline] Itens na fila:", items);
     } catch (error) {
       logger.warn("❌ [offline] Erro ao buscar fila:", error);
-      alert("Erro ao buscar fila. Tente novamente.");
+      toast.error("Erro ao buscar fila. Tente novamente.");
     }
   };
 

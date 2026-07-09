@@ -3,6 +3,7 @@ import {
   deleteClinicaBelezaEntity,
   saveClinicaBelezaEntity,
 } from "@/hooks/clinica-beleza";
+import { useToast } from "@/components/ui/Toast";
 import {
   buildProtocoloSaveBody,
   extractProtocoloSaveError,
@@ -32,6 +33,7 @@ export function useProtocolosForm({
   voltarLista,
   load,
 }: UseProtocolosFormParams) {
+  const toast = useToast();
   const [editing, setEditing] = useState<Protocol | null>(null);
   const [form, setForm] = useState<ProtocoloFormState>(EMPTY_PROTOCOLO_FORM);
   const [saving, setSaving] = useState(false);
@@ -87,7 +89,7 @@ export function useProtocolosForm({
       await deleteClinicaBelezaEntity(`/protocolos/${p.id}/`);
       load();
     } catch {
-      alert("Erro ao desativar.");
+      toast.error("Erro ao desativar.");
     }
   };
 

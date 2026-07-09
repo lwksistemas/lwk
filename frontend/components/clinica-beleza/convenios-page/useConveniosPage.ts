@@ -3,6 +3,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { isConvenioParticularNome } from "@/lib/convenio-precos";
+import { useToast } from "@/components/ui/Toast";
 import {
   buildConveniosBasePath,
   extractConvenioSaveError,
@@ -13,6 +14,7 @@ export function useConveniosPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const toast = useToast();
   const slug = params.slug as string;
   const basePath = buildConveniosBasePath(slug);
 
@@ -63,7 +65,7 @@ export function useConveniosPage() {
   const excluirConvenio = useCallback(
     async (c: ConvenioItem) => {
       if (isConvenioParticularNome(c.nome)) {
-        alert("O convênio Particular é padrão do sistema e não pode ser excluído.");
+        toast.warning("O convênio Particular é padrão do sistema e não pode ser excluído.");
         return;
       }
       if (!confirm(`Excluir o convênio "${c.nome}"? Os preços vinculados nos procedimentos serão removidos.`)) {
@@ -75,12 +77,12 @@ export function useConveniosPage() {
         await ClinicaBelezaAPI.convenios.delete(c.id);
         await carregarLista();
       } catch (e: unknown) {
-        alert(e instanceof Error ? e.message : "Erro ao excluir convênio.");
+        toast.error(e instanceof Error ? e.message : "Erro ao excluir convênio.");
       } finally {
         setSalvando(false);
       }
     },
-    [carregarLista],
+    [carregarLista, toast],
   );
 
   return {

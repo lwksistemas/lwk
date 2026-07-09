@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { useToast } from "@/components/ui/Toast";
 import type { ConsultaProdutoItem, ProdutoEstoque } from "./produtos-types";
 import {
   avisoFormularioEstoque,
@@ -9,6 +10,7 @@ import {
 } from "./produtos-utils";
 
 export function useConsultaProdutos(consultaId: number, onItensChanged?: () => void) {
+  const toast = useToast();
   const [itens, setItens] = useState<ConsultaProdutoItem[]>([]);
   const [produtos, setProdutos] = useState<ProdutoEstoque[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,7 +131,7 @@ export function useConsultaProdutos(consultaId: number, onItensChanged?: () => v
       await carregar();
       onItensChanged?.();
     } catch {
-      alert("Não foi possível remover o produto.");
+      toast.error("Não foi possível remover o produto.");
     } finally {
       setSaving(false);
     }

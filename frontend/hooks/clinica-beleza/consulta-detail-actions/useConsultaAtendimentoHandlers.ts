@@ -1,6 +1,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import type { EvolucaoFormState } from "@/components/clinica-beleza/consultas/tab-panels/tab-panels-types";
+import { useToast } from "@/components/ui/Toast";
 import { EMPTY_EVOLUCAO_FORM, type ConsultaDetailLoaderSlice } from "./consulta-detail-actions-types";
 import type { Protocolo } from "@/components/clinica-beleza/consultas/consultas-types";
 
@@ -20,6 +21,7 @@ export function useConsultaAtendimentoHandlers(
   loader: ConsultaDetailLoaderSlice & { onListRefresh: () => void | Promise<void> },
   ui: AtendimentoUiSlice,
 ) {
+  const toast = useToast();
   const {
     selected,
     setSelected,
@@ -57,7 +59,7 @@ export function useConsultaAtendimentoHandlers(
       setEditAtendimento(false);
       await onListRefresh();
     } catch {
-      alert("Erro ao salvar atendimento.");
+      toast.error("Erro ao salvar atendimento.");
     } finally {
       setSaving(false);
     }
@@ -69,6 +71,7 @@ export function useConsultaAtendimentoHandlers(
     setObservacoes,
     setSaving,
     setSelected,
+    toast,
   ]);
 
   const selecionarProtocolo = useCallback(
@@ -97,7 +100,7 @@ export function useConsultaAtendimentoHandlers(
       setProtocoloPendingId(null);
       await onListRefresh();
     } catch {
-      alert("Erro ao aplicar protocolo.");
+      toast.error("Erro ao aplicar protocolo.");
     } finally {
       setSaving(false);
     }
@@ -112,6 +115,7 @@ export function useConsultaAtendimentoHandlers(
     setProtocoloPreview,
     setSaving,
     setSelected,
+    toast,
   ]);
 
   const salvarAnamnese = useCallback(async () => {
@@ -125,15 +129,15 @@ export function useConsultaAtendimentoHandlers(
       setAnamnese(anamneseDraft);
       setEditAnamnese(false);
     } catch {
-      alert("Erro ao salvar anamnese.");
+      toast.error("Erro ao salvar anamnese.");
     } finally {
       setSaving(false);
     }
-  }, [anamneseDraft, selected.patient, setAnamnese, setEditAnamnese, setSaving]);
+  }, [anamneseDraft, selected.patient, setAnamnese, setEditAnamnese, setSaving, toast]);
 
   const salvarEvolucao = useCallback(async () => {
     if (!evolucaoForm.descricao.trim() && !evolucaoForm.procedimento_realizado.trim()) {
-      alert("Preencha a evolução ou o procedimento realizado.");
+      toast.warning("Preencha a evolução ou o procedimento realizado.");
       return;
     }
     setSaving(true);
@@ -147,7 +151,7 @@ export function useConsultaAtendimentoHandlers(
       setEvolucaoForm(EMPTY_EVOLUCAO_FORM);
       setEditEvolucao(false);
     } catch {
-      alert("Erro ao registrar evolução.");
+      toast.error("Erro ao registrar evolução.");
     } finally {
       setSaving(false);
     }
@@ -159,6 +163,7 @@ export function useConsultaAtendimentoHandlers(
     setEvolucaoForm,
     setEvolucoes,
     setSaving,
+    toast,
   ]);
 
   return {

@@ -2,11 +2,13 @@ import { useCallback, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ClinicaBelezaAPI, type DocumentTemplateItem } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
+import { useToast } from "@/components/ui/Toast";
 import { buildTemplateNovoPath } from "./templates-page-utils";
 
 export function useTemplatesPage() {
   const params = useParams();
   const router = useRouter();
+  const toast = useToast();
   const slug = params.slug as string;
 
   const [filtroTipo, setFiltroTipo] = useState("");
@@ -41,11 +43,11 @@ export function useTemplatesPage() {
       setDeleteTarget(null);
       load();
     } catch {
-      alert("Erro ao desativar template.");
+      toast.error("Erro ao desativar template.");
     } finally {
       setDeleting(false);
     }
-  }, [deleteTarget, load]);
+  }, [deleteTarget, load, toast]);
 
   return {
     filtroTipo,

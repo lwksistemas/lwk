@@ -3,15 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
-import type { DespesaItem } from "@/app/(dashboard)/loja/[slug]/clinica-beleza/financeiro/DespesaFormModal";
+import { useToast } from "@/components/ui/Toast";
+import type { DespesaItem } from "@/components/clinica-beleza/financeiro-page/DespesaFormModal";
 import type {
   FinanceiroPayment,
   FinanceiroProfessional,
   FinanceiroResumo,
   FinanceiroTab,
-} from "@/app/(dashboard)/loja/[slug]/clinica-beleza/financeiro/types";
+} from "@/components/clinica-beleza/financeiro-page/types";
 
 export function useFinanceiroPage() {
+  const toast = useToast();
   const [tab, setTab] = useState<FinanceiroTab>("receitas");
   const [resumo, setResumo] = useState<FinanceiroResumo | null>(null);
   const [professionals, setProfessionals] = useState<FinanceiroProfessional[]>([]);
@@ -116,7 +118,7 @@ export function useFinanceiroPage() {
       await ClinicaBelezaAPI.financeiro.despesas.delete(d.id);
       await loadAll();
     } catch {
-      alert("Não foi possível excluir a despesa.");
+      toast.error("Não foi possível excluir a despesa.");
     }
   };
 

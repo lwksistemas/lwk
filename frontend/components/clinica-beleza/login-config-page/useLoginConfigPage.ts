@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import apiClient from "@/lib/api-client";
 import { logger } from "@/lib/logger";
+import { useToast } from "@/components/ui/Toast";
 import type { LoginConfigData, LoginConfigFormState } from "./login-config-page-types";
 import {
   buildLoginConfigSaveBody,
@@ -13,6 +14,7 @@ export function useLoginConfigPage(
   defaultPrimary: string,
   defaultSecondary: string,
 ) {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<LoginConfigFormState>({
@@ -44,13 +46,13 @@ export function useLoginConfigPage(
     try {
       await apiClient.patch(apiPath, buildLoginConfigSaveBody(form));
       await loadConfig();
-      alert("Configurações da tela de login salvas com sucesso!");
+      toast.success("Configurações da tela de login salvas com sucesso!");
     } catch (e) {
-      alert(extractLoginConfigSaveError(e));
+      toast.error(extractLoginConfigSaveError(e));
     } finally {
       setSaving(false);
     }
-  }, [apiPath, form, loadConfig]);
+  }, [apiPath, form, loadConfig, toast]);
 
   const updateForm = useCallback((patch: Partial<LoginConfigFormState>) => {
     setForm((prev) => ({ ...prev, ...patch }));

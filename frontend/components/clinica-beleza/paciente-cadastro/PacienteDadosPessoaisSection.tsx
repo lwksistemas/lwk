@@ -7,7 +7,7 @@ import {
   ordenarConveniosComParticularPrimeiro,
 } from "@/lib/convenio-precos";
 import { formatCpf, formatTelefone, toUpperCase } from "@/lib/format-br";
-import { PacienteFotoCadastro } from "@/app/(dashboard)/loja/[slug]/clinica-beleza/pacientes/components/PacienteFotoCadastro";
+import { PacienteFotoCadastro } from "@/components/clinica-beleza/pacientes-page/components/PacienteFotoCadastro";
 import { FieldLabel, FORM_SELECT_CLASS, IconInput, SECTION_TITLE_CLASS } from "./paciente-cadastro-ui";
 import type { PacienteFormState } from "./paciente-cadastro-types";
 

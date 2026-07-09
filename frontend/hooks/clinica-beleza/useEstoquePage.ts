@@ -9,12 +9,14 @@ import type {
 } from "@/components/clinica-beleza/estoque/estoque-types";
 import { extractEstoqueApiError } from "@/components/clinica-beleza/estoque/estoque-types";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { useToast } from "@/components/ui/Toast";
 
 export interface UseEstoquePageOptions {
   defaultCategoria?: string;
 }
 
 export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions = {}) {
+  const toast = useToast();
   const params = useParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -107,7 +109,7 @@ export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions 
       await ClinicaBelezaAPI.estoque.delete(id);
       await loadAll();
     } catch {
-      alert("Erro ao excluir produto.");
+      toast.error("Erro ao excluir produto.");
     }
   };
 

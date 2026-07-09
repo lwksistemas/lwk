@@ -13,6 +13,7 @@ import { salvarProcedimentosOffline } from "@/lib/offline-db";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { useOfflineSave } from "@/hooks/clinica-beleza/useOfflineSave";
 import { logger } from "@/lib/logger";
+import { useToast } from "@/components/ui/Toast";
 import {
   buildPrecosConvenioPayload,
   buildProcedimentoSaveBody,
@@ -53,6 +54,7 @@ export function useProcedimentosForm({
   load,
   carregarMatrix,
 }: UseProcedimentosFormParams) {
+  const toast = useToast();
   const [editing, setEditing] = useState<Procedure | null>(null);
   const [form, setForm] = useState<ProcedimentoFormState>(EMPTY_PROCEDIMENTO_FORM);
   const [precosConvenio, setPrecosConvenio] = useState<Record<number, string>>({});
@@ -140,7 +142,7 @@ export function useProcedimentosForm({
     }
     if (result.offline) {
       voltarLista();
-      alert(result.message);
+      toast.warning(result.message);
       return;
     }
     voltarLista();
@@ -155,7 +157,7 @@ export function useProcedimentosForm({
       load();
       void carregarMatrix();
     } catch {
-      alert("Erro ao desativar.");
+      toast.error("Erro ao desativar.");
     }
   };
 

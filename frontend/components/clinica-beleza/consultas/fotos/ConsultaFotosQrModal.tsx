@@ -1,5 +1,8 @@
+"use client";
+
 import { Copy, ExternalLink, QrCode, X } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
+import { useToast } from "@/components/ui/Toast";
 
 export function ConsultaFotosQrModal({
   qrData,
@@ -8,6 +11,8 @@ export function ConsultaFotosQrModal({
   qrData: { url: string; qr_base64: string };
   onClose: () => void;
 }) {
+  const toast = useToast();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl max-w-sm w-full p-6 relative">
@@ -53,7 +58,7 @@ export function ConsultaFotosQrModal({
             type="button"
             onClick={() => {
               void navigator.clipboard.writeText(qrData.url);
-              alert("Link copiado! Cole no navegador do seu celular.");
+              toast.success("Link copiado! Cole no navegador do seu celular.");
             }}
             className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium text-white"
             style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}

@@ -5,6 +5,7 @@ import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { arredondarDuracaoAgendaMin } from "@/lib/clinica-beleza-datetime";
 import type { AgendaConflictPayload, AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { ConflitoAgendaData } from "@/components/clinica-beleza/ModalConflitoAgenda";
+import { useToast } from "@/components/ui/Toast";
 import { logger } from "@/lib/logger";
 
 type ConflictState = (ConflitoAgendaData & {
@@ -25,6 +26,7 @@ export function useAgendaMutations({
   setSelectedEvent,
   setShowModal,
 }: UseAgendaMutationsOptions) {
+  const toast = useToast();
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [reenviandoMensagem, setReenviandoMensagem] = useState(false);
   const [conflictData, setConflictData] = useState<ConflictState>(null);
@@ -39,7 +41,7 @@ export function useAgendaMutations({
       return;
     }
     if (end <= start) {
-      alert("O fim do bloqueio deve ser depois do início.");
+      toast.error("O fim do bloqueio deve ser depois do início.");
       info.revert();
       return;
     }
@@ -61,17 +63,17 @@ export function useAgendaMutations({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const msg = data.error || data.detail || (Array.isArray(data.data_fim) ? data.data_fim[0] : null) || "Erro ao atualizar bloqueio.";
-        alert(typeof msg === "string" ? msg : "Erro ao atualizar bloqueio.");
+        toast.error(typeof msg === "string" ? msg : "Erro ao atualizar bloqueio.");
         info.revert();
         return;
       }
       onReload();
     } catch (error) {
       logger.warn("Erro ao atualizar bloqueio:", error);
-      alert("Erro ao atualizar bloqueio. Tente novamente.");
+      toast.error("Erro ao atualizar bloqueio. Tente novamente.");
       info.revert();
     }
-  }, [onReload]);
+  }, [onReload, toast]);
 
   const patchAgendamento = useCallback(async (
     id: number | string,
@@ -120,10 +122,10 @@ export function useAgendaMutations({
       if (ok) onReload();
     } catch (error) {
       logger.warn("Erro ao mover evento:", error);
-      alert(error instanceof Error ? error.message : "Erro ao mover evento. Tente novamente.");
+      toast.error(error instanceof Error ? error.message : "Erro ao mover evento. Tente novamente.");
       info.revert();
     }
-  }, [atualizarBloqueioHorario, onReload, patchAgendamento]);
+  }, [atualizarBloqueioHorario, onReload, patchAgendamento, toast]);
 
   const redimensionarEvento = useCallback(async (info: { event: { id: string; start: Date | null; end: Date | null; extendedProps?: Record<string, unknown> }; revert: () => void }) => {
     if (info.event.extendedProps?.isIntervalo) {
@@ -136,13 +138,13 @@ export function useAgendaMutations({
     }
     if (info.event.extendedProps?.status === "CANCELLED") {
       info.revert();
-      alert("Não é possível alterar a duração de um agendamento cancelado.");
+      toast.warning("Não é possível alterar a duração de um agendamento cancelado.");
       return;
     }
     const dbId = info.event.extendedProps?.dbId;
     if (typeof dbId === "string" && dbId.startsWith("offline-")) {
       info.revert();
-      alert("Agendamento offline. Aguarde a sincronização para ajustar a duração.");
+      toast.warning("Agendamento offline. Aguarde a sincronização para ajustar a duração.");
       return;
     }
     const start = info.event.start;
@@ -163,16 +165,16 @@ export function useAgendaMutations({
       if (ok) onReload();
     } catch (error) {
       logger.warn("Erro ao redimensionar evento:", error);
-      alert(error instanceof Error ? error.message : "Erro ao ajustar duração. Tente novamente.");
+      toast.error(error instanceof Error ? error.message : "Erro ao ajustar duração. Tente novamente.");
       info.revert();
     }
-  }, [atualizarBloqueioHorario, onReload, patchAgendamento]);
+  }, [atualizarBloqueioHorario, onReload, patchAgendamento, toast]);
 
   const deletarEvento = useCallback(async () => {
     if (!selectedEvent) return;
     const dbId = selectedEvent.extendedProps.dbId;
     if (typeof dbId === "string" && dbId.startsWith("offline-")) {
-      alert("Agendamento criado offline. Aguarde a sincronização para excluir.");
+      toast.warning("Agendamento criado offline. Aguarde a sincronização para excluir.");
       return;
     }
     if (!confirm("Deseja realmente deletar este agendamento?")) return;
@@ -187,15 +189,15 @@ export function useAgendaMutations({
       onReload();
     } catch (error) {
       logger.warn("Erro ao deletar evento:", error);
-      alert(error instanceof Error ? error.message : "Erro ao deletar agendamento.");
+      toast.error(error instanceof Error ? error.message : "Erro ao deletar agendamento.");
     }
-  }, [onReload, selectedEvent, setSelectedEvent, setShowModal]);
+  }, [onReload, selectedEvent, setSelectedEvent, setShowModal, toast]);
 
   const atualizarStatusAgendamento = useCallback(async (novoStatus: string) => {
     if (!selectedEvent) return;
     const dbId = selectedEvent.extendedProps.dbId;
     if (typeof dbId === "string" && dbId.startsWith("offline-")) {
-      alert("Agendamento criado offline. Aguarde a sincronização para alterar status.");
+      toast.warning("Agendamento criado offline. Aguarde a sincronização para alterar status.");
       return;
     }
     setUpdatingStatus(true);
@@ -231,36 +233,40 @@ export function useAgendaMutations({
             }
           : null,
       );
-      if (data.consulta_error) alert(data.consulta_error);
+      if (data.consulta_error) toast.error(data.consulta_error);
       onReload();
     } catch (error) {
       logger.warn("Erro ao atualizar status:", error);
-      alert(error instanceof Error ? error.message : "Erro ao atualizar status.");
+      toast.error(error instanceof Error ? error.message : "Erro ao atualizar status.");
     } finally {
       setUpdatingStatus(false);
     }
-  }, [onReload, selectedEvent, setSelectedEvent]);
+  }, [onReload, selectedEvent, setSelectedEvent, toast]);
 
   const reenviarMensagemWhatsApp = useCallback(async () => {
     if (!selectedEvent) return;
     const dbId = selectedEvent.extendedProps.dbId;
     if (typeof dbId === "string" && dbId.startsWith("offline-")) {
-      alert("Agendamento offline. Sincronize antes de reenviar mensagem.");
+      toast.warning("Agendamento offline. Sincronize antes de reenviar mensagem.");
       return;
     }
     setReenviandoMensagem(true);
     try {
       const res = await clinicaBelezaFetch(`/agenda/${dbId}/reenviar-mensagem/`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
-      alert(data.sent ? "Mensagem reenviada com sucesso para o paciente." : (data.message || "Não foi possível reenviar a mensagem."));
+      if (data.sent) {
+        toast.success("Mensagem reenviada com sucesso para o paciente.");
+      } else {
+        toast.warning(data.message || "Não foi possível reenviar a mensagem.");
+      }
     } catch (e) {
       if (e instanceof Error && e.message === "SESSION_ENDED") return;
       logger.warn("Erro ao reenviar mensagem:", e);
-      alert("Erro ao reenviar mensagem. Tente novamente.");
+      toast.error("Erro ao reenviar mensagem. Tente novamente.");
     } finally {
       setReenviandoMensagem(false);
     }
-  }, [selectedEvent]);
+  }, [selectedEvent, toast]);
 
   const handleConflitoUseServer = useCallback(() => {
     setConflictData(null);
@@ -287,11 +293,11 @@ export function useAgendaMutations({
       onReload();
     } catch (e) {
       logger.warn("Erro ao resolver conflito:", e);
-      alert(e instanceof Error ? e.message : "Erro ao aplicar sua versão.");
+      toast.error(e instanceof Error ? e.message : "Erro ao aplicar sua versão.");
     } finally {
       setConflictResolving(false);
     }
-  }, [conflictData, onReload, setShowModal]);
+  }, [conflictData, onReload, setShowModal, toast]);
 
   return {
     updatingStatus,

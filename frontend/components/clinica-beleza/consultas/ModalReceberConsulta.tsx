@@ -212,9 +212,15 @@ export function ModalReceberConsulta({
               </button>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-between items-center pt-2">
+              {consulta.status !== "COMPLETED" && (
+                <button type="button" onClick={() => { setConfirmado(false); setConsultaAtualizada(null); }}
+                  className="px-4 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 text-sm">
+                  Editar pagamento
+                </button>
+              )}
               <button type="button" onClick={onClose}
-                className="px-4 py-2 rounded-lg text-white"
+                className="px-4 py-2 rounded-lg text-white ml-auto"
                 style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}>
                 Fechar
               </button>

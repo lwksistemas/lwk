@@ -72,20 +72,28 @@ class Payment(LojaIsolationMixin, models.Model):
 
     @property
     def valor_pago_parcelas(self):
-        """Soma de todos os pagamentos parciais já quitados."""
+        """Soma das parcelas PAID; se não houver parcelas, usa amount (legado/quitado à vista)."""
         from decimal import Decimal
         try:
-            return self.parcelas.filter(status='PAID').aggregate(
+            total = self.parcelas.filter(status='PAID').aggregate(
                 total=models.Sum('valor')
-            )['total'] or Decimal('0')
+            )['total']
+            if total is not None:
+                return total
         except Exception:
-            return Decimal('0')
+            pass
+        # Sem parcelas: amount representa o já pago quando PARTIAL/PAID
+        if self.status in ('PAID', 'PARTIAL'):
+            return Decimal(str(self.amount or 0))
+        return Decimal('0')
 
     @property
     def saldo_devedor(self):
-        """Valor ainda em aberto = total - parcelas pagas."""
+        """Valor ainda em aberto = total - valor pago (parcelas ou amount)."""
+        from decimal import Decimal
         try:
-            return self.valor_total_efetivo - self.valor_pago_parcelas
+            saldo = self.valor_total_efetivo - self.valor_pago_parcelas
+            return saldo if saldo > 0 else Decimal('0')
         except Exception:
             return self.valor_total_efetivo
 

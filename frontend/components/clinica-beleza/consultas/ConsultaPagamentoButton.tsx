@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, DollarSign, AlertCircle, ExternalLink } from "lucide-react";
+import { CheckCircle2, DollarSign, AlertCircle } from "lucide-react";
 import { consultaPagamentoUi } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import type { Consulta } from "./consultas-types";
 

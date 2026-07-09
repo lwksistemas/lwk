@@ -68,6 +68,8 @@ describe("consultaPagamentoUi", () => {
     expect(consultaPagamentoUi(consulta({ status: "RECEBER" }))).toEqual({
       mostrarReceber: true,
       mostrarPago: false,
+      mostrarParcial: false,
+      consultaFinalizada: false,
     });
   });
 
@@ -81,10 +83,15 @@ describe("consultaPagamentoUi", () => {
           valor_pago: 150,
         }),
       ),
-    ).toEqual({ mostrarReceber: false, mostrarPago: true });
+    ).toEqual({
+      mostrarReceber: false,
+      mostrarPago: true,
+      mostrarParcial: false,
+      consultaFinalizada: false,
+    });
   });
 
-  it("volta para Receber após procedimento extra", () => {
+  it("mostra Parcial após pagamento parcial", () => {
     expect(
       consultaPagamentoUi(
         consulta({
@@ -94,6 +101,29 @@ describe("consultaPagamentoUi", () => {
           valor_pago: 150,
         }),
       ),
-    ).toEqual({ mostrarReceber: true, mostrarPago: false });
+    ).toEqual({
+      mostrarReceber: false,
+      mostrarPago: false,
+      mostrarParcial: true,
+      consultaFinalizada: false,
+    });
+  });
+
+  it("finalizada com saldo mostra Receber (financeiro)", () => {
+    expect(
+      consultaPagamentoUi(
+        consulta({
+          status: "COMPLETED",
+          payment_status: "PENDING",
+          valor_pagamento: 100,
+          valor_pago: 0,
+        }),
+      ),
+    ).toEqual({
+      mostrarReceber: true,
+      mostrarPago: false,
+      mostrarParcial: false,
+      consultaFinalizada: true,
+    });
   });
 });

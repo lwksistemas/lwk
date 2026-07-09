@@ -338,7 +338,11 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
             from django.core.cache import cache as django_cache
             pdf_bytes = _gerar_pdf_recibo(ctx)
             cache_key = f'recibo_pdf_{token}'
-            django_cache.set(cache_key, pdf_bytes, 300)  # 5 minutos
+            django_cache.set(
+                cache_key,
+                {'payment_id': payment.id, 'pdf': pdf_bytes},
+                300,
+            )
 
             # URL pública do PDF
             api_base = getattr(settings, 'API_BASE_URL', '') or 'https://api.lwksistemas.com.br'

@@ -83,6 +83,9 @@ class DocumentoClinico(LojaIsolationMixin, models.Model):
         ordering = ['-created_at']
         verbose_name = 'Documento clínico'
         verbose_name_plural = 'Documentos clínicos'
+        indexes = [
+            models.Index(fields=['consulta', '-created_at'], name='cb_documento_consulta_idx'),
+        ]
 
     def __str__(self):
         return f'{self.get_tipo_display()} — {self.patient.nome} ({self.created_at:%d/%m/%Y})'

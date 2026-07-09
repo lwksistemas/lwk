@@ -155,54 +155,48 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         vc = Decimal(str(obj.valor_consulta or 0))
         return float(vc + self._appointment_valor_procedimentos(obj))
 
-    def _get_latest_payment_row(self, obj):
+    def _get_payment(self, obj):
+        """Payment do appointment; usa prefetch se disponível."""
+        appointment = getattr(obj, 'appointment', None)
+        if not appointment:
+            return None
+        prefetched = getattr(appointment, '_prefetched_objects_cache', {}).get('payment_set')
+        if prefetched is not None:
+            return prefetched[0] if prefetched else None
         try:
             from ..models import Payment
-            appointment = getattr(obj, 'appointment', None)
-            if not appointment:
-                return None
-            return (
-                Payment.objects
-                .filter(appointment=appointment)
-                .values('amount', 'status')
-                .order_by('-id')
-                .first()
-            )
+            return Payment.objects.filter(appointment=appointment).order_by('-id').first()
         except Exception:
             return None
 
     def get_valor_pago(self, obj):
-        row = self._get_latest_payment_row(obj)
-        if row is None:
+        payment = self._get_payment(obj)
+        if payment is None:
             return None
-        return float(row['amount'] or 0)
+        try:
+            return float(payment.valor_pago_parcelas)
+        except Exception:
+            return float(payment.amount or 0)
 
     def get_valor_restante(self, obj):
-        """Saldo ainda em aberto (valor_pagamento - valor_pago)."""
-        row = self._get_latest_payment_row(obj)
-        vc = float(self.get_valor_pagamento(obj) or 0)
-        if row is None:
-            return vc
-        pago = float(row['amount'] or 0)
-        return max(0.0, vc - pago)
+        """Saldo em aberto (alinhado a Payment.saldo_devedor)."""
+        payment = self._get_payment(obj)
+        if payment is None:
+            return float(self.get_valor_pagamento(obj) or 0)
+        try:
+            return float(payment.saldo_devedor)
+        except Exception:
+            vc = float(self.get_valor_pagamento(obj) or 0)
+            return max(0.0, vc - float(payment.amount or 0))
 
     def get_payment_id(self, obj):
         """ID do Payment vinculado (para acessar parcelas via /payments/<id>/parcelas/)."""
-        try:
-            from ..models import Payment
-            appointment = getattr(obj, 'appointment', None)
-            if not appointment:
-                return None
-            p = Payment.objects.filter(appointment=appointment).values('id').order_by('-id').first()
-            return p['id'] if p else None
-        except Exception:
-            return None
+        payment = self._get_payment(obj)
+        return payment.id if payment else None
 
     def get_payment_status(self, obj):
-        row = self._get_latest_payment_row(obj)
-        if row is None:
-            return None
-        return row['status']
+        payment = self._get_payment(obj)
+        return payment.status if payment else None
 
     def get_convenio_name(self, obj):
         if obj.convenio_id and obj.convenio:

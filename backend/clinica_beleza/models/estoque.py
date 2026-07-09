@@ -72,6 +72,9 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
         verbose_name = "Produto do estoque"
         verbose_name_plural = "Produtos do estoque"
         ordering = ['nome']
+        indexes = [
+            models.Index(fields=['validade'], name='cb_estoque_validade_idx'),
+        ]
 
     def __str__(self):
         return f"{self.nome} ({self.quantidade_atual} {self.unidade_medida})"
@@ -118,6 +121,9 @@ class MovimentacaoEstoque(LojaIsolationMixin, models.Model):
         verbose_name = "Movimentação de estoque"
         verbose_name_plural = "Movimentações de estoque"
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['produto', '-created_at'], name='cb_movest_produto_idx'),
+        ]
 
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.produto.nome} ({self.quantidade})"

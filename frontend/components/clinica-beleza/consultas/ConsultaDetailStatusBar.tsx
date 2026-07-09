@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, DollarSign, Play, Trash2 } from "lucide-react";
+import { CheckCircle2, Play, Trash2 } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
   CLINICA_CONSULTA_STATUS_COLORS,
@@ -8,6 +8,7 @@ import {
 } from "@/lib/clinica-beleza-constants";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { toUpperCase } from "@/lib/format-br";
+import { ConsultaPagamentoButton } from "./ConsultaPagamentoButton";
 import type { Consulta, ConsultaProcedimento } from "./consultas-types";
 
 interface ConsultaDetailStatusBarProps {
@@ -19,8 +20,7 @@ interface ConsultaDetailStatusBarProps {
   podeIniciar: boolean;
   podeFinalizar: boolean;
   podeExcluir: boolean;
-  mostrarReceber: boolean;
-  mostrarPago: boolean;
+  consultaAtiva?: boolean;
   recebendo: boolean;
   iniciando: boolean;
   onIniciar: () => void;
@@ -38,8 +38,7 @@ export function ConsultaDetailStatusBar({
   podeIniciar,
   podeFinalizar,
   podeExcluir,
-  mostrarReceber,
-  mostrarPago,
+  consultaAtiva = false,
   recebendo,
   iniciando,
   onIniciar,
@@ -100,24 +99,16 @@ export function ConsultaDetailStatusBar({
             Já existe consulta em andamento para este paciente. Finalize-a antes de iniciar outra.
           </p>
         )}
-        {mostrarReceber && (
-          <button
-            type="button"
-            onClick={onReceber}
-            disabled={recebendo}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50 bg-amber-600 hover:bg-amber-700"
-          >
-            <DollarSign size={16} />
-            {recebendo ? "Registrando…" : "Receber"}
-          </button>
-        )}
-        {mostrarPago && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium bg-green-600">
-            <CheckCircle2 size={16} />
-            Pago
-          </span>
-        )}
-        {podeIniciar && (
+        <ConsultaPagamentoButton
+          consulta={selected}
+          onReceber={() => {
+            onReceber();
+          }}
+          size="md"
+          loading={recebendo}
+        />
+        {/* Em atendimento, Finalizar/Excluir ficam no header — aqui só pagamento */}
+        {!consultaAtiva && podeIniciar && (
           <button
             type="button"
             onClick={onIniciar}
@@ -129,7 +120,7 @@ export function ConsultaDetailStatusBar({
             {iniciando ? "Iniciando…" : "Iniciar consulta"}
           </button>
         )}
-        {podeFinalizar && (
+        {!consultaAtiva && podeFinalizar && (
           <button
             type="button"
             onClick={onFinalizar}
@@ -140,7 +131,7 @@ export function ConsultaDetailStatusBar({
             Finalizar consulta
           </button>
         )}
-        {podeExcluir && (
+        {!consultaAtiva && podeExcluir && (
           <button
             type="button"
             onClick={onExcluir}

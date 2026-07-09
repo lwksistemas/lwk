@@ -25,7 +25,7 @@ export const CLINICA_AGENDA_STATUS_LABEL: Record<string, string> = {
   CONFIRMED: 'Cliente presente',
   PENDING: 'Aguardando confirmação',
   IN_PROGRESS: 'Em atendimento',
-  COMPLETED: 'Consulta finalizada',
+  COMPLETED: 'Finalizada',
   CANCELLED: 'Cancelado',
   NO_SHOW: 'Faltou',
 };
@@ -83,7 +83,7 @@ export const CLINICA_CONSULTA_STATUS_LABEL: Record<string, string> = {
   RECEBER: 'RECEBER',
   SCHEDULED: 'AGUARDANDO INÍCIO',
   IN_PROGRESS: 'EM ATENDIMENTO',
-  COMPLETED: 'CONSULTA FINALIZADA',
+  COMPLETED: 'FINALIZADA',
   CANCELLED: 'CANCELADA',
 };
 

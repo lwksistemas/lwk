@@ -21,17 +21,21 @@ export function ConsultaPagamentoButton({
   const pad = size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-1.5 text-sm";
   const iconSize = size === "sm" ? 14 : 16;
 
-  // Parcial: botão laranja — se finalizada, informa ir ao financeiro
+  // Parcial: badge laranja — se finalizada, aviso ao clicar
   if (mostrarParcial) {
     if (consultaFinalizada) {
       return (
-        <span
+        <button type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            alert("Pagamento parcial — receber saldo na página Financeiro.");
+          }}
           className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-orange-500 ${pad}`}
           title="Pagamento parcial — receber saldo na página Financeiro"
         >
           <AlertCircle size={iconSize} />
           Parcial
-        </span>
+        </button>
       );
     }
     if (onReceber) {
@@ -48,17 +52,21 @@ export function ConsultaPagamentoButton({
     }
   }
 
-  // Receber: se finalizada → badge (não clicável), senão → botão
+  // Receber: se finalizada → aviso, senão → botão
   if (mostrarReceber) {
     if (consultaFinalizada) {
       return (
-        <span
+        <button type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            alert("Pagamento pendente — receber na página Financeiro.");
+          }}
           className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-red-600 ${pad}`}
           title="Pagamento pendente — receber na página Financeiro"
         >
           <DollarSign size={iconSize} />
           Pendente
-        </span>
+        </button>
       );
     }
     if (onReceber) {

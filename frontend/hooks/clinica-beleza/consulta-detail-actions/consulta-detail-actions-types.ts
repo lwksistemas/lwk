@@ -43,9 +43,3 @@ export const EMPTY_EVOLUCAO_FORM: EvolucaoFormState = {
   satisfacao: "",
 };
 
-export type FinalizarFormState = {
-  payment_method: string;
-  mark_as_paid: boolean;
-  amount: string;
-  local_atendimento: number | "";
-};

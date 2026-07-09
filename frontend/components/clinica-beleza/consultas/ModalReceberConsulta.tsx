@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, Printer, Mail, MessageCircle } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
+import { useToast } from "@/components/ui/Toast";
 import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
@@ -26,6 +27,7 @@ export function ModalReceberConsulta({
   onClose,
   onSuccess,
 }: ModalReceberConsultaProps) {
+  const toast = useToast();
   const saldo = saldoReceberConsulta(consulta);
   const total = valorPagamentoConsulta(consulta);
   const valorConsulta = Number(consulta.valor_consulta ?? 0);
@@ -146,27 +148,31 @@ export function ModalReceberConsulta({
 
   const handleEnviarEmail = async () => {
     const c = consultaAtualizada || consulta;
-    if (!c.payment_id) { alert("Pagamento não encontrado."); return; }
+    if (!c.payment_id) {
+      toast.error("Pagamento não encontrado.");
+      return;
+    }
     try {
       await ClinicaBelezaAPI.payments.enviarRecibo(c.payment_id, "email");
-      alert("Recibo enviado por email!");
+      toast.success("Recibo enviado por email!");
     } catch (e: unknown) {
       const ax = e as { response?: { data?: { error?: string } } };
-      const msg = ax?.response?.data?.error || "Erro ao enviar email.";
-      alert(msg);
+      toast.error(ax?.response?.data?.error || formatApiErrorBody(e) || "Erro ao enviar email.");
     }
   };
 
   const handleEnviarWhatsApp = async () => {
     const c = consultaAtualizada || consulta;
-    if (!c.payment_id) { alert("Pagamento não encontrado."); return; }
+    if (!c.payment_id) {
+      toast.error("Pagamento não encontrado.");
+      return;
+    }
     try {
       await ClinicaBelezaAPI.payments.enviarRecibo(c.payment_id, "whatsapp");
-      alert("Recibo enviado por WhatsApp!");
+      toast.success("Recibo enviado por WhatsApp!");
     } catch (e: unknown) {
       const ax = e as { response?: { data?: { error?: string } } };
-      const msg = ax?.response?.data?.error || "Erro ao enviar WhatsApp.";
-      alert(msg);
+      toast.error(ax?.response?.data?.error || formatApiErrorBody(e) || "Erro ao enviar WhatsApp.");
     }
   };
 

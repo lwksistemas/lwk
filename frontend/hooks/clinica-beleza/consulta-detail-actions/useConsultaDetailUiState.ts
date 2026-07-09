@@ -2,10 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ClinicaBelezaAPI, type LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
 import type { MemedPrescricaoHandle } from "@/components/clinica-beleza/consultas/MemedPrescricao";
 import { logger } from "@/lib/logger";
-import {
-  EMPTY_EVOLUCAO_FORM,
-  type FinalizarFormState,
-} from "./consulta-detail-actions-types";
+import { EMPTY_EVOLUCAO_FORM } from "./consulta-detail-actions-types";
 import type { Protocolo } from "@/components/clinica-beleza/consultas/consultas-types";
 
 export function useConsultaDetailUiState(recarregarPrescricoesBase: () => Promise<void>) {
@@ -17,7 +14,6 @@ export function useConsultaDetailUiState(recarregarPrescricoesBase: () => Promis
   const [protocoloPendingId, setProtocoloPendingId] = useState<number | null>(null);
   const [showReceberModal, setShowReceberModal] = useState(false);
   const [recebendo, setRecebendo] = useState(false);
-  const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [iniciando, setIniciando] = useState(false);
   const [showProfessionalModal, setShowProfessionalModal] = useState(false);
@@ -26,12 +22,6 @@ export function useConsultaDetailUiState(recarregarPrescricoesBase: () => Promis
   >([]);
   const [memedBusy, setMemedBusy] = useState(false);
   const [locaisAtendimento, setLocaisAtendimento] = useState<LocalAtendimentoItem[]>([]);
-  const [finalizarForm, setFinalizarForm] = useState<FinalizarFormState>({
-    payment_method: "CASH",
-    mark_as_paid: false,
-    amount: "",
-    local_atendimento: "",
-  });
   const [prescricoesRefresh, setPrescricoesRefresh] = useState(0);
   const [evolucaoForm, setEvolucaoForm] = useState(EMPTY_EVOLUCAO_FORM);
 
@@ -74,8 +64,6 @@ export function useConsultaDetailUiState(recarregarPrescricoesBase: () => Promis
     setShowReceberModal,
     recebendo,
     setRecebendo,
-    showFinalizarModal,
-    setShowFinalizarModal,
     finalizando,
     setFinalizando,
     iniciando,
@@ -88,8 +76,6 @@ export function useConsultaDetailUiState(recarregarPrescricoesBase: () => Promis
     setMemedBusy,
     memedRef,
     locaisAtendimento,
-    finalizarForm,
-    setFinalizarForm,
     prescricoesRefresh,
     evolucaoForm,
     setEvolucaoForm,

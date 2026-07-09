@@ -1,11 +1,11 @@
-import { useCallback, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useCallback, type RefObject } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { fetchClinicaSchedulingProfessionals, fetchHistoricoPaciente } from "@/lib/clinica-beleza-cadastros-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
+import { useToast } from "@/components/ui/Toast";
 import { consultaEstaConcluida, type Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
-import type { ConsultaDetailLoaderSlice, FinalizarFormState } from "./consulta-detail-actions-types";
-import { valorPagamentoConsulta } from "./consulta-detail-actions-utils";
+import type { ConsultaDetailLoaderSlice } from "./consulta-detail-actions-types";
 import type { MemedPrescricaoHandle } from "@/components/clinica-beleza/consultas/MemedPrescricao";
 
 type LifecycleUiSlice = {
@@ -14,10 +14,7 @@ type LifecycleUiSlice = {
   setProfissionaisDisponiveis: (p: { id: number; nome?: string; name?: string }[]) => void;
   setShowReceberModal: (v: boolean) => void;
   setRecebendo: (v: boolean) => void;
-  setShowFinalizarModal: (v: boolean) => void;
   setFinalizando: (v: boolean) => void;
-  setFinalizarForm: Dispatch<SetStateAction<FinalizarFormState>>;
-  finalizarForm: FinalizarFormState;
   memedRef: RefObject<MemedPrescricaoHandle | null>;
   memedBusy: boolean;
   setMemedBusy: (v: boolean) => void;
@@ -30,6 +27,7 @@ export function useConsultaLifecycleHandlers(
   },
   ui: LifecycleUiSlice,
 ) {
+  const toast = useToast();
   const {
     selected,
     setSelected,
@@ -46,10 +44,7 @@ export function useConsultaLifecycleHandlers(
     setProfissionaisDisponiveis,
     setShowReceberModal,
     setRecebendo,
-    setShowFinalizarModal,
     setFinalizando,
-    setFinalizarForm,
-    finalizarForm,
     memedRef,
     memedBusy,
     setMemedBusy,
@@ -77,8 +72,9 @@ export function useConsultaLifecycleHandlers(
         await onListRefresh();
         const hist = await fetchHistoricoPaciente(selected.patient).catch(() => []);
         setHistorico(Array.isArray(hist) ? (hist as Consulta[]) : []);
+        toast.success("Consulta iniciada.");
       } catch (e: unknown) {
-        alert(formatApiErrorBody(e) || "Erro ao iniciar consulta.");
+        toast.error(formatApiErrorBody(e) || "Erro ao iniciar consulta.");
       } finally {
         setIniciando(false);
       }
@@ -91,6 +87,7 @@ export function useConsultaLifecycleHandlers(
       setProfissionaisDisponiveis,
       setSelected,
       setShowProfessionalModal,
+      toast,
     ],
   );
 
@@ -130,41 +127,13 @@ export function useConsultaLifecycleHandlers(
       setTab("atendimento");
       await loadDetalhes(consultaAtualizada);
       await onListRefresh();
-      alert("Consulta finalizada. Agenda marcada como Concluída.");
+      toast.success("Consulta finalizada. Agenda marcada como Concluída.");
     } catch (e: unknown) {
-      alert(formatApiErrorBody(e) || "Erro ao finalizar consulta.");
+      toast.error(formatApiErrorBody(e) || "Erro ao finalizar consulta.");
     } finally {
       setFinalizando(false);
     }
-  }, [selected, setSelected, setTab, loadDetalhes, onListRefresh, setFinalizando]);
-
-  const finalizarConsulta = useCallback(async () => {
-    // Mantido para retrocompatibilidade — chamado se o modal ainda estiver aberto
-    setFinalizando(true);
-    try {
-      const updated = (await ClinicaBelezaAPI.consultas.finalizar(selected.id, {})) as Consulta & { error?: string };
-      if (updated?.error) throw new Error(updated.error);
-      const consultaAtualizada = { ...selected, ...updated };
-      setSelected(consultaAtualizada);
-      setShowFinalizarModal(false);
-      setTab("atendimento");
-      await loadDetalhes(consultaAtualizada);
-      await onListRefresh();
-      alert("Consulta finalizada. Agenda marcada como Concluída.");
-    } catch (e: unknown) {
-      alert(formatApiErrorBody(e) || "Erro ao finalizar consulta.");
-    } finally {
-      setFinalizando(false);
-    }
-  }, [
-    loadDetalhes,
-    onListRefresh,
-    selected,
-    setFinalizando,
-    setSelected,
-    setShowFinalizarModal,
-    setTab,
-  ]);
+  }, [selected, setSelected, setTab, loadDetalhes, onListRefresh, setFinalizando, toast]);
 
   const abrirMemed = useCallback(async () => {
     if (!memedRef.current || memedBusy) return;
@@ -173,33 +142,33 @@ export function useConsultaLifecycleHandlers(
       await memedRef.current.abrir();
     } catch (e: unknown) {
       logger.warn("Erro ao abrir a Memed:", e);
-      alert(e instanceof Error ? e.message : "Erro ao abrir a prescrição da Memed.");
+      toast.error(e instanceof Error ? e.message : "Erro ao abrir a prescrição da Memed.");
     } finally {
       setMemedBusy(false);
     }
-  }, [memedBusy, memedRef, setMemedBusy]);
+  }, [memedBusy, memedRef, setMemedBusy, toast]);
 
   const excluirConsulta = useCallback(async () => {
     if (consultaEstaConcluida(selected)) {
-      alert("Consultas concluídas não podem ser excluídas.");
+      toast.warning("Consultas concluídas não podem ser excluídas.");
       return;
     }
     if (!confirm("Excluir esta consulta? O agendamento vinculado será cancelado.")) return;
     try {
       await ClinicaBelezaAPI.consultas.excluir(selected.id);
       await onListRefresh();
+      toast.success("Consulta excluída.");
       onBack();
     } catch (e: unknown) {
-      alert(formatApiErrorBody(e) || "Erro ao excluir consulta.");
+      toast.error(formatApiErrorBody(e) || "Erro ao excluir consulta.");
     }
-  }, [onBack, onListRefresh, selected]);
+  }, [onBack, onListRefresh, selected, toast]);
 
   return {
     iniciarConsulta,
     abrirReceberModal,
     aposRecebimento,
     abrirFinalizarModal,
-    finalizarConsulta,
     abrirMemed,
     excluirConsulta,
   };

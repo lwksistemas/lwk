@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, DollarSign, AlertCircle } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 import { consultaPagamentoUi } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import type { Consulta } from "./consultas-types";
 
@@ -17,6 +18,7 @@ export function ConsultaPagamentoButton({
   size = "sm",
   loading = false,
 }: ConsultaPagamentoButtonProps) {
+  const toast = useToast();
   const { mostrarReceber, mostrarPago, mostrarParcial, consultaFinalizada } = consultaPagamentoUi(consulta);
   const pad = size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-1.5 text-sm";
   const iconSize = size === "sm" ? 14 : 16;
@@ -28,7 +30,7 @@ export function ConsultaPagamentoButton({
         <button type="button"
           onClick={(e) => {
             e.stopPropagation();
-            alert("Pagamento parcial — receber saldo na página Financeiro.");
+            toast.info("Pagamento parcial — receber saldo na página Financeiro.");
           }}
           className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-orange-500 ${pad}`}
           title="Pagamento parcial — receber saldo na página Financeiro"
@@ -59,7 +61,7 @@ export function ConsultaPagamentoButton({
         <button type="button"
           onClick={(e) => {
             e.stopPropagation();
-            alert("Pagamento pendente — receber na página Financeiro.");
+            toast.info("Pagamento pendente — receber na página Financeiro.");
           }}
           className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-red-600 ${pad}`}
           title="Pagamento pendente — receber na página Financeiro"

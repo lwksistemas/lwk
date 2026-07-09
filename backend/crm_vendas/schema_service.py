@@ -61,11 +61,12 @@ def configurar_schema_crm_loja(loja) -> bool:
         except Exception as patch_exc:
             logger.warning('configurar_schema_crm_loja: patch clinica migrations em %s: %s', db_name, patch_exc)
 
-        # 2c. 0068 sem 0067 no django_migrations bloqueia todo migrate do tenant
+        # 2c. Ordem quebrada em django_migrations (0067 sem 0066 / 0068 sem 0067)
         try:
+            patch_crm_migration_0066_if_orphan(db_name)
             patch_crm_migration_0067_if_orphan(db_name)
         except Exception as patch_exc:
-            logger.warning('configurar_schema_crm_loja: patch 0067 em %s: %s', db_name, patch_exc)
+            logger.warning('configurar_schema_crm_loja: patch migrations CRM em %s: %s', db_name, patch_exc)
 
         # 3. Aplicar migrations (mesma lista que criar loja: get_apps_esperados_para_loja)
         apps = get_apps_esperados_para_loja(loja)
@@ -113,10 +114,69 @@ def configurar_schema_crm_loja(loja) -> bool:
         return False
 
 
+def patch_crm_migration_0066_if_orphan(db_name: str) -> bool:
+    """
+    Corrige django_migrations quando 0067/0068 está aplicada sem 0066 (bloqueia migrate).
+    Garante coluna config_acesso e marca 0066 como aplicada.
+    """
+    from clinica_beleza.schema_ensure import column_exists, table_exists
+    from core.db_config import ensure_loja_database_config
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        return False
+
+    schema_name = db_name.replace('-', '_')
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(f'SET search_path TO "{schema_name}", public')
+        cursor.execute(
+            "SELECT 1 FROM django_migrations WHERE app = %s AND name = %s",
+            ['crm_vendas', '0066_vendedor_config_acesso'],
+        )
+        if cursor.fetchone():
+            return False
+
+        # Só corrige se há migration posterior já registrada (cadeia quebrada)
+        cursor.execute(
+            """
+            SELECT 1 FROM django_migrations
+            WHERE app = %s AND name IN (%s, %s)
+            LIMIT 1
+            """,
+            [
+                'crm_vendas',
+                '0067_lead_cpfcnpj_index_opor_prob_constraint',
+                '0068_emitente_documento_snapshot',
+            ],
+        )
+        if not cursor.fetchone():
+            return False
+
+        if table_exists(cursor, 'crm_vendas_vendedor') and not column_exists(
+            cursor, 'crm_vendas_vendedor', 'config_acesso',
+        ):
+            cursor.execute(
+                "ALTER TABLE crm_vendas_vendedor "
+                "ADD COLUMN config_acesso JSONB NOT NULL DEFAULT '{}'::jsonb"
+            )
+
+        cursor.execute(
+            """
+            INSERT INTO django_migrations (app, name, applied)
+            VALUES ('crm_vendas', '0066_vendedor_config_acesso', NOW())
+            """,
+        )
+        logger.warning(
+            'patch_crm_migration_0066_if_orphan: %s — registro 0066 inserido (cadeia órfã)',
+            db_name,
+        )
+        return True
+
+
 def patch_crm_migration_0067_if_orphan(db_name: str) -> bool:
     """
     Corrige django_migrations quando 0068 está aplicada sem 0067 (bloqueia migrate).
-  0067 só adiciona índice + check constraint — seguro marcar como aplicada se 0068 já rodou.
+    0067 só adiciona índice + check constraint — seguro marcar como aplicada se 0068 já rodou.
     """
     from core.db_config import ensure_loja_database_config
 
@@ -158,6 +218,7 @@ def apply_crm_tenant_schema_patches(db_name: str) -> None:
     Usar em provisionamento, release (ensure_*) e recovery — nunca no hot path de requests.
     """
     patch_clinica_beleza_migration_orphans(db_name)
+    patch_crm_migration_0066_if_orphan(db_name)
     patch_crm_migration_0067_if_orphan(db_name)
     patch_crm_financeiro_tables_if_missing(db_name)
     patch_crm_emitente_documento_columns_if_missing(db_name)

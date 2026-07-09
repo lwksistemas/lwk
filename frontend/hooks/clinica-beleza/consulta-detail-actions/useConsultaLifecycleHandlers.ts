@@ -105,7 +105,7 @@ export function useConsultaLifecycleHandlers(
         setSelected({ ...selected, ...consultaAtualizada });
         await loadDetalhes(consultaAtualizada);
         await onListRefresh();
-        setShowReceberModal(false);
+        // NÃO fechar o modal aqui — mostra tela de recibo para o usuário imprimir/enviar.
       } finally {
         setRecebendo(false);
       }

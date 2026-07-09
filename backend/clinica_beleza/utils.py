@@ -79,7 +79,7 @@ class LojaContextHelper:
     @staticmethod
     def get_loja_owner_info():
         """
-        Retorna dados do administrador da loja atual.
+        Retorna dados do administrador e da loja atual.
         Usa cache de 1 hora para melhor performance.
         """
         loja_id = get_current_loja_id()
@@ -94,10 +94,33 @@ class LojaContextHelper:
         try:
             from superadmin.models import Loja
             loja = Loja.objects.using('default').select_related('owner').get(id=loja_id)
+            # Endereço formatado
+            partes_end = []
+            if getattr(loja, 'logradouro', ''):
+                end = loja.logradouro
+                if getattr(loja, 'numero', ''):
+                    end += f', {loja.numero}'
+                partes_end.append(end)
+            if getattr(loja, 'bairro', ''):
+                partes_end.append(loja.bairro)
+            if getattr(loja, 'cidade', ''):
+                cidade = loja.cidade
+                if getattr(loja, 'uf', ''):
+                    cidade += f' - {loja.uf}'
+                partes_end.append(cidade)
+            if getattr(loja, 'cep', ''):
+                partes_end.append(f'CEP {loja.cep}')
+
             result = {
                 'owner_username': loja.owner.username,
                 'owner_email': loja.owner.email or '',
                 'owner_telefone': getattr(loja, 'owner_telefone', '') or '',
+                # Dados da loja para recibos
+                'nome': loja.nome or '',
+                'cpf_cnpj': getattr(loja, 'cpf_cnpj', '') or '',
+                'endereco': ', '.join(partes_end),
+                'telefone': getattr(loja, 'owner_telefone', '') or '',
+                'email': loja.owner.email or '',
             }
             cache.set(cache_key, result, 3600)  # 1 hora
             return result

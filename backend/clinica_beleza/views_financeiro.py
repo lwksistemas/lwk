@@ -167,6 +167,29 @@ class PaymentParcelaView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class PaymentEnviarReciboView(GetObjectMixin, APIView):
+    """POST /clinica-beleza/payments/<id>/enviar-recibo/ — envia recibo por email ou WhatsApp."""
+    permission_classes = CLINICA_FINANCEIRO
+    model_class = Payment
+    not_found_message = 'Pagamento não encontrado'
+
+    def post(self, request, pk):
+        from .recibo_service import enviar_recibo_pagamento
+
+        payment, err = self.object_or_404(pk)
+        if err:
+            return err
+
+        canal = (request.data.get('canal') or '').strip()
+        if canal not in ('email', 'whatsapp'):
+            return Response({'error': 'Canal deve ser "email" ou "whatsapp".'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ok, msg = enviar_recibo_pagamento(payment, canal=canal)
+        if ok:
+            return Response({'success': True, 'message': msg})
+        return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class FinanceiroResumoView(APIView):
     """
     GET /clinica-beleza/financeiro/resumo/

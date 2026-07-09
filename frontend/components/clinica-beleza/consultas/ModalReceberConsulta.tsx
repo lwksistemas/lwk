@@ -130,27 +130,39 @@ export function ModalReceberConsulta({
     }
   };
 
-  const handleImprimir = () => {
-    const w = window.open("", "_blank", "width=320,height=600");
-    if (!w) return;
+  const handleImprimir = async () => {
     const c = consultaAtualizada || consulta;
-    const html = gerarHtmlRecibo(c, valorFinal || Number(c.valor_pago ?? 0), paymentMethod, numParcelas, valorParcela);
+    let lojaData: { nome?: string; cpf_cnpj?: string; endereco?: string; telefone?: string; email?: string } = {};
+    try {
+      const info = await ClinicaBelezaAPI.get('/loja-info/');
+      lojaData = info as typeof lojaData;
+    } catch { /* usa defaults */ }
+    const html = gerarHtmlRecibo(c, valorFinal || Number(c.valor_pago ?? 0), paymentMethod, numParcelas, valorParcela, lojaData);
+    const w = window.open("", "_blank", "width=320,height=700");
+    if (!w) return;
     w.document.write(html);
     w.document.close();
-    setTimeout(() => w.print(), 300);
   };
 
-  const handleEnviarEmail = () => {
+  const handleEnviarEmail = async () => {
     const c = consultaAtualizada || consulta;
-    if (c.payment_id) {
-      ClinicaBelezaAPI.payments.enviarRecibo(c.payment_id, "email").catch(() => {});
+    if (!c.payment_id) { alert("Pagamento não encontrado."); return; }
+    try {
+      await ClinicaBelezaAPI.payments.enviarRecibo(c.payment_id, "email");
+      alert("Recibo enviado por email!");
+    } catch {
+      alert("Erro ao enviar email. Verifique o email do paciente no cadastro.");
     }
   };
 
-  const handleEnviarWhatsApp = () => {
+  const handleEnviarWhatsApp = async () => {
     const c = consultaAtualizada || consulta;
-    if (c.payment_id) {
-      ClinicaBelezaAPI.payments.enviarRecibo(c.payment_id, "whatsapp").catch(() => {});
+    if (!c.payment_id) { alert("Pagamento não encontrado."); return; }
+    try {
+      await ClinicaBelezaAPI.payments.enviarRecibo(c.payment_id, "whatsapp");
+      alert("Recibo enviado por WhatsApp!");
+    } catch {
+      alert("Erro ao enviar WhatsApp. Verifique o telefone do paciente.");
     }
   };
 
@@ -342,6 +354,7 @@ function gerarHtmlRecibo(
   metodo: string,
   parcelas: number,
   valorParcela: string,
+  lojaData: { nome?: string; cpf_cnpj?: string; endereco?: string; telefone?: string; email?: string } = {},
 ): string {
   const metodoLabel = CLINICA_FORMA_PAGAMENTO_LABEL[metodo as keyof typeof CLINICA_FORMA_PAGAMENTO_LABEL] || metodo;
   const dataHora = new Date().toLocaleString("pt-BR");
@@ -378,8 +391,12 @@ function gerarHtmlRecibo(
 </style>
 </head><body>
 <div class="header">
-  <h1>${consulta.local_atendimento_name || "CLÍNICA"}</h1>
-  <p>RECIBO DE PAGAMENTO</p>
+  <h1>${lojaData.nome || consulta.local_atendimento_name || "CLÍNICA"}</h1>
+  ${lojaData.cpf_cnpj ? `<p>CNPJ: ${lojaData.cpf_cnpj}</p>` : ""}
+  ${lojaData.endereco ? `<p>${lojaData.endereco}</p>` : ""}
+  ${lojaData.telefone ? `<p>Tel: ${lojaData.telefone}</p>` : ""}
+  ${lojaData.email ? `<p>${lojaData.email}</p>` : ""}
+  <p style="margin-top:4px;font-weight:bold">RECIBO DE PAGAMENTO</p>
   <p>${dataHora}</p>
 </div>
 
@@ -417,6 +434,7 @@ function gerarHtmlRecibo(
 <div class="footer">
   <p>Obrigado pela preferência!</p>
   <p>Documento não fiscal — gerado pelo sistema.</p>
+  <button onclick="window.print()" style="margin-top:8px;padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #333;border-radius:4px;background:#fff;">🖨️ Imprimir</button>
 </div>
 </body></html>`;
 }

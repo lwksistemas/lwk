@@ -78,11 +78,41 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
             if hasattr(payment, 'get_payment_method_display')
             else payment.payment_method
         ),
+        'formas_pagamento': _listar_formas_pagamento(payment),
         'data': (
             payment.payment_date.strftime('%d/%m/%Y %H:%M')
             if payment.payment_date else '—'
         ),
     }
+
+
+def _formas_pagamento_texto(ctx: dict) -> str:
+    """Formata formas de pagamento para texto (WhatsApp/email)."""
+    formas = ctx.get('formas_pagamento', [])
+    if len(formas) <= 1:
+        metodo = formas[0]['metodo'] if formas else ctx.get('metodo', '')
+        return f'  {metodo}\n'
+    lines = []
+    for f in formas:
+        lines.append(f'  • {f["metodo"]} — R$ {f["valor"]:.2f}')
+    return '\n'.join(lines) + '\n'
+
+
+def _listar_formas_pagamento(payment) -> list[dict]:
+    """Retorna lista de formas de pagamento usadas (com valor cada)."""
+    METODOS = dict(payment.PAYMENT_METHOD_CHOICES)
+    try:
+        parcelas = payment.parcelas.filter(status='PAID').order_by('payment_date')
+        if parcelas.exists():
+            return [
+                {'metodo': METODOS.get(p.payment_method, p.payment_method), 'valor': float(p.valor)}
+                for p in parcelas
+            ]
+    except Exception:
+        pass
+    # Sem parcelas — usa o método único do payment
+    metodo_label = METODOS.get(payment.payment_method, payment.payment_method)
+    return [{'metodo': metodo_label, 'valor': float(payment.amount or 0)}]
 
 
 def _formatar_endereco_loja(loja) -> str:
@@ -185,8 +215,19 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     # === Totais ===
     totals_data = [
         [Paragraph('<b>Total</b>', s_bold), Paragraph(f'<b>R$ {ctx["valor_total"]:.2f}</b>', s_right)],
-        [Paragraph('Forma de pagamento', s_left), Paragraph(ctx['metodo'], s_right)],
     ]
+    # Formas de pagamento (múltiplas se parcial)
+    formas = ctx.get('formas_pagamento', [])
+    if len(formas) > 1:
+        totals_data.append([Paragraph('<b>Formas de pagamento:</b>', s_bold), Paragraph('', s_right)])
+        for f in formas:
+            totals_data.append([
+                Paragraph(f'  {f["metodo"]}', s_left),
+                Paragraph(f'R$ {f["valor"]:.2f}', s_right),
+            ])
+    else:
+        metodo = formas[0]['metodo'] if formas else ctx.get('metodo', '')
+        totals_data.append([Paragraph('Forma de pagamento', s_left), Paragraph(metodo, s_right)])
     totals_table = Table(totals_data, colWidths=[col_w * 0.55, col_w * 0.45])
     totals_table.setStyle(TableStyle([
         ('TOPPADDING', (0, 0), (-1, -1), 2),
@@ -392,7 +433,8 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
         f'📋 *Serviços realizados:*\n'
         f'{procs}\n\n'
         f'━━━━━━━━━━━━━━━━━━━━\n'
-        f'💳 *Forma:* {ctx["metodo"]}\n'
+        f'💳 *Forma de pagamento:*\n'
+        f'{_formas_pagamento_texto(ctx)}'
         f'💰 *Valor pago: R$ {valor_pago}*\n'
         f'━━━━━━━━━━━━━━━━━━━━\n\n'
         f'_O recibo completo em PDF segue em anexo._\n'

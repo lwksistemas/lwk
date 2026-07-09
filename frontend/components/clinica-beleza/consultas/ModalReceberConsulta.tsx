@@ -41,20 +41,32 @@ export function ModalReceberConsulta({
   const [confirmado, setConfirmado] = useState(false);
   const [consultaAtualizada, setConsultaAtualizada] = useState<Consulta | null>(null);
 
+  // Reset apenas quando o modal abre (open muda de false para true)
+  // NÃO resetar quando consulta muda (senão destrói a tela de recibo após onSuccess)
+  const [prevOpen, setPrevOpen] = useState(false);
   useEffect(() => {
-    if (!open) return;
-    const novoSaldo = saldoReceberConsulta(consulta);
-    const novoTotal = valorPagamentoConsulta(consulta);
-    setAmount(String(novoSaldo || novoTotal || ""));
-    setDesconto("");
-    setParcelas("1");
-    setValorParcela("");
-    setMarkAsPaid(true);
-    setPaymentMethod("CASH");
-    setError("");
-    setConfirmado(false);
-    setConsultaAtualizada(null);
-  }, [open, consulta]);
+    if (open && !prevOpen) {
+      // Modal acabou de abrir — resetar tudo
+      const novoSaldo = saldoReceberConsulta(consulta);
+      const novoTotal = valorPagamentoConsulta(consulta);
+      setAmount(String(novoSaldo || novoTotal || ""));
+      setDesconto("");
+      setParcelas("1");
+      setValorParcela("");
+      setMarkAsPaid(true);
+      setPaymentMethod("CASH");
+      setError("");
+      setConsultaAtualizada(null);
+      // Se já está PAGO, abrir direto na tela de recibo (reimprimir/reenviar)
+      if (consulta.payment_status === "PAID") {
+        setConfirmado(true);
+        setConsultaAtualizada(consulta);
+      } else {
+        setConfirmado(false);
+      }
+    }
+    setPrevOpen(open);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!open) return null;
 

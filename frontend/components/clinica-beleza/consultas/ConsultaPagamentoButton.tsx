@@ -85,8 +85,12 @@ export function ConsultaPagamentoButton({
   if (mostrarPago) {
     return (
       <span
-        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-green-600 ${pad}`}
-        title="Pagamento quitado"
+        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-green-600 cursor-pointer hover:bg-green-700 ${pad}`}
+        title="Pago — clique para reimprimir/reenviar recibo"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onReceber) onReceber(consulta);
+        }}
       >
         <CheckCircle2 size={iconSize} />
         Pago

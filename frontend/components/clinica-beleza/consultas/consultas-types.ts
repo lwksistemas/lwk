@@ -40,8 +40,12 @@ export interface Consulta {
   valor_pagamento?: string | number;
   /** Valor já pago pelo cliente (pagamento antecipado na recepção). */
   valor_pago?: number | null;
-  /** Status do pagamento existente: PAID, PENDING ou null. */
-  payment_status?: string | null;
+  /** Saldo ainda em aberto (valor_pagamento - valor_pago). */
+  valor_restante?: number | null;
+  /** Status do pagamento existente: PAID, PENDING, PARTIAL ou null. */
+  payment_status?: 'PAID' | 'PENDING' | 'PARTIAL' | null;
+  /** ID do Payment vinculado (para listar parcelas). */
+  payment_id?: number | null;
   local_atendimento?: number | null;
   local_atendimento_name?: string | null;
   convenio?: number | null;

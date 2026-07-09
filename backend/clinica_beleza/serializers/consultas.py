@@ -73,7 +73,9 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     valor_pagamento = serializers.SerializerMethodField()
     exige_termo_consentimento = serializers.SerializerMethodField()
     valor_pago = serializers.SerializerMethodField()
+    valor_restante = serializers.SerializerMethodField()
     payment_status = serializers.SerializerMethodField()
+    payment_id = serializers.SerializerMethodField()
     status_assinatura_termo_display = serializers.CharField(
         source='get_status_assinatura_termo_display', read_only=True,
     )
@@ -85,7 +87,8 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             'professional', 'professional_name',
             'procedure', 'procedure_name', 'procedures_list', 'protocol', 'protocol_name', 'status',
             'data_inicio', 'data_fim', 'duracao_minutos', 'observacoes_gerais', 'protocolo_notas',
-            'valor_consulta', 'valor_procedimentos', 'valor_pagamento', 'valor_pago', 'payment_status',
+            'valor_consulta', 'valor_procedimentos', 'valor_pagamento',
+            'valor_pago', 'valor_restante', 'payment_status', 'payment_id',
             'retorno_gratuito', 'retorno_tipo',
             'local_atendimento', 'local_atendimento_name',
             'convenio', 'convenio_name',
@@ -173,6 +176,27 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         if row is None:
             return None
         return float(row['amount'] or 0)
+
+    def get_valor_restante(self, obj):
+        """Saldo ainda em aberto (valor_pagamento - valor_pago)."""
+        row = self._get_latest_payment_row(obj)
+        vc = float(self.get_valor_pagamento(obj) or 0)
+        if row is None:
+            return vc
+        pago = float(row['amount'] or 0)
+        return max(0.0, vc - pago)
+
+    def get_payment_id(self, obj):
+        """ID do Payment vinculado (para acessar parcelas via /payments/<id>/parcelas/)."""
+        try:
+            from ..models import Payment
+            appointment = getattr(obj, 'appointment', None)
+            if not appointment:
+                return None
+            p = Payment.objects.filter(appointment=appointment).values('id').order_by('-id').first()
+            return p['id'] if p else None
+        except Exception:
+            return None
 
     def get_payment_status(self, obj):
         row = self._get_latest_payment_row(obj)

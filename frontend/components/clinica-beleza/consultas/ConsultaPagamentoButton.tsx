@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, DollarSign } from "lucide-react";
+import { CheckCircle2, DollarSign, AlertCircle } from "lucide-react";
 import { consultaPagamentoUi } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import type { Consulta } from "./consultas-types";
 
@@ -18,8 +18,28 @@ export function ConsultaPagamentoButton({
   loading = false,
 }: ConsultaPagamentoButtonProps) {
   const { mostrarReceber, mostrarPago } = consultaPagamentoUi(consulta);
+  const isPartial = consulta.payment_status === "PARTIAL";
   const pad = size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-1.5 text-sm";
   const iconSize = size === "sm" ? 14 : 16;
+
+  // Parcial: botão vermelho indicando que há saldo em aberto
+  if (isPartial && onReceber) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onReceber(consulta);
+        }}
+        disabled={loading}
+        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-red-600 hover:bg-red-700 ${pad}`}
+        title={`Parcial — saldo: R$ ${Number(consulta.valor_restante ?? 0).toFixed(2)}`}
+      >
+        <AlertCircle size={iconSize} />
+        {loading ? "Registrando…" : "Parcial"}
+      </button>
+    );
+  }
 
   if (mostrarReceber && onReceber) {
     return (

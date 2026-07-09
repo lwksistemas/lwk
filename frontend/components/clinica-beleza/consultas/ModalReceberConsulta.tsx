@@ -34,6 +34,7 @@ export function ModalReceberConsulta({
   const [markAsPaid, setMarkAsPaid] = useState(true);
   const [amount, setAmount] = useState(String(saldo || total || ""));
   const [desconto, setDesconto] = useState("");
+  const [parcelas, setParcelas] = useState("1");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -43,6 +44,7 @@ export function ModalReceberConsulta({
     const novoTotal = valorPagamentoConsulta(consulta);
     setAmount(String(novoSaldo || novoTotal || ""));
     setDesconto("");
+    setParcelas("1");
     setMarkAsPaid(true);
     setPaymentMethod("CASH");
     setError("");
@@ -67,6 +69,7 @@ export function ModalReceberConsulta({
         payment_method: paymentMethod,
         mark_as_paid: markAsPaid && valorFinal >= saldoAtual,
         amount: String(valorFinal),
+        parcelas: paymentMethod === "CREDIT_CARD" ? Number(parcelas) : 1,
       });
       const atualizada = (data as { consulta?: Consulta }).consulta;
       if (!atualizada) throw new Error("Resposta inválida ao registrar recebimento.");
@@ -172,13 +175,31 @@ export function ModalReceberConsulta({
             </select>
           </div>
 
+          {paymentMethod === "CREDIT_CARD" && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Parcelas no cartão</label>
+              <select
+                value={parcelas}
+                onChange={(e) => setParcelas(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={String(n)}>
+                    {n}x de {formatCurrency(valorFinal / n)}
+                    {n === 1 ? " (à vista)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
               checked={markAsPaid}
               onChange={(e) => setMarkAsPaid(e.target.checked)}
             />
-            Receber valor total agora
+            Quitar pagamento completo
           </label>
 
           <div className="flex gap-2 pt-2">

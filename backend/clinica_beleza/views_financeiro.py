@@ -191,6 +191,25 @@ class PaymentEnviarReciboView(GetObjectMixin, APIView):
         return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ReciboPdfPublicView(APIView):
+    """GET /clinica-beleza/payments/<id>/recibo-pdf/<token>/ — retorna PDF público (para WhatsApp)."""
+    permission_classes = []
+    authentication_classes = []
+
+    def get(self, request, pk, token):
+        from django.core.cache import cache as django_cache
+        from django.http import HttpResponse
+
+        cache_key = f'recibo_pdf_{token}'
+        pdf_bytes = django_cache.get(cache_key)
+        if not pdf_bytes:
+            return Response({'error': 'Recibo expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
+
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="recibo_{pk}.pdf"'
+        return response
+
+
 class FinanceiroResumoView(APIView):
     """
     GET /clinica-beleza/financeiro/resumo/

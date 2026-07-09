@@ -233,16 +233,30 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
         if not ok:
             return False, err or 'Erro ao enviar WhatsApp.'
 
-        # Tentar enviar PDF como documento (não bloqueia se falhar)
+        # Tentar enviar PDF como documento via URL pública temporária
         try:
-            import base64
-            from whatsapp.services import _send_whatsapp_document_evolution
+            from django.conf import settings
+            import hashlib
+            import time
 
+            # Gerar token temporário para acesso público ao PDF
+            ts = str(int(time.time()))
+            token_raw = f'recibo-{payment.id}-{ts}-{settings.SECRET_KEY[:16]}'
+            token = hashlib.sha256(token_raw.encode()).hexdigest()[:32]
+
+            # Armazenar PDF no cache por 5 minutos para o endpoint público
+            from django.core.cache import cache as django_cache
             pdf_bytes = _gerar_pdf_recibo(ctx)
-            pdf_b64 = base64.b64encode(pdf_bytes).decode('utf-8')
-            document_uri = f'data:application/pdf;base64,{pdf_b64}'
+            cache_key = f'recibo_pdf_{token}'
+            django_cache.set(cache_key, pdf_bytes, 300)  # 5 minutos
+
+            # URL pública do PDF
+            api_base = getattr(settings, 'API_BASE_URL', '') or 'https://api.lwksistemas.com.br'
+            pdf_url = f'{api_base}/api/clinica-beleza/payments/{payment.id}/recibo-pdf/{token}/'
+
+            from whatsapp.services import _send_whatsapp_document_evolution
             _send_whatsapp_document_evolution(
-                telefone, document_uri, f'recibo_{payment.id}.pdf',
+                telefone, pdf_url, f'recibo_{payment.id}.pdf',
                 caption='Recibo de Pagamento', config=config,
             )
         except Exception as pdf_err:

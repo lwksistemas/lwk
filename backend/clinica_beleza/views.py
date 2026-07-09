@@ -41,7 +41,7 @@ from .views_consultas import (
 
 # Financeiro
 from .views_financeiro import (  # noqa: F401
-    PaymentListView, PaymentDetailView, PaymentParcelaView, PaymentEnviarReciboView, FinanceiroResumoView,
+    PaymentListView, PaymentDetailView, PaymentParcelaView, PaymentEnviarReciboView, ReciboPdfPublicView, FinanceiroResumoView,
     CategoriaDespesaListView, DespesaListView, DespesaDetailView,
 )
 

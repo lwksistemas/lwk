@@ -91,6 +91,33 @@ export function ModalReceberConsulta({
     }
   };
 
+  const handleEstornar = async () => {
+    if (!confirm("Tem certeza que deseja estornar o pagamento? O valor voltará para pendente.")) return;
+    setLoading(true);
+    setError("");
+    try {
+      if (!consulta.payment_id) {
+        setError("Pagamento não encontrado.");
+        return;
+      }
+      await ClinicaBelezaAPI.put(`/payments/${consulta.payment_id}/`, {
+        status: "PENDING",
+        amount: "0",
+      });
+      // Recarregar consulta
+      const res = await ClinicaBelezaAPI.get(`/consultas/${consulta.id}/`);
+      const atualizada = res as Consulta;
+      if (atualizada) {
+        onSuccess(atualizada);
+        onClose();
+      }
+    } catch (e: unknown) {
+      setError(formatApiErrorBody(e) || "Erro ao estornar pagamento.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleImprimir = () => {
     const w = window.open("", "_blank", "width=400,height=600");
     if (!w) return;
@@ -270,6 +297,14 @@ export function ModalReceberConsulta({
               onChange={(e) => setMarkAsPaid(e.target.checked)} />
             Quitar pagamento completo
           </label>
+
+          {/* Estornar pagamento — só em consulta NÃO finalizada com valor já pago */}
+          {Number(consulta.valor_pago ?? 0) > 0 && consulta.status !== "COMPLETED" && (
+            <button type="button" onClick={handleEstornar} disabled={loading}
+              className="w-full py-2 text-sm rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+              Estornar pagamento (corrigir lançamento)
+            </button>
+          )}
 
           <div className="flex gap-2 pt-2 border-t dark:border-neutral-700">
             <button type="button" onClick={onClose}

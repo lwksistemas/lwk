@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Printer } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 
 export function ConsultaPrintButton({
   onPrint,
@@ -12,6 +13,7 @@ export function ConsultaPrintButton({
   label?: string;
   className?: string;
 }) {
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
 
   const handleClick = async () => {
@@ -28,7 +30,7 @@ export function ConsultaPrintButton({
         if (api.error) msg = api.error;
         else if (typeof api.detail === "string") msg = api.detail;
       }
-      alert(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

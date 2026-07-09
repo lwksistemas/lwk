@@ -5,9 +5,11 @@ import { deleteClinicaBelezaEntity, useClinicaBelezaEntityList } from "@/hooks/c
 import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
 import { entityActive, entityName, type ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 import { buscarProfissionaisOffline, salvarProfissionaisOffline } from "@/lib/offline-db";
+import { useToast } from "@/components/ui/Toast";
 import { buildProfissionaisBasePath, extractProfissionalToggleError } from "./profissionais-page-utils";
 
 export function useProfissionaisPage() {
+  const toast = useToast();
   const slug = useParams().slug as string;
   const basePath = buildProfissionaisBasePath(slug);
   const { isNovo, editIdParam, isFormView, voltarLista, abrirNovo, abrirEditar } =
@@ -32,10 +34,10 @@ export function useProfissionaisPage() {
         await deleteClinicaBelezaEntity(`/professionals/${p.id}/`);
         load();
       } catch {
-        alert("Erro ao desativar.");
+        toast.error("Erro ao desativar.");
       }
     },
-    [load],
+    [load, toast],
   );
 
   const toggleProfissional = useCallback(
@@ -45,10 +47,10 @@ export function useProfissionaisPage() {
         await ClinicaBelezaAPI.patch(`/professionals/${p.id}/`, { is_profissional: novoValor });
         load();
       } catch (err: unknown) {
-        alert(extractProfissionalToggleError(err));
+        toast.error(extractProfissionalToggleError(err));
       }
     },
-    [load],
+    [load, toast],
   );
 
   const activeList = list.filter((p) => entityActive(p));

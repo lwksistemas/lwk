@@ -9,6 +9,7 @@ import { salvarPacientesOffline } from "@/lib/offline-db";
 import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
 import { findConvenioParticular } from "@/lib/convenio-precos";
 import { useOfflineSave } from "@/hooks/clinica-beleza/useOfflineSave";
+import { useToast } from "@/components/ui/Toast";
 import {
   PACIENTE_EMPTY_FORM,
   type PacienteFormState,
@@ -17,7 +18,7 @@ import {
   montarEnderecoPaciente,
   patientToForm,
   type Patient,
-} from "@/app/(dashboard)/loja/[slug]/clinica-beleza/pacientes/lib/paciente-form-utils";
+} from "@/components/clinica-beleza/pacientes-page/lib/paciente-form-utils";
 
 export interface UsePacienteFormOptions {
   isNovo: boolean;
@@ -38,6 +39,7 @@ export function usePacienteForm({
   load,
   voltarLista,
 }: UsePacienteFormOptions) {
+  const toast = useToast();
   const [editing, setEditing] = useState<Patient | null>(null);
   const [form, setForm] = useState<PacienteFormState>(PACIENTE_EMPTY_FORM);
   const [error, setError] = useState("");
@@ -170,7 +172,7 @@ export function usePacienteForm({
       if (result.error) setError(result.error);
       return;
     }
-    if (result.offline) alert(result.message);
+    if (result.offline) toast.warning(result.message);
     voltarLista();
     load();
   };

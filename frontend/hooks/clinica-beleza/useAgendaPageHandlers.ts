@@ -8,6 +8,7 @@ import {
   type HorarioTrabalho,
   workHoursRejectionMessage,
 } from "@/lib/clinica-beleza-work-hours";
+import { useToast } from "@/components/ui/Toast";
 
 type AgendaEventClickInfo = {
   event: {
@@ -49,6 +50,8 @@ export function useAgendaPageHandlers({
   setSelectedDate: (date: Date | null) => void;
   setShowCreateModal: (open: boolean) => void;
 }) {
+  const toast = useToast();
+
   const conflitoComBloqueio = useCallback(
     (date: Date, durationMin = 30) => {
       const apptEnd = new Date(date.getTime() + durationMin * 60000);
@@ -114,11 +117,11 @@ export function useAgendaPageHandlers({
       if (selectedProfessional) {
         const msg = workHoursRejectionMessage(date, 30, horariosTrabalho);
         if (msg) {
-          alert(msg);
+          toast.warning(msg);
           return;
         }
         if (conflitoComBloqueio(date)) {
-          alert(
+          toast.warning(
             'Horário bloqueado. Escolha outro horário ou gerencie bloqueios no botão "Bloquear horário".',
           );
           return;
@@ -133,6 +136,7 @@ export function useAgendaPageHandlers({
       selectedProfessional,
       setSelectedDate,
       setShowCreateModal,
+      toast,
     ],
   );
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { useToast } from "@/components/ui/Toast";
 import type { TermoConsentimentoCanal, TermoProcedimento } from "./termo-consentimento-types";
 import {
   extrairErroTermo,
@@ -18,6 +19,7 @@ export function useTermoConsentimento({
   onUpdated?: () => void;
   aberto: boolean;
 }) {
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [termos, setTermos] = useState<TermoProcedimento[]>([]);
   const termosRef = useRef<TermoProcedimento[]>([]);
@@ -84,11 +86,11 @@ export function useTermoConsentimento({
     setLoading(true);
     try {
       const res = await ClinicaBelezaAPI.consultas.termoConsentimento.enviar(consultaId, procedureId, canal);
-      alert(res.message || `${canalLabel} enviado.`);
+      toast.success(res.message || `${canalLabel} enviado.`);
       await carregar();
       onUpdated?.();
     } catch (e: unknown) {
-      alert(extrairErroTermo(e));
+      toast.error(extrairErroTermo(e));
     } finally {
       setLoading(false);
     }
@@ -98,11 +100,11 @@ export function useTermoConsentimento({
     setLoading(true);
     try {
       const res = await ClinicaBelezaAPI.consultas.termoConsentimento.reenviar(consultaId, procedureId, canal);
-      alert(res.message || `Link reenviado — ${nome}.`);
+      toast.success(res.message || `Link reenviado — ${nome}.`);
       await carregar();
       onUpdated?.();
     } catch (e: unknown) {
-      alert(extrairErroTermo(e, "Erro ao reenviar."));
+      toast.error(extrairErroTermo(e, "Erro ao reenviar."));
     } finally {
       setLoading(false);
     }
@@ -118,7 +120,7 @@ export function useTermoConsentimento({
       link.click();
       window.URL.revokeObjectURL(link.href);
     } catch (e: unknown) {
-      alert(extrairErroTermo(e, "Erro ao baixar PDF."));
+      toast.error(extrairErroTermo(e, "Erro ao baixar PDF."));
     } finally {
       setLoading(false);
     }

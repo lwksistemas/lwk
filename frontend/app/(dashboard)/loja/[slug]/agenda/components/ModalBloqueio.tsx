@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { useToast } from "@/components/ui/Toast";
 import { logger } from "@/lib/logger";
 
 interface SelectedBloqueio {
@@ -19,6 +20,7 @@ interface ModalBloqueioProps {
 }
 
 export function ModalBloqueio({ open, onClose, onSuccess, bloqueio }: ModalBloqueioProps) {
+  const toast = useToast();
   const [deleting, setDeleting] = useState(false);
 
   if (!open || !bloqueio) return null;
@@ -36,7 +38,7 @@ export function ModalBloqueio({ open, onClose, onSuccess, bloqueio }: ModalBloqu
       onSuccess();
     } catch (error) {
       logger.warn("Erro ao excluir bloqueio:", error);
-      alert(error instanceof Error ? error.message : "Erro ao excluir bloqueio.");
+      toast.error(error instanceof Error ? error.message : "Erro ao excluir bloqueio.");
     } finally {
       setDeleting(false);
     }

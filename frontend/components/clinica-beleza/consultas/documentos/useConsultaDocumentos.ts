@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { ClinicaBelezaAPI, type DocumentoClinicoItem, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
+import { useToast } from "@/components/ui/Toast";
 import { logger } from "@/lib/logger";
 import { parseListaDocumentos } from "../historico/historico-utils";
 import type { DocumentoAcao, DocumentoTipo } from "./documentos-types";
 
 export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0) {
+  const toast = useToast();
   const [openDropdown, setOpenDropdown] = useState<DocumentoTipo | null>(null);
   const [documentos, setDocumentos] = useState<DocumentoClinicoItem[]>([]);
   const [prescricoesMemed, setPrescricoesMemed] = useState<PrescricaoMemedItem[]>([]);
@@ -92,7 +94,7 @@ export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0
       await registrarDocumentoCriado(created);
     } catch (e) {
       logger.warn("Erro ao salvar documento manual:", e);
-      alert("Erro ao salvar documento. Tente novamente.");
+      toast.error("Erro ao salvar documento. Tente novamente.");
     } finally {
       setSavingManualDoc(false);
     }

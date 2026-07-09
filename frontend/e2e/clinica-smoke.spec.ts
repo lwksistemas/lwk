@@ -74,4 +74,30 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     await visitarClinicaAutenticado(page, '/clinica-beleza/financeiro', slug);
     await expect(page.getByRole('heading', { name: /financeiro/i })).toBeVisible({ timeout: 20000 });
   });
+
+  test('fluxo autenticado — abrir Receber na lista quando houver consulta', async ({ page }) => {
+    test.skip(!clinicaE2eCredentials(), 'Defina CLINICA_E2E_* ou CRM_E2E_*');
+
+    const ok = await loginClinicaLoja(page, slug);
+    test.skip(!ok, 'Loja clínica indisponível neste ambiente');
+
+    await visitarClinicaAutenticado(page, '/clinica-beleza/consultas', slug);
+    await expect(page.getByRole('heading', { name: /^consultas$/i })).toBeVisible({ timeout: 20000 });
+
+    const receberBtn = page.getByRole('button', { name: /^receber$/i }).first();
+    const parcialBtn = page.getByRole('button', { name: /^parcial$/i }).first();
+    const temReceber = (await receberBtn.count()) > 0;
+    const temParcial = (await parcialBtn.count()) > 0;
+
+    if (!temReceber && !temParcial) {
+      test.skip(true, 'Nenhuma consulta com saldo em aberto nesta loja');
+      return;
+    }
+
+    await (temReceber ? receberBtn : parcialBtn).click();
+    await expect(page.getByRole('heading', { name: /receber pagamento/i })).toBeVisible({
+      timeout: 15000,
+    });
+    await page.getByRole('button', { name: /cancelar/i }).click();
+  });
 });

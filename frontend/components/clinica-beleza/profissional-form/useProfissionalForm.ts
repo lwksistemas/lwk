@@ -6,6 +6,7 @@ import {
 } from "@/lib/clinica-beleza-api";
 import { useOfflineSave } from "@/hooks/clinica-beleza/useOfflineSave";
 import { logger } from "@/lib/logger";
+import { useToast } from "@/components/ui/Toast";
 import {
   buildComissoesSavePayload,
   buildProfissionalSaveBody,
@@ -23,6 +24,7 @@ import {
 import { useProfissionalComissoes } from "./useProfissionalComissoes";
 
 export function useProfissionalForm(editId: string | null, onDone: () => void) {
+  const toast = useToast();
   const [form, setForm] = useState<ProfissionalFormState>(DEFAULT_PROFISSIONAL_FORM);
   const [locais, setLocais] = useState<LocalAtendimentoItem[]>([]);
   const [convenios, setConvenios] = useState<ConvenioItem[]>([]);
@@ -117,7 +119,7 @@ export function useProfissionalForm(editId: string | null, onDone: () => void) {
       return;
     }
     if (result.offline) {
-      alert(result.message);
+      toast.warning(result.message);
     }
     onDone();
   };

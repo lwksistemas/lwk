@@ -106,30 +106,34 @@ def _formatar_endereco_loja(loja) -> str:
 
 
 def _gerar_pdf_recibo(ctx: dict) -> bytes:
-    """Gera PDF do recibo em formato cupom fiscal."""
+    """Gera PDF do recibo em formato cupom fiscal com layout profissional."""
     from reportlab.lib.pagesizes import mm
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.lib import colors
 
     buf = io.BytesIO()
     page_w = 80 * mm
-    page_h = 200 * mm
+    page_h = 220 * mm
     doc = SimpleDocTemplate(buf, pagesize=(page_w, page_h),
                             leftMargin=4*mm, rightMargin=4*mm,
                             topMargin=6*mm, bottomMargin=6*mm)
 
-    s_center = ParagraphStyle('c', fontSize=9, alignment=TA_CENTER, leading=12)
-    s_bold_center = ParagraphStyle('bc', fontSize=10, fontName='Helvetica-Bold', alignment=TA_CENTER, leading=13)
+    s_center = ParagraphStyle('c', fontSize=8, alignment=TA_CENTER, leading=11)
+    s_bold_center = ParagraphStyle('bc', fontSize=11, fontName='Helvetica-Bold', alignment=TA_CENTER, leading=14)
+    s_title = ParagraphStyle('ti', fontSize=9, fontName='Helvetica-Bold', alignment=TA_CENTER, leading=12)
     s_left = ParagraphStyle('l', fontSize=8, leading=11)
     s_bold = ParagraphStyle('b', fontSize=8, fontName='Helvetica-Bold', leading=11)
-    s_total = ParagraphStyle('t', fontSize=11, fontName='Helvetica-Bold', alignment=TA_CENTER, leading=14)
-    s_footer = ParagraphStyle('f', fontSize=7, alignment=TA_CENTER, leading=10, textColor='#666666')
+    s_total = ParagraphStyle('t', fontSize=12, fontName='Helvetica-Bold', alignment=TA_CENTER, leading=15)
+    s_footer = ParagraphStyle('f', fontSize=7, alignment=TA_CENTER, leading=10, textColor=colors.HexColor('#666666'))
+    s_right = ParagraphStyle('r', fontSize=8, alignment=TA_RIGHT, leading=11)
 
-    hr = HRFlowable(width='100%', thickness=0.5, dash=[2, 2], spaceAfter=4, spaceBefore=4)
+    hr = HRFlowable(width='100%', thickness=0.5, dash=[2, 2], spaceAfter=3, spaceBefore=3)
+    col_w = page_w - 8*mm
     story = []
 
-    # Cabeçalho da loja
+    # === Cabeçalho da loja ===
     if ctx['loja_nome']:
         story.append(Paragraph(ctx['loja_nome'].upper(), s_bold_center))
     if ctx['loja_cnpj']:
@@ -139,33 +143,67 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     if ctx['loja_telefone']:
         story.append(Paragraph(f"Tel: {ctx['loja_telefone']}", s_center))
     story.append(Spacer(1, 3*mm))
-    story.append(Paragraph('RECIBO DE PAGAMENTO', s_bold_center))
+    story.append(hr)
+    story.append(Paragraph('RECIBO DE PAGAMENTO', s_title))
     story.append(Paragraph(ctx['data'], s_center))
     story.append(hr)
 
-    # Cliente e profissional
+    # === Cliente e profissional ===
     story.append(Paragraph(f"<b>Cliente:</b> {ctx['paciente_nome']}", s_left))
     if ctx['profissional_nome']:
         story.append(Paragraph(f"<b>Profissional:</b> {ctx['profissional_nome']}", s_left))
     story.append(hr)
 
-    # Serviços
+    # === Serviços com valores alinhados ===
     story.append(Paragraph('<b>SERVIÇOS</b>', s_bold))
+    story.append(Spacer(1, 1*mm))
+
+    svc_data = []
     if ctx['taxa_consulta'] > 0:
-        story.append(Paragraph(f"Taxa de consulta  —  R$ {ctx['taxa_consulta']:.2f}", s_left))
+        svc_data.append([
+            Paragraph('Taxa de consulta', s_left),
+            Paragraph(f'R$ {ctx["taxa_consulta"]:.2f}', s_right),
+        ])
     for p in ctx['procedimentos']:
-        story.append(Paragraph(f"• {p['nome']}  —  R$ {p['valor']:.2f}", s_left))
+        svc_data.append([
+            Paragraph(f'• {p["nome"]}', s_left),
+            Paragraph(f'R$ {p["valor"]:.2f}', s_right),
+        ])
+
+    if svc_data:
+        svc_table = Table(svc_data, colWidths=[col_w * 0.65, col_w * 0.35])
+        svc_table.setStyle(TableStyle([
+            ('TOPPADDING', (0, 0), (-1, -1), 1),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(svc_table)
+
     story.append(hr)
 
-    # Totais
-    story.append(Paragraph(f"<b>Total:</b> R$ {ctx['valor_total']:.2f}", s_left))
-    story.append(Paragraph(f"<b>Forma:</b> {ctx['metodo']}", s_left))
+    # === Totais ===
+    totals_data = [
+        [Paragraph('<b>Total</b>', s_bold), Paragraph(f'<b>R$ {ctx["valor_total"]:.2f}</b>', s_right)],
+        [Paragraph('Forma de pagamento', s_left), Paragraph(ctx['metodo'], s_right)],
+    ]
+    totals_table = Table(totals_data, colWidths=[col_w * 0.55, col_w * 0.45])
+    totals_table.setStyle(TableStyle([
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(totals_table)
+
     story.append(Spacer(1, 3*mm))
     story.append(Paragraph(f"VALOR PAGO: R$ {ctx['valor_pago']:.2f}", s_total))
+    story.append(Spacer(1, 2*mm))
     story.append(hr)
 
-    # Rodapé
-    story.append(Paragraph('Obrigado pela preferência!', s_footer))
+    # === Rodapé ===
+    story.append(Spacer(1, 2*mm))
+    story.append(Paragraph('Agradecemos pela confiança!', s_footer))
     story.append(Paragraph('Documento não fiscal — gerado pelo sistema.', s_footer))
 
     doc.build(story)
@@ -331,21 +369,29 @@ def _montar_email_texto(ctx: dict) -> str:
 
 
 def _montar_mensagem_whatsapp(ctx: dict) -> str:
-    """Mensagem formatada para WhatsApp."""
+    """Mensagem profissional formatada para WhatsApp."""
     procs_lines = []
     if ctx['taxa_consulta'] > 0:
-        procs_lines.append(f'  • Taxa de consulta — R$ {ctx["taxa_consulta"]:.2f}')
-    procs_lines.extend(f'  • {p["nome"]} — R$ {p["valor"]:.2f}' for p in ctx['procedimentos'])
+        procs_lines.append(f'  • Taxa de consulta ......... R$ {ctx["taxa_consulta"]:,.2f}'.replace(',', '.'))
+    for p in ctx['procedimentos']:
+        nome = p['nome'][:35]
+        procs_lines.append(f'  • {nome} ... R$ {p["valor"]:,.2f}'.replace(',', '.'))
     procs = '\n'.join(procs_lines)
-    prof_line = f'Profissional: {ctx["profissional_nome"]}\n' if ctx['profissional_nome'] else ''
+    prof_line = f'👩‍⚕️ *Profissional:* {ctx["profissional_nome"]}\n' if ctx['profissional_nome'] else ''
     return (
-        f'*{ctx["loja_nome"] or "Clínica"}*\n'
-        f'RECIBO DE PAGAMENTO\n\n'
-        f'Cliente: {ctx["paciente_nome"]}\n'
-        f'Data: {ctx["data"]}\n'
-        f'{prof_line}'
-        f'Serviços:\n{procs}\n\n'
-        f'Forma: {ctx["metodo"]}\n'
-        f'*Valor pago: R$ {ctx["valor_pago"]:.2f}*\n\n'
-        f'Obrigado pela preferência! 🙏'
+        f'🏥 *{ctx["loja_nome"] or "Clínica"}*\n'
+        f'━━━━━━━━━━━━━━━━━━━━\n'
+        f'✅ *RECIBO DE PAGAMENTO*\n'
+        f'━━━━━━━━━━━━━━━━━━━━\n\n'
+        f'👤 *Cliente:* {ctx["paciente_nome"]}\n'
+        f'📅 *Data:* {ctx["data"]}\n'
+        f'{prof_line}\n'
+        f'📋 *Serviços realizados:*\n'
+        f'{procs}\n\n'
+        f'━━━━━━━━━━━━━━━━━━━━\n'
+        f'💳 *Forma:* {ctx["metodo"]}\n'
+        f'💰 *Valor pago: R$ {ctx["valor_pago"]:,.2f}*\n'.replace(',', '.')
+        f'━━━━━━━━━━━━━━━━━━━━\n\n'
+        f'_O recibo completo em PDF segue em anexo._\n'
+        f'Agradecemos pela confiança! 🙏'
     )

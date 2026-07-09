@@ -211,14 +211,14 @@ def _enviar_recibo_email(payment, patient, appointment) -> tuple[bool, str]:
 
 
 def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
-    """Envia recibo por WhatsApp com PDF em anexo."""
+    """Envia recibo por WhatsApp: mensagem de texto + PDF se possível."""
     telefone = (getattr(patient, 'telefone', '') or '').strip()
     if not telefone:
         return False, 'Paciente não possui telefone cadastrado.'
 
     try:
         from whatsapp.models import WhatsAppConfig
-        from whatsapp.services import send_whatsapp, _send_whatsapp_document_evolution, _evolution_ready, _normalize_phone
+        from whatsapp.services import send_whatsapp
 
         loja_id = payment.loja_id
         config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
@@ -226,29 +226,30 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
             return False, 'WhatsApp não está ativo. Configure em Configurações → WhatsApp.'
 
         ctx = _obter_dados_contexto(payment, patient, appointment)
+        mensagem = _montar_mensagem_whatsapp(ctx)
 
-        # Gerar PDF e converter para base64 data URI
-        import base64
-        pdf_bytes = _gerar_pdf_recibo(ctx)
-        pdf_b64 = base64.b64encode(pdf_bytes).decode('utf-8')
-        document_data_uri = f'data:application/pdf;base64,{pdf_b64}'
-        filename = f'recibo_{payment.id}.pdf'
-        caption = (
-            f'Recibo de Pagamento\n'
-            f'{ctx["paciente_nome"]}\n'
-            f'Valor: R$ {ctx["valor_pago"]:.2f}\n'
-            f'{ctx["loja_nome"]}'
-        )
+        # Enviar mensagem de texto com os dados do recibo
+        ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config)
+        if not ok:
+            return False, err or 'Erro ao enviar WhatsApp.'
 
-        # Enviar PDF como documento
-        ok, err = _send_whatsapp_document_evolution(
-            telefone, document_data_uri, filename,
-            caption=caption, config=config,
-        )
-        if ok:
-            logger.info('Recibo PDF enviado por WhatsApp para %s (payment_id=%s)', telefone, payment.id)
-            return True, f'Recibo enviado para {telefone}'
-        return False, err or 'Erro ao enviar WhatsApp.'
+        # Tentar enviar PDF como documento (não bloqueia se falhar)
+        try:
+            import base64
+            from whatsapp.services import _send_whatsapp_document_evolution
+
+            pdf_bytes = _gerar_pdf_recibo(ctx)
+            pdf_b64 = base64.b64encode(pdf_bytes).decode('utf-8')
+            document_uri = f'data:application/pdf;base64,{pdf_b64}'
+            _send_whatsapp_document_evolution(
+                telefone, document_uri, f'recibo_{payment.id}.pdf',
+                caption='Recibo de Pagamento', config=config,
+            )
+        except Exception as pdf_err:
+            logger.warning('PDF via WhatsApp falhou (texto já enviado): %s', pdf_err)
+
+        logger.info('Recibo enviado por WhatsApp para %s (payment_id=%s)', telefone, payment.id)
+        return True, f'Recibo enviado para {telefone}'
     except Exception as e:
         logger.warning('Falha ao enviar recibo WhatsApp payment_id=%s: %s', payment.id, e)
         return False, f'Erro ao enviar WhatsApp: {e}'

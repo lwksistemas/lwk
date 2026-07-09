@@ -372,12 +372,15 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
     """Mensagem profissional formatada para WhatsApp."""
     procs_lines = []
     if ctx['taxa_consulta'] > 0:
-        procs_lines.append(f'  • Taxa de consulta ......... R$ {ctx["taxa_consulta"]:,.2f}'.replace(',', '.'))
+        val = f'{ctx["taxa_consulta"]:.2f}'
+        procs_lines.append(f'  • Taxa de consulta ......... R$ {val}')
     for p in ctx['procedimentos']:
         nome = p['nome'][:35]
-        procs_lines.append(f'  • {nome} ... R$ {p["valor"]:,.2f}'.replace(',', '.'))
+        val = f'{p["valor"]:.2f}'
+        procs_lines.append(f'  • {nome} ... R$ {val}')
     procs = '\n'.join(procs_lines)
     prof_line = f'👩‍⚕️ *Profissional:* {ctx["profissional_nome"]}\n' if ctx['profissional_nome'] else ''
+    valor_pago = f'{ctx["valor_pago"]:.2f}'
     return (
         f'🏥 *{ctx["loja_nome"] or "Clínica"}*\n'
         f'━━━━━━━━━━━━━━━━━━━━\n'
@@ -390,7 +393,7 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
         f'{procs}\n\n'
         f'━━━━━━━━━━━━━━━━━━━━\n'
         f'💳 *Forma:* {ctx["metodo"]}\n'
-        f'💰 *Valor pago: R$ {ctx["valor_pago"]:,.2f}*\n'.replace(',', '.')
+        f'💰 *Valor pago: R$ {valor_pago}*\n'
         f'━━━━━━━━━━━━━━━━━━━━\n\n'
         f'_O recibo completo em PDF segue em anexo._\n'
         f'Agradecemos pela confiança! 🙏'

@@ -131,13 +131,13 @@ export function ModalReceberConsulta({
   };
 
   const handleImprimir = () => {
-    const w = window.open("", "_blank", "width=400,height=600");
+    const w = window.open("", "_blank", "width=320,height=600");
     if (!w) return;
     const c = consultaAtualizada || consulta;
-    const html = gerarHtmlRecibo(c, valorFinal, paymentMethod, numParcelas, valorParcela);
+    const html = gerarHtmlRecibo(c, valorFinal || Number(c.valor_pago ?? 0), paymentMethod, numParcelas, valorParcela);
     w.document.write(html);
     w.document.close();
-    w.print();
+    setTimeout(() => w.print(), 300);
   };
 
   const handleEnviarEmail = () => {
@@ -345,36 +345,78 @@ function gerarHtmlRecibo(
 ): string {
   const metodoLabel = CLINICA_FORMA_PAGAMENTO_LABEL[metodo as keyof typeof CLINICA_FORMA_PAGAMENTO_LABEL] || metodo;
   const dataHora = new Date().toLocaleString("pt-BR");
+  const valorConsulta = Number(consulta.valor_consulta ?? 0);
+  const valorProcs = Number(consulta.valor_procedimentos ?? 0);
+  const totalGeral = valorConsulta + valorProcs;
   const parcelasInfo = metodo === "CREDIT_CARD" && parcelas > 1
-    ? `<p><strong>Parcelas:</strong> ${parcelas}x de R$ ${valorParcela || (valor / parcelas).toFixed(2)}</p>`
+    ? `<tr><td>Parcelas</td><td style="text-align:right">${parcelas}x R$ ${valorParcela || (valor / parcelas).toFixed(2)}</td></tr>`
     : "";
+
+  // Procedimentos individuais
+  const procs = consulta.procedures_list ?? [];
+  const procsHtml = procs.length > 0
+    ? procs.map(p => `<tr><td style="padding-left:8px">• ${p.nome}</td><td style="text-align:right">R$ ${Number(p.valor).toFixed(2)}</td></tr>`).join("")
+    : `<tr><td style="padding-left:8px">• ${consulta.procedure_name || "Consulta"}</td><td style="text-align:right">R$ ${valorProcs.toFixed(2)}</td></tr>`;
 
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
 <title>Recibo de Pagamento</title>
 <style>
-  body { font-family: Arial, sans-serif; max-width: 350px; margin: 0 auto; padding: 20px; font-size: 13px; }
-  h1 { text-align: center; font-size: 16px; border-bottom: 2px solid #333; padding-bottom: 8px; }
-  .info { margin: 12px 0; }
-  .info p { margin: 4px 0; }
-  .total { font-size: 16px; font-weight: bold; border-top: 1px dashed #999; padding-top: 10px; margin-top: 12px; }
-  .footer { text-align: center; margin-top: 20px; font-size: 11px; color: #666; border-top: 1px dashed #999; padding-top: 10px; }
-  @media print { body { margin: 0; } }
+  @page { size: 80mm auto; margin: 4mm; }
+  body { font-family: 'Courier New', monospace; width: 72mm; margin: 0 auto; padding: 8px; font-size: 11px; line-height: 1.4; }
+  .header { text-align: center; border-bottom: 1px dashed #333; padding-bottom: 6px; margin-bottom: 8px; }
+  .header h1 { font-size: 13px; margin: 0 0 2px; }
+  .header p { margin: 1px 0; font-size: 10px; color: #444; }
+  .section { margin: 6px 0; }
+  .section-title { font-weight: bold; font-size: 10px; text-transform: uppercase; border-bottom: 1px dotted #aaa; margin-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  td { padding: 2px 0; vertical-align: top; }
+  .divider { border-top: 1px dashed #333; margin: 8px 0; }
+  .total { font-size: 14px; font-weight: bold; text-align: center; margin: 8px 0; }
+  .footer { text-align: center; font-size: 9px; color: #666; margin-top: 10px; border-top: 1px dashed #333; padding-top: 6px; }
+  @media print { body { margin: 0; width: 72mm; } }
 </style>
 </head><body>
-<h1>RECIBO DE PAGAMENTO</h1>
-<div class="info">
-  <p><strong>Data:</strong> ${dataHora}</p>
-  <p><strong>Paciente:</strong> ${consulta.patient_name}</p>
-  <p><strong>Procedimento:</strong> ${consultaProcedimentosNomes(consulta)}</p>
+<div class="header">
+  <h1>${consulta.local_atendimento_name || "CLÍNICA"}</h1>
+  <p>RECIBO DE PAGAMENTO</p>
+  <p>${dataHora}</p>
 </div>
-<div class="info">
-  <p><strong>Forma de pagamento:</strong> ${metodoLabel}</p>
+
+<div class="section">
+  <div class="section-title">Cliente</div>
+  <table>
+    <tr><td>${consulta.patient_name}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">Profissional</div>
+  <table>
+    <tr><td>${consulta.professional_name || "—"}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">Serviços</div>
+  <table>
+    ${valorConsulta > 0 ? `<tr><td>Taxa de consulta</td><td style="text-align:right">R$ ${valorConsulta.toFixed(2)}</td></tr>` : ""}
+    ${procsHtml}
+  </table>
+</div>
+
+<div class="divider"></div>
+<table>
+  <tr><td><strong>Subtotal</strong></td><td style="text-align:right"><strong>R$ ${totalGeral.toFixed(2)}</strong></td></tr>
+  <tr><td>Forma de pgto</td><td style="text-align:right">${metodoLabel}</td></tr>
   ${parcelasInfo}
-</div>
-<p class="total">Valor recebido: R$ ${valor.toFixed(2)}</p>
+</table>
+
+<div class="total">VALOR PAGO: R$ ${valor.toFixed(2)}</div>
+
 <div class="footer">
-  <p>Documento gerado automaticamente pelo sistema.</p>
+  <p>Obrigado pela preferência!</p>
+  <p>Documento não fiscal — gerado pelo sistema.</p>
 </div>
 </body></html>`;
 }

@@ -211,14 +211,14 @@ def _enviar_recibo_email(payment, patient, appointment) -> tuple[bool, str]:
 
 
 def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
-    """Envia recibo por WhatsApp para o paciente."""
+    """Envia recibo por WhatsApp com PDF em anexo."""
     telefone = (getattr(patient, 'telefone', '') or '').strip()
     if not telefone:
         return False, 'Paciente não possui telefone cadastrado.'
 
     try:
         from whatsapp.models import WhatsAppConfig
-        from whatsapp.services import send_whatsapp
+        from whatsapp.services import send_whatsapp, _send_whatsapp_document_evolution, _evolution_ready, _normalize_phone
 
         loja_id = payment.loja_id
         config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
@@ -226,10 +226,27 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
             return False, 'WhatsApp não está ativo. Configure em Configurações → WhatsApp.'
 
         ctx = _obter_dados_contexto(payment, patient, appointment)
-        mensagem = _montar_mensagem_whatsapp(ctx)
-        ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config)
+
+        # Gerar PDF e converter para base64 data URI
+        import base64
+        pdf_bytes = _gerar_pdf_recibo(ctx)
+        pdf_b64 = base64.b64encode(pdf_bytes).decode('utf-8')
+        document_data_uri = f'data:application/pdf;base64,{pdf_b64}'
+        filename = f'recibo_{payment.id}.pdf'
+        caption = (
+            f'Recibo de Pagamento\n'
+            f'{ctx["paciente_nome"]}\n'
+            f'Valor: R$ {ctx["valor_pago"]:.2f}\n'
+            f'{ctx["loja_nome"]}'
+        )
+
+        # Enviar PDF como documento
+        ok, err = _send_whatsapp_document_evolution(
+            telefone, document_data_uri, filename,
+            caption=caption, config=config,
+        )
         if ok:
-            logger.info('Recibo enviado por WhatsApp para %s (payment_id=%s)', telefone, payment.id)
+            logger.info('Recibo PDF enviado por WhatsApp para %s (payment_id=%s)', telefone, payment.id)
             return True, f'Recibo enviado para {telefone}'
         return False, err or 'Erro ao enviar WhatsApp.'
     except Exception as e:

@@ -98,6 +98,17 @@ def _formas_pagamento_texto(ctx: dict) -> str:
     return '\n'.join(lines) + '\n'
 
 
+def _formas_pagamento_html(ctx: dict) -> str:
+    """Formata formas de pagamento para HTML (corpo do email)."""
+    formas = ctx.get('formas_pagamento', [])
+    if len(formas) <= 1:
+        metodo = formas[0]['metodo'] if formas else ctx.get('metodo', '')
+        return f'<li>{metodo}</li>'
+    return ''.join(
+        f'<li>{f["metodo"]} — R$ {f["valor"]:.2f}</li>' for f in formas
+    )
+
+
 def _listar_formas_pagamento(payment) -> list[dict]:
     """Retorna lista de formas de pagamento usadas (com valor cada)."""
     METODOS = dict(payment.PAYMENT_METHOD_CHOICES)
@@ -372,7 +383,8 @@ def _montar_email_html(ctx: dict) -> str:
         {f'<p style="margin:4px 0;"><strong>Profissional:</strong> {ctx["profissional_nome"]}</p>' if ctx['profissional_nome'] else ''}
         <p style="margin:4px 0;"><strong>Serviços:</strong></p>
         <ul style="margin:4px 0;padding-left:20px;">{procs_html}</ul>
-        <p style="margin:4px 0;"><strong>Forma de pagamento:</strong> {ctx['metodo']}</p>
+        <p style="margin:4px 0;"><strong>Forma de pagamento:</strong></p>
+        <ul style="margin:4px 0;padding-left:20px;">{_formas_pagamento_html(ctx)}</ul>
         <p style="margin:12px 0 0;font-size:16px;font-weight:bold;color:#2e7d32;">
           Valor pago: R$ {ctx['valor_pago']:.2f}
         </p>
@@ -403,7 +415,7 @@ def _montar_email_texto(ctx: dict) -> str:
         f'Data: {ctx["data"]}\n'
         f'Profissional: {ctx["profissional_nome"]}\n'
         f'Serviços:\n{procs}\n'
-        f'Forma: {ctx["metodo"]}\n'
+        f'Forma de pagamento:\n{_formas_pagamento_texto(ctx)}'
         f'Valor pago: R$ {ctx["valor_pago"]:.2f}\n\n'
         f'Atenciosamente,\n{ctx["loja_nome"]}\n'
     )

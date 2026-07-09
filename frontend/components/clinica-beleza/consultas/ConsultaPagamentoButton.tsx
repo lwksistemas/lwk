@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, DollarSign, AlertCircle } from "lucide-react";
+import { CheckCircle2, DollarSign, AlertCircle, ExternalLink } from "lucide-react";
 import { consultaPagamentoUi } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import type { Consulta } from "./consultas-types";
 
@@ -17,45 +17,61 @@ export function ConsultaPagamentoButton({
   size = "sm",
   loading = false,
 }: ConsultaPagamentoButtonProps) {
-  const { mostrarReceber, mostrarPago } = consultaPagamentoUi(consulta);
-  const isPartial = consulta.payment_status === "PARTIAL";
+  const { mostrarReceber, mostrarPago, mostrarParcial, consultaFinalizada } = consultaPagamentoUi(consulta);
   const pad = size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-1.5 text-sm";
   const iconSize = size === "sm" ? 14 : 16;
 
-  // Parcial: botão laranja indicando que há saldo em aberto (pagou parte)
-  if (isPartial && onReceber) {
-    return (
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onReceber(consulta);
-        }}
-        disabled={loading}
-        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-orange-500 hover:bg-orange-600 ${pad}`}
-        title={`Parcial — saldo: R$ ${Number(consulta.valor_restante ?? 0).toFixed(2)}`}
-      >
-        <AlertCircle size={iconSize} />
-        {loading ? "Registrando…" : "Parcial"}
-      </button>
-    );
+  // Parcial: botão laranja — se finalizada, informa ir ao financeiro
+  if (mostrarParcial) {
+    if (consultaFinalizada) {
+      return (
+        <span
+          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-orange-500 ${pad}`}
+          title="Pagamento parcial — receber saldo na página Financeiro"
+        >
+          <AlertCircle size={iconSize} />
+          Parcial
+        </span>
+      );
+    }
+    if (onReceber) {
+      return (
+        <button type="button" onClick={(e) => { e.stopPropagation(); onReceber(consulta); }}
+          disabled={loading}
+          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-orange-500 hover:bg-orange-600 ${pad}`}
+          title={`Parcial — saldo: R$ ${Number(consulta.valor_restante ?? 0).toFixed(2)}`}
+        >
+          <AlertCircle size={iconSize} />
+          {loading ? "Registrando…" : "Parcial"}
+        </button>
+      );
+    }
   }
 
-  if (mostrarReceber && onReceber) {
-    return (
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onReceber(consulta);
-        }}
-        disabled={loading}
-        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-red-600 hover:bg-red-700 ${pad}`}
-      >
-        <DollarSign size={iconSize} />
-        {loading ? "Registrando…" : "Receber"}
-      </button>
-    );
+  // Receber: se finalizada → badge (não clicável), senão → botão
+  if (mostrarReceber) {
+    if (consultaFinalizada) {
+      return (
+        <span
+          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-red-600 ${pad}`}
+          title="Pagamento pendente — receber na página Financeiro"
+        >
+          <DollarSign size={iconSize} />
+          Pendente
+        </span>
+      );
+    }
+    if (onReceber) {
+      return (
+        <button type="button" onClick={(e) => { e.stopPropagation(); onReceber(consulta); }}
+          disabled={loading}
+          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-red-600 hover:bg-red-700 ${pad}`}
+        >
+          <DollarSign size={iconSize} />
+          {loading ? "Registrando…" : "Receber"}
+        </button>
+      );
+    }
   }
 
   if (mostrarPago) {

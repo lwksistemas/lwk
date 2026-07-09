@@ -39,19 +39,38 @@ export function saldoReceberConsulta(c: Consulta): number {
 export function consultaPagamentoUi(c: Consulta): {
   mostrarReceber: boolean;
   mostrarPago: boolean;
+  mostrarParcial: boolean;
+  consultaFinalizada: boolean;
 } {
+  const finalizada = c.status === "COMPLETED";
+
   if (c.status === "CANCELLED") {
-    return { mostrarReceber: false, mostrarPago: false };
+    return { mostrarReceber: false, mostrarPago: false, mostrarParcial: false, consultaFinalizada: false };
   }
 
   const saldo = saldoReceberConsulta(c);
-  const paymentPendente =
-    c.payment_status === "PENDING" || c.payment_status === "PARTIAL";
-  const mostrarReceber =
-    c.status === "RECEBER" || paymentPendente || saldo > 0;
-  const mostrarPago = !mostrarReceber && c.payment_status === "PAID";
+  const isParcial = c.payment_status === "PARTIAL";
+  const isPago = c.payment_status === "PAID" && saldo <= 0;
 
-  return { mostrarReceber, mostrarPago };
+  if (isPago) {
+    return { mostrarReceber: false, mostrarPago: true, mostrarParcial: false, consultaFinalizada: finalizada };
+  }
+
+  if (isParcial) {
+    return { mostrarReceber: false, mostrarPago: false, mostrarParcial: true, consultaFinalizada: finalizada };
+  }
+
+  // Pendente ou sem pagamento — saldo em aberto
+  const mostrarReceber = !finalizada && (c.status === "RECEBER" || saldo > 0 || c.payment_status === "PENDING");
+  // Se finalizada com saldo, mostra "Receber" como badge (não clicável → vai ao financeiro)
+  const mostrarReceberFinanceiro = finalizada && saldo > 0;
+
+  return {
+    mostrarReceber: mostrarReceber || mostrarReceberFinanceiro,
+    mostrarPago: false,
+    mostrarParcial: false,
+    consultaFinalizada: finalizada,
+  };
 }
 
 export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) {
@@ -62,7 +81,7 @@ export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) 
   const emAtendimento =
     selected.status === "IN_PROGRESS" ||
     (selected.status === "RECEBER" && !!selected.data_inicio);
-  const { mostrarReceber, mostrarPago } = consultaPagamentoUi(selected);
+  const { mostrarReceber, mostrarPago, mostrarParcial, consultaFinalizada: _cFin } = consultaPagamentoUi(selected);
   return {
     outraConsultaEmAndamento,
     podeIniciar:
@@ -77,6 +96,7 @@ export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) 
     consultaFinalizada: consultaConcluida,
     mostrarReceber,
     mostrarPago,
+    mostrarParcial,
   };
 }
 

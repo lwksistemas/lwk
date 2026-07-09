@@ -150,8 +150,10 @@ export function ModalReceberConsulta({
     try {
       await ClinicaBelezaAPI.payments.enviarRecibo(c.payment_id, "email");
       alert("Recibo enviado por email!");
-    } catch {
-      alert("Erro ao enviar email. Verifique o email do paciente no cadastro.");
+    } catch (e: unknown) {
+      const ax = e as { response?: { data?: { error?: string } } };
+      const msg = ax?.response?.data?.error || "Erro ao enviar email.";
+      alert(msg);
     }
   };
 
@@ -161,8 +163,10 @@ export function ModalReceberConsulta({
     try {
       await ClinicaBelezaAPI.payments.enviarRecibo(c.payment_id, "whatsapp");
       alert("Recibo enviado por WhatsApp!");
-    } catch {
-      alert("Erro ao enviar WhatsApp. Verifique o telefone do paciente.");
+    } catch (e: unknown) {
+      const ax = e as { response?: { data?: { error?: string } } };
+      const msg = ax?.response?.data?.error || "Erro ao enviar WhatsApp.";
+      alert(msg);
     }
   };
 

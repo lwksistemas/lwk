@@ -51,6 +51,15 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     if not procs and appointment.procedure:
         procs = [{'nome': appointment.procedure.nome, 'valor': float(appointment.procedure.preco or 0)}]
 
+    # Taxa de consulta (se existir)
+    taxa_consulta = 0.0
+    try:
+        consulta = getattr(appointment, 'consulta', None)
+        if consulta:
+            taxa_consulta = float(getattr(consulta, 'valor_consulta', 0) or 0)
+    except Exception:
+        pass
+
     return {
         'paciente_nome': getattr(patient, 'nome', 'Cliente'),
         'paciente_email': (getattr(patient, 'email', '') or '').strip(),
@@ -61,6 +70,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         'loja_endereco': _formatar_endereco_loja(loja) if loja else '',
         'loja_telefone': getattr(loja, 'owner_telefone', '') if loja else '',
         'procedimentos': procs,
+        'taxa_consulta': taxa_consulta,
         'valor_total': float(payment.valor_total_efetivo),
         'valor_pago': float(payment.amount or 0),
         'metodo': (
@@ -141,6 +151,8 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
 
     # Serviços
     story.append(Paragraph('<b>SERVIÇOS</b>', s_bold))
+    if ctx['taxa_consulta'] > 0:
+        story.append(Paragraph(f"Taxa de consulta  —  R$ {ctx['taxa_consulta']:.2f}", s_left))
     for p in ctx['procedimentos']:
         story.append(Paragraph(f"• {p['nome']}  —  R$ {p['valor']:.2f}", s_left))
     story.append(hr)
@@ -227,7 +239,10 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
 
 def _montar_email_html(ctx: dict) -> str:
     """Email profissional com resumo — PDF completo vai em anexo."""
-    procs_html = ''.join(
+    procs_html = ''
+    if ctx['taxa_consulta'] > 0:
+        procs_html += f'<li>Taxa de consulta — R$ {ctx["taxa_consulta"]:.2f}</li>'
+    procs_html += ''.join(
         f'<li>{p["nome"]} — R$ {p["valor"]:.2f}</li>' for p in ctx['procedimentos']
     )
     return f"""
@@ -264,7 +279,11 @@ def _montar_email_html(ctx: dict) -> str:
 
 def _montar_email_texto(ctx: dict) -> str:
     """Versão texto puro do email."""
-    procs = '\n'.join(f'  • {p["nome"]} — R$ {p["valor"]:.2f}' for p in ctx['procedimentos'])
+    procs_lines = []
+    if ctx['taxa_consulta'] > 0:
+        procs_lines.append(f'  • Taxa de consulta — R$ {ctx["taxa_consulta"]:.2f}')
+    procs_lines.extend(f'  • {p["nome"]} — R$ {p["valor"]:.2f}' for p in ctx['procedimentos'])
+    procs = '\n'.join(procs_lines)
     return (
         f'{ctx["loja_nome"] or "Clínica"}\n'
         f'{ctx["loja_endereco"]}\n\n'
@@ -281,7 +300,11 @@ def _montar_email_texto(ctx: dict) -> str:
 
 def _montar_mensagem_whatsapp(ctx: dict) -> str:
     """Mensagem formatada para WhatsApp."""
-    procs = '\n'.join(f'  • {p["nome"]} — R$ {p["valor"]:.2f}' for p in ctx['procedimentos'])
+    procs_lines = []
+    if ctx['taxa_consulta'] > 0:
+        procs_lines.append(f'  • Taxa de consulta — R$ {ctx["taxa_consulta"]:.2f}')
+    procs_lines.extend(f'  • {p["nome"]} — R$ {p["valor"]:.2f}' for p in ctx['procedimentos'])
+    procs = '\n'.join(procs_lines)
     prof_line = f'Profissional: {ctx["profissional_nome"]}\n' if ctx['profissional_nome'] else ''
     return (
         f'*{ctx["loja_nome"] or "Clínica"}*\n'

@@ -172,6 +172,7 @@ class PaymentEnviarReciboView(GetObjectMixin, APIView):
     permission_classes = CLINICA_FINANCEIRO
     model_class = Payment
     not_found_message = 'Pagamento não encontrado'
+    select_related_fields = ('appointment', 'appointment__patient')
 
     def post(self, request, pk):
         from .recibo_service import enviar_recibo_pagamento

@@ -22,7 +22,7 @@ export function ConsultaPagamentoButton({
   const pad = size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-1.5 text-sm";
   const iconSize = size === "sm" ? 14 : 16;
 
-  // Parcial: botão vermelho indicando que há saldo em aberto
+  // Parcial: botão laranja indicando que há saldo em aberto (pagou parte)
   if (isPartial && onReceber) {
     return (
       <button
@@ -32,7 +32,7 @@ export function ConsultaPagamentoButton({
           onReceber(consulta);
         }}
         disabled={loading}
-        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-red-600 hover:bg-red-700 ${pad}`}
+        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-orange-500 hover:bg-orange-600 ${pad}`}
         title={`Parcial — saldo: R$ ${Number(consulta.valor_restante ?? 0).toFixed(2)}`}
       >
         <AlertCircle size={iconSize} />
@@ -50,7 +50,7 @@ export function ConsultaPagamentoButton({
           onReceber(consulta);
         }}
         disabled={loading}
-        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-amber-600 hover:bg-amber-700 ${pad}`}
+        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-red-600 hover:bg-red-700 ${pad}`}
       >
         <DollarSign size={iconSize} />
         {loading ? "Registrando…" : "Receber"}

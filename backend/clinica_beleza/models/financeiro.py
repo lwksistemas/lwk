@@ -44,6 +44,11 @@ class Payment(LojaIsolationMixin, models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING', verbose_name="Status")
     payment_date = models.DateTimeField(blank=True, null=True, verbose_name="Data do Pagamento")
     notes = models.TextField(blank=True, null=True, verbose_name="Observações")
+    desconto = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        verbose_name="Desconto (R$)",
+        help_text="Valor de desconto concedido no atendimento.",
+    )
     comissao_percentual = models.PositiveSmallIntegerField(default=0, verbose_name="Comissão %")
     comissao_valor = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Comissão R$")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
@@ -127,6 +132,9 @@ class PaymentParcela(LojaIsolationMixin, models.Model):
         verbose_name = "Parcela de pagamento"
         verbose_name_plural = "Parcelas de pagamento"
         ordering = ['payment_date', 'created_at']
+        indexes = [
+            models.Index(fields=['payment', 'status'], name='cb_parcela_payment_status_idx'),
+        ]
 
     def __str__(self):
         return f"Parcela {self.id} — R$ {self.valor} em {self.payment_date}"

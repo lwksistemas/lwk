@@ -1,6 +1,8 @@
 """Service para registrar movimentações de estoque."""
 from decimal import Decimal, InvalidOperation
 
+from django.db import transaction
+
 from .models import MovimentacaoEstoque
 
 
@@ -9,6 +11,7 @@ class EstoqueMovimentacaoError(Exception):
     pass
 
 
+@transaction.atomic
 def registrar_movimentacao(
     produto,
     tipo: str,

@@ -44,6 +44,7 @@ export function ConsultaPagamentoButton({
       return (
         <button type="button" onClick={(e) => { e.stopPropagation(); onReceber(consulta); }}
           disabled={loading}
+          aria-label={`Receber pagamento parcial de ${consulta.patient_name}`}
           className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-orange-500 hover:bg-orange-600 ${pad}`}
           title={`Parcial — saldo: R$ ${Number(consulta.valor_restante ?? 0).toFixed(2)}`}
         >
@@ -75,6 +76,7 @@ export function ConsultaPagamentoButton({
       return (
         <button type="button" onClick={(e) => { e.stopPropagation(); onReceber(consulta); }}
           disabled={loading}
+          aria-label={`Receber pagamento de ${consulta.patient_name}`}
           className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-red-600 hover:bg-red-700 ${pad}`}
         >
           <DollarSign size={iconSize} />

@@ -2,7 +2,9 @@
 
 import { formatCpf, formatTelefone } from "@/lib/format-br";
 import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
+import { useClinicaBelezaTheme } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
 import { entityName } from "@/lib/clinica-beleza-entities";
+import { cbPrimaryAlpha } from "@/lib/clinica-beleza-theme-utils";
 import type { PatientQuickRegisterFieldProps } from "./patient-quick-register-types";
 import { usePatientQuickRegister } from "./usePatientQuickRegister";
 
@@ -10,6 +12,7 @@ const inputClass =
   "w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[44px]";
 
 export function PatientQuickRegisterField(props: PatientQuickRegisterFieldProps) {
+  const theme = useClinicaBelezaTheme();
   const {
     selecionado,
     nomeNovo,
@@ -56,8 +59,14 @@ export function PatientQuickRegisterField(props: PatientQuickRegisterFieldProps)
           </button>
         </div>
       ) : (
-        <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-900/10 p-3 space-y-2">
-          <p className="text-xs text-purple-800 dark:text-purple-300">
+        <div
+          className="rounded-lg border p-3 space-y-2 dark:border-opacity-40"
+          style={{
+            borderColor: cbPrimaryAlpha(28),
+            backgroundColor: cbPrimaryAlpha(8),
+          }}
+        >
+          <p className="text-xs" style={{ color: theme.primary }}>
             Cadastro rápido — ao digitar, busca no cadastro: nome desde a 1ª letra (Lu, Lui…), telefone/CPF com 3+
             dígitos.
           </p>
@@ -104,7 +113,14 @@ export function PatientQuickRegisterField(props: PatientQuickRegisterFieldProps)
                   type="button"
                   onClick={() => handleSelecionar(p)}
                   disabled={disabled}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 border-b last:border-b-0 border-gray-100 dark:border-neutral-700 flex items-center gap-2.5"
+                  className="w-full text-left px-3 py-2 text-sm border-b last:border-b-0 border-gray-100 dark:border-neutral-700 flex items-center gap-2.5 hover:opacity-90"
+                  style={{ backgroundColor: "transparent" }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = theme.primaryLight;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
                 >
                   <PacienteAvatar fotoUrl={p.foto_url} name={entityName(p)} size="sm" />
                   <span className="min-w-0 flex-1">
@@ -136,7 +152,8 @@ export function PatientQuickRegisterField(props: PatientQuickRegisterFieldProps)
             type="button"
             onClick={() => void handleCriar()}
             disabled={disabled || criando || !nomeNovo.trim()}
-            className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
+            style={{ backgroundColor: theme.primary }}
           >
             {criando ? "Salvando..." : "Salvar novo paciente"}
           </button>

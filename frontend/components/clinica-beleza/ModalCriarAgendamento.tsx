@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { ArrowLeft, CalendarDays, Loader2, Save } from "lucide-react";
 import { ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import { useClinicaBelezaTheme } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
 import { CriarAgendamentoAdvancedSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoAdvancedSection";
 import { CriarAgendamentoAgendaSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoAgendaSection";
 import { CriarAgendamentoClienteSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoClienteSection";
@@ -33,6 +34,7 @@ interface ModalCriarAgendamentoProps {
   onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
   onConsultaCreated?: (consultaId: number) => void;
   onOfflineEventCreated?: (event: unknown) => void;
+  /** Hex override; default = cor primária do tema da loja. */
   accentColor?: string;
 }
 
@@ -52,8 +54,11 @@ export function ModalCriarAgendamento({
   onSearchPatients,
   onConsultaCreated,
   onOfflineEventCreated,
-  accentColor = 'var(--cb-primary, #8B3D52)',
+  accentColor,
 }: ModalCriarAgendamentoProps) {
+  const theme = useClinicaBelezaTheme();
+  const accent = accentColor || theme.primary;
+
   const form = useCriarAgendamento({
     open,
     mode,
@@ -73,9 +78,11 @@ export function ModalCriarAgendamento({
 
   if (!open || !form.mounted) return null;
 
+  // Portal em document.body: reaplicar CSS vars do tema (não herdam do layout).
   const modal = (
     <div
       className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 bg-black/40 dark:bg-black/60"
+      style={theme.cssVars}
       onClick={(e) => {
         if (e.target === e.currentTarget) form.resetAndClose();
       }}
@@ -97,18 +104,22 @@ export function ModalCriarAgendamento({
           </button>
           <div
             className="hidden sm:flex w-9 h-9 rounded-lg items-center justify-center shrink-0"
-            style={{ backgroundColor: `${accentColor}18` }}
+            style={{ backgroundColor: theme.primaryLight }}
           >
-            <CalendarDays className="w-4 h-4" style={{ color: accentColor }} />
+            <CalendarDays className="w-4 h-4" style={{ color: accent }} />
           </div>
           <div className="flex-1 min-w-0">
             <h1
               id="modal-criar-agendamento-title"
-              className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight"
+              className="text-sm font-semibold truncate leading-tight"
+              style={{ color: accent }}
             >
               {form.modalTitle}
             </h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate hidden sm:block leading-snug">
+            <p
+              className="text-xs truncate hidden sm:block leading-snug"
+              style={{ color: `color-mix(in srgb, ${accent} 55%, #6b7280)` }}
+            >
               {form.modalSubtitle}
             </p>
           </div>
@@ -147,7 +158,7 @@ export function ModalCriarAgendamento({
                 type="submit"
                 disabled={form.createLoading}
                 className="sm:min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-white text-sm font-medium disabled:opacity-60"
-                style={{ backgroundColor: accentColor }}
+                style={{ backgroundColor: accent }}
               >
                 {form.createLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                 {form.submitLabel}

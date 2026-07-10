@@ -73,15 +73,14 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
         Retorna informações públicas da loja para página de login (sem autenticação).
         Otimizado com cache Redis (TTL 5min) - v663
         """
-        from django.core.cache import cache
+        from superadmin.loja_utils import get_loja_info_publica_cached, set_loja_info_publica_cache
         
         slug = request.query_params.get('slug')
         if not slug:
             return Response({'error': 'slug é obrigatório'}, status=400)
         slug = slug.strip().lower()
         
-        cache_key = f'loja_info_publica_v4:{slug}'
-        cached_data = cache.get(cache_key)
+        cached_data = get_loja_info_publica_cached(slug)
         if cached_data:
             logger.debug(f'✅ Cache HIT para loja {slug}')
             return Response(cached_data)
@@ -168,7 +167,8 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
                 'is_blocked': bool(getattr(loja, 'is_blocked', False)),
             }
             
-            cache.set(cache_key, data, 300)
+            # Grava sob slug e atalho — evita cores divergentes entre URLs.
+            set_loja_info_publica_cache(loja, data, ttl=300)
             logger.debug(f'💾 Cache SET para loja {slug}')
             
             return Response(data)

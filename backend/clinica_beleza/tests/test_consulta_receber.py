@@ -131,6 +131,49 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         with self.assertRaisesMessage(ValueError, 'aberta para recebimento'):
             registrar_recebimento_consulta(consulta, amount=Decimal('50'))
 
+    @patch('clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento')
+    @patch('clinica_beleza.models.financeiro.PaymentParcela')
+    @patch('clinica_beleza.consulta_service.Payment')
+    @patch('clinica_beleza.consulta_service._garantir_valor_consulta_consulta')
+    @patch('clinica_beleza.consulta_service._valor_pagamento_padrao')
+    @patch('clinica_beleza.consulta_service.calcular_comissao_payment_atendimento')
+    def test_desconto_e_multiplas_entradas(
+        self,
+        mock_comissao,
+        mock_valor_padrao,
+        _mock_garantir,
+        mock_payment_model,
+        mock_parcela_model,
+        mock_atualizar_status,
+    ):
+        mock_comissao.return_value = (Decimal('10'), Decimal('50'))
+        mock_valor_padrao.return_value = Decimal('700')
+        payment = MagicMock()
+        payment.loja_id = 1
+        payment.valor_total = None
+        payment.valor_pago_parcelas = Decimal('500')
+        payment.saldo_devedor = Decimal('500')
+        mock_payment_model.objects.filter.return_value.first.return_value = None
+        mock_payment_model.objects.create.return_value = payment
+
+        consulta = MagicMock(status='RECEBER', appointment=MagicMock(loja_id=1))
+
+        registrar_recebimento_consulta(
+            consulta,
+            desconto=Decimal('200'),
+            entradas=[
+                {'payment_method': 'CREDIT_CARD', 'valor': '200'},
+                {'payment_method': 'PIX', 'valor': '200'},
+                {'payment_method': 'DEBIT_CARD', 'valor': '100'},
+            ],
+            mark_as_paid=True,
+        )
+
+        self.assertEqual(payment.valor_total, Decimal('500'))
+        self.assertEqual(payment.status, 'PAID')
+        self.assertEqual(mock_parcela_model.objects.create.call_count, 3)
+        mock_atualizar_status.assert_called_once_with(consulta, payment)
+
 
 class GarantirContaPendenteConsultaTest(SimpleTestCase):
     @patch('clinica_beleza.consulta_service.Payment')

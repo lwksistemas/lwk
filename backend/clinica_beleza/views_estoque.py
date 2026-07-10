@@ -255,11 +255,51 @@ class ProdutoEstoqueDetailView(GetObjectMixin, APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
+        from django.db.models.deletion import ProtectedError
+        from .models import ConsultaProdutoUtilizado
+
         obj, error = self.object_or_404(pk)
         if error:
             return error
+
+        usos = ConsultaProdutoUtilizado.objects.filter(produto=obj).select_related('consulta')
+        if usos.exists():
+            n_finalizadas = usos.filter(consulta__status='COMPLETED').count()
+            if n_finalizadas:
+                return Response(
+                    {
+                        'error': (
+                            'Não é possível excluir este produto: ele foi utilizado em '
+                            f'{n_finalizadas} consulta(s) finalizada(s). '
+                            'O histórico clínico precisa ser preservado.'
+                        ),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response(
+                {
+                    'error': (
+                        'Não é possível excluir este produto: ele já foi registrado em '
+                        'consulta(s). Remova o vínculo nas consultas antes de excluir, '
+                        'ou aguarde a finalização — o histórico não pode ser apagado.'
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         MovimentacaoEstoque.objects.filter(produto=obj).delete()
-        obj.delete()
+        try:
+            obj.delete()
+        except ProtectedError:
+            return Response(
+                {
+                    'error': (
+                        'Não é possível excluir este produto porque ele está vinculado '
+                        'a outros registros do sistema.'
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

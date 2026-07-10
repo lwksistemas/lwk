@@ -72,5 +72,8 @@ export async function cbPatch<T = unknown>(
 }
 
 export async function cbDelete(path: string): Promise<void> {
-  await clinicaBelezaFetch(path, { method: "DELETE" });
+  const res = await clinicaBelezaFetch(path, { method: "DELETE" });
+  if (res.status === 204) return;
+  const body = await parseClinicaBelezaResponseBody(res);
+  if (!res.ok) throw body;
 }

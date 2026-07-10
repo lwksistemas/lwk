@@ -142,12 +142,15 @@ export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions 
   }, [loadProdutos, searchTerm, viewMode]);
 
   const handleExcluirProduto = async (id: number, nome: string) => {
-    if (!confirm(`Excluir "${nome}" do estoque? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Excluir "${nome}" do estoque?\n\nProdutos já usados em consultas finalizadas não podem ser excluídos.`)) {
+      return;
+    }
     try {
       await ClinicaBelezaAPI.estoque.delete(id);
+      toast.success("Produto excluído.");
       await loadAll();
-    } catch {
-      toast.error("Erro ao excluir produto.");
+    } catch (err) {
+      toast.error(extractEstoqueApiError(err, "Não foi possível excluir o produto."));
     }
   };
 

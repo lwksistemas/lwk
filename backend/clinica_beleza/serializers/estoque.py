@@ -23,8 +23,10 @@ class CategoriaEstoqueSerializer(serializers.ModelSerializer):
 
 
 class ProdutoEstoqueSerializer(serializers.ModelSerializer):
+    # _base_manager: evita falso "Pk inválido" quando o isolation filter
+    # ainda não enxerga a categoria no momento da validação do import XML.
     categoria = serializers.PrimaryKeyRelatedField(
-        queryset=CategoriaEstoque.objects.all(),
+        queryset=CategoriaEstoque._base_manager.all(),
         allow_null=True,
         required=False,
     )
@@ -38,31 +40,65 @@ class ProdutoEstoqueSerializer(serializers.ModelSerializer):
         model = ProdutoEstoque
         exclude = ['loja_id']
 
+    def _resolve_loja_id(self):
+        request = self.context.get('request')
+        loja_id = self.context.get('loja_id')
+        if loja_id:
+            return loja_id
+        if request:
+            loja_id = resolve_loja_id_from_request(request)
+            if loja_id:
+                return loja_id
+        from tenants.middleware import get_current_loja_id
+        return get_current_loja_id()
+
     def to_internal_value(self, data):
         mutable = data.copy() if hasattr(data, 'copy') else dict(data)
         if mutable.get('validade') in ('', None):
             mutable['validade'] = None
 
-        # Aceita categoria como id, slug string, ou categoria_id
+        loja_id = self._resolve_loja_id()
         cat_raw = mutable.get('categoria')
-        if 'categoria_id' in mutable and mutable.get('categoria_id') not in (None, ''):
-            cat_raw = mutable.pop('categoria_id')
+        cat_id_raw = mutable.pop('categoria_id', None) if 'categoria_id' in mutable else None
 
+        # Preferir slug; ID só se existir nesta loja
         if isinstance(cat_raw, str) and cat_raw.strip() and not cat_raw.strip().isdigit():
-            request = self.context.get('request')
-            loja_id = resolve_loja_id_from_request(request) if request else None
-            if not loja_id:
-                from tenants.middleware import get_current_loja_id
-                loja_id = get_current_loja_id()
             cat = resolver_categoria(loja_id=loja_id, slug=normalizar_slug_categoria(cat_raw))
             if cat:
                 mutable['categoria'] = cat.pk
             else:
                 mutable.pop('categoria', None)
-        elif isinstance(cat_raw, str) and cat_raw.strip().isdigit():
-            mutable['categoria'] = int(cat_raw.strip())
+        else:
+            pk = None
+            if cat_id_raw not in (None, ''):
+                try:
+                    pk = int(cat_id_raw)
+                except (TypeError, ValueError):
+                    pk = None
+            elif isinstance(cat_raw, str) and cat_raw.strip().isdigit():
+                pk = int(cat_raw.strip())
+            elif isinstance(cat_raw, int):
+                pk = cat_raw
+
+            slug_hint = None
+            if isinstance(mutable.get('categoria_slug'), str):
+                slug_hint = mutable.get('categoria_slug')
+
+            cat = resolver_categoria(loja_id=loja_id, categoria_id=pk, slug=slug_hint or 'outro')
+            if cat:
+                mutable['categoria'] = cat.pk
+            else:
+                mutable.pop('categoria', None)
 
         return super().to_internal_value(mutable)
+
+    def validate_categoria(self, value):
+        if value is None:
+            return value
+        loja_id = self._resolve_loja_id()
+        if loja_id and getattr(value, 'loja_id', None) not in (None, loja_id):
+            raise serializers.ValidationError('Categoria não pertence a esta loja.')
+        return value
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

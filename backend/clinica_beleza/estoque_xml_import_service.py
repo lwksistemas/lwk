@@ -366,9 +366,11 @@ def confirmar_importacao_xml(
             )
             atualizados += 1
         else:
+            # Passa slug (não PK) para evitar "Pk inválido" quando o ID
+            # do preview/override não existe no schema da loja.
             serializer_data = {
                 'nome': nome,
-                'categoria': cat.pk if cat else (item.get('categoria') or 'outro'),
+                'categoria': (cat.slug if cat else None) or item.get('categoria') or 'outro',
                 'marca': item.get('marca', ''),
                 'unidade_medida': item.get('unidade_medida', 'unidade'),
                 'quantidade_atual': str(quantidade),
@@ -380,9 +382,12 @@ def confirmar_importacao_xml(
                 'numero_nota': numero_nota,
                 'observacoes': item.get('observacoes', ''),
             }
-            serializer = ProdutoEstoqueSerializer(data=serializer_data)
+            serializer = ProdutoEstoqueSerializer(
+                data=serializer_data,
+                context={'loja_id': loja_id},
+            )
             if serializer.is_valid():
-                produto_novo = serializer.save()
+                produto_novo = serializer.save(categoria=cat) if cat else serializer.save()
                 MovimentacaoEstoque.objects.create(
                     produto=produto_novo,
                     tipo='entrada',

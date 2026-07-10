@@ -48,7 +48,8 @@ export function buildEstoqueImportFormData(
           opts.produtos.map((p) => ({
             nome: p.nome,
             categoria: p.categoria,
-            categoria_id: p.categoria_id,
+            // slug é a fonte da verdade; ID só como dica (backend re-resolve)
+            categoria_id: p.categoria_id ?? undefined,
           })),
         ),
       );

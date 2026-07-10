@@ -503,16 +503,25 @@ class EstoqueImportarXmlView(APIView):
                 except json.JSONDecodeError:
                     produtos_override = None
             if isinstance(produtos_override, list) and produtos_override:
-                # Mescla overrides de categoria sobre o parse do XML
+                # Mescla overrides de categoria sobre o parse do XML (prioriza slug)
                 by_nome = {str(p.get('nome', '')).strip().lower(): p for p in produtos_override if isinstance(p, dict)}
                 for p in resultado['produtos']:
                     ov = by_nome.get(str(p.get('nome', '')).strip().lower())
                     if not ov:
                         continue
-                    if ov.get('categoria_id') not in (None, ''):
-                        p['categoria_id'] = ov['categoria_id']
                     if ov.get('categoria'):
                         p['categoria'] = ov['categoria']
+                    if ov.get('categoria_id') not in (None, ''):
+                        p['categoria_id'] = ov['categoria_id']
+                    # Re-resolve na loja atual para não propagar PK de outro contexto
+                    cat = resolver_categoria(
+                        loja_id=loja_id,
+                        categoria_id=int(p['categoria_id']) if str(p.get('categoria_id') or '').isdigit() else None,
+                        slug=p.get('categoria') or 'outro',
+                    )
+                    if cat:
+                        p['categoria'] = cat.slug
+                        p['categoria_id'] = cat.id
 
         result = confirmar_importacao_xml(resultado['produtos'], loja_id=loja_id)
 

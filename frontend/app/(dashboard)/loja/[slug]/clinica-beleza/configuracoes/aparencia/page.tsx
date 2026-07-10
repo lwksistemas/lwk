@@ -24,6 +24,10 @@ import {
   COLUNAS_CONSULTAS_DISPONIVEIS,
   DEFAULT_COLUNAS_CONSULTAS,
 } from '@/lib/clinica-consultas-colunas-config';
+import {
+  COLUNAS_ESTOQUE_DISPONIVEIS,
+  DEFAULT_COLUNAS_ESTOQUE,
+} from '@/lib/clinica-estoque-colunas-config';
 
 const CORES_PRE_DEFINIDAS: LoginColorPreset[] = [
   { nome: 'Burgundy', primaria: '#8B3D52', secundaria: '#6B2F40' },
@@ -50,6 +54,7 @@ type LoginConfigResponse = {
   cor_fundo_pagina?: string;
   agenda_status_colors?: Record<string, { bg?: string; border?: string }> | null;
   colunas_consultas?: string[] | null;
+  colunas_estoque?: string[] | null;
 };
 
 function toHexInput(value: string, fallback: string): string {
@@ -74,6 +79,9 @@ export default function ClinicaBelezaAparenciaPage() {
   const [colunasConsultas, setColunasConsultas] = useState<string[]>(
     () => [...DEFAULT_COLUNAS_CONSULTAS],
   );
+  const [colunasEstoque, setColunasEstoque] = useState<string[]>(
+    () => [...DEFAULT_COLUNAS_ESTOQUE],
+  );
 
   const loadConfig = useCallback(async () => {
     setLoading(true);
@@ -87,6 +95,11 @@ export default function ClinicaBelezaAparenciaPage() {
         data.colunas_consultas && data.colunas_consultas.length > 0
           ? data.colunas_consultas
           : [...DEFAULT_COLUNAS_CONSULTAS],
+      );
+      setColunasEstoque(
+        data.colunas_estoque && data.colunas_estoque.length > 0
+          ? data.colunas_estoque
+          : [...DEFAULT_COLUNAS_ESTOQUE],
       );
     } catch (err) {
       logger.warn('Erro ao carregar identidade visual:', err);
@@ -152,6 +165,7 @@ export default function ClinicaBelezaAparenciaPage() {
         cor_fundo_pagina: normalizeHexColor(corFundoPagina) || '',
         agenda_status_colors: agendaPayload,
         colunas_consultas: colunasConsultas,
+        colunas_estoque: colunasEstoque,
       });
       toast.success('Identidade visual salva. Atualizando o sistema…');
       window.setTimeout(() => {
@@ -188,7 +202,7 @@ export default function ClinicaBelezaAparenciaPage() {
               Identidade visual
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Cores do menu, fundo das páginas, status da agenda e colunas de Consultas.
+              Cores do menu, fundo das páginas, status da agenda e colunas de Consultas e Estoque.
             </p>
           </div>
         </div>
@@ -421,6 +435,18 @@ export default function ClinicaBelezaAparenciaPage() {
               colunasDisponiveis={COLUNAS_CONSULTAS_DISPONIVEIS}
               colunas={colunasConsultas}
               onSave={setColunasConsultas}
+              onError={(msg) => toast.error(msg)}
+              minColunas={3}
+              className="!border-0 !shadow-none !p-0 !bg-transparent dark:!bg-transparent"
+            />
+
+            <ColunasSection
+              sectionId="colunas-estoque"
+              title="Colunas da listagem de Estoque"
+              description="Escolha quais informações aparecem em Clínica → Estoque. A coluna Ações permanece sempre visível."
+              colunasDisponiveis={COLUNAS_ESTOQUE_DISPONIVEIS}
+              colunas={colunasEstoque}
+              onSave={setColunasEstoque}
               onError={(msg) => toast.error(msg)}
               minColunas={3}
               className="!border-0 !shadow-none !p-0 !bg-transparent dark:!bg-transparent"

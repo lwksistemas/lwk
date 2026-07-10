@@ -12,6 +12,7 @@ import { EstoqueProdutosTable } from "@/components/clinica-beleza/estoque/Estoqu
 import { EstoqueResumoCards } from "@/components/clinica-beleza/estoque/EstoqueResumoCards";
 import { EstoqueImportarXmlModal } from "@/components/clinica-beleza/EstoqueImportarXmlModal";
 import { useEstoquePage } from "@/hooks/clinica-beleza/useEstoquePage";
+import { useEstoqueColunas } from "@/hooks/clinica-beleza/useEstoqueColunas";
 
 export interface EstoquePageContentProps {
   title?: string;
@@ -29,6 +30,7 @@ export function EstoquePageContent({
   relatedLinks = [],
 }: EstoquePageContentProps) {
   const page = useEstoquePage({ defaultCategoria });
+  const { colunasKeys } = useEstoqueColunas();
 
   return (
     <>
@@ -77,6 +79,7 @@ export function EstoquePageContent({
               onEntrada={(p) => page.abrirMovimentacao(p, "entrada")}
               onSaida={(p) => page.abrirMovimentacao(p, "saida")}
               onExcluir={page.handleExcluirProduto}
+              colunasVisiveis={colunasKeys}
             />
           </>
         )}

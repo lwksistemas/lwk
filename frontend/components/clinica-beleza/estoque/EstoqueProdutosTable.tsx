@@ -1,9 +1,13 @@
+"use client";
+
+import { useMemo, type ReactNode } from "react";
 import { AlertTriangle, ArrowDown, ArrowUp, X } from "lucide-react";
 import {
   estoqueCategoriaLabel,
   type EstoqueProduto,
   type EstoqueResumo,
 } from "@/components/clinica-beleza/estoque/estoque-types";
+import { DEFAULT_COLUNAS_ESTOQUE } from "@/lib/clinica-estoque-colunas-config";
 import { formatClinicaDataCurta } from "@/lib/clinica-beleza-datetime";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 
@@ -23,6 +27,14 @@ function StatusBadge({ produto }: { produto: EstoqueProduto }) {
   );
 }
 
+type ColumnDef = {
+  key: string;
+  header: string;
+  thClassName?: string;
+  tdClassName?: string;
+  render: (p: EstoqueProduto) => ReactNode;
+};
+
 interface Props {
   produtos: EstoqueProduto[];
   resumo: EstoqueResumo | null;
@@ -31,6 +43,86 @@ interface Props {
   onEntrada: (produto: EstoqueProduto) => void;
   onSaida: (produto: EstoqueProduto) => void;
   onExcluir: (id: number, nome: string) => void;
+  colunasVisiveis?: string[];
+}
+
+const TH_BASE = "py-3 px-4 font-semibold text-gray-700 dark:text-gray-300";
+const TD_BASE = "py-3 px-4";
+
+function buildColumnRegistry(): Record<string, ColumnDef> {
+  return {
+    nome: {
+      key: "nome",
+      header: "Nome",
+      thClassName: `text-left ${TH_BASE}`,
+      tdClassName: `${TD_BASE} font-medium text-gray-900 dark:text-gray-100`,
+      render: (p) => p.nome,
+    },
+    marca: {
+      key: "marca",
+      header: "Fornecedor",
+      thClassName: `text-left ${TH_BASE} hidden md:table-cell`,
+      tdClassName: `${TD_BASE} text-gray-600 dark:text-gray-300 hidden md:table-cell`,
+      render: (p) => p.marca || "—",
+    },
+    categoria: {
+      key: "categoria",
+      header: "Categoria",
+      thClassName: `text-left ${TH_BASE}`,
+      tdClassName: `${TD_BASE} text-gray-600 dark:text-gray-300`,
+      render: (p) => estoqueCategoriaLabel(p.categoria),
+    },
+    quantidade_atual: {
+      key: "quantidade_atual",
+      header: "Qtd",
+      thClassName: `text-right ${TH_BASE}`,
+      tdClassName: `${TD_BASE} text-right font-medium text-gray-900 dark:text-gray-100`,
+      render: (p) => p.quantidade_atual,
+    },
+    quantidade_minima: {
+      key: "quantidade_minima",
+      header: "Mínimo",
+      thClassName: `text-right ${TH_BASE} hidden sm:table-cell`,
+      tdClassName: `${TD_BASE} text-right text-gray-600 dark:text-gray-300 hidden sm:table-cell`,
+      render: (p) => p.quantidade_minima,
+    },
+    preco_custo: {
+      key: "preco_custo",
+      header: "Preço Custo",
+      thClassName: `text-right ${TH_BASE}`,
+      tdClassName: `${TD_BASE} text-right text-gray-600 dark:text-gray-300`,
+      render: (p) => formatCurrency(p.preco_custo),
+    },
+    lote: {
+      key: "lote",
+      header: "Lote",
+      thClassName: `text-left ${TH_BASE} hidden lg:table-cell`,
+      tdClassName: `${TD_BASE} text-gray-600 dark:text-gray-300 hidden lg:table-cell`,
+      render: (p) => p.lote || "—",
+    },
+    numero_nota: {
+      key: "numero_nota",
+      header: "Nota",
+      thClassName: `text-left ${TH_BASE} hidden xl:table-cell`,
+      tdClassName: `${TD_BASE} text-gray-600 dark:text-gray-300 hidden xl:table-cell`,
+      render: (p) => p.numero_nota || "—",
+    },
+    validade: {
+      key: "validade",
+      header: "Validade",
+      thClassName: `text-left ${TH_BASE} hidden lg:table-cell`,
+      tdClassName: `${TD_BASE} text-gray-600 dark:text-gray-300 hidden lg:table-cell`,
+      render: (p) =>
+        p.validade ? formatClinicaDataCurta(new Date(p.validade + "T00:00:00")) : "—",
+    },
+    status: {
+      key: "status",
+      header: "Status",
+      thClassName: `text-left ${TH_BASE}`,
+      tdClassName: TD_BASE,
+      render: (p) => <StatusBadge produto={p} />,
+    },
+  };
 }
 
 export function EstoqueProdutosTable({
@@ -41,40 +133,37 @@ export function EstoqueProdutosTable({
   onEntrada,
   onSaida,
   onExcluir,
+  colunasVisiveis,
 }: Props) {
+  const columns = useMemo(() => {
+    const registry = buildColumnRegistry();
+    const keys =
+      colunasVisiveis && colunasVisiveis.length > 0
+        ? colunasVisiveis
+        : DEFAULT_COLUNAS_ESTOQUE;
+    return keys.map((key) => registry[key]).filter(Boolean);
+  }, [colunasVisiveis]);
+
+  const colSpan = columns.length + 1;
+
   return (
     <section className="bg-white dark:bg-neutral-800 rounded-xl shadow-md overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-neutral-700 border-b border-gray-200 dark:border-neutral-600">
             <tr>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Nome</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 hidden md:table-cell">
-                Fornecedor
-              </th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Categoria</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Qtd</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 hidden sm:table-cell">
-                Mínimo
-              </th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Preço Custo</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 hidden lg:table-cell">
-                Lote
-              </th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 hidden xl:table-cell">
-                Nota
-              </th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 hidden lg:table-cell">
-                Validade
-              </th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Status</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Ações</th>
+              {columns.map((col) => (
+                <th key={col.key} className={col.thClassName}>
+                  {col.header}
+                </th>
+              ))}
+              <th className={`text-right ${TH_BASE}`}>Ações</th>
             </tr>
           </thead>
           <tbody>
             {produtos.length === 0 ? (
               <tr>
-                <td colSpan={11} className="py-8 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={colSpan} className="py-8 text-center text-gray-500 dark:text-gray-400">
                   Nenhum produto encontrado
                 </td>
               </tr>
@@ -84,29 +173,12 @@ export function EstoqueProdutosTable({
                   key={p.id}
                   className="border-b border-gray-100 dark:border-neutral-700 hover:bg-gray-50/50 dark:hover:bg-neutral-700/50"
                 >
-                  <td className="py-3 px-4 font-medium text-gray-900 dark:text-gray-100">{p.nome}</td>
-                  <td className="py-3 px-4 text-gray-600 dark:text-gray-300 hidden md:table-cell">{p.marca || "—"}</td>
-                  <td className="py-3 px-4 text-gray-600 dark:text-gray-300">{estoqueCategoriaLabel(p.categoria)}</td>
-                  <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-gray-100">
-                    {p.quantidade_atual}
-                  </td>
-                  <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300 hidden sm:table-cell">
-                    {p.quantidade_minima}
-                  </td>
-                  <td className="py-3 px-4 text-right text-gray-600 dark:text-gray-300">
-                    {formatCurrency(p.preco_custo)}
-                  </td>
-                  <td className="py-3 px-4 text-gray-600 dark:text-gray-300 hidden lg:table-cell">{p.lote || "—"}</td>
-                  <td className="py-3 px-4 text-gray-600 dark:text-gray-300 hidden xl:table-cell">
-                    {p.numero_nota || "—"}
-                  </td>
-                  <td className="py-3 px-4 text-gray-600 dark:text-gray-300 hidden lg:table-cell">
-                    {p.validade ? formatClinicaDataCurta(new Date(p.validade + "T00:00:00")) : "—"}
-                  </td>
-                  <td className="py-3 px-4">
-                    <StatusBadge produto={p} />
-                  </td>
-                  <td className="py-3 px-4 text-right">
+                  {columns.map((col) => (
+                    <td key={col.key} className={col.tdClassName}>
+                      {col.render(p)}
+                    </td>
+                  ))}
+                  <td className={`${TD_BASE} text-right`}>
                     <div className="flex items-center justify-end gap-1">
                       <button
                         type="button"

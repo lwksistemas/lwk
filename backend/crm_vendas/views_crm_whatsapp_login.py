@@ -25,6 +25,7 @@ def _serialize_login_config(loja) -> dict:
         'cor_fundo_pagina': (getattr(loja, 'cor_fundo_pagina', None) or '').strip(),
         'agenda_status_colors': getattr(loja, 'agenda_status_colors', None) or {},
         'colunas_consultas': getattr(loja, 'colunas_consultas', None) or [],
+        'colunas_estoque': getattr(loja, 'colunas_estoque', None) or [],
     }
 
 
@@ -60,6 +61,7 @@ class LoginConfigView(CRMPermissionMixin, APIView):
             normalize_hex_color,
             sanitize_agenda_status_colors,
             sanitize_colunas_consultas,
+            sanitize_colunas_estoque,
         )
 
         update_fields = ['updated_at']
@@ -122,6 +124,12 @@ class LoginConfigView(CRMPermissionMixin, APIView):
                 request.data.get('colunas_consultas')
             )
             update_fields.append('colunas_consultas')
+
+        if 'colunas_estoque' in request.data:
+            loja.colunas_estoque = sanitize_colunas_estoque(
+                request.data.get('colunas_estoque')
+            )
+            update_fields.append('colunas_estoque')
 
         loja.save(update_fields=update_fields)
         invalidate_loja_info_publica_cache(loja)

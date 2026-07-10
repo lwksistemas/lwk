@@ -58,9 +58,21 @@ COLUNAS_CONSULTAS_ALLOWED = frozenset({
     'status',
 })
 
+COLUNAS_ESTOQUE_ALLOWED = frozenset({
+    'nome',
+    'marca',
+    'categoria',
+    'quantidade_atual',
+    'quantidade_minima',
+    'preco_custo',
+    'lote',
+    'numero_nota',
+    'validade',
+    'status',
+})
 
-def sanitize_colunas_consultas(raw: Any) -> list[str]:
-    """Lista ordenada de chaves de coluna válidas (sem duplicatas)."""
+
+def _sanitize_colunas_keys(raw: Any, allowed: frozenset[str]) -> list[str]:
     if not isinstance(raw, list):
         return []
     seen: set[str] = set()
@@ -69,7 +81,17 @@ def sanitize_colunas_consultas(raw: Any) -> list[str]:
         if not isinstance(item, str):
             continue
         key = item.strip()
-        if key in COLUNAS_CONSULTAS_ALLOWED and key not in seen:
+        if key in allowed and key not in seen:
             seen.add(key)
             out.append(key)
     return out
+
+
+def sanitize_colunas_consultas(raw: Any) -> list[str]:
+    """Lista ordenada de chaves de coluna válidas (sem duplicatas)."""
+    return _sanitize_colunas_keys(raw, COLUNAS_CONSULTAS_ALLOWED)
+
+
+def sanitize_colunas_estoque(raw: Any) -> list[str]:
+    """Lista ordenada de chaves de coluna do Estoque (sem duplicatas)."""
+    return _sanitize_colunas_keys(raw, COLUNAS_ESTOQUE_ALLOWED)

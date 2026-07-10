@@ -359,7 +359,6 @@ def registrar_recebimento_consulta(
         payment.status = 'PAID'
         payment.amount = max(total_pago, valor_total)
         payment.payment_date = ts
-        _tentar_nfse_pos_pagamento(consulta, payment)
     else:
         payment.status = 'PARTIAL'
         payment.amount = total_pago
@@ -373,4 +372,21 @@ def registrar_recebimento_consulta(
     payment.save(update_fields=update_fields)
 
     _atualizar_status_consulta_apos_recebimento(consulta, payment)
+
+    # NFS-e fora da transação: falha de DB engolida por except abortava o atomic (500).
+    if quitou:
+        payment_id = payment.id
+        consulta_id = consulta.id
+
+        def _emitir_nfse():
+            from clinica_beleza import consulta_service as cs
+            from ..models.consultas import Consulta as ConsultaModel
+
+            pay = cs.Payment.objects.filter(pk=payment_id).first()
+            cons = ConsultaModel.objects.filter(pk=consulta_id).first()
+            if pay and cons:
+                _tentar_nfse_pos_pagamento(cons, pay)
+
+        transaction.on_commit(_emitir_nfse)
+
     return payment

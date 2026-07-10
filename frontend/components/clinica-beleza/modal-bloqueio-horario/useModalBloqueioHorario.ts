@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
-import { formatDateTimeLocal } from "@/lib/clinica-beleza-datetime";
-import type { BloqueioProfessional } from "./modal-bloqueio-horario-utils";
+import type { BloqueioProfessional, ModoBloqueioIntervalo } from "./modal-bloqueio-horario-utils";
 import {
   TIPOS_BLOQUEIO,
   buildBloqueioRequestBody,
   extractBloqueioApiError,
+  formatDateInput,
+  formatTimeInput,
+  modoSugeridoParaTipo,
   resolveMotivoBloqueio,
   validateBloqueioForm,
 } from "./modal-bloqueio-horario-utils";
@@ -25,8 +27,12 @@ export function useModalBloqueioHorario({
   dataInicioSugerida,
   defaultProfessionalId,
 }: UseModalBloqueioHorarioParams) {
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
+  const [modo, setModo] = useState<ModoBloqueioIntervalo>("horario");
+  const [dataInicioDia, setDataInicioDia] = useState("");
+  const [dataFimDia, setDataFimDia] = useState("");
+  const [dataHorario, setDataHorario] = useState("");
+  const [horaInicio, setHoraInicio] = useState("");
+  const [horaFim, setHoraFim] = useState("");
   const [tipoSelecionado, setTipoSelecionado] = useState<string>(TIPOS_BLOQUEIO[0].value);
   const [motivoOutro, setMotivoOutro] = useState("");
   const [professionalId, setProfessionalId] = useState<string>("");
@@ -42,19 +48,40 @@ export function useModalBloqueioHorario({
     const now = new Date();
     const base = dataInicioSugerida || now;
     setTipoSelecionado(TIPOS_BLOQUEIO[0].value);
+    // Default do modal: horário no dia; Férias só muda o modo quando o usuário troca o tipo.
+    setModo("horario");
     setMotivoOutro("");
     setProfessionalId(defaultProfessionalId || "");
     setObservacoes("");
+
+    const dia = formatDateInput(base);
+    setDataInicioDia(dia);
+    setDataFimDia(dia);
+    setDataHorario(dia);
+
     const inicio = new Date(base);
     inicio.setMinutes(0, 0, 0);
     const fim = new Date(inicio);
     fim.setHours(fim.getHours() + 1);
-    setDataInicio(formatDateTimeLocal(inicio));
-    setDataFim(formatDateTimeLocal(fim));
+    setHoraInicio(formatTimeInput(inicio));
+    setHoraFim(formatTimeInput(fim));
   }, [isOpen, dataInicioSugerida, defaultProfessionalId]);
 
+  const onTipoChange = useCallback((tipo: string) => {
+    setTipoSelecionado(tipo);
+    setModo(modoSugeridoParaTipo(tipo));
+  }, []);
+
   const salvar = useCallback(async () => {
-    const validationError = validateBloqueioForm(dataInicio, dataFim, motivoFinal);
+    const validationError = validateBloqueioForm({
+      modo,
+      motivoFinal,
+      dataInicioDia,
+      dataFimDia,
+      dataHorario,
+      horaInicio,
+      horaFim,
+    });
     if (validationError) {
       setErro(validationError);
       return;
@@ -63,11 +90,15 @@ export function useModalBloqueioHorario({
     setErro("");
     try {
       const body = buildBloqueioRequestBody({
-        dataInicio,
-        dataFim,
+        modo,
         motivo: motivoFinal,
         observacoes,
         professionalId,
+        dataInicioDia,
+        dataFimDia,
+        dataHorario,
+        horaInicio,
+        horaFim,
       });
       const res = await clinicaBelezaFetch("/bloqueios/", {
         method: "POST",
@@ -84,15 +115,35 @@ export function useModalBloqueioHorario({
     } finally {
       setLoading(false);
     }
-  }, [dataFim, dataInicio, motivoFinal, observacoes, onClose, onSuccess, professionalId]);
+  }, [
+    dataFimDia,
+    dataHorario,
+    dataInicioDia,
+    horaFim,
+    horaInicio,
+    modo,
+    motivoFinal,
+    observacoes,
+    onClose,
+    onSuccess,
+    professionalId,
+  ]);
 
   return {
-    dataInicio,
-    setDataInicio,
-    dataFim,
-    setDataFim,
+    modo,
+    setModo,
+    dataInicioDia,
+    setDataInicioDia,
+    dataFimDia,
+    setDataFimDia,
+    dataHorario,
+    setDataHorario,
+    horaInicio,
+    setHoraInicio,
+    horaFim,
+    setHoraFim,
     tipoSelecionado,
-    setTipoSelecionado,
+    onTipoChange,
     motivoOutro,
     setMotivoOutro,
     professionalId,

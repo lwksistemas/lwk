@@ -31,12 +31,22 @@ def bloqueio_datetime_range(bloqueio) -> tuple[datetime, datetime]:
     return _aware(start), _aware(end)
 
 
-def split_datetime_range(start: datetime, end: datetime) -> dict:
-    """Separa datetimes para campos do model BloqueioHorario."""
+def split_datetime_range(start: datetime, end: datetime, *, dia_inteiro: bool = False) -> dict:
+    """Separa datetimes para campos do model BloqueioHorario.
+
+    Se dia_inteiro=True, grava só as datas (horario_inicio/fim = None = dia todo).
+    """
     if timezone.is_aware(start):
         start = timezone.localtime(start)
     if timezone.is_aware(end):
         end = timezone.localtime(end)
+    if dia_inteiro:
+        return {
+            'data_inicio': start.date(),
+            'data_fim': end.date(),
+            'horario_inicio': None,
+            'horario_fim': None,
+        }
     return {
         'data_inicio': start.date(),
         'data_fim': end.date(),

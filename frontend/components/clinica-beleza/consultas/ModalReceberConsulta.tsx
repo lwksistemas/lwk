@@ -177,26 +177,19 @@ export function ModalReceberConsulta({
   };
 
   const handleEstornar = async () => {
-    if (!confirm("Tem certeza que deseja estornar o pagamento? O valor voltará para pendente.")) return;
+    if (!confirm("Corrigir o pagamento? O lançamento atual será limpo para você informar de novo. (Ainda não entrou no Financeiro.)")) return;
     setLoading(true);
     setError("");
     try {
-      if (!consulta.payment_id) {
-        setError("Pagamento não encontrado.");
-        return;
-      }
-      await ClinicaBelezaAPI.put(`/payments/${consulta.payment_id}/`, {
-        status: "PENDING",
-        amount: "0",
-      });
-      const res = await ClinicaBelezaAPI.get(`/consultas/${consulta.id}/`);
-      const atualizada = res as Consulta;
-      if (atualizada) {
-        onSuccess(atualizada);
-        onClose();
-      }
+      const res = await ClinicaBelezaAPI.consultas.estornarPagamento(consulta.id);
+      const atualizada = (res?.consulta || res) as Consulta;
+      setConfirmado(false);
+      setConsultaAtualizada(null);
+      setReciboSnapshot(null);
+      onSuccess(atualizada);
+      onClose();
     } catch (e: unknown) {
-      setError(formatApiErrorBody(e) || "Erro ao estornar pagamento.");
+      setError(formatApiErrorBody(e) || "Erro ao corrigir pagamento.");
     } finally {
       setLoading(false);
     }
@@ -333,17 +326,21 @@ export function ModalReceberConsulta({
               </button>
             </div>
 
-            <div className="flex justify-between items-center pt-2">
+            {error && (
+              <div className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-2 gap-2">
               {consulta.status !== "COMPLETED" && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setConfirmado(false);
-                    setConsultaAtualizada(null);
-                  }}
-                  className="px-4 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 text-sm"
+                  onClick={handleEstornar}
+                  disabled={loading}
+                  className="px-4 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 text-sm disabled:opacity-50"
                 >
-                  Editar pagamento
+                  {loading ? "Corrigindo..." : "Corrigir pagamento"}
                 </button>
               )}
               <button
@@ -547,7 +544,7 @@ export function ModalReceberConsulta({
               disabled={loading}
               className="w-full py-2 text-sm rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
             >
-              Estornar pagamento (corrigir lançamento)
+              Corrigir pagamento
             </button>
           )}
 

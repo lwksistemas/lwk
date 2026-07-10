@@ -14,13 +14,13 @@ from .views import (
     PaymentListView, PaymentDetailView, PaymentParcelaView, PaymentEnviarReciboView, ReciboPdfPublicView,
     FinanceiroResumoView, CategoriaDespesaListView, DespesaListView, DespesaDetailView,
     AgendaView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView,
-    AgendaPagamentoView, AgendaReenviarMensagemView,
+    AgendaReenviarMensagemView,
     BloqueioHorarioListView, BloqueioHorarioDetailView,
     CampanhaPromocaoListView, CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView,
 )
 from .views_consultas import (
     ConsultaListView, ConsultaDetailView, ConsultaAplicarProtocoloView,
-    ConsultaIniciarView, ConsultaReceberView, ConsultaFinalizarView,
+    ConsultaIniciarView, ConsultaReceberView, ConsultaEstornarPagamentoView, ConsultaFinalizarView,
     PatientAnamneseView, ConsultaEvolucaoListView, PatientHistoricoConsultasView,
     ConsultaPrescricaoView, PatientPrescricaoView, PrescricaoMemedPdfView,
     ConsultaProdutoListView, ConsultaProdutoDetailView,
@@ -101,6 +101,7 @@ urlpatterns = [
     path('consultas/<int:pk>/', ConsultaDetailView.as_view(), name='consultas-detail'),
     path('consultas/<int:pk>/iniciar/', ConsultaIniciarView.as_view(), name='consultas-iniciar'),
     path('consultas/<int:pk>/receber/', ConsultaReceberView.as_view(), name='consultas-receber'),
+    path('consultas/<int:pk>/estornar-pagamento/', ConsultaEstornarPagamentoView.as_view(), name='consultas-estornar-pagamento'),
     path('consultas/<int:pk>/finalizar/', ConsultaFinalizarView.as_view(), name='consultas-finalizar'),
     path('consultas/<int:pk>/aplicar-protocolo/', ConsultaAplicarProtocoloView.as_view(), name='consultas-aplicar-protocolo'),
     path('consultas/<int:consulta_id>/evolucoes/', ConsultaEvolucaoListView.as_view(), name='consultas-evolucoes'),
@@ -188,7 +189,6 @@ urlpatterns = [
     path('agenda/create/', AgendaCreateView.as_view(), name='agenda-create'),
     path('agenda/<int:pk>/update/', AgendaUpdateView.as_view(), name='agenda-update'),
     path('agenda/<int:pk>/delete/', AgendaDeleteView.as_view(), name='agenda-delete'),
-    path('agenda/<int:pk>/pagamento/', AgendaPagamentoView.as_view(), name='agenda-pagamento'),
     path('agenda/<int:pk>/reenviar-mensagem/', AgendaReenviarMensagemView.as_view(), name='agenda-reenviar-mensagem'),
     path('confirmar-agendamento/<path:token>/', ConfirmarAgendamentoPublicaView.as_view(), name='confirmar-agendamento'),
     # Bloqueio de Horários

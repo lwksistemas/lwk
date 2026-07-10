@@ -23,7 +23,7 @@ class ConsultaProcedimentosServiceTest(SimpleTestCase):
     with self.assertRaisesMessage(ValueError, 'finalizar'):
       remover_procedimento_consulta(consulta, 1)
 
-  @patch('clinica_beleza.consulta_procedimentos_service._reabrir_recebimento_apos_procedimento')
+  @patch('clinica_beleza.consulta_procedimentos_service._sincronizar_recebimento_apos_procedimento')
   @patch('clinica_beleza.consulta_procedimentos_service.Procedure')
   @patch('clinica_beleza.consulta_procedimentos_service.AppointmentProcedure')
   @patch('clinica_beleza.consulta_procedimentos_service.resolver_preco_procedimento')

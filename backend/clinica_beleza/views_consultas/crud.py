@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from ..consulta_service import (
     consulta_esta_concluida,
     criar_consulta_avulsa,
+    estornar_recebimento_consulta,
     finalizar_consulta,
     iniciar_consulta,
     motivo_bloqueio_exclusao_consulta,
@@ -16,7 +17,9 @@ from ..pagination import paginate_queryset
 from ..permissions import CLINICA_CLINICAL
 from ..serializers import ConsultaSerializer
 from ..views_base import GetObjectMixin, resolve_loja_id_from_request
-from .helpers import get_consulta_or_404, get_patient_or_404
+from .helpers import get_consulta_or_404
+
+
 class ConsultaListView(APIView):
     """
     GET  /clinica-beleza/consultas/ — lista consultas.
@@ -268,6 +271,35 @@ class ConsultaReceberView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class ConsultaEstornarPagamentoView(APIView):
+    """POST /clinica-beleza/consultas/<id>/estornar-pagamento/ — desfaz recebimento (não finalizada)."""
+    permission_classes = CLINICA_CLINICAL
+
+    def post(self, request, pk):
+        consulta, error = get_consulta_or_404(pk, select_related=(
+            'patient', 'professional', 'procedure', 'protocol', 'appointment',
+            'appointment__procedure',
+        ))
+        if error:
+            return error
+
+        try:
+            payment = estornar_recebimento_consulta(consulta)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        from ..serializers.financeiro import PaymentSerializer
+
+        consulta = Consulta.objects.select_related(
+            'patient', 'professional', 'procedure', 'protocol', 'appointment',
+        ).get(pk=pk)
+        return Response({
+            'consulta': ConsultaSerializer(consulta).data,
+            'payment': PaymentSerializer(payment).data,
+            'message': 'Pagamento estornado. Você pode lançar novamente.',
+        })
+
+
 class ConsultaFinalizarView(APIView):
     """POST /clinica-beleza/consultas/<id>/finalizar/ — conclui consulta, agenda e financeiro."""
     permission_classes = CLINICA_CLINICAL
@@ -278,7 +310,6 @@ class ConsultaFinalizarView(APIView):
         ))
         if error:
             return error
-
         mark_as_paid = bool(request.data.get('mark_as_paid'))
         payment_method = (request.data.get('payment_method') or request.data.get('forma_pagamento') or '').strip() or None
         amount = request.data.get('amount') or request.data.get('valor')

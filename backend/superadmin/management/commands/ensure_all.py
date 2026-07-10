@@ -54,6 +54,7 @@ ENSURES = [
     ('ensure_vendedor_config_acesso', {}),
     ('ensure_assinatura_link_enviado_em', {}),
     ('ensure_nfse_tenant_clinica_beleza', {}),
+    ('ensure_payment_draft_nao_finalizadas', {}),
     ('ensure_suporte_schema', {}),
     ('verificar_storage_lojas', {}),
 ]

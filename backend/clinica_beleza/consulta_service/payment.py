@@ -153,7 +153,7 @@ def _garantir_conta_pendente_consulta_inner(consulta) -> None:
         )
         return
 
-    if payment.status in ('PENDING', 'PARTIAL'):
+    if payment.status in ('PENDING', 'PARTIAL', 'DRAFT'):
         payment.valor_total = valor_total
         payment.comissao_percentual = comissao_pct
         payment.comissao_valor = comissao_val
@@ -164,12 +164,10 @@ def _garantir_conta_pendente_consulta_inner(consulta) -> None:
 
 def _atualizar_status_consulta_apos_recebimento(consulta, payment) -> None:
     """Após recebimento: SCHEDULED se quitou e não iniciou; IN_PROGRESS se já em atendimento."""
-    quitado = payment.status == 'PAID'
-    if not quitado:
-        try:
-            quitado = payment.saldo_devedor <= 0
-        except Exception:
-            quitado = False
+    try:
+        quitado = payment.saldo_devedor <= Decimal('0.01')
+    except Exception:
+        quitado = payment.status in ('PAID', 'DRAFT') and Decimal(str(payment.amount or 0)) > 0
 
     if not quitado:
         consulta.status = 'RECEBER'
@@ -180,10 +178,21 @@ def _atualizar_status_consulta_apos_recebimento(consulta, payment) -> None:
     consulta.save(update_fields=['status', 'updated_at'])
 
 
+def _status_rascunho_ou_financeiro(consulta, *, quitado: bool, tem_pago: bool) -> str:
+    """Antes de finalizar: DRAFT. Após finalizar: PAID/PARTIAL/PENDING."""
+    if getattr(consulta, 'status', None) == 'COMPLETED':
+        if quitado:
+            return 'PAID'
+        return 'PARTIAL' if tem_pago else 'PENDING'
+    if tem_pago:
+        return 'DRAFT'
+    return 'PENDING'
+
+
 def _sincronizar_recebimento_apos_procedimento(consulta) -> None:
     """
     Após incluir/remover procedimento: atualiza valor_total do Payment.
-    Se total sobe após PAID → RECEBER/PARTIAL; se total cai e cobre o pago → PAID.
+    Se total sobe após quitado → RECEBER; se total cai e cobre o pago → rascunho/PAID.
     """
     from clinica_beleza import consulta_service
 
@@ -201,30 +210,19 @@ def _sincronizar_recebimento_apos_procedimento(consulta) -> None:
 
     payment.valor_total = novo_total
     if novo_total <= 0:
-        payment.status = 'PAID'
-        payment.amount = pago
-        payment.save(update_fields=['valor_total', 'status', 'amount', 'updated_at'])
-        _atualizar_status_consulta_apos_recebimento(consulta, payment)
-        return
+        quitado, tem_pago = True, pago > 0
+    elif pago >= novo_total:
+        quitado, tem_pago = True, True
+    else:
+        quitado, tem_pago = False, pago > 0
 
-    if pago >= novo_total:
-        payment.status = 'PAID'
-        payment.amount = pago
-        payment.save(update_fields=['valor_total', 'status', 'amount', 'updated_at'])
-        _atualizar_status_consulta_apos_recebimento(consulta, payment)
-        return
-
-    payment.status = 'PARTIAL' if pago > 0 else 'PENDING'
+    payment.status = _status_rascunho_ou_financeiro(consulta, quitado=quitado, tem_pago=tem_pago)
     payment.amount = pago
-    payment.save(update_fields=['valor_total', 'status', 'amount', 'updated_at'])
+    if payment.status == 'DRAFT':
+        payment.payment_date = None
+    payment.save(update_fields=['valor_total', 'status', 'amount', 'payment_date', 'updated_at'])
     if consulta.status not in ('COMPLETED', 'CANCELLED'):
-        consulta.status = 'RECEBER'
-        consulta.save(update_fields=['status', 'updated_at'])
-
-
-def _reabrir_recebimento_apos_procedimento(consulta) -> None:
-    """Compat: alias para sincronizar após procedimento."""
-    _sincronizar_recebimento_apos_procedimento(consulta)
+        _atualizar_status_consulta_apos_recebimento(consulta, payment)
 
 
 @transaction.atomic
@@ -238,11 +236,9 @@ def registrar_recebimento_consulta(
     entradas=None,
 ):
     """
-    Registra recebimento na consulta (total ou parcial).
+    Registra recebimento na consulta (total ou parcial) como rascunho (DRAFT).
 
-    - desconto: reduz payment.valor_total (devido real).
-    - entradas: lista de {payment_method, valor}; cria uma PaymentParcela por item.
-    - Sem entradas: path legado com payment_method + amount.
+    Só entra no Financeiro (PAID/PARTIAL + payment_date + NFS-e) ao finalizar a consulta.
     """
     from clinica_beleza import consulta_service
     from ..models.financeiro import PaymentParcela
@@ -355,12 +351,11 @@ def registrar_recebimento_consulta(
         saldo_apos = max(valor_total - total_pago, Decimal('0'))
 
     quitou = total_pago >= valor_total or (mark_as_paid and saldo_apos <= Decimal('0.01'))
+    payment.status = 'DRAFT'
+    payment.payment_date = None
     if quitou:
-        payment.status = 'PAID'
         payment.amount = max(total_pago, valor_total)
-        payment.payment_date = ts
     else:
-        payment.status = 'PARTIAL'
         payment.amount = total_pago
 
     update_fields = [
@@ -372,9 +367,60 @@ def registrar_recebimento_consulta(
     payment.save(update_fields=update_fields)
 
     _atualizar_status_consulta_apos_recebimento(consulta, payment)
+    return payment
 
-    # NFS-e fora da transação: falha de DB engolida por except abortava o atomic (500).
-    if quitou:
+
+@transaction.atomic
+def publicar_pagamento_financeiro(consulta):
+    """
+    Publica o rascunho de pagamento no Financeiro ao finalizar a consulta.
+
+    DRAFT → PAID/PARTIAL + payment_date; dispara NFS-e se quitado.
+    """
+    from clinica_beleza import consulta_service
+
+    appointment = getattr(consulta, 'appointment', None)
+    if not appointment:
+        return None
+
+    payment = consulta_service.Payment.objects.filter(appointment=appointment).first()
+    if not payment or payment.status == 'CANCELLED':
+        return payment
+
+    if payment.status not in ('DRAFT', 'PENDING', 'PARTIAL'):
+        # Já publicado (PAID) — nada a fazer
+        if payment.status == 'PAID' and not payment.payment_date:
+            payment.payment_date = now()
+            payment.save(update_fields=['payment_date', 'updated_at'])
+        return payment
+
+    total_pago = payment.valor_pago_parcelas
+    valor_total = payment.valor_total_efetivo
+    if isinstance(valor_total, (int, float, str)):
+        valor_total = Decimal(str(valor_total))
+
+    ts = now()
+    if total_pago <= 0 and payment.status == 'PENDING':
+        # Conta pendente sem recebimento — permanece PENDING no financeiro
+        return payment
+
+    if total_pago >= valor_total - Decimal('0.01'):
+        payment.status = 'PAID'
+        payment.amount = max(total_pago, valor_total)
+        payment.payment_date = ts
+    elif total_pago > 0:
+        payment.status = 'PARTIAL'
+        payment.amount = total_pago
+        if not payment.payment_date:
+            payment.payment_date = ts
+    else:
+        payment.status = 'PENDING'
+        payment.amount = Decimal('0')
+        payment.payment_date = None
+
+    payment.save(update_fields=['status', 'amount', 'payment_date', 'updated_at'])
+
+    if payment.status == 'PAID':
         payment_id = payment.id
         consulta_id = consulta.id
 
@@ -388,5 +434,71 @@ def registrar_recebimento_consulta(
                 _tentar_nfse_pos_pagamento(cons, pay)
 
         transaction.on_commit(_emitir_nfse)
+
+    return payment
+
+
+@transaction.atomic
+def estornar_recebimento_consulta(consulta):
+    """
+    Estorna lançamentos de pagamento de uma consulta ainda não finalizada.
+
+    - Cancela PaymentParcela (PAID → CANCELLED)
+    - Zera Payment (PENDING, amount=0) e restaura valor_total bruto
+    - Volta consulta para RECEBER
+    """
+    from clinica_beleza import consulta_service
+    from ..models.financeiro import PaymentParcela
+
+    if consulta.status == 'COMPLETED':
+        raise ValueError(
+            'Consulta já finalizada. Correções de pagamento devem ser feitas no Financeiro.'
+        )
+    if consulta.status == 'CANCELLED':
+        raise ValueError('Consulta cancelada não permite estorno de pagamento.')
+
+    appointment = getattr(consulta, 'appointment', None)
+    if not appointment:
+        raise ValueError('Consulta sem agendamento vinculado.')
+
+    payment = consulta_service.Payment.objects.filter(appointment=appointment).first()
+    if not payment:
+        raise ValueError('Nenhum pagamento encontrado para estornar.')
+
+    try:
+        ja_pago = payment.valor_pago_parcelas
+    except Exception:
+        ja_pago = Decimal(str(payment.amount or 0))
+    if ja_pago <= 0 and payment.status == 'PENDING':
+        raise ValueError('Não há valor pago para estornar.')
+
+    PaymentParcela.objects.filter(payment=payment, status='PAID').update(status='CANCELLED')
+
+    consulta_service._garantir_valor_consulta_consulta(consulta)
+    valor_bruto = consulta_service._valor_pagamento_padrao(appointment, consulta)
+    if isinstance(valor_bruto, (int, float, str)):
+        valor_bruto = Decimal(str(valor_bruto))
+
+    comissao_pct, comissao_val = consulta_service.calcular_comissao_payment_atendimento(
+        appointment=appointment,
+        consulta=consulta,
+        amount=valor_bruto if valor_bruto > 0 else Decimal('0'),
+    )
+
+    payment.status = 'PENDING'
+    payment.amount = Decimal('0')
+    payment.valor_total = valor_bruto
+    payment.payment_date = None
+    payment.notes = None
+    payment.comissao_percentual = comissao_pct
+    payment.comissao_valor = comissao_val
+    payment.save(update_fields=[
+        'status', 'amount', 'valor_total', 'payment_date', 'notes',
+        'comissao_percentual', 'comissao_valor', 'updated_at',
+    ])
+
+    if consulta.status not in ('COMPLETED', 'CANCELLED'):
+        consulta.status = 'RECEBER'
+        consulta.save(update_fields=['status', 'updated_at'])
 
     return payment

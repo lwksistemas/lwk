@@ -15,6 +15,20 @@ from .pagination import paginate_queryset
 from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
 
+def _payments_visiveis_financeiro(qs=None):
+    """
+    Financeiro só mostra lançamentos de consultas finalizadas.
+    Rascunhos (DRAFT) do Receber ficam só na consulta até Finalizar.
+    """
+    from django.db.models import Q
+
+    if qs is None:
+        qs = Payment.objects.all()
+    return qs.exclude(status='DRAFT').filter(
+        Q(appointment__consulta__status='COMPLETED') | Q(appointment__consulta__isnull=True)
+    )
+
+
 def _garantir_categorias_despesa_padrao(loja_id: int) -> None:
     if CategoriaDespesa.objects.exists():
         return
@@ -30,11 +44,13 @@ class PaymentListView(APIView):
     permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
-        queryset = Payment.objects.select_related(
-            'appointment', 'appointment__patient',
-            'appointment__professional', 'appointment__procedure',
-        ).prefetch_related(
-            'appointment__appointment_procedures__procedure',
+        queryset = _payments_visiveis_financeiro(
+            Payment.objects.select_related(
+                'appointment', 'appointment__patient',
+                'appointment__professional', 'appointment__procedure',
+            ).prefetch_related(
+                'appointment__appointment_procedures__procedure',
+            )
         ).order_by('-created_at')
         if s := request.query_params.get('status'):
             queryset = queryset.filter(status=s)
@@ -127,6 +143,16 @@ class PaymentParcelaView(APIView):
             return Response({'error': 'Pagamento cancelado.'}, status=status.HTTP_400_BAD_REQUEST)
         if payment.status == 'PAID':
             return Response({'error': 'Pagamento já está quitado.'}, status=status.HTTP_400_BAD_REQUEST)
+        # DRAFT quitado (saldo 0) também bloqueia nova parcela via financeiro
+        if payment.status == 'DRAFT':
+            try:
+                if payment.saldo_devedor <= 0:
+                    return Response(
+                        {'error': 'Pagamento já quitado na consulta. Corrija pelo Receber ou finalize.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            except Exception:
+                pass
 
         try:
             valor = Decimal(str(request.data.get('valor') or '0'))
@@ -263,14 +289,14 @@ class FinanceiroResumoView(APIView):
         def _sum(qs):
             return float(qs.aggregate(total=Sum('amount'))['total'] or 0)
 
-        faturamento = _sum(Payment.objects.filter(
+        faturamento = _sum(_payments_visiveis_financeiro(Payment.objects.filter(
             status='PAID',
             payment_date__date__gte=first_day,
             payment_date__date__lte=period_end,
-        ))
-        # PENDING: amount costuma ser 0 com valor_total; PARTIAL: saldo = valor_total - amount
-        contas_pendentes = Payment.objects.filter(status='PENDING')
-        contas_parciais = Payment.objects.filter(status='PARTIAL')
+        )))
+        # Contas a receber: só consultas já finalizadas (PENDING/PARTIAL publicados)
+        contas_pendentes = _payments_visiveis_financeiro(Payment.objects.filter(status='PENDING'))
+        contas_parciais = _payments_visiveis_financeiro(Payment.objects.filter(status='PARTIAL'))
         total_pendente = 0.0
         for p in contas_pendentes.only('amount', 'valor_total', 'status'):
             total_pendente += float(p.saldo_devedor)
@@ -278,11 +304,11 @@ class FinanceiroResumoView(APIView):
             total_pendente += float(p.saldo_devedor)
         contas_a_receber = total_pendente
         comissao_mes = float(
-            Payment.objects.filter(
+            _payments_visiveis_financeiro(Payment.objects.filter(
                 status='PAID',
                 payment_date__date__gte=first_day,
                 payment_date__date__lte=period_end,
-            ).aggregate(total=Sum('comissao_valor'))['total'] or 0
+            )).aggregate(total=Sum('comissao_valor'))['total'] or 0
         )
 
         def _sum_despesa(qs):
@@ -297,7 +323,9 @@ class FinanceiroResumoView(APIView):
         despesas_total = comissao_mes + despesas_operacionais
 
         return Response({
-            'caixa_diario': _sum(Payment.objects.filter(status='PAID', payment_date__date=today)),
+            'caixa_diario': _sum(_payments_visiveis_financeiro(
+                Payment.objects.filter(status='PAID', payment_date__date=today)
+            )),
             'total_mes': faturamento,
             'contas_a_receber': contas_a_receber,
             'comissao_mes': comissao_mes,

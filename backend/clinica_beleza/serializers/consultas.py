@@ -195,8 +195,21 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         return payment.id if payment else None
 
     def get_payment_status(self, obj):
+        """
+        Status para UI da consulta.
+        DRAFT (rascunho pré-finalização) aparece como PAID/PARTIAL conforme saldo.
+        """
         payment = self._get_payment(obj)
-        return payment.status if payment else None
+        if not payment:
+            return None
+        if payment.status == 'DRAFT':
+            try:
+                if payment.saldo_devedor <= 0.01:
+                    return 'PAID'
+                return 'PARTIAL'
+            except Exception:
+                return 'PARTIAL'
+        return payment.status
 
     def get_convenio_name(self, obj):
         if obj.convenio_id and obj.convenio:

@@ -191,66 +191,6 @@ class AgendaCreateView(APIView):
             )
 
 
-class AgendaPagamentoView(APIView):
-    """
-    POST /clinica-beleza/agenda/<id>/pagamento/
-    Delega ao mesmo fluxo de recebimento da consulta (parcelas + status RECEBER).
-    """
-    permission_classes = CLINICA_AGENDA
-
-    def post(self, request, pk):
-        try:
-            appointment = (
-                Appointment.objects
-                .select_related(
-                    'patient', 'professional', 'procedure', 'local_atendimento', 'consulta',
-                )
-                .prefetch_related('appointment_procedures__procedure')
-                .get(pk=pk)
-            )
-        except Appointment.DoesNotExist:
-            return Response({'error': 'Agendamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
-
-        scope = resolve_agenda_professional_scope(request)
-        if not appointment_in_agenda_scope(appointment, scope):
-            return _agenda_scope_forbidden_response()
-
-        from .consulta_service import registrar_recebimento_consulta, sync_consulta_from_appointment_status
-        from .serializers.financeiro import PaymentSerializer
-
-        consulta = getattr(appointment, 'consulta', None)
-        if not consulta:
-            # Garante consulta RECEBER a partir do agendamento
-            sync_consulta_from_appointment_status(appointment, appointment.status)
-            appointment.refresh_from_db()
-            consulta = getattr(appointment, 'consulta', None)
-        if not consulta:
-            return Response(
-                {'error': 'Consulta não encontrada para este agendamento. Marque Cliente presente primeiro.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        mark_as_paid = bool(request.data.get('mark_as_paid'))
-        payment_method = (request.data.get('payment_method') or '').strip() or 'CASH'
-        amount_raw = request.data.get('amount')
-        desconto = request.data.get('desconto')
-        entradas = request.data.get('entradas')
-
-        try:
-            payment = registrar_recebimento_consulta(
-                consulta,
-                payment_method=payment_method,
-                amount=amount_raw,
-                mark_as_paid=mark_as_paid,
-                desconto=desconto,
-                entradas=entradas,
-            )
-        except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
-
-
 class AgendaDeleteView(GetObjectMixin, APIView):
     """DELETE /clinica-beleza/agenda/<id>/delete/"""
     permission_classes = CLINICA_AGENDA

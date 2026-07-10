@@ -48,7 +48,7 @@ from .views_financeiro import (  # noqa: F401
 # Agenda & Bloqueios
 from .views_agenda import (  # noqa: F401
     AgendaView, AgendaUpdateView, AgendaCreateView,
-    AgendaDeleteView, AgendaPagamentoView, AgendaReenviarMensagemView,
+    AgendaDeleteView, AgendaReenviarMensagemView,
     BloqueioHorarioListView, BloqueioHorarioDetailView,
 )
 

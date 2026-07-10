@@ -153,6 +153,28 @@ def iniciar_consulta(consulta):
     return consulta
 
 
+def _publicar_ou_garantir_pagamento_ao_finalizar(
+    consulta,
+    appointment,
+    *,
+    payment_method=None,
+    mark_as_paid=False,
+    amount=None,
+):
+    """Publica DRAFT no Financeiro ou cria lançamento se ainda não houver PAID."""
+    from clinica_beleza import consulta_service
+    from ..models import Payment
+
+    payment = Payment.objects.filter(appointment=appointment).first()
+    if payment and payment.status == 'DRAFT':
+        consulta_service.publicar_pagamento_financeiro(consulta)
+    elif not Payment.objects.filter(appointment=appointment, status='PAID').exists():
+        consulta_service._ensure_payment_for_appointment(
+            appointment, consulta,
+            payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
+        )
+
+
 def finalizar_consulta(
     consulta,
     *,
@@ -189,14 +211,10 @@ def finalizar_consulta(
             MotorRegras().executar('AGENDAMENTO_FINALIZADO', {'appointment': appointment})
         except Exception:
             logger.exception('Erro ao executar regra financeira (consulta %s)', consulta.id)
-        # Só cria pagamento se não existir um já pago (pagamento antecipado pela recepção)
-        from ..models import Payment
-        pagamento_existente = Payment.objects.filter(appointment=appointment, status='PAID').exists()
-        if not pagamento_existente:
-            consulta_service._ensure_payment_for_appointment(
-                appointment, consulta,
-                payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
-            )
+        _publicar_ou_garantir_pagamento_ao_finalizar(
+            consulta, appointment,
+            payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
+        )
         consulta.refresh_from_db()
         return consulta
 
@@ -236,13 +254,9 @@ def finalizar_consulta(
     except Exception:
         logger.exception('Erro ao executar regra financeira (consulta %s)', consulta.id)
 
-    # Só cria pagamento se não existir um já pago (pagamento antecipado pela recepção)
-    from ..models import Payment
-    pagamento_existente = Payment.objects.filter(appointment=appointment, status='PAID').exists()
-    if not pagamento_existente:
-        consulta_service._ensure_payment_for_appointment(
-            appointment, consulta,
-            payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
-        )
+    _publicar_ou_garantir_pagamento_ao_finalizar(
+        consulta, appointment,
+        payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
+    )
     consulta.refresh_from_db()
     return consulta

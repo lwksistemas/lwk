@@ -5,7 +5,7 @@ from django.db.models import Max
 
 from .convenio_service import resolver_convenio, resolver_preco_procedimento
 from .consentimento_service import garantir_termos_procedimento
-from .consulta_service.payment import _reabrir_recebimento_apos_procedimento
+from .consulta_service.payment import _sincronizar_recebimento_apos_procedimento
 from .models import AppointmentProcedure, Consulta, ConsultaTermoProcedimento, Procedure
 
 
@@ -81,7 +81,7 @@ def adicionar_procedimento_consulta(consulta: Consulta, procedure_id: int) -> Ap
     if procedure.termo_consentimento_ativo and (procedure.termo_consentimento or '').strip():
         garantir_termos_procedimento(consulta)
 
-    _reabrir_recebimento_apos_procedimento(consulta)
+    _sincronizar_recebimento_apos_procedimento(consulta)
 
     return ap
 
@@ -110,4 +110,4 @@ def remover_procedimento_consulta(consulta: Consulta, appointment_procedure_id: 
 
     _sync_primary_procedure(appointment, consulta)
     garantir_termos_procedimento(consulta)
-    _reabrir_recebimento_apos_procedimento(consulta)
+    _sincronizar_recebimento_apos_procedimento(consulta)

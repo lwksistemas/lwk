@@ -27,6 +27,7 @@ class Payment(LojaIsolationMixin, models.Model):
 
     STATUS_CHOICES = (
         ('PENDING', 'Pendente'),
+        ('DRAFT', 'Rascunho (consulta)'),
         ('PAID', 'Pago'),
         ('PARTIAL', 'Parcialmente pago'),
         ('CANCELLED', 'Cancelado'),
@@ -82,8 +83,8 @@ class Payment(LojaIsolationMixin, models.Model):
                 return total
         except Exception:
             pass
-        # Sem parcelas: amount representa o já pago quando PARTIAL/PAID
-        if self.status in ('PAID', 'PARTIAL'):
+        # Sem parcelas: amount representa o já pago quando PARTIAL/PAID/DRAFT
+        if self.status in ('PAID', 'PARTIAL', 'DRAFT'):
             return Decimal(str(self.amount or 0))
         return Decimal('0')
 

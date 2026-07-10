@@ -8,7 +8,10 @@ import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { useToast } from '@/components/ui/Toast';
 import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
-import { useClinicaBelezaTheme } from '@/components/clinica-beleza/ClinicaBelezaThemeContext';
+import {
+  useClinicaBelezaTheme,
+  useClinicaBelezaThemeActions,
+} from '@/components/clinica-beleza/ClinicaBelezaThemeContext';
 import { LoginConfigColorSection } from '@/components/clinica-beleza/login-config-page/LoginConfigColorSection';
 import type { LoginColorPreset } from '@/components/clinica-beleza/login-config-page/login-config-page-types';
 import {
@@ -66,6 +69,7 @@ export default function ClinicaBelezaAparenciaPage() {
   const base = `/loja/${slug}/clinica-beleza/configuracoes`;
   const toast = useToast();
   const theme = useClinicaBelezaTheme();
+  const { applyColors } = useClinicaBelezaThemeActions();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -123,6 +127,19 @@ export default function ClinicaBelezaAparenciaPage() {
     return lightenHex(previewPrimary, 0.96) || '#f7f2f4';
   }, [corFundoPagina, previewPrimary]);
 
+  /** Preview ao vivo no menu/fundo — debounce evita travar o color picker. */
+  useEffect(() => {
+    if (loading) return;
+    const timer = window.setTimeout(() => {
+      applyColors({
+        corPrimaria: normalizeHexColor(corPrimaria) || corPrimaria,
+        corSecundaria: normalizeHexColor(corSecundaria) || corSecundaria,
+        corFundoPagina: normalizeHexColor(corFundoPagina) || '',
+      });
+    }, 60);
+    return () => window.clearTimeout(timer);
+  }, [loading, corPrimaria, corSecundaria, corFundoPagina, applyColors]);
+
   const updateStatusColor = (key: string, field: 'bg' | 'border', value: string) => {
     const hex = normalizeHexColor(value);
     if (!hex) return;
@@ -159,18 +176,22 @@ export default function ClinicaBelezaAparenciaPage() {
 
     setSaving(true);
     try {
+      const fundo = normalizeHexColor(corFundoPagina) || '';
       await apiClient.patch('/crm-vendas/login-config/', {
         cor_primaria: primaria,
         cor_secundaria: secundaria,
-        cor_fundo_pagina: normalizeHexColor(corFundoPagina) || '',
+        cor_fundo_pagina: fundo,
         agenda_status_colors: agendaPayload,
         colunas_consultas: colunasConsultas,
         colunas_estoque: colunasEstoque,
       });
-      toast.success('Identidade visual salva. Atualizando o sistema…');
-      window.setTimeout(() => {
-        window.location.reload();
-      }, 600);
+      applyColors({
+        corPrimaria: primaria,
+        corSecundaria: secundaria,
+        corFundoPagina: fundo,
+        agendaStatusColors: agendaPayload,
+      });
+      toast.success('Identidade visual salva.');
     } catch (e) {
       const err = e as { response?: { data?: { error?: string; detail?: string } } };
       toast.error(
@@ -178,6 +199,7 @@ export default function ClinicaBelezaAparenciaPage() {
           (typeof err?.response?.data?.detail === 'string' ? err.response.data.detail : null) ||
           'Erro ao salvar. Tente novamente.',
       );
+    } finally {
       setSaving(false);
     }
   };
@@ -218,7 +240,7 @@ export default function ClinicaBelezaAparenciaPage() {
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   A cor primária destaca itens ativos no menu e botões principais. Também vale para
-                  a tela de login.
+                  a tela de login. O menu e o fundo atualizam na hora enquanto você escolhe.
                 </p>
               </div>
               <LoginConfigColorSection

@@ -692,7 +692,13 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
 
 
 def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, config=None):
-    from .evolution_client import EvolutionAPIError, send_buttons, send_text, send_url_button
+    """
+    Envia confirmação por texto com link.
+
+    Botões URL/reply da Evolution (Baileys) frequentemente retornam sucesso sem
+    entregar; o recibo (texto) chega. Usar o mesmo caminho confiável.
+    """
+    from .evolution_client import EvolutionAPIError, send_text
 
     phone = _normalize_phone(telefone)
     loja_id = _config_loja_id(config)
@@ -706,82 +712,22 @@ def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, conf
     if not ok:
         return False, instance_or_err
 
-    from clinica_beleza.agenda_display import format_agenda_data, format_agenda_hora
-    from clinica_beleza.agenda_confirmacao_service import gerar_token_confirmacao, url_confirmacao_frontend
-
-    data_fmt = format_agenda_data(agendamento)
-    hora_fmt = format_agenda_hora(agendamento)
     ap_id = agendamento.id
-    proc = _procedure_label(agendamento)
-
-    # Gera link de confirmação para o botão
-    link_confirmacao = None
-    if loja_id and ap_id:
-        try:
-            token = gerar_token_confirmacao(loja_id, ap_id)
-            link_confirmacao = url_confirmacao_frontend(token)
-        except Exception:
-            pass
-
-    # Tenta botão de URL (abre link ao tocar) — mais profissional
-    if link_confirmacao:
-        try:
-            data = send_url_button(
-                instance_or_err, phone,
-                title='📅 Confirmação de Agendamento',
-                body_text=f'*{proc}*\n📆 {data_fmt} às {hora_fmt}\n\nToque no botão para confirmar ou cancelar sua consulta.',
-                button_label='✅ Confirmar ou Cancelar',
-                url=link_confirmacao,
-                footer='LWK Sistemas',
-            )
-            _write_whatsapp_log(
-                loja_id=loja_id, telefone=phone,
-                mensagem='[confirmacao agendamento + botao url]',
-                status='enviado', response=data, user=user,
-            )
-            return True, None
-        except EvolutionAPIError:
-            pass  # fallback para reply buttons
-
-    # Fallback: botões de reply (confirmar/cancelar)
-    title = 'Confirmação de consulta'
-    description = f'{proc}\n📅 {data_fmt} às {hora_fmt}\n\nConfirme ou cancele:'
-    footer = 'Toque em uma opção'
-    buttons = [
-        {'id': f'ag_confirm_{ap_id}', 'displayText': 'Confirmar'},
-        {'id': f'ag_cancel_{ap_id}', 'displayText': 'Cancelar'},
-    ]
-
     try:
-        data = send_buttons(
-            instance_or_err, phone,
-            title=title,
-            description=description[:1024],
-            footer=footer,
-            buttons=buttons,
-        )
+        data = send_text(instance_or_err, phone, mensagem)
         _write_whatsapp_log(
             loja_id=loja_id, telefone=phone,
-            mensagem='[confirmacao agendamento + botoes reply]',
-            status='enviado', response=data, user=user,
+            mensagem=mensagem, status='enviado', response=data, user=user,
         )
         return True, None
-    except EvolutionAPIError as exc:
-        logger.info('Evolution botões falhou agendamento %s, tentando texto: %s', ap_id, exc)
-        try:
-            data = send_text(instance_or_err, phone, mensagem)
-            _write_whatsapp_log(
-                loja_id=loja_id, telefone=phone,
-                mensagem=mensagem, status='enviado', response=data, user=user,
-            )
-            return True, None
-        except EvolutionAPIError as exc2:
-            _write_whatsapp_log(
-                loja_id=loja_id, telefone=phone,
-                mensagem=mensagem, status='falhou',
-                response={'error': str(exc2)}, user=user,
-            )
-            return False, str(exc2)
+    except EvolutionAPIError as exc2:
+        logger.info('Evolution texto falhou agendamento %s: %s', ap_id, exc2)
+        _write_whatsapp_log(
+            loja_id=loja_id, telefone=phone,
+            mensagem=mensagem, status='falhou',
+            response={'error': str(exc2)}, user=user,
+        )
+        return False, str(exc2)
 
 
 def enviar_lembrete_agendamento(agendamento, user=None, config=None):

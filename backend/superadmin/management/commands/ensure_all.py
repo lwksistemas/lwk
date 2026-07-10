@@ -44,6 +44,7 @@ ENSURES = [
     ('ensure_local_nomeagenda_is_padrao', {}),
     ('normalizar_status_agenda', {}),
     ('ensure_estoque_produto_fields', {}),
+    ('ensure_categoria_estoque', {}),
     ('ensure_termo_consentimento', {}),
     ('ensure_procedimentos_catalogo', {'all_clinica_beleza': True}),
     ('ensure_estoque_catalogo', {'all_clinica_beleza': True}),

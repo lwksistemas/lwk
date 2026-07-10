@@ -10,7 +10,6 @@ import {
   patientsApi,
   proceduresApi,
   professionalsApi,
-  protocolosApi,
   templatesApi,
 } from "./client-entities";
 import { estoqueApi, financeiroApi, locaisAtendimentoApi, lojaApi, nomesAgendaApi, retornoApi } from "./client-ops";
@@ -36,7 +35,6 @@ export class ClinicaBelezaAPI {
   static estoque = estoqueApi;
 
   static memed: MemedApi = {
-    token: (params) => loadMemedApi().then((m) => m.token(params)),
     timbrado: {
       get: () => loadMemedApi().then((m) => m.timbrado.get()),
     },
@@ -59,17 +57,12 @@ export class ClinicaBelezaAPI {
       const query = secao ? `?secao=${secao}` : "";
       return `${base}/patients/${patientId}/prontuario/pdf/${query}`;
     },
-    documentoPdfUrl: (docId) => {
-      const base = getClinicaBelezaBaseUrl();
-      return `${base}/documentos/${docId}/pdf/`;
-    },
   };
 
   static locaisAtendimento = locaisAtendimentoApi;
   static nomesAgenda = nomesAgendaApi;
   static retorno = retornoApi;
   static campanhas = campanhasApi;
-  static protocolos = protocolosApi;
   static procedures = proceduresApi;
   static convenios = conveniosApi;
 

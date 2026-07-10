@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { DetalheComissao } from "@/components/clinica-beleza/comissoes-page/comissoes-page-types";
+import type { DetalheComissao } from "@/components/clinica-beleza/relatorios-shared/comissoes-relatorio-types";
 import {
   buildComissoesCsv,
   calcOutrosProcedimentos,
   isLinhaConsulta,
   LABEL_LINHA_CONSULTA,
-} from "@/components/clinica-beleza/comissoes-page/comissoes-page-utils";
+} from "@/components/clinica-beleza/relatorios-shared/comissoes-relatorio-utils";
 
 describe("isLinhaConsulta", () => {
   it("detecta tipo_linha consulta", () => {

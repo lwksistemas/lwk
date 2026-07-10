@@ -1,10 +1,8 @@
-import { clinicaBelezaFetch, getClinicaBelezaBaseUrl } from "./fetch";
+import { clinicaBelezaFetch } from "./fetch";
 import type { PacienteFotoItem } from "./types-memed";
-import { cbDelete, cbGet, cbGetList, cbPatch, cbPost } from "./client-http";
+import { cbDelete, cbGet, cbPatch, cbPost } from "./client-http";
 
 export const consultasApi = {
-  list: (params?: { patient?: number; professional?: number; status?: string; appointment?: number }) =>
-    cbGet("/consultas/", params),
   criar: (data: {
     patient: number;
     professional: number;
@@ -51,8 +49,6 @@ export const consultasApi = {
     create: (consultaId: number, data: Record<string, unknown>) =>
       cbPost(`/consultas/${consultaId}/evolucoes/`, data),
   },
-  historicoCliente: (patientId: number, params?: { page?: number; page_size?: number }) =>
-    cbGetList(`/patients/${patientId}/consultas/`, { page: 1, page_size: 100, ...params }),
   produtos: {
     list: (consultaId: number) => cbGet(`/consultas/${consultaId}/produtos/`),
     add: (
@@ -127,10 +123,6 @@ export const consultasApi = {
         `/consultas/${consultaId}/termo-consentimento/reenviar/`,
         { procedure_id: procedureId, canal },
       ),
-    pdfUrl: (consultaId: number, procedureId: number) => {
-      const base = getClinicaBelezaBaseUrl();
-      return `${base}/consultas/${consultaId}/termo-consentimento/pdf/?procedure_id=${procedureId}`;
-    },
     downloadPdf: async (consultaId: number, procedureId: number) => {
       const res = await clinicaBelezaFetch(
         `/consultas/${consultaId}/termo-consentimento/pdf/?procedure_id=${procedureId}`,

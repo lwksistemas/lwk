@@ -69,7 +69,12 @@ class PaymentListView(APIView):
 
 
 class PaymentDetailView(GetObjectMixin, APIView):
-    """GET /clinica-beleza/payments/<id>/  PUT  DELETE"""
+    """
+    GET/PUT/DELETE /clinica-beleza/payments/<id>/
+
+    CRUD genérico de pagamento (API/admin). O frontend da clínica usa
+    listagem + parcelas; não remove — útil para correções manuais/scripts.
+    """
     permission_classes = CLINICA_FINANCEIRO
     model_class = Payment
     not_found_message = 'Pagamento não encontrado'

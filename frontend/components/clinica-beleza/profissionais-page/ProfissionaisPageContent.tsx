@@ -4,7 +4,7 @@ import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBel
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
 import { ModalTempoConsulta } from "@/components/clinica-beleza/ModalTempoConsulta";
-import { ProfissionalFormPageContent } from "@/components/clinica-beleza/ProfissionalFormPageContent";
+import { ProfissionalFormPageContent } from "@/components/clinica-beleza/profissional-form/ProfissionalFormPageContent";
 import { AdminProfissionalToggle } from "@/components/clinica-beleza/AdminProfissionalToggle";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { ProfissionaisListView } from "./ProfissionaisListView";

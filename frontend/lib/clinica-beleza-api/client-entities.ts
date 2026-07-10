@@ -2,7 +2,6 @@ import type {
   ConvenioDetailItem,
   ConvenioItem,
   ConvenioPrecoItem,
-  ConvenioPrecoModo,
   DocumentTemplateItem,
   DocumentoClinicoItem,
   ProcedureConvenioPrecoItem,
@@ -20,9 +19,6 @@ export const patientsApi = {
   list: (params?: { active?: boolean; page?: number; page_size?: number }) =>
     cbGetList("/patients/", params),
   get: (id: number) => cbGet(`/patients/${id}/`),
-  create: (data: Record<string, unknown>) => cbPost("/patients/", data),
-  update: (id: number, data: Record<string, unknown>) => cbPut(`/patients/${id}/`, data),
-  delete: (id: number) => cbDelete(`/patients/${id}/`),
 };
 
 export const professionalsApi = {
@@ -73,31 +69,13 @@ export const documentosApi = {
 };
 
 export const campanhasApi = {
-  list: () => cbGet("/campanhas/"),
-  get: (id: number) => cbGet(`/campanhas/${id}/`),
-  create: (data: Record<string, unknown>) => cbPost("/campanhas/", data),
-  update: (id: number, data: Record<string, unknown>) => cbPut(`/campanhas/${id}/`, data),
-  delete: (id: number) => cbDelete(`/campanhas/${id}/`),
   enviar: (id: number, body?: { patient_ids?: number[] }) =>
     cbPost(`/campanhas/${id}/enviar/`, body ?? {}),
-};
-
-export const protocolosApi = {
-  list: (params?: { categoria?: string; procedure?: number; page?: number; page_size?: number }) =>
-    cbGetList("/protocolos/", params),
-  get: (id: number) => cbGet(`/protocolos/${id}/`),
-  create: (data: Record<string, unknown>) => cbPost("/protocolos/", data),
-  update: (id: number, data: Record<string, unknown>) => cbPut(`/protocolos/${id}/`, data),
-  delete: (id: number) => cbDelete(`/protocolos/${id}/`),
 };
 
 export const proceduresApi = {
   list: (params?: { categoria?: string; active?: boolean; page?: number; page_size?: number }) =>
     cbGetList("/procedures/", params),
-  get: (id: number) => cbGet(`/procedures/${id}/`),
-  create: (data: Record<string, unknown>) => cbPost("/procedures/", data),
-  update: (id: number, data: Record<string, unknown>) => cbPut(`/procedures/${id}/`, data),
-  delete: (id: number) => cbDelete(`/procedures/${id}/`),
   convenioPrecosMatrix: () => cbGet<ProcedimentoConvenioPrecosMatrix>("/procedures/convenio-precos-matrix/"),
   precosConvenio: (id: number) => cbGet<ProcedureConvenioPrecoItem[]>(`/procedures/${id}/precos-convenio/`),
   savePrecosConvenio: (id: number, precos: { convenio: number; preco: number | string | null }[]) =>
@@ -107,14 +85,7 @@ export const proceduresApi = {
 export const conveniosApi = {
   list: (params?: { todos?: boolean; page?: number; page_size?: number }) =>
     cbGetList<ConvenioItem>("/convenios/", params),
-  get: (id: number) => cbGet<ConvenioDetailItem>(`/convenios/${id}/`),
   create: (data: { nome: string; codigo?: string }) => cbPost<ConvenioDetailItem>("/convenios/", data),
-  update: (id: number, data: { nome?: string; codigo?: string; is_active?: boolean }) =>
-    cbPut<ConvenioDetailItem>(`/convenios/${id}/`, data),
   delete: (id: number) => cbDelete(`/convenios/${id}/`),
   precos: (id: number) => cbGet<ConvenioPrecoItem[]>(`/convenios/${id}/precos/`),
-  savePrecos: (
-    id: number,
-    precos: { procedure: number; modo?: ConvenioPrecoModo; preco: number | string | null }[],
-  ) => cbPut<ConvenioPrecoItem[]>(`/convenios/${id}/precos/`, { precos }),
 };

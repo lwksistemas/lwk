@@ -24,10 +24,6 @@ export const prontuarioApi = {
     const query = secao ? `?secao=${secao}` : "";
     return `${base}/patients/${patientId}/prontuario/pdf/${query}`;
   },
-  documentoPdfUrl: (docId: number) => {
-    const base = getClinicaBelezaBaseUrl();
-    return `${base}/documentos/${docId}/pdf/`;
-  },
 };
 
 export type ProntuarioApi = typeof prontuarioApi;

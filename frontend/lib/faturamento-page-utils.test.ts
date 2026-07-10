@@ -4,7 +4,7 @@ import {
   buildFaturamentoCsv,
   buildFaturamentoRelatorioPath,
   parseAgrupamentoFaturamento,
-} from "@/components/clinica-beleza/faturamento-page/faturamento-page-utils";
+} from "@/components/clinica-beleza/relatorios-shared/faturamento-relatorio-utils";
 
 describe("parseAgrupamentoFaturamento", () => {
   it("aceita valores válidos e usa profissional como padrão", () => {

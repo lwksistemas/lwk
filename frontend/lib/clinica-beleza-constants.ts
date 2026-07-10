@@ -12,6 +12,7 @@ export const CLINICA_FORMA_PAGAMENTO_LABEL: Record<string, string> = {
 
 export const CLINICA_PAGAMENTO_STATUS_LABEL: Record<string, string> = {
   PENDING: 'Pendente',
+  DRAFT: 'Rascunho (consulta)',
   PAID: 'Pago',
   PARTIAL: 'Parcial',
   CANCELLED: 'Cancelado',
@@ -53,8 +54,6 @@ export const CLINICA_AGENDA_STATUS_OPCOES_MODAL = [
   { value: 'NO_SHOW', label: '⬜ Faltou' },
   { value: 'CANCELLED', label: '🔴 Cancelado' },
 ] as const;
-
-export const CLINICA_AGENDA_STATUS_OPCOES = CLINICA_AGENDA_STATUS_OPCOES_MODAL;
 
 /** PENDING legado equivale a SCHEDULED na exibição. */
 export function normalizeAgendaStatus(status: string): string {

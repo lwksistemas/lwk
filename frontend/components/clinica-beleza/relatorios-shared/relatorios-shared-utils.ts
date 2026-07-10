@@ -3,6 +3,8 @@ export interface RelatorioProfessionalOption {
   nome: string;
 }
 
+import { formatCurrency } from "@/lib/financeiro-helpers";
+
 export function getDefaultRelatorioPeriod(): { dataInicio: string; dataFim: string } {
   const d = new Date();
   return {
@@ -11,8 +13,9 @@ export function getDefaultRelatorioPeriod(): { dataInicio: string; dataFim: stri
   };
 }
 
+/** Alias de formatCurrency para relatórios (mesmo formato BRL). */
 export function formatRelatorioCurrency(value: number): string {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return formatCurrency(value);
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {

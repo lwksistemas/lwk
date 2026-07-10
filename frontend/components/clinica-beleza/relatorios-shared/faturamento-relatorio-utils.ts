@@ -1,4 +1,4 @@
-import type { AgrupamentoFaturamento, FaturamentoData } from "./faturamento-page-types";
+import type { AgrupamentoFaturamento, FaturamentoData } from "./faturamento-relatorio-types";
 
 export const AGRUPAMENTO_LABELS: Record<AgrupamentoFaturamento, string> = {
   profissional: "Profissional",

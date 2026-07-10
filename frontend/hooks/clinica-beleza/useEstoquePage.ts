@@ -228,4 +228,3 @@ export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions 
   };
 }
 
-export type UseEstoquePageReturn = ReturnType<typeof useEstoquePage>;

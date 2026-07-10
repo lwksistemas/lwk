@@ -10,6 +10,12 @@ import { cbDelete, cbGet, cbGetList, cbPatch, cbPost, cbPut } from "./client-htt
 export const lojaApi = {
   info: () =>
     cbGet<{
+      nome?: string;
+      cpf_cnpj?: string;
+      endereco?: string;
+      telefone?: string;
+      email?: string;
+      cep?: string;
       owner_username?: string;
       owner_email?: string;
       owner_telefone?: string;
@@ -40,7 +46,6 @@ export const estoqueApi = {
     params?: { categoria?: string; search?: string; page?: number; page_size?: number },
     loja?: { id?: number; slug?: string } | null,
   ) => cbGetList("/estoque/", params, loja),
-  get: (id: number) => cbGet(`/estoque/${id}/`),
   create: (data: Record<string, unknown>, loja?: { id?: number; slug?: string } | null) =>
     cbPost("/estoque/", data, loja),
   update: (id: number, data: Record<string, unknown>, loja?: { id?: number; slug?: string } | null) =>
@@ -78,8 +83,6 @@ export const retornoApi = {
   listRegras: () => cbGet<RetornoProcedimentoRegraItem[]>("/retorno/procedimentos/"),
   createRegra: (data: { procedure: number; dias_retorno: number }) =>
     cbPost<RetornoProcedimentoRegraItem>("/retorno/procedimentos/", data),
-  updateRegra: (id: number, data: { dias_retorno?: number; is_active?: boolean }) =>
-    cbPatch<RetornoProcedimentoRegraItem>(`/retorno/procedimentos/${id}/`, data),
   deleteRegra: (id: number) => cbDelete(`/retorno/procedimentos/${id}/`),
   verificar: (params: {
     patient_id: number;

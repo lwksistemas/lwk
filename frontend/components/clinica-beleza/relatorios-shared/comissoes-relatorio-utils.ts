@@ -1,4 +1,4 @@
-import type { DetalheComissao, ProfissionalComissao, RelatorioComissoesData } from "./comissoes-page-types";
+import type { DetalheComissao, ProfissionalComissao, RelatorioComissoesData } from "./comissoes-relatorio-types";
 
 export const LABEL_LINHA_CONSULTA = "Consulta";
 

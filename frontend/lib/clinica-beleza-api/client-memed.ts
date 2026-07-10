@@ -26,21 +26,6 @@ async function apiGetList<T>(path: string): Promise<T[]> {
 }
 
 export const memedApi = {
-  token: (params?: { professional?: number; prescritor?: string; uf?: string }) =>
-    apiGet<{
-      token: string;
-      script_url: string;
-      environment: string;
-      prescritor?: { nome?: string; sobrenome?: string; crm?: string; uf?: string };
-      clinica?: {
-        local_name?: string;
-        address?: string;
-        city?: string;
-        state?: string;
-        phone?: string;
-      };
-    }>("/memed/token/", params as Record<string, string> | undefined),
-
   timbrado: {
     get: () => apiGet("/memed/timbrado/"),
   },

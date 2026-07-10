@@ -1,3 +1,5 @@
+import { formatCurrency } from "@/lib/financeiro-helpers";
+
 export function parseValorInput(value: string): number {
   const trimmed = value.trim();
   if (!trimmed) return NaN;
@@ -16,7 +18,7 @@ export function valorToInput(value: string | number | null | undefined): string 
 export function formatCurrencyBR(value: string | number): string {
   const num = typeof value === "string" ? parseFloat(value.replace(",", ".")) : value;
   if (!Number.isFinite(num)) return "—";
-  return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return formatCurrency(num);
 }
 
 export function extractLocaisAtendimentoError(err: unknown, fallback: string): string {

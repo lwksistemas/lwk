@@ -3,7 +3,6 @@ export {
   CLINICA_BELEZA_ONLINE_ONLY,
   CLINICA_FORM_INPUT,
   deleteClinicaBelezaEntity,
-  loadClinicaBelezaListPage,
   saveClinicaBelezaEntity,
   useClinicaBelezaEntityList,
   useClinicaBelezaPaginatedList,

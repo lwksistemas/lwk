@@ -167,4 +167,3 @@ export function useClinicaNFSeForm() {
   };
 }
 
-export type UseClinicaNFSeFormReturn = ReturnType<typeof useClinicaNFSeForm>;

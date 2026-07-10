@@ -206,8 +206,8 @@ export function ModalReceberConsulta({
       cep?: string;
     } = {};
     try {
-      const info = await ClinicaBelezaAPI.get("/loja-info/");
-      lojaData = info as typeof lojaData;
+      const info = await ClinicaBelezaAPI.loja.info();
+      lojaData = info;
     } catch {
       /* usa defaults */
     }

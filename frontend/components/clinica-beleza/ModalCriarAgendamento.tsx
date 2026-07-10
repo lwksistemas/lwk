@@ -115,7 +115,7 @@ export function ModalCriarAgendamento({
         </header>
 
         <form className="flex flex-col flex-1 min-h-0" onSubmit={form.handleSubmit}>
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 bg-[#f7f2f4] dark:bg-gray-950">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 bg-[var(--cb-page-bg,#f7f2f4)] dark:bg-gray-950">
             {form.createError && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
                 {form.createError}

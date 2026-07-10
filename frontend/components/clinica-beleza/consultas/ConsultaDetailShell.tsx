@@ -69,7 +69,7 @@ export function ConsultaDetailShell({
           />
         }
       />
-      <div className="min-h-full bg-[#f7f2f4] dark:bg-gray-950 flex flex-col">
+      <div className="min-h-full bg-[var(--cb-page-bg,#f7f2f4)] dark:bg-gray-950 flex flex-col">
         <div className="px-4 md:px-6 pt-2 pb-4 border-b border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80">
           <ConsultaDetailStatusBar
             selected={selected}

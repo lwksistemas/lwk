@@ -155,6 +155,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
                 'tipo_loja_nome': tipo_nome,
                 'cor_primaria': cor_primaria,
                 'cor_secundaria': cor_secundaria,
+                'cor_fundo_pagina': (getattr(loja, 'cor_fundo_pagina', None) or '').strip(),
                 'agenda_status_colors': getattr(loja, 'agenda_status_colors', None) or {},
                 'logo': getattr(loja, 'logo', None) or '',
                 'login_background': getattr(loja, 'login_background', None) or '',

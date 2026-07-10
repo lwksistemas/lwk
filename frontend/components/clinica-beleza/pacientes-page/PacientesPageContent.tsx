@@ -72,7 +72,7 @@ export function PacientesPageContent() {
           onBack={voltarLista}
           icon={Users}
         />
-        <ClinicaBelezaPageContent className="flex flex-col flex-1 min-h-0 !p-0 !bg-[#f7f2f4] dark:!bg-gray-950">
+        <ClinicaBelezaPageContent className="flex flex-col flex-1 min-h-0 !p-0 !bg-[var(--cb-page-bg,#f7f2f4)] dark:!bg-gray-950">
           <PacienteCadastroForm
             showHeader={false}
             editing={Boolean(formState.editing)}

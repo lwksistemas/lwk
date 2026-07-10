@@ -104,6 +104,7 @@ export function ClinicaBelezaDashboardContent({ loja, onLogout }: { loja: LojaIn
     <ClinicaBelezaThemeProvider
       corPrimaria={loja.cor_primaria}
       corSecundaria={loja.cor_secundaria}
+      corFundoPagina={loja.cor_fundo_pagina}
       agendaStatusColors={loja.agenda_status_colors}
     >
       <ClinicaBelezaDashboardInner loja={loja} onLogout={onLogout} />

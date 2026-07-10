@@ -60,6 +60,7 @@ export function LojaModuleShellLayout({ children }: { children: ReactNode }) {
       <ClinicaBelezaThemeProvider
         corPrimaria={loja.cor_primaria}
         corSecundaria={loja.cor_secundaria}
+        corFundoPagina={loja.cor_fundo_pagina}
         agendaStatusColors={loja.agenda_status_colors}
       >
         <ClinicaBelezaShell loja={loja} onLogout={handleLogout}>

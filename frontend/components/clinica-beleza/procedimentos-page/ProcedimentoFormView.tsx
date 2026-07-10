@@ -44,9 +44,9 @@ export function ProcedimentoFormView({
         onBack={onCancel}
         icon={Stethoscope}
       />
-      <ClinicaBelezaPageContent className="flex flex-col flex-1 min-h-0 !p-0 !bg-[#f7f2f4] dark:!bg-gray-950">
+      <ClinicaBelezaPageContent className="flex flex-col flex-1 min-h-0 !p-0 !bg-[var(--cb-page-bg,#f7f2f4)] dark:!bg-gray-950">
         <div className="flex flex-col flex-1 min-h-0 w-full">
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#f7f2f4] dark:bg-gray-950">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[var(--cb-page-bg,#f7f2f4)] dark:bg-gray-950">
             {error && (
               <div className="mb-5 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
                 {error}

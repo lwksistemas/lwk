@@ -12,6 +12,8 @@ export interface LojaInfo {
   logo?: string;
   /** Overrides de cores dos status da agenda (bg/border). Vazio = padrão LWK. */
   agenda_status_colors?: Record<string, { bg?: string; border?: string }> | null;
+  /** Fundo das páginas internas. Vazio = tom claro da cor primária. */
+  cor_fundo_pagina?: string | null;
 }
 
 export interface BaseEstatisticas {

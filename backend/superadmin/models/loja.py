@@ -80,6 +80,11 @@ class Loja(models.Model):
     logo = models.URLField(blank=True)
     cor_primaria = models.CharField(max_length=7, blank=True)
     cor_secundaria = models.CharField(max_length=7, blank=True)
+    cor_fundo_pagina = models.CharField(
+        max_length=7,
+        blank=True,
+        help_text='Cor de fundo das páginas internas (#RRGGBB). Vazio = tom claro da cor primária.',
+    )
     agenda_status_colors = models.JSONField(
         default=dict,
         blank=True,

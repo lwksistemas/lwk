@@ -36,7 +36,7 @@ export default function ClinicaBelezaConfiguracoesPage() {
       descricao: 'Cores do menu e dos status da agenda (migração / marca)',
       href: `${base}/aparencia`,
       icon: Palette,
-      itens: ['Cor do menu', 'Cores dos status na agenda'],
+      itens: ['Cor do menu', 'Fundo das páginas', 'Cores dos status na agenda'],
     },
     {
       titulo: 'Configurar tela de login',

@@ -33,6 +33,7 @@ const ClinicaBelezaThemeContext = createContext<ClinicaBelezaTheme | null>(null)
 export function buildClinicaBelezaTheme(input?: {
   cor_primaria?: string | null;
   cor_secundaria?: string | null;
+  cor_fundo_pagina?: string | null;
   agenda_status_colors?: Record<string, { bg?: string; border?: string }> | null;
 }): ClinicaBelezaTheme {
   const primary =
@@ -41,7 +42,10 @@ export function buildClinicaBelezaTheme(input?: {
     normalizeHexColor(input?.cor_secundaria) || primary;
   const primaryLight = lightenHex(primary, 0.88) || CLINICA_BELEZA_PRIMARY_LIGHT;
   const sidebarBg = lightenHex(primary, 0.92) || '#f0eaec';
-  const pageBg = lightenHex(primary, 0.96) || '#f7f2f4';
+  const pageBg =
+    normalizeHexColor(input?.cor_fundo_pagina) ||
+    lightenHex(primary, 0.96) ||
+    '#f7f2f4';
   const agendaStatusColors = mergeAgendaStatusColors(input?.agenda_status_colors);
 
   return {
@@ -64,11 +68,13 @@ export function buildClinicaBelezaTheme(input?: {
 export function ClinicaBelezaThemeProvider({
   corPrimaria,
   corSecundaria,
+  corFundoPagina,
   agendaStatusColors,
   children,
 }: {
   corPrimaria?: string | null;
   corSecundaria?: string | null;
+  corFundoPagina?: string | null;
   agendaStatusColors?: Record<string, { bg?: string; border?: string }> | null;
   children: ReactNode;
 }) {
@@ -77,9 +83,10 @@ export function ClinicaBelezaThemeProvider({
       buildClinicaBelezaTheme({
         cor_primaria: corPrimaria,
         cor_secundaria: corSecundaria,
+        cor_fundo_pagina: corFundoPagina,
         agenda_status_colors: agendaStatusColors,
       }),
-    [corPrimaria, corSecundaria, agendaStatusColors],
+    [corPrimaria, corSecundaria, corFundoPagina, agendaStatusColors],
   );
 
   return (

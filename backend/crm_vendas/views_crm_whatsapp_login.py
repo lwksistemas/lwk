@@ -22,6 +22,7 @@ def _serialize_login_config(loja) -> dict:
         'login_logo': (loja.login_logo or '').strip(),
         'cor_primaria': cor_primaria,
         'cor_secundaria': cor_secundaria,
+        'cor_fundo_pagina': (getattr(loja, 'cor_fundo_pagina', None) or '').strip(),
         'agenda_status_colors': getattr(loja, 'agenda_status_colors', None) or {},
     }
 
@@ -54,7 +55,7 @@ class LoginConfigView(CRMPermissionMixin, APIView):
 
         from superadmin.cloudinary_utils import delete_cloudinary_image
         from superadmin.loja_utils import invalidate_loja_info_publica_cache
-        from superadmin.theme_colors import sanitize_agenda_status_colors
+        from superadmin.theme_colors import normalize_hex_color, sanitize_agenda_status_colors
 
         update_fields = ['updated_at']
         loja_slug = loja.slug
@@ -93,6 +94,17 @@ class LoginConfigView(CRMPermissionMixin, APIView):
             if val and val.startswith('#') and len(val) <= 7:
                 loja.cor_secundaria = val[:7]
                 update_fields.append('cor_secundaria')
+
+        if 'cor_fundo_pagina' in request.data:
+            raw = request.data.get('cor_fundo_pagina')
+            if raw is None or str(raw).strip() == '':
+                loja.cor_fundo_pagina = ''
+                update_fields.append('cor_fundo_pagina')
+            else:
+                hex_val = normalize_hex_color(raw)
+                if hex_val:
+                    loja.cor_fundo_pagina = hex_val
+                    update_fields.append('cor_fundo_pagina')
 
         if 'agenda_status_colors' in request.data:
             loja.agenda_status_colors = sanitize_agenda_status_colors(

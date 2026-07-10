@@ -18,7 +18,7 @@ import {
   type AgendaStatusColorMap,
   mergeAgendaStatusColors,
 } from '@/lib/clinica-beleza-constants';
-import { normalizeHexColor } from '@/lib/clinica-beleza-theme-utils';
+import { lightenHex, normalizeHexColor } from '@/lib/clinica-beleza-theme-utils';
 
 const CORES_PRE_DEFINIDAS: LoginColorPreset[] = [
   { nome: 'Burgundy', primaria: '#8B3D52', secundaria: '#6B2F40' },
@@ -29,9 +29,20 @@ const CORES_PRE_DEFINIDAS: LoginColorPreset[] = [
   { nome: 'Laranja', primaria: '#F97316', secundaria: '#EA580C' },
 ];
 
+const FUNDOS_PRE_DEFINIDOS = [
+  { nome: 'Automático', value: '' },
+  { nome: 'Cinza claro', value: '#f3f4f6' },
+  { nome: 'Gelo', value: '#eef2f7' },
+  { nome: 'Verde suave', value: '#e8f5ef' },
+  { nome: 'Azul suave', value: '#e8f0fe' },
+  { nome: 'Bege', value: '#f5f0e8' },
+  { nome: 'Lavanda', value: '#f3eef8' },
+] as const;
+
 type LoginConfigResponse = {
   cor_primaria?: string;
   cor_secundaria?: string;
+  cor_fundo_pagina?: string;
   agenda_status_colors?: Record<string, { bg?: string; border?: string }> | null;
 };
 
@@ -49,6 +60,8 @@ export default function ClinicaBelezaAparenciaPage() {
   const [saving, setSaving] = useState(false);
   const [corPrimaria, setCorPrimaria] = useState('#8B3D52');
   const [corSecundaria, setCorSecundaria] = useState('#6B2F40');
+  /** Vazio = automático (tom claro da primária). */
+  const [corFundoPagina, setCorFundoPagina] = useState('');
   const [statusColors, setStatusColors] = useState<AgendaStatusColorMap>(
     () => mergeAgendaStatusColors(),
   );
@@ -59,6 +72,7 @@ export default function ClinicaBelezaAparenciaPage() {
       const { data } = await apiClient.get<LoginConfigResponse>('/crm-vendas/login-config/');
       setCorPrimaria(toHexInput(data.cor_primaria || '', '#8B3D52'));
       setCorSecundaria(toHexInput(data.cor_secundaria || '', '#6B2F40'));
+      setCorFundoPagina(normalizeHexColor(data.cor_fundo_pagina || '') || '');
       setStatusColors(mergeAgendaStatusColors(data.agenda_status_colors));
     } catch (err) {
       logger.warn('Erro ao carregar identidade visual:', err);
@@ -75,6 +89,12 @@ export default function ClinicaBelezaAparenciaPage() {
     () => normalizeHexColor(corPrimaria) || theme.primary,
     [corPrimaria, theme.primary],
   );
+
+  const previewPageBg = useMemo(() => {
+    const custom = normalizeHexColor(corFundoPagina);
+    if (custom) return custom;
+    return lightenHex(previewPrimary, 0.96) || '#f7f2f4';
+  }, [corFundoPagina, previewPrimary]);
 
   const updateStatusColor = (key: string, field: 'bg' | 'border', value: string) => {
     const hex = normalizeHexColor(value);
@@ -115,6 +135,7 @@ export default function ClinicaBelezaAparenciaPage() {
       await apiClient.patch('/crm-vendas/login-config/', {
         cor_primaria: primaria,
         cor_secundaria: secundaria,
+        cor_fundo_pagina: normalizeHexColor(corFundoPagina) || '',
         agenda_status_colors: agendaPayload,
       });
       toast.success('Identidade visual salva. Atualizando o sistema…');
@@ -152,7 +173,8 @@ export default function ClinicaBelezaAparenciaPage() {
               Identidade visual
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Cores do menu e dos status da agenda — útil para aproximar do sistema antigo na migração.
+              Cores do menu, fundo das páginas e status da agenda — útil na migração do sistema
+              antigo.
             </p>
           </div>
         </div>
@@ -167,8 +189,8 @@ export default function ClinicaBelezaAparenciaPage() {
                   Cores do menu e do sistema
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  A cor primária destaca itens ativos no menu, botões principais e o fundo suave da
-                  sidebar. Também vale para a tela de login.
+                  A cor primária destaca itens ativos no menu e botões principais. Também vale para
+                  a tela de login.
                 </p>
               </div>
               <LoginConfigColorSection
@@ -195,6 +217,105 @@ export default function ClinicaBelezaAparenciaPage() {
                   <span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700">
                     Item inativo
                   </span>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Fundo das páginas
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Cor de fundo atrás dos formulários e listas (ex.: cadastro de cliente). Em
+                  automático, usa um tom claro da cor primária.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {FUNDOS_PRE_DEFINIDOS.map((f) => {
+                  const selected =
+                    f.value === ''
+                      ? !corFundoPagina
+                      : normalizeHexColor(corFundoPagina) === f.value;
+                  return (
+                    <button
+                      key={f.nome}
+                      type="button"
+                      onClick={() => setCorFundoPagina(f.value)}
+                      className={`px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                        selected
+                          ? 'border-current'
+                          : 'border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300'
+                      }`}
+                      style={
+                        selected
+                          ? {
+                              borderColor: previewPrimary,
+                              backgroundColor: `${previewPrimary}15`,
+                              color: previewPrimary,
+                            }
+                          : undefined
+                      }
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <span
+                          className="w-4 h-4 rounded border border-gray-300 shrink-0"
+                          style={{
+                            backgroundColor:
+                              f.value || lightenHex(previewPrimary, 0.96) || '#f7f2f4',
+                          }}
+                        />
+                        {f.nome}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="block text-xs text-gray-500">
+                  Cor personalizada
+                  <div className="mt-1 flex gap-2">
+                    <input
+                      type="color"
+                      value={previewPageBg}
+                      onChange={(e) => setCorFundoPagina(e.target.value)}
+                      className="w-12 h-10 border rounded cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={corFundoPagina || previewPageBg}
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        if (!v) {
+                          setCorFundoPagina('');
+                          return;
+                        }
+                        const hex = normalizeHexColor(v);
+                        if (hex) setCorFundoPagina(hex);
+                        else setCorFundoPagina(v);
+                      }}
+                      placeholder="#eef2f7"
+                      className="w-28 px-2 py-2 border rounded text-sm dark:bg-gray-700 dark:border-gray-600"
+                    />
+                  </div>
+                </label>
+                {corFundoPagina ? (
+                  <button
+                    type="button"
+                    onClick={() => setCorFundoPagina('')}
+                    className="text-xs text-gray-600 dark:text-gray-300 hover:underline inline-flex items-center gap-1"
+                  >
+                    <RotateCcw size={12} />
+                    Voltar ao automático
+                  </button>
+                ) : null}
+              </div>
+              <div
+                className="rounded-lg border border-gray-200 dark:border-gray-600 p-4"
+                style={{ backgroundColor: previewPageBg }}
+              >
+                <div className="rounded-lg bg-white/90 dark:bg-neutral-800/90 border border-gray-200 dark:border-gray-600 p-3 text-xs text-gray-600 dark:text-gray-300">
+                  Prévia: área de conteúdo sobre o fundo da página
                 </div>
               </div>
             </section>

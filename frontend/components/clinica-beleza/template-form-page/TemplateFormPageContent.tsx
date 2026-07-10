@@ -30,9 +30,9 @@ export function TemplateFormPageContent() {
         icon={FileText}
         onBack={voltarLista}
       />
-      <ClinicaBelezaPageContent className="flex flex-col flex-1 min-h-0 !p-0 !bg-[#f7f2f4] dark:!bg-gray-950">
+      <ClinicaBelezaPageContent className="flex flex-col flex-1 min-h-0 !p-0 !bg-[var(--cb-page-bg,#f7f2f4)] dark:!bg-gray-950">
         <div className="flex flex-col flex-1 min-h-0 w-full">
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#f7f2f4] dark:bg-gray-950">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[var(--cb-page-bg,#f7f2f4)] dark:bg-gray-950">
             {loading ? (
               <div className="flex items-center justify-center py-16 text-gray-500">
                 <Loader2 size={24} className="animate-spin mr-2" />

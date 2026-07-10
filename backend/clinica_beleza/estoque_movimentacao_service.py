@@ -11,7 +11,6 @@ class EstoqueMovimentacaoError(Exception):
     pass
 
 
-@transaction.atomic
 def registrar_movimentacao(
     produto,
     tipo: str,
@@ -58,14 +57,15 @@ def registrar_movimentacao(
     elif tipo == 'ajuste':
         produto.quantidade_atual = quantidade
 
-    produto.save(update_fields=['quantidade_atual', 'updated_at'])
+    with transaction.atomic():
+        produto.save(update_fields=['quantidade_atual', 'updated_at'])
 
-    mov = MovimentacaoEstoque.objects.create(
-        produto=produto,
-        tipo=tipo,
-        quantidade=quantidade,
-        motivo=motivo,
-        profissional_id=profissional_id,
-        appointment_id=appointment_id,
-    )
+        mov = MovimentacaoEstoque.objects.create(
+            produto=produto,
+            tipo=tipo,
+            quantidade=quantidade,
+            motivo=motivo,
+            profissional_id=profissional_id,
+            appointment_id=appointment_id,
+        )
     return mov

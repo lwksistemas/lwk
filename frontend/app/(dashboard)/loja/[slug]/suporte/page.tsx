@@ -15,7 +15,6 @@ import {
   ClinicaBelezaPanel,
 } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
-import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import { logger } from '@/lib/logger';
 
@@ -143,8 +142,8 @@ export default function SuporteHistoricoPage() {
   const tipoNome = loja?.tipo_loja_nome || '';
   const lojaNome = loja?.nome || '';
   const clinicaBeleza = isTipoClinicaBeleza(tipoNome);
-  const accent = clinicaBeleza ? CLINICA_BELEZA_PRIMARY : theme.corPrimaria;
-  const accentSecondary = clinicaBeleza ? CLINICA_BELEZA_PRIMARY : theme.corSecundaria;
+  const accent = theme.corPrimaria;
+  const accentSecondary = theme.corSecundaria;
 
   const headerActions = (
     <button
@@ -163,7 +162,7 @@ export default function SuporteHistoricoPage() {
     return (
       <div
         className="min-h-screen flex items-center justify-center dark:bg-gray-950"
-        style={{ backgroundColor: clinicaBeleza ? '#f7f2f4' : theme.pageBg }}
+        style={{ backgroundColor: theme.pageBg || '#f7f2f4' }}
       >
         <p className="text-gray-500">Carregando...</p>
       </div>

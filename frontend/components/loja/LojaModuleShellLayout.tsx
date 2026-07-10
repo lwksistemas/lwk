@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { ClinicaBelezaShell } from '@/components/clinica-beleza/ClinicaBelezaShell';
+import { ClinicaBelezaThemeProvider } from '@/components/clinica-beleza/ClinicaBelezaThemeContext';
 import { CrmVendasShell } from '@/components/crm-vendas/CrmVendasShell';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 import { isTipoClinicaBeleza, isTipoCRMVendas } from '@/lib/loja-tipo';
@@ -56,9 +57,15 @@ export function LojaModuleShellLayout({ children }: { children: ReactNode }) {
 
   if (isTipoClinicaBeleza(tipoNome)) {
     return (
-      <ClinicaBelezaShell loja={loja} onLogout={handleLogout}>
-        {children}
-      </ClinicaBelezaShell>
+      <ClinicaBelezaThemeProvider
+        corPrimaria={loja.cor_primaria}
+        corSecundaria={loja.cor_secundaria}
+        agendaStatusColors={loja.agenda_status_colors}
+      >
+        <ClinicaBelezaShell loja={loja} onLogout={handleLogout}>
+          {children}
+        </ClinicaBelezaShell>
+      </ClinicaBelezaThemeProvider>
     );
   }
 

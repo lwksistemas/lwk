@@ -108,7 +108,7 @@ export function formatEntradasResumo(
     .filter((e) => parseMoneyInput(e.valor) > 0)
     .map((e) => {
       const label = labels[e.payment_method] || e.payment_method;
-      return `${label}: R$ ${parseMoneyInput(e.valor).toFixed(2)}`;
+      return `${label}: R$ ${parseMoneyInput(e.valor).toFixed(2).replace(".", ",")}`;
     })
     .join(" · ");
 }

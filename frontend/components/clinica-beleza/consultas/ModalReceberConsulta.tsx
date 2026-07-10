@@ -8,7 +8,7 @@ import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
 import { formatCurrency } from "@/lib/financeiro-helpers";
-import { formatCpfCnpj, formatTelefone } from "@/lib/format-br";
+import { formatCep, formatCpfCnpj, formatTelefone } from "@/lib/format-br";
 import {
   saldoReceberConsulta,
   valorPagamentoConsulta,
@@ -31,6 +31,15 @@ function labelDocumentoLoja(cpfCnpj?: string): string {
   if (d.length === 11) return "CPF";
   if (d.length === 14) return "CNPJ";
   return "CPF/CNPJ";
+}
+
+function linhaTelCep(telefone?: string, cep?: string): string {
+  const partes: string[] = [];
+  const tel = formatTelefone(telefone || "");
+  const cepFmt = formatCep(cep || "");
+  if (tel) partes.push(`Tel: ${tel}`);
+  if (cepFmt) partes.push(`CEP ${cepFmt}`);
+  return partes.join("  ·  ");
 }
 
 interface ModalReceberConsultaProps {
@@ -195,7 +204,14 @@ export function ModalReceberConsulta({
 
   const handleImprimir = async () => {
     const c = consultaAtualizada || consulta;
-    let lojaData: { nome?: string; cpf_cnpj?: string; endereco?: string; telefone?: string; email?: string } = {};
+    let lojaData: {
+      nome?: string;
+      cpf_cnpj?: string;
+      endereco?: string;
+      telefone?: string;
+      email?: string;
+      cep?: string;
+    } = {};
     try {
       const info = await ClinicaBelezaAPI.get("/loja-info/");
       lojaData = info as typeof lojaData;
@@ -564,7 +580,14 @@ function gerarHtmlRecibo(params: {
   valorPago: number;
   desconto: number;
   entradas: EntradaPagamentoLinha[];
-  lojaData: { nome?: string; cpf_cnpj?: string; endereco?: string; telefone?: string; email?: string };
+  lojaData: {
+    nome?: string;
+    cpf_cnpj?: string;
+    endereco?: string;
+    telefone?: string;
+    email?: string;
+    cep?: string;
+  };
 }): string {
   const { consulta, valorPago, desconto, entradas, lojaData } = params;
   const dataHora = new Date().toLocaleString("pt-BR", {
@@ -578,6 +601,7 @@ function gerarHtmlRecibo(params: {
   const valorConsulta = Number(consulta.valor_consulta ?? 0);
   const valorProcs = Number(consulta.valor_procedimentos ?? 0);
   const totalGeral = valorConsulta + valorProcs;
+  const telCep = linhaTelCep(lojaData.telefone, lojaData.cep);
 
   const formasHtml = entradas
     .filter((e) => parseMoneyInput(e.valor) > 0)
@@ -628,7 +652,7 @@ function gerarHtmlRecibo(params: {
   <h1>${lojaData.nome || consulta.local_atendimento_name || "CLÍNICA"}</h1>
   ${lojaData.cpf_cnpj ? `<p>${labelDocumentoLoja(lojaData.cpf_cnpj)}: ${formatCpfCnpj(lojaData.cpf_cnpj)}</p>` : ""}
   ${lojaData.endereco ? `<p>${lojaData.endereco}</p>` : ""}
-  ${lojaData.telefone ? `<p>Tel: ${formatTelefone(lojaData.telefone)}</p>` : ""}
+  ${telCep ? `<p>${telCep}</p>` : ""}
   ${lojaData.email ? `<p>${lojaData.email}</p>` : ""}
   <p style="margin-top:4px;font-weight:bold">RECIBO DE PAGAMENTO</p>
   <p>${dataHora}</p>

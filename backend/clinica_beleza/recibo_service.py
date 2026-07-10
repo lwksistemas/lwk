@@ -105,11 +105,14 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
 
     doc_raw = (getattr(loja, 'cpf_cnpj', '') or '') if loja else ''
     tel_raw = (getattr(loja, 'owner_telefone', '') or '') if loja else ''
+    cep_raw = (getattr(loja, 'cep', '') or '') if loja else ''
     desconto = _extrair_desconto_notes(payment)
     valor_total = float(payment.valor_total_efetivo)
     valor_pago = float(payment.amount or 0)
     servicos_soma = taxa_consulta + sum(p['valor'] for p in procs)
     subtotal = valor_total + desconto if desconto > 0 else servicos_soma
+    loja_telefone = telefone_exibicao_brasileiro(tel_raw)
+    loja_cep = _formatar_cep(cep_raw)
 
     return {
         'paciente_nome': getattr(patient, 'nome', 'Cliente'),
@@ -121,7 +124,9 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         'loja_documento_label': _label_documento_loja(doc_raw),
         'loja_cnpj': normalizar_cpf_cnpj(doc_raw),  # compat
         'loja_endereco': _formatar_endereco_loja(loja) if loja else '',
-        'loja_telefone': telefone_exibicao_brasileiro(tel_raw),
+        'loja_telefone': loja_telefone,
+        'loja_cep': loja_cep,
+        'loja_tel_cep': _linha_tel_cep(loja_telefone, loja_cep),
         'procedimentos': procs,
         'taxa_consulta': taxa_consulta,
         'subtotal': float(subtotal),
@@ -175,8 +180,18 @@ def _listar_formas_pagamento(payment) -> list[dict]:
     return [{'metodo': metodo_label, 'valor': float(payment.amount or 0)}]
 
 
-def _formatar_endereco_loja(loja) -> str:
-    """Monta endereço da loja em uma linha."""
+def _formatar_cep(cep: str) -> str:
+    """Formata CEP no padrão XXXXX-XXX."""
+    if not cep:
+        return ''
+    d = re.sub(r'\D', '', str(cep))
+    if len(d) == 8:
+        return f'{d[:5]}-{d[5:]}'
+    return str(cep).strip()
+
+
+def _formatar_endereco_loja(loja, *, incluir_cep: bool = False) -> str:
+    """Monta endereço da loja (sem CEP por padrão — CEP vai com o telefone)."""
     partes = []
     if getattr(loja, 'logradouro', ''):
         end = loja.logradouro
@@ -190,9 +205,19 @@ def _formatar_endereco_loja(loja) -> str:
         if getattr(loja, 'uf', ''):
             cidade += f' - {loja.uf}'
         partes.append(cidade)
-    if getattr(loja, 'cep', ''):
-        partes.append(f'CEP {loja.cep}')
+    if incluir_cep and getattr(loja, 'cep', ''):
+        partes.append(f'CEP {_formatar_cep(loja.cep)}')
     return ', '.join(partes)
+
+
+def _linha_tel_cep(telefone: str = '', cep: str = '') -> str:
+    """Telefone e CEP na mesma linha do cabeçalho do recibo."""
+    partes = []
+    if telefone:
+        partes.append(f'Tel: {telefone}')
+    if cep:
+        partes.append(f'CEP {cep}')
+    return '  ·  '.join(partes)
 
 
 def _linha_documento_loja(ctx: dict) -> str:
@@ -240,8 +265,9 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
         story.append(Paragraph(doc_line, s_center))
     if ctx['loja_endereco']:
         story.append(Paragraph(ctx['loja_endereco'], s_center))
-    if ctx['loja_telefone']:
-        story.append(Paragraph(f"Tel: {ctx['loja_telefone']}", s_center))
+    tel_cep = ctx.get('loja_tel_cep') or _linha_tel_cep(ctx.get('loja_telefone', ''), ctx.get('loja_cep', ''))
+    if tel_cep:
+        story.append(Paragraph(tel_cep, s_center))
     story.append(Spacer(1, 3 * mm))
     story.append(hr)
     story.append(Paragraph('RECIBO DE PAGAMENTO', s_title))
@@ -446,7 +472,7 @@ def _montar_email_html(ctx: dict) -> str:
         <h2 style="margin:0;color:#8B3D52;">{ctx['loja_nome'] or 'Clínica'}</h2>
         {f'<p style="margin:4px 0;font-size:12px;color:#666;">{doc_line}</p>' if doc_line else ''}
         {f'<p style="margin:4px 0;font-size:12px;color:#666;">{ctx["loja_endereco"]}</p>' if ctx['loja_endereco'] else ''}
-        {f'<p style="margin:4px 0;font-size:12px;color:#666;">Tel: {ctx["loja_telefone"]}</p>' if ctx['loja_telefone'] else ''}
+        {f'<p style="margin:4px 0;font-size:12px;color:#666;">{ctx.get("loja_tel_cep") or (("Tel: " + ctx["loja_telefone"]) if ctx.get("loja_telefone") else "")}</p>' if (ctx.get('loja_tel_cep') or ctx.get('loja_telefone')) else ''}
       </div>
 
       <p>Olá <strong>{ctx['paciente_nome']}</strong>,</p>
@@ -495,8 +521,11 @@ def _montar_email_texto(ctx: dict) -> str:
         header_extra += f'{doc_line}\n'
     if ctx.get('loja_endereco'):
         header_extra += f'{ctx["loja_endereco"]}\n'
-    if ctx.get('loja_telefone'):
-        header_extra += f'Tel: {ctx["loja_telefone"]}\n'
+    tel_cep = ctx.get('loja_tel_cep') or ''
+    if not tel_cep and ctx.get('loja_telefone'):
+        tel_cep = f'Tel: {ctx["loja_telefone"]}'
+    if tel_cep:
+        header_extra += f'{tel_cep}\n'
     return (
         f'{ctx["loja_nome"] or "Clínica"}\n'
         f'{header_extra}\n'

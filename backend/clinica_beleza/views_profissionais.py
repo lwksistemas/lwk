@@ -236,8 +236,15 @@ class ProfessionalDetailView(GetObjectMixin, APIView):
             return err
         from django.utils import timezone
         agora = timezone.now()
-        count = Appointment.objects.filter(professional=obj, date__gte=agora).count()
-        Appointment.objects.filter(professional=obj, date__gte=agora).delete()
+
+        # Exclui apenas agendamentos futuros SEM consulta finalizada ou em andamento
+        future_appointments = Appointment.objects.filter(professional=obj, date__gte=agora)
+        safe_to_delete = future_appointments.exclude(
+            consulta__status__in=('COMPLETED', 'IN_PROGRESS'),
+        )
+        count = safe_to_delete.count()
+        safe_to_delete.delete()
+
         HorarioTrabalhoProfissional.objects.filter(professional=obj).delete()
         BloqueioHorario.objects.filter(professional=obj).delete()
         obj.is_active = False

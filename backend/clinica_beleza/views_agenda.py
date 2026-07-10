@@ -196,6 +196,7 @@ class AgendaDeleteView(GetObjectMixin, APIView):
     permission_classes = CLINICA_AGENDA
     model_class = Appointment
     not_found_message = 'Agendamento não encontrado'
+    select_related_fields = ('consulta',)
 
     def delete(self, request, pk):
         obj, err = self.object_or_404(pk)
@@ -204,6 +205,16 @@ class AgendaDeleteView(GetObjectMixin, APIView):
         scope = resolve_agenda_professional_scope(request)
         if not appointment_in_agenda_scope(obj, scope):
             return _agenda_scope_forbidden_response()
+
+        # Impede exclusão se houver consulta finalizada (protege dados financeiros)
+        consulta = getattr(obj, 'consulta', None)
+        if consulta and consulta.status in ('COMPLETED', 'IN_PROGRESS'):
+            msg = (
+                'Não é possível excluir um agendamento com consulta finalizada ou em andamento. '
+                'Cancele a consulta primeiro se necessário.'
+            )
+            return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
+
         obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

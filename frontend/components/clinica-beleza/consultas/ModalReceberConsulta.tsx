@@ -8,6 +8,7 @@ import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
 import { formatCurrency } from "@/lib/financeiro-helpers";
+import { formatCpfCnpj, formatTelefone } from "@/lib/format-br";
 import {
   saldoReceberConsulta,
   valorPagamentoConsulta,
@@ -24,6 +25,13 @@ import {
   valoresQuaseIguais,
   type EntradaPagamentoLinha,
 } from "./modal-receber-consulta-utils";
+
+function labelDocumentoLoja(cpfCnpj?: string): string {
+  const d = (cpfCnpj || "").replace(/\D/g, "");
+  if (d.length === 11) return "CPF";
+  if (d.length === 14) return "CNPJ";
+  return "CPF/CNPJ";
+}
 
 interface ModalReceberConsultaProps {
   open: boolean;
@@ -618,9 +626,9 @@ function gerarHtmlRecibo(params: {
 </head><body>
 <div class="header">
   <h1>${lojaData.nome || consulta.local_atendimento_name || "CLÍNICA"}</h1>
-  ${lojaData.cpf_cnpj ? `<p>CNPJ: ${lojaData.cpf_cnpj}</p>` : ""}
+  ${lojaData.cpf_cnpj ? `<p>${labelDocumentoLoja(lojaData.cpf_cnpj)}: ${formatCpfCnpj(lojaData.cpf_cnpj)}</p>` : ""}
   ${lojaData.endereco ? `<p>${lojaData.endereco}</p>` : ""}
-  ${lojaData.telefone ? `<p>Tel: ${lojaData.telefone}</p>` : ""}
+  ${lojaData.telefone ? `<p>Tel: ${formatTelefone(lojaData.telefone)}</p>` : ""}
   ${lojaData.email ? `<p>${lojaData.email}</p>` : ""}
   <p style="margin-top:4px;font-weight:bold">RECIBO DE PAGAMENTO</p>
   <p>${dataHora}</p>

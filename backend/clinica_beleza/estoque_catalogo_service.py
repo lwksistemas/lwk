@@ -44,6 +44,9 @@ def aplicar_estoque_catalogo_padrao(
     set_current_tenant_db(db)
 
     from clinica_beleza.models import ProdutoEstoque
+    from clinica_beleza.estoque_categorias import garantir_categorias_estoque_padrao, resolver_categoria
+
+    garantir_categorias_estoque_padrao(lid)
 
     existentes = ProdutoEstoque.objects.using(db).filter(loja_id=lid, is_active=True).count()
     if existentes > 0 and not adicionar_faltantes:
@@ -53,7 +56,8 @@ def aplicar_estoque_catalogo_padrao(
     emit(f'Estoque catálogo — {loja.nome} ({loja.slug})')
     criados = 0
     for item in ESTOQUE_CATALOGO:
-        defaults = estoque_catalogo_defaults(item)
+        cat = resolver_categoria(loja_id=lid, slug=item.categoria)
+        defaults = estoque_catalogo_defaults(item, categoria_obj=cat)
         _obj, created = ProdutoEstoque.objects.using(db).update_or_create(
             nome=item.nome,
             loja_id=lid,

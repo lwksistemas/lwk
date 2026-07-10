@@ -5,24 +5,55 @@ import { X } from "lucide-react";
 import {
   ESTOQUE_CATEGORIAS,
   ESTOQUE_INPUT_CLASS,
-  normalizeEstoqueCategoria,
+  type EstoqueCategoria,
   type EstoqueProduto,
 } from "@/components/clinica-beleza/estoque/estoque-types";
 import { toUpperCase } from "@/lib/format-br";
 
 interface Props {
   produto: EstoqueProduto | null;
+  categorias?: EstoqueCategoria[];
+  defaultCategoriaSlug?: string;
   saving: boolean;
   saveError: string | null;
   onClose: () => void;
   onSave: (payload: Record<string, unknown>) => Promise<void>;
 }
 
-export function EstoqueProdutoModal({ produto, saving, saveError, onClose, onSave }: Props) {
+function resolveInitialCategoriaId(
+  produto: EstoqueProduto | null,
+  categorias: EstoqueCategoria[] | undefined,
+  defaultSlug?: string,
+): number | "" {
+  if (produto?.categoria != null) return produto.categoria;
+  if (produto?.categoria_slug && categorias?.length) {
+    const found = categorias.find((c) => c.slug === produto.categoria_slug);
+    if (found) return found.id;
+  }
+  if (defaultSlug && categorias?.length) {
+    const found = categorias.find((c) => c.slug === defaultSlug);
+    if (found) return found.id;
+  }
+  if (categorias?.length) {
+    const outro = categorias.find((c) => c.slug === "outro");
+    return outro?.id ?? categorias[0].id;
+  }
+  return "";
+}
+
+export function EstoqueProdutoModal({
+  produto,
+  categorias,
+  defaultCategoriaSlug,
+  saving,
+  saveError,
+  onClose,
+  onSave,
+}: Props) {
   const [form, setForm] = useState({
     nome: produto?.nome ?? "",
     marca: produto?.marca ?? "",
-    categoria: normalizeEstoqueCategoria(produto?.categoria),
+    categoria_id: resolveInitialCategoriaId(produto, categorias, defaultCategoriaSlug) as number | "",
     quantidade_atual: produto?.quantidade_atual ?? 0,
     quantidade_minima: produto?.quantidade_minima ?? 0,
     preco_custo: produto ? Number(produto.preco_custo) : 0,
@@ -32,13 +63,28 @@ export function EstoqueProdutoModal({ produto, saving, saveError, onClose, onSav
     dias_alerta_validade: produto?.dias_alerta_validade ?? 90,
   });
 
+  const options =
+    categorias && categorias.length > 0
+      ? categorias.map((c) => ({ value: c.id, label: c.nome }))
+      : ESTOQUE_CATEGORIAS.map((c, i) => ({ value: i + 1, label: c.label }));
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSave({
-      ...form,
+    const payload: Record<string, unknown> = {
+      nome: form.nome,
+      marca: form.marca,
+      quantidade_atual: form.quantidade_atual,
+      quantidade_minima: form.quantidade_minima,
       preco_custo: Number(form.preco_custo),
       validade: form.validade || null,
-    });
+      lote: form.lote,
+      numero_nota: form.numero_nota,
+      dias_alerta_validade: form.dias_alerta_validade,
+    };
+    if (form.categoria_id !== "") {
+      payload.categoria = form.categoria_id;
+    }
+    await onSave(payload);
   };
 
   return (
@@ -81,11 +127,20 @@ export function EstoqueProdutoModal({ produto, saving, saveError, onClose, onSav
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
                 <select
-                  value={form.categoria}
-                  onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+                  value={form.categoria_id === "" ? "" : String(form.categoria_id)}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      categoria_id: e.target.value ? Number(e.target.value) : "",
+                    })
+                  }
                   className={ESTOQUE_INPUT_CLASS}
+                  required
                 >
-                  {ESTOQUE_CATEGORIAS.map((c) => (
+                  <option value="" disabled>
+                    Selecione
+                  </option>
+                  {options.map((c) => (
                     <option key={c.value} value={c.value}>
                       {c.label}
                     </option>
@@ -190,7 +245,8 @@ export function EstoqueProdutoModal({ produto, saving, saveError, onClose, onSav
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium text-sm mt-2"
+                className="w-full py-2 text-white rounded-lg disabled:opacity-50 font-medium text-sm mt-2"
+                style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
               >
                 {saving ? "Salvando..." : produto ? "Salvar Alterações" : "Criar Produto"}
               </button>

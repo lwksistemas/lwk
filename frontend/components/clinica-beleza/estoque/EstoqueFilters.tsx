@@ -2,6 +2,7 @@ import { Search } from "lucide-react";
 import {
   ESTOQUE_CATEGORIAS,
   estoqueCategoriaLabel,
+  type EstoqueCategoria,
 } from "@/components/clinica-beleza/estoque/estoque-types";
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
   searchTerm: string;
   onSearchChange: (value: string) => void;
   onCategoriaChange: (value: string) => void;
+  categorias?: EstoqueCategoria[];
 }
 
 export function EstoqueFilters({
@@ -16,12 +18,24 @@ export function EstoqueFilters({
   searchTerm,
   onSearchChange,
   onCategoriaChange,
+  categorias,
 }: Props) {
+  const options =
+    categorias && categorias.length > 0
+      ? categorias.map((c) => ({ value: c.slug, label: c.nome }))
+      : ESTOQUE_CATEGORIAS.map((c) => ({ value: c.value, label: c.label }));
+
   return (
     <div className="flex flex-wrap items-center gap-3 mb-4">
       {categoriaFilter && (
-        <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 text-sm">
-          Filtro: {estoqueCategoriaLabel(categoriaFilter)}
+        <span
+          className="px-2 py-1 rounded-full text-sm"
+          style={{
+            backgroundColor: "color-mix(in srgb, var(--cb-primary, #8B3D52) 15%, transparent)",
+            color: "var(--cb-primary, #8B3D52)",
+          }}
+        >
+          Filtro: {estoqueCategoriaLabel(categoriaFilter, categorias)}
         </span>
       )}
       <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -40,7 +54,7 @@ export function EstoqueFilters({
         className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm"
       >
         <option value="">Todas as categorias</option>
-        {ESTOQUE_CATEGORIAS.map((c) => (
+        {options.map((c) => (
           <option key={c.value} value={c.value}>
             {c.label}
           </option>

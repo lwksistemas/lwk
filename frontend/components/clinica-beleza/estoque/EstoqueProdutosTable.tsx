@@ -4,6 +4,7 @@ import { useMemo, type ReactNode } from "react";
 import { AlertTriangle, ArrowDown, ArrowUp, X } from "lucide-react";
 import {
   estoqueCategoriaLabel,
+  type EstoqueCategoria,
   type EstoqueProduto,
   type EstoqueResumo,
 } from "@/components/clinica-beleza/estoque/estoque-types";
@@ -38,18 +39,20 @@ type ColumnDef = {
 interface Props {
   produtos: EstoqueProduto[];
   resumo: EstoqueResumo | null;
+  categorias?: EstoqueCategoria[];
   onHistorico: (produto: EstoqueProduto) => void;
   onEditar: (produto: EstoqueProduto) => void;
   onEntrada: (produto: EstoqueProduto) => void;
   onSaida: (produto: EstoqueProduto) => void;
   onExcluir: (id: number, nome: string) => void;
+  onMover?: (produtoId: number, categoriaId: number) => void;
   colunasVisiveis?: string[];
 }
 
 const TH_BASE = "py-3 px-4 font-semibold text-gray-700 dark:text-gray-300";
 const TD_BASE = "py-3 px-4";
 
-function buildColumnRegistry(): Record<string, ColumnDef> {
+function buildColumnRegistry(categorias?: EstoqueCategoria[]): Record<string, ColumnDef> {
   return {
     nome: {
       key: "nome",
@@ -70,7 +73,9 @@ function buildColumnRegistry(): Record<string, ColumnDef> {
       header: "Categoria",
       thClassName: `text-left ${TH_BASE}`,
       tdClassName: `${TD_BASE} text-gray-600 dark:text-gray-300`,
-      render: (p) => estoqueCategoriaLabel(p.categoria),
+      render: (p) =>
+        p.categoria_display ||
+        estoqueCategoriaLabel(p.categoria_slug ?? p.categoria, categorias),
     },
     quantidade_atual: {
       key: "quantidade_atual",
@@ -128,26 +133,51 @@ function buildColumnRegistry(): Record<string, ColumnDef> {
 export function EstoqueProdutosTable({
   produtos,
   resumo,
+  categorias,
   onHistorico,
   onEditar,
   onEntrada,
   onSaida,
   onExcluir,
+  onMover,
   colunasVisiveis,
 }: Props) {
   const columns = useMemo(() => {
-    const registry = buildColumnRegistry();
+    const registry = buildColumnRegistry(categorias);
     const keys =
       colunasVisiveis && colunasVisiveis.length > 0
         ? colunasVisiveis
         : DEFAULT_COLUNAS_ESTOQUE;
     return keys.map((key) => registry[key]).filter(Boolean);
-  }, [colunasVisiveis]);
+  }, [colunasVisiveis, categorias]);
 
   const colSpan = columns.length + 1;
 
   return (
     <section className="bg-white dark:bg-neutral-800 rounded-xl shadow-md overflow-hidden">
+      {onMover && categorias && categorias.length > 0 && (
+        <div className="px-4 py-2 border-b border-gray-100 dark:border-neutral-700 flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-gray-500">Solte em uma categoria:</span>
+          {categorias.map((c) => (
+            <div
+              key={c.id}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const id = Number(e.dataTransfer.getData("text/produto-id"));
+                if (id) onMover(id, c.id);
+              }}
+              className="px-2 py-1 rounded-md text-xs border border-dashed border-gray-300 dark:border-neutral-600 text-gray-600 dark:text-gray-300"
+              style={{ borderColor: c.cor || undefined }}
+            >
+              {c.nome}
+            </div>
+          ))}
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-neutral-700 border-b border-gray-200 dark:border-neutral-600">
@@ -171,6 +201,11 @@ export function EstoqueProdutosTable({
               produtos.map((p) => (
                 <tr
                   key={p.id}
+                  draggable={Boolean(onMover && categorias?.length)}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/produto-id", String(p.id));
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
                   className="border-b border-gray-100 dark:border-neutral-700 hover:bg-gray-50/50 dark:hover:bg-neutral-700/50"
                 >
                   {columns.map((col) => (
@@ -179,7 +214,28 @@ export function EstoqueProdutosTable({
                     </td>
                   ))}
                   <td className={`${TD_BASE} text-right`}>
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-1 flex-wrap">
+                      {onMover && categorias && categorias.length > 0 && (
+                        <select
+                          aria-label="Mover para categoria"
+                          className="max-w-[120px] px-1 py-1 text-xs border border-gray-200 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300"
+                          value=""
+                          onChange={(e) => {
+                            const id = Number(e.target.value);
+                            if (id) onMover(p.id, id);
+                            e.target.value = "";
+                          }}
+                        >
+                          <option value="">Mover…</option>
+                          {categorias
+                            .filter((c) => c.id !== p.categoria)
+                            .map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.nome}
+                              </option>
+                            ))}
+                        </select>
+                      )}
                       <button
                         type="button"
                         onClick={() => onHistorico(p)}
@@ -191,7 +247,8 @@ export function EstoqueProdutosTable({
                       <button
                         type="button"
                         onClick={() => onEditar(p)}
-                        className="px-2 py-1 text-xs font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded"
+                        className="px-2 py-1 text-xs font-medium rounded"
+                        style={{ color: "var(--cb-primary, #8B3D52)" }}
                         title="Editar produto"
                       >
                         Editar
@@ -235,6 +292,7 @@ export function EstoqueProdutosTable({
           {resumo?.total_produtos != null && resumo.total_produtos !== produtos.length
             ? ` de ${resumo.total_produtos}`
             : ""}
+          {onMover ? " · Use “Mover…” para trocar de categoria" : ""}
         </div>
       )}
     </section>

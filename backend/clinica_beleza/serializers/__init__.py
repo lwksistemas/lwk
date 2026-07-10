@@ -29,6 +29,7 @@ from .documentos import (
     ProntuarioSectionSerializer,
 )
 from .estoque import (
+    CategoriaEstoqueSerializer,
     ConsultaProdutoUtilizadoSerializer,
     MovimentacaoEstoqueSerializer,
     ProdutoEstoqueSerializer,
@@ -60,6 +61,7 @@ __all__ = [
     'HorarioTrabalhoProfissionalSerializer',
     'LocalAtendimentoSerializer',
     'NomeAgendaSerializer',
+    'CategoriaEstoqueSerializer',
     'ConsultaProdutoUtilizadoSerializer',
     'MovimentacaoEstoqueSerializer',
     'PatientAnamneseSerializer',

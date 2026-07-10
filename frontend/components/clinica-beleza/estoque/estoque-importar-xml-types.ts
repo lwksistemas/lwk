@@ -1,3 +1,5 @@
+import type { EstoqueCategoria } from "@/components/clinica-beleza/estoque/estoque-types";
+
 export interface ProdutoPreview {
   nome: string;
   unidade_medida: string;
@@ -5,6 +7,11 @@ export interface ProdutoPreview {
   preco_custo: string;
   lote: string;
   validade: string | null;
+  categoria?: string;
+  categoria_id?: number | null;
+  categoria_inferida?: string;
+  categoria_motivo?: string;
+  ncm?: string;
 }
 
 export interface PreviewResult {
@@ -27,4 +34,6 @@ export interface EstoqueImportarXmlModalProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  categorias?: EstoqueCategoria[];
+  defaultCategoriaSlug?: string;
 }

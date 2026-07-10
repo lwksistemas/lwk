@@ -9,7 +9,7 @@ from .patients import Patient, PatientAnamnese
 from .professionals import Professional, ProfessionalCommission, HorarioTrabalhoProfissional
 from .appointments import Appointment, AppointmentProcedure, BloqueioHorario
 from .financeiro import Payment, CampanhaPromocao, CategoriaDespesa, Despesa
-from .estoque import ProdutoEstoque, MovimentacaoEstoque, ConsultaProdutoUtilizado
+from .estoque import CategoriaEstoque, ProdutoEstoque, MovimentacaoEstoque, ConsultaProdutoUtilizado
 from .consultas import (
     Consulta, ConsultaAssinaturaTermo, ConsultaTermoProcedimento,
     PrescricaoMemed, ConsultaEvolucao, MemedTimbrado,
@@ -39,6 +39,7 @@ __all__ = [
     'CampanhaPromocao',
     'CategoriaDespesa',
     'Despesa',
+    'CategoriaEstoque',
     'ProdutoEstoque',
     'MovimentacaoEstoque',
     'ConsultaProdutoUtilizado',

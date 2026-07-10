@@ -23,9 +23,8 @@ class EstoqueCatalogoItem:
     observacoes: str = ''
 
 
-def estoque_catalogo_defaults(item: EstoqueCatalogoItem) -> dict:
-    return {
-        'categoria': item.categoria,
+def estoque_catalogo_defaults(item: EstoqueCatalogoItem, *, categoria_obj=None) -> dict:
+    data = {
         'marca': item.marca,
         'unidade_medida': item.unidade_medida,
         'quantidade_atual': Decimal('0'),
@@ -35,6 +34,9 @@ def estoque_catalogo_defaults(item: EstoqueCatalogoItem) -> dict:
         'observacoes': item.observacoes,
         'is_active': True,
     }
+    if categoria_obj is not None:
+        data['categoria'] = categoria_obj
+    return data
 
 
 # Protocolos comerciais de soroterapia (alinhados ao catálogo de procedimentos)

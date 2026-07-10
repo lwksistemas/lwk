@@ -1,9 +1,11 @@
 "use client";
 
-import { FileUp, Package } from "lucide-react";
+import { ArrowLeft, FileUp, Package, Settings2 } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
+import { EstoqueCategoriasGrid } from "@/components/clinica-beleza/estoque/EstoqueCategoriasGrid";
+import { EstoqueCategoriasModal } from "@/components/clinica-beleza/estoque/EstoqueCategoriasModal";
 import { EstoqueFilters } from "@/components/clinica-beleza/estoque/EstoqueFilters";
 import { EstoqueHistoricoModal } from "@/components/clinica-beleza/estoque/EstoqueHistoricoModal";
 import { EstoqueMovimentacaoModal } from "@/components/clinica-beleza/estoque/EstoqueMovimentacaoModal";
@@ -31,56 +33,100 @@ export function EstoquePageContent({
 }: EstoquePageContentProps) {
   const page = useEstoquePage({ defaultCategoria });
   const { colunasKeys } = useEstoqueColunas();
+  const emLista = page.viewMode === "lista";
 
   return (
     <>
       <ClinicaBelezaStandardPageHeader
         title={title}
-        subtitle={subtitle}
+        subtitle={
+          emLista && page.categoriaAtual
+            ? `${subtitle} · ${page.categoriaAtual.nome}`
+            : subtitle
+        }
         backHref={backHref}
         icon={Package}
         newLabel="Novo Produto"
         onNew={page.abrirNovoProduto}
         extraActions={
-          <button
-            type="button"
-            onClick={() => page.setShowImportXmlModal(true)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700"
-          >
-            <FileUp size={16} />
-            <span className="hidden sm:inline">Importar XML</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {emLista && (
+              <button
+                type="button"
+                onClick={page.voltarCategorias}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700"
+              >
+                <ArrowLeft size={16} />
+                <span className="hidden sm:inline">Categorias</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => page.setShowCategoriasModal(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700"
+            >
+              <Settings2 size={16} />
+              <span className="hidden sm:inline">Categorias</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => page.setShowImportXmlModal(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700"
+            >
+              <FileUp size={16} />
+              <span className="hidden sm:inline">Importar XML</span>
+            </button>
+          </div>
         }
       />
       <ClinicaBelezaPageContent>
-        {page.loading && !page.resumo ? (
+        {page.loading && !page.resumo && page.viewMode === "categorias" ? (
           <div className="flex justify-center py-12">
-            <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+            <div
+              className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
+              style={{ borderColor: "var(--cb-primary, #8B3D52)", borderTopColor: "transparent" }}
+            />
           </div>
         ) : (
           <>
             <EstoqueResumoCards resumo={page.resumo} />
-            <EstoqueFilters
-              categoriaFilter={page.categoriaFilter}
-              searchTerm={page.searchTerm}
-              onSearchChange={page.setSearchTerm}
-              onCategoriaChange={page.setCategoriaFilterAndUrl}
-            />
-            {page.listError && (
-              <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
-                Erro ao carregar produtos: {page.listError}
-              </div>
+            {page.viewMode === "categorias" ? (
+              <EstoqueCategoriasGrid
+                categorias={page.categorias}
+                loading={page.loadingCategorias}
+                totalProdutos={page.resumo?.total_produtos}
+                onSelect={page.selecionarCategoria}
+                onVerTodos={page.verTodos}
+                onGerenciar={() => page.setShowCategoriasModal(true)}
+              />
+            ) : (
+              <>
+                <EstoqueFilters
+                  categoriaFilter={page.categoriaFilter}
+                  searchTerm={page.searchTerm}
+                  onSearchChange={page.setSearchTerm}
+                  onCategoriaChange={page.setCategoriaFilterAndUrl}
+                  categorias={page.categorias}
+                />
+                {page.listError && (
+                  <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
+                    Erro ao carregar produtos: {page.listError}
+                  </div>
+                )}
+                <EstoqueProdutosTable
+                  produtos={page.produtos}
+                  resumo={page.resumo}
+                  categorias={page.categorias}
+                  onHistorico={page.abrirHistorico}
+                  onEditar={page.abrirEditarProduto}
+                  onEntrada={(p) => page.abrirMovimentacao(p, "entrada")}
+                  onSaida={(p) => page.abrirMovimentacao(p, "saida")}
+                  onExcluir={page.handleExcluirProduto}
+                  onMover={page.moverProduto}
+                  colunasVisiveis={colunasKeys}
+                />
+              </>
             )}
-            <EstoqueProdutosTable
-              produtos={page.produtos}
-              resumo={page.resumo}
-              onHistorico={page.abrirHistorico}
-              onEditar={page.abrirEditarProduto}
-              onEntrada={(p) => page.abrirMovimentacao(p, "entrada")}
-              onSaida={(p) => page.abrirMovimentacao(p, "saida")}
-              onExcluir={page.handleExcluirProduto}
-              colunasVisiveis={colunasKeys}
-            />
           </>
         )}
         <ClinicaBelezaRelatedLinks slug={page.slug} items={relatedLinks} />
@@ -90,6 +136,8 @@ export function EstoquePageContent({
         <EstoqueProdutoModal
           key={page.editingProduto?.id ?? "new"}
           produto={page.editingProduto}
+          categorias={page.categorias}
+          defaultCategoriaSlug={page.categoriaFilter || undefined}
           saving={page.saving}
           saveError={page.saveError}
           onClose={page.fecharProdutoModal}
@@ -110,6 +158,14 @@ export function EstoquePageContent({
         open={page.showImportXmlModal}
         onClose={() => page.setShowImportXmlModal(false)}
         onSuccess={page.loadAll}
+        categorias={page.categorias}
+        defaultCategoriaSlug={page.categoriaFilter || undefined}
+      />
+      <EstoqueCategoriasModal
+        open={page.showCategoriasModal}
+        onClose={() => page.setShowCategoriasModal(false)}
+        onChanged={() => void page.loadAll()}
+        lojaCtx={page.lojaCtx}
       />
       {page.showHistoricoModal && page.historicoProduto && (
         <EstoqueHistoricoModal

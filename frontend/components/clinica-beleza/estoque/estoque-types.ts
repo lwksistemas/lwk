@@ -1,7 +1,21 @@
+export interface EstoqueCategoria {
+  id: number;
+  nome: string;
+  slug: string;
+  cor: string;
+  ordem: number;
+  is_active: boolean;
+  produtos_count?: number;
+}
+
 export interface EstoqueProduto {
   id: number;
   nome: string;
-  categoria: string;
+  /** ID da categoria (FK). */
+  categoria: number | null;
+  categoria_slug?: string;
+  categoria_display?: string;
+  categoria_cor?: string;
   marca?: string;
   quantidade_atual: number;
   quantidade_minima: number;
@@ -28,6 +42,7 @@ export interface EstoqueMovimentacaoHistorico {
   tipo_display: string;
 }
 
+/** Fallback estático (antes da API carregar). */
 export const ESTOQUE_CATEGORIAS = [
   { value: "injetavel", label: "Injetável" },
   { value: "soroterapia", label: "Soroterapia" },
@@ -48,9 +63,23 @@ export const normalizeEstoqueCategoria = (val?: string | null): string => {
   return "outro";
 };
 
-export const estoqueCategoriaLabel = (val: string) => {
-  const norm = normalizeEstoqueCategoria(val);
-  return ESTOQUE_CATEGORIAS.find((c) => c.value === norm)?.label ?? val;
+export const estoqueCategoriaLabel = (
+  val: string | number | null | undefined,
+  categorias?: EstoqueCategoria[],
+) => {
+  if (val == null || val === "") return "—";
+  if (typeof val === "number" && categorias) {
+    return categorias.find((c) => c.id === val)?.nome ?? String(val);
+  }
+  const slug = String(val);
+  if (categorias) {
+    const bySlug = categorias.find((c) => c.slug === slug);
+    if (bySlug) return bySlug.nome;
+    const byNome = categorias.find((c) => c.nome === slug);
+    if (byNome) return byNome.nome;
+  }
+  const norm = normalizeEstoqueCategoria(slug);
+  return ESTOQUE_CATEGORIAS.find((c) => c.value === norm)?.label ?? slug;
 };
 
 export const extractEstoqueApiError = (err: unknown, fallback: string): string => {

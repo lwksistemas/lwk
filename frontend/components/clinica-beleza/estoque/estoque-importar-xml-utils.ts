@@ -1,14 +1,7 @@
 import type { ImportResult, ProdutoPreview } from "./estoque-importar-xml-types";
+import { ESTOQUE_CATEGORIAS } from "./estoque-types";
 
-export const ESTOQUE_IMPORT_CATEGORIAS = [
-  { value: "injetavel", label: "Injetável" },
-  { value: "soroterapia", label: "Soroterapia" },
-  { value: "cosmético", label: "Cosmético" },
-  { value: "medicamentos", label: "Medicamentos" },
-  { value: "descartavel", label: "Descartável" },
-  { value: "equipamento", label: "Equipamento" },
-  { value: "outro", label: "Outro" },
-] as const;
+export const ESTOQUE_IMPORT_CATEGORIAS = ESTOQUE_CATEGORIAS;
 
 export const DEFAULT_ESTOQUE_IMPORT_CATEGORIA = "outro";
 
@@ -28,18 +21,39 @@ export function formatImportResultSummary(criados: number, atualizados: number):
 export function formatProdutoPreviewLine(p: ProdutoPreview): string {
   const preco = parseFloat(p.preco_custo || "0").toFixed(2);
   const lote = p.lote ? ` · Lote: ${p.lote}` : "";
-  return `${p.quantidade} ${p.unidade_medida} × R$ ${preco}${lote}`;
+  const cat = p.categoria ? ` · ${p.categoria}` : "";
+  const motivo = p.categoria_motivo ? ` (${p.categoria_motivo})` : "";
+  return `${p.quantidade} ${p.unidade_medida} × R$ ${preco}${lote}${cat}${motivo}`;
 }
 
 export function buildEstoqueImportFormData(
   arquivo: File,
   categoria: string,
   confirmar: boolean,
+  opts?: {
+    categoriaId?: number | null;
+    produtos?: ProdutoPreview[];
+  },
 ): FormData {
   const formData = new FormData();
   formData.append("arquivo", arquivo);
   formData.append("categoria", categoria);
-  if (confirmar) formData.append("confirmar", "true");
+  if (opts?.categoriaId) formData.append("categoria_id", String(opts.categoriaId));
+  if (confirmar) {
+    formData.append("confirmar", "true");
+    if (opts?.produtos?.length) {
+      formData.append(
+        "produtos",
+        JSON.stringify(
+          opts.produtos.map((p) => ({
+            nome: p.nome,
+            categoria: p.categoria,
+            categoria_id: p.categoria_id,
+          })),
+        ),
+      );
+    }
+  }
   return formData;
 }
 

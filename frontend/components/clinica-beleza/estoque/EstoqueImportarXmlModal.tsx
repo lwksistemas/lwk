@@ -7,7 +7,13 @@ import { EstoqueImportarXmlPreview } from "./EstoqueImportarXmlPreview";
 import { EstoqueImportarXmlResult } from "./EstoqueImportarXmlResult";
 import { useEstoqueImportarXml } from "./useEstoqueImportarXml";
 
-export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: EstoqueImportarXmlModalProps) {
+export function EstoqueImportarXmlModal({
+  open,
+  onClose,
+  onSuccess,
+  categorias,
+  defaultCategoriaSlug,
+}: EstoqueImportarXmlModalProps) {
   const {
     arquivo,
     categoria,
@@ -20,7 +26,8 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: EstoqueImp
     handleFileChange,
     voltarPreview,
     enviarXml,
-  } = useEstoqueImportarXml(onClose, onSuccess);
+    updateProdutoCategoria,
+  } = useEstoqueImportarXml(onClose, onSuccess, { categorias, defaultCategoriaSlug });
 
   if (!open) return null;
 
@@ -53,13 +60,20 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: EstoqueImp
           )}
 
           {resultado && <EstoqueImportarXmlResult resultado={resultado} />}
-          {preview && !resultado && <EstoqueImportarXmlPreview preview={preview} />}
+          {preview && !resultado && (
+            <EstoqueImportarXmlPreview
+              preview={preview}
+              categorias={categorias}
+              onProdutoCategoriaChange={updateProdutoCategoria}
+            />
+          )}
           {!resultado && !preview && (
             <EstoqueImportarXmlForm
               arquivo={arquivo}
               categoria={categoria}
               onCategoriaChange={setCategoria}
               onFileChange={handleFileChange}
+              categorias={categorias}
             />
           )}
         </div>
@@ -70,7 +84,7 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: EstoqueImp
               type="button"
               onClick={handleClose}
               className="ml-auto px-4 py-2 text-sm font-medium text-white rounded-lg"
-              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
+              style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
             >
               Fechar
             </button>
@@ -88,7 +102,7 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: EstoqueImp
                 onClick={() => void enviarXml(true)}
                 disabled={loading}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-                style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
+                style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                 Confirmar importação ({preview.total_produtos})
@@ -108,7 +122,7 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: EstoqueImp
                 onClick={() => void enviarXml(false)}
                 disabled={loading || !arquivo}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-                style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
+                style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
                 Visualizar produtos

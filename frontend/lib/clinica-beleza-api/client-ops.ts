@@ -43,7 +43,7 @@ export const financeiroApi = {
 
 export const estoqueApi = {
   list: (
-    params?: { categoria?: string; search?: string; page?: number; page_size?: number },
+    params?: { categoria?: string; categoria_id?: number; search?: string; page?: number; page_size?: number },
     loja?: { id?: number; slug?: string } | null,
   ) => cbGetList("/estoque/", params, loja),
   create: (data: Record<string, unknown>, loja?: { id?: number; slug?: string } | null) =>
@@ -54,6 +54,27 @@ export const estoqueApi = {
   resumo: (loja?: { id?: number; slug?: string } | null) => cbGet("/estoque/resumo/", undefined, loja),
   movimentar: (id: number, data: { tipo: string; quantidade: number; motivo?: string }) =>
     cbPost(`/estoque/${id}/movimentar/`, data),
+  mover: (data: { produto_ids: number[]; categoria_id: number }) =>
+    cbPost<{ moved: number; categoria_id: number; categoria_slug: string }>("/estoque/mover/", data),
+  categorias: {
+    list: (loja?: { id?: number; slug?: string } | null) =>
+      cbGet<
+        {
+          id: number;
+          nome: string;
+          slug: string;
+          cor: string;
+          ordem: number;
+          is_active: boolean;
+          produtos_count?: number;
+        }[]
+      >("/estoque/categorias/", undefined, loja),
+    create: (data: { nome: string; cor?: string; ordem?: number }, loja?: { id?: number; slug?: string } | null) =>
+      cbPost("/estoque/categorias/", data, loja),
+    update: (id: number, data: { nome?: string; cor?: string; ordem?: number; is_active?: boolean }) =>
+      cbPut(`/estoque/categorias/${id}/`, data),
+    delete: (id: number) => cbDelete(`/estoque/categorias/${id}/`),
+  },
 };
 
 export const locaisAtendimentoApi = {

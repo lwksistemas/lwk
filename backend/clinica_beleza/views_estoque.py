@@ -3,36 +3,51 @@ Views de Estoque — Clínica da Beleza
 Controle de produtos (botox, ácido hialurônico, soros, etc.)
 """
 import logging
+import re
 
 from django.db.models import F, Sum
+from django.utils.text import slugify
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .permissions import CLINICA_ESTOQUE, CLINICA_ESTOQUE_LEITURA
 from rest_framework import status
 
+from .permissions import CLINICA_ESTOQUE, CLINICA_ESTOQUE_LEITURA
 from .models import ProdutoEstoque, MovimentacaoEstoque
+from .models.estoque import CategoriaEstoque
 from .serializers import ProdutoEstoqueSerializer, MovimentacaoEstoqueSerializer
+from .serializers.estoque import CategoriaEstoqueSerializer
 from .pagination import paginate_queryset
-from .views_base import GetObjectMixin
+from .views_base import GetObjectMixin, resolve_loja_id_from_request
+from .estoque_categorias import (
+    categorias_com_contagem,
+    garantir_categorias_estoque_padrao,
+    normalizar_slug_categoria,
+    resolver_categoria,
+)
 
 logger = logging.getLogger(__name__)
 
 # Campos para listagem via .values() (inclui numero_nota desde migration 0034).
 _PRODUTO_VALUES_FIELDS = (
-    'id', 'nome', 'categoria', 'marca', 'unidade_medida',
+    'id', 'nome', 'categoria_id', 'categoria__slug', 'categoria__nome', 'categoria__cor',
+    'marca', 'unidade_medida',
     'quantidade_atual', 'quantidade_minima', 'preco_custo', 'preco_venda',
     'validade', 'lote', 'numero_nota', 'dias_alerta_validade',
     'observacoes', 'is_active', 'created_at', 'updated_at',
 )
-_CATEGORIA_LABELS = dict(ProdutoEstoque.CATEGORIA_CHOICES)
 
 
 def _produto_values_row(row: dict) -> dict:
     item = dict(row)
     item.setdefault('numero_nota', '')
-    item['categoria_display'] = _CATEGORIA_LABELS.get(row.get('categoria'), row.get('categoria'))
+    item['categoria'] = row.get('categoria_id')
+    item['categoria_slug'] = row.get('categoria__slug') or 'outro'
+    item['categoria_display'] = row.get('categoria__nome') or 'Outro'
+    item['categoria_cor'] = row.get('categoria__cor') or '#8B3D52'
+    item.pop('categoria__slug', None)
+    item.pop('categoria__nome', None)
+    item.pop('categoria__cor', None)
     item['estoque_baixo'] = row.get('quantidade_atual', 0) <= row.get('quantidade_minima', 0)
-    # Alerta de validade
     validade = row.get('validade')
     dias_alerta = row.get('dias_alerta_validade') or 90
     if validade:
@@ -53,15 +68,27 @@ def _paginate_produtos_values(queryset, request):
     )
 
 
-class ProdutoEstoqueListView(APIView):
-    """
-    GET /clinica-beleza/estoque/
-    POST /clinica-beleza/estoque/
-    """
+def _filtrar_por_categoria(qs, request):
+    categoria_id = request.query_params.get('categoria_id')
+    categoria = request.query_params.get('categoria')
+    if categoria_id:
+        try:
+            return qs.filter(categoria_id=int(categoria_id))
+        except (TypeError, ValueError):
+            return qs.none()
+    if not categoria:
+        return qs
+    cat = str(categoria).strip()
+    if cat.isdigit():
+        return qs.filter(categoria_id=int(cat))
+    return qs.filter(categoria__slug=normalizar_slug_categoria(cat))
+
+
+class CategoriaEstoqueListView(APIView):
+    """GET/POST /clinica-beleza/estoque/categorias/"""
     permission_classes = CLINICA_ESTOQUE
 
     def get_permissions(self):
-        # Profissionais em consulta listam insumos; gestão (POST/PUT) continua CLINICA_ESTOQUE.
         if self.request.method == 'GET':
             return [perm() for perm in CLINICA_ESTOQUE_LEITURA]
         return [perm() for perm in CLINICA_ESTOQUE]
@@ -70,10 +97,103 @@ class ProdutoEstoqueListView(APIView):
         from tenants.middleware import ensure_loja_context
 
         ensure_loja_context(request)
+        loja_id = resolve_loja_id_from_request(request)
+        garantir_categorias_estoque_padrao(loja_id)
+        qs = categorias_com_contagem(loja_id)
+        return Response(CategoriaEstoqueSerializer(qs, many=True).data)
+
+    def post(self, request):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        loja_id = resolve_loja_id_from_request(request)
+        garantir_categorias_estoque_padrao(loja_id)
+        serializer = CategoriaEstoqueSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        nome = serializer.validated_data['nome']
+        base_slug = slugify(nome, allow_unicode=True)[:50] or 'categoria'
+        slug = base_slug
+        n = 2
+        while CategoriaEstoque.objects.filter(loja_id=loja_id, slug=slug).exists():
+            slug = f'{base_slug[:45]}-{n}'
+            n += 1
+        ordem = serializer.validated_data.get('ordem')
+        if ordem is None:
+            last = CategoriaEstoque.objects.filter(loja_id=loja_id).order_by('-ordem').first()
+            ordem = (last.ordem + 1) if last else 1
+        obj = serializer.save(loja_id=loja_id, slug=slug, ordem=ordem)
+        obj.produtos_count = 0
+        return Response(CategoriaEstoqueSerializer(obj).data, status=status.HTTP_201_CREATED)
+
+
+class CategoriaEstoqueDetailView(GetObjectMixin, APIView):
+    """GET/PUT/DELETE /clinica-beleza/estoque/categorias/<id>/"""
+    permission_classes = CLINICA_ESTOQUE
+    model_class = CategoriaEstoque
+    not_found_message = 'Categoria não encontrada'
+
+    def get(self, request, pk):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        obj.produtos_count = obj.produtos.filter(is_active=True).count()
+        return Response(CategoriaEstoqueSerializer(obj).data)
+
+    def put(self, request, pk):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        serializer = CategoriaEstoqueSerializer(obj, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        obj.produtos_count = obj.produtos.filter(is_active=True).count()
+        return Response(CategoriaEstoqueSerializer(obj).data)
+
+    def delete(self, request, pk):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        ativos = obj.produtos.filter(is_active=True).count()
+        if ativos:
+            return Response(
+                {'error': f'Não é possível excluir: há {ativos} produto(s) nesta categoria.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ProdutoEstoqueListView(APIView):
+    """
+    GET /clinica-beleza/estoque/
+    POST /clinica-beleza/estoque/
+    """
+    permission_classes = CLINICA_ESTOQUE
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [perm() for perm in CLINICA_ESTOQUE_LEITURA]
+        return [perm() for perm in CLINICA_ESTOQUE]
+
+    def get(self, request):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        loja_id = resolve_loja_id_from_request(request)
+        garantir_categorias_estoque_padrao(loja_id)
         qs = ProdutoEstoque.objects.all().order_by('nome')
-        categoria = request.query_params.get('categoria')
-        if categoria:
-            qs = qs.filter(categoria=categoria)
+        qs = _filtrar_por_categoria(qs, request)
         search = (request.query_params.get('search') or '').strip()
         if search:
             qs = qs.filter(nome__icontains=search)
@@ -83,11 +203,15 @@ class ProdutoEstoqueListView(APIView):
         estoque_baixo = request.query_params.get('estoque_baixo')
         if estoque_baixo == 'true':
             qs = qs.filter(quantidade_atual__lte=F('quantidade_minima'))
-        # Sempre via .values() para resposta leve na listagem.
         return _paginate_produtos_values(qs, request)
 
     def post(self, request):
-        serializer = ProdutoEstoqueSerializer(data=request.data)
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        loja_id = resolve_loja_id_from_request(request)
+        garantir_categorias_estoque_padrao(loja_id)
+        serializer = ProdutoEstoqueSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -99,6 +223,7 @@ class ProdutoEstoqueDetailView(GetObjectMixin, APIView):
     permission_classes = CLINICA_ESTOQUE
     model_class = ProdutoEstoque
     not_found_message = 'Produto não encontrado'
+    select_related_fields = ('categoria',)
 
     def get_permissions(self):
         if self.request.method == 'GET':
@@ -121,7 +246,9 @@ class ProdutoEstoqueDetailView(GetObjectMixin, APIView):
         obj, error = self.object_or_404(pk)
         if error:
             return error
-        serializer = ProdutoEstoqueSerializer(obj, data=request.data, partial=True)
+        serializer = ProdutoEstoqueSerializer(
+            obj, data=request.data, partial=True, context={'request': request},
+        )
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -131,10 +258,42 @@ class ProdutoEstoqueDetailView(GetObjectMixin, APIView):
         obj, error = self.object_or_404(pk)
         if error:
             return error
-        # Hard delete: remove produto e movimentações associadas
         MovimentacaoEstoque.objects.filter(produto=obj).delete()
         obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ProdutoEstoqueMoverView(GetObjectMixin, APIView):
+    """POST /clinica-beleza/estoque/mover/ — move um ou mais produtos para outra categoria."""
+    permission_classes = CLINICA_ESTOQUE
+
+    def post(self, request):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        loja_id = resolve_loja_id_from_request(request)
+        ids = request.data.get('produto_ids') or request.data.get('ids') or []
+        if not isinstance(ids, list) or not ids:
+            single = request.data.get('produto_id')
+            if single:
+                ids = [single]
+        try:
+            ids = [int(x) for x in ids]
+        except (TypeError, ValueError):
+            return Response({'error': 'produto_ids inválidos.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        cat_id = request.data.get('categoria_id')
+        cat_slug = request.data.get('categoria')
+        cat = resolver_categoria(
+            loja_id=loja_id,
+            categoria_id=int(cat_id) if cat_id not in (None, '') else None,
+            slug=str(cat_slug) if cat_slug else None,
+        )
+        if not cat:
+            return Response({'error': 'Categoria destino não encontrada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        updated = ProdutoEstoque.objects.filter(id__in=ids).update(categoria=cat)
+        return Response({'moved': updated, 'categoria_id': cat.id, 'categoria_slug': cat.slug})
 
 
 class MovimentacaoEstoqueView(GetObjectMixin, APIView):
@@ -201,7 +360,6 @@ class EstoqueResumoView(APIView):
             total=Sum(F('quantidade_atual') * F('preco_custo'))
         )['total'] or 0
 
-        # Produtos com validade próxima do vencimento
         hoje = date.today()
         validade_proxima = 0
         for p in produtos.filter(validade__isnull=False).values('validade', 'dias_alerta_validade'):
@@ -239,12 +397,29 @@ class EstoqueImportarXmlView(APIView):
         if not valid:
             return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
 
-        categoria = request.data.get('categoria', 'outro')
-        confirmar = request.data.get('confirmar', 'false').lower() in ('true', '1')
+        loja_id = resolve_loja_id_from_request(request)
+        garantir_categorias_estoque_padrao(loja_id)
+
+        categoria_raw = request.data.get('categoria', 'outro')
+        categoria_id = request.data.get('categoria_id')
+        forcar = str(request.data.get('forcar_categoria', 'false')).lower() in ('true', '1')
+        cat = resolver_categoria(
+            loja_id=loja_id,
+            categoria_id=int(categoria_id) if categoria_id not in (None, '') else None,
+            slug=str(categoria_raw) if categoria_raw else 'outro',
+        )
+        categoria_slug = cat.slug if cat else normalizar_slug_categoria(str(categoria_raw))
+        confirmar = str(request.data.get('confirmar', 'false')).lower() in ('true', '1')
 
         try:
             xml_content = arquivo.read()
-            resultado = importar_produtos_xml(xml_content, categoria=categoria)
+            resultado = importar_produtos_xml(
+                xml_content,
+                categoria=categoria_slug,
+                categoria_id=cat.id if cat else None,
+                loja_id=loja_id,
+                forcar_categoria=forcar,
+            )
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -252,16 +427,13 @@ class EstoqueImportarXmlView(APIView):
             return Response({'error': 'Erro ao processar o XML. Verifique o formato.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not confirmar:
-            # Preview: retorna produtos encontrados sem salvar
-            # Verificar se destinatário confere com a loja
+            aviso_destinatario = None
             from tenants.middleware import get_current_loja_id
             from superadmin.models import Loja
-            import re
 
-            aviso_destinatario = None
-            loja_id = get_current_loja_id()
-            if loja_id and resultado.get('nota', {}).get('destinatario_documento'):
-                loja = Loja.objects.filter(id=loja_id).first()
+            lid = get_current_loja_id() or loja_id
+            if lid and resultado.get('nota', {}).get('destinatario_documento'):
+                loja = Loja.objects.filter(id=lid).first()
                 if loja:
                     loja_doc = re.sub(r'\D', '', loja.cpf_cnpj or '')
                     nf_doc = re.sub(r'\D', '', resultado['nota']['destinatario_documento'])
@@ -279,20 +451,38 @@ class EstoqueImportarXmlView(APIView):
                 response_data['aviso_destinatario'] = aviso_destinatario
             return Response(response_data)
 
-        # Confirmar: criar ou atualizar produtos no estoque
         from .estoque_xml_import_service import confirmar_importacao_xml
+        import json
 
-        result = confirmar_importacao_xml(resultado['produtos'])
+        # Permite override por item enviado no confirm (JSON string ou lista)
+        produtos_override = request.data.get('produtos')
+        if produtos_override:
+            if isinstance(produtos_override, str):
+                try:
+                    produtos_override = json.loads(produtos_override)
+                except json.JSONDecodeError:
+                    produtos_override = None
+            if isinstance(produtos_override, list) and produtos_override:
+                # Mescla overrides de categoria sobre o parse do XML
+                by_nome = {str(p.get('nome', '')).strip().lower(): p for p in produtos_override if isinstance(p, dict)}
+                for p in resultado['produtos']:
+                    ov = by_nome.get(str(p.get('nome', '')).strip().lower())
+                    if not ov:
+                        continue
+                    if ov.get('categoria_id') not in (None, ''):
+                        p['categoria_id'] = ov['categoria_id']
+                    if ov.get('categoria'):
+                        p['categoria'] = ov['categoria']
 
-        # Incluir aviso de destinatário também na confirmação
-        from tenants.middleware import get_current_loja_id
-        from superadmin.models import Loja
-        import re
+        result = confirmar_importacao_xml(resultado['produtos'], loja_id=loja_id)
 
         aviso_destinatario = None
-        loja_id = get_current_loja_id()
-        if loja_id and resultado.get('nota', {}).get('destinatario_documento'):
-            loja = Loja.objects.filter(id=loja_id).first()
+        from tenants.middleware import get_current_loja_id
+        from superadmin.models import Loja
+
+        lid = get_current_loja_id() or loja_id
+        if lid and resultado.get('nota', {}).get('destinatario_documento'):
+            loja = Loja.objects.filter(id=lid).first()
             if loja:
                 loja_doc = re.sub(r'\D', '', loja.cpf_cnpj or '')
                 nf_doc = re.sub(r'\D', '', resultado['nota']['destinatario_documento'])

@@ -28,8 +28,9 @@ from .views_consultas import (
     ConsultaSecaoPDFView,
 )
 from .views_estoque import (
-    ProdutoEstoqueListView, ProdutoEstoqueDetailView,
+    ProdutoEstoqueListView, ProdutoEstoqueDetailView, ProdutoEstoqueMoverView,
     MovimentacaoEstoqueView, EstoqueResumoView, EstoqueImportarXmlView,
+    CategoriaEstoqueListView, CategoriaEstoqueDetailView,
 )
 from .views_protocolos import ProtocolListView, ProtocolDetailView
 from .views_memed import MemedTokenView, MemedTimbradoView, MemedStatusView
@@ -201,6 +202,9 @@ urlpatterns = [
     # Estoque
     path('estoque/', ProdutoEstoqueListView.as_view(), name='estoque-list'),
     path('estoque/resumo/', EstoqueResumoView.as_view(), name='estoque-resumo'),
+    path('estoque/categorias/', CategoriaEstoqueListView.as_view(), name='estoque-categorias'),
+    path('estoque/categorias/<int:pk>/', CategoriaEstoqueDetailView.as_view(), name='estoque-categorias-detail'),
+    path('estoque/mover/', ProdutoEstoqueMoverView.as_view(), name='estoque-mover'),
     path('estoque/importar-xml/', EstoqueImportarXmlView.as_view(), name='estoque-importar-xml'),
     path('estoque/<int:pk>/', ProdutoEstoqueDetailView.as_view(), name='estoque-detail'),
     path('estoque/<int:pk>/movimentar/', MovimentacaoEstoqueView.as_view(), name='estoque-movimentar'),

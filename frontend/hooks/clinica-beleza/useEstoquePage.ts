@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import type {
+  EstoqueCategoria,
   EstoqueMovimentacaoHistorico,
   EstoqueProduto,
   EstoqueResumo,
@@ -14,6 +15,8 @@ import { useToast } from "@/components/ui/Toast";
 export interface UseEstoquePageOptions {
   defaultCategoria?: string;
 }
+
+export type EstoqueViewMode = "categorias" | "lista";
 
 export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions = {}) {
   const toast = useToast();
@@ -27,13 +30,17 @@ export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions 
   const [loadingResumo, setLoadingResumo] = useState(true);
   const [produtos, setProdutos] = useState<EstoqueProduto[]>([]);
   const [loadingProdutos, setLoadingProdutos] = useState(true);
+  const [categorias, setCategorias] = useState<EstoqueCategoria[]>([]);
+  const [loadingCategorias, setLoadingCategorias] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState("");
+  const [viewMode, setViewMode] = useState<EstoqueViewMode>("categorias");
 
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [showImportXmlModal, setShowImportXmlModal] = useState(false);
+  const [showCategoriasModal, setShowCategoriasModal] = useState(false);
   const [showHistoricoModal, setShowHistoricoModal] = useState(false);
   const [historicoProduto, setHistoricoProduto] = useState<EstoqueProduto | null>(null);
   const [historicoData, setHistoricoData] = useState<EstoqueMovimentacaoHistorico[]>([]);
@@ -44,21 +51,50 @@ export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions 
   const [saving, setSaving] = useState(false);
 
   const lojaCtx = useMemo(() => ({ slug }), [slug]);
-  const loading = loadingResumo || loadingProdutos;
+  const loading = loadingResumo || loadingCategorias || (viewMode === "lista" && loadingProdutos);
 
   useEffect(() => {
     const cat = searchParams.get("categoria") || defaultCategoria;
     setCategoriaFilter(cat);
+    if (cat) setViewMode("lista");
   }, [searchParams, defaultCategoria]);
 
   const setCategoriaFilterAndUrl = (value: string) => {
     setCategoriaFilter(value);
+    if (value) setViewMode("lista");
     const qp = new URLSearchParams(searchParams.toString());
     if (value) qp.set("categoria", value);
     else qp.delete("categoria");
     const qs = qp.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
+
+  const selecionarCategoria = (cat: EstoqueCategoria) => {
+    setViewMode("lista");
+    setCategoriaFilterAndUrl(cat.slug);
+  };
+
+  const verTodos = () => {
+    setViewMode("lista");
+    setCategoriaFilterAndUrl("");
+  };
+
+  const voltarCategorias = () => {
+    setViewMode("categorias");
+    setCategoriaFilterAndUrl("");
+  };
+
+  const loadCategorias = useCallback(async () => {
+    setLoadingCategorias(true);
+    try {
+      const data = await ClinicaBelezaAPI.estoque.categorias.list(lojaCtx);
+      setCategorias(Array.isArray(data) ? (data as EstoqueCategoria[]) : []);
+    } catch {
+      setCategorias([]);
+    } finally {
+      setLoadingCategorias(false);
+    }
+  }, [lojaCtx]);
 
   const loadProdutos = useCallback(async () => {
     setLoadingProdutos(true);
@@ -88,20 +124,22 @@ export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions 
 
   const loadAll = useCallback(async () => {
     setLoadingResumo(true);
-    await Promise.all([loadProdutos(), loadResumo()]);
+    await Promise.all([loadProdutos(), loadResumo(), loadCategorias()]);
     setLoadingResumo(false);
-  }, [loadProdutos, loadResumo]);
+  }, [loadProdutos, loadResumo, loadCategorias]);
 
   useEffect(() => {
-    loadResumo();
-  }, [loadResumo]);
+    void loadResumo();
+    void loadCategorias();
+  }, [loadResumo, loadCategorias]);
 
   useEffect(() => {
+    if (viewMode !== "lista") return;
     const timer = setTimeout(() => {
-      loadProdutos();
+      void loadProdutos();
     }, searchTerm ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [loadProdutos, searchTerm]);
+  }, [loadProdutos, searchTerm, viewMode]);
 
   const handleExcluirProduto = async (id: number, nome: string) => {
     if (!confirm(`Excluir "${nome}" do estoque? Esta ação não pode ser desfeita.`)) return;
@@ -110,6 +148,16 @@ export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions 
       await loadAll();
     } catch {
       toast.error("Erro ao excluir produto.");
+    }
+  };
+
+  const moverProduto = async (produtoId: number, categoriaId: number) => {
+    try {
+      await ClinicaBelezaAPI.estoque.mover({ produto_ids: [produtoId], categoria_id: categoriaId });
+      toast.success("Produto movido.");
+      await loadAll();
+    } catch (err) {
+      toast.error(extractEstoqueApiError(err, "Não foi possível mover o produto."));
     }
   };
 
@@ -192,20 +240,32 @@ export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions 
     }
   };
 
+  const categoriaAtual = categorias.find((c) => c.slug === categoriaFilter) ?? null;
+
   return {
     slug,
+    lojaCtx,
     resumo,
     produtos,
+    categorias,
     loading,
+    loadingCategorias,
     listError,
     saveError,
     searchTerm,
     setSearchTerm,
     categoriaFilter,
     setCategoriaFilterAndUrl,
+    viewMode,
+    selecionarCategoria,
+    verTodos,
+    voltarCategorias,
+    categoriaAtual,
     showProdutoModal,
     showImportXmlModal,
     setShowImportXmlModal,
+    showCategoriasModal,
+    setShowCategoriasModal,
     showHistoricoModal,
     setShowHistoricoModal,
     historicoProduto,
@@ -216,7 +276,9 @@ export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions 
     movTipo,
     saving,
     loadAll,
+    loadCategorias,
     handleExcluirProduto,
+    moverProduto,
     abrirHistorico,
     abrirNovoProduto,
     abrirEditarProduto,
@@ -227,4 +289,3 @@ export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions 
     registrarMovimentacao,
   };
 }
-

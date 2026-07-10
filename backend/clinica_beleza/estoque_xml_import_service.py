@@ -16,6 +16,53 @@ logger = logging.getLogger(__name__)
 # Namespace padrão da NF-e
 NFE_NS = '{http://www.portalfiscal.inf.br/nfe}'
 
+# Inferência por NCM (prefixo) e palavras-chave na descrição
+_NCM_PREFIX_SLUG = {
+    '3002': 'injetavel',   # vacinas, soros, toxinas
+    '3003': 'medicamentos',
+    '3004': 'medicamentos',
+    '3005': 'descartavel',
+    '3006': 'descartavel',
+    '3304': 'cosmético',
+    '3305': 'cosmético',
+    '3307': 'cosmético',
+    '9018': 'equipamento',
+    '9021': 'equipamento',
+    '3822': 'outro',
+}
+
+_KEYWORD_SLUG = [
+    (('botox', 'toxina', 'dysport', 'xeomin', 'ácido hialurônico', 'acido hialuronico',
+      'preenchimento', 'sculptra', 'radiesse', 'ellanse'), 'injetavel'),
+    (('soro', 'vitamina c', 'glutamina', 'nad+', 'iv therapy', 'soroterapia',
+      'ringer', 'fisiológico', 'fisiologico'), 'soroterapia'),
+    (('creme', 'loção', 'locao', 'serum facial', 'protetor solar', 'cosmético', 'cosmetico'), 'cosmético'),
+    (('sering', 'agulha', 'luva', 'gaze', 'algodão', 'algodao', 'descartável', 'descartavel',
+      'cateter', 'scalp', 'máscara', 'mascara'), 'descartavel'),
+    (('laser', 'aparelho', 'equipamento', 'ultrassom'), 'equipamento'),
+    (('medicamento', 'comprimido', 'cápsula', 'capsula', 'antibiótico', 'antibiotico'), 'medicamentos'),
+]
+
+
+def inferir_categoria_slug(*, nome: str = '', ncm: str = '', fallback: str = 'outro') -> tuple[str, str]:
+    """
+    Infere slug de categoria a partir de NCM e descrição.
+    Returns: (slug, motivo) — motivo descreve a regra usada.
+    """
+    ncm_digits = ''.join(c for c in (ncm or '') if c.isdigit())
+    if len(ncm_digits) >= 4:
+        prefix = ncm_digits[:4]
+        if prefix in _NCM_PREFIX_SLUG:
+            return _NCM_PREFIX_SLUG[prefix], f'NCM {prefix}'
+
+    nome_l = (nome or '').lower()
+    for keywords, slug in _KEYWORD_SLUG:
+        for kw in keywords:
+            if kw in nome_l:
+                return slug, f'palavra "{kw}"'
+
+    return fallback or 'outro', 'padrão'
+
 
 def _find_text(element, path: str, ns: str = NFE_NS) -> str:
     """Busca texto em elemento XML com ou sem namespace."""
@@ -184,25 +231,58 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
     }
 
 
-def importar_produtos_xml(xml_content: bytes, *, categoria: str = 'outro') -> dict:
+def importar_produtos_xml(
+    xml_content: bytes,
+    *,
+    categoria: str = 'outro',
+    categoria_id: int | None = None,
+    loja_id: int | None = None,
+    forcar_categoria: bool = False,
+) -> dict:
     """
-    Parseia XML e importa produtos ao estoque.
-    Se o produto já existe (mesmo nome), soma a quantidade e registra movimentação.
+    Parseia XML e prepara produtos para o estoque.
+
+    Por padrão infere categoria por NCM/descrição; se forcar_categoria=True
+    (ou quando o usuário escolheu categoria explícita diferente de 'outro'
+    e passou categoria_id), usa a categoria informada como padrão, ainda
+    permitindo override por item no preview.
 
     Returns:
-        dict com 'nota' (info da NF) e 'produtos' (lista pronta para criação/atualização).
+        dict com 'nota' e 'produtos' (lista pronta para criação/atualização).
     """
+    from .estoque_categorias import resolver_categoria
+
     parsed = parse_nfe_xml(xml_content)
+    fallback_slug = categoria or 'outro'
 
     produtos_para_importar = []
     for item in parsed['produtos']:
-        # Limpar valores decimais para 2 casas (compatível com model)
         preco = str(round(float(item['preco_unitario']), 2))
         quantidade = str(round(float(item['quantidade']), 2))
 
+        if forcar_categoria:
+            slug = fallback_slug
+            motivo = 'seleção manual'
+        else:
+            slug, motivo = inferir_categoria_slug(
+                nome=item['nome'],
+                ncm=item.get('ncm') or '',
+                fallback=fallback_slug,
+            )
+
+        cat = resolver_categoria(
+            loja_id=loja_id,
+            categoria_id=categoria_id if forcar_categoria else None,
+            slug=slug,
+        )
+
         produtos_para_importar.append({
             'nome': item['nome'],
-            'categoria': categoria,
+            'categoria': cat.slug if cat else slug,
+            'categoria_id': cat.id if cat else categoria_id,
+            'categoria_inferida': slug,
+            'categoria_motivo': motivo,
+            'ncm': item.get('ncm') or '',
             'marca': parsed['fornecedor'],
             'unidade_medida': item['unidade_medida'],
             'quantidade': quantidade,
@@ -226,7 +306,11 @@ def importar_produtos_xml(xml_content: bytes, *, categoria: str = 'outro') -> di
     }
 
 
-def confirmar_importacao_xml(produtos_para_importar: list[dict]) -> dict:
+def confirmar_importacao_xml(
+    produtos_para_importar: list[dict],
+    *,
+    loja_id: int | None = None,
+) -> dict:
     """
     Cria ou atualiza produtos no estoque a partir da lista parseada.
     Se o produto já existe (mesmo nome), soma quantidade e registra movimentação.
@@ -237,6 +321,7 @@ def confirmar_importacao_xml(produtos_para_importar: list[dict]) -> dict:
     from decimal import Decimal
     from .models import ProdutoEstoque, MovimentacaoEstoque
     from .serializers import ProdutoEstoqueSerializer
+    from .estoque_categorias import resolver_categoria
 
     criados = 0
     atualizados = 0
@@ -247,13 +332,17 @@ def confirmar_importacao_xml(produtos_para_importar: list[dict]) -> dict:
         quantidade = Decimal(str(item['quantidade']))
         numero_nota = item.get('numero_nota', '')
 
-        # Buscar produto existente (mesmo nome, case insensitive)
+        cat = resolver_categoria(
+            loja_id=loja_id,
+            categoria_id=item.get('categoria_id'),
+            slug=item.get('categoria') or 'outro',
+        )
+
         existente = ProdutoEstoque.objects.filter(
             nome__iexact=nome, is_active=True,
         ).first()
 
         if existente:
-            # Somar quantidade ao estoque existente
             existente.quantidade_atual += quantidade
             if item.get('preco_custo'):
                 existente.preco_custo = Decimal(str(item['preco_custo']))
@@ -263,10 +352,12 @@ def confirmar_importacao_xml(produtos_para_importar: list[dict]) -> dict:
                 existente.lote = item['lote']
             if numero_nota:
                 existente.numero_nota = numero_nota
+            if cat and not existente.categoria_id:
+                existente.categoria = cat
             existente.save(update_fields=[
-                'quantidade_atual', 'preco_custo', 'validade', 'lote', 'numero_nota', 'updated_at',
+                'quantidade_atual', 'preco_custo', 'validade', 'lote', 'numero_nota',
+                'categoria', 'updated_at',
             ])
-            # Registrar movimentação de entrada
             MovimentacaoEstoque.objects.create(
                 produto=existente,
                 tipo='entrada',
@@ -275,10 +366,9 @@ def confirmar_importacao_xml(produtos_para_importar: list[dict]) -> dict:
             )
             atualizados += 1
         else:
-            # Criar produto novo
             serializer_data = {
                 'nome': nome,
-                'categoria': item.get('categoria', 'outro'),
+                'categoria': cat.pk if cat else (item.get('categoria') or 'outro'),
                 'marca': item.get('marca', ''),
                 'unidade_medida': item.get('unidade_medida', 'unidade'),
                 'quantidade_atual': str(quantidade),

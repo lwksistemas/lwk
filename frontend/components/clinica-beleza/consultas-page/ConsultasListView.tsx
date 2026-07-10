@@ -17,6 +17,7 @@ interface ConsultasListViewProps {
   totalPages: number;
   totalCount: number;
   pageSize: number;
+  colunasVisiveis?: string[];
   onNovaConsulta: () => void;
   onOpenConfigAgenda: () => void;
   onSelectConsulta: (c: Consulta) => void;
@@ -34,6 +35,7 @@ export function ConsultasListView({
   totalPages,
   totalCount,
   pageSize,
+  colunasVisiveis,
   onNovaConsulta,
   onOpenConfigAgenda,
   onSelectConsulta,
@@ -92,6 +94,7 @@ export function ConsultasListView({
               onReceber={onReceberConsulta}
               recebendoConsultaId={recebendoConsultaId}
               formatData={formatConsultaListDate}
+              colunasVisiveis={colunasVisiveis}
             />
             <EntityListLoadMore
               page={page}

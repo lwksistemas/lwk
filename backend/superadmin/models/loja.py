@@ -90,6 +90,11 @@ class Loja(models.Model):
         blank=True,
         help_text='Overrides de cores dos status da agenda (bg/border por status). Vazio = padrão LWK.',
     )
+    colunas_consultas = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Colunas visíveis na listagem de Consultas (clínica). Vazio = padrão sem AGENDA.',
+    )
     dominio_customizado = models.CharField(max_length=255, blank=True, unique=True, null=True)
     
     # ✅ NOVO v1421: Sistema híbrido de acesso às lojas

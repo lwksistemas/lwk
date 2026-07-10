@@ -14,6 +14,7 @@ import {
   useConsultasDeepLink,
   useConsultasNovaConsulta,
 } from "./useConsultasPage";
+import { useConsultasColunas } from "@/hooks/clinica-beleza/useConsultasColunas";
 
 export function ConsultasPageContent() {
   const params = useParams();
@@ -33,6 +34,7 @@ export function ConsultasPageContent() {
     totalCount,
   } = useClinicaBelezaPaginatedList<Consulta>({ path: "/consultas/" });
 
+  const { colunasKeys } = useConsultasColunas();
   const cadastros = useAgendamentoCadastros(true);
   const agendaModals = useConsultasAgendaModals();
   const novaConsulta = useConsultasNovaConsulta(slug);
@@ -82,6 +84,7 @@ export function ConsultasPageContent() {
         totalPages={totalPages}
         totalCount={totalCount ?? 0}
         pageSize={pageSize}
+        colunasVisiveis={colunasKeys}
         onNovaConsulta={novaConsulta.abrirNovaConsulta}
         onOpenConfigAgenda={() => agendaModals.setShowConfigAgendaMenu(true)}
         onSelectConsulta={(c) => deepLink.abrirConsulta(c, false)}

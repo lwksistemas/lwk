@@ -19,6 +19,11 @@ import {
   mergeAgendaStatusColors,
 } from '@/lib/clinica-beleza-constants';
 import { lightenHex, normalizeHexColor } from '@/lib/clinica-beleza-theme-utils';
+import { ColunasSection } from '@/components/ui/ColunasSection';
+import {
+  COLUNAS_CONSULTAS_DISPONIVEIS,
+  DEFAULT_COLUNAS_CONSULTAS,
+} from '@/lib/clinica-consultas-colunas-config';
 
 const CORES_PRE_DEFINIDAS: LoginColorPreset[] = [
   { nome: 'Burgundy', primaria: '#8B3D52', secundaria: '#6B2F40' },
@@ -44,6 +49,7 @@ type LoginConfigResponse = {
   cor_secundaria?: string;
   cor_fundo_pagina?: string;
   agenda_status_colors?: Record<string, { bg?: string; border?: string }> | null;
+  colunas_consultas?: string[] | null;
 };
 
 function toHexInput(value: string, fallback: string): string {
@@ -65,6 +71,9 @@ export default function ClinicaBelezaAparenciaPage() {
   const [statusColors, setStatusColors] = useState<AgendaStatusColorMap>(
     () => mergeAgendaStatusColors(),
   );
+  const [colunasConsultas, setColunasConsultas] = useState<string[]>(
+    () => [...DEFAULT_COLUNAS_CONSULTAS],
+  );
 
   const loadConfig = useCallback(async () => {
     setLoading(true);
@@ -74,6 +83,11 @@ export default function ClinicaBelezaAparenciaPage() {
       setCorSecundaria(toHexInput(data.cor_secundaria || '', '#6B2F40'));
       setCorFundoPagina(normalizeHexColor(data.cor_fundo_pagina || '') || '');
       setStatusColors(mergeAgendaStatusColors(data.agenda_status_colors));
+      setColunasConsultas(
+        data.colunas_consultas && data.colunas_consultas.length > 0
+          ? data.colunas_consultas
+          : [...DEFAULT_COLUNAS_CONSULTAS],
+      );
     } catch (err) {
       logger.warn('Erro ao carregar identidade visual:', err);
     } finally {
@@ -137,6 +151,7 @@ export default function ClinicaBelezaAparenciaPage() {
         cor_secundaria: secundaria,
         cor_fundo_pagina: normalizeHexColor(corFundoPagina) || '',
         agenda_status_colors: agendaPayload,
+        colunas_consultas: colunasConsultas,
       });
       toast.success('Identidade visual salva. Atualizando o sistema…');
       window.setTimeout(() => {
@@ -173,8 +188,7 @@ export default function ClinicaBelezaAparenciaPage() {
               Identidade visual
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Cores do menu, fundo das páginas e status da agenda — útil na migração do sistema
-              antigo.
+              Cores do menu, fundo das páginas, status da agenda e colunas de Consultas.
             </p>
           </div>
         </div>
@@ -399,6 +413,18 @@ export default function ClinicaBelezaAparenciaPage() {
                 })}
               </div>
             </section>
+
+            <ColunasSection
+              sectionId="colunas-consultas"
+              title="Colunas da listagem de Consultas"
+              description="Escolha quais informações aparecem em Clínica → Consultas."
+              colunasDisponiveis={COLUNAS_CONSULTAS_DISPONIVEIS}
+              colunas={colunasConsultas}
+              onSave={setColunasConsultas}
+              onError={(msg) => toast.error(msg)}
+              minColunas={3}
+              className="!border-0 !shadow-none !p-0 !bg-transparent dark:!bg-transparent"
+            />
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
               <Link

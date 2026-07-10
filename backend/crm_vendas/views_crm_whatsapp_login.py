@@ -24,6 +24,7 @@ def _serialize_login_config(loja) -> dict:
         'cor_secundaria': cor_secundaria,
         'cor_fundo_pagina': (getattr(loja, 'cor_fundo_pagina', None) or '').strip(),
         'agenda_status_colors': getattr(loja, 'agenda_status_colors', None) or {},
+        'colunas_consultas': getattr(loja, 'colunas_consultas', None) or [],
     }
 
 
@@ -55,7 +56,11 @@ class LoginConfigView(CRMPermissionMixin, APIView):
 
         from superadmin.cloudinary_utils import delete_cloudinary_image
         from superadmin.loja_utils import invalidate_loja_info_publica_cache
-        from superadmin.theme_colors import normalize_hex_color, sanitize_agenda_status_colors
+        from superadmin.theme_colors import (
+            normalize_hex_color,
+            sanitize_agenda_status_colors,
+            sanitize_colunas_consultas,
+        )
 
         update_fields = ['updated_at']
         loja_slug = loja.slug
@@ -111,6 +116,12 @@ class LoginConfigView(CRMPermissionMixin, APIView):
                 request.data.get('agenda_status_colors')
             )
             update_fields.append('agenda_status_colors')
+
+        if 'colunas_consultas' in request.data:
+            loja.colunas_consultas = sanitize_colunas_consultas(
+                request.data.get('colunas_consultas')
+            )
+            update_fields.append('colunas_consultas')
 
         loja.save(update_fields=update_fields)
         invalidate_loja_info_publica_cache(loja)

@@ -46,3 +46,30 @@ def sanitize_agenda_status_colors(raw: Any) -> dict:
         if bg and border:
             out[key] = {'bg': bg, 'border': border}
     return out
+
+
+COLUNAS_CONSULTAS_ALLOWED = frozenset({
+    'patient',
+    'agenda',
+    'procedure',
+    'date',
+    'professional',
+    'pagamento',
+    'status',
+})
+
+
+def sanitize_colunas_consultas(raw: Any) -> list[str]:
+    """Lista ordenada de chaves de coluna válidas (sem duplicatas)."""
+    if not isinstance(raw, list):
+        return []
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in raw:
+        if not isinstance(item, str):
+            continue
+        key = item.strip()
+        if key in COLUNAS_CONSULTAS_ALLOWED and key not in seen:
+            seen.add(key)
+            out.append(key)
+    return out

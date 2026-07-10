@@ -1,0 +1,125 @@
+'use client';
+
+import { ChevronUp, ChevronDown } from 'lucide-react';
+
+export type ColunaDef = { key: string; label: string };
+
+interface Props {
+  title: string;
+  sectionId?: string;
+  description?: string;
+  colunasDisponiveis: ColunaDef[];
+  colunas: string[];
+  onSave: (colunas: string[]) => void;
+  onError: (msg: string) => void;
+  minColunas?: number;
+  /** Classes extras no container (ex.: tema clínica). */
+  className?: string;
+}
+
+export function ColunasSection({
+  title,
+  sectionId,
+  description = 'Escolha quais informações aparecem na listagem.',
+  colunasDisponiveis,
+  colunas,
+  onSave,
+  onError,
+  minColunas = 3,
+  className = '',
+}: Props) {
+  const toggle = (key: string) => {
+    if (colunas.includes(key)) {
+      if (colunas.length <= minColunas) {
+        onError(`Mantenha pelo menos ${minColunas} colunas visíveis.`);
+        return;
+      }
+      onSave(colunas.filter((c) => c !== key));
+    } else {
+      onSave([...colunas, key]);
+    }
+  };
+
+  const mover = (key: string, dir: 'up' | 'down') => {
+    const arr = [...colunas];
+    const i = arr.indexOf(key);
+    if (i === -1 || (dir === 'up' && i === 0) || (dir === 'down' && i === arr.length - 1)) return;
+    const j = dir === 'up' ? i - 1 : i + 1;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    onSave(arr);
+  };
+
+  return (
+    <div
+      id={sectionId}
+      className={`scroll-mt-24 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 ${className}`.trim()}
+    >
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {description} Mínimo {minColunas}.
+        </p>
+      </div>
+      <div className="space-y-2">
+        {colunasDisponiveis.map((col) => {
+          const isVisible = colunas.includes(col.key);
+          const idx = colunas.indexOf(col.key);
+          return (
+            <div
+              key={col.key}
+              className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-neutral-900/40 rounded-lg border border-gray-200 dark:border-gray-700"
+            >
+              {isVisible && (
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => mover(col.key, 'up')}
+                    disabled={idx === 0}
+                    className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                    aria-label={`Mover ${col.label} para cima`}
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => mover(col.key, 'down')}
+                    disabled={idx === colunas.length - 1}
+                    className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                    aria-label={`Mover ${col.label} para baixo`}
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
+              )}
+              <div className="flex items-center gap-3 flex-1">
+                <input
+                  type="checkbox"
+                  checked={isVisible}
+                  onChange={() => toggle(col.key)}
+                  className="w-4 h-4 rounded accent-[var(--cb-primary,#8B3D52)]"
+                />
+                <span
+                  className={`text-sm font-medium ${
+                    isVisible ? 'text-gray-900 dark:text-white' : 'text-gray-400'
+                  }`}
+                >
+                  {col.label}
+                </span>
+                {isVisible && (
+                  <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-2 py-1 rounded">
+                    Posição {idx + 1}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+        <p className="text-sm text-blue-700 dark:text-blue-300">
+          <strong>Dica:</strong> As colunas aparecem na ordem definida. Use as setas para reordenar.
+        </p>
+      </div>
+    </div>
+  );
+}

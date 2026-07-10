@@ -233,6 +233,8 @@ class AgendaPagamentoView(APIView):
         mark_as_paid = bool(request.data.get('mark_as_paid'))
         payment_method = (request.data.get('payment_method') or '').strip() or 'CASH'
         amount_raw = request.data.get('amount')
+        desconto = request.data.get('desconto')
+        entradas = request.data.get('entradas')
 
         try:
             payment = registrar_recebimento_consulta(
@@ -240,6 +242,8 @@ class AgendaPagamentoView(APIView):
                 payment_method=payment_method,
                 amount=amount_raw,
                 mark_as_paid=mark_as_paid,
+                desconto=desconto,
+                entradas=entradas,
             )
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

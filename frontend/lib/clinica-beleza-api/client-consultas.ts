@@ -28,6 +28,8 @@ export const consultasApi = {
       payment_method?: string;
       mark_as_paid?: boolean;
       amount?: number | string;
+      desconto?: number | string;
+      entradas?: Array<{ payment_method: string; valor: number | string }>;
       parcelas?: number;
       valor_parcela?: string;
     },

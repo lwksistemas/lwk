@@ -1,8 +1,11 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
+from django.db import transaction
 from django.utils.timezone import now
 
 from ._deps import logger
+
+_METODOS_VALIDOS = frozenset({'CASH', 'CREDIT_CARD', 'DEBIT_CARD', 'PIX', 'TRANSFER'})
 
 
 def _tentar_nfse_pos_pagamento(consulta, payment):
@@ -13,6 +16,48 @@ def _tentar_nfse_pos_pagamento(consulta, payment):
         tentar_emitir_nfse_consulta(consulta, payment)
     except Exception:
         logger.exception('Erro ao tentar NFS-e após pagamento (consulta %s)', consulta.id)
+
+
+def _to_decimal(value, field_name='valor'):
+    if value is None or value == '':
+        return None
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError(f'{field_name} inválido.') from exc
+
+
+def _normalize_entradas(entradas, *, payment_method='CASH', amount=None):
+    """
+    Normaliza lista de entradas [{payment_method, valor}, ...].
+    Sem entradas: usa payment_method + amount (path legado).
+    """
+    if entradas is None:
+        if amount is None:
+            return None  # caller usa valor total
+        valor = _to_decimal(amount, 'amount')
+        if valor is None or valor <= 0:
+            raise ValueError('Valor deve ser maior que zero.')
+        metodo = (payment_method or 'CASH').strip().upper() or 'CASH'
+        if metodo not in _METODOS_VALIDOS:
+            raise ValueError('Forma de pagamento inválida.')
+        return [{'payment_method': metodo, 'valor': valor}]
+
+    if not isinstance(entradas, (list, tuple)) or len(entradas) == 0:
+        raise ValueError('Informe ao menos uma forma de pagamento.')
+
+    normalizadas = []
+    for i, item in enumerate(entradas):
+        if not isinstance(item, dict):
+            raise ValueError(f'Entrada {i + 1} inválida.')
+        metodo = (item.get('payment_method') or 'CASH').strip().upper() or 'CASH'
+        if metodo not in _METODOS_VALIDOS:
+            raise ValueError(f'Forma de pagamento inválida na entrada {i + 1}.')
+        valor = _to_decimal(item.get('valor'), f'valor da entrada {i + 1}')
+        if valor is None or valor <= 0:
+            raise ValueError(f'Valor da entrada {i + 1} deve ser maior que zero.')
+        normalizadas.append({'payment_method': metodo, 'valor': valor})
+    return normalizadas
 
 
 def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=None, mark_as_paid=False, amount=None):
@@ -182,16 +227,22 @@ def _reabrir_recebimento_apos_procedimento(consulta) -> None:
     _sincronizar_recebimento_apos_procedimento(consulta)
 
 
+@transaction.atomic
 def registrar_recebimento_consulta(
     consulta,
     *,
     payment_method='CASH',
     amount=None,
     mark_as_paid=False,
+    desconto=None,
+    entradas=None,
 ):
     """
     Registra recebimento na consulta (total ou parcial).
-    Retorna Payment atualizado.
+
+    - desconto: reduz payment.valor_total (devido real).
+    - entradas: lista de {payment_method, valor}; cria uma PaymentParcela por item.
+    - Sem entradas: path legado com payment_method + amount.
     """
     from clinica_beleza import consulta_service
     from ..models.financeiro import PaymentParcela
@@ -201,59 +252,110 @@ def registrar_recebimento_consulta(
 
     appointment = consulta.appointment
     consulta_service._garantir_valor_consulta_consulta(consulta)
-    valor_total = consulta_service._valor_pagamento_padrao(appointment, consulta)
+    valor_bruto = consulta_service._valor_pagamento_padrao(appointment, consulta)
+    if isinstance(valor_bruto, (int, float, str)):
+        valor_bruto = Decimal(str(valor_bruto))
 
-    if amount is None:
-        valor_recebido = valor_total
-    else:
-        valor_recebido = Decimal(str(amount))
-    if valor_recebido <= 0:
+    valor_desconto = _to_decimal(desconto, 'desconto') if desconto not in (None, '') else Decimal('0')
+    if valor_desconto is None:
+        valor_desconto = Decimal('0')
+    if valor_desconto < 0:
+        raise ValueError('Desconto não pode ser negativo.')
+    if valor_desconto > valor_bruto:
+        raise ValueError('Desconto não pode ser maior que o total do atendimento.')
+
+    valor_total = valor_bruto - valor_desconto
+    if valor_total < 0:
+        valor_total = Decimal('0')
+
+    payment = consulta_service.Payment.objects.filter(appointment=appointment).first()
+
+    # Preserva desconto já aplicado em recebimento anterior (parcial)
+    if (
+        payment
+        and valor_desconto == 0
+        and payment.valor_total is not None
+        and payment.valor_total < valor_bruto
+    ):
+        try:
+            ja_pago = payment.valor_pago_parcelas
+        except Exception:
+            ja_pago = Decimal('0')
+        if ja_pago > 0:
+            valor_total = payment.valor_total
+
+    lista = _normalize_entradas(entradas, payment_method=payment_method, amount=amount)
+    if lista is None:
+        # amount omitido: recebe o total líquido (após desconto)
+        if valor_total <= 0:
+            raise ValueError('Valor deve ser maior que zero.')
+        metodo = (payment_method or 'CASH').strip().upper() or 'CASH'
+        if metodo not in _METODOS_VALIDOS:
+            raise ValueError('Forma de pagamento inválida.')
+        lista = [{'payment_method': metodo, 'valor': valor_total}]
+
+    soma_entradas = sum((e['valor'] for e in lista), Decimal('0'))
+    if soma_entradas <= 0:
         raise ValueError('Valor deve ser maior que zero.')
 
+    # Comissão sobre o valor líquido do atendimento
     comissao_pct, comissao_val = consulta_service.calcular_comissao_payment_atendimento(
         appointment=appointment,
         consulta=consulta,
-        amount=valor_total,
+        amount=valor_total if valor_total > 0 else valor_bruto,
     )
 
-    payment = consulta_service.Payment.objects.filter(appointment=appointment).first()
     ts = now()
+    metodo_principal = lista[-1]['payment_method']
 
     if not payment:
         payment = consulta_service.Payment.objects.create(
             appointment=appointment,
             amount=Decimal('0'),
             valor_total=valor_total,
-            payment_method=payment_method,
+            payment_method=metodo_principal,
             status='PENDING',
             comissao_percentual=comissao_pct,
             comissao_valor=comissao_val,
             loja_id=appointment.loja_id,
+            notes=f'Desconto: R$ {valor_desconto}' if valor_desconto > 0 else None,
         )
     else:
         payment.valor_total = valor_total
-        payment.payment_method = payment_method
+        payment.payment_method = metodo_principal
         payment.comissao_percentual = comissao_pct
         payment.comissao_valor = comissao_val
+        if valor_desconto > 0:
+            payment.notes = f'Desconto: R$ {valor_desconto}'
 
     try:
         saldo = payment.saldo_devedor
     except Exception:
         saldo = valor_total
 
-    # Sempre registra parcela — saldo_devedor e financeiro usam a mesma fonte
-    valor_parcela = saldo if (mark_as_paid and valor_recebido >= saldo) else valor_recebido
-    if valor_parcela > 0:
+    if soma_entradas > saldo + Decimal('0.01'):
+        raise ValueError(
+            f'Soma das formas (R$ {soma_entradas}) excede o saldo a receber (R$ {saldo}).'
+        )
+
+    for entrada in lista:
         PaymentParcela.objects.create(
             payment=payment,
-            valor=valor_parcela,
-            payment_method=payment_method,
+            valor=entrada['valor'],
+            payment_method=entrada['payment_method'],
             payment_date=ts.date(),
             loja_id=payment.loja_id,
         )
 
+    # Recarrega agregados após criar parcelas
     total_pago = payment.valor_pago_parcelas
-    if total_pago >= valor_total or (mark_as_paid and valor_recebido >= saldo):
+    try:
+        saldo_apos = payment.saldo_devedor
+    except Exception:
+        saldo_apos = max(valor_total - total_pago, Decimal('0'))
+
+    quitou = total_pago >= valor_total or (mark_as_paid and saldo_apos <= Decimal('0.01'))
+    if quitou:
         payment.status = 'PAID'
         payment.amount = max(total_pago, valor_total)
         payment.payment_date = ts
@@ -261,10 +363,14 @@ def registrar_recebimento_consulta(
     else:
         payment.status = 'PARTIAL'
         payment.amount = total_pago
-    payment.save(update_fields=[
+
+    update_fields = [
         'amount', 'valor_total', 'payment_method', 'status', 'payment_date',
         'comissao_percentual', 'comissao_valor', 'updated_at',
-    ])
+    ]
+    if valor_desconto > 0:
+        update_fields.append('notes')
+    payment.save(update_fields=update_fields)
 
     _atualizar_status_consulta_apos_recebimento(consulta, payment)
     return payment

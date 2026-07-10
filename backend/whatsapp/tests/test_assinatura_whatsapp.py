@@ -30,8 +30,9 @@ class EnviarWhatsappLinkAssinaturaTest(SimpleTestCase):
 
         def capturar(**kwargs):
             sync_durante_envio.append(whatsapp_sync_only.get())
-            self.assertIn('*Termo de Consentimento Esclarecido*', kwargs['mensagem'])
+            self.assertIn('*Termo de Consentimento*', kwargs['mensagem'])
             self.assertIn('https://example.com/assinar/x', kwargs['mensagem'])
+            self.assertIn('Paciente', kwargs['mensagem'])
             return True, None
 
         mock_send.side_effect = capturar

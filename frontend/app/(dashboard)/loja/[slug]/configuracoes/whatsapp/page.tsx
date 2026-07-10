@@ -20,9 +20,9 @@ import {
   ClinicaBelezaStandardPageHeader,
   useClinicaBelezaShellActions,
 } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
-import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 
 const CRM_PRIMARY = '#0176d3';
+const CLINICA_PRIMARY_CSS = 'var(--cb-primary, #8B3D52)';
 
 export default function LojaConfiguracoesWhatsappPage() {
   const params = useParams();
@@ -55,7 +55,7 @@ export default function LojaConfiguracoesWhatsappPage() {
   const inClinicaShell = Boolean(shellActions);
   const clinicaBeleza = resolveIsClinicaBeleza(tipoLojaNome);
   const crmVendas = isTipoCRMVendas(tipoLojaNome);
-  const accentColor = clinicaBeleza ? CLINICA_BELEZA_PRIMARY : crmVendas ? CRM_PRIMARY : undefined;
+  const accentColor = clinicaBeleza ? CLINICA_PRIMARY_CSS : crmVendas ? CRM_PRIMARY : undefined;
 
   const panel = (
     <LojaWhatsAppConfigPanel

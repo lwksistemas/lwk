@@ -121,3 +121,71 @@ def invalidate_loja_info_publica_cache(loja) -> None:
             cache.set(_info_publica_gen_key(loja_id), time.time(), 86400)
     except Exception:
         pass
+
+
+def rebuild_loja_info_publica_cache(loja) -> None:
+    """
+    Reconstrói o cache de info_publica imediatamente após salvar alterações.
+    Garante que o próximo request (ex.: reload do frontend) pegue os dados novos.
+    """
+    if not loja:
+        return
+    try:
+        import re
+
+        tipo = getattr(loja, 'tipo_loja', None)
+        if tipo is None and hasattr(loja, 'tipo_loja_id') and loja.tipo_loja_id:
+            loja = Loja.objects.select_related('tipo_loja').get(pk=loja.pk)
+            tipo = loja.tipo_loja
+
+        tipo_nome = tipo.nome if tipo else 'Loja'
+        cor_primaria_loja = (getattr(loja, 'cor_primaria', None) or '').strip()
+        cor_secundaria_loja = (getattr(loja, 'cor_secundaria', None) or '').strip()
+        cor_primaria_tipo = (getattr(tipo, 'cor_primaria', None) or '').strip() if tipo else ''
+        cor_secundaria_tipo = (getattr(tipo, 'cor_secundaria', None) or '').strip() if tipo else ''
+        cor_primaria = cor_primaria_loja or cor_primaria_tipo or '#10B981'
+        cor_secundaria = cor_secundaria_loja or cor_secundaria_tipo or '#059669'
+
+        cidade = getattr(loja, 'cidade', '') or ''
+        uf = getattr(loja, 'uf', '') or ''
+        cidade_uf = f"{cidade}/{uf}" if (cidade and uf) else (cidade or uf)
+        endereco_parts = [
+            getattr(loja, 'logradouro', '') or '',
+            getattr(loja, 'numero', '') or '',
+            getattr(loja, 'complemento', '') or '',
+            getattr(loja, 'bairro', '') or '',
+            cidade_uf,
+            f"CEP {loja.cep}" if getattr(loja, 'cep', '') else '',
+        ]
+        endereco = ', '.join(p for p in endereco_parts if p).strip() or None
+
+        cpf_cnpj_raw = (getattr(loja, 'cpf_cnpj', '') or '').strip()
+        cpf_cnpj_digits = re.sub(r'\D', '', cpf_cnpj_raw)
+        if len(cpf_cnpj_digits) not in (11, 14):
+            slug_digits = re.sub(r'\D', '', getattr(loja, 'slug', '') or '')
+            if len(slug_digits) in (11, 14):
+                cpf_cnpj_digits = slug_digits
+
+        data = {
+            'id': loja.id,
+            'nome': getattr(loja, 'nome', '') or '',
+            'slug': getattr(loja, 'slug', '') or '',
+            'atalho': getattr(loja, 'atalho', '') or '',
+            'tipo_loja_nome': tipo_nome,
+            'cor_primaria': cor_primaria,
+            'cor_secundaria': cor_secundaria,
+            'cor_fundo_pagina': (getattr(loja, 'cor_fundo_pagina', None) or '').strip(),
+            'agenda_status_colors': getattr(loja, 'agenda_status_colors', None) or {},
+            'logo': getattr(loja, 'logo', None) or '',
+            'login_background': getattr(loja, 'login_background', None) or '',
+            'login_logo': getattr(loja, 'login_logo', None) or '',
+            'login_page_url': getattr(loja, 'login_page_url', None) or '',
+            'senha_foi_alterada': getattr(loja, 'senha_foi_alterada', False),
+            'requer_cpf_cnpj': False,
+            'endereco': endereco,
+            'cpf_cnpj': cpf_cnpj_digits,
+            'is_blocked': bool(getattr(loja, 'is_blocked', False)),
+        }
+        set_loja_info_publica_cache(loja, data, ttl=INFO_PUBLICA_CACHE_TTL)
+    except Exception:
+        pass

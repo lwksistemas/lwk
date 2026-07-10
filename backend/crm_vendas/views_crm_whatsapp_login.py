@@ -134,4 +134,9 @@ class LoginConfigView(CRMPermissionMixin, APIView):
         loja.save(update_fields=update_fields)
         invalidate_loja_info_publica_cache(loja)
 
+        # Reconstrói cache imediatamente para que o reload do frontend
+        # pegue as cores novas sem precisar esperar cache miss + DB query.
+        from superadmin.loja_utils import rebuild_loja_info_publica_cache
+        rebuild_loja_info_publica_cache(loja)
+
         return Response(_serialize_login_config(loja))

@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Download, Search } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
-import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 
@@ -191,7 +190,7 @@ export default function FaturamentoPage() {
               onClick={buscar}
               disabled={loading}
               className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-[40px] text-sm font-medium rounded-lg text-white"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               <Search size={16} /> Buscar
             </button>
@@ -208,7 +207,7 @@ export default function FaturamentoPage() {
           <div className="flex justify-center py-12">
             <div
               className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
-              style={{ borderColor: `${CLINICA_BELEZA_PRIMARY}30`, borderTopColor: 'transparent' }}
+              style={{ borderColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 19%, transparent)', borderTopColor: 'transparent' }}
             />
           </div>
         )}
@@ -264,7 +263,7 @@ export default function FaturamentoPage() {
                     <tfoot>
                       <tr
                         className="border-t-2 border-gray-200 dark:border-gray-600 font-bold"
-                        style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}08` }}
+                        style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 3%, transparent)' }}
                       >
                         <td className="px-4 py-3 text-gray-900 dark:text-white">Total</td>
                         <td className="px-4 py-3 text-right tabular-nums text-gray-900 dark:text-white">
@@ -276,7 +275,7 @@ export default function FaturamentoPage() {
                         <td className="px-4 py-3 text-right tabular-nums text-gray-900 dark:text-white hidden sm:table-cell">
                           {formatCurrency(data.totais.valor_procedimento)}
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-lg" style={{ color: CLINICA_BELEZA_PRIMARY }}>
+                        <td className="px-4 py-3 text-right tabular-nums text-lg" style={{ color: 'var(--cb-primary, #8B3D52)' }}>
                           {formatCurrency(data.totais.valor_total)}
                         </td>
                       </tr>

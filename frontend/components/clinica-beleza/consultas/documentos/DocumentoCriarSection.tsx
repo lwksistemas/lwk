@@ -1,5 +1,4 @@
 import { ChevronDown, ExternalLink, FileText, Layers, PenLine } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import type { DocumentoAcao, DocumentoTipo } from "./documentos-types";
 import { DOCUMENTO_BUTTONS } from "./documentos-types";
 
@@ -40,12 +39,6 @@ export function DocumentoCriarSection({
                         ? "border-[var(--cb-primary)] bg-[var(--cb-primary-light)] text-[var(--cb-primary)]"
                         : "border-gray-200 dark:border-neutral-600 bg-gray-50 dark:bg-neutral-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-600"
                     }`}
-                    style={
-                      {
-                        "--cb-primary": CLINICA_BELEZA_PRIMARY,
-                        "--cb-primary-light": "#F5E6EA",
-                      } as React.CSSProperties
-                    }
                   >
                     <Icon size={16} />
                     <span className="hidden sm:inline">{btn.label}</span>

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { X, PenLine } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import type { DocumentoTipo } from "./ConsultaDocumentosTab";
 
 const TIPO_LABELS: Record<DocumentoTipo, string> = {
@@ -87,7 +86,6 @@ export function DigitarManualModal({
               onChange={(e) => setTitulo(e.target.value)}
               placeholder={`Ex: ${TIPO_LABELS[tipo]} - ${new Date().toLocaleDateString("pt-BR")}`}
               className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--cb-primary)] focus:border-transparent"
-              style={{ "--cb-primary": CLINICA_BELEZA_PRIMARY } as React.CSSProperties}
             />
           </div>
 
@@ -102,7 +100,6 @@ export function DigitarManualModal({
               placeholder="Digite o conteúdo do documento..."
               rows={10}
               className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 resize-y focus:outline-none focus:ring-2 focus:ring-[var(--cb-primary)] focus:border-transparent"
-              style={{ "--cb-primary": CLINICA_BELEZA_PRIMARY } as React.CSSProperties}
             />
           </div>
         </div>
@@ -121,7 +118,7 @@ export function DigitarManualModal({
             onClick={handleSave}
             disabled={saving || !conteudo.trim()}
             className="flex-1 py-2 rounded-lg text-white font-medium disabled:opacity-50 transition-colors"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             {saving ? "Salvando..." : "Salvar documento"}
           </button>

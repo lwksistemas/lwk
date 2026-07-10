@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { cloudinaryLojaClinicaFotos, useLojaCloudinaryDocument } from "@/lib/cloudinary-folders";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
 import { useToast } from "@/components/ui/Toast";
 import { PacienteFotoZoomModal } from "./PacienteFotoZoomModal";
@@ -143,7 +142,7 @@ export function ConsultaFotosTab({
             onClick={() => void abrirQr()}
             disabled={qrLoading}
             className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-white text-xs sm:text-sm font-medium disabled:opacity-50"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             <Smartphone size={14} />
             <span className="hidden md:inline">{qrLoading ? "Gerando…" : "QR — foto no celular"}</span>
@@ -207,7 +206,7 @@ export function ConsultaFotosTab({
                 type="button"
                 onClick={() => setComparar(true)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-white"
-                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
               >
                 <Columns2 size={15} />
                 Comparar lado a lado
@@ -328,7 +327,7 @@ export function ConsultaFotosTab({
                   toast.success("Link copiado! Cole no navegador do celular (Chrome/Safari).");
                 }}
                 className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium text-white"
-                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
               >
                 <Copy size={16} />
                 Copiar link para o celular

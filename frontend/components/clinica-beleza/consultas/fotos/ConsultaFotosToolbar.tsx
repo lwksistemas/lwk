@@ -1,5 +1,4 @@
 import { RefreshCw, Smartphone } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 
 export function ConsultaFotosToolbar({
   permiteEnviar,
@@ -31,7 +30,7 @@ export function ConsultaFotosToolbar({
           onClick={onAbrirQr}
           disabled={qrLoading}
           className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-white text-xs sm:text-sm font-medium disabled:opacity-50"
-          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+          style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
         >
           <Smartphone size={14} />
           <span className="hidden md:inline">{qrLoading ? "Gerando…" : "QR — foto no celular"}</span>

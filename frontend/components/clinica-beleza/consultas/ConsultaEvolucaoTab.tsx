@@ -1,5 +1,4 @@
 import { Pencil, X } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { imprimirConsultaPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
 import type { Evolucao } from "./consultas-types";
 import { ConsultaPrintButton } from "./ConsultaPrintButton";
@@ -70,7 +69,7 @@ export function ConsultaEvolucaoTab({
               type="button"
               onClick={onStartEdit}
               className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg text-white"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               <Pencil size={14} />
               Registrar
@@ -96,7 +95,7 @@ export function ConsultaEvolucaoTab({
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
-            <button type="button" onClick={onSave} disabled={saving} className="px-4 py-2 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}>
+            <button type="button" onClick={onSave} disabled={saving} className="px-4 py-2 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}>
               Confirmar evolução
             </button>
           </div>

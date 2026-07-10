@@ -17,15 +17,18 @@ import {
 } from "recharts";
 import { ClinicaBelezaShell } from "@/components/clinica-beleza/ClinicaBelezaShell";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
+import {
+  ClinicaBelezaThemeProvider,
+  useClinicaBelezaTheme,
+} from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { CLINICA_AGENDA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import type { LojaInfo } from "@/types/dashboard";
 import type { DashboardAppointment } from "./clinica-beleza-dashboard-types";
 import {
-  DASHBOARD_CHART_COLORS,
   DASHBOARD_STATUS_COLORS,
+  getDashboardChartColors,
   pctChangeDashboard,
 } from "./clinica-beleza-dashboard-utils";
 import { useClinicaBelezaDashboard } from "./useClinicaBelezaDashboard";
@@ -49,9 +52,9 @@ function StatCard({
         <span className="text-sm text-gray-500 dark:text-gray-400">{title}</span>
         <div
           className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-          style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}18` }}
+          style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 9%, transparent)' }}
         >
-          <Icon className="w-4 h-4" style={{ color: CLINICA_BELEZA_PRIMARY }} />
+          <Icon className="w-4 h-4" style={{ color: 'var(--cb-primary, #8B3D52)' }} />
         </div>
       </div>
       <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
@@ -97,6 +100,20 @@ function AppointmentItem({ appt }: { appt: DashboardAppointment }) {
 }
 
 export function ClinicaBelezaDashboardContent({ loja, onLogout }: { loja: LojaInfo; onLogout?: () => void }) {
+  return (
+    <ClinicaBelezaThemeProvider
+      corPrimaria={loja.cor_primaria}
+      corSecundaria={loja.cor_secundaria}
+      agendaStatusColors={loja.agenda_status_colors}
+    >
+      <ClinicaBelezaDashboardInner loja={loja} onLogout={onLogout} />
+    </ClinicaBelezaThemeProvider>
+  );
+}
+
+function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLogout?: () => void }) {
+  const { primary } = useClinicaBelezaTheme();
+  const chartColors = getDashboardChartColors(primary);
   const { slug, data, financial, loading, mesAno, setMesAno, mesAnoMax, fetchData } =
     useClinicaBelezaDashboard(loja);
   const [darkMode] = useClinicaBelezaDark();
@@ -152,7 +169,7 @@ export function ClinicaBelezaDashboardContent({ loja, onLogout }: { loja: LojaIn
         <div className="flex items-center justify-center h-64">
           <div
             className="w-8 h-8 border-4 rounded-full animate-spin"
-            style={{ borderColor: `${CLINICA_BELEZA_PRIMARY}33`, borderTopColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ borderColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 20%, transparent)', borderTopColor: 'var(--cb-primary, #8B3D52)' }}
           />
         </div>
       ) : (
@@ -192,7 +209,7 @@ export function ClinicaBelezaDashboardContent({ loja, onLogout }: { loja: LojaIn
                 <Link
                   href={`/loja/${slug}/agenda`}
                   className="text-xs font-medium hover:underline"
-                  style={{ color: CLINICA_BELEZA_PRIMARY }}
+                  style={{ color: 'var(--cb-primary, #8B3D52)' }}
                 >
                   Ver agenda completa
                 </Link>
@@ -224,7 +241,7 @@ export function ClinicaBelezaDashboardContent({ loja, onLogout }: { loja: LojaIn
                             className="h-full rounded-full"
                             style={{
                               width: `${pct}%`,
-                              backgroundColor: DASHBOARD_CHART_COLORS[i % DASHBOARD_CHART_COLORS.length],
+                              backgroundColor: chartColors[i % chartColors.length],
                             }}
                           />
                         </div>
@@ -266,7 +283,7 @@ export function ClinicaBelezaDashboardContent({ loja, onLogout }: { loja: LojaIn
               <Link
                 href={`/loja/${slug}/clinica-beleza/financeiro`}
                 className="mt-5 block w-full text-center py-3 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
               >
                 Ver relatório financeiro
               </Link>
@@ -290,9 +307,9 @@ export function ClinicaBelezaDashboardContent({ loja, onLogout }: { loja: LojaIn
                       <Line
                         type="monotone"
                         dataKey="value"
-                        stroke={CLINICA_BELEZA_PRIMARY}
+                        stroke={primary}
                         strokeWidth={2.5}
-                        dot={{ r: 3, fill: CLINICA_BELEZA_PRIMARY }}
+                        dot={{ r: 3, fill: primary }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -318,7 +335,7 @@ export function ClinicaBelezaDashboardContent({ loja, onLogout }: { loja: LojaIn
                         paddingAngle={2}
                       >
                         {soroterapiaComMovimento.slice(0, 5).map((_, i) => (
-                          <Cell key={i} fill={DASHBOARD_CHART_COLORS[i % DASHBOARD_CHART_COLORS.length]} />
+                          <Cell key={i} fill={chartColors[i % chartColors.length]} />
                         ))}
                       </Pie>
                       <Tooltip />
@@ -338,7 +355,7 @@ export function ClinicaBelezaDashboardContent({ loja, onLogout }: { loja: LojaIn
                     <div key={i} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
                       <span
                         className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: DASHBOARD_CHART_COLORS[i % DASHBOARD_CHART_COLORS.length] }}
+                        style={{ backgroundColor: chartColors[i % chartColors.length] }}
                       />
                       {proc.name}
                       {proc.count > 0 ? ` (${proc.count})` : " — 0 no período"}

@@ -3,6 +3,22 @@
 const HEX6 = /^#[0-9A-Fa-f]{6}$/;
 const HEX3 = /^#[0-9A-Fa-f]{3}$/;
 
+/** Fallback estático (fora do ThemeProvider / charts que precisam de hex). */
+export const CB_PRIMARY_FALLBACK = '#8b3d52';
+
+/**
+ * Use em style={{ backgroundColor / color }} — resolve a cor da loja
+ * quando ClinicaBelezaThemeProvider está montado.
+ */
+export const CB_PRIMARY_CSS = `var(--cb-primary, ${CB_PRIMARY_FALLBACK})`;
+export const CB_PRIMARY_LIGHT_CSS = 'var(--cb-primary-light, #f5e6ea)';
+
+/** Mistura a cor primária do tema com transparente (ex.: fundos suaves). */
+export function cbPrimaryAlpha(percent: number): string {
+  const p = Math.max(0, Math.min(100, Math.round(percent)));
+  return `color-mix(in srgb, ${CB_PRIMARY_CSS} ${p}%, transparent)`;
+}
+
 export function normalizeHexColor(value?: string | null): string | null {
   if (!value) return null;
   const v = value.trim();

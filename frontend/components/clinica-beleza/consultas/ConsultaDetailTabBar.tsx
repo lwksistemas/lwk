@@ -11,7 +11,6 @@ import {
   Package,
   type LucideIcon,
 } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ConsultaTermoConsentimentoButton } from "./ConsultaTermoConsentimentoButton";
 import type { Consulta, TabId } from "./consultas-types";
 
@@ -75,7 +74,7 @@ export function ConsultaDetailTabBar({
                   ? "text-white"
                   : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300"
               }`}
-              style={tab === id ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+              style={tab === id ? { backgroundColor: 'var(--cb-primary, #8B3D52)' } : undefined}
             >
               <Icon size={16} />
               {label}

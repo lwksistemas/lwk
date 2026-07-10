@@ -8,13 +8,13 @@ export const DASHBOARD_STATUS_COLORS: Record<string, string> = {
   CANCELLED: "bg-red-100 text-red-700",
 };
 
-export const DASHBOARD_CHART_COLORS = [
-  CLINICA_BELEZA_PRIMARY,
-  "#A64D63",
-  "#C4727E",
-  "#E8A0B0",
-  "#D4A574",
-];
+/** Paleta dos gráficos — 1ª cor = primária da loja. */
+export function getDashboardChartColors(primary: string = CLINICA_BELEZA_PRIMARY): string[] {
+  return [primary, "#A64D63", "#C4727E", "#E8A0B0", "#D4A574"];
+}
+
+/** @deprecated use getDashboardChartColors(primary) */
+export const DASHBOARD_CHART_COLORS = getDashboardChartColors();
 
 export function currentDashboardMesAno(): string {
   const d = new Date();

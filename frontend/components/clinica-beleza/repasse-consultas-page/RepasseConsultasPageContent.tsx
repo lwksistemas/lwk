@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { ArrowLeft, Download, Search } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { formatRelatorioCurrency } from "@/components/clinica-beleza/relatorios-shared/relatorios-shared-utils";
 import { RepasseCardAtendimento } from "./RepasseCardAtendimento";
@@ -47,7 +46,7 @@ export function RepasseConsultasPageContent() {
           onClick={() => void exportarPDF()}
           disabled={pdfLoading || !data?.profissionais.length}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50 shrink-0"
-          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+          style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
         >
           <Download size={16} />
           {pdfLoading ? "Gerando PDF…" : "PDF"}
@@ -94,7 +93,7 @@ export function RepasseConsultasPageContent() {
             onClick={() => void buscar()}
             disabled={loading}
             className="self-end w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-[40px] text-sm font-medium rounded-lg text-white"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             <Search size={16} /> Buscar
           </button>
@@ -116,7 +115,7 @@ export function RepasseConsultasPageContent() {
           ) : (
             data.profissionais.map((p) => (
               <section key={p.professional_id}>
-                <h2 className="text-lg font-bold mb-4" style={{ color: CLINICA_BELEZA_PRIMARY }}>
+                <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--cb-primary, #8B3D52)' }}>
                   {p.nome}
                   <span className="text-sm font-normal text-gray-500 ml-2">
                     {p.total_atendimentos} atendimento(s) · Comissão {formatRelatorioCurrency(p.comissao_total)}
@@ -134,7 +133,7 @@ export function RepasseConsultasPageContent() {
           {data.profissionais.length > 1 && (
             <div
               className="rounded-xl border-2 border-gray-300 dark:border-gray-600 p-4"
-              style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}08` }}
+              style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 3%, transparent)' }}
             >
               <p className="text-sm font-semibold mb-2">Totais do período</p>
               <p className="text-lg font-bold tabular-nums">

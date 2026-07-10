@@ -1,7 +1,6 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import type { FinanceiroTab } from "../types";
 
 interface FinanceiroTabBarProps {
@@ -21,7 +20,7 @@ export function FinanceiroTabBar({ tab, onTabChange, onNovaDespesa }: Financeiro
             ? "text-white"
             : "bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-neutral-700"
         }`}
-        style={tab === "receitas" ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+        style={tab === "receitas" ? { backgroundColor: 'var(--cb-primary, #8B3D52)' } : undefined}
       >
         Receitas (atendimentos)
       </button>
@@ -33,7 +32,7 @@ export function FinanceiroTabBar({ tab, onTabChange, onNovaDespesa }: Financeiro
             ? "text-white"
             : "bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-neutral-700"
         }`}
-        style={tab === "despesas" ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+        style={tab === "despesas" ? { backgroundColor: 'var(--cb-primary, #8B3D52)' } : undefined}
       >
         Despesas
       </button>
@@ -42,7 +41,7 @@ export function FinanceiroTabBar({ tab, onTabChange, onNovaDespesa }: Financeiro
           type="button"
           onClick={onNovaDespesa}
           className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-white text-sm font-medium"
-          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+          style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
         >
           <Plus size={16} />
           Nova despesa

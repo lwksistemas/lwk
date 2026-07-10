@@ -1,5 +1,4 @@
 import { Pencil, Save, X } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { imprimirConsultaPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
 import type { Anamnese } from "./consultas-types";
 import { ANAMNESE_FIELDS } from "./consultas-types";
@@ -111,7 +110,7 @@ export function ConsultaAnamneseTab({
             onClick={onSave}
             disabled={saving}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white disabled:opacity-50"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             <Save size={18} />
             Salvar anamnese

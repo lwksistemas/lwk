@@ -1,5 +1,4 @@
 import { Download, Mail, MessageCircle, RefreshCw } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import type { TermoConsentimentoCanal, TermoProcedimento } from "./termo-consentimento-types";
 import { TERMO_STATUS_BADGE } from "./termo-consentimento-types";
 
@@ -27,7 +26,7 @@ export function TermoConsentimentoItemActions({
             onClick={() => onEnviar(termo.procedure_id, "email")}
             disabled={loading}
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-white text-xs font-medium disabled:opacity-50"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             <Mail size={12} />
             E-mail

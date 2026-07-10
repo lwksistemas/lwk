@@ -1,5 +1,4 @@
 import { Mail, MessageCircle } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import type { TermoConsentimentoCanal, TermoProcedimento } from "./termo-consentimento-types";
 import { TermoConsentimentoItemRow } from "./TermoConsentimentoItemActions";
 
@@ -58,7 +57,7 @@ export function TermoConsentimentoPanel({
             onClick={() => onEnviarTodos("email")}
             disabled={loading}
             className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             <Mail size={14} />
             {loading ? "Enviando…" : `Enviar todos por e-mail (${pendentesEnvioCount})`}

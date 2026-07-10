@@ -6,7 +6,6 @@ import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/Cli
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import type { Protocol } from "./protocolos-page-types";
 
 interface ProtocolosListViewProps {
@@ -104,7 +103,7 @@ export function ProtocolosListView({
                     className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700"
                     title="Editar"
                   >
-                    <Pencil size={16} style={{ color: CLINICA_BELEZA_PRIMARY }} />
+                    <Pencil size={16} style={{ color: 'var(--cb-primary, #8B3D52)' }} />
                   </button>
                   <button
                     type="button"

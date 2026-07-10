@@ -1,7 +1,6 @@
 "use client";
 
 import { Copy, ExternalLink, QrCode, X } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { useToast } from "@/components/ui/Toast";
 
 export function ConsultaFotosQrModal({
@@ -61,7 +60,7 @@ export function ConsultaFotosQrModal({
               toast.success("Link copiado! Cole no navegador do seu celular.");
             }}
             className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium text-white"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             <Copy size={16} />
             Copiar link

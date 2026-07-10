@@ -2,7 +2,6 @@
 
 import { createPortal } from "react-dom";
 import { Loader2, Send, Users, X } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { useToast } from "@/components/ui/Toast";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import {
@@ -49,7 +48,7 @@ export function CampanhaEnviarModal({ open, campanha, onClose, onSent }: Campanh
         <div className="flex items-start justify-between gap-3 p-5 border-b border-gray-200 dark:border-neutral-700">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Send size={18} style={{ color: CLINICA_BELEZA_PRIMARY }} />
+              <Send size={18} style={{ color: 'var(--cb-primary, #8B3D52)' }} />
               Enviar campanha
             </h2>
             <p className="text-sm text-gray-500 mt-1 line-clamp-2">{campanha.titulo}</p>
@@ -69,7 +68,7 @@ export function CampanhaEnviarModal({ open, campanha, onClose, onSent }: Campanh
                   ? "border-transparent text-white"
                   : "border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-gray-300"
               }`}
-              style={modo === "todos" ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+              style={modo === "todos" ? { backgroundColor: 'var(--cb-primary, #8B3D52)' } : undefined}
             >
               Todos elegíveis
             </button>
@@ -81,7 +80,7 @@ export function CampanhaEnviarModal({ open, campanha, onClose, onSent }: Campanh
                   ? "border-transparent text-white"
                   : "border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-gray-300"
               }`}
-              style={modo === "segmentacao" ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+              style={modo === "segmentacao" ? { backgroundColor: 'var(--cb-primary, #8B3D52)' } : undefined}
             >
               Segmentar
             </button>
@@ -113,7 +112,7 @@ export function CampanhaEnviarModal({ open, campanha, onClose, onSent }: Campanh
                           checked={selectedIds.includes(p.id)}
                           onChange={() => toggleId(p.id)}
                           className="rounded"
-                          style={{ accentColor: CLINICA_BELEZA_PRIMARY }}
+                          style={{ accentColor: 'var(--cb-primary, #8B3D52)' }}
                         />
                         <span className="text-sm text-gray-800 dark:text-gray-200 flex-1 truncate">{entityName(p)}</span>
                         <span className="text-xs text-gray-400">{pacienteCampanhaTelefone(p)}</span>
@@ -144,7 +143,7 @@ export function CampanhaEnviarModal({ open, campanha, onClose, onSent }: Campanh
             onClick={() => void handleEnviar()}
             disabled={sending || (modo === "segmentacao" && selectedIds.length === 0)}
             className="flex-1 py-2.5 rounded-lg text-white text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             {sending ? "Enviando..." : "Enviar WhatsApp"}

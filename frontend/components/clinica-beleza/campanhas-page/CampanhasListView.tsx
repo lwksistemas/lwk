@@ -6,7 +6,6 @@ import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clini
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
   campanhaFoiEnviada,
   formatCampanhaEnvio,
@@ -127,7 +126,7 @@ export function CampanhasListView({
                     className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700"
                     title="Editar"
                   >
-                    <Pencil size={16} style={{ color: CLINICA_BELEZA_PRIMARY }} />
+                    <Pencil size={16} style={{ color: 'var(--cb-primary, #8B3D52)' }} />
                   </button>
                   <button
                     type="button"

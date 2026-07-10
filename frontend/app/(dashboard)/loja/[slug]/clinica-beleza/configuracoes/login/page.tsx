@@ -1,7 +1,6 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import {
   LoginConfigPageContent,
   type LoginColorPreset,
@@ -25,7 +24,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
       slug={slug}
       apiPath="/crm-vendas/login-config/"
       backHref={base}
-      accentColor={CLINICA_BELEZA_PRIMARY}
+      accentColor={'var(--cb-primary, #8B3D52)'}
       defaultPrimary="#8B3D52"
       defaultSecondary="#6B2F40"
       colorPresets={CORES_PRE_DEFINIDAS}

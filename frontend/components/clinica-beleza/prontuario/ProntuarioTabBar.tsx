@@ -1,7 +1,6 @@
 "use client";
 
 import { Printer } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { PRONTUARIO_TABS, type ProntuarioTabId } from "./prontuario-types";
 
 interface ProntuarioTabBarProps {
@@ -29,7 +28,7 @@ export function ProntuarioTabBar({
               ? "text-white"
               : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
           }`}
-          style={activeTab === id ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+          style={activeTab === id ? { backgroundColor: 'var(--cb-primary, #8B3D52)' } : undefined}
         >
           <Icon size={16} />
           {label}
@@ -52,7 +51,7 @@ export function ProntuarioTabBar({
         type="button"
         onClick={onPrintCompleto}
         className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-        style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+        style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
         title="Imprimir prontuário completo do paciente"
       >
         <Printer size={16} />

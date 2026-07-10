@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { ClinicaBelezaNFSeConfigProvider } from '@/contexts/ClinicaBelezaNFSeConfigContext';
 import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
-import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import ClinicaNFSeForm from './ClinicaNFSeForm';
 
 export default function ClinicaBelezaNotaFiscalPage() {
@@ -19,7 +18,7 @@ export default function ClinicaBelezaNotaFiscalPage() {
           href={base}
           className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:underline"
         >
-          <ArrowLeft size={16} style={{ color: CLINICA_BELEZA_PRIMARY }} />
+          <ArrowLeft size={16} style={{ color: 'var(--cb-primary, #8B3D52)' }} />
           Voltar às configurações
         </Link>
         <ClinicaNFSeForm configBackHref={base} />

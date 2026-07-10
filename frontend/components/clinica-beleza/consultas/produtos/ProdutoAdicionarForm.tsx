@@ -1,5 +1,4 @@
 import { AlertTriangle, Plus } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import type { ProdutoEstoque } from "./produtos-types";
 import { PRODUTOS_INPUT_CLASS } from "./produtos-types";
 
@@ -115,7 +114,7 @@ export function ProdutoAdicionarForm({
         onClick={onAdicionar}
         disabled={saving}
         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-        style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+        style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
       >
         <Plus size={16} />
         {saving ? "Salvando..." : "Adicionar"}

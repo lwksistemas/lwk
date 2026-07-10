@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ClinicaBelezaAPI } from '@/lib/clinica-beleza-api';
-import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 
 interface AdminProfissionalToggleProps {
   onToggled?: () => void;
@@ -75,7 +74,7 @@ export function AdminProfissionalToggle({ onToggled }: AdminProfissionalTogglePr
           disabled={saving}
           onChange={handleToggle}
           className="h-5 w-5 rounded border-gray-300"
-          style={{ accentColor: CLINICA_BELEZA_PRIMARY }}
+          style={{ accentColor: 'var(--cb-primary, #8B3D52)' }}
         />
       </label>
     </div>

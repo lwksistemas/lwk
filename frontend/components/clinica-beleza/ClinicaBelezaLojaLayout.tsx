@@ -6,7 +6,6 @@ import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 import { ClinicaBelezaShell } from '@/components/clinica-beleza/ClinicaBelezaShell';
 import { ClinicaBelezaThemeProvider } from '@/components/clinica-beleza/ClinicaBelezaThemeContext';
-import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import type { LojaInfo } from '@/types/dashboard';
 
 type ClinicaBelezaLojaLayoutProps = {
@@ -24,7 +23,7 @@ function LoadingScreen({ variant }: { variant: 'default' | 'branded' }) {
         <div className="text-center">
           <div
             className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4"
-            style={{ borderColor: `${CLINICA_BELEZA_PRIMARY} transparent transparent transparent` }}
+            style={{ borderColor: 'var(--cb-primary, #8B3D52) transparent transparent transparent' }}
           />
           <p className="text-sm text-gray-600 dark:text-gray-300">Carregando...</p>
         </div>

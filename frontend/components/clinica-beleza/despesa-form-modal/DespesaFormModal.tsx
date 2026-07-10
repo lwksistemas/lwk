@@ -1,7 +1,6 @@
 "use client";
 
 import { X } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { CLINICA_FORMA_PAGAMENTO_LABEL, CLINICA_PAGAMENTO_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import { toUpperCase } from "@/lib/format-br";
 import type { DespesaItem } from "./despesa-form-modal-types";
@@ -148,7 +147,7 @@ export function DespesaFormModal({ open, editing, saving: savingProp, onClose, o
               onClick={() => void salvar()}
               disabled={isSaving}
               className="flex-1 py-2 rounded-lg text-white disabled:opacity-50"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               {isSaving ? "Salvando..." : "Salvar"}
             </button>

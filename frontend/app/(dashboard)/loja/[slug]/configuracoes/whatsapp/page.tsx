@@ -105,7 +105,7 @@ export default function LojaConfiguracoesWhatsappPage() {
           <div className="flex items-center gap-3 mb-4">
             <div
               className="p-2.5 rounded-lg text-white"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               <MessageCircle size={24} />
             </div>

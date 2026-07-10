@@ -2,7 +2,6 @@
 
 import { CalendarDays, Loader2, Plus } from "lucide-react";
 import { ClinicaBelezaPortraitModal } from "@/components/clinica-beleza/ClinicaBelezaPortraitModal";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { NomeAgendaFormSection } from "./nomes-agenda/NomeAgendaFormSection";
 import { NomeAgendaListItem } from "./nomes-agenda/NomeAgendaListItem";
 import { useNomesAgenda } from "./nomes-agenda/useNomesAgenda";
@@ -46,7 +45,7 @@ export function NomesAgendaModal({ open, onClose }: NomesAgendaModalProps) {
               type="button"
               onClick={startNew}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               <Plus size={14} />
               Novo nome

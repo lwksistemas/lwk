@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronDown, FileSignature } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { useWhatsappEnvioFlags } from "@/hooks/useWhatsappEnvioFlags";
 import { TermoConsentimentoPanel } from "./termo-consentimento/TermoConsentimentoPanel";
 import { useTermoConsentimento } from "./termo-consentimento/useTermoConsentimento";
@@ -39,7 +38,7 @@ export function ConsultaTermoConsentimentoButton({
             ? "text-white"
             : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
         }`}
-        style={aberto ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+        style={aberto ? { backgroundColor: 'var(--cb-primary, #8B3D52)' } : undefined}
         title="Termos de consentimento por procedimento"
       >
         <FileSignature size={16} />
@@ -49,7 +48,7 @@ export function ConsultaTermoConsentimentoButton({
             className={`min-w-[1.25rem] h-5 px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
               aberto ? "bg-white/25 text-white" : "text-white"
             }`}
-            style={aberto ? undefined : { backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={aberto ? undefined : { backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             {badgeCount}
           </span>

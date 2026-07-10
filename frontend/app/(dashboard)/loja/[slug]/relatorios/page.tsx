@@ -13,7 +13,6 @@ import {
   MapPin,
   User,
 } from 'lucide-react';
-import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 
 interface RelatorioItem {
   titulo: string;
@@ -118,9 +117,9 @@ export default function RelatoriosHubPage() {
               <div className="flex items-center gap-3 mb-3 px-1">
                 <span
                   className="flex w-10 h-10 items-center justify-center rounded-xl shrink-0"
-                  style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}15` }}
+                  style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 8%, transparent)' }}
                 >
-                  <CatIcon size={20} style={{ color: CLINICA_BELEZA_PRIMARY }} />
+                  <CatIcon size={20} style={{ color: 'var(--cb-primary, #8B3D52)' }} />
                 </span>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -141,9 +140,9 @@ export default function RelatoriosHubPage() {
                     >
                       <span
                         className="flex w-9 h-9 items-center justify-center rounded-lg shrink-0"
-                        style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}10` }}
+                        style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 6%, transparent)' }}
                       >
-                        <Icon size={16} style={{ color: CLINICA_BELEZA_PRIMARY }} />
+                        <Icon size={16} style={{ color: 'var(--cb-primary, #8B3D52)' }} />
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">

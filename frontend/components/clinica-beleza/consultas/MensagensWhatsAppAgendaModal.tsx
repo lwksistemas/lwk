@@ -1,7 +1,6 @@
 "use client";
 
 import { Loader2, MessageCircle, RotateCcw, X } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { MensagemWhatsAppAjudaPanel } from "./mensagens-whatsapp-agenda/MensagemWhatsAppAjudaPanel";
 import { MensagemWhatsAppEditorPanel } from "./mensagens-whatsapp-agenda/MensagemWhatsAppEditorPanel";
 import { useMensagensWhatsAppAgenda } from "./mensagens-whatsapp-agenda/useMensagensWhatsAppAgenda";
@@ -22,7 +21,7 @@ export function MensagensWhatsAppAgendaModal({ open, onClose }: MensagensWhatsAp
       <div className="bg-white dark:bg-neutral-900 rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-md sm:max-w-4xl sm:w-[calc(100vw-2rem)] max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-neutral-700 shrink-0">
           <div className="flex items-center gap-2">
-            <MessageCircle size={18} style={{ color: CLINICA_BELEZA_PRIMARY }} />
+            <MessageCircle size={18} style={{ color: 'var(--cb-primary, #8B3D52)' }} />
             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
               Mensagem WhatsApp — confirmação
             </h2>
@@ -73,7 +72,7 @@ export function MensagensWhatsAppAgendaModal({ open, onClose }: MensagensWhatsAp
               onClick={() => void salvar()}
               disabled={saving || loading}
               className="px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50 inline-flex items-center gap-2"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
               Salvar

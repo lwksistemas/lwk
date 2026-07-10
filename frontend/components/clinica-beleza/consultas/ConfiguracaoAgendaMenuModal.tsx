@@ -1,7 +1,6 @@
 "use client";
 
 import { CalendarDays, FileText, MapPin, MessageCircle, RotateCcw, X } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 
 interface ConfiguracaoAgendaMenuModalProps {
   open: boolean;
@@ -104,9 +103,9 @@ export function ConfiguracaoAgendaMenuModal({
                 >
                   <span
                     className="flex w-11 h-11 shrink-0 items-center justify-center rounded-xl"
-                    style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}18` }}
+                    style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 9%, transparent)' }}
                   >
-                    <Icon size={22} style={{ color: CLINICA_BELEZA_PRIMARY }} />
+                    <Icon size={22} style={{ color: 'var(--cb-primary, #8B3D52)' }} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">

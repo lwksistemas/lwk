@@ -1,5 +1,4 @@
 import { Loader2, Plus, Trash2 } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import type { AgendaRetornoConfigItem, RetornoProcedimentoRegraItem } from "@/lib/clinica-beleza-api";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { RETORNO_INPUT_CLASS } from "./retorno-agenda-utils";
@@ -112,7 +111,7 @@ export function RetornoProcedimentoSection({
                   onClick={onAdicionarRegra}
                   disabled={salvando}
                   className="flex items-center gap-1 px-3 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50 shrink-0"
-                  style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                  style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
                 >
                   {salvando ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                   Adicionar

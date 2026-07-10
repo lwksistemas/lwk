@@ -1,7 +1,6 @@
 "use client";
 
 import { CheckCircle2, Play, Trash2 } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
   CLINICA_CONSULTA_STATUS_COLORS,
   CLINICA_CONSULTA_STATUS_LABEL,
@@ -125,7 +124,7 @@ export function ConsultaDetailStatusBar({
             type="button"
             onClick={onFinalizar}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             <CheckCircle2 size={16} />
             Finalizar consulta

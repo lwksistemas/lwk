@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { X, Layers, Eye, Loader2 } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type DocumentTemplateItem, type DocumentoClinicoItem } from "@/lib/clinica-beleza-api";
 import { logger } from "@/lib/logger";
 import type { DocumentoTipo } from "./ConsultaDocumentosTab";
@@ -147,12 +146,6 @@ export function UsarTemplateModal({
                           ? "border-[var(--cb-primary)] bg-[var(--cb-primary-light)] text-gray-900 dark:text-gray-100"
                           : "border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300"
                       }`}
-                      style={
-                        {
-                          "--cb-primary": CLINICA_BELEZA_PRIMARY,
-                          "--cb-primary-light": "#F5E6EA",
-                        } as React.CSSProperties
-                      }
                     >
                       <span className="font-medium text-sm">{tpl.nome}</span>
                     </button>
@@ -201,7 +194,7 @@ export function UsarTemplateModal({
             onClick={handleConfirmar}
             disabled={!selectedTemplate || criando}
             className="flex-1 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50 transition-colors"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             {criando ? "Criando..." : "Confirmar"}
           </button>

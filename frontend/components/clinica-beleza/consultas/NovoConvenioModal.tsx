@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { ClinicaBelezaPortraitModal } from "@/components/clinica-beleza/ClinicaBelezaPortraitModal";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
 import {
   CONVENIO_PARTICULAR_LABEL,
@@ -138,7 +137,7 @@ export function NovoConvenioModal({ open, onClose, onSuccess }: NovoConvenioModa
                 setErro("");
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               <Plus size={14} />
               Novo convênio
@@ -184,7 +183,7 @@ export function NovoConvenioModal({ open, onClose, onSuccess }: NovoConvenioModa
               onClick={criarConvenio}
               disabled={salvando || !nome.trim()}
               className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               {salvando ? <Loader2 size={14} className="animate-spin" /> : null}
               {salvando ? "Criando..." : "Criar convênio"}

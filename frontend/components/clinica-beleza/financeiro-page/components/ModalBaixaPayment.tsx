@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
@@ -252,7 +251,7 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
               onClick={handleConfirm}
               disabled={saving || !valor || Number(valor) <= 0}
               className="flex-1 py-2 rounded-lg text-white disabled:opacity-50 font-medium"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               {saving ? "Registrando..." : quitaTotal ? "Quitar Tudo" : "Registrar Entrada"}
             </button>

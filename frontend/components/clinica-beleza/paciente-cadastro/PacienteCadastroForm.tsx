@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowLeft, Loader2, Save } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { PacienteDadosPessoaisSection } from "./PacienteDadosPessoaisSection";
 import { PacienteEnderecoSection } from "./PacienteEnderecoSection";
@@ -22,7 +21,7 @@ export function PacienteCadastroForm({
   onBuscarCep,
   onSave,
   onCancel,
-  accentColor = CLINICA_BELEZA_PRIMARY,
+  accentColor = 'var(--cb-primary, #8B3D52)',
   lojaSlug,
   showHeader = true,
 }: PacienteCadastroFormProps) {

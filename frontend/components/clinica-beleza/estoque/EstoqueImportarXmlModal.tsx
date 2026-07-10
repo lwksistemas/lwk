@@ -1,7 +1,6 @@
 "use client";
 
 import { AlertCircle, CheckCircle2, FileUp, Loader2, X } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import type { EstoqueImportarXmlModalProps } from "./estoque-importar-xml-types";
 import { EstoqueImportarXmlForm } from "./EstoqueImportarXmlForm";
 import { EstoqueImportarXmlPreview } from "./EstoqueImportarXmlPreview";
@@ -71,7 +70,7 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: EstoqueImp
               type="button"
               onClick={handleClose}
               className="ml-auto px-4 py-2 text-sm font-medium text-white rounded-lg"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               Fechar
             </button>
@@ -89,7 +88,7 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: EstoqueImp
                 onClick={() => void enviarXml(true)}
                 disabled={loading}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                 Confirmar importação ({preview.total_produtos})
@@ -109,7 +108,7 @@ export function EstoqueImportarXmlModal({ open, onClose, onSuccess }: EstoqueImp
                 onClick={() => void enviarXml(false)}
                 disabled={loading || !arquivo}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
                 Visualizar produtos

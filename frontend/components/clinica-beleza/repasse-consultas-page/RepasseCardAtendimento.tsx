@@ -1,6 +1,5 @@
 "use client";
 
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { formatRelatorioCurrency } from "@/components/clinica-beleza/relatorios-shared/relatorios-shared-utils";
 import type { AtendimentoRepasse } from "./repasse-consultas-page-types";
 
@@ -11,7 +10,7 @@ export function RepasseCardAtendimento({ at }: { at: AtendimentoRepasse }) {
     <article className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
       <header
         className="px-4 py-3 border-b border-gray-100 dark:border-gray-700"
-        style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}10` }}
+        style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 6%, transparent)' }}
       >
         <h3 className="font-semibold text-gray-900 dark:text-white">
           {at.data_atendimento} às {at.hora_atendimento}
@@ -85,11 +84,11 @@ export function RepasseCardAtendimento({ at }: { at: AtendimentoRepasse }) {
 
         <div
           className="flex flex-wrap justify-between items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold"
-          style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}12` }}
+          style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 7%, transparent)' }}
         >
           <span className="text-gray-700 dark:text-gray-300">Total do atendimento</span>
           <span className="tabular-nums text-gray-600 dark:text-gray-400">Valor: {fmt(at.valor_atendimento)}</span>
-          <span className="tabular-nums" style={{ color: CLINICA_BELEZA_PRIMARY }}>
+          <span className="tabular-nums" style={{ color: 'var(--cb-primary, #8B3D52)' }}>
             Comissão: {fmt(at.comissao_atendimento)}
           </span>
         </div>

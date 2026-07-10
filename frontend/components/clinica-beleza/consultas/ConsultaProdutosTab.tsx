@@ -1,7 +1,6 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import type { ConsultaPrintMeta } from "@/lib/consulta-print";
 import { ProdutoAdicionarForm } from "./produtos/ProdutoAdicionarForm";
 import { ProdutosEstoqueAlert } from "./produtos/ProdutosEstoqueAlert";
@@ -65,7 +64,7 @@ export function ConsultaProdutosTab({
               type="button"
               onClick={() => setShowAddForm(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               <Plus size={16} />
               Adicionar produto

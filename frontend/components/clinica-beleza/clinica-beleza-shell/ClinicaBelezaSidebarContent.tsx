@@ -1,5 +1,4 @@
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "../clinica-beleza-nav";
 import { ClinicaBelezaSidebarNav } from "./ClinicaBelezaSidebarNav";
 import type { ClinicaBelezaSidebarContentProps } from "./clinica-beleza-shell-types";
 
@@ -36,7 +35,7 @@ export function ClinicaBelezaSidebarContent({
               type="button"
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className="hidden lg:flex w-8 h-8 rounded-lg items-center justify-center text-white shrink-0 hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
               title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
               aria-label={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
             >

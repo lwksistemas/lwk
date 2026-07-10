@@ -2,7 +2,6 @@
 
 import { useParams } from 'next/navigation';
 import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
-import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import { LojaBackupStandardContent } from '@/components/loja/LojaBackupStandardContent';
 import { useLojaInfoPublica } from '@/hooks/useLojaInfoPublica';
 
@@ -35,7 +34,7 @@ export default function ClinicaBelezaBackupPage() {
         loja={loja}
         backHref={base}
         subtitle="Exporte e importe os dados da clínica com segurança"
-        accentColor={CLINICA_BELEZA_PRIMARY}
+        accentColor={'var(--cb-primary, #8B3D52)'}
         warningItems={[
           'O backup inclui pacientes, agenda, procedimentos, financeiro e demais dados da clínica',
           'Ao importar, os dados atuais podem ser substituídos',

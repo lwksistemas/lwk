@@ -3,7 +3,6 @@
 import { createPortal } from "react-dom";
 import { ArrowLeft, CalendarDays, Loader2, Save } from "lucide-react";
 import { ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { CriarAgendamentoAdvancedSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoAdvancedSection";
 import { CriarAgendamentoAgendaSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoAgendaSection";
 import { CriarAgendamentoClienteSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoClienteSection";
@@ -53,7 +52,7 @@ export function ModalCriarAgendamento({
   onSearchPatients,
   onConsultaCreated,
   onOfflineEventCreated,
-  accentColor = CLINICA_BELEZA_PRIMARY,
+  accentColor = 'var(--cb-primary, #8B3D52)',
 }: ModalCriarAgendamentoProps) {
   const form = useCriarAgendamento({
     open,

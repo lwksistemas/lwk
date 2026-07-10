@@ -1,6 +1,5 @@
 import { CalendarDays, List, Lock, Plus } from "lucide-react";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { entityName } from "@/lib/clinica-beleza-entities";
 
 export function AgendaPageHeaderActions({
@@ -61,7 +60,7 @@ export function AgendaPageHeaderActions({
         type="button"
         onClick={onNovo}
         className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-white rounded-lg hover:opacity-90 transition-opacity shrink-0 text-xs sm:text-sm font-medium"
-        style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+        style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
         title="Novo agendamento"
       >
         <Plus size={16} className="sm:w-4 sm:h-4" />

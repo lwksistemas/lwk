@@ -3,7 +3,6 @@
 import { ArrowLeft, Save } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { toUpperCase } from "@/lib/format-br";
 
 interface ConvenioFormViewProps {
@@ -77,7 +76,7 @@ export function ConvenioFormView({
                 onClick={onSalvar}
                 disabled={salvando || !novoNome.trim()}
                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 py-2.5 px-6 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
               >
                 <Save size={16} />
                 {salvando ? "Criando..." : "Criar convênio"}

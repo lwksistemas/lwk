@@ -2,7 +2,6 @@
 
 import { Loader2, Plus } from "lucide-react";
 import { ClinicaBelezaPortraitModal } from "@/components/clinica-beleza/ClinicaBelezaPortraitModal";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { LocalAtendimentoFormFields } from "./locais-atendimento/LocalAtendimentoFormFields";
 import { LocalAtendimentoListItem } from "./locais-atendimento/LocalAtendimentoListItem";
 import { useLocaisAtendimento } from "./locais-atendimento/useLocaisAtendimento";
@@ -46,7 +45,7 @@ export function LocaisAtendimentoModal({ open, onClose }: LocaisAtendimentoModal
               type="button"
               onClick={startNew}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               <Plus size={14} />
               Novo local

@@ -3,7 +3,6 @@
 import { ArrowLeft, Megaphone, Save } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { CampanhaFormFields } from "./CampanhaFormFields";
 import type { Campanha, CampanhaFormState } from "./campanhas-page-types";
 
@@ -58,7 +57,7 @@ export function CampanhaFormView({
               onClick={onSave}
               disabled={saving}
               className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               <Save size={16} />
               {saving ? "Salvando..." : "Salvar"}

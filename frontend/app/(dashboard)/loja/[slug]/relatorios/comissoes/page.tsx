@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Download, Printer, Search } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
-import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 
@@ -140,7 +139,7 @@ function MiniTabela({
     <div className="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
       <div
         className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300"
-        style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}08` }}
+        style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 3%, transparent)' }}
       >
         {titulo}
       </div>
@@ -234,7 +233,7 @@ function BlocoProfissional({
     <article className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden print:break-inside-avoid">
       <header
         className="px-4 py-3"
-        style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}12` }}
+        style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 7%, transparent)' }}
       >
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">{p.nome}</h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
@@ -334,13 +333,13 @@ function BlocoProfissional({
           )}
           <div
             className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 py-3 font-semibold"
-            style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}10` }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 6%, transparent)' }}
           >
             <span className="text-gray-900 dark:text-white sm:col-span-2">Total do período</span>
             <span className="text-right tabular-nums text-lg text-gray-900 dark:text-white">
               {formatCurrency(p.valor_total)}
             </span>
-            <span className="text-right tabular-nums text-lg" style={{ color: CLINICA_BELEZA_PRIMARY }}>
+            <span className="text-right tabular-nums text-lg" style={{ color: 'var(--cb-primary, #8B3D52)' }}>
               Comissão {formatCurrency(p.comissao_total)}
             </span>
           </div>
@@ -577,7 +576,7 @@ export default function RelatorioComissoesPage() {
           onClick={exportarPDF}
           disabled={!data?.profissionais.length || pdfLoading}
           className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-white disabled:opacity-50"
-          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+          style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           title={
             !logoUrl && temTimbrado
               ? 'PDF com papel timbrado (Configurações → Memed). Para imprimir, use o visualizador do PDF.'
@@ -618,7 +617,7 @@ export default function RelatorioComissoesPage() {
         ) : clinicaNome ? (
           <p className="text-lg font-bold text-gray-800 mb-2">{clinicaNome}</p>
         ) : null}
-        <h1 className="text-2xl font-bold" style={{ color: CLINICA_BELEZA_PRIMARY }}>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--cb-primary, #8B3D52)' }}>
           {titulo}
         </h1>
         {profissionalNome && (
@@ -690,7 +689,7 @@ export default function RelatorioComissoesPage() {
             onClick={buscar}
             disabled={loading}
             className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 min-h-[40px] text-sm font-medium rounded-lg text-white"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             <Search size={16} /> Buscar
           </button>
@@ -722,7 +721,7 @@ export default function RelatorioComissoesPage() {
               {data.profissionais.length > 1 && (
               <div
                 className="rounded-xl border-2 border-gray-300 dark:border-gray-600 p-4"
-                style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}08` }}
+                style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 3%, transparent)' }}
               >
                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                   Totais do período
@@ -758,7 +757,7 @@ export default function RelatorioComissoesPage() {
                     <p className="text-xs text-gray-500 uppercase">Comissão total</p>
                     <p
                       className="text-xl font-bold tabular-nums"
-                      style={{ color: CLINICA_BELEZA_PRIMARY }}
+                      style={{ color: 'var(--cb-primary, #8B3D52)' }}
                     >
                       {formatCurrency(data.totais.comissao_total)}
                     </p>
@@ -799,7 +798,7 @@ export default function RelatorioComissoesPage() {
                         <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.valor_procedimento)}</td>
                         <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.comissao_procedimento)}</td>
                         <td className="px-4 py-3 text-right tabular-nums font-medium">{formatCurrency(row.valor_total)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums font-semibold" style={{ color: CLINICA_BELEZA_PRIMARY }}>
+                        <td className="px-4 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--cb-primary, #8B3D52)' }}>
                           {formatCurrency(row.comissao_total)}
                         </td>
                       </tr>
@@ -814,7 +813,7 @@ export default function RelatorioComissoesPage() {
                       <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(data.totais.valor_procedimento)}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(data.totais.comissao_procedimento)}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(data.totais.valor_total)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums" style={{ color: CLINICA_BELEZA_PRIMARY }}>
+                      <td className="px-4 py-3 text-right tabular-nums" style={{ color: 'var(--cb-primary, #8B3D52)' }}>
                         {formatCurrency(data.totais.comissao_total)}
                       </td>
                     </tr>

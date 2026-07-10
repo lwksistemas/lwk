@@ -1,5 +1,4 @@
 import { Loader2 } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { toUpperCase } from "@/lib/format-br";
 import type { ProcedureOption } from "./procedimentos-consulta-types";
 import { PROCEDIMENTOS_SELECT_CLASS } from "./procedimentos-consulta-types";
@@ -41,7 +40,7 @@ export function ProcedimentoAdicionarForm({
           onClick={onAdicionar}
           disabled={saving || !procedureId}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
-          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+          style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : null}
           Incluir

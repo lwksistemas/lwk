@@ -1,4 +1,3 @@
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { CLINICA_FORM_INPUT } from "@/hooks/clinica-beleza";
 import { toUpperCase } from "@/lib/format-br";
 import type { CampanhaFormState } from "./campanhas-page-types";
@@ -64,7 +63,7 @@ export function CampanhaFormFields({ form, onChange }: CampanhaFormFieldsProps) 
           checked={form.ativa}
           onChange={(e) => onChange({ ativa: e.target.checked })}
           className="rounded border-gray-300 dark:border-neutral-600"
-          style={{ accentColor: CLINICA_BELEZA_PRIMARY }}
+          style={{ accentColor: 'var(--cb-primary, #8B3D52)' }}
         />
         <span className="text-sm text-gray-700 dark:text-gray-300">Campanha ativa</span>
       </label>

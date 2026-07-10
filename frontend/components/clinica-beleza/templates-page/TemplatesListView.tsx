@@ -2,7 +2,6 @@
 
 import { Pencil, Trash2 } from "lucide-react";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import type { DocumentTemplateItem } from "@/lib/clinica-beleza-api";
 import {
   formatTemplateUpdatedAt,
@@ -82,8 +81,8 @@ export function TemplatesListView({
                       <span
                         className="inline-block px-2 py-0.5 text-xs rounded-full"
                         style={{
-                          backgroundColor: `${CLINICA_BELEZA_PRIMARY}15`,
-                          color: CLINICA_BELEZA_PRIMARY,
+                          backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 8%, transparent)',
+                          color: 'var(--cb-primary, #8B3D52)',
                         }}
                       >
                         {templateTipoLabel(t.tipo)}

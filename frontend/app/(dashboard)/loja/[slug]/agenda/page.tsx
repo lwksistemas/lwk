@@ -10,7 +10,6 @@ import { useParams, useSearchParams } from "next/navigation";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { useAgendaMutations } from "@/hooks/useAgendaMutations";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { searchClinicaPatients } from "@/lib/clinica-beleza-cadastros-api";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { useAgendaData } from "@/hooks/clinica-beleza/useAgendaData";
@@ -115,7 +114,7 @@ export default function AgendaPage() {
         <div className="text-center">
           <div
             className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4"
-            style={{ borderColor: `${CLINICA_BELEZA_PRIMARY} transparent transparent transparent` }}
+            style={{ borderColor: 'var(--cb-primary, #8B3D52) transparent transparent transparent' }}
           />
           <p className="text-sm text-gray-600 dark:text-gray-300">Carregando agenda...</p>
         </div>

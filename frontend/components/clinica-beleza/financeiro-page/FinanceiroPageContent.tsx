@@ -4,7 +4,6 @@ import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { useFinanceiroPage } from "@/hooks/clinica-beleza/useFinanceiroPage";
 import { DespesaFormModal } from "./DespesaFormModal";
 import { FinanceiroDespesasTab } from "./components/FinanceiroDespesasTab";
@@ -29,7 +28,7 @@ export function FinanceiroPageContent() {
             onClick={() => f.loadAll()}
             disabled={f.loading}
             className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-white rounded-lg hover:opacity-90 disabled:opacity-50 text-xs sm:text-sm font-medium"
-            style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             <RefreshCw size={16} className={f.loading ? "animate-spin" : ""} />
             <span className="hidden sm:inline">Atualizar</span>

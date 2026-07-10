@@ -2,7 +2,6 @@
 
 import { Fragment } from 'react';
 import Link from 'next/link';
-import { CLINICA_BELEZA_PRIMARY } from './clinica-beleza-nav';
 
 interface LinkItem {
   label: string;
@@ -26,7 +25,7 @@ export function ClinicaBelezaRelatedLinks({ slug, items }: ClinicaBelezaRelatedL
           <Link
             href={item.href.startsWith('/') ? item.href : `/loja/${slug}/${item.href}`}
             className="font-medium hover:underline"
-            style={{ color: CLINICA_BELEZA_PRIMARY }}
+            style={{ color: 'var(--cb-primary, #8B3D52)' }}
           >
             {item.label}
           </Link>

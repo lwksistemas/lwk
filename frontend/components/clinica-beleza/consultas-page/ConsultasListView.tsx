@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import { CalendarCog } from "lucide-react";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ConsultasListTable } from "@/components/clinica-beleza/consultas/ConsultasListTable";
@@ -57,7 +56,7 @@ export function ConsultasListView({
             className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
             title="Configuração da Agenda"
           >
-            <CalendarCog className="w-4 h-4 shrink-0" style={{ color: CLINICA_BELEZA_PRIMARY }} />
+            <CalendarCog className="w-4 h-4 shrink-0" style={{ color: 'var(--cb-primary, #8B3D52)' }} />
             <span className="hidden sm:inline text-gray-700 dark:text-gray-300">Configuração da Agenda</span>
           </button>
         }

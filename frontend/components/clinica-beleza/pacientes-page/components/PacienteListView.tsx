@@ -4,7 +4,6 @@ import { ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
 import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
   entityEmail,
   entityName,
@@ -130,7 +129,7 @@ export function PacienteListView({
                   type="button"
                   onClick={() => onEdit(p)}
                   className="p-2 rounded-lg hover:bg-[#F5E6EA] dark:hover:bg-neutral-600 transition-colors"
-                  style={{ color: CLINICA_BELEZA_PRIMARY }}
+                  style={{ color: 'var(--cb-primary, #8B3D52)' }}
                   title="Editar"
                 >
                   <Pencil size={18} />

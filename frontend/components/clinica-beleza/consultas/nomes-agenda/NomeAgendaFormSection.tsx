@@ -1,5 +1,4 @@
 import { Loader2 } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 
 export function NomeAgendaFormSection({
   formNome,
@@ -35,7 +34,7 @@ export function NomeAgendaFormSection({
           onClick={onSave}
           disabled={saving}
           className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-sm font-medium disabled:opacity-50"
-          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+          style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : null}
           {editingId ? "Salvar" : "Adicionar"}

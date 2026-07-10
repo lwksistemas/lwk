@@ -1,5 +1,4 @@
 import { CheckCircle2, Trash2 } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 
 export function ConsultaDetailHeaderActions({
   consultaAtiva,
@@ -20,7 +19,7 @@ export function ConsultaDetailHeaderActions({
         type="button"
         onClick={onFinalizar}
         className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-white text-xs sm:text-sm font-medium"
-        style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+        style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
       >
         <CheckCircle2 size={15} />
         <span className="hidden sm:inline">Finalizar consulta</span>

@@ -3,7 +3,6 @@
 import { FileText, RefreshCw, Upload } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { formatTimbradoBytes } from "./memed-page-utils";
 import { useMemedPage } from "./useMemedPage";
 
@@ -47,7 +46,7 @@ export function MemedPageContent() {
         )}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
           <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-lg text-white" style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}>
+            <div className="p-2.5 rounded-lg text-white" style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}>
               <FileText size={22} />
             </div>
             <div>
@@ -120,7 +119,7 @@ export function MemedPageContent() {
               disabled={saving || !arquivo}
               onClick={() => void enviarPdf(false)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white disabled:opacity-50"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               <Upload size={16} />
               {saving ? "Enviando…" : "Salvar e aplicar na Memed"}

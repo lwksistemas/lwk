@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, X, Printer, Mail, MessageCircle } from "lucide-react";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { useToast } from "@/components/ui/Toast";
 import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
@@ -347,7 +346,7 @@ export function ModalReceberConsulta({
                 type="button"
                 onClick={onClose}
                 className="px-4 py-2 rounded-lg text-white ml-auto"
-                style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+                style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
               >
                 Fechar
               </button>
@@ -561,7 +560,7 @@ export function ModalReceberConsulta({
               onClick={handleConfirm}
               disabled={loading}
               className="flex-1 py-2 rounded-lg text-white disabled:opacity-50"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               {loading ? "Registrando..." : "Confirmar"}
             </button>

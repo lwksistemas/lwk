@@ -8,7 +8,6 @@
 import { Save } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
-import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ProfissionalAcessoSection } from "./ProfissionalAcessoSection";
 import { ProfissionalComissaoConsultaBlock } from "./ProfissionalComissaoConsultaBlock";
 import { ProfissionalComissaoProcedimentoBlock } from "./ProfissionalComissaoProcedimentoBlock";
@@ -107,7 +106,7 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
               onClick={() => void salvar()}
               disabled={saving}
               className="flex-1 py-2.5 rounded-lg text-white text-sm font-medium disabled:opacity-50 inline-flex items-center justify-center gap-2"
-              style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
             >
               <Save size={16} />
               {saving ? "Salvando..." : "Salvar"}

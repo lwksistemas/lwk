@@ -28,11 +28,14 @@ def prefixos_tabela_para_app(app_label: str) -> list[str]:
     clinica_estetica usa Meta db_table com prefixo clinica_* (legado), não clinica_estetica_*.
     contenttypes usa django_content_type (não contenttypes_*).
     auth usa auth_* (auth_permission, auth_group, etc).
+    crm_vendas também cria crm_financeiro_* (models/financeiro.py).
     """
     if app_label == 'clinica_estetica':
         return ['clinica_']
     if app_label == 'contenttypes':
         return ['django_content_type']
+    if app_label == 'crm_vendas':
+        return ['crm_vendas_', 'crm_financeiro_']
     return [f'{app_label}_']
 
 
@@ -79,6 +82,10 @@ ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
 # Tabelas com prefixo fora do padrão do app, mas válidas para o tipo.
 TABELAS_PERMITIDAS_EXTRA_POR_TIPO: dict[str, frozenset[str]] = {
     'crm-vendas': frozenset({'crm_relatorio_comissao'}),
+    'clinica-beleza': frozenset({'crm_relatorio_comissao'}),
+    'clinica-da-beleza': frozenset({'crm_relatorio_comissao'}),
+    'clinica-estetica': frozenset({'crm_relatorio_comissao'}),
+    'clinica-de-estetica': frozenset({'crm_relatorio_comissao'}),
 }
 
 
@@ -455,7 +462,21 @@ def corrigir_loja(loja) -> dict[str, Any]:
         if limpeza.get('removidas'):
             out['mensagem'] += ' ' + limpeza['mensagem']
 
-        out['sucesso'] = bool(ok_mig) and not ensure_erros
+        audit_pos = auditar_loja(loja)
+        apps_falha = [
+            d.get('app')
+            for d in (audit_pos.get('apps_detalhe') or [])
+            if not d.get('ok')
+        ]
+        if apps_falha:
+            out['mensagem'] += f' Ainda com falha: {", ".join(apps_falha)}.'
+            out['sucesso'] = False
+        else:
+            out['sucesso'] = bool(ok_mig) and not ensure_erros
+        out['audit_pos'] = {
+            'ok': audit_pos.get('ok'),
+            'apps_falha': apps_falha,
+        }
     except Exception as e:
         logger.exception('corrigir_loja')
         out['mensagem'] = str(e)

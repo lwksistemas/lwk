@@ -45,6 +45,8 @@ interface SchemaResult {
 }
 
 const SCHEMA_AUDIT_LIMITE = 200;
+/** Correção pode fake-migrar dezenas de apps; dar folga além do timeout padrão. */
+const SCHEMA_CORRECAO_TIMEOUT_MS = 180_000;
 
 function isTimeoutLike(err: unknown): boolean {
   const ax = err as { code?: string; message?: string };
@@ -69,10 +71,11 @@ export default function SchemasPage() {
     }
   }, [router]);
 
-  const postAuditoria = (body: Record<string, unknown>) =>
+  const postAuditoria = (body: Record<string, unknown>, timeoutMs?: number) =>
     apiClient.post<SchemaResult>(
       '/superadmin/security-dashboard/verificar_corrigir_schemas_lojas/',
-      body
+      body,
+      timeoutMs ? { timeout: timeoutMs } : undefined
     );
 
   /** Uma requisição por loja evita timeout em correção em massa. */
@@ -110,14 +113,19 @@ export default function SchemasPage() {
       return;
     }
 
+    const msgs: string[] = [];
     for (let i = 0; i < ids.length; i++) {
       const lojaId = ids[i];
       const motivo = idsComFalha.includes(lojaId) ? 'correção' : 'limpeza legado';
       setProgressText(`${motivo}: loja ${i + 1} de ${ids.length} (id ${lojaId})…`);
-      await postAuditoria({
-        aplicar_correcao: true,
-        loja_id: lojaId,
-      });
+      const { data: corr } = await postAuditoria(
+        { aplicar_correcao: true, loja_id: lojaId },
+        SCHEMA_CORRECAO_TIMEOUT_MS
+      );
+      const row = (corr.resultados || []).find((r) => r.audit.loja_id === lojaId);
+      if (row?.correcao?.mensagem) {
+        msgs.push(`Loja ${lojaId}: ${row.correcao.mensagem}`);
+      }
     }
 
     setProgressText('Atualizando auditoria…');
@@ -125,7 +133,13 @@ export default function SchemasPage() {
       aplicar_correcao: false,
       limite: SCHEMA_AUDIT_LIMITE,
     });
-    setResult(finalData);
+    setResult({
+      ...finalData,
+      mensagem:
+        msgs.length > 0
+          ? msgs.slice(0, 5).join(' | ') + (msgs.length > 5 ? ` (+${msgs.length - 5})` : '')
+          : finalData.mensagem,
+    });
     setProgressText(null);
   };
 
@@ -137,19 +151,33 @@ export default function SchemasPage() {
     try {
       setLoading(true);
       setProgressText(`Corrigindo loja id ${lojaId}…`);
-      await postAuditoria({ aplicar_correcao: true, loja_id: lojaId });
+      const { data: corr } = await postAuditoria(
+        { aplicar_correcao: true, loja_id: lojaId },
+        SCHEMA_CORRECAO_TIMEOUT_MS
+      );
+      const row = (corr.resultados || []).find((r) => r.audit.loja_id === lojaId);
+      const corrMsg = row?.correcao?.mensagem;
       setProgressText('Atualizando auditoria…');
       const { data } = await postAuditoria({
         aplicar_correcao: false,
         limite: SCHEMA_AUDIT_LIMITE,
       });
-      setResult(data);
+      setResult({
+        ...data,
+        mensagem: corrMsg
+          ? `${row?.correcao?.sucesso === false ? 'Correção incompleta: ' : ''}${corrMsg}`
+          : data.mensagem,
+      });
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { detail?: string } }; message?: string };
       const detail = ax?.response?.data?.detail;
-      const msg = typeof detail === 'string' ? detail : ax?.message || 'Falha ao corrigir loja.';
+      const fallback = ax?.message || 'Falha ao corrigir loja.';
+      const msg = typeof detail === 'string' ? detail : fallback;
       setResult((prev) => ({
-        mensagem: msg,
+        ...prev,
+        mensagem: isTimeoutLike(err)
+          ? 'Tempo esgotado ao corrigir esta loja. Tente de novo — se o app já tem tabelas sem histórico de migration, o backend novo corrige em segundos.'
+          : msg,
         resultados: prev?.resultados,
         resumo: prev?.resumo,
       }));
@@ -187,7 +215,7 @@ export default function SchemasPage() {
       setResult((prev) => ({
         ...prev,
         mensagem: isTimeoutLike(err)
-          ? 'Tempo da requisição esgotado (comum no Heroku com muitas lojas). Use «Corrigir esta loja» por linha ou tente de novo.'
+          ? 'Tempo da requisição esgotado (comum com muitas lojas). Use «Corrigir esta loja» por linha ou tente de novo.'
           : msg,
       }));
     } finally {
@@ -426,7 +454,15 @@ export default function SchemasPage() {
                             </span>
                           )}
                           {badApps.length > 0 && !a.erro && (a.tabelas_faltando?.length ?? 0) === 0 && (
-                            <span className="text-red-500">Apps com falha: {badApps.map((x) => x.app).join(', ')}</span>
+                            <span className="text-red-500">
+                              Apps com falha:{' '}
+                              {badApps
+                                .map(
+                                  (x) =>
+                                    `${x.app} (${x.tabelas_prefixo} tab, ${x.migrations_registradas} mig)`
+                                )
+                                .join(', ')}
+                            </span>
                           )}
                           {!a.erro && badApps.length === 0 && a.aviso_tabelas_extras && (
                             <span className="text-amber-600 dark:text-amber-400">

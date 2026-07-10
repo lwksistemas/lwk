@@ -48,6 +48,34 @@ def _record_migration_if_missing(alias: str, schema_name: str, app_label: str, m
         )
 
 
+def _prefixos_tabela_app(app_label: str) -> list[str]:
+    """Prefixos de table_name usados para detectar se o app já tem tabelas no schema."""
+    if app_label == 'clinica_estetica':
+        return ['clinica_']
+    if app_label == 'contenttypes':
+        return ['django_content_type']
+    if app_label == 'crm_vendas':
+        # models/financeiro.py usa crm_financeiro_*; demais usam crm_vendas_*
+        return ['crm_vendas_', 'crm_financeiro_']
+    return [f'{app_label}_']
+
+
+def _contar_tabelas_app_no_schema(conn, schema_name: str, app_label: str) -> int:
+    prefixes = _prefixos_tabela_app(app_label)
+    or_parts = ' OR '.join(['table_name LIKE %s'] * len(prefixes))
+    params: list[str] = [schema_name] + [f'{p}%' for p in prefixes]
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT COUNT(*) FROM information_schema.tables
+            WHERE table_schema = %s AND table_type = 'BASE TABLE'
+              AND ({or_parts})
+            """,
+            params,
+        )
+        return int(cur.fetchone()[0])
+
+
 def _rollback_and_reconnect(alias: str) -> None:
     """
     Após erro em cur.execute(sql) com script multi-statement (ex.: BEGIN do sqlmigrate),
@@ -305,6 +333,24 @@ class DatabaseSchemaService:
                     
                     if not migrations_to_apply:
                         logger.info(f"   ℹ️  Nenhuma migration pendente para {app}")
+                        continue
+
+                    # Tabelas já existem sem histórico em django_migrations (comum em clínicas
+                    # onde o CRM foi criado via ensure/SQL). Reaplicar ~50 sqlmigrate estoura
+                    # timeout HTTP do botão "Corrigir esta loja" — fake em lote.
+                    n_tab_app = _contar_tabelas_app_no_schema(conn, schema_name, app)
+                    if n_tab_app > 0 and len(applied) == 0:
+                        logger.warning(
+                            "   ⚠️  App %s: %s tabela(s) sem histórico em django_migrations. "
+                            "Registrando %s migration(s) como aplicadas (--fake em lote).",
+                            app,
+                            n_tab_app,
+                            len(migrations_to_apply),
+                        )
+                        for app_label, migration_name in migrations_to_apply:
+                            _record_migration_if_missing(
+                                loja.database_name, schema_name, app_label, migration_name
+                            )
                         continue
                     
                     logger.info(f"   📝 {len(migrations_to_apply)} migration(s) pendente(s)")

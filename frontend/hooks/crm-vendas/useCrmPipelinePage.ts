@@ -67,7 +67,12 @@ export function useCrmPipelinePage() {
     setLoading(true);
     setError(null);
     let cancelled = false;
-    fetchAllPaginatedResults<Oportunidade>('/crm-vendas/oportunidades/')
+    const params: Record<string, string | number> = {};
+    if (filtroEtapaPipeline) params.etapa = filtroEtapaPipeline;
+    if (filtroVendedor) params.vendedor_id = filtroVendedor;
+    if (dataInicio) params.data_inicio = dataInicio;
+    if (dataFim) params.data_fim = dataFim;
+    fetchAllPaginatedResults<Oportunidade>('/crm-vendas/oportunidades/', params)
       .then((items) => {
         if (cancelled) return;
         setOportunidades(items);
@@ -84,7 +89,7 @@ export function useCrmPipelinePage() {
     return () => {
       cancelled = true;
     };
-  }, [vendedorIdSynced, slug]);
+  }, [vendedorIdSynced, slug, filtroEtapaPipeline, filtroVendedor, dataInicio, dataFim]);
 
   useEffect(() => {
     apiClient
@@ -159,8 +164,17 @@ export function useCrmPipelinePage() {
     }, 100);
   };
 
+  const pipelineFilters = (): Record<string, string | number> => {
+    const params: Record<string, string | number> = {};
+    if (filtroEtapaPipeline) params.etapa = filtroEtapaPipeline;
+    if (filtroVendedor) params.vendedor_id = filtroVendedor;
+    if (dataInicio) params.data_inicio = dataInicio;
+    if (dataFim) params.data_fim = dataFim;
+    return params;
+  };
+
   const handleModalSuccess = () => {
-    loadOportunidades(setOportunidades, setError);
+    loadOportunidades(setOportunidades, setError, pipelineFilters());
   };
 
   const selecionarPeriodoPipeline = (periodo: string) => {

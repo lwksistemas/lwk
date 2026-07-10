@@ -11,6 +11,7 @@ import {
 } from '@/hooks/crm-vendas/useOportunidadeNotas';
 import { formatCrmBrl, rotuloExibicaoOportunidade, subtituloModalOportunidade } from '@/lib/crm-utils';
 import { ETAPAS_PIPELINE_PADRAO } from '@/constants/crm';
+import { useToast } from '@/components/ui/Toast';
 
 interface Props {
   oportunidade: Oportunidade;
@@ -110,6 +111,7 @@ export default function HistoricoNegociacaoSection({
   feedbackPosVenda,
   variant = 'embedded',
 }: Props) {
+  const toast = useToast();
   const { notas, loading, salvando, erro, adicionarNota } = useOportunidadeNotas(oportunidade.id);
   const [tipoNova, setTipoNova] = useState<TipoNotaNegociacao>('resposta_cliente');
   const [textoNova, setTextoNova] = useState('');
@@ -135,7 +137,7 @@ export default function HistoricoNegociacaoSection({
     if (!el) return;
     const janela = window.open('', '_blank', 'width=800,height=900');
     if (!janela) {
-      alert('Permita pop-ups para imprimir o histórico.');
+      toast.error('Permita pop-ups para imprimir o histórico.');
       return;
     }
     janela.document.write(`

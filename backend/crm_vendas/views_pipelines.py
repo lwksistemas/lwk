@@ -1,9 +1,10 @@
 """ViewSets de pipeline: oportunidades e atividades."""
 import logging
 
-from django.db.models import Q
+from django.db.models import Case, DateField, Q, When
+from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -38,6 +39,38 @@ from .views_common import CRMPagination, aplicar_cache_control_sem_store, filtra
 logger = logging.getLogger(__name__)
 
 
+def _filtrar_oportunidades_por_periodo(qs, data_inicio_str, data_fim_str):
+    """
+    Filtra por data de referência: abertas → created_at;
+    ganho → data_fechamento_ganho/data_fechamento; perdido → data_fechamento_perdido.
+    """
+    di = parse_date(data_inicio_str) if data_inicio_str else None
+    df = parse_date(data_fim_str) if data_fim_str else None
+    if not di and not df:
+        return qs
+
+    created_date = TruncDate('created_at')
+    qs = qs.annotate(
+        data_ref_periodo=Case(
+            When(
+                etapa='closed_won',
+                then=Coalesce('data_fechamento_ganho', 'data_fechamento', created_date),
+            ),
+            When(
+                etapa='closed_lost',
+                then=Coalesce('data_fechamento_perdido', created_date),
+            ),
+            default=created_date,
+            output_field=DateField(),
+        )
+    )
+    if di:
+        qs = qs.filter(data_ref_periodo__gte=di)
+    if df:
+        qs = qs.filter(data_ref_periodo__lte=df)
+    return qs
+
+
 class OportunidadeViewSet(
     CRMSchemaRecoveryMixin,
     CrmGranularPermissionMixin,
@@ -47,7 +80,7 @@ class OportunidadeViewSet(
 ):
     queryset = Oportunidade.objects.select_related(
         'lead', 'vendedor', 'lead__conta', 'empresa_prestadora'
-    ).prefetch_related('atividades').all()
+    ).all()
     serializer_class = OportunidadeSerializer
     pagination_class = CRMPagination
 
@@ -102,17 +135,24 @@ class OportunidadeViewSet(
         self._invalidate_caches()
 
     def get_queryset(self):
-        qs = super().get_queryset()
-        qs = qs.select_related(
+        qs = Oportunidade.objects.select_related(
             'lead', 'vendedor', 'lead__conta', 'empresa_prestadora'
-        ).prefetch_related(
-            'atividades',
-            'itens',
-            'itens__produto_servico',
         )
+        # Listagem do pipeline não precisa de atividades/itens (serializer de lista não usa)
+        if getattr(self, 'action', None) != 'list':
+            qs = qs.prefetch_related(
+                'atividades',
+                'itens',
+                'itens__produto_servico',
+            )
         if get_current_vendedor_id(self.request) is None:
             qs = filtrar_queryset_por_query_params(qs, self.request, {'vendedor_id': 'vendedor_id'})
-        return filtrar_queryset_por_query_params(qs, self.request, {'etapa': 'etapa'})
+        qs = filtrar_queryset_por_query_params(qs, self.request, {'etapa': 'etapa'})
+        return _filtrar_oportunidades_por_periodo(
+            qs,
+            self.request.query_params.get('data_inicio'),
+            self.request.query_params.get('data_fim'),
+        )
 
 
 def _autor_nome_negociacao(request) -> str:

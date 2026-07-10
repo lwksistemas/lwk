@@ -30,6 +30,36 @@ def _conta_nome_do_documento(obj) -> str | None:
     )
 
 
+def _invalidar_assinaturas_pendentes(documento) -> None:
+    """Remove tokens pendentes ao marcar assinatura como concluída manualmente."""
+    from ..models import AssinaturaDigital
+
+    qs = AssinaturaDigital.objects.filter(assinado=False)
+    if isinstance(documento, Proposta):
+        qs = qs.filter(proposta_id=documento.pk)
+    elif isinstance(documento, Contrato):
+        qs = qs.filter(contrato_id=documento.pk)
+    else:
+        return
+    qs.delete()
+
+
+def _fechar_oportunidade_ao_concluir_assinatura(instance, old_status_assinatura, new_status_assinatura):
+    if old_status_assinatura == 'concluido' or new_status_assinatura != 'concluido':
+        return
+    _invalidar_assinaturas_pendentes(instance)
+    oportunidade = instance.oportunidade
+    if oportunidade and oportunidade.etapa not in ('closed_won', 'closed_lost'):
+        from django.utils import timezone
+        oportunidade.etapa = 'closed_won'
+        if not oportunidade.data_fechamento_ganho:
+            oportunidade.data_fechamento_ganho = timezone.now().date()
+        valor_com_desconto = instance.valor_com_desconto
+        if valor_com_desconto and valor_com_desconto != oportunidade.valor:
+            oportunidade.valor = valor_com_desconto
+        oportunidade.save(update_fields=['etapa', 'data_fechamento_ganho', 'valor', 'updated_at'])
+
+
 class PropostaSerializer(serializers.ModelSerializer):
     oportunidade_titulo = serializers.CharField(source='oportunidade.titulo', read_only=True)
     lead_nome = serializers.CharField(source='oportunidade.lead.nome', read_only=True)
@@ -64,26 +94,13 @@ class PropostaSerializer(serializers.ModelSerializer):
         return limpar_emitente_se_vazio(attrs)
 
     def update(self, instance, validated_data):
-        """Ao marcar como assinado manualmente, fecha oportunidade como ganha."""
+        """Ao marcar como assinado manualmente, fecha oportunidade e invalida tokens."""
         old_status_assinatura = instance.status_assinatura
         new_status_assinatura = validated_data.get('status_assinatura', old_status_assinatura)
-        
         instance = super().update(instance, validated_data)
-        
-        # Se status_assinatura mudou para 'concluido', fechar oportunidade como ganha
-        if old_status_assinatura != 'concluido' and new_status_assinatura == 'concluido':
-            oportunidade = instance.oportunidade
-            if oportunidade and oportunidade.etapa not in ('closed_won', 'closed_lost'):
-                from django.utils import timezone
-                oportunidade.etapa = 'closed_won'
-                if not oportunidade.data_fechamento_ganho:
-                    oportunidade.data_fechamento_ganho = timezone.now().date()
-                # Atualizar valor da oportunidade para valor com desconto (valor real pago)
-                valor_com_desconto = instance.valor_com_desconto
-                if valor_com_desconto and valor_com_desconto != oportunidade.valor:
-                    oportunidade.valor = valor_com_desconto
-                oportunidade.save(update_fields=['etapa', 'data_fechamento_ganho', 'valor', 'updated_at'])
-        
+        _fechar_oportunidade_ao_concluir_assinatura(
+            instance, old_status_assinatura, new_status_assinatura
+        )
         return instance
 
 
@@ -139,4 +156,13 @@ class ContratoSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         return limpar_emitente_se_vazio(attrs)
+
+    def update(self, instance, validated_data):
+        old_status_assinatura = instance.status_assinatura
+        new_status_assinatura = validated_data.get('status_assinatura', old_status_assinatura)
+        instance = super().update(instance, validated_data)
+        _fechar_oportunidade_ao_concluir_assinatura(
+            instance, old_status_assinatura, new_status_assinatura
+        )
+        return instance
 

@@ -34,7 +34,7 @@ class ContaViewSet(
     VendedorFilterMixin,
     BaseModelViewSet,
 ):
-    queryset = Conta.objects.select_related('vendedor').prefetch_related('leads', 'contatos').all()
+    queryset = Conta.objects.select_related('vendedor').all()
     serializer_class = ContaSerializer
     pagination_class = CRMPagination
     vendedor_filter_field = 'vendedor_id'
@@ -44,7 +44,7 @@ class ContaViewSet(
     def get_queryset(self):
         qs = super().get_queryset()
         qs = self.filter_by_vendedor(qs)
-        qs = qs.select_related('vendedor').prefetch_related('leads', 'contatos')
+        qs = qs.select_related('vendedor')
         tipo = self.request.query_params.get('tipo')
         if tipo:
             if tipo == 'prestadora':
@@ -70,7 +70,7 @@ class LeadViewSet(
     VendedorFilterMixin,
     BaseModelViewSet,
 ):
-    queryset = Lead.objects.select_related('conta', 'vendedor').prefetch_related('oportunidades').all()
+    queryset = Lead.objects.select_related('conta', 'vendedor').all()
     serializer_class = LeadSerializer
     pagination_class = CRMPagination
 
@@ -86,10 +86,12 @@ class LeadViewSet(
 
     def get_queryset(self):
         qs = super().get_queryset()
-        qs = qs.select_related('conta', 'vendedor', 'contato').prefetch_related(
-            'oportunidades',
-            'oportunidades__vendedor',
-        )
+        qs = qs.select_related('conta', 'vendedor', 'contato')
+        if self.action != 'list':
+            qs = qs.prefetch_related(
+                'oportunidades',
+                'oportunidades__vendedor',
+            )
 
         if self.action == 'retrieve':
             from superadmin.models import Loja

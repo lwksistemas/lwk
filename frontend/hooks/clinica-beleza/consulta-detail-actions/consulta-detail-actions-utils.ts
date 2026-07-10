@@ -30,6 +30,11 @@ export function buildConsultaPrintMeta(selected: Consulta): ConsultaPrintMeta {
 }
 
 export function saldoReceberConsulta(c: Consulta): number {
+  // API já calcula saldo_devedor (respeita desconto em valor_total)
+  if (c.valor_restante != null) {
+    const api = Number(c.valor_restante);
+    if (!Number.isNaN(api)) return Math.max(0, api);
+  }
   const total = valorPagamentoConsulta(c);
   const pago = Number(c.valor_pago ?? 0);
   return Math.max(0, total - pago);

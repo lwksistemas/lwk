@@ -249,6 +249,14 @@ def verificar_token_assinatura(token, loja_id=None):
         logger.warning('⚠️ Documento já foi assinado - Assinatura ID: %s', assinatura.id)
         return None, 'Este documento já foi assinado.', loja_id, {'error_code': 'ja_assinado'}
 
+    doc = assinatura.proposta or assinatura.contrato
+    if doc is not None and getattr(doc, 'status_assinatura', '') == 'concluido':
+        logger.warning(
+            '⚠️ Documento já concluído (assinatura manual) - Assinatura ID: %s',
+            assinatura.id,
+        )
+        return None, 'Este documento já foi assinado.', loja_id, {'error_code': 'ja_assinado'}
+
     if assinatura.is_expirado():
         logger.warning('⚠️ Token expirado - Assinatura ID: %s', assinatura.id)
         return None, 'Este link de assinatura expirou.', loja_id, {'error_code': 'expirado'}

@@ -75,7 +75,8 @@ export default function RelatoriosPage() {
         <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
           <li>• <strong>Total de Vendas:</strong> Resumo geral de todas as vendas fechadas no período</li>
           <li>• <strong>Vendas por Vendedor:</strong> Detalhamento individual com valores de comissão</li>
-          <li>• <strong>Comissões:</strong> Relatório específico para cálculo de comissões</li>
+          <li>• <strong>Exportar comissões (PDF):</strong> Relatório pontual para download ou e-mail</li>
+          <li>• <strong>Relatório formal:</strong> Fluxo com aprovação da empresa, assinatura e pagamento</li>
           <li>• Os relatórios incluem apenas oportunidades com status &quot;Fechado ganho&quot;</li>
         </ul>
       </div>

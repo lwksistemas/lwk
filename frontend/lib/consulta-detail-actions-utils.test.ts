@@ -109,21 +109,22 @@ describe("consultaPagamentoUi", () => {
     });
   });
 
-  it("finalizada com saldo mostra Receber (financeiro)", () => {
+  it("mostra Pago quando valor_restante=0 mesmo com desconto (bruto > pago)", () => {
     expect(
       consultaPagamentoUi(
         consulta({
-          status: "COMPLETED",
-          payment_status: "PENDING",
-          valor_pagamento: 100,
-          valor_pago: 0,
+          status: "SCHEDULED",
+          payment_status: "PAID",
+          valor_pagamento: 200,
+          valor_pago: 150,
+          valor_restante: 0,
         }),
       ),
     ).toEqual({
-      mostrarReceber: true,
-      mostrarPago: false,
+      mostrarReceber: false,
+      mostrarPago: true,
       mostrarParcial: false,
-      consultaFinalizada: true,
+      consultaFinalizada: false,
     });
   });
 });

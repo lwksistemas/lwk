@@ -1,4 +1,4 @@
-import apiClient from '@/lib/api-client';
+import { fetchAllPaginatedResults } from '@/lib/crm-utils';
 
 export type TipoFinanceiro = 'receita' | 'despesa';
 
@@ -64,14 +64,14 @@ export async function fetchLancamentosPorTipo(
   dataInicio: string,
   dataFim: string,
 ): Promise<LancamentoFinanceiro[]> {
-  const params = new URLSearchParams({ tipo, page_size: '500', periodo });
-  if (vendedorFiltro) params.set('vendedor_id', vendedorFiltro);
+  const params: Record<string, string | number> = { tipo, periodo };
+  if (vendedorFiltro) params.vendedor_id = vendedorFiltro;
   if (periodo === 'personalizado' && dataInicio && dataFim) {
-    params.set('data_inicio', dataInicio);
-    params.set('data_fim', dataFim);
+    params.data_inicio = dataInicio;
+    params.data_fim = dataFim;
   }
-  const { data } = await apiClient.get<{ results?: LancamentoFinanceiro[] } | LancamentoFinanceiro[]>(
-    `crm-vendas/financeiro-lancamentos/?${params}`,
+  return fetchAllPaginatedResults<LancamentoFinanceiro>(
+    '/crm-vendas/financeiro-lancamentos/',
+    params,
   );
-  return Array.isArray(data) ? data : data.results ?? [];
 }

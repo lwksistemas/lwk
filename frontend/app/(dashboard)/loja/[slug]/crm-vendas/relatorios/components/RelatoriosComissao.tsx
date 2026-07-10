@@ -49,7 +49,7 @@ export function RelatoriosComissao({ empresasPrestadoras, vendedores, isVendedor
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <FileCheck size={20} className="text-[#0176d3]" />
-          Relatórios de Comissão
+          Relatório formal (aprovação + pagamento)
         </h2>
         <div className="flex gap-2">
           <button

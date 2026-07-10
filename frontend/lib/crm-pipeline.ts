@@ -56,8 +56,12 @@ export function dataReferenciaOportunidade(op: Oportunidade): string {
 export function loadOportunidades(
   setOportunidades: (o: Oportunidade[]) => void,
   setError: (e: string | null) => void,
+  filters: Record<string, string | number> = {},
 ) {
-  fetchAllPaginatedResults<Oportunidade>('/crm-vendas/oportunidades/', { _t: Date.now() })
+  return fetchAllPaginatedResults<Oportunidade>('/crm-vendas/oportunidades/', {
+    _t: Date.now(),
+    ...filters,
+  })
     .then((items) => {
       setOportunidades(items);
       setError(null);

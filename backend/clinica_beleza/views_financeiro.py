@@ -94,6 +94,17 @@ class PaymentDetailView(GetObjectMixin, APIView):
         obj, err = self.object_or_404(pk)
         if err:
             return err
+        consulta = getattr(getattr(obj, 'appointment', None), 'consulta', None)
+        if consulta is not None and consulta.status != 'COMPLETED':
+            return Response(
+                {
+                    'error': (
+                        'Pagamento de consulta não finalizada só pode ser alterado '
+                        'pelo Receber da consulta.'
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer = PaymentSerializer(obj, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -184,7 +195,7 @@ class PaymentParcelaView(APIView):
             except ValueError as e:
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
             parcela = payment.parcelas.order_by('-id').first()
-        else:
+        elif consulta and consulta.status == 'COMPLETED':
             parcela = PaymentParcela.objects.create(
                 payment=payment,
                 valor=valor,
@@ -203,6 +214,16 @@ class PaymentParcelaView(APIView):
                 payment.status = 'PARTIAL'
                 payment.amount = total_pago
             payment.save(update_fields=['status', 'amount', 'payment_date', 'updated_at'])
+        else:
+            return Response(
+                {
+                    'error': (
+                        'Não é possível registrar parcela neste pagamento. '
+                        'Use o Receber da consulta ou finalize o atendimento.'
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response({
             'parcela': PaymentParcelaSerializer(parcela).data if parcela else None,
@@ -251,13 +272,10 @@ class ReciboPdfPublicView(APIView):
         if not cached:
             return Response({'error': 'Recibo expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Token amarrado ao payment id (dict) ou bytes legados
-        if isinstance(cached, dict):
-            if cached.get('payment_id') != pk:
-                return Response({'error': 'Recibo expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
-            pdf_bytes = cached.get('pdf')
-        else:
-            pdf_bytes = cached
+        # Token amarrado ao payment id — cache legado (só bytes) é rejeitado
+        if not isinstance(cached, dict) or cached.get('payment_id') != pk:
+            return Response({'error': 'Recibo expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
+        pdf_bytes = cached.get('pdf')
         if not pdf_bytes:
             return Response({'error': 'Recibo expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
 

@@ -30,7 +30,7 @@ interface Props {
 const TIPOS = [
   { key: 'vendas_total', label: 'Total de Vendas', desc: 'Todos os vendedores', icon: DollarSign, adminOnly: true },
   { key: 'vendas_vendedor', label: 'Vendas por Vendedor', desc: 'Com comissões', icon: Users, adminOnly: false },
-  { key: 'comissoes', label: 'Apenas Comissões', desc: 'Detalhamento completo', icon: TrendingUp, adminOnly: false },
+  { key: 'comissoes', label: 'Exportar comissões (PDF)', desc: 'Relatório pontual para download/e-mail', icon: TrendingUp, adminOnly: false },
 ];
 
 export function RelatorioForm({ tipoRelatorio, periodo, dataInicio, dataFim, vendedorSelecionado, vendedores, empresasPrestadoras, empresaPrestadoraSelecionada, isVendedor, gerando, loading, onTipoChange, onPeriodoChange, onDataInicioChange, onDataFimChange, onVendedorChange, onEmpresaPrestadoraChange, onGerar }: Props) {

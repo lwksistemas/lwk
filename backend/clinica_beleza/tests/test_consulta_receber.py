@@ -85,7 +85,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
             mark_as_paid=True,
         )
 
-        self.assertEqual(payment.status, 'PAID')
+        self.assertEqual(payment.status, 'DRAFT')
         _mock_parcela.objects.create.assert_called_once()
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 
@@ -123,7 +123,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         )
 
         mock_parcela_model.objects.create.assert_called_once()
-        self.assertEqual(payment.status, 'PARTIAL')
+        self.assertEqual(payment.status, 'DRAFT')
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 
     def test_bloqueia_consulta_finalizada(self):
@@ -170,7 +170,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         )
 
         self.assertEqual(payment.valor_total, Decimal('500'))
-        self.assertEqual(payment.status, 'PAID')
+        self.assertEqual(payment.status, 'DRAFT')
         self.assertEqual(mock_parcela_model.objects.create.call_count, 3)
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 

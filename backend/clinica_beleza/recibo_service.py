@@ -32,6 +32,17 @@ def enviar_recibo_pagamento(payment, *, canal: str) -> tuple[bool, str]:
     return False, f'Canal desconhecido: {canal}'
 
 
+def _formatar_data_recibo(dt) -> str:
+    """Formata data/hora do recibo no fuso America/Sao_Paulo (evita UTC no PDF)."""
+    if not dt:
+        return '—'
+    from django.utils import timezone as dj_tz
+
+    if dj_tz.is_aware(dt):
+        dt = dj_tz.localtime(dt)
+    return dt.strftime('%d/%m/%Y %H:%M')
+
+
 def _obter_dados_contexto(payment, patient, appointment) -> dict:
     """Obtém dados completos para o recibo."""
     from superadmin.models import Loja
@@ -79,10 +90,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
             else payment.payment_method
         ),
         'formas_pagamento': _listar_formas_pagamento(payment),
-        'data': (
-            payment.payment_date.strftime('%d/%m/%Y %H:%M')
-            if payment.payment_date else '—'
-        ),
+        'data': _formatar_data_recibo(payment.payment_date),
     }
 
 

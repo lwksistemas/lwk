@@ -559,7 +559,14 @@ function gerarHtmlRecibo(params: {
   lojaData: { nome?: string; cpf_cnpj?: string; endereco?: string; telefone?: string; email?: string };
 }): string {
   const { consulta, valorPago, desconto, entradas, lojaData } = params;
-  const dataHora = new Date().toLocaleString("pt-BR");
+  const dataHora = new Date().toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const valorConsulta = Number(consulta.valor_consulta ?? 0);
   const valorProcs = Number(consulta.valor_procedimentos ?? 0);
   const totalGeral = valorConsulta + valorProcs;

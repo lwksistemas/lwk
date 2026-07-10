@@ -10,13 +10,13 @@ import { CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
 import { useToast } from '@/components/ui/Toast';
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import PropostaFormContent from '@/components/crm-vendas/PropostaFormContent';
-import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
-import { EMPTY_FORM_PROPOSTA } from '@/components/crm-vendas/modals/ModalPropostaForm';
-import { emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
 import type {
+  FormDataProposta,
   CrmOportunidadeItem,
   CrmPropostaTemplate,
 } from '@/lib/crm-proposta-form-types';
+import { EMPTY_FORM_PROPOSTA } from '@/lib/crm-proposta-form-types';
+import { emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
 
 export default function NovaPropostaPage() {
   const toast = useToast();

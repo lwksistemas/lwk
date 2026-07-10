@@ -1,4 +1,4 @@
-import type { LojaInfo } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type { LojaInfo } from '@/lib/crm-loja-types';
 
 export interface EmitenteLojaFields {
   emitente_personalizado: boolean;

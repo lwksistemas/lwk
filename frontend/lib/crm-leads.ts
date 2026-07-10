@@ -1,16 +1,13 @@
 import { fetchAllPaginatedResults, fetchCrmPaginatedPage, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { formatDate } from '@/lib/financeiro-helpers';
 import type { Lead } from '@/components/crm-vendas/LeadsTable';
 
 export const LEADS_PAGE_SIZE = 50;
 
 export function formatarDataLead(s: string) {
   if (!s) return '–';
-  try {
-    const d = new Date(s);
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  } catch {
-    return s;
-  }
+  const formatted = formatDate(s, '');
+  return formatted || s;
 }
 
 function buildLeadsCsv(leads: Lead[]) {
@@ -60,10 +57,6 @@ export function loadLeadsPage(
       setError(getCrmApiErrorDetail(err, 'Erro ao carregar leads.'));
     })
     .finally(() => setLoading(false));
-}
-
-export function exportLeadsCsv(leads: Lead[]) {
-  downloadCsv(buildLeadsCsv(leads), `leads_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
 export async function exportAllLeadsCsv(busca = ''): Promise<number> {

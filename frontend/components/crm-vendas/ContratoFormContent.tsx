@@ -1,6 +1,6 @@
 'use client';
 
-import type { LojaInfo, LeadInfo } from './modals/ModalPropostaForm';
+import type { LojaInfo, LeadInfo } from '@/lib/crm-loja-types';
 import { CrmClienteBlock } from '@/components/crm-vendas/CrmLojaClienteBlocks';
 import { CrmEmitenteLojaSection } from '@/components/crm-vendas/CrmEmitenteLojaSection';
 import CrmOportunidadeVinculadaReadonly from '@/components/crm-vendas/CrmOportunidadeVinculadaReadonly';
@@ -17,7 +17,7 @@ import {
   crmFormSectionClass,
   crmFormSectionTitleClass,
 } from '@/lib/crm-form-styles';
-import type { FormDataContrato } from './modals/ModalContratoForm';
+import type { FormDataContrato } from '@/lib/crm-contrato-form-types';
 
 export interface OportunidadeContratoOption {
   id: number;

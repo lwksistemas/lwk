@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from core.views import BaseModelViewSet
 from .mixins import CRMSchemaRecoveryMixin, VendedorFilterMixin, CrmGranularPermissionMixin
 from .mixins_assinatura import AssinaturaDigitalMixin
-from .mixins_documento import DocumentoQuerysetMixin, EnviarClienteMixin, TemplateViewSetMixin
+from .mixins_documento import DocumentoQuerysetMixin, TemplateViewSetMixin
 from .models import Contrato, ContratoTemplate, Proposta, PropostaTemplate
 from .serializers import (
     ContratoSerializer,
@@ -23,7 +23,6 @@ class PropostaViewSet(
     CRMSchemaRecoveryMixin,
     CrmGranularPermissionMixin,
     AssinaturaDigitalMixin,
-    EnviarClienteMixin,
     DocumentoQuerysetMixin,
     VendedorFilterMixin,
     BaseModelViewSet,
@@ -37,7 +36,6 @@ class PropostaViewSet(
 
     assinatura_doc_label = 'Proposta'
     assinatura_cache_key = 'propostas'
-    enviar_cliente_label = 'Proposta'
     crm_permission_model = 'proposta'
 
     @action(detail=True, methods=['post'])
@@ -150,7 +148,6 @@ class ContratoViewSet(
     CRMSchemaRecoveryMixin,
     CrmGranularPermissionMixin,
     AssinaturaDigitalMixin,
-    EnviarClienteMixin,
     DocumentoQuerysetMixin,
     BaseModelViewSet,
 ):
@@ -160,7 +157,6 @@ class ContratoViewSet(
 
     assinatura_doc_label = 'Contrato'
     assinatura_cache_key = 'contratos'
-    enviar_cliente_label = 'Contrato'
     crm_permission_model = 'contrato'
 
     @action(detail=True, methods=['post'])

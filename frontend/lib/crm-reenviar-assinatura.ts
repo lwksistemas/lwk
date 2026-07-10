@@ -36,15 +36,3 @@ export async function executarReenvioAssinatura(
 export function mensagemErroReenvioAssinatura(err: unknown): string {
   return getCrmApiErrorDetail(err, 'Erro ao reenviar assinatura.');
 }
-
-/** @deprecated Use deveConfirmarReenvioAssinatura + modal + executarReenvioAssinatura */
-export async function reenviarAssinaturaAposEdicaoSeNecessario(
-  tipo: CrmTipoDocumentoAssinatura,
-  documentoId: number,
-  statusAssinaturaAntes: string | undefined,
-): Promise<void> {
-  if (!deveConfirmarReenvioAssinatura(statusAssinaturaAntes)) return;
-  const textoConfirm = textoConfirmacaoReenvioAssinatura(tipo, statusAssinaturaAntes);
-  if (!window.confirm(textoConfirm)) return;
-  await executarReenvioAssinatura(tipo, documentoId);
-}

@@ -9,10 +9,6 @@ export interface CrmContaExportRow {
   telefone?: string;
 }
 
-export function exportContasCsv(contas: CrmContaExportRow[]) {
-  downloadContasCsv(contas, `contas_${new Date().toISOString().slice(0, 10)}.csv`);
-}
-
 function downloadContasCsv(contas: CrmContaExportRow[], filename: string) {
   const headers = ['Nome', 'CNPJ', 'Razão Social', 'Segmento', 'Email', 'Telefone'];
   const rows = contas.map((c) => [

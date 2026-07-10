@@ -8,10 +8,6 @@ from .views_crm_me_dashboard import (  # noqa: F401
     dashboard_data,
 )
 from .views_crm_whatsapp_login import (  # noqa: F401
-    WhatsAppConfigView,
-    CRMWhatsAppConnectionStatusView,
-    CRMWhatsAppConnectView,
-    CRMWhatsAppDisconnectView,
     LoginConfigView,
 )
 from .views_crm_busca import crm_busca  # noqa: F401

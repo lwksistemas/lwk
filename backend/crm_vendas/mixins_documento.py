@@ -4,7 +4,6 @@ Refatoração #2 e #3 — DRY.
 """
 import logging
 
-from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -47,41 +46,6 @@ class DocumentoQuerysetMixin:
         elif status:
             qs = qs.filter(status=status)
         return qs
-
-
-class EnviarClienteMixin:
-    """
-    Mixin para action enviar_cliente (Proposta e Contrato).
-    """
-    enviar_cliente_label = 'Documento'
-
-    @action(detail=True, methods=['post'])
-    def enviar_cliente(self, request, pk=None):
-        """Envia documento ao cliente por email ou WhatsApp."""
-        from .views_enviar_cliente import dispatch_enviar_proposta_contrato_cliente
-
-        instance = self.get_object()
-        canal = (request.data.get('canal') or '').strip().lower()
-        if canal not in ('email', 'whatsapp'):
-            return Response(
-                {'detail': 'Informe o canal: email ou whatsapp'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        ok, err, queued = dispatch_enviar_proposta_contrato_cliente(instance, canal, request)
-        if ok and queued:
-            return Response(
-                {
-                    'message': (
-                        f'{self.enviar_cliente_label} enfileirado para envio por {canal}. '
-                        'O processamento ocorre em background.'
-                    ),
-                    'queued': True,
-                },
-                status=status.HTTP_202_ACCEPTED,
-            )
-        if ok:
-            return Response({'message': f'{self.enviar_cliente_label} enviado ao cliente por {canal} com sucesso.'})
-        return Response({'detail': err or 'Erro ao enviar.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TemplateViewSetMixin:

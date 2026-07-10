@@ -12,7 +12,7 @@ import {
   User,
 } from 'lucide-react';
 import { CrmPagePanel, CRM_ACCENT } from '@/components/crm-vendas/CrmPagePanel';
-import type { FormDataLead } from '@/components/crm-vendas/modals/ModalLeadForm';
+import type { FormDataLead } from '@/lib/crm-lead-form-types';
 import { formatTelefone, toUpperCase } from '@/lib/format-br';
 
 const UF_LIST = [

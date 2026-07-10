@@ -1,6 +1,6 @@
 'use client';
 
-import type { LeadInfo, LojaInfo } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type { LeadInfo } from '@/lib/crm-loja-types';
 
 function formatEnderecoCliente(leadInfo: LeadInfo): string {
   const endereco = leadInfo.conta_info || leadInfo;
@@ -24,74 +24,19 @@ function nomeClienteExibicao(leadInfo: LeadInfo): string {
   );
 }
 
-interface Props {
-  lojaInfo: LojaInfo | null;
-  leadInfo: LeadInfo | null;
-  /** Texto quando oportunidade ainda não foi selecionada */
-  oportunidadeSelecionada?: boolean;
-  labelClass?: string;
-  titleClass?: string;
-  /** Estilo compacto (modal legado) */
-  compact?: boolean;
-}
-
-export function CrmLojaBlock({
-  lojaInfo,
-  labelClass = 'block text-xs text-gray-500 dark:text-gray-400 mb-0.5',
-  titleClass = 'text-sm font-medium text-gray-700 dark:text-gray-300',
-  compact = false,
-}: Pick<Props, 'lojaInfo' | 'labelClass' | 'titleClass' | 'compact'>) {
-  const valueCls = compact ? '' : 'text-gray-800 dark:text-gray-200';
-  const nameCls = compact ? 'font-medium' : 'font-medium text-gray-900 dark:text-white';
-
-  return (
-    <>
-      <h3 className={titleClass}>Dados da Loja</h3>
-      {lojaInfo ? (
-        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm ${compact ? '' : ''}`}>
-          <div className="sm:col-span-2">
-            <span className={labelClass}>Nome da loja</span>
-            <p className={nameCls}>{lojaInfo.nome}</p>
-          </div>
-          {lojaInfo.endereco && (
-            <div className="sm:col-span-2">
-              <span className={labelClass}>Endereço da loja</span>
-              <p className={valueCls}>{lojaInfo.endereco}</p>
-            </div>
-          )}
-          {lojaInfo.cpf_cnpj && (
-            <div>
-              <span className={labelClass}>CPF ou CNPJ da loja</span>
-              <p className={valueCls}>{lojaInfo.cpf_cnpj}</p>
-            </div>
-          )}
-          {lojaInfo.admin_nome && (
-            <div>
-              <span className={labelClass}>Nome do administrador</span>
-              <p className={valueCls}>{lojaInfo.admin_nome}</p>
-            </div>
-          )}
-          {lojaInfo.admin_email && (
-            <div className="sm:col-span-2">
-              <span className={labelClass}>Email do administrador</span>
-              <p className={valueCls}>{lojaInfo.admin_email}</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <p className="text-xs text-gray-500">Carregando...</p>
-      )}
-    </>
-  );
-}
-
 export function CrmClienteBlock({
   leadInfo,
   oportunidadeSelecionada = false,
   labelClass = 'block text-xs text-gray-500 dark:text-gray-400 mb-0.5',
   titleClass = 'text-sm font-medium text-gray-700 dark:text-gray-300',
   compact = false,
-}: Pick<Props, 'leadInfo' | 'oportunidadeSelecionada' | 'labelClass' | 'titleClass' | 'compact'>) {
+}: {
+  leadInfo: LeadInfo | null;
+  oportunidadeSelecionada?: boolean;
+  labelClass?: string;
+  titleClass?: string;
+  compact?: boolean;
+}) {
   const valueCls = compact ? '' : 'text-gray-800 dark:text-gray-200';
   const nameCls = compact ? 'font-medium' : 'font-medium text-gray-900 dark:text-white';
 
@@ -146,26 +91,6 @@ export function CrmClienteBlock({
       ) : (
         <p className="text-xs text-gray-500">Selecione uma oportunidade para ver os dados do cliente.</p>
       )}
-    </>
-  );
-}
-
-export default function CrmLojaClienteBlocks(props: Props) {
-  return (
-    <>
-      <CrmLojaBlock
-        lojaInfo={props.lojaInfo}
-        labelClass={props.labelClass}
-        titleClass={props.titleClass}
-        compact={props.compact}
-      />
-      <CrmClienteBlock
-        leadInfo={props.leadInfo}
-        oportunidadeSelecionada={props.oportunidadeSelecionada}
-        labelClass={props.labelClass}
-        titleClass={props.titleClass}
-        compact={props.compact}
-      />
     </>
   );
 }

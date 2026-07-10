@@ -1,16 +1,12 @@
 """ViewSets de cadastros CRM: contas, leads e contatos."""
 import logging
 
-from rest_framework.decorators import action
-from rest_framework.response import Response
-
 from core.views import BaseModelViewSet
 from tenants.middleware import get_current_loja_id
 from .cache import CRMCacheManager
 from .mixins import CacheInvalidationMixin, CrmGranularPermissionMixin, CRMSchemaRecoveryMixin, VendedorAutoAssignCreateMixin, VendedorFilterMixin
-from .models import Atividade, Conta, Contato, Lead
+from .models import Conta, Contato, Lead
 from .serializers import (
-    AtividadeListSerializer,
     ContaSerializer,
     ContatoSerializer,
     LeadListSerializer,
@@ -63,13 +59,6 @@ class ContaViewSet(
         )
 
     vendedor_create_entity_label = 'conta'
-
-    @action(detail=True, methods=['get'])
-    def atividades(self, request, pk=None):
-        conta = self.get_object()
-        atividades = Atividade.objects.filter(conta=conta).order_by('-data')[:50]
-        serializer = AtividadeListSerializer(atividades, many=True)
-        return Response(serializer.data)
 
 
 class LeadViewSet(

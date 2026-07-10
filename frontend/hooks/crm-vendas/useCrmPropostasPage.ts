@@ -11,9 +11,6 @@ import { useCrmDocumentoActions } from '@/hooks/useCrmDocumentoActions';
 import { CRM_PROPOSTA_STATUS_LABEL as STATUS_LABEL } from '@/lib/crm-constants';
 import { propostaOcultaColunaAssinatura } from '@/lib/crm-propostas-helpers';
 
-export type { PropostasConfirmAction } from '@/lib/crm-propostas-helpers';
-export { propostaOcultaColunaAssinatura } from '@/lib/crm-propostas-helpers';
-
 export interface CrmProposta {
   id: number;
   oportunidade: number;

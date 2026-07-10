@@ -67,7 +67,6 @@ def is_store_api_path(path: str) -> bool:
     if path.startswith('/api/crm-vendas/'):
         public = (
             '/api/crm-vendas/webhooks/',
-            '/api/crm-vendas/documento-pdf/',
             '/api/crm-vendas/assinar/',
             '/api/crm-vendas/relatorio-comissao/',
         )

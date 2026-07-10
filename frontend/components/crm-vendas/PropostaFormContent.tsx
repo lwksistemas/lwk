@@ -1,6 +1,7 @@
 'use client';
 
-import type { LojaInfo, LeadInfo, OportunidadeItem, FormDataProposta } from './modals/ModalPropostaForm';
+import type { LojaInfo, LeadInfo } from '@/lib/crm-loja-types';
+import type { OportunidadeItem, FormDataProposta } from '@/lib/crm-proposta-form-types';
 import BuscarOportunidadeInput from '@/components/crm-vendas/BuscarOportunidadeInput';
 import CrmOportunidadeVinculadaReadonly from '@/components/crm-vendas/CrmOportunidadeVinculadaReadonly';
 import { CrmClienteBlock } from '@/components/crm-vendas/CrmLojaClienteBlocks';

@@ -22,10 +22,13 @@ import { useToast } from '@/components/ui/Toast';
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
 import PropostaFormContent from '@/components/crm-vendas/PropostaFormContent';
-import type { FormDataProposta } from '@/components/crm-vendas/modals/ModalPropostaForm';
-import { EMPTY_FORM_PROPOSTA } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type {
+  FormDataProposta,
+  CrmOportunidadeItem,
+  CrmPropostaTemplate,
+} from '@/lib/crm-proposta-form-types';
+import { EMPTY_FORM_PROPOSTA } from '@/lib/crm-proposta-form-types';
 import { emitenteFieldsFromApi, emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
-import type { CrmOportunidadeItem, CrmPropostaTemplate } from '@/lib/crm-proposta-form-types';
 
 interface Proposta {
   id: number;

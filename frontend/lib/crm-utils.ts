@@ -4,6 +4,8 @@
  */
 import apiClient from '@/lib/api-client';
 import { formatApiErrorBody } from '@/lib/api-errors';
+import { downloadBlobAsFile } from '@/lib/download-blob';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 import { applyTelefoneInternacionalPayload } from '@/lib/format-br';
 import type { CrmPropostaOportunidadeOption } from '@/lib/crm-proposta-form-types';
 
@@ -164,10 +166,6 @@ export function getCrmApiErrorDetail(err: unknown, fallback: string): string {
   return fallback;
 }
 
-import { downloadBlobAsFile } from '@/lib/download-blob';
-
-export { downloadBlobAsFile };
-
 /** Mensagem de sucesso após enviar documento ao cliente por canal. */
 export function crmMensagemEnvioCanalSucesso(canal: 'email' | 'whatsapp'): string {
   return `Enviado por ${canal === 'email' ? 'e-mail' : 'WhatsApp'} com sucesso!`;
@@ -325,13 +323,14 @@ export function formatCrmBrl(
   if (valor == null || valor === '') return '';
   const n = typeof valor === 'string' ? parseFloat(valor) : valor;
   if (Number.isNaN(n)) return String(valor);
-  return n.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    ...(options?.maximumFractionDigits != null
-      ? { maximumFractionDigits: options.maximumFractionDigits }
-      : {}),
-  });
+  if (options?.maximumFractionDigits != null) {
+    return n.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      maximumFractionDigits: options.maximumFractionDigits,
+    });
+  }
+  return formatCurrency(n);
 }
 
 /** Valores grandes no funil/dashboard (ex.: R$ 1,2M, R$ 350K). */

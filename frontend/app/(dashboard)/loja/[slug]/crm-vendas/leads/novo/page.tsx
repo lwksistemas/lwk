@@ -9,7 +9,7 @@ import { formatCpfCnpj } from '@/lib/consulta-cnpj';
 import { buildCrmLeadPayload } from '@/lib/crm-utils';
 import { formatCep } from '@/lib/format-br';
 import { LeadCadastroForm } from '@/components/crm-vendas/LeadCadastroForm';
-import { EMPTY_FORM_LEAD } from '@/components/crm-vendas/modals/ModalLeadForm';
+import { EMPTY_FORM_LEAD } from '@/lib/crm-lead-form-types';
 import { useCrmCepCnpjLookup } from '@/hooks/crm-vendas/useCrmCepCnpjLookup';
 
 export default function NovoLeadPage() {

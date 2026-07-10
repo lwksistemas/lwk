@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
-import type { LojaInfo } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type { LojaInfo } from '@/lib/crm-loja-types';
 
 /** Dados públicos da loja (slug) para modais de proposta/contrato CRM. */
 export function useCrmLojaInfoPublica(slug: string) {

@@ -1,6 +1,6 @@
 'use client';
 
-import type { OportunidadeItem } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type { OportunidadeItem } from '@/lib/crm-proposta-form-types';
 import { formatCrmBrl } from '@/lib/crm-utils';
 
 const RECORRENCIA_LABEL: Record<string, string> = {

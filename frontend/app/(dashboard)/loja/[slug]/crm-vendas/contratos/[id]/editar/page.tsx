@@ -17,8 +17,8 @@ import { useToast } from '@/components/ui/Toast';
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
 import ContratoFormContent, { type OportunidadeContratoOption } from '@/components/crm-vendas/ContratoFormContent';
-import type { FormDataContrato } from '@/components/crm-vendas/modals/ModalContratoForm';
-import { EMPTY_FORM_CONTRATO } from '@/components/crm-vendas/modals/ModalContratoForm';
+import type { FormDataContrato } from '@/lib/crm-contrato-form-types';
+import { EMPTY_FORM_CONTRATO } from '@/lib/crm-contrato-form-types';
 import { emitenteFieldsFromApi, emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
 
 interface Contrato {

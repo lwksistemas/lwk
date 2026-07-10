@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { LojaInfo } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type { LojaInfo } from '@/lib/crm-loja-types';
 import {
   type EmitenteLojaFields,
   lojaInfoParaEmitente,

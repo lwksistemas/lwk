@@ -1,6 +1,6 @@
 import { useState, useCallback, type Dispatch, type SetStateAction } from 'react';
 import apiClient from '@/lib/api-client';
-import type { LeadInfo } from '@/components/crm-vendas/modals/ModalPropostaForm';
+import type { LeadInfo } from '@/lib/crm-loja-types';
 
 /** Campos de nome para assinatura presentes em FormDataProposta / FormDataContrato. */
 type FormComNomesAssinatura = {

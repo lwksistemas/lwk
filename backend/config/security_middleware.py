@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 # Rotas CRM Vendas acessíveis sem JWT de loja (token na URL, webhook, etc.)
 _CRM_VENDAS_PUBLIC_PREFIXES = (
     '/api/crm-vendas/webhooks/',
-    '/api/crm-vendas/documento-pdf/',
     '/api/crm-vendas/assinar/',
     '/api/crm-vendas/relatorio-comissao/',
 )

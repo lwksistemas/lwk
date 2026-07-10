@@ -38,13 +38,13 @@ export function getDefaultSidebarCollapsed(): boolean {
 }
 
 export function getDesktopSidebarClassName(collapsed: boolean): string {
-  return `flex flex-col shrink-0 sticky top-0 h-screen z-20 overflow-hidden bg-[#f0eaec] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${
+  return `flex flex-col shrink-0 sticky top-0 h-screen z-20 overflow-hidden bg-[var(--cb-sidebar-bg,#f0eaec)] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${
     collapsed ? "w-16" : "w-64"
   }`;
 }
 
 export function getMobileDrawerClassName(open: boolean): string {
-  return `lg:hidden fixed inset-y-0 left-0 z-[100] w-[min(18rem,85vw)] max-w-xs flex flex-col bg-[#f0eaec] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl transform transition-transform duration-200 ease-out ${
+  return `lg:hidden fixed inset-y-0 left-0 z-[100] w-[min(18rem,85vw)] max-w-xs flex flex-col bg-[var(--cb-sidebar-bg,#f0eaec)] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-xl transform transition-transform duration-200 ease-out ${
     open ? "translate-x-0" : "-translate-x-full pointer-events-none"
   }`;
 }

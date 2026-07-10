@@ -38,7 +38,7 @@ export function ClinicaBelezaShell({
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f7f2f4] dark:bg-gray-950">
+    <div className="flex min-h-screen bg-[var(--cb-page-bg,#f7f2f4)] dark:bg-gray-950">
       <aside className={`hidden lg:flex ${getDesktopSidebarClassName(sidebarCollapsed)}`}>
         <ClinicaBelezaSidebarContent {...sidebarProps} />
       </aside>

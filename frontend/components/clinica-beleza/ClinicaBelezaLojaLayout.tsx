@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 import { ClinicaBelezaShell } from '@/components/clinica-beleza/ClinicaBelezaShell';
+import { ClinicaBelezaThemeProvider } from '@/components/clinica-beleza/ClinicaBelezaThemeContext';
 import { CLINICA_BELEZA_PRIMARY } from '@/components/clinica-beleza/clinica-beleza-nav';
 import type { LojaInfo } from '@/types/dashboard';
 
@@ -85,8 +86,14 @@ export function ClinicaBelezaLojaLayout({
   }
 
   return (
-    <ClinicaBelezaShell loja={loja} onLogout={handleLogout} mainClassName={mainClassName}>
-      {children}
-    </ClinicaBelezaShell>
+    <ClinicaBelezaThemeProvider
+      corPrimaria={loja.cor_primaria}
+      corSecundaria={loja.cor_secundaria}
+      agendaStatusColors={loja.agenda_status_colors}
+    >
+      <ClinicaBelezaShell loja={loja} onLogout={handleLogout} mainClassName={mainClassName}>
+        {children}
+      </ClinicaBelezaShell>
+    </ClinicaBelezaThemeProvider>
   );
 }

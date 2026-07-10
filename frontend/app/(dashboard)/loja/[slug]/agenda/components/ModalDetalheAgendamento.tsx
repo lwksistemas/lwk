@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { X, MessageCircle } from "lucide-react";
 import {
-  CLINICA_AGENDA_STATUS_COLORS,
+  getAgendaStatusColor,
   getAgendaStatusLabel,
   getAgendaStatusOpcoesModal,
   normalizeAgendaStatus,
 } from "@/lib/clinica-beleza-constants";
+import { useAgendaStatusColors } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
 import { buildConsultaDetailHref } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 
@@ -38,6 +39,7 @@ export function ModalDetalheAgendamento({
 }: ModalDetalheAgendamentoProps) {
   const params = useParams();
   const slug = params.slug as string;
+  const statusColors = useAgendaStatusColors();
 
   if (!open || !event) return null;
 
@@ -45,6 +47,7 @@ export function ModalDetalheAgendamento({
   const statusSomenteLeitura = status === "IN_PROGRESS" || status === "COMPLETED";
   const statusLabel = getAgendaStatusLabel(status);
   const opcoesStatus = getAgendaStatusOpcoesModal(status);
+  const coresStatus = getAgendaStatusColor(status, statusColors);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -100,8 +103,8 @@ export function ModalDetalheAgendamento({
                 <span
                   className="shrink-0 w-3 h-3 rounded-full"
                   style={{
-                    backgroundColor: CLINICA_AGENDA_STATUS_COLORS[status]?.bg ?? "#a855f7",
-                    border: `2px solid ${CLINICA_AGENDA_STATUS_COLORS[status]?.border ?? "#9333ea"}`,
+                    backgroundColor: coresStatus.bg,
+                    border: `2px solid ${coresStatus.border}`,
                   }}
                   aria-hidden
                 />
@@ -114,8 +117,8 @@ export function ModalDetalheAgendamento({
                 <span
                   className="shrink-0 w-3 h-3 rounded-full border-2 border-gray-900/10"
                   style={{
-                    backgroundColor: CLINICA_AGENDA_STATUS_COLORS[status]?.bg ?? "#a855f7",
-                    borderColor: CLINICA_AGENDA_STATUS_COLORS[status]?.border ?? "#9333ea",
+                    backgroundColor: coresStatus.bg,
+                    borderColor: coresStatus.border,
                   }}
                   aria-hidden
                 />

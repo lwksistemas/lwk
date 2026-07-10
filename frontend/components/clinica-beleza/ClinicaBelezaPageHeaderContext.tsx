@@ -12,7 +12,7 @@ import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, LogOut, Plus, type LucideIcon } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
-import { CLINICA_BELEZA_PRIMARY } from './clinica-beleza-nav';
+import { useClinicaBelezaTheme } from './ClinicaBelezaThemeContext';
 import { OfflineIndicator } from './OfflineIndicator';
 
 type PortalTarget = HTMLElement | null;
@@ -132,6 +132,7 @@ export function ClinicaBelezaStandardPageHeader({
   const params = useParams();
   const slug = params.slug as string;
   const shellActions = useClinicaBelezaShellActions();
+  const { primary } = useClinicaBelezaTheme();
 
   const handleBack = () => {
     if (onBack) {
@@ -163,7 +164,7 @@ export function ClinicaBelezaStandardPageHeader({
           type="button"
           onClick={onNew}
           className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-white rounded-lg hover:opacity-90 text-xs sm:text-sm font-medium"
-          style={{ backgroundColor: CLINICA_BELEZA_PRIMARY }}
+          style={{ backgroundColor: primary }}
         >
           <Plus className="w-4 h-4 shrink-0" />
           <span className="hidden sm:inline">{newLabel}</span>
@@ -202,9 +203,9 @@ export function ClinicaBelezaStandardPageHeader({
         {Icon && (
           <div
             className="hidden sm:flex w-9 h-9 rounded-lg items-center justify-center shrink-0"
-            style={{ backgroundColor: `${CLINICA_BELEZA_PRIMARY}18` }}
+            style={{ backgroundColor: `${primary}18` }}
           >
-            <Icon className="w-4 h-4" style={{ color: CLINICA_BELEZA_PRIMARY }} />
+            <Icon className="w-4 h-4" style={{ color: primary }} />
           </div>
         )}
         {leadingContent}

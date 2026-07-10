@@ -1,6 +1,8 @@
 import {
   CLINICA_AGENDA_BLOQUEIO_COLORS,
   CLINICA_AGENDA_STATUS_COLORS,
+  getAgendaStatusColor,
+  type AgendaStatusColorMap,
 } from "@/lib/clinica-beleza-constants";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { BloqueioHorario } from "@/lib/clinica-beleza-entities";
@@ -16,9 +18,10 @@ import { intervalosEventsFromHorarios } from "@/lib/clinica-beleza-work-hours";
 export function formatarAgendaEvento(
   e: Record<string, unknown>,
   comRestricaoExpediente: boolean,
+  statusColors: AgendaStatusColorMap = CLINICA_AGENDA_STATUS_COLORS,
 ): AgendaEventData {
   const status = String(e.status ?? "");
-  const cores = CLINICA_AGENDA_STATUS_COLORS[status] || { bg: "#a855f7", border: "#9333ea" };
+  const cores = getAgendaStatusColor(status, statusColors);
   const titulo =
     [e.patient_name, e.procedure_name].filter(Boolean).join(" • ") ||
     String(e.title ?? "") ||
@@ -128,12 +131,14 @@ export function buildPendingSyncEvents({
   procedures,
   professionals,
   temExpediente,
+  statusColors = CLINICA_AGENDA_STATUS_COLORS,
 }: {
   fila: { id: number; tipo: string; payload: unknown }[];
   patients: ClinicaPatient[];
   procedures: ClinicaProcedure[];
   professionals: ClinicaProfessional[];
   temExpediente: boolean;
+  statusColors?: AgendaStatusColorMap;
 }): AgendaEventData[] {
   return fila
     .filter((f) => f.tipo === "agendamento")
@@ -146,6 +151,8 @@ export function buildPendingSyncEvents({
       const duration = procedure?.duration ?? 30;
       const endDate = new Date(date);
       endDate.setMinutes(endDate.getMinutes() + duration);
+      const status = String(p.status || "SCHEDULED");
+      const cores = getAgendaStatusColor(status, statusColors);
       return {
         id: `offline-${item.id}`,
         title:
@@ -153,13 +160,13 @@ export function buildPendingSyncEvents({
           "Agendamento (pendente sync)",
         start: date.toISOString(),
         end: endDate.toISOString(),
-        backgroundColor: "#a855f7",
-        borderColor: "#9333ea",
+        backgroundColor: cores.bg,
+        borderColor: cores.border,
         textColor: "#fff",
         ...(temExpediente ? { constraint: "businessHours" as const } : {}),
         extendedProps: {
           dbId: `offline-${item.id}`,
-          status: String(p.status || "SCHEDULED"),
+          status,
           patient_name: entityName(patient || {}),
           patient_phone: "",
           professional_name: professional?.name ?? "",
@@ -179,6 +186,7 @@ export function buildEventosOnline({
   professionals,
   selectedProfessional,
   pendingEvents,
+  statusColors = CLINICA_AGENDA_STATUS_COLORS,
 }: {
   rawEvents: Record<string, unknown>[];
   bloqueios: BloqueioHorario[];
@@ -186,9 +194,12 @@ export function buildEventosOnline({
   professionals: ClinicaProfessional[];
   selectedProfessional: string;
   pendingEvents: AgendaEventData[];
+  statusColors?: AgendaStatusColorMap;
 }): AgendaEventData[] {
   const temExpediente = temExpedienteProfissional(selectedProfessional, horariosTrabalho);
-  const eventosFormatados = rawEvents.map((ev) => formatarAgendaEvento(ev, temExpediente));
+  const eventosFormatados = rawEvents.map((ev) =>
+    formatarAgendaEvento(ev, temExpediente, statusColors),
+  );
   const bloqueiosAsEvents = bloqueiosToAgendaEvents(bloqueios);
   const intervalos = intervalosAgendaProfissional(
     selectedProfessional,

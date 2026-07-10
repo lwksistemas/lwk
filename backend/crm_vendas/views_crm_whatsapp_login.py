@@ -1,5 +1,5 @@
 """
-CRM: personalização da tela de login.
+CRM: personalização da tela de login e identidade visual.
 """
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -11,10 +11,25 @@ from .decorators import require_admin_access
 from .utils import get_loja_from_context
 
 
+def _serialize_login_config(loja) -> dict:
+    tipo = getattr(loja, 'tipo_loja', None)
+    cor_default = getattr(tipo, 'cor_primaria', None) if tipo else None
+    cor_primaria = (loja.cor_primaria or '').strip() or cor_default or '#10B981'
+    cor_secundaria = (loja.cor_secundaria or '').strip() or '#059669'
+    return {
+        'logo': (loja.logo or '').strip(),
+        'login_background': (loja.login_background or '').strip(),
+        'login_logo': (loja.login_logo or '').strip(),
+        'cor_primaria': cor_primaria,
+        'cor_secundaria': cor_secundaria,
+        'agenda_status_colors': getattr(loja, 'agenda_status_colors', None) or {},
+    }
+
+
 class LoginConfigView(CRMPermissionMixin, APIView):
     """
-    GET /crm-vendas/login-config/  → retorna logo, cor_primaria, cor_secundaria
-    PATCH /crm-vendas/login-config/ → atualiza personalização da tela de login
+    GET /crm-vendas/login-config/  → logo, cores, agenda_status_colors
+    PATCH /crm-vendas/login-config/ → atualiza personalização
     """
     permission_classes = [IsAuthenticated]
 
@@ -26,17 +41,7 @@ class LoginConfigView(CRMPermissionMixin, APIView):
                 {'error': 'Contexto de loja não encontrado'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        tipo = getattr(loja, 'tipo_loja', None)
-        cor_default = getattr(tipo, 'cor_primaria', None) if tipo else None
-        cor_primaria = (loja.cor_primaria or '').strip() or cor_default or '#10B981'
-        cor_secundaria = (loja.cor_secundaria or '').strip() or '#059669'
-        return Response({
-            'logo': (loja.logo or '').strip(),
-            'login_background': (loja.login_background or '').strip(),
-            'login_logo': (loja.login_logo or '').strip(),
-            'cor_primaria': cor_primaria,
-            'cor_secundaria': cor_secundaria,
-        })
+        return Response(_serialize_login_config(loja))
 
     @require_admin_access()
     def patch(self, request):
@@ -48,6 +53,8 @@ class LoginConfigView(CRMPermissionMixin, APIView):
             )
 
         from superadmin.cloudinary_utils import delete_cloudinary_image
+        from superadmin.loja_utils import invalidate_loja_info_publica_cache
+        from superadmin.theme_colors import sanitize_agenda_status_colors
 
         update_fields = ['updated_at']
         loja_slug = loja.slug
@@ -87,16 +94,13 @@ class LoginConfigView(CRMPermissionMixin, APIView):
                 loja.cor_secundaria = val[:7]
                 update_fields.append('cor_secundaria')
 
+        if 'agenda_status_colors' in request.data:
+            loja.agenda_status_colors = sanitize_agenda_status_colors(
+                request.data.get('agenda_status_colors')
+            )
+            update_fields.append('agenda_status_colors')
+
         loja.save(update_fields=update_fields)
+        invalidate_loja_info_publica_cache(loja)
 
-        from django.core.cache import cache
-        cache_key = f'loja_info_publica:{loja.slug}'
-        cache.delete(cache_key)
-
-        return Response({
-            'logo': (loja.logo or '').strip(),
-            'login_background': (loja.login_background or '').strip(),
-            'login_logo': (loja.login_logo or '').strip(),
-            'cor_primaria': loja.cor_primaria or '#10B981',
-            'cor_secundaria': loja.cor_secundaria or '#059669',
-        })
+        return Response(_serialize_login_config(loja))

@@ -43,6 +43,49 @@ export const CLINICA_AGENDA_STATUS_COLORS: Record<string, { bg: string; border: 
   NO_SHOW: { bg: '#b45309', border: '#92400e' },
 };
 
+export type AgendaStatusColor = { bg: string; border: string };
+export type AgendaStatusColorMap = Record<string, AgendaStatusColor>;
+
+/** Status editáveis na identidade visual (PENDING = SCHEDULED). */
+export const CLINICA_AGENDA_STATUS_COLOR_EDITABLE = [
+  'SCHEDULED',
+  'CLIENT_CONFIRMED',
+  'PHONE_CONFIRMED',
+  'CONFIRMED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+  'NO_SHOW',
+] as const;
+
+export function mergeAgendaStatusColors(
+  overrides?: Record<string, { bg?: string; border?: string }> | null,
+): AgendaStatusColorMap {
+  const merged: AgendaStatusColorMap = { ...CLINICA_AGENDA_STATUS_COLORS };
+  if (!overrides || typeof overrides !== 'object') return merged;
+  for (const key of CLINICA_AGENDA_STATUS_COLOR_EDITABLE) {
+    const entry = overrides[key];
+    if (!entry) continue;
+    const bg = typeof entry.bg === 'string' ? entry.bg.trim() : '';
+    const border = typeof entry.border === 'string' ? entry.border.trim() : '';
+    if (/^#[0-9A-Fa-f]{6}$/.test(bg) && /^#[0-9A-Fa-f]{6}$/.test(border)) {
+      merged[key] = { bg: bg.toLowerCase(), border: border.toLowerCase() };
+      if (key === 'SCHEDULED') {
+        merged.PENDING = merged.SCHEDULED;
+      }
+    }
+  }
+  return merged;
+}
+
+export function getAgendaStatusColor(
+  status: string,
+  colors: AgendaStatusColorMap = CLINICA_AGENDA_STATUS_COLORS,
+): AgendaStatusColor {
+  const key = normalizeAgendaStatus(status);
+  return colors[key] || colors.SCHEDULED || { bg: '#a855f7', border: '#9333ea' };
+}
+
 export const CLINICA_AGENDA_BLOQUEIO_COLORS = { bg: '#4f46e5', border: '#4338ca' } as const;
 
 /** Opções de status no modal Detalhes do Agendamento. */

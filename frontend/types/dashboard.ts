@@ -10,6 +10,8 @@ export interface LojaInfo {
   cor_primaria: string;
   cor_secundaria: string;
   logo?: string;
+  /** Overrides de cores dos status da agenda (bg/border). Vazio = padrão LWK. */
+  agenda_status_colors?: Record<string, { bg?: string; border?: string }> | null;
 }
 
 export interface BaseEstatisticas {

@@ -47,7 +47,11 @@ export function LoginConfigPageContent({
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{title}</h1>
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-          Personalize logo, cores e identidade visual da tela de login.
+          Personalize logo, fundo e cores da tela de login. Para cores do menu e da agenda, use{' '}
+          <Link href={backHref.replace(/\/$/, '') + '/aparencia'} className="underline" style={{ color: accentColor }}>
+            Identidade visual
+          </Link>
+          .
         </p>
 
         {loading ? (

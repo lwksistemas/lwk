@@ -8,6 +8,10 @@ import type {
   HorarioTrabalhoRow,
 } from "@/lib/clinica-beleza-entities";
 import {
+  CLINICA_AGENDA_STATUS_COLORS,
+  type AgendaStatusColorMap,
+} from "@/lib/clinica-beleza-constants";
+import {
   buscarAgendamentosOffline,
   buscarProfissionaisOffline,
   obterFilaSync,
@@ -31,6 +35,7 @@ export function useAgendaEventos({
   professionals,
   patients,
   procedures,
+  statusColors = CLINICA_AGENDA_STATUS_COLORS,
 }: {
   isOnline: boolean;
   selectedProfessional: string;
@@ -40,9 +45,12 @@ export function useAgendaEventos({
   professionals: ClinicaProfessional[];
   patients: ClinicaPatient[];
   procedures: ClinicaProcedure[];
+  statusColors?: AgendaStatusColorMap;
 }) {
   const horariosTrabalhoRef = useRef<HorarioTrabalhoRow[]>(horariosTrabalho);
   horariosTrabalhoRef.current = horariosTrabalho;
+  const statusColorsRef = useRef<AgendaStatusColorMap>(statusColors);
+  statusColorsRef.current = statusColors;
 
   const [offlineEventos, setOfflineEventos] = useState<AgendaEventData[]>([]);
   const [offlineLoading, setOfflineLoading] = useState(false);
@@ -53,6 +61,7 @@ export function useAgendaEventos({
     setOfflineLoading(true);
     try {
       const horariosOffline = horariosTrabalhoRef.current;
+      const colors = statusColorsRef.current;
       const [agendaRaw, profs] = await Promise.all([
         buscarAgendamentosOffline(),
         buscarProfissionaisOffline(),
@@ -68,7 +77,10 @@ export function useAgendaEventos({
         if (selectedProfessional) {
           list = list.filter((e) => String(e.professional) === selectedProfessional);
         }
-        setOfflineEventos([...list.map((e) => formatarAgendaEvento(e, temExpediente)), ...intervalos]);
+        setOfflineEventos([
+          ...list.map((e) => formatarAgendaEvento(e, temExpediente, colors)),
+          ...intervalos,
+        ]);
       } else {
         setOfflineEventos(intervalos);
       }
@@ -82,7 +94,7 @@ export function useAgendaEventos({
   useEffect(() => {
     if (isOnline) return;
     void loadOffline();
-  }, [isOnline, loadOffline]);
+  }, [isOnline, loadOffline, statusColors]);
 
   useEffect(() => {
     if (!isOnline) return;
@@ -95,10 +107,19 @@ export function useAgendaEventos({
           procedures,
           professionals,
           temExpediente,
+          statusColors,
         }),
       );
     });
-  }, [isOnline, patients, procedures, professionals, selectedProfessional, horariosTrabalho]);
+  }, [
+    isOnline,
+    patients,
+    procedures,
+    professionals,
+    selectedProfessional,
+    horariosTrabalho,
+    statusColors,
+  ]);
 
   const eventosOnline = useMemo(
     () =>
@@ -109,8 +130,17 @@ export function useAgendaEventos({
         professionals,
         selectedProfessional,
         pendingEvents,
+        statusColors,
       }),
-    [bloqueios, eventsData, horariosTrabalho, pendingEvents, professionals, selectedProfessional],
+    [
+      bloqueios,
+      eventsData,
+      horariosTrabalho,
+      pendingEvents,
+      professionals,
+      selectedProfessional,
+      statusColors,
+    ],
   );
 
   useEffect(() => {

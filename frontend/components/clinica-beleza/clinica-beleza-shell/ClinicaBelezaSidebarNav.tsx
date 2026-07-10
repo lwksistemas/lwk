@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import {
   CLINICA_BELEZA_NAV_ITEMS,
-  CLINICA_BELEZA_PRIMARY,
   getClinicaBelezaNavHref,
   isClinicaBelezaNavActive,
   isClinicaBelezaNavGroupActive,
   type ClinicaBelezaNavItem,
 } from "../clinica-beleza-nav";
+import { useClinicaBelezaTheme } from "../ClinicaBelezaThemeContext";
 import { buildInitialOpenGroups } from "./clinica-beleza-shell-utils";
 import { ClinicaBelezaNavItemButton } from "./ClinicaBelezaNavItemButton";
 
@@ -25,6 +25,7 @@ export function ClinicaBelezaSidebarNav({
   collapsed,
   onNavigate,
 }: ClinicaBelezaSidebarNavProps) {
+  const { primary } = useClinicaBelezaTheme();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -73,7 +74,7 @@ export function ClinicaBelezaSidebarNav({
                         ? "font-medium text-white"
                         : "text-gray-500 hover:text-gray-800 hover:bg-white/60 dark:text-gray-400 dark:hover:bg-gray-700/40"
                     }`}
-                    style={childActive ? { backgroundColor: CLINICA_BELEZA_PRIMARY } : undefined}
+                    style={childActive ? { backgroundColor: primary } : undefined}
                   >
                     {child.label}
                   </button>

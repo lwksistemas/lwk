@@ -80,6 +80,11 @@ class Loja(models.Model):
     logo = models.URLField(blank=True)
     cor_primaria = models.CharField(max_length=7, blank=True)
     cor_secundaria = models.CharField(max_length=7, blank=True)
+    agenda_status_colors = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Overrides de cores dos status da agenda (bg/border por status). Vazio = padrão LWK.',
+    )
     dominio_customizado = models.CharField(max_length=255, blank=True, unique=True, null=True)
     
     # ✅ NOVO v1421: Sistema híbrido de acesso às lojas

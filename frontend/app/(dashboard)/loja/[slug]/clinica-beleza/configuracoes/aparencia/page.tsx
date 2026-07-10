@@ -1,0 +1,305 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, Palette, RotateCcw } from 'lucide-react';
+import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
+import { useToast } from '@/components/ui/Toast';
+import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
+import { useClinicaBelezaTheme } from '@/components/clinica-beleza/ClinicaBelezaThemeContext';
+import { LoginConfigColorSection } from '@/components/clinica-beleza/login-config-page/LoginConfigColorSection';
+import type { LoginColorPreset } from '@/components/clinica-beleza/login-config-page/login-config-page-types';
+import {
+  CLINICA_AGENDA_STATUS_COLORS,
+  CLINICA_AGENDA_STATUS_COLOR_EDITABLE,
+  CLINICA_AGENDA_STATUS_LABEL,
+  type AgendaStatusColorMap,
+  mergeAgendaStatusColors,
+} from '@/lib/clinica-beleza-constants';
+import { normalizeHexColor } from '@/lib/clinica-beleza-theme-utils';
+
+const CORES_PRE_DEFINIDAS: LoginColorPreset[] = [
+  { nome: 'Burgundy', primaria: '#8B3D52', secundaria: '#6B2F40' },
+  { nome: 'Rosa', primaria: '#EC4899', secundaria: '#DB2777' },
+  { nome: 'Roxo', primaria: '#8B5CF6', secundaria: '#7C3AED' },
+  { nome: 'Verde', primaria: '#10B981', secundaria: '#059669' },
+  { nome: 'Azul', primaria: '#3B82F6', secundaria: '#2563EB' },
+  { nome: 'Laranja', primaria: '#F97316', secundaria: '#EA580C' },
+];
+
+type LoginConfigResponse = {
+  cor_primaria?: string;
+  cor_secundaria?: string;
+  agenda_status_colors?: Record<string, { bg?: string; border?: string }> | null;
+};
+
+function toHexInput(value: string, fallback: string): string {
+  return normalizeHexColor(value) || fallback;
+}
+
+export default function ClinicaBelezaAparenciaPage() {
+  const slug = (useParams()?.slug as string) ?? '';
+  const base = `/loja/${slug}/clinica-beleza/configuracoes`;
+  const toast = useToast();
+  const theme = useClinicaBelezaTheme();
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [corPrimaria, setCorPrimaria] = useState('#8B3D52');
+  const [corSecundaria, setCorSecundaria] = useState('#6B2F40');
+  const [statusColors, setStatusColors] = useState<AgendaStatusColorMap>(
+    () => mergeAgendaStatusColors(),
+  );
+
+  const loadConfig = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await apiClient.get<LoginConfigResponse>('/crm-vendas/login-config/');
+      setCorPrimaria(toHexInput(data.cor_primaria || '', '#8B3D52'));
+      setCorSecundaria(toHexInput(data.cor_secundaria || '', '#6B2F40'));
+      setStatusColors(mergeAgendaStatusColors(data.agenda_status_colors));
+    } catch (err) {
+      logger.warn('Erro ao carregar identidade visual:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadConfig();
+  }, [loadConfig]);
+
+  const previewPrimary = useMemo(
+    () => normalizeHexColor(corPrimaria) || theme.primary,
+    [corPrimaria, theme.primary],
+  );
+
+  const updateStatusColor = (key: string, field: 'bg' | 'border', value: string) => {
+    const hex = normalizeHexColor(value);
+    if (!hex) return;
+    setStatusColors((prev) => {
+      const next = { ...prev, [key]: { ...prev[key], [field]: hex } };
+      if (key === 'SCHEDULED') {
+        next.PENDING = next.SCHEDULED;
+      }
+      return next;
+    });
+  };
+
+  const resetStatusColors = () => {
+    setStatusColors(mergeAgendaStatusColors());
+  };
+
+  const saveConfig = async () => {
+    const primaria = normalizeHexColor(corPrimaria);
+    const secundaria = normalizeHexColor(corSecundaria);
+    if (!primaria || !secundaria) {
+      toast.error('Informe cores válidas (#RRGGBB) para o menu.');
+      return;
+    }
+
+    const agendaPayload: Record<string, { bg: string; border: string }> = {};
+    for (const key of CLINICA_AGENDA_STATUS_COLOR_EDITABLE) {
+      const entry = statusColors[key];
+      const def = CLINICA_AGENDA_STATUS_COLORS[key];
+      if (!entry || !def) continue;
+      if (entry.bg !== def.bg || entry.border !== def.border) {
+        agendaPayload[key] = { bg: entry.bg, border: entry.border };
+      }
+    }
+
+    setSaving(true);
+    try {
+      await apiClient.patch('/crm-vendas/login-config/', {
+        cor_primaria: primaria,
+        cor_secundaria: secundaria,
+        agenda_status_colors: agendaPayload,
+      });
+      toast.success('Identidade visual salva. Atualizando o sistema…');
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 600);
+    } catch (e) {
+      const err = e as { response?: { data?: { error?: string; detail?: string } } };
+      toast.error(
+        err?.response?.data?.error ||
+          (typeof err?.response?.data?.detail === 'string' ? err.response.data.detail : null) ||
+          'Erro ao salvar. Tente novamente.',
+      );
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ClinicaBelezaPageContent className="space-y-6">
+      <Link
+        href={base}
+        className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:underline"
+      >
+        <ArrowLeft size={16} />
+        Voltar às configurações
+      </Link>
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2.5 rounded-lg text-white" style={{ backgroundColor: previewPrimary }}>
+            <Palette size={24} />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Identidade visual
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Cores do menu e dos status da agenda — útil para aproximar do sistema antigo na migração.
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="text-sm text-gray-500">Carregando...</p>
+        ) : (
+          <div className="space-y-8">
+            <section className="space-y-4">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Cores do menu e do sistema
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  A cor primária destaca itens ativos no menu, botões principais e o fundo suave da
+                  sidebar. Também vale para a tela de login.
+                </p>
+              </div>
+              <LoginConfigColorSection
+                colorPresets={CORES_PRE_DEFINIDAS}
+                corPrimaria={corPrimaria}
+                corSecundaria={corSecundaria}
+                accentColor={previewPrimary}
+                onApplyPreset={(p, s) => {
+                  setCorPrimaria(p);
+                  setCorSecundaria(s);
+                }}
+                onCorPrimariaChange={setCorPrimaria}
+                onCorSecundariaChange={setCorSecundaria}
+              />
+              <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-600 p-3">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Prévia do menu</p>
+                <div className="flex gap-2">
+                  <span
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium text-white"
+                    style={{ backgroundColor: previewPrimary }}
+                  >
+                    Item ativo
+                  </span>
+                  <span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700">
+                    Item inativo
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Cores dos status na agenda
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Defina fundo e borda de cada status no calendário. Deixe no padrão LWK ou
+                    ajuste para bater com o sistema anterior.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={resetStatusColors}
+                  className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300 hover:underline"
+                >
+                  <RotateCcw size={14} />
+                  Restaurar padrão
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {CLINICA_AGENDA_STATUS_COLOR_EDITABLE.map((key) => {
+                  const entry = statusColors[key] || CLINICA_AGENDA_STATUS_COLORS[key];
+                  return (
+                    <div
+                      key={key}
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-600 p-3"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 sm:w-56">
+                        <span
+                          className="w-10 h-8 rounded-md shrink-0 border-2"
+                          style={{
+                            backgroundColor: entry.bg,
+                            borderColor: entry.border,
+                          }}
+                          aria-hidden
+                        />
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">
+                          {CLINICA_AGENDA_STATUS_LABEL[key] || key}
+                        </span>
+                      </div>
+                      <div className="flex flex-1 flex-wrap gap-3">
+                        <label className="flex items-center gap-2 text-xs text-gray-500">
+                          Fundo
+                          <input
+                            type="color"
+                            value={entry.bg}
+                            onChange={(e) => updateStatusColor(key, 'bg', e.target.value)}
+                            className="w-10 h-8 border rounded cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={entry.bg}
+                            onChange={(e) => updateStatusColor(key, 'bg', e.target.value)}
+                            className="w-24 px-2 py-1 border rounded text-xs dark:bg-gray-700 dark:border-gray-600"
+                          />
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-gray-500">
+                          Borda
+                          <input
+                            type="color"
+                            value={entry.border}
+                            onChange={(e) => updateStatusColor(key, 'border', e.target.value)}
+                            className="w-10 h-8 border rounded cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={entry.border}
+                            onChange={(e) => updateStatusColor(key, 'border', e.target.value)}
+                            className="w-24 px-2 py-1 border rounded text-xs dark:bg-gray-700 dark:border-gray-600"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+              <Link
+                href={`${base}/login`}
+                className="text-sm hover:underline"
+                style={{ color: previewPrimary }}
+              >
+                Configurar tela de login (logo e fundo) →
+              </Link>
+              <button
+                type="button"
+                onClick={() => void saveConfig()}
+                disabled={saving}
+                className="px-4 py-2 text-white rounded-lg disabled:opacity-50"
+                style={{ backgroundColor: previewPrimary }}
+              >
+                {saving ? 'Salvando...' : 'Salvar identidade visual'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </ClinicaBelezaPageContent>
+  );
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAgendaStatusColors } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
 import { useAgendaEventos } from "./useAgendaEventos";
 import { useAgendaOnlineStatus } from "./useAgendaOnlineStatus";
 import { useAgendaOfflineCache } from "./useAgendaOfflineCache";
@@ -11,6 +12,7 @@ import {
 
 export function useAgendaData(selectedProfessional: string) {
   const isOnline = useAgendaOnlineStatus();
+  const statusColors = useAgendaStatusColors();
 
   const {
     professionalsQuery,
@@ -39,6 +41,7 @@ export function useAgendaData(selectedProfessional: string) {
     professionals,
     patients,
     procedures,
+    statusColors,
   });
 
   const { carregarDados, setPatients } = useAgendaRefresh(

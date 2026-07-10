@@ -337,6 +337,14 @@ class BloqueioHorarioSerializer(serializers.ModelSerializer):
             'criado_em': instance.criado_em,
         }
 
+    def _dia_inteiro_flag(self) -> bool:
+        raw = self.initial_data.get('dia_inteiro') if hasattr(self, 'initial_data') else None
+        if raw is True or raw == 1:
+            return True
+        if isinstance(raw, str) and raw.strip().lower() in ('1', 'true', 'yes', 'sim'):
+            return True
+        return False
+
     def validate(self, attrs):
         inicio = attrs.get('data_inicio')
         fim = attrs.get('data_fim')
@@ -347,7 +355,7 @@ class BloqueioHorarioSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         start = validated_data.pop('data_inicio')
         end = validated_data.pop('data_fim')
-        parts = split_datetime_range(start, end)
+        parts = split_datetime_range(start, end, dia_inteiro=self._dia_inteiro_flag())
         motivo = (validated_data.get('motivo') or '').strip() or 'Bloqueio'
         return BloqueioHorario.objects.create(
             **validated_data,
@@ -360,7 +368,7 @@ class BloqueioHorarioSerializer(serializers.ModelSerializer):
         start = validated_data.pop('data_inicio', None)
         end = validated_data.pop('data_fim', None)
         if start is not None and end is not None:
-            for k, v in split_datetime_range(start, end).items():
+            for k, v in split_datetime_range(start, end, dia_inteiro=self._dia_inteiro_flag()).items():
                 setattr(instance, k, v)
         motivo = validated_data.get('motivo')
         if motivo is not None:

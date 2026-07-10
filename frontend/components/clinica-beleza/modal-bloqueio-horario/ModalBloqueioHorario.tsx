@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import {
+  MODOS_BLOQUEIO_INTERVALO,
   TIPOS_BLOQUEIO,
   profissionalBloqueioLabel,
   type BloqueioProfessional,
@@ -63,6 +64,35 @@ export function ModalBloqueioHorario({
             </div>
           )}
 
+          <div className="mb-4">
+            <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Intervalo
+            </span>
+            <div
+              className="inline-flex w-full sm:w-auto rounded-lg border border-gray-300 dark:border-neutral-600 p-0.5 bg-gray-100 dark:bg-neutral-700/80"
+              role="group"
+              aria-label="Modo do intervalo"
+            >
+              {MODOS_BLOQUEIO_INTERVALO.map((m) => {
+                const active = state.modo === m.value;
+                return (
+                  <button
+                    key={m.value}
+                    type="button"
+                    onClick={() => state.setModo(m.value)}
+                    className={`flex-1 sm:flex-none px-4 py-2 min-h-[40px] text-sm font-medium rounded-md transition-colors ${
+                      active
+                        ? "bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 shadow-sm"
+                        : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Layout paisagem: 2 colunas no desktop, 1 no mobile */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
             <div>
@@ -71,7 +101,7 @@ export function ModalBloqueioHorario({
               </label>
               <select
                 value={state.tipoSelecionado}
-                onChange={(e) => state.setTipoSelecionado(e.target.value)}
+                onChange={(e) => state.onTipoChange(e.target.value)}
                 className={fieldClass}
               >
                 {TIPOS_BLOQUEIO.map((t) => (
@@ -115,29 +145,68 @@ export function ModalBloqueioHorario({
               </div>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Início *
-              </label>
-              <input
-                type="datetime-local"
-                value={state.dataInicio}
-                onChange={(e) => state.setDataInicio(e.target.value)}
-                className={fieldClass}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Fim *
-              </label>
-              <input
-                type="datetime-local"
-                value={state.dataFim}
-                onChange={(e) => state.setDataFim(e.target.value)}
-                className={fieldClass}
-              />
-            </div>
+            {state.modo === "dias" ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Data início *
+                  </label>
+                  <input
+                    type="date"
+                    value={state.dataInicioDia}
+                    onChange={(e) => state.setDataInicioDia(e.target.value)}
+                    className={fieldClass}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Data fim *
+                  </label>
+                  <input
+                    type="date"
+                    value={state.dataFimDia}
+                    onChange={(e) => state.setDataFimDia(e.target.value)}
+                    className={fieldClass}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Data *
+                  </label>
+                  <input
+                    type="date"
+                    value={state.dataHorario}
+                    onChange={(e) => state.setDataHorario(e.target.value)}
+                    className={fieldClass}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Hora início *
+                  </label>
+                  <input
+                    type="time"
+                    value={state.horaInicio}
+                    onChange={(e) => state.setHoraInicio(e.target.value)}
+                    className={fieldClass}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Hora fim *
+                  </label>
+                  <input
+                    type="time"
+                    value={state.horaFim}
+                    onChange={(e) => state.setHoraFim(e.target.value)}
+                    className={fieldClass}
+                  />
+                </div>
+              </>
+            )}
 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -154,8 +223,10 @@ export function ModalBloqueioHorario({
           </div>
 
           <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-            Use início e fim para um único bloqueio (pode ser um horário no dia ou vários dias seguidos). O intervalo de
-            almoço do profissional é configurado em Profissionais → Horários de trabalho.
+            {state.modo === "dias"
+              ? "Bloqueia o(s) dia(s) inteiro(s) no intervalo (ex.: férias de 17 a 25)."
+              : "Bloqueia apenas o horário no dia escolhido (ex.: 13:00–17:00)."}{" "}
+            O intervalo de almoço do profissional é configurado em Profissionais → Horários de trabalho.
           </p>
         </div>
 

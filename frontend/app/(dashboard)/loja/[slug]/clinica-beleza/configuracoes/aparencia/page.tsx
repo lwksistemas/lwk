@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Palette, RotateCcw } from 'lucide-react';
@@ -73,6 +73,7 @@ export default function ClinicaBelezaAparenciaPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
   const [corPrimaria, setCorPrimaria] = useState('#8B3D52');
   const [corSecundaria, setCorSecundaria] = useState('#6B2F40');
   /** Vazio = automático (tom claro da primária). */
@@ -86,9 +87,13 @@ export default function ClinicaBelezaAparenciaPage() {
   const [colunasEstoque, setColunasEstoque] = useState<string[]>(
     () => [...DEFAULT_COLUNAS_ESTOQUE],
   );
+  /** Evita auto-save no carregamento inicial. */
+  const coresProntasRef = useRef(false);
+  const autoSaveTimerRef = useRef<number | null>(null);
 
   const loadConfig = useCallback(async () => {
     setLoading(true);
+    coresProntasRef.current = false;
     try {
       const { data } = await apiClient.get<LoginConfigResponse>('/crm-vendas/login-config/');
       setCorPrimaria(toHexInput(data.cor_primaria || '', '#8B3D52'));
@@ -109,6 +114,10 @@ export default function ClinicaBelezaAparenciaPage() {
       logger.warn('Erro ao carregar identidade visual:', err);
     } finally {
       setLoading(false);
+      // Libera auto-save após o paint do estado carregado.
+      window.setTimeout(() => {
+        coresProntasRef.current = true;
+      }, 400);
     }
   }, []);
 
@@ -127,7 +136,7 @@ export default function ClinicaBelezaAparenciaPage() {
     return lightenHex(previewPrimary, 0.96) || '#f7f2f4';
   }, [corFundoPagina, previewPrimary]);
 
-  /** Preview ao vivo no menu/fundo — só CSS vars (sem re-render do shell). */
+  /** Preview ao vivo no menu/fundo — sessionStorage + CSS vars (sobrevive à navegação). */
   useEffect(() => {
     if (loading) return;
     applyColors(
@@ -138,6 +147,51 @@ export default function ClinicaBelezaAparenciaPage() {
       },
       { commit: false },
     );
+  }, [loading, corPrimaria, corSecundaria, corFundoPagina, applyColors]);
+
+  /** Grava cores no servidor automaticamente (Dashboard/Relatórios remonta o layout). */
+  useEffect(() => {
+    if (loading || !coresProntasRef.current) return;
+    const primaria = normalizeHexColor(corPrimaria);
+    const secundaria = normalizeHexColor(corSecundaria);
+    if (!primaria || !secundaria) return;
+
+    if (autoSaveTimerRef.current != null) {
+      window.clearTimeout(autoSaveTimerRef.current);
+    }
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      autoSaveTimerRef.current = null;
+      void (async () => {
+        setAutoSaving(true);
+        try {
+          const fundo = normalizeHexColor(corFundoPagina) || '';
+          await apiClient.patch('/crm-vendas/login-config/', {
+            cor_primaria: primaria,
+            cor_secundaria: secundaria,
+            cor_fundo_pagina: fundo,
+          });
+          applyColors(
+            {
+              corPrimaria: primaria,
+              corSecundaria: secundaria,
+              corFundoPagina: fundo,
+            },
+            { commit: true },
+          );
+        } catch (err) {
+          logger.warn('Auto-save de cores falhou:', err);
+        } finally {
+          setAutoSaving(false);
+        }
+      })();
+    }, 900);
+
+    return () => {
+      if (autoSaveTimerRef.current != null) {
+        window.clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
   }, [loading, corPrimaria, corSecundaria, corFundoPagina, applyColors]);
 
   const updateStatusColor = (key: string, field: 'bg' | 'border', value: string) => {
@@ -242,8 +296,8 @@ export default function ClinicaBelezaAparenciaPage() {
                   Cores do menu e do sistema
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  A cor primária destaca itens ativos no menu e botões principais. Também vale para
-                  a tela de login. O menu e o fundo atualizam na hora enquanto você escolhe.
+                  A cor primária destaca itens ativos no menu e botões principais. As cores são
+                  gravadas automaticamente e valem em todo o sistema (Dashboard, Relatórios, etc.).
                 </p>
               </div>
               <LoginConfigColorSection
@@ -488,11 +542,11 @@ export default function ClinicaBelezaAparenciaPage() {
               <button
                 type="button"
                 onClick={() => void saveConfig()}
-                disabled={saving}
+                disabled={saving || autoSaving}
                 className="px-4 py-2 text-white rounded-lg disabled:opacity-50"
                 style={{ backgroundColor: previewPrimary }}
               >
-                {saving ? 'Salvando...' : 'Salvar identidade visual'}
+                {saving || autoSaving ? 'Salvando...' : 'Salvar identidade visual'}
               </button>
             </div>
           </div>

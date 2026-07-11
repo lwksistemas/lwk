@@ -13,10 +13,14 @@ export function mapProcedimentosFromConsulta(lista: ConsultaProcedimento[]): App
 }
 
 export function normalizarCatalogoProcedimentos(
-  procs: { id: number; nome?: string; name?: string }[],
+  procs: { id: number; nome?: string; name?: string; categoria?: string; category?: string }[],
 ): ProcedureOption[] {
   return procs
-    .map((p) => ({ id: p.id, nome: String(p.nome || p.name || "") }))
+    .map((p) => ({
+      id: p.id,
+      nome: String(p.nome || p.name || ""),
+      categoria: String(p.categoria || p.category || ""),
+    }))
     .filter((p) => p.nome)
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }

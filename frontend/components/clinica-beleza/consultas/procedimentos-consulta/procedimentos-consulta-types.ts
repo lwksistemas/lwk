@@ -3,6 +3,7 @@ import type { ConsultaProcedimento } from "../consultas-types";
 export interface ProcedureOption {
   id: number;
   nome: string;
+  categoria?: string;
 }
 
 export interface AppointmentProcedureItem {

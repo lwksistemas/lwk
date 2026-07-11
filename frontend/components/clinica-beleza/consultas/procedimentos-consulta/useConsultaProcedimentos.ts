@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import type { ConsultaProcedimento } from "../consultas-types";
-import type { AppointmentProcedureItem } from "./procedimentos-consulta-types";
+import type { AppointmentProcedureItem, ProcedureOption } from "./procedimentos-consulta-types";
 import {
   avisoTermoProcedimentoAdicionado,
   extractProcedimentosConsultaError,
@@ -19,7 +19,7 @@ export function useConsultaProcedimentos({
   onChanged?: (consulta?: Record<string, unknown>) => void;
 }) {
   const [itens, setItens] = useState<AppointmentProcedureItem[]>([]);
-  const [catalogo, setCatalogo] = useState<{ id: number; nome: string }[]>([]);
+  const [catalogo, setCatalogo] = useState<ProcedureOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);

@@ -91,9 +91,18 @@ export function useConsultaLifecycleHandlers(
     ],
   );
 
-  const abrirReceberModal = useCallback(() => {
-    setShowReceberModal(true);
-  }, [setShowReceberModal]);
+  const abrirReceberModal = useCallback(async () => {
+    setRecebendo(true);
+    try {
+      const fresh = (await ClinicaBelezaAPI.consultas.get(selected.id)) as Consulta;
+      setSelected({ ...selected, ...fresh });
+      setShowReceberModal(true);
+    } catch {
+      setShowReceberModal(true);
+    } finally {
+      setRecebendo(false);
+    }
+  }, [selected, setRecebendo, setSelected, setShowReceberModal]);
 
   const aposRecebimento = useCallback(
     async (consultaAtualizada: Consulta) => {

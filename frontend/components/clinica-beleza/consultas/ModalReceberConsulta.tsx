@@ -78,27 +78,52 @@ export function ModalReceberConsulta({
   } | null>(null);
 
   const [prevOpen, setPrevOpen] = useState(false);
+
+  const reiniciarFormularioComplemento = (c: Consulta) => {
+    const novoSaldo = saldoReceberConsulta(c);
+    const novoTotal = valorPagamentoConsulta(c);
+    const base = novoSaldo > 0 ? novoSaldo : novoTotal;
+    setDesconto("");
+    setEntradas([novaLinhaEntrada("CASH", base)]);
+    setMarkAsPaid(true);
+    setError("");
+    setConsultaAtualizada(null);
+    setReciboSnapshot(null);
+    setConfirmado(false);
+  };
+
   useEffect(() => {
     if (open && !prevOpen) {
       const novoSaldo = saldoReceberConsulta(consulta);
-      const novoTotal = valorPagamentoConsulta(consulta);
-      const base = novoSaldo > 0 ? novoSaldo : novoTotal;
-      setDesconto("");
-      setEntradas([novaLinhaEntrada("CASH", base)]);
-      setMarkAsPaid(true);
-      setError("");
-      setConsultaAtualizada(null);
-      setReciboSnapshot(null);
-      if (consulta.payment_status === "PAID") {
+      const quitado = novoSaldo <= 0 && consulta.payment_status === "PAID";
+      if (quitado) {
         setConfirmado(true);
         setConsultaAtualizada(consulta);
+        setReciboSnapshot(null);
+        setError("");
       } else {
-        setConfirmado(false);
+        reiniciarFormularioComplemento(consulta);
       }
     }
     setPrevOpen(open);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Se a consulta ganhou saldo (ex.: procedimento extra) com o modal ainda aberto no recibo.
+  useEffect(() => {
+    if (!open || !confirmado) return;
+    const c = consultaAtualizada || consulta;
+    if (saldoReceberConsulta(c) > 0) {
+      // Mantém o recibo, mas o botão de complementar fica disponível (saldoAtualizado abaixo).
+    }
+  }, [open, confirmado, consulta, consultaAtualizada]);
+
+  const consultaExibida = consultaAtualizada || consulta;
+  const saldoProp = saldoReceberConsulta(consulta);
+  const saldoAtualizada = consultaAtualizada ? saldoReceberConsulta(consultaAtualizada) : 0;
+  const saldoAposRecebimento = Math.max(saldoProp, saldoAtualizada);
+  const precisaComplementar = confirmado && saldoAposRecebimento > 0;
+  const consultaParaComplemento =
+    saldoProp >= saldoAtualizada ? consulta : consultaExibida;
   const valorDesconto = parseMoneyInput(desconto);
   const totalLiquido = calcularTotalLiquido(baseReceber, valorDesconto);
   const distribuido = useMemo(() => somaEntradas(entradas), [entradas]);
@@ -263,20 +288,32 @@ export function ModalReceberConsulta({
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
         <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-2xl">
           <div className="flex items-center justify-between p-4 border-b dark:border-neutral-700">
-            <h2 className="text-lg font-bold text-green-700 dark:text-green-400">
-              ✓ Pagamento registrado
+            <h2
+              className={`text-lg font-bold ${
+                precisaComplementar
+                  ? "text-orange-700 dark:text-orange-400"
+                  : "text-green-700 dark:text-green-400"
+              }`}
+            >
+              {precisaComplementar ? "✓ Pagamento parcial registrado" : "✓ Pagamento registrado"}
             </h2>
             <button type="button" onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
               <X size={18} />
             </button>
           </div>
           <div className="p-6 space-y-4">
-            <div className="text-sm space-y-1 bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+            <div
+              className={`text-sm space-y-1 rounded-lg p-4 ${
+                precisaComplementar
+                  ? "bg-orange-50 dark:bg-orange-900/20"
+                  : "bg-green-50 dark:bg-green-900/20"
+              }`}
+            >
               <p>
-                <strong>Paciente:</strong> {consulta.patient_name}
+                <strong>Paciente:</strong> {consultaExibida.patient_name}
               </p>
               <p>
-                <strong>Procedimento:</strong> {consultaProcedimentosNomes(consulta)}
+                <strong>Procedimento:</strong> {consultaProcedimentosNomes(consultaExibida)}
               </p>
               {snap && snap.desconto > 0 && (
                 <p>
@@ -284,20 +321,41 @@ export function ModalReceberConsulta({
                 </p>
               )}
               <p>
-                <strong>Valor recebido:</strong>{" "}
-                {formatCurrency(snap?.totalLiquido ?? Number(consulta.valor_pago ?? 0))}
+                <strong>Valor recebido nesta operação:</strong>{" "}
+                {formatCurrency(snap?.totalLiquido ?? Number(consultaExibida.valor_pago ?? 0))}
               </p>
               {resumoFormas && (
                 <p>
                   <strong>Formas:</strong> {resumoFormas}
                 </p>
               )}
+              {Number(consultaExibida.valor_pago ?? 0) > 0 && (
+                <p>
+                  <strong>Total já pago:</strong> {formatCurrency(Number(consultaExibida.valor_pago))}
+                </p>
+              )}
+              {precisaComplementar && (
+                <p className="font-semibold text-orange-800 dark:text-orange-300 pt-1">
+                  Saldo em aberto: {formatCurrency(saldoAposRecebimento)} — inclua outras formas para
+                  complementar.
+                </p>
+              )}
             </div>
+
+            {precisaComplementar && (
+              <button
+                type="button"
+                onClick={() => reiniciarFormularioComplemento(consultaParaComplemento)}
+                className="w-full py-2.5 rounded-lg text-white text-sm font-medium"
+                style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+              >
+                Complementar saldo (várias formas)
+              </button>
+            )}
 
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Envie o recibo de pagamento para o cliente:
             </p>
-
             <div className="grid grid-cols-3 gap-3">
               <button
                 type="button"
@@ -395,7 +453,11 @@ export function ModalReceberConsulta({
                   {formatCurrency(saldoAtual)}
                 </p>
               )}
-
+              {Number(consulta.valor_pago ?? 0) > 0 && saldoAtual > 0 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Complemente o saldo com uma ou mais formas (Dinheiro, PIX, Débito, Crédito…).
+                </p>
+              )}
               <div className="pt-3">
                 <label className="block text-sm font-medium mb-1">Desconto (R$)</label>
                 <input

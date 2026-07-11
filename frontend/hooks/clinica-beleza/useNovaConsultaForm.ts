@@ -21,6 +21,8 @@ export interface ConsultaFormProcedure {
   duration?: number;
   preco?: number | string;
   price?: string;
+  categoria?: string;
+  category?: string;
 }
 
 interface Options {

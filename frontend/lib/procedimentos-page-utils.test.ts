@@ -88,6 +88,16 @@ describe("filterProcedimentosList", () => {
     expect(filteredList).toHaveLength(1);
     expect(hiddenByCategoryCount).toBe(1);
   });
+
+  it("filtra por slug de categoria na lista", () => {
+    const list = [
+      { id: 1, nome: "A", categoria: "facial", is_active: true },
+      { id: 2, nome: "B", categoria: "corporal", is_active: true },
+    ];
+    const { filteredList } = filterProcedimentosList(list, "", false, "facial");
+    expect(filteredList).toHaveLength(1);
+    expect(filteredList[0].id).toBe(1);
+  });
 });
 
 describe("mapPrecosConvenioFromApi", () => {

@@ -32,6 +32,8 @@ interface ProcedimentosListViewProps {
   totalCount: number;
   pageSize: number;
   precoCelula: (procId: number, convId: number) => string;
+  /** Quando true, o header já foi renderizado pelo parent (grade → lista). */
+  hideHeader?: boolean;
   onToggleShowAll: () => void;
   onNew: () => void;
   onEdit: (id: number) => void;
@@ -58,6 +60,7 @@ export function ProcedimentosListView({
   totalCount,
   pageSize,
   precoCelula,
+  hideHeader = false,
   onToggleShowAll,
   onNew,
   onEdit,
@@ -66,14 +69,16 @@ export function ProcedimentosListView({
 }: ProcedimentosListViewProps) {
   return (
     <>
-      <ClinicaBelezaStandardPageHeader
-        title={title}
-        subtitle={subtitle}
-        backHref={backHref}
-        icon={Stethoscope}
-        newLabel="Novo Procedimento"
-        onNew={onNew}
-      />
+      {!hideHeader && (
+        <ClinicaBelezaStandardPageHeader
+          title={title}
+          subtitle={subtitle}
+          backHref={backHref}
+          icon={Stethoscope}
+          newLabel="Novo Procedimento"
+          onNew={onNew}
+        />
+      )}
       <ClinicaBelezaPageContent>
         {moduleKey && (
           <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">

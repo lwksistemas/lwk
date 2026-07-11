@@ -1,8 +1,13 @@
 import type { ConvenioItem } from "@/lib/clinica-beleza-api";
 import { entityActive, procedureCategoria } from "@/lib/clinica-beleza-entities";
-import { procedureMatchesModule } from "@/lib/clinica-beleza-categories";
+import {
+  PROCEDURE_CATEGORIA_OPTIONS,
+  procedureMatchesModule,
+  resolveProcedureCategoriaSlug,
+} from "@/lib/clinica-beleza-categories";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { Procedure, ProcedimentoFormState } from "./procedimentos-page-types";
+import type { ProcedimentoCategoriaCard } from "./ProcedimentosCategoriasGrid";
 
 export function buildPrecosMapFromMatrix(
   precos: { procedure: number; convenio: number; preco: string }[],
@@ -78,15 +83,64 @@ export function filterProcedimentosList(
   list: Procedure[],
   moduleKey: string,
   showAllCategories: boolean,
+  categoriaSlug = "",
 ): { activeList: Procedure[]; filteredList: Procedure[]; hiddenByCategoryCount: number } {
   const activeList = list.filter((p) => entityActive(p));
-  const filteredList =
+  let scoped =
     moduleKey && !showAllCategories
       ? activeList.filter((p) => procedureMatchesModule(procedureCategoria(p), moduleKey))
       : activeList;
+
+  if (categoriaSlug) {
+    const want = resolveProcedureCategoriaSlug(categoriaSlug);
+    scoped = scoped.filter(
+      (p) => resolveProcedureCategoriaSlug(procedureCategoria(p)) === want,
+    );
+  }
+
   const hiddenByCategoryCount =
-    moduleKey && !showAllCategories ? activeList.length - filteredList.length : 0;
-  return { activeList, filteredList, hiddenByCategoryCount };
+    moduleKey && !showAllCategories && !categoriaSlug
+      ? activeList.length - scoped.length
+      : 0;
+  return { activeList, filteredList: scoped, hiddenByCategoryCount };
+}
+
+/** Cards da grade de categorias (contagem a partir da lista carregada). */
+export function buildProcedimentoCategoriaCards(
+  list: Procedure[],
+  moduleKey = "",
+): ProcedimentoCategoriaCard[] {
+  const active = list.filter((p) => entityActive(p));
+  const scoped = moduleKey
+    ? active.filter((p) => procedureMatchesModule(procedureCategoria(p), moduleKey))
+    : active;
+
+  const counts = new Map<string, number>();
+  for (const p of scoped) {
+    const slug = resolveProcedureCategoriaSlug(procedureCategoria(p)) || "outro";
+    counts.set(slug, (counts.get(slug) || 0) + 1);
+  }
+
+  const options = PROCEDURE_CATEGORIA_OPTIONS.filter((o) => {
+    if (!moduleKey) return true;
+    return procedureMatchesModule(o.value, moduleKey);
+  });
+
+  const cards = options.map((o) => ({
+    value: o.value,
+    label: o.label,
+    count: counts.get(o.value) || 0,
+  }));
+
+  for (const [slug, count] of counts) {
+    if (!cards.some((c) => c.value === slug)) {
+      const label =
+        PROCEDURE_CATEGORIA_OPTIONS.find((o) => o.value === slug)?.label ?? slug;
+      cards.push({ value: slug, label, count });
+    }
+  }
+
+  return cards.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
 export function mapPrecosConvenioFromApi(

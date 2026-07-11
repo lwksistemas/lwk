@@ -250,7 +250,9 @@ def _send_whatsapp_evolution(telefone, mensagem, user=None, config=None, log_lab
         return False, err_msg
 
 
-def _send_whatsapp_document_evolution(telefone, document_url, filename, caption=None, user=None, config=None):
+def _send_whatsapp_document_evolution(
+    telefone, document_url, filename, caption=None, user=None, config=None, mimetype=None,
+):
     from .evolution_client import EvolutionAPIError, send_document
 
     phone = _normalize_phone(telefone)
@@ -266,7 +268,14 @@ def _send_whatsapp_document_evolution(telefone, document_url, filename, caption=
         return False, instance_or_err
 
     try:
-        data = send_document(instance_or_err, phone, document_url, filename, caption=caption)
+        data = send_document(
+            instance_or_err,
+            phone,
+            document_url,
+            filename,
+            caption=caption,
+            mimetype=mimetype or 'application/pdf',
+        )
         _write_whatsapp_log(
             loja_id=loja_id,
             telefone=phone,

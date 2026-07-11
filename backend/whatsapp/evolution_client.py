@@ -497,11 +497,12 @@ def send_text(instance_name, number, text):
     return _request('POST', f'/message/sendText/{instance_name}', json_body=body)
 
 
-def send_document(instance_name, number, document_url, filename, caption=None):
+def send_document(instance_name, number, document_url, filename, caption=None, mimetype=None):
     resolved = resolve_recipient_number(instance_name, number)
     body = {
         'number': resolved,
         'mediatype': 'document',
+        'mimetype': mimetype or 'application/pdf',
         'media': document_url,
         'fileName': filename or 'documento.pdf',
     }

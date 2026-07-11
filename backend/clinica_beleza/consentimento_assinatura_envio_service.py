@@ -136,14 +136,11 @@ def enviar_termo_assinado_whatsapp(
 ) -> tuple[bool, str]:
     """
     Envia o PDF do termo já assinado (paciente + profissional) via WhatsApp.
-    Mesmo padrão do recibo: texto + documento público temporário.
+    Usa base64 (mais confiável que URL pública na Evolution), igual ao fluxo estável de mídia.
     """
-    import hashlib
+    import base64
     import logging
-    import time
 
-    from django.conf import settings
-    from django.core.cache import cache as django_cache
     from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
     from whatsapp.models import WhatsAppConfig
     from whatsapp.services import _send_whatsapp_document_evolution, send_whatsapp
@@ -178,32 +175,33 @@ def enviar_termo_assinado_whatsapp(
     try:
         pdf = adapter.gerar_pdf(termo_proc, incluir_assinaturas=True)
         pdf_bytes = pdf.getvalue() if hasattr(pdf, 'getvalue') else bytes(pdf)
-        ts = str(int(time.time()))
-        token_raw = f'termo-{consulta.id}-{termo_proc.procedure_id}-{ts}-{settings.SECRET_KEY[:16]}'
-        token = hashlib.sha256(token_raw.encode()).hexdigest()[:32]
-        django_cache.set(
-            f'termo_pdf_{token}',
-            {
-                'consulta_id': consulta.id,
-                'procedure_id': termo_proc.procedure_id,
-                'pdf': pdf_bytes,
-            },
-            300,
-        )
-        api_base = getattr(settings, 'API_BASE_URL', '') or 'https://api.lwksistemas.com.br'
-        pdf_url = (
-            f'{api_base}/api/clinica-beleza/termo-consentimento-pdf/'
-            f'{consulta.id}/{termo_proc.procedure_id}/{token}/'
-        )
-        nome_arquivo = f'termo_{nome_proc.replace(" ", "_")[:40]}_{consulta.id}.pdf'
-        _send_whatsapp_document_evolution(
+        if not pdf_bytes:
+            return False, 'Não foi possível gerar o PDF do termo assinado.'
+
+        b64 = base64.b64encode(pdf_bytes).decode('ascii')
+        media = f'data:application/pdf;base64,{b64}'
+        # Nome ASCII simples — nomes com acento/traço quebram sendMedia na Evolution.
+        nome_arquivo = f'termo_{consulta.id}_{termo_proc.procedure_id}.pdf'
+        ok_doc, err_doc = _send_whatsapp_document_evolution(
             telefone,
-            pdf_url,
+            media,
             nome_arquivo,
             caption='Termo de Consentimento Assinado',
             config=config,
             user=user,
+            mimetype='application/pdf',
         )
+        if not ok_doc:
+            logger.warning(
+                'PDF do termo via WhatsApp falhou consulta=%s proc=%s: %s',
+                consulta.id,
+                termo_proc.procedure_id,
+                err_doc,
+            )
+            return False, (
+                f'Mensagem enviada, mas o PDF não chegou ({err_doc or "erro no envio do documento"}). '
+                'Tente novamente em instantes.'
+            )
     except Exception as pdf_err:
         logger.warning(
             'PDF do termo via WhatsApp falhou (texto já enviado) consulta=%s proc=%s: %s',
@@ -211,8 +209,12 @@ def enviar_termo_assinado_whatsapp(
             termo_proc.procedure_id,
             pdf_err,
         )
+        return False, (
+            f'Mensagem enviada, mas o PDF não chegou ({pdf_err}). '
+            'Tente novamente em instantes.'
+        )
 
-    return True, f'Termo assinado enviado por WhatsApp para {telefone}'
+    return True, f'Termo assinado (PDF) enviado por WhatsApp para {telefone}'
 
 
 def resolver_termos_para_envio(consulta, procedure_id) -> tuple[list, str | None]:

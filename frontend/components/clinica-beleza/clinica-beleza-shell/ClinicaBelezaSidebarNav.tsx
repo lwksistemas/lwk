@@ -8,7 +8,7 @@ import {
   isClinicaBelezaNavGroupActive,
   type ClinicaBelezaNavItem,
 } from "../clinica-beleza-nav";
-import { useClinicaBelezaTheme } from "../ClinicaBelezaThemeContext";
+import { CB_PRIMARY_CSS } from "@/lib/clinica-beleza-theme-utils";
 import { buildInitialOpenGroups } from "./clinica-beleza-shell-utils";
 import { ClinicaBelezaNavItemButton } from "./ClinicaBelezaNavItemButton";
 
@@ -25,7 +25,6 @@ export function ClinicaBelezaSidebarNav({
   collapsed,
   onNavigate,
 }: ClinicaBelezaSidebarNavProps) {
-  const { primary } = useClinicaBelezaTheme();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -74,7 +73,7 @@ export function ClinicaBelezaSidebarNav({
                         ? "font-medium text-white"
                         : "text-gray-500 hover:text-gray-800 hover:bg-white/60 dark:text-gray-400 dark:hover:bg-gray-700/40"
                     }`}
-                    style={childActive ? { backgroundColor: primary } : undefined}
+                    style={childActive ? { backgroundColor: CB_PRIMARY_CSS } : undefined}
                   >
                     {child.label}
                   </button>

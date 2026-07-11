@@ -127,17 +127,17 @@ export default function ClinicaBelezaAparenciaPage() {
     return lightenHex(previewPrimary, 0.96) || '#f7f2f4';
   }, [corFundoPagina, previewPrimary]);
 
-  /** Preview ao vivo no menu/fundo — debounce evita travar o color picker. */
+  /** Preview ao vivo no menu/fundo — só CSS vars (sem re-render do shell). */
   useEffect(() => {
     if (loading) return;
-    const timer = window.setTimeout(() => {
-      applyColors({
+    applyColors(
+      {
         corPrimaria: normalizeHexColor(corPrimaria) || corPrimaria,
         corSecundaria: normalizeHexColor(corSecundaria) || corSecundaria,
         corFundoPagina: normalizeHexColor(corFundoPagina) || '',
-      });
-    }, 60);
-    return () => window.clearTimeout(timer);
+      },
+      { commit: false },
+    );
   }, [loading, corPrimaria, corSecundaria, corFundoPagina, applyColors]);
 
   const updateStatusColor = (key: string, field: 'bg' | 'border', value: string) => {
@@ -185,12 +185,15 @@ export default function ClinicaBelezaAparenciaPage() {
         colunas_consultas: colunasConsultas,
         colunas_estoque: colunasEstoque,
       });
-      applyColors({
-        corPrimaria: primaria,
-        corSecundaria: secundaria,
-        corFundoPagina: fundo,
-        agendaStatusColors: agendaPayload,
-      });
+      applyColors(
+        {
+          corPrimaria: primaria,
+          corSecundaria: secundaria,
+          corFundoPagina: fundo,
+          agendaStatusColors: agendaPayload,
+        },
+        { commit: true },
+      );
       toast.success('Identidade visual salva.');
     } catch (e) {
       const err = e as { response?: { data?: { error?: string; detail?: string } } };

@@ -41,8 +41,15 @@ export type ClinicaBelezaThemeColorsInput = {
 };
 
 type ClinicaBelezaThemeActions = {
-  /** Atualiza cores do menu/fundo/agenda na hora (preview ou após salvar). */
-  applyColors: (colors: ClinicaBelezaThemeColorsInput) => void;
+  /**
+   * Atualiza cores do menu/fundo.
+   * `commit: false` = só pinta CSS vars (preview rápido, sem re-render do shell).
+   * `commit: true` (padrão) = também atualiza o estado React.
+   */
+  applyColors: (
+    colors: ClinicaBelezaThemeColorsInput,
+    opts?: { commit?: boolean },
+  ) => void;
 };
 
 const ClinicaBelezaThemeContext = createContext<ClinicaBelezaTheme | null>(null);
@@ -104,6 +111,33 @@ function propsToLocal(input: {
   };
 }
 
+function mergeLocal(
+  prev: LocalColors,
+  colors: ClinicaBelezaThemeColorsInput,
+): LocalColors {
+  return {
+    corPrimaria:
+      colors.corPrimaria !== undefined ? colors.corPrimaria : prev.corPrimaria,
+    corSecundaria:
+      colors.corSecundaria !== undefined ? colors.corSecundaria : prev.corSecundaria,
+    corFundoPagina:
+      colors.corFundoPagina !== undefined ? colors.corFundoPagina : prev.corFundoPagina,
+    agendaStatusColors:
+      colors.agendaStatusColors !== undefined
+        ? colors.agendaStatusColors
+        : prev.agendaStatusColors,
+  };
+}
+
+function paintCssVars(el: HTMLElement | null, cssVars: CSSProperties) {
+  if (!el) return;
+  for (const [key, value] of Object.entries(cssVars)) {
+    if (typeof value === 'string') {
+      el.style.setProperty(key, value);
+    }
+  }
+}
+
 export function ClinicaBelezaThemeProvider({
   corPrimaria,
   corSecundaria,
@@ -117,9 +151,13 @@ export function ClinicaBelezaThemeProvider({
   agendaStatusColors?: Record<string, { bg?: string; border?: string }> | null;
   children: ReactNode;
 }) {
-  const [local, setLocal] = useState<LocalColors>(() =>
+  const hostRef = useRef<HTMLDivElement>(null);
+  const localRef = useRef<LocalColors>(
     propsToLocal({ corPrimaria, corSecundaria, corFundoPagina, agendaStatusColors }),
   );
+  const flushTimerRef = useRef<number | null>(null);
+
+  const [local, setLocal] = useState<LocalColors>(() => localRef.current);
 
   const propsKey = `${corPrimaria ?? ''}|${corSecundaria ?? ''}|${corFundoPagina ?? ''}|${JSON.stringify(agendaStatusColors ?? null)}`;
   const prevPropsKey = useRef(propsKey);
@@ -127,23 +165,58 @@ export function ClinicaBelezaThemeProvider({
   useEffect(() => {
     if (propsKey === prevPropsKey.current) return;
     prevPropsKey.current = propsKey;
-    setLocal(propsToLocal({ corPrimaria, corSecundaria, corFundoPagina, agendaStatusColors }));
+    const next = propsToLocal({
+      corPrimaria,
+      corSecundaria,
+      corFundoPagina,
+      agendaStatusColors,
+    });
+    localRef.current = next;
+    setLocal(next);
   }, [propsKey, corPrimaria, corSecundaria, corFundoPagina, agendaStatusColors]);
 
-  const applyColors = useCallback((colors: ClinicaBelezaThemeColorsInput) => {
-    setLocal((prev) => ({
-      corPrimaria:
-        colors.corPrimaria !== undefined ? colors.corPrimaria : prev.corPrimaria,
-      corSecundaria:
-        colors.corSecundaria !== undefined ? colors.corSecundaria : prev.corSecundaria,
-      corFundoPagina:
-        colors.corFundoPagina !== undefined ? colors.corFundoPagina : prev.corFundoPagina,
-      agendaStatusColors:
-        colors.agendaStatusColors !== undefined
-          ? colors.agendaStatusColors
-          : prev.agendaStatusColors,
-    }));
-  }, []);
+  const applyColors = useCallback(
+    (colors: ClinicaBelezaThemeColorsInput, opts?: { commit?: boolean }) => {
+      const next = mergeLocal(localRef.current, colors);
+      localRef.current = next;
+      const painted = buildClinicaBelezaTheme({
+        cor_primaria: next.corPrimaria,
+        cor_secundaria: next.corSecundaria,
+        cor_fundo_pagina: next.corFundoPagina,
+        agenda_status_colors: next.agendaStatusColors,
+      });
+      paintCssVars(hostRef.current, painted.cssVars);
+
+      const commit = opts?.commit !== false;
+      if (commit) {
+        if (flushTimerRef.current != null) {
+          window.clearTimeout(flushTimerRef.current);
+          flushTimerRef.current = null;
+        }
+        setLocal(next);
+        return;
+      }
+
+      // Preview: só CSS agora; sincroniza React depois (evita travar o color picker).
+      if (flushTimerRef.current != null) {
+        window.clearTimeout(flushTimerRef.current);
+      }
+      flushTimerRef.current = window.setTimeout(() => {
+        flushTimerRef.current = null;
+        setLocal(localRef.current);
+      }, 280);
+    },
+    [],
+  );
+
+  useEffect(
+    () => () => {
+      if (flushTimerRef.current != null) {
+        window.clearTimeout(flushTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const theme = useMemo(
     () =>
@@ -161,7 +234,7 @@ export function ClinicaBelezaThemeProvider({
   return (
     <ClinicaBelezaThemeActionsContext.Provider value={actions}>
       <ClinicaBelezaThemeContext.Provider value={theme}>
-        <div className="contents" style={theme.cssVars}>
+        <div ref={hostRef} className="contents" style={theme.cssVars}>
           {children}
         </div>
       </ClinicaBelezaThemeContext.Provider>

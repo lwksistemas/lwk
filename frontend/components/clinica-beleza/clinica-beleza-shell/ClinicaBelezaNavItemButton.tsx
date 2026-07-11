@@ -1,6 +1,6 @@
 import type { ElementType } from "react";
 import { ChevronDown } from "lucide-react";
-import { useClinicaBelezaTheme } from "../ClinicaBelezaThemeContext";
+import { CB_PRIMARY_CSS } from "@/lib/clinica-beleza-theme-utils";
 
 interface ClinicaBelezaNavItemButtonProps {
   label: string;
@@ -21,7 +21,6 @@ export function ClinicaBelezaNavItemButton({
   expanded,
   onClick,
 }: ClinicaBelezaNavItemButtonProps) {
-  const { primary } = useClinicaBelezaTheme();
   return (
     <button
       type="button"
@@ -34,7 +33,7 @@ export function ClinicaBelezaNavItemButton({
           ? "text-white shadow-sm"
           : "text-gray-600 hover:bg-white/80 dark:text-gray-300 dark:hover:bg-gray-700/50"
       }`}
-      style={isActive ? { backgroundColor: primary } : undefined}
+      style={isActive ? { backgroundColor: CB_PRIMARY_CSS } : undefined}
     >
       <Icon className="w-5 h-5 shrink-0" />
       {!collapsed && (

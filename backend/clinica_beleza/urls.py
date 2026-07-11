@@ -71,6 +71,8 @@ from .views_assinatura_consentimento import (
     ConsultaEnviarTermoAssinaturaView,
     ConsultaReenviarTermoAssinaturaView,
     ConsultaDownloadTermoPdfView,
+    ConsultaEnviarTermoPdfWhatsappView,
+    TermoConsentimentoPdfPublicView,
 )
 from .views_foto_paciente import (
     ConsultaFotosPacienteView,
@@ -117,6 +119,16 @@ urlpatterns = [
     path('consultas/<int:pk>/termo-consentimento/enviar/', ConsultaEnviarTermoAssinaturaView.as_view(), name='consultas-termo-enviar'),
     path('consultas/<int:pk>/termo-consentimento/reenviar/', ConsultaReenviarTermoAssinaturaView.as_view(), name='consultas-termo-reenviar'),
     path('consultas/<int:pk>/termo-consentimento/pdf/', ConsultaDownloadTermoPdfView.as_view(), name='consultas-termo-pdf'),
+    path(
+        'consultas/<int:pk>/termo-consentimento/enviar-pdf-whatsapp/',
+        ConsultaEnviarTermoPdfWhatsappView.as_view(),
+        name='consultas-termo-enviar-pdf-whatsapp',
+    ),
+    path(
+        'termo-consentimento-pdf/<int:consulta_id>/<int:procedure_id>/<str:token>/',
+        TermoConsentimentoPdfPublicView.as_view(),
+        name='termo-consentimento-pdf-publico',
+    ),
     path('assinar-consentimento/<path:token>/pdf/', ConsultaAssinaturaPdfPublicaView.as_view(), name='assinar-consentimento-pdf'),
     path('assinar-consentimento/<path:token>/', ConsultaAssinaturaPublicaView.as_view(), name='assinar-consentimento'),
     path('consultas/<int:pk>/fotos/', ConsultaFotosPacienteView.as_view(), name='consultas-fotos'),

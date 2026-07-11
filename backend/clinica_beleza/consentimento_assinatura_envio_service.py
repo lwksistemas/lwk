@@ -127,6 +127,94 @@ def reenviar_termo_whatsapp(
     return False, telefone, err or 'Erro ao reenviar.'
 
 
+def enviar_termo_assinado_whatsapp(
+    *,
+    termo_proc,
+    adapter,
+    loja_id: int,
+    user=None,
+) -> tuple[bool, str]:
+    """
+    Envia o PDF do termo já assinado (paciente + profissional) via WhatsApp.
+    Mesmo padrão do recibo: texto + documento público temporário.
+    """
+    import hashlib
+    import logging
+    import time
+
+    from django.conf import settings
+    from django.core.cache import cache as django_cache
+    from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
+    from whatsapp.models import WhatsAppConfig
+    from whatsapp.services import _send_whatsapp_document_evolution, send_whatsapp
+
+    logger = logging.getLogger(__name__)
+
+    if termo_proc.status_assinatura_termo != 'concluido':
+        return False, 'O termo ainda não foi assinado pelas duas partes.'
+
+    config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+    ok_cfg, err_cfg = whatsapp_envio_permitido(config, termo=True)
+    if not ok_cfg:
+        return False, err_cfg or 'WhatsApp indisponível.'
+
+    telefone = adapter.get_telefone_parte1(termo_proc)
+    if not telefone:
+        return False, 'Paciente não possui telefone cadastrado.'
+
+    consulta = termo_proc.consulta
+    paciente = getattr(consulta, 'patient', None)
+    nome_paciente = (getattr(paciente, 'nome', None) or 'cliente').strip()
+    nome_proc = (termo_proc.procedure.nome if termo_proc.procedure_id else 'procedimento').strip()
+    mensagem = (
+        f'Olá {nome_paciente}! Segue o PDF do termo de consentimento assinado '
+        f'({nome_proc}).'
+    )
+
+    ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config, user=user)
+    if not ok:
+        return False, err or 'Erro ao enviar WhatsApp.'
+
+    try:
+        pdf = adapter.gerar_pdf(termo_proc, incluir_assinaturas=True)
+        pdf_bytes = pdf.getvalue() if hasattr(pdf, 'getvalue') else bytes(pdf)
+        ts = str(int(time.time()))
+        token_raw = f'termo-{consulta.id}-{termo_proc.procedure_id}-{ts}-{settings.SECRET_KEY[:16]}'
+        token = hashlib.sha256(token_raw.encode()).hexdigest()[:32]
+        django_cache.set(
+            f'termo_pdf_{token}',
+            {
+                'consulta_id': consulta.id,
+                'procedure_id': termo_proc.procedure_id,
+                'pdf': pdf_bytes,
+            },
+            300,
+        )
+        api_base = getattr(settings, 'API_BASE_URL', '') or 'https://api.lwksistemas.com.br'
+        pdf_url = (
+            f'{api_base}/api/clinica-beleza/termo-consentimento-pdf/'
+            f'{consulta.id}/{termo_proc.procedure_id}/{token}/'
+        )
+        nome_arquivo = f'termo_{nome_proc.replace(" ", "_")[:40]}_{consulta.id}.pdf'
+        _send_whatsapp_document_evolution(
+            telefone,
+            pdf_url,
+            nome_arquivo,
+            caption='Termo de Consentimento Assinado',
+            config=config,
+            user=user,
+        )
+    except Exception as pdf_err:
+        logger.warning(
+            'PDF do termo via WhatsApp falhou (texto já enviado) consulta=%s proc=%s: %s',
+            consulta.id,
+            termo_proc.procedure_id,
+            pdf_err,
+        )
+
+    return True, f'Termo assinado enviado por WhatsApp para {telefone}'
+
+
 def resolver_termos_para_envio(consulta, procedure_id) -> tuple[list, str | None]:
     """
     Lista termos a enviar ou mensagem de erro.

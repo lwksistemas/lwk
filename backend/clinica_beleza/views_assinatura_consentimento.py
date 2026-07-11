@@ -6,8 +6,10 @@ Re-exporta módulos internos e públicos para compatibilidade com urls.py.
 from .views_assinatura_consentimento_internas import (
     ConsultaDownloadTermoPdfView,
     ConsultaEnviarTermoAssinaturaView,
+    ConsultaEnviarTermoPdfWhatsappView,
     ConsultaReenviarTermoAssinaturaView,
     ConsultaTermoConsentimentoStatusView,
+    TermoConsentimentoPdfPublicView,
 )
 from .views_assinatura_consentimento_publicas import (
     ConsultaAssinaturaPdfPublicaView,
@@ -19,6 +21,8 @@ __all__ = [
     'ConsultaAssinaturaPublicaView',
     'ConsultaDownloadTermoPdfView',
     'ConsultaEnviarTermoAssinaturaView',
+    'ConsultaEnviarTermoPdfWhatsappView',
     'ConsultaReenviarTermoAssinaturaView',
     'ConsultaTermoConsentimentoStatusView',
+    'TermoConsentimentoPdfPublicView',
 ]

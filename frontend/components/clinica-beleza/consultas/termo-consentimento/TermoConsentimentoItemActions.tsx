@@ -9,6 +9,7 @@ export function TermoConsentimentoItemActions({
   onEnviar,
   onReenviar,
   onBaixarPdf,
+  onEnviarPdfWhatsapp,
 }: {
   termo: TermoProcedimento;
   loading: boolean;
@@ -16,6 +17,7 @@ export function TermoConsentimentoItemActions({
   onEnviar: (procedureId: number, canal: TermoConsentimentoCanal) => void;
   onReenviar: (procedureId: number, nome: string, canal: TermoConsentimentoCanal) => void;
   onBaixarPdf: (procedureId: number, nome: string) => void;
+  onEnviarPdfWhatsapp: (procedureId: number, nome: string) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -26,7 +28,7 @@ export function TermoConsentimentoItemActions({
             onClick={() => onEnviar(termo.procedure_id, "email")}
             disabled={loading}
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-white text-xs font-medium disabled:opacity-50"
-            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
+            style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
           >
             <Mail size={12} />
             E-mail
@@ -77,6 +79,18 @@ export function TermoConsentimentoItemActions({
         <Download size={12} />
         PDF
       </button>
+      {termo.status === "concluido" && termoWhatsappHabilitado && (
+        <button
+          type="button"
+          onClick={() => onEnviarPdfWhatsapp(termo.procedure_id, termo.procedure_nome)}
+          disabled={loading}
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-green-200 text-green-700 dark:border-green-800 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50"
+          title="Enviar PDF assinado no WhatsApp do cliente"
+        >
+          <MessageCircle size={12} />
+          WhatsApp PDF
+        </button>
+      )}
     </div>
   );
 }
@@ -88,6 +102,7 @@ export function TermoConsentimentoItemRow({
   onEnviar,
   onReenviar,
   onBaixarPdf,
+  onEnviarPdfWhatsapp,
 }: {
   termo: TermoProcedimento;
   loading: boolean;
@@ -95,6 +110,7 @@ export function TermoConsentimentoItemRow({
   onEnviar: (procedureId: number, canal: TermoConsentimentoCanal) => void;
   onReenviar: (procedureId: number, nome: string, canal: TermoConsentimentoCanal) => void;
   onBaixarPdf: (procedureId: number, nome: string) => void;
+  onEnviarPdfWhatsapp: (procedureId: number, nome: string) => void;
 }) {
   return (
     <li className="px-4 py-3">
@@ -117,6 +133,7 @@ export function TermoConsentimentoItemRow({
         onEnviar={onEnviar}
         onReenviar={onReenviar}
         onBaixarPdf={onBaixarPdf}
+        onEnviarPdfWhatsapp={onEnviarPdfWhatsapp}
       />
     </li>
   );

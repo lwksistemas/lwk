@@ -123,6 +123,11 @@ export const consultasApi = {
         `/consultas/${consultaId}/termo-consentimento/reenviar/`,
         { procedure_id: procedureId, canal },
       ),
+    enviarPdfWhatsapp: (consultaId: number, procedureId: number) =>
+      cbPost<{ message: string; procedure_nome?: string }>(
+        `/consultas/${consultaId}/termo-consentimento/enviar-pdf-whatsapp/`,
+        { procedure_id: procedureId },
+      ),
     downloadPdf: async (consultaId: number, procedureId: number) => {
       const res = await clinicaBelezaFetch(
         `/consultas/${consultaId}/termo-consentimento/pdf/?procedure_id=${procedureId}`,

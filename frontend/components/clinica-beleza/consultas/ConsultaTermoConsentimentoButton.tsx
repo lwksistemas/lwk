@@ -18,7 +18,7 @@ export function ConsultaTermoConsentimentoButton({
   const { aberto, toggle, containerRef } = useTermoDropdown();
   const { termo: termoWhatsappHabilitado } = useWhatsappEnvioFlags();
 
-  const { loading, termos, pendentesEnvio, badgeCount, enviar, reenviar, baixarPdf } =
+  const { loading, termos, pendentesEnvio, badgeCount, enviar, reenviar, baixarPdf, enviarPdfWhatsapp } =
     useTermoConsentimento({
       consultaId,
       exigeTermo,
@@ -65,6 +65,7 @@ export function ConsultaTermoConsentimentoButton({
           onEnviar={(id, canal) => void enviar(id, canal)}
           onReenviar={(id, nome, canal) => void reenviar(id, nome, canal)}
           onBaixarPdf={(id, nome) => void baixarPdf(id, nome)}
+          onEnviarPdfWhatsapp={(id, nome) => void enviarPdfWhatsapp(id, nome)}
           onEnviarTodos={(canal) => void enviar(undefined, canal)}
         />
       )}

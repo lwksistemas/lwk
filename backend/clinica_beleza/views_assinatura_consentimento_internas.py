@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from .consentimento_assinatura_adapter import ConsultaTermoAssinaturaAdapter
 from .consentimento_assinatura_envio_service import (
+    enviar_termo_assinado_whatsapp,
     enviar_um_termo,
     normalizar_canal_envio,
     reenviar_termo_whatsapp,
@@ -244,4 +245,69 @@ class ConsultaDownloadTermoPdfView(GetObjectMixin, APIView):
         nome_proc = termo_proc.procedure.nome.replace(' ', '_')[:40]
         response = HttpResponse(pdf.getvalue(), content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="termo_{nome_proc}_{pk}.pdf"'
+        return response
+
+
+class ConsultaEnviarTermoPdfWhatsappView(GetObjectMixin, APIView):
+    """POST — envia PDF do termo já assinado para o WhatsApp do paciente."""
+
+    permission_classes = CLINICA_CLINICAL
+    model_class = Consulta
+    not_found_message = 'Consulta não encontrada'
+    select_related_fields = ('patient', 'professional')
+
+    def post(self, request, pk):
+        from tenants.middleware import get_current_loja_id
+
+        consulta, err = self.object_or_404(pk)
+        if err:
+            return err
+
+        procedure_id = request.data.get('procedure_id')
+        if not procedure_id:
+            return Response(
+                {'detail': 'Informe procedure_id do procedimento.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        termo_proc = resolver_termo_procedimento(consulta, procedure_id)
+        if not termo_proc:
+            return Response({'detail': 'Procedimento não encontrado nesta consulta.'}, status=400)
+
+        loja_id = get_current_loja_id()
+        adapter = ConsultaTermoAssinaturaAdapter()
+        preencher_termo_se_vazio(termo_proc)
+        ok, msg = enviar_termo_assinado_whatsapp(
+            termo_proc=termo_proc,
+            adapter=adapter,
+            loja_id=loja_id,
+            user=request.user,
+        )
+        if ok:
+            return Response({'message': msg, 'procedure_nome': termo_proc.procedure.nome})
+        return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TermoConsentimentoPdfPublicView(APIView):
+    """GET — PDF público temporário do termo assinado (para Evolution/WhatsApp)."""
+
+    permission_classes = []
+    authentication_classes = []
+
+    def get(self, request, consulta_id, procedure_id, token):
+        from django.core.cache import cache as django_cache
+
+        cached = django_cache.get(f'termo_pdf_{token}')
+        if not isinstance(cached, dict):
+            return Response({'error': 'PDF expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
+        if cached.get('consulta_id') != consulta_id or cached.get('procedure_id') != procedure_id:
+            return Response({'error': 'PDF expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
+        pdf_bytes = cached.get('pdf')
+        if not pdf_bytes:
+            return Response({'error': 'PDF expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
+
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = (
+            f'inline; filename="termo_{consulta_id}_{procedure_id}.pdf"'
+        )
         return response

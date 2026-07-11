@@ -59,6 +59,7 @@ _CLINICA_BELEZA_PUBLIC_PREFIXES = (
     '/api/clinica-beleza/assinar-consentimento/',
     '/api/clinica-beleza/enviar-foto/',
     '/api/clinica-beleza/confirmar-agendamento/',
+    '/api/clinica-beleza/termo-consentimento-pdf/',
 )
 
 
@@ -415,7 +416,12 @@ class SecurityIsolationMiddleware:
 
     @staticmethod
     def _is_clinica_beleza_public_path(path):
-        return any(path.startswith(prefix) for prefix in _CLINICA_BELEZA_PUBLIC_PREFIXES)
+        if any(path.startswith(prefix) for prefix in _CLINICA_BELEZA_PUBLIC_PREFIXES):
+            return True
+        # Recibo PDF temporário para Evolution (mesmo padrão do termo assinado)
+        if path.startswith('/api/clinica-beleza/payments/') and '/recibo-pdf/' in path:
+            return True
+        return False
 
     @staticmethod
     def _is_nfse_public_path(path):

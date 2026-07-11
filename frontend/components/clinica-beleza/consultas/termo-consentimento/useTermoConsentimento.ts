@@ -126,6 +126,22 @@ export function useTermoConsentimento({
     }
   };
 
+  const enviarPdfWhatsapp = async (procedureId: number, nome: string) => {
+    if (!confirm(`Enviar o PDF do termo assinado de "${nome}" no WhatsApp do cliente?`)) return;
+    setLoading(true);
+    try {
+      const res = await ClinicaBelezaAPI.consultas.termoConsentimento.enviarPdfWhatsapp(
+        consultaId,
+        procedureId,
+      );
+      toast.success(res.message || `PDF enviado — ${nome}.`);
+    } catch (e: unknown) {
+      toast.error(extrairErroTermo(e, "Erro ao enviar PDF no WhatsApp."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     loading,
     termos,
@@ -134,5 +150,6 @@ export function useTermoConsentimento({
     enviar,
     reenviar,
     baixarPdf,
+    enviarPdfWhatsapp,
   };
 }

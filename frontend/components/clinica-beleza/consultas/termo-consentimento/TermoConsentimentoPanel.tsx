@@ -10,6 +10,7 @@ export function TermoConsentimentoPanel({
   onEnviar,
   onReenviar,
   onBaixarPdf,
+  onEnviarPdfWhatsapp,
   onEnviarTodos,
 }: {
   termos: TermoProcedimento[];
@@ -19,6 +20,7 @@ export function TermoConsentimentoPanel({
   onEnviar: (procedureId: number, canal: TermoConsentimentoCanal) => void;
   onReenviar: (procedureId: number, nome: string, canal: TermoConsentimentoCanal) => void;
   onBaixarPdf: (procedureId: number, nome: string) => void;
+  onEnviarPdfWhatsapp: (procedureId: number, nome: string) => void;
   onEnviarTodos: (canal: TermoConsentimentoCanal) => void;
 }) {
   return (
@@ -44,6 +46,7 @@ export function TermoConsentimentoPanel({
                 onEnviar={onEnviar}
                 onReenviar={onReenviar}
                 onBaixarPdf={onBaixarPdf}
+                onEnviarPdfWhatsapp={onEnviarPdfWhatsapp}
               />
             ))}
           </ul>

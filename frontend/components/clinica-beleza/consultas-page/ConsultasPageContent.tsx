@@ -114,12 +114,16 @@ export function ConsultasPageContent() {
         novaConsultaDate={novaConsulta.novaConsultaDate}
         onFecharNovaConsulta={novaConsulta.fecharNovaConsulta}
         onConsultaCreated={(consultaId) => {
+          // Igual agenda "Cliente presente": fica na lista para a secretária receber.
           ClinicaBelezaAPI.consultas
             .get(consultaId)
             .then((c) => {
-              deepLink.abrirConsulta(c as Consulta, true);
+              void loadConsultas();
+              setReceberConsulta(c as Consulta);
             })
-            .catch(() => {});
+            .catch(() => {
+              void loadConsultas();
+            });
         }}
         onAgendamentoSuccess={() => {
           void loadConsultas();

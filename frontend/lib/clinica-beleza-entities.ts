@@ -18,17 +18,19 @@ export function entityName(e: BilingualName): string {
   return e.name || e.nome || '';
 }
 
-/** Filtra pacientes por prefixo do nome, telefone ou CPF conforme o usuário digita. */
+/** Filtra pacientes por prefixo do nome, telefone, CPF ou e-mail conforme o usuário digita. */
 export function matchesPatientSearchQuery(
-  p: BilingualName & BilingualPhone & { cpf?: string | null },
+  p: BilingualName & BilingualPhone & { cpf?: string | null; email?: string | null },
   rawQuery: string,
 ): boolean {
   const q = rawQuery.trim().toLowerCase();
   if (!q) return false;
   const nome = (entityName(p) || '').toLowerCase();
+  const email = (p.email || '').toLowerCase();
   const qDigits = q.replace(/\D/g, '');
   const tel = (p.phone || p.telefone || '').replace(/\D/g, '');
   const cpf = (p.cpf || '').replace(/\D/g, '');
+  if (q.includes('@')) return email.includes(q);
   const onlyDigits = qDigits.length > 0 && qDigits === q.replace(/\s/g, '');
   if (onlyDigits) {
     if (qDigits.length >= 3 && (tel.includes(qDigits) || cpf.includes(qDigits))) return true;
@@ -36,6 +38,7 @@ export function matchesPatientSearchQuery(
   }
   if (nome.startsWith(q)) return true;
   if (qDigits.length >= 3 && (tel.includes(qDigits) || cpf.includes(qDigits))) return true;
+  if (q.length >= 3 && email.includes(q)) return true;
   return false;
 }
 

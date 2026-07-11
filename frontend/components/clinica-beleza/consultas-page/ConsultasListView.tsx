@@ -1,10 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useState } from "react";
 import { CalendarCog } from "lucide-react";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
+import { LocalizarClienteButton } from "@/components/clinica-beleza/localizar-cliente/LocalizarClienteButton";
+import { LocalizarClienteModal } from "@/components/clinica-beleza/localizar-cliente/LocalizarClienteModal";
 import { ConsultasListTable } from "@/components/clinica-beleza/consultas/ConsultasListTable";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import { formatConsultaListDate } from "./consultas-page-utils";
@@ -44,6 +47,8 @@ export function ConsultasListView({
   onPageChange,
   onLimparDeepLinkError,
 }: ConsultasListViewProps) {
+  const [showLocalizar, setShowLocalizar] = useState(false);
+
   return (
     <>
       <ClinicaBelezaStandardPageHeader
@@ -51,6 +56,12 @@ export function ConsultasListView({
         subtitle="Confirme na Agenda · inicie e finalize aqui"
         onNew={onNovaConsulta}
         newLabel="Nova consulta"
+        beforeLogout={
+          <LocalizarClienteButton
+            onClick={() => setShowLocalizar(true)}
+            title="Localizar cliente e ver histórico de consultas"
+          />
+        }
         extraActions={
           <button
             type="button"
@@ -108,6 +119,12 @@ export function ConsultasListView({
           </ClinicaBelezaPanel>
         )}
       </ClinicaBelezaPageContent>
+      <LocalizarClienteModal
+        open={showLocalizar}
+        mode="historico"
+        onClose={() => setShowLocalizar(false)}
+        onSelectConsulta={onSelectConsulta}
+      />
     </>
   );
 }

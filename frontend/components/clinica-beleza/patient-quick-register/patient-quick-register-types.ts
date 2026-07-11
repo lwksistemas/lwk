@@ -5,6 +5,7 @@ export interface PatientQuickOption {
   telefone?: string;
   phone?: string;
   cpf?: string;
+  email?: string | null;
   convenio?: number | null;
   foto_url?: string | null;
 }

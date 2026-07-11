@@ -105,6 +105,8 @@ export interface ClinicaBelezaStandardPageHeaderProps {
   /** Ações à esquerda do indicador Online (ex.: toolbar da aba ativa). */
   toolbarActions?: ReactNode;
   extraActions?: ReactNode;
+  /** Ações imediatamente à esquerda do botão Sair (ex.: Localizar cliente). */
+  beforeLogout?: ReactNode;
   /** Conteúdo à esquerda do título (ex.: avatar do paciente). */
   leadingContent?: ReactNode;
   /** Oculta voltar, ícone e título — só exibe Online, Sair e ações extras (ex.: dashboard). */
@@ -124,6 +126,7 @@ export function ClinicaBelezaStandardPageHeader({
   showOffline = true,
   toolbarActions,
   extraActions,
+  beforeLogout,
   leadingContent,
   actionsOnly = false,
   showBack = true,
@@ -178,7 +181,10 @@ export function ClinicaBelezaStandardPageHeader({
     return (
       <ClinicaBelezaPageHeader>
         <div className="flex items-center gap-2 sm:gap-3 w-full min-w-0">
-          <div className="flex items-center shrink-0">{logoutButton}</div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {beforeLogout}
+            {logoutButton}
+          </div>
           <div className="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0 flex-wrap justify-end">
             {rightActions}
           </div>
@@ -219,6 +225,7 @@ export function ClinicaBelezaStandardPageHeader({
             </p>
           )}
         </div>
+        {beforeLogout}
         {logoutButton}
         <div className="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0 flex-wrap justify-end">
           {rightActions}

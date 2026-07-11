@@ -36,7 +36,7 @@ def _map_patient_data(raw_data):
 
 
 def _patient_search_q(search: str):
-    """Busca por prefixo do nome; telefone/CPF por dígitos (não casa 'L' dentro de 'FELIX')."""
+    """Busca por prefixo do nome; telefone/CPF por dígitos; e-mail por trecho."""
     from django.db.models import Q
 
     search = (search or '').strip()
@@ -44,15 +44,16 @@ def _patient_search_q(search: str):
         return Q()
     digits = ''.join(c for c in search if c.isdigit())
     has_letters = any(c.isalpha() for c in search)
+    if '@' in search:
+        return Q(email__icontains=search)
     if len(digits) >= 3 and not has_letters:
         return Q(telefone__icontains=digits) | Q(cpf__icontains=digits)
+    q = Q(nome__istartswith=search)
     if len(digits) >= 3:
-        return (
-            Q(nome__istartswith=search)
-            | Q(telefone__icontains=digits)
-            | Q(cpf__icontains=digits)
-        )
-    return Q(nome__istartswith=search)
+        q |= Q(telefone__icontains=digits) | Q(cpf__icontains=digits)
+    if len(search) >= 3:
+        q |= Q(email__icontains=search)
+    return q
 
 
 class PatientListView(APIView):

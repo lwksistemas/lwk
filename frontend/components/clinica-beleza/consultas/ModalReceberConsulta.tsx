@@ -235,13 +235,49 @@ export function ModalReceberConsulta({
     } catch {
       /* usa defaults */
     }
-    const snap = reciboSnapshot;
+
+    // Recibo do cliente: todas as formas já pagas + total acumulado (não só esta operação).
+    let entradasRecibo = reciboSnapshot?.entradas ?? [];
+    let valorPagoRecibo = reciboSnapshot?.totalLiquido ?? Number(c.valor_pago ?? 0);
+    let descontoRecibo = reciboSnapshot?.desconto ?? 0;
+    if (c.payment_id) {
+      try {
+        const parcelasRes = (await ClinicaBelezaAPI.financeiro.payments.parcelas.list(
+          c.payment_id,
+        )) as {
+          parcelas?: Array<{ status?: string; valor?: number | string; payment_method?: string }>;
+          valor_pago?: number;
+        };
+        const parcelas = Array.isArray(parcelasRes?.parcelas)
+          ? parcelasRes.parcelas
+          : Array.isArray(parcelasRes)
+            ? (parcelasRes as Array<{ status?: string; valor?: number | string; payment_method?: string }>)
+            : [];
+        const pagas = parcelas.filter((p) => (p.status || "PAID") === "PAID");
+        if (pagas.length > 0) {
+          entradasRecibo = pagas.map((p) =>
+            novaLinhaEntrada(p.payment_method || "CASH", Number(p.valor ?? 0)),
+          );
+          valorPagoRecibo =
+            typeof parcelasRes?.valor_pago === "number"
+              ? parcelasRes.valor_pago
+              : pagas.reduce((s, p) => s + Number(p.valor ?? 0), 0);
+        }
+      } catch {
+        /* mantém snapshot da operação */
+      }
+    }
+    if (Number(c.valor_pago ?? 0) > valorPagoRecibo) {
+      valorPagoRecibo = Number(c.valor_pago);
+    }
+
     const html = gerarHtmlRecibo({
       consulta: c,
-      valorPago: snap?.totalLiquido ?? Number(c.valor_pago ?? 0),
-      desconto: snap?.desconto ?? 0,
-      entradas: snap?.entradas ?? [],
+      valorPago: valorPagoRecibo,
+      desconto: descontoRecibo,
+      entradas: entradasRecibo,
       lojaData,
+      saldoRestante: saldoReceberConsulta(c),
     });
     const w = window.open("", "_blank", "width=320,height=700");
     if (!w) return;
@@ -326,7 +362,7 @@ export function ModalReceberConsulta({
               </p>
               {resumoFormas && (
                 <p>
-                  <strong>Formas:</strong> {resumoFormas}
+                  <strong>Formas nesta operação:</strong> {resumoFormas}
                 </p>
               )}
               {Number(consultaExibida.valor_pago ?? 0) > 0 && (
@@ -334,7 +370,9 @@ export function ModalReceberConsulta({
                   <strong>Total já pago:</strong> {formatCurrency(Number(consultaExibida.valor_pago))}
                 </p>
               )}
-              {precisaComplementar && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 pt-1">
+                O recibo impresso/WhatsApp/e-mail lista todas as formas e o total já pago.
+              </p>              {precisaComplementar && (
                 <p className="font-semibold text-orange-800 dark:text-orange-300 pt-1">
                   Saldo em aberto: {formatCurrency(saldoAposRecebimento)} — inclua outras formas para
                   complementar.
@@ -646,8 +684,9 @@ function gerarHtmlRecibo(params: {
     email?: string;
     cep?: string;
   };
+  saldoRestante?: number;
 }): string {
-  const { consulta, valorPago, desconto, entradas, lojaData } = params;
+  const { consulta, valorPago, desconto, entradas, lojaData, saldoRestante = 0 } = params;
   const dataHora = new Date().toLocaleString("pt-BR", {
     timeZone: "America/Sao_Paulo",
     day: "2-digit",
@@ -753,6 +792,11 @@ function gerarHtmlRecibo(params: {
 </div>
 
 <div class="total">VALOR PAGO: R$ ${valorPago.toFixed(2)}</div>
+${
+  saldoRestante > 0.009
+    ? `<div class="total" style="font-size:12px;">SALDO: R$ ${saldoRestante.toFixed(2)}</div>`
+    : `<div class="footer" style="border-top:none;margin-top:0;"><p style="font-weight:bold;color:#333;">Quitado</p></div>`
+}
 
 <div class="footer">
   <p>Obrigado pela preferência!</p>

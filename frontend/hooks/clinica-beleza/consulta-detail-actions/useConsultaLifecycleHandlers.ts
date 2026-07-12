@@ -68,7 +68,7 @@ export function useConsultaLifecycleHandlers(
       try {
         const body = professionalId ? { professional: professionalId } : undefined;
         const data = await ClinicaBelezaAPI.consultas.iniciar(selected.id, body);
-        setSelected({ ...selected, ...(data as Partial<Consulta>) });
+        setSelected({ ...selected, ...data });
         await onListRefresh();
         const hist = await fetchHistoricoPaciente(selected.patient).catch(() => []);
         setHistorico(Array.isArray(hist) ? (hist as Consulta[]) : []);

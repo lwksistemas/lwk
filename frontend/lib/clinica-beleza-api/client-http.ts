@@ -7,7 +7,7 @@ import {
 
 type QueryParams = Record<string, string | number | boolean | null | undefined>;
 
-export async function cbGetList<T = unknown>(
+export async function cbGetList<T = never>(
   path: string,
   params?: QueryParams,
   loja?: { id?: number; slug?: string } | null,
@@ -16,7 +16,7 @@ export async function cbGetList<T = unknown>(
   return parseClinicaBelezaListResponse<T>(data);
 }
 
-export async function cbGet<T = unknown>(
+export async function cbGet<T = never>(
   path: string,
   params?: QueryParams,
   loja?: { id?: number; slug?: string } | null,
@@ -28,9 +28,9 @@ export async function cbGet<T = unknown>(
   return data as T;
 }
 
-export async function cbPost<T = unknown>(
+export async function cbPost<T = never>(
   path: string,
-  data: unknown,
+  data: Record<string, unknown> | unknown[] | object,
   loja?: { id?: number; slug?: string } | null,
 ): Promise<T> {
   const res = await clinicaBelezaFetch(
@@ -43,9 +43,9 @@ export async function cbPost<T = unknown>(
   return body as T;
 }
 
-export async function cbPut<T = unknown>(
+export async function cbPut<T = never>(
   path: string,
-  data: unknown,
+  data: Record<string, unknown> | unknown[] | object,
   loja?: { id?: number; slug?: string } | null,
 ): Promise<T> {
   const res = await clinicaBelezaFetch(
@@ -58,9 +58,9 @@ export async function cbPut<T = unknown>(
   return body as T;
 }
 
-export async function cbPatch<T = unknown>(
+export async function cbPatch<T = never>(
   path: string,
-  data: unknown,
+  data: Record<string, unknown> | unknown[] | object,
   loja?: { id?: number; slug?: string } | null,
 ): Promise<T> {
   const res = await clinicaBelezaFetch(

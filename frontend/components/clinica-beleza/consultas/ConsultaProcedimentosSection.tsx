@@ -1,6 +1,6 @@
 "use client";
 
-import type { ConsultaProcedimento } from "./consultas-types";
+import type { Consulta, ConsultaProcedimento } from "./consultas-types";
 import { ProcedimentoAdicionarForm } from "./procedimentos-consulta/ProcedimentoAdicionarForm";
 import { ProcedimentosConsultaAlerts } from "./procedimentos-consulta/ProcedimentosConsultaAlerts";
 import { ProcedimentosConsultaLista } from "./procedimentos-consulta/ProcedimentosConsultaLista";
@@ -18,7 +18,7 @@ export function ConsultaProcedimentosSection({
   consultaId: number;
   somenteLeitura: boolean;
   procedimentosIniciais?: ConsultaProcedimento[];
-  onChanged?: (consulta?: Record<string, unknown>) => void;
+  onChanged?: (consulta?: Partial<Consulta>) => void;
 }) {
   const {
     itens,

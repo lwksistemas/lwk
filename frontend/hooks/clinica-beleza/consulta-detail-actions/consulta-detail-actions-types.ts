@@ -26,7 +26,7 @@ export type ConsultaDetailLoaderSlice = {
   observacoesDraft: string;
   setObservacoesDraft: Dispatch<SetStateAction<string>>;
   loadDetalhes: (c: Consulta, opts?: { detailPreloaded?: boolean }) => Promise<void>;
-  refreshConsulta: (patch?: Record<string, unknown>) => Promise<void>;
+  refreshConsulta: (patch?: Partial<Consulta>) => Promise<void>;
   recarregarPrescricoes: () => Promise<void>;
 };
 

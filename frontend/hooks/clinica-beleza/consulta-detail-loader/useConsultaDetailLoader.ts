@@ -80,7 +80,7 @@ export function useConsultaDetailLoader({
         let consultaAtual = c;
         if (!opts?.detailPreloaded) {
           const fresh = await ClinicaBelezaAPI.consultas.get(c.id).catch(() => null);
-          consultaAtual = mergeConsultaFresh(c, fresh as Consulta | null);
+          consultaAtual = mergeConsultaFresh(c, fresh);
           setSelected(consultaAtual);
         }
 
@@ -107,10 +107,10 @@ export function useConsultaDetailLoader({
   );
 
   const refreshConsulta = useCallback(
-    async (patch?: Record<string, unknown>) => {
+    async (patch?: Partial<Consulta>) => {
       try {
         const fresh = patch ?? (await ClinicaBelezaAPI.consultas.get(selected.id));
-        setSelected((prev) => ({ ...prev, ...(fresh as Partial<Consulta>) }));
+        setSelected((prev) => ({ ...prev, ...fresh }));
         if (patch) await onListRefresh?.();
       } catch (e) {
         logger.warn("Erro ao atualizar consulta:", e);

@@ -8,7 +8,7 @@ import type {
   ProcedimentoConvenioPrecosMatrix,
 } from "./types-entities";
 import type { Anamnese } from "@/components/clinica-beleza/consultas/consultas-types";
-import type { ClinicaPatient } from "@/lib/clinica-beleza-entities";
+import type { ClinicaPatient, HorarioTrabalhoRow } from "@/lib/clinica-beleza-entities";
 import { cbDelete, cbGet, cbGetList, cbPost, cbPut } from "./client-http";
 
 export const anamneseApi = {
@@ -27,16 +27,17 @@ export const professionalsApi = {
   list: (params?: { active?: boolean; with_schedule?: boolean; page?: number; page_size?: number }) =>
     cbGetList("/professionals/", params),
   get: <T = unknown>(id: number) => cbGet<T>(`/professionals/${id}/`),
-  create: (data: unknown) => cbPost("/professionals/", data),
-  update: (id: number, data: unknown) => cbPut(`/professionals/${id}/`, data),
+  create: (data: Record<string, unknown>) => cbPost("/professionals/", data),
+  update: (id: number, data: Record<string, unknown>) => cbPut(`/professionals/${id}/`, data),
   delete: (id: number) => cbDelete(`/professionals/${id}/`),
   comissoes: {
     list: (id: number) => cbGet(`/professionals/${id}/comissoes/`),
-    save: (id: number, payload: unknown[]) => cbPost(`/professionals/${id}/comissoes/`, payload),
+    save: (id: number, payload: Record<string, unknown>[]) => cbPost(`/professionals/${id}/comissoes/`, payload),
   },
   horarios: {
-    get: (id: number) => cbGet(`/professionals/${id}/horarios-trabalho/`),
-    save: (id: number, data: unknown) => cbPut(`/professionals/${id}/horarios-trabalho/`, data),
+    get: (id: number) => cbGet<HorarioTrabalhoRow[]>(`/professionals/${id}/horarios-trabalho/`),
+    save: (id: number, data: HorarioTrabalhoRow[] | Record<string, unknown>[]) =>
+      cbPut<HorarioTrabalhoRow[]>(`/professionals/${id}/horarios-trabalho/`, data),
   },
   adminStatus: () =>
     cbGet<{ is_enabled: boolean; professional_id: number | null }>("/professionals/admin-status/"),

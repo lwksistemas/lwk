@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
-import type { ConsultaProcedimento } from "../consultas-types";
+import type { Consulta, ConsultaProcedimento } from "../consultas-types";
 import type { AppointmentProcedureItem, ProcedureOption } from "./procedimentos-consulta-types";
 import {
   avisoTermoProcedimentoAdicionado,
@@ -16,7 +16,7 @@ export function useConsultaProcedimentos({
 }: {
   consultaId: number;
   procedimentosIniciais?: ConsultaProcedimento[];
-  onChanged?: (consulta?: Record<string, unknown>) => void;
+  onChanged?: (consulta?: Partial<Consulta>) => void;
 }) {
   const [itens, setItens] = useState<AppointmentProcedureItem[]>([]);
   const [catalogo, setCatalogo] = useState<ProcedureOption[]>([]);
@@ -110,7 +110,7 @@ export function useConsultaProcedimentos({
       const lista = await ClinicaBelezaAPI.consultas.procedimentos.list(consultaId);
       const fresh = await ClinicaBelezaAPI.consultas.get(consultaId);
       setItens(Array.isArray(lista) ? lista : []);
-      onChanged?.(fresh as Record<string, unknown>);
+      onChanged?.(fresh);
       if ((Array.isArray(lista) ? lista : []).length === 0) setShowManageList(false);
     } catch (e: unknown) {
       setErro(extractProcedimentosConsultaError(e, "Erro ao remover procedimento."));

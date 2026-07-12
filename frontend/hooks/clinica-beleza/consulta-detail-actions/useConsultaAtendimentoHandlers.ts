@@ -54,7 +54,7 @@ export function useConsultaAtendimentoHandlers(
       const updated = await ClinicaBelezaAPI.consultas.update(selected.id, {
         observacoes_gerais: observacoesDraft,
       });
-      setSelected({ ...selected, ...(updated as Partial<Consulta>) });
+      setSelected({ ...selected, ...updated });
       setObservacoes(observacoesDraft);
       setEditAtendimento(false);
       await onListRefresh();
@@ -92,8 +92,8 @@ export function useConsultaAtendimentoHandlers(
         selected.id,
         protocoloPendingId,
       );
-      const notas = (updated as Partial<Consulta>).protocolo_notas || observacoes;
-      setSelected({ ...selected, ...(updated as Partial<Consulta>) });
+      const notas = updated.protocolo_notas || observacoes;
+      setSelected({ ...selected, ...updated });
       setObservacoes(notas);
       setObservacoesDraft(notas);
       setProtocoloPreview(null);

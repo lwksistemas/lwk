@@ -1,6 +1,7 @@
 import { clinicaBelezaFetch } from "./fetch";
 import type { PacienteFotoItem } from "./types-memed";
 import { cbDelete, cbGet, cbPatch, cbPost } from "./client-http";
+import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 
 export const consultasApi = {
   criar: (data: {
@@ -13,13 +14,14 @@ export const consultasApi = {
     valor_consulta?: number | string;
     convenio?: number | null;
   }) => cbPost("/consultas/", data),
-  get: (id: number) => cbGet(`/consultas/${id}/`),
-  update: (id: number, data: Record<string, unknown>) => cbPatch(`/consultas/${id}/`, data),
+  get: (id: number) => cbGet<Consulta>(`/consultas/${id}/`),
+  update: (id: number, data: Partial<Consulta> | Record<string, unknown>) =>
+    cbPatch<Consulta>(`/consultas/${id}/`, data),
   excluir: (id: number) => cbDelete(`/consultas/${id}/`),
   aplicarProtocolo: (id: number, protocolId: number) =>
-    cbPost(`/consultas/${id}/aplicar-protocolo/`, { protocol_id: protocolId }),
+    cbPost<Consulta>(`/consultas/${id}/aplicar-protocolo/`, { protocol_id: protocolId }),
   iniciar: (id: number, body?: { professional?: number }) =>
-    cbPost(`/consultas/${id}/iniciar/`, body || {}),
+    cbPost<Partial<Consulta>>(`/consultas/${id}/iniciar/`, body || {}),
   receber: (
     id: number,
     data: {
@@ -43,7 +45,7 @@ export const consultasApi = {
       amount?: number | string;
       local_atendimento?: number;
     },
-  ) => cbPost(`/consultas/${id}/finalizar/`, data ?? {}),
+  ) => cbPost<Partial<Consulta>>(`/consultas/${id}/finalizar/`, data ?? {}),
   evolucoes: {
     list: (consultaId: number) => cbGet(`/consultas/${consultaId}/evolucoes/`),
     create: (consultaId: number, data: Record<string, unknown>) =>

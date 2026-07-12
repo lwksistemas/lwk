@@ -7,6 +7,7 @@ import {
   CLINICA_AGENDA_SNAP_DURATION,
 } from "@/lib/clinica-beleza-constants";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
+import type { EventClickArg, EventDropArg } from "@fullcalendar/core";
 import { AgendaListaColunas } from "./AgendaListaColunas";
 
 const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
@@ -44,9 +45,9 @@ export function AgendaCalendarSection({
   slotMinTime: string;
   slotMaxTime: string;
   onAbrirLista: (evt: AgendaEventData) => void;
-  onEventClick: (info: any) => void;
+  onEventClick: (info: EventClickArg) => void;
   onDateClick: (info: { date: Date }) => void;
-  onEventDrop: (info: any) => void;
+  onEventDrop: (info: EventDropArg) => void;
   onEventResize: (info: any) => void;
 }) {
   return (

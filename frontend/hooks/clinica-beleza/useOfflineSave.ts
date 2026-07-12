@@ -36,7 +36,7 @@ export type OfflineSaveResult =
 
 export interface UseOfflineSaveOptions<T extends { id: number }> {
   entityType: FilaSyncItem['tipo'];
-  saveOnline: (body: unknown, editing: T | null) => Promise<void>;
+  saveOnline: (body: Record<string, unknown>, editing: T | null) => Promise<void>;
   /** Lista local — omitir em formulários sem lista (ex.: profissional) */
   list?: T[];
   setList?: (list: T[]) => void;

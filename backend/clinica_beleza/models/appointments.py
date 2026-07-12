@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.db import models
 
 from agenda_base.models import (
+    BloqueioAgendaBase,
     ClienteBase,
 )
 from core.mixins import LojaIsolationManager, LojaIsolationMixin

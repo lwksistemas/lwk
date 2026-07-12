@@ -194,11 +194,6 @@ class CriarDocumentoTest(TestCase):
         )
 
         self.assertEqual(result, mock_doc)
-            tipo='receituario',
-            titulo='Receita 1',
-            conteudo='Receita teste',
-            loja_id=1,
-        )
 
     @patch('clinica_beleza.documento_service.DocumentoClinico.objects')
     def test_cria_documento_sem_template(self, mock_objects):

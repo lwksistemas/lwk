@@ -49,13 +49,8 @@ def api_root(request):
             'stores': '/api/stores/',
             'products': '/api/products/',
             'asaas': '/api/asaas/',
-            'clinica': '/api/clinica/',
-            'ecommerce': '/api/ecommerce/',
-            'restaurante': '/api/restaurante/',
-            'servicos': '/api/servicos/',
-            'hotel': '/api/hotel/',
-            'cabeleireiro': '/api/cabeleireiro/',
             'clinica_beleza': '/api/clinica-beleza/',
+            'hotel': '/api/hotel/',
             'notificacoes': '/api/notificacoes/',
             'push': '/api/push/',
             'crm_vendas': '/api/crm-vendas/',
@@ -87,11 +82,7 @@ urlpatterns = [
     path('api/asaas/', include('asaas_integration.urls')),  # API Asaas
     
     # APIs dos tipos de app
-    path('api/ecommerce/', include('ecommerce.urls')),
-    path('api/restaurante/', include('restaurante.urls')),
-    path('api/servicos/', include('servicos.urls')),
     path('api/hotel/', include('hotel.urls')),
-    path('api/cabeleireiro/', include('cabeleireiro.urls')),
     path('api/clinica-beleza/', include('clinica_beleza.urls')),
     path('api/whatsapp/', include('whatsapp.urls')),
     path('api/notificacoes/', include('notificacoes.urls')),

@@ -59,11 +59,7 @@ INSTALLED_APPS = [
     'asaas_integration',  # Integração com Asaas
     'nfse_integration.apps.NfseIntegrationConfig',  # NFS-e (emissão/listagem) — deve coincidir com config.settings
     'clinica_beleza.apps.ClinicaBelezaConfig',  # Clínica da Beleza (agenda, profissionais, etc.)
-    'ecommerce',
-    'restaurante',
-    'servicos',
     'hotel.apps.HotelConfig',  # App de hotelaria (Hotel / Pousada)
-    'cabeleireiro',  # App de cabeleireiro/salão de beleza
     'notificacoes.apps.NotificacoesConfig',  # Base de notificações (in-app, push, email, etc.)
     'push.apps.PushConfig',  # Push notifications (VAPID)
     'whatsapp.apps.WhatsappConfig',  # WhatsApp oficial (Meta Cloud API) - ETAPA 4

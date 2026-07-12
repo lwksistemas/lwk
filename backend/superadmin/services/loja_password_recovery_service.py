@@ -171,10 +171,6 @@ def _find_tenant_professional_id(loja, db: str, email_norm: str, tipo_slug: str,
     prof_model = None
     if tipo_slug == 'clinica-beleza' or tipo_nome == 'Clínica da Beleza':
         from clinica_beleza.models import Professional as prof_model
-    elif tipo_slug == 'clinica-estetica' or tipo_nome == 'Clínica de Estética':
-        from clinica_estetica.models import Profissional as prof_model
-    elif tipo_slug == 'cabeleireiro' or tipo_nome == 'Cabeleireiro':
-        from cabeleireiro.models import Profissional as prof_model
 
     if prof_model is None:
         return None

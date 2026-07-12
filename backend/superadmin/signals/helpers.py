@@ -126,7 +126,7 @@ def _limpar_arquivos_orfaos_loja(loja):
     """
     Remove arquivos órfãos ao excluir loja:
     - Diretório backups/{slug}/ (arquivos de backup)
-    - Arquivos em media/nfe_restaurante/ com prefixo loja_{id}_
+    - Arquivos em media/nfe_restaurante/ com prefixo loja_{id}_ (legado)
     """
     from django.conf import settings
     base_dir = Path(settings.BASE_DIR)

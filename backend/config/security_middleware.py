@@ -473,15 +473,9 @@ class SecurityIsolationMiddleware:
     def _is_store_route(self, path):
         """Verifica se a rota é de uma loja"""
         store_routes = (
-            '/api/clinica/',
             '/api/clinica-beleza/',
-            '/api/cabeleireiro/',
             '/api/hotel/',
             '/api/crm-vendas/',
-            '/api/crm/',
-            '/api/ecommerce/',
-            '/api/restaurante/',
-            '/api/servicos/',
             '/api/stores/',
             '/api/products/',
         )

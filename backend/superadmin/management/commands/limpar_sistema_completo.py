@@ -5,7 +5,6 @@ Mantém apenas superadmin e suporte.
 """
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
-from django.db import connection
 
 
 class Command(BaseCommand):
@@ -41,57 +40,8 @@ class Command(BaseCommand):
         usuarios_loja.delete()
         self.stdout.write(self.style.SUCCESS(f'   ✅ {usuarios_count} usuários deletados'))
 
-        # 3. Limpar funcionários de todas as lojas
-        self.stdout.write('3️⃣ Limpando funcionários...')
-        
-        # Clinica
-        try:
-            from clinica_estetica.models import Funcionario as FuncionarioClinica
-            count = FuncionarioClinica.objects.all_without_filter().count()
-            FuncionarioClinica.objects.all_without_filter().delete()
-            self.stdout.write(self.style.SUCCESS(f'   ✅ Clínica: {count} funcionários deletados'))
-        except Exception as e:
-            self.stdout.write(self.style.WARNING(f'   ⚠️ Clínica: {e}'))
-
-        # Restaurante
-        try:
-            from restaurante.models import Funcionario as FuncionarioRestaurante
-            count = FuncionarioRestaurante.objects.all_without_filter().count()
-            FuncionarioRestaurante.objects.all_without_filter().delete()
-            self.stdout.write(self.style.SUCCESS(f'   ✅ Restaurante: {count} funcionários deletados'))
-        except Exception as e:
-            self.stdout.write(self.style.WARNING(f'   ⚠️ Restaurante: {e}'))
-
-        # Serviços
-        try:
-            from servicos.models import Funcionario as FuncionarioServicos
-            count = FuncionarioServicos.objects.all_without_filter().count()
-            FuncionarioServicos.objects.all_without_filter().delete()
-            self.stdout.write(self.style.SUCCESS(f'   ✅ Serviços: {count} funcionários deletados'))
-        except Exception as e:
-            self.stdout.write(self.style.WARNING(f'   ⚠️ Serviços: {e}'))
-
-        # 4. Limpar outros dados de lojas
-        self.stdout.write('4️⃣ Limpando outros dados...')
-        
-        # Clientes, Agendamentos, etc da Clínica
-        try:
-            from clinica_estetica.models import Cliente, Agendamento, Profissional
-            clientes = Cliente.objects.all_without_filter().count()
-            Cliente.objects.all_without_filter().delete()
-            agendamentos = Agendamento.objects.all_without_filter().count()
-            Agendamento.objects.all_without_filter().delete()
-            profissionais = Profissional.objects.all_without_filter().count()
-            Profissional.objects.all_without_filter().delete()
-            self.stdout.write(self.style.SUCCESS(
-                f'   ✅ Clínica: {clientes} clientes, {agendamentos} agendamentos, '
-                f'{profissionais} profissionais deletados'
-            ))
-        except Exception as e:
-            self.stdout.write(self.style.WARNING(f'   ⚠️ Clínica: {e}'))
-
-        # 5. Limpar sessões antigas
-        self.stdout.write('5️⃣ Limpando sessões...')
+        # 3. Limpar sessões antigas
+        self.stdout.write('3️⃣ Limpando sessões...')
         try:
             from superadmin.models import UserSession
             sessoes = UserSession.objects.count()
@@ -100,8 +50,8 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.WARNING(f'   ⚠️ Sessões: {e}'))
 
-        # 6. Limpar pagamentos Asaas órfãos
-        self.stdout.write('6️⃣ Limpando pagamentos Asaas...')
+        # 4. Limpar pagamentos Asaas órfãos
+        self.stdout.write('4️⃣ Limpando pagamentos Asaas...')
         try:
             from asaas_integration.models import AsaasPayment
             pagamentos = AsaasPayment.objects.count()
@@ -112,9 +62,9 @@ class Command(BaseCommand):
 
         # Resumo final
         self.stdout.write('')
-        self.stdout.write('='*60)
+        self.stdout.write('=' * 60)
         self.stdout.write(self.style.SUCCESS('✅ LIMPEZA COMPLETA FINALIZADA!'))
         self.stdout.write('')
         self.stdout.write('Sistema limpo e pronto para criar novas lojas.')
         self.stdout.write('Usuários superadmin e suporte foram mantidos.')
-        self.stdout.write('='*60)
+        self.stdout.write('=' * 60)

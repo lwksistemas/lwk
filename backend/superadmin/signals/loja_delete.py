@@ -88,47 +88,7 @@ def delete_all_loja_data(sender, instance, **kwargs):
             logger.warning(f"   ⚠️ Erro ao remover LojaAssinatura por slug: {e}")
         
         # 1. Deletar funcionários/vendedores baseado no tipo de app (no schema da loja quando db_alias definido)
-        if tipo_loja_nome == 'Clínica de Estética':
-            from clinica_estetica.models import Funcionario, Cliente, Agendamento, Profissional, Procedimento
-            _db = db_alias
-
-            # Funcionários
-            qs = Funcionario.objects.all_without_filter().filter(loja_id=loja_id)
-            if _db:
-                qs = qs.using(_db)
-            func_count = qs.count()
-            qs.delete()
-            logger.info(f"   ✅ {func_count} funcionários deletados")
-
-            qs = Cliente.objects.all_without_filter().filter(loja_id=loja_id)
-            if _db:
-                qs = qs.using(_db)
-            cli_count = qs.count()
-            qs.delete()
-            logger.info(f"   ✅ {cli_count} clientes deletados")
-
-            qs = Agendamento.objects.all_without_filter().filter(loja_id=loja_id)
-            if _db:
-                qs = qs.using(_db)
-            agend_count = qs.count()
-            qs.delete()
-            logger.info(f"   ✅ {agend_count} agendamentos deletados")
-
-            qs = Profissional.objects.all_without_filter().filter(loja_id=loja_id)
-            if _db:
-                qs = qs.using(_db)
-            prof_count = qs.count()
-            qs.delete()
-            logger.info(f"   ✅ {prof_count} profissionais deletados")
-
-            qs = Procedimento.objects.all_without_filter().filter(loja_id=loja_id)
-            if _db:
-                qs = qs.using(_db)
-            proc_count = qs.count()
-            qs.delete()
-            logger.info(f"   ✅ {proc_count} procedimentos deletados")
-            
-        elif tipo_loja_nome == 'CRM Vendas':
+        if tipo_loja_nome == 'CRM Vendas':
             from crm_vendas.models import Atividade, Oportunidade, Lead, Contato, Conta, Vendedor
             _db = db_alias
 
@@ -157,85 +117,6 @@ def delete_all_loja_data(sender, instance, **kwargs):
             _delete_crm(Conta, 'contas')
             _delete_crm(Vendedor, 'vendedores')
 
-        elif tipo_loja_nome == 'Restaurante':
-            from restaurante.models import (
-                Funcionario, Reserva, Pedido, ItemCardapio, Categoria, Mesa, Cliente,
-                Fornecedor, NotaFiscalEntrada, EstoqueItem, MovimentoEstoque, RegistroPesoBalança
-            )
-            _db = db_alias
-
-            def _delete_restaurante(model, nome):
-                try:
-                    if hasattr(model.objects, 'all_without_filter'):
-                        qs = model.objects.all_without_filter().filter(loja_id=loja_id)
-                    else:
-                        qs = model.objects.filter(loja_id=loja_id)
-                    if _db:
-                        qs = qs.using(_db)
-                    count = qs.count()
-                    qs.delete()
-                    logger.info(f"   ✅ {count} {nome} deletados")
-                except Exception as e:
-                    logger.warning(f"   ⚠️ Erro ao deletar {nome}: {e}")
-            
-            # Ordem: dependentes primeiro. MovimentoEstoque/RegistroPesoBalança referenciam EstoqueItem (PROTECT)
-            _delete_restaurante(Reserva, 'reservas')
-            _delete_restaurante(Pedido, 'pedidos')
-            _delete_restaurante(ItemCardapio, 'itens cardápio')
-            _delete_restaurante(Categoria, 'categorias')
-            _delete_restaurante(Mesa, 'mesas')
-            _delete_restaurante(Cliente, 'clientes')
-            _delete_restaurante(Funcionario, 'funcionários')
-            _delete_restaurante(Fornecedor, 'fornecedores')
-            _delete_restaurante(NotaFiscalEntrada, 'notas fiscais')
-            # Movimentos e registros de peso antes de EstoqueItem (FK PROTECT)
-            try:
-                qs = MovimentoEstoque.objects.filter(estoque_item__loja_id=loja_id)
-                if _db:
-                    qs = qs.using(_db)
-                mov_count = qs.count()
-                qs.delete()
-                logger.info(f"   ✅ {mov_count} movimentos de estoque deletados")
-            except Exception as e:
-                logger.warning(f"   ⚠️ Erro ao deletar movimentos estoque: {e}")
-            try:
-                qs = RegistroPesoBalança.objects.filter(estoque_item__loja_id=loja_id)
-                if _db:
-                    qs = qs.using(_db)
-                reg_count = qs.count()
-                qs.delete()
-                logger.info(f"   ✅ {reg_count} registros peso deletados")
-            except Exception as e:
-                logger.warning(f"   ⚠️ Erro ao deletar registros peso: {e}")
-            _delete_restaurante(EstoqueItem, 'itens estoque')
-            
-        elif tipo_loja_nome == 'Serviços':
-            from servicos.models import Funcionario, Servico, Profissional, Agendamento, OrdemServico, Orcamento, Cliente, Categoria
-            _db = db_alias
-
-            def _delete_servicos(model, nome):
-                try:
-                    if hasattr(model.objects, 'all_without_filter'):
-                        qs = model.objects.all_without_filter().filter(loja_id=loja_id)
-                    else:
-                        qs = model.objects.filter(loja_id=loja_id)
-                    if _db:
-                        qs = qs.using(_db)
-                    count = qs.count()
-                    qs.delete()
-                    logger.info(f"   ✅ {count} {nome} deletados")
-                except Exception as e:
-                    logger.warning(f"   ⚠️ Erro ao deletar {nome} (Serviços): {e}")
-            
-            _delete_servicos(Agendamento, 'agendamentos')
-            _delete_servicos(OrdemServico, 'ordens de serviço')
-            _delete_servicos(Orcamento, 'orçamentos')
-            _delete_servicos(Servico, 'serviços')  # antes de Categoria (FK)
-            _delete_servicos(Profissional, 'profissionais')
-            _delete_servicos(Cliente, 'clientes')
-            _delete_servicos(Categoria, 'categorias')
-            _delete_servicos(Funcionario, 'funcionários')
-            
         elif tipo_loja_nome == 'Clínica da Beleza':
             if db_alias:
                 from superadmin.tenant_cleanup import delete_clinica_beleza_tenant_data
@@ -271,37 +152,6 @@ def delete_all_loja_data(sender, instance, **kwargs):
                 _delete_clinica_beleza(Professional, 'profissionais')
                 _delete_clinica_beleza(Patient, 'pacientes')
             
-        elif tipo_loja_nome == 'Cabeleireiro':
-            from cabeleireiro.models import (
-                Cliente, Profissional, Servico, Agendamento, Produto, Venda,
-                Funcionario, HorarioFuncionamento, BloqueioAgenda
-            )
-            _db = db_alias
-
-            def _delete_cabeleireiro(model, nome):
-                try:
-                    if hasattr(model.objects, 'all_without_filter'):
-                        qs = model.objects.all_without_filter().filter(loja_id=loja_id)
-                    else:
-                        qs = model.objects.filter(loja_id=loja_id)
-                    if _db:
-                        qs = qs.using(_db)
-                    count = qs.count()
-                    qs.delete()
-                    logger.info(f"   ✅ {count} {nome} (Cabeleireiro) deletados")
-                except Exception as e:
-                    logger.warning(f"   ⚠️ Erro ao deletar {nome} Cabeleireiro: {e}")
-            
-            _delete_cabeleireiro(BloqueioAgenda, 'bloqueios agenda')
-            _delete_cabeleireiro(Agendamento, 'agendamentos')
-            _delete_cabeleireiro(Venda, 'vendas')
-            _delete_cabeleireiro(Funcionario, 'funcionários')
-            _delete_cabeleireiro(HorarioFuncionamento, 'horários')
-            _delete_cabeleireiro(Produto, 'produtos')
-            _delete_cabeleireiro(Servico, 'serviços')
-            _delete_cabeleireiro(Profissional, 'profissionais')
-            _delete_cabeleireiro(Cliente, 'clientes')
-
         elif tipo_loja_nome:
             # Hotel, E-commerce e outros: sem ramo explícito acima — tabelas somem com DROP SCHEMA CASCADE.
             logger.info(

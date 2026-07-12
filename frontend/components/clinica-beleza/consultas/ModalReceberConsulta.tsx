@@ -802,13 +802,13 @@ function gerarHtmlRecibo(params: {
 
 <div class="divider"></div>
 <table>
-  <tr><td><strong>Subtotal</strong></td><td style="text-align:right"><strong>R$ ${totalGeral.toFixed(2)}</strong></td></tr>
+  <tr><td><strong>Subtotal</strong></td><td style="text-align:right"><strong>R$ ${(totalGeral + desconto).toFixed(2)}</strong></td></tr>
   ${desconto > 0 ? `<tr><td>Desconto</td><td style="text-align:right">- R$ ${desconto.toFixed(2)}</td></tr>` : ""}
   <tr><td><strong>Total</strong></td><td style="text-align:right"><strong>R$ ${(totalGeral - desconto).toFixed(2)}</strong></td></tr>
 </table>
 
 <div class="section">
-  <div class="section-title">Pagamento</div>
+  <div class="section-title">Formas de pagamento:</div>
   <table>
     ${formasHtml || `<tr><td>Pagamento</td><td style="text-align:right">R$ ${valorPago.toFixed(2)}</td></tr>`}
   </table>

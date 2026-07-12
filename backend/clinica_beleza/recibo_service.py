@@ -113,7 +113,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     subtotal = valor_total + desconto if desconto > 0 else servicos_soma
     loja_telefone = telefone_exibicao_brasileiro(tel_raw)
     loja_cep = _formatar_cep(cep_raw)
-    loja_email = (getattr(loja, 'email', '') or '').strip() if loja else ''
+    loja_email = (getattr(getattr(loja, 'owner', None), 'email', '') or '').strip() if loja else ''
 
     return {
         'paciente_nome': getattr(patient, 'nome', 'Cliente'),
@@ -328,18 +328,13 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
         Paragraph(f'<b>R$ {ctx["valor_total"]:.2f}</b>', s_right),
     ])
     formas = ctx.get('formas_pagamento', [])
-    if len(formas) > 1:
+    if formas:
         totals_data.append([Paragraph('<b>Formas de pagamento:</b>', s_bold), Paragraph('', s_right)])
         for f in formas:
             totals_data.append([
                 Paragraph(f'  {f["metodo"]}', s_left),
                 Paragraph(f'R$ {f["valor"]:.2f}', s_right),
             ])
-    elif formas:
-        totals_data.append([
-            Paragraph(formas[0]['metodo'], s_left),
-            Paragraph(f'R$ {formas[0]["valor"]:.2f}', s_right),
-        ])
     else:
         metodo = ctx.get('metodo', '')
         totals_data.append([Paragraph(metodo, s_left), Paragraph(f'R$ {ctx["valor_pago"]:.2f}', s_right)])
@@ -355,6 +350,9 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
 
     story.append(Spacer(1, 3 * mm))
     story.append(Paragraph(f"VALOR PAGO: R$ {ctx['valor_pago']:.2f}", s_total))
+    if ctx.get('valor_pago', 0) >= ctx.get('valor_total', 0) and ctx.get('valor_total', 0) > 0:
+        story.append(Spacer(1, 1 * mm))
+        story.append(Paragraph('<b>Quitado</b>', s_center))
     story.append(Spacer(1, 2 * mm))
     story.append(hr)
 

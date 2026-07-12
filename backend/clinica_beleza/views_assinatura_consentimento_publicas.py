@@ -5,6 +5,9 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from .consentimento_assinatura_adapter import ConsultaTermoAssinaturaAdapter
+from .consentimento_assinatura_envio_service import (
+    enviar_termo_assinado_whatsapp,
+)
 from .consentimento_assinatura_publica_service import (
     STATUS_DISPLAY,
     configurar_tenant_publico_clinica,
@@ -132,6 +135,16 @@ class ConsultaAssinaturaPublicaView(View):
 
         if novo_status == 'concluido':
             enviar_pdf_final(adapter, termo_proc, loja_id)
+            try:
+                enviar_termo_assinado_whatsapp(
+                    termo_proc=termo_proc,
+                    adapter=adapter,
+                    loja_id=loja_id,
+                    user=request.user if request.user.is_authenticated else None,
+                )
+            except Exception:
+                # Falha no WhatsApp não impede o sucesso da assinatura.
+                pass
 
         return JsonResponse({
             'success': True,

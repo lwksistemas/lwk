@@ -76,6 +76,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     valor_restante = serializers.SerializerMethodField()
     payment_status = serializers.SerializerMethodField()
     payment_id = serializers.SerializerMethodField()
+    payment_date = serializers.SerializerMethodField()
     status_assinatura_termo_display = serializers.CharField(
         source='get_status_assinatura_termo_display', read_only=True,
     )
@@ -88,7 +89,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             'procedure', 'procedure_name', 'procedures_list', 'protocol', 'protocol_name', 'status',
             'data_inicio', 'data_fim', 'duracao_minutos', 'observacoes_gerais', 'protocolo_notas',
             'valor_consulta', 'valor_procedimentos', 'valor_pagamento',
-            'valor_pago', 'valor_restante', 'payment_status', 'payment_id',
+            'valor_pago', 'valor_restante', 'payment_status', 'payment_id', 'payment_date',
             'retorno_gratuito', 'retorno_tipo',
             'local_atendimento', 'local_atendimento_name',
             'convenio', 'convenio_name',
@@ -210,6 +211,19 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             except Exception:
                 return 'PARTIAL'
         return payment.status
+
+    def get_payment_date(self, obj):
+        """Data/hora do pagamento vinculado (ISO 8601) para exibir no recibo."""
+        payment = self._get_payment(obj)
+        if not payment:
+            return None
+        dt = getattr(payment, 'payment_date', None)
+        if dt:
+            from django.utils import timezone as dj_tz
+            if dj_tz.is_aware(dt):
+                dt = dj_tz.localtime(dt)
+            return dt.isoformat()
+        return None
 
     def get_convenio_name(self, obj):
         if obj.convenio_id and obj.convenio:

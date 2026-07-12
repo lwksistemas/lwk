@@ -46,6 +46,8 @@ export interface Consulta {
   payment_status?: 'PAID' | 'PENDING' | 'PARTIAL' | null;
   /** ID do Payment vinculado (para listar parcelas). */
   payment_id?: number | null;
+  /** Data/hora do pagamento (ISO 8601) para exibir no recibo. */
+  payment_date?: string | null;
   local_atendimento?: number | null;
   local_atendimento_name?: string | null;
   convenio?: number | null;

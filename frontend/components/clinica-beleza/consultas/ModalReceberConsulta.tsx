@@ -687,14 +687,23 @@ function gerarHtmlRecibo(params: {
   saldoRestante?: number;
 }): string {
   const { consulta, valorPago, desconto, entradas, lojaData, saldoRestante = 0 } = params;
-  const dataHora = new Date().toLocaleString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const dataHora = consulta.payment_date
+    ? new Date(consulta.payment_date).toLocaleString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : new Date().toLocaleString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
   const valorConsulta = Number(consulta.valor_consulta ?? 0);
   const valorProcs = Number(consulta.valor_procedimentos ?? 0);
   const totalGeral = valorConsulta + valorProcs;

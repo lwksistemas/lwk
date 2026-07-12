@@ -37,7 +37,7 @@ MSG_APENAS_EM_ANDAMENTO = 'Envio de fotos permitido apenas com a consulta em and
 
 
 def _consulta_permite_envio_foto(consulta) -> Response | None:
-    if consulta.status != 'IN_PROGRESS':
+    if consulta.status not in ('IN_PROGRESS', 'RECEBER'):
         return Response({'detail': MSG_APENAS_EM_ANDAMENTO}, status=status.HTTP_400_BAD_REQUEST)
     return None
 

@@ -3,6 +3,9 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
+from django.test import RequestFactory
+from rest_framework import status
+
 from clinica_beleza.foto_paciente_service import (
     ambiente_do_token_foto,
     build_link_foto,
@@ -128,3 +131,25 @@ class FotoQrLinkTests(TestCase):
             cfg['folder'],
             'lwksistemas/beta/34787081845/clinica-beleza-fotos',
         )
+
+
+class ConsultaFotoPermissaoStatusTests(TestCase):
+    def _consulta(self, status_value):
+        return SimpleNamespace(id=1, patient_id=2, loja_id=3, status=status_value)
+
+    def test_geracao_qr_permitida_em_in_progress(self):
+        from clinica_beleza.views_foto_paciente import _consulta_permite_envio_foto
+
+        self.assertIsNone(_consulta_permite_envio_foto(self._consulta('IN_PROGRESS')))
+
+    def test_geracao_qr_permitida_em_receber(self):
+        from clinica_beleza.views_foto_paciente import _consulta_permite_envio_foto
+
+        self.assertIsNone(_consulta_permite_envio_foto(self._consulta('RECEBER')))
+
+    def test_geracao_qr_bloqueada_fora_de_atendimento(self):
+        from clinica_beleza.views_foto_paciente import _consulta_permite_envio_foto
+
+        res = _consulta_permite_envio_foto(self._consulta('SCHEDULED'))
+        self.assertIsNotNone(res)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)

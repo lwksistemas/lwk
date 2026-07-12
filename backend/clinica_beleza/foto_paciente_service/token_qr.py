@@ -75,6 +75,16 @@ def frontend_base_permitido(origin: str | None) -> str | None:
     return None
 
 
+def default_frontend_base_foto() -> str:
+    """Retorna URL base do frontend para fotos quando não há Origin na requisição."""
+    from core.cloudinary_folders import resolve_ambiente_segment
+
+    ambiente = resolve_ambiente_segment()
+    if ambiente == 'beta':
+        return 'https://beta.lwksistemas.com.br'
+    return getattr(settings, 'FRONTEND_URL', 'https://lwksistemas.com.br').rstrip('/')
+
+
 def resolver_frontend_base_qr(request=None, frontend_origin: str | None = None) -> str | None:
     """Prioriza origem enviada pelo painel (beta vs produção)."""
     if request is not None:

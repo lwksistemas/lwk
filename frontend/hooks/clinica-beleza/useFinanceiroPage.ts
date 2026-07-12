@@ -59,7 +59,7 @@ export function useFinanceiroPage() {
   const loadResumo = useCallback(async () => {
     try {
       const data = await ClinicaBelezaAPI.financeiro.resumo();
-      setResumo(data);
+      setResumo(data as FinanceiroResumo);
     } catch {
       setResumo(null);
     }

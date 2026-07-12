@@ -4,14 +4,14 @@
  */
 
 type BilingualName = { name?: string; nome?: string };
-type BilingualPhone = { phone?: string; telefone?: string | null };
+type BilingualPhone = { phone?: string | null; telefone?: string | null };
 type BilingualActive = { active?: boolean; is_active?: boolean };
 type BilingualBirthDate = { birth_date?: string | null; data_nascimento?: string | null };
 type BilingualAddress = { address?: string | null; endereco?: string | null };
 type BilingualNotes = { notes?: string | null; observacoes?: string | null };
 type BilingualSpecialty = { specialty?: string; especialidade?: string };
 type BilingualDescription = { description?: string | null; descricao?: string | null };
-type BilingualPrice = { price?: string; preco?: string };
+type BilingualPrice = { price?: string | number; preco?: string | number };
 type BilingualDuration = { duration?: number; duracao_minutos?: number };
 
 export function entityName(e: BilingualName): string {
@@ -90,7 +90,7 @@ export function procedureDescription(e: BilingualDescription): string | null {
 }
 
 export function procedurePrice(e: BilingualPrice): string {
-  return e.price || e.preco || '0';
+  return String(e.price ?? e.preco ?? '0');
 }
 
 export function procedureDuration(e: BilingualDuration): number {

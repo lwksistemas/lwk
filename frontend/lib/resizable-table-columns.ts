@@ -35,7 +35,7 @@ function shouldSkipTable(table: HTMLTableElement): boolean {
   return ths.length < 2;
 }
 
-function ensureColgroup(table: HTMLTableElement, count: number): HTMLColElement[] {
+function ensureColgroup(table: HTMLTableElement, count: number): HTMLElement[] {
   let colgroup = table.querySelector('colgroup');
   if (!colgroup) {
     colgroup = document.createElement('colgroup');

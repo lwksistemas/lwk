@@ -116,7 +116,7 @@ export function useEstoquePage({ defaultCategoria = "" }: UseEstoquePageOptions 
   const loadResumo = useCallback(async () => {
     try {
       const data = await ClinicaBelezaAPI.estoque.resumo(lojaCtx);
-      setResumo(data);
+      setResumo(data as EstoqueResumo);
     } catch {
       setResumo(null);
     }

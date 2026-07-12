@@ -5,9 +5,11 @@ import {
   parseClinicaBelezaResponseBody,
 } from "./pagination";
 
+type QueryParams = Record<string, string | number | boolean | null | undefined>;
+
 export async function cbGetList<T = unknown>(
   path: string,
-  params?: Record<string, unknown>,
+  params?: QueryParams,
   loja?: { id?: number; slug?: string } | null,
 ): Promise<T[]> {
   const data = await cbGet(path, params, loja);
@@ -16,7 +18,7 @@ export async function cbGetList<T = unknown>(
 
 export async function cbGet<T = unknown>(
   path: string,
-  params?: Record<string, unknown>,
+  params?: QueryParams,
   loja?: { id?: number; slug?: string } | null,
 ): Promise<T> {
   const url = params ? buildClinicaBelezaListUrl(path, params) : path;

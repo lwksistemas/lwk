@@ -16,7 +16,7 @@ export function useAgendaOfflineCache(
   professionals: ClinicaProfessional[],
   patients: ClinicaPatient[],
   procedures: ClinicaProcedure[],
-  eventsData: unknown,
+  eventsData: unknown[],
 ) {
   useEffect(() => {
     if (!isOnline || !professionals.length) return;

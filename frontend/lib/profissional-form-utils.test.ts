@@ -25,8 +25,8 @@ describe("mapComissoesProcedimentoFromApi", () => {
 describe("mapComissoesConsultaFromApi", () => {
   it("expande comissão geral para todos os locais", () => {
     const locais = [
-      { id: 1, nome: "Moema", is_active: true, created_at: "", updated_at: "" },
-      { id: 2, nome: "Centro", is_active: true, created_at: "", updated_at: "" },
+      { id: 1, nome: "Moema", is_active: true, valor_consulta: "100", created_at: "", updated_at: "" },
+      { id: 2, nome: "Centro", is_active: true, valor_consulta: "100", created_at: "", updated_at: "" },
     ];
     const result = mapComissoesConsultaFromApi(
       [{ tipo: "consulta", modo: "percentual", valor: 35 }],
@@ -38,7 +38,7 @@ describe("mapComissoesConsultaFromApi", () => {
   });
 
   it("prioriza comissões por local", () => {
-    const locais = [{ id: 1, nome: "Moema", is_active: true, created_at: "", updated_at: "" }];
+    const locais = [{ id: 1, nome: "Moema", is_active: true, valor_consulta: "100", created_at: "", updated_at: "" }];
     const result = mapComissoesConsultaFromApi(
       [{ tipo: "consulta", modo: "fixo", valor: 140, local_atendimento: 1, local_atendimento_nome: "Moema" }],
       locais,
@@ -51,8 +51,8 @@ describe("mapComissoesConsultaFromApi", () => {
 describe("locaisDisponiveisParaConsulta", () => {
   it("exclui locais já usados em outras linhas", () => {
     const locais = [
-      { id: 1, nome: "A", is_active: true, created_at: "", updated_at: "" },
-      { id: 2, nome: "B", is_active: true, created_at: "", updated_at: "" },
+      { id: 1, nome: "A", is_active: true, valor_consulta: "100", created_at: "", updated_at: "" },
+      { id: 2, nome: "B", is_active: true, valor_consulta: "100", created_at: "", updated_at: "" },
     ];
     const comissoes = [
       { tipo: "consulta", modo: "percentual", valor: "30", local_atendimento: 1 },

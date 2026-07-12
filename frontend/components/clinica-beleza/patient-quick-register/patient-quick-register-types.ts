@@ -4,7 +4,7 @@ export interface PatientQuickOption {
   name?: string;
   telefone?: string;
   phone?: string;
-  cpf?: string;
+  cpf?: string | null;
   email?: string | null;
   convenio?: number | null;
   foto_url?: string | null;

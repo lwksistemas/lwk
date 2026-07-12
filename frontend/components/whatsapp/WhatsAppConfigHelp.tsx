@@ -114,7 +114,7 @@ export function WhatsAppConfigStatus({
       ? whatsappAtivo || whatsappConnectionStatus === 'qr_pending'
       : whatsappAtivo && (whatsappPhoneId.trim() || whatsappTokenSet);
 
-  let message: string;
+  let message: React.ReactNode;
   if (ready) {
     message =
       variant === 'crm' ? (

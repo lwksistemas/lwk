@@ -62,7 +62,7 @@ export function useConsultaDetailTabLoader({
           }
           case "anamnese": {
             const anam = await ClinicaBelezaAPI.anamnese.get(patientId).catch(() => EMPTY_ANAMNESE);
-            const anamMerged = mergeAnamnese(anam);
+            const anamMerged = mergeAnamnese(anam as Partial<Anamnese> | null | undefined);
             setAnamnese(anamMerged);
             setAnamneseDraft(anamMerged);
             break;
@@ -83,7 +83,7 @@ export function useConsultaDetailTabLoader({
               ClinicaBelezaAPI.memed.listarPrescricoesPaciente(patientId).catch(() => []),
             ]);
             setHistorico(normalizeConsultaList(hist));
-            const anamMerged = mergeAnamnese(anam);
+            const anamMerged = mergeAnamnese(anam as Partial<Anamnese> | null | undefined);
             setAnamnese(anamMerged);
             setAnamneseDraft(anamMerged);
             setPrescricoes(Array.isArray(presc) ? presc : []);
@@ -116,7 +116,7 @@ export function useConsultaDetailTabLoader({
         ClinicaBelezaAPI.anamnese.get(patientId).catch(() => EMPTY_ANAMNESE),
         ClinicaBelezaAPI.memed.listarPrescricoesPaciente(patientId).catch(() => []),
       ]);
-      const anamMerged = mergeAnamnese(anam);
+      const anamMerged = mergeAnamnese(anam as Partial<Anamnese> | null | undefined);
       setAnamnese(anamMerged);
       setAnamneseDraft(anamMerged);
       setPrescricoes(Array.isArray(presc) ? presc : []);

@@ -14,6 +14,7 @@ import {
   mapComissoesProcedimentoFromApi,
   mapProfissionalFormFromApi,
   validateProfissionalForm,
+  type ProfissionalApiRow,
 } from "./profissional-form-utils";
 import {
   DEFAULT_PROFISSIONAL_FORM,
@@ -62,13 +63,13 @@ export function useProfissionalForm(editId: string | null, onDone: () => void) {
 
   useEffect(() => {
     ClinicaBelezaAPI.procedures.list().then((data) => {
-      setProcedures(Array.isArray(data) ? data : []);
+      setProcedures(Array.isArray(data) ? (data as ProfissionalProcedure[]) : []);
     }).catch(() => {});
     ClinicaBelezaAPI.locaisAtendimento.list().then((data) => {
-      setLocais(Array.isArray(data) ? data : []);
+      setLocais(Array.isArray(data) ? (data as LocalAtendimentoItem[]) : []);
     }).catch(() => {});
     ClinicaBelezaAPI.convenios.list().then((data) => {
-      setConvenios(Array.isArray(data) ? data : []);
+      setConvenios(Array.isArray(data) ? (data as ConvenioItem[]) : []);
     }).catch(() => {});
   }, []);
 
@@ -84,7 +85,7 @@ export function useProfissionalForm(editId: string | null, onDone: () => void) {
         ]);
         const locaisAtivos = Array.isArray(locaisData) ? locaisData : [];
         setLocais(locaisAtivos);
-        setForm(mapProfissionalFormFromApi(prof));
+        setForm(mapProfissionalFormFromApi(prof as unknown as ProfissionalApiRow));
         comissoesState.setComissoes(mapComissoesProcedimentoFromApi(comissoesData));
         comissoesState.setComissoesConsultaLocal(
           mapComissoesConsultaFromApi(comissoesData, locaisAtivos),

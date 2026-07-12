@@ -166,7 +166,7 @@ export function HistoricoPagamentos({
         { responseType: 'blob' }
       );
       const blob = res.data as Blob;
-      const ct = res.headers?.['content-type'] || blob.type || '';
+      const ct = String(res.headers?.['content-type'] || blob.type || '');
       if (ct.includes('json') || blob.type?.includes('json')) {
         const d = JSON.parse(await blob.text());
         if (d?.error) {
@@ -210,7 +210,7 @@ export function HistoricoPagamentos({
         { responseType: 'blob' }
       );
       const blob = res.data as Blob;
-      const ct = res.headers?.['content-type'] || blob.type || '';
+      const ct = String(res.headers?.['content-type'] || blob.type || '');
       if (ct.includes('json') || blob.type?.includes('json')) {
         const d = JSON.parse(await blob.text());
         if (d?.error) {
@@ -264,7 +264,7 @@ export function HistoricoPagamentos({
         { responseType: 'blob' }
       );
       const blob = res.data as Blob;
-      const ct = res.headers?.['content-type'] || blob.type || '';
+      const ct = String(res.headers?.['content-type'] || blob.type || '');
       if (ct.includes('json') || blob.type?.includes('json')) {
         const d = JSON.parse(await blob.text());
         if (d?.pdf_url) {

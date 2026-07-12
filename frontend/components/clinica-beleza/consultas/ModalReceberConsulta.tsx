@@ -206,7 +206,7 @@ export function ModalReceberConsulta({
     setError("");
     try {
       const res = await ClinicaBelezaAPI.consultas.estornarPagamento(consulta.id);
-      const atualizada = (res?.consulta || res) as Consulta;
+      const atualizada = ((res as unknown as { consulta?: Consulta }).consulta || (res as unknown as Consulta));
       setConfirmado(false);
       setConsultaAtualizada(null);
       setReciboSnapshot(null);

@@ -37,7 +37,7 @@ export function useConsultaProcedimentos({
         ClinicaBelezaAPI.procedures.list({ active: true, page_size: 500 }),
       ]);
       setItens(Array.isArray(lista) ? lista : mapProcedimentosFromConsulta(procedimentosIniciais));
-      setCatalogo(normalizarCatalogoProcedimentos(procs));
+      setCatalogo(normalizarCatalogoProcedimentos(procs as { id: number; nome?: string; name?: string; categoria?: string; category?: string }[]));
     } catch {
       setItens(mapProcedimentosFromConsulta(procedimentosIniciais));
       setErro("Erro ao carregar procedimentos.");

@@ -78,11 +78,11 @@ export function openBlobInNewTab(blob: Blob, mime = 'application/pdf'): void {
   setTimeout(() => window.URL.revokeObjectURL(url), 10000);
 }
 
-type ApiBlobResponse = { data: unknown; headers?: Record<string, string | undefined> };
+type ApiBlobResponse = { data: unknown; headers?: Record<string, string | undefined | string[] | number | boolean> | null };
 
 /** Abre PDF: JSON com URL (Asaas/ISSNet DANFE) ou blob inline. */
 export async function openPdfFromApiBlobResponse(res: ApiBlobResponse): Promise<void> {
-  const contentType = res.headers?.['content-type'] || '';
+  const contentType = String(res.headers?.['content-type'] || '');
   if (contentType.includes('application/json')) {
     const text = await (res.data as Blob).text();
     const json = JSON.parse(text) as { url?: string };

@@ -126,7 +126,7 @@ export function buildProcedimentoCategoriaCards(
     return procedureMatchesModule(o.value, moduleKey);
   });
 
-  const cards = options.map((o) => ({
+  const cards: { value: string; label: string; count: number }[] = options.map((o) => ({
     value: o.value,
     label: o.label,
     count: counts.get(o.value) || 0,
@@ -136,7 +136,7 @@ export function buildProcedimentoCategoriaCards(
     if (!cards.some((c) => c.value === slug)) {
       const label =
         PROCEDURE_CATEGORIA_OPTIONS.find((o) => o.value === slug)?.label ?? slug;
-      cards.push({ value: slug, label, count });
+      cards.push({ value: slug as string, label, count });
     }
   }
 
@@ -144,7 +144,7 @@ export function buildProcedimentoCategoriaCards(
 }
 
 export function mapPrecosConvenioFromApi(
-  rows: { convenio: number; preco?: string | null }[],
+  rows: { convenio: number; preco?: string | number | null }[],
 ): Record<number, string> {
   const map: Record<number, string> = {};
   for (const r of rows) {

@@ -54,8 +54,8 @@ export function LojaWhatsAppConfigPanel({
     setWhatsappPhoneId((data.whatsapp_phone_id ?? '').toString());
     setWhatsappTokenSet(!!data.whatsapp_token_set);
     setWhatsappProvider(data.whatsapp_provider === 'evolution' ? 'evolution' : 'meta');
-    setConnectionStatus(data.connection_status ?? data.whatsapp_connection_status ?? 'disconnected');
-    setConnectedPhone((data.connected_phone ?? data.whatsapp_connected_phone ?? '').toString());
+    setConnectionStatus(data.connection_status ?? 'disconnected');
+    setConnectedPhone((data.connected_phone ?? '').toString());
     // evolutionAvailable é definido em loadConfig (health + API)
     setEnviarConfirmacao(data.enviar_confirmacao ?? true);
     setEnviarLembrete24h(data.enviar_lembrete_24h ?? true);

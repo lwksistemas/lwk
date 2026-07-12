@@ -20,7 +20,7 @@ type ComissaoApiRow = {
   local_atendimento_nome?: string;
 };
 
-type ProfissionalApiRow = {
+export type ProfissionalApiRow = {
   nome?: string;
   name?: string;
   especialidade?: string;

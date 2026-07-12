@@ -3,9 +3,9 @@ import { getPrimaryApiBaseUrlFromHost } from './api-base';
 
 const FETCH_TIMEOUT = 10000; // 10s para produção
 
-function resolveHomepageApiBase(): string {
+async function resolveHomepageApiBase(): Promise<string> {
   try {
-    const host = headers().get('host') ?? '';
+    const host = (await headers()).get('host') ?? '';
     if (host) return getPrimaryApiBaseUrlFromHost(host);
   } catch {
     // fora do contexto de request (build estático, etc.)
@@ -16,7 +16,7 @@ function resolveHomepageApiBase(): string {
 }
 
 export async function getHomepage() {
-  const API_BASE = resolveHomepageApiBase();
+  const API_BASE = await resolveHomepageApiBase();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 

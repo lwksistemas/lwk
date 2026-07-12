@@ -12,7 +12,7 @@ export interface ClinicaBelezaPaginatedResult<T> {
 /** Monta URL de listagem com query params (paginação opcional). */
 export function buildClinicaBelezaListUrl(
   path: string,
-  params?: Record<string, string | number | undefined | null>,
+  params?: Record<string, string | number | boolean | undefined | null>,
 ): string {
   const search = new URLSearchParams();
   if (params) {

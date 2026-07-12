@@ -70,6 +70,7 @@ describe("extractAnamneseDisplayFields", () => {
       alergias: "",
       tipo_pele: "",
       observacoes: "",
+      created_at: null,
       updated_at: null,
     });
     expect(fields).toHaveLength(1);

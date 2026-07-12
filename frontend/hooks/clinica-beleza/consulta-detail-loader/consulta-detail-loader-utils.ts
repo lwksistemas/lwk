@@ -28,7 +28,7 @@ export function resolveInitialConsultaTab(status: string, historicoCount: number
   return status === "SCHEDULED" && temHistoricoAnterior ? "historico" : "atendimento";
 }
 
-export function mergeConsultaFresh(base: Consulta, fresh: Record<string, unknown> | null): Consulta {
+export function mergeConsultaFresh(base: Consulta, fresh: Partial<Consulta> | null): Consulta {
   return fresh ? { ...base, ...fresh } : base;
 }
 

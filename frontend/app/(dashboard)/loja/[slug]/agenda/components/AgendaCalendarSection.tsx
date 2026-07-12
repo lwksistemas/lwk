@@ -44,10 +44,10 @@ export function AgendaCalendarSection({
   slotMinTime: string;
   slotMaxTime: string;
   onAbrirLista: (evt: AgendaEventData) => void;
-  onEventClick: (info: unknown) => void;
+  onEventClick: (info: any) => void;
   onDateClick: (info: { date: Date }) => void;
-  onEventDrop: (info: unknown) => void;
-  onEventResize: (info: unknown) => void;
+  onEventDrop: (info: any) => void;
+  onEventResize: (info: any) => void;
 }) {
   return (
     <div

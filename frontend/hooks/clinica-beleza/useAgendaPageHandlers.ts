@@ -81,8 +81,8 @@ export function useAgendaPageHandlers({
       setSelectedEvent({
         id: info.event.id,
         title: info.event.title,
-        start: info.event.start!,
-        end: info.event.end!,
+        start: info.event.start ? info.event.start.toISOString() : '',
+        end: info.event.end ? info.event.end.toISOString() : '',
         backgroundColor: info.event.backgroundColor,
         borderColor: info.event.borderColor,
         textColor: info.event.textColor,

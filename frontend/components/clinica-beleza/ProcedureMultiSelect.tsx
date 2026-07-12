@@ -57,7 +57,7 @@ export function ProcedureMultiSelect({
       const slug = procedureCat(p);
       counts.set(slug, (counts.get(slug) || 0) + 1);
     }
-    const cards = PROCEDURE_CATEGORIA_OPTIONS.filter((o) => (counts.get(o.value) || 0) > 0).map(
+    const cards: { value: string; label: string; count: number }[] = PROCEDURE_CATEGORIA_OPTIONS.filter((o) => (counts.get(o.value) || 0) > 0).map(
       (o) => ({ value: o.value, label: o.label, count: counts.get(o.value) || 0 }),
     );
     for (const [slug, count] of counts) {

@@ -9,7 +9,7 @@ export function ConsultaPrintButton({
   label = "Imprimir",
   className = "",
 }: {
-  onPrint: () => void | Promise<void>;
+  onPrint: () => void | Promise<unknown>;
   label?: string;
   className?: string;
 }) {

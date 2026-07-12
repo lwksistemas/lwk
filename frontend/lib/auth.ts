@@ -60,11 +60,11 @@ class AuthService {
     switch (userType) {
       case 'superadmin':
         endpoint = '/auth/superadmin/login/';
-          payload.cpf_cnpj = credentials.cpf_cnpj;
+          if (credentials.cpf_cnpj) payload.cpf_cnpj = credentials.cpf_cnpj;
         break;
       case 'suporte':
         endpoint = '/auth/suporte/login/';
-          payload.cpf_cnpj = credentials.cpf_cnpj;
+          if (credentials.cpf_cnpj) payload.cpf_cnpj = credentials.cpf_cnpj;
         break;
       case 'loja':
           if (!slug) {
@@ -72,7 +72,7 @@ class AuthService {
           }
         endpoint = '/auth/loja/login/';
           payload.loja_slug = slug;
-          payload.cpf_cnpj = credentials.cpf_cnpj;
+          if (credentials.cpf_cnpj) payload.cpf_cnpj = credentials.cpf_cnpj;
         break;
         default:
           throw new Error('Tipo de usuário inválido');

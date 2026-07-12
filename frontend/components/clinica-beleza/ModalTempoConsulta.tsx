@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
-import { formatApiErrorBody } from "@/lib/api-errors";
+import { formatApiError } from "@/lib/api-errors";
 
 interface ModalTempoConsultaProps {
   professionalId: number;
@@ -33,7 +33,7 @@ export function ModalTempoConsulta({
       setLoading(true);
       setError("");
       try {
-        const data = await ClinicaBelezaAPI.professionals.get(professionalId);
+        const data = await ClinicaBelezaAPI.professionals.get<{ tempo_consulta_minutos?: number | null }>(professionalId);
         const minutos = data?.tempo_consulta_minutos;
         setTempo(
           minutos != null && minutos > 0 ? String(minutos) : "",
@@ -63,7 +63,7 @@ export function ModalTempoConsulta({
       onSaved?.();
       onClose();
     } catch (e) {
-      setError(formatApiErrorBody(e, "Erro ao salvar tempo da consulta."));
+      setError(formatApiError(e));
     } finally {
       setSaving(false);
     }

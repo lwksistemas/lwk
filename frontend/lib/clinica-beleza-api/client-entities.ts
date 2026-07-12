@@ -24,9 +24,9 @@ export const patientsApi = {
 export const professionalsApi = {
   list: (params?: { active?: boolean; with_schedule?: boolean; page?: number; page_size?: number }) =>
     cbGetList("/professionals/", params),
-  get: (id: number) => cbGet(`/professionals/${id}/`),
-  create: (data: Record<string, unknown>) => cbPost("/professionals/", data),
-  update: (id: number, data: Record<string, unknown>) => cbPut(`/professionals/${id}/`, data),
+  get: <T = unknown>(id: number) => cbGet<T>(`/professionals/${id}/`),
+  create: (data: unknown) => cbPost("/professionals/", data),
+  update: (id: number, data: unknown) => cbPut(`/professionals/${id}/`, data),
   delete: (id: number) => cbDelete(`/professionals/${id}/`),
   comissoes: {
     list: (id: number) => cbGet(`/professionals/${id}/comissoes/`),

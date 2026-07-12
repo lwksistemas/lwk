@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import apiClient from '@/lib/api-client';
 import { formatTelefone, applyTelefoneFormatPayload, applyTelefoneInternacionalPayload, isTelefoneField } from '@/lib/format-br';
+import { extractArrayData } from '@/lib/api-helpers';
+import { formatApiError } from '@/lib/api-errors';
 import { logger } from '@/lib/logger';
 
 export interface FieldConfig {

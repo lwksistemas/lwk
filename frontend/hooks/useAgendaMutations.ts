@@ -103,7 +103,7 @@ export function useAgendaMutations({
     return true;
   }, []);
 
-  const moverEvento = useCallback(async (info: { event: { id: string; start: Date | null; extendedProps?: Record<string, unknown> }; revert: () => void }) => {
+  const moverEvento = useCallback(async (info: { event: { id: string; start: Date | null; end: Date | null; extendedProps?: Record<string, unknown> }; revert: () => void }) => {
     if (!info.event.start) {
       info.revert();
       return;

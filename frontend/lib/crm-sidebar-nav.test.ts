@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Users } from 'lucide-react';
 import {
   buildCrmSidebarNavItems,
   filterCrmSidebarNavItems,
@@ -19,7 +20,7 @@ describe('crm-sidebar-nav', () => {
     const home = buildCrmSidebarNavItems(base)[0];
     expect(isCrmSidebarNavActive(`${base}/`, home)).toBe(true);
     expect(isCrmSidebarNavActive(`${base}/leads`, home)).toBe(false);
-    expect(isCrmSidebarNavActive(`${base}/leads`, { href: `${base}/leads`, label: 'Leads' })).toBe(
+    expect(isCrmSidebarNavActive(`${base}/leads`, { href: `${base}/leads`, label: 'Leads', icon: Users })).toBe(
       true,
     );
   });

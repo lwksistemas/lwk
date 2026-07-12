@@ -35,7 +35,7 @@ describe("formatPrecoCelula", () => {
 describe("buildPrecosConvenioPayload", () => {
   it("normaliza vírgula decimal", () => {
     const payload = buildPrecosConvenioPayload(
-      [{ id: 1, nome: "Unimed", is_active: true, created_at: "", updated_at: "" }],
+      [{ id: 1, nome: "Unimed", is_active: true }],
       { 1: "150,50" },
     );
     expect(payload[0].preco).toBe("150.50");
@@ -52,7 +52,7 @@ describe("validateProcedimentoForm", () => {
 
   it("exige preço em pelo menos um convênio", () => {
     const form = { ...EMPTY_PROCEDIMENTO_FORM, name: "Botox", categoria: "estetica" };
-    const convenios = [{ id: 1, nome: "Unimed", is_active: true, created_at: "", updated_at: "" }];
+    const convenios = [{ id: 1, nome: "Unimed", is_active: true }];
     expect(validateProcedimentoForm(form, convenios, {}, "estetica")).toBe(
       "Informe o valor praticado em pelo menos um convênio.",
     );

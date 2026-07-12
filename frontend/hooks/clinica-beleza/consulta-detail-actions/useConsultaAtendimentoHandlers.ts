@@ -3,7 +3,7 @@ import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import type { EvolucaoFormState } from "@/components/clinica-beleza/consultas/tab-panels/tab-panels-types";
 import { useToast } from "@/components/ui/Toast";
 import { EMPTY_EVOLUCAO_FORM, type ConsultaDetailLoaderSlice } from "./consulta-detail-actions-types";
-import type { Protocolo } from "@/components/clinica-beleza/consultas/consultas-types";
+import type { Protocolo, Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 
 type AtendimentoUiSlice = {
   setSaving: (v: boolean) => void;
@@ -54,7 +54,7 @@ export function useConsultaAtendimentoHandlers(
       const updated = await ClinicaBelezaAPI.consultas.update(selected.id, {
         observacoes_gerais: observacoesDraft,
       });
-      setSelected({ ...selected, ...updated });
+      setSelected({ ...selected, ...(updated as Partial<Consulta>) });
       setObservacoes(observacoesDraft);
       setEditAtendimento(false);
       await onListRefresh();
@@ -92,8 +92,8 @@ export function useConsultaAtendimentoHandlers(
         selected.id,
         protocoloPendingId,
       );
-      const notas = updated.protocolo_notas || observacoes;
-      setSelected({ ...selected, ...updated });
+      const notas = (updated as Partial<Consulta>).protocolo_notas || observacoes;
+      setSelected({ ...selected, ...(updated as Partial<Consulta>) });
       setObservacoes(notas);
       setObservacoesDraft(notas);
       setProtocoloPreview(null);

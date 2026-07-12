@@ -27,7 +27,7 @@ export function useRetornoAgenda(open: boolean) {
       ]);
       setConfig(cfg);
       setRegras(Array.isArray(regs) ? regs : []);
-      setProcedures(Array.isArray(procs) ? procs : []);
+      setProcedures(Array.isArray(procs) ? (procs as { id: number; nome?: string; name?: string }[]) : []);
     } catch (e: unknown) {
       setErro(extractRetornoAgendaError(e, "Erro ao carregar configuração de retorno."));
     } finally {

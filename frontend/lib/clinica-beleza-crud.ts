@@ -98,7 +98,7 @@ export async function loadClinicaBelezaList<T>({
 export async function saveClinicaBelezaEntity(
   path: string,
   method: 'POST' | 'PUT',
-  body: Record<string, unknown>,
+  body: unknown,
 ): Promise<unknown> {
   const res = await clinicaBelezaFetch(path, {
     method,

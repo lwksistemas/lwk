@@ -9,7 +9,7 @@ import type { FilterAtivo, BulkActionType } from './types';
 
 type BulkAction = BulkActionType;
 
-interface ListSectionCardProps<TItem> {
+interface ListSectionCardProps<TItem extends { id?: number; ativo?: boolean }> {
   title: string;
   description: string;
   addLabel: string;
@@ -35,7 +35,7 @@ interface ListSectionCardProps<TItem> {
   saving: boolean;
 }
 
-export function ListSectionCard<TItem>({
+export function ListSectionCard<TItem extends { id?: number; ativo?: boolean }>({
   title,
   description,
   addLabel,

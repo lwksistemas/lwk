@@ -1,4 +1,5 @@
 import { formatApiErrorBody } from "@/lib/api-errors";
+import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { buildQuickPatientBody, extractQuickPatientError } from "./criar-agendamento-submit-utils";
 
@@ -6,7 +7,7 @@ export async function createQuickPatient(data: {
   nome: string;
   telefone: string;
   cpf: string;
-}): Promise<unknown> {
+}): Promise<PatientQuickOption> {
   const res = await clinicaBelezaFetch("/patients/", {
     method: "POST",
     body: JSON.stringify(buildQuickPatientBody(data)),
@@ -30,7 +31,7 @@ export async function submitConsultaOnline(
       local_atendimento?: number;
       convenio?: number | null;
     },
-  );
+  ) as Promise<{ id?: number } | null>;
 }
 
 export async function submitAgendamentoOnline(payload: Record<string, unknown>): Promise<void> {

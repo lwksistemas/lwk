@@ -140,6 +140,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         ),
         'formas_pagamento': _listar_formas_pagamento(payment),
         'data': _formatar_data_recibo(payment.payment_date),
+        'data_atendimento': _formatar_data_recibo(getattr(appointment, 'date', None)),
     }
 
 
@@ -277,6 +278,8 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     story.append(Paragraph(f"<b>Cliente:</b> {ctx['paciente_nome']}", s_left))
     if ctx['profissional_nome']:
         story.append(Paragraph(f"<b>Profissional:</b> {ctx['profissional_nome']}", s_left))
+    if ctx.get('data_atendimento'):
+        story.append(Paragraph(f"<b>Data/Hora do atendimento:</b> {ctx['data_atendimento']}", s_left))
     story.append(hr)
 
     story.append(Paragraph('<b>SERVIÇOS</b>', s_bold))
@@ -479,8 +482,9 @@ def _montar_email_html(ctx: dict) -> str:
       <p>Segue o resumo do seu atendimento e o recibo em PDF anexo.</p>
 
       <div style="background:#f8f8f8;border-radius:8px;padding:16px;margin:16px 0;">
-        <p style="margin:4px 0;"><strong>Data:</strong> {ctx['data']}</p>
+        <p style="margin:4px 0;"><strong>Data do pagamento:</strong> {ctx['data']}</p>
         {f'<p style="margin:4px 0;"><strong>Profissional:</strong> {ctx["profissional_nome"]}</p>' if ctx['profissional_nome'] else ''}
+        {f'<p style="margin:4px 0;"><strong>Data/Hora do atendimento:</strong> {ctx["data_atendimento"]}</p>' if ctx.get('data_atendimento') else ''}
         <p style="margin:4px 0;"><strong>Serviços:</strong></p>
         <ul style="margin:4px 0;padding-left:20px;">{procs_html or '<li>—</li>'}</ul>
         {desconto_html}
@@ -531,8 +535,9 @@ def _montar_email_texto(ctx: dict) -> str:
         f'{header_extra}\n'
         f'Olá {ctx["paciente_nome"]},\n\n'
         f'Segue o resumo do seu atendimento e o recibo em PDF anexo.\n\n'
-        f'Data: {ctx["data"]}\n'
+        f'Data do pagamento: {ctx["data"]}\n'
         f'Profissional: {ctx["profissional_nome"] or "—"}\n'
+        f'Data/Hora do atendimento: {ctx.get("data_atendimento") or "—"}\n'
         f'Serviços:\n{procs}\n'
         f'{desconto_lines}'
         f'Total: R$ {ctx["valor_total"]:.2f}\n'
@@ -567,8 +572,9 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
         f'✅ *RECIBO DE PAGAMENTO*\n'
         f'━━━━━━━━━━━━━━━━━━━━\n\n'
         f'👤 *Cliente:* {ctx["paciente_nome"]}\n'
-        f'📅 *Data:* {ctx["data"]}\n'
-        f'{prof_line}\n'
+        f'📅 *Data do pagamento:* {ctx["data"]}\n'
+        f'{prof_line}'
+        f'📅 *Data/Hora do atendimento:* {ctx.get("data_atendimento") or "—"}\n\n'
         f'📋 *Serviços realizados:*\n'
         f'{procs}\n\n'
         f'{desconto_block}'

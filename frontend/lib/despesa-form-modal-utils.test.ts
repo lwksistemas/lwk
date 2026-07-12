@@ -11,7 +11,8 @@ describe("validateDespesaForm", () => {
     expect(validateDespesaForm({ ...form, descricao: "" })).toContain("descrição");
     expect(validateDespesaForm({ ...form, descricao: "OK", valor: "0" })).toContain("valor");
     expect(validateDespesaForm({ ...form, descricao: "OK", valor: "100", data_vencimento: "" })).toContain("vencimento");
-    expect(validateDespesaForm(form)).toBeNull();
+    const validForm = { ...form, descricao: "OK", valor: "100" };
+    expect(validateDespesaForm(validForm)).toBeNull();
   });
 });
 

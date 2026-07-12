@@ -7,18 +7,20 @@ import type {
   ProcedureConvenioPrecoItem,
   ProcedimentoConvenioPrecosMatrix,
 } from "./types-entities";
+import type { Anamnese } from "@/components/clinica-beleza/consultas/consultas-types";
+import type { ClinicaPatient } from "@/lib/clinica-beleza-entities";
 import { cbDelete, cbGet, cbGetList, cbPost, cbPut } from "./client-http";
 
 export const anamneseApi = {
-  get: (patientId: number) => cbGet(`/patients/${patientId}/anamnese/`),
-  save: (patientId: number, data: Record<string, unknown>) =>
-    cbPut(`/patients/${patientId}/anamnese/`, data),
+  get: (patientId: number) => cbGet<Anamnese>(`/patients/${patientId}/anamnese/`),
+  save: (patientId: number, data: Partial<Anamnese>) =>
+    cbPut<Anamnese>(`/patients/${patientId}/anamnese/`, data),
 };
 
 export const patientsApi = {
   list: (params?: { active?: boolean; page?: number; page_size?: number }) =>
-    cbGetList("/patients/", params),
-  get: (id: number) => cbGet(`/patients/${id}/`),
+    cbGetList<ClinicaPatient>("/patients/", params),
+  get: (id: number) => cbGet<ClinicaPatient>(`/patients/${id}/`),
 };
 
 export const professionalsApi = {

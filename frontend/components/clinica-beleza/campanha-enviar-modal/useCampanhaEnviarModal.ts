@@ -40,8 +40,8 @@ export function useCampanhaEnviarModal({ open, campanha, onClose, onSent, toast 
   const loadPacientes = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await ClinicaBelezaAPI.patients.list({ page_size: 500, active: true }) as PacienteCampanha[] | { results?: PacienteCampanha[] };
-      const list = Array.isArray(data) ? data : data.results ?? [];
+      const data = await ClinicaBelezaAPI.patients.list({ page_size: 500, active: true });
+      const list = Array.isArray(data) ? data : [];
       setPacientes(list);
     } catch (e: unknown) {
       if (e instanceof Error && e.message === "SESSION_ENDED") return;

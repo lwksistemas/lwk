@@ -57,10 +57,10 @@ export function despesaItemToForm(editing: DespesaItem): DespesaFormState {
 }
 
 export function validateDespesaForm(form: DespesaFormState): string | null {
-  if (!form.descricao.trim()) return "Informe a descrição.";
+  if (!form.descricao.trim()) return "Informe uma descrição.";
   const valor = Number(form.valor);
-  if (!valor || valor <= 0) return "Informe um valor válido.";
-  if (!form.data_vencimento) return "Informe o vencimento.";
+  if (!valor || valor <= 0) return "Informe um valor válido (maior que zero).";
+  if (!form.data_vencimento) return "Informe a data de vencimento.";
   return null;
 }
 

@@ -127,11 +127,11 @@ class SecurityIdorTestCase(TestCase):
         mw = SecurityIsolationMiddleware(lambda r: None)
         self.assertIsNone(mw._check_route_isolation(request))
 
-    def test_security_middleware_blocks_superuser_cabeleireiro_route(self):
+    def test_security_middleware_blocks_superuser_inactive_app_route(self):
         from django.test import RequestFactory
 
         factory = RequestFactory()
-        request = factory.get('/api/cabeleireiro/agendamentos/')
+        request = factory.get('/api/inativo/agendamentos/')
         request.user = self.superuser
         mw = SecurityIsolationMiddleware(lambda r: None)
         response = mw(request)

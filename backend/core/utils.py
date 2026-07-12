@@ -12,7 +12,7 @@ def ensure_owner_as_funcionario(funcionario_model, cargo_padrao='Administrador')
     Cria automaticamente se não existir.
     
     Args:
-        funcionario_model: Modelo de Funcionario do app (ex: servicos.models.Funcionario)
+        funcionario_model: Modelo de Funcionario do app (ex: hotel.models.Funcionario)
         cargo_padrao: Cargo padrão para o admin (ex: 'Administrador', 'gerente')
     
     Returns:
@@ -57,29 +57,12 @@ def ensure_owner_as_funcionario(funcionario_model, cargo_padrao='Administrador')
                 nome = owner.get_full_name() or owner.username or owner.email.split('@')[0]
                 telefone = getattr(owner, 'telefone', '') or ''
                 data_admissao = date.today()
-                
-                # Verificar se a tabela tem coluna 'funcao' (cabeleireiro)
+
                 cursor.execute(f"""
-                    SELECT column_name FROM information_schema.columns 
-                    WHERE table_schema = %s AND table_name = %s AND column_name = 'funcao'
-                """, [schema_name, table_name])
-                
-                has_funcao = cursor.fetchone() is not None
-                
-                if has_funcao:
-                    # Tabela de cabeleireiro com campo funcao
-                    cursor.execute(f"""
-                        INSERT INTO {table_name} 
-                        (loja_id, nome, email, telefone, cargo, funcao, especialidade, comissao_percentual, data_admissao, is_active, created_at, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, NOW(), NOW())
-                    """, [loja_id, nome, owner.email, telefone, cargo_padrao, 'administrador', '', 0.00, data_admissao])
-                else:
-                    # Tabela sem campo funcao (outros apps)
-                    cursor.execute(f"""
-                        INSERT INTO {table_name} 
-                        (loja_id, nome, email, telefone, cargo, data_admissao, is_active, created_at, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, TRUE, NOW(), NOW())
-                    """, [loja_id, nome, owner.email, telefone, cargo_padrao, data_admissao])
+                    INSERT INTO {table_name} 
+                    (loja_id, nome, email, telefone, cargo, data_admissao, is_active, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, TRUE, NOW(), NOW())
+                """, [loja_id, nome, owner.email, telefone, cargo_padrao, data_admissao])
                 
                 logger.info(f"✅ [ensure_owner_as_funcionario] Funcionário admin criado com sucesso no schema {schema_name}")
                 return True

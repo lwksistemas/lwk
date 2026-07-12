@@ -262,7 +262,7 @@ class ClienteSearchMixin:
     Adiciona o endpoint /buscar/ que permite busca rápida de clientes
     por nome, telefone ou email (mínimo 2 caracteres).
 
-    Consumidores: `clinica_estetica` e `cabeleireiro`.
+    Consumidores: apps legado removidos.
     NÃO usado por `clinica_beleza` (que usa `_patient_search_q` diretamente nas views).
 
     Uso:

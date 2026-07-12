@@ -45,9 +45,7 @@ def funcionario_email_ativo_na_loja(user, loja) -> bool:
         set_current_loja_id(loja.id)
 
         for import_path, model_name in (
-            ('cabeleireiro.models', 'Funcionario'),
             ('hotel.models', 'Funcionario'),
-            ('restaurante.models', 'Funcionario'),
         ):
             try:
                 mod = importlib.import_module(import_path)

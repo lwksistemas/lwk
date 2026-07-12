@@ -52,7 +52,7 @@ def _garantir_procedimentos_legacy(appointment) -> None:
 
 
 def adicionar_procedimento_consulta(consulta: Consulta, procedure_id: int) -> AppointmentProcedure:
-    if consulta.status != 'IN_PROGRESS':
+    if consulta.status not in ('IN_PROGRESS', 'RECEBER'):
         raise ValueError('Só é possível adicionar procedimentos com a consulta em atendimento.')
 
     appointment = consulta.appointment
@@ -87,7 +87,7 @@ def adicionar_procedimento_consulta(consulta: Consulta, procedure_id: int) -> Ap
 
 
 def remover_procedimento_consulta(consulta: Consulta, appointment_procedure_id: int) -> None:
-    if consulta.status != 'IN_PROGRESS':
+    if consulta.status not in ('IN_PROGRESS', 'RECEBER'):
         raise ValueError('Não é possível remover procedimentos após finalizar a consulta.')
 
     appointment = consulta.appointment

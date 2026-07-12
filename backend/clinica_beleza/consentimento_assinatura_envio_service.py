@@ -136,14 +136,18 @@ def enviar_termo_assinado_whatsapp(
 ) -> tuple[bool, str]:
     """
     Envia o PDF do termo já assinado (paciente + profissional) via WhatsApp.
-    Usa base64 (mais confiável que URL pública na Evolution), igual ao fluxo estável de mídia.
+    Usa URL pública do PDF, igual ao recibo de pagamento, para compatibilidade
+    com Meta Cloud API e Evolution (WhatsApp Web).
     """
-    import base64
+    import hashlib
     import logging
+    import time
 
+    from django.conf import settings
+    from django.core.cache import cache as django_cache
     from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
     from whatsapp.models import WhatsAppConfig
-    from whatsapp.services import _send_whatsapp_document_evolution, send_whatsapp
+    from whatsapp.services import send_whatsapp, send_whatsapp_document
 
     logger = logging.getLogger(__name__)
 
@@ -173,23 +177,35 @@ def enviar_termo_assinado_whatsapp(
         return False, err or 'Erro ao enviar WhatsApp.'
 
     try:
-        pdf = adapter.gerar_pdf(termo_proc, incluir_assinaturas=True)
-        pdf_bytes = pdf.getvalue() if hasattr(pdf, 'getvalue') else bytes(pdf)
+        pdf_buffer = adapter.gerar_pdf(termo_proc, incluir_assinaturas=True)
+        pdf_bytes = pdf_buffer.getvalue() if hasattr(pdf_buffer, 'getvalue') else bytes(pdf_buffer)
         if not pdf_bytes:
             return False, 'Não foi possível gerar o PDF do termo assinado.'
 
-        b64 = base64.b64encode(pdf_bytes).decode('ascii')
-        media = f'data:application/pdf;base64,{b64}'
-        # Nome ASCII simples — nomes com acento/traço quebram sendMedia na Evolution.
+        ts = str(int(time.time()))
+        token_raw = f'termo-{consulta.id}-{termo_proc.procedure_id}-{ts}-{settings.SECRET_KEY[:16]}'
+        token = hashlib.sha256(token_raw.encode()).hexdigest()[:32]
+
+        django_cache.set(
+            f'termo_pdf_{token}',
+            {'consulta_id': consulta.id, 'procedure_id': termo_proc.procedure_id, 'pdf': pdf_bytes},
+            300,
+        )
+
+        api_base = getattr(settings, 'API_BASE_URL', '') or 'https://api.lwksistemas.com.br'
+        pdf_url = (
+            f'{api_base}/api/clinica-beleza/termo-consentimento-pdf/'
+            f'{consulta.id}/{termo_proc.procedure_id}/{token}/'
+        )
+
         nome_arquivo = f'termo_{consulta.id}_{termo_proc.procedure_id}.pdf'
-        ok_doc, err_doc = _send_whatsapp_document_evolution(
-            telefone,
-            media,
-            nome_arquivo,
+        ok_doc, err_doc = send_whatsapp_document(
+            telefone=telefone,
+            document_url=pdf_url,
+            filename=nome_arquivo,
             caption='Termo de Consentimento Assinado',
             config=config,
             user=user,
-            mimetype='application/pdf',
         )
         if not ok_doc:
             logger.warning(
@@ -200,10 +216,10 @@ def enviar_termo_assinado_whatsapp(
             )
             return False, (
                 f'Mensagem enviada, mas o PDF não chegou ({err_doc or "erro no envio do documento"}). '
-                'Tente novamente em instantes.'
+                f'Tente novamente em instantes.'
             )
     except Exception as pdf_err:
-        logger.warning(
+        logger.exception(
             'PDF do termo via WhatsApp falhou (texto já enviado) consulta=%s proc=%s: %s',
             consulta.id,
             termo_proc.procedure_id,
@@ -211,7 +227,7 @@ def enviar_termo_assinado_whatsapp(
         )
         return False, (
             f'Mensagem enviada, mas o PDF não chegou ({pdf_err}). '
-            'Tente novamente em instantes.'
+            f'Tente novamente em instantes.'
         )
 
     return True, f'Termo assinado (PDF) enviado por WhatsApp para {telefone}'

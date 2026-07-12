@@ -63,10 +63,6 @@ def create_indexes():
     print("="*60)
     
     apps_to_migrate = [
-        'clinica_estetica',
-        'restaurante',
-        'ecommerce',
-        'servicos',
         'superadmin',
         'suporte',
     ]
@@ -129,9 +125,9 @@ def analyze_queries():
     
     # Testar alguns endpoints comuns
     test_cases = [
-        ('clinica_estetica', 'Agendamento'),
-        ('restaurante', 'Pedido'),
-        ('servicos', 'Agendamento'),
+        ('clinica_beleza', 'Consulta'),
+        ('hotel', 'Reserva'),
+        ('crm_vendas', 'Lead'),
     ]
     
     for app, model_name in test_cases:

@@ -32,30 +32,6 @@ def add_unique_constraints():
             'constraint_name': 'unique_conta_cnpj_per_loja',
             'description': 'CRM Vendas - Conta (CNPJ único por loja)'
         },
-        # Clínica Estética - Cliente (CPF)
-        {
-            'schema': 'loja_%',
-            'table': 'clinica_estetica_cliente',
-            'column': 'cpf',
-            'constraint_name': 'unique_cliente_cpf_per_loja',
-            'description': 'Clínica Estética - Cliente (CPF único por loja)'
-        },
-        # Restaurante - Cliente (CPF/CNPJ)
-        {
-            'schema': 'loja_%',
-            'table': 'restaurante_cliente',
-            'column': 'cpf_cnpj',
-            'constraint_name': 'unique_cliente_cpf_cnpj_per_loja',
-            'description': 'Restaurante - Cliente (CPF/CNPJ único por loja)'
-        },
-        # E-commerce - Cliente (CPF/CNPJ)
-        {
-            'schema': 'loja_%',
-            'table': 'ecommerce_cliente',
-            'column': 'cpf_cnpj',
-            'constraint_name': 'unique_ecommerce_cliente_cpf_cnpj_per_loja',
-            'description': 'E-commerce - Cliente (CPF/CNPJ único por loja)'
-        },
     ]
     
     with connection.cursor() as cursor:

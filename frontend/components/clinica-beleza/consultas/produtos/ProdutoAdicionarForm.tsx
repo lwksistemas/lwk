@@ -1,9 +1,10 @@
 import { AlertTriangle, Plus } from "lucide-react";
-import type { ProdutoEstoque } from "./produtos-types";
+import type { CategoriaEstoque, ProdutoEstoque } from "./produtos-types";
 import { PRODUTOS_INPUT_CLASS } from "./produtos-types";
 
 export function ProdutoAdicionarForm({
   produtos,
+  produtosPorCategoria,
   produtoId,
   quantidade,
   lote,
@@ -20,6 +21,10 @@ export function ProdutoAdicionarForm({
   onAdicionar,
 }: {
   produtos: ProdutoEstoque[];
+  produtosPorCategoria?: {
+    comCategoria: { categoria: CategoriaEstoque; produtos: ProdutoEstoque[] }[];
+    semCategoria: ProdutoEstoque[];
+  };
   produtoId: number | "";
   quantidade: string;
   lote: string;
@@ -62,7 +67,25 @@ export function ProdutoAdicionarForm({
                   ? "Nenhum produto cadastrado no estoque"
                   : "Selecione..."}
             </option>
-            {produtos.map((p) => (
+            {produtosPorCategoria?.comCategoria.map(({ categoria, produtos: grupo }) => (
+              <optgroup key={categoria.id} label={categoria.nome}>
+                {grupo.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome} — disp. {Number(p.quantidade_atual)} {p.unidade_medida || "un"}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+            {produtosPorCategoria && produtosPorCategoria.semCategoria.length > 0 && (
+              <optgroup label="Outros">
+                {produtosPorCategoria.semCategoria.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome} — disp. {Number(p.quantidade_atual)} {p.unidade_medida || "un"}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {!produtosPorCategoria && produtos.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.nome} — disp. {Number(p.quantidade_atual)} {p.unidade_medida || "un"}
               </option>

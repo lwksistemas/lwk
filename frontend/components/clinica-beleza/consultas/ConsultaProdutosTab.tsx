@@ -23,6 +23,7 @@ export function ConsultaProdutosTab({
   const {
     itens,
     produtos,
+    produtosPorCategoria,
     loading,
     saving,
     showAddForm,
@@ -72,6 +73,7 @@ export function ConsultaProdutosTab({
           ) : (
             <ProdutoAdicionarForm
               produtos={produtos}
+              produtosPorCategoria={produtosPorCategoria}
               produtoId={produtoId}
               quantidade={quantidade}
               lote={lote}

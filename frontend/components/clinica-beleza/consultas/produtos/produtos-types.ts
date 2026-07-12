@@ -10,6 +10,14 @@ export interface ConsultaProdutoItem {
   estoque_baixado?: boolean;
 }
 
+export interface CategoriaEstoque {
+  id: number;
+  nome: string;
+  slug: string;
+  cor?: string;
+  ordem?: number;
+}
+
 export interface ProdutoEstoque {
   id: number;
   nome: string;
@@ -17,6 +25,10 @@ export interface ProdutoEstoque {
   validade?: string | null;
   quantidade_atual: number | string;
   unidade_medida?: string;
+  categoria?: number | null;
+  categoria_slug?: string;
+  categoria_display?: string;
+  categoria_cor?: string;
 }
 
 export const PRODUTOS_INPUT_CLASS =

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { useToast } from "@/components/ui/Toast";
-import type { ConsultaProdutoItem, ProdutoEstoque } from "./produtos-types";
+import type { CategoriaEstoque, ConsultaProdutoItem, ProdutoEstoque } from "./produtos-types";
 import {
   avisoFormularioEstoque,
   extractProdutosError,
@@ -13,6 +13,7 @@ export function useConsultaProdutos(consultaId: number, onItensChanged?: () => v
   const toast = useToast();
   const [itens, setItens] = useState<ConsultaProdutoItem[]>([]);
   const [produtos, setProdutos] = useState<ProdutoEstoque[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaEstoque[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -46,7 +47,16 @@ export function useConsultaProdutos(consultaId: number, onItensChanged?: () => v
         setErroEstoque(extractProdutosError(err, "Não foi possível carregar os produtos do estoque."));
       });
 
-    await Promise.all([listaPromise, estoquePromise]);
+    const categoriasPromise = ClinicaBelezaAPI.estoque.categorias
+      .list()
+      .then((cats) => {
+        setCategorias(Array.isArray(cats) ? cats : []);
+      })
+      .catch(() => {
+        setCategorias([]);
+      });
+
+    await Promise.all([listaPromise, estoquePromise, categoriasPromise]);
     setLoading(false);
   }, [consultaId]);
 
@@ -65,6 +75,38 @@ export function useConsultaProdutos(consultaId: number, onItensChanged?: () => v
     () => listarAvisosEstoqueInsuficiente(itens, produtos, totaisConsulta),
     [itens, produtos, totaisConsulta],
   );
+
+  const produtosPorCategoria = useMemo(() => {
+    const map = new Map<number, { categoria: CategoriaEstoque; produtos: ProdutoEstoque[] }>();
+    const semCategoria: ProdutoEstoque[] = [];
+
+    for (const p of produtos) {
+      const catId = p.categoria ?? 0;
+      if (catId === 0) {
+        semCategoria.push(p);
+        continue;
+      }
+      const cat = categorias.find((c) => c.id === catId);
+      if (!cat) {
+        semCategoria.push(p);
+        continue;
+      }
+      const entry = map.get(catId);
+      if (entry) {
+        entry.produtos.push(p);
+      } else {
+        map.set(catId, { categoria: cat, produtos: [p] });
+      }
+    }
+
+    const sorted = Array.from(map.values()).sort((a, b) => {
+      const ordemA = a.categoria.ordem ?? Number.MAX_SAFE_INTEGER;
+      const ordemB = b.categoria.ordem ?? Number.MAX_SAFE_INTEGER;
+      return ordemA - ordemB || a.categoria.nome.localeCompare(b.categoria.nome);
+    });
+
+    return { comCategoria: sorted, semCategoria };
+  }, [produtos, categorias]);
 
   const onProdutoChange = (id: number | "") => {
     setProdutoId(id);
@@ -140,6 +182,8 @@ export function useConsultaProdutos(consultaId: number, onItensChanged?: () => v
   return {
     itens,
     produtos,
+    categorias,
+    produtosPorCategoria,
     loading,
     saving,
     showAddForm,

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
-import { ClinicaBelezaShell } from '@/components/clinica-beleza/ClinicaBelezaShell';
+import { ClinicaBelezaShell } from '@/components/clinica-beleza/clinica-beleza-shell/ClinicaBelezaShell';
 import { ClinicaBelezaThemeProvider } from '@/components/clinica-beleza/ClinicaBelezaThemeContext';
 import type { LojaInfo } from '@/types/dashboard';
 

@@ -1,17 +1,7 @@
 """Models — pagamentos e campanhas."""
-from django.contrib.auth import get_user_model
 from django.db import models
 
-from agenda_base.models import (
-    BloqueioAgendaBase,
-    ClienteBase,
-    HorarioTrabalhoProfissionalBase,
-    ProfissionalBase,
-    ServicoBase,
-)
 from core.mixins import LojaIsolationManager, LojaIsolationMixin
-
-User = get_user_model()
 
 from .appointments import Appointment
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { PatientQuickOption } from "@/components/clinica-beleza/PatientQuickRegisterField";
+import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 import {
   clinicaBelezaQueryKeys,

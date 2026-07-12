@@ -3,10 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
-import {
-  LoginConfigPageContent,
-  type LoginColorPreset,
-} from '@/components/clinica-beleza/LoginConfigPageContent';
+import { LoginConfigPageContent } from '@/components/clinica-beleza/login-config-page/LoginConfigPageContent';
+import type { LoginColorPreset } from '@/components/clinica-beleza/login-config-page/login-config-page-types';
 
 const CORES_PRE_DEFINIDAS: LoginColorPreset[] = [
   { nome: 'Verde', primaria: '#10B981', secundaria: '#059669' },

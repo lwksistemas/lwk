@@ -91,7 +91,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         for ap in ap_procs:
             procs.append({'nome': ap.procedure.nome, 'valor': float(ap.get_valor())})
     except Exception:
-        pass
+        logger.exception('Erro ao listar procedimentos do recibo (payment %s)', payment.id)
     if not procs and appointment.procedure:
         procs = [{'nome': appointment.procedure.nome, 'valor': float(appointment.procedure.preco or 0)}]
 
@@ -101,7 +101,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         if consulta:
             taxa_consulta = float(getattr(consulta, 'valor_consulta', 0) or 0)
     except Exception:
-        pass
+        logger.exception('Erro ao ler taxa de consulta do recibo (payment %s)', payment.id)
 
     doc_raw = (getattr(loja, 'cpf_cnpj', '') or '') if loja else ''
     tel_raw = (getattr(loja, 'owner_telefone', '') or '') if loja else ''
@@ -175,7 +175,7 @@ def _listar_formas_pagamento(payment) -> list[dict]:
                 for p in parcelas
             ]
     except Exception:
-        pass
+        logger.exception('Erro ao listar parcelas do recibo (payment %s)', payment.id)
     metodo_label = METODOS.get(payment.payment_method, payment.payment_method)
     return [{'metodo': metodo_label, 'valor': float(payment.amount or 0)}]
 

@@ -1,19 +1,11 @@
 """Models — procedimentos e protocolos."""
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.db import models
 
-from agenda_base.models import (
-    BloqueioAgendaBase,
-    ClienteBase,
-    HorarioTrabalhoProfissionalBase,
-    ProfissionalBase,
-    ServicoBase,
-)
+from agenda_base.models import ServicoBase
 from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
-User = get_user_model()
 
 class Procedure(ServicoBase):
     """Procedimentos/Serviços oferecidos (herda de ServicoBase)"""

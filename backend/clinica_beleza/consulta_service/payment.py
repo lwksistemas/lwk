@@ -1,7 +1,9 @@
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils.timezone import now
+
+from core.decimal_utils import to_decimal
 
 from ._deps import logger
 
@@ -18,15 +20,6 @@ def _tentar_nfse_pos_pagamento(consulta, payment):
         logger.exception('Erro ao tentar NFS-e após pagamento (consulta %s)', consulta.id)
 
 
-def _to_decimal(value, field_name='valor'):
-    if value is None or value == '':
-        return None
-    try:
-        return Decimal(str(value))
-    except (InvalidOperation, TypeError, ValueError) as exc:
-        raise ValueError(f'{field_name} inválido.') from exc
-
-
 def _normalize_entradas(entradas, *, payment_method='CASH', amount=None):
     """
     Normaliza lista de entradas [{payment_method, valor}, ...].
@@ -35,7 +28,7 @@ def _normalize_entradas(entradas, *, payment_method='CASH', amount=None):
     if entradas is None:
         if amount is None:
             return None  # caller usa valor total
-        valor = _to_decimal(amount, 'amount')
+        valor = to_decimal(amount, 'amount')
         if valor is None or valor <= 0:
             raise ValueError('Valor deve ser maior que zero.')
         metodo = (payment_method or 'CASH').strip().upper() or 'CASH'
@@ -53,7 +46,7 @@ def _normalize_entradas(entradas, *, payment_method='CASH', amount=None):
         metodo = (item.get('payment_method') or 'CASH').strip().upper() or 'CASH'
         if metodo not in _METODOS_VALIDOS:
             raise ValueError(f'Forma de pagamento inválida na entrada {i + 1}.')
-        valor = _to_decimal(item.get('valor'), f'valor da entrada {i + 1}')
+        valor = to_decimal(item.get('valor'), f'valor da entrada {i + 1}')
         if valor is None or valor <= 0:
             raise ValueError(f'Valor da entrada {i + 1} deve ser maior que zero.')
         normalizadas.append({'payment_method': metodo, 'valor': valor})
@@ -252,7 +245,7 @@ def registrar_recebimento_consulta(
     if isinstance(valor_bruto, (int, float, str)):
         valor_bruto = Decimal(str(valor_bruto))
 
-    valor_desconto = _to_decimal(desconto, 'desconto') if desconto not in (None, '') else Decimal('0')
+    valor_desconto = to_decimal(desconto, 'desconto') if desconto not in (None, '') else Decimal('0')
     if valor_desconto is None:
         valor_desconto = Decimal('0')
     if valor_desconto < 0:

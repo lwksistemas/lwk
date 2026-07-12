@@ -12,7 +12,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Literal, Optional
 
-from django.db.models import Q, Sum
+from django.db.models import Sum
 
 from .models import Consulta, Payment
 

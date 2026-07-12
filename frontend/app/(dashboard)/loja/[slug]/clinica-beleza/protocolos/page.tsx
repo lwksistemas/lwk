@@ -1,6 +1,6 @@
 'use client';
 
-import { ProtocolosPageContent } from '@/components/clinica-beleza/ProtocolosPageContent';
+import { ProtocolosPageContent } from '@/components/clinica-beleza/protocolos-page/ProtocolosPageContent';
 import { useParams } from 'next/navigation';
 
 export default function ProtocolosPage() {

@@ -15,7 +15,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { ClinicaBelezaShell } from "@/components/clinica-beleza/ClinicaBelezaShell";
+import { ClinicaBelezaShell } from "@/components/clinica-beleza/clinica-beleza-shell/ClinicaBelezaShell";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import {
   ClinicaBelezaThemeProvider,

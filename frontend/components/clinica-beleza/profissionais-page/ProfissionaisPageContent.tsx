@@ -2,7 +2,7 @@
 
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
-import { ModalHorariosTrabalho } from "@/components/clinica-beleza/ModalHorariosTrabalho";
+import { ModalHorariosTrabalho } from "@/components/clinica-beleza/horarios-trabalho-modal/ModalHorariosTrabalho";
 import { ModalTempoConsulta } from "@/components/clinica-beleza/ModalTempoConsulta";
 import { ProfissionalFormPageContent } from "@/components/clinica-beleza/profissional-form/ProfissionalFormPageContent";
 import { AdminProfissionalToggle } from "@/components/clinica-beleza/AdminProfissionalToggle";

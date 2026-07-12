@@ -1,4 +1,5 @@
-import { PatientQuickRegisterField } from "@/components/clinica-beleza/PatientQuickRegisterField";
+import { PatientQuickRegisterField } from "@/components/clinica-beleza/patient-quick-register/PatientQuickRegisterField";
+import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
 import type { UseCriarAgendamentoReturn } from "@/hooks/clinica-beleza/useCriarAgendamento";
 import { SectionTitle } from "./CriarAgendamentoFormFields";
@@ -18,7 +19,7 @@ type Props = Pick<
   | "handleCreatePatient"
   | "onPatientsChange"
 > & {
-  onSearchPatients?: (query: string) => Promise<import("@/components/clinica-beleza/PatientQuickRegisterField").PatientQuickOption[]>;
+  onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
 };
 
 export function CriarAgendamentoClienteSection({

@@ -11,7 +11,7 @@ import {
   type CriarAgendamentoProfessional,
   type ModalCriarAgendamentoMode,
 } from "@/components/clinica-beleza/criar-agendamento/criar-agendamento-utils";
-import type { PatientQuickOption } from "@/components/clinica-beleza/PatientQuickRegisterField";
+import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import { useCriarAgendamento } from "@/hooks/clinica-beleza/useCriarAgendamento";
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 import type { LocalAtendimentoItem, NomeAgendaItem } from "@/lib/clinica-beleza-api";

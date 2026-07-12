@@ -54,8 +54,13 @@ def bloqueio_impede_agendamento(data_inicio, data_fim, professional_id):
     if timezone.is_naive(data_fim):
         data_fim = timezone.make_aware(data_fim, timezone.get_current_timezone())
 
+    data_inicio_date = data_inicio.date()
+    data_fim_date = data_fim.date()
+
     bloqueios = BloqueioHorario.objects.filter(
-        Q(professional_id=professional_id) | Q(professional_id__isnull=True)
+        Q(professional_id=professional_id) | Q(professional_id__isnull=True),
+        data_inicio__lte=data_fim_date,
+        data_fim__gte=data_inicio_date,
     )
     for b in bloqueios:
         if b.professional_id is not None and b.professional_id != professional_id:
@@ -173,7 +178,7 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
             'appointment': appointment,
         })
     except Exception:
-        pass
+        logger.exception('Erro ao executar regras pós-criação do agendamento %s', appointment.id)
 
     # WhatsApp confirmação (best-effort)
     _enviar_whatsapp_confirmacao(appointment, request=request, user=user)
@@ -278,7 +283,7 @@ def _executar_regra_finalizacao(appointment):
         from rules.base import MotorRegras
         MotorRegras().executar('AGENDAMENTO_FINALIZADO', {'appointment': appointment})
     except Exception:
-        pass
+        logger.exception('Erro ao executar regras de finalização do agendamento %s', appointment.id)
 
 
 def _enviar_whatsapp_confirmacao(appointment, *, request=None, user=None):

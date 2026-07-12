@@ -8,10 +8,13 @@ Modos (configuráveis pelo administrador):
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from decimal import Decimal
 from typing import Iterable
+
+logger = logging.getLogger(__name__)
 
 from django.utils import timezone
 
@@ -92,7 +95,7 @@ def _procedure_ids_from_appointment(appointment) -> set[int]:
         for ap in appointment.appointment_procedures.select_related('procedure').all():
             ids.add(int(ap.procedure_id))
     except Exception:
-        pass
+        logger.exception('Erro ao ler procedimentos do agendamento %s', appointment.id)
     return ids
 
 

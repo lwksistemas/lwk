@@ -1,19 +1,12 @@
 """Models — agendamentos e bloqueios."""
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.db import models
 
 from agenda_base.models import (
-    BloqueioAgendaBase,
     ClienteBase,
-    HorarioTrabalhoProfissionalBase,
-    ProfissionalBase,
-    ServicoBase,
 )
 from core.mixins import LojaIsolationManager, LojaIsolationMixin
-
-User = get_user_model()
 
 from .convenios import Convenio, LocalAtendimento, NomeAgenda
 from .patients import Patient

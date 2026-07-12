@@ -1,4 +1,4 @@
-import type { TabId } from "./consultas-types";
+import type { TabId } from "../consultas-types";
 
 export function temHistoricoAnterior(historico: unknown[]): boolean {
   return historico.length > 1;

@@ -1,4 +1,4 @@
-import type { PatientQuickOption } from "@/components/clinica-beleza/PatientQuickRegisterField";
+import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import type {
   CriarAgendamentoProfessional,
   ModalCriarAgendamentoMode,

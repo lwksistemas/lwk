@@ -1,7 +1,7 @@
 "use client";
 
 import { Megaphone, Pencil, Send, Trash2 } from "lucide-react";
-import { CampanhaEnviarModal } from "@/components/clinica-beleza/CampanhaEnviarModal";
+import { CampanhaEnviarModal } from "@/components/clinica-beleza/campanha-enviar-modal/CampanhaEnviarModal";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";

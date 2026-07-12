@@ -6,31 +6,52 @@ Perfis sensíveis: administrador, recepção, profissional, caixa, estoque.
 """
 from rest_framework.permissions import BasePermission, IsAuthenticated
 
+from superadmin.models import Loja, ProfissionalUsuario
+
 
 def _loja_and_profissional(request):
-    """Retorna (loja, ProfissionalUsuario|None) ou (None, None)."""
+    """Retorna (loja, ProfissionalUsuario|None) ou (None, None).
+
+    O resultado é cacheado no request para evitar queries repetidas quando
+    várias permissões são avaliadas na mesma requisição.
+    """
     from .views_base import resolve_loja_id_from_request
-    from superadmin.models import Loja, ProfissionalUsuario
+
+    cache_attr = '_clinica_loja_ctx_v1'
+    if hasattr(request, cache_attr):
+        return getattr(request, cache_attr)
 
     if not request.user or not request.user.is_authenticated:
-        return None, None
+        result = (None, None)
+        setattr(request, cache_attr, result)
+        return result
     if request.user.is_superuser:
-        return None, 'superuser'
+        result = (None, 'superuser')
+        setattr(request, cache_attr, result)
+        return result
 
     loja_id = resolve_loja_id_from_request(request)
     if not loja_id:
-        return None, None
+        result = (None, None)
+        setattr(request, cache_attr, result)
+        return result
 
     try:
         loja = Loja.objects.get(pk=loja_id)
     except Loja.DoesNotExist:
-        return None, None
+        result = (None, None)
+        setattr(request, cache_attr, result)
+        return result
 
     if loja.owner_id == request.user.id:
-        return loja, None
+        result = (loja, None)
+        setattr(request, cache_attr, result)
+        return result
 
     prof = ProfissionalUsuario.objects.filter(user=request.user, loja=loja).first()
-    return loja, prof
+    result = (loja, prof)
+    setattr(request, cache_attr, result)
+    return result
 
 
 class IsClinicaLojaMember(BasePermission):
@@ -69,7 +90,6 @@ class IsRecepcaoOrAdmin(BasePermission):
             return True
         if not prof:
             return False
-        from superadmin.models import ProfissionalUsuario
 
         return prof.perfil in (
             ProfissionalUsuario.PERFIL_ADMINISTRADOR,
@@ -97,7 +117,6 @@ class IsAgendaOrAdmin(BasePermission):
             return True
         if not prof:
             return False
-        from superadmin.models import ProfissionalUsuario
 
         return prof.perfil in (
             ProfissionalUsuario.PERFIL_ADMINISTRADOR,
@@ -124,7 +143,6 @@ class IsClinicaAdmin(BasePermission):
             return True
         if not prof:
             return False
-        from superadmin.models import ProfissionalUsuario
 
         return prof.perfil == ProfissionalUsuario.PERFIL_ADMINISTRADOR
 
@@ -146,7 +164,6 @@ class IsClinicaClinicalStaff(BasePermission):
             return True
         if not prof:
             return False
-        from superadmin.models import ProfissionalUsuario
 
         return prof.perfil in (
             ProfissionalUsuario.PERFIL_ADMINISTRADOR,
@@ -173,7 +190,6 @@ class IsClinicaFinanceiro(BasePermission):
             return True
         if not prof:
             return False
-        from superadmin.models import ProfissionalUsuario
 
         return prof.perfil in (
             ProfissionalUsuario.PERFIL_ADMINISTRADOR,
@@ -200,7 +216,6 @@ class IsClinicaEstoque(BasePermission):
             return True
         if not prof:
             return False
-        from superadmin.models import ProfissionalUsuario
 
         return prof.perfil in (
             ProfissionalUsuario.PERFIL_ADMINISTRADOR,
@@ -227,7 +242,6 @@ class IsClinicalOrEstoqueStaff(BasePermission):
             return True
         if not prof:
             return False
-        from superadmin.models import ProfissionalUsuario
 
         return prof.perfil in (
             ProfissionalUsuario.PERFIL_ADMINISTRADOR,
@@ -250,8 +264,6 @@ def resolve_agenda_professional_scope(request) -> int | None:
         return None
     if not prof:
         return None
-    from superadmin.models import ProfissionalUsuario
-
     if prof.perfil == ProfissionalUsuario.PERFIL_PROFISSIONAL:
         return prof.professional_id or 0
     return None

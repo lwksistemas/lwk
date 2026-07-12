@@ -1,8 +1,8 @@
-import { ModalBloqueioHorario } from "@/components/clinica-beleza/ModalBloqueioHorario";
+import { ModalBloqueioHorario } from "@/components/clinica-beleza/modal-bloqueio-horario/ModalBloqueioHorario";
 import { ModalConflitoAgenda } from "@/components/clinica-beleza/ModalConflitoAgenda";
 import { ModalCriarAgendamento } from "@/components/clinica-beleza/ModalCriarAgendamento";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
-import type { PatientQuickOption } from "@/components/clinica-beleza/PatientQuickRegisterField";
+import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 import type { LocalAtendimentoItem, NomeAgendaItem } from "@/lib/clinica-beleza-api";
 import { ModalBloqueio } from "./ModalBloqueio";

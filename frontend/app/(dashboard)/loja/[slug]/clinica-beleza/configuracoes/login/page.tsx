@@ -1,10 +1,8 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import {
-  LoginConfigPageContent,
-  type LoginColorPreset,
-} from '@/components/clinica-beleza/LoginConfigPageContent';
+import { LoginConfigPageContent } from '@/components/clinica-beleza/login-config-page/LoginConfigPageContent';
+import type { LoginColorPreset } from '@/components/clinica-beleza/login-config-page/login-config-page-types';
 
 const CORES_PRE_DEFINIDAS: LoginColorPreset[] = [
   { nome: 'Burgundy', primaria: '#8B3D52', secundaria: '#6B2F40' },

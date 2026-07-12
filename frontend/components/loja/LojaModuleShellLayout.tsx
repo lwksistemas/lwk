@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { ClinicaBelezaShell } from '@/components/clinica-beleza/ClinicaBelezaShell';
+import { ClinicaBelezaShell } from '@/components/clinica-beleza/clinica-beleza-shell/ClinicaBelezaShell';
 import { ClinicaBelezaThemeProvider } from '@/components/clinica-beleza/ClinicaBelezaThemeContext';
 import { CrmVendasShell } from '@/components/crm-vendas/CrmVendasShell';
 import { useLojaAuth } from '@/hooks/useLojaAuth';

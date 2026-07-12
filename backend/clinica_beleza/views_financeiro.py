@@ -1,6 +1,8 @@
 """
 Views de Pagamentos e Financeiro — Clínica da Beleza
 """
+from decimal import Decimal, InvalidOperation
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .permissions import CLINICA_FINANCEIRO
@@ -162,13 +164,14 @@ class PaymentParcelaView(APIView):
         # DRAFT quitado (saldo 0) também bloqueia nova parcela via financeiro
         if payment.status == 'DRAFT':
             try:
-                if payment.saldo_devedor <= 0:
-                    return Response(
-                        {'error': 'Pagamento já quitado na consulta. Corrija pelo Receber ou finalize.'},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-            except Exception:
-                pass
+                saldo = Decimal(str(payment.saldo_devedor or 0))
+            except (InvalidOperation, TypeError, ValueError):
+                saldo = Decimal('0')
+            if saldo <= 0:
+                return Response(
+                    {'error': 'Pagamento já quitado na consulta. Corrija pelo Receber ou finalize.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         try:
             valor = Decimal(str(request.data.get('valor') or '0'))

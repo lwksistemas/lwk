@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { ProcedimentosPageContent } from "@/components/clinica-beleza/ProcedimentosPageContent";
+import { ProcedimentosPageContent } from "@/components/clinica-beleza/procedimentos-page/ProcedimentosPageContent";
 import { CLINICA_MODULO_PROCEDIMENTOS } from "@/lib/clinica-beleza-module-config";
 
 export function ModuloProcedimentosPage({ modulo }: { modulo: "estetica" | "soroterapia" }) {

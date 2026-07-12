@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
-import type { ProcedimentosPageContent } from "@/components/clinica-beleza/ProcedimentosPageContent";
-import type { ProtocolosPageContent } from "@/components/clinica-beleza/ProtocolosPageContent";
+import type { ProcedimentosPageContent } from "@/components/clinica-beleza/procedimentos-page/ProcedimentosPageContent";
+import type { ProtocolosPageContent } from "@/components/clinica-beleza/protocolos-page/ProtocolosPageContent";
 
 type RelatedLink = { label: string; href: string };
 

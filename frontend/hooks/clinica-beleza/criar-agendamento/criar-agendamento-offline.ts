@@ -1,4 +1,4 @@
-import type { PatientQuickOption } from "@/components/clinica-beleza/PatientQuickRegisterField";
+import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import type { CriarAgendamentoProfessional } from "@/components/clinica-beleza/criar-agendamento/criar-agendamento-utils";
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 import { notificarFilaAtualizada } from "@/hooks/useSyncPending";

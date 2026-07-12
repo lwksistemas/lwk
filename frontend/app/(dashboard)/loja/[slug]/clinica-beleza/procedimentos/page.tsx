@@ -1,6 +1,6 @@
 'use client';
 
-import { ProcedimentosPageContent } from '@/components/clinica-beleza/ProcedimentosPageContent';
+import { ProcedimentosPageContent } from '@/components/clinica-beleza/procedimentos-page/ProcedimentosPageContent';
 import { useParams } from 'next/navigation';
 
 export default function ProcedimentosPage() {

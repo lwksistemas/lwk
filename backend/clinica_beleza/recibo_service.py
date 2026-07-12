@@ -113,6 +113,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     subtotal = valor_total + desconto if desconto > 0 else servicos_soma
     loja_telefone = telefone_exibicao_brasileiro(tel_raw)
     loja_cep = _formatar_cep(cep_raw)
+    loja_email = (getattr(loja, 'email', '') or '').strip() if loja else ''
 
     return {
         'paciente_nome': getattr(patient, 'nome', 'Cliente'),
@@ -126,6 +127,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         'loja_endereco': _formatar_endereco_loja(loja) if loja else '',
         'loja_telefone': loja_telefone,
         'loja_cep': loja_cep,
+        'loja_email': loja_email,
         'loja_tel_cep': _linha_tel_cep(loja_telefone, loja_cep),
         'procedimentos': procs,
         'taxa_consulta': taxa_consulta,
@@ -269,6 +271,8 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     tel_cep = ctx.get('loja_tel_cep') or _linha_tel_cep(ctx.get('loja_telefone', ''), ctx.get('loja_cep', ''))
     if tel_cep:
         story.append(Paragraph(tel_cep, s_center))
+    if ctx.get('loja_email'):
+        story.append(Paragraph(ctx['loja_email'], s_center))
     story.append(Spacer(1, 3 * mm))
     story.append(hr)
     story.append(Paragraph('RECIBO DE PAGAMENTO', s_title))

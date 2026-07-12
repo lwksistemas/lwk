@@ -779,6 +779,20 @@ function gerarHtmlRecibo(params: {
 </div>
 
 <div class="section">
+  <div class="section-title">Data/Hora do atendimento</div>
+  <table>
+    <tr><td>${consulta.appointment_date ? new Date(consulta.appointment_date).toLocaleString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }) : "—"}</td></tr>
+  </table>
+</div>
+
+<div class="section">
   <div class="section-title">Serviços</div>
   <table>
     ${valorConsulta > 0 ? `<tr><td>Taxa de consulta</td><td style="text-align:right">R$ ${valorConsulta.toFixed(2)}</td></tr>` : ""}
@@ -808,7 +822,7 @@ ${
 }
 
 <div class="footer">
-  <p>Obrigado pela preferência!</p>
+  <p>Agradecemos pela confiança!</p>
   <p>Documento não fiscal — gerado pelo sistema.</p>
   <button onclick="window.print()" style="margin-top:8px;padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #333;border-radius:4px;background:#fff;">Imprimir</button>
 </div>

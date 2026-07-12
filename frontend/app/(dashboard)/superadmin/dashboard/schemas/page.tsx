@@ -315,10 +315,9 @@ export default function SchemasPage() {
             <p className="text-amber-800 dark:text-amber-200 flex items-start gap-2 text-sm">
               <AlertTriangle size={18} className="shrink-0 mt-0.5" />
               <span>
-                <strong>Não é falha:</strong> {comLegado} loja(s) têm tabelas <em>legado</em> (ex.:{' '}
-                <code className="text-xs">cabeleireiro_*</code> de outro tipo de app). O status verde significa que
-                os apps do tipo atual estão corretos. Use <strong>Verificar e corrigir</strong> para remover essas
-                tabelas antigas com segurança.
+                <strong>Não é falha:</strong> {comLegado} loja(s) têm tabelas <em>legado</em> de apps
+                removidos. O status verde significa que os apps do tipo atual estão corretos. Use{' '}
+                <strong>Verificar e corrigir</strong> para remover essas tabelas antigas com segurança.
               </span>
             </p>
           </div>

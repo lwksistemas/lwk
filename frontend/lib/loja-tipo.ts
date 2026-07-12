@@ -2,6 +2,7 @@
  * Helpers para tipo de app.
  * Regras centralizadas: valem para todas as lojas criadas no sistema (por tipo_loja_nome da API).
  *
+ * Apps ativos: CRM Vendas, Clínica da Beleza, Hotel / Pousada.
  * Clínica de Estética (legado) foi unificada em Clínica da Beleza — mesmo produto e rotas.
  */
 
@@ -24,27 +25,9 @@ export function resolveIsClinicaBeleza(...hints: (string | undefined | null)[]):
   return hints.some((h) => h && isTipoClinicaBeleza(h));
 }
 
-export function isTipoRestaurante(tipoLojaNome: string): boolean {
-  return normalizarTipo(tipoLojaNome).includes('restaurante');
-}
-
-export function isTipoCabeleireiro(tipoLojaNome: string): boolean {
-  const s = normalizarTipo(tipoLojaNome);
-  return s.includes('cabeleireiro') || s.includes('salao') || s.includes('barbearia');
-}
-
-export function isTipoCommerce(tipoLojaNome: string): boolean {
-  return normalizarTipo(tipoLojaNome).includes('commerce');
-}
-
 export function isTipoCRMVendas(tipoLojaNome: string): boolean {
   const s = normalizarTipo(tipoLojaNome);
   return s.includes('crm') || s.includes('vendas');
-}
-
-export function isTipoServicos(tipoLojaNome: string): boolean {
-  const s = normalizarTipo(tipoLojaNome);
-  return s.includes('servicos') || s.includes('servico');
 }
 
 export function isTipoHotel(tipoLojaNome: string): boolean {
@@ -57,10 +40,6 @@ export function configuracoesPathForTipo(slug: string, tipoLojaNome: string): st
   if (isTipoClinicaBeleza(tipoLojaNome)) return `/loja/${slug}/clinica-beleza/configuracoes`;
   if (isTipoCRMVendas(tipoLojaNome)) return `/loja/${slug}/crm-vendas/configuracoes`;
   if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/configuracoes`;
-  if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/dashboard`;
-  if (isTipoRestaurante(tipoLojaNome)) return `/loja/${slug}/dashboard`;
-  if (isTipoCommerce(tipoLojaNome)) return `/loja/${slug}/dashboard`;
-  if (isTipoServicos(tipoLojaNome)) return `/loja/${slug}/dashboard`;
   return `/loja/${slug}/dashboard`;
 }
 
@@ -69,6 +48,5 @@ export function homePathForTipo(slug: string, tipoLojaNome: string): string {
   if (isTipoCRMVendas(tipoLojaNome)) return `/loja/${slug}/crm-vendas`;
   if (isTipoClinicaBeleza(tipoLojaNome)) return `/loja/${slug}/clinica-beleza/consultas`;
   if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/reservas`;
-  if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/cabeleireiro/agenda`;
   return `/loja/${slug}/dashboard`;
 }

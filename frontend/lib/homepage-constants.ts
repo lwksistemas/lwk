@@ -55,10 +55,10 @@ export const DEFAULT_MODULOS: Omit<Modulo, "id">[] = [
     icone: "💆",
   },
   {
-    nome: "E-commerce",
-    descricao: "Loja virtual completa com gestão de produtos",
-    slug: "ecommerce",
-    icone: "🛒",
+    nome: "Hotel / Pousada",
+    descricao: "Gestão de reservas e hospedagem",
+    slug: "hotel",
+    icone: "🏨",
   },
 ];
 

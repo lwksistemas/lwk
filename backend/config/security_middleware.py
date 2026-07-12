@@ -400,7 +400,7 @@ class SecurityIsolationMiddleware:
     def _resolve_store_user_group(self, user, store_slug=None):
         """
         Grupo efetivo para rotas de loja: owner/prof/vendedor ou funcionário
-        (cabeleireiro/hotel/etc.) vinculado por e-mail no tenant.
+        (clinica-beleza/hotel/crm-vendas) vinculado por e-mail no tenant.
         """
         user_group = self._get_user_group(user)
         if user_group == 'loja':

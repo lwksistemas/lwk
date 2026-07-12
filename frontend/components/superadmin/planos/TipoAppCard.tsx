@@ -9,11 +9,11 @@ interface TipoAppCardProps {
 
 const getIconForType = (nome: string) => {
   switch (nome.toLowerCase()) {
-    case 'e-commerce': return '🛒';
-    case 'serviços': return '🔧';
-    case 'restaurante': return '🍕';
-    case 'clínica de estética': return '💅';
-    case 'crm vendas': return '📊';
+    case 'crm vendas': return '�';
+    case 'clínica da beleza':
+    case 'clínica de estética': return '�';
+    case 'hotel':
+    case 'pousada': return '🏨';
     default: return '🏪';
   }
 };

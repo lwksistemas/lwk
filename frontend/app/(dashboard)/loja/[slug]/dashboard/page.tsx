@@ -1,13 +1,12 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
-import { isTipoClinicaBeleza, isTipoRestaurante, isTipoCabeleireiro, isTipoCommerce, isTipoCRMVendas, isTipoServicos, isTipoHotel } from '@/lib/loja-tipo';
+import { isTipoClinicaBeleza, isTipoCRMVendas, isTipoHotel } from '@/lib/loja-tipo';
 import ModalChamado from '@/components/suporte/ModalChamado';
-import BackupButton from '@/components/loja/BackupButton';
 import { logger } from '@/lib/logger';
 
 const DashboardChunkSkeleton = () => (
@@ -18,9 +17,6 @@ const DashboardChunkSkeleton = () => (
 );
 
 const DashboardClinicaBeleza = dynamic(() => import('./templates/clinica-beleza'), { loading: DashboardChunkSkeleton });
-const DashboardRestaurante = dynamic(() => import('./templates/restaurante'), { loading: DashboardChunkSkeleton });
-const DashboardServicos = dynamic(() => import('./templates/servicos'), { loading: DashboardChunkSkeleton });
-const DashboardCabeleireiro = dynamic(() => import('./templates/dashboard-cabeleireiro-novo'), { loading: DashboardChunkSkeleton });
 const DashboardHotel = dynamic(() => import('./templates/hotel'), { loading: DashboardChunkSkeleton });
 
 interface LojaInfo {
@@ -44,10 +40,7 @@ export default function LojaDashboardDinamicoPage() {
   const [loading, setLoading] = useState(true);
   const [loadingLento, setLoadingLento] = useState(false);
   const [modalSuporteAberto, setModalSuporteAberto] = useState(false);
-  const [chamadosDropdownAberto, setChamadosDropdownAberto] = useState(false);
-  const chamadosDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Forçar reload se vier de cache (bfcache)
   useEffect(() => {
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) window.location.reload();
@@ -84,19 +77,6 @@ export default function LojaDashboardDinamicoPage() {
     if (ready && !isLoja) router.push(loginPath);
   }, [ready, isLoja, loginPath, router]);
 
-  // Fechar dropdown Chamados ao clicar fora
-  useEffect(() => {
-    if (!chamadosDropdownAberto) return;
-    const handleClick = (e: MouseEvent) => {
-      if (chamadosDropdownRef.current && !chamadosDropdownRef.current.contains(e.target as Node)) {
-        setChamadosDropdownAberto(false);
-      }
-    };
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, [chamadosDropdownAberto]);
-
-  // Mostrar dica se o carregamento passar de 8s (ex.: cold start Heroku)
   useEffect(() => {
     if (!loading) return;
     const t = setTimeout(() => setLoadingLento(true), 8000);
@@ -137,7 +117,6 @@ export default function LojaDashboardDinamicoPage() {
     );
   }
 
-  // CRM Vendas: redirecionar imediatamente para crm-vendas (não usar este dashboard)
   if (isTipoCRMVendas(lojaInfo.tipo_loja_nome)) {
     if (typeof window !== 'undefined') {
       document.cookie = 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax';
@@ -151,118 +130,108 @@ export default function LojaDashboardDinamicoPage() {
   }
 
   const isClinicaBeleza = isTipoClinicaBeleza(lojaInfo.tipo_loja_nome);
-  const isRestaurante = isTipoRestaurante(lojaInfo.tipo_loja_nome);
-  const isCabeleireiro = isTipoCabeleireiro(lojaInfo.tipo_loja_nome);
-  const isFullWidth = isClinicaBeleza || isRestaurante || isCabeleireiro;
+  const isFullWidth = isClinicaBeleza;
 
-  // Renderizar dashboard específico por tipo de app
   return (
     <>
-      {/* Clínica da beleza / cabeleireiro: layout próprio (shell interno), sem wrapper extra */}
-      {(isCabeleireiro || isClinicaBeleza) ? (
+      {isClinicaBeleza ? (
         renderDashboardPorTipo(lojaInfo, handleLogout)
       ) : (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-        <>
-          {/* Header */}
-          <nav 
-        className="text-white shadow-lg"
-        style={{ backgroundColor: lojaInfo.cor_primaria }}
-      >
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between min-h-[56px] sm:h-16 py-2 sm:py-0 items-start sm:items-center gap-2 sm:gap-0">
-            <div className="w-full sm:w-auto">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">{lojaInfo.nome}</h1>
-              <p className="text-xs sm:text-sm opacity-90">{lojaInfo.tipo_loja_nome}</p>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+          <nav
+            className="text-white shadow-lg"
+            style={{ backgroundColor: lojaInfo.cor_primaria }}
+          >
+            <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+              <div className="flex flex-col sm:flex-row justify-between min-h-[56px] sm:h-16 py-2 sm:py-0 items-start sm:items-center gap-2 sm:gap-0">
+                <div className="w-full sm:w-auto">
+                  <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">{lojaInfo.nome}</h1>
+                  <p className="text-xs sm:text-sm opacity-90">{lojaInfo.tipo_loja_nome}</p>
+                </div>
+                <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                  {isTipoHotel(lojaInfo.tipo_loja_nome) && (
+                    <button
+                      onClick={() => router.push(`/loja/${slug}/hotel`)}
+                      className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
+                      title="Ir para o módulo Hotel"
+                    >
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      <span>Hotel</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => router.push(`/loja/${slug}/suporte`)}
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
+                    title="Ver meus chamados de suporte"
+                  >
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    <span>Chamados</span>
+                  </button>
+                  <button
+                    onClick={() => setModalSuporteAberto(true)}
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-green-600 hover:bg-green-700 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
+                    title="Abrir novo chamado de suporte"
+                  >
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                    <span className="hidden sm:inline">Abrir Suporte</span>
+                    <span className="sm:hidden">Suporte</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const html = document.documentElement;
+                      const isDark = html.classList.contains('dark');
+                      if (isDark) {
+                        html.classList.remove('dark');
+                        localStorage.setItem('theme', 'light');
+                      } else {
+                        html.classList.add('dark');
+                        localStorage.setItem('theme', 'dark');
+                      }
+                    }}
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
+                    title="Alternar modo escuro/claro"
+                  >
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <span className="hidden sm:inline">Tema</span>
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-red-600 hover:bg-red-700 rounded-md transition-colors text-sm active:scale-95"
+                  >
+                    Sair
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-              {isTipoHotel(lojaInfo.tipo_loja_nome) && (
-                <button
-                  onClick={() => router.push(`/loja/${slug}/hotel`)}
-                  className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                  title="Ir para o módulo Hotel"
-                >
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                  <span>Hotel</span>
-                </button>
-              )}
-              <button
-                onClick={() => router.push(`/loja/${slug}/suporte`)}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                title="Ver meus chamados de suporte"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-                <span>Chamados</span>
-              </button>
-              <button
-                onClick={() => setModalSuporteAberto(true)}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-green-600 hover:bg-green-700 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                title="Abrir novo chamado de suporte"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
-                <span className="hidden sm:inline">Abrir Suporte</span>
-                <span className="sm:hidden">Suporte</span>
-              </button>
-              <button
-                onClick={() => {
-                  const html = document.documentElement;
-                  const isDark = html.classList.contains('dark');
-                  if (isDark) {
-                    html.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                  } else {
-                    html.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                  }
-                }}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                title="Alternar modo escuro/claro"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-                <span className="hidden sm:inline">Tema</span>
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-red-600 hover:bg-red-700 rounded-md transition-colors text-sm active:scale-95"
-              >
-                Sair
-              </button>
+          </nav>
+
+          <main
+            className={`${
+              isFullWidth ? 'max-w-full' : 'max-w-7xl'
+            } mx-auto py-4 sm:py-6 px-2 sm:px-4 md:px-6 lg:px-8`}
+          >
+            <div className="py-2 sm:py-4">
+              {renderDashboardPorTipo(lojaInfo, handleLogout)}
             </div>
-          </div>
-        </div>
-      </nav>
+          </main>
 
-      {/* Main Content - tela cheia para Clínica e Restaurante (sem faixas laterais) */}
-      <main
-        className={`${
-          isFullWidth ? 'max-w-full' : 'max-w-7xl'
-        } mx-auto py-4 sm:py-6 px-2 sm:px-4 md:px-6 lg:px-8`}
-      >
-        <div className="py-2 sm:py-4">
-          {/* Dashboard específico por tipo */}
-          {renderDashboardPorTipo(lojaInfo, handleLogout)}
+          {modalSuporteAberto && (
+            <ModalChamado
+              aberto={modalSuporteAberto}
+              onFechar={() => setModalSuporteAberto(false)}
+              lojaSlug={slug}
+              lojaNome={lojaInfo.nome}
+            />
+          )}
         </div>
-      </main>
-
-      {/* Modal de Suporte - Aberto pelo botão fixo da barra superior */}
-      {modalSuporteAberto && (
-        <ModalChamado
-          aberto={modalSuporteAberto}
-          onFechar={() => setModalSuporteAberto(false)}
-          lojaSlug={slug}
-          lojaNome={lojaInfo.nome}
-        />
-      )}
-        </>
-    </div>
       )}
     </>
   );
@@ -270,46 +239,10 @@ export default function LojaDashboardDinamicoPage() {
 
 function renderDashboardPorTipo(loja: LojaInfo, onLogout: () => void) {
   if (isTipoClinicaBeleza(loja.tipo_loja_nome)) return <DashboardClinicaBeleza loja={loja} onLogout={onLogout} />;
-  if (isTipoCommerce(loja.tipo_loja_nome)) return <DashboardEcommerce loja={loja} />;
-  if (isTipoRestaurante(loja.tipo_loja_nome)) return <DashboardRestaurante loja={loja} />;
-  if (isTipoServicos(loja.tipo_loja_nome)) return <DashboardServicos loja={loja} />;
-  if (isTipoCabeleireiro(loja.tipo_loja_nome)) return <DashboardCabeleireiro loja={loja} />;
   if (isTipoHotel(loja.tipo_loja_nome)) return <DashboardHotel loja={loja} />;
   return <DashboardGenerico loja={loja} />;
 }
 
-// Dashboard para E-commerce
-function DashboardEcommerce({ loja }: { loja: LojaInfo }) {
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6" style={{ color: loja.cor_primaria }}>
-        Dashboard - E-commerce
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Pedidos Hoje</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Produtos</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Estoque</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>0</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-gray-500 text-sm font-medium">Faturamento</h3>
-          <p className="text-3xl font-bold mt-2" style={{ color: loja.cor_primaria }}>R$ 0</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Restaurante: usando DashboardRestaurante do template restaurante.tsx
-
-// Dashboard Genérico (fallback)
 function DashboardGenerico({ loja }: { loja: LojaInfo }) {
   return (
     <div>

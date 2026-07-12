@@ -340,7 +340,7 @@ MIGRATION_GUARD_STRICT = config('MIGRATION_GUARD_STRICT', default=not DEBUG, cas
 # drf-spectacular (OpenAPI / Swagger)
 SPECTACULAR_SETTINGS = {
     'TITLE': 'LWK Sistemas API',
-    'DESCRIPTION': 'API Multi-Tenant para gestão de lojas (superadmin, suporte, clinica, crm, restaurante, etc.)',
+    'DESCRIPTION': 'API Multi-Tenant para gestão de lojas (superadmin, suporte, clinica-beleza, crm-vendas, hotel).',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }

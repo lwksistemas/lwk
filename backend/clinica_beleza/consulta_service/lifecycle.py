@@ -141,8 +141,9 @@ def iniciar_consulta(consulta):
     ts = now()
 
     appointment.status = 'IN_PROGRESS'
+    appointment.date = ts
     appointment.version = (appointment.version or 1) + 1
-    appointment.save(update_fields=['status', 'version', 'updated_at'])
+    appointment.save(update_fields=['status', 'date', 'version', 'updated_at'])
 
     consulta.status = 'IN_PROGRESS'
     consulta.data_inicio = ts

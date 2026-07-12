@@ -107,23 +107,24 @@ class ProfessionalListView(APIView):
         queryset = Professional.objects.all().order_by('nome')
         if active_only:
             queryset = queryset.filter(is_active=True)
-        if with_schedule:
-            queryset = queryset.filter(
-                id__in=HorarioTrabalhoProfissional.objects.filter(ativo=True)
-                .values_list('professional_id', flat=True).distinct()
-            )
-
         # Filtrar apenas profissionais que atendem (is_profissional=True)
         # para agenda e agendamentos
         scheduling = request.query_params.get('scheduling', '').lower() == 'true'
         if with_schedule or scheduling:
             queryset = queryset.filter(is_profissional=True)
 
+        # Na agenda: exibir apenas profissionais com horário de trabalho ativo
+        if with_schedule or scheduling:
+            queryset = queryset.filter(
+                id__in=HorarioTrabalhoProfissional.objects.filter(ativo=True)
+                .values_list('professional_id', flat=True).distinct()
+            )
+
         admin_professional_ids = LojaContextHelper.get_admin_professional_ids()
         owner_professional_id = LojaContextHelper.get_owner_professional_id()
 
         # Na agenda: administradores com is_profissional=False não aparecem
-        if with_schedule and admin_professional_ids:
+        if (with_schedule or scheduling) and admin_professional_ids:
             admin_not_professional = Professional.objects.filter(
                 id__in=admin_professional_ids, is_profissional=False
             ).values_list('id', flat=True)

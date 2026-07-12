@@ -32,10 +32,17 @@ class ConsultaIniciarProfissionalNaoHabilitadoTest(SimpleTestCase):
 class ProfessionalSchedulingQueryFilterTest(SimpleTestCase):
     @patch('clinica_beleza.views_profissionais.paginate_queryset')
     @patch('clinica_beleza.views_profissionais.LojaContextHelper')
+    @patch('clinica_beleza.views_profissionais.HorarioTrabalhoProfissional')
     @patch('clinica_beleza.views_profissionais.Professional')
-    def test_get_scheduling_filtra_is_profissional(self, mock_prof, mock_loja_ctx, mock_paginate):
+    def test_get_scheduling_filtra_is_profissional_e_horario(
+        self, mock_prof, mock_horario, mock_loja_ctx, mock_paginate
+    ):
         mock_loja_ctx.get_admin_professional_ids.return_value = []
         mock_loja_ctx.get_owner_professional_id.return_value = None
+
+        horario_qs = MagicMock()
+        horario_qs.values_list.return_value.distinct.return_value = [1]
+        mock_horario.objects.filter.return_value = horario_qs
 
         qs = MagicMock()
         qs.order_by.return_value = qs
@@ -53,4 +60,5 @@ class ProfessionalSchedulingQueryFilterTest(SimpleTestCase):
 
         filter_calls = [str(c) for c in qs.filter.call_args_list]
         self.assertTrue(any('is_profissional' in c for c in filter_calls))
+        mock_horario.objects.filter.assert_called_once_with(ativo=True)
         mock_paginate.assert_called_once()

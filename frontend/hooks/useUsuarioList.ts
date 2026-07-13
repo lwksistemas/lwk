@@ -13,11 +13,17 @@ export function useUsuarioList() {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.get('/superadmin/usuarios/');
+      const response = await apiClient.get<{ results?: Usuario[]; data?: Usuario[] }>('/superadmin/usuarios/');
       const data = response.data.results || response.data;
       setUsuarios(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Erro ao carregar usuários';
+    } catch (err) {
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const errData = response?.data;
+      const errorMsg =
+        (typeof errData === 'object' && errData !== null ? (errData as { error?: string }).error : null) ||
+        (typeof errData === 'string' ? errData : null) ||
+        'Erro ao carregar usuários';
       setError(errorMsg);
       setUsuarios([]);
     } finally {

@@ -17,6 +17,22 @@ export interface UsuarioFormData {
   pode_acessar_todas_lojas: boolean;
 }
 
+export interface UsuarioPayload {
+  tipo: string;
+  cpf: string;
+  telefone: string;
+  pode_criar_lojas: boolean;
+  pode_gerenciar_financeiro: boolean;
+  pode_acessar_todas_lojas: boolean;
+  user: {
+    username?: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    password?: string;
+  };
+}
+
 export interface Usuario {
   id: number;
   user: {
@@ -47,7 +63,7 @@ export function useUsuarioActions() {
     setLoading(true);
     setError(null);
     try {
-      const payload: any = {
+      const payload: UsuarioPayload = {
         tipo: data.tipo,
         cpf: data.cpf,
         telefone: data.telefone,
@@ -63,9 +79,15 @@ export function useUsuarioActions() {
       };
 
       const response = await apiClient.post('/superadmin/usuarios/', payload);
-      return response.data;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || JSON.stringify(err.response?.data) || 'Erro ao criar usuário';
+      return response.data as { senha_provisoria?: string };
+    } catch (err) {
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const errData = response?.data;
+      const errorMsg =
+        (typeof errData === 'object' && errData !== null ? (errData as { error?: string }).error : null) ||
+        (typeof errData === 'string' ? errData : null) ||
+        'Erro ao criar usuário';
       setError(errorMsg);
       throw new Error(errorMsg);
     } finally {
@@ -77,7 +99,7 @@ export function useUsuarioActions() {
     setLoading(true);
     setError(null);
     try {
-      const payload: any = {
+      const payload: UsuarioPayload = {
         tipo: data.tipo,
         cpf: data.cpf,
         telefone: data.telefone,
@@ -98,8 +120,14 @@ export function useUsuarioActions() {
 
       await apiClient.put(`/superadmin/usuarios/${id}/`, payload);
       return true;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || JSON.stringify(err.response?.data) || 'Erro ao atualizar usuário';
+    } catch (err) {
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const errData = response?.data;
+      const errorMsg =
+        (typeof errData === 'object' && errData !== null ? (errData as { error?: string }).error : null) ||
+        (typeof errData === 'string' ? errData : null) ||
+        'Erro ao atualizar usuário';
       setError(errorMsg);
       throw new Error(errorMsg);
     } finally {
@@ -113,8 +141,14 @@ export function useUsuarioActions() {
     try {
       await apiClient.delete(`/superadmin/usuarios/${usuario.id}/`);
       return true;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Erro ao excluir usuário';
+    } catch (err) {
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const errData = response?.data;
+      const errorMsg =
+        (typeof errData === 'object' && errData !== null ? (errData as { error?: string }).error : null) ||
+        (typeof errData === 'string' ? errData : null) ||
+        'Erro ao excluir usuário';
       setError(errorMsg);
       throw new Error(errorMsg);
     } finally {
@@ -131,8 +165,14 @@ export function useUsuarioActions() {
         is_active: novoStatus
       });
       return novoStatus;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Erro ao alterar status';
+    } catch (err) {
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const errData = response?.data;
+      const errorMsg =
+        (typeof errData === 'object' && errData !== null ? (errData as { error?: string }).error : null) ||
+        (typeof errData === 'string' ? errData : null) ||
+        'Erro ao alterar status';
       setError(errorMsg);
       throw new Error(errorMsg);
     } finally {

@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import { formatApiErrorBody } from '@/lib/api-errors';
 
 export interface TipoApp {
   id: number;
@@ -50,8 +51,8 @@ export function useTipoAppActions() {
     try {
       await apiClient.post('/superadmin/tipos-loja/', formData);
       return true;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || JSON.stringify(err.response?.data) || 'Erro ao criar tipo de app';
+    } catch (err) {
+      const errorMsg = formatApiErrorBody(err) || 'Erro ao criar tipo de app';
       setError(errorMsg);
       logger.warn('Erro ao criar tipo de app:', err);
       return false;
@@ -67,8 +68,8 @@ export function useTipoAppActions() {
     try {
       await apiClient.put(`/superadmin/tipos-loja/${id}/`, formData);
       return true;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || JSON.stringify(err.response?.data) || 'Erro ao atualizar tipo de app';
+    } catch (err) {
+      const errorMsg = formatApiErrorBody(err) || 'Erro ao atualizar tipo de app';
       setError(errorMsg);
       logger.warn('Erro ao atualizar tipo de app:', err);
       return false;
@@ -94,8 +95,8 @@ export function useTipoAppActions() {
     try {
       await apiClient.delete(`/superadmin/tipos-loja/${tipo.id}/`);
       return true;
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Erro ao excluir tipo de app';
+    } catch (err) {
+      const errorMsg = formatApiErrorBody(err) || 'Erro ao excluir tipo de app';
       setError(errorMsg);
       logger.warn('Erro ao excluir tipo de app:', err);
       return false;

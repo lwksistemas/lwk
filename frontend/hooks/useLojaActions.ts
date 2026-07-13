@@ -15,6 +15,29 @@ interface Loja {
   database_created: boolean;
 }
 
+interface ApiErrorResponse {
+  error?: string;
+  detalhes?: string;
+}
+
+function extractApiError(err: unknown): { status?: number; data: ApiErrorResponse | null; message?: string } {
+  const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+  const response = errorObj?.response as Record<string, unknown> | undefined;
+  const status = typeof response?.status === 'number' ? response.status : undefined;
+  const data = response?.data;
+  const message = err instanceof Error ? err.message : undefined;
+  return {
+    status,
+    data:
+      typeof data === 'object' && data !== null
+        ? (data as ApiErrorResponse)
+        : typeof data === 'string'
+          ? { error: data }
+          : null,
+    message,
+  };
+}
+
 interface ExclusaoDetalhes {
   loja_nome: string;
   loja_removida: boolean;
@@ -109,32 +132,33 @@ export function useLojaActions() {
         message: mensagens.join('\n')
       };
       
-    } catch (err: any) {
+    } catch (err) {
       logger.warn('Erro ao excluir loja:', err);
-      
+      const { status, data, message } = extractApiError(err);
+
       // 404 = loja já foi excluída
-      if (err.response?.status === 404) {
+      if (status === 404) {
         return {
           success: true,
           message: 'ℹ️ Esta loja já foi excluída ou não existe.'
         };
       }
-      
+
       // Construir mensagem de erro
       let mensagemErro = '❌ Erro ao excluir loja:\n\n';
-      
-      if (err.response?.data?.error) {
-        mensagemErro += err.response.data.error;
-      } else if (err.message) {
-        mensagemErro += err.message;
+
+      if (data?.error) {
+        mensagemErro += data.error;
+      } else if (message) {
+        mensagemErro += message;
       } else {
         mensagemErro += 'Erro desconhecido';
       }
-      
-      if (err.response?.data?.detalhes) {
-        mensagemErro += '\n\n' + err.response.data.detalhes;
+
+      if (data?.detalhes) {
+        mensagemErro += '\n\n' + data.detalhes;
       }
-      
+
       setError(mensagemErro);
       return {
         success: false,
@@ -156,9 +180,10 @@ export function useLojaActions() {
         success: true,
         message: `✅ ${response.data.message}`
       };
-    } catch (err: any) {
+    } catch (err) {
       logger.warn('Erro ao reenviar senha:', err);
-      const mensagemErro = `❌ Erro ao reenviar senha: ${err.response?.data?.error || 'Erro desconhecido'}`;
+      const { data } = extractApiError(err);
+      const mensagemErro = `❌ Erro ao reenviar senha: ${data?.error || 'Erro desconhecido'}`;
       setError(mensagemErro);
       return {
         success: false,
@@ -169,7 +194,7 @@ export function useLojaActions() {
     }
   };
 
-  const criarBanco = async (lojaId: number): Promise<{ success: boolean; message: string; data?: any }> => {
+  const criarBanco = async (lojaId: number): Promise<{ success: boolean; message: string; data?: Record<string, unknown> }> => {
     setLoading(true);
     setError(null);
 
@@ -180,9 +205,10 @@ export function useLojaActions() {
         message: `✅ Banco criado com sucesso!\n\nUsuário: ${response.data.admin_username}\nSenha: ${response.data.admin_password}`,
         data: response.data
       };
-    } catch (err: any) {
+    } catch (err) {
       logger.warn('Erro ao criar banco:', err);
-      const mensagemErro = `❌ Erro: ${err.response?.data?.error || 'Erro ao criar banco'}`;
+      const { data } = extractApiError(err);
+      const mensagemErro = `❌ Erro: ${data?.error || 'Erro ao criar banco'}`;
       setError(mensagemErro);
       return {
         success: false,

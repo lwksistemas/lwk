@@ -176,7 +176,7 @@ export function buildPendingSyncEvents({
           procedure_price: String(procedure?.price ?? ""),
           notes: String(p.notes ?? ""),
         },
-      } as AgendaEventData;
+      };
     });
 }
 
@@ -189,7 +189,7 @@ export function buildEventosOnline({
   pendingEvents,
   statusColors = CLINICA_AGENDA_STATUS_COLORS,
 }: {
-  rawEvents: Record<string, unknown>[];
+  rawEvents: AgendaEventData[] | Record<string, unknown>[];
   bloqueios: BloqueioHorario[];
   horariosTrabalho: HorarioTrabalhoRow[];
   professionals: ClinicaProfessional[];

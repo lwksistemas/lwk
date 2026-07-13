@@ -123,7 +123,7 @@ export function useAgendaEventos({
   const eventosOnline = useMemo(
     () =>
       buildEventosOnline({
-        rawEvents: Array.isArray(eventsData) ? (eventsData as Record<string, unknown>[]) : [],
+        rawEvents: Array.isArray(eventsData) ? eventsData : [],
         bloqueios,
         horariosTrabalho,
         professionals,

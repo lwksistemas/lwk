@@ -3,6 +3,7 @@
  */
 import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
+import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 import {
   ClinicaBelezaAPI,
@@ -60,7 +61,7 @@ export async function fetchClinicaAgendaPatients() {
   });
 }
 
-export async function fetchClinicaAgendaEvents(professionalId: string) {
+export async function fetchClinicaAgendaEvents(professionalId: string): Promise<AgendaEventData[]> {
   const path = professionalId ? `/agenda/?professional=${professionalId}` : "/agenda/";
   const res = await clinicaBelezaFetch(path);
   if (!res.ok) return [];

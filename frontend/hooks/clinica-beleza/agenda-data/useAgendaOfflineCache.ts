@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type {
   ClinicaPatient,
   ClinicaProcedure,
@@ -16,7 +17,7 @@ export function useAgendaOfflineCache(
   professionals: ClinicaProfessional[],
   patients: ClinicaPatient[],
   procedures: ClinicaProcedure[],
-  eventsData: unknown[],
+  eventsData: AgendaEventData[] | undefined,
 ) {
   useEffect(() => {
     if (!isOnline || !professionals.length) return;

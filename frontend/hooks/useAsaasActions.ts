@@ -5,6 +5,7 @@
 import { useState, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import type { Pagamento } from './useAssinaturas';
 
 export function useAsaasActions() {
@@ -52,9 +53,9 @@ export function useAsaasActions() {
         alert(response.data.error || 'Erro ao criar cobrança');
         return false;
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.warn('Erro ao criar cobrança Asaas:', error);
-      alert(`Erro: ${error.response?.data?.error || error.message || 'Erro ao criar cobrança'}`);
+      alert(`Erro: ${formatApiErrorBody(error) || (error instanceof Error ? error.message : 'Erro ao criar cobrança')}`);
       return false;
     } finally {
       setGerandoCobranca(null);
@@ -73,9 +74,9 @@ export function useAsaasActions() {
         alert(response.data.error || 'Erro ao excluir cobrança');
         return false;
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.warn('Erro ao excluir cobrança Asaas:', error);
-      alert(`Erro: ${error.response?.data?.error || error.message || 'Erro ao excluir cobrança'}`);
+      alert(`Erro: ${formatApiErrorBody(error) || (error instanceof Error ? error.message : 'Erro ao excluir cobrança')}`);
       return false;
     } finally {
       setExcluindoPagamento(false);

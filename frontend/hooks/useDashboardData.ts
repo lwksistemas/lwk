@@ -7,7 +7,7 @@ interface UseDashboardDataOptions<T, U> {
   endpoint: string;
   initialStats: T;
   initialData?: U[];
-  transformResponse?: (data: any) => { stats: T; data: U[] };
+  transformResponse?: (data: Record<string, unknown>) => { stats: T; data: U[] };
   enabled?: boolean;
 }
 
@@ -68,33 +68,37 @@ export function useDashboardData<T, U>({
       hasShownErrorRef.current = false;
       
       if (transformResponse) {
-        const { stats: newStats, data: newData } = transformResponse(response.data);
+        const { stats: newStats, data: newData } = transformResponse(response.data as Record<string, unknown>);
         setStats(newStats);
         setData(newData);
       } else {
         // Formato padrão: { estatisticas: {...}, proximos: [...] }
-        const responseData = response.data;
-        setStats(responseData.estatisticas || responseData || initialStats);
+        const responseData = response.data as Record<string, unknown> | unknown[];
+        const statsValue = (responseData as Record<string, unknown>).estatisticas;
+        setStats((statsValue as T) || (responseData as T) || initialStats);
         setData(
-          responseData.proximos || 
-          responseData.results || 
-          (Array.isArray(responseData) ? responseData : initialData)
+          (responseData as Record<string, unknown>).proximos as U[] | undefined ||
+          (responseData as Record<string, unknown>).results as U[] | undefined ||
+          (Array.isArray(responseData) ? (responseData as U[]) : initialData)
         );
       }
-    } catch (err: any) {
+    } catch (err) {
       if (!isMountedRef.current) return;
-      
+
       logger.warn('Erro ao carregar dashboard:', err);
       setError(true);
-      
+
       // Mostrar toast apenas uma vez
       if (!hasShownErrorRef.current) {
         hasShownErrorRef.current = true;
-        
+
+        const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+        const response = errorObj?.response as Record<string, unknown> | undefined;
+        const status = typeof response?.status === 'number' ? response.status : undefined;
         // Verificar se é erro de autenticação
-        if (err.response?.status === 401) {
+        if (status === 401) {
           toast.error('Sessão expirada. Faça login novamente.');
-        } else if (err.response?.status === 429) {
+        } else if (status === 429) {
           toast.error('Muitas requisições. Aguarde um momento.');
         } else {
           toast.error('Erro ao carregar dados do dashboard');

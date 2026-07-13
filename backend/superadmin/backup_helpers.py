@@ -309,6 +309,220 @@ def _fetch_crm_vendas_config_pg_colrows(
     return []
 
 
+# ---------------------------------------------------------------------------
+# Helpers de parse de campos CRM Config (extraidos de _import_crm_vendas_config_via_model)
+# ---------------------------------------------------------------------------
+
+def _crm_as_int(raw: Any, default: int = 0) -> int:
+    if raw is None:
+        return default
+    if isinstance(raw, str):
+        s = raw.strip().lower()
+        if s in ("", "null", "none", "nan"):
+            return default
+        try:
+            return int(float(s))
+        except ValueError:
+            return default
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+def _crm_as_dec(raw: Any, default: Decimal) -> Decimal:
+    if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+        return default
+    try:
+        return Decimal(str(raw).strip())
+    except Exception:
+        return default
+
+
+def _crm_as_bool(raw: Any, default: bool = False) -> bool:
+    if raw is None or raw == "":
+        return default
+    if isinstance(raw, bool):
+        return raw
+    return str(raw).strip().lower() in ("1", "t", "true", "yes")
+
+
+def _crm_as_json(raw: Any, default: Any) -> Any:
+    if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+        return default
+    if isinstance(raw, (list, dict)):
+        return raw
+    return json.loads(raw)
+
+
+def _crm_as_bytes(raw: Any) -> bytes | None:
+    if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+        return None
+    s = str(raw).strip()
+    hx = s.replace("\\\\x", "\\x").removeprefix("\\x") if (s.startswith("\\x") or s.startswith("\\\\x")) else s
+    try:
+        return bytes.fromhex(hx)
+    except ValueError:
+        return None
+
+
+def _build_crm_row_kwargs(row: dict, loja_id: int, CRMConfig, dm, parse_datetime) -> dict:
+    """Constrói dict kwargs para um row de crm_vendas_config mapeando cada field do modelo."""
+    kwargs: dict[str, Any] = {"loja_id": loja_id}
+    for field in CRMConfig._meta.local_concrete_fields:
+        att = field.attname
+        if att == "loja_id":
+            continue
+        if getattr(field, "auto_now", False) or getattr(field, "auto_now_add", False):
+            raw_dt = row.get(att)
+            if raw_dt:
+                parsed = parse_datetime(str(raw_dt))
+                if parsed is not None:
+                    kwargs[att] = parsed
+            continue
+        if isinstance(field, dm.AutoField):
+            raw_id = row.get(att)
+            if raw_id is not None and str(raw_id).strip() != "":
+                kwargs[att] = _crm_as_int(raw_id, 0)
+            continue
+        raw = row.get(att)
+        if isinstance(field, dm.BinaryField):
+            if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+                raw = row.get("issnet_certificado_binary")
+            kwargs[att] = _crm_as_bytes(raw)
+            continue
+        if isinstance(field, dm.JSONField):
+            kwargs[att] = _crm_as_json(raw, field.get_default())
+            continue
+        if isinstance(field, dm.BooleanField):
+            d = field.get_default() if field.has_default() else False
+            kwargs[att] = _crm_as_bool(raw, bool(d) if not isinstance(d, bool) else d)
+            continue
+        if isinstance(field, dm.DecimalField):
+            d0 = field.get_default() if field.has_default() else Decimal(0)
+            kwargs[att] = _crm_as_dec(raw, Decimal(str(d0)) if not isinstance(d0, Decimal) else d0)
+            continue
+        if isinstance(field, dm.DateTimeField):
+            if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+                if field.null:
+                    kwargs[att] = None
+                continue
+            parsed = parse_datetime(str(raw))
+            kwargs[att] = parsed if parsed is not None else None
+            continue
+        if isinstance(field, (dm.IntegerField, dm.BigIntegerField, dm.SmallIntegerField)):
+            d = 0
+            if field.has_default():
+                try:
+                    d = int(field.get_default())
+                except (TypeError, ValueError):
+                    d = 0
+            kwargs[att] = _crm_as_int(raw, d)
+            continue
+        kwargs[att] = str(raw) if raw is not None else (field.get_default() if field.has_default() else "")
+    kwargs["issnet_numero_lote"] = _crm_as_int(row.get("issnet_numero_lote"), 0)
+    kwargs["issnet_ultimo_rps_conhecido"] = _crm_as_int(row.get("issnet_ultimo_rps_conhecido"), 0)
+    kwargs["loja_id"] = loja_id
+    return kwargs
+
+
+def _value_for_physical_column(col_name: str, nullable: bool, pg_dtype: str, kwargs: dict, row: dict, CRMConfig, dm) -> Any:
+    """Retorna o valor para uma coluna física do PostgreSQL a partir de kwargs/row."""
+    from django.utils import timezone
+    dt = (pg_dtype or "").lower()
+    raw_kw = kwargs.get(col_name)
+    if col_name == "id" and raw_kw is None:
+        return None
+    if _is_crm_issnet_int_col(col_name):
+        return _crm_as_int(raw_kw if raw_kw is not None else row.get(col_name), 0)
+    if raw_kw is not None:
+        try:
+            finfo = CRMConfig._meta.get_field(col_name)
+        except Exception:
+            finfo = None
+        if finfo is not None and isinstance(finfo, dm.JSONField) and not isinstance(raw_kw, (str, bytes, int, float, bool)):
+            return json.dumps(raw_kw, default=str)
+        return raw_kw
+    if nullable:
+        return None
+    if "char" in dt or dt == "text":
+        return ""
+    if dt in ("integer", "bigint", "smallint"):
+        return 0
+    if dt == "boolean":
+        return False
+    if dt.startswith("numeric") or dt == "decimal":
+        return Decimal(0)
+    if "timestamp" in dt or dt == "date":
+        return timezone.now()
+    return None
+
+
+def _build_ordered_cols_values(colrows, static_colrows, kwargs, row, CRMConfig, dm, qual) -> tuple[list, list]:
+    """Monta ordered_cols e values_out para INSERT, via colrows físicas (PG) ou fallback pelo modelo."""
+    if static_colrows:
+        ordered_cols, values_out = [], []
+        for col_name, is_nullable, pg_dtype in static_colrows:
+            col_name = (col_name or "").strip()
+            v = _value_for_physical_column(col_name, is_nullable == "YES", pg_dtype, kwargs, row, CRMConfig, dm)
+            if col_name == "id" and v is None:
+                continue
+            ordered_cols.append(col_name)
+            values_out.append(v)
+    else:
+        ordered_cols = [
+            f.attname for f in CRMConfig._meta.local_concrete_fields
+            if f.attname in kwargs and BACKUP_SAFE_IDENTIFIER_RE.match(f.attname)
+        ]
+        values_out = []
+        for c in ordered_cols:
+            v = kwargs[c]
+            try:
+                finfo = CRMConfig._meta.get_field(c)
+            except Exception:
+                finfo = None
+            if finfo is not None and isinstance(finfo, dm.JSONField) and v is not None and not isinstance(v, (str, bytes, int, float, bool)):
+                values_out.append(json.dumps(v, default=str))
+            else:
+                values_out.append(v)
+    return ordered_cols, values_out
+
+
+def _finalize_crm_insert(ordered_cols, values_out, row, qual, is_sqlite, cur) -> None:
+    """Adiciona colunas obrigatórias, valida e executa o INSERT final."""
+    for extra_col in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
+        if not any((c or "").strip().lower() == extra_col for c in ordered_cols):
+            ordered_cols.append(extra_col)
+            values_out.append(_crm_as_int(row.get(extra_col), 0))
+            logger.warning("crm_vendas_config: coluna %s ausente na listagem física; incluída no INSERT com 0 (qual=%r)", extra_col, qual)
+    if not ordered_cols:
+        raise BackupImportError("crm_vendas_config: nenhuma coluna para INSERT (schema inesperado)")
+    for must in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
+        if not any((c or "").strip().lower() == must for c in ordered_cols):
+            raise BackupImportError(
+                f"crm_vendas_config: coluna obrigatória {must!r} ausente após merge; qual={qual!r} colunas={ordered_cols[:25]}..."
+            )
+    for i, c in enumerate(ordered_cols):
+        if _is_crm_issnet_int_col(c):
+            values_out[i] = _crm_as_int(values_out[i], 0)
+    qcols = ", ".join(f'"{c}"' for c in ordered_cols)
+    if is_sqlite:
+        ph = ", ".join(["%s"] * len(ordered_cols))
+        exec_params: list[Any] = list(values_out)
+    else:
+        ph_parts: list[str] = []
+        exec_params = []
+        for i, c in enumerate(ordered_cols):
+            v = values_out[i]
+            if _is_crm_issnet_int_col(c):
+                ph_parts.append(str(_crm_as_int(v, 0)))
+            else:
+                ph_parts.append("%s")
+                exec_params.append(v)
+        ph = ", ".join(ph_parts)
+    cur.execute(f"INSERT INTO {qual} ({qcols}) VALUES ({ph})", exec_params)
+
+
 def _import_crm_vendas_config_via_model(
     loja,
     rows: list[dict[str, Any]],
@@ -324,67 +538,11 @@ def _import_crm_vendas_config_via_model(
     """
     from django.db import connections
     from django.db import models as dm
-    from django.utils import timezone
     from django.utils.dateparse import parse_datetime
 
     from crm_vendas.models_config import CRMConfig
 
     conn = connections[using]
-
-    def as_int(raw: Any, default: int = 0) -> int:
-        if raw is None:
-            return default
-        if isinstance(raw, str):
-            s = raw.strip().lower()
-            if s in ("", "null", "none", "nan"):
-                return default
-            try:
-                return int(float(s))
-            except ValueError:
-                return default
-        try:
-            return int(raw)
-        except (TypeError, ValueError):
-            return default
-
-    def as_dec(raw: Any, default: Decimal) -> Decimal:
-        if raw is None or (isinstance(raw, str) and not str(raw).strip()):
-            return default
-        try:
-            return Decimal(str(raw).strip())
-        except Exception:
-            return default
-
-    def as_bool(raw: Any, default: bool = False) -> bool:
-        if raw is None or raw == "":
-            return default
-        if isinstance(raw, bool):
-            return raw
-        return str(raw).strip().lower() in ("1", "t", "true", "yes")
-
-    def as_json(raw: Any, default: Any) -> Any:
-        if raw is None or (isinstance(raw, str) and not str(raw).strip()):
-            return default
-        if isinstance(raw, (list, dict)):
-            return raw
-        return json.loads(raw)
-
-    def as_bytes(raw: Any) -> bytes | None:
-        if raw is None or (isinstance(raw, str) and not str(raw).strip()):
-            return None
-        s = str(raw).strip()
-        if s.startswith("\\x") or s.startswith("\\\\x"):
-            hx = s.replace("\\\\x", "\\x")
-            hx = hx.removeprefix("\\x")
-            try:
-                return bytes.fromhex(hx)
-            except ValueError:
-                return None
-        try:
-            return bytes.fromhex(s)
-        except ValueError:
-            return None
-
     is_sqlite = conn.settings_dict.get("ENGINE", "").endswith("sqlite3")
     with conn.cursor() as cur:
         if not is_sqlite and _connection_is_postgresql(conn):
@@ -397,210 +555,10 @@ def _import_crm_vendas_config_via_model(
                 logger.warning(
                     "crm_vendas_config: não foi possível listar colunas via pg_catalog/"
                     "information_schema (qual=%r pg_schema=%r). Usando fallback pelo modelo.",
-                    qual,
-                    pg_schema,
+                    qual, pg_schema,
                 )
-
         for row in rows:
             row = _normalize_backup_csv_row_keys(row)
-            kwargs: dict[str, Any] = {"loja_id": loja.id}
-            for field in CRMConfig._meta.local_concrete_fields:
-                att = field.attname
-                if att == "loja_id":
-                    continue
-                if getattr(field, "auto_now", False) or getattr(field, "auto_now_add", False):
-                    raw_dt = row.get(att)
-                    if raw_dt:
-                        parsed = parse_datetime(str(raw_dt))
-                        if parsed is not None:
-                            kwargs[att] = parsed
-                    continue
-
-                if isinstance(field, dm.AutoField):
-                    raw_id = row.get(att)
-                    if raw_id is not None and str(raw_id).strip() != "":
-                        kwargs[att] = as_int(raw_id, 0)
-                    continue
-
-                raw = row.get(att)
-                if isinstance(field, dm.BinaryField):
-                    if raw is None or (isinstance(raw, str) and not str(raw).strip()):
-                        raw = row.get("issnet_certificado_binary")
-                    kwargs[att] = as_bytes(raw)
-                    continue
-
-                if isinstance(field, dm.JSONField):
-                    kwargs[att] = as_json(raw, field.get_default())
-                    continue
-
-                if isinstance(field, dm.BooleanField):
-                    d = field.get_default() if field.has_default() else False
-                    if not isinstance(d, bool):
-                        d = bool(d)
-                    kwargs[att] = as_bool(raw, d)
-                    continue
-
-                if isinstance(field, dm.DecimalField):
-                    d0 = field.get_default() if field.has_default() else Decimal(0)
-                    if not isinstance(d0, Decimal):
-                        d0 = Decimal(str(d0))
-                    kwargs[att] = as_dec(raw, d0)
-                    continue
-
-                if isinstance(field, dm.DateTimeField):
-                    if raw is None or (isinstance(raw, str) and not str(raw).strip()):
-                        if field.null:
-                            kwargs[att] = None
-                        continue
-                    parsed = parse_datetime(str(raw))
-                    kwargs[att] = parsed if parsed is not None else None
-                    continue
-
-                if isinstance(
-                    field, (dm.IntegerField, dm.BigIntegerField, dm.SmallIntegerField),
-                ):
-                    d = 0
-                    if field.has_default():
-                        try:
-                            d = int(field.get_default())
-                        except (TypeError, ValueError):
-                            d = 0
-                    kwargs[att] = as_int(raw, d)
-                    continue
-
-                if raw is None:
-                    kwargs[att] = (
-                        field.get_default() if field.has_default() else ""
-                    )
-                else:
-                    kwargs[att] = str(raw)
-
-            kwargs["issnet_numero_lote"] = as_int(row.get("issnet_numero_lote"), 0)
-            kwargs["issnet_ultimo_rps_conhecido"] = as_int(
-                row.get("issnet_ultimo_rps_conhecido"), 0,
-            )
-            kwargs["loja_id"] = loja.id
-
-            def _value_for_physical_column(
-                col_name: str, nullable: bool, pg_dtype: str,
-            ) -> Any:
-                dt = (pg_dtype or "").lower()
-                raw_kw = kwargs.get(col_name)
-                if col_name == "id" and raw_kw is None:
-                    return None
-                if _is_crm_issnet_int_col(col_name):
-                    return as_int(raw_kw if raw_kw is not None else row.get(col_name), 0)
-                if raw_kw is not None:
-                    v = raw_kw
-                    try:
-                        finfo = CRMConfig._meta.get_field(col_name)
-                    except Exception:
-                        finfo = None
-                    if (
-                        finfo is not None
-                        and isinstance(finfo, dm.JSONField)
-                        and not isinstance(v, (str, bytes, int, float, bool))
-                    ):
-                        return json.dumps(v, default=str)
-                    return v
-                if nullable:
-                    return None
-                if "char" in dt or dt == "text":
-                    return ""
-                if dt in ("integer", "bigint", "smallint"):
-                    return 0
-                if dt == "boolean":
-                    return False
-                if dt.startswith("numeric") or dt == "decimal":
-                    return Decimal(0)
-                if "timestamp" in dt or dt == "date":
-                    return timezone.now()
-                if dt == "bytea":
-                    return None
-                return None
-
-            colrows = static_colrows
-
-            if colrows:
-                ordered_cols = []
-                values_out = []
-                for col_name, is_nullable, pg_dtype in colrows:
-                    col_name = (col_name or "").strip()
-                    nullable = is_nullable == "YES"
-                    v = _value_for_physical_column(col_name, nullable, pg_dtype)
-                    if col_name == "id" and v is None:
-                        continue
-                    ordered_cols.append(col_name)
-                    values_out.append(v)
-            else:
-                ordered_cols = [
-                    f.attname
-                    for f in CRMConfig._meta.local_concrete_fields
-                    if f.attname in kwargs
-                    and BACKUP_SAFE_IDENTIFIER_RE.match(f.attname)
-                ]
-                values_out = []
-                for c in ordered_cols:
-                    v = kwargs[c]
-                    try:
-                        finfo = CRMConfig._meta.get_field(c)
-                    except Exception:
-                        finfo = None
-                    if (
-                        finfo is not None
-                        and isinstance(finfo, dm.JSONField)
-                        and v is not None
-                        and not isinstance(v, (str, bytes, int, float, bool))
-                    ):
-                        values_out.append(json.dumps(v, default=str))
-                    else:
-                        values_out.append(v)
-
-            # Metadados podem omitir colunas (schema errado, view antiga, etc.): o INSERT sem a coluna
-            # NOT NULL gera NULL no servidor — reforçar as duas colunas críticas do CRM/NFS-e.
-            for extra_col in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
-                if not any((c or "").strip().lower() == extra_col for c in ordered_cols):
-                    ordered_cols.append(extra_col)
-                    values_out.append(as_int(row.get(extra_col), 0))
-                    logger.warning(
-                        "crm_vendas_config: coluna %s ausente na listagem física; "
-                        "incluída no INSERT com 0 (qual=%r)",
-                        extra_col,
-                        qual,
-                    )
-
-            qcols = ", ".join(f'"{c}"' for c in ordered_cols)
-            if not ordered_cols:
-                raise BackupImportError(
-                    "crm_vendas_config: nenhuma coluna para INSERT (schema inesperado)",
-                )
-
-            for must in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
-                if not any((c or "").strip().lower() == must for c in ordered_cols):
-                    raise BackupImportError(
-                        f"crm_vendas_config: coluna obrigatória {must!r} ausente após merge; "
-                        f"qual={qual!r} colunas={ordered_cols[:25]}...",
-                    )
-
-            for i, c in enumerate(ordered_cols):
-                if _is_crm_issnet_int_col(c):
-                    values_out[i] = as_int(values_out[i], 0)
-
-            if is_sqlite:
-                ph = ", ".join(["%s"] * len(ordered_cols))
-                exec_params: list[Any] = list(values_out)
-            else:
-                ph_parts: list[str] = []
-                exec_params = []
-                for i, c in enumerate(ordered_cols):
-                    v = values_out[i]
-                    if _is_crm_issnet_int_col(c):
-                        ival = as_int(v, 0)
-                        # Inteiro literal no SQL: evita NULL via adaptador/psycopg em colunas NOT NULL.
-                        ph_parts.append(str(ival))
-                    else:
-                        ph_parts.append("%s")
-                        exec_params.append(v)
-                ph = ", ".join(ph_parts)
-            sql = f"INSERT INTO {qual} ({qcols}) VALUES ({ph})"
-            cur.execute(sql, exec_params)
+            kwargs = _build_crm_row_kwargs(row, loja.id, CRMConfig, dm, parse_datetime)
+            ordered_cols, values_out = _build_ordered_cols_values(static_colrows, static_colrows, kwargs, row, CRMConfig, dm, qual)
+            _finalize_crm_insert(ordered_cols, values_out, row, qual, is_sqlite, cur)

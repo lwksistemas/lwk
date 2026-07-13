@@ -222,6 +222,241 @@ class BackupService:
             return {"success": False, "erro": erro}
 
 
+    # ------------------------------------------------------------------
+    # Helpers internos do importar_loja
+    # ------------------------------------------------------------------
+
+    def _validate_zip_metadata(self, zip_file, loja_id, loja):
+        """Lê e valida _metadata.json do ZIP. Levanta BackupImportError se inválido."""
+        import json
+        try:
+            metadata = json.loads(zip_file.read("_metadata.json"))
+        except KeyError:
+            raise BackupImportError("Arquivo de backup inválido (metadados ausentes)")
+        logger.info(f"📋 Metadados do backup: {metadata.get('data_backup')}")
+        backup_loja_id = metadata.get("loja_id")
+        if backup_loja_id is None:
+            raise BackupImportError("Arquivo de backup inválido (loja de origem não identificada)")
+        mesmo_id = int(backup_loja_id) == int(loja_id)
+        mesmo_slug = (metadata.get("loja_slug") or "").strip() == (loja.slug or "")
+        if not mesmo_id and not mesmo_slug:
+            raise BackupImportError(
+                f"Este backup pertence à loja '{metadata.get('loja_nome', 'outra')}'. "
+                "Só é possível importar backups exportados desta loja.",
+            )
+
+    def _ensure_schema_tables(self, loja, db_helper):
+        """Garante que o schema da loja tem tabelas; aplica migrations se vazio."""
+        if db_helper._is_sqlite() or not db_helper._pg_schema:
+            return
+        sql = (
+            "SELECT COUNT(*) FROM information_schema.tables "
+            "WHERE table_schema = %s AND table_type = 'BASE TABLE' AND table_name NOT LIKE 'django_%%'"
+        )
+        with db_helper.get_connection().cursor() as cur:
+            cur.execute(sql, [db_helper._pg_schema])
+            if cur.fetchone()[0] > 0:
+                return
+        logger.info(f"Schema '{db_helper._pg_schema}' vazio - aplicando migrations antes da importação")
+        from django.db import connections
+
+        from superadmin.services.database_schema_service import DatabaseSchemaService
+        DatabaseSchemaService.aplicar_migrations(loja)
+        with contextlib.suppress(Exception):
+            connections[loja.database_name].close()
+        with db_helper.get_connection().cursor() as cur2:
+            cur2.execute(sql, [db_helper._pg_schema])
+            if cur2.fetchone()[0] == 0:
+                raise BackupImportError("A loja não possui tabelas configuradas. Entre em contato com o suporte.")
+
+    def _build_processar_list(self, zip_file):
+        """Monta lista de (table_name, csv_filename) a partir das tabelas config + CSVs dinâmicos do ZIP."""
+        tabelas = self.config.get_tabelas_ordenadas_importacao()
+        processar = []
+        vistos = set()
+        zip_names = zip_file.namelist()
+        for t in tabelas:
+            fn = f"{t.nome}.csv"
+            match_fn = fn if fn in zip_names else next(
+                (zn for zn in zip_names if zn.replace("\\", "/").endswith("/" + fn) or zn == fn), None
+            )
+            if match_fn is not None and t.nome not in vistos:
+                processar.append((t.nome, match_fn))
+                vistos.add(t.nome)
+        for nome in zip_names:
+            if nome.endswith(".csv") and nome != "_metadata.json":
+                table_name = _zip_csv_basename_table_name(nome)
+                if table_name not in vistos:
+                    processar.append((table_name, nome))
+                    vistos.add(table_name)
+        return processar
+
+    def _filter_processar_by_tipo(self, processar, loja):
+        """Filtra lista de processar pelo tipo de app da loja (evita queries desnecessárias)."""
+        tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else "").strip() if hasattr(loja, "tipo_loja") else ""
+        allowed = BACKUP_TIPO_APP_TABLE_PREFIXES.get(tipo_slug, ())
+        excluded = BACKUP_TIPO_APP_EXCLUDED_PREFIXES.get(tipo_slug, ())
+        if not allowed:
+            return processar
+        def _allowed(name):
+            return not any(name.startswith(p) for p in excluded) and any(name.startswith(p) for p in allowed)
+        antes = len(processar)
+        result = [(t, f) for t, f in processar if _allowed(t)]
+        if antes != len(result):
+            logger.info(f"Importação: filtrado {antes - len(result)} tabela(s) não pertencentes ao tipo '{tipo_slug}'")
+        return result
+
+    @staticmethod
+    def _coerce_csv_value(val, col, col_info, table_name):
+        """Normaliza um valor de célula CSV para o tipo correto do banco."""
+        if isinstance(val, str):
+            stripped = val.strip()
+            if stripped == "" or stripped.lower() in ("null", "none", "nan"):
+                val = None
+        elif val == "" and col != "id":
+            val = None
+        if val is None and col != "id":
+            nullable, dtype = col_info.get(col, col_info.get((col or "").strip(), (True, "")))
+            dt = (dtype or "").lower().split("(")[0].strip()
+            if not nullable:
+                if dt in ("text", "character varying", "varchar", "char", "character") or "varchar" in (dtype or "").lower():
+                    val = ""
+                elif dt in ("integer", "bigint", "smallint", "serial", "bigserial", "smallserial"):
+                    val = 0
+                elif dt == "boolean":
+                    val = False
+                elif dt in ("numeric", "decimal"):
+                    val = Decimal(0)
+                elif dt in ("real", "double precision"):
+                    val = 0.0
+        if val is None and col != "id" and table_name == "crm_vendas_config" and _is_crm_issnet_int_col(col):
+            val = 0
+        _, dtype = col_info.get(col, col_info.get((col or "").strip(), (True, "")))
+        return _truncate_backup_value_for_pg_type(val, dtype)
+
+    def _import_table_rows(self, cursor, loja, db_helper, table_name, rows, col_info, db_columns):
+        """Limpa a tabela e insere todas as linhas do CSV."""
+        qual = db_helper.qualified_table_name(table_name)
+        if table_name == "crm_vendas_config" and not db_helper._is_sqlite() and _connection_is_postgresql(db_helper.get_connection()):
+            _ensure_crm_vendas_config_pg_int_defaults(cursor, qual)
+        cursor.execute(f"DELETE FROM {qual}")
+        csv_header_set = set(rows[0].keys())
+        cols_for_insert = [
+            c for c in db_columns
+            if DatabaseHelper.is_safe_table_name(c) and (
+                c in csv_header_set or (table_name == "crm_vendas_config" and _is_crm_issnet_int_col(c))
+            )
+        ]
+        if table_name == "crm_vendas_config":
+            missing = [next((d for d in db_columns if (d or "").strip().lower() == lg), None)
+                       for lg in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS]
+            for actual in missing:
+                if actual and actual not in cols_for_insert:
+                    cols_for_insert = [c for c in db_columns if c in set(cols_for_insert) | {actual} and DatabaseHelper.is_safe_table_name(c)]
+        if not cols_for_insert:
+            logger.warning(f"⚠️ Nenhuma coluna comum entre CSV e tabela {table_name}")
+            return 0
+        insert_sql = f"INSERT INTO {qual} ({', '.join(cols_for_insert)}) VALUES ({', '.join(['%s'] * len(cols_for_insert))})"
+        for row in rows:
+            values = [
+                self._coerce_csv_value(loja.id if col == "loja_id" else (row.get(col) or ""), col, col_info, table_name)
+                for col in cols_for_insert
+            ]
+            if table_name == "crm_vendas_config":
+                values = _backup_finalize_crm_config_row_values(cols_for_insert, values)
+            cursor.execute(insert_sql, values)
+        return len(rows)
+
+    def _import_processar_tables(self, zip_file, loja, db_helper, processar):
+        """Importa todas as tabelas da lista processar dentro de uma transação atômica."""
+        total_registros = 0
+        tabelas_stats = {}
+        with transaction.atomic(using=loja.database_name):
+            if not db_helper._is_sqlite() and is_safe_pg_schema_token(db_helper._pg_schema):
+                with db_helper.get_connection().cursor() as _spc:
+                    sch = db_helper._pg_schema.replace('"', "")
+                    _spc.execute(f'SET LOCAL search_path TO "{sch}", public')
+            for table_name, csv_filename in processar:
+                table_name = _sanitize_pg_table_key(table_name)
+                if _zip_csv_basename_table_name(csv_filename).lower() == "crm_vendas_config":
+                    table_name = "crm_vendas_config"
+                if not DatabaseHelper.is_safe_table_name(table_name) or not db_helper.table_exists(table_name):
+                    if not DatabaseHelper.is_safe_table_name(table_name):
+                        pass
+                    else:
+                        logger.warning(f"⚠️ Tabela {table_name} não existe no banco da loja")
+                    continue
+                try:
+                    rows = [_normalize_backup_csv_row_keys(r) for r in csv.DictReader(io.StringIO(zip_file.read(csv_filename).decode("utf-8")))]
+                    if not rows:
+                        tabelas_stats[table_name] = 0
+                        continue
+                    if table_name == "crm_vendas_config":
+                        qual = db_helper.qualified_table_name(table_name)
+                        _import_crm_vendas_config_via_model(loja, rows, qual, loja.database_name, db_helper._pg_schema)
+                        count = len(rows)
+                        total_registros += count
+                        tabelas_stats[table_name] = count
+                        logger.info("✅ Tabela %s: %s registros importados (INSERT explícito CRMConfig)", table_name, count)
+                        continue
+                    db_columns = [str(c).strip() for c in db_helper.get_table_columns(table_name) if c is not None and str(c).strip()]
+                    col_info = db_helper.get_columns_nullable_and_type(table_name)
+                    if not db_helper._is_sqlite():
+                        pg_cols, pg_info = db_helper.get_pg_table_meta_for_backup(table_name)
+                        if pg_cols:
+                            db_columns = pg_cols
+                        if pg_info:
+                            col_info = pg_info
+                    if not db_columns:
+                        logger.warning(f"⚠️ Não foi possível obter colunas da tabela {table_name}")
+                        continue
+                    with db_helper.get_connection().cursor() as cursor:
+                        count = self._import_table_rows(cursor, loja, db_helper, table_name, rows, col_info, db_columns)
+                    if count:
+                        total_registros += count
+                        tabelas_stats[table_name] = count
+                        logger.info(f"✅ Tabela {table_name}: {count} registros importados")
+                    else:
+                        tabelas_stats[table_name] = 0
+                except Exception as e:
+                    logger.error(f"❌ Erro ao importar tabela {table_name}: {e}")
+                    raise BackupImportError(f"Erro ao importar {table_name}: {e!s}")
+        return total_registros, tabelas_stats
+
+    def _reset_pg_sequences(self, db_helper, processar):
+        """Reseta sequences PostgreSQL após INSERT com IDs explícitos."""
+        if db_helper._is_sqlite() or not db_helper._pg_schema or not is_safe_pg_schema_token(db_helper._pg_schema):
+            return
+        with db_helper.get_connection().cursor() as cursor:
+            for table_name, _ in processar:
+                if not DatabaseHelper.is_safe_table_name(table_name) or not db_helper.table_exists(table_name):
+                    continue
+                if "id" not in db_helper.get_table_columns(table_name):
+                    continue
+                qual = db_helper.qualified_table_name(table_name)
+                seq_rel = f'"{db_helper._pg_schema}"."{table_name}"' if is_safe_pg_schema_token(db_helper._pg_schema) else qual
+                try:
+                    cursor.execute(
+                        f"SELECT setval(pg_get_serial_sequence(%s, 'id'), (SELECT COALESCE(MAX(id), 1) FROM {qual}))",
+                        [seq_rel],
+                    )
+                except Exception as e:
+                    logger.warning(f"⚠️ Não foi possível resetar sequence de {table_name}: {e}")
+
+    def _invalidate_crm_cache(self, loja):
+        """Invalida cache CRM após importação."""
+        try:
+            from crm_vendas.cache import CRMCacheManager
+            CRMCacheManager.invalidate_dashboard(loja.id)
+            CRMCacheManager.invalidate_leads(loja.id)
+            CRMCacheManager.invalidate_contas(loja.id)
+            CRMCacheManager.invalidate_contatos(loja.id)
+            CRMCacheManager.invalidate_oportunidades(loja.id)
+            CRMCacheManager.invalidate_atividades(loja.id)
+            logger.info(f"Cache CRM invalidado para loja {loja.nome}")
+        except Exception as e:
+            logger.warning(f"Cache invalidation: {e}")
+
     def importar_loja(
         self,
         loja_id: int,
@@ -230,32 +465,15 @@ class BackupService:
         """Importa dados de um arquivo ZIP de backup.
 
         ATENÇÃO: Esta operação é destrutiva e substitui dados existentes.
-
-        Args:
-            loja_id: ID da loja
-            arquivo_zip: Bytes do arquivo ZIP
-
-        Returns:
-            dict com:
-                - success: bool
-                - message: str
-                - total_registros_importados: int
-                - tabelas: dict com contagem por tabela
-                - erro: str (se houver erro)
-
         """
         from superadmin.models import Loja
 
         try:
-            # Buscar loja (com tipo_loja para filtrar tabelas na importação)
             loja = Loja.objects.select_related("tipo_loja").get(id=loja_id)
-
             if not loja.database_created:
                 raise BackupImportError("Banco de dados da loja não foi criado")
-
             logger.info(f"🔄 Iniciando importação de backup - Loja: {loja.nome} (ID: {loja_id})")
 
-            # Validar ZIP
             zip_buffer = io.BytesIO(arquivo_zip)
             zip_file = None
             try:
@@ -263,355 +481,23 @@ class BackupService:
             except zipfile.BadZipFile:
                 raise BackupImportError("Arquivo ZIP inválido ou corrompido")
             try:
-                import json
-                try:
-                    metadata_content = zip_file.read("_metadata.json")
-                    metadata = json.loads(metadata_content)
-                    logger.info(f"📋 Metadados do backup: {metadata.get('data_backup')}")
-                except KeyError:
-                    raise BackupImportError("Arquivo de backup inválido (metadados ausentes)")
-                # Restrição: só importar backup na mesma loja de origem (ou loja recriada com mesmo slug)
-                backup_loja_id = metadata.get("loja_id")
-                backup_loja_slug = metadata.get("loja_slug", "").strip()
-                if backup_loja_id is None:
-                    raise BackupImportError("Arquivo de backup inválido (loja de origem não identificada)")
-                # Permitir: mesmo loja_id OU mesmo slug (loja recriada após exclusão)
-                mesmo_id = int(backup_loja_id) == int(loja_id)
-                mesmo_slug = backup_loja_slug and backup_loja_slug == (loja.slug or "")
-                if not mesmo_id and not mesmo_slug:
-                    raise BackupImportError(
-                        f"Este backup pertence à loja '{metadata.get('loja_nome', 'outra')}'. "
-                        "Só é possível importar backups exportados desta loja.",
-                    )
-                # Configurar conexão da loja
+                self._validate_zip_metadata(zip_file, loja_id, loja)
+
                 from core.db_config import ensure_loja_database_config
                 if not ensure_loja_database_config(loja.database_name, conn_max_age=60):
                     raise BackupImportError("Não foi possível conectar ao banco de dados da loja")
 
                 db_helper = DatabaseHelper(loja.database_name)
-                # Se schema vazio (loja recém-criada, migrate pode ter criado em public): aplicar migrations + fallback
-                if not db_helper._is_sqlite() and db_helper._pg_schema:
-                    with db_helper.get_connection().cursor() as cur:
-                        cur.execute(
-                            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_type = 'BASE TABLE' AND table_name NOT LIKE 'django_%%'",
-                            [db_helper._pg_schema],
-                        )
-                        if cur.fetchone()[0] == 0:
-                            logger.info(f"Schema '{db_helper._pg_schema}' vazio - aplicando migrations antes da importação")
-                            from django.db import connections
+                self._ensure_schema_tables(loja, db_helper)
 
-                            from superadmin.services.database_schema_service import DatabaseSchemaService
-                            DatabaseSchemaService.aplicar_migrations(loja)
-                            with contextlib.suppress(Exception):
-                                connections[loja.database_name].close()
-                            # Re-verificar
-                            with db_helper.get_connection().cursor() as cur2:
-                                cur2.execute(
-                                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_type = 'BASE TABLE' AND table_name NOT LIKE 'django_%%'",
-                                    [db_helper._pg_schema],
-                                )
-                                if cur2.fetchone()[0] == 0:
-                                    raise BackupImportError(
-                                        "A loja não possui tabelas configuradas. "
-                                        "Entre em contato com o suporte para configurar o banco.",
-                                    )
+                processar = self._build_processar_list(zip_file)
+                processar = self._filter_processar_by_tipo(processar, loja)
 
-                # Estatísticas
-                total_registros = 0
-                tabelas_stats = {}
-
-                # Montar lista de (table_name, csv_filename): lista fixa + CSVs do ZIP (backup dinâmico)
-                tabelas = self.config.get_tabelas_ordenadas_importacao()
-                processar = []
-                vistos = set()
-                for t in tabelas:
-                    fn = f"{t.nome}.csv"
-                    match_fn = None
-                    if fn in zip_file.namelist():
-                        match_fn = fn
-                    else:
-                        for zn in zip_file.namelist():
-                            znorm = zn.replace("\\", "/")
-                            if znorm.endswith("/" + fn) or znorm == fn:
-                                match_fn = zn
-                                break
-                    if match_fn is not None and t.nome not in vistos:
-                        processar.append((t.nome, match_fn))
-                        vistos.add(t.nome)
-                for nome in zip_file.namelist():
-                    if nome.endswith(".csv") and nome != "_metadata.json":
-                        table_name = _zip_csv_basename_table_name(nome)
-                        if table_name not in vistos:
-                            processar.append((table_name, nome))
-                            vistos.add(table_name)
-
-                # ✅ OTIMIZAÇÃO: Filtrar tabelas por tipo da loja (mesmo critério da exportação).
-                # Evita ~50 queries desnecessárias de table_exists para módulos inativos.
-                tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else "").strip() if hasattr(loja, "tipo_loja") else ""
-                allowed_prefixes = BACKUP_TIPO_APP_TABLE_PREFIXES.get(tipo_slug, ())
-                excluded_prefixes = BACKUP_TIPO_APP_EXCLUDED_PREFIXES.get(tipo_slug, ())
-                if allowed_prefixes:
-                    def _table_allowed_for_import(name):
-                        if any(name.startswith(p) for p in excluded_prefixes):
-                            return False
-                        return any(name.startswith(p) for p in allowed_prefixes)
-                    antes = len(processar)
-                    processar = [(t, f) for t, f in processar if _table_allowed_for_import(t)]
-                    if antes != len(processar):
-                        logger.info(
-                            f"Importação: filtrado {antes - len(processar)} tabela(s) não pertencentes ao tipo '{tipo_slug}'",
-                        )
-
-                with transaction.atomic(using=loja.database_name):
-                    if (
-                        not db_helper._is_sqlite()
-                        and is_safe_pg_schema_token(db_helper._pg_schema)
-                    ):
-                        with db_helper.get_connection().cursor() as _spc:
-                            sch = db_helper._pg_schema.replace('"', "")
-                            _spc.execute(
-                                f'SET LOCAL search_path TO "{sch}", public',
-                            )
-                    for table_name, csv_filename in processar:
-                        table_name = _sanitize_pg_table_key(table_name)
-                        csv_base = _zip_csv_basename_table_name(csv_filename)
-                        if (
-                            table_name.lower() == "crm_vendas_config"
-                            or csv_base.lower() == "crm_vendas_config"
-                        ):
-                            table_name = "crm_vendas_config"
-                        if not DatabaseHelper.is_safe_table_name(table_name):
-                            continue
-                        if not db_helper.table_exists(table_name):
-                            logger.warning(f"⚠️ Tabela {table_name} não existe no banco da loja")
-                            continue
-
-                        try:
-                            # Ler CSV
-                            csv_content = zip_file.read(csv_filename).decode("utf-8")
-                            csv_reader = csv.DictReader(io.StringIO(csv_content))
-                            rows = list(csv_reader)
-                            rows = [_normalize_backup_csv_row_keys(r) for r in rows]
-                            if not rows:
-                                tabelas_stats[table_name] = 0
-                                continue
-
-                            if table_name == "crm_vendas_config":
-                                qual = db_helper.qualified_table_name(table_name)
-                                _import_crm_vendas_config_via_model(
-                                    loja,
-                                    rows,
-                                    qual,
-                                    loja.database_name,
-                                    db_helper._pg_schema,
-                                )
-                                ncfg = len(rows)
-                                total_registros += ncfg
-                                tabelas_stats[table_name] = ncfg
-                                logger.info(
-                                    "✅ Tabela %s: %s registros importados (INSERT explícito CRMConfig)",
-                                    table_name,
-                                    ncfg,
-                                )
-                                continue
-
-                            # Colunas da tabela no banco (ordem e nomes)
-                            db_columns = db_helper.get_table_columns(table_name)
-                            db_columns = [str(c).strip() for c in db_columns if c is not None and str(c).strip()]
-                            col_info = db_helper.get_columns_nullable_and_type(table_name)
-                            if not db_helper._is_sqlite():
-                                pg_cols, pg_info = db_helper.get_pg_table_meta_for_backup(
-                                    table_name,
-                                )
-                                if pg_cols:
-                                    db_columns = pg_cols
-                                if pg_info:
-                                    col_info = pg_info
-                            if not db_columns:
-                                logger.warning(
-                                    f"⚠️ Não foi possível obter colunas da tabela {table_name}",
-                                )
-                                continue
-
-                            # Usar apenas colunas que existem no CSV e na tabela (ordem da tabela)
-                            # Filtrar também por nome seguro (defesa em profundidade)
-                            csv_headers = list(rows[0].keys()) if rows else []
-                            csv_header_set = set(csv_headers)
-                            cols_for_insert = []
-                            for c in db_columns:
-                                if not DatabaseHelper.is_safe_table_name(c):
-                                    continue
-                                if c in csv_header_set or (
-                                    table_name == "crm_vendas_config"
-                                    and _is_crm_issnet_int_col(c)
-                                ):
-                                    cols_for_insert.append(c)
-                            if table_name == "crm_vendas_config":
-                                missing_issnet: list[str] = []
-                                for logical in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
-                                    actual = next(
-                                        (
-                                            dbc
-                                            for dbc in db_columns
-                                            if (dbc or "").strip().lower() == logical
-                                        ),
-                                        None,
-                                    )
-                                    if actual and actual not in cols_for_insert:
-                                        missing_issnet.append(actual)
-                                if missing_issnet:
-                                    merged = set(cols_for_insert) | set(missing_issnet)
-                                    cols_for_insert = [
-                                        c
-                                        for c in db_columns
-                                        if c in merged
-                                        and DatabaseHelper.is_safe_table_name(c)
-                                    ]
-                            if not cols_for_insert:
-                                logger.warning(f"⚠️ Nenhuma coluna comum entre CSV e tabela {table_name}")
-                                tabelas_stats[table_name] = 0
-                                continue
-
-                            # Limpar tabela antes de importar (qualificado para PostgreSQL)
-                            qual = db_helper.qualified_table_name(table_name)
-                            with db_helper.get_connection().cursor() as cursor:
-                                if (
-                                    table_name == "crm_vendas_config"
-                                    and not db_helper._is_sqlite()
-                                    and _connection_is_postgresql(db_helper.get_connection())
-                                ):
-                                    _ensure_crm_vendas_config_pg_int_defaults(cursor, qual)
-                                cursor.execute(f"DELETE FROM {qual}")
-
-                                # INSERT com placeholders (%s funciona em Django para SQLite e PostgreSQL)
-                                placeholders = ", ".join(["%s"] * len(cols_for_insert))
-                                cols_str = ", ".join(cols_for_insert)
-                                insert_sql = f"INSERT INTO {qual} ({cols_str}) VALUES ({placeholders})"
-
-                                for row in rows:
-                                    values = []
-                                    for col in cols_for_insert:
-                                        # Usar loja_id da loja atual (mesma loja de origem)
-                                        if col == "loja_id":
-                                            val = loja.id
-                                        else:
-                                            raw = row.get(col)
-                                            val = "" if raw is None else raw
-                                        if isinstance(val, str):
-                                            stripped = val.strip()
-                                            if stripped == "" or stripped.lower() in (
-                                                "null",
-                                                "none",
-                                                "nan",
-                                            ):
-                                                val = None
-                                        elif val == "" and col != "id":
-                                            val = None
-                                        # Colunas NOT NULL: CSV vazio vira None; BD exige valor (texto, int, bool, etc.)
-                                        if val is None and col != "id":
-                                            nullable, dtype = col_info.get(
-                                                col,
-                                                col_info.get(
-                                                    (col or "").strip(),
-                                                    (True, ""),
-                                                ),
-                                            )
-                                            dt = (dtype or "").lower().split("(")[0].strip()
-                                            if not nullable:
-                                                if dt in (
-                                                    "text",
-                                                    "character varying",
-                                                    "varchar",
-                                                    "char",
-                                                    "character",
-                                                ) or "varchar" in (dtype or "").lower():
-                                                    val = ""
-                                                elif dt in (
-                                                    "integer",
-                                                    "bigint",
-                                                    "smallint",
-                                                    "serial",
-                                                    "bigserial",
-                                                    "smallserial",
-                                                ):
-                                                    val = 0
-                                                elif dt == "boolean":
-                                                    val = False
-                                                elif dt in ("numeric", "decimal"):
-                                                    val = Decimal(0)
-                                                elif dt in ("real", "double precision"):
-                                                    val = 0.0
-                                        # col_info pode falhar (schema); int obrigatórios do CRM
-                                        if (
-                                            val is None
-                                            and col != "id"
-                                            and table_name == "crm_vendas_config"
-                                            and _is_crm_issnet_int_col(col)
-                                        ):
-                                            val = 0
-                                        _, dtype = col_info.get(
-                                            col,
-                                            col_info.get(
-                                                (col or "").strip(),
-                                                (True, ""),
-                                            ),
-                                        )
-                                        val = _truncate_backup_value_for_pg_type(val, dtype)
-                                        values.append(val)
-                                    if table_name == "crm_vendas_config":
-                                        values = _backup_finalize_crm_config_row_values(
-                                            cols_for_insert, values,
-                                        )
-                                    cursor.execute(insert_sql, values)
-
-                            count = len(rows)
-                            total_registros += count
-                            tabelas_stats[table_name] = count
-
-                            logger.info(f"✅ Tabela {table_name}: {count} registros importados")
-
-                        except Exception as e:
-                            logger.error(f"❌ Erro ao importar tabela {table_name}: {e}")
-                            raise BackupImportError(f"Erro ao importar {table_name}: {e!s}")
-
-                # PostgreSQL: resetar sequences após INSERT com IDs explícitos (evita conflito em novos registros)
-                if not db_helper._is_sqlite() and db_helper._pg_schema and is_safe_pg_schema_token(db_helper._pg_schema):
-                    with db_helper.get_connection().cursor() as cursor:
-                        for table_name, _ in processar:
-                            if not DatabaseHelper.is_safe_table_name(table_name) or not db_helper.table_exists(table_name):
-                                continue
-                            cols = db_helper.get_table_columns(table_name)
-                            if "id" not in cols:
-                                continue
-                            qual = db_helper.qualified_table_name(table_name)
-                            try:
-                                seq_rel = (
-                                    f'"{db_helper._pg_schema}"."{table_name}"'
-                                    if is_safe_pg_schema_token(db_helper._pg_schema)
-                                    else qual
-                                )
-                                cursor.execute(
-                                    f"SELECT setval(pg_get_serial_sequence(%s, 'id'), "
-                                    f"(SELECT COALESCE(MAX(id), 1) FROM {qual}))",
-                                    [seq_rel],
-                                )
-                            except Exception as e:
-                                logger.warning(f"⚠️ Não foi possível resetar sequence de {table_name}: {e}")
+                total_registros, tabelas_stats = self._import_processar_tables(zip_file, loja, db_helper, processar)
+                self._reset_pg_sequences(db_helper, processar)
 
                 logger.info(f"✅ Importação concluída - {total_registros} registros importados")
-
-                # Invalidar cache do CRM para que o frontend exiba dados atualizados
-                try:
-                    from crm_vendas.cache import CRMCacheManager
-                    CRMCacheManager.invalidate_dashboard(loja.id)
-                    CRMCacheManager.invalidate_leads(loja.id)
-                    CRMCacheManager.invalidate_contas(loja.id)
-                    CRMCacheManager.invalidate_contatos(loja.id)
-                    CRMCacheManager.invalidate_oportunidades(loja.id)
-                    CRMCacheManager.invalidate_atividades(loja.id)
-                    logger.info(f"Cache CRM invalidado para loja {loja.nome}")
-                except Exception as e:
-                    logger.warning(f"Cache invalidation: {e}")
+                self._invalidate_crm_cache(loja)
 
                 return {
                     "success": True,
@@ -630,12 +516,10 @@ class BackupService:
             erro = f"Loja com ID {loja_id} não encontrada"
             logger.error(f"❌ {erro}")
             return {"success": False, "erro": erro}
-
         except BackupImportError as e:
             erro = str(e)
             logger.error(f"❌ Erro de importação: {erro}")
             return {"success": False, "erro": erro}
-
         except Exception as e:
             erro = f"Erro inesperado ao importar backup: {e!s}"
             logger.exception(f"❌ {erro}")

@@ -89,6 +89,46 @@ def sync_loja_payments_mercadopago(loja):
     return {"success": True, "loja": loja.nome, "processed": processed, "total_checked": len(ids_pagamento)}
 
 
+def _desbloquear_loja(loja) -> None:
+    """Remove bloqueio de loja após pagamento confirmado."""
+    if getattr(loja, "is_blocked", False):
+        loja.is_blocked = False
+        loja.blocked_at = None
+        loja.blocked_reason = ""
+        loja.days_overdue = 0
+        loja.save(update_fields=["is_blocked", "blocked_at", "blocked_reason", "days_overdue"])
+
+
+def _processar_pagamento_via_financeiro(payment_id: str, q_payment, loja) -> dict:
+    """Busca pagamento via FinanceiroLoja e processa quando PagamentoLoja não encontrado."""
+    fin_qs = FinanceiroLoja.objects.filter(q_payment, provedor_boleto="mercadopago")
+    if loja is not None:
+        fin_qs = fin_qs.filter(loja=loja)
+    financeiro = fin_qs.first()
+    if not financeiro:
+        raise FinanceiroLoja.DoesNotExist
+    loja = financeiro.loja
+    pagamento = PagamentoLoja.objects.filter(loja=loja).filter(q_payment).first()
+    if not pagamento:
+        pagamento = PagamentoLoja.objects.filter(
+            loja=loja, financeiro=financeiro, status="pendente", provedor_boleto="mercadopago",
+        ).order_by("-data_vencimento").first()
+    if pagamento and pagamento.status == "pendente":
+        pagamento.status = "pago"
+        pagamento.data_pagamento = timezone.now()
+        if not pagamento.mercadopago_payment_id:
+            pagamento.mercadopago_payment_id = str(payment_id)
+        if not pagamento.mercadopago_pix_payment_id and pagamento.mercadopago_payment_id != str(payment_id):
+            pagamento.mercadopago_pix_payment_id = str(payment_id)
+        pagamento.save(update_fields=["status", "data_pagamento", "mercadopago_payment_id", "mercadopago_pix_payment_id"])
+    financeiro = loja.financeiro
+    _update_loja_financeiro_after_mercadopago_payment(loja, financeiro)
+    _desbloquear_loja(loja)
+    logger.info(f"Financeiro da loja {loja.nome} atualizado via webhook MP (payment {payment_id})")
+    tentar_emitir_nfse_assinatura(pagamento, payment_id)
+    return {"success": True, "processed": True, "loja_slug": loja.slug}
+
+
 def process_mercadopago_webhook_payment(payment_id: str, loja=None) -> dict:
     """Processa notificação de webhook do Mercado Pago.
     Quando o pagamento está aprovado, atualiza PagamentoLoja e FinanceiroLoja
@@ -129,45 +169,8 @@ def process_mercadopago_webhook_payment(payment_id: str, loja=None) -> dict:
             payment_id, list(base_qs.values_list("loja__slug", flat=True)),
         )
     if pagamento is None:
-        # Pode ser a cobrança atual só no FinanceiroLoja (primeira cobrança)
         try:
-            fin_qs = FinanceiroLoja.objects.filter(
-                q_payment,
-                provedor_boleto="mercadopago",
-            )
-            if loja is not None:
-                fin_qs = fin_qs.filter(loja=loja)
-            financeiro = fin_qs.first()
-            if not financeiro:
-                raise FinanceiroLoja.DoesNotExist
-            loja = financeiro.loja
-            # Marcar PagamentoLoja correspondente ou criar registro de pagamento
-            pagamento = PagamentoLoja.objects.filter(loja=loja).filter(
-                Q(mercadopago_payment_id=str(payment_id)) | Q(mercadopago_pix_payment_id=str(payment_id)),
-            ).first()
-            if not pagamento:
-                pagamento = PagamentoLoja.objects.filter(
-                    loja=loja, financeiro=financeiro, status="pendente", provedor_boleto="mercadopago",
-                ).order_by("-data_vencimento").first()
-            if pagamento and pagamento.status == "pendente":
-                pagamento.status = "pago"
-                pagamento.data_pagamento = timezone.now()
-                if not pagamento.mercadopago_payment_id:
-                    pagamento.mercadopago_payment_id = str(payment_id)
-                if not pagamento.mercadopago_pix_payment_id and pagamento.mercadopago_payment_id != str(payment_id):
-                    pagamento.mercadopago_pix_payment_id = str(payment_id)
-                pagamento.save(update_fields=["status", "data_pagamento", "mercadopago_payment_id", "mercadopago_pix_payment_id"])
-            financeiro = loja.financeiro
-            _update_loja_financeiro_after_mercadopago_payment(loja, financeiro)
-            if getattr(loja, "is_blocked", False):
-                loja.is_blocked = False
-                loja.blocked_at = None
-                loja.blocked_reason = ""
-                loja.days_overdue = 0
-                loja.save(update_fields=["is_blocked", "blocked_at", "blocked_reason", "days_overdue"])
-            logger.info(f"Financeiro da loja {loja.nome} atualizado via webhook MP (payment {payment_id})")
-            tentar_emitir_nfse_assinatura(pagamento, payment_id)
-            return {"success": True, "processed": True, "loja_slug": loja.slug}
+            return _processar_pagamento_via_financeiro(payment_id, q_payment, loja)
         except FinanceiroLoja.DoesNotExist:
             logger.warning(f"Webhook MP: pagamento {payment_id} não encontrado em PagamentoLoja nem em FinanceiroLoja")
             return {"success": True, "processed": False, "error": "Pagamento não vinculado a nenhuma loja"}
@@ -181,12 +184,7 @@ def process_mercadopago_webhook_payment(payment_id: str, loja=None) -> dict:
     loja = pagamento.loja
     financeiro = loja.financeiro
     _update_loja_financeiro_after_mercadopago_payment(loja, financeiro)
-    if getattr(loja, "is_blocked", False):
-        loja.is_blocked = False
-        loja.blocked_at = None
-        loja.blocked_reason = ""
-        loja.days_overdue = 0
-        loja.save(update_fields=["is_blocked", "blocked_at", "blocked_reason", "days_overdue"])
+    _desbloquear_loja(loja)
     logger.info(f"Pagamento MP {payment_id} marcado como pago; financeiro da loja {loja.nome} atualizado")
     tentar_emitir_nfse_assinatura(pagamento, payment_id)
     return {"success": True, "processed": True, "loja_slug": loja.slug}

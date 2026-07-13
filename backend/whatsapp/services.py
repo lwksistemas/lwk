@@ -468,6 +468,46 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
     return False, msg or "Erro ao enviar documento pelo WhatsApp."
 
 
+def _send_whatsapp_meta(telefone, mensagem, *, loja_id=None, user=None, config=None):
+    """Envia mensagem de texto via Meta Cloud API e registra log."""
+    phone = _normalize_phone(telefone)
+    phone_id, token, api_url, cred_err = _resolve_whatsapp_credentials(config)
+    if cred_err:
+        logger.warning("WhatsApp loja_id=%s: %s", loja_id, cred_err)
+        _write_whatsapp_log(loja_id=loja_id, telefone=phone, mensagem=mensagem, status="falhou", response={"error": "config_missing"}, user=user)
+        return False, cred_err
+    url = f"{api_url.rstrip('/')}/{phone_id}/messages"
+    payload = {"messaging_product": "whatsapp", "to": phone, "type": "text", "text": {"body": mensagem[:4096]}}
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
+    except Exception as e:
+        logger.exception("WhatsApp: erro de requisição")
+        _write_whatsapp_log(loja_id=loja_id, telefone=phone, mensagem=mensagem, status="falhou", response={"error": str(e)}, user=user)
+        return False, f"Erro de conexão: {e!s}"
+    ok = response.ok and bool(data.get("messages"))
+    if response.ok and not ok:
+        logger.warning("WhatsApp: Meta respondeu %s mas sem 'messages' na resposta: %s", response.status_code, data)
+    _write_whatsapp_log(loja_id=loja_id, telefone=phone, mensagem=mensagem, status="enviado" if ok else "falhou", response=data, user=user)
+    if ok:
+        return True, None
+    err = data.get("error") or {}
+    code = err.get("code")
+    msg = (err.get("message") or err.get("error_user_msg") or "").strip()
+    if not msg and isinstance(err.get("error_data"), dict):
+        msg = (err["error_data"].get("details") or "").strip()
+    if msg and "not in allowed list" in msg.lower():
+        detail = (
+            "O número do paciente não está na lista de números permitidos da Meta. "
+            "Com o app em modo de teste, só é possível enviar para números cadastrados. "
+            'Em developers.facebook.com → seu app → WhatsApp → API Setup, adicione o número do paciente em "To" (números de teste).'
+        )
+    else:
+        detail = msg or (f"Erro da API Meta (código {code})" if code else "Resposta inesperada da API Meta.")
+    return False, detail
+
+
 def send_whatsapp(telefone, mensagem, user=None, config=None):
     """Envia mensagem de texto via Meta Cloud API ou Evolution (WhatsApp Web).
     Registra em WhatsAppLog (auditoria por loja).
@@ -497,77 +537,7 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
     if config and _get_provider(config) == WhatsAppConfig.PROVIDER_EVOLUTION:
         return _send_whatsapp_evolution(telefone, mensagem, user=user, config=config)
 
-    phone = _normalize_phone(telefone)
-    phone_id, token, api_url, cred_err = _resolve_whatsapp_credentials(config)
-    if cred_err:
-        logger.warning("WhatsApp loja_id=%s: %s", loja_id, cred_err)
-        _write_whatsapp_log(
-            loja_id=loja_id,
-            telefone=phone,
-            mensagem=mensagem,
-            status="falhou",
-            response={"error": "config_missing"},
-            user=user,
-        )
-        return False, cred_err
-
-    url = f"{api_url.rstrip('/')}/{phone_id}/messages"
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": phone,
-        "type": "text",
-        "text": {"body": mensagem[:4096]},
-    }
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
-
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=15)
-        data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
-    except Exception as e:
-        logger.exception("WhatsApp: erro de requisição")
-        _write_whatsapp_log(
-            loja_id=loja_id,
-            telefone=phone,
-            mensagem=mensagem,
-            status="falhou",
-            response={"error": str(e)},
-            user=user,
-        )
-        return False, f"Erro de conexão: {e!s}"
-
-    # Sucesso só quando a Meta devolve o id da mensagem (messages não vazio)
-    ok = response.ok and bool(data.get("messages"))
-    if response.ok and not ok:
-        logger.warning("WhatsApp: Meta respondeu %s mas sem 'messages' na resposta: %s", response.status_code, data)
-    _write_whatsapp_log(
-        loja_id=loja_id,
-        telefone=phone,
-        mensagem=mensagem,
-        status="enviado" if ok else "falhou",
-        response=data,
-        user=user,
-    )
-    if ok:
-        return True, None
-    # Erro da API Meta: ex.: invalid phone_number_id, token expirado, recipient não elegível
-    err = data.get("error") or {}
-    code = err.get("code")
-    msg = (err.get("message") or err.get("error_user_msg") or "").strip()
-    if not msg and isinstance(err.get("error_data"), dict):
-        msg = (err["error_data"].get("details") or "").strip()
-    # Mensagem amigável para erro de "lista de permitidos" (app em modo teste)
-    if msg and "not in allowed list" in msg.lower():
-        detail = (
-            "O número do paciente não está na lista de números permitidos da Meta. "
-            "Com o app em modo de teste, só é possível enviar para números cadastrados. "
-            'Em developers.facebook.com → seu app → WhatsApp → API Setup, adicione o número do paciente em "To" (números de teste).'
-        )
-    else:
-        detail = msg or (f"Erro da API Meta (código {code})" if code else "Resposta inesperada da API Meta.")
-    return False, detail
+    return _send_whatsapp_meta(telefone, mensagem, loja_id=loja_id, user=user, config=config)
 
 
 # --- Templates de mensagem (padrão clínica) ---

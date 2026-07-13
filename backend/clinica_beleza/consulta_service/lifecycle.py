@@ -3,6 +3,38 @@ from decimal import Decimal
 from django.utils.timezone import now
 
 
+def _resolver_local_convenio_avulso(local_atendimento_id, convenio_id, patient, loja_id):
+    """Resolve LocalAtendimento e Convenio para criar_consulta_avulsa."""
+    import contextlib
+
+    from ..convenio_service import resolver_convenio
+    from ..models import LocalAtendimento
+    local_atendimento = None
+    if local_atendimento_id:
+        with contextlib.suppress(LocalAtendimento.DoesNotExist):
+            local_atendimento = LocalAtendimento.objects.get(pk=local_atendimento_id, is_active=True)
+    convenio = resolver_convenio(convenio_id, loja_id=loja_id)
+    if convenio is None and getattr(patient, "convenio_id", None):
+        convenio = resolver_convenio(patient.convenio_id, loja_id=loja_id)
+    return local_atendimento, convenio
+
+
+def _resolver_valor_final_avulso(valor_consulta, local_atendimento) -> "Decimal":
+    """Resolve valor final da consulta avulsa."""
+    if valor_consulta is not None and Decimal(str(valor_consulta)) > 0:
+        return Decimal(str(valor_consulta))
+    if local_atendimento:
+        return Decimal(str(local_atendimento.valor_consulta or 0))
+    return Decimal(0)
+
+
+def _resolver_statuses_avulso(iniciar: bool) -> tuple[str, str]:
+    """Retorna (appointment_status, consulta_status) conforme iniciar."""
+    if iniciar:
+        return "IN_PROGRESS", "IN_PROGRESS"
+    return "CONFIRMED", "RECEBER"
+
+
 def criar_consulta_avulsa(
     *,
     patient,
@@ -33,8 +65,8 @@ def criar_consulta_avulsa(
     """
     from clinica_beleza import consulta_service
 
-    from ..convenio_service import criar_appointment_procedures, resolver_convenio
-    from ..models import LocalAtendimento, NomeAgenda, Procedure
+    from ..convenio_service import criar_appointment_procedures
+    from ..models import NomeAgenda, Procedure
 
     ts = appointment_date or now()
     loja_id = loja_id or getattr(patient, "loja_id", None)
@@ -42,16 +74,7 @@ def criar_consulta_avulsa(
     proc_list = procedures or ([procedure] if procedure else [])
     primary_procedure = proc_list[0] if proc_list else None
 
-    local_atendimento = None
-    if local_atendimento_id:
-        try:
-            local_atendimento = LocalAtendimento.objects.get(pk=local_atendimento_id, is_active=True)
-        except LocalAtendimento.DoesNotExist:
-            local_atendimento = None
-
-    convenio = resolver_convenio(convenio_id, loja_id=loja_id)
-    if convenio is None and getattr(patient, "convenio_id", None):
-        convenio = resolver_convenio(patient.convenio_id, loja_id=loja_id)
+    local_atendimento, convenio = _resolver_local_convenio_avulso(local_atendimento_id, convenio_id, patient, loja_id)
 
     if iniciar:
         consulta_service.validar_paciente_sem_consulta_em_andamento(patient.id)
@@ -64,50 +87,25 @@ def criar_consulta_avulsa(
     if retorno_procedure_id:
         retorno_procedure = Procedure.objects.filter(pk=retorno_procedure_id, is_active=True).first()
 
-    if valor_consulta is not None and Decimal(str(valor_consulta)) > 0:
-        valor_final = Decimal(str(valor_consulta))
-    elif local_atendimento:
-        valor_final = Decimal(str(local_atendimento.valor_consulta or 0))
-    else:
-        valor_final = Decimal(0)
-
-    if iniciar:
-        appointment_status = "IN_PROGRESS"
-        consulta_status = "IN_PROGRESS"
-    else:
-        appointment_status = "CONFIRMED"
-        consulta_status = "RECEBER"
+    valor_final = _resolver_valor_final_avulso(valor_consulta, local_atendimento)
+    appointment_status, consulta_status = _resolver_statuses_avulso(iniciar)
 
     appointment = consulta_service.Appointment.objects.create(
-        date=ts,
-        status=appointment_status,
-        patient=patient,
-        professional=professional,
-        procedure=primary_procedure,
-        convenio=convenio,
-        local_atendimento=local_atendimento,
-        nome_agenda=nome_agenda,
-        retorno_procedure=retorno_procedure,
-        notes=(notes or "").strip() or None,
-        loja_id=loja_id,
+        date=ts, status=appointment_status, patient=patient, professional=professional,
+        procedure=primary_procedure, convenio=convenio, local_atendimento=local_atendimento,
+        nome_agenda=nome_agenda, retorno_procedure=retorno_procedure,
+        notes=(notes or "").strip() or None, loja_id=loja_id,
     )
     if proc_list:
         criar_appointment_procedures(appointment, proc_list, convenio=convenio)
 
     consulta = consulta_service.Consulta.objects.create(
-        appointment=appointment,
-        patient=patient,
-        professional=professional,
-        procedure=primary_procedure,
-        status=consulta_status,
-        data_inicio=ts if iniciar else None,
-        valor_consulta=valor_final,
-        local_atendimento=local_atendimento,
-        convenio=convenio,
-        loja_id=loja_id,
+        appointment=appointment, patient=patient, professional=professional,
+        procedure=primary_procedure, status=consulta_status,
+        data_inicio=ts if iniciar else None, valor_consulta=valor_final,
+        local_atendimento=local_atendimento, convenio=convenio, loja_id=loja_id,
     )
     from ..retorno_service import aplicar_retorno_em_consulta
-
     aplicar_retorno_em_consulta(consulta, appointment)
     consulta.refresh_from_db()
     if not iniciar:

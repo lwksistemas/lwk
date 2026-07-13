@@ -283,28 +283,42 @@ class BackupService:
         return result
 
     @staticmethod
-    def _coerce_csv_value(val, col, col_info, table_name):
-        """Normaliza um valor de célula CSV para o tipo correto do banco."""
+    def _normalizar_str_csv(val, col: str):
+        """Converte string vazia/null/nan para None; retorna val inalterado caso contrário."""
         if isinstance(val, str):
             stripped = val.strip()
             if stripped == "" or stripped.lower() in ("null", "none", "nan"):
-                val = None
+                return None
         elif val == "" and col != "id":
-            val = None
+            return None
+        return val
+
+    @staticmethod
+    def _coerce_null_by_dtype(dt: str, dtype: str):
+        """Retorna valor padrão não-nulo para um dtype PostgreSQL quando nullable=False."""
+        if dt in ("text", "character varying", "varchar", "char", "character") or "varchar" in (dtype or "").lower():
+            return ""
+        if dt in ("integer", "bigint", "smallint", "serial", "bigserial", "smallserial"):
+            return 0
+        if dt == "boolean":
+            return False
+        if dt in ("numeric", "decimal"):
+            return Decimal(0)
+        if dt in ("real", "double precision"):
+            return 0.0
+        return None
+
+    @staticmethod
+    def _coerce_csv_value(val, col, col_info, table_name):
+        """Normaliza um valor de célula CSV para o tipo correto do banco."""
+        val = BackupService._normalizar_str_csv(val, col)
         if val is None and col != "id":
             nullable, dtype = col_info.get(col, col_info.get((col or "").strip(), (True, "")))
             dt = (dtype or "").lower().split("(")[0].strip()
             if not nullable:
-                if dt in ("text", "character varying", "varchar", "char", "character") or "varchar" in (dtype or "").lower():
-                    val = ""
-                elif dt in ("integer", "bigint", "smallint", "serial", "bigserial", "smallserial"):
-                    val = 0
-                elif dt == "boolean":
-                    val = False
-                elif dt in ("numeric", "decimal"):
-                    val = Decimal(0)
-                elif dt in ("real", "double precision"):
-                    val = 0.0
+                coerced = BackupService._coerce_null_by_dtype(dt, dtype)
+                if coerced is not None:
+                    val = coerced
         if val is None and col != "id" and table_name == "crm_vendas_config" and _is_crm_issnet_int_col(col):
             val = 0
         _, dtype = col_info.get(col, col_info.get((col or "").strip(), (True, "")))

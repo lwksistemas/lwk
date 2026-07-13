@@ -51,6 +51,32 @@ def verify_asaas_access_token(request, expected_token: str | None = None) -> boo
     return True
 
 
+def _parsear_x_signature(x_signature: str) -> tuple[str | None, str | None]:
+    """Extrai (ts, v1) do header x-signature do Mercado Pago."""
+    ts = v1 = None
+    for part in x_signature.split(","):
+        part = part.strip()
+        if "=" not in part:
+            continue
+        k, v = part.split("=", 1)
+        k, v = k.strip(), v.strip()
+        if k == "ts":
+            ts = v
+        elif k == "v1":
+            v1 = v
+    return ts, v1
+
+
+def _extrair_data_id_mp(request) -> str:
+    """Extrai data.id da query string ou do body do webhook do Mercado Pago."""
+    data_id = request.GET.get("data.id") or request.GET.get("id") or ""
+    if not data_id and isinstance(getattr(request, "data", None), dict):
+        inner = request.data.get("data") or {}
+        if isinstance(inner, dict):
+            data_id = str(inner.get("id") or "")
+    return data_id
+
+
 def verify_mercadopago_signature(request, secret: str | None = None) -> bool:
     """Valida x-signature do Mercado Pago (HMAC SHA256 do manifest).
     """
@@ -67,24 +93,8 @@ def verify_mercadopago_signature(request, secret: str | None = None) -> bool:
         logger.warning("Webhook Mercado Pago: header x-signature ausente")
         return False
 
-    data_id = request.GET.get("data.id") or request.GET.get("id") or ""
-    if not data_id and isinstance(getattr(request, "data", None), dict):
-        inner = request.data.get("data") or {}
-        if isinstance(inner, dict):
-            data_id = str(inner.get("id") or "")
-
-    ts = v1 = None
-    for part in x_signature.split(","):
-        part = part.strip()
-        if "=" not in part:
-            continue
-        k, v = part.split("=", 1)
-        k, v = k.strip(), v.strip()
-        if k == "ts":
-            ts = v
-        elif k == "v1":
-            v1 = v
-
+    data_id = _extrair_data_id_mp(request)
+    ts, v1 = _parsear_x_signature(x_signature)
     if not ts or not v1:
         logger.warning("Webhook Mercado Pago: x-signature malformado")
         return False

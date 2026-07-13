@@ -65,5 +65,5 @@ class CrmFluxoCriticoSmokeTest(SimpleTestCase):
 
         path = Path(__file__).resolve().parents[1] / "views_crm_me_dashboard.py"
         content = path.read_text(encoding="utf-8")
-        self.assertIn("'acesso_total'", content)
-        self.assertIn("'permissoes'", content)
+        self.assertIn('"acesso_total"', content)
+        self.assertIn('"permissoes"', content)

@@ -150,6 +150,28 @@ def _check_email():
     )
 
 
+def _check_nfse_campos_obrigatorios(nfse_cfg, provedor: str) -> list[str]:
+    """Retorna lista de campos obrigatórios ausentes para o provedor NFS-e."""
+    missing = [f for f, v in [
+        ("CNPJ do prestador", (nfse_cfg.prestador_cnpj or "").strip()),
+        ("Razão social", (nfse_cfg.prestador_razao_social or "").strip()),
+        ("Inscrição municipal", (nfse_cfg.prestador_inscricao_municipal or "").strip()),
+    ] if not v]
+    if provedor == "nacional":
+        if not nfse_cfg.nacional_certificado:
+            missing.append("Certificado digital (.pfx)")
+        if not nfse_cfg.nacional_senha_certificado_decrypted:
+            missing.append("Senha do certificado")
+        if not (nfse_cfg.nacional_codigo_municipio or "").strip():
+            missing.append("Código IBGE do município")
+    elif provedor == "issnet":
+        if not (nfse_cfg.issnet_certificado or nfse_cfg.nacional_certificado):
+            missing.append("Certificado digital")
+        if not (nfse_cfg.issnet_senha_certificado or nfse_cfg.nacional_senha_certificado):
+            missing.append("Senha do certificado")
+    return missing
+
+
 def _check_nfse():
     """Retorna diag_item para configuração de NFS-e."""
     details, ok, level = [], False, "ok"
@@ -165,23 +187,7 @@ def _check_nfse():
             level, ok = "warn", True
             details.append('"Emitir automaticamente" desativado — NFS-e manual após pagamento')
         else:
-            missing = [f for f, v in [
-                ("CNPJ do prestador", (nfse_cfg.prestador_cnpj or "").strip()),
-                ("Razão social", (nfse_cfg.prestador_razao_social or "").strip()),
-                ("Inscrição municipal", (nfse_cfg.prestador_inscricao_municipal or "").strip()),
-            ] if not v]
-            if provedor == "nacional":
-                if not nfse_cfg.nacional_certificado:
-                    missing.append("Certificado digital (.pfx)")
-                if not nfse_cfg.nacional_senha_certificado_decrypted:
-                    missing.append("Senha do certificado")
-                if not (nfse_cfg.nacional_codigo_municipio or "").strip():
-                    missing.append("Código IBGE do município")
-            elif provedor == "issnet":
-                if not (nfse_cfg.issnet_certificado or nfse_cfg.nacional_certificado):
-                    missing.append("Certificado digital")
-                if not (nfse_cfg.issnet_senha_certificado or nfse_cfg.nacional_senha_certificado):
-                    missing.append("Senha do certificado")
+            missing = _check_nfse_campos_obrigatorios(nfse_cfg, provedor)
             if missing:
                 level = "error"
                 details.append("Pendências: " + ", ".join(missing))

@@ -158,6 +158,49 @@ class SecurityIsolationMiddleware:
                 logger.warning("Erro na autenticação JWT: %s", e)
                 request.user = AnonymousUser()
 
+    def _verificar_acesso_superadmin(self, request, path):
+        """Verifica permissão de acesso ao grupo superadmin. Retorna JsonResponse de erro ou None."""
+        if any(path.startswith(ep) for ep in _SUPERADMIN_PUBLIC_ENDPOINTS):
+            return None
+        if path == "/api/superadmin/lojas/" and request.method == "POST":
+            return None
+        if not request.user or not request.user.is_authenticated:
+            logger.warning(f"❌ VIOLAÇÃO: Acesso não autenticado ao superadmin: {path}")
+            return JsonResponse({"error": "Autenticação necessária", "code": "AUTHENTICATION_REQUIRED", "grupo_requerido": "superadmin"}, status=401)
+        if path.rstrip("/").endswith("/heartbeat") or "/lojas/heartbeat" in path:
+            return None
+        _owner_patterns = ["/alterar_senha_primeiro_acesso/", "/reenviar_senha/", "/financeiro/", "/loja-financeiro/", "/loja-pagamentos/"]
+        if any(pattern in path for pattern in _owner_patterns):
+            logger.info(f"✅ Acesso de proprietário permitido: {request.user.username} -> {path}")
+            return None
+        if not request.user.is_superuser:
+            logger.critical(f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} (grupo: {self._get_user_group(request.user)}) tentou acessar superadmin: {path}")
+            return JsonResponse({"error": "Acesso negado - Apenas Super Administradores", "code": "SUPERADMIN_REQUIRED", "seu_grupo": self._get_user_group(request.user), "grupo_requerido": "superadmin"}, status=403)
+        return None
+
+    def _verificar_acesso_suporte(self, request, path):
+        """Verifica permissão de acesso ao grupo suporte. Retorna JsonResponse de erro ou None."""
+        if not request.user or not request.user.is_authenticated:
+            logger.warning(f"❌ VIOLAÇÃO: Acesso não autenticado ao suporte: {path}")
+            return JsonResponse({"error": "Autenticação necessária", "code": "AUTHENTICATION_REQUIRED", "grupo_requerido": "suporte"}, status=401)
+        user_group = self._get_user_group(request.user)
+        if user_group not in ["suporte", "superadmin"]:
+            logger.critical(f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} (grupo: {user_group}) tentou acessar suporte: {path}")
+            return JsonResponse({"error": "Acesso negado - Apenas usuários de Suporte", "code": "SUPORTE_REQUIRED", "seu_grupo": user_group, "grupo_requerido": "suporte"}, status=403)
+        return None
+
+    def _verificar_acesso_loja(self, request, path):
+        """Verifica permissão de acesso ao grupo loja. Retorna JsonResponse de erro ou None."""
+        if not request.user or not request.user.is_authenticated:
+            logger.warning(f"❌ VIOLAÇÃO: Acesso não autenticado à loja: {path}")
+            return JsonResponse({"error": "Autenticação necessária", "code": "AUTHENTICATION_REQUIRED", "grupo_requerido": "loja"}, status=401)
+        slug = self._extract_store_slug(request)
+        user_group = self._resolve_store_user_group(request.user, slug)
+        if user_group != "loja":
+            logger.critical(f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} (grupo: {user_group}) tentou acessar loja: {path}")
+            return JsonResponse({"error": "Acesso negado - Apenas proprietários de lojas podem acessar", "code": "STORE_OWNER_REQUIRED", "seu_grupo": user_group, "grupo_requerido": "loja", "mensagem": "Super Admin e Suporte não podem acessar áreas de lojas"}, status=403)
+        return None
+
     def _check_route_isolation(self, request):
         """Verifica isolamento de rotas entre os 3 grupos
 
@@ -168,7 +211,6 @@ class SecurityIsolationMiddleware:
         """
         path = request.path
 
-        # Webhooks e rotas públicas por token (validação nas views)
         if self._is_crm_vendas_public_path(path):
             return None
         if self._is_clinica_beleza_public_path(path):
@@ -184,111 +226,13 @@ class SecurityIsolationMiddleware:
         if "/google-calendar/callback/" in path:
             return None
 
-        # ========================================
-        # GRUPO 1: SUPER ADMIN
-        # ========================================
         if path.startswith("/api/superadmin/"):
-            # Endpoints públicos (sem autenticação)
-            if any(path.startswith(ep) for ep in _SUPERADMIN_PUBLIC_ENDPOINTS):
-                return None  # Permitir acesso público
-
-            # POST para criar loja (cadastro público)
-            if path == "/api/superadmin/lojas/" and request.method == "POST":
-                return None  # Permitir cadastro público
-
-            # Verificar autenticação
-            if not request.user or not request.user.is_authenticated:
-                logger.warning(f"❌ VIOLAÇÃO: Acesso não autenticado ao superadmin: {path}")
-                return JsonResponse({
-                    "error": "Autenticação necessária",
-                    "code": "AUTHENTICATION_REQUIRED",
-                    "grupo_requerido": "superadmin",
-                }, status=401)
-
-            # Heartbeat (sessão única / useSessionMonitor): qualquer usuário autenticado
-            # (dono, vendedor CRM, suporte, superadmin). A view usa IsAuthenticated apenas.
-            if path.rstrip("/").endswith("/heartbeat") or "/lojas/heartbeat" in path:
-                return None
-
-            # Endpoints permitidos para proprietários de lojas (acessar seus próprios dados)
-            owner_allowed_patterns = [
-                "/alterar_senha_primeiro_acesso/",
-                "/reenviar_senha/",
-                "/financeiro/",
-                "/loja-financeiro/",
-                "/loja-pagamentos/",  # baixar_boleto_pdf, gerar_pix, etc. (IsLojaOwner verifica)
-            ]
-
-            is_owner_allowed = any(pattern in path for pattern in owner_allowed_patterns)
-
-            if is_owner_allowed:
-                # Proprietário de loja pode acessar seus próprios dados
-                # A view fará a verificação específica
-                logger.info(f"✅ Acesso de proprietário permitido: {request.user.username} -> {path}")
-                return None
-
-            # Para outras rotas, APENAS superuser
-            if not request.user.is_superuser:
-                logger.critical(f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} (grupo: {self._get_user_group(request.user)}) tentou acessar superadmin: {path}")
-                return JsonResponse({
-                    "error": "Acesso negado - Apenas Super Administradores",
-                    "code": "SUPERADMIN_REQUIRED",
-                    "seu_grupo": self._get_user_group(request.user),
-                    "grupo_requerido": "superadmin",
-                }, status=403)
-
-        # ========================================
-        # GRUPO 2: SUPORTE
-        # ========================================
-        elif path.startswith("/api/suporte/"):
-            # Verificar autenticação
-            if not request.user or not request.user.is_authenticated:
-                logger.warning(f"❌ VIOLAÇÃO: Acesso não autenticado ao suporte: {path}")
-                return JsonResponse({
-                    "error": "Autenticação necessária",
-                    "code": "AUTHENTICATION_REQUIRED",
-                    "grupo_requerido": "suporte",
-                }, status=401)
-
-            # Verificar se é usuário de suporte ou superadmin
-            user_group = self._get_user_group(request.user)
-
-            if user_group not in ["suporte", "superadmin"]:
-                logger.critical(f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} (grupo: {user_group}) tentou acessar suporte: {path}")
-                return JsonResponse({
-                    "error": "Acesso negado - Apenas usuários de Suporte",
-                    "code": "SUPORTE_REQUIRED",
-                    "seu_grupo": user_group,
-                    "grupo_requerido": "suporte",
-                }, status=403)
-
-        # ========================================
-        # GRUPO 3: LOJAS
-        # ========================================
-        elif self._is_store_route(path):
-            # Verificar autenticação
-            if not request.user or not request.user.is_authenticated:
-                logger.warning(f"❌ VIOLAÇÃO: Acesso não autenticado à loja: {path}")
-                return JsonResponse({
-                    "error": "Autenticação necessária",
-                    "code": "AUTHENTICATION_REQUIRED",
-                    "grupo_requerido": "loja",
-                }, status=401)
-
-            slug = self._extract_store_slug(request)
-            user_group = self._resolve_store_user_group(request.user, slug)
-
-            if user_group != "loja":
-                logger.critical(f"🚨 VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} (grupo: {user_group}) tentou acessar loja: {path}")
-                return JsonResponse({
-                    "error": "Acesso negado - Apenas proprietários de lojas podem acessar",
-                    "code": "STORE_OWNER_REQUIRED",
-                    "seu_grupo": user_group,
-                    "grupo_requerido": "loja",
-                    "mensagem": "Super Admin e Suporte não podem acessar áreas de lojas",
-                }, status=403)
-
-        return None  # Sem violação
+            return self._verificar_acesso_superadmin(request, path)
+        if path.startswith("/api/suporte/"):
+            return self._verificar_acesso_suporte(request, path)
+        if self._is_store_route(path):
+            return self._verificar_acesso_loja(request, path)
+        return None
 
     def _check_clinica_crm_route_restriction(self, request):
         """Lojas Clínica da Beleza têm tabelas crm_vendas (NFS-e) mas não expõem

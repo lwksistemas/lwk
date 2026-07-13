@@ -89,6 +89,114 @@ def extrair_protocolo_lote(xml_abrasf: str) -> str | None:
     return None
 
 
+def _xml_lote_header(root, ns, cnpj_prest, prestador_inscricao_municipal, numero_rps, cfg):
+    """Monta LoteRps com NumeroLote, Prestador e QuantidadeRps."""
+    lote = etree.SubElement(root, f"{{{ns}}}LoteRps", versao="2.04")
+    nlote_cfg = int(cfg.numero_lote_config or 0)
+    numero_lote = nlote_cfg if nlote_cfg > 0 else int(numero_rps)
+    etree.SubElement(lote, f"{{{ns}}}NumeroLote").text = str(numero_lote)
+    prest_lote = etree.SubElement(lote, f"{{{ns}}}Prestador")
+    cpf_cnpj_pl = etree.SubElement(prest_lote, f"{{{ns}}}CpfCnpj")
+    etree.SubElement(cpf_cnpj_pl, f"{{{ns}}}Cnpj").text = cnpj_prest
+    etree.SubElement(prest_lote, f"{{{ns}}}InscricaoMunicipal").text = prestador_inscricao_municipal
+    etree.SubElement(lote, f"{{{ns}}}QuantidadeRps").text = "1"
+    return lote
+
+
+def _xml_rps_identificacao(ns, numero_rps, serie_rps, tipo_rps, data_emissao):
+    """Monta InfDeclaracaoPrestacaoServico com Rps interno."""
+    lista = etree.Element(f"{{{ns}}}ListaRps")
+    rps_el = etree.SubElement(lista, f"{{{ns}}}Rps")
+    inf = etree.SubElement(rps_el, f"{{{ns}}}InfDeclaracaoPrestacaoServico", Id=f"rps{numero_rps}")
+    rps_inner = etree.SubElement(inf, f"{{{ns}}}Rps")
+    id_rps = etree.SubElement(rps_inner, f"{{{ns}}}IdentificacaoRps")
+    etree.SubElement(id_rps, f"{{{ns}}}Numero").text = str(numero_rps)
+    etree.SubElement(id_rps, f"{{{ns}}}Serie").text = serie_rps
+    etree.SubElement(id_rps, f"{{{ns}}}Tipo").text = str(tipo_rps)
+    etree.SubElement(rps_inner, f"{{{ns}}}DataEmissao").text = data_emissao.strftime("%Y-%m-%d")
+    etree.SubElement(rps_inner, f"{{{ns}}}Status").text = "1"
+    etree.SubElement(inf, f"{{{ns}}}Competencia").text = data_emissao.strftime("%Y-%m-%d")
+    return lista, inf
+
+
+def _xml_servico(ns, inf, valor, aliquota, valor_iss, servico_codigo, servico_descricao, item_lista_servico, codigo_cnae, codigo_tributacao_municipio):
+    """Monta elemento Servico com Valores, IssRetido, codigos e Discriminacao."""
+    servico = etree.SubElement(inf, f"{{{ns}}}Servico")
+    valores = etree.SubElement(servico, f"{{{ns}}}Valores")
+    for tag, val in [
+        ("ValorServicos", f"{valor:.2f}"), ("ValorDeducoes", "0.00"), ("ValorPis", "0.00"),
+        ("ValorCofins", "0.00"), ("ValorInss", "0.00"), ("ValorIr", "0.00"),
+        ("ValorCsll", "0.00"), ("OutrasRetencoes", "0.00"), ("ValTotTributos", "0.00"),
+        ("ValorIss", f"{valor_iss:.2f}"), ("Aliquota", f"{aliquota:.2f}"),
+        ("DescontoIncondicionado", "0.00"), ("DescontoCondicionado", "0.00"),
+    ]:
+        etree.SubElement(valores, f"{{{ns}}}{tag}").text = val
+    etree.SubElement(servico, f"{{{ns}}}IssRetido").text = "2"
+    if item_lista_servico and str(item_lista_servico).strip():
+        item_lista = normalizar_item_lista_servico_abrasf(item_lista_servico)
+    else:
+        item_lista = normalizar_item_lista_servico_abrasf(servico_codigo)
+    trib_override = somente_digitos(codigo_tributacao_municipio or "")
+    cod_tributacao = trib_override[:20] if trib_override else codigo_tributacao_municipio_xml(servico_codigo, item_lista)
+    if (servico_codigo or "").strip() and (
+        (servico_codigo or "").strip() != item_lista
+        or somente_digitos(servico_codigo or "") != cod_tributacao
+    ):
+        logger.info("ISSNet codigo servico: config %r -> ItemListaServico %r, CodigoTributacaoMunicipio %r", servico_codigo, item_lista, cod_tributacao)
+    etree.SubElement(servico, f"{{{ns}}}ItemListaServico").text = item_lista
+    cnae_digits = somente_digitos(codigo_cnae or "")
+    if cnae_digits:
+        etree.SubElement(servico, f"{{{ns}}}CodigoCnae").text = cnae_digits
+    etree.SubElement(servico, f"{{{ns}}}CodigoTributacaoMunicipio").text = cod_tributacao
+    etree.SubElement(servico, f"{{{ns}}}Discriminacao").text = servico_descricao
+    etree.SubElement(servico, f"{{{ns}}}CodigoMunicipio").text = COD_MUNICIPIO_RP
+    etree.SubElement(servico, f"{{{ns}}}ExigibilidadeISS").text = "1"
+    etree.SubElement(servico, f"{{{ns}}}MunicipioIncidencia").text = COD_MUNICIPIO_RP
+
+
+def _xml_tomador_endereco_el(ns, tomador, tomador_endereco):
+    """Monta subelemento Endereco dentro de TomadorServico."""
+    end = etree.SubElement(tomador, f"{{{ns}}}Endereco")
+    etree.SubElement(end, f"{{{ns}}}Endereco").text = (tomador_endereco.get("logradouro") or "").strip() or "Nao informado"
+    from nfse_integration.nfse_geo import normalizar_numero_complemento_endereco
+    numero_tomador, _ = normalizar_numero_complemento_endereco((tomador_endereco.get("numero") or "").strip())
+    etree.SubElement(end, f"{{{ns}}}Numero").text = numero_tomador or "S/N"
+    compl = (tomador_endereco.get("complemento") or "").strip()
+    if compl:
+        etree.SubElement(end, f"{{{ns}}}Complemento").text = compl
+    bairro = (tomador_endereco.get("bairro") or "").strip() or "Nao informado"
+    etree.SubElement(end, f"{{{ns}}}Bairro").text = bairro[:60]
+    cod_mun = (tomador_endereco.get("codigo_municipio") or "").strip()
+    if not cod_mun:
+        from nfse_integration.nfse_geo import buscar_codigo_ibge_por_cep
+        cod_mun = buscar_codigo_ibge_por_cep(tomador_endereco.get("cep", ""))
+    etree.SubElement(end, f"{{{ns}}}CodigoMunicipio").text = cod_mun or COD_MUNICIPIO_RP
+    etree.SubElement(end, f"{{{ns}}}Uf").text = ((tomador_endereco.get("uf") or "SP").strip()[:2] or "SP")
+    cep = somente_digitos(tomador_endereco.get("cep", ""))[:8]
+    etree.SubElement(end, f"{{{ns}}}Cep").text = cep if len(cep) == 8 else "00000000"
+
+
+def _xml_tomador(ns, inf, doc_tomador, tomador_nome, tomador_endereco):
+    """Monta TomadorServico com identificação, razão social, endereço e contato."""
+    tomador = etree.SubElement(inf, f"{{{ns}}}TomadorServico")
+    id_tom = etree.SubElement(tomador, f"{{{ns}}}IdentificacaoTomador")
+    cpf_cnpj_tom = etree.SubElement(id_tom, f"{{{ns}}}CpfCnpj")
+    if len(doc_tomador) == 11:
+        etree.SubElement(cpf_cnpj_tom, f"{{{ns}}}Cpf").text = doc_tomador
+    else:
+        etree.SubElement(cpf_cnpj_tom, f"{{{ns}}}Cnpj").text = doc_tomador
+    etree.SubElement(tomador, f"{{{ns}}}RazaoSocial").text = tomador_nome
+    _xml_tomador_endereco_el(ns, tomador, tomador_endereco)
+    tomador_email = (tomador_endereco.get("email") or "").strip()
+    tomador_telefone = somente_digitos(tomador_endereco.get("telefone", ""))[:11]
+    if tomador_email or tomador_telefone:
+        contato = etree.SubElement(tomador, f"{{{ns}}}Contato")
+        if tomador_telefone:
+            etree.SubElement(contato, f"{{{ns}}}Telefone").text = tomador_telefone
+        if tomador_email:
+            etree.SubElement(contato, f"{{{ns}}}Email").text = tomador_email[:80]
+
+
 def construir_xml_enviar_lote_rps(
     *,
     prestador_cnpj: str,
@@ -111,161 +219,36 @@ def construir_xml_enviar_lote_rps(
 ) -> str:
     """Monta EnviarLoteRpsEnvio (ABRASF 2.04) para RecepcionarLoteRps."""
     cfg = opts or IssnetEmissaoOpts()
+    ns = NS_NFSE
     cnpj_prest = somente_digitos(prestador_cnpj)
     doc_tomador = somente_digitos(tomador_cpf_cnpj)
-
     valor = Decimal(str(valor_servicos))
     aliquota = Decimal(str(aliquota_iss))
     valor_iss = (valor * aliquota / 100).quantize(Decimal("0.01"))
 
-    ns = NS_NFSE
     root = etree.Element(f"{{{ns}}}EnviarLoteRpsEnvio", nsmap={None: ns})
+    lote = _xml_lote_header(root, ns, cnpj_prest, prestador_inscricao_municipal, numero_rps, cfg)
+    numero_lote = int(lote.find(f"{{{ns}}}NumeroLote").text or 0)
+    lista, inf = _xml_rps_identificacao(ns, numero_rps, serie_rps, tipo_rps, data_emissao)
+    lote.append(lista)
 
-    lote = etree.SubElement(root, f"{{{ns}}}LoteRps", versao="2.04")
-    nlote_cfg = int(cfg.numero_lote_config or 0)
-    numero_lote = nlote_cfg if nlote_cfg > 0 else int(numero_rps)
-    etree.SubElement(lote, f"{{{ns}}}NumeroLote").text = str(numero_lote)
-
-    prest_lote = etree.SubElement(lote, f"{{{ns}}}Prestador")
-    cpf_cnpj_pl = etree.SubElement(prest_lote, f"{{{ns}}}CpfCnpj")
-    etree.SubElement(cpf_cnpj_pl, f"{{{ns}}}Cnpj").text = cnpj_prest
-    etree.SubElement(prest_lote, f"{{{ns}}}InscricaoMunicipal").text = prestador_inscricao_municipal
-
-    etree.SubElement(lote, f"{{{ns}}}QuantidadeRps").text = "1"
-
-    lista = etree.SubElement(lote, f"{{{ns}}}ListaRps")
-    rps_el = etree.SubElement(lista, f"{{{ns}}}Rps")
-    inf = etree.SubElement(
-        rps_el, f"{{{ns}}}InfDeclaracaoPrestacaoServico", Id=f"rps{numero_rps}",
-    )
-
-    rps_inner = etree.SubElement(inf, f"{{{ns}}}Rps")
-    id_rps = etree.SubElement(rps_inner, f"{{{ns}}}IdentificacaoRps")
-    etree.SubElement(id_rps, f"{{{ns}}}Numero").text = str(numero_rps)
-    etree.SubElement(id_rps, f"{{{ns}}}Serie").text = serie_rps
-    etree.SubElement(id_rps, f"{{{ns}}}Tipo").text = str(tipo_rps)
-    etree.SubElement(rps_inner, f"{{{ns}}}DataEmissao").text = data_emissao.strftime("%Y-%m-%d")
-    etree.SubElement(rps_inner, f"{{{ns}}}Status").text = "1"
-
-    etree.SubElement(inf, f"{{{ns}}}Competencia").text = data_emissao.strftime("%Y-%m-%d")
-
-    servico = etree.SubElement(inf, f"{{{ns}}}Servico")
-    valores = etree.SubElement(servico, f"{{{ns}}}Valores")
-    etree.SubElement(valores, f"{{{ns}}}ValorServicos").text = f"{valor:.2f}"
-    etree.SubElement(valores, f"{{{ns}}}ValorDeducoes").text = "0.00"
-    etree.SubElement(valores, f"{{{ns}}}ValorPis").text = "0.00"
-    etree.SubElement(valores, f"{{{ns}}}ValorCofins").text = "0.00"
-    etree.SubElement(valores, f"{{{ns}}}ValorInss").text = "0.00"
-    etree.SubElement(valores, f"{{{ns}}}ValorIr").text = "0.00"
-    etree.SubElement(valores, f"{{{ns}}}ValorCsll").text = "0.00"
-    etree.SubElement(valores, f"{{{ns}}}OutrasRetencoes").text = "0.00"
-    etree.SubElement(valores, f"{{{ns}}}ValTotTributos").text = "0.00"
-    etree.SubElement(valores, f"{{{ns}}}ValorIss").text = f"{valor_iss:.2f}"
-    etree.SubElement(valores, f"{{{ns}}}Aliquota").text = f"{aliquota:.2f}"
-    etree.SubElement(valores, f"{{{ns}}}DescontoIncondicionado").text = "0.00"
-    etree.SubElement(valores, f"{{{ns}}}DescontoCondicionado").text = "0.00"
-
-    etree.SubElement(servico, f"{{{ns}}}IssRetido").text = "2"
-    if item_lista_servico and str(item_lista_servico).strip():
-        item_lista = normalizar_item_lista_servico_abrasf(item_lista_servico)
-    else:
-        item_lista = normalizar_item_lista_servico_abrasf(servico_codigo)
-    trib_override = somente_digitos(codigo_tributacao_municipio or "")
-    if trib_override:
-        cod_tributacao = trib_override[:20]
-    else:
-        cod_tributacao = codigo_tributacao_municipio_xml(servico_codigo, item_lista)
-    if (servico_codigo or "").strip() and (
-        (servico_codigo or "").strip() != item_lista
-        or somente_digitos(servico_codigo or "") != cod_tributacao
-    ):
-        logger.info(
-            "ISSNet codigo servico: config %r -> ItemListaServico %r, "
-            "CodigoTributacaoMunicipio %r",
-            servico_codigo,
-            item_lista,
-            cod_tributacao,
-        )
-    etree.SubElement(servico, f"{{{ns}}}ItemListaServico").text = item_lista
-    cnae_digits = somente_digitos(codigo_cnae or "")
-    if cnae_digits:
-        etree.SubElement(servico, f"{{{ns}}}CodigoCnae").text = cnae_digits
-    etree.SubElement(servico, f"{{{ns}}}CodigoTributacaoMunicipio").text = cod_tributacao
-    etree.SubElement(servico, f"{{{ns}}}Discriminacao").text = servico_descricao
-    etree.SubElement(servico, f"{{{ns}}}CodigoMunicipio").text = COD_MUNICIPIO_RP
-    etree.SubElement(servico, f"{{{ns}}}ExigibilidadeISS").text = "1"
-    etree.SubElement(servico, f"{{{ns}}}MunicipioIncidencia").text = COD_MUNICIPIO_RP
+    _xml_servico(ns, inf, valor, aliquota, valor_iss, servico_codigo, servico_descricao, item_lista_servico, codigo_cnae, codigo_tributacao_municipio)
 
     prestador = etree.SubElement(inf, f"{{{ns}}}Prestador")
     cpf_cnpj_prest = etree.SubElement(prestador, f"{{{ns}}}CpfCnpj")
     etree.SubElement(cpf_cnpj_prest, f"{{{ns}}}Cnpj").text = cnpj_prest
     etree.SubElement(prestador, f"{{{ns}}}InscricaoMunicipal").text = prestador_inscricao_municipal
 
-    tomador = etree.SubElement(inf, f"{{{ns}}}TomadorServico")
-    id_tom = etree.SubElement(tomador, f"{{{ns}}}IdentificacaoTomador")
-    cpf_cnpj_tom = etree.SubElement(id_tom, f"{{{ns}}}CpfCnpj")
-    if len(doc_tomador) == 11:
-        etree.SubElement(cpf_cnpj_tom, f"{{{ns}}}Cpf").text = doc_tomador
-    else:
-        etree.SubElement(cpf_cnpj_tom, f"{{{ns}}}Cnpj").text = doc_tomador
-    etree.SubElement(tomador, f"{{{ns}}}RazaoSocial").text = tomador_nome
-
-    end = etree.SubElement(tomador, f"{{{ns}}}Endereco")
-    etree.SubElement(end, f"{{{ns}}}Endereco").text = (
-        (tomador_endereco.get("logradouro") or "").strip() or "Nao informado"
-    )
-    from nfse_integration.nfse_geo import normalizar_numero_complemento_endereco
-
-    numero_tomador, _ = normalizar_numero_complemento_endereco(
-        (tomador_endereco.get("numero") or "").strip(),
-    )
-    etree.SubElement(end, f"{{{ns}}}Numero").text = numero_tomador or "S/N"
-    compl = (tomador_endereco.get("complemento") or "").strip()
-    if compl:
-        etree.SubElement(end, f"{{{ns}}}Complemento").text = compl
-    bairro = (tomador_endereco.get("bairro") or "").strip() or "Nao informado"
-    etree.SubElement(end, f"{{{ns}}}Bairro").text = bairro[:60]
-    cod_mun_tomador = (tomador_endereco.get("codigo_municipio") or "").strip()
-    if not cod_mun_tomador:
-        from nfse_integration.nfse_geo import buscar_codigo_ibge_por_cep
-
-        cod_mun_tomador = buscar_codigo_ibge_por_cep(tomador_endereco.get("cep", ""))
-    if not cod_mun_tomador:
-        cod_mun_tomador = COD_MUNICIPIO_RP
-    etree.SubElement(end, f"{{{ns}}}CodigoMunicipio").text = cod_mun_tomador
-    etree.SubElement(end, f"{{{ns}}}Uf").text = (
-        (tomador_endereco.get("uf") or "SP").strip()[:2] or "SP"
-    )
-    cep = somente_digitos(tomador_endereco.get("cep", ""))[:8]
-    if len(cep) != 8:
-        cep = "00000000"
-    etree.SubElement(end, f"{{{ns}}}Cep").text = cep
-
-    tomador_email = (tomador_endereco.get("email") or "").strip()
-    tomador_telefone = somente_digitos(tomador_endereco.get("telefone", ""))[:11]
-    if tomador_email or tomador_telefone:
-        contato = etree.SubElement(tomador, f"{{{ns}}}Contato")
-        if tomador_telefone:
-            etree.SubElement(contato, f"{{{ns}}}Telefone").text = tomador_telefone
-        if tomador_email:
-            etree.SubElement(contato, f"{{{ns}}}Email").text = tomador_email[:80]
+    _xml_tomador(ns, inf, doc_tomador, tomador_nome, tomador_endereco)
 
     regime = (cfg.regime_especial or "").strip()
     if regime and regime != "0":
         etree.SubElement(inf, f"{{{ns}}}RegimeEspecialTributacao").text = regime
-    optante = "1" if cfg.optante_simples else "2"
-    etree.SubElement(inf, f"{{{ns}}}OptanteSimplesNacional").text = optante
-    incentivo = "1" if cfg.incentivador_cultural else "2"
-    etree.SubElement(inf, f"{{{ns}}}IncentivoFiscal").text = incentivo
+    etree.SubElement(inf, f"{{{ns}}}OptanteSimplesNacional").text = "1" if cfg.optante_simples else "2"
+    etree.SubElement(inf, f"{{{ns}}}IncentivoFiscal").text = "1" if cfg.incentivador_cultural else "2"
 
     xml_str = etree.tostring(root, encoding="unicode", pretty_print=False)
-    logger.info(
-        "XML EnviarLoteRpsEnvio construido: RPS %s serie %r lote %s, Valor R$ %s",
-        numero_rps,
-        serie_rps,
-        numero_lote,
-        valor,
-    )
+    logger.info("XML EnviarLoteRpsEnvio construido: RPS %s serie %r lote %s, Valor R$ %s", numero_rps, serie_rps, numero_lote, valor)
     return xml_str
 
 

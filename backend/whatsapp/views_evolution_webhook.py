@@ -189,6 +189,41 @@ class EvolutionWebhookView(View):
             pass
         return ""
 
+    def _processar_mensagem_whatsapp(self, loja_id: int, event: dict, data: dict):
+        """Extrai telefone/texto do data e dispara processar_resposta_whatsapp."""
+        key = data.get("key") if isinstance(data.get("key"), dict) else {}
+        if key.get("fromMe") is True:
+            return
+        remote_jid = key.get("remoteJid") or data.get("remoteJid") or ""
+        if remote_jid.endswith("@g.us"):
+            return
+        telefone = _extract_phone_from_jid(remote_jid)
+        if not telefone:
+            sender = event.get("sender") or data.get("sender") or ""
+            telefone = _extract_phone_from_jid(str(sender))
+        if not telefone:
+            return
+        message = _message_dict_from_data(data)
+        button_id = _extract_button_id(message)
+        texto = _extract_message_text(message)
+        if not button_id and not texto:
+            msg_type = (data.get("messageType") or "").lower()
+            if "button" in msg_type or "interactive" in msg_type:
+                texto = msg_type
+        if not button_id and not texto:
+            logger.debug("Evolution webhook loja=%s: mensagem sem texto/botão. keys=%s", loja_id, list(message.keys()) if message else list(data.keys()))
+            return
+        from clinica_beleza.agenda_confirmacao_service import processar_resposta_whatsapp
+        try:
+            result = processar_resposta_whatsapp(loja_id, telefone, texto=texto, button_id=button_id)
+        except Exception as exc:
+            logger.exception("Evolution webhook loja=%s tel=…%s erro ao processar confirmação: %s", loja_id, telefone[-4:], exc)
+            return
+        if not result:
+            logger.debug("Evolution webhook loja=%s tel=…%s: não é confirmação (texto=%r button=%r)", loja_id, telefone[-4:], texto[:40] if texto else "", button_id[:40] if button_id else "")
+            return
+        logger.info("Evolution webhook loja=%s tel=…%s ok=%s status=%s appt=%s msg=%s", loja_id, telefone[-4:], result.ok, result.status, result.appointment_id, result.message[:80])
+
     def _handle_event(self, event: dict):
         event_name = (event.get("event") or "messages.upsert").lower().replace("_", ".")
         instance = (event.get("instance") or "").strip()
@@ -202,85 +237,18 @@ class EvolutionWebhookView(View):
             if not isinstance(data, dict):
                 data = {}
             from whatsapp.connection_service import update_evolution_connection_from_webhook
-
             try:
                 update_evolution_connection_from_webhook(loja_id, data)
             except Exception as exc:
-                logger.exception(
-                    "Evolution webhook connection.update loja=%s: %s",
-                    loja_id,
-                    exc,
-                )
+                logger.exception("Evolution webhook connection.update loja=%s: %s", loja_id, exc)
             return
 
         if event_name not in ("messages.upsert", ""):
             return
-
         if not loja_id:
             logger.debug("Evolution webhook: instance desconhecida %s", instance)
             return
-
         data = event.get("data")
         if not isinstance(data, dict):
             return
-
-        key = data.get("key") if isinstance(data.get("key"), dict) else {}
-        if key.get("fromMe") is True:
-            return
-
-        remote_jid = key.get("remoteJid") or data.get("remoteJid") or ""
-        # Ignorar grupos (@g.us) — promoções e mensagens de terceiros não são confirmações 1:1
-        if remote_jid.endswith("@g.us"):
-            return
-        telefone = _extract_phone_from_jid(remote_jid)
-        if not telefone:
-            sender = event.get("sender") or data.get("sender") or ""
-            telefone = _extract_phone_from_jid(str(sender))
-        if not telefone:
-            return
-
-        message = _message_dict_from_data(data)
-        button_id = _extract_button_id(message)
-        texto = _extract_message_text(message)
-
-        # messageType no root (Evolution v2)
-        if not button_id and not texto:
-            msg_type = (data.get("messageType") or "").lower()
-            if "button" in msg_type or "interactive" in msg_type:
-                texto = msg_type
-
-        if not button_id and not texto:
-            logger.debug(
-                "Evolution webhook loja=%s: mensagem sem texto/botão. keys=%s",
-                loja_id, list(message.keys()) if message else list(data.keys()),
-            )
-            return
-
-        from clinica_beleza.agenda_confirmacao_service import processar_resposta_whatsapp
-
-        try:
-            result = processar_resposta_whatsapp(
-                loja_id,
-                telefone,
-                texto=texto,
-                button_id=button_id,
-            )
-        except Exception as exc:
-            logger.exception(
-                "Evolution webhook loja=%s tel=…%s erro ao processar confirmação: %s",
-                loja_id,
-                telefone[-4:],
-                exc,
-            )
-            return
-        if not result:
-            logger.debug(
-                "Evolution webhook loja=%s tel=…%s: não é confirmação (texto=%r button=%r)",
-                loja_id, telefone[-4:], texto[:40] if texto else "", button_id[:40] if button_id else "",
-            )
-            return
-
-        logger.info(
-            "Evolution webhook loja=%s tel=…%s ok=%s status=%s appt=%s msg=%s",
-            loja_id, telefone[-4:], result.ok, result.status, result.appointment_id, result.message[:80],
-        )
+        self._processar_mensagem_whatsapp(loja_id, event, data)

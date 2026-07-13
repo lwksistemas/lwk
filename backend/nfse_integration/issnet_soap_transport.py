@@ -190,6 +190,66 @@ def _post_soap_operacao_inner(
         return {"success": False, "error": str(e)}, ""
 
 
+def _montar_estrategias_soap(nome_operacao: str, dados_xml: str, soap_action_uri: str) -> tuple:
+    """Monta tuplas (soap_body, headers, label) de estratégias a tentar."""
+    def _headers(content_type: str) -> dict:
+        return {
+            "Content-Type": content_type,
+            "SOAPAction": f'"{soap_action_uri}"',
+            "Connection": "close",
+            "Accept": "text/xml",
+            "User-Agent": "LWK-Sistemas/CRM (ISSNet ABRASF 2.04)",
+        }
+    return (
+        (montar_soap_envelope_aninhado(nome_operacao, dados_xml), _headers("application/soap+xml; charset=utf-8"), "XML aninhado + application/soap+xml (PHP)"),
+        (montar_soap_envelope_cdata(nome_operacao, dados_xml), _headers("text/xml; charset=utf-8"), "CDATA + text/xml"),
+        (montar_soap_envelope_xsd_string(nome_operacao, dados_xml), _headers("text/xml; charset=utf-8"), "xsd:string (XML escapado) + text/xml"),
+    )
+
+
+def _executar_post_com_retry(base_url: str, soap_body: str, hdrs: dict, http_timeout, cert_path: str, key_path: str):
+    """Executa POST SOAP com retry em erro de conexão e retry em HTTP 5xx sem XML."""
+    def _do_post():
+        return req.post(base_url, data=soap_body.encode("utf-8"), headers=hdrs, timeout=http_timeout, cert=(cert_path, key_path))
+    try:
+        r = _do_post()
+    except (req.exceptions.ConnectionError, req.exceptions.ChunkedEncodingError, req.exceptions.ReadTimeout) as e:
+        logger.warning("ISSNet SOAP POST: erro de conexao, uma nova tentativa: %s", e)
+        time.sleep(1.5)
+        r = _do_post()
+    logger.info("Resposta ISSNet HTTP %s, preview: %s", r.status_code, (r.text or "")[:500])
+    if r.status_code >= 400 or "Fault" in (r.text or ""):
+        logger.error("ISSNet resposta (ate 8000 chars): %s", (r.text or "")[:8000])
+    if r.status_code in (502, 503, 504) and not issnet_corpo_parece_xml(r.text or ""):
+        logger.warning("ISSNet HTTP %s sem XML; repetindo POST uma vez apos 2s", r.status_code)
+        time.sleep(2.0)
+        r = _do_post()
+        logger.info("Resposta ISSNet HTTP %s (apos retry), preview: %s", r.status_code, (r.text or "")[:500])
+    return r
+
+
+_SENTINEL_CONTINUAR = "CONTINUAR"
+_SENTINEL_PARAR = "PARAR"
+
+
+def _avaliar_resposta_estrategia(r, nome_operacao: str, strat_idx: int, n_strategies: int, label: str):
+    """Avalia resposta de uma estrategia SOAP. Retorna: dict de erro, _SENTINEL_CONTINUAR ou _SENTINEL_PARAR."""
+    if r.status_code in (502, 503, 504) and not issnet_corpo_parece_xml(r.text or ""):
+        msg = " ".join((issnet_decodificar_corpo(r).strip() or "(sem corpo)").split())
+        return {"success": False, "error": f"Servico ISSNet indisponivel (HTTP {r.status_code}). Tente novamente em instantes. {msg[:400]}"}
+    if (
+        nome_operacao == "ConsultarNfsePorRps"
+        and strat_idx < n_strategies - 1
+        and re.search(r"<\s*Codigo\s*>\s*E160\s*<\s*/\s*Codigo\s*>", (r.text or ""), re.IGNORECASE)
+    ):
+        logger.warning("ISSNet %s retornou E160 (schema) com %r; tentando formato alternativo", nome_operacao, label)
+        return _SENTINEL_CONTINUAR
+    if issnet_corpo_parece_xml(r.text or "") and issnet_fault_soap_generico(r.text or "") and strat_idx < n_strategies - 1:
+        logger.warning("ISSNet Fault generico com estrategia %r; tentando formato alternativo", label)
+        return _SENTINEL_CONTINUAR
+    return _SENTINEL_PARAR
+
+
 def _post_soap_manual(
     *,
     base_url: str,
@@ -200,152 +260,22 @@ def _post_soap_manual(
     key_path: str,
     http_timeout: tuple[int, int],
 ) -> tuple[dict[str, Any], str]:
-    def _headers(content_type: str) -> dict:
-        return {
-            "Content-Type": content_type,
-            "SOAPAction": f'"{soap_action_uri}"',
-            "Connection": "close",
-            "Accept": "text/xml",
-            "User-Agent": "LWK-Sistemas/CRM (ISSNet ABRASF 2.04)",
-        }
-
-    if nome_operacao == "ConsultarNfsePorRps":
-        strategies = (
-            (
-                montar_soap_envelope_aninhado(nome_operacao, dados_xml),
-                _headers("application/soap+xml; charset=utf-8"),
-                "XML aninhado + application/soap+xml (PHP)",
-            ),
-            (
-                montar_soap_envelope_cdata(nome_operacao, dados_xml),
-                _headers("text/xml; charset=utf-8"),
-                "CDATA + text/xml",
-            ),
-            (
-                montar_soap_envelope_xsd_string(nome_operacao, dados_xml),
-                _headers("text/xml; charset=utf-8"),
-                "xsd:string (XML escapado) + text/xml",
-            ),
-        )
-    else:
-        strategies = (
-            (
-                montar_soap_envelope_aninhado(nome_operacao, dados_xml),
-                _headers("application/soap+xml; charset=utf-8"),
-                "XML aninhado + application/soap+xml (PHP)",
-            ),
-            (
-                montar_soap_envelope_cdata(nome_operacao, dados_xml),
-                _headers("text/xml; charset=utf-8"),
-                "CDATA + text/xml",
-            ),
-            (
-                montar_soap_envelope_xsd_string(nome_operacao, dados_xml),
-                _headers("text/xml; charset=utf-8"),
-                "xsd:string (XML escapado) + text/xml",
-            ),
-        )
-
-    def _do_post(soap_body: str, hdrs: dict):
-        return req.post(
-            base_url,
-            data=soap_body.encode("utf-8"),
-            headers=hdrs,
-            timeout=http_timeout,
-            cert=(cert_path, key_path),
-        )
+    strategies = _montar_estrategias_soap(nome_operacao, dados_xml, soap_action_uri)
 
     r = None
     for strat_idx, (soap_try, headers_try, label) in enumerate(strategies):
-        logger.info(
-            "ISSNet SOAP %s (~%d bytes, %s) com mTLS",
-            nome_operacao,
-            len(soap_try.encode("utf-8")),
-            label,
-        )
-        try:
-            r = _do_post(soap_try, headers_try)
-        except (
-            req.exceptions.ConnectionError,
-            req.exceptions.ChunkedEncodingError,
-            req.exceptions.ReadTimeout,
-        ) as e:
-            logger.warning("ISSNet SOAP POST: erro de conexao, uma nova tentativa: %s", e)
-            time.sleep(1.5)
-            r = _do_post(soap_try, headers_try)
-
-        logger.info(
-            "Resposta ISSNet HTTP %s, preview: %s",
-            r.status_code,
-            (r.text or "")[:500],
-        )
-        if r.status_code >= 400 or "Fault" in (r.text or ""):
-            logger.error("ISSNet resposta (ate 8000 chars): %s", (r.text or "")[:8000])
-
-        if r.status_code in (502, 503, 504) and not issnet_corpo_parece_xml(r.text or ""):
-            logger.warning(
-                "ISSNet HTTP %s sem XML; repetindo POST uma vez apos 2s",
-                r.status_code,
-            )
-            time.sleep(2.0)
-            r = _do_post(soap_try, headers_try)
-            logger.info(
-                "Resposta ISSNet HTTP %s (apos retry), preview: %s",
-                r.status_code,
-                (r.text or "")[:500],
-            )
-
-        if r.status_code in (502, 503, 504) and not issnet_corpo_parece_xml(r.text or ""):
-            msg = issnet_decodificar_corpo(r).strip() or "(sem corpo)"
-            msg = " ".join(msg.split())
-            return (
-                {
-                    "success": False,
-                    "error": (
-                        f"Servico ISSNet indisponivel (HTTP {r.status_code}). "
-                        f"Tente novamente em instantes. {msg[:400]}"
-                    ),
-                },
-                "",
-            )
-
-        if (
-            nome_operacao == "ConsultarNfsePorRps"
-            and strat_idx < len(strategies) - 1
-            and re.search(r"<\s*Codigo\s*>\s*E160\s*<\s*/\s*Codigo\s*>", (r.text or ""), re.IGNORECASE)
-        ):
-            logger.warning(
-                "ISSNet %s retornou E160 (schema) com %r; tentando formato alternativo",
-                nome_operacao,
-                label,
-            )
+        logger.info("ISSNet SOAP %s (~%d bytes, %s) com mTLS", nome_operacao, len(soap_try.encode("utf-8")), label)
+        r = _executar_post_com_retry(base_url, soap_try, headers_try, http_timeout, cert_path, key_path)
+        decisao = _avaliar_resposta_estrategia(r, nome_operacao, strat_idx, len(strategies), label)
+        if decisao is _SENTINEL_CONTINUAR:
             continue
-
-        if not (
-            issnet_corpo_parece_xml(r.text or "")
-            and issnet_fault_soap_generico(r.text or "")
-        ):
+        if decisao is _SENTINEL_PARAR:
             break
-        if strat_idx >= len(strategies) - 1:
-            break
-        logger.warning(
-            "ISSNet Fault generico com estrategia %r; tentando formato alternativo",
-            label,
-        )
+        return decisao, ""  # dict de erro retornado diretamente
 
     if not issnet_corpo_parece_xml(r.text or ""):
-        msg = issnet_decodificar_corpo(r).strip() or "(resposta vazia)"
-        msg = " ".join(msg.split())
-        return (
-            {
-                "success": False,
-                "error": (
-                    f"O webservice ISSNet respondeu HTTP {r.status_code} sem XML "
-                    f"(serviço indisponível ou erro no balanceador). {msg[:600]}"
-                ),
-            },
-            "",
-        )
+        msg = " ".join((issnet_decodificar_corpo(r).strip() or "(resposta vazia)").split())
+        return ({"success": False, "error": f"O webservice ISSNet respondeu HTTP {r.status_code} sem XML (servico indisponivel ou erro no balanceador). {msg[:600]}"}, "")
 
     xml_body = extrair_body_soap(r.text)
     return parse_resposta_xml(xml_body), xml_body

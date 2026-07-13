@@ -57,37 +57,24 @@ logger = logging.getLogger(__name__)
 _carregar_certificado = carregar_certificado
 
 
-def testar_conexao_issnet(
-    usuario: str,
-    senha: str,
-    certificado_path: str,
-    senha_certificado: str,
-    ambiente: str = "producao",
-) -> dict[str, Any]:
-    """Teste nao destrutivo: valida PFX/senha e tenta acessar o WSDL."""
-    import requests as req
-
-    out: dict[str, Any] = {
-        "success": False, "message": "", "detail": "",
-        "ambiente": "homologacao" if ambiente == "homologacao" else "producao",
-    }
+def _validar_params_conexao(
+    usuario: str, senha: str, certificado_path: str, senha_certificado: str, ambiente: str,
+    out: dict[str, Any],
+) -> bool:
+    """Valida parâmetros e carrega certificado. Preenche out['detail'] se inválido. Retorna True se ok."""
     if not (usuario or "").strip() or not (senha or "").strip():
         out["detail"] = "Informe usuario e senha ISSNet."
-        return out
+        return False
     path = (certificado_path or "").strip()
     if not path or not os.path.isfile(path):
         out["detail"] = "Certificado .pfx nao encontrado no servidor."
-        return out
+        return False
     if not (senha_certificado or ""):
         out["detail"] = "Informe a senha do certificado (.pfx)."
-        return out
-
-    amb = "homologacao" if ambiente == "homologacao" else "producao"
-    base = ISSNET_URLS.get(amb)
-    if not base:
+        return False
+    if not ISSNET_URLS.get("homologacao" if ambiente == "homologacao" else "producao"):
         out["detail"] = f"Ambiente ISSNet desconhecido: {ambiente}"
-        return out
-
+        return False
     try:
         _key, cert, _ = _carregar_certificado(path, senha_certificado)
         with contextlib.suppress(Exception):
@@ -95,10 +82,15 @@ def testar_conexao_issnet(
     except Exception as e:
         logger.warning("testar_conexao_issnet: falha PFX: %s", e)
         out["detail"] = "Nao foi possivel abrir o certificado. Verifique .pfx e senha."
-        return out
+        return False
+    return True
 
+
+def _verificar_wsdl_issnet(base_url: str, amb: str, out: dict[str, Any]) -> None:
+    """Faz GET no WSDL e preenche out com resultado."""
+    import requests as req
     try:
-        r = req.get(f"{base}?wsdl", timeout=25, headers={"User-Agent": "LWK-Sistemas/CRM"})
+        r = req.get(f"{base_url}?wsdl", timeout=25, headers={"User-Agent": "LWK-Sistemas/CRM"})
         body = (r.text or "")[:2000].lower()
         if r.status_code == 200 and ("definitions" in body or "wsdl" in body):
             out["success"] = True
@@ -116,6 +108,21 @@ def testar_conexao_issnet(
     except Exception as e:
         logger.warning("testar_conexao_issnet: request WSDL: %s", e)
         out["detail"] = f"Nao foi possivel contatar o ISSNet: {e}"
+
+
+def testar_conexao_issnet(
+    usuario: str,
+    senha: str,
+    certificado_path: str,
+    senha_certificado: str,
+    ambiente: str = "producao",
+) -> dict[str, Any]:
+    """Teste nao destrutivo: valida PFX/senha e tenta acessar o WSDL."""
+    amb = "homologacao" if ambiente == "homologacao" else "producao"
+    out: dict[str, Any] = {"success": False, "message": "", "detail": "", "ambiente": amb}
+    if not _validar_params_conexao(usuario, senha, certificado_path, senha_certificado, ambiente, out):
+        return out
+    _verificar_wsdl_issnet(ISSNET_URLS[amb], amb, out)
     return out
 
 
@@ -431,16 +438,70 @@ class ISSNetClient:
     # ------------------------------------------------------------------
     # Consultar NFS-e por RPS
     # ------------------------------------------------------------------
+    @staticmethod
+    def _extrair_url_de_tags(resp_str: str, tags: tuple[str, ...], *, filtrar_schemas: bool = False) -> str:
+        """Busca primeira URL válida dentro de tags XML. Se filtrar_schemas, ignora namespaces."""
+        _SCHEMAS = ("abrasf.org.br", "xmlsoap.org", "w3.org", "schemas.")
+        for tag in tags:
+            m = re.search(rf"<{tag}[^>]*>(.*?)</{tag}>", resp_str, re.IGNORECASE | re.DOTALL)
+            if m:
+                cand = m.group(1).strip()
+                if cand.startswith("http"):
+                    if filtrar_schemas and any(x in cand for x in _SCHEMAS):
+                        continue
+                    return cand
+        return ""
+
+    @staticmethod
+    def _extrair_url_http_fallback(resp_str: str) -> str:
+        """Busca primeira URL http/https na resposta que não seja namespace/schema."""
+        _SCHEMAS = ("abrasf.org.br", "xmlsoap.org", "w3.org", "schemas.")
+        for m in re.finditer(r'(https?://[^\s<>"&]+)', resp_str):
+            url = m.group(1)
+            if not any(x in url for x in _SCHEMAS):
+                return url
+        return ""
+
+    def _processar_resposta_consultar_url(self, resp_str: str, parsed: dict[str, Any]) -> dict[str, Any]:
+        """Tenta extrair URL de NFS-e a partir da resposta XML bruta — várias estratégias."""
+        from nfse_integration.issnet_response import parse_consultar_url_nfse_resposta
+
+        url_parsed = parse_consultar_url_nfse_resposta(resp_str)
+        if url_parsed.get("success") and url_parsed.get("numero_nf"):
+            url = str(url_parsed.get("url") or "").strip()
+            if not url:
+                url = self._extrair_url_de_tags(resp_str, ("UrlVisualizacaoNfse", "UrlNfse", "Url", "url"))
+            if url:
+                url_parsed["url"] = url
+            logger.info("ConsultarUrlNfse links extraídos: %s", url_parsed)
+            return url_parsed
+
+        nf_parsed = self._parse_resposta_xml(resp_str)
+        if nf_parsed.get("success") and nf_parsed.get("numero_nf"):
+            url = self._extrair_url_de_tags(resp_str, ("Url", "url", "Link", "link", "UrlNfse", "urlNfse"), filtrar_schemas=True)
+            return {**nf_parsed, "success": True, "url": url}
+
+        url = self._extrair_url_de_tags(resp_str, ("Url", "url", "Link", "link", "UrlNfse", "urlNfse"), filtrar_schemas=True)
+        if url:
+            logger.info("ConsultarUrlNfse URL encontrada: %s", url)
+            return {"success": True, "url": url}
+
+        url = self._extrair_url_http_fallback(resp_str)
+        if url:
+            logger.info("ConsultarUrlNfse URL via fallback: %s", url)
+            return {"success": True, "url": url}
+
+        if parsed.get("success") is False:
+            return {"success": False, "error": parsed.get("error", ""), "raw": resp_str[:500]}
+        return {"success": False, "error": "URL não encontrada na resposta", "raw": resp_str[:500]}
+
     def consultar_url_nfse(self, numero_nf: str, prestador_cnpj: str = "", inscricao_municipal: str = "") -> dict[str, Any]:
         """Chama ConsultarUrlNfse para obter a URL do PDF/portal oficial da NFS-e no ISSNet.
         Retorna {'success': True, 'url': '...'} ou {'success': False, 'error': '...'}.
         """
         try:
             cnpj = somente_digitos(prestador_cnpj or self.usuario or "")
-            xml_consulta = construir_xml_consultar_url_nfse(
-                numero_nf, cnpj, inscricao_municipal or "",
-            )
-            # Assinar o XML completo (Signature fica fora do Pedido, dentro do ConsultarUrlNfseEnvio)
+            xml_consulta = construir_xml_consultar_url_nfse(numero_nf, cnpj, inscricao_municipal or "")
             try:
                 xml_consulta = self._assinar_xml(xml_consulta)
             except Exception as e:
@@ -450,66 +511,9 @@ class ISSNetClient:
                 soap_action_uri="http://nfse.abrasf.org.br/ConsultarUrlNfse",
                 dados_xml=xml_consulta,
             )
-            # Logar resposta bruta completa para diagnóstico
             logger.info("ConsultarUrlNfse resposta bruta completa: %s", xml_body)
             logger.info("ConsultarUrlNfse parsed: %s", parsed)
-
-            resp_str = xml_body or ""
-
-            from nfse_integration.issnet_response import parse_consultar_url_nfse_resposta
-
-            url_parsed = parse_consultar_url_nfse_resposta(resp_str)
-            if url_parsed.get("success") and url_parsed.get("numero_nf"):
-                url = str(url_parsed.get("url") or "").strip()
-                if not url:
-                    for tag in ("UrlVisualizacaoNfse", "UrlNfse", "Url", "url"):
-                        url_match = re.search(
-                            rf"<{tag}[^>]*>(.*?)</{tag}>", resp_str, re.IGNORECASE | re.DOTALL,
-                        )
-                        if url_match:
-                            cand = url_match.group(1).strip()
-                            if cand.startswith("http"):
-                                url = cand
-                                break
-                if url:
-                    url_parsed["url"] = url
-                logger.info("ConsultarUrlNfse links extraídos: %s", url_parsed)
-                return url_parsed
-
-            nf_parsed = self._parse_resposta_xml(resp_str)
-            if nf_parsed.get("success") and nf_parsed.get("numero_nf"):
-                url = ""
-                for tag in ("Url", "url", "Link", "link", "UrlNfse", "urlNfse"):
-                    url_match = re.search(rf"<{tag}[^>]*>(.*?)</{tag}>", resp_str, re.IGNORECASE | re.DOTALL)
-                    if url_match:
-                        cand = url_match.group(1).strip()
-                        if cand.startswith("http") and not any(
-                            x in cand for x in ["abrasf.org.br", "xmlsoap.org", "w3.org", "schemas."]
-                        ):
-                            url = cand
-                            break
-                return {**nf_parsed, "success": True, "url": url}
-
-            # Tentar extrair URL da resposta XML — vários formatos possíveis
-            for tag in ("Url", "url", "Link", "link", "UrlNfse", "urlNfse"):
-                url_match = re.search(rf"<{tag}[^>]*>(.*?)</{tag}>", resp_str, re.IGNORECASE | re.DOTALL)
-                if url_match:
-                    url = url_match.group(1).strip()
-                    # Ignorar namespaces e URLs de schema
-                    if url and url.startswith("http") and not any(x in url for x in ["abrasf.org.br", "xmlsoap.org", "w3.org", "schemas."]):
-                        logger.info("ConsultarUrlNfse URL encontrada: %s", url)
-                        return {"success": True, "url": url}
-
-            # Procurar qualquer URL http que não seja o namespace
-            for http_match in re.finditer(r'(https?://[^\s<>"&]+)', resp_str):
-                url = http_match.group(1)
-                if "abrasf.org.br" not in url and "xmlsoap.org" not in url and "w3.org" not in url and "schemas." not in url:
-                    logger.info("ConsultarUrlNfse URL via fallback: %s", url)
-                    return {"success": True, "url": url}
-
-            if parsed.get("success") is False:
-                return {"success": False, "error": parsed.get("error", ""), "raw": resp_str[:500]}
-            return {"success": False, "error": "URL não encontrada na resposta", "raw": resp_str[:500]}
+            return self._processar_resposta_consultar_url(xml_body or "", parsed)
         except Exception as e:
             logger.warning("Erro ao consultar URL NFS-e ISSNet: %s", e)
             return {"success": False, "error": str(e)}
@@ -655,6 +659,51 @@ class ISSNetClient:
             logger.exception("Erro ao consultar NFS-e: %s", e)
             return {"success": False, "error": str(e)}
 
+    def _tentar_variante_consulta_rps(self, dados: str) -> dict[str, Any] | None:
+        """Tenta consultar NFS-e por RPS usando um XML (sem e com assinatura). Retorna resultado ou None."""
+        try:
+            dados_ass = self._assinar_xml(dados)
+        except Exception:
+            dados_ass = None
+        for xml_try in [d for d in (dados, dados_ass) if d]:
+            parsed, xml_body = self._post_soap_operacao(
+                nome_operacao="ConsultarNfsePorRps",
+                soap_action_uri="http://nfse.abrasf.org.br/ConsultarNfsePorRps",
+                dados_xml=xml_try,
+            )
+            resp_str = (xml_body or "").strip()
+            if not resp_str:
+                continue
+            if re.search(r"<\s*ListaMensagemRetorno\b", resp_str, re.IGNORECASE):
+                return {"_err": self._extrair_erros(resp_str)}
+            cancelada = bool(
+                re.search(r"<\s*(Cancelamento|NfseCancelada|ConfirmacaoCancelamento)\b", resp_str, re.IGNORECASE)
+                or re.search(r"DataHoraCancelamento", resp_str, re.IGNORECASE),
+            )
+            if cancelada:
+                return {"success": True, "cancelada": True, "raw_xml": resp_str[:8000]}
+            nf = self._parse_resposta_xml(resp_str)
+            if nf.get("success"):
+                return {**nf, "cancelada": False, "raw_xml": resp_str[:8000]}
+            if parsed and parsed.get("success") is False:
+                return {"_err": str(parsed.get("error") or "")}
+        return None
+
+    def _executar_tentativa_cancelamento(self, xml_payload: str, *, label: str) -> tuple[dict, str]:
+        """Assina e posta pedido de cancelamento. Retorna (parsed, xml_body)."""
+        xml_assinado = self._assinar_xml(xml_payload)
+        parsed_raw, xml_body = self._post_soap_operacao(
+            nome_operacao="CancelarNfse",
+            soap_action_uri="http://nfse.abrasf.org.br/CancelarNfse",
+            dados_xml=xml_assinado,
+        )
+        parsed = self._interpretar_cancelamento(parsed_raw or {}, xml_body or "")
+        if parsed.get("success") is False:
+            logger.warning("ISSNet cancelar_nfse falhou (%s): %s", label, parsed.get("error"))
+        elif parsed.get("success"):
+            logger.info("ISSNet cancelar_nfse OK (%s)", label)
+        return parsed, xml_body or ""
+
     def consultar_nfse_por_rps(
         self,
         *,
@@ -677,37 +726,13 @@ class ISSNetClient:
             )
             last_err = "NFS-e não encontrada na resposta do ISSNet."
             for dados in self._variantes_xml_consulta(xml_consulta, assinar=False):
-                try:
-                    dados_ass = self._assinar_xml(dados)
-                except Exception:
-                    dados_ass = None
-                for xml_try in [d for d in (dados, dados_ass) if d]:
-                    parsed, xml_body = self._post_soap_operacao(
-                        nome_operacao="ConsultarNfsePorRps",
-                        soap_action_uri="http://nfse.abrasf.org.br/ConsultarNfsePorRps",
-                        dados_xml=xml_try,
-                    )
-                    resp_str = (xml_body or "").strip()
-                    if not resp_str:
-                        continue
-                    if re.search(r"<\s*ListaMensagemRetorno\b", resp_str, re.IGNORECASE):
-                        last_err = self._extrair_erros(resp_str)
-                        continue
-                    cancelada = bool(
-                        re.search(
-                            r"<\s*(Cancelamento|NfseCancelada|ConfirmacaoCancelamento)\b",
-                            resp_str,
-                            re.IGNORECASE,
-                        )
-                        or re.search(r"DataHoraCancelamento", resp_str, re.IGNORECASE),
-                    )
-                    if cancelada:
-                        return {"success": True, "cancelada": True, "raw_xml": resp_str[:8000]}
-                    nf = self._parse_resposta_xml(resp_str)
-                    if nf.get("success"):
-                        return {**nf, "cancelada": False, "raw_xml": resp_str[:8000]}
-                    if parsed and parsed.get("success") is False:
-                        last_err = str(parsed.get("error") or last_err)
+                res = self._tentar_variante_consulta_rps(dados)
+                if res is None:
+                    continue
+                if "_err" in res:
+                    last_err = res["_err"] or last_err
+                    continue
+                return res
             return {"success": False, "error": last_err}
         except Exception as e:
             logger.exception("Erro ao consultar NFS-e por RPS: %s", e)
@@ -719,43 +744,22 @@ class ISSNetClient:
     def cancelar_nfse(self, numero_nf: str, motivo: str, prestador_cnpj: str = "", inscricao_municipal: str = "", codigo_cancelamento: str = "1") -> dict[str, Any]:
         """Cancela NFS-e emitida via ISSNet."""
         try:
-            def _tentar_cancelamento(xml_payload: str, *, label: str):
-                xml_assinado = self._assinar_xml(xml_payload)
-                parsed_raw, xml_body = self._post_soap_operacao(
-                    nome_operacao="CancelarNfse",
-                    soap_action_uri="http://nfse.abrasf.org.br/CancelarNfse",
-                    dados_xml=xml_assinado,
-                )
-                parsed = self._interpretar_cancelamento(parsed_raw or {}, xml_body or "")
-                if parsed.get("success") is False:
-                    logger.warning("ISSNet cancelar_nfse falhou (%s): %s", label, parsed.get("error"))
-                elif parsed.get("success"):
-                    logger.info("ISSNet cancelar_nfse OK (%s)", label)
-                return parsed, xml_body
-
             xml_cancelar_1 = construir_xml_cancelar_nfse(
-                numero_nf,
-                prestador_cnpj or self.usuario or "",
-                inscricao_municipal or "",
-                codigo_cancelamento,
+                numero_nf, prestador_cnpj or self.usuario or "", inscricao_municipal or "", codigo_cancelamento,
             )
-            parsed, xml_body = _tentar_cancelamento(xml_cancelar_1, label="pedido")
+            parsed, xml_body = self._executar_tentativa_cancelamento(xml_cancelar_1, label="pedido")
 
             if parsed and parsed.get("success") is False:
                 nf_digits = somente_digitos(str(numero_nf))
                 inf_id = f"cancel{nf_digits}" if nf_digits else "cancels01"
                 xml_cancelar_2 = construir_xml_cancelar_nfse(
-                    numero_nf,
-                    prestador_cnpj or self.usuario or "",
-                    inscricao_municipal or "",
-                    codigo_cancelamento,
+                    numero_nf, prestador_cnpj or self.usuario or "", inscricao_municipal or "", codigo_cancelamento,
                     inf_pedido_id=inf_id,
                 )
-                parsed, xml_body = _tentar_cancelamento(xml_cancelar_2, label="inf_pedido")
+                parsed, xml_body = self._executar_tentativa_cancelamento(xml_cancelar_2, label="inf_pedido")
 
             if parsed.get("success"):
                 return parsed
-
             return self._interpretar_cancelamento(parsed, xml_body or "")
         except Exception as e:
             logger.exception("Erro ao cancelar NFS-e: %s", e)

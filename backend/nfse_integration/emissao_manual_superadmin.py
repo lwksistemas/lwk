@@ -22,35 +22,54 @@ __all__ = [
 ]
 
 
+def _extrair_tomador_de_loja(loja_id: int) -> tuple[Any, str, str, str, dict[str, str]]:
+    """Carrega loja e retorna (loja, cpf_cnpj, nome, email, endereco_dict). Levanta EmissaoManualValidationError se não achar."""
+    from superadmin.models import Loja
+    try:
+        loja = Loja.objects.select_related("owner").get(id=loja_id, is_active=True)
+    except Loja.DoesNotExist as exc:
+        raise EmissaoManualValidationError("Loja não encontrada", status=404) from exc
+    cpf_cnpj = loja.cpf_cnpj or ""
+    nome = loja.nome
+    email = loja.owner.email if loja.owner else ""
+    endereco = {
+        "logradouro": getattr(loja, "logradouro", "") or "",
+        "numero": getattr(loja, "numero", "") or "S/N",
+        "complemento": getattr(loja, "complemento", "") or "",
+        "bairro": getattr(loja, "bairro", "") or "",
+        "cidade": getattr(loja, "cidade", "") or "Ribeirão Preto",
+        "uf": getattr(loja, "uf", "") or "SP",
+        "cep": getattr(loja, "cep", "") or "",
+    }
+    return loja, cpf_cnpj, nome, email, endereco
+
+
+def _extrair_tomador_do_request(data: dict) -> tuple[str, str, str, dict[str, str]]:
+    """Extrai dados do tomador direto do dicionário do request (sem loja)."""
+    cpf_cnpj = (data.get("tomador_cpf_cnpj") or "").strip()
+    nome = (data.get("tomador_nome") or "").strip()
+    email = (data.get("tomador_email") or "").strip()
+    endereco = {
+        "logradouro": data.get("tomador_logradouro", "") or "",
+        "numero": data.get("tomador_numero", "") or "",
+        "complemento": data.get("tomador_complemento", "") or "",
+        "bairro": data.get("tomador_bairro", "") or "",
+        "cidade": data.get("tomador_cidade", "") or "Ribeirão Preto",
+        "uf": data.get("tomador_uf", "") or "SP",
+        "cep": data.get("tomador_cep", "") or "",
+    }
+    return cpf_cnpj, nome, email, endereco
+
+
 def preparar_emissao_manual(data: dict) -> EmissaoManualPayload:
     """Valida entrada HTTP e monta payload de emissao."""
-    from superadmin.models import Loja
-
     loja_id = data.get("loja_id")
     loja = None
-    tomador_endereco_loja: dict[str, str] = {}
 
     if loja_id:
-        try:
-            loja = Loja.objects.select_related("owner").get(id=loja_id, is_active=True)
-            tomador_cpf_cnpj = loja.cpf_cnpj or ""
-            tomador_nome = loja.nome
-            tomador_email = loja.owner.email if loja.owner else ""
-            tomador_endereco_loja = {
-                "logradouro": getattr(loja, "logradouro", "") or "",
-                "numero": getattr(loja, "numero", "") or "S/N",
-                "complemento": getattr(loja, "complemento", "") or "",
-                "bairro": getattr(loja, "bairro", "") or "",
-                "cidade": getattr(loja, "cidade", "") or "Ribeirão Preto",
-                "uf": getattr(loja, "uf", "") or "SP",
-                "cep": getattr(loja, "cep", "") or "",
-            }
-        except Loja.DoesNotExist as exc:
-            raise EmissaoManualValidationError("Loja não encontrada", status=404) from exc
+        loja, tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco = _extrair_tomador_de_loja(loja_id)
     else:
-        tomador_cpf_cnpj = (data.get("tomador_cpf_cnpj") or "").strip()
-        tomador_nome = (data.get("tomador_nome") or "").strip()
-        tomador_email = (data.get("tomador_email") or "").strip()
+        tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco = _extrair_tomador_do_request(data)
 
     if not tomador_cpf_cnpj:
         raise EmissaoManualValidationError("CPF/CNPJ do tomador é obrigatório")
@@ -68,19 +87,6 @@ def preparar_emissao_manual(data: dict) -> EmissaoManualPayload:
     descricao = (data.get("servico_descricao") or data.get("descricao_servico") or "").strip()
     if not descricao:
         raise EmissaoManualValidationError("Descrição do serviço é obrigatória")
-
-    if loja_id:
-        tomador_endereco = tomador_endereco_loja
-    else:
-        tomador_endereco = {
-            "logradouro": data.get("tomador_logradouro", "") or "",
-            "numero": data.get("tomador_numero", "") or "",
-            "complemento": data.get("tomador_complemento", "") or "",
-            "bairro": data.get("tomador_bairro", "") or "",
-            "cidade": data.get("tomador_cidade", "") or "Ribeirão Preto",
-            "uf": data.get("tomador_uf", "") or "SP",
-            "cep": data.get("tomador_cep", "") or "",
-        }
 
     enriquecer_endereco_por_cep(tomador_endereco)
     tomador_endereco["email"] = tomador_email

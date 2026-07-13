@@ -2,7 +2,6 @@
 Controle de produtos (botox, ácido hialurônico, soros, etc.)
 """
 import logging
-import re
 
 from django.db.models import F, Sum
 from django.utils.text import slugify
@@ -420,6 +419,63 @@ class EstoqueResumoView(APIView):
         })
 
 
+def _verificar_destinatario_nf(resultado, loja_id):
+    """Verifica se o destinatário da NF confere com o documento da loja. Retorna aviso ou None."""
+    import re as _re
+
+    from superadmin.models import Loja
+    from tenants.middleware import get_current_loja_id
+
+    lid = get_current_loja_id() or loja_id
+    if not (lid and resultado.get("nota", {}).get("destinatario_documento")):
+        return None
+    loja = Loja.objects.filter(id=lid).first()
+    if not loja:
+        return None
+    loja_doc = _re.sub(r"\D", "", loja.cpf_cnpj or "")
+    nf_doc = _re.sub(r"\D", "", resultado["nota"]["destinatario_documento"])
+    if loja_doc and nf_doc and loja_doc != nf_doc:
+        return (
+            f'O destinatário da NF ({resultado["nota"].get("destinatario_nome", "")} - '
+            f'{nf_doc}) não confere com o documento da loja ({loja_doc}).'
+        )
+    return None
+
+
+def _parsear_override_produtos(raw):
+    """Converte raw (str JSON ou lista) para lista de dicts, ou None se inválido."""
+    import json as _json
+    if not raw:
+        return None
+    if isinstance(raw, str):
+        try:
+            raw = _json.loads(raw)
+        except _json.JSONDecodeError:
+            return None
+    return raw if isinstance(raw, list) and raw else None
+
+
+def _mesclar_overrides_categoria(resultado_produtos, produtos_override, loja_id):
+    """Aplica overrides de categoria dos produtos_override sobre os produtos do resultado."""
+    by_nome = {str(p.get("nome", "")).strip().lower(): p for p in produtos_override if isinstance(p, dict)}
+    for p in resultado_produtos:
+        ov = by_nome.get(str(p.get("nome", "")).strip().lower())
+        if not ov:
+            continue
+        if ov.get("categoria"):
+            p["categoria"] = ov["categoria"]
+        if ov.get("categoria_id") not in (None, ""):
+            p["categoria_id"] = ov["categoria_id"]
+        cat = resolver_categoria(
+            loja_id=loja_id,
+            categoria_id=int(p["categoria_id"]) if str(p.get("categoria_id") or "").isdigit() else None,
+            slug=p.get("categoria") or "outro",
+        )
+        if cat:
+            p["categoria"] = cat.slug
+            p["categoria_id"] = cat.id
+
+
 class EstoqueImportarXmlView(APIView):
     """POST /clinica-beleza/estoque/importar-xml/
     Upload de XML NF-e para importar produtos ao estoque.
@@ -458,9 +514,8 @@ class EstoqueImportarXmlView(APIView):
         confirmar = str(request.data.get("confirmar", "false")).lower() in ("true", "1")
 
         try:
-            xml_content = arquivo.read()
             resultado = importar_produtos_xml(
-                xml_content,
+                arquivo.read(),
                 categoria=categoria_slug,
                 categoria_id=cat.id if cat else None,
                 loja_id=loja_id,
@@ -473,87 +528,23 @@ class EstoqueImportarXmlView(APIView):
             return Response({"error": "Erro ao processar o XML. Verifique o formato."}, status=status.HTTP_400_BAD_REQUEST)
 
         if not confirmar:
-            aviso_destinatario = None
-            from superadmin.models import Loja
-            from tenants.middleware import get_current_loja_id
-
-            lid = get_current_loja_id() or loja_id
-            if lid and resultado.get("nota", {}).get("destinatario_documento"):
-                loja = Loja.objects.filter(id=lid).first()
-                if loja:
-                    loja_doc = re.sub(r"\D", "", loja.cpf_cnpj or "")
-                    nf_doc = re.sub(r"\D", "", resultado["nota"]["destinatario_documento"])
-                    if loja_doc and nf_doc and loja_doc != nf_doc:
-                        aviso_destinatario = (
-                            f'O destinatário da NF ({resultado["nota"].get("destinatario_nome", "")} - '
-                            f'{nf_doc}) não confere com o documento da loja ({loja_doc}).'
-                        )
-
-            response_data = {
-                "preview": True,
-                **resultado,
-            }
-            if aviso_destinatario:
-                response_data["aviso_destinatario"] = aviso_destinatario
-            return Response(response_data)
-
-        import json
+            resp = {"preview": True, **resultado}
+            aviso = _verificar_destinatario_nf(resultado, loja_id)
+            if aviso:
+                resp["aviso_destinatario"] = aviso
+            return Response(resp)
 
         from .estoque_xml_import_service import confirmar_importacao_xml
 
-        # Permite override por item enviado no confirm (JSON string ou lista)
-        produtos_override = request.data.get("produtos")
+        produtos_override = _parsear_override_produtos(request.data.get("produtos"))
         if produtos_override:
-            if isinstance(produtos_override, str):
-                try:
-                    produtos_override = json.loads(produtos_override)
-                except json.JSONDecodeError:
-                    produtos_override = None
-            if isinstance(produtos_override, list) and produtos_override:
-                # Mescla overrides de categoria sobre o parse do XML (prioriza slug)
-                by_nome = {str(p.get("nome", "")).strip().lower(): p for p in produtos_override if isinstance(p, dict)}
-                for p in resultado["produtos"]:
-                    ov = by_nome.get(str(p.get("nome", "")).strip().lower())
-                    if not ov:
-                        continue
-                    if ov.get("categoria"):
-                        p["categoria"] = ov["categoria"]
-                    if ov.get("categoria_id") not in (None, ""):
-                        p["categoria_id"] = ov["categoria_id"]
-                    # Re-resolve na loja atual para não propagar PK de outro contexto
-                    cat = resolver_categoria(
-                        loja_id=loja_id,
-                        categoria_id=int(p["categoria_id"]) if str(p.get("categoria_id") or "").isdigit() else None,
-                        slug=p.get("categoria") or "outro",
-                    )
-                    if cat:
-                        p["categoria"] = cat.slug
-                        p["categoria_id"] = cat.id
+            _mesclar_overrides_categoria(resultado["produtos"], produtos_override, loja_id)
 
         result = confirmar_importacao_xml(resultado["produtos"], loja_id=loja_id)
-
-        aviso_destinatario = None
-        from superadmin.models import Loja
-        from tenants.middleware import get_current_loja_id
-
-        lid = get_current_loja_id() or loja_id
-        if lid and resultado.get("nota", {}).get("destinatario_documento"):
-            loja = Loja.objects.filter(id=lid).first()
-            if loja:
-                loja_doc = re.sub(r"\D", "", loja.cpf_cnpj or "")
-                nf_doc = re.sub(r"\D", "", resultado["nota"]["destinatario_documento"])
-                if loja_doc and nf_doc and loja_doc != nf_doc:
-                    aviso_destinatario = (
-                        f'O destinatário da NF ({resultado["nota"].get("destinatario_nome", "")} - '
-                        f'{nf_doc}) não confere com o documento da loja ({loja_doc}).'
-                    )
-
-        response_data = {
-            **result,
-            "nota": resultado["nota"],
-        }
-        if aviso_destinatario:
-            response_data["aviso_destinatario"] = aviso_destinatario
+        response_data = {**result, "nota": resultado["nota"]}
+        aviso = _verificar_destinatario_nf(resultado, loja_id)
+        if aviso:
+            response_data["aviso_destinatario"] = aviso
 
         return Response(
             response_data,

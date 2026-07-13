@@ -109,6 +109,46 @@ def _parse_date(value: str) -> date | None:
         return None
 
 
+def _extrair_inf_nfe(root: ET.Element) -> ET.Element:
+    """Localiza o elemento infNFe no XML da NF-e. Levanta ValueError se não encontrado."""
+    for tag in [f"{NFE_NS}infNFe", "infNFe"]:
+        el = root.find(f".//{tag}")
+        if el is not None:
+            return el
+    for child in root.iter():
+        local = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+        if local == "infNFe":
+            return child
+    raise ValueError("Estrutura de NF-e não encontrada no XML.")
+
+
+def _get_prod_field(prod_node: ET.Element, field: str) -> str:
+    """Retorna texto do elemento filho com tag local igual a field."""
+    for el in prod_node:
+        local = el.tag.split("}")[-1] if "}" in el.tag else el.tag
+        if local == field:
+            return (el.text or "").strip()
+    return ""
+
+
+def _extrair_lote_validade(det: ET.Element) -> tuple[str, str]:
+    """Extrai lote e validade do elemento <det> (via <rastro> ou <med>)."""
+    lote = ""
+    validade_str = ""
+    for rastro_tag in ["rastro", "med"]:
+        for rastro in det.iter():
+            r_tag = rastro.tag.split("}")[-1] if "}" in rastro.tag else rastro.tag
+            if r_tag != rastro_tag:
+                continue
+            for r_child in rastro:
+                rc_tag = r_child.tag.split("}")[-1] if "}" in r_child.tag else r_child.tag
+                if rc_tag == "nLote" and not lote:
+                    lote = (r_child.text or "").strip()
+                if rc_tag == "dVal" and not validade_str:
+                    validade_str = (r_child.text or "").strip()
+    return lote, validade_str
+
+
 def parse_nfe_xml(xml_content: bytes) -> dict:
     """Parseia XML de NF-e e extrai produtos.
 
@@ -129,23 +169,7 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
     except ET.ParseError as e:
         raise ValueError(f"XML inválido: {e}")
 
-    # Remover namespace do root tag para facilitar busca
-    # Tentar encontrar <infNFe> em qualquer profundidade
-    inf_nfe = None
-    for tag in [f"{NFE_NS}infNFe", "infNFe"]:
-        inf_nfe = root.find(f".//{tag}")
-        if inf_nfe is not None:
-            break
-
-    if inf_nfe is None:
-        # Pode ser o próprio root ou estar em <NFe> ou <nfeProc>
-        for child in root.iter():
-            if "infNFe" in (child.tag.split("}")[-1] if "}" in child.tag else child.tag):
-                inf_nfe = child
-                break
-
-    if inf_nfe is None:
-        raise ValueError("Estrutura de NF-e não encontrada no XML.")
+    inf_nfe = _extrair_inf_nfe(root)
 
     # Dados da nota
     numero_nota = _find_text(inf_nfe, "ide/nNF")
@@ -169,49 +193,25 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
         if tag_name != "det":
             continue
 
-        prod = None
-        for child in det:
-            child_tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
-            if child_tag == "prod":
-                prod = child
-                break
-
+        prod = next(
+            (c for c in det if (c.tag.split("}")[-1] if "}" in c.tag else c.tag) == "prod"), None,
+        )
         if prod is None:
             continue
 
-        def get_prod_text(field: str, prod_node=prod) -> str:
-            for el in prod_node:
-                el_tag = el.tag.split("}")[-1] if "}" in el.tag else el.tag
-                if el_tag == field:
-                    return (el.text or "").strip()
-            return ""
-
-        nome = get_prod_text("xProd")
+        nome = _get_prod_field(prod, "xProd")
         if not nome:
             continue
 
-        # Lote e validade (pode estar em <rastro> ou <med>)
-        lote = ""
-        validade_str = ""
-        for rastro_tag in ["rastro", "med"]:
-            for rastro in det.iter():
-                r_tag = rastro.tag.split("}")[-1] if "}" in rastro.tag else rastro.tag
-                if r_tag == rastro_tag:
-                    for r_child in rastro:
-                        rc_tag = r_child.tag.split("}")[-1] if "}" in r_child.tag else r_child.tag
-                        if rc_tag == "nLote" and not lote:
-                            lote = (r_child.text or "").strip()
-                        if rc_tag == "dVal" and not validade_str:
-                            validade_str = (r_child.text or "").strip()
-
+        lote, validade_str = _extrair_lote_validade(det)
         produto = {
             "nome": nome.upper()[:200],
-            "codigo_produto": get_prod_text("cProd"),
-            "ncm": get_prod_text("NCM"),
-            "unidade_medida": (get_prod_text("uCom") or "unidade").lower()[:30],
-            "quantidade": str(_parse_decimal(get_prod_text("qCom"))),
-            "preco_unitario": str(_parse_decimal(get_prod_text("vUnCom"))),
-            "valor_total": str(_parse_decimal(get_prod_text("vProd"))),
+            "codigo_produto": _get_prod_field(prod, "cProd"),
+            "ncm": _get_prod_field(prod, "NCM"),
+            "unidade_medida": (_get_prod_field(prod, "uCom") or "unidade").lower()[:30],
+            "quantidade": str(_parse_decimal(_get_prod_field(prod, "qCom"))),
+            "preco_unitario": str(_parse_decimal(_get_prod_field(prod, "vUnCom"))),
+            "valor_total": str(_parse_decimal(_get_prod_field(prod, "vProd"))),
             "lote": lote[:50],
             "validade": validade_str[:10] if validade_str else None,
         }

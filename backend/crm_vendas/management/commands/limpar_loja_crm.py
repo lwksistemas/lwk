@@ -5,6 +5,25 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 
+def _contar_seguro(model):
+    """Conta registros do model sem falhar se a tabela não existir."""
+    try:
+        return model.objects.count()
+    except Exception:
+        return 0
+
+
+def _deletar_seguro(stdout, model, label):
+    """Exclui todos os registros do model, retornando a contagem deletada."""
+    try:
+        count = model.objects.all().delete()[0]
+        stdout.write(f"  ✅ {count} {label} excluído(s)")
+        return count
+    except Exception:
+        stdout.write(f"  ⚠️  Tabela de {label} não existe (loja antiga)")
+        return 0
+
+
 class Command(BaseCommand):
     help = "Limpa todos os dados de uma loja CRM (CUIDADO: irreversível!)"
 
@@ -42,69 +61,21 @@ class Command(BaseCommand):
         self.stdout.write(f"\n🏪 Loja ID: {loja_id}")
         self.stdout.write("=" * 60)
 
-        # Contar dados existentes (com tratamento de erro para tabelas que não existem)
-        counts = {}
-
-        # Tentar contar cada modelo, ignorando erros de tabela não existente
-        try:
-            counts["Assinaturas Digitais"] = AssinaturaDigital.objects.count()
-        except Exception:
-            counts["Assinaturas Digitais"] = 0
-
-        try:
-            counts["Contratos"] = Contrato.objects.count()
-        except Exception:
-            counts["Contratos"] = 0
-
-        try:
-            counts["Propostas"] = Proposta.objects.count()
-        except Exception:
-            counts["Propostas"] = 0
-
-        try:
-            counts["Itens de Oportunidade"] = OportunidadeItem.objects.count()
-        except Exception:
-            counts["Itens de Oportunidade"] = 0
-
-        try:
-            counts["Atividades"] = Atividade.objects.count()
-        except Exception:
-            counts["Atividades"] = 0
-
-        try:
-            counts["Oportunidades"] = Oportunidade.objects.count()
-        except Exception:
-            counts["Oportunidades"] = 0
-
-        try:
-            counts["Contatos"] = Contato.objects.count()
-        except Exception:
-            counts["Contatos"] = 0
-
-        try:
-            counts["Leads"] = Lead.objects.count()
-        except Exception:
-            counts["Leads"] = 0
-
-        try:
-            counts["Contas"] = Conta.objects.count()
-        except Exception:
-            counts["Contas"] = 0
-
-        try:
-            counts["Produtos/Serviços"] = ProdutoServico.objects.count()
-        except Exception:
-            counts["Produtos/Serviços"] = 0
-
-        try:
-            counts["Templates de Proposta"] = PropostaTemplate.objects.count()
-        except Exception:
-            counts["Templates de Proposta"] = 0
-
-        try:
-            counts["Templates de Contrato"] = ContratoTemplate.objects.count()
-        except Exception:
-            counts["Templates de Contrato"] = 0
+        modelos_contagem = [
+            ("Assinaturas Digitais", AssinaturaDigital),
+            ("Contratos", Contrato),
+            ("Propostas", Proposta),
+            ("Itens de Oportunidade", OportunidadeItem),
+            ("Atividades", Atividade),
+            ("Oportunidades", Oportunidade),
+            ("Contatos", Contato),
+            ("Leads", Lead),
+            ("Contas", Conta),
+            ("Produtos/Serviços", ProdutoServico),
+            ("Templates de Proposta", PropostaTemplate),
+            ("Templates de Contrato", ContratoTemplate),
+        ]
+        counts = {label: _contar_seguro(model) for label, model in modelos_contagem}
 
         self.stdout.write("\n📊 Dados atuais:")
         total = 0
@@ -141,116 +112,10 @@ class Command(BaseCommand):
 
         try:
             with transaction.atomic():
-                # Ordem de exclusão (respeitar FKs)
-                deleted_counts = {}
-
-                # 1. Assinaturas digitais (FK para Proposta/Contrato)
-                try:
-                    count = AssinaturaDigital.objects.all().delete()[0]
-                    deleted_counts["Assinaturas Digitais"] = count
-                    self.stdout.write(f"  ✅ {count} assinaturas digitais excluídas")
-                except Exception:
-                    deleted_counts["Assinaturas Digitais"] = 0
-                    self.stdout.write("  ⚠️  Tabela de assinaturas digitais não existe (loja antiga)")
-
-                # 2. Contratos
-                try:
-                    count = Contrato.objects.all().delete()[0]
-                    deleted_counts["Contratos"] = count
-                    self.stdout.write(f"  ✅ {count} contratos excluídos")
-                except Exception:
-                    deleted_counts["Contratos"] = 0
-                    self.stdout.write("  ⚠️  Tabela de contratos não existe (loja antiga)")
-
-                # 3. Propostas
-                try:
-                    count = Proposta.objects.all().delete()[0]
-                    deleted_counts["Propostas"] = count
-                    self.stdout.write(f"  ✅ {count} propostas excluídas")
-                except Exception:
-                    deleted_counts["Propostas"] = 0
-                    self.stdout.write("  ⚠️  Tabela de propostas não existe (loja antiga)")
-
-                # 4. Itens de Oportunidade
-                try:
-                    count = OportunidadeItem.objects.all().delete()[0]
-                    deleted_counts["Itens de Oportunidade"] = count
-                    self.stdout.write(f"  ✅ {count} itens de oportunidade excluídos")
-                except Exception:
-                    deleted_counts["Itens de Oportunidade"] = 0
-                    self.stdout.write("  ⚠️  Tabela de itens não existe (loja antiga)")
-
-                # 5. Atividades
-                try:
-                    count = Atividade.objects.all().delete()[0]
-                    deleted_counts["Atividades"] = count
-                    self.stdout.write(f"  ✅ {count} atividades excluídas")
-                except Exception:
-                    deleted_counts["Atividades"] = 0
-                    self.stdout.write("  ⚠️  Tabela de atividades não existe (loja antiga)")
-
-                # 6. Oportunidades
-                try:
-                    count = Oportunidade.objects.all().delete()[0]
-                    deleted_counts["Oportunidades"] = count
-                    self.stdout.write(f"  ✅ {count} oportunidades excluídas")
-                except Exception:
-                    deleted_counts["Oportunidades"] = 0
-                    self.stdout.write("  ⚠️  Tabela de oportunidades não existe (loja antiga)")
-
-                # 7. Contatos
-                try:
-                    count = Contato.objects.all().delete()[0]
-                    deleted_counts["Contatos"] = count
-                    self.stdout.write(f"  ✅ {count} contatos excluídos")
-                except Exception:
-                    deleted_counts["Contatos"] = 0
-                    self.stdout.write("  ⚠️  Tabela de contatos não existe (loja antiga)")
-
-                # 8. Leads
-                try:
-                    count = Lead.objects.all().delete()[0]
-                    deleted_counts["Leads"] = count
-                    self.stdout.write(f"  ✅ {count} leads excluídos")
-                except Exception:
-                    deleted_counts["Leads"] = 0
-                    self.stdout.write("  ⚠️  Tabela de leads não existe (loja antiga)")
-
-                # 9. Contas
-                try:
-                    count = Conta.objects.all().delete()[0]
-                    deleted_counts["Contas"] = count
-                    self.stdout.write(f"  ✅ {count} contas excluídas")
-                except Exception:
-                    deleted_counts["Contas"] = 0
-                    self.stdout.write("  ⚠️  Tabela de contas não existe (loja antiga)")
-
-                # 10. Produtos/Serviços
-                try:
-                    count = ProdutoServico.objects.all().delete()[0]
-                    deleted_counts["Produtos/Serviços"] = count
-                    self.stdout.write(f"  ✅ {count} produtos/serviços excluídos")
-                except Exception:
-                    deleted_counts["Produtos/Serviços"] = 0
-                    self.stdout.write("  ⚠️  Tabela de produtos/serviços não existe (loja antiga)")
-
-                # 11. Templates de Proposta
-                try:
-                    count = PropostaTemplate.objects.all().delete()[0]
-                    deleted_counts["Templates de Proposta"] = count
-                    self.stdout.write(f"  ✅ {count} templates de proposta excluídos")
-                except Exception:
-                    deleted_counts["Templates de Proposta"] = 0
-                    self.stdout.write("  ⚠️  Tabela de templates de proposta não existe (loja antiga)")
-
-                # 12. Templates de Contrato
-                try:
-                    count = ContratoTemplate.objects.all().delete()[0]
-                    deleted_counts["Templates de Contrato"] = count
-                    self.stdout.write(f"  ✅ {count} templates de contrato excluídos")
-                except Exception:
-                    deleted_counts["Templates de Contrato"] = 0
-                    self.stdout.write("  ⚠️  Tabela de templates de contrato não existe (loja antiga)")
+                deleted_counts = {
+                    label: _deletar_seguro(self.stdout, model, label)
+                    for label, model in modelos_contagem
+                }
 
                 total_deleted = sum(deleted_counts.values())
 

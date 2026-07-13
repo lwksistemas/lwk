@@ -220,6 +220,40 @@ def _enriquecer_nome_usuario_autenticado(user, loja_id) -> str:
     return nome_user
 
 
+def _identidade_token_publico(
+    nome: str, email: str, loja_id: int | None, loja_id_ctx: int | None,
+    prefixo_nome: str, email_fallback: str, rotulo_fallback: str,
+) -> tuple[object | None, str, str, int | None]:
+    """Monta tupla de identidade a partir de dados extraídos do token público."""
+    loja_final = loja_id or loja_id_ctx
+    if nome:
+        return None, email or email_fallback, f"{prefixo_nome}: {nome}", loja_final
+    return None, email_fallback, rotulo_fallback, loja_final
+
+
+def _identidade_paciente_link_publico(
+    path: str, loja_id_ctx: int | None,
+) -> tuple[object | None, str, str, int | None] | None:
+    """Resolve identidade de paciente/cliente em links públicos de assinatura ou foto."""
+    if path.startswith("/api/clinica-beleza/assinar-consentimento/"):
+        nome, email, loja_id = _nome_assinatura_termo_token(_extrair_token_publico(path, "/assinar-consentimento/"))
+        return _identidade_token_publico(nome, email, loja_id, loja_id_ctx, "Paciente", "link-publico@paciente", "Paciente (termo de consentimento)")
+    if path.startswith("/api/clinica-beleza/enviar-foto/"):
+        nome, email, loja_id = _nome_paciente_foto_token(_extrair_token_publico(path, "/enviar-foto/"))
+        return _identidade_token_publico(nome, email, loja_id, loja_id_ctx, "Paciente", "link-publico@paciente", "Paciente (envio de foto)")
+    if "/assinar/" in path and path.startswith("/api/"):
+        nome, email, loja_id = _nome_assinatura_crm_token(_extrair_token_publico(path, "/assinar/"))
+        return _identidade_token_publico(nome, email, loja_id, loja_id_ctx, "Cliente", "link-publico@cliente", "Cliente (assinatura digital)")
+    return None
+
+
+def _identidade_por_path_publico(path: str, loja_id_ctx: int | None) -> tuple[object | None, str, str, int | None] | None:
+    """Verifica paths públicos conhecidos e retorna identidade ou None se não reconhecido."""
+    if path.startswith("/api/asaas/"):
+        return None, "api@asaas.sistema", "Integração Asaas", loja_id_ctx
+    return _identidade_paciente_link_publico(path, loja_id_ctx)
+
+
 def resolver_identidade_historico(request) -> tuple[object | None, str, str, int | None]:
     """Retorna (user, usuario_email, usuario_nome, loja_id_sugerida).
 
@@ -235,38 +269,18 @@ def resolver_identidade_historico(request) -> tuple[object | None, str, str, int
         usuario_nome = _enriquecer_nome_usuario_autenticado(user, loja_id_ctx)
         return user, usuario_email, usuario_nome, loja_id_ctx
 
-    if path.startswith("/api/asaas/"):
-        return None, "api@asaas.sistema", "Integração Asaas", loja_id_ctx
-
     if path.startswith("/api/whatsapp/evolution/webhook"):
         return _identidade_evolution_webhook(request)
-
-    if path.startswith("/api/clinica-beleza/assinar-consentimento/"):
-        token = _extrair_token_publico(path, "/assinar-consentimento/")
-        nome, email, loja_id = _nome_assinatura_termo_token(token)
-        if nome:
-            return None, email or "link-publico@paciente", f"Paciente: {nome}", loja_id or loja_id_ctx
-        return None, "link-publico@paciente", "Paciente (termo de consentimento)", loja_id or loja_id_ctx
-
-    if path.startswith("/api/clinica-beleza/enviar-foto/"):
-        token = _extrair_token_publico(path, "/enviar-foto/")
-        nome, email, loja_id = _nome_paciente_foto_token(token)
-        if nome:
-            return None, email or "link-publico@paciente", f"Paciente: {nome}", loja_id or loja_id_ctx
-        return None, "link-publico@paciente", "Paciente (envio de foto)", loja_id or loja_id_ctx
-
-    if "/assinar/" in path and path.startswith("/api/"):
-        token = _extrair_token_publico(path, "/assinar/")
-        nome, email, loja_id = _nome_assinatura_crm_token(token)
-        if nome:
-            return None, email or "link-publico@cliente", f"Cliente: {nome}", loja_id or loja_id_ctx
-        return None, "link-publico@cliente", "Cliente (assinatura digital)", loja_id or loja_id_ctx
 
     if path.startswith("/api/superadmin/lojas/recuperar_senha/"):
         email = _email_do_body(request)
         if email:
             return None, email, f"Recuperação de senha: {email}", None
         return None, "recuperacao@publico", "Recuperação de senha (loja)", None
+
+    res = _identidade_por_path_publico(path, loja_id_ctx)
+    if res is not None:
+        return res
 
     if path.rstrip("/") in ("", "/") and request.method == "POST":
         return None, "bot@externo", "Bot / varredura (POST na raiz)", None

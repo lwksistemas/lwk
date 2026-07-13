@@ -10,6 +10,29 @@ from .mixins import CRMPermissionMixin
 from .utils import get_loja_from_context
 
 
+def _patch_imagem_loja(loja, field, data, loja_slug, delete_fn):
+    """Atualiza campo de imagem na loja, deletando a imagem antiga do Cloudinary se necessário."""
+    if field not in data:
+        return False
+    val = (data.get(field) or "").strip()
+    old_val = (getattr(loja, field) or "").strip()
+    if old_val and old_val != val and "cloudinary.com" in old_val:
+        delete_fn(old_val, loja_slug)
+    setattr(loja, field, val[:200] if val else "")
+    return True
+
+
+def _patch_cor_loja(loja, field, data):
+    """Atualiza campo de cor hex simples (#RRGGBB) na loja."""
+    if field not in data:
+        return False
+    val = (data.get(field) or "").strip()
+    if val and val.startswith("#") and len(val) <= 7:
+        setattr(loja, field, val[:7])
+        return True
+    return False
+
+
 def _serialize_login_config(loja) -> dict:
     tipo = getattr(loja, "tipo_loja", None)
     cor_default = getattr(tipo, "cor_primaria", None) if tipo else None
@@ -65,69 +88,32 @@ class LoginConfigView(CRMPermissionMixin, APIView):
 
         update_fields = ["updated_at"]
         loja_slug = loja.slug
+        data = request.data
 
-        if "logo" in request.data:
-            val = (request.data.get("logo") or "").strip()
-            old_logo = (loja.logo or "").strip()
-            if old_logo and old_logo != val and "cloudinary.com" in old_logo:
-                delete_cloudinary_image(old_logo, loja_slug)
-            loja.logo = val[:200] if val else ""
-            update_fields.append("logo")
+        for img_field in ("logo", "login_background", "login_logo"):
+            if _patch_imagem_loja(loja, img_field, data, loja_slug, delete_cloudinary_image):
+                update_fields.append(img_field)
 
-        if "login_background" in request.data:
-            val = (request.data.get("login_background") or "").strip()
-            old_background = (loja.login_background or "").strip()
-            if old_background and old_background != val and "cloudinary.com" in old_background:
-                delete_cloudinary_image(old_background, loja_slug)
-            loja.login_background = val[:200] if val else ""
-            update_fields.append("login_background")
+        for cor_field in ("cor_primaria", "cor_secundaria"):
+            if _patch_cor_loja(loja, cor_field, data):
+                update_fields.append(cor_field)
 
-        if "login_logo" in request.data:
-            val = (request.data.get("login_logo") or "").strip()
-            old_login_logo = (loja.login_logo or "").strip()
-            if old_login_logo and old_login_logo != val and "cloudinary.com" in old_login_logo:
-                delete_cloudinary_image(old_login_logo, loja_slug)
-            loja.login_logo = val[:200] if val else ""
-            update_fields.append("login_logo")
-
-        if "cor_primaria" in request.data:
-            val = (request.data.get("cor_primaria") or "").strip()
-            if val and val.startswith("#") and len(val) <= 7:
-                loja.cor_primaria = val[:7]
-                update_fields.append("cor_primaria")
-        if "cor_secundaria" in request.data:
-            val = (request.data.get("cor_secundaria") or "").strip()
-            if val and val.startswith("#") and len(val) <= 7:
-                loja.cor_secundaria = val[:7]
-                update_fields.append("cor_secundaria")
-
-        if "cor_fundo_pagina" in request.data:
-            raw = request.data.get("cor_fundo_pagina")
+        if "cor_fundo_pagina" in data:
+            raw = data.get("cor_fundo_pagina")
             if raw is None or str(raw).strip() == "":
                 loja.cor_fundo_pagina = ""
-                update_fields.append("cor_fundo_pagina")
             else:
-                hex_val = normalize_hex_color(raw)
-                if hex_val:
-                    loja.cor_fundo_pagina = hex_val
-                    update_fields.append("cor_fundo_pagina")
+                loja.cor_fundo_pagina = normalize_hex_color(raw) or loja.cor_fundo_pagina
+            update_fields.append("cor_fundo_pagina")
 
-        if "agenda_status_colors" in request.data:
-            loja.agenda_status_colors = sanitize_agenda_status_colors(
-                request.data.get("agenda_status_colors"),
-            )
+        if "agenda_status_colors" in data:
+            loja.agenda_status_colors = sanitize_agenda_status_colors(data.get("agenda_status_colors"))
             update_fields.append("agenda_status_colors")
-
-        if "colunas_consultas" in request.data:
-            loja.colunas_consultas = sanitize_colunas_consultas(
-                request.data.get("colunas_consultas"),
-            )
+        if "colunas_consultas" in data:
+            loja.colunas_consultas = sanitize_colunas_consultas(data.get("colunas_consultas"))
             update_fields.append("colunas_consultas")
-
-        if "colunas_estoque" in request.data:
-            loja.colunas_estoque = sanitize_colunas_estoque(
-                request.data.get("colunas_estoque"),
-            )
+        if "colunas_estoque" in data:
+            loja.colunas_estoque = sanitize_colunas_estoque(data.get("colunas_estoque"))
             update_fields.append("colunas_estoque")
 
         loja.save(update_fields=update_fields)

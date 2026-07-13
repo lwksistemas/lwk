@@ -66,6 +66,27 @@ class ProfessionalService:
             return False
 
     @staticmethod
+    def _sincronizar_vendedor_existente(vendedor, owner, owner_telefone: str, loja_slug: str):
+        """Sincroniza nome/email/telefone do vendedor existente se diferirem do owner."""
+        nome = owner.get_full_name() or owner.username or (owner.email or "").split("@")[0]
+        email_owner = (owner.email or "").strip()
+        tel = (owner_telefone or "").strip()
+        campos = {}
+        if nome and vendedor.nome != nome:
+            campos["nome"] = nome
+        if email_owner and (vendedor.email or "").strip().lower() != email_owner.lower():
+            campos["email"] = email_owner
+        if tel and (vendedor.telefone or "").strip() != tel:
+            campos["telefone"] = tel
+        if campos:
+            for k, v in campos.items():
+                setattr(vendedor, k, v)
+            vendedor.save(update_fields=list(campos.keys()))
+            logger.info("✅ Vendedor admin atualizado na loja %s: %s", loja_slug, ", ".join(campos.keys()))
+        else:
+            logger.info("✅ Vendedor já existe, apenas vinculando: %s", vendedor.nome)
+
+    @staticmethod
     def criar_vendedor_admin_crm(loja, owner, owner_telefone: str = "") -> bool:
         """Cria vendedor admin para CRM Vendas e vincula ao owner via VendedorUsuario.
         Deve ser chamado APÓS o schema da loja existir (configurar_schema_completo).
@@ -106,40 +127,14 @@ class ProfessionalService:
                 ).first()
 
             if not vendedor_existente:
-                # Criar novo vendedor
                 nome = owner.get_full_name() or owner.username or (owner.email or "").split("@")[0]
                 vendedor_existente = Vendedor.objects.using(loja.database_name).create(
-                    nome=nome,
-                    email=owner.email or "",
-                    telefone=owner_telefone or "",
-                    cargo="Gerente de Vendas",
-                    is_admin=False,  # Não usar flag legacy
-                    is_active=True,
-                    loja_id=loja.id,
+                    nome=nome, email=owner.email or "", telefone=owner_telefone or "",
+                    cargo="Gerente de Vendas", is_admin=False, is_active=True, loja_id=loja.id,
                 )
                 logger.info(f"✅ Vendedor criado para administrador: {nome}")
             else:
-                nome = owner.get_full_name() or owner.username or (owner.email or "").split("@")[0]
-                campos = {}
-                if nome and vendedor_existente.nome != nome:
-                    campos["nome"] = nome
-                email_owner = (owner.email or "").strip()
-                if email_owner and (vendedor_existente.email or "").strip().lower() != email_owner.lower():
-                    campos["email"] = email_owner
-                tel = (owner_telefone or "").strip()
-                if tel and (vendedor_existente.telefone or "").strip() != tel:
-                    campos["telefone"] = tel
-                if campos:
-                    for k, v in campos.items():
-                        setattr(vendedor_existente, k, v)
-                    vendedor_existente.save(update_fields=list(campos.keys()))
-                    logger.info(
-                        "✅ Vendedor admin atualizado na loja %s: %s",
-                        loja.slug,
-                        ", ".join(campos.keys()),
-                    )
-                else:
-                    logger.info(f"✅ Vendedor já existe, apenas vinculando: {vendedor_existente.nome}")
+                ProfessionalService._sincronizar_vendedor_existente(vendedor_existente, owner, owner_telefone, loja.slug)
 
             # Criar VendedorUsuario para vincular owner ao vendedor
             VendedorUsuario.objects.create(

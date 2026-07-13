@@ -93,6 +93,99 @@ def empty_dashboard_response():
     }
 
 
+def _filtrar_querysets_por_vendedor(leads_qs, opp_qs, atividades_qs, vendedores_qs, vendedor_id, request_or_is_owner):
+    """Aplica filtro de vendedor nas querysets. request_or_is_owner pode ser o vendedor_id apenas."""
+    if vendedor_id is not None:
+        leads_qs = leads_qs.filter(
+            Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id),
+        ).distinct()
+        opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
+        atividades_qs = atividades_qs.filter(_filtro_atividades_vendedor(vendedor_id)).distinct()
+        vendedores_qs = vendedores_qs.filter(id=vendedor_id)
+    return leads_qs, opp_qs, atividades_qs, vendedores_qs
+
+
+def _calcular_performance_vendedores(vendedores_qs, opp_qs, data_inicio, data_fim, loja_id):
+    """Calcula performance por vendedor + comissão total e faz merge de vendas sem vendedor.
+    Retorna (performance_list, comissao_total_mes).
+    """
+    filtro_perf = _filtro_fechamento_no_periodo(data_inicio, data_fim, prefix="oportunidades")
+    perf_qs = vendedores_qs.annotate(
+        receita_mes=Sum("oportunidades__valor", filter=Q(oportunidades__etapa="closed_won") & filtro_perf),
+        comissao_mes=Sum("oportunidades__valor_comissao", filter=Q(oportunidades__etapa="closed_won") & filtro_perf),
+    )
+    performance = [
+        {"id": v.id, "nome": v.nome, "receita_mes": float(v.receita_mes or 0), "comissao_mes": float(v.comissao_mes or 0)}
+        for v in perf_qs
+    ]
+    filtro_mes = _filtro_fechamento_no_periodo(data_inicio, data_fim)
+    comissao_total_mes = opp_qs.filter(etapa="closed_won").filter(filtro_mes).aggregate(total=Sum("valor_comissao"))["total"] or 0
+    _merge_vendas_sem_vendedor(performance, opp_qs, filtro_mes, loja_id)
+    performance.sort(key=lambda x: -x["receita_mes"])
+    return performance, comissao_total_mes
+
+
+def _calcular_agregacoes_opp(opp_qs, filtro_opp_mes, filtro_abertas_periodo, data_inicio, data_fim):
+    """Agrega métricas principais de oportunidades em uma única query."""
+    agg = opp_qs.aggregate(
+        total_oportunidades=Count("id"),
+        receita=Sum("valor", filter=Q(etapa="closed_won") & filtro_opp_mes),
+        pipeline_aberto=Sum("valor", filter=filtro_abertas_periodo),
+        oportunidades_em_andamento=Count("id", filter=filtro_abertas_periodo),
+        total_fechados=Count("id", filter=Q(etapa__in=["closed_won", "closed_lost"]) & (filtro_opp_mes | Q(etapa="closed_lost", data_fechamento_perdido__gte=data_inicio, data_fechamento_perdido__lte=data_fim))),
+        total_ganhos=Count("id", filter=Q(etapa="closed_won") & filtro_opp_mes),
+        valor_perdido=Sum("valor", filter=Q(etapa="closed_lost") & Q(data_fechamento_perdido__gte=data_inicio, data_fechamento_perdido__lte=data_fim)),
+    )
+    total_fechados = agg["total_fechados"] or 0
+    total_ganhos = agg["total_ganhos"] or 0
+    taxa_conversao = round((total_ganhos / total_fechados * 100), 1) if total_fechados else 0
+    return agg, taxa_conversao
+
+
+def _calcular_pipeline_por_etapa(opp_qs, filtro_abertas_periodo, data_inicio, data_fim):
+    """Calcula pipeline por etapa (abertas + fechadas) para o período selecionado."""
+    pipeline_aberto_map = {
+        row["etapa"]: {"valor": float(row["valor"] or 0), "quantidade": row["qtd"] or 0}
+        for row in opp_qs.filter(filtro_abertas_periodo).values("etapa").annotate(valor=Sum("valor"), qtd=Count("id"))
+    }
+    _filtro_fechado_periodo = (
+        Q(data_fechamento_ganho__gte=data_inicio, data_fechamento_ganho__lte=data_fim)
+        | Q(data_fechamento_perdido__gte=data_inicio, data_fechamento_perdido__lte=data_fim)
+        | (Q(data_fechamento_ganho__isnull=True, data_fechamento_perdido__isnull=True) & Q(data_fechamento__gte=data_inicio, data_fechamento__lte=data_fim))
+    )
+    pipeline_fechado_map = {
+        row["etapa"]: {"valor": float(row["valor"] or 0), "quantidade": row["qtd"] or 0}
+        for row in opp_qs.filter(etapa__in=["closed_won", "closed_lost"]).filter(_filtro_fechado_periodo).values("etapa").annotate(valor=Sum("valor"), qtd=Count("id"))
+    }
+    pipeline_map = {**pipeline_aberto_map, **pipeline_fechado_map}
+    return [
+        {"etapa": e, **(pipeline_map.get(e, {"valor": 0, "quantidade": 0}))}
+        for e in ETAPAS_PIPELINE
+    ]
+
+
+def _merge_vendas_sem_vendedor(performance_vendedores, opp_qs, filtro_opp_mes_direto, loja_id):
+    """Agrega vendas sem vendedor ou de vendedor inativo ao entry do administrador."""
+    base_fechadas = opp_qs.filter(etapa="closed_won").filter(filtro_opp_mes_direto)
+    extras_agg = base_fechadas.filter(
+        Q(vendedor_id__isnull=True) | Q(vendedor__is_active=False),
+    ).aggregate(receita=Sum("valor"), comissao=Sum("valor_comissao"))
+    rec_sem = float(extras_agg["receita"] or 0)
+    com_sem = float(extras_agg["comissao"] or 0)
+    if rec_sem <= 0 and com_sem <= 0:
+        return
+    admin_v = get_vendedor_destino_merge_loja(loja_id)
+    if admin_v:
+        for row in performance_vendedores:
+            if row["id"] == admin_v.id:
+                row["receita_mes"] += rec_sem
+                row["comissao_mes"] += com_sem
+                return
+        performance_vendedores.append({"id": admin_v.id, "nome": admin_v.nome, "receita_mes": rec_sem, "comissao_mes": com_sem})
+    else:
+        performance_vendedores.append({"id": None, "nome": "Sem vendedor", "receita_mes": rec_sem, "comissao_mes": com_sem})
+
+
 def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
                             data_fim_param, vendedor_id_filtro, status_filtro, is_owner):
     """Constrói o payload do dashboard. Lógica pura sem HTTP.
@@ -105,25 +198,15 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
     atividades_qs = Atividade.objects.all()
     vendedores_qs = Vendedor.objects.filter(is_active=True)
 
-    # Filtro por vendedor logado (não-owner)
-    if vendedor_id is not None:
-        leads_qs = leads_qs.filter(
-            Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id),
-        ).distinct()
-        opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
-        atividades_qs = atividades_qs.filter(_filtro_atividades_vendedor(vendedor_id)).distinct()
-        vendedores_qs = vendedores_qs.filter(id=vendedor_id)
-
-    # Filtro por vendedor específico (owner filtrando por vendedor)
+    leads_qs, opp_qs, atividades_qs, vendedores_qs = _filtrar_querysets_por_vendedor(
+        leads_qs, opp_qs, atividades_qs, vendedores_qs, vendedor_id, None,
+    )
     if is_owner and vendedor_id_filtro and vendedor_id_filtro != "todos":
         try:
             vid = int(vendedor_id_filtro)
-            leads_qs = leads_qs.filter(
-                Q(oportunidades__vendedor_id=vid) | Q(vendedor_id=vid),
-            ).distinct()
-            opp_qs = opp_qs.filter(vendedor_id=vid)
-            atividades_qs = atividades_qs.filter(_filtro_atividades_vendedor(vid)).distinct()
-            vendedores_qs = vendedores_qs.filter(id=vid)
+            leads_qs, opp_qs, atividades_qs, vendedores_qs = _filtrar_querysets_por_vendedor(
+                leads_qs, opp_qs, atividades_qs, vendedores_qs, vid, None,
+            )
         except (ValueError, TypeError):
             pass
 
@@ -138,91 +221,14 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
     filtro_opp_mes = _filtro_fechamento_no_periodo(data_inicio, data_fim)
     filtro_abertas_periodo = _filtro_oportunidades_abertas_periodo(periodo, data_inicio, data_fim)
 
-    # Agregações principais (1 query)
-    agg = opp_qs.aggregate(
-        total_oportunidades=Count("id"),
-        receita=Sum("valor", filter=Q(etapa="closed_won") & filtro_opp_mes),
-        pipeline_aberto=Sum("valor", filter=filtro_abertas_periodo),
-        oportunidades_em_andamento=Count("id", filter=filtro_abertas_periodo),
-        total_fechados=Count("id", filter=Q(etapa__in=["closed_won", "closed_lost"]) & (filtro_opp_mes | Q(etapa="closed_lost", data_fechamento_perdido__gte=data_inicio, data_fechamento_perdido__lte=data_fim))),
-        total_ganhos=Count("id", filter=Q(etapa="closed_won") & filtro_opp_mes),
-        valor_perdido=Sum("valor", filter=Q(etapa="closed_lost") & Q(data_fechamento_perdido__gte=data_inicio, data_fechamento_perdido__lte=data_fim)),
-    )
-    total_fechados = agg["total_fechados"] or 0
-    total_ganhos = agg["total_ganhos"] or 0
-    taxa_conversao = round((total_ganhos / total_fechados * 100), 1) if total_fechados else 0
+    agg, taxa_conversao = _calcular_agregacoes_opp(opp_qs, filtro_opp_mes, filtro_abertas_periodo, data_inicio, data_fim)
 
-    # Pipeline por etapa (1 query)
-    # Etapas abertas: criadas no período selecionado
-    # Etapas fechadas (ganho/perdido): filtra pela data de fechamento no período
-    pipeline_aberto_map = {
-        row["etapa"]: {"valor": float(row["valor"] or 0), "quantidade": row["qtd"] or 0}
-        for row in opp_qs.filter(filtro_abertas_periodo)
-        .values("etapa")
-        .annotate(valor=Sum("valor"), qtd=Count("id"))
-    }
-    # Fechadas: filtra por data_fechamento_ganho, data_fechamento_perdido ou data_fechamento
-    _filtro_fechado_periodo = (
-        Q(data_fechamento_ganho__gte=data_inicio, data_fechamento_ganho__lte=data_fim)
-        | Q(data_fechamento_perdido__gte=data_inicio, data_fechamento_perdido__lte=data_fim)
-        | (
-            Q(data_fechamento_ganho__isnull=True, data_fechamento_perdido__isnull=True)
-            & Q(data_fechamento__gte=data_inicio, data_fechamento__lte=data_fim)
-        )
-    )
-    pipeline_fechado_map = {
-        row["etapa"]: {"valor": float(row["valor"] or 0), "quantidade": row["qtd"] or 0}
-        for row in opp_qs.filter(etapa__in=["closed_won", "closed_lost"])
-        .filter(_filtro_fechado_periodo)
-        .values("etapa")
-        .annotate(valor=Sum("valor"), qtd=Count("id"))
-    }
-    pipeline_map = {**pipeline_aberto_map, **pipeline_fechado_map}
-    pipeline_por_etapa = [
-        {"etapa": e, **(pipeline_map.get(e, {"valor": 0, "quantidade": 0}))}
-        for e in ETAPAS_PIPELINE
-    ]
+    pipeline_por_etapa = _calcular_pipeline_por_etapa(opp_qs, filtro_abertas_periodo, data_inicio, data_fim)
 
     atividades_data = _fetch_proximas_atividades(atividades_qs, limit=10)
-
-    # Performance vendedores (usa período selecionado pelo filtro)
-    filtro_perf = _filtro_fechamento_no_periodo(data_inicio, data_fim, prefix="oportunidades")
-    perf_qs = vendedores_qs.annotate(
-        receita_mes=Sum("oportunidades__valor", filter=Q(oportunidades__etapa="closed_won") & filtro_perf),
-        comissao_mes=Sum("oportunidades__valor_comissao", filter=Q(oportunidades__etapa="closed_won") & filtro_perf),
+    performance_vendedores, comissao_total_mes = _calcular_performance_vendedores(
+        vendedores_qs, opp_qs, data_inicio, data_fim, loja_id,
     )
-    performance_vendedores = [
-        {"id": v.id, "nome": v.nome, "receita_mes": float(v.receita_mes or 0), "comissao_mes": float(v.comissao_mes or 0)}
-        for v in perf_qs
-    ]
-
-    filtro_opp_mes_direto = _filtro_fechamento_no_periodo(data_inicio, data_fim)
-    comissao_total_mes = opp_qs.filter(etapa="closed_won").filter(filtro_opp_mes_direto).aggregate(
-        total=Sum("valor_comissao"),
-    )["total"] or 0
-
-    # Merge vendas sem vendedor / vendedor inativo no administrador
-    base_fechadas = opp_qs.filter(etapa="closed_won").filter(filtro_opp_mes_direto)
-    extras_agg = base_fechadas.filter(
-        Q(vendedor_id__isnull=True) | Q(vendedor__is_active=False),
-    ).aggregate(receita=Sum("valor"), comissao=Sum("valor_comissao"))
-    rec_sem = float(extras_agg["receita"] or 0)
-    com_sem = float(extras_agg["comissao"] or 0)
-    if rec_sem > 0 or com_sem > 0:
-        admin_v = get_vendedor_destino_merge_loja(loja_id)
-        if admin_v:
-            merged = False
-            for row in performance_vendedores:
-                if row["id"] == admin_v.id:
-                    row["receita_mes"] += rec_sem
-                    row["comissao_mes"] += com_sem
-                    merged = True
-                    break
-            if not merged:
-                performance_vendedores.append({"id": admin_v.id, "nome": admin_v.nome, "receita_mes": rec_sem, "comissao_mes": com_sem})
-        else:
-            performance_vendedores.append({"id": None, "nome": "Sem vendedor", "receita_mes": rec_sem, "comissao_mes": com_sem})
-    performance_vendedores.sort(key=lambda x: -x["receita_mes"])
 
     return {
         "leads": leads_qs.filter(created_at__date__gte=data_inicio, created_at__date__lte=data_fim).count(),

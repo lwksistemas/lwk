@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { useUsuarioList } from '@/hooks/useUsuarioList';
-import { useUsuarioActions, Usuario } from '@/hooks/useUsuarioActions';
+import { useUsuarioActions, Usuario, UsuarioFormData } from '@/hooks/useUsuarioActions';
 import { UsuarioCard, UsuarioModal } from '@/components/superadmin/usuarios';
 
 export default function UsuariosPage() {
@@ -36,15 +36,15 @@ export default function UsuariosPage() {
       await excluirUsuario(usuario);
       alert('✅ Usuário excluído com sucesso!');
       reload();
-    } catch (error: any) {
-      alert(`❌ ${error.message}`);
+    } catch (error) {
+      alert(`❌ ${error instanceof Error ? error.message : 'Erro ao excluir usuário'}`);
     }
   };
 
   const handleToggleStatus = async (usuario: Usuario) => {
     const novoStatus = !usuario.is_active;
     const acao = novoStatus ? 'ativar' : 'desativar';
-    
+
     if (!confirm(`Deseja ${acao} o usuário ${usuario.user.username}?`)) {
       return;
     }
@@ -53,12 +53,12 @@ export default function UsuariosPage() {
       await toggleStatus(usuario);
       alert(`✅ Usuário ${novoStatus ? 'ativado' : 'desativado'} com sucesso!`);
       reload();
-    } catch (error: any) {
-      alert(`❌ ${error.message}`);
+    } catch (error) {
+      alert(`❌ ${error instanceof Error ? error.message : 'Erro ao alterar status do usuário'}`);
     }
   };
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: UsuarioFormData) => {
     try {
       if (editandoUsuario) {
         await atualizarUsuario(editandoUsuario.id, data);
@@ -71,8 +71,8 @@ export default function UsuariosPage() {
       reload();
       setShowModal(false);
       setEditandoUsuario(null);
-    } catch (error: any) {
-      alert(`❌ ${error.message}`);
+    } catch (error) {
+      alert(`❌ ${error instanceof Error ? error.message : 'Erro ao salvar usuário'}`);
     }
   };
 

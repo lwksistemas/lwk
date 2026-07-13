@@ -226,6 +226,87 @@ def _deduplicar_historico_pagamentos(historico):
     return result
 
 
+def _resolve_status_pagamento(pl, ap):
+    """Retorna (status_raw, status_display, is_paid, is_pending, is_overdue) a partir do PagamentoLoja e AsaasPayment."""
+    if pl.status == "pago":
+        status_display, is_paid, is_pending, is_overdue = "Pago", True, False, False
+        status_raw = "RECEIVED" if ap else "pago"
+    elif pl.status == "atrasado":
+        status_display, is_paid, is_pending, is_overdue = "Vencido", False, False, True
+        status_raw = "OVERDUE" if ap else "atrasado"
+    else:
+        status_display, is_paid, is_pending, is_overdue = "Aguardando pagamento", False, True, False
+        status_raw = "PENDING" if ap else "pendente"
+
+    if ap:
+        if ap.status in ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"]:
+            status_display, is_paid, is_pending, is_overdue = "Recebida", True, False, False
+            status_raw = ap.status
+        elif ap.status == "OVERDUE":
+            status_display, is_paid, is_pending, is_overdue = "Vencida", False, False, True
+            status_raw = ap.status
+        elif ap.status == "PENDING":
+            status_raw = ap.status
+
+    return status_raw, status_display, is_paid, is_pending, is_overdue
+
+
+def _resolve_urls_boleto_pix(pl, ap, is_paid, is_pending, is_overdue, boleto_url_fallback, pix_copy_fallback, asaas_due_fallback):
+    """Resolve boleto_url, pix_copy e pix_qr para um PagamentoLoja, aplicando regras de visibilidade."""
+    boleto_url = (pl.boleto_url or "").strip()
+    if not boleto_url and ap:
+        boleto_url = (ap.bank_slip_url or ap.invoice_url or "").strip()
+    if not boleto_url and is_pending and boleto_url_fallback and asaas_due_fallback and pl.data_vencimento == asaas_due_fallback:
+        boleto_url = boleto_url_fallback
+
+    pix_copy = (pl.pix_copy_paste or "").strip()
+    pix_qr = (pl.pix_qr_code or "").strip()
+    if ap:
+        pix_copy = pix_copy or (ap.pix_copy_paste or "").strip()
+        pix_qr = pix_qr or (ap.pix_qr_code or "").strip()
+    if not pix_copy and is_pending:
+        pix_copy = (pix_copy_fallback or "").strip()
+
+    if (is_pending or is_overdue) and pl.data_vencimento and not _boleto_pix_liberado_para_vencimento(pl.data_vencimento):
+        boleto_url = pix_copy = pix_qr = ""
+
+    return boleto_url, pix_copy, pix_qr
+
+
+def _build_historico_item(pl, ap, asaas_id, financeiro, boleto_url, pix_copy, pix_qr, status_raw, status_display, is_paid, is_pending, is_overdue):
+    """Monta o dict de um item do histórico de pagamentos."""
+    provedor = getattr(pl, "provedor_boleto", None) or getattr(financeiro, "provedor_boleto", None) or "asaas"
+    data_pagamento = None
+    if pl.data_pagamento:
+        data_pagamento = pl.data_pagamento.strftime("%Y-%m-%d")
+    elif ap and ap.payment_date:
+        data_pagamento = ap.payment_date.strftime("%Y-%m-%d")
+    nf = _nfse_para_pagamento(pl, asaas_id)
+    return {
+        "pagamento_loja_id": pl.id,
+        "id": pl.id,
+        "asaas_id": asaas_id or "",
+        "mercadopago_payment_id": (pl.mercadopago_payment_id or "").strip(),
+        "provedor_boleto": provedor,
+        "valor": float(ap.value if ap and ap.value is not None else (pl.valor or 0)),
+        "status": status_raw,
+        "status_display": status_display,
+        "data_vencimento": pl.data_vencimento.strftime("%Y-%m-%d") if pl.data_vencimento else None,
+        "data_pagamento": data_pagamento,
+        "boleto_url": boleto_url,
+        "pix_copy_paste": pix_copy,
+        "pix_qr_code": pix_qr,
+        "is_paid": is_paid,
+        "is_pending": is_pending,
+        "is_overdue": is_overdue,
+        "tem_nota_fiscal": bool(nf),
+        "numero_nf": (nf.numero_nf or "") if nf else "",
+        "nf_pdf_url": (nf.pdf_url or "") if nf else "",
+        "referencia_mes": pl.referencia_mes.strftime("%Y-%m-%d") if pl.referencia_mes else None,
+        "pode_baixar_boleto": not is_paid and bool(asaas_id or boleto_url or pl.mercadopago_payment_id),
+    }
+
+
 def _build_historico_pagamentos_loja(
     loja,
     financeiro,
@@ -270,90 +351,15 @@ def _build_historico_pagamentos_loja(
             ap = asaas_by_due.get(pl.data_vencimento)
             if ap and ap.asaas_id:
                 asaas_id = ap.asaas_id
-        provedor = (getattr(pl, "provedor_boleto", None) or getattr(financeiro, "provedor_boleto", None) or "asaas")
 
-        if pl.status == "pago":
-            status_display = "Pago"
-            is_paid, is_pending, is_overdue = True, False, False
-            status_raw = "RECEIVED" if ap else "pago"
-        elif pl.status == "atrasado":
-            status_display = "Vencido"
-            is_paid, is_pending, is_overdue = False, False, True
-            status_raw = "OVERDUE" if ap else "atrasado"
-        else:
-            status_display = "Aguardando pagamento"
-            is_paid, is_pending, is_overdue = False, True, False
-            status_raw = "PENDING" if ap else "pendente"
-
-        if ap:
-            if ap.status in ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"]:
-                status_display = "Recebida"
-                is_paid, is_pending, is_overdue = True, False, False
-                status_raw = ap.status
-            elif ap.status == "OVERDUE":
-                status_display = "Vencida"
-                is_paid, is_pending, is_overdue = False, False, True
-                status_raw = ap.status
-            elif ap.status == "PENDING":
-                status_raw = ap.status
-
-        boleto_url = (pl.boleto_url or "").strip()
-        if not boleto_url and ap:
-            boleto_url = (ap.bank_slip_url or ap.invoice_url or "").strip()
-        if not boleto_url and is_pending and boleto_url_fallback:
-            pl_due = pl.data_vencimento
-            if asaas_due_fallback and pl_due == asaas_due_fallback:
-                boleto_url = boleto_url_fallback
-
-        pix_copy = (pl.pix_copy_paste or "").strip()
-        pix_qr = (pl.pix_qr_code or "").strip()
-        if ap:
-            pix_copy = pix_copy or (ap.pix_copy_paste or "").strip()
-            pix_qr = pix_qr or (ap.pix_qr_code or "").strip()
-        if not pix_copy and is_pending:
-            pix_copy = (pix_copy_fallback or "").strip()
-
-        if (is_pending or is_overdue) and pl.data_vencimento and not _boleto_pix_liberado_para_vencimento(
-            pl.data_vencimento,
-        ):
-            boleto_url = ""
-            pix_copy = ""
-            pix_qr = ""
-
-        data_pagamento = None
-        if pl.data_pagamento:
-            data_pagamento = pl.data_pagamento.strftime("%Y-%m-%d")
-        elif ap and ap.payment_date:
-            data_pagamento = ap.payment_date.strftime("%Y-%m-%d")
-
-        nf = _nfse_para_pagamento(pl, asaas_id)
-
-        historico.append({
-            "pagamento_loja_id": pl.id,
-            "id": pl.id,
-            "asaas_id": asaas_id or "",
-            "mercadopago_payment_id": (pl.mercadopago_payment_id or "").strip(),
-            "provedor_boleto": provedor,
-            "valor": float(ap.value if ap and ap.value is not None else (pl.valor or 0)),
-            "status": status_raw,
-            "status_display": status_display,
-            "data_vencimento": pl.data_vencimento.strftime("%Y-%m-%d") if pl.data_vencimento else None,
-            "data_pagamento": data_pagamento,
-            "boleto_url": boleto_url,
-            "pix_copy_paste": pix_copy,
-            "pix_qr_code": pix_qr,
-            "is_paid": is_paid,
-            "is_pending": is_pending,
-            "is_overdue": is_overdue,
-            "tem_nota_fiscal": bool(nf),
-            "numero_nf": (nf.numero_nf or "") if nf else "",
-            "nf_pdf_url": (nf.pdf_url or "") if nf else "",
-            "referencia_mes": pl.referencia_mes.strftime("%Y-%m-%d") if pl.referencia_mes else None,
-            "pode_baixar_boleto": (
-                not is_paid
-                and bool(asaas_id or boleto_url or pl.mercadopago_payment_id)
-            ),
-        })
+        status_raw, status_display, is_paid, is_pending, is_overdue = _resolve_status_pagamento(pl, ap)
+        boleto_url, pix_copy, pix_qr = _resolve_urls_boleto_pix(
+            pl, ap, is_paid, is_pending, is_overdue, boleto_url_fallback, pix_copy_fallback, asaas_due_fallback,
+        )
+        historico.append(_build_historico_item(
+            pl, ap, asaas_id, financeiro, boleto_url, pix_copy, pix_qr,
+            status_raw, status_display, is_paid, is_pending, is_overdue,
+        ))
 
     historico = _deduplicar_historico_pagamentos(historico)
     historico = _suprimir_pendentes_obsoletos_historico(historico)

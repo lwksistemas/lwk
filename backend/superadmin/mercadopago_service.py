@@ -253,6 +253,127 @@ class LojaMercadoPagoService:
             and self._config.enabled
         )
 
+    def _get_payer_data(self, loja) -> dict[str, Any]:
+        """Retorna dados do pagador (email, nome) a partir do owner da loja."""
+        try:
+            from django.contrib.auth.models import User
+            owner = loja.owner
+            if not isinstance(owner, User):
+                owner = getattr(loja, "owner_id", None) and User.objects.get(pk=loja.owner_id)
+            email = getattr(owner, "email", "") or ""
+            first_name = (getattr(owner, "first_name", "") or "").strip() or loja.nome[:50]
+            last_name = (getattr(owner, "last_name", "") or "").strip() or "."
+        except Exception as e:
+            logger.warning("Dados do owner da loja: %s", e)
+            email = ""
+            first_name = loja.nome[:50] if loja.nome else "Cliente"
+            last_name = "."
+        return {"email": email, "first_name": first_name, "last_name": last_name}
+
+    def _validate_address(self, loja) -> dict[str, Any] | None:
+        """Valida e retorna endereço da loja para boleto MP. Retorna None se inválido."""
+        cep_ok = (getattr(loja, "cep", None) or "").replace("-", "").replace(" ", "").strip()
+        cep_ok = len(cep_ok) >= 8
+        endereco_ok = bool(
+            (getattr(loja, "logradouro", None) or "").strip()
+            and (getattr(loja, "cidade", None) or "").strip()
+            and (getattr(loja, "uf", None) or "").strip()
+        )
+        if not cep_ok or not endereco_ok:
+            return None
+        return {
+            "zip_code": (getattr(loja, "cep", None) or "").strip(),
+            "street_name": (getattr(loja, "logradouro", None) or "").strip(),
+            "street_number": (getattr(loja, "numero", None) or "").strip(),
+            "neighborhood": (getattr(loja, "bairro", None) or "").strip(),
+            "city": (getattr(loja, "cidade", None) or "").strip(),
+            "federal_unit": (getattr(loja, "uf", None) or "").strip()[:2].upper(),
+        }
+
+    def _normalize_due_date(self, financeiro) -> str:
+        """Normaliza data de vencimento para string YYYY-MM-DD, limitando a 28 dias."""
+        due_date = financeiro.data_proxima_cobranca
+        if hasattr(due_date, "strftime"):
+            due_date = due_date.strftime("%Y-%m-%d")
+        else:
+            due_date = str(due_date)[:10]
+        try:
+            dt_due = datetime.strptime(due_date, "%Y-%m-%d").date()
+            today = date.today()
+            if (dt_due - today).days > 28:
+                due_date = (today + timedelta(days=28)).strftime("%Y-%m-%d")
+                logger.info("Mercado Pago: vencimento limitado a 28 dias: %s", due_date)
+        except Exception:
+            pass
+        return due_date
+
+    def _extract_boleto_url(self, result: dict) -> str:
+        """Extrai a URL do boleto da resposta do MP."""
+        transaction_details = result.get("transaction_details") or {}
+        boleto_url = (
+            transaction_details.get("external_resource_url")
+            or result.get("transaction_details", {}).get("external_resource_url")
+            or ""
+        )
+        if not boleto_url and result.get("point_of_interaction"):
+            poi = result.get("point_of_interaction", {})
+            boleto_url = poi.get("transaction_data", {}).get("ticket_url") or ""
+        return boleto_url
+
+    @staticmethod
+    def _extract_pix_from_response(pix_result: dict) -> tuple:
+        """Extrai qr_code e qr_code_base64 da resposta do MP (transaction_data)."""
+        poi = pix_result.get("point_of_interaction") or {}
+        tdata = poi.get("transaction_data") or {}
+        cp = (tdata.get("qr_code") or tdata.get("qr_code_copia_cola") or "")[:500]
+        qr = (tdata.get("qr_code_base64") or "")[:2000]
+        return cp, qr
+
+    def _create_pix_with_retry(self, client, loja, financeiro, email, first_name, last_name, cpf_cnpj, description, external_ref) -> tuple:
+        """Cria pagamento PIX com retry de refetch do QR code. Retorna (pix_payment_id, pix_qr_code, pix_copy_paste)."""
+        import time
+        pix_payment_id = pix_qr_code = pix_copy_paste = ""
+        try:
+            pix_result = client.create_pix(
+                transaction_amount=float(financeiro.valor_mensalidade),
+                payer_email=email,
+                payer_first_name=first_name,
+                payer_last_name=last_name,
+                payer_doc_type="CPF",
+                payer_doc_number=cpf_cnpj,
+                description=description,
+                external_reference=external_ref + "_pix",
+            )
+            pix_payment_id = str(pix_result.get("id", ""))
+            pix_copy_paste, pix_qr_code = self._extract_pix_from_response(pix_result)
+            for tentativa, espera in enumerate([1, 2], 1):
+                if not (pix_payment_id and not pix_copy_paste):
+                    break
+                try:
+                    time.sleep(espera)
+                    refetched = client.get_payment(pix_payment_id)
+                    if refetched:
+                        pix_copy_paste, pix_qr_code = self._extract_pix_from_response(refetched)
+                        if pix_copy_paste:
+                            logger.info("PIX Mercado Pago: QR obtido na consulta %s para loja %s", tentativa + 1, loja.nome)
+                            break
+                        if tentativa == 2:
+                            tdata = (refetched.get("point_of_interaction") or {}).get("transaction_data") or {}
+                            logger.info("PIX MP sem QR após refetch; transaction_data keys: %s", list(tdata.keys()))
+                except Exception as e2:
+                    logger.debug("PIX refetch tentativa %s para %s: %s", tentativa, loja.nome, e2)
+            if pix_payment_id and not pix_copy_paste:
+                tdata = (pix_result.get("point_of_interaction") or {}).get("transaction_data") or {}
+                logger.info("PIX MP criado mas QR vazio na resposta inicial; transaction_data keys: %s", list(tdata.keys()))
+            if pix_payment_id:
+                logger.info("PIX Mercado Pago criado para loja %s: %s (QR: %s)", loja.nome, pix_payment_id, "sim" if pix_copy_paste else "não")
+        except requests.exceptions.HTTPError as e:
+            err_body = getattr(e, "response", None) and getattr(e.response, "text", None)
+            logger.warning("PIX Mercado Pago não gerado para %s: %s | Response: %s", loja.nome, e, (err_body or "")[:500])
+        except Exception as e:
+            logger.warning("PIX Mercado Pago não gerado para %s: %s", loja.nome, e)
+        return pix_payment_id, pix_qr_code, pix_copy_paste
+
     def criar_cobranca_loja(self, loja, financeiro, criar_pix: bool = True) -> dict[str, Any]:
         """Cria cobrança no Mercado Pago (boleto + PIX) para a loja.
 
@@ -271,63 +392,21 @@ class LojaMercadoPagoService:
         if not self.available:
             return {"success": False, "error": "Mercado Pago não configurado ou desabilitado"}
 
-        try:
-            from django.contrib.auth.models import User
-            owner = loja.owner
-            if not isinstance(owner, User):
-                owner = getattr(loja, "owner_id", None) and User.objects.get(pk=loja.owner_id)
-            email = getattr(owner, "email", "") or ""
-            first_name = (getattr(owner, "first_name", "") or "").strip() or loja.nome[:50]
-            last_name = (getattr(owner, "last_name", "") or "").strip() or "."
-        except Exception as e:
-            logger.warning("Dados do owner da loja: %s", e)
-            email = ""
-            first_name = loja.nome[:50] if loja.nome else "Cliente"
-            last_name = "."
+        payer = self._get_payer_data(loja)
+        email, first_name, last_name = payer["email"], payer["first_name"], payer["last_name"]
 
         cpf_cnpj = (loja.cpf_cnpj or "").replace(".", "").replace("-", "").replace("/", "").strip()
         if not cpf_cnpj or not email:
-            return {
-                "success": False,
-                "error": "Loja precisa de e-mail do responsável e CPF/CNPJ para gerar boleto no Mercado Pago.",
-            }
+            return {"success": False, "error": "Loja precisa de e-mail do responsável e CPF/CNPJ para gerar boleto no Mercado Pago."}
 
-        # Mercado Pago exige endereço completo do pagador para boleto (CEP, logradouro, número, bairro, cidade, UF)
-        cep_ok = (getattr(loja, "cep", None) or "").replace("-", "").replace(" ", "").strip()
-        cep_ok = len(cep_ok) >= 8
-        endereco_ok = bool((getattr(loja, "logradouro", None) or "").strip() and (getattr(loja, "cidade", None) or "").strip() and (getattr(loja, "uf", None) or "").strip())
-        if not cep_ok or not endereco_ok:
-            return {
-                "success": False,
-                "error": "Para gerar boleto pelo Mercado Pago, preencha o endereço da loja: CEP (buscar), logradouro, número, bairro, cidade e UF.",
-            }
+        address = self._validate_address(loja)
+        if address is None:
+            return {"success": False, "error": "Para gerar boleto pelo Mercado Pago, preencha o endereço da loja: CEP (buscar), logradouro, número, bairro, cidade e UF."}
 
-        due_date = financeiro.data_proxima_cobranca
-        if hasattr(due_date, "strftime"):
-            due_date = due_date.strftime("%Y-%m-%d")
-        else:
-            due_date = str(due_date)[:10]
-        # Mercado Pago: data de vencimento do boleto não pode ser maior que 29 dias (usar 28 para evitar rejeição)
-        try:
-            dt_due = datetime.strptime(due_date, "%Y-%m-%d").date()
-            today = date.today()
-            if (dt_due - today).days > 28:
-                due_date = (today + timedelta(days=28)).strftime("%Y-%m-%d")
-                logger.info("Mercado Pago: vencimento limitado a 28 dias: %s", due_date)
-        except Exception:
-            pass
-
+        due_date = self._normalize_due_date(financeiro)
         client = MercadoPagoClient(self._config.access_token)
         description = f"Assinatura {loja.plano.nome} - Loja {loja.nome}"
         external_ref = f"loja_{loja.slug}_assinatura"
-
-        # Endereço da loja (obrigatório para boleto MP: zip_code, street_name, street_number, neighborhood, city, federal_unit)
-        zip_code = (getattr(loja, "cep", None) or "").strip()
-        street_name = (getattr(loja, "logradouro", None) or "").strip()
-        street_number = (getattr(loja, "numero", None) or "").strip()
-        neighborhood = (getattr(loja, "bairro", None) or "").strip()
-        city = (getattr(loja, "cidade", None) or "").strip()
-        federal_unit = (getattr(loja, "uf", None) or "").strip()[:2].upper()
 
         try:
             result = client.create_boleto(
@@ -340,12 +419,7 @@ class LojaMercadoPagoService:
                 due_date=due_date,
                 description=description,
                 external_reference=external_ref,
-                zip_code=zip_code,
-                street_name=street_name,
-                street_number=street_number,
-                neighborhood=neighborhood,
-                city=city,
-                federal_unit=federal_unit,
+                **address,
             )
         except requests.exceptions.HTTPError as e:
             msg = getattr(e, "response", None)
@@ -365,78 +439,14 @@ class LojaMercadoPagoService:
 
         payment_id = str(result.get("id", ""))
         status = result.get("status", "")
-        # Link do boleto para o pagador
-        transaction_details = result.get("transaction_details") or {}
-        boleto_url = (
-            transaction_details.get("external_resource_url")
-            or result.get("transaction_details", {}).get("external_resource_url")
-            or ""
-        )
-        if not boleto_url and result.get("point_of_interaction"):
-            poi = result.get("point_of_interaction", {})
-            boleto_url = poi.get("transaction_data", {}).get("ticket_url") or ""
-
-        result.get("date_approved")
-        result.get("date_created")
-
-        # PIX opcional: na criação da loja criamos só o boleto (1 transação no MP).
-        # PIX pode ser gerado depois pelo botão "Gerar PIX" no financeiro.
-        pix_payment_id = ""
-        pix_qr_code = ""
-        pix_copy_paste = ""
+        boleto_url = self._extract_boleto_url(result)
 
         if criar_pix:
-            def _extract_pix_from_response(pix_result: dict) -> tuple:
-                """Extrai qr_code e qr_code_base64 da resposta do MP (transaction_data)."""
-                poi = pix_result.get("point_of_interaction") or {}
-                tdata = poi.get("transaction_data") or {}
-                cp = (tdata.get("qr_code") or tdata.get("qr_code_copia_cola") or "")[:500]
-                qr = (tdata.get("qr_code_base64") or "")[:2000]
-                return cp, qr
-
-            try:
-                pix_result = client.create_pix(
-                    transaction_amount=float(financeiro.valor_mensalidade),
-                    payer_email=email,
-                    payer_first_name=first_name,
-                    payer_last_name=last_name,
-                    payer_doc_type="CPF",
-                    payer_doc_number=cpf_cnpj,
-                    description=description,
-                    external_reference=external_ref + "_pix",
-                )
-                pix_payment_id = str(pix_result.get("id", ""))
-                pix_copy_paste, pix_qr_code = _extract_pix_from_response(pix_result)
-                # Se criou o pagamento PIX mas QR não veio na resposta, refetch (API às vezes retorna após um instante)
-                import time
-                for tentativa, espera in enumerate([1, 2], 1):
-                    if pix_payment_id and not pix_copy_paste:
-                        try:
-                            time.sleep(espera)
-                            refetched = client.get_payment(pix_payment_id)
-                            if refetched:
-                                pix_copy_paste, pix_qr_code = _extract_pix_from_response(refetched)
-                                if pix_copy_paste:
-                                    logger.info("PIX Mercado Pago: QR obtido na consulta %s para loja %s", tentativa + 1, loja.nome)
-                                    break
-                                if tentativa == 2:
-                                    tdata = (refetched.get("point_of_interaction") or {}).get("transaction_data") or {}
-                                    logger.info("PIX MP sem QR após refetch; transaction_data keys: %s", list(tdata.keys()))
-                        except Exception as e2:
-                            logger.debug("PIX refetch tentativa %s para %s: %s", tentativa, loja.nome, e2)
-                    else:
-                        break
-                if pix_payment_id and not pix_copy_paste:
-                    tdata = (pix_result.get("point_of_interaction") or {}).get("transaction_data") or {}
-                    logger.info("PIX MP criado mas QR vazio na resposta inicial; transaction_data keys: %s", list(tdata.keys()))
-                if pix_payment_id:
-                    logger.info("PIX Mercado Pago criado para loja %s: %s (QR: %s)", loja.nome, pix_payment_id, "sim" if pix_copy_paste else "não")
-            except requests.exceptions.HTTPError as e:
-                err_body = getattr(e, "response", None) and getattr(e.response, "text", None)
-                logger.warning("PIX Mercado Pago não gerado para %s: %s | Response: %s", loja.nome, e, (err_body or "")[:500])
-            except Exception as e:
-                logger.warning("PIX Mercado Pago não gerado para %s: %s", loja.nome, e)
+            pix_payment_id, pix_qr_code, pix_copy_paste = self._create_pix_with_retry(
+                client, loja, financeiro, email, first_name, last_name, cpf_cnpj, description, external_ref,
+            )
         else:
+            pix_payment_id = pix_qr_code = pix_copy_paste = ""
             logger.info("Cobrança MP para loja %s: apenas boleto (criar_pix=False)", loja.nome)
 
         return {

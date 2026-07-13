@@ -25,6 +25,7 @@ import { useHomepageConfig } from './useHomepageConfig';
 import { HeroImagensTab } from './HeroImagensTab';
 import { EmpresaTab } from './EmpresaTab';
 import { ListSectionCard } from './ListSectionCard';
+import type { FuncionalidadeData, ModuloData, WhyUsData } from './types';
 
 export default function HomepageConfigPage() {
   const config = useHomepageConfig();
@@ -121,16 +122,16 @@ export default function HomepageConfigPage() {
               onToggleSelectAll={config.toggleSelectAllFunc}
               onBulkAction={(action) => config.bulkAction('func', action)}
               onReorder={(id, direction) => config.reorderItem('func', id, direction)}
-              onEdit={(item) => config.setEditingFunc(item as any)}
+              onEdit={(item) => config.setEditingFunc(item)}
               onDelete={(id, name) => config.setDeleteConfirm({ type: 'func', id, nome: name })}
-              renderItem={(f: any) => (
+              renderItem={(f: FuncionalidadeData) => (
                 <>
                   <p className="font-medium">{f.titulo}</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">{f.descricao}</p>
                   {f.icone && <span className="text-xs text-gray-500">Ícone: {f.icone}</span>}
                 </>
               )}
-              getItemName={(f: any) => f.titulo}
+              getItemName={(f: FuncionalidadeData) => f.titulo}
               searchPlaceholder="Buscar por título ou descrição..."
               emptyMessage={
                 config.searchFunc || config.filterFuncAtivo !== 'all'
@@ -158,16 +159,16 @@ export default function HomepageConfigPage() {
               onToggleSelectAll={config.toggleSelectAllMod}
               onBulkAction={(action) => config.bulkAction('mod', action)}
               onReorder={(id, direction) => config.reorderItem('mod', id, direction)}
-              onEdit={(item) => config.setEditingMod(item as any)}
+              onEdit={(item) => config.setEditingMod(item)}
               onDelete={(id, name) => config.setDeleteConfirm({ type: 'mod', id, nome: name })}
-              renderItem={(m: any) => (
+              renderItem={(m: ModuloData) => (
                 <>
                   <p className="font-medium">{m.nome}</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">{m.descricao}</p>
                   {m.slug && <p className="text-xs text-gray-500">/loja/{m.slug}/login</p>}
                 </>
               )}
-              getItemName={(m: any) => m.nome}
+              getItemName={(m: ModuloData) => m.nome}
               searchPlaceholder="Buscar por nome, descrição ou slug..."
               emptyMessage={
                 config.searchMod || config.filterModAtivo !== 'all'
@@ -195,16 +196,16 @@ export default function HomepageConfigPage() {
               onToggleSelectAll={config.toggleSelectAllWhyUs}
               onBulkAction={(action) => config.bulkAction('whyus', action)}
               onReorder={(id, direction) => config.reorderItem('whyus', id, direction)}
-              onEdit={(item) => config.setEditingWhyUs(item as any)}
+              onEdit={(item) => config.setEditingWhyUs(item)}
               onDelete={(id, name) => config.setDeleteConfirm({ type: 'whyus', id, nome: name })}
-              renderItem={(w: any) => (
+              renderItem={(w: WhyUsData) => (
                 <>
                   <p className="font-medium">{w.titulo}</p>
                   {w.descricao && <p className="text-sm text-gray-600 dark:text-gray-400">{w.descricao}</p>}
                   {w.icone && <span className="text-xs text-gray-500">Ícone: {w.icone}</span>}
                 </>
               )}
-              getItemName={(w: any) => w.titulo}
+              getItemName={(w: WhyUsData) => w.titulo}
               searchPlaceholder="Buscar por título ou descrição..."
               emptyMessage={
                 config.searchWhyUs || config.filterWhyUsAtivo !== 'all'

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import type { PieLabelRenderProps } from 'recharts';
 import {
   LineChart,
   Line,
@@ -115,20 +116,82 @@ export default function AuditoriaPage() {
       ]);
       
       // Aceitar formato novo (objeto com chaves) ou antigo (array direto)
-      const d = (r: { data: any }) => r.data;
-      setAcoesPorDia(Array.isArray(d(acoesDiaRes)) ? (d(acoesDiaRes) as any[]).map((x: any) => ({ periodo: x.periodo || x.dia, total: x.total ?? x.count ?? 0, sucessos: x.sucessos ?? x.total ?? x.count ?? 0, erros: x.erros ?? 0 })) : (d(acoesDiaRes).acoes || []));
-      setAcoesPorTipo(Array.isArray(d(acoesTipoRes)) ? (d(acoesTipoRes) as any[]).map((x: any) => ({ acao: x.acao, total: x.total ?? x.count ?? 0 })) : (d(acoesTipoRes).acoes || []));
-      const lojasRaw = d(lojasRes).lojas ?? d(lojasRes);
-      setLojasAtivas(Array.isArray(lojasRaw) ? lojasRaw.map((l: any) => ({ nome: l.loja_nome ?? l.nome, total: l.total ?? l.count ?? 0 })) : []);
-      const usuariosRaw = d(usuariosRes).usuarios ?? d(usuariosRes);
-      setUsuariosAtivos(Array.isArray(usuariosRaw) ? usuariosRaw.map((u: any) => ({ nome: u.usuario_nome ?? u.nome, total: u.total ?? u.count ?? 0 })) : []);
-      const horariosRaw = d(horariosRes).horarios ?? d(horariosRes);
-      setHorariosPico(Array.isArray(horariosRaw) ? horariosRaw.map((h: any) => ({ hora: h.hora, total: h.total ?? h.count ?? 0 })) : []);
-      const taxa = d(taxaRes);
-      setTaxaSucesso(taxa ? { total: taxa.total ?? 0, sucessos: taxa.sucessos ?? 0, erros: taxa.erros ?? taxa.falhas ?? 0, taxa_sucesso: taxa.taxa_sucesso ?? 0 } : null);
-    } catch (err: any) {
+      const d = (r: { data: unknown }) => r.data;
+      const acoesDiaRaw = d(acoesDiaRes);
+      const acoesDiaArr = Array.isArray(acoesDiaRaw)
+        ? acoesDiaRaw
+        : (acoesDiaRaw as { acoes?: unknown[] }).acoes || [];
+      setAcoesPorDia(
+        acoesDiaArr.map((x) => ({
+          periodo: (x as { periodo?: string; dia?: string }).periodo || (x as { dia?: string }).dia || '',
+          total: (x as { total?: number; count?: number }).total ?? (x as { count?: number }).count ?? 0,
+          sucessos:
+            (x as { sucessos?: number; total?: number; count?: number }).sucessos ??
+            (x as { total?: number }).total ??
+            (x as { count?: number }).count ??
+            0,
+          erros: (x as { erros?: number }).erros ?? 0,
+        })),
+      );
+      const acoesTipoRaw = d(acoesTipoRes);
+      const acoesTipoArr = Array.isArray(acoesTipoRaw)
+        ? acoesTipoRaw
+        : (acoesTipoRaw as { acoes?: unknown[] }).acoes || [];
+      setAcoesPorTipo(
+        acoesTipoArr.map((x) => ({
+          acao: String((x as { acao?: unknown }).acao || ''),
+          total: (x as { total?: number; count?: number }).total ?? (x as { count?: number }).count ?? 0,
+        })),
+      );
+      const lojasRaw = (d(lojasRes) as { lojas?: unknown[] }).lojas ?? d(lojasRes);
+      setLojasAtivas(
+        Array.isArray(lojasRaw)
+          ? lojasRaw.map((l) => ({
+              nome: String((l as { loja_nome?: string; nome?: string }).loja_nome ?? (l as { nome?: string }).nome ?? ''),
+              total: (l as { total?: number; count?: number }).total ?? (l as { count?: number }).count ?? 0,
+            }))
+          : [],
+      );
+      const usuariosRaw = (d(usuariosRes) as { usuarios?: unknown[] }).usuarios ?? d(usuariosRes);
+      setUsuariosAtivos(
+        Array.isArray(usuariosRaw)
+          ? usuariosRaw.map((u) => ({
+              nome: String((u as { usuario_nome?: string; nome?: string }).usuario_nome ?? (u as { nome?: string }).nome ?? ''),
+              total: (u as { total?: number; count?: number }).total ?? (u as { count?: number }).count ?? 0,
+            }))
+          : [],
+      );
+      const horariosRaw = (d(horariosRes) as { horarios?: unknown[] }).horarios ?? d(horariosRes);
+      setHorariosPico(
+        Array.isArray(horariosRaw)
+          ? horariosRaw.map((h) => ({
+              hora: Number((h as { hora?: number }).hora ?? 0),
+              total: (h as { total?: number; count?: number }).total ?? (h as { count?: number }).count ?? 0,
+            }))
+          : [],
+      );
+      const taxa = d(taxaRes) as { total?: number; sucessos?: number; erros?: number; falhas?: number; taxa_sucesso?: number };
+      setTaxaSucesso(
+        taxa
+          ? {
+              total: taxa.total ?? 0,
+              sucessos: taxa.sucessos ?? 0,
+              erros: taxa.erros ?? taxa.falhas ?? 0,
+              taxa_sucesso: taxa.taxa_sucesso ?? 0,
+            }
+          : null,
+      );
+    } catch (err) {
       logger.warn('Erro ao carregar dados de auditoria:', err);
-      const msg = err?.response?.data?.detail || err?.response?.status === 403 ? 'Sem permissão para ver auditoria.' : err?.message || 'Falha ao carregar dados. Tente novamente.';
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const data = response?.data as { detail?: string } | undefined;
+      const status = typeof response?.status === 'number' ? response.status : undefined;
+      const msg =
+        data?.detail ||
+        (status === 403 ? 'Sem permissão para ver auditoria.' : null) ||
+        (err instanceof Error ? err.message : null) ||
+        'Falha ao carregar dados. Tente novamente.';
       setError(msg);
     } finally {
       setLoading(false);
@@ -317,7 +380,7 @@ export default function AuditoriaPage() {
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    label={(entry: any) => `${entry.acao}: ${entry.total}`}
+                    label={(entry: PieLabelRenderProps) => `${entry.name || ''}: ${entry.value ?? 0}`}
                   >
                     {acoesPorTipo.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

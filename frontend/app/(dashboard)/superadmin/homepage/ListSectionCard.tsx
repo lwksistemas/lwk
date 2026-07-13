@@ -82,7 +82,7 @@ export function ListSectionCard<TItem extends { id?: number; ativo?: boolean }>(
           onToggleSelectAll={onToggleSelectAll}
           onBulkAction={onBulkAction}
           onReorder={onReorder}
-          onEdit={onEdit as any}
+          onEdit={onEdit}
           onDelete={onDelete}
           renderItem={renderItem}
           getItemName={getItemName}

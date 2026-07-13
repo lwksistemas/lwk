@@ -601,6 +601,33 @@ def _consultar_url_nfse_issnet(
     return None, None, str(out.get("error") or "URL da NFS-e não encontrada no ISSNet.")
 
 
+_CAMPOS_PORTAL_SCALARES = (
+    "tomador_nome", "tomador_cpf_cnpj", "servico_descricao",
+    "codigo_verificacao", "numero_rps", "valor_iss",
+)
+
+
+def _copiar_campos_portal(out: dict, portal: dict, prest_digits: str, forcar: bool) -> None:
+    """Copia campos escalares do portal ISSNet para out, respeitando regras de CPF/CNPJ próprio."""
+    for key in _CAMPOS_PORTAL_SCALARES:
+        novo = portal.get(key)
+        if not novo:
+            continue
+        if key == "tomador_cpf_cnpj" and prest_digits and re.sub(r"\D", "", str(novo)) == prest_digits:
+            continue
+        if forcar or not out.get(key):
+            out[key] = novo
+
+
+def _copiar_campos_numericos_portal(out: dict, portal: dict, forcar: bool) -> None:
+    """Copia campos numéricos (valor, valor_iss) do portal ISSNet para out."""
+    from decimal import Decimal
+    for key in ("valor", "valor_iss"):
+        if portal.get(key) and (forcar or not Decimal(str(out.get(key) or 0))):
+            with contextlib.suppress(Exception):
+                out[key] = float(Decimal(str(portal[key])))
+
+
 def _enriquecer_resultado_portal_issnet(
     url_portal: str | None,
     resultado: dict[str, Any],
@@ -609,10 +636,7 @@ def _enriquecer_resultado_portal_issnet(
     forcar: bool = False,
 ) -> dict[str, Any]:
     """Completa tomador/valor a partir da página pública do ISSNet."""
-    from decimal import Decimal
-
     from nfse_integration.issnet_portal import buscar_detalhes_portal_issnet
-
     url = (url_portal or resultado.get("pdf_url") or "").strip()
     if not url:
         return resultado
@@ -621,27 +645,8 @@ def _enriquecer_resultado_portal_issnet(
         return resultado
     out = dict(resultado)
     prest_digits = re.sub(r"\D", "", prestador_cnpj or "")
-    for key in (
-        "tomador_nome",
-        "tomador_cpf_cnpj",
-        "servico_descricao",
-        "codigo_verificacao",
-        "numero_rps",
-        "valor_iss",
-    ):
-        novo = portal.get(key)
-        if not novo:
-            continue
-        if key == "tomador_cpf_cnpj" and prest_digits and re.sub(r"\D", "", str(novo)) == prest_digits:
-            continue
-        if forcar or not out.get(key):
-            out[key] = novo
-    if portal.get("valor") and (forcar or not Decimal(str(out.get("valor") or 0))):
-        with contextlib.suppress(Exception):
-            out["valor"] = float(Decimal(str(portal["valor"])))
-    if portal.get("valor_iss") and (forcar or not Decimal(str(out.get("valor_iss") or 0))):
-        with contextlib.suppress(Exception):
-            out["valor_iss"] = float(Decimal(str(portal["valor_iss"])))
+    _copiar_campos_portal(out, portal, prest_digits, forcar)
+    _copiar_campos_numericos_portal(out, portal, forcar)
     if not out.get("pdf_url"):
         out["pdf_url"] = url
     return out

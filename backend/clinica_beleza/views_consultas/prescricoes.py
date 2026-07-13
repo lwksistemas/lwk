@@ -8,6 +8,51 @@ from ..permissions import CLINICA_CLINICAL
 from ..serializers import PrescricaoMemedSerializer
 
 
+def _preparar_dados_prescricao(request, consulta) -> tuple[dict, str, object, object]:
+    """Retorna (data, pdf_url, loja, professional) a partir da request e consulta."""
+    from superadmin.models import Loja
+
+    from ..memed_prescricao_service import resolver_pdf_prescricao
+    itens = request.data.get("itens") or []
+    if not isinstance(itens, list):
+        itens = []
+    prescricao_id = str(request.data.get("prescricao_id") or "")[:64]
+    prof_id = request.data.get("professional") or consulta.professional_id
+    professional = consulta.professional
+    if prof_id and (not professional or professional.id != prof_id):
+        professional = Professional.objects.filter(pk=prof_id).first() or professional
+    loja = Loja.objects.using("default").filter(id=consulta.loja_id).first()
+    pdf_url = ""
+    if loja and prescricao_id:
+        pdf_url = resolver_pdf_prescricao(loja, professional, prescricao_id, str(request.data.get("pdf_url") or ""))
+    data = {
+        "consulta": consulta.id,
+        "patient": consulta.patient_id,
+        "professional": prof_id,
+        "prescricao_id": prescricao_id,
+        "resumo": request.data.get("resumo") or "",
+        "itens": itens,
+        "pdf_url": pdf_url,
+    }
+    return data, pdf_url, loja, professional
+
+
+def _atualizar_prescricao_existente(existente, data: dict, pdf_url: str, loja, professional, prescricao_id: str, prof_id) -> None:
+    """Atualiza campos de uma PrescricaoMemed existente e salva."""
+    from ..memed_prescricao_service import resolver_pdf_prescricao
+    existente.resumo = data["resumo"] or existente.resumo
+    existente.itens = data["itens"] or existente.itens
+    if pdf_url:
+        existente.pdf_url = pdf_url
+    elif not existente.pdf_url and loja and prescricao_id:
+        novo_pdf = resolver_pdf_prescricao(loja, professional, prescricao_id, "")
+        if novo_pdf:
+            existente.pdf_url = novo_pdf
+    if prof_id:
+        existente.professional_id = prof_id
+    existente.save()
+
+
 class ConsultaPrescricaoView(APIView):
     """GET  /clinica-beleza/consultas/<consulta_id>/prescricoes/ — lista prescrições da consulta.
     POST /clinica-beleza/consultas/<consulta_id>/prescricoes/ — registra uma prescrição emitida
@@ -23,65 +68,22 @@ class ConsultaPrescricaoView(APIView):
         return Response(PrescricaoMemedSerializer(qs, many=True).data)
 
     def post(self, request, consulta_id):
-        from superadmin.models import Loja
-
-        from ..memed_prescricao_service import resolver_pdf_prescricao
-
         try:
             consulta = Consulta.objects.select_related("professional").get(pk=consulta_id)
         except Consulta.DoesNotExist:
             return Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
-        itens = request.data.get("itens") or []
-        if not isinstance(itens, list):
-            itens = []
-        prescricao_id = str(request.data.get("prescricao_id") or "")[:64]
-        prof_id = request.data.get("professional") or consulta.professional_id
-        professional = consulta.professional
-        if prof_id and (not professional or professional.id != prof_id):
-            professional = Professional.objects.filter(pk=prof_id).first() or professional
-
-        loja = Loja.objects.using("default").filter(id=consulta.loja_id).first()
-        pdf_url = ""
-        if loja and prescricao_id:
-            pdf_url = resolver_pdf_prescricao(
-                loja,
-                professional,
-                prescricao_id,
-                str(request.data.get("pdf_url") or ""),
-            )
-
-        data = {
-            "consulta": consulta.id,
-            "patient": consulta.patient_id,
-            "professional": prof_id,
-            "prescricao_id": prescricao_id,
-            "resumo": request.data.get("resumo") or "",
-            "itens": itens,
-            "pdf_url": pdf_url,
-        }
+        data, pdf_url, loja, professional = _preparar_dados_prescricao(request, consulta)
+        prescricao_id = data["prescricao_id"]
+        prof_id = data["professional"]
 
         if prescricao_id:
             existente = PrescricaoMemed.objects.filter(
-                consulta_id=consulta.id,
-                prescricao_id=prescricao_id,
+                consulta_id=consulta.id, prescricao_id=prescricao_id,
             ).first()
             if existente:
-                existente.resumo = data["resumo"] or existente.resumo
-                existente.itens = itens or existente.itens
-                if pdf_url:
-                    existente.pdf_url = pdf_url
-                elif not existente.pdf_url and loja and prescricao_id:
-                    novo_pdf = resolver_pdf_prescricao(loja, professional, prescricao_id, "")
-                    if novo_pdf:
-                        existente.pdf_url = novo_pdf
-                if prof_id:
-                    existente.professional_id = prof_id
-                existente.save()
-                return Response(
-                    PrescricaoMemedSerializer(existente).data,
-                    status=status.HTTP_200_OK,
-                )
+                _atualizar_prescricao_existente(existente, data, pdf_url, loja, professional, prescricao_id, prof_id)
+                return Response(PrescricaoMemedSerializer(existente).data, status=status.HTTP_200_OK)
 
         serializer = PrescricaoMemedSerializer(data=data)
         if serializer.is_valid():

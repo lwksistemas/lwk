@@ -87,6 +87,25 @@ def _request(method, path, json_body=None, timeout=30):
     return data
 
 
+def _extract_from_list(val: list) -> str | None:
+    """Extrai mensagem de erro a partir de uma lista de itens (str ou dict)."""
+    parts = []
+    for item in val:
+        if isinstance(item, str) and item.strip():
+            parts.append(item.strip())
+        elif isinstance(item, dict):
+            nested = item.get("message") or item.get("error")
+            if isinstance(nested, str) and nested.strip():
+                parts.append(nested.strip())
+            elif item.get("exists") is False:
+                jid = item.get("jid") or item.get("number") or ""
+                parts.append(
+                    f"Número não encontrado no WhatsApp ({jid}). "
+                    "Confira o telefone do paciente (DDD + número com 9 dígitos).",
+                )
+    return " ".join(parts) if parts else None
+
+
 def _extract_error_message(data):
     if not isinstance(data, dict):
         return None
@@ -95,22 +114,9 @@ def _extract_error_message(data):
         if isinstance(val, str) and val.strip():
             return val.strip()
         if isinstance(val, list) and val:
-            parts = []
-            for item in val:
-                if isinstance(item, str) and item.strip():
-                    parts.append(item.strip())
-                elif isinstance(item, dict):
-                    nested = item.get("message") or item.get("error")
-                    if isinstance(nested, str) and nested.strip():
-                        parts.append(nested.strip())
-                    elif item.get("exists") is False:
-                        jid = item.get("jid") or item.get("number") or ""
-                        parts.append(
-                            f"Número não encontrado no WhatsApp ({jid}). "
-                            "Confira o telefone do paciente (DDD + número com 9 dígitos).",
-                        )
-            if parts:
-                return " ".join(parts)
+            result = _extract_from_list(val)
+            if result:
+                return result
         if isinstance(val, dict):
             nested = val.get("message") or val.get("error")
             if isinstance(nested, str) and nested.strip():

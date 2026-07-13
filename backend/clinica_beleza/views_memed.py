@@ -152,6 +152,36 @@ class MemedTokenView(APIView):
         cache.set(cache_key, payload, self.CACHE_TTL)
         return Response(payload)
 
+    def _resolver_prescritor_por_professional(self, professional_id, request) -> str:
+        """Resolve prescritor via registro profissional do Professional."""
+        prof = Professional.objects.filter(pk=professional_id).first()
+        if not prof:
+            return ""
+        cpf_digitos = "".join(ch for ch in (prof.cpf or "") if ch.isdigit())
+        if len(cpf_digitos) == 11:
+            return cpf_digitos
+        if not prof.registro_profissional:
+            return ""
+        raw = prof.registro_profissional.strip().upper()
+        so_digitos = "".join(ch for ch in raw if ch.isdigit())
+        if len(so_digitos) == 11 and not prof.conselho_uf:
+            return so_digitos
+        match_uf = re.search(r"[-\s/]*([A-Z]{2})\s*$", raw)
+        uf_campo = match_uf.group(1) if match_uf else ""
+        registro = "".join(ch for ch in raw if ch.isalnum())
+        if uf_campo and registro.endswith(uf_campo):
+            registro = registro[: -len(uf_campo)]
+        uf = (
+            request.query_params.get("uf")
+            or (prof.conselho_uf or "")
+            or uf_campo
+            or getattr(settings, "MEMED_DEFAULT_UF", "")
+            or ""
+        ).strip().upper()
+        if registro:
+            return f"{registro}{uf}" if uf else registro
+        return ""
+
     def _resolver_prescritor_id(self, request, env="integration"):
         """Resolve o identificador do prescritor na Memed (CPF, external_id ou registro+UF)."""
         # 1) Identificador explícito na query (?prescritor=...) tem prioridade.
@@ -164,36 +194,9 @@ class MemedTokenView(APIView):
         #    extraímos a UF do próprio campo, com fallback para ?uf ou MEMED_DEFAULT_UF.
         professional_id = request.query_params.get("professional")
         if professional_id:
-            prof = Professional.objects.filter(pk=professional_id).first()
-            if prof:
-                # CPF identifica o prescritor independentemente do conselho
-                # (CRM/COREN/CRF/…), pois cadastro e certificado na Memed são por
-                # pessoa física. Tem prioridade e dispensa a UF.
-                cpf_digitos = "".join(ch for ch in (prof.cpf or "") if ch.isdigit())
-                if len(cpf_digitos) == 11:
-                    return cpf_digitos
-
-                if prof.registro_profissional:
-                    raw = prof.registro_profissional.strip().upper()
-                    # Compatibilidade: CPF digitado no campo de registro.
-                    so_digitos = "".join(ch for ch in raw if ch.isdigit())
-                    if len(so_digitos) == 11 and not prof.conselho_uf:
-                        return so_digitos
-                    # Compatibilidade: UF embutida no registro ("016964-SP").
-                    match_uf = re.search(r"[-\s/]*([A-Z]{2})\s*$", raw)
-                    uf_campo = match_uf.group(1) if match_uf else ""
-                    registro = "".join(ch for ch in raw if ch.isalnum())
-                    if uf_campo and registro.endswith(uf_campo):
-                        registro = registro[: -len(uf_campo)]
-                    uf = (
-                        request.query_params.get("uf")
-                        or (prof.conselho_uf or "")
-                        or uf_campo
-                        or getattr(settings, "MEMED_DEFAULT_UF", "")
-                        or ""
-                    ).strip().upper()
-                    if registro:
-                        return f"{registro}{uf}" if uf else registro
+            prescritor = self._resolver_prescritor_por_professional(professional_id, request)
+            if prescritor:
+                return prescritor
 
         # 3) Prescritor padrão (clínica com um único médico / ambiente de testes).
         #    Em produção, prioriza MEMED_PRESCRITOR_ID_PROD (fallback ao genérico).

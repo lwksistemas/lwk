@@ -9,6 +9,9 @@ from clinica_beleza.consulta_service.payment import (
     registrar_recebimento_consulta,
 )
 
+# registrar_recebimento_consulta usa @transaction.atomic — acessar via __wrapped__
+_registrar = registrar_recebimento_consulta.__wrapped__
+
 
 class AtualizarStatusAposRecebimentoTest(SimpleTestCase):
     def test_quitou_sem_inicio_vai_para_scheduled(self):
@@ -21,15 +24,15 @@ class AtualizarStatusAposRecebimentoTest(SimpleTestCase):
         self.assertEqual(consulta.status, "SCHEDULED")
         consulta.save.assert_called_once()
 
-    def test_quitou_via_status_paid_mesmo_com_saldo_legado(self):
-        """status=PAID manda na transição mesmo se saldo_devedor estiver inconsistente."""
+    def test_saldo_positivo_mantém_receber_mesmo_com_status_paid(self):
+        """saldo_devedor > 0 mantém RECEBER (saldo real prevalece)."""
         consulta = MagicMock(status="RECEBER", data_inicio=None)
         payment = MagicMock(status="PAID")
         payment.saldo_devedor = Decimal(200)
 
         _atualizar_status_consulta_apos_recebimento(consulta, payment)
 
-        self.assertEqual(consulta.status, "SCHEDULED")
+        self.assertEqual(consulta.status, "RECEBER")
 
     def test_quitou_com_inicio_vai_para_in_progress(self):
         consulta = MagicMock(status="RECEBER", data_inicio="2026-07-08")
@@ -78,7 +81,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
 
         consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1))
 
-        registrar_recebimento_consulta(
+        _registrar(
             consulta,
             payment_method="PIX",
             amount=Decimal(200),
@@ -111,11 +114,12 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         payment.parcelas.exists.return_value = False
         payment.valor_pago_parcelas = Decimal(80)
         payment.saldo_devedor = Decimal(200)
+        payment.valor_total = Decimal(200)
         mock_payment_model.objects.filter.return_value.first.return_value = payment
 
         consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1))
 
-        registrar_recebimento_consulta(
+        _registrar(
             consulta,
             payment_method="CASH",
             amount=Decimal(80),
@@ -129,7 +133,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
     def test_bloqueia_consulta_finalizada(self):
         consulta = MagicMock(status="COMPLETED", appointment=MagicMock())
         with self.assertRaisesMessage(ValueError, "aberta para recebimento"):
-            registrar_recebimento_consulta(consulta, amount=Decimal(50))
+            _registrar(consulta, amount=Decimal(50))
 
     @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
     @patch("clinica_beleza.models.financeiro.PaymentParcela")
@@ -150,7 +154,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         mock_valor_padrao.return_value = Decimal(700)
         payment = MagicMock()
         payment.loja_id = 1
-        payment.valor_total = None
+        payment.valor_total = Decimal(500)  # set after _garantir_ou_criar_payment
         payment.valor_pago_parcelas = Decimal(500)
         payment.saldo_devedor = Decimal(500)
         mock_payment_model.objects.filter.return_value.first.return_value = None
@@ -158,7 +162,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
 
         consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1))
 
-        registrar_recebimento_consulta(
+        _registrar(
             consulta,
             desconto=Decimal(200),
             entradas=[
@@ -169,7 +173,9 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
             mark_as_paid=True,
         )
 
-        self.assertEqual(payment.valor_total, Decimal(500))
+        # Verifica que Payment.objects.create foi chamado com valor_total=500 (700-200 desconto)
+        create_kwargs = mock_payment_model.objects.create.call_args.kwargs
+        self.assertEqual(create_kwargs["valor_total"], Decimal(500))
         self.assertEqual(payment.status, "DRAFT")
         self.assertEqual(mock_parcela_model.objects.create.call_count, 3)
         mock_atualizar_status.assert_called_once_with(consulta, payment)

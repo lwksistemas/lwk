@@ -18,6 +18,30 @@ def resend_api_key() -> str:
     return (getattr(settings, "RESEND_API_KEY", "") or "").strip()
 
 
+def _resolver_reply_to(message: EmailMessage) -> list[str]:
+    """Resolve lista de reply_to a partir da mensagem ou de DEFAULT_REPLY_TO."""
+    reply_to = list(message.reply_to or [])
+    if reply_to:
+        return reply_to
+    raw = getattr(settings, "DEFAULT_REPLY_TO", "") or ""
+    if isinstance(raw, str) and raw.strip():
+        return [e.strip() for e in raw.replace(";", ",").split(",") if e.strip()]
+    if isinstance(raw, (list, tuple)):
+        return [str(x).strip() for x in raw if str(x).strip()]
+    return []
+
+
+def _resolver_body_resend(message: EmailMessage) -> dict[str, str]:
+    """Retorna {'html': ..., 'text': ...} ou apenas {'text': ...} conforme tipo da mensagem."""
+    if isinstance(message, EmailMultiAlternatives):
+        for content, mimetype in message.alternatives:
+            if mimetype == "text/html":
+                return {"html": content, "text": message.body or ""}
+    if getattr(message, "content_subtype", "plain") == "html":
+        return {"html": message.body or ""}
+    return {"text": message.body or ""}
+
+
 def build_resend_payload(message: EmailMessage) -> dict:
     from_email = message.from_email or getattr(
         settings,
@@ -36,30 +60,10 @@ def build_resend_payload(message: EmailMessage) -> dict:
     if message.bcc:
         payload["bcc"] = list(message.bcc)
 
-    reply_to = list(message.reply_to or [])
-    if not reply_to:
-        raw = getattr(settings, "DEFAULT_REPLY_TO", "") or ""
-        if isinstance(raw, str) and raw.strip():
-            reply_to = [e.strip() for e in raw.replace(";", ",").split(",") if e.strip()]
-        elif isinstance(raw, (list, tuple)):
-            reply_to = [str(x).strip() for x in raw if str(x).strip()]
+    reply_to = _resolver_reply_to(message)
     if reply_to:
         payload["reply_to"] = reply_to
-
-    html_body = None
-    if isinstance(message, EmailMultiAlternatives):
-        for content, mimetype in message.alternatives:
-            if mimetype == "text/html":
-                html_body = content
-                break
-
-    if html_body:
-        payload["html"] = html_body
-        payload["text"] = message.body or ""
-    elif getattr(message, "content_subtype", "plain") == "html":
-        payload["html"] = message.body or ""
-    else:
-        payload["text"] = message.body or ""
+    payload.update(_resolver_body_resend(message))
 
     attachments = _build_attachments(message)
     if attachments:

@@ -1,8 +1,16 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
   interface Window {
-    MdHub?: any;
-    MdSinapsePrescricao?: any;
+    MdHub?: {
+      module?: { show: (module: string) => void; hide?: (module: string) => void };
+      event?: { add: (event: string, handler: (data: unknown) => void) => void };
+      command?: { send?: (module: string, command: string, payload?: Record<string, unknown>) => void };
+    };
+    MdSinapsePrescricao?: {
+      event?: { add: (event: string, handler: (module: Record<string, unknown>) => void) => void };
+    };
+    [MEMED_READY_FLAG]?: boolean;
+    __memedListenerRegistrado?: boolean;
+    __memedPrescImpressaRegistrado?: boolean;
   }
 }
 
@@ -20,20 +28,20 @@ export function setPrescricaoImpressaHandler(handler: ((data: unknown) => void) 
 }
 
 export function moduloMemedPronto(): boolean {
-  return typeof window !== "undefined" && (window as any)[MEMED_READY_FLAG] === true;
+  return typeof window !== "undefined" && window[MEMED_READY_FLAG] === true;
 }
 
 export function registrarListenerPrescricaoMemed(): void {
   if (typeof window === "undefined") return;
-  const sinapse = (window as any).MdSinapsePrescricao;
-  if (!sinapse?.event?.add || (window as any).__memedListenerRegistrado) return;
-  (window as any).__memedListenerRegistrado = true;
-  sinapse.event.add("core:moduleInit", (module: any) => {
+  const sinapse = window.MdSinapsePrescricao;
+  if (!sinapse?.event?.add || window.__memedListenerRegistrado) return;
+  window.__memedListenerRegistrado = true;
+  sinapse.event.add("core:moduleInit", (module) => {
     if (module?.name !== MEMED_MODULO_PRESCRICAO) return;
-    (window as any)[MEMED_READY_FLAG] = true;
-    const mdhub = (window as any).MdHub;
-    if (mdhub?.event?.add && !(window as any).__memedPrescImpressaRegistrado) {
-      (window as any).__memedPrescImpressaRegistrado = true;
+    window[MEMED_READY_FLAG] = true;
+    const mdhub = window.MdHub;
+    if (mdhub?.event?.add && !window.__memedPrescImpressaRegistrado) {
+      window.__memedPrescImpressaRegistrado = true;
       mdhub.event.add("prescricaoImpressa", (data: unknown) => {
         try {
           prescricaoImpressaHandler?.(data);
@@ -115,5 +123,5 @@ export function logoutMemedSdk(): void {
 }
 
 export function abrirModuloPrescricaoMemed(): void {
-  window.MdHub.module.show(MEMED_MODULO_PRESCRICAO);
+  window.MdHub?.module?.show?.(MEMED_MODULO_PRESCRICAO);
 }

@@ -192,7 +192,7 @@ def validate_request_origin(request):
             if referer.startswith(allowed):
                 return True
     
-    return True if origin in allowed_origins else False
+    return origin in allowed_origins
 
 # ============================================
 # CONFIGURAÇÃO DE SENHA

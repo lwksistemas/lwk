@@ -56,7 +56,7 @@ def assinar_xml_issnet(xml_str: str, certificado_path: str, senha_certificado: s
     root_local = etree.QName(root.tag).localname if root.tag else ''
 
     def _sign_cancelamento_por_pedido(root_el):
-        pedido = root_el.find('{%s}Pedido' % ns)
+        pedido = root_el.find(f'{{{ns}}}Pedido')
         if pedido is None:
             return None
         pedido_id = (pedido.get('Id') or '').strip() or 'Pedido1'
@@ -69,10 +69,10 @@ def assinar_xml_issnet(xml_str: str, certificado_path: str, senha_certificado: s
         return pedido_id
 
     def _sign_cancelamento_por_inf_pedido(root_el):
-        pedido = root_el.find('{%s}Pedido' % ns)
+        pedido = root_el.find(f'{{{ns}}}Pedido')
         if pedido is None:
             return None
-        inf = pedido.find('{%s}InfPedidoCancelamento' % ns)
+        inf = pedido.find(f'{{{ns}}}InfPedidoCancelamento')
         if inf is None:
             return None
         inf_id = (inf.get('Id') or '').strip() or 's01'
@@ -85,8 +85,8 @@ def assinar_xml_issnet(xml_str: str, certificado_path: str, senha_certificado: s
         return inf_id
 
     if root_local == 'CancelarNfseEnvio':
-        pedido = root.find('{%s}Pedido' % ns)
-        inf = pedido.find('{%s}InfPedidoCancelamento' % ns) if pedido is not None else None
+        pedido = root.find(f'{{{ns}}}Pedido')
+        inf = pedido.find(f'{{{ns}}}InfPedidoCancelamento') if pedido is not None else None
         inf_id = (inf.get('Id') or '').strip() if inf is not None else ''
         if inf_id.lower().startswith('cancel'):
             _sign_cancelamento_por_inf_pedido(root)
@@ -133,8 +133,8 @@ def assinar_xml_issnet(xml_str: str, certificado_path: str, senha_certificado: s
         logger.info('XML assinado com xmlsec (ConsultarNfseRps)')
         return result
 
-    lista = root.find('.//{%s}ListaRps' % ns)
-    outer_rps = lista.find('{%s}Rps' % ns) if lista is not None else None
+    lista = root.find(f'.//{{{ns}}}ListaRps')
+    outer_rps = lista.find(f'{{{ns}}}Rps') if lista is not None else None
 
     if outer_rps is None:
         logger.warning('Assinatura: ListaRps/Rps externo nao encontrado; XML nao assinado.')

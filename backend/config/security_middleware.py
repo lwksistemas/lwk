@@ -7,11 +7,12 @@ GRUPO 3: Lojas - Acesso exclusivo à própria loja
 
 Cada grupo tem banco de dados isolado e não pode acessar dados de outros grupos.
 """
-from django.http import JsonResponse
+import logging
+
 from django.contrib.auth.models import AnonymousUser
+from django.http import JsonResponse
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -133,8 +134,9 @@ class SecurityIsolationMiddleware:
         Processa autenticação JWT com retry em timeout do PostgreSQL.
         """
         if not hasattr(request, 'user') or request.user.is_anonymous:
-            from core.retry import execute_with_db_retry
             from django.db import OperationalError
+
+            from core.retry import execute_with_db_retry
 
             try:
                 auth_result = execute_with_db_retry(
@@ -419,9 +421,7 @@ class SecurityIsolationMiddleware:
         if any(path.startswith(prefix) for prefix in _CLINICA_BELEZA_PUBLIC_PREFIXES):
             return True
         # Recibo PDF temporário para Evolution (mesmo padrão do termo assinado)
-        if path.startswith('/api/clinica-beleza/payments/') and '/recibo-pdf/' in path:
-            return True
-        return False
+        return bool(path.startswith('/api/clinica-beleza/payments/') and '/recibo-pdf/' in path)
 
     @staticmethod
     def _is_nfse_public_path(path):
@@ -483,9 +483,7 @@ class SecurityIsolationMiddleware:
             return False
         if path.startswith('/api/crm-vendas/') and SecurityIsolationMiddleware._is_crm_vendas_public_path(path):
             return False
-        if path.startswith('/api/clinica-beleza/') and SecurityIsolationMiddleware._is_clinica_beleza_public_path(path):
-            return False
-        return True
+        return not (path.startswith('/api/clinica-beleza/') and SecurityIsolationMiddleware._is_clinica_beleza_public_path(path))
     
     def _extract_store_slug(self, request):
         """

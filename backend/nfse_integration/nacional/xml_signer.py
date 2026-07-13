@@ -5,17 +5,17 @@ Padrão: XML Digital Signature (https://www.w3.org/TR/xmldsig-core/)
 Algoritmo: RSA-SHA1 (conforme Portal Contribuinte nfse.gov.br)
 Certificado: ICP-Brasil A1 ou A3 (.pfx/.p12)
 """
+import contextlib
 import logging
 import os
 import tempfile
-from typing import Tuple
 
 from lxml import etree
 
 logger = logging.getLogger(__name__)
 
 
-def carregar_certificado_pfx(pfx_path: str, senha: str) -> Tuple:
+def carregar_certificado_pfx(pfx_path: str, senha: str) -> tuple:
     """
     Carrega chave privada e certificado de um arquivo .pfx/.p12.
     
@@ -38,7 +38,7 @@ def carregar_certificado_pfx(pfx_path: str, senha: str) -> Tuple:
     return private_key, certificate, extra
 
 
-def carregar_certificado_bytes(pfx_bytes: bytes, senha: str) -> Tuple:
+def carregar_certificado_bytes(pfx_bytes: bytes, senha: str) -> tuple:
     """
     Carrega certificado a partir de bytes (para uso com BinaryField do Django).
     """
@@ -77,7 +77,7 @@ def assinar_xml_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
     # Carregar chave privada e certificado
     private_key, cert_obj, _ = carregar_certificado_pfx(pfx_path, senha_pfx)
 
-    from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
+    from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
 
     key_pem = private_key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption())
     cert_pem = cert_obj.public_bytes(Encoding.PEM)
@@ -88,7 +88,7 @@ def assinar_xml_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
 
     # Encontrar o elemento infDPS e seu Id
     ns = 'http://www.sped.fazenda.gov.br/nfse'
-    inf_dps = root.find('{%s}infDPS' % ns)
+    inf_dps = root.find(f'{{{ns}}}infDPS')
     if inf_dps is None:
         raise ValueError('Elemento infDPS não encontrado no XML')
 
@@ -138,7 +138,7 @@ def assinar_xml_dps_bytes(xml_str: str, pfx_bytes: bytes, senha_pfx: str) -> str
     """
     cert_path = None
     try:
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')  # noqa: SIM115
         tmp.write(pfx_bytes)
         tmp.close()
         cert_path = tmp.name
@@ -146,10 +146,8 @@ def assinar_xml_dps_bytes(xml_str: str, pfx_bytes: bytes, senha_pfx: str) -> str
         return assinar_xml_dps(xml_str, cert_path, senha_pfx)
     finally:
         if cert_path:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(cert_path)
-            except OSError:
-                pass
 
 
 def extrair_info_certificado(pfx_path: str, senha: str) -> dict:
@@ -161,7 +159,6 @@ def extrair_info_certificado(pfx_path: str, senha: str) -> dict:
     """
     _, cert_obj, _ = carregar_certificado_pfx(pfx_path, senha)
 
-    from cryptography.x509 import oid
 
     subject = cert_obj.subject.rfc4514_string()
     issuer = cert_obj.issuer.rfc4514_string()

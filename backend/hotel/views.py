@@ -10,16 +10,26 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
 from core.views import BaseModelViewSet
-from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario, ReservaTemplate, ReservaAssinatura, ConfiguracaoHotel
+
+from .models import (
+    ConfiguracaoHotel,
+    Funcionario,
+    GovernancaTarefa,
+    Hospede,
+    Quarto,
+    Reserva,
+    ReservaTemplate,
+    Tarifa,
+)
 from .serializers import (
+    ConfiguracaoHotelSerializer,
+    FuncionarioSerializer,
+    GovernancaTarefaSerializer,
     HospedeSerializer,
     QuartoSerializer,
-    TarifaSerializer,
     ReservaSerializer,
-    GovernancaTarefaSerializer,
-    FuncionarioSerializer,
     ReservaTemplateSerializer,
-    ConfiguracaoHotelSerializer,
+    TarifaSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -239,8 +249,9 @@ class ReservaViewSet(BaseModelViewSet):
     def enviar_para_assinatura(self, request, pk=None):
         """Envia confirmação de reserva para assinatura digital do hóspede."""
         from core.assinatura_service import criar_assinatura, enviar_email_parte1
-        from .assinatura_adapter import ReservaAssinaturaAdapter
         from tenants.middleware import get_current_loja_id
+
+        from .assinatura_adapter import ReservaAssinaturaAdapter
 
         reserva = self.get_object()
         loja_id = get_current_loja_id()
@@ -278,8 +289,9 @@ class ReservaViewSet(BaseModelViewSet):
     def reenviar_para_assinatura(self, request, pk=None):
         """Reenvia link de assinatura."""
         from core.assinatura_service import reenviar_link
-        from .assinatura_adapter import ReservaAssinaturaAdapter
         from tenants.middleware import get_current_loja_id
+
+        from .assinatura_adapter import ReservaAssinaturaAdapter
 
         reserva = self.get_object()
         adapter = ReservaAssinaturaAdapter()
@@ -292,8 +304,10 @@ class ReservaViewSet(BaseModelViewSet):
     def download_pdf(self, request, pk=None):
         """Baixa PDF da confirmação de reserva."""
         from django.http import HttpResponse
-        from .pdf_reserva import gerar_pdf_reserva
+
         from tenants.middleware import get_current_loja_id
+
+        from .pdf_reserva import gerar_pdf_reserva
 
         reserva = self.get_object()
         _preencher_conteudo_confirmacao_se_vazio(reserva, get_current_loja_id())
@@ -589,18 +603,18 @@ class ConfiguracaoHotelViewSet(BaseModelViewSet):
 # ---------------------------------------------------------------------------
 # View pública de assinatura de reserva (sem autenticação)
 # ---------------------------------------------------------------------------
-from django.views import View
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 from django.conf import settings
+from django.http import JsonResponse
+from django.utils.decorators import method_decorator
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 
 
 def _configurar_tenant_reserva(loja_id):
     """Configura tenant para assinatura pública de reserva."""
-    from tenants.middleware import set_current_loja_id, set_current_tenant_db
-    from superadmin.models import Loja
     from core.db_config import ensure_loja_database_config
+    from superadmin.models import Loja
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
 
     set_current_loja_id(loja_id)
     loja = Loja.objects.using('default').filter(id=loja_id).first()
@@ -625,6 +639,7 @@ class ReservaAssinaturaPublicaView(View):
 
     def get(self, request, token):
         from core.assinatura_service import decodificar_token, normalizar_token_url
+
         from .assinatura_adapter import ReservaAssinaturaAdapter
 
         token = normalizar_token_url(token)
@@ -664,9 +679,14 @@ class ReservaAssinaturaPublicaView(View):
 
     def post(self, request, token):
         from core.assinatura_service import (
-            decodificar_token, normalizar_token_url, registrar_assinatura,
-            criar_assinatura, enviar_email_parte2, enviar_pdf_final,
+            criar_assinatura,
+            decodificar_token,
+            enviar_email_parte2,
+            enviar_pdf_final,
+            normalizar_token_url,
+            registrar_assinatura,
         )
+
         from .assinatura_adapter import ReservaAssinaturaAdapter
 
         token = normalizar_token_url(token)
@@ -725,10 +745,12 @@ class ReservaAssinaturaPdfView(View):
     """
 
     def get(self, request, token):
+        from django.http import HttpResponse
+
         from core.assinatura_service import decodificar_token, normalizar_token_url
+
         from .assinatura_adapter import ReservaAssinaturaAdapter
         from .pdf_reserva import gerar_pdf_reserva
-        from django.http import HttpResponse
 
         token = normalizar_token_url(token)
         payload = decodificar_token(token)

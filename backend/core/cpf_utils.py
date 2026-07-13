@@ -161,10 +161,7 @@ def existe_documento_duplicado(
     if apenas_ativos and hasattr(model, "is_active"):
         qs = qs.filter(is_active=True)
 
-    for _pk, stored in qs.values_list("pk", field_name):
-        if somente_digitos_documento(stored) == digits:
-            return True
-    return False
+    return any(somente_digitos_documento(stored) == digits for _pk, stored in qs.values_list("pk", field_name))
 
 
 def mensagem_documento_duplicado(

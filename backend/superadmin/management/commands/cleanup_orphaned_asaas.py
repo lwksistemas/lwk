@@ -1,11 +1,13 @@
 """
 Comando para limpar dados Asaas órfãos (sem loja correspondente)
 """
+import logging
+
 from django.core.management.base import BaseCommand
+
 from asaas_integration.deletion_service import AsaasDeletionService
 from asaas_integration.models import LojaAssinatura
-from superadmin.models import Loja, FinanceiroLoja, PagamentoLoja
-import logging
+from superadmin.models import FinanceiroLoja, Loja, PagamentoLoja
 
 logger = logging.getLogger(__name__)
 
@@ -106,9 +108,7 @@ class Command(BaseCommand):
         for financeiro in FinanceiroLoja.objects.all():
             try:
                 # Verificar se a loja existe
-                if not hasattr(financeiro, 'loja') or not financeiro.loja:
-                    orphaned_financeiros.append(financeiro)
-                elif not Loja.objects.filter(id=financeiro.loja.id, is_active=True).exists():
+                if not hasattr(financeiro, 'loja') or not financeiro.loja or not Loja.objects.filter(id=financeiro.loja.id, is_active=True).exists():
                     orphaned_financeiros.append(financeiro)
             except Exception:
                 orphaned_financeiros.append(financeiro)
@@ -142,9 +142,7 @@ class Command(BaseCommand):
         for pagamento in PagamentoLoja.objects.all():
             try:
                 # Verificar se a loja existe
-                if not hasattr(pagamento, 'loja') or not pagamento.loja:
-                    orphaned_pagamentos.append(pagamento)
-                elif not Loja.objects.filter(id=pagamento.loja.id, is_active=True).exists():
+                if not hasattr(pagamento, 'loja') or not pagamento.loja or not Loja.objects.filter(id=pagamento.loja.id, is_active=True).exists():
                     orphaned_pagamentos.append(pagamento)
             except Exception:
                 orphaned_pagamentos.append(pagamento)

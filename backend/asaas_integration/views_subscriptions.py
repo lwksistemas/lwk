@@ -1,18 +1,19 @@
 """
 ViewSet para assinaturas Asaas
 """
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from django.db.models import Sum
 import logging
 
+from django.db.models import Sum
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
 from core.throttling import DashboardRateThrottle
+from superadmin.models import Loja
 
 from .models import AsaasPayment, LojaAssinatura
 from .serializers import LojaAssinaturaSerializer
-from .views_config import IsSuperAdmin, REQUESTS_AVAILABLE
-from superadmin.models import Loja
+from .views_config import REQUESTS_AVAILABLE, IsSuperAdmin
 
 # Importação condicional do cliente Asaas
 if REQUESTS_AVAILABLE:
@@ -49,7 +50,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             assinaturas_ativas = LojaAssinatura.objects.filter(ativa=True).count()
             
             # Estatísticas dos pagamentos
-            total_pagamentos = AsaasPayment.objects.count()
+            AsaasPayment.objects.count()
             pagamentos_pendentes = AsaasPayment.objects.filter(status='PENDING').count()
             pagamentos_pagos = AsaasPayment.objects.filter(
                 status__in=['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']
@@ -93,6 +94,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
     def _calcular_proxima_data_vencimento(self, dia_vencimento):
         """Calcular próxima data de vencimento baseada no dia configurado"""
         from datetime import datetime
+
         from dateutil.relativedelta import relativedelta
         
         hoje = datetime.now().date()
@@ -257,8 +259,9 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             
             # Salvar no banco de dados local
             if resultado.get('success'):
-                from .models import AsaasPayment, AsaasCustomer, LojaAssinatura
                 from superadmin.models import FinanceiroLoja, PagamentoLoja
+
+                from .models import AsaasCustomer, AsaasPayment, LojaAssinatura
                 
                 # Buscar customer existente da assinatura (não criar novo)
                 try:
@@ -267,7 +270,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                     logger.info(f"✅ Usando customer existente da assinatura: {customer.asaas_id}")
                 except LojaAssinatura.DoesNotExist:
                     # Fallback: criar ou buscar customer se não houver assinatura
-                    logger.warning(f"⚠️ LojaAssinatura não encontrada, criando/buscando customer")
+                    logger.warning("⚠️ LojaAssinatura não encontrada, criando/buscando customer")
                     customer, _ = AsaasCustomer.objects.get_or_create(
                         asaas_id=resultado['customer_id'],
                         defaults={
@@ -327,7 +330,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                 # Atualizar current_payment da assinatura
                 assinatura.current_payment = payment
                 assinatura.save()
-                logger.info(f"✅ Assinatura atualizada com novo pagamento atual")
+                logger.info("✅ Assinatura atualizada com novo pagamento atual")
                 
                 # Atualizar FinanceiroLoja com dados do novo boleto
                 try:

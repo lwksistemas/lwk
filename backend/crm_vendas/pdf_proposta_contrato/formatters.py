@@ -1,6 +1,7 @@
 """Formatação e utilitários para PDF de proposta/contrato."""
-import re
 import logging
+import re
+
 import pytz
 
 logger = logging.getLogger(__name__)

@@ -1,9 +1,18 @@
 from django.contrib import admin
+
 from .models import (
-    TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, PagamentoLoja,
-    UsuarioSistema, UserSession, MercadoPagoConfig, EmailRetry,
+    EmailRetry,
+    FinanceiroLoja,
     GoogleCalendarConnection,
+    Loja,
+    MercadoPagoConfig,
+    PagamentoLoja,
+    PlanoAssinatura,
+    TipoLoja,
+    UserSession,
+    UsuarioSistema,
 )
+
 
 @admin.register(UserSession)
 class UserSessionAdmin(admin.ModelAdmin):

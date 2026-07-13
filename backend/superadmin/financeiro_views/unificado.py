@@ -13,9 +13,11 @@ logger = logging.getLogger(__name__)
 
 def _financeiro_unificado_stats():
     """Estatísticas unificadas (Asaas + Mercado Pago) para superadmin."""
-    from asaas_integration.models import LojaAssinatura, AsaasPayment
-    from django.db.models import Sum
     from decimal import Decimal
+
+    from django.db.models import Sum
+
+    from asaas_integration.models import AsaasPayment, LojaAssinatura
 
     # Asaas (AsaasPayment local)
     total_asaas = LojaAssinatura.objects.count()
@@ -51,7 +53,7 @@ def _financeiro_unificado_stats():
 
 def _assinaturas_unificado():
     """Lista unificada de assinaturas (Asaas + Mercado Pago) no formato esperado pelo frontend."""
-    from asaas_integration.models import LojaAssinatura, AsaasPayment
+    from asaas_integration.models import AsaasPayment, LojaAssinatura
     from asaas_integration.serializers import LojaAssinaturaSerializer
 
     out = []

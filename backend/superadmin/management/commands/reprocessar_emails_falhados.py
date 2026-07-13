@@ -8,12 +8,14 @@ Uso:
     python manage.py reprocessar_emails_falhados --limit 10
     python manage.py reprocessar_emails_falhados --loja minha-loja
 """
-from django.core.management.base import BaseCommand
-from django.utils import timezone
-from django.db.models import F
-from superadmin.models import EmailRetry
-from superadmin.email_service import EmailService
 import logging
+
+from django.core.management.base import BaseCommand
+from django.db.models import F
+from django.utils import timezone
+
+from superadmin.email_service import EmailService
+from superadmin.models import EmailRetry
 
 logger = logging.getLogger(__name__)
 
@@ -93,16 +95,16 @@ class Command(BaseCommand):
             
             if service.reenviar_email(email.id):
                 sucesso += 1
-                self.stdout.write(self.style.SUCCESS(f"      ✅ Enviado com sucesso"))
+                self.stdout.write(self.style.SUCCESS("      ✅ Enviado com sucesso"))
             else:
                 falha += 1
-                self.stdout.write(self.style.ERROR(f"      ❌ Falha ao enviar"))
+                self.stdout.write(self.style.ERROR("      ❌ Falha ao enviar"))
             
             self.stdout.write("")  # Linha em branco
         
         # Resumo
         self.stdout.write(self.style.SUCCESS('\n' + '='*60))
-        self.stdout.write(self.style.SUCCESS(f'✅ Reprocessamento concluído!'))
+        self.stdout.write(self.style.SUCCESS('✅ Reprocessamento concluído!'))
         self.stdout.write(self.style.SUCCESS(f'   Total processados: {total}'))
         self.stdout.write(self.style.SUCCESS(f'   Enviados com sucesso: {sucesso}'))
         
@@ -122,7 +124,7 @@ class Command(BaseCommand):
             tentativas__gte=F('max_tentativas')
         ).count()
         
-        self.stdout.write(f'\n📊 Estatísticas:')
+        self.stdout.write('\n📊 Estatísticas:')
         self.stdout.write(f'   Emails pendentes restantes: {pendentes_restantes}')
         self.stdout.write(f'   Emails falhados definitivamente: {falhados_definitivos}')
         

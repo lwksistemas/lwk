@@ -1,7 +1,7 @@
 # Sincronização WhatsApp por loja: número, token, phone_id, ativo; log com loja
 
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

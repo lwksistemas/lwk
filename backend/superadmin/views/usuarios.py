@@ -1,16 +1,19 @@
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
-from core.throttling import PasswordResetThrottle
-from rest_framework.response import Response
+import logging
+
 from django.contrib.auth.models import User
-from django.conf import settings
 from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
-import logging
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.response import Response
+
+from core.throttling import PasswordResetThrottle
 
 logger = logging.getLogger(__name__)
 from ..models import (
-    Loja, UsuarioSistema, MercadoPagoConfig,
+    Loja,
+    MercadoPagoConfig,
+    UsuarioSistema,
 )
 from ..serializers import UsuarioSistemaSerializer
 from .permissions import IsOwnerOrSuperAdmin, IsSuperAdmin
@@ -164,7 +167,7 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        from core.password_validation import validate_password_policy, password_policy_requirements
+        from core.password_validation import password_policy_requirements, validate_password_policy
         ok, msg = validate_password_policy(nova_senha)
         if not ok:
             return Response({
@@ -223,9 +226,10 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
             usuario_sistema.senha_foi_alterada = False
             usuario_sistema.save()
             
-            from ..services.provisional_password_helpers import sistema_usuario_login_url
+
             from core.email_templates import email_senha_provisoria_html
-            from django.core.mail import EmailMultiAlternatives
+
+            from ..services.provisional_password_helpers import sistema_usuario_login_url
 
             tipo_display = 'Super Admin' if tipo == 'superadmin' else 'Suporte'
             url_login = sistema_usuario_login_url(tipo)
@@ -275,15 +279,15 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
 
 class EmailRetryViewSet(viewsets.ModelViewSet):
     """ViewSet para gerenciar emails com falha de envio"""
-    from superadmin.serializers import EmailRetrySerializer
     from superadmin.models import EmailRetry
+    from superadmin.serializers import EmailRetrySerializer
     
     serializer_class = EmailRetrySerializer
     permission_classes = [IsSuperAdmin]
     
     def get_queryset(self):
+
         from superadmin.models import EmailRetry
-        from django.db.models import Q
         
         queryset = EmailRetry.objects.select_related('loja').all()
         
@@ -373,9 +377,10 @@ class EmailRetryViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def reprocessar_todos_pendentes(self, request):
         """Reprocessa todos os emails pendentes"""
+        from django.db.models import F
+
         from superadmin.email_service import EmailService
         from superadmin.models import EmailRetry
-        from django.db.models import F
         
         try:
             pendentes = EmailRetry.objects.filter(

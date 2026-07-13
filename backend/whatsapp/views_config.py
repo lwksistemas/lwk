@@ -1,14 +1,13 @@
 """
 Configuração WhatsApp centralizada — disponível para qualquer tipo de app/loja.
 """
+import contextlib
 import logging
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from core.tenant_access import user_can_access_loja
 
 from .config_helpers import apply_whatsapp_config_patch, serialize_whatsapp_config
 from .config_service import (
@@ -17,9 +16,15 @@ from .config_service import (
     resolve_loja_from_request,
 )
 from .views_connection import (
-    WhatsAppConnectView as BaseWhatsAppConnectView,
     WhatsAppConnectionStatusView as BaseWhatsAppConnectionStatusView,
+)
+from .views_connection import (
+    WhatsAppConnectView as BaseWhatsAppConnectView,
+)
+from .views_connection import (
     WhatsAppDisconnectView as BaseWhatsAppDisconnectView,
+)
+from .views_connection import (
     WhatsAppResetSessionView as BaseWhatsAppResetSessionView,
 )
 
@@ -68,7 +73,7 @@ class WhatsAppConfigView(APIView):
         except Exception as exc:
             logger.exception('WhatsAppConfigView.get loja=%s: %s', getattr(loja, 'id', '?'), exc)
             payload = default_whatsapp_config_payload(loja)
-            try:
+            with contextlib.suppress(Exception):
                 payload.update({
                     'whatsapp_ativo': getattr(config, 'whatsapp_ativo', False),
                     'whatsapp_provider': getattr(config, 'whatsapp_provider', 'meta') or 'meta',
@@ -78,8 +83,6 @@ class WhatsAppConfigView(APIView):
                     'connected_phone': (getattr(config, 'whatsapp_connected_phone', None) or '').strip(),
                     'enviar_confirmacao': getattr(config, 'enviar_confirmacao', True),
                 })
-            except Exception:
-                pass
             return Response(payload)
 
     def patch(self, request):

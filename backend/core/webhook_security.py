@@ -9,7 +9,6 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
-from typing import Optional
 
 from django.conf import settings
 
@@ -29,7 +28,7 @@ def _reject_unconfigured(provider: str) -> bool:
     return False
 
 
-def verify_asaas_access_token(request, expected_token: Optional[str] = None) -> bool:
+def verify_asaas_access_token(request, expected_token: str | None = None) -> bool:
     """
     Valida header asaas-access-token (documentação Asaas).
     expected_token: override; senão usa token do banco, ASAAS_WEBHOOK_TOKEN ou ASAAS_LOJA_WEBHOOK_TOKEN.
@@ -54,7 +53,7 @@ def verify_asaas_access_token(request, expected_token: Optional[str] = None) -> 
     return True
 
 
-def verify_mercadopago_signature(request, secret: Optional[str] = None) -> bool:
+def verify_mercadopago_signature(request, secret: str | None = None) -> bool:
     """
     Valida x-signature do Mercado Pago (HMAC SHA256 do manifest).
     """
@@ -107,6 +106,6 @@ def verify_mercadopago_signature(request, secret: Optional[str] = None) -> bool:
 
 
 def webhook_auth_failed_response():
-    from rest_framework.response import Response
     from rest_framework import status
+    from rest_framework.response import Response
     return Response({'detail': 'Webhook não autorizado'}, status=status.HTTP_401_UNAUTHORIZED)

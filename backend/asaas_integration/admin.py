@@ -3,9 +3,10 @@ Admin para integração com Asaas
 """
 from django.contrib import admin
 from django.utils.html import format_html
-from django.urls import reverse
 from django.utils.safestring import mark_safe
+
 from .models import AsaasCustomer, AsaasPayment, LojaAssinatura
+
 
 @admin.register(AsaasCustomer)
 class AsaasCustomerAdmin(admin.ModelAdmin):
@@ -132,7 +133,6 @@ class LojaAssinaturaAdmin(admin.ModelAdmin):
     def payment_status(self, obj):
         """Status do pagamento atual"""
         if obj.current_payment:
-            status = obj.current_payment.status
             if obj.current_payment.is_paid:
                 color = 'green'
             elif obj.current_payment.is_overdue:

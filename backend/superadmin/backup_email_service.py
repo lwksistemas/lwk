@@ -13,10 +13,9 @@ Boas práticas aplicadas:
 """
 
 import logging
-from typing import Optional
-from django.core.mail import EmailMessage
+
 from django.conf import settings
-from django.template.loader import render_to_string
+from django.core.mail import EmailMessage
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -48,7 +47,7 @@ class BackupEmailService:
         Returns:
             bool: True se enviado com sucesso, False caso contrário
         """
-        from .models import Loja, HistoricoBackup
+        from .models import HistoricoBackup, Loja
         
         try:
             # Buscar loja e histórico
@@ -96,6 +95,7 @@ class BackupEmailService:
             historico.marcar_email_enviado(destinatario)
 
             from django.utils import timezone
+
             from .models import ConfiguracaoBackup
             ConfiguracaoBackup.objects.filter(loja=loja).update(
                 ultimo_envio_email=timezone.now()

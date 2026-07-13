@@ -1,5 +1,5 @@
 """Configuração de tabelas para backup de lojas."""
-from typing import List
+
 
 class TabelaConfig:
     """
@@ -71,16 +71,16 @@ class BackupConfig:
     ]
     
     @classmethod
-    def get_tabelas_ordenadas_exportacao(cls) -> List[TabelaConfig]:
+    def get_tabelas_ordenadas_exportacao(cls) -> list[TabelaConfig]:
         """Retorna tabelas ordenadas para exportação"""
         return sorted(cls.TABELAS, key=lambda t: t.ordem_exportacao)
     
     @classmethod
-    def get_tabelas_ordenadas_importacao(cls) -> List[TabelaConfig]:
+    def get_tabelas_ordenadas_importacao(cls) -> list[TabelaConfig]:
         """Retorna tabelas ordenadas para importação"""
         return sorted(cls.TABELAS, key=lambda t: t.ordem_importacao)
     
     @classmethod
-    def get_nomes_tabelas(cls) -> List[str]:
+    def get_nomes_tabelas(cls) -> list[str]:
         """Retorna lista de nomes de tabelas"""
         return [t.nome for t in cls.TABELAS]

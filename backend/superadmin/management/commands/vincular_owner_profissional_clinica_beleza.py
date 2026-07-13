@@ -9,11 +9,10 @@ Uso:
   python manage.py vincular_owner_profissional_clinica_beleza
   python manage.py vincular_owner_profissional_clinica_beleza --slug linda-1845
 """
-import os
-import django
 from django.core.management.base import BaseCommand
-from django.conf import settings
+
 from superadmin.models import Loja, ProfissionalUsuario
+
 
 class Command(BaseCommand):
     help = 'Vincula o owner da loja ao cadastro de profissionais (Clínica da Beleza)'

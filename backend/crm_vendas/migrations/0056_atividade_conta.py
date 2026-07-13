@@ -1,8 +1,7 @@
 # Generated manually
 # Adiciona campo conta (empresa) na Atividade para vincular interações a contas
 
-from django.db import migrations, models
-import django.db.models.deletion
+from django.db import migrations
 
 
 def add_conta_column(apps, schema_editor):

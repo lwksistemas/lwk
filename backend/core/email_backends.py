@@ -20,7 +20,7 @@ class ResendEmailBackend(BaseEmailBackend):
         if not email_messages:
             return 0
 
-        from core.email_delivery import deliver_email_message, deliver_email_sync
+        from core.email_delivery import deliver_email_message
         from core.email_sync_context import email_sync_only
 
         if email_sync_only.get():

@@ -3,7 +3,6 @@ Middleware para gerenciar endpoints públicos
 ✅ FASE 5 v772: Consolidação de endpoints públicos
 """
 import logging
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -63,11 +62,7 @@ class PublicEndpointsConfig:
             return True
         
         # Verificar prefixos
-        for endpoint in cls.PUBLIC_ENDPOINTS:
-            if path.startswith(endpoint):
-                return True
-        
-        return False
+        return any(path.startswith(endpoint) for endpoint in cls.PUBLIC_ENDPOINTS)
     
     @classmethod
     def allows_anonymous(cls, path: str) -> bool:
@@ -82,11 +77,7 @@ class PublicEndpointsConfig:
         """
         path = path.split('?')[0]
         
-        for endpoint in cls.ALLOW_ANONYMOUS:
-            if path.startswith(endpoint):
-                return True
-        
-        return False
+        return any(path.startswith(endpoint) for endpoint in cls.ALLOW_ANONYMOUS)
     
     @classmethod
     def is_password_recovery(cls, path: str) -> bool:
@@ -101,11 +92,7 @@ class PublicEndpointsConfig:
         """
         path = path.split('?')[0]
         
-        for endpoint in cls.PASSWORD_RECOVERY:
-            if path.startswith(endpoint):
-                return True
-        
-        return False
+        return any(path.startswith(endpoint) for endpoint in cls.PASSWORD_RECOVERY)
     
     @classmethod
     def get_endpoint_type(cls, path: str) -> str:

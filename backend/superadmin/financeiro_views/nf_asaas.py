@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 def _get_asaas_client():
     """Retorna cliente Asaas configurado ou None."""
-    from asaas_integration.models import AsaasConfig
     from asaas_integration.client import AsaasClient
+    from asaas_integration.models import AsaasConfig
     config = AsaasConfig.get_config()
     if not config or not config.api_key:
         return None
@@ -102,9 +102,8 @@ def nf_reenviar_por_payment(request, payment_id):
     if not request.user.is_superuser:
         return Response({'detail': 'Apenas superadmin.'}, status=status.HTTP_403_FORBIDDEN)
     try:
+
         from asaas_integration.models import AsaasPayment as AP
-        from django.core.mail import EmailMessage
-        from django.conf import settings
 
         client = _get_asaas_client()
         if not client:

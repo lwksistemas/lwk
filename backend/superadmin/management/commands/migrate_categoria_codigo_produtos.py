@@ -4,6 +4,7 @@ dos schemas isolados das lojas CRM Vendas.
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 

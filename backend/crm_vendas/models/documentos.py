@@ -1,10 +1,11 @@
-from django.db import models
-
-from core.mixins import LojaIsolationMixin, LojaIsolationManager
-
 from decimal import Decimal
 
+from django.db import models
+
+from core.mixins import LojaIsolationManager, LojaIsolationMixin
+
 from .oportunidades import Oportunidade
+
 
 class Proposta(LojaIsolationMixin, models.Model):
     """Proposta comercial vinculada a uma oportunidade."""
@@ -125,7 +126,6 @@ class Proposta(LojaIsolationMixin, models.Model):
     @property
     def valor_com_desconto(self):
         """Calcula o valor final após aplicar o desconto."""
-        from decimal import Decimal
         base = self.valor_total or Decimal('0')
         desconto = self.desconto_valor or Decimal('0')
         if desconto <= 0 or base <= 0:
@@ -252,7 +252,6 @@ class Contrato(LojaIsolationMixin, models.Model):
     @property
     def valor_com_desconto(self):
         """Calcula o valor final após aplicar o desconto."""
-        from decimal import Decimal
         base = self.valor_total or Decimal('0')
         desconto = self.desconto_valor or Decimal('0')
         if desconto <= 0 or base <= 0:

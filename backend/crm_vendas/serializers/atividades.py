@@ -2,12 +2,11 @@
 from rest_framework import serializers
 
 from core.serializer_mixins import (
-    CpfCnpjNormalizationMixin,
     TextNormalizationMixin,
-    UniqueDocumentoPerLojaMixin,
 )
 
 from ..models import Atividade
+
 
 class AtividadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     uppercase_fields = ['titulo']

@@ -1,7 +1,9 @@
-from rest_framework import viewsets, permissions
+from rest_framework import permissions, viewsets
 from rest_framework.exceptions import PermissionDenied
+
 from .models import Product
 from .serializers import ProductSerializer
+
 
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer

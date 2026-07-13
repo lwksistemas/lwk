@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Vendedor, Conta, Lead, Contato, Oportunidade, Atividade
+
+from .models import Atividade, Conta, Contato, Lead, Oportunidade, Vendedor
 
 
 @admin.register(Vendedor)

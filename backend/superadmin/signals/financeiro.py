@@ -1,9 +1,6 @@
 import logging
-import os
-import shutil
-from pathlib import Path
 
-from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from core.logging_utils import mask_email

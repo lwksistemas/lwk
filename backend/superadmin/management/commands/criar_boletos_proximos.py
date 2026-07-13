@@ -8,15 +8,15 @@ Uso:
     python manage.py criar_boletos_proximos --dry-run
     python manage.py criar_boletos_proximos --dias 10
 """
+import logging
+from datetime import datetime, timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from django.core.mail import EmailMessage
-from django.conf import settings
-from datetime import timedelta, datetime
-from superadmin.models import FinanceiroLoja
-from asaas_integration.models import LojaAssinatura, AsaasPayment
+
 from asaas_integration.client import AsaasPaymentService
-import logging
+from asaas_integration.models import AsaasPayment, LojaAssinatura
+from superadmin.models import FinanceiroLoja
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +99,9 @@ class Command(BaseCommand):
                         )
                         
                         if email_enviado:
-                            self.stdout.write(self.style.SUCCESS(f'      📧 Email enviado'))
+                            self.stdout.write(self.style.SUCCESS('      📧 Email enviado'))
                         else:
-                            self.stdout.write(self.style.WARNING(f'      ⚠️ Erro ao enviar email'))
+                            self.stdout.write(self.style.WARNING('      ⚠️ Erro ao enviar email'))
                     else:
                         erros += 1
                         self.stdout.write(self.style.ERROR(f'      ❌ Erro: {resultado["error"]}'))
@@ -111,7 +111,7 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.ERROR(f'      ❌ Erro: {e}'))
                     logger.error(f"Erro ao criar boleto para {loja.nome}: {e}")
             else:
-                self.stdout.write(self.style.WARNING(f'      🔍 Boleto não criado (dry-run)'))
+                self.stdout.write(self.style.WARNING('      🔍 Boleto não criado (dry-run)'))
             
             self.stdout.write('')  # Linha em branco
         
@@ -124,7 +124,7 @@ class Command(BaseCommand):
             if erros > 0:
                 self.stdout.write(self.style.ERROR(f'   Erros: {erros}'))
         else:
-            self.stdout.write(self.style.WARNING(f'   💡 Execute sem --dry-run para criar os boletos'))
+            self.stdout.write(self.style.WARNING('   💡 Execute sem --dry-run para criar os boletos'))
         self.stdout.write(self.style.SUCCESS('='*60))
     
     def _criar_boleto(self, loja, financeiro, data_vencimento):

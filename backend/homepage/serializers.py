@@ -1,6 +1,8 @@
 from rest_framework import serializers
+
 from core.serializer_mixins import PhoneNormalizationMixin
-from .models import HeroSection, Funcionalidade, ModuloSistema, WhyUsBenefit, EmpresaConfig
+
+from .models import EmpresaConfig, Funcionalidade, HeroSection, ModuloSistema, WhyUsBenefit
 
 
 class HeroSerializer(serializers.ModelSerializer):

@@ -1,49 +1,31 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from .views import (
-    VendedorViewSet,
-    ContaViewSet,
-    LeadViewSet,
-    ContatoViewSet,
-    OportunidadeViewSet,
+    AssinaturaPdfView,
+    AssinaturaPublicaView,
     AtividadeViewSet,
     CategoriaProdutoServicoViewSet,
-    ProdutoServicoViewSet,
+    ContatoViewSet,
+    ContaViewSet,
+    ContratoTemplateViewSet,
+    ContratoViewSet,
+    LeadViewSet,
+    LoginConfigView,
     OportunidadeItemViewSet,
     OportunidadeNotaViewSet,
-    PropostaViewSet,
+    OportunidadeViewSet,
+    ProdutoServicoViewSet,
     PropostaTemplateViewSet,
-    ContratoViewSet,
-    ContratoTemplateViewSet,
-    crm_me,
-    dashboard_data,
+    PropostaViewSet,
+    VendedorViewSet,
     crm_busca,
-    LoginConfigView,
     crm_config,
     crm_config_asaas_test,
     crm_config_issnet_test,
+    crm_me,
+    dashboard_data,
     gerar_relatorio,
-    AssinaturaPublicaView,
-    AssinaturaPdfView,
-)
-from .views_relatorio_comissao import (
-    criar_relatorio_comissao_view,
-    listar_relatorios_comissao_view,
-    download_pdf_relatorio_comissao_view,
-    preview_relatorio_comissao_view,
-    excluir_relatorio_comissao_view,
-    confirmar_pagamento_manual_view,
-    reemitir_nfse_view,
-    empresa_aprovar_view,
-    empresa_reprovar_view,
-    vendedor_assinar_view,
-)
-from .views_google_calendar import (
-    google_calendar_auth,
-    google_calendar_callback,
-    google_calendar_status,
-    google_calendar_sync,
-    google_calendar_disconnect,
 )
 from .views_asaas_webhook import asaas_loja_webhook
 from .views_financeiro import (
@@ -52,6 +34,25 @@ from .views_financeiro import (
     financeiro_crm_relatorio_pdf,
     financeiro_crm_resumo,
     financeiro_crm_sync_comissoes,
+)
+from .views_google_calendar import (
+    google_calendar_auth,
+    google_calendar_callback,
+    google_calendar_disconnect,
+    google_calendar_status,
+    google_calendar_sync,
+)
+from .views_relatorio_comissao import (
+    confirmar_pagamento_manual_view,
+    criar_relatorio_comissao_view,
+    download_pdf_relatorio_comissao_view,
+    empresa_aprovar_view,
+    empresa_reprovar_view,
+    excluir_relatorio_comissao_view,
+    listar_relatorios_comissao_view,
+    preview_relatorio_comissao_view,
+    reemitir_nfse_view,
+    vendedor_assinar_view,
 )
 
 router = DefaultRouter()

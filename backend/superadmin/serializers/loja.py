@@ -5,6 +5,7 @@ import traceback
 from rest_framework import serializers
 
 from core.serializer_mixins import CpfCnpjNormalizationMixin, TextNormalizationMixin, UniqueDocumentoPerLojaMixin
+
 from ..models import Loja
 from .financeiro import FinanceiroLojaSerializer
 
@@ -160,12 +161,11 @@ class LojaCreateSerializer(
         ✅ REFATORADO v769: Reduzido de 300+ para ~80 linhas usando services
         """
         from ..services import (
-            LojaCreationService,
             DatabaseSchemaService,
             FinanceiroService,
+            LojaCreationService,
             ProfessionalService,
         )
-        import traceback
 
         try:
             # 1. EXTRAIR E PROCESSAR DADOS DO OWNER

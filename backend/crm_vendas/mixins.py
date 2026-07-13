@@ -104,7 +104,7 @@ class CRMPermissionMixin:
         Returns:
             Response 403 se vendedor comum, None se proprietário
         """
-        from .utils import is_owner, is_vendedor_usuario
+        from .utils import is_owner
         
         # Owner SEMPRE tem acesso total
         if is_owner(request):
@@ -266,8 +266,9 @@ class CacheInvalidationMixin:
             return
         
         try:
-            from .cache import CRMCacheManager
             from tenants.middleware import get_current_loja_id
+
+            from .cache import CRMCacheManager
             
             loja_id = get_current_loja_id()
             if not loja_id:

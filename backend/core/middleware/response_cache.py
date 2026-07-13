@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import time
-from typing import Optional
 
 from django.conf import settings
 from django.core.cache import cache
@@ -37,7 +35,7 @@ CACHED_ENDPOINTS = [
 ]
 
 
-def _get_cache_config(path: str) -> Optional[tuple]:
+def _get_cache_config(path: str) -> tuple | None:
     """Retorna (ttl, requires_auth) se o path deve ser cacheado."""
     path_norm = (path or '').rstrip('/') + '/'
     for prefix, ttl, requires_auth in CACHED_ENDPOINTS:

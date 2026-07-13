@@ -13,8 +13,8 @@ from .mixins import CRMPermissionMixin, CRMSchemaRecoveryMixin
 from .models import Vendedor
 from .serializers import VendedorSerializer
 from .vendedor_admin_service import (
-    aplicar_cache_control_sem_store,
     ajustar_lista_vendedores_com_admin,
+    aplicar_cache_control_sem_store,
     listar_grupos_crm_disponiveis,
     reenviar_senha_administrador_loja,
     reenviar_senha_vendedor,

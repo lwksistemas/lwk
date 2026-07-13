@@ -6,7 +6,6 @@ from django.utils import timezone
 
 from clinica_beleza.models import Appointment, HorarioTrabalhoProfissional
 
-
 # Limite máximo de atendimentos por profissional por dia (pode vir de config/RegraAutomatica no futuro)
 LIMITE_ATENDIMENTOS_POR_DIA = 20
 
@@ -57,12 +56,11 @@ def validar_horario_trabalho(contexto):
             f"Horário após o fim do expediente ({horario.hora_saida.strftime('%H:%M')})."
         )
 
-    if horario.intervalo_inicio and horario.intervalo_fim:
-        if t_start < horario.intervalo_fim and t_end > horario.intervalo_inicio:
-            raise ValidationError(
-                "Horário conflita com o intervalo do profissional "
-                f"({horario.intervalo_inicio.strftime('%H:%M')}–{horario.intervalo_fim.strftime('%H:%M')})."
-            )
+    if horario.intervalo_inicio and horario.intervalo_fim and t_start < horario.intervalo_fim and t_end > horario.intervalo_inicio:
+        raise ValidationError(
+            "Horário conflita com o intervalo do profissional "
+            f"({horario.intervalo_inicio.strftime('%H:%M')}–{horario.intervalo_fim.strftime('%H:%M')})."
+        )
 
 
 def limite_atendimentos_dia(contexto):

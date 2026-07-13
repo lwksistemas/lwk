@@ -1,13 +1,14 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, permission_classes, authentication_classes
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+import logging
+
 from django.conf import settings
-from django.db import connection, DatabaseError
-from django.views.decorators.http import require_http_methods
+from django.db import DatabaseError, connection
 from django.http import JsonResponse
 from django.utils import timezone
-import logging
+from django.views.decorators.http import require_http_methods
+from rest_framework import status, viewsets
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
 from ..models import Loja
@@ -20,8 +21,9 @@ from .permissions import IsSuperAdmin
 def verificar_storage_todas(request):
     """Recalcula storage de todas as lojas ativas. Apenas superadmin."""
     try:
-        from django.core.management import call_command
         from io import StringIO
+
+        from django.core.management import call_command
 
         out = StringIO()
         call_command('verificar_storage_lojas', stdout=out)
@@ -47,8 +49,9 @@ def verificar_storage_loja(request, loja_id):
     try:
         loja = Loja.objects.get(id=loja_id)
         
-        from django.core.management import call_command
         from io import StringIO
+
+        from django.core.management import call_command
         
         out = StringIO()
         call_command('verificar_storage_lojas', loja_id=loja_id, stdout=out)
@@ -171,6 +174,7 @@ def health_check(request):
         logger.warning(f'Health check: Loja.objects.count() falhou: {e}')
 
     import os
+
     from core.migration_guard import get_pending_critical_migrations
     from core.resend_api import resend_api_key
 
@@ -220,9 +224,7 @@ def health_check(request):
         queue_level = queue_health_level(task_queue)
         if queue_level:
             payload['task_queue']['health'] = queue_level
-            if payload['status'] == 'healthy' and queue_level == 'unhealthy':
-                payload['status'] = 'degraded'
-            elif payload['status'] == 'healthy' and queue_level == 'degraded':
+            if payload['status'] == 'healthy' and queue_level == 'unhealthy' or payload['status'] == 'healthy' and queue_level == 'degraded':
                 payload['status'] = 'degraded'
     except Exception:
         payload['task_queue'] = {'enabled': False, 'broker': 'unknown'}
@@ -266,8 +268,8 @@ class LoginConfigSistemaViewSet(viewsets.ModelViewSet):
         tipo = request.query_params.get('tipo')
         
         if tipo:
-            from ..models import LoginConfigSistema
             from ..login_sistema_defaults import LOGIN_SISTEMA_DEFAULTS
+            from ..models import LoginConfigSistema
             config, created = LoginConfigSistema.objects.get_or_create(
                 tipo=tipo,
                 defaults=LOGIN_SISTEMA_DEFAULTS.get(tipo, {}),
@@ -299,6 +301,7 @@ class LoginConfigSistemaViewSet(viewsets.ModelViewSet):
 def login_config_sistema_publico(request, tipo):
     """Endpoint público para obter configurações de login do sistema."""
     from django.core.cache import cache
+
     from ..models import LoginConfigSistema
     
     if tipo not in ['superadmin', 'suporte']:
@@ -364,7 +367,7 @@ def atalho_redirect(request, atalho):
     Redireciona atalho curto para URL completa da loja.
     Sistema híbrido de acesso às lojas.
     """
-    from django.shortcuts import redirect, get_object_or_404
+    from django.shortcuts import get_object_or_404, redirect
     
     loja = get_object_or_404(Loja, atalho=atalho, is_active=True)
     

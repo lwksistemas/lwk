@@ -1,6 +1,8 @@
 """Permissões do financeiro das lojas."""
 from rest_framework import permissions
+
 from ..models import Loja
+
 
 class IsLojaOwner(permissions.BasePermission):
     """Permissão para proprietário da loja"""

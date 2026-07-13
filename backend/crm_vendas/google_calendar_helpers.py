@@ -75,8 +75,8 @@ def extract_email_from_credentials(credentials):
     if not getattr(credentials, 'id_token', None):
         return None
     try:
-        from google.oauth2 import id_token
         from google.auth.transport.requests import Request as GoogleRequest
+        from google.oauth2 import id_token
         decoded = id_token.verify_oauth2_token(
             credentials.id_token,
             GoogleRequest(),

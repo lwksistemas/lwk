@@ -3,8 +3,15 @@ import logging
 
 from core.views import BaseModelViewSet
 from tenants.middleware import get_current_loja_id
+
 from .cache import CRMCacheManager
-from .mixins import CacheInvalidationMixin, CrmGranularPermissionMixin, CRMSchemaRecoveryMixin, VendedorAutoAssignCreateMixin, VendedorFilterMixin
+from .mixins import (
+    CacheInvalidationMixin,
+    CrmGranularPermissionMixin,
+    CRMSchemaRecoveryMixin,
+    VendedorAutoAssignCreateMixin,
+    VendedorFilterMixin,
+)
 from .models import Conta, Contato, Lead
 from .serializers import (
     ContaSerializer,

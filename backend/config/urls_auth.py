@@ -2,13 +2,14 @@
 URLs de autenticação para todos os tipos de usuário
 """
 from django.urls import path
-from superadmin.auth_views_secure import SecureLoginView, SecureLogoutView, BeaconLogoutView
+
+from superadmin.auth_views_secure import BeaconLogoutView, SecureLoginView, SecureLogoutView
 from superadmin.mfa_views import (
-    MfaSetupView,
     MfaConfirmView,
     MfaDisableView,
-    MfaStatusView,
     MfaRegenerateBackupView,
+    MfaSetupView,
+    MfaStatusView,
 )
 
 urlpatterns = [

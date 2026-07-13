@@ -8,10 +8,9 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from superadmin.models import Loja, TipoLoja, PlanoAssinatura, UsuarioSistema, ProfissionalUsuario
-from superadmin.session_manager import SessionManager
 from config.security_middleware import SecurityIsolationMiddleware
-
+from superadmin.models import Loja, PlanoAssinatura, ProfissionalUsuario, TipoLoja, UsuarioSistema
+from superadmin.session_manager import SessionManager
 
 MIDDLEWARE_WITH_ISOLATION = override_settings(
     MIDDLEWARE=[

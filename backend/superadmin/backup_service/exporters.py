@@ -5,7 +5,6 @@ import logging
 import zipfile
 from datetime import datetime
 from decimal import Decimal
-from typing import List
 
 from django.utils import timezone
 
@@ -21,8 +20,8 @@ class CSVExporter:
     @staticmethod
     def export_table_to_csv(
         table_name: str,
-        columns: List[str],
-        records: List[tuple]
+        columns: list[str],
+        records: list[tuple]
     ) -> bytes:
         """
         Exporta uma tabela para CSV em memória.

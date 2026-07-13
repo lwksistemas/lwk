@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from ..models import HistoricoAcessoGlobal, ViolacaoSeguranca
 
+
 class HistoricoAcessoGlobalSerializer(serializers.ModelSerializer):
     """
     Serializer para Histórico de Acesso Global

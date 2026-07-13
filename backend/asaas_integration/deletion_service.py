@@ -3,9 +3,10 @@ Serviço para exclusão de dados no Asaas
 Remove clientes, pagamentos e boletos da API do Asaas
 """
 import logging
-from typing import Dict, List, Any
+from typing import Any
+
 from .client import AsaasClient
-from .models import AsaasConfig, AsaasCustomer, AsaasPayment, LojaAssinatura
+from .models import AsaasConfig, AsaasPayment, LojaAssinatura
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class AsaasDeletionService:
             self.client = None
             self.available = False
     
-    def delete_loja_from_asaas(self, loja_slug: str) -> Dict[str, Any]:
+    def delete_loja_from_asaas(self, loja_slug: str) -> dict[str, Any]:
         """
         Exclui todos os dados de uma loja no Asaas
         
@@ -165,7 +166,7 @@ class AsaasDeletionService:
             # Log final com informação importante
             if deleted_count > 0:
                 logger.info(f"✅ Total de {deleted_count} pagamentos cancelados")
-                logger.info(f"ℹ️ NOTA: Pagamentos cancelados ficam no histórico do Asaas para auditoria (marcados como 'deleted: true')")
+                logger.info("ℹ️ NOTA: Pagamentos cancelados ficam no histórico do Asaas para auditoria (marcados como 'deleted: true')")
             
             return deleted_count
             
@@ -185,7 +186,7 @@ class AsaasDeletionService:
             # Alguns clientes podem não poder ser excluídos se tiverem histórico
             return False
     
-    def cleanup_orphaned_asaas_data(self) -> Dict[str, Any]:
+    def cleanup_orphaned_asaas_data(self) -> dict[str, Any]:
         """Limpa dados Asaas órfãos (sem loja correspondente)"""
         if not self.available:
             return {

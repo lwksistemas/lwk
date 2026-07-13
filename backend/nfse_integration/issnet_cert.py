@@ -1,8 +1,8 @@
 """Carregamento de certificado A1 (.pfx) para ISSNet."""
 import os
 import tempfile
-from contextlib import contextmanager
-from typing import Generator, Tuple
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 
 from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric.types import PrivateKeyTypes
@@ -24,7 +24,7 @@ def carregar_certificado(pfx_path: str, senha: str):
 
 def materializar_pem_mtls(
     pfx_path: str, senha: str
-) -> Tuple[str, str, PrivateKeyTypes, x509.Certificate]:
+) -> tuple[str, str, PrivateKeyTypes, x509.Certificate]:
     """
     Grava chave e cadeia em arquivos PEM temporários para mTLS (requests/zeep).
     Retorna (key_path, cert_path, private_key, certificate).
@@ -41,8 +41,8 @@ def materializar_pem_mtls(
             if add is not None:
                 cert_pem += add.public_bytes(Encoding.PEM)
 
-    ktf = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
-    ctf = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
+    ktf = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')  # noqa: SIM115
+    ctf = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')  # noqa: SIM115
     try:
         ktf.write(key_pem)
         ctf.write(cert_pem)
@@ -57,7 +57,7 @@ def materializar_pem_mtls(
 @contextmanager
 def certificado_mtls_temporario(
     pfx_path: str, senha: str
-) -> Generator[Tuple[str, str], None, None]:
+) -> Generator[tuple[str, str], None, None]:
     """Context manager: paths PEM para mTLS; remove arquivos ao sair."""
     key_path, cert_path, _key, _cert = materializar_pem_mtls(pfx_path, senha)
     try:
@@ -65,7 +65,5 @@ def certificado_mtls_temporario(
     finally:
         for p in (cert_path, key_path):
             if p and os.path.isfile(p):
-                try:
+                with suppress(OSError):
                     os.unlink(p)
-                except OSError:
-                    pass

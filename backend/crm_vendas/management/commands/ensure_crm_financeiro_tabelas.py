@@ -78,13 +78,12 @@ class Command(BaseCommand):
                         tem_grupo = tem_lanc = True
                         fixed += 1
 
-                    if tem_grupo and tem_lanc and not tem_rec:
-                        if aplicar_recorrencia_sql(cursor, schema_name):
-                            fixed += 1
-                            self.stdout.write(
-                                self.style.SUCCESS(f'{loja.slug}: tabelas financeiro criadas (SQL)')
-                            )
-                            continue
+                    if tem_grupo and tem_lanc and not tem_rec and aplicar_recorrencia_sql(cursor, schema_name):
+                        fixed += 1
+                        self.stdout.write(
+                            self.style.SUCCESS(f'{loja.slug}: tabelas financeiro criadas (SQL)')
+                        )
+                        continue
 
                 if not (tem_grupo and tem_lanc and tem_rec):
                     self.stdout.write(

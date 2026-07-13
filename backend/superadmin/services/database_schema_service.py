@@ -8,10 +8,12 @@ Isolamento por loja:
   migrations nesse schema. Assim o backup e a aplicação usam apenas as tabelas desse
   schema, sem risco de misturar dados de outras lojas ou do superadmin.
 """
+import contextlib
 import logging
 import re
-from django.db import connection, connections
+
 from django.conf import settings
+from django.db import connection, connections
 
 logger = logging.getLogger(__name__)
 
@@ -84,18 +86,12 @@ def _rollback_and_reconnect(alias: str) -> None:
     if alias not in connections:
         return
     conn = connections[alias]
-    try:
+    with contextlib.suppress(Exception):
         conn.rollback()
-    except Exception:
-        pass
-    try:
+    with contextlib.suppress(Exception):
         conn.close()
-    except Exception:
-        pass
-    try:
+    with contextlib.suppress(Exception):
         conn.ensure_connection()
-    except Exception:
-        pass
 
 
 def _reset_tenant_connection(alias: str) -> None:
@@ -103,14 +99,10 @@ def _reset_tenant_connection(alias: str) -> None:
     if alias not in connections:
         return
     conn = connections[alias]
-    try:
+    with contextlib.suppress(Exception):
         conn.rollback()
-    except Exception:
-        pass
-    try:
+    with contextlib.suppress(Exception):
         conn.close()
-    except Exception:
-        pass
 
 # Apps extras por slug de TipoLoja (única fonte para migrate / auditoria)
 TIPO_LOJA_EXTRA_APPS = {
@@ -238,10 +230,11 @@ class DatabaseSchemaService:
         Returns:
             True se aplicado com sucesso
         """
+        from io import StringIO
+
         from django.core.management import call_command
         from django.db.migrations.executor import MigrationExecutor
-        from io import StringIO
-        
+
         # 1. Adicionar config
         from core.db_config import ensure_loja_database_config
         
@@ -405,9 +398,8 @@ class DatabaseSchemaService:
                                     )
                                 except Exception as fake_err:
                                     logger.error(f"      ❌ Falha ao registrar migration fake: {fake_err}")
-                            if tipo_slug == 'crm-vendas' and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS:
-                                if not _pg_objects_already_exist(e):
-                                    raise
+                            if tipo_slug == 'crm-vendas' and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS and not _pg_objects_already_exist(e):
+                                raise
                     
                     logger.info(f"   ✅ App {app} concluído")
                     

@@ -1,8 +1,8 @@
 from django.urls import path
 
 from .views_config import (
-    LojaWhatsAppConnectView,
     LojaWhatsAppConnectionStatusView,
+    LojaWhatsAppConnectView,
     LojaWhatsAppDisconnectView,
     LojaWhatsAppResetSessionView,
     WhatsAppConfigView,

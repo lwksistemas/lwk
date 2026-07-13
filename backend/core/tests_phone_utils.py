@@ -2,13 +2,14 @@
 Testes para utilitários de telefone
 """
 from django.test import TestCase
+
 from .phone_utils import (
-    limpar_telefone,
     formatar_telefone_brasileiro,
-    validar_telefone_brasileiro,
+    limpar_telefone,
     normalizar_telefone,
-    telefone_internacional_br,
     telefone_exibicao_brasileiro,
+    telefone_internacional_br,
+    validar_telefone_brasileiro,
 )
 
 

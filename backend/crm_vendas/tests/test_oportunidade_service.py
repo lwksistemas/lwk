@@ -29,8 +29,8 @@ class OportunidadeServiceCriarTests(SimpleTestCase):
     @patch('crm_vendas.services.Oportunidade.objects')
     def test_regra1_vendedor_logado_tem_prioridade(self, mock_opp_obj, *_):
         """Regra 1: vendedor logado é usado se existir no tenant."""
-        from crm_vendas.services import OportunidadeService
         from crm_vendas.models import Vendedor
+        from crm_vendas.services import OportunidadeService
 
         mock_opp_obj.create.return_value = MagicMock(id=1)
 

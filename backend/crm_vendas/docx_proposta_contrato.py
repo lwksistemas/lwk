@@ -9,13 +9,14 @@ Implementação simples (sem conversão HTML->DOCX completa):
 - Assinaturas (informativas)
 """
 
-from io import BytesIO
 from html.parser import HTMLParser
+from io import BytesIO
+
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from core.phone_utils import telefone_exibicao_brasileiro
 
 from .emitente_documento import obter_dados_emitente_documento
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 
 class _HtmlToDocxBlocksParser(HTMLParser):
@@ -57,9 +58,7 @@ class _HtmlToDocxBlocksParser(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         tag = tag.lower()
-        if tag in ("p",):
-            self._flush_paragraph()
-        elif tag == "br":
+        if tag in ("p",) or tag == "br":
             self._flush_paragraph()
         elif tag in ("strong", "b"):
             self._bold += 1

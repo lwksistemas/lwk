@@ -1,10 +1,12 @@
 """
 Comando para limpar dados financeiros locais órfãos
 """
-from django.core.management.base import BaseCommand
-from superadmin.models import Loja, FinanceiroLoja, PagamentoLoja
-from asaas_integration.models import AsaasPayment, AsaasCustomer, LojaAssinatura
 import logging
+
+from django.core.management.base import BaseCommand
+
+from asaas_integration.models import AsaasCustomer, AsaasPayment, LojaAssinatura
+from superadmin.models import FinanceiroLoja, Loja, PagamentoLoja
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,7 @@ class Command(BaseCommand):
                 try:
                     financeiro.delete()
                     financeiros_removidos += 1
-                except:
+                except Exception:
                     pass
         
         # Limpar pagamentos órfãos ou de lojas inativas
@@ -62,7 +64,7 @@ class Command(BaseCommand):
                 try:
                     pagamento.delete()
                     pagamentos_removidos += 1
-                except:
+                except Exception:
                     pass
         
         # Limpar AsaasPayment órfãos
@@ -89,7 +91,7 @@ class Command(BaseCommand):
                 try:
                     payment.delete()
                     asaas_payments_removidos += 1
-                except:
+                except Exception:
                     pass
         
         # Limpar AsaasCustomer órfãos
@@ -110,10 +112,10 @@ class Command(BaseCommand):
                 try:
                     customer.delete()
                     asaas_customers_removidos += 1
-                except:
+                except Exception:
                     pass
         
-        self.stdout.write(self.style.SUCCESS(f'\n✅ Limpeza concluída!'))
+        self.stdout.write(self.style.SUCCESS('\n✅ Limpeza concluída!'))
         self.stdout.write(self.style.SUCCESS(f'  - Financeiros removidos: {financeiros_removidos}'))
         self.stdout.write(self.style.SUCCESS(f'  - Pagamentos removidos: {pagamentos_removidos}'))
         self.stdout.write(self.style.SUCCESS(f'  - AsaasPayments removidos: {asaas_payments_removidos}'))

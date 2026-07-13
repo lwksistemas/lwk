@@ -2,10 +2,10 @@
 Modelos para integração com Asaas
 Armazena dados de cobranças e pagamentos
 """
-from django.db import models
-from django.contrib.auth.models import User
+
 from django.core.exceptions import ValidationError
-import json
+from django.db import models
+
 
 class AsaasConfig(models.Model):
     """Configuração da integração Asaas"""
@@ -35,7 +35,8 @@ class AsaasConfig(models.Model):
     
     def save(self, *args, **kwargs):
         from core.encryption import encrypt_value, is_encrypted
-        from .api_key_utils import normalize_asaas_api_key, is_valid_asaas_api_key, asaas_key_is_sandbox
+
+        from .api_key_utils import asaas_key_is_sandbox, is_valid_asaas_api_key, normalize_asaas_api_key
         # Auto-detectar sandbox baseado na chave (antes de criptografar)
         raw_key = self.api_key or ''
         if raw_key and not is_encrypted(raw_key):
@@ -100,7 +101,8 @@ class AsaasConfig(models.Model):
     @classmethod
     def effective_sandbox(cls, api_key: str | None = None) -> bool:
         from django.conf import settings as dj_settings
-        from .api_key_utils import normalize_asaas_api_key, asaas_key_is_sandbox
+
+        from .api_key_utils import asaas_key_is_sandbox, normalize_asaas_api_key
         key = normalize_asaas_api_key(api_key or cls.resolve_api_key() or '')
         if not key:
             return bool(getattr(dj_settings, 'ASAAS_SANDBOX', True))

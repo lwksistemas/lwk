@@ -3,7 +3,6 @@ Mixins reutilizáveis para serializers
 """
 from rest_framework import serializers
 
-from .phone_utils import telefone_exibicao_brasileiro, telefone_internacional_br
 from .cpf_utils import (
     documento_preenchido,
     existe_documento_duplicado,
@@ -11,6 +10,7 @@ from .cpf_utils import (
     normalizar_cpf,
     normalizar_cpf_cnpj,
 )
+from .phone_utils import telefone_exibicao_brasileiro, telefone_internacional_br
 
 
 class PhoneNormalizationMixin:

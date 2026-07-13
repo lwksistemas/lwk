@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from ..models import ConfiguracaoBackup, HistoricoBackup
 
+
 class ConfiguracaoBackupSerializer(serializers.ModelSerializer):
     """
     Serializer para ConfiguracaoBackup.

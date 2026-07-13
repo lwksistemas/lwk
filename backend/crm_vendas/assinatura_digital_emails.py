@@ -121,8 +121,9 @@ def enviar_pdf_final(documento, loja_id):
     Returns:
         tuple: (sucesso: bool, erro: str ou None)
     """
-    from .pdf_proposta_contrato import gerar_pdf_contrato, gerar_pdf_proposta
     from superadmin.models import Loja
+
+    from .pdf_proposta_contrato import gerar_pdf_contrato, gerar_pdf_proposta
 
     if documento.__class__.__name__ == 'Proposta':
         pdf_buffer = gerar_pdf_proposta(documento, incluir_assinaturas=True)

@@ -11,17 +11,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from core.oauth_state import encode_oauth_state, parse_oauth_state
 from superadmin.models import GoogleCalendarConnection
 from tenants.middleware import get_current_loja_id, set_current_loja_id
 
-from .utils import get_current_vendedor_id
-
-from .google_calendar_service import (
-    build_calendar_service,
-    get_flow,
-    pull_events_from_google,
-    push_atividade_to_google,
-)
 from .google_calendar_helpers import (
     MAX_SYNC_ERRORS_RETURNED,
     SYNC_DIRECTION_BOTH,
@@ -37,8 +30,14 @@ from .google_calendar_helpers import (
     pull_events_time_range,
     redirect_calendario,
 )
+from .google_calendar_service import (
+    build_calendar_service,
+    get_flow,
+    pull_events_from_google,
+    push_atividade_to_google,
+)
 from .models import Atividade
-from core.oauth_state import encode_oauth_state, parse_oauth_state
+from .utils import get_current_vendedor_id
 
 logger = logging.getLogger(__name__)
 

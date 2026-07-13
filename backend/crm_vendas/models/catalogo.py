@@ -1,8 +1,9 @@
 from django.db import models
 
-from core.mixins import LojaIsolationMixin, LojaIsolationManager
+from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 from ..managers import ProdutoServicoManager
+
 
 class CategoriaProdutoServico(LojaIsolationMixin, models.Model):
     """Categoria para organizar produtos e serviços em grupos."""

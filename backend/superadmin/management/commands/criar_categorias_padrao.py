@@ -3,6 +3,7 @@ Comando para criar categorias padrão de produtos/serviços para lojas CRM Venda
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 

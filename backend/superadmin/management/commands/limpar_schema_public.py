@@ -55,7 +55,7 @@ class Command(BaseCommand):
                     count = cursor.fetchone()[0]
                     if count > 0:
                         self.stdout.write(f'   {tabela}: {count}')
-                except Exception as e:
+                except Exception:
                     pass
 
         # Limpar
@@ -81,7 +81,7 @@ class Command(BaseCommand):
                     total += count
                     if count > 0:
                         self.stdout.write(f'   {tabela}: {count}')
-                except Exception as e:
+                except Exception:
                     pass
 
         if total == 0:

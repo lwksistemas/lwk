@@ -6,6 +6,7 @@ Uso: heroku run "cd backend && python manage.py add_cpf_cnpj_lead_schemas" --app
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 
@@ -37,7 +38,7 @@ class Command(BaseCommand):
                         WHERE table_schema = %s AND table_name = 'crm_vendas_lead'
                     """, [schema])
                     if not cursor.fetchone():
-                        self.stdout.write(self.style.WARNING(f'    ⚠️ Tabela crm_vendas_lead não existe'))
+                        self.stdout.write(self.style.WARNING('    ⚠️ Tabela crm_vendas_lead não existe'))
                         continue
 
                     cursor.execute("""
@@ -45,13 +46,13 @@ class Command(BaseCommand):
                         WHERE table_schema = %s AND table_name = 'crm_vendas_lead' AND column_name = 'cpf_cnpj'
                     """, [schema])
                     if cursor.fetchone():
-                        self.stdout.write(self.style.SUCCESS(f'    ✅ cpf_cnpj já existe'))
+                        self.stdout.write(self.style.SUCCESS('    ✅ cpf_cnpj já existe'))
                         continue
 
                     cursor.execute(
-                        'ALTER TABLE "{}"."crm_vendas_lead" ADD COLUMN IF NOT EXISTS cpf_cnpj VARCHAR(18) DEFAULT \'\''.format(schema)
+                        f'ALTER TABLE "{schema}"."crm_vendas_lead" ADD COLUMN IF NOT EXISTS cpf_cnpj VARCHAR(18) DEFAULT \'\''
                     )
-                    self.stdout.write(self.style.SUCCESS(f'    ✅ Coluna cpf_cnpj adicionada'))
+                    self.stdout.write(self.style.SUCCESS('    ✅ Coluna cpf_cnpj adicionada'))
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f'    ❌ Erro: {e}'))
 

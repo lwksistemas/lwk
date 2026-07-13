@@ -1,19 +1,20 @@
 """ViewSets financeiro CRM — receitas/despesas por vendedor."""
+import contextlib
 import logging
 
+from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.http import HttpResponse
 
-from core.views import BaseModelViewSet
 from core.throttling import DashboardRateThrottle, ReportsThrottle
+from core.views import BaseModelViewSet
 from tenants.middleware import ensure_loja_context, get_current_loja_id
 
 from .mixins import (
-    CRMPermissionMixin,
     CacheInvalidationMixin,
+    CRMPermissionMixin,
     CRMSchemaRecoveryMixin,
     VendedorFilterMixin,
 )
@@ -28,7 +29,6 @@ from .services_financeiro import (
     resumo_financeiro_crm,
     sincronizar_comissoes_retroativas,
 )
-from .services_recorrencia_financeiro import criar_recorrencia_com_primeiro_lancamento
 from .utils import get_current_vendedor_id, is_owner
 from .views_common import CRMPagination, filtrar_queryset_por_query_params
 
@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 def _financeiro_com_recuperacao_schema(handler):
     """Executa handler financeiro com retry após patches/migrations do tenant."""
     from django.db.utils import OperationalError, ProgrammingError
+
     from superadmin.models import Loja
 
     from .schema_service import apply_crm_tenant_schema_patches, configurar_schema_crm_loja
@@ -278,10 +279,8 @@ def financeiro_crm_resumo(request):
     vendedor_id = get_current_vendedor_id(request)
     filtro = request.query_params.get('vendedor_id')
     if is_owner(request) and filtro:
-        try:
+        with contextlib.suppress(TypeError, ValueError):
             vendedor_id = int(filtro)
-        except (TypeError, ValueError):
-            pass
     elif not is_owner(request):
         vendedor_id = vendedor_id
 

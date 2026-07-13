@@ -6,6 +6,7 @@ Uso:
     python manage.py encrypt_sensitive_fields --dry-run
 """
 from django.core.management.base import BaseCommand
+
 from core.encryption import encrypt_value, is_encrypted
 
 
@@ -74,7 +75,7 @@ class Command(BaseCommand):
         count = 0
 
         # Buscar todos os bancos de loja
-        loja_dbs = [db for db in settings.DATABASES.keys() if db.startswith('loja_')]
+        loja_dbs = [db for db in settings.DATABASES if db.startswith('loja_')]
 
         if not loja_dbs:
             self.stdout.write('  ⚠️  Nenhum banco de loja encontrado')

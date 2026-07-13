@@ -5,7 +5,7 @@ Extrai lógica complexa do LojaCreateSerializer
 import logging
 import secrets
 import string
-from typing import Dict, Tuple
+
 from django.contrib.auth.models import User
 from django.db import IntegrityError
 from rest_framework import serializers
@@ -33,7 +33,7 @@ class LojaCreationService:
         return ''.join(secrets.choice(alphabet) for _ in range(tamanho))
     
     @staticmethod
-    def processar_nome_completo(nome_completo: str) -> Tuple[str, str]:
+    def processar_nome_completo(nome_completo: str) -> tuple[str, str]:
         """
         Divide nome completo em first_name e last_name
         
@@ -143,7 +143,9 @@ class LojaCreationService:
             serializers.ValidationError: Se slug for inválido ou duplicado
         """
         import re
+
         from django.utils.text import slugify
+
         from superadmin.models import Loja
         
         if not slug_enviado:

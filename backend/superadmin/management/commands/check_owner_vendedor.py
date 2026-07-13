@@ -3,8 +3,9 @@ Comando para verificar se owner tem VendedorUsuario vinculado.
 Uso: python manage.py check_owner_vendedor <cpf_cnpj>
 """
 from django.core.management.base import BaseCommand
-from superadmin.models import Loja, VendedorUsuario
+
 from crm_vendas.models import Vendedor
+from superadmin.models import Loja, VendedorUsuario
 from tenants.middleware import set_current_loja_id
 
 
@@ -45,11 +46,11 @@ class Command(BaseCommand):
         
         owner = loja.owner
         
-        self.stdout.write(self.style.SUCCESS(f"✅ Loja encontrada:"))
+        self.stdout.write(self.style.SUCCESS("✅ Loja encontrada:"))
         self.stdout.write(f"   Nome: {loja.nome}")
         self.stdout.write(f"   ID: {loja.id}")
         self.stdout.write(f"   Slug: {loja.slug}")
-        self.stdout.write(self.style.SUCCESS(f"\n✅ Owner:"))
+        self.stdout.write(self.style.SUCCESS("\n✅ Owner:"))
         self.stdout.write(f"   Username: {owner.username}")
         self.stdout.write(f"   Email: {owner.email}")
         self.stdout.write(f"   ID: {owner.id}")
@@ -57,7 +58,7 @@ class Command(BaseCommand):
         
         # Verificar se owner tem VendedorUsuario
         self.stdout.write("\n" + "="*60)
-        self.stdout.write(f"🔍 VERIFICANDO VendedorUsuario")
+        self.stdout.write("🔍 VERIFICANDO VendedorUsuario")
         self.stdout.write("="*60 + "\n")
         
         vu_list = VendedorUsuario.objects.using('default').filter(
@@ -86,7 +87,7 @@ class Command(BaseCommand):
                         self.stdout.write(f"   Vendedor Email: {vendedor.email}")
                         self.stdout.write(f"   Vendedor is_admin: {vendedor.is_admin}")
                     else:
-                        self.stdout.write(self.style.WARNING(f"   ⚠️ Vendedor não encontrado no banco da loja"))
+                        self.stdout.write(self.style.WARNING("   ⚠️ Vendedor não encontrado no banco da loja"))
                 except Exception as e:
                     self.stdout.write(self.style.WARNING(f"   ⚠️ Erro ao buscar vendedor: {e}"))
                 
@@ -99,7 +100,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"python manage.py fix_owner_vendedor {loja_identifier}"))
             
         else:
-            self.stdout.write(self.style.SUCCESS(f"✅ OK: Owner NÃO tem VendedorUsuario vinculado"))
+            self.stdout.write(self.style.SUCCESS("✅ OK: Owner NÃO tem VendedorUsuario vinculado"))
             self.stdout.write("\nO problema pode ser causado por:")
             self.stdout.write("1. Cache do sessionStorage no navegador")
             self.stdout.write("2. Sessão antiga ainda ativa")

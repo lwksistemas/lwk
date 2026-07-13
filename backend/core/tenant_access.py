@@ -6,6 +6,7 @@ e permissões DRF (HasLojaAccess).
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 
 logger = logging.getLogger(__name__)
@@ -108,10 +109,8 @@ def resolve_lojas_from_request(request) -> list:
         _add(resolve_loja_from_slug_or_cnpj(slug))
 
     if loja_id:
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             _add(Loja.objects.filter(id=int(loja_id)).first())
-        except (ValueError, TypeError):
-            pass
 
     path_parts = request.path.split('/')
     if len(path_parts) >= 3 and path_parts[1] == 'loja':

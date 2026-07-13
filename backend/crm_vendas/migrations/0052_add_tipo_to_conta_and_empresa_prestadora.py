@@ -2,8 +2,8 @@
 Adiciona campo 'tipo' à Conta (cliente, prestadora, ambos)
 e campo 'empresa_prestadora' à Oportunidade.
 """
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

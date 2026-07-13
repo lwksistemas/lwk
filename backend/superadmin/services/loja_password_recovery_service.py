@@ -4,7 +4,7 @@ Recuperação pública de senha do proprietário da loja (email + slug).
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from django.contrib.auth.models import User
 from rest_framework import status as http_status
@@ -42,7 +42,7 @@ def _retry_after_seconds(cache_key: str, window_seconds: int) -> int:
     return window_seconds
 
 
-def _rate_limit_response(retry_after: int) -> Tuple[Dict[str, Any], int]:
+def _rate_limit_response(retry_after: int) -> tuple[dict[str, Any], int]:
     minutes = max(1, (retry_after + 59) // 60)
     return (
         {
@@ -56,7 +56,7 @@ def _rate_limit_response(retry_after: int) -> Tuple[Dict[str, Any], int]:
     )
 
 
-def check_loja_password_recovery_request_limit(request) -> Optional[Tuple[Dict[str, Any], int]]:
+def check_loja_password_recovery_request_limit(request) -> tuple[dict[str, Any], int] | None:
     """Limite leve por IP para evitar abuso do endpoint (não bloqueia testes normais)."""
     if request is None:
         return None
@@ -79,7 +79,7 @@ def check_loja_password_recovery_send_limit(
     request,
     email: str,
     slug: str,
-) -> Optional[Tuple[Dict[str, Any], int]]:
+) -> tuple[dict[str, Any], int] | None:
     """Limite apenas quando um email de recuperação será enviado de fato."""
     if request is None:
         return None
@@ -97,7 +97,7 @@ def check_loja_password_recovery_send_limit(
             return _rate_limit_response(
                 _retry_after_seconds(cache_key, _SEND_WINDOW_SECONDS),
             )
-    for cache_key, limit in keys:
+    for cache_key, _limit in keys:
         count = cache.get(cache_key, 0)
         if count == 0:
             cache.set(cache_key, 1, _SEND_WINDOW_SECONDS)
@@ -107,7 +107,7 @@ def check_loja_password_recovery_send_limit(
     return None
 
 
-def resolve_loja_user_for_password_recovery(loja, email: str) -> Optional[User]:
+def resolve_loja_user_for_password_recovery(loja, email: str) -> User | None:
     """
     Usuário com acesso à loja cujo email coincide (proprietário, profissional ou vendedor).
     Busca também o email no cadastro do tenant (Professional/Vendedor), pois pode divergir do User.email.
@@ -130,7 +130,7 @@ def resolve_loja_user_for_password_recovery(loja, email: str) -> Optional[User]:
     return _resolve_user_by_tenant_email(loja, email_norm)
 
 
-def _resolve_user_by_tenant_email(loja, email_norm: str) -> Optional[User]:
+def _resolve_user_by_tenant_email(loja, email_norm: str) -> User | None:
     """Resolve User via email cadastrado no profissional/vendedor do schema da loja."""
     db = getattr(loja, 'database_name', None)
     if not db or not getattr(loja, 'database_created', False):
@@ -208,7 +208,7 @@ def _find_tenant_vendedor_id(loja, db: str, email_norm: str, tipo_slug: str, tip
 class LojaPasswordRecoveryService:
     """Encapsula validação, geração de senha e envio de email."""
 
-    def execute(self, email: str, slug: str, request=None) -> Tuple[Dict[str, Any], int]:
+    def execute(self, email: str, slug: str, request=None) -> tuple[dict[str, Any], int]:
         if not email or not slug:
             return (
                 {'detail': 'Email e slug são obrigatórios'},

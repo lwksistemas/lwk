@@ -4,10 +4,10 @@ Limpa dados de teste da Clínica da Beleza no schema de uma loja.
 Uso:
   python manage.py limpar_dados_clinica_beleza --slug clinica-luiz-000172
 """
-import os
 from django.core.management.base import BaseCommand
-from django.conf import settings
+
 from superadmin.models import Loja
+
 
 class Command(BaseCommand):
     help = 'Limpa pacientes, profissionais, procedimentos, agendamentos e pagamentos da loja (Clínica da Beleza)'
@@ -47,7 +47,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f'Loja "{slug}" não é do tipo Clínica da Beleza.'))
             return
         if not loja.database_created or not loja.database_name:
-            self.stdout.write(self.style.ERROR(f'Schema da loja não está criado. Rode o setup da loja primeiro.'))
+            self.stdout.write(self.style.ERROR('Schema da loja não está criado. Rode o setup da loja primeiro.'))
             return
 
         if not no_input:
@@ -59,7 +59,7 @@ class Command(BaseCommand):
         if not self._ensure_database_in_settings(loja):
             return
 
-        from clinica_beleza.models import Payment, Appointment, Patient, Professional, Procedure
+        from clinica_beleza.models import Appointment, Patient, Payment, Procedure, Professional
         db_name = loja.database_name
 
         self.stdout.write('Limpando dados da Clínica da Beleza...')

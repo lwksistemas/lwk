@@ -3,10 +3,10 @@ Comando para excluir TODAS as lojas do sistema.
 Usa a mesma lógica da view destroy (chamados, Asaas, loja, owner).
 Requer --confirmar para executar.
 """
-from django.core.management.base import BaseCommand
-from django.db import transaction, connection
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.management.base import BaseCommand
+from django.db import connection, transaction
 
 from superadmin.models import Loja
 
@@ -97,9 +97,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'\n✅ Concluído. {total} loja(s) processada(s).'))
 
     def _excluir_loja(self, loja):
-        loja_nome = loja.nome
         loja_slug = loja.slug
-        loja_id = loja.id
         database_name = loja.database_name
         database_created = loja.database_created
         owner = loja.owner

@@ -4,6 +4,7 @@ Usado quando a migration não foi aplicada corretamente.
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 
@@ -31,7 +32,7 @@ class Command(BaseCommand):
                     """, [schema_name])
                     
                     if not cursor.fetchone():
-                        self.stdout.write(self.style.WARNING(f'   Schema não existe'))
+                        self.stdout.write(self.style.WARNING('   Schema não existe'))
                         continue
                     
                     # Setar o search_path para o schema da loja

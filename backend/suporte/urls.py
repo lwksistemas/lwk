@@ -1,5 +1,6 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from .views import ChamadoViewSet, criar_chamado_rapido, meus_chamados, registrar_erro_frontend
 
 router = DefaultRouter()

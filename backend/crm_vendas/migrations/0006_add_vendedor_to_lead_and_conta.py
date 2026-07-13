@@ -1,8 +1,8 @@
 # Adiciona vendedor em Lead e Conta - apenas em schemas onde as tabelas existem (tenants).
 # No schema public as tabelas não existem; migrate_all_lojas aplica nos schemas das lojas.
 
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 def add_vendedor_columns_if_tables_exist(apps, schema_editor):

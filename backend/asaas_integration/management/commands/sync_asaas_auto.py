@@ -3,7 +3,9 @@ Comando para sincronização automática de pagamentos Asaas
 Atualiza status de pagamentos e financeiro das lojas
 """
 from django.core.management.base import BaseCommand
+
 from superadmin.sync_service import AsaasSyncService
+
 
 class Command(BaseCommand):
     help = 'Sincroniza automaticamente pagamentos Asaas e atualiza financeiro das lojas'

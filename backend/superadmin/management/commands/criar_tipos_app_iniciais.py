@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
-from superadmin.models import TipoLoja, PlanoAssinatura
+
+from superadmin.models import PlanoAssinatura, TipoLoja
 
 
 class Command(BaseCommand):

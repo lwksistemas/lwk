@@ -3,14 +3,14 @@ Views para configuração de NFS-e do Superadmin.
 GET/PATCH/POST /api/asaas/nfse-config/
 POST /api/asaas/nfse-config/test-nacional/
 """
-import os
 import logging
+import os
 
-from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework import status
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
 from superadmin.views.permissions import IsSuperAdmin
 
@@ -278,10 +278,10 @@ def nfse_config_test_nacional(request):
 
             ambiente = str(_data_get(data, 'nacional_ambiente', '')).strip() or config.nacional_ambiente or 'producao'
 
-            import tempfile
             import os
+            import tempfile
 
-            cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix='issnet_test_')
+            cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix='issnet_test_')  # noqa: SIM115
             cert_tmp.write(bytes(cert_data))
             cert_tmp.close()
             try:

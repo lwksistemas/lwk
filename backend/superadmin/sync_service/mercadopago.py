@@ -96,9 +96,8 @@ def process_mercadopago_webhook_payment(payment_id: str, loja=None) -> dict:
     Quando o pagamento está aprovado, atualiza PagamentoLoja e FinanceiroLoja
     (status ativo, próxima cobrança, desbloqueia loja).
     """
-    from calendar import monthrange
-    from .models import MercadoPagoConfig
     from .mercadopago_service import MercadoPagoClient
+    from .models import MercadoPagoConfig
 
     if not payment_id:
         return {'success': False, 'error': 'payment_id obrigatório'}
@@ -220,8 +219,8 @@ def _update_loja_financeiro_after_mercadopago_payment(loja, financeiro):
     
     # ✅ NOVO v729: Cancelar transação não paga no Mercado Pago
     try:
-        from .models import MercadoPagoConfig
         from .mercadopago_service import MercadoPagoClient
+        from .models import MercadoPagoConfig
         
         config = MercadoPagoConfig.get_config()
         if config and config.access_token:
@@ -264,6 +263,7 @@ def _update_loja_financeiro_after_mercadopago_payment(loja, financeiro):
         
         logger.info(f"Criando próximo boleto para loja {loja.slug} (vencimento: {financeiro.data_proxima_cobranca})")
         
+        dia_vencimento = getattr(financeiro, 'dia_vencimento', None)
         service = CobrancaService()
         result = service.renovar_cobranca(loja, financeiro, dia_vencimento)
         

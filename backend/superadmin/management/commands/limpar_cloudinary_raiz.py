@@ -25,6 +25,7 @@ def _is_root_asset(public_id: str) -> bool:
 
 def _configure_cloudinary():
     import cloudinary
+
     from superadmin.cloudinary_models import CloudinaryConfig
 
     cfg = CloudinaryConfig.get_config()
@@ -122,9 +123,7 @@ class Command(BaseCommand):
             try:
                 result = cloudinary.api.delete_resources(batch, resource_type='image')
                 for pid, status in (result.get('deleted') or {}).items():
-                    if status == 'deleted':
-                        deleted += 1
-                    elif status == 'not found':
+                    if status == 'deleted' or status == 'not found':
                         deleted += 1
                     else:
                         errors += 1

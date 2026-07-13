@@ -11,7 +11,7 @@ class Command(BaseCommand):
         parser.add_argument('--slug', default='vendasbeta', help='Slug da loja a liberar')
 
     def handle(self, *args, **options):
-        from superadmin.models import Loja, FinanceiroLoja
+        from superadmin.models import FinanceiroLoja, Loja
 
         slug = options['slug']
         loja = Loja.objects.filter(slug=slug).first()

@@ -137,18 +137,14 @@ def filtrar_leads_por_documento(queryset, request):
 
     matching_ids: list[int] = []
     for lead in candidatos.iterator():
-        if _documento_digitos_match(lead.cpf_cnpj, documento):
-            matching_ids.append(lead.pk)
-        elif lead.conta_id and lead.conta and _documento_digitos_match(lead.conta.cnpj, documento):
+        if _documento_digitos_match(lead.cpf_cnpj, documento) or lead.conta_id and lead.conta and _documento_digitos_match(lead.conta.cnpj, documento):
             matching_ids.append(lead.pk)
 
     if matching_ids:
         return queryset.filter(pk__in=matching_ids)
 
     for lead in qs.iterator():
-        if _documento_digitos_match(lead.cpf_cnpj, documento):
-            matching_ids.append(lead.pk)
-        elif lead.conta_id and lead.conta and _documento_digitos_match(lead.conta.cnpj, documento):
+        if _documento_digitos_match(lead.cpf_cnpj, documento) or lead.conta_id and lead.conta and _documento_digitos_match(lead.conta.cnpj, documento):
             matching_ids.append(lead.pk)
 
     return queryset.filter(pk__in=matching_ids) if matching_ids else queryset.none()

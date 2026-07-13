@@ -6,8 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .mixins import CRMPermissionMixin
 from .decorators import require_admin_access
+from .mixins import CRMPermissionMixin
 from .utils import get_loja_from_context
 
 

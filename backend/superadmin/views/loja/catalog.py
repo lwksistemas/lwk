@@ -1,31 +1,24 @@
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth.models import User
-from django.core.management import call_command
-from django.conf import settings
-from django.db import transaction
-from django.utils import timezone
 import logging
 
-from drf_spectacular.utils import extend_schema_view, extend_schema
-from core.logging_utils import mask_email
+from drf_spectacular.utils import extend_schema, extend_schema_view
+from rest_framework import permissions, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
 from ...api_docs import (
-    TIPO_LOJA_LIST_SCHEMA,
-    TIPO_LOJA_CREATE_SCHEMA,
     PLANO_LIST_SCHEMA,
-    LOJA_LIST_SCHEMA,
-    LOJA_CREATE_SCHEMA,
-    LOJA_DELETE_SCHEMA,
+    TIPO_LOJA_CREATE_SCHEMA,
+    TIPO_LOJA_LIST_SCHEMA,
 )
 from ...models import (
-    TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, ProfissionalUsuario,
+    PlanoAssinatura,
+    TipoLoja,
 )
 from ...serializers import (
-    TipoLojaSerializer, PlanoAssinaturaSerializer, LojaSerializer, LojaCreateSerializer,
+    PlanoAssinaturaSerializer,
+    TipoLojaSerializer,
 )
-from ..permissions import IsOwnerOrSuperAdmin, IsSuperAdmin
+from ..permissions import IsSuperAdmin
 
 logger = logging.getLogger(__name__)
 

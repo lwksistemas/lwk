@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from ..models import CRMConfig
 
+
 class CRMConfigSerializer(serializers.ModelSerializer):
     provedor_nf_display = serializers.CharField(source='get_provedor_nf_display', read_only=True)
     asaas_api_key_configured = serializers.SerializerMethodField()
@@ -91,9 +92,9 @@ class CRMConfigSerializer(serializers.ModelSerializer):
         api_key = validated_data.get('asaas_api_key')
         if api_key is not None:
             from asaas_integration.api_key_utils import (
-                normalize_asaas_api_key,
-                is_valid_asaas_api_key,
                 asaas_key_is_sandbox,
+                is_valid_asaas_api_key,
+                normalize_asaas_api_key,
             )
             raw = (api_key or '').strip()
             if not raw:

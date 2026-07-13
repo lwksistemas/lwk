@@ -5,6 +5,7 @@ Aplica as otimizações de performance e segurança em todos os apps
 """
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -12,9 +13,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
+import logging
+
 from django.core.management import call_command
 from django.db import connection
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +74,7 @@ def create_indexes():
         
         try:
             # Gerar migrações
-            print(f"   Gerando migrações...")
+            print("   Gerando migrações...")
             call_command('makemigrations', app, interactive=False)
             
             print(f"✅ Migrações geradas para {app}")
@@ -121,7 +123,7 @@ def analyze_queries():
     from django.conf import settings
     settings.DEBUG = True
     
-    from django.db import reset_queries, connection
+    from django.db import reset_queries
     
     # Testar alguns endpoints comuns
     test_cases = [
@@ -146,9 +148,9 @@ def analyze_queries():
             print(f"   Queries executadas: {num_queries}")
             
             if num_queries > 10:
-                print(f"   ⚠️  ATENÇÃO: Muitas queries! Considere usar select_related/prefetch_related")
+                print("   ⚠️  ATENÇÃO: Muitas queries! Considere usar select_related/prefetch_related")
             else:
-                print(f"   ✅ Número de queries aceitável")
+                print("   ✅ Número de queries aceitável")
         
         except Exception as e:
             print(f"   ⚠️  Erro ao analisar {app}.{model_name}: {e}")
@@ -164,8 +166,8 @@ def check_cache():
     print("💾 VERIFICANDO CACHE")
     print("="*60)
     
-    from django.core.cache import cache
     from django.conf import settings
+    from django.core.cache import cache
     
     cache_backend = settings.CACHES['default']['BACKEND']
     print(f"\n📦 Backend de cache: {cache_backend}")
@@ -200,7 +202,6 @@ def generate_report():
     print("="*60)
     
     from django.conf import settings
-    from django.db import connection
     
     print("\n📊 Estatísticas:")
     print(f"   Apps instalados: {len(settings.INSTALLED_APPS)}")

@@ -5,8 +5,10 @@ Uso:
     python manage.py ensure_assinatura_link_enviado_em
     python manage.py ensure_assinatura_link_enviado_em --slug felix
 """
-from django.core.management.base import BaseCommand
+import contextlib
+
 from django.core.management import call_command
+from django.core.management.base import BaseCommand
 from django.db import connections
 
 from clinica_beleza.schema_ensure import column_exists, table_exists
@@ -54,7 +56,7 @@ class Command(BaseCommand):
                             self.style.SUCCESS(f'{loja.slug}: coluna {COLUMN} adicionada em {TABLE}')
                         )
                         changed += 1
-                        try:
+                        with contextlib.suppress(Exception):
                             call_command(
                                 'migrate',
                                 'crm_vendas',
@@ -62,8 +64,6 @@ class Command(BaseCommand):
                                 database=db_name,
                                 verbosity=0,
                             )
-                        except Exception:
-                            pass
                 ok += 1
             except Exception as exc:
                 self.stdout.write(self.style.ERROR(f'{loja.slug}: {exc}'))

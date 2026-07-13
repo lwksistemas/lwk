@@ -2,8 +2,9 @@
 🛡️ RATE LIMITING CUSTOMIZADO
 Throttling classes para proteger endpoints críticos
 """
-from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 import logging
+
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
 logger = logging.getLogger(__name__)
 

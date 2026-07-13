@@ -1,8 +1,9 @@
 """
 Configuração do app superadmin
 """
-from django.apps import AppConfig
 import logging
+
+from django.apps import AppConfig
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,6 @@ class SuperadminConfig(AppConfig):
         """Configuração quando o app está pronto"""
         try:
             # Importar signals para registrá-los
-            from . import signals
             from . import signals_admin_cache  # noqa: F401
             logger.info("✅ Superadmin: Signals carregados")
         except Exception as e:

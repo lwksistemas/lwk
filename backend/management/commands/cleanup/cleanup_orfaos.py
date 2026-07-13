@@ -3,9 +3,10 @@ Management command para limpar dados órfãos do sistema
 Remove: schemas órfãos, lojas vazias, usuários sem lojas
 Migrado de: backend/limpar_orfaos_completo.py
 """
+from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from django.db import connection
-from django.contrib.auth.models import User
+
 from superadmin.models import Loja
 
 
@@ -68,7 +69,7 @@ class Command(BaseCommand):
             lojas_vazias = self._find_empty_lojas()
             if dry_run:
                 self.stdout.write(f'\n📋 Lojas vazias encontradas: {len(lojas_vazias)}')
-                for loja_id, slug, nome, schema in lojas_vazias[:10]:
+                for loja_id, slug, _nome, _schema in lojas_vazias[:10]:
                     self.stdout.write(f'   - {slug} (ID: {loja_id})')
                 if len(lojas_vazias) > 10:
                     self.stdout.write(f'   ... e mais {len(lojas_vazias) - 10}')
@@ -81,7 +82,7 @@ class Command(BaseCommand):
             usuarios_orfaos = self._find_orphan_users()
             if dry_run:
                 self.stdout.write(f'\n📋 Usuários órfãos encontrados: {len(usuarios_orfaos)}')
-                for user_id, username, email in usuarios_orfaos[:10]:
+                for _user_id, username, email in usuarios_orfaos[:10]:
                     self.stdout.write(f'   - {username} ({email})')
                 if len(usuarios_orfaos) > 10:
                     self.stdout.write(f'   ... e mais {len(usuarios_orfaos) - 10}')
@@ -179,7 +180,7 @@ class Command(BaseCommand):
         self.stdout.write(f'\n🗑️  Removendo {len(lojas)} loja(s) vazia(s)...')
         
         removidos = 0
-        for loja_id, slug, nome, schema in lojas:
+        for loja_id, slug, _nome, schema in lojas:
             try:
                 loja = Loja.objects.get(id=loja_id)
                 

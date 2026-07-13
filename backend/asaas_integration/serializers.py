@@ -2,7 +2,9 @@
 Serializers para integração com Asaas
 """
 from rest_framework import serializers
+
 from .models import AsaasCustomer, AsaasPayment, LojaAssinatura
+
 
 class AsaasCustomerSerializer(serializers.ModelSerializer):
     """Serializer para clientes Asaas"""
@@ -76,7 +78,7 @@ class LojaAssinaturaSerializer(serializers.ModelSerializer):
         ✅ NOVO v1489: Retorna o ID do FinanceiroLoja para usar nos endpoints de nota fiscal
         """
         try:
-            from superadmin.models import Loja, FinanceiroLoja
+            from superadmin.models import Loja
             loja = Loja.objects.get(slug=obj.loja_slug)
             return loja.financeiro.id if hasattr(loja, 'financeiro') else None
         except Exception:

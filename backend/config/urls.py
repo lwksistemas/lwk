@@ -1,7 +1,7 @@
-from django.contrib import admin
-from django.urls import path, include
-from django.http import HttpResponse, JsonResponse, HttpResponseRedirect, HttpResponseNotFound
 from django.conf import settings
+from django.contrib import admin
+from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
+from django.urls import include, path
 
 
 def favicon_empty(_request):
@@ -22,12 +22,13 @@ def short_link_redirect(_request, code: str):
     if not full_url:
         return HttpResponseNotFound('Link expirado ou inválido.')
     return HttpResponseRedirect(full_url)
-from superadmin.token_refresh_view import SessionAwareTokenRefreshView
-from superadmin.views import atalho_redirect  # ✅ NOVO v1421: Redirecionamento por atalho
 from config.api_schema_views import (
     ProtectedSpectacularAPIView,
     ProtectedSpectacularSwaggerView,
 )
+from superadmin.token_refresh_view import SessionAwareTokenRefreshView
+from superadmin.views import atalho_redirect  # ✅ NOVO v1421: Redirecionamento por atalho
+
 
 def api_root(request):
     """API Root - Informações do sistema"""

@@ -10,18 +10,18 @@ Referências:
   XML ABRASF vai como *texto* (entidades ``&lt;...&gt;``), CDATA, ou filhos — tentamos nessa ordem em Fault generico.
 - Envelope ``nfse:Operacao`` (namespace http://nfse.abrasf.org.br) + mTLS.
 """
+import contextlib
 import logging
 import os
 import re
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional
 from decimal import Decimal
+from typing import Any
 
+from nfse_integration.issnet_cert import carregar_certificado
 from nfse_integration.issnet_constants import (
     CABEC_MSG,
-    ISSNET_RP_NFSE_ASMX,
-    ISSNET_RP_NFSE_HOMOLOG,
     ISSNET_URLS,
     SOAP_ACTION_CONSULTAR_LOTE_RPS,
     SOAP_ACTION_RECEPCIONAR_LOTE_RPS,
@@ -35,15 +35,14 @@ from nfse_integration.issnet_response import (
     parse_resposta_xml,
     parse_resposta_xml_nfse_por_numero,
 )
-from nfse_integration.issnet_cert import carregar_certificado
 from nfse_integration.issnet_soap_transport import criar_soap_client, post_soap_operacao
 from nfse_integration.issnet_xml_builder import (
     IssnetEmissaoOpts,
     construir_xml_cancelar_nfse,
     construir_xml_consultar_lote_rps,
+    construir_xml_consultar_nfse_por_faixa,
     construir_xml_consultar_nfse_por_rps,
     construir_xml_consultar_nfse_por_rps_legado,
-    construir_xml_consultar_nfse_por_faixa,
     construir_xml_consultar_nfse_servico_prestado,
     construir_xml_consultar_url_nfse,
     construir_xml_enviar_lote_rps,
@@ -65,11 +64,11 @@ def testar_conexao_issnet(
     certificado_path: str,
     senha_certificado: str,
     ambiente: str = 'producao',
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Teste nao destrutivo: valida PFX/senha e tenta acessar o WSDL."""
     import requests as req
 
-    out: Dict[str, Any] = {
+    out: dict[str, Any] = {
         'success': False, 'message': '', 'detail': '',
         'ambiente': 'homologacao' if ambiente == 'homologacao' else 'producao',
     }
@@ -92,10 +91,8 @@ def testar_conexao_issnet(
 
     try:
         _key, cert, _ = _carregar_certificado(path, senha_certificado)
-        try:
+        with contextlib.suppress(Exception):
             out['certificado_subject'] = cert.subject.rfc4514_string()[:500]
-        except Exception:
-            pass
     except Exception as e:
         logger.warning('testar_conexao_issnet: falha PFX: %s', e)
         out['detail'] = 'Nao foi possivel abrir o certificado. Verifique .pfx e senha.'
@@ -185,7 +182,7 @@ class ISSNetClient:
         prestador_inscricao_municipal: str,
         tomador_cpf_cnpj: str,
         tomador_nome: str,
-        tomador_endereco: Dict[str, str],
+        tomador_endereco: dict[str, str],
         servico_codigo: str,
         servico_descricao: str,
         valor_servicos: Decimal,
@@ -194,9 +191,9 @@ class ISSNetClient:
         serie_rps: str,
         tipo_rps: int,
         data_emissao: datetime,
-        codigo_cnae: Optional[str] = None,
-        item_lista_servico: Optional[str] = None,
-        codigo_tributacao_municipio: Optional[str] = None,
+        codigo_cnae: str | None = None,
+        item_lista_servico: str | None = None,
+        codigo_tributacao_municipio: str | None = None,
     ) -> str:
         return construir_xml_enviar_lote_rps(
             prestador_cnpj=prestador_cnpj,
@@ -228,7 +225,7 @@ class ISSNetClient:
         prestador_razao_social: str,
         tomador_cpf_cnpj: str,
         tomador_nome: str,
-        tomador_endereco: Dict[str, str],
+        tomador_endereco: dict[str, str],
         servico_codigo: str,
         servico_descricao: str,
         valor_servicos: Decimal,
@@ -236,11 +233,11 @@ class ISSNetClient:
         numero_rps: int,
         serie_rps: str = 'E',
         tipo_rps: int = 1,
-        data_emissao: Optional[datetime] = None,
-        codigo_cnae: Optional[str] = None,
-        item_lista_servico: Optional[str] = None,
-        codigo_tributacao_municipio: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        data_emissao: datetime | None = None,
+        codigo_cnae: str | None = None,
+        item_lista_servico: str | None = None,
+        codigo_tributacao_municipio: str | None = None,
+    ) -> dict[str, Any]:
         """
         Emite NFS-e (1 RPS): tenta ``RecepcionarLoteRpsSincrono`` com raiz ABRASF correta; se falha de
         transporte/SOAP, usa ``RecepcionarLoteRps`` e consulta o lote quando vier apenas protocolo.
@@ -276,9 +273,7 @@ class ISSNetClient:
                 soap_action_uri=SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO,
                 dados_xml=xml_sinc_assinado,
             )
-            if parsed_s.get('success'):
-                resultado = parsed_s
-            elif issnet_erro_parece_negocio_abrasf(parsed_s.get('error') or ''):
+            if parsed_s.get('success') or issnet_erro_parece_negocio_abrasf(parsed_s.get('error') or ''):
                 resultado = parsed_s
             else:
                 xml_assinado = self._assinar_xml(xml_rps)
@@ -312,7 +307,7 @@ class ISSNetClient:
         prestador_inscricao_municipal: str,
         tentativas: int = 20,
         intervalo_s: float = 3.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """ConsultarLoteRps ate obter CompNfse ou esgotar tentativas."""
         xml_consulta = construir_xml_consultar_lote_rps(
             protocolo, prestador_cnpj, prestador_inscricao_municipal
@@ -370,7 +365,7 @@ class ISSNetClient:
         xml_dados: str,
         prestador_cnpj: str = '',
         prestador_inscricao_municipal: str = '',
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """RecepcionarLoteRps; se vier apenas Protocolo, consulta o lote ate obter a NFSe."""
         parsed, xml_body = self._post_soap_operacao(
             nome_operacao='RecepcionarLoteRps',
@@ -398,7 +393,7 @@ class ISSNetClient:
     # ------------------------------------------------------------------
     # Enviar via zeep (mantido como fallback)
     # ------------------------------------------------------------------
-    def _enviar_gerar_nfse(self, xml_assinado: str) -> Dict[str, Any]:
+    def _enviar_gerar_nfse(self, xml_assinado: str) -> dict[str, Any]:
         """
         Chama operacao RecepcionarLoteRps do webservice ISSNet (fallback zeep).
         """
@@ -425,22 +420,22 @@ class ISSNetClient:
     def _extrair_body_soap(self, soap_xml: str) -> str:
         return extrair_body_soap(soap_xml)
 
-    def _parse_resposta_xml(self, xml_str: str) -> Dict[str, Any]:
+    def _parse_resposta_xml(self, xml_str: str) -> dict[str, Any]:
         return parse_resposta_xml(xml_str)
 
     def _extrair_erros(self, texto: str) -> str:
         return extrair_erros(texto)
 
-    def _parse_resposta_cancelamento(self, xml_str: str) -> Dict[str, Any]:
+    def _parse_resposta_cancelamento(self, xml_str: str) -> dict[str, Any]:
         return parse_resposta_cancelamento(xml_str)
 
-    def _interpretar_cancelamento(self, parsed: Dict[str, Any], xml_body: str) -> Dict[str, Any]:
+    def _interpretar_cancelamento(self, parsed: dict[str, Any], xml_body: str) -> dict[str, Any]:
         return interpretar_cancelamento(parsed, xml_body)
 
     # ------------------------------------------------------------------
     # Consultar NFS-e por RPS
     # ------------------------------------------------------------------
-    def consultar_url_nfse(self, numero_nf: str, prestador_cnpj: str = '', inscricao_municipal: str = '') -> Dict[str, Any]:
+    def consultar_url_nfse(self, numero_nf: str, prestador_cnpj: str = '', inscricao_municipal: str = '') -> dict[str, Any]:
         """
         Chama ConsultarUrlNfse para obter a URL do PDF/portal oficial da NFS-e no ISSNet.
         Retorna {'success': True, 'url': '...'} ou {'success': False, 'error': '...'}.
@@ -519,12 +514,12 @@ class ISSNetClient:
 
             if parsed.get('success') is False:
                 return {'success': False, 'error': parsed.get('error', ''), 'raw': resp_str[:500]}
-            return {'success': False, 'error': f'URL não encontrada na resposta', 'raw': resp_str[:500]}
+            return {'success': False, 'error': 'URL não encontrada na resposta', 'raw': resp_str[:500]}
         except Exception as e:
             logger.warning('Erro ao consultar URL NFS-e ISSNet: %s', e)
             return {'success': False, 'error': str(e)}
 
-    def inferir_cancelada_por_url(self, *, url: str) -> Dict[str, Any]:
+    def inferir_cancelada_por_url(self, *, url: str) -> dict[str, Any]:
         """
         Busca a página do portal/visualização oficial retornada pelo ISSNet e tenta inferir se a nota
         está cancelada (ex.: "CANCELADA", "SEM VALOR LEGAL").
@@ -565,7 +560,7 @@ class ISSNetClient:
         soap_action_uri: str,
         dados_xml: str,
         numero_nf_esperado: str | None = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         parsed, xml_body = self._post_soap_operacao(
             nome_operacao=nome_operacao,
             soap_action_uri=soap_action_uri,
@@ -599,7 +594,7 @@ class ISSNetClient:
         numero_nf: str,
         prestador_cnpj: str = '',
         inscricao_municipal: str = '',
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Consulta NFS-e emitida pelo prestador (por número da nota)."""
         try:
             cnpj = somente_digitos(prestador_cnpj or self.usuario or '')
@@ -627,7 +622,7 @@ class ISSNetClient:
         numero_nf: str,
         prestador_cnpj: str = '',
         inscricao_municipal: str = '',
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Consulta NFS-e por faixa (inicial=final=numero)."""
         try:
             cnpj = somente_digitos(prestador_cnpj or self.usuario or '')
@@ -650,7 +645,7 @@ class ISSNetClient:
             logger.exception('Erro ao consultar NFS-e por faixa: %s', e)
             return {'success': False, 'error': str(e)}
 
-    def consultar_nfse(self, numero_nf: str) -> Dict[str, Any]:
+    def consultar_nfse(self, numero_nf: str) -> dict[str, Any]:
         """Consulta NFS-e emitida por RPS (compat: método legado)."""
         try:
             xml_consulta = construir_xml_consultar_nfse_por_rps_legado(
@@ -674,7 +669,7 @@ class ISSNetClient:
         tipo_rps: str = '1',
         prestador_cnpj: str,
         inscricao_municipal: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Consulta NFS-e por RPS (ABRASF 2.04 / ISSNet).
         Usado para sincronizar status (ex.: cancelada no portal).
@@ -728,7 +723,7 @@ class ISSNetClient:
     # ------------------------------------------------------------------
     # Cancelar NFS-e
     # ------------------------------------------------------------------
-    def cancelar_nfse(self, numero_nf: str, motivo: str, prestador_cnpj: str = '', inscricao_municipal: str = '', codigo_cancelamento: str = '1') -> Dict[str, Any]:
+    def cancelar_nfse(self, numero_nf: str, motivo: str, prestador_cnpj: str = '', inscricao_municipal: str = '', codigo_cancelamento: str = '1') -> dict[str, Any]:
         """Cancela NFS-e emitida via ISSNet."""
         try:
             def _tentar_cancelamento(xml_payload: str, *, label: str):

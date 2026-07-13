@@ -3,8 +3,8 @@ Comando para limpar completamente o sistema - CUIDADO!
 Remove TODOS os dados de lojas, usuários de lojas, funcionários, etc.
 Mantém apenas superadmin e suporte.
 """
-from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):

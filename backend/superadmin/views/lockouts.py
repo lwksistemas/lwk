@@ -7,9 +7,9 @@ DELETE /api/superadmin/lockouts/<username>/ → desbloqueia conta
 import logging
 
 from django.utils import timezone
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework import status
 
 from ..models import LoginLockout
 from ..views.permissions import IsSuperAdmin

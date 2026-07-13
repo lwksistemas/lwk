@@ -6,10 +6,9 @@ Uso:
   python manage.py remover_vendedores_admin_duplicados
   python manage.py remover_vendedores_admin_duplicados --slug 41449198000172
 """
-import os
 from django.core.management.base import BaseCommand
-from django.conf import settings
 from django.db import connections
+
 from superadmin.models import Loja
 
 
@@ -70,7 +69,7 @@ class Command(BaseCommand):
                 por_email[key].append(v)
 
             removidos_loja = 0
-            for key, grupo in por_email.items():
+            for _key, grupo in por_email.items():
                 if len(grupo) > 1:
                     # Manter o primeiro (menor id), remover os demais via SQL
                     ids_remover = [v['id'] for v in grupo[1:]]

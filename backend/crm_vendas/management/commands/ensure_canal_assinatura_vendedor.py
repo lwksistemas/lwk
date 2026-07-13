@@ -5,14 +5,15 @@ Uso:
     python manage.py ensure_canal_assinatura_vendedor
     python manage.py ensure_canal_assinatura_vendedor --slug felix
 """
-from django.core.management.base import BaseCommand
+import contextlib
+
 from django.core.management import call_command
+from django.core.management.base import BaseCommand
 from django.db import connections
 
 from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
-
 
 TABLES = ('crm_vendas_proposta', 'crm_vendas_contrato')
 COLUMN = 'canal_assinatura_vendedor'
@@ -52,7 +53,7 @@ class Command(BaseCommand):
                             self.stdout.write(f'{loja.slug}: coluna {COLUMN} adicionada em {table}')
                             changed = True
                 if changed:
-                    try:
+                    with contextlib.suppress(Exception):
                         call_command(
                             'migrate',
                             'crm_vendas',
@@ -60,8 +61,6 @@ class Command(BaseCommand):
                             database=db_name,
                             verbosity=0,
                         )
-                    except Exception:
-                        pass
                 ok += 1
             except Exception as exc:
                 self.stdout.write(self.style.ERROR(f'{loja.slug}: {exc}'))

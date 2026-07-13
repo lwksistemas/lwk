@@ -4,7 +4,7 @@ Middleware de logging aprimorado
 """
 import logging
 import time
-import json
+
 from django.utils.deprecation import MiddlewareMixin
 
 logger = logging.getLogger(__name__)

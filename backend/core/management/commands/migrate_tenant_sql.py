@@ -26,8 +26,11 @@ Uso:
     # Executar arquivo SQL:
     python manage.py migrate_tenant_sql --app crm_vendas --sql-file scripts/meu_sql.sql
 """
+import contextlib
+
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 from superadmin.services.database_schema_service import TIPO_LOJA_EXTRA_APPS
 
@@ -149,7 +152,7 @@ class Command(BaseCommand):
             if not os.path.exists(sql_file):
                 self.stdout.write(self.style.ERROR(f'Arquivo não encontrado: {sql_file}'))
                 return
-            with open(sql_file, 'r') as f:
+            with open(sql_file) as f:
                 sql_to_run = f.read()
 
         if not sql_to_run:
@@ -197,10 +200,8 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f'  ❌ Erro: {e}'))
                 erros += 1
-                try:
+                with contextlib.suppress(Exception):
                     connection.rollback()
-                except Exception:
-                    pass
 
         try:
             with connection.cursor() as cursor:

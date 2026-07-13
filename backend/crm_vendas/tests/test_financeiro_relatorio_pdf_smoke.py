@@ -1,6 +1,6 @@
 """Smoke: PDF do financeiro CRM."""
-from io import BytesIO
 from decimal import Decimal
+from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase

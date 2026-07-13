@@ -2,18 +2,15 @@
 Middleware do Superadmin
 ✅ FASE 5 v772: Middlewares organizados
 """
-from django.http import JsonResponse
-from django.contrib.auth.models import AnonymousUser
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 import logging
 
+from django.contrib.auth.models import AnonymousUser
+from django.http import JsonResponse
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+
+from .enhanced_logging import EnhancedLoggingMiddleware, PerformanceMonitoringMiddleware, SecurityHeadersMiddleware
 from .public_endpoints import PublicEndpointsConfig
-from .enhanced_logging import (
-    EnhancedLoggingMiddleware,
-    PerformanceMonitoringMiddleware,
-    SecurityHeadersMiddleware
-)
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +29,9 @@ class JWTAuthenticationMiddleware:
         Processar autenticação JWT com retry em timeout do PostgreSQL.
         """
         if not hasattr(request, 'user') or request.user.is_anonymous:
-            from core.retry import execute_with_db_retry
             from django.db import OperationalError
+
+            from core.retry import execute_with_db_retry
 
             try:
                 auth_result = execute_with_db_retry(

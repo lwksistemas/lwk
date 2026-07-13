@@ -6,8 +6,9 @@ Testa funcionalidades de cache Redis/LocMemCache.
 
 import pytest
 from django.core.cache import cache
-from superadmin.cache import CacheService, cached_stat
 from rest_framework.response import Response
+
+from superadmin.cache import CacheService, cached_stat
 
 
 @pytest.fixture(autouse=True)

@@ -1,25 +1,26 @@
 """Dashboard financeiro por loja."""
 import logging
 
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.utils import timezone
 
-from ..loja_utils import resolve_loja_by_slug_or_atalho
-from ..models import FinanceiroLoja, PagamentoLoja
-from ..serializers import PagamentoLojaSerializer
-from .helpers import (
-    _build_historico_pagamentos_loja,
-    _boleto_pix_liberado_para_vencimento,
-    _get_or_create_financeiro_loja,
-)
-from .renovacao import _executar_renovar_financeiro
 from superadmin.services.assinatura_bloqueio_service import (
     situacao_aviso_assinatura,
     situacao_geracao_boleto_assinatura,
 )
+
+from ..loja_utils import resolve_loja_by_slug_or_atalho
+from ..models import PagamentoLoja
+from ..serializers import PagamentoLojaSerializer
+from .helpers import (
+    _boleto_pix_liberado_para_vencimento,
+    _build_historico_pagamentos_loja,
+    _get_or_create_financeiro_loja,
+)
+from .renovacao import _executar_renovar_financeiro
 
 logger = logging.getLogger(__name__)
 
@@ -116,8 +117,9 @@ def _dashboard_financeiro_loja_impl(request, loja_slug):
     logger.info(f"🔍 Buscando boleto para loja: {loja.nome} (slug: {loja.slug})")
     
     try:
-        from asaas_integration.models import LojaAssinatura, AsaasPayment
         from decimal import Decimal
+
+        from asaas_integration.models import AsaasPayment, LojaAssinatura
         
         # Buscar assinatura da loja (Asaas); se não existir, loja pode ser Mercado Pago e usamos FinanceiroLoja
         try:
@@ -196,7 +198,7 @@ def _dashboard_financeiro_loja_impl(request, loja_slug):
     except Exception as e:
         logger.error(f"❌ Erro ao buscar boleto do Asaas para {loja.nome}: {e}")
         import traceback
-        logger.error(f"Traceback completo:")
+        logger.error("Traceback completo:")
         logger.error(traceback.format_exc())
         import traceback
         traceback.print_exc()

@@ -1,5 +1,6 @@
 from django.db import models
 
+
 # Modelo simples para gerenciar tenants sem django-tenants
 class TenantConfig(models.Model):
     """Configuração de tenant (loja) no banco super admin"""

@@ -1,13 +1,10 @@
 """Modelos Super Admin."""
-import re
 
-from django.contrib.auth.models import User
 from django.db import models
-from django.utils import timezone
-from django.utils.text import slugify
 
 from .financeiro import PagamentoLoja
 from .loja import Loja
+
 
 class NFSeEmitida(models.Model):
     """

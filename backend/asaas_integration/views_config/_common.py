@@ -1,6 +1,8 @@
 """Utilitários compartilhados das views Asaas."""
 import logging
 
+from django.db.models import F
+from django.utils import timezone
 from rest_framework import permissions
 
 from ..models import AsaasConfig
@@ -8,7 +10,7 @@ from ..models import AsaasConfig
 logger = logging.getLogger(__name__)
 
 try:
-    import requests
+    import requests  # noqa: F401
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False

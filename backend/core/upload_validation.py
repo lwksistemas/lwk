@@ -3,8 +3,6 @@ Validação básica de uploads (tamanho, extensão, magic bytes).
 """
 from __future__ import annotations
 
-from typing import Optional, Tuple
-
 MAX_XML_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_PDF_BYTES = 5 * 1024 * 1024
 
@@ -14,8 +12,8 @@ def validate_uploaded_file(
     *,
     allowed_extensions: tuple[str, ...],
     max_bytes: int,
-    magic_prefixes: Optional[tuple[bytes, ...]] = None,
-) -> Tuple[bool, str]:
+    magic_prefixes: tuple[bytes, ...] | None = None,
+) -> tuple[bool, str]:
     if not uploaded_file:
         return False, 'Arquivo não enviado.'
 
@@ -49,7 +47,7 @@ def validate_uploaded_file(
     return True, ''
 
 
-def validate_xml_upload(uploaded_file) -> Tuple[bool, str]:
+def validate_xml_upload(uploaded_file) -> tuple[bool, str]:
     return validate_uploaded_file(
         uploaded_file,
         allowed_extensions=('.xml',),
@@ -58,7 +56,7 @@ def validate_xml_upload(uploaded_file) -> Tuple[bool, str]:
     )
 
 
-def validate_pdf_upload(uploaded_file) -> Tuple[bool, str]:
+def validate_pdf_upload(uploaded_file) -> tuple[bool, str]:
     return validate_uploaded_file(
         uploaded_file,
         allowed_extensions=('.pdf',),

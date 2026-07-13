@@ -5,9 +5,10 @@ from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
-from core.cpf_utils import normalizar_cpf_cnpj
 from django.db.models import Max
 from django.utils import timezone
+
+from core.cpf_utils import normalizar_cpf_cnpj
 
 logger = logging.getLogger(__name__)
 
@@ -113,9 +114,7 @@ def nfse_importacao_incompleta(nfse: Any, loja: Any | None = None) -> bool:
         return True
     from nfse_integration.xml_nfse_loja import nfse_precisa_buscar_xml
 
-    if nfse_precisa_buscar_xml(nfse):
-        return True
-    return False
+    return bool(nfse_precisa_buscar_xml(nfse))
 
 
 def atualizar_nfse_recuperada(

@@ -1,8 +1,7 @@
 """Sincronização automática com Asaas."""
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
-from django.db import transaction
 from django.utils import timezone
 
 from core.email_delivery import send_system_mail
@@ -165,7 +164,7 @@ class AsaasSyncService:
                 financeiro = loja.financeiro
                 financeiro.sync_error = str(e)
                 financeiro.save()
-            except:
+            except Exception:
                 pass
             
             logger.error(f"Erro ao sincronizar loja {loja.nome}: {e}")
@@ -491,7 +490,7 @@ class AsaasSyncService:
                 
                 # Se escolheu cartão, enviar link para cadastrar
                 if loja.forma_pagamento_preferida == 'cartao_credito':
-                    logger.info(f"Loja escolheu cartão, enviando link de cadastro")
+                    logger.info("Loja escolheu cartão, enviando link de cadastro")
                     self._enviar_link_cadastro_cartao(loja, financeiro)
             else:
                 # Pagamento de renovação
@@ -570,7 +569,6 @@ class AsaasSyncService:
     
     def _enviar_email_senha_acesso(self, loja):
         """Envia email com senha de acesso após primeiro pagamento"""
-        from django.conf import settings
         
         assunto = f"Bem-vindo ao LWK Sistemas - {loja.nome}"
         
@@ -609,7 +607,6 @@ https://lwksistemas.com.br
     
     def _enviar_link_cadastro_cartao(self, loja, financeiro):
         """Envia email com link para cadastrar cartão após primeiro pagamento"""
-        from django.conf import settings
         from asaas_integration.client import AsaasClient
         from asaas_integration.models import AsaasConfig
         
@@ -688,7 +685,6 @@ https://lwksistemas.com.br
     
     def _enviar_email_confirmacao_pagamento(self, loja):
         """Envia email de confirmação de pagamento de renovação"""
-        from django.conf import settings
         
         assunto = f"Pagamento Confirmado - {loja.nome}"
         
@@ -718,7 +714,6 @@ Equipe LWK Sistemas
     
     def _enviar_email_cartao_cadastrado(self, loja):
         """Envia email confirmando cadastro do cartão"""
-        from django.conf import settings
         
         assunto = f"Cartão cadastrado com sucesso - {loja.nome}"
         
@@ -751,8 +746,9 @@ Equipe LWK Sistemas
     def _create_payment_from_webhook(self, payment_data):
         """Cria pagamento automaticamente a partir dos dados do webhook"""
         try:
-            from asaas_integration.models import AsaasPayment, AsaasCustomer
             from datetime import datetime
+
+            from asaas_integration.models import AsaasCustomer, AsaasPayment
             
             # Extrair dados do pagamento
             payment_info = payment_data
@@ -788,7 +784,7 @@ Equipe LWK Sistemas
                 
                 # Para criar o cliente, precisamos de mais dados que não vêm no webhook
                 # Por enquanto, vamos ignorar este webhook
-                logger.warning(f"Não é possível criar cliente automaticamente - dados insuficientes")
+                logger.warning("Não é possível criar cliente automaticamente - dados insuficientes")
                 return None
             
             # Criar pagamento
@@ -819,17 +815,16 @@ Equipe LWK Sistemas
         try:
             if hasattr(pagamento, 'loja'):
                 return pagamento.loja
-            if hasattr(pagamento, 'external_reference') and pagamento.external_reference:
-                if 'loja_' in pagamento.external_reference:
-                    # Extrair slug da loja do external_reference
-                    # Formato: loja_luiz-salao-5889_assinatura_202604
-                    # Resultado esperado: luiz-salao-5889
-                    import re
-                    match = re.search(r'loja_([^_]+(?:_\d+)?)', pagamento.external_reference)
-                    if match:
-                        loja_slug = match.group(1)
-                        logger.info(f"🔍 Slug extraído do external_reference: {loja_slug}")
-                        return Loja.objects.get(slug=loja_slug, is_active=True)
+            if hasattr(pagamento, 'external_reference') and pagamento.external_reference and 'loja_' in pagamento.external_reference:
+                # Extrair slug da loja do external_reference
+                # Formato: loja_luiz-salao-5889_assinatura_202604
+                # Resultado esperado: luiz-salao-5889
+                import re
+                match = re.search(r'loja_([^_]+(?:_\d+)?)', pagamento.external_reference)
+                if match:
+                    loja_slug = match.group(1)
+                    logger.info(f"🔍 Slug extraído do external_reference: {loja_slug}")
+                    return Loja.objects.get(slug=loja_slug, is_active=True)
         except Loja.DoesNotExist:
             logger.warning(f"❌ Loja não encontrada com slug: {loja_slug}")
         except Exception as e:
@@ -839,8 +834,6 @@ Equipe LWK Sistemas
     def _update_loja_financeiro_from_payment(self, pagamento):
         """Atualiza financeiro da loja baseado no pagamento confirmado"""
         try:
-            from datetime import date
-            from calendar import monthrange
             
             logger.info(f"🔄 _update_loja_financeiro_from_payment iniciado para pagamento {pagamento.id}")
             logger.info(f"   - Asaas ID: {pagamento.asaas_id}")
@@ -861,7 +854,7 @@ Equipe LWK Sistemas
             # Atualizar financeiro da loja
             financeiro = loja.financeiro
             
-            logger.info(f"📊 Financeiro atual:")
+            logger.info("📊 Financeiro atual:")
             logger.info(f"   - Status: {financeiro.status_pagamento}")
             logger.info(f"   - Último Pagamento: {financeiro.ultimo_pagamento}")
             logger.info(f"   - Próxima Cobrança: {financeiro.data_proxima_cobranca}")
@@ -872,11 +865,12 @@ Equipe LWK Sistemas
             financeiro.ultimo_pagamento = timezone.now()
             
             # Atualizar AsaasPayment local se existir
+            payment_id = pagamento.asaas_id
             try:
                 from asaas_integration.models import AsaasPayment
                 ap = AsaasPayment.objects.filter(asaas_id=payment_id).first()
                 if ap:
-                    ap.status = payment_data.get('status', 'RECEIVED') if isinstance(payment_data, dict) else 'RECEIVED'
+                    ap.status = pagamento.status or 'RECEIVED'
                     ap.payment_date = timezone.now()
                     ap.save(update_fields=['status', 'payment_date'])
                     logger.info(f"✅ AsaasPayment {payment_id} atualizado para status={ap.status}")
@@ -907,14 +901,14 @@ Equipe LWK Sistemas
                 
                 logger.info(f"🔍 Buscando LojaAssinatura para slug: {loja.slug}")
                 loja_assinatura = LojaAssinatura.objects.get(loja_slug=loja.slug)
-                logger.info(f"✅ LojaAssinatura encontrada")
+                logger.info("✅ LojaAssinatura encontrada")
                 
                 # Atualizar data_vencimento da assinatura
                 logger.info(f"📝 Atualizando data_vencimento: {loja_assinatura.data_vencimento} → {proxima_data_cobranca}")
                 loja_assinatura.data_vencimento = proxima_data_cobranca
                 loja_assinatura.save()
                 logger.info(f"✅ LojaAssinatura.data_vencimento atualizada para {proxima_data_cobranca}")
-                logger.info(f"📧 Boleto será criado e enviado automaticamente 10 dias antes do vencimento")
+                logger.info("📧 Boleto será criado e enviado automaticamente 10 dias antes do vencimento")
                     
             except LojaAssinatura.DoesNotExist:
                 logger.warning(f"❌ LojaAssinatura não encontrada para loja {loja.slug}")
@@ -951,6 +945,7 @@ Equipe LWK Sistemas
         """
         try:
             from datetime import timedelta
+
             from asaas_integration.client import AsaasClient
             from asaas_integration.models import AsaasConfig
             

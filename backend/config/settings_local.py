@@ -2,8 +2,9 @@
 Configurações para desenvolvimento local
 Usa o banco PostgreSQL do Heroku (produção) para testes
 """
-from .settings import *
 import dj_database_url
+
+from .settings import *
 
 # Sobrescrever DATABASES para usar PostgreSQL do Heroku
 DATABASE_URL = config('DATABASE_URL', default='')

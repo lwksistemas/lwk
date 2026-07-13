@@ -1,13 +1,16 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from django.db.models import Q
 import logging
 
+from django.db.models import Q
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
 logger = logging.getLogger(__name__)
-from ..models import ViolacaoSeguranca
-from ..serializers import ViolacaoSegurancaSerializer, ViolacaoSegurancaListSerializer
+import contextlib
+
 from ..cache import cached_stat
+from ..models import ViolacaoSeguranca
+from ..serializers import ViolacaoSegurancaListSerializer, ViolacaoSegurancaSerializer
 from .permissions import IsSuperAdmin
 
 
@@ -19,14 +22,15 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsSuperAdmin]
     
     def get_serializer_class(self):
-        from ..serializers import HistoricoAcessoGlobalSerializer, HistoricoAcessoGlobalListSerializer
+        from ..serializers import HistoricoAcessoGlobalListSerializer, HistoricoAcessoGlobalSerializer
         if self.action == 'list':
             return HistoricoAcessoGlobalListSerializer
         return HistoricoAcessoGlobalSerializer
     
     def get_queryset(self):
-        from ..models import HistoricoAcessoGlobal
         from datetime import datetime
+
+        from ..models import HistoricoAcessoGlobal
         
         queryset = HistoricoAcessoGlobal.objects.select_related(
             'user', 'loja', 'loja__tipo_loja'
@@ -106,9 +110,11 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def estatisticas(self, request):
         """Retorna estatísticas do histórico"""
-        from ..models import HistoricoAcessoGlobal
-        from django.db.models import Count
         from datetime import datetime, timedelta
+
+        from django.db.models import Count
+
+        from ..models import HistoricoAcessoGlobal
         
         data_inicio = request.query_params.get('data_inicio')
         data_fim = request.query_params.get('data_fim')
@@ -177,10 +183,12 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def atividade_temporal(self, request):
         """Retorna atividade ao longo do tempo (para gráficos)"""
-        from ..models import HistoricoAcessoGlobal
+        from datetime import datetime, timedelta
+
         from django.db.models import Count
         from django.db.models.functions import TruncDate, TruncHour, TruncMonth
-        from datetime import datetime, timedelta
+
+        from ..models import HistoricoAcessoGlobal
         
         data_inicio = request.query_params.get('data_inicio')
         data_fim = request.query_params.get('data_fim')
@@ -258,8 +266,9 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
     def exportar(self, request):
         """Exporta histórico em CSV"""
         import csv
-        from django.http import HttpResponse
         from datetime import datetime
+
+        from django.http import HttpResponse
         
         queryset = self.get_queryset()[:10000]
         
@@ -291,8 +300,9 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def exportar_json(self, request):
         """Exporta histórico em JSON"""
-        from django.http import JsonResponse
         from datetime import datetime
+
+        from django.http import JsonResponse
         
         queryset = self.get_queryset()[:10000]
         serializer = self.get_serializer(queryset, many=True)
@@ -396,7 +406,8 @@ class ViolacaoSegurancaViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         from datetime import datetime
-        from django.db.models import Case, When, IntegerField
+
+        from django.db.models import Case, IntegerField, When
         
         queryset = ViolacaoSeguranca.objects.all().select_related(
             'user', 'loja', 'resolvido_por'
@@ -525,17 +536,15 @@ class ViolacaoSegurancaViewSet(viewsets.ModelViewSet):
     def _stats_queryset(self):
         """Estatísticas globais (ignora filtros de lista, mantém só período opcional)."""
         from datetime import datetime, timedelta
-        from django.utils import timezone
+
 
         queryset = ViolacaoSeguranca.objects.all()
         params = self.request.query_params
         data_inicio = params.get('data_inicio')
         data_fim = params.get('data_fim')
         if data_inicio:
-            try:
+            with contextlib.suppress(ValueError):
                 queryset = queryset.filter(created_at__gte=datetime.strptime(data_inicio, '%Y-%m-%d'))
-            except ValueError:
-                pass
         if data_fim:
             try:
                 data_fim_dt = datetime.strptime(data_fim, '%Y-%m-%d') + timedelta(days=1)
@@ -551,8 +560,9 @@ class ViolacaoSegurancaViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def estatisticas(self, request):
         """Estatísticas de violações (formato dict para o dashboard de alertas)."""
-        from django.db.models import Count
         from datetime import timedelta
+
+        from django.db.models import Count
         from django.utils import timezone
 
         queryset = self._stats_queryset()
@@ -598,11 +608,13 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     @cached_stat(ttl=300, key_prefix='acoes_por_dia')
     def acoes_por_dia(self, request):
         """Gráfico de ações por dia"""
-        from ..models import HistoricoAcessoGlobal
-        from django.db.models.functions import TruncDate
+        from datetime import datetime, timedelta
+
         from django.db.models import Count, Q
-        from datetime import timedelta, datetime
+        from django.db.models.functions import TruncDate
         from django.utils import timezone
+
+        from ..models import HistoricoAcessoGlobal
         
         data_inicio_param = request.query_params.get('data_inicio')
         data_fim_param = request.query_params.get('data_fim')
@@ -647,9 +659,10 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     @cached_stat(ttl=300, key_prefix='acoes_por_tipo')
     def acoes_por_tipo(self, request):
         """Distribuição de ações por tipo"""
-        from ..models import HistoricoAcessoGlobal
-        from ..historico_auditoria_filters import queryset_auditoria_visivel
         from django.db.models import Count
+
+        from ..historico_auditoria_filters import queryset_auditoria_visivel
+        from ..models import HistoricoAcessoGlobal
         
         acoes = queryset_auditoria_visivel(
             HistoricoAcessoGlobal.objects.all()
@@ -663,9 +676,10 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     @cached_stat(ttl=300, key_prefix='lojas_mais_ativas')
     def lojas_mais_ativas(self, request):
         """Ranking de lojas mais ativas"""
-        from ..models import HistoricoAcessoGlobal
-        from ..historico_auditoria_filters import queryset_ranking_lojas
         from django.db.models import Count
+
+        from ..historico_auditoria_filters import queryset_ranking_lojas
+        from ..models import HistoricoAcessoGlobal
         
         limit = int(request.query_params.get('limit', 10))
         
@@ -683,9 +697,10 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     @cached_stat(ttl=300, key_prefix='usuarios_mais_ativos')
     def usuarios_mais_ativos(self, request):
         """Ranking de usuários mais ativos"""
-        from ..models import HistoricoAcessoGlobal
-        from ..historico_auditoria_filters import queryset_ranking_usuarios
         from django.db.models import Count
+
+        from ..historico_auditoria_filters import queryset_ranking_usuarios
+        from ..models import HistoricoAcessoGlobal
         
         limit = int(request.query_params.get('limit', 10))
         
@@ -703,11 +718,11 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     @cached_stat(ttl=300, key_prefix='horarios_pico')
     def horarios_pico(self, request):
         """Distribuição de ações por hora do dia"""
-        from ..models import HistoricoAcessoGlobal
         from django.db.models import Count
         from django.db.models.functions import ExtractHour
-        
+
         from ..historico_auditoria_filters import queryset_auditoria_visivel
+        from ..models import HistoricoAcessoGlobal
         
         acoes = queryset_auditoria_visivel(
             HistoricoAcessoGlobal.objects.all()
@@ -723,8 +738,8 @@ class EstatisticasAuditoriaViewSet(viewsets.ViewSet):
     @cached_stat(ttl=300, key_prefix='taxa_sucesso')
     def taxa_sucesso(self, request):
         """Taxa de sucesso vs falha"""
-        from ..models import HistoricoAcessoGlobal
         from ..historico_auditoria_filters import queryset_auditoria_visivel
+        from ..models import HistoricoAcessoGlobal
         
         qs = queryset_auditoria_visivel(HistoricoAcessoGlobal.objects.all())
         total = qs.count()

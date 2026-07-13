@@ -1,9 +1,10 @@
 """
 Comando para copiar estrutura das tabelas do app suporte do schema public para o schema suporte.
 """
+import logging
+
 from django.core.management.base import BaseCommand
 from django.db import connection
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(self.style.WARNING('⚠️  Nenhuma tabela encontrada'))
             
-            self.stdout.write(self.style.SUCCESS(f'\n✅ Cópia concluída!'))
+            self.stdout.write(self.style.SUCCESS('\n✅ Cópia concluída!'))
             
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'\n❌ Erro: {e}'))

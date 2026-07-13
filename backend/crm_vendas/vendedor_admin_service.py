@@ -1,14 +1,14 @@
 """Lógica de listagem e acesso do vendedor administrador (owner da loja)."""
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from django.conf import settings
-from django.contrib.auth.models import Group
-from core.email_delivery import send_system_mail
 from django.utils.crypto import get_random_string
 from rest_framework import status
 from rest_framework.response import Response
 
+from core.email_delivery import send_system_mail
 from tenants.middleware import get_current_tenant_db
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,8 @@ def sincronizar_vendedor_admin_owner(loja, owner=None) -> bool:
     Alinha nome/e-mail/telefone do vendedor CRM ao administrador (User owner).
     Evita nome errado na auditoria e na listagem de funcionários.
     """
-    from superadmin.models import Loja, VendedorUsuario
+    from superadmin.models import VendedorUsuario
+
     from .models import Vendedor
 
     if owner is None:
@@ -77,7 +78,7 @@ def ajustar_lista_vendedores_com_admin(
     """
     Insere admin virtual, filtra duplicatas legacy e recupera lista vazia com VendedorUsuario.
     """
-    from superadmin.models import Loja, VendedorUsuario
+    from superadmin.models import VendedorUsuario
 
     from .models import Vendedor
 

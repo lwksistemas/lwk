@@ -63,9 +63,9 @@ def _is_token_expired(expiry):
 
 def get_credentials(connection):
     """Converte GoogleCalendarConnection em Credentials do google-auth (com refresh)."""
-    from google.oauth2.credentials import Credentials
-    from google.auth.transport.requests import Request
     from google.auth.exceptions import RefreshError
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
 
     creds = Credentials(
         token=connection.access_token,

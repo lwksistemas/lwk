@@ -1,14 +1,13 @@
 """
 Notificações e envio de links de assinatura digital (CRM).
 """
-from urllib.parse import quote
 import logging
+from urllib.parse import quote
 
 from django.conf import settings
 from django.utils import timezone
 
 from .assinatura_digital_emails import (
-    enviar_email_assinatura_cliente,
     enviar_email_assinatura_vendedor,
 )
 from .assinatura_digital_token import criar_token_assinatura
@@ -214,8 +213,8 @@ def enviar_whatsapp_assinatura_vendedor(documento, assinatura, request, user=Non
     Envia link de assinatura digital ao vendedor por WhatsApp.
     Returns: (sucesso, erro)
     """
-    from whatsapp.models import WhatsAppConfig
     from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
+    from whatsapp.models import WhatsAppConfig
     from whatsapp.services import send_whatsapp
 
     telefone = _telefone_vendedor_documento(documento)
@@ -346,8 +345,9 @@ def enviar_whatsapp_assinatura_cliente(documento, assinatura, request, user=None
     Returns: (sucesso, erro)
     """
     from urllib.parse import quote
-    from whatsapp.models import WhatsAppConfig
+
     from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
+    from whatsapp.models import WhatsAppConfig
     from whatsapp.services import send_whatsapp
 
     lead = documento.oportunidade.lead

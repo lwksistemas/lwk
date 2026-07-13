@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from django.db.utils import OperationalError
 from rest_framework import status as http_status
@@ -54,26 +54,23 @@ def usuario_precisa_trocar_senha_loja(user, loja, *, pu=None, vu=None) -> bool:
 
     if vu is None:
         vu = VendedorUsuario.objects.filter(user=user, loja=loja).first()
-    if vu and vu.precisa_trocar_senha:
-        return True
-
-    return False
+    return bool(vu and vu.precisa_trocar_senha)
 
 
 @dataclass
 class LoginResult:
     """Resultado do login — sucesso ou erro."""
     success: bool
-    data: Dict[str, Any]
+    data: dict[str, Any]
     status_code: int
     # Cookies a serem setados na response (access, refresh, session_id)
-    cookies: Optional[Dict[str, str]] = None
+    cookies: dict[str, str] | None = None
 
 
 class LoginService:
     """Lógica completa de login por tipo de usuário."""
 
-    def execute(self, request, user_type: Optional[str] = None) -> LoginResult:
+    def execute(self, request, user_type: str | None = None) -> LoginResult:
         """
         Executa o fluxo completo de login.
 
@@ -131,9 +128,8 @@ class LoginService:
 
         # 5. Identificar tipo real do usuário
         real_user_type = self._get_user_type(user, loja_slug)
-        if user_type == 'loja' and real_user_type == 'unknown' and loja_slug:
-            if user_belongs_to_store(user, loja_slug):
-                real_user_type = 'loja'
+        if user_type == 'loja' and real_user_type == 'unknown' and loja_slug and user_belongs_to_store(user, loja_slug):
+            real_user_type = 'loja'
 
         # 6. Validar endpoint correto
         if user_type and real_user_type != user_type:
@@ -252,7 +248,7 @@ class LoginService:
             status_code=http_status.HTTP_401_UNAUTHORIZED,
         )
 
-    def _validate_cpf_cnpj(self, user, user_type, cpf_cnpj: str, username: str) -> Optional[LoginResult]:
+    def _validate_cpf_cnpj(self, user, user_type, cpf_cnpj: str, username: str) -> LoginResult | None:
         """Valida CPF/CNPJ se fornecido. Retorna LoginResult de erro ou None se OK."""
         if not cpf_cnpj:
             return None
@@ -275,15 +271,14 @@ class LoginService:
         elif user_type in ('superadmin', 'suporte'):
             try:
                 us = UsuarioSistema.objects.get(user=user, tipo=user_type, is_active=True)
-                if us.cpf:
-                    if cpf_cnpj_limpo != re.sub(r'[^0-9]', '', us.cpf):
-                        record_login_failure(username)
-                        logger.critical('🚨 VIOLAÇÃO: CPF incorreto para %s (%s)', username, user_type)
-                        return LoginResult(
-                            success=False,
-                            data={'error': 'CPF incorreto.', 'code': 'INVALID_CPF'},
-                            status_code=http_status.HTTP_401_UNAUTHORIZED,
-                        )
+                if us.cpf and cpf_cnpj_limpo != re.sub(r'[^0-9]', '', us.cpf):
+                    record_login_failure(username)
+                    logger.critical('🚨 VIOLAÇÃO: CPF incorreto para %s (%s)', username, user_type)
+                    return LoginResult(
+                        success=False,
+                        data={'error': 'CPF incorreto.', 'code': 'INVALID_CPF'},
+                        status_code=http_status.HTTP_401_UNAUTHORIZED,
+                    )
             except UsuarioSistema.DoesNotExist:
                 pass
 
@@ -380,7 +375,6 @@ class LoginService:
                 response_data['vendedor_id'] = vu.vendedor_id
                 if loja.owner_id != user.id:
                     response_data['is_vendedor'] = True
-                    from django.contrib.auth.models import Group
                     if user.groups.filter(name='Gerente de Vendas').exists():
                         response_data['is_gerente'] = True
 

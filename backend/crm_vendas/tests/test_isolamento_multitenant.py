@@ -2,7 +2,7 @@
 Testes de isolamento multi-tenant para o CRM Vendas.
 Verifica que LojaIsolationManager bloqueia acesso cruzado entre lojas.
 """
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
@@ -17,8 +17,9 @@ class LojaIsolationManagerTests(SimpleTestCase):
     @patch(PATCH_TENANT_DB, return_value=None)
     def test_sem_loja_contexto_retorna_none_queryset(self, *_):
         """Manager deve retornar queryset vazio quando não há loja no contexto."""
-        from core.mixins import LojaIsolationManager
         from django.db import models
+
+        from core.mixins import LojaIsolationManager
 
         class FakeModel(models.Model):
             loja_id = models.IntegerField()
@@ -89,8 +90,8 @@ class VendedorFilterMixinTests(SimpleTestCase):
     @patch('crm_vendas.mixins.get_current_vendedor_id', return_value=42)
     def test_vendedor_include_unassigned_off_por_padrao(self, *_):
         """Por padrão, registros sem vendedor NÃO aparecem para vendedores."""
+
         from crm_vendas.mixins import VendedorFilterMixin
-        from django.db.models import Q
 
         class FakeViewSet(VendedorFilterMixin):
             vendedor_filter_field = 'vendedor_id'

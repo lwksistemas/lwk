@@ -6,7 +6,6 @@ from __future__ import annotations
 import base64
 import io
 import logging
-from typing import Optional, Tuple
 
 from django.conf import settings
 
@@ -15,7 +14,7 @@ try:
 except ImportError:
     pyotp = None  # type: ignore
 
-from core.encryption import decrypt_value, encrypt_value, is_encrypted
+from core.encryption import decrypt_value, encrypt_value
 
 logger = logging.getLogger(__name__)
 

@@ -4,6 +4,7 @@ A migration 0025 precisa ser aplicada em cada schema de loja.
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 
@@ -54,7 +55,7 @@ class Command(BaseCommand):
                     coluna_existe = cursor.fetchone()[0]
                     
                     if coluna_existe:
-                        self.stdout.write(self.style.SUCCESS(f'  ✅ Já migrado'))
+                        self.stdout.write(self.style.SUCCESS('  ✅ Já migrado'))
                         sucesso += 1
                         continue
                     
@@ -144,7 +145,7 @@ class Command(BaseCommand):
                         );
                     """)
                     
-                    self.stdout.write(self.style.SUCCESS(f'  ✅ Migrado com sucesso'))
+                    self.stdout.write(self.style.SUCCESS('  ✅ Migrado com sucesso'))
                     sucesso += 1
                     
             except Exception as e:

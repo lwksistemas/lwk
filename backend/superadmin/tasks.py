@@ -15,12 +15,11 @@ Boas práticas aplicadas:
 - Rate limiting
 """
 
+import contextlib
 import logging
-from datetime import datetime, timedelta
-from typing import Optional
 
-from django.utils import timezone
 from django.conf import settings
+from django.utils import timezone
 
 # Celery será configurado posteriormente
 # from celery import shared_task
@@ -47,9 +46,11 @@ def executar_backups_automaticos():
     - Verifica horário com margem de 1 hora
     - Evita duplicação (verifica último backup)
     """
-    from .models import ConfiguracaoBackup
-    from django.db import OperationalError
     import time
+
+    from django.db import OperationalError
+
+    from .models import ConfiguracaoBackup
     
     logger.info("🔄 Iniciando verificação de backups automáticos agendados")
     
@@ -95,7 +96,7 @@ def executar_backups_automaticos():
     
     # Usar horário local (TIME_ZONE, ex.: America/Sao_Paulo) para comparar com o configurado pelo usuário
     now_local = timezone.localtime(timezone.now())
-    hora_atual = now_local.time()
+    now_local.time()
     hoje = now_local.date()
     total_agendados = 0
     
@@ -166,7 +167,7 @@ def executar_backups_automaticos():
 def processar_backup_loja(
     loja_id: int,
     tipo: str = 'automatico',
-    user_id: Optional[int] = None,
+    user_id: int | None = None,
     incluir_imagens: bool = False
 ):
     """
@@ -187,11 +188,11 @@ def processar_backup_loja(
     - Timeout de 30 minutos
     - Logging detalhado
     """
-    from .models import Loja, HistoricoBackup, ConfiguracaoBackup
-    from .backup_service import BackupService
-    from .backup_email_service import BackupEmailService
+
     from django.contrib.auth.models import User
-    import os
+
+    from .backup_service import BackupService
+    from .models import ConfiguracaoBackup, HistoricoBackup, Loja
     
     logger.info(
         f"� Iniciando processamento de backup - "
@@ -209,10 +210,8 @@ def processar_backup_loja(
             if not ensure_loja_database_config(loja.database_name, conn_max_age=60):
                 solicitado_por = None
                 if user_id:
-                    try:
+                    with contextlib.suppress(User.DoesNotExist):
                         solicitado_por = User.objects.get(id=user_id)
-                    except User.DoesNotExist:
-                        pass
                 historico_err = HistoricoBackup.objects.create(
                     loja=loja,
                     tipo=tipo,
@@ -227,10 +226,8 @@ def processar_backup_loja(
         # Buscar usuário (se fornecido)
         solicitado_por = None
         if user_id:
-            try:
+            with contextlib.suppress(User.DoesNotExist):
                 solicitado_por = User.objects.get(id=user_id)
-            except User.DoesNotExist:
-                pass
         
         # Criar registro de histórico
         historico = HistoricoBackup.objects.create(
@@ -314,7 +311,7 @@ def processar_backup_loja(
         try:
             if 'historico' in locals():
                 historico.marcar_como_erro(erro)
-        except:
+        except Exception:
             pass
         
         return {'success': False, 'erro': erro}
@@ -355,9 +352,9 @@ def enviar_backup_email_task(loja_id: int, historico_backup_id: int):
         )
         
         if success:
-            logger.info(f"✅ Email enviado com sucesso")
+            logger.info("✅ Email enviado com sucesso")
         else:
-            logger.warning(f"⚠️ Falha ao enviar email")
+            logger.warning("⚠️ Falha ao enviar email")
         
         return success
     
@@ -388,8 +385,9 @@ def limpar_backups_antigos_task(loja_id: int):
     - Remove arquivos do filesystem
     - Logging detalhado
     """
-    from .models import Loja, ConfiguracaoBackup, HistoricoBackup
     import os
+
+    from .models import ConfiguracaoBackup, HistoricoBackup, Loja
     
     logger.info(f"🧹 Iniciando limpeza de backups antigos - Loja ID: {loja_id}")
     
@@ -485,7 +483,6 @@ def _salvar_arquivo_backup(loja, arquivo_nome: str, arquivo_bytes: bytes) -> str
         Por enquanto salva no filesystem local.
         Futuramente pode ser adaptado para S3.
     """
-    import os
     from pathlib import Path
     
     # Diretório de backups

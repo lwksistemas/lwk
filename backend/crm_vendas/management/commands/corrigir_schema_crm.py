@@ -6,10 +6,12 @@ Uso:
     python manage.py corrigir_schema_crm
     python manage.py corrigir_schema_crm --loja-id=123
 """
+import logging
+
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +51,10 @@ class Command(BaseCommand):
                 # 1. Configurar schema e aplicar migrations
                 from crm_vendas.schema_service import configurar_schema_crm_loja
                 if not configurar_schema_crm_loja(loja):
-                    self.stdout.write(self.style.ERROR(f'  ❌ Falha ao configurar schema'))
+                    self.stdout.write(self.style.ERROR('  ❌ Falha ao configurar schema'))
                     continue
                 
-                self.stdout.write(self.style.SUCCESS(f'  ✅ Schema configurado'))
+                self.stdout.write(self.style.SUCCESS('  ✅ Schema configurado'))
                 
                 # 2. Criar tabelas de produtos/itens se não existirem
                 db_name = loja.database_name
@@ -75,7 +77,7 @@ class Command(BaseCommand):
                     if not existe:
                         self.stdout.write('  📝 Criando tabelas de produtos/itens...')
                         self._criar_tabelas_crm(cursor, schema_name)
-                        self.stdout.write(self.style.SUCCESS(f'  ✅ Tabelas criadas'))
+                        self.stdout.write(self.style.SUCCESS('  ✅ Tabelas criadas'))
                     else:
                         self.stdout.write('  ℹ️  Tabelas já existem')
                 
@@ -85,7 +87,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f'  ❌ Erro: {e}'))
                 logger.exception(f'Erro ao corrigir loja {loja.id}')
         
-        self.stdout.write(self.style.SUCCESS(f'\n✅ Processamento concluído'))
+        self.stdout.write(self.style.SUCCESS('\n✅ Processamento concluído'))
 
     def _criar_tabelas_crm(self, cursor, schema_name):
         """Cria tabelas de ProdutoServico, OportunidadeItem, Proposta e Contrato."""

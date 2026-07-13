@@ -1,7 +1,6 @@
 """
 Geração de relatórios PDF de vendas (total e por vendedor).
 """
-from datetime import date as date_type
 from io import BytesIO
 
 from django.db.models import Count, Q, Sum
@@ -21,10 +20,15 @@ from .relatorios_pdf_common import (
 )
 from .relatorios_vendas_pdf_helpers import (
     adicionar_secao_vendedor_pdf as _adicionar_secao_vendedor_pdf,
+)
+from .relatorios_vendas_pdf_helpers import (
     filtro_detalhe_linha_merged_pdf as _filtro_detalhe_linha_merged_pdf,
+)
+from .relatorios_vendas_pdf_helpers import (
     merge_detalhamento_vendedores_pdf as _merge_detalhamento_vendedores_pdf,
 )
 from .utils import get_vendedor_destino_merge_loja
+
 
 def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_id: int = None, data_inicio_custom=None, data_fim_custom=None) -> BytesIO:
     """

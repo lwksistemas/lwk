@@ -4,6 +4,7 @@ Aplica migrations 0024 e 0025 completas.
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 
@@ -54,13 +55,13 @@ class Command(BaseCommand):
                         tem_novos_campos = cursor.fetchone()[0]
                         
                         if tem_novos_campos:
-                            self.stdout.write(self.style.SUCCESS(f'  ✅ Já configurado'))
+                            self.stdout.write(self.style.SUCCESS('  ✅ Já configurado'))
                             sucesso += 1
                             continue
                         else:
-                            self.stdout.write(f'  🔄 Atualizando estrutura...')
+                            self.stdout.write('  🔄 Atualizando estrutura...')
                     else:
-                        self.stdout.write(f'  🔄 Criando tabela...')
+                        self.stdout.write('  🔄 Criando tabela...')
                     
                     # Criar ou recriar tabela com estrutura correta
                     if tabela_existe:
@@ -171,7 +172,7 @@ class Command(BaseCommand):
                                 (SELECT MAX(id) FROM crm_vendas_assinatura_digital));
                         """)
                     
-                    self.stdout.write(self.style.SUCCESS(f'  ✅ Configurado com sucesso'))
+                    self.stdout.write(self.style.SUCCESS('  ✅ Configurado com sucesso'))
                     sucesso += 1
                     
             except Exception as e:

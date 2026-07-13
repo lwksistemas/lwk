@@ -3,7 +3,8 @@ Modelo de configuração do CRM Vendas.
 Permite personalizar origens, etapas, colunas visíveis, etc.
 """
 from django.db import models
-from core.mixins import LojaIsolationMixin, LojaIsolationManager
+
+from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 
 class CRMConfig(LojaIsolationMixin, models.Model):

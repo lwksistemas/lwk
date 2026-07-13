@@ -2,17 +2,18 @@
 Geração de PDF para Confirmação de Reserva de Hotel.
 Inclui: dados do hotel, hóspede, quarto, datas, regras/termos e assinaturas digitais.
 """
-from io import BytesIO
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-import pytz
 import logging
+from io import BytesIO
+
+import pytz
 import requests as http_requests
 from PIL import Image as PILImage
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import cm
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,6 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
                 if endereco:
                     info_col.append(Paragraph(endereco, subtitulo_style))
 
-                from reportlab.platypus import KeepInFrame
                 info_table = Table([[info_col]], colWidths=[None])
                 info_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'MIDDLE')]))
 
@@ -228,7 +228,8 @@ def gerar_pdf_reserva(reserva, incluir_assinaturas: bool = False) -> BytesIO:
             elements.append(Paragraph('Horários e Políticas', section_style))
 
             # Horários check-in / check-out
-            fmt = lambda t: t.strftime('%H:%M') if t else '—'
+            def fmt(t):
+                return t.strftime('%H:%M') if t else '—'
             hor_data = [
                 ['Check-in a partir de', fmt(cfg.horario_checkin)],
                 ['Check-out até', fmt(cfg.horario_checkout)],

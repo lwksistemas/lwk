@@ -2,11 +2,18 @@
 API pública da Homepage - sem autenticação.
 Retorna os dados configurados para exibir na página inicial.
 """
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from .models import HeroSection, Funcionalidade, ModuloSistema, WhyUsBenefit, EmpresaConfig
-from .serializers import HeroSerializer, FuncionalidadeSerializer, ModuloSerializer, WhyUsBenefitSerializer, EmpresaConfigSerializer
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .models import EmpresaConfig, Funcionalidade, HeroSection, ModuloSistema, WhyUsBenefit
+from .serializers import (
+    EmpresaConfigSerializer,
+    FuncionalidadeSerializer,
+    HeroSerializer,
+    ModuloSerializer,
+    WhyUsBenefitSerializer,
+)
 
 
 class HomePageAPIView(APIView):

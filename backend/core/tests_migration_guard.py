@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase
 
-from core.migration_guard import _should_skip_check, CRITICAL_APPS
+from core.migration_guard import CRITICAL_APPS, _should_skip_check
 
 
 class MigrationGuardTests(SimpleTestCase):

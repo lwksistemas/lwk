@@ -5,15 +5,15 @@ Uso:
     python manage.py ensure_whatsapp_evolution_fields
     python manage.py ensure_whatsapp_evolution_fields --slug novaimagem
 """
-from django.core.management.base import BaseCommand
+import contextlib
+
 from django.core.management import call_command
+from django.core.management.base import BaseCommand
 from django.db import connections
-from django.db.utils import OperationalError, ProgrammingError
 
 from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
-
 
 COLUMNS = (
     ('whatsapp_provider', "VARCHAR(20) NOT NULL DEFAULT 'meta'"),
@@ -65,10 +65,8 @@ class Command(BaseCommand):
                                 f'ALTER TABLE whatsapp_whatsappconfig ADD COLUMN {col} {ddl}'
                             )
                             self.stdout.write(f'{loja.slug}: coluna {col} adicionada')
-                try:
+                with contextlib.suppress(Exception):
                     call_command('migrate', 'whatsapp', '0007_mensagem_confirmacao_agenda', database=db_name, verbosity=0)
-                except Exception:
-                    pass
                 ok += 1
             except Exception as exc:
                 self.stdout.write(self.style.ERROR(f'{loja.slug}: {exc}'))

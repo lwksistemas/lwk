@@ -1,4 +1,6 @@
 """Serializers de propostas e contratos."""
+import contextlib
+
 from rest_framework import serializers
 
 from ..emitente_documento import limpar_emitente_se_vazio
@@ -19,10 +21,8 @@ def _conta_nome_do_documento(obj) -> str | None:
 
     conta_nome = None
     if getattr(lead, 'conta_id', None):
-        try:
+        with contextlib.suppress(Exception):
             conta_nome = lead.conta.nome
-        except Exception:
-            pass
     return label_empresa_lead(
         lead.cpf_cnpj,
         empresa=getattr(lead, 'empresa', None),

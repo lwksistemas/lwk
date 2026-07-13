@@ -24,15 +24,15 @@ class Command(BaseCommand):
         now = timezone.localtime(timezone.now())
         self.stdout.write(self.style.SUCCESS(f'=== Cron LWK {now.isoformat()} ==='))
 
-        from crm_vendas.atividade_lembrete_tasks import (
-            send_lembretes_atividade_crm_24h,
-            send_lembretes_atividade_crm_2h,
-        )
-        from whatsapp.tasks import send_lembretes_2h_whatsapp
+        from asaas_integration.nfse_assinatura_retry import processar_nfse_assinatura_pendentes
         from clinica_beleza.agenda_no_show_service import marcar_faltas_agenda_automatico
         from clinica_beleza.consulta_auto_finalizar_service import finalizar_consultas_esquecidas
         from crm_vendas.assinatura_vendedor_retry import processar_envios_vendedor_pendentes
-        from asaas_integration.nfse_assinatura_retry import processar_nfse_assinatura_pendentes
+        from crm_vendas.atividade_lembrete_tasks import (
+            send_lembretes_atividade_crm_2h,
+            send_lembretes_atividade_crm_24h,
+        )
+        from whatsapp.tasks import send_lembretes_2h_whatsapp
 
         crm_24h = send_lembretes_atividade_crm_24h()
         crm_2h = send_lembretes_atividade_crm_2h()
@@ -46,7 +46,7 @@ class Command(BaseCommand):
         self.stdout.write(f'  Assinatura vendedor retry: {vendedor} | NFS-e pendentes: {nfse}')
 
         if 7 <= now.hour <= 9:
-            from whatsapp.tasks import send_lembretes_24h_whatsapp, send_cobrancas_pendentes_whatsapp
+            from whatsapp.tasks import send_cobrancas_pendentes_whatsapp, send_lembretes_24h_whatsapp
             clin_24h = send_lembretes_24h_whatsapp()
             cobranca = send_cobrancas_pendentes_whatsapp()
             self.stdout.write(f'  Clínica 24h: {clin_24h} | Cobranças WA: {cobranca}')

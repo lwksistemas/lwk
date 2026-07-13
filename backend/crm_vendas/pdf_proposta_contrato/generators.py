@@ -6,8 +6,8 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
-from .formatters import _obter_dados_loja
 from ..emitente_documento import obter_dados_emitente_documento
+from .formatters import _obter_dados_loja
 from .sections import (
     _build_cabecalho,
     _build_secao_assinaturas,

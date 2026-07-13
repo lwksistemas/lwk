@@ -11,7 +11,6 @@ Busca por padrões que podem bypassar o LojaIsolationManager:
 Uso:
     python backend/scripts/auditar_raw_sql.py
 """
-import os
 import re
 from pathlib import Path
 
@@ -37,7 +36,7 @@ def find_raw_sql_usage():
             continue
         
         try:
-            with open(py_file, 'r', encoding='utf-8') as f:
+            with open(py_file, encoding='utf-8') as f:
                 lines = f.readlines()
                 
             for line_num, line in enumerate(lines, 1):

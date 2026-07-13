@@ -1,8 +1,19 @@
-from django.db.models import Q
 from rest_framework import serializers
-from core.serializers import BaseLojaSerializer
+
 from core.serializer_mixins import TextNormalizationMixin, UniqueDocumentoPerLojaMixin
-from .models import Hospede, Quarto, Tarifa, Reserva, GovernancaTarefa, Funcionario, ReservaTemplate, ReservaAssinatura, ConfiguracaoHotel
+from core.serializers import BaseLojaSerializer
+
+from .models import (
+    ConfiguracaoHotel,
+    Funcionario,
+    GovernancaTarefa,
+    Hospede,
+    Quarto,
+    Reserva,
+    ReservaAssinatura,
+    ReservaTemplate,
+    Tarifa,
+)
 
 
 class HospedeSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin, BaseLojaSerializer):

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import List, Optional, Sequence, Union
+from collections.abc import Sequence
 
 from django.conf import settings
 from django.core.mail import EmailMessage, EmailMultiAlternatives
@@ -16,13 +16,13 @@ from core.resend_api import resend_api_key, send_via_resend_api
 
 logger = logging.getLogger(__name__)
 
-Recipient = Union[str, Sequence[str]]
+Recipient = str | Sequence[str]
 MAX_EMAIL_QUEUE_BYTES = 4 * 1024 * 1024
 
 
 def _should_enqueue_email() -> bool:
-    from core.task_queue import task_queue_enabled
     from core.email_sync_context import email_sync_only
+    from core.task_queue import task_queue_enabled
 
     return task_queue_enabled() and not email_sync_only.get()
 
@@ -91,7 +91,7 @@ def get_from_email() -> str:
     )
 
 
-def get_reply_to() -> List[str]:
+def get_reply_to() -> list[str]:
     raw = getattr(settings, 'DEFAULT_REPLY_TO', '') or ''
     if isinstance(raw, (list, tuple)):
         return [str(x).strip() for x in raw if str(x).strip()]
@@ -110,7 +110,7 @@ def prepare_outbound_email(msg: EmailMessage) -> EmailMessage:
     return msg
 
 
-def _normalize_recipients(recipient_list: Recipient) -> List[str]:
+def _normalize_recipients(recipient_list: Recipient) -> list[str]:
     if isinstance(recipient_list, str):
         return [recipient_list]
     return list(recipient_list)
@@ -121,9 +121,9 @@ def create_email_message(
     body: str,
     to: Recipient,
     *,
-    from_email: Optional[str] = None,
-    cc: Optional[Recipient] = None,
-    bcc: Optional[Recipient] = None,
+    from_email: str | None = None,
+    cc: Recipient | None = None,
+    bcc: Recipient | None = None,
     **kwargs,
 ) -> EmailMessage:
     msg = EmailMessage(
@@ -143,8 +143,8 @@ def create_email_multipart(
     body: str,
     to: Recipient,
     *,
-    html: Optional[str] = None,
-    from_email: Optional[str] = None,
+    html: str | None = None,
+    from_email: str | None = None,
     **kwargs,
 ) -> EmailMultiAlternatives:
     msg = EmailMultiAlternatives(
@@ -164,8 +164,8 @@ def send_system_mail(
     message: str,
     recipient_list: Recipient,
     *,
-    html_message: Optional[str] = None,
-    from_email: Optional[str] = None,
+    html_message: str | None = None,
+    from_email: str | None = None,
     fail_silently: bool = False,
 ) -> int:
     """Envia e-mail texto ou texto+HTML com cabeçalhos padronizados."""

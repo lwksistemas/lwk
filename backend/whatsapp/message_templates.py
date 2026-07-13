@@ -32,7 +32,7 @@ def msg_assinatura_cliente(
     """
     subtitulo = f'_{titulo}_' if titulo and titulo.strip() else ''
     linhas = [
-        f'🔐 *Documento para Assinatura Digital*',
+        '🔐 *Documento para Assinatura Digital*',
         SEPARADOR,
         f'Olá *{nome}*!',
         '',
@@ -40,15 +40,15 @@ def msg_assinatura_cliente(
         '',
         f'📋 *{tipo_doc}*' + (f'\n   {subtitulo}' if subtitulo else ''),
         '',
-        f'👇 *Toque no link abaixo para ler e assinar:*',
+        '👇 *Toque no link abaixo para ler e assinar:*',
         link,
         '',
         f'⏳ Válido por {dias} dias',
-        f'🔒 Documento verificado por LWK Sistemas',
+        '🔒 Documento verificado por LWK Sistemas',
         SEPARADOR,
         '_Este link é exclusivo para você. Não compartilhe._',
     ]
-    return '\n'.join(l for l in linhas)
+    return '\n'.join(linhas)
 
 
 def msg_assinatura_vendedor(
@@ -67,12 +67,12 @@ def msg_assinatura_vendedor(
     subtitulo = f'_{titulo}_' if titulo and titulo.strip() else ''
     cliente_linha = f'👤 *Cliente:* {nome_cliente}' if nome_cliente else ''
     linhas = [
-        f'✅ *Assinatura do Cliente Concluída*',
+        '✅ *Assinatura do Cliente Concluída*',
         SEPARADOR,
         f'Olá *{nome}*!',
         '',
         f'O cliente assinou o documento de *{loja_nome}*.',
-        f'Agora é a sua vez de finalizar:',
+        'Agora é a sua vez de finalizar:',
         '',
         f'📋 *{tipo_doc}*' + (f'\n   {subtitulo}' if subtitulo else ''),
     ]
@@ -80,14 +80,14 @@ def msg_assinatura_vendedor(
         linhas.append(cliente_linha)
     linhas.extend([
         '',
-        f'👇 *Toque para assinar e concluir:*',
+        '👇 *Toque para assinar e concluir:*',
         link,
         '',
         f'⏳ Válido por {dias} dias',
-        f'🔒 Documento verificado por LWK Sistemas',
+        '🔒 Documento verificado por LWK Sistemas',
         SEPARADOR,
     ])
-    return '\n'.join(l for l in linhas)
+    return '\n'.join(linhas)
 
 
 def msg_termo_consentimento(
@@ -103,27 +103,27 @@ def msg_termo_consentimento(
     """
     proc_linha = f'💉 *Procedimento:* {procedimento}' if procedimento else ''
     linhas = [
-        f'📋 *Termo de Consentimento*',
+        '📋 *Termo de Consentimento*',
         SEPARADOR,
         f'Olá *{nome}*!',
         '',
         f'*{loja_nome}* precisa da sua assinatura no',
-        f'Termo de Consentimento Livre e Esclarecido (TCLE):',
+        'Termo de Consentimento Livre e Esclarecido (TCLE):',
         '',
     ]
     if proc_linha:
         linhas.append(proc_linha)
         linhas.append('')
     linhas.extend([
-        f'👇 *Toque para ler e assinar:*',
+        '👇 *Toque para ler e assinar:*',
         link,
         '',
         f'⏳ Válido por {dias} dias',
-        f'🔒 Documento verificado por LWK Sistemas',
+        '🔒 Documento verificado por LWK Sistemas',
         SEPARADOR,
         '_Sua assinatura confirma que foi informado(a) sobre o procedimento._',
     ])
-    return '\n'.join(l for l in linhas)
+    return '\n'.join(linhas)
 
 
 # ---------------------------------------------------------------------------
@@ -144,11 +144,11 @@ def msg_confirmacao_agendamento(
     Quando Evolution + link disponível, usar junto com send_url_button_or_text.
     """
     linhas = [
-        f'📅 *Confirmação de Agendamento*',
+        '📅 *Confirmação de Agendamento*',
         SEPARADOR,
         f'Olá *{nome}*! 😊',
         '',
-        f'Você tem um agendamento confirmado:',
+        'Você tem um agendamento confirmado:',
         '',
         f'📆 *Data:* {data}',
         f'⏰ *Hora:* {hora}',
@@ -161,19 +161,19 @@ def msg_confirmacao_agendamento(
 
     if link:
         linhas.extend([
-            f'Por favor, confirme ou cancele sua consulta:',
+            'Por favor, confirme ou cancele sua consulta:',
             '',
-            f'👇 *Abra o link e toque em Confirmar ou Cancelar:*',
+            '👇 *Abra o link e toque em Confirmar ou Cancelar:*',
             link,
             '',
-            f'_Ou responda neste chat:_ *CONFIRMAR* ou *CANCELAR*',
+            '_Ou responda neste chat:_ *CONFIRMAR* ou *CANCELAR*',
             '',
             SEPARADOR,
             '_Qualquer dúvida, entre em contato conosco._',
         ])
     else:
         linhas.extend([
-            f'Responda *CONFIRMAR* ou *CANCELAR* para este chat.',
+            'Responda *CONFIRMAR* ou *CANCELAR* para este chat.',
             '',
             SEPARADOR,
             '_Qualquer dúvida, entre em contato conosco._',
@@ -184,14 +184,14 @@ def msg_confirmacao_agendamento(
 def msg_lembrete_agendamento(*, nome: str, hora: str, procedimento: str) -> str:
     """Lembrete de agendamento no dia."""
     return '\n'.join([
-        f'⏰ *Lembrete de Agendamento*',
+        '⏰ *Lembrete de Agendamento*',
         SEPARADOR,
         f'Olá *{nome}*! 😊',
         '',
         f'Seu agendamento é *hoje às {hora}*.',
         f'💆 *{procedimento}*',
         '',
-        f'Estamos te aguardando! 🤗',
+        'Estamos te aguardando! 🤗',
         SEPARADOR,
     ])
 

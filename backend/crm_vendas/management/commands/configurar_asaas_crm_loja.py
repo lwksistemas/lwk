@@ -7,10 +7,10 @@ Uso:
 """
 from django.core.management.base import BaseCommand, CommandError
 
-from superadmin.loja_utils import resolve_loja_by_slug_or_atalho
-from tenants.middleware import set_current_loja_id, set_current_tenant_db
 from core.db_config import ensure_loja_database_config
 from crm_vendas.crm_config_helpers import get_crm_config_for_loja
+from superadmin.loja_utils import resolve_loja_by_slug_or_atalho
+from tenants.middleware import set_current_loja_id, set_current_tenant_db
 
 
 class Command(BaseCommand):
@@ -37,9 +37,9 @@ class Command(BaseCommand):
         cfg = get_crm_config_for_loja(loja.id)
 
         from asaas_integration.api_key_utils import (
-            normalize_asaas_api_key,
-            is_valid_asaas_api_key,
             asaas_key_is_sandbox,
+            is_valid_asaas_api_key,
+            normalize_asaas_api_key,
         )
 
         api_key = normalize_asaas_api_key((options.get('api_key') or '').strip())

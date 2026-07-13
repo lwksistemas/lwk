@@ -1,11 +1,13 @@
 """
 Comando para sincronizar status dos pagamentos com a API do Asaas
 """
+import logging
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from asaas_integration.models import AsaasPayment
+
 from asaas_integration.client import AsaasPaymentService
-import logging
+from asaas_integration.models import AsaasPayment
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +92,7 @@ class Command(BaseCommand):
         
         # Resumo
         self.stdout.write("\n" + "="*50)
-        self.stdout.write(f"Sincronização concluída:")
+        self.stdout.write("Sincronização concluída:")
         self.stdout.write(f"  • Pagamentos atualizados: {updated_count}")
         self.stdout.write(f"  • Erros: {error_count}")
         self.stdout.write(f"  • Total processado: {payments.count()}")

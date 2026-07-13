@@ -10,7 +10,6 @@ Com Evolution compartilhada (staging + prod no mesmo servidor), --execute só re
 duplicatas locais. Cross-environment exige --force-cross-environment (perigoso).
 """
 from django.conf import settings
-
 from django.core.management.base import BaseCommand
 
 from superadmin.models import Loja

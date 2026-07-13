@@ -5,9 +5,9 @@ Uso: python manage.py vincular_oportunidade_prestadora felix --titulo "ALFA EXCE
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 
+from core.db_config import ensure_loja_database_config
 from superadmin.loja_utils import resolve_loja_by_slug_or_atalho
 from tenants.middleware import set_current_loja_id, set_current_tenant_db
-from core.db_config import ensure_loja_database_config
 
 
 class Command(BaseCommand):

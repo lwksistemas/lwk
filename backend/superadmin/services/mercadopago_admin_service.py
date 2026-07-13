@@ -6,7 +6,7 @@ Separa regras de negócio das views HTTP (Two Scoops / Clean Architecture leve).
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from django.http import HttpRequest
 from django.urls import reverse
@@ -18,12 +18,12 @@ class MercadoPagoAdminService:
     """Leitura/atualização de config global MP e teste de conexão."""
 
     @staticmethod
-    def serialize_config(config: MercadoPagoConfig, *, include_token_mask: bool = True) -> Dict[str, Any]:
+    def serialize_config(config: MercadoPagoConfig, *, include_token_mask: bool = True) -> dict[str, Any]:
         masked = ''
         if include_token_mask and config.access_token:
             tok = config.access_token
             masked = (tok[:8] + '...' + tok[-4:]) if len(tok) >= 12 else ('****' if tok else '')
-        data: Dict[str, Any] = {
+        data: dict[str, Any] = {
             'enabled': config.enabled,
             'use_for_boletos': config.use_for_boletos,
             'access_token_set': bool(config.access_token),
@@ -35,7 +35,7 @@ class MercadoPagoAdminService:
         return data
 
     @staticmethod
-    def apply_patch(config: MercadoPagoConfig, data: Dict[str, Any]) -> None:
+    def apply_patch(config: MercadoPagoConfig, data: dict[str, Any]) -> None:
         if 'enabled' in data:
             config.enabled = bool(data['enabled'])
         if 'use_for_boletos' in data:
@@ -48,7 +48,7 @@ class MercadoPagoAdminService:
             config.chave_pix_estatica = str(data.get('chave_pix_estatica') or '').strip()[:120]
 
     @staticmethod
-    def test_connection(config: MercadoPagoConfig) -> Tuple[Dict[str, Any], bool]:
+    def test_connection(config: MercadoPagoConfig) -> tuple[dict[str, Any], bool]:
         """Retorna (payload, success)."""
         if not config.access_token:
             return (
@@ -65,7 +65,7 @@ class MercadoPagoAdminService:
         return result, ok
 
     @staticmethod
-    def webhook_discovery_payload(request: HttpRequest) -> Dict[str, Any]:
+    def webhook_discovery_payload(request: HttpRequest) -> dict[str, Any]:
         path = reverse('mercadopago-webhook')
         webhook_url = request.build_absolute_uri(path)
         return {
@@ -79,8 +79,8 @@ class MercadoPagoAdminService:
         }
 
     @staticmethod
-    def parse_webhook_body(request: HttpRequest) -> Dict[str, Any]:
-        body: Dict[str, Any] = {}
+    def parse_webhook_body(request: HttpRequest) -> dict[str, Any]:
+        body: dict[str, Any] = {}
         raw = getattr(request, 'data', None)
         if isinstance(raw, dict):
             body = raw

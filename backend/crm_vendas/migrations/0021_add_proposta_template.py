@@ -1,7 +1,6 @@
 # Generated manually on 2026-03-18
 
 from django.db import migrations, models
-import django.db.models.deletion
 
 
 class Migration(migrations.Migration):

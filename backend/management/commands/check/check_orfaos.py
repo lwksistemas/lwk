@@ -1,12 +1,13 @@
 """
 Management command para verificar dados órfãos no sistema
 """
-from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
 from django.db import connection
-from superadmin.models import Loja, FinanceiroLoja
-from asaas_integration.models import AsaasCustomer, LojaAssinatura, AsaasPayment
-from mercadopago_integration.models import MercadoPagoCustomer, LojaPagamento
+from mercadopago_integration.models import LojaPagamento, MercadoPagoCustomer
+
+from asaas_integration.models import AsaasCustomer, AsaasPayment, LojaAssinatura
+from superadmin.models import FinanceiroLoja, Loja
 
 User = get_user_model()
 

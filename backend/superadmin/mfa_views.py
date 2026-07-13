@@ -1,6 +1,7 @@
 """
 Configuração MFA (TOTP) para superadmin e suporte.
 """
+import contextlib
 import logging
 
 from rest_framework import status
@@ -21,6 +22,7 @@ from core.mfa_service import (
     qr_code_base64,
     verify_totp_code,
 )
+
 from .models import UsuarioSistema
 
 logger = logging.getLogger(__name__)
@@ -168,10 +170,8 @@ def validate_mfa_at_login(request, user, user_type: str):
             'MFA indisponível no login user_id=%s (schema desatualizado?): %s. '
             'Aplique: python manage.py migrate superadmin', user.id, e,
         )
-        try:
+        with contextlib.suppress(Exception):
             connection.rollback()
-        except Exception:
-            pass
         return None
 
     enforce = getattr(settings, 'MFA_ENFORCE_TYPES', [])

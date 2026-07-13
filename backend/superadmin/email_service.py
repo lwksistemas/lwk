@@ -5,11 +5,12 @@ Gerencia o envio de emails críticos (como senha provisória) com sistema
 de retry automático em caso de falhas temporárias.
 """
 import logging
-from typing import Optional
 from datetime import timedelta
+
 from django.conf import settings
-from core.email_delivery import create_email_multipart, get_from_email, send_system_mail
 from django.utils import timezone
+
+from core.email_delivery import create_email_multipart, send_system_mail
 from core.logging_utils import mask_email
 
 logger = logging.getLogger(__name__)
@@ -211,7 +212,7 @@ class EmailService:
         mensagem: str,
         loja=None,
         erro: str = ''
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         Registra email falhado para retry automático
         

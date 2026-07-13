@@ -1,9 +1,9 @@
 """Emissao de NFS-e via ISSNet (loja/CRM)."""
 import logging
 import re
-from decimal import Decimal
-from decimal import ROUND_HALF_UP
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
 
 from django.utils import timezone
 
@@ -25,16 +25,16 @@ def emitir_via_issnet_loja(
     tomador_cpf_cnpj: str,
     tomador_nome: str,
     tomador_email: str,
-    tomador_endereco: Dict[str, str],
+    tomador_endereco: dict[str, str],
     servico_descricao: str,
     valor_servicos: Decimal,
     enviar_email: bool,
     enviar_email_fn: Callable[..., None],
-    codigo_cnae_override: Optional[str] = None,
-    codigo_servico_override: Optional[str] = None,
-    item_lista_override: Optional[str] = None,
-    prestador: Optional[DadosPrestadorNFSe] = None,
-) -> Dict[str, Any]:
+    codigo_cnae_override: str | None = None,
+    codigo_servico_override: str | None = None,
+    item_lista_override: str | None = None,
+    prestador: DadosPrestadorNFSe | None = None,
+) -> dict[str, Any]:
     """Emite NFS-e via WebService ISSNet municipal."""
     try:
         if not certificado_configurado_loja(config):

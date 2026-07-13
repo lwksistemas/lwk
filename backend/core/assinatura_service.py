@@ -10,8 +10,9 @@ from datetime import timedelta
 from urllib.parse import quote, unquote
 
 from django.conf import settings
-from django.core.signing import dumps, loads, BadSignature
+from django.core.signing import BadSignature, dumps, loads
 from django.utils import timezone
+
 from core.logging_utils import mask_email
 
 logger = logging.getLogger(__name__)
@@ -310,7 +311,7 @@ def enviar_email_parte1(adapter: AssinaturaAdapter, documento, assinatura, loja_
 <p style="color:#856404;font-size:13px;margin:0;">⏰ Link válido por <strong>{TOKEN_EXPIRACAO_DIAS} dias</strong>.</p>
 </td></tr></table>"""
 
-    html = _render_email_html(f'📄 Assinatura Digital', '#667eea 0%, #764ba2 100%', corpo, loja_nome)
+    html = _render_email_html('📄 Assinatura Digital', '#667eea 0%, #764ba2 100%', corpo, loja_nome)
     subject = adapter.get_assunto_email_parte1(documento, loja_nome) or f'📄 Assinatura Digital - {tipo_doc}: {titulo}'
 
     return _enviar_email(subject, html, f'Assinatura digital: {titulo}', email, loja_nome)

@@ -1,7 +1,7 @@
 """Garante registro FinanceiroLoja para lojas ativas que ainda não possuem."""
 from django.core.management.base import BaseCommand
 
-from superadmin.models import Loja, FinanceiroLoja
+from superadmin.models import FinanceiroLoja, Loja
 from superadmin.services import FinanceiroService
 
 

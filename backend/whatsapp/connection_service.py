@@ -13,14 +13,12 @@ from .evolution_client import (
     connect_instance,
     create_evolution_instance_with_qr,
     create_instance,
-    delete_instance,
     evolution_configured,
     evolution_instance_name,
     evolution_instance_name_stuck,
     get_connection_state,
     instance_exists,
     logout_instance,
-    recreate_instance,
     wait_for_qr,
 )
 from .models import WhatsAppConfig
@@ -378,9 +376,7 @@ def sync_evolution_connection(config, fetch_qr=False):
             qr_data = wait_for_qr(instance_name, attempts=6, delay=2.0)
             return _apply_qr_from_data(config, instance_name, qr_data)
 
-        if config.whatsapp_connection_status == WhatsAppConfig.CONNECTION_CONNECTED:
-            _apply_evolution_state_to_config(config, WhatsAppConfig.CONNECTION_DISCONNECTED)
-        elif status == WhatsAppConfig.CONNECTION_DISCONNECTED and (
+        if config.whatsapp_connection_status == WhatsAppConfig.CONNECTION_CONNECTED or status == WhatsAppConfig.CONNECTION_DISCONNECTED and (
             config.whatsapp_connection_status != WhatsAppConfig.CONNECTION_QR_PENDING
         ):
             _apply_evolution_state_to_config(config, WhatsAppConfig.CONNECTION_DISCONNECTED)
@@ -476,7 +472,7 @@ def reset_evolution_connection(config):
         qr_data, used_name = _obtain_evolution_qr(config, instance_name, fresh_only=True)
         logger.info('Evolution reset loja %s: QR em %s', config.loja_id, used_name)
         return _apply_qr_from_data(config, used_name, qr_data)
-    except EvolutionAPIError as exc:
+    except EvolutionAPIError:
         config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_ERROR
         config.save(update_fields=['whatsapp_connection_status', 'updated_at'])
         raise

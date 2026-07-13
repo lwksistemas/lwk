@@ -5,8 +5,9 @@ Extrai a lógica de sync do AtividadeViewSet para centralizar e evitar duplicaç
 import logging
 
 from tenants.middleware import get_current_loja_id
+
+from .google_calendar_service import delete_google_event, push_atividade_to_google
 from .utils import get_current_vendedor_id
-from .google_calendar_service import push_atividade_to_google, delete_google_event
 
 logger = logging.getLogger(__name__)
 

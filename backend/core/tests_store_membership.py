@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-from django.contrib.auth.models import User
 from django.test import SimpleTestCase
 
 from core.store_membership import user_belongs_to_store

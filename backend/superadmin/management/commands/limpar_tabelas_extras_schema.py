@@ -7,15 +7,15 @@ Uso:
     python manage.py limpar_tabelas_extras_schema --all-active --tipo clinica-beleza
 """
 from django.core.management.base import BaseCommand
+from django.db import connections
 
+from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
+from superadmin.services.database_schema_service import get_apps_esperados_para_loja
 from superadmin.services.schema_audit_service import (
     limpar_tabelas_extras_loja,
     listar_tabelas_extras_no_schema,
 )
-from superadmin.services.database_schema_service import get_apps_esperados_para_loja
-from core.db_config import ensure_loja_database_config
-from django.db import connections
 
 
 class Command(BaseCommand):
@@ -62,8 +62,8 @@ class Command(BaseCommand):
             lojas = list(qs.order_by('id'))
         if tipo:
             lojas = [
-                l for l in lojas
-                if (l.tipo_loja.slug if l.tipo_loja else '').strip().lower() == tipo
+                loja for loja in lojas
+                if (loja.tipo_loja.slug if loja.tipo_loja else '').strip().lower() == tipo
             ]
 
         if not lojas:

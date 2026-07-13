@@ -2,8 +2,8 @@
 from django.core.management.base import BaseCommand
 
 from crm_vendas.atividade_lembrete_tasks import (
-    send_lembretes_atividade_crm_24h,
     send_lembretes_atividade_crm_2h,
+    send_lembretes_atividade_crm_24h,
 )
 
 

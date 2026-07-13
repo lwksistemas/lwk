@@ -11,6 +11,7 @@ Uso:
 Heroku:
   heroku run "python backend/manage.py auditar_schema_por_slug --slug 37302743000126" -a lwksistemas
 """
+import contextlib
 import os
 
 from django.conf import settings
@@ -106,8 +107,8 @@ class Command(BaseCommand):
         if tipo_slug != 'unknown' and tipo_slug not in TIPO_LOJA_EXTRA_APPS:
             self.stdout.write(
                 self.style.WARNING(
-                    f"  ⚠ Slug de tipo não mapeado em TIPO_LOJA_EXTRA_APPS — "
-                    f"só stores/products serão esperados além do vazio."
+                    "  ⚠ Slug de tipo não mapeado em TIPO_LOJA_EXTRA_APPS — "
+                    "só stores/products serão esperados além do vazio."
                 )
             )
 
@@ -230,7 +231,5 @@ class Command(BaseCommand):
             )
 
         if loja.database_name in connections:
-            try:
+            with contextlib.suppress(Exception):
                 connections[loja.database_name].close()
-            except Exception:
-                pass

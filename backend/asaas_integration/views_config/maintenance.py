@@ -31,8 +31,9 @@ def asaas_cleanup_orphans(request):
         
         if dry_run:
             # Simular limpeza
-            from .models import LojaAssinatura
             from superadmin.models import Loja
+
+            from .models import LojaAssinatura
             
             orphaned_subscriptions = []
             for subscription in LojaAssinatura.objects.all():

@@ -2,8 +2,9 @@
 Comando para limpar cache do dashboard CRM.
 Uso: python manage.py limpar_cache_dashboard
 """
-from django.core.management.base import BaseCommand
 from django.core.cache import cache
+from django.core.management.base import BaseCommand
+
 from crm_vendas.cache import CRMCacheManager
 
 

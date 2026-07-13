@@ -4,16 +4,14 @@ Cliente principal do provedor NFS-e Nacional (ADN).
 Orquestra: construção XML → assinatura → compressão → envio → parse resposta.
 """
 import logging
-import os
-import tempfile
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Any, Optional
+from typing import Any
 
 from .constants import ADN_URLS
+from .transport import comprimir_e_codificar, consultar_dfe_nsu, enviar_lote_dfe
 from .xml_builder import construir_xml_dps
 from .xml_signer import assinar_xml_dps, assinar_xml_dps_bytes
-from .transport import comprimir_e_codificar, enviar_lote_dfe, consultar_dfe_nsu
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +31,8 @@ class NacionalClient:
 
     def __init__(
         self,
-        pfx_path: Optional[str] = None,
-        pfx_bytes: Optional[bytes] = None,
+        pfx_path: str | None = None,
+        pfx_bytes: bytes | None = None,
         senha_pfx: str = '',
         ambiente: str = 'producao',
     ):
@@ -66,13 +64,13 @@ class NacionalClient:
         prestador_inscricao_municipal: str = '',
         prestador_razao_social: str = '',
         prestador_nome_fantasia: str = '',
-        prestador_endereco: Optional[Dict[str, str]] = None,
+        prestador_endereco: dict[str, str] | None = None,
         prestador_telefone: str = '',
         prestador_email: str = '',
         # Tomador
         tomador_cpf_cnpj: str = '',
         tomador_nome: str = '',
-        tomador_endereco: Optional[Dict[str, str]] = None,
+        tomador_endereco: dict[str, str] | None = None,
         tomador_telefone: str = '',
         tomador_email: str = '',
         # Serviço
@@ -94,8 +92,8 @@ class NacionalClient:
         incentivador_cultural: bool = False,
         # Controle
         codigo_numerico: int = 0,
-        data_competencia: Optional[datetime] = None,
-    ) -> Dict[str, Any]:
+        data_competencia: datetime | None = None,
+    ) -> dict[str, Any]:
         """
         Emite NFS-e via ADN Nacional.
         
@@ -247,7 +245,7 @@ class NacionalClient:
 
         return result
 
-    def consultar_nfse(self, nsu: int, cnpj: str) -> Dict[str, Any]:
+    def consultar_nfse(self, nsu: int, cnpj: str) -> dict[str, Any]:
         """
         Consulta NFS-e por NSU.
         
@@ -267,7 +265,7 @@ class NacionalClient:
             senha_pfx=self.senha_pfx,
         )
 
-    def testar_conexao(self) -> Dict[str, Any]:
+    def testar_conexao(self) -> dict[str, Any]:
         """
         Testa conexão com o ADN (valida certificado e acesso ao endpoint).
         Faz um GET simples para verificar se o mTLS funciona.
@@ -279,7 +277,7 @@ class NacionalClient:
         key_path = None
 
         try:
-            from .transport import _preparar_cert_mtls, _limpar_temp
+            from .transport import _limpar_temp, _preparar_cert_mtls
 
             cert_path, key_path = _preparar_cert_mtls(
                 self.pfx_path, self.pfx_bytes, self.senha_pfx

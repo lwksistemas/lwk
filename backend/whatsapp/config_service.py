@@ -67,6 +67,7 @@ def get_or_create_whatsapp_config(loja):
 def default_whatsapp_config_payload(loja=None):
     owner_tel = (getattr(loja, 'owner_telefone', None) or '').strip() if loja else ''
     from core.phone_utils import telefone_exibicao_brasileiro
+
     from .evolution_client import evolution_configured
 
     return {

@@ -12,9 +12,9 @@ Uso:
     def emitir_nfse_manual(request):
         ...
 """
+import contextlib
 import functools
 import hashlib
-import time
 import logging
 
 from django.core.cache import cache
@@ -67,10 +67,8 @@ def rate_limit(max_requests: int = 10, window_seconds: int = 60):
                 )
 
             # Incrementar contador
-            try:
+            with contextlib.suppress(Exception):  # Se cache falhar, não bloquear a requisição
                 cache.set(key, current + 1, timeout=window_seconds)
-            except Exception:
-                pass  # Se cache falhar, não bloquear a requisição
 
             return view_func(request, *args, **kwargs)
         return wrapper

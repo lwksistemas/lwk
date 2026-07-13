@@ -1,6 +1,8 @@
 # Generated manually for Google Calendar sync (google_event_id only; GoogleCalendarConnection is in superadmin)
 # Usa RunPython para ser resiliente em schemas onde a tabela pode não existir (multi-tenant)
 
+import contextlib
+
 from django.db import migrations, models
 
 
@@ -25,12 +27,10 @@ def add_google_event_id_if_table_exists(apps, schema_editor):
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='crm_vendas_atividade'"
             )
             if cursor.fetchone():
-                try:
+                with contextlib.suppress(Exception):  # coluna já existe
                     cursor.execute(
                         "ALTER TABLE crm_vendas_atividade ADD COLUMN google_event_id VARCHAR(255) NULL"
                     )
-                except Exception:
-                    pass  # coluna já existe
 
 
 def reverse_add_google_event_id(apps, schema_editor):

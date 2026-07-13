@@ -1,5 +1,7 @@
 from django.contrib import admin
+
 from .models import Chamado, RespostaChamado
+
 
 @admin.register(Chamado)
 class ChamadoAdmin(admin.ModelAdmin):

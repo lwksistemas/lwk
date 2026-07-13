@@ -1,10 +1,11 @@
 from django.db import models
 
-from core.mixins import LojaIsolationMixin, LojaIsolationManager
+from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 from .contas import Conta
 from .leads import Lead
 from .vendedores import Vendedor
+
 
 class Oportunidade(LojaIsolationMixin, models.Model):
     """Oportunidade (deal) no pipeline de vendas."""

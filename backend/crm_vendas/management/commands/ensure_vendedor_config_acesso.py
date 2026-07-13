@@ -8,6 +8,8 @@ Uso:
     python manage.py ensure_vendedor_config_acesso
     python manage.py ensure_vendedor_config_acesso --slug felix
 """
+import contextlib
+
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.db import connections
@@ -72,7 +74,7 @@ class Command(BaseCommand):
                         changed = True
 
                 if changed:
-                    try:
+                    with contextlib.suppress(Exception):
                         call_command(
                             'migrate',
                             'crm_vendas',
@@ -80,17 +82,13 @@ class Command(BaseCommand):
                             database=db_name,
                             verbosity=0,
                         )
-                    except Exception:
-                        pass
                 ok += 1
             except Exception as exc:
                 self.stdout.write(self.style.ERROR(f'{loja.slug}: {exc}'))
                 skip += 1
             finally:
                 if db_name in connections:
-                    try:
+                    with contextlib.suppress(Exception):
                         connections[db_name].close()
-                    except Exception:
-                        pass
 
         self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s) OK, {skip} pulada(s).'))

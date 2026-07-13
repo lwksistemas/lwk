@@ -10,13 +10,14 @@ Uso:
 Este comando arquiva logs quando o total excede um limite (padrão: 1 milhão),
 exportando os mais antigos para arquivo e removendo do banco.
 """
-import json
 import csv
+import json
 import logging
 from datetime import datetime
 from pathlib import Path
+
 from django.core.management.base import BaseCommand
-from django.conf import settings
+
 from superadmin.models import HistoricoAcessoGlobal
 
 logger = logging.getLogger(__name__)

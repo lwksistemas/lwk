@@ -47,7 +47,7 @@ class Command(BaseCommand):
         """Corrige números de propostas usando SQL direto."""
         
         try:
-            self.stdout.write(f"\n   🔧 Corrigindo propostas...")
+            self.stdout.write("\n   🔧 Corrigindo propostas...")
             
             with connection.cursor() as cursor:
                 # Mudar para o schema

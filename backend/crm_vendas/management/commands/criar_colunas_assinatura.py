@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 
@@ -18,8 +19,8 @@ class Command(BaseCommand):
             
             # Conectar ao database da loja
             with connection.cursor() as cursor:
-                cursor.execute(f'SET search_path TO public')
-                cursor.execute(f'SELECT schema_name FROM information_schema.schemata WHERE schema_name = %s', [loja.database_name])
+                cursor.execute('SET search_path TO public')
+                cursor.execute('SELECT schema_name FROM information_schema.schemata WHERE schema_name = %s', [loja.database_name])
                 if not cursor.fetchone():
                     self.stdout.write(self.style.WARNING(f'  ⚠️  Schema {loja.database_name} não encontrado, pulando...'))
                     continue

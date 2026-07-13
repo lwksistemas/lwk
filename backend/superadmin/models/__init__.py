@@ -1,6 +1,5 @@
 """Modelos do Super Admin — re-export centralizado."""
 from ..cloudinary_models import CloudinaryConfig
-
 from .audit import AuditLog
 from .backup import ConfiguracaoBackup, HistoricoBackup
 from .catalog import PlanoAssinatura, TipoLoja

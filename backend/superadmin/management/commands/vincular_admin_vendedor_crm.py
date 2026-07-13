@@ -3,9 +3,10 @@ Management command para adicionar administrador (owner) ao grupo Gerente de Vend
 
 Gerente de Vendas tem acesso total ao CRM sem ser tratado como vendedor comum.
 """
-from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Group
+from django.core.management.base import BaseCommand
 from django.db.models import Q
+
 from superadmin.models import Loja
 
 
@@ -65,7 +66,7 @@ class Command(BaseCommand):
                 if not owner:
                     self.stdout.write(
                         self.style.WARNING(
-                            f'  ⚠️  Loja sem owner'
+                            '  ⚠️  Loja sem owner'
                         )
                     )
                     continue
@@ -74,7 +75,7 @@ class Command(BaseCommand):
                 if owner.groups.filter(name='Gerente de Vendas').exists():
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f'  ✅ Owner já está no grupo Gerente de Vendas'
+                            '  ✅ Owner já está no grupo Gerente de Vendas'
                         )
                     )
                     total_ja_no_grupo += 1
@@ -85,7 +86,7 @@ class Command(BaseCommand):
                 owner.groups.add(grupo_gerente)
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f'  ✅ Owner adicionado ao grupo Gerente de Vendas'
+                        '  ✅ Owner adicionado ao grupo Gerente de Vendas'
                     )
                 )
                 
@@ -104,7 +105,7 @@ class Command(BaseCommand):
         self.stdout.write('\n' + '='*60)
         self.stdout.write(
             self.style.SUCCESS(
-                f'\n✅ Processamento concluído!'
+                '\n✅ Processamento concluído!'
             )
         )
         self.stdout.write(f'  📊 Total de lojas processadas: {total_processadas}')

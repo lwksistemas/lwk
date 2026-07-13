@@ -7,7 +7,7 @@ Roteamento automático:
 """
 import logging
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any
 
 from nfse_integration.cancelamento_loja import cancelar_nfse_loja
 from nfse_integration.emissao_issnet_loja import emitir_via_issnet_loja
@@ -50,16 +50,16 @@ class NFSeService:
         tomador_cpf_cnpj: str,
         tomador_nome: str,
         tomador_email: str,
-        tomador_endereco: Dict[str, str],
+        tomador_endereco: dict[str, str],
         servico_descricao: str,
         valor_servicos: Decimal,
-        numero_rps: Optional[int] = None,
+        numero_rps: int | None = None,
         enviar_email: bool = True,
-        codigo_cnae: Optional[str] = None,
-        codigo_servico: Optional[str] = None,
-        item_lista_servico: Optional[str] = None,
-        empresa_prestadora_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        codigo_cnae: str | None = None,
+        codigo_servico: str | None = None,
+        item_lista_servico: str | None = None,
+        empresa_prestadora_id: int | None = None,
+    ) -> dict[str, Any]:
         """Emite NFS-e com roteamento automático por provedor."""
         try:
             from nfse_integration.prestador_loja import (
@@ -126,7 +126,7 @@ class NFSeService:
         numero_nf: str,
         motivo: str,
         codigo_cancelamento: str | int | None = '1',
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         from nfse_integration.models import NFSe
 
         nfse = NFSe.objects.filter(loja_id=self.loja.id, numero_nf=numero_nf).first()

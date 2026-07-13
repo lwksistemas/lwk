@@ -1,6 +1,6 @@
 # Generated migration for CloudinaryConfig model
 
-from django.db import migrations, models, connection
+from django.db import connection, migrations
 
 
 def check_table_exists(table_name):

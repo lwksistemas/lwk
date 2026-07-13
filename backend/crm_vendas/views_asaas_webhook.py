@@ -16,7 +16,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from crm_vendas.asaas_loja_webhook_process import process_asaas_loja_webhook_sync
-from tenants.middleware import resolve_loja_from_slug_or_cnpj, _configure_tenant_db_for_loja
+from tenants.middleware import _configure_tenant_db_for_loja, resolve_loja_from_slug_or_cnpj
 
 logger = logging.getLogger(__name__)
 

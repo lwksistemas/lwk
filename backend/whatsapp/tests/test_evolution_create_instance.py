@@ -5,7 +5,6 @@ from django.test import SimpleTestCase
 
 from whatsapp.evolution_client import (
     EvolutionAPIError,
-    connect_instance_for_qr,
     create_evolution_instance_with_qr,
     delete_instance,
     logout_instance,

@@ -9,10 +9,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core.throttling import DashboardRateThrottle
+from tenants.middleware import ensure_loja_context, get_current_loja_id, get_current_tenant_db
 
-from tenants.middleware import get_current_loja_id, get_current_tenant_db, ensure_loja_context
-from .utils import get_current_vendedor_id
 from .cache import CRMCacheManager
+from .utils import get_current_vendedor_id
 from .vendedor_permissoes_service import (
     permissoes_codenames_usuario_crm,
     todas_permissoes_codenames_crm,
@@ -164,7 +164,7 @@ def dashboard_data(request):
                 cache.set(cache_key, payload, 120)
             return Response(payload)
         except Exception as e:
-            from django.db.utils import ProgrammingError, OperationalError
+            from django.db.utils import OperationalError, ProgrammingError
             if isinstance(e, (ProgrammingError, OperationalError)) and attempt == 0:
                 from .schema_service import (
                     configurar_schema_crm_loja,

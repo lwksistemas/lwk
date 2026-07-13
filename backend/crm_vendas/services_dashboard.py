@@ -5,16 +5,17 @@ Extraído de views.dashboard_data (refatoração #4 — SRP).
 import logging
 from datetime import timedelta
 
-from django.db.models import Sum, Count, Q
+from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
-from .cache import CRMCacheManager
 from .periodo import (
     PERIODOS_PIPELINE_CRIACAO_ESTRITA,
     calcular_intervalo_datas,
+)
+from .periodo import (
     filtro_fechamento_no_periodo as _filtro_fechamento_no_periodo,
 )
-from .utils import get_current_vendedor_id, get_vendedor_destino_merge_loja
+from .utils import get_vendedor_destino_merge_loja
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
     Constrói o payload do dashboard. Lógica pura sem HTTP.
     Raises em caso de erro de banco (ProgrammingError, OperationalError).
     """
-    from .models import Lead, Oportunidade, Atividade, Vendedor
+    from .models import Atividade, Lead, Oportunidade, Vendedor
 
     leads_qs = Lead.objects.all()
     opp_qs = Oportunidade.objects.all()

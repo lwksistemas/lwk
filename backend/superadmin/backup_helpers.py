@@ -6,10 +6,10 @@ Contém: constantes, funções auxiliares e exceções de backup.
 """
 
 import json
-import re
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+import re
 from decimal import Decimal
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ class BackupImportError(Exception):
 # Funções auxiliares
 # ---------------------------------------------------------------------------
 
-def is_safe_pg_schema_token(name: Optional[str]) -> bool:
+def is_safe_pg_schema_token(name: str | None) -> bool:
     return bool(name and BACKUP_SAFE_PG_SCHEMA_RE.match(name))
 
 
@@ -141,11 +141,11 @@ def _ensure_crm_vendas_config_pg_int_defaults(cursor, qual: str) -> None:
         logger.warning("ALTER issnet_ultimo_rps_conhecido SET DEFAULT 0: %s", e)
 
 
-def _normalize_backup_csv_row_keys(row: Dict[str, Any]) -> Dict[str, Any]:
+def _normalize_backup_csv_row_keys(row: dict[str, Any]) -> dict[str, Any]:
     """Remove BOM e espaços nos nomes de colunas do CSV (DictReader)."""
     if not row:
         return row
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     for k, v in row.items():
         if k is None:
             continue
@@ -179,11 +179,11 @@ def _coerce_int_or_zero(val: Any) -> int:
 
 
 def _backup_finalize_crm_config_row_values(
-    cols_for_insert: List[str], values: List[Any]
-) -> List[Any]:
+    cols_for_insert: list[str], values: list[Any]
+) -> list[Any]:
     """Garante inteiros NOT NULL do CRM mesmo com CSV/col_info inconsistentes."""
-    out: List[Any] = []
-    for col, val in zip(cols_for_insert, values):
+    out: list[Any] = []
+    for col, val in zip(cols_for_insert, values, strict=False):
         col_n = (col or "").strip().lower()
         if col_n in ("issnet_numero_lote", "issnet_ultimo_rps_conhecido"):
             out.append(_coerce_int_or_zero(val))
@@ -200,7 +200,7 @@ def _sanitize_pg_table_key(name: str) -> str:
     return s.strip()
 
 
-def _parse_pg_qualified_table(qual: str) -> Tuple[Optional[str], str]:
+def _parse_pg_qualified_table(qual: str) -> tuple[str | None, str]:
     """
     Extrai (schema, tabela) de "schema"."tabela".
     Se não estiver qualificado, retorna (None, nome_da_tabela).
@@ -222,7 +222,7 @@ def _connection_is_postgresql(conn) -> bool:
     return "postgresql" in eng
 
 
-def _resolve_visible_pg_schema_for_table(cur, table_name: str) -> Optional[str]:
+def _resolve_visible_pg_schema_for_table(cur, table_name: str) -> str | None:
     """
     Primeiro schema no search_path onde existe uma relação visível com relname = table_name.
     Alinha metadados com INSERT não qualificado em PostgreSQL.
@@ -252,7 +252,7 @@ def _resolve_visible_pg_schema_for_table(cur, table_name: str) -> Optional[str]:
 
 def _fetch_crm_vendas_config_pg_colrows(
     cur, qual: str, pg_schema: str
-) -> List[Tuple[Any, Any, Any]]:
+) -> list[tuple[Any, Any, Any]]:
     """
     Colunas da tabela física em ordem: (nome, is_nullable YES/NO, tipo/format_type).
     Prioriza o schema do qual(...) do INSERT (evita omitir NOT NULL quando pg_schema ≠ schema real).
@@ -260,7 +260,7 @@ def _fetch_crm_vendas_config_pg_colrows(
     q_schema, q_table = _parse_pg_qualified_table(qual)
     if not BACKUP_SAFE_IDENTIFIER_RE.match(q_table):
         q_table = "crm_vendas_config"
-    candidates: List[str] = []
+    candidates: list[str] = []
     # INSERT sem schema: mesma tabela que o PostgreSQL resolve via search_path
     if q_schema is None:
         vis = _resolve_visible_pg_schema_for_table(cur, q_table)
@@ -316,7 +316,7 @@ def _fetch_crm_vendas_config_pg_colrows(
 
 def _import_crm_vendas_config_via_model(
     loja,
-    rows: List[Dict[str, Any]],
+    rows: list[dict[str, Any]],
     qual: str,
     using: str,
     pg_schema: str,
@@ -332,6 +332,7 @@ def _import_crm_vendas_config_via_model(
     from django.db import models as dm
     from django.utils import timezone
     from django.utils.dateparse import parse_datetime
+
     from crm_vendas.models_config import CRMConfig
 
     conn = connections[using]
@@ -374,7 +375,7 @@ def _import_crm_vendas_config_via_model(
             return raw
         return json.loads(raw)
 
-    def as_bytes(raw: Any) -> Optional[bytes]:
+    def as_bytes(raw: Any) -> bytes | None:
         if raw is None or (isinstance(raw, str) and not str(raw).strip()):
             return None
         s = str(raw).strip()
@@ -396,7 +397,7 @@ def _import_crm_vendas_config_via_model(
         if not is_sqlite and _connection_is_postgresql(conn):
             _ensure_crm_vendas_config_pg_int_defaults(cur, qual)
         cur.execute(f"DELETE FROM {qual}")
-        static_colrows: List[Tuple[Any, Any, Any]] = []
+        static_colrows: list[tuple[Any, Any, Any]] = []
         if not is_sqlite and _connection_is_postgresql(conn):
             static_colrows = _fetch_crm_vendas_config_pg_colrows(cur, qual, pg_schema)
             if not static_colrows:
@@ -409,7 +410,7 @@ def _import_crm_vendas_config_via_model(
 
         for row in rows:
             row = _normalize_backup_csv_row_keys(row)
-            kwargs: Dict[str, Any] = {"loja_id": loja.id}
+            kwargs: dict[str, Any] = {"loja_id": loja.id}
             for field in CRMConfig._meta.local_concrete_fields:
                 att = field.attname
                 if att == "loja_id":
@@ -594,9 +595,9 @@ def _import_crm_vendas_config_via_model(
 
             if is_sqlite:
                 ph = ", ".join(["%s"] * len(ordered_cols))
-                exec_params: List[Any] = list(values_out)
+                exec_params: list[Any] = list(values_out)
             else:
-                ph_parts: List[str] = []
+                ph_parts: list[str] = []
                 exec_params = []
                 for i, c in enumerate(ordered_cols):
                     v = values_out[i]

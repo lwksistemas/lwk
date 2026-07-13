@@ -2,15 +2,15 @@
 import logging
 from datetime import timedelta
 
-from django.db.models import F, Sum
+from django.db.models import Sum
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from ..models import AsaasCustomer, AsaasPayment, LojaAssinatura
-from ._common import IsSuperAdmin, REQUESTS_AVAILABLE
+from ..models import AsaasCustomer, AsaasPayment
+from ._common import IsSuperAdmin
 
 logger = logging.getLogger(__name__)
 

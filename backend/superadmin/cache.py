@@ -5,12 +5,13 @@ Implementa cache Redis para melhorar performance de queries pesadas.
 TTL padrão: 5 minutos (300 segundos)
 """
 
-import logging
 import json
-from typing import Any, Optional, Callable
+import logging
+from collections.abc import Callable
 from functools import wraps
+from typing import Any
+
 from django.core.cache import cache
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class CacheService:
     PREFIX = 'superadmin:stats:'
     
     @classmethod
-    def get(cls, key: str) -> Optional[Any]:
+    def get(cls, key: str) -> Any | None:
         """
         Obtém valor do cache.
         
@@ -52,7 +53,7 @@ class CacheService:
             return None
     
     @classmethod
-    def set(cls, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    def set(cls, key: str, value: Any, ttl: int | None = None) -> bool:
         """
         Armazena valor no cache.
         
@@ -136,7 +137,7 @@ class CacheService:
             return False
     
     @classmethod
-    def get_or_set(cls, key: str, callback: Callable, ttl: Optional[int] = None) -> Any:
+    def get_or_set(cls, key: str, callback: Callable, ttl: int | None = None) -> Any:
         """
         Obtém valor do cache ou executa callback e armazena resultado.
         
@@ -164,7 +165,7 @@ class CacheService:
             raise
 
 
-def cached_stat(ttl: Optional[int] = None, key_prefix: Optional[str] = None):
+def cached_stat(ttl: int | None = None, key_prefix: str | None = None):
     """
     Decorator para cachear resultados de métodos de estatísticas.
     

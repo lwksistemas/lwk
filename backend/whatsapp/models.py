@@ -1,8 +1,8 @@
 """
 Modelos para WhatsApp (ETAPA 4): auditoria e configuração por loja.
 """
-from django.db import models
 from django.conf import settings
+from django.db import models
 
 User = settings.AUTH_USER_MODEL
 

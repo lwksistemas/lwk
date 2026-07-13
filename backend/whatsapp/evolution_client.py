@@ -136,9 +136,7 @@ def _candidate_whatsapp_numbers(number):
 
     candidates = [digits]
 
-    if len(digits) == 11 and not digits.startswith('1'):
-        candidates.append('55' + digits.lstrip('0'))
-    elif len(digits) == 10:
+    if len(digits) == 11 and not digits.startswith('1') or len(digits) == 10:
         candidates.append('55' + digits.lstrip('0'))
 
     for value in list(candidates):

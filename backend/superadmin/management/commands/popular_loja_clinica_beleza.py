@@ -6,8 +6,10 @@ Uso:
 """
 from datetime import datetime, timedelta
 from decimal import Decimal
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+
 from superadmin.models import Loja
 
 
@@ -49,7 +51,7 @@ class Command(BaseCommand):
 
         db_name = loja.database_name
         loja_id = loja.id
-        from clinica_beleza.models import Patient, Professional, Procedure, Appointment, Payment
+        from clinica_beleza.models import Appointment, Patient, Payment, Procedure, Professional
 
         self.stdout.write('')
         self.stdout.write(self.style.SUCCESS('Populando Clínica da Beleza com dados de exemplo'))

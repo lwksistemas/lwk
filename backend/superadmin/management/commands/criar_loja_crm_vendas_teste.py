@@ -11,10 +11,7 @@ import string
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 
-from superadmin.models import Loja, TipoLoja, PlanoAssinatura
-from superadmin.services.loja_creation_service import (
-    LojaCreationService,
-)
+from superadmin.models import Loja, PlanoAssinatura, TipoLoja
 from superadmin.services.database_schema_service import DatabaseSchemaService
 from superadmin.services.financeiro_service import FinanceiroService
 

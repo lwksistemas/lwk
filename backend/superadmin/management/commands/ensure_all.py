@@ -12,8 +12,8 @@ os próximos ensures (o deploy continua mesmo que um ensure individual falhe).
 """
 from __future__ import annotations
 
-import time
 import logging
+import time
 
 from django.core.management import call_command
 from django.core.management.base import BaseCommand

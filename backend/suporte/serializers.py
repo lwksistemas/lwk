@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from .models import Chamado, RespostaChamado
+
 
 class RespostaChamadoSerializer(serializers.ModelSerializer):
     class Meta:

@@ -18,8 +18,8 @@ def user_belongs_to_store(user, store_slug: str) -> bool:
     if not user or not getattr(user, 'is_authenticated', False) or not store_slug:
         return False
     try:
-        from tenants.middleware import resolve_loja_from_slug_or_cnpj
         from core.tenant_access import user_can_access_loja
+        from tenants.middleware import resolve_loja_from_slug_or_cnpj
 
         loja = resolve_loja_from_slug_or_cnpj(store_slug)
         if not loja:
@@ -69,6 +69,7 @@ def resolve_loja_for_user(user, loja_slug: str | None = None):
     Retorna instância Loja para login/sessão, ou None.
     """
     from django.db.models import Q
+
     from superadmin.models import Loja, ProfissionalUsuario, VendedorUsuario
 
     if not user or not getattr(user, 'is_authenticated', False):

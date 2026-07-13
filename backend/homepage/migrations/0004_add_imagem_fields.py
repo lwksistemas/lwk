@@ -1,6 +1,6 @@
 # Generated manually
 
-from django.db import migrations, models
+from django.db import migrations
 
 
 def _column_exists(cursor, vendor, table, column):

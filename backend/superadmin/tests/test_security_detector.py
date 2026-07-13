@@ -4,11 +4,13 @@ Testes para o SecurityDetector
 Testa os 6 métodos de detecção de padrões suspeitos.
 """
 
-import pytest
-from django.utils import timezone
 from datetime import timedelta
+
+import pytest
 from django.contrib.auth.models import User
-from superadmin.models import HistoricoAcessoGlobal, ViolacaoSeguranca, Loja, TipoLoja, PlanoAssinatura
+from django.utils import timezone
+
+from superadmin.models import HistoricoAcessoGlobal, Loja, PlanoAssinatura, TipoLoja, ViolacaoSeguranca
 from superadmin.security_detector import SecurityDetector
 
 

@@ -1,5 +1,4 @@
 """Emissao manual de NFS-e via ADN Nacional (superadmin)."""
-from decimal import Decimal
 from typing import Any
 
 from nfse_integration.emissao_manual_types import EmissaoManualResult

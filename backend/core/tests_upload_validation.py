@@ -1,4 +1,3 @@
-from io import BytesIO
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase
 

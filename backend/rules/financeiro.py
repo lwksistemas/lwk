@@ -1,7 +1,7 @@
 """
 Regras financeiras: lançamentos ao finalizar atendimento, pendências.
 """
-from clinica_beleza.models import Appointment, Payment
+from clinica_beleza.models import Payment
 
 
 def gerar_lancamento(contexto):

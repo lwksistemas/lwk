@@ -5,10 +5,12 @@ Marca stores.0001_initial como aplicada quando necessário.
 Uso:
     python manage.py corrigir_migrations_inconsistentes
 """
+import logging
+
 from django.core.management.base import BaseCommand
 from django.db import connections
+
 from superadmin.models import Loja
-import logging
 
 logger = logging.getLogger(__name__)
 

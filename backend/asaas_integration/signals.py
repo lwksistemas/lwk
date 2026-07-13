@@ -1,10 +1,11 @@
 """
 Signals para integração automática com Asaas
 """
+import logging
+
+from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.conf import settings
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -28,15 +29,15 @@ def create_asaas_subscription_on_financeiro_creation(sender, instance, created, 
     # Log detalhado para debug
     import threading
     logger.info(f"{'='*80}")
-    logger.info(f"🔔 SIGNAL DISPARADO: create_asaas_subscription_on_financeiro_creation")
+    logger.info("🔔 SIGNAL DISPARADO: create_asaas_subscription_on_financeiro_creation")
     logger.info(f"   Loja ID: {instance.loja_id}")
     logger.info(f"   Financeiro ID: {instance.id}")
     logger.info(f"   Thread: {threading.current_thread().name}")
     logger.info(f"{'='*80}")
     
     # Ler loja direto do banco pelo FK para garantir valor persistido (evita cache)
-    from superadmin.models import Loja, FinanceiroLoja
     from superadmin.cobranca_service import CobrancaService
+    from superadmin.models import Loja
     
     # 🔒 PROTEÇÃO CONTRA DUPLICAÇÃO: Verificar se já tem payment_id
     # Se já tem payment_id (Asaas ou Mercado Pago), significa que a cobrança já foi criada
@@ -68,7 +69,7 @@ def create_asaas_subscription_on_financeiro_creation(sender, instance, created, 
     else:
         logger.error(f"❌ Erro ao criar cobrança para loja {loja.nome}: {result.get('error')}")
         logger.error(f"   Provedor: {provedor}")
-        logger.error(f"   Loja pode ser criada manualmente em Superadmin → Financeiro")
+        logger.error("   Loja pode ser criada manualmente em Superadmin → Financeiro")
 
 @receiver(post_save, sender='superadmin.Loja')
 def update_asaas_subscription_on_loja_update(sender, instance, created, **kwargs):

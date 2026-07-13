@@ -1,4 +1,5 @@
 """Extração de tomador/valor da visualização ISSNet (HTML ou PDF)."""
+import contextlib
 import logging
 import re
 from decimal import Decimal, InvalidOperation
@@ -154,10 +155,8 @@ def _aplicar_campos_span_issnet(
     rps_txt = _extrair_conteudo_span_id(html, 'lblNumRPS')
     rps_digits = re.sub(r'\D', '', rps_txt or '')
     if rps_digits:
-        try:
+        with contextlib.suppress(ValueError):
             out['numero_rps'] = int(rps_digits)
-        except ValueError:
-            pass
 
     desc = _extrair_conteudo_span_id(html, 'lblDiscriminacao')
     if desc:
@@ -212,10 +211,8 @@ def extrair_detalhes_portal_issnet_html(
     rps_txt = _valor_por_rotulo_html(html, _ROTULOS_RPS)
     rps_digits = re.sub(r'\D', '', rps_txt or '')
     if rps_digits and not out.get('numero_rps'):
-        try:
+        with contextlib.suppress(ValueError):
             out['numero_rps'] = int(rps_digits)
-        except ValueError:
-            pass
 
     return out
 

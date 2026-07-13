@@ -3,14 +3,11 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
 from django.utils.crypto import get_random_string
 from rest_framework import serializers
 
 from core.serializer_mixins import (
-    CpfCnpjNormalizationMixin,
     TextNormalizationMixin,
-    UniqueDocumentoPerLojaMixin,
 )
 
 from ..models import Vendedor
@@ -57,8 +54,8 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         # Fallback para casos sem anotação (detail view, etc)
         if not obj or not obj.email:
             return False
-        from tenants.middleware import get_current_loja_id
         from superadmin.models import VendedorUsuario
+        from tenants.middleware import get_current_loja_id
         loja_id = get_current_loja_id()
         if not loja_id:
             return False
@@ -77,7 +74,6 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
             if user:
                 data['permissoes_ids'] = permissoes_ids_usuario_crm(user)
                 if not data['grupo_id']:
-                    from django.contrib.auth.models import Group
                     grupo = user.groups.filter(name__in=['Gerente de Vendas', 'Vendedor']).first()
                     data['grupo_id'] = grupo.id if grupo else None
         return data
@@ -85,8 +81,8 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     def _get_vendedor_user(self, obj):
         if not obj or not obj.id:
             return None
-        from tenants.middleware import get_current_loja_id
         from superadmin.models import VendedorUsuario
+        from tenants.middleware import get_current_loja_id
 
         loja_id = get_current_loja_id()
         if not loja_id:
@@ -175,9 +171,9 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
 
     def _criar_acesso_e_enviar_email(self, vendedor, grupo_id=None, username='', permissoes_ids=None):
         User = get_user_model()
+
         from superadmin.models import Loja, VendedorUsuario
         from tenants.middleware import get_current_loja_id
-        from django.contrib.auth.models import Group
 
         loja_id = get_current_loja_id()
         if not loja_id:
@@ -277,8 +273,8 @@ def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto='Acesso
         subtitulo = "Seu acesso foi criado com sucesso!"
     
     try:
-        from core.email_templates import email_senha_provisoria_html
         from core.email_delivery import create_email_multipart
+        from core.email_templates import email_senha_provisoria_html
         
         info_adicional = {
             "Loja": loja.nome,

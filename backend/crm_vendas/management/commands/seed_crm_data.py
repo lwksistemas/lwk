@@ -2,9 +2,10 @@
 Comando simplificado para criar dados de teste no CRM
 Usa o ORM do Django diretamente (sem raw SQL)
 """
+from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from datetime import timedelta
 
 
 class Command(BaseCommand):
@@ -14,7 +15,7 @@ class Command(BaseCommand):
         parser.add_argument('loja_id', type=int, help='ID da loja')
 
     def handle(self, *args, **options):
-        from crm_vendas.models import Lead, Atividade
+        from crm_vendas.models import Atividade, Lead
         from tenants.middleware import set_current_loja_id
         
         loja_id = options['loja_id']
@@ -119,7 +120,7 @@ class Command(BaseCommand):
         leads_final = Lead.objects.count()
         atividades_final = Atividade.objects.count()
         
-        self.stdout.write(f"\n✅ Totais finais:")
+        self.stdout.write("\n✅ Totais finais:")
         self.stdout.write(f"  Leads: {leads_final}")
         self.stdout.write(f"  Atividades: {atividades_final}")
         

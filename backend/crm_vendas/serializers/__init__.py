@@ -10,14 +10,14 @@ from .documentos import (
     PropostaSerializer,
     PropostaTemplateSerializer,
 )
-from .leads import LeadListSerializer, LeadSerializer
-from .oportunidade_items import OportunidadeItemSerializer
-from .oportunidade_notas import OportunidadeNotaSerializer
-from .oportunidades import OportunidadeSerializer
 from .financeiro import (
     GrupoFinanceiroCRMSerializer,
     LancamentoFinanceiroCRMSerializer,
 )
+from .leads import LeadListSerializer, LeadSerializer
+from .oportunidade_items import OportunidadeItemSerializer
+from .oportunidade_notas import OportunidadeNotaSerializer
+from .oportunidades import OportunidadeSerializer
 from .vendedores import VendedorSerializer
 
 __all__ = [

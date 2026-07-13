@@ -1,8 +1,9 @@
-from pathlib import Path
-from decouple import config
-from datetime import timedelta
-import os
 import logging
+import os
+from datetime import timedelta
+from pathlib import Path
+
+from decouple import config
 
 _settings_logger = logging.getLogger('django.setup')
 

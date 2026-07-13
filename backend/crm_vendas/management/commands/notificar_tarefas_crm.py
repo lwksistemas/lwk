@@ -8,11 +8,11 @@ Uso:
 
 Agende no Heroku Scheduler para rodar a cada hora.
 """
+import os
+from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from django.conf import settings
-from datetime import timedelta
-import os
 
 
 class Command(BaseCommand):
@@ -20,7 +20,6 @@ class Command(BaseCommand):
 
     def _enviar_whatsapp_resumo(self, loja, atividades, config):
         """Envia resumo das tarefas por WhatsApp para o número configurado."""
-        from whatsapp.models import WhatsAppConfig
         from whatsapp.services import send_whatsapp
 
         if not getattr(config, 'enviar_lembrete_tarefas', True):
@@ -46,10 +45,10 @@ class Command(BaseCommand):
         return ok
 
     def handle(self, *args, **options):
-        from superadmin.models import Loja
         from crm_vendas.models import Atividade
-        from notificacoes.services import notify
         from notificacoes.models import Notification
+        from notificacoes.services import notify
+        from superadmin.models import Loja
 
         lojas_crm = Loja.objects.filter(
             tipo_loja__slug='crm-vendas',

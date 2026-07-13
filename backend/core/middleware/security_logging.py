@@ -3,11 +3,13 @@ Middleware de Logging de Segurança
 
 Registra todas as tentativas de acesso cross-tenant e outras violações.
 """
+import contextlib
 import logging
-from django.utils import timezone
-from django.http import JsonResponse
 
-from superadmin.models import ViolacaoSeguranca, HistoricoAcessoGlobal
+from django.http import JsonResponse
+from django.utils import timezone
+
+from superadmin.models import HistoricoAcessoGlobal, ViolacaoSeguranca
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +50,8 @@ class SecurityLoggingMiddleware:
             
             if loja_slug:
                 from superadmin.models import Loja
-                try:
+                with contextlib.suppress(Loja.DoesNotExist):
                     loja = Loja.objects.get(slug=loja_slug)
-                except Loja.DoesNotExist:
-                    pass
             
             # Determinar ação baseada no método HTTP
             acao_map = {
@@ -157,12 +157,11 @@ class RateLimitMiddleware:
     
     def __call__(self, request):
         # Verificar rate limit
-        if request.user.is_authenticated:
-            if self._is_rate_limited(request.user.id):
-                return JsonResponse(
-                    {'error': 'Rate limit exceeded. Please try again later.'},
-                    status=429
-                )
+        if request.user.is_authenticated and self._is_rate_limited(request.user.id):
+            return JsonResponse(
+                {'error': 'Rate limit exceeded. Please try again later.'},
+                status=429
+            )
         
         response = self.get_response(request)
         

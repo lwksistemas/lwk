@@ -7,7 +7,7 @@ Ver: https://docs.asaas.com/docs/invoices-events
 """
 import json
 import logging
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.utils import timezone
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _mensagem_erro_invoice_asaas(invoice: Dict[str, Any]) -> str:
+def _mensagem_erro_invoice_asaas(invoice: dict[str, Any]) -> str:
     if not invoice:
         return 'Erro na emissão (Asaas).'
     partes = []
@@ -37,7 +37,7 @@ def _mensagem_erro_invoice_asaas(invoice: Dict[str, Any]) -> str:
 
 def aplicar_objeto_invoice_asaas_em_nfse(
     nfse: 'NFSe',
-    invoice: Dict[str, Any],
+    invoice: dict[str, Any],
     event: str = '',
 ) -> bool:
     """
@@ -84,7 +84,7 @@ def aplicar_objeto_invoice_asaas_em_nfse(
     return False
 
 
-def sincronizar_nfse_com_webhook_invoice(event: str, invoice: Dict[str, Any]) -> None:
+def sincronizar_nfse_com_webhook_invoice(event: str, invoice: dict[str, Any]) -> None:
     """Localiza NFSe por `asaas_invoice_id` e aplica o objeto do webhook."""
     from .models import NFSe
 
@@ -108,7 +108,7 @@ def sincronizar_nfse_com_webhook_invoice(event: str, invoice: Dict[str, Any]) ->
     aplicar_objeto_invoice_asaas_em_nfse(nf, invoice, event)
 
 
-def sincronizar_nfse_via_api_asaas(nfse: 'NFSe', api_key: str, sandbox: bool) -> Optional[Dict[str, Any]]:
+def sincronizar_nfse_via_api_asaas(nfse: 'NFSe', api_key: str, sandbox: bool) -> dict[str, Any] | None:
     """
     Busca GET /v3/invoices/:id no Asaas e atualiza o registro local.
     Retorna dict com erro em caso de falha, ou {'ok': True} se sucesso.

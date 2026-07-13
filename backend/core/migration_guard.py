@@ -24,9 +24,7 @@ def _should_skip_check() -> bool:
             'test', 'shell', 'collectstatic', 'check',
         ):
             return True
-    if 'pytest' in script or 'py.test' in script:
-        return True
-    return False
+    return bool('pytest' in script or 'py.test' in script)
 
 
 def get_pending_critical_migrations(database: str = 'default') -> list[tuple[str, str]]:

@@ -218,6 +218,7 @@ def ensure_cloudinary_folders(folder_paths: list[str]) -> None:
         return
     try:
         import cloudinary.api
+
         from core.cloudinary_upload_preset import _configure_cloudinary_sdk
 
         if not _configure_cloudinary_sdk():

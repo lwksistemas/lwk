@@ -16,9 +16,11 @@ def _run_startup_ensures():
         return
     try:
         from datetime import timedelta
+
         from django.core.management import call_command
         from django.db.models import Q
         from django.utils import timezone
+
         from superadmin.models import Loja
 
         stale_cutoff = timezone.now() - timedelta(hours=6)

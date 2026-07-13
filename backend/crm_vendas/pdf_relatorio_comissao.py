@@ -1,19 +1,17 @@
 """
 Geração de PDF do Relatório de Comissão com área de assinatura.
 """
+import logging
 from io import BytesIO
-from decimal import Decimal
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Image
-)
+
 import requests
 from PIL import Image as PILImage
-import logging
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import cm
+from reportlab.platypus import HRFlowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +107,7 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
         textColor=_CINZA_ESCURO,
         alignment=TA_CENTER,
     )
-    assin_label_style = ParagraphStyle(
+    ParagraphStyle(
         'RCAssinLabel',
         parent=styles['Normal'],
         fontSize=8,
@@ -219,6 +217,7 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
     if not v and getattr(loja, 'owner', None):
         try:
             from superadmin.models import VendedorUsuario
+
             from .models import Vendedor
             vu = VendedorUsuario.objects.using('default').filter(
                 user=loja.owner, loja=loja

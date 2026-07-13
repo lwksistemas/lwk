@@ -14,9 +14,10 @@ _RETRY_DELAYS_SEC = (30, 120, 300)
 
 def _configurar_tenant_loja(loja_id):
     from django.conf import settings
-    from tenants.middleware import set_current_loja_id, set_current_tenant_db
-    from superadmin.models import Loja
+
     from core.db_config import ensure_loja_database_config
+    from superadmin.models import Loja
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
 
     set_current_loja_id(loja_id)
     loja = Loja.objects.using('default').filter(id=loja_id).first()
@@ -34,8 +35,8 @@ def tentar_envio_vendedor_por_id(assinatura_id, loja_id):
     Carrega assinatura pendente do vendedor e tenta enviar por todos os canais.
     Retorna True se o link foi enviado com sucesso.
     """
-    from .models import AssinaturaDigital
     from .assinatura_digital_service import tentar_enviar_link_vendedor
+    from .models import AssinaturaDigital
 
     if not _configurar_tenant_loja(loja_id):
         return False
@@ -102,6 +103,7 @@ def processar_envios_vendedor_pendentes():
     Chamado pelo cron lwks-cron como rede de segurança.
     """
     from superadmin.models import Loja
+
     from .models import AssinaturaDigital
 
     lojas = Loja.objects.using('default').filter(is_active=True, database_created=True).exclude(database_name='')

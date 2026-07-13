@@ -27,6 +27,7 @@ Falha explicitamente se o contexto da loja não estiver definido,
         evitando criação de registros sem isolamento.
         """
         import logging
+
         from tenants.middleware import get_current_loja_id
         
         logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ Falha explicitamente se o contexto da loja não estiver definido,
         logger.info(f"[BaseLojaSerializer.create] validated_data keys: {list(validated_data.keys())}")
         
         if not loja_id:
-            logger.error(f"[BaseLojaSerializer.create] ERRO: loja_id não encontrado no contexto!")
+            logger.error("[BaseLojaSerializer.create] ERRO: loja_id não encontrado no contexto!")
             logger.error(f"[BaseLojaSerializer.create] Model: {model_name_str}")
             logger.error(f"[BaseLojaSerializer.create] Data: {validated_data}")
             

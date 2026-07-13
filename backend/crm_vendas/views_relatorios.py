@@ -4,16 +4,16 @@ Extraído de views.py para melhor organização.
 """
 import logging
 
+from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.http import HttpResponse
-from core.email_delivery import create_email_message, send_prepared
 
+from core.email_delivery import create_email_message, send_prepared
 from tenants.middleware import get_current_loja_id
+
 from .utils import get_current_vendedor_id
-from .crm_config_helpers import get_crm_config_for_loja as _get_crm_config_for_loja
 
 logger = logging.getLogger(__name__)
 
@@ -122,10 +122,5 @@ def gerar_relatorio(request):
 # VIEWS PÚBLICAS DE ASSINATURA DIGITAL (sem autenticação)
 # ============================================================================
 
-from django.views import View
-from django.http import JsonResponse
-import json
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 
 

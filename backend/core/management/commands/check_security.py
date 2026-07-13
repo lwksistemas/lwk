@@ -5,8 +5,8 @@ Uso:
     python manage.py check_security
     python manage.py check_security --fix  # Tenta corrigir problemas
 """
-from django.core.management.base import BaseCommand
 from django.apps import apps
+from django.core.management.base import BaseCommand
 
 from config.db_router import MultiTenantRouter
 from core.mixins import LojaIsolationMixin
@@ -116,7 +116,7 @@ class Command(BaseCommand):
                         field = model._meta.get_field('loja_id')
                         if field.db_index:
                             has_index = True
-                    except:
+                    except Exception:
                         pass
                     
                     if not has_index:

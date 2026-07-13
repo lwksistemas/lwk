@@ -5,7 +5,7 @@ API: https://www.mercadopago.com.br/developers/pt/reference/payments/_payments/p
 import logging
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any
 
 import requests
 
@@ -30,7 +30,7 @@ class MercadoPagoClient:
             "X-Idempotency-Key": str(uuid.uuid4()),
         })
 
-    def _post_payment(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _post_payment(self, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{MP_API_BASE}/v1/payments"
         # Nova chave de idempotência por requisição
         self.session.headers["X-Idempotency-Key"] = str(uuid.uuid4())
@@ -57,7 +57,7 @@ class MercadoPagoClient:
         neighborhood: str = "",
         city: str = "",
         federal_unit: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Cria um pagamento por boleto (Brasil - bolbradesco).
 
@@ -117,7 +117,7 @@ class MercadoPagoClient:
         payer_doc_number: str,
         description: str,
         external_reference: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Cria um pagamento por PIX (Brasil).
         Retorna o mesmo formato da API; qr_code (copia e cola) e qr_code_base64 vêm em point_of_interaction.transaction_data.
@@ -145,7 +145,7 @@ class MercadoPagoClient:
             payload["external_reference"] = external_reference[:256]
         return self._post_payment(payload)
 
-    def test_connection(self) -> Dict[str, Any]:
+    def test_connection(self) -> dict[str, Any]:
         """
         Testa a conexão com a API do Mercado Pago (valida o Access Token).
         Usa GET /v1/payment_methods como health check.
@@ -187,7 +187,7 @@ class MercadoPagoClient:
             logger.exception("Mercado Pago test_connection exception")
             return {"success": False, "error": str(e)}
 
-    def get_payment(self, payment_id: str) -> Optional[Dict[str, Any]]:
+    def get_payment(self, payment_id: str) -> dict[str, Any] | None:
         """Obtém dados de um pagamento pela API do Mercado Pago."""
         try:
             url = f"{MP_API_BASE}/v1/payments/{payment_id}"
@@ -258,7 +258,7 @@ class LojaMercadoPagoService:
             and self._config.enabled
         )
 
-    def criar_cobranca_loja(self, loja, financeiro, criar_pix: bool = True) -> Dict[str, Any]:
+    def criar_cobranca_loja(self, loja, financeiro, criar_pix: bool = True) -> dict[str, Any]:
         """
         Cria cobrança no Mercado Pago (boleto + PIX) para a loja.
 
@@ -381,8 +381,8 @@ class LojaMercadoPagoService:
             poi = result.get("point_of_interaction", {})
             boleto_url = poi.get("transaction_data", {}).get("ticket_url") or ""
 
-        date_approved = result.get("date_approved")
-        date_created = result.get("date_created")
+        result.get("date_approved")
+        result.get("date_created")
 
         # PIX opcional: na criação da loja criamos só o boleto (1 transação no MP).
         # PIX pode ser gerado depois pelo botão "Gerar PIX" no financeiro.
@@ -457,7 +457,7 @@ class LojaMercadoPagoService:
             "pix_copy_paste": pix_copy_paste or None,
         }
 
-    def get_boleto_url(self, payment_id: str) -> Optional[str]:
+    def get_boleto_url(self, payment_id: str) -> str | None:
         """
         Obtém a URL completa do boleto consultando o pagamento na API do MP.
         Sempre use este método ao exibir/baixar boleto: a URL salva em boleto_url
@@ -501,7 +501,7 @@ class LojaMercadoPagoService:
             logger.warning("Erro ao obter boleto URL do MP: %s", e)
             return None
 
-    def cancel_pending_payments_loja(self, loja_slug: str) -> Dict[str, Any]:
+    def cancel_pending_payments_loja(self, loja_slug: str) -> dict[str, Any]:
         """
         Cancela todos os boletos pendentes do Mercado Pago associados à loja
         (igual ao fluxo Asaas na exclusão da loja).
@@ -574,7 +574,7 @@ class LojaMercadoPagoService:
                 "error": str(e),
             }
 
-    def gerar_pix_para_pagamento(self, pagamento) -> Dict[str, Any]:
+    def gerar_pix_para_pagamento(self, pagamento) -> dict[str, Any]:
         """
         Gera PIX para um PagamentoLoja que já tem boleto MP mas ainda não tem PIX
         (ex.: cobrança criada antes da opção PIX ou falha na criação).

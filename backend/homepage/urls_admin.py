@@ -1,6 +1,14 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views_admin import HeroViewSet, FuncionalidadeViewSet, ModuloSistemaViewSet, WhyUsBenefitViewSet, HeroImagemViewSet, EmpresaConfigViewSet
+
+from .views_admin import (
+    EmpresaConfigViewSet,
+    FuncionalidadeViewSet,
+    HeroImagemViewSet,
+    HeroViewSet,
+    ModuloSistemaViewSet,
+    WhyUsBenefitViewSet,
+)
 
 router = DefaultRouter()
 router.register(r'hero', HeroViewSet, basename='homepage-hero')

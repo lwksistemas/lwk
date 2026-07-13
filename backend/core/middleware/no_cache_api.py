@@ -26,17 +26,15 @@ class NoCacheAPIMiddleware:
         response = self.get_response(request)
         
         # Aplicar apenas em endpoints de API
-        if request.path.startswith('/api/'):
-            # Verificar se é endpoint de dados (não health check)
-            if not request.path.endswith('/health') and not request.path.endswith('/health/'):
-                # Headers mais agressivos para prevenir qualquer cache
-                response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, private'
-                response['Pragma'] = 'no-cache'
-                response['Expires'] = '0'
-                
-                # Header adicional para service workers
-                response['X-No-Cache'] = 'true'
-                
-                logger.debug(f"[NoCacheAPIMiddleware] Headers no-cache adicionados: {request.path}")
+        if request.path.startswith('/api/') and not request.path.endswith('/health') and not request.path.endswith('/health/'):
+            # Headers mais agressivos para prevenir qualquer cache
+            response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, private'
+            response['Pragma'] = 'no-cache'
+            response['Expires'] = '0'
+            
+            # Header adicional para service workers
+            response['X-No-Cache'] = 'true'
+            
+            logger.debug(f"[NoCacheAPIMiddleware] Headers no-cache adicionados: {request.path}")
         
         return response

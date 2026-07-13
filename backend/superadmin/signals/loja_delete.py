@@ -1,9 +1,6 @@
 import logging
-import os
-import shutil
-from pathlib import Path
 
-from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
+from django.db.models.signals import post_delete, pre_delete
 from django.dispatch import receiver
 
 from core.logging_utils import mask_email
@@ -11,6 +8,7 @@ from core.logging_utils import mask_email
 logger = logging.getLogger(__name__)
 
 from .helpers import _limpar_arquivos_orfaos_loja
+
 
 @receiver(pre_delete, sender='superadmin.Loja')
 def delete_all_loja_data(sender, instance, **kwargs):
@@ -89,7 +87,7 @@ def delete_all_loja_data(sender, instance, **kwargs):
         
         # 1. Deletar funcionários/vendedores baseado no tipo de app (no schema da loja quando db_alias definido)
         if tipo_loja_nome == 'CRM Vendas':
-            from crm_vendas.models import Atividade, Oportunidade, Lead, Contato, Conta, Vendedor
+            from crm_vendas.models import Atividade, Conta, Contato, Lead, Oportunidade, Vendedor
             _db = db_alias
 
             def _delete_crm(model, nome):
@@ -123,8 +121,14 @@ def delete_all_loja_data(sender, instance, **kwargs):
                 delete_clinica_beleza_tenant_data(db_alias, loja_id)
             else:
                 from clinica_beleza.models import (
-                    Patient, Professional, Procedure, Appointment, BloqueioHorario,
-                    HorarioTrabalhoProfissional, Payment, CampanhaPromocao,
+                    Appointment,
+                    BloqueioHorario,
+                    CampanhaPromocao,
+                    HorarioTrabalhoProfissional,
+                    Patient,
+                    Payment,
+                    Procedure,
+                    Professional,
                 )
 
                 def _delete_clinica_beleza(model, nome):
@@ -175,14 +179,15 @@ def delete_all_loja_data(sender, instance, **kwargs):
         
         # 3. Verificar pagamentos Asaas relacionados (remoção feita na views.py)
         try:
-            logger.info(f"   ℹ️ Pagamentos Asaas serão removidos pela views.py")
+            logger.info("   ℹ️ Pagamentos Asaas serão removidos pela views.py")
         except Exception as e:
             logger.warning(f"   ⚠️ Erro ao verificar Asaas: {e}")
         
         # 4. Excluir schema PostgreSQL (CRÍTICO: prevenir schemas órfãos)
         try:
-            from django.db import connection
             import os
+
+            from django.db import connection
             
             # Verificar se está usando PostgreSQL (produção)
             DATABASE_URL = os.environ.get('DATABASE_URL', '')
@@ -209,7 +214,7 @@ def delete_all_loja_data(sender, instance, **kwargs):
                 else:
                     logger.warning(f"   ⚠️ Schema inválido ou público, não será removido: {schema_name}")
             else:
-                logger.info(f"   ℹ️ Não está usando PostgreSQL, schema não será removido")
+                logger.info("   ℹ️ Não está usando PostgreSQL, schema não será removido")
                 
         except Exception as e:
             logger.error(f"   ❌ Erro ao remover schema PostgreSQL: {e}")
@@ -224,6 +229,7 @@ def delete_all_loja_data(sender, instance, **kwargs):
         # inexistente) não aborte a transação principal do loja.delete()
         try:
             from django.db import connection, transaction
+
             from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT, tabela_existe_em_public
             for tabela, coluna in TABELAS_LOJA_ID_DEFAULT:
                 try:
@@ -288,6 +294,7 @@ def remove_owner_if_orphan(sender, instance, **kwargs):
 
     def _remover_owner_apos_commit():
         from django.contrib.auth.models import User
+
         from superadmin.models import Loja
         from superadmin.utils import delete_user_raw
 
@@ -325,6 +332,6 @@ def remove_owner_if_orphan(sender, instance, **kwargs):
             import traceback
             logger.error(traceback.format_exc())
 
-    logger.info(f"   📝 Agendando remoção de owner órfão para após commit da transação...")
+    logger.info("   📝 Agendando remoção de owner órfão para após commit da transação...")
     transaction.on_commit(_remover_owner_apos_commit)
 

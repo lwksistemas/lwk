@@ -6,7 +6,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from core.views import BaseModelViewSet
-from .mixins import CRMSchemaRecoveryMixin, VendedorFilterMixin, CrmGranularPermissionMixin
+
+from .mixins import CrmGranularPermissionMixin, CRMSchemaRecoveryMixin, VendedorFilterMixin
 from .mixins_assinatura import AssinaturaDigitalMixin
 from .mixins_documento import DocumentoQuerysetMixin, TemplateViewSetMixin
 from .models import Contrato, ContratoTemplate, Proposta, PropostaTemplate

@@ -2,12 +2,14 @@
 Management command para criar nova loja de teste
 Migrado de: backend/criar_loja_teste_crm.py
 """
-from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
-from django.db import connection
-from superadmin.models import Loja, TipoLoja, PlanoAssinatura
 import random
 import string
+
+from django.contrib.auth.models import User
+from django.core.management.base import BaseCommand
+from django.db import connection
+
+from superadmin.models import Loja, PlanoAssinatura, TipoLoja
 
 
 class Command(BaseCommand):
@@ -125,7 +127,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('\n' + '='*80))
             self.stdout.write(self.style.SUCCESS('✅ LOJA CRIADA COM SUCESSO!'))
             self.stdout.write(self.style.SUCCESS('='*80))
-            self.stdout.write(f'\n📋 Informações da Loja:')
+            self.stdout.write('\n📋 Informações da Loja:')
             self.stdout.write(f'   Nome: {loja.nome}')
             self.stdout.write(f'   Slug: {loja.slug}')
             self.stdout.write(f'   ID: {loja.id}')
@@ -133,11 +135,11 @@ class Command(BaseCommand):
             self.stdout.write(f'   Tipo: {tipo_loja.nome}')
             self.stdout.write(f'   Plano: {plano.nome}')
             self.stdout.write(f'   Schema: {schema_name}')
-            self.stdout.write(f'\n👤 Credenciais de Acesso:')
+            self.stdout.write('\n👤 Credenciais de Acesso:')
             self.stdout.write(f'   Usuário: {username}')
             self.stdout.write(f'   Email: {email}')
-            self.stdout.write(f'   Senha: senha123')
-            self.stdout.write(f'\n🌐 URL de Acesso:')
+            self.stdout.write('   Senha: senha123')
+            self.stdout.write('\n🌐 URL de Acesso:')
             self.stdout.write(f'   http://localhost:3000/loja/{loja.slug}/login')
             
         except Exception as e:

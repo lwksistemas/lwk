@@ -14,6 +14,7 @@ Uso:
     python manage.py criar_funcionarios_admins
 """
 from django.core.management.base import BaseCommand
+
 from superadmin.models import Loja
 
 

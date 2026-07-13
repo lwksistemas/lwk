@@ -2,7 +2,7 @@
 import logging
 import re
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import requests as req
 
@@ -45,11 +45,11 @@ ZEEP_OPERACOES_MTLS = frozenset({
 })
 
 
-def criar_soap_client(wsdl_url: str, base_url: str, cert_path: Optional[str] = None, key_path: Optional[str] = None):
+def criar_soap_client(wsdl_url: str, base_url: str, cert_path: str | None = None, key_path: str | None = None):
     """Cliente Zeep; com cert_path/key_path habilita mTLS na sessão requests."""
+    from requests import Session
     from zeep import Client
     from zeep.transports import Transport
-    from requests import Session
 
     session = Session()
     session.headers.update({'User-Agent': 'LWK-Sistemas/CRM'})
@@ -92,7 +92,7 @@ def post_soap_operacao(
     nome_operacao: str,
     soap_action_uri: str,
     dados_xml: str,
-) -> Tuple[Dict[str, Any], str]:
+) -> tuple[dict[str, Any], str]:
     """
     POST SOAP 1.1 com mTLS; tenta Zeep primeiro, depois envelopes manuais.
     Inclui retry com backoff exponencial para erros de rede/timeout.
@@ -137,7 +137,7 @@ def _post_soap_operacao_inner(
     nome_operacao: str,
     soap_action_uri: str,
     dados_xml: str,
-) -> Tuple[Dict[str, Any], str]:
+) -> tuple[dict[str, Any], str]:
     """Implementação interna do POST SOAP (sem retry — chamada pelo wrapper)."""
 
     try:
@@ -165,10 +165,9 @@ def _post_soap_operacao_inner(
                     )
                     if (sc is not None and sc >= 400) or 'Fault' in txt_z:
                         logger.error('ISSNet zeep+mTLS resposta (ate 8000 chars): %s', txt_z[:8000])
-                    if issnet_corpo_parece_xml(txt_z):
-                        if not issnet_fault_soap_generico(txt_z):
-                            xml_body = extrair_body_soap(txt_z)
-                            return parse_resposta_xml(xml_body), xml_body
+                    if issnet_corpo_parece_xml(txt_z) and not issnet_fault_soap_generico(txt_z):
+                        xml_body = extrair_body_soap(txt_z)
+                        return parse_resposta_xml(xml_body), xml_body
                     logger.warning(
                         'ISSNet %s zeep+mTLS sem sucesso (Fault generico ou resposta nao parseavel); '
                         'tentando POST manual',
@@ -201,8 +200,8 @@ def _post_soap_manual(
     dados_xml: str,
     cert_path: str,
     key_path: str,
-    http_timeout: Tuple[int, int],
-) -> Tuple[Dict[str, Any], str]:
+    http_timeout: tuple[int, int],
+) -> tuple[dict[str, Any], str]:
     def _headers(content_type: str) -> dict:
         return {
             'Content-Type': content_type,

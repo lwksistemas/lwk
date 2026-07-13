@@ -1,10 +1,8 @@
 """Modelos Super Admin."""
-import re
 
-from django.contrib.auth.models import User
 from django.db import models
-from django.utils import timezone
 from django.utils.text import slugify
+
 
 class TipoLoja(models.Model):
     """Tipos de app com dashboard específico (ex.: Clínica de Estética, Cabeleireiro)."""

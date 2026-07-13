@@ -10,9 +10,11 @@ Boas práticas:
 - Registra estatísticas da limpeza
 - Pode ser agendado via cron/scheduler
 """
+from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from datetime import timedelta
+
 from superadmin.models import HistoricoAcessoGlobal
 
 

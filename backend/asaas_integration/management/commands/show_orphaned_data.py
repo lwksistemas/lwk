@@ -3,8 +3,10 @@ Comando Django para mostrar dados órfãos do Asaas (apenas visualização)
 Uso: python manage.py show_orphaned_data
 """
 from django.core.management.base import BaseCommand
-from asaas_integration.models import AsaasPayment, AsaasCustomer, LojaAssinatura
+
+from asaas_integration.models import AsaasCustomer, AsaasPayment, LojaAssinatura
 from superadmin.models import Loja
+
 
 class Command(BaseCommand):
     help = 'Mostra dados órfãos do Asaas (apenas visualização, não remove nada)'
@@ -83,7 +85,7 @@ class Command(BaseCommand):
             except Loja.DoesNotExist:
                 assinaturas_orfas.append(assinatura)
         
-        self.stdout.write(f'📊 Dados órfãos encontrados:')
+        self.stdout.write('📊 Dados órfãos encontrados:')
         self.stdout.write(f'   - Pagamentos: {len(pagamentos_orfaos)}')
         self.stdout.write(f'   - Clientes: {len(clientes_orfaos)}')
         self.stdout.write(f'   - Assinaturas: {len(assinaturas_orfas)}')

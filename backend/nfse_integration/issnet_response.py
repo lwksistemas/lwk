@@ -1,10 +1,11 @@
 """Parsers de resposta XML/SOAP do ISSNet."""
+import contextlib
 import re
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
+from xml.sax.saxutils import escape as xml_escape
 
 from lxml import etree
-from xml.sax.saxutils import escape as xml_escape
 
 from nfse_integration.issnet_constants import NS_NFSE
 
@@ -59,7 +60,7 @@ def extrair_body_soap(soap_xml: str) -> str:
         return soap_xml
 
 
-def parse_resposta_xml(xml_str: str) -> Dict[str, Any]:
+def parse_resposta_xml(xml_str: str) -> dict[str, Any]:
     try:
         root = etree.fromstring(xml_str.encode('utf-8') if isinstance(xml_str, str) else xml_str)
     except etree.XMLSyntaxError:
@@ -100,18 +101,16 @@ def parse_resposta_xml(xml_str: str) -> Dict[str, Any]:
     if nfse_el is None:
         nfse_el = root.find('.//ns:Nfse/ns:InfNfse', nsmap)
     if nfse_el is None:
-        nfse_el = root.find('.//{%s}InfNfse' % NS_NFSE)
+        nfse_el = root.find(f'.//{{{NS_NFSE}}}InfNfse')
 
     if nfse_el is not None:
-        numero = nfse_el.findtext('{%s}Numero' % NS_NFSE, '')
-        cod_ver = nfse_el.findtext('{%s}CodigoVerificacao' % NS_NFSE, '')
-        dt_text = nfse_el.findtext('{%s}DataEmissao' % NS_NFSE, '')
+        numero = nfse_el.findtext(f'{{{NS_NFSE}}}Numero', '')
+        cod_ver = nfse_el.findtext(f'{{{NS_NFSE}}}CodigoVerificacao', '')
+        dt_text = nfse_el.findtext(f'{{{NS_NFSE}}}DataEmissao', '')
         dt_emissao = datetime.now()
         if dt_text:
-            try:
+            with contextlib.suppress(Exception):
                 dt_emissao = datetime.fromisoformat(dt_text.replace('Z', '+00:00'))
-            except Exception:
-                pass
         return {
             'success': True,
             'numero_nf': numero,
@@ -126,7 +125,7 @@ def parse_resposta_xml(xml_str: str) -> Dict[str, Any]:
     }
 
 
-def parse_consultar_url_nfse_resposta(xml_str: str) -> Dict[str, Any]:
+def parse_consultar_url_nfse_resposta(xml_str: str) -> dict[str, Any]:
     """Extrai número, RPS e URL de ConsultarUrlNfseResposta (ListaLinks)."""
     if not (xml_str or '').strip():
         return {'success': False, 'error': 'Resposta vazia do ConsultarUrlNfse.'}
@@ -136,21 +135,21 @@ def parse_consultar_url_nfse_resposta(xml_str: str) -> Dict[str, Any]:
         return {'success': False, 'error': f'XML inválido na resposta do ConsultarUrlNfse: {exc}'}
 
     ns = NS_NFSE
-    for links in root.iter('{%s}Links' % ns):
+    for links in root.iter(f'{{{ns}}}Links'):
         numero = (
-            links.findtext('.//{%s}IdentificacaoNfse/{%s}Numero' % (ns, ns), '')
-            or links.findtext('.//{%s}Numero' % ns, '')
+            links.findtext(f'.//{{{ns}}}IdentificacaoNfse/{{{ns}}}Numero', '')
+            or links.findtext(f'.//{{{ns}}}Numero', '')
             or ''
         ).strip()
         if not numero:
             continue
-        rps_txt = links.findtext('.//{%s}IdentificacaoRps/{%s}Numero' % (ns, ns), '') or ''
+        rps_txt = links.findtext(f'.//{{{ns}}}IdentificacaoRps/{{{ns}}}Numero', '') or ''
         url = (
-            links.findtext('.//{%s}UrlVisualizacaoNfse' % ns, '')
-            or links.findtext('.//{%s}UrlNfse' % ns, '')
+            links.findtext(f'.//{{{ns}}}UrlVisualizacaoNfse', '')
+            or links.findtext(f'.//{{{ns}}}UrlNfse', '')
             or ''
         ).strip()
-        out: Dict[str, Any] = {
+        out: dict[str, Any] = {
             'success': True,
             'numero_nf': numero,
             'url': url,
@@ -162,7 +161,7 @@ def parse_consultar_url_nfse_resposta(xml_str: str) -> Dict[str, Any]:
     return parse_resposta_xml(xml_str)
 
 
-def parse_resposta_xml_nfse_por_numero(xml_str: str, numero_nf: str) -> Dict[str, Any]:
+def parse_resposta_xml_nfse_por_numero(xml_str: str, numero_nf: str) -> dict[str, Any]:
     """Extrai CompNfse/InfNfse da resposta quando há lista (consulta por número/faixa)."""
     alvo = str(numero_nf or '').strip()
     if not alvo or not (xml_str or '').strip():
@@ -173,18 +172,16 @@ def parse_resposta_xml_nfse_por_numero(xml_str: str, numero_nf: str) -> Dict[str
         return {'success': False, 'error': f'XML inválido na resposta do ISSNet: {exc}'}
 
     ns = NS_NFSE
-    for inf in root.iter('{%s}InfNfse' % ns):
-        numero = (inf.findtext('{%s}Numero' % ns, '') or '').strip()
+    for inf in root.iter(f'{{{ns}}}InfNfse'):
+        numero = (inf.findtext(f'{{{ns}}}Numero', '') or '').strip()
         if numero != alvo:
             continue
-        cod_ver = inf.findtext('{%s}CodigoVerificacao' % ns, '')
-        dt_text = inf.findtext('{%s}DataEmissao' % ns, '')
+        cod_ver = inf.findtext(f'{{{ns}}}CodigoVerificacao', '')
+        dt_text = inf.findtext(f'{{{ns}}}DataEmissao', '')
         dt_emissao = datetime.now()
         if dt_text:
-            try:
+            with contextlib.suppress(Exception):
                 dt_emissao = datetime.fromisoformat(dt_text.replace('Z', '+00:00'))
-            except Exception:
-                pass
         comp = inf
         for anc in inf.iterancestors():
             if etree.QName(anc.tag).localname == 'CompNfse':
@@ -245,7 +242,7 @@ def extrair_erros(texto: str) -> str:
     return '; '.join(erros) if erros else texto[:500]
 
 
-def parse_resposta_cancelamento(xml_str: str) -> Dict[str, Any]:
+def parse_resposta_cancelamento(xml_str: str) -> dict[str, Any]:
     texto = (xml_str or '').strip()
     if not texto:
         return {'success': False, 'error': 'Resposta vazia do ISSNet no cancelamento.'}
@@ -304,7 +301,7 @@ def parse_resposta_cancelamento(xml_str: str) -> Dict[str, Any]:
     }
 
 
-def interpretar_cancelamento(parsed: Dict[str, Any], xml_body: str) -> Dict[str, Any]:
+def interpretar_cancelamento(parsed: dict[str, Any], xml_body: str) -> dict[str, Any]:
     especifico = parse_resposta_cancelamento(xml_body or '')
     if especifico.get('success'):
         return especifico

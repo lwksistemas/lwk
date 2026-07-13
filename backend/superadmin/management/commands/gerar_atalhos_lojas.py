@@ -12,6 +12,7 @@ Uso:
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Count
+
 from superadmin.models import Loja
 
 

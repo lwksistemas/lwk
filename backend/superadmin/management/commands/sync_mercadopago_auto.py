@@ -6,11 +6,13 @@ Para atualização em tempo real no Heroku (como o Asaas), agende no Heroku Sche
   - Comando: cd backend && python manage.py sync_mercadopago_auto
   - Frequência sugerida: a cada 10 minutos (ou a cada hora)
 """
+import logging
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from superadmin.sync_service import sync_all_mercadopago_payments, sync_loja_payments_mercadopago
+
 from superadmin.models import Loja
-import logging
+from superadmin.sync_service import sync_all_mercadopago_payments, sync_loja_payments_mercadopago
 
 logger = logging.getLogger(__name__)
 

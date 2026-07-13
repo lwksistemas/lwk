@@ -20,7 +20,8 @@ from nfse_integration.superadmin_nfse_api import (
     serializar_loja_para_nfse,
     serializar_nfse_debug,
 )
-from .models import NFSeEmitida, Loja
+
+from .models import Loja, NFSeEmitida
 from .permissions import IsSuperAdmin
 
 logger = logging.getLogger(__name__)
@@ -109,6 +110,7 @@ def nfse_download_pdf(request, nfse_id):
     Fallback: gera PDF internamente com os dados da nota.
     """
     from django.http import HttpResponse
+
     from nfse_integration.pdf_download import resolver_download_pdf_superadmin
 
     try:

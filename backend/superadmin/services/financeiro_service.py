@@ -2,9 +2,10 @@
 Serviço para gerenciamento financeiro de lojas
 Centraliza lógica de criação de financeiro e cobranças
 """
+import contextlib
 import logging
-from datetime import date, timedelta
 from calendar import monthrange
+from datetime import date, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -168,10 +169,8 @@ class FinanceiroService:
         if data_pagamento is None:
             data_pagamento = tz.now().date()
         elif hasattr(data_pagamento, 'date'):
-            try:
+            with contextlib.suppress(AttributeError, TypeError):
                 data_pagamento = data_pagamento.date()
-            except (AttributeError, TypeError):
-                pass
 
         vencimento_periodo = financeiro.data_proxima_cobranca
         ciclo_dias = 365 if getattr(loja, 'tipo_assinatura', 'mensal') == 'anual' else 30

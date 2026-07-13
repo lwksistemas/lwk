@@ -1,10 +1,9 @@
 from django.test import SimpleTestCase
 
 from core.password_validation import (
-    validate_password_policy,
     generate_provisional_password,
     password_policy_requirements,
-    MIN_LENGTH,
+    validate_password_policy,
 )
 
 

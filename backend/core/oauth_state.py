@@ -1,22 +1,20 @@
 """State assinado para fluxos OAuth (Google Calendar, etc.)."""
 from __future__ import annotations
 
-from typing import Optional, Tuple
-
 from django.core import signing
 
 OAUTH_STATE_SALT = 'lwk-oauth-state-v1'
 OAUTH_STATE_MAX_AGE = 3600  # 1 hora
 
 
-def encode_oauth_state(loja_id: int, vendedor_id: Optional[int] = None) -> str:
+def encode_oauth_state(loja_id: int, vendedor_id: int | None = None) -> str:
     payload = {'loja_id': int(loja_id)}
     if vendedor_id is not None:
         payload['vendedor_id'] = int(vendedor_id)
     return signing.dumps(payload, salt=OAUTH_STATE_SALT)
 
 
-def parse_oauth_state(state: Optional[str]) -> Tuple[Optional[int], Optional[int]]:
+def parse_oauth_state(state: str | None) -> tuple[int | None, int | None]:
     """
     Retorna (loja_id, vendedor_id).
     Aceita state assinado (atual) ou legado 'loja_id' / 'loja_id:vendedor_id'.

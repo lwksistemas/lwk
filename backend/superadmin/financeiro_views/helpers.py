@@ -45,7 +45,7 @@ def _resolve_asaas_payment_id(pagamento):
         if pid:
             return pid
     try:
-        from asaas_integration.models import LojaAssinatura, AsaasPayment
+        from asaas_integration.models import AsaasPayment, LojaAssinatura
 
         ass = (
             LojaAssinatura.objects.filter(loja_slug=pagamento.loja.slug)
@@ -84,6 +84,7 @@ def _nfse_para_pagamento(pagamento, asaas_id=''):
     """NFS-e vinculada ao PagamentoLoja (local, Asaas ou emissão manual da mesma loja/valor)."""
     try:
         from decimal import Decimal
+
         from ..models import NFSeEmitida
 
         nf = NFSeEmitida.objects.filter(pagamento=pagamento, status='emitida').first()
@@ -125,9 +126,7 @@ def _cancelar_pagamentos_loja_obsoletos(loja):
     for p in pendentes:
         base = pagos.filter(valor=p.valor)
         duplicado = False
-        if p.referencia_mes and base.filter(referencia_mes=p.referencia_mes).exists():
-            duplicado = True
-        elif p.data_vencimento and base.filter(data_vencimento=p.data_vencimento).exists():
+        if p.referencia_mes and base.filter(referencia_mes=p.referencia_mes).exists() or p.data_vencimento and base.filter(data_vencimento=p.data_vencimento).exists():
             duplicado = True
         if not duplicado:
             continue
@@ -240,7 +239,7 @@ def _build_historico_pagamentos_loja(
     Histórico unificado para o painel da loja (PagamentoLoja + dados Asaas quando existir).
     Cada item usa pagamento_loja_id para baixar boleto / NFS-e.
     """
-    from asaas_integration.models import LojaAssinatura, AsaasPayment
+    from asaas_integration.models import AsaasPayment, LojaAssinatura
 
     _cancelar_pagamentos_loja_obsoletos(loja)
 

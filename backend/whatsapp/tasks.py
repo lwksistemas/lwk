@@ -4,6 +4,7 @@ Executar no contexto de cada loja (tenant) para acessar Appointment/Patient.
 """
 import logging
 from datetime import timedelta
+
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -41,9 +42,8 @@ def send_lembretes_24h_whatsapp():
     Envia lembrete por WhatsApp 24h antes do agendamento.
     Itera sobre lojas com database_created e configuração habilitada.
     """
-    from superadmin.models import Loja
-    from tenants.middleware import set_current_loja_id, set_current_tenant_db
     from clinica_beleza.models import Appointment
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
     from whatsapp.services import enviar_lembrete_agendamento
 
     amanha = (timezone.now() + timedelta(days=1)).date()
@@ -84,9 +84,8 @@ def send_lembretes_2h_whatsapp():
     Envia lembrete por WhatsApp ~2h antes do horário do agendamento.
     Janela: entre 1h50 e 2h10 a partir de agora.
     """
-    from superadmin.models import Loja
-    from tenants.middleware import set_current_loja_id, set_current_tenant_db
     from clinica_beleza.models import Appointment
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
     from whatsapp.services import enviar_lembrete_agendamento
 
     now = timezone.now()
@@ -130,11 +129,11 @@ def send_cobrancas_pendentes_whatsapp():
     Envia cobrança por WhatsApp para pacientes com pagamento PENDING.
     Uma mensagem por paciente/dia (agrupa débitos). Só lojas Clínica da Beleza.
     """
+    from clinica_beleza.models import Payment
     from superadmin.models import Loja
     from tenants.middleware import set_current_loja_id, set_current_tenant_db
-    from clinica_beleza.models import Payment
-    from whatsapp.services import enviar_cobranca_whatsapp
     from whatsapp.models import WhatsAppLog
+    from whatsapp.services import enviar_cobranca_whatsapp
 
     hoje = timezone.localtime(timezone.now()).date()
     lojas = Loja.objects.filter(

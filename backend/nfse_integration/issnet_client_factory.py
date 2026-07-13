@@ -1,8 +1,9 @@
 """Factory compartilhado para ISSNetClient (loja CRM e superadmin)."""
 import os
 import tempfile
-from contextlib import contextmanager
-from typing import Any, Generator
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
+from typing import Any
 
 
 @contextmanager
@@ -21,7 +22,7 @@ def issnet_client_from_pfx(
     if not cert_data:
         raise ValueError('Certificado digital não configurado')
 
-    cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix=prefix)
+    cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix=prefix)  # noqa: SIM115
     try:
         cert_tmp.write(bytes(cert_data))
         cert_tmp.close()
@@ -35,10 +36,8 @@ def issnet_client_from_pfx(
         yield client
     finally:
         if os.path.isfile(cert_tmp.name):
-            try:
+            with suppress(OSError):
                 os.unlink(cert_tmp.name)
-            except OSError:
-                pass
 
 
 def _cert_bytes(config: Any) -> bytes:

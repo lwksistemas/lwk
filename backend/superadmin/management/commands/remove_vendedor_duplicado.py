@@ -4,6 +4,7 @@ Uso: python manage.py remove_vendedor_duplicado <slug_loja>
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 

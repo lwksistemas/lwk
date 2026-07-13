@@ -7,11 +7,13 @@ exclui a loja e verifica se o schema foi removido automaticamente.
 Uso:
     python manage.py test_schema_deletion
 """
+import os
+
+from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from django.db import connection
-from django.contrib.auth.models import User
-from superadmin.models import Loja, TipoLoja, PlanoAssinatura
-import os
+
+from superadmin.models import Loja, PlanoAssinatura, TipoLoja
 
 
 class Command(BaseCommand):
@@ -55,7 +57,7 @@ class Command(BaseCommand):
 
             # Criar loja de teste
             loja = Loja.objects.create(
-                nome=f'Loja Teste Schema Deletion',
+                nome='Loja Teste Schema Deletion',
                 slug=f'test-schema-{os.getpid()}',
                 tipo_loja=tipo_loja,
                 plano=plano,
@@ -89,14 +91,14 @@ class Command(BaseCommand):
                         nome VARCHAR(100)
                     )
                 ''')
-                self.stdout.write(self.style.SUCCESS(f'   ✅ Tabela de teste criada'))
+                self.stdout.write(self.style.SUCCESS('   ✅ Tabela de teste criada'))
                 
                 # Inserir dados de teste
                 cursor.execute(f'''
                     INSERT INTO "{schema_name}".test_table (nome) 
                     VALUES ('Teste 1'), ('Teste 2'), ('Teste 3')
                 ''')
-                self.stdout.write(self.style.SUCCESS(f'   ✅ Dados de teste inseridos'))
+                self.stdout.write(self.style.SUCCESS('   ✅ Dados de teste inseridos'))
                 
                 # Verificar que schema existe
                 cursor.execute(
@@ -106,9 +108,9 @@ class Command(BaseCommand):
                 schema_exists = cursor.fetchone()
                 
                 if schema_exists:
-                    self.stdout.write(self.style.SUCCESS(f'   ✅ Schema confirmado no PostgreSQL'))
+                    self.stdout.write(self.style.SUCCESS('   ✅ Schema confirmado no PostgreSQL'))
                 else:
-                    self.stdout.write(self.style.ERROR(f'   ❌ Schema não encontrado'))
+                    self.stdout.write(self.style.ERROR('   ❌ Schema não encontrado'))
                     return
             
             self.stdout.write('')
@@ -148,17 +150,17 @@ class Command(BaseCommand):
                 
                 if schema_exists:
                     self.stdout.write(self.style.ERROR(f'   ❌ FALHA: Schema ainda existe: {schema_name}'))
-                    self.stdout.write(self.style.ERROR(f'   ❌ Signal pre_delete NÃO removeu o schema'))
+                    self.stdout.write(self.style.ERROR('   ❌ Signal pre_delete NÃO removeu o schema'))
                     
                     # Limpar manualmente
-                    self.stdout.write(self.style.WARNING(f'   🧹 Limpando schema manualmente...'))
+                    self.stdout.write(self.style.WARNING('   🧹 Limpando schema manualmente...'))
                     cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
-                    self.stdout.write(self.style.SUCCESS(f'   ✅ Schema removido manualmente'))
+                    self.stdout.write(self.style.SUCCESS('   ✅ Schema removido manualmente'))
                     
                     return
                 else:
-                    self.stdout.write(self.style.SUCCESS(f'   ✅ SUCESSO: Schema foi removido automaticamente'))
-                    self.stdout.write(self.style.SUCCESS(f'   ✅ Signal pre_delete funcionou corretamente'))
+                    self.stdout.write(self.style.SUCCESS('   ✅ SUCESSO: Schema foi removido automaticamente'))
+                    self.stdout.write(self.style.SUCCESS('   ✅ Signal pre_delete funcionou corretamente'))
             
             self.stdout.write('')
 
@@ -171,7 +173,7 @@ class Command(BaseCommand):
         
         try:
             user.delete()
-            self.stdout.write(self.style.SUCCESS(f'   ✅ Usuário de teste removido'))
+            self.stdout.write(self.style.SUCCESS('   ✅ Usuário de teste removido'))
             self.stdout.write('')
 
         except Exception as e:

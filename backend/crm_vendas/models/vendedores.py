@@ -1,6 +1,7 @@
 from django.db import models
 
-from core.mixins import LojaIsolationMixin, LojaIsolationManager
+from core.mixins import LojaIsolationManager, LojaIsolationMixin
+
 
 class Vendedor(LojaIsolationMixin, models.Model):
     """Vendedor da loja (equipe de vendas)."""

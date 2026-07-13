@@ -3,6 +3,7 @@ Comando para adicionar novos campos da tabela Conta em todos os schemas de lojas
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 

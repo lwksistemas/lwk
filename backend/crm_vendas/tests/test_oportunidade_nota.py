@@ -54,7 +54,7 @@ class OportunidadeNotaPerformCreateTests(SimpleTestCase):
     @patch('crm_vendas.views_pipelines.OportunidadeNota.objects')
     def test_autor_nome_usa_display_name_do_owner(self, mock_obj, *_):
         """Owner: autor_nome deve ser o full_name do user."""
-        from crm_vendas.views_pipelines import OportunidadeNotaViewSet, _autor_nome_negociacao
+        from crm_vendas.views_pipelines import _autor_nome_negociacao
 
         req = self._make_request(user_display='Felix Owner')
         autor = _autor_nome_negociacao(req)

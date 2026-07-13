@@ -13,7 +13,7 @@ class SendTextEvolutionTest(SimpleTestCase):
         send_text('lwk_loja_6', '5516981402966', 'Olá https://lwksistemas.com.br/confirmar/x')
 
         mock_request.assert_called_once()
-        _method, path, kwargs = mock_request.call_args[0][0], mock_request.call_args[0][1], {}
+        _method, _path, kwargs = mock_request.call_args[0][0], mock_request.call_args[0][1], {}
         if len(mock_request.call_args) > 1:
             kwargs = mock_request.call_args[1]
         body = kwargs.get('json_body') or mock_request.call_args[1].get('json_body')

@@ -5,17 +5,17 @@ Novos endpoints para integrar com as páginas:
 - /superadmin/dashboard/auditoria
 - /superadmin/dashboard/alertas
 """
-from rest_framework import viewsets, status
+import logging
+from datetime import timedelta
+
+from django.db.models import Count, Q
+from django.utils import timezone
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count, Q, Avg
-from django.utils import timezone
-from datetime import timedelta
-import logging
 
+from .models import HistoricoAcessoGlobal, Loja, ViolacaoSeguranca
 from .permissions import IsSuperAdmin
-from .models import ViolacaoSeguranca, HistoricoAcessoGlobal, Loja
 
 logger = logging.getLogger(__name__)
 
@@ -365,6 +365,7 @@ class SecurityDashboardViewSet(viewsets.ViewSet):
         
         # 1. Verificar modelos sem LojaIsolationMixin
         from django.apps import apps
+
         from core.mixins import LojaIsolationMixin
         
         apps_loja = ['crm_vendas', 'clinica_estetica', 'restaurante', 'ecommerce']

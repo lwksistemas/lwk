@@ -8,20 +8,18 @@ Segue o padrão recomendado em Two Scoops of Django:
 - Segue Single Responsibility Principle
 """
 import logging
-from typing import Dict, Any
-from django.db import transaction
-from .models import Oportunidade, Lead, Vendedor, Proposta, Contrato
+from typing import Any
+
+from .models import Contrato, Oportunidade, Proposta, Vendedor
 from .utils import get_current_vendedor_id, get_vendedor_padrao_admin_loja
 
 logger = logging.getLogger(__name__)
 
 
-def _oportunidade_tem_vendedor(validated_data: Dict[str, Any]) -> bool:
+def _oportunidade_tem_vendedor(validated_data: dict[str, Any]) -> bool:
     if validated_data.get('vendedor'):
         return True
-    if validated_data.get('vendedor_id') is not None:
-        return True
-    return False
+    return validated_data.get('vendedor_id') is not None
 
 
 class OportunidadeService:
@@ -45,7 +43,7 @@ class OportunidadeService:
         self.vendedor_id = get_current_vendedor_id(request)
         self.user_id = getattr(request.user, 'id', None) if request.user.is_authenticated else None
     
-    def criar_oportunidade(self, validated_data: Dict[str, Any]) -> Oportunidade:
+    def criar_oportunidade(self, validated_data: dict[str, Any]) -> Oportunidade:
         """
         Cria uma oportunidade aplicando regras de negócio.
         
@@ -90,15 +88,14 @@ class OportunidadeService:
 
         # Regra 2: Herdar vendedor do lead — validar que existe no tenant
         lead = validated_data.get('lead')
-        if lead and not _oportunidade_tem_vendedor(validated_data) and getattr(lead, 'vendedor_id', None):
-            if Vendedor.objects.filter(id=lead.vendedor_id).exists():
-                validated_data['vendedor_id'] = lead.vendedor_id
-                validated_data.pop('vendedor', None)
-                logger.info(
-                    'Oportunidade herdou vendedor do lead: lead_id=%s, vendedor_id=%s',
-                    lead.id, lead.vendedor_id,
-                )
-                return Oportunidade.objects.create(**validated_data)
+        if lead and not _oportunidade_tem_vendedor(validated_data) and getattr(lead, 'vendedor_id', None) and Vendedor.objects.filter(id=lead.vendedor_id).exists():
+            validated_data['vendedor_id'] = lead.vendedor_id
+            validated_data.pop('vendedor', None)
+            logger.info(
+                'Oportunidade herdou vendedor do lead: lead_id=%s, vendedor_id=%s',
+                lead.id, lead.vendedor_id,
+            )
+            return Oportunidade.objects.create(**validated_data)
 
         # Regra 3: Vendedor administrador da loja — validar que existe no tenant
         if not _oportunidade_tem_vendedor(validated_data):
@@ -128,7 +125,7 @@ class OportunidadeService:
     def atualizar_oportunidade(
         self, 
         instance: Oportunidade, 
-        validated_data: Dict[str, Any]
+        validated_data: dict[str, Any]
     ) -> Oportunidade:
         """
         Atualiza oportunidade aplicando regras de negócio.
@@ -166,21 +163,18 @@ class OportunidadeService:
         
         # Garantir data_fechamento_ganho ao fechar como ganho
         nova_etapa = validated_data.get('etapa')
-        if nova_etapa == 'closed_won' and not validated_data.get('data_fechamento_ganho'):
-            # Se não veio data_fechamento_ganho no payload e a instância também não tem, setar hoje
-            if not instance.data_fechamento_ganho:
-                from django.utils import timezone
-                validated_data['data_fechamento_ganho'] = timezone.now().date()
-                logger.info(
-                    'data_fechamento_ganho definida automaticamente para oportunidade_id=%s',
-                    instance.id,
-                )
+        if nova_etapa == 'closed_won' and not validated_data.get('data_fechamento_ganho') and not instance.data_fechamento_ganho:
+            from django.utils import timezone
+            validated_data['data_fechamento_ganho'] = timezone.now().date()
+            logger.info(
+                'data_fechamento_ganho definida automaticamente para oportunidade_id=%s',
+                instance.id,
+            )
         
         # Garantir data_fechamento_perdido ao fechar como perdido
-        if nova_etapa == 'closed_lost' and not validated_data.get('data_fechamento_perdido'):
-            if not instance.data_fechamento_perdido:
-                from django.utils import timezone
-                validated_data['data_fechamento_perdido'] = timezone.now().date()
+        if nova_etapa == 'closed_lost' and not validated_data.get('data_fechamento_perdido') and not instance.data_fechamento_perdido:
+            from django.utils import timezone
+            validated_data['data_fechamento_perdido'] = timezone.now().date()
 
         # Atualizar campos
         for attr, value in validated_data.items():

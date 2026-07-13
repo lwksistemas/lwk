@@ -2,11 +2,11 @@
 import logging
 
 from django.contrib.auth.models import Group, User
-from django.db import IntegrityError
 from rest_framework import serializers
 
 from core.logging_utils import mask_email
-from core.serializer_mixins import CpfCnpjNormalizationMixin, TextNormalizationMixin, UniqueDocumentoPerLojaMixin
+from core.serializer_mixins import UniqueDocumentoPerLojaMixin
+
 from ..models import UsuarioSistema
 
 logger = logging.getLogger(__name__)
@@ -38,10 +38,6 @@ class UsuarioSistemaSerializer(UniqueDocumentoPerLojaMixin, serializers.ModelSer
         fields = '__all__'
     
     def create(self, validated_data):
-        import random
-        import string
-        from django.core.mail import send_mail
-        from django.conf import settings
         
         user_data = validated_data.pop('user')
         

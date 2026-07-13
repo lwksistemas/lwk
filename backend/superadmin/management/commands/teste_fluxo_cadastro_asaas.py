@@ -8,7 +8,7 @@ import uuid
 
 from django.core.management.base import BaseCommand, CommandError
 
-from superadmin.models import Loja, NFSeEmitida
+from superadmin.models import NFSeEmitida
 
 
 class Command(BaseCommand):
@@ -27,9 +27,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        from asaas_integration.models import AsaasConfig
         from superadmin.serializers import LojaCreateSerializer
         from superadmin.sync_service import AsaasSyncService
-        from asaas_integration.models import AsaasConfig
 
         suffix = uuid.uuid4().hex[:8]
         cnpj_digits = f'41449198{suffix[:4]}73'[:14].ljust(14, '0')

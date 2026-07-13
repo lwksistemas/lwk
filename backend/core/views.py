@@ -3,9 +3,8 @@ ViewSets genéricos para evitar duplicação de código
 """
 import logging
 
-from rest_framework import viewsets, permissions
+from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
-from rest_framework import status
 
 from core.permissions import HasLojaAccess
 
@@ -31,7 +30,7 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         
         # 🛡️ SEGURANÇA CRÍTICA: Validar isolamento por loja
         if model is not None and hasattr(model, 'loja_id'):
-            from tenants.middleware import get_current_loja_id, ensure_loja_context
+            from tenants.middleware import ensure_loja_context, get_current_loja_id
             
             if hasattr(self, 'request') and self.request:
                 ensure_loja_context(self.request)
@@ -134,7 +133,7 @@ class BaseFuncionarioViewSet(BaseModelViewSet):
         """
         from tenants.middleware import get_current_loja_id
         
-        loja_id = get_current_loja_id()
+        get_current_loja_id()
         
         try:
             # Garantir que admin existe
@@ -168,7 +167,7 @@ class BaseFuncionarioViewSet(BaseModelViewSet):
         Retorna queryset filtrado por loja.
         IMPORTANTE: Obter queryset dinamicamente (não usar atributo de classe)
         """
-        from tenants.middleware import get_current_loja_id, ensure_loja_context
+        from tenants.middleware import ensure_loja_context, get_current_loja_id
         
         if hasattr(self, 'request') and self.request:
             ensure_loja_context(self.request)

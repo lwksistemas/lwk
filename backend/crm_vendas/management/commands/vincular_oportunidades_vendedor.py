@@ -2,6 +2,7 @@
 Comando para vincular oportunidades sem vendedor ao vendedor da loja.
 """
 from django.core.management.base import BaseCommand
+
 from crm_vendas.models import Oportunidade, Vendedor
 from tenants.middleware import set_current_loja_id
 
@@ -48,7 +49,7 @@ class Command(BaseCommand):
         total = oportunidades_sem_vendedor.count()
 
         if total == 0:
-            self.stdout.write(self.style.SUCCESS(f'✅ Todas as oportunidades já têm vendedor vinculado'))
+            self.stdout.write(self.style.SUCCESS('✅ Todas as oportunidades já têm vendedor vinculado'))
             return
 
         # Vincular ao vendedor

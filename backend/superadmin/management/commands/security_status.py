@@ -6,10 +6,12 @@ Uso:
     
 Exibe estatísticas sobre violações detectadas e status dos componentes de segurança.
 """
+from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from datetime import timedelta
-from superadmin.models import ViolacaoSeguranca, HistoricoAcessoGlobal
+
+from superadmin.models import HistoricoAcessoGlobal, ViolacaoSeguranca
 
 
 class Command(BaseCommand):

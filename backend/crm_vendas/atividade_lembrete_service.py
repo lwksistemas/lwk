@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 def _marcar_enviado(atividade, campo: str) -> None:
-    from tenants.middleware import get_current_tenant_db
     from crm_vendas.models import Atividade
+    from tenants.middleware import get_current_tenant_db
 
     db_name = get_current_tenant_db()
     if db_name and db_name != 'default':

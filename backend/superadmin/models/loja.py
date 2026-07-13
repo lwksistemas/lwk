@@ -3,10 +3,10 @@ import re
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.utils import timezone
 from django.utils.text import slugify
 
 from .catalog import PlanoAssinatura, TipoLoja
+
 
 class Loja(models.Model):
     """Loja gerenciada pelo Super Admin"""
@@ -234,8 +234,9 @@ class Loja(models.Model):
         
         SEGURANÇA: Garante que database_name é único e válido
         """
-        from django.core.exceptions import ValidationError
         import re
+
+        from django.core.exceptions import ValidationError
         
         # Validar database_name único
         if self.database_name:

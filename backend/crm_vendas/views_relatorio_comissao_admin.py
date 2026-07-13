@@ -15,12 +15,13 @@ logger = logging.getLogger(__name__)
 @permission_classes([IsAuthenticated])
 def criar_relatorio_comissao_view(request):
     """POST /crm-vendas/relatorios-comissao/criar/"""
+    from superadmin.models import Loja
+
     from .services_relatorio_comissao import (
         criar_relatorio_comissao,
         enviar_relatorio_para_empresa,
         resolver_periodo_relatorio,
     )
-    from superadmin.models import Loja
 
     loja_id, err_resp = loja_id_ou_erro()
     if err_resp:
@@ -100,9 +101,10 @@ def preview_relatorio_comissao_view(request):
 @permission_classes([IsAuthenticated])
 def listar_relatorios_comissao_view(request):
     """GET /crm-vendas/relatorios-comissao/"""
+    from tenants.middleware import get_current_tenant_db
+
     from .models_relatorio_comissao import RelatorioComissao
     from .services_relatorio_comissao import serializar_relatorio_lista
-    from tenants.middleware import get_current_tenant_db
 
     loja_id, err_resp = loja_id_ou_erro()
     if err_resp:
@@ -125,10 +127,11 @@ def listar_relatorios_comissao_view(request):
 @permission_classes([IsAuthenticated])
 def download_pdf_relatorio_comissao_view(request, relatorio_id):
     """GET /crm-vendas/relatorios-comissao/<id>/pdf/"""
+    from superadmin.models import Loja
+
     from .models_relatorio_comissao import RelatorioComissao
     from .pdf_relatorio_comissao import gerar_pdf_relatorio_comissao
     from .services_relatorio_comissao import nome_arquivo_pdf_comissao
-    from superadmin.models import Loja
 
     loja_id, err_resp = loja_id_ou_erro()
     if err_resp:
@@ -176,8 +179,9 @@ def excluir_relatorio_comissao_view(request, relatorio_id):
 
     if relatorio.asaas_payment_id:
         try:
-            from .models_config import CRMConfig
             from asaas_integration.client import AsaasClient
+
+            from .models_config import CRMConfig
 
             config = CRMConfig.get_or_create_for_loja(relatorio.loja_id)
             if config.asaas_api_key:

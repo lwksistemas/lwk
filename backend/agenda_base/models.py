@@ -10,10 +10,12 @@ Princípios SOLID:
 - Dependency Inversion: Depende de abstrações (LojaIsolationMixin)
 """
 
-from django.db import models
-from django.core.validators import MinValueValidator
 from decimal import Decimal
-from core.mixins import LojaIsolationMixin, LojaIsolationManager
+
+from django.core.validators import MinValueValidator
+from django.db import models
+
+from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 
 class ClienteBase(LojaIsolationMixin, models.Model):

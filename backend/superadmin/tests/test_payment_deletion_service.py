@@ -1,13 +1,15 @@
 """
 Testes para o serviço unificado de exclusão de pagamentos
 """
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
 from django.test import TestCase
+
 from superadmin.payment_deletion_service import (
-    UnifiedPaymentDeletionService,
     AsaasPaymentStrategy,
     MercadoPagoPaymentStrategy,
-    PaymentProviderStrategy
+    PaymentProviderStrategy,
+    UnifiedPaymentDeletionService,
 )
 
 

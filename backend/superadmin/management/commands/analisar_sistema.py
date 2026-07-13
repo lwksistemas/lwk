@@ -3,6 +3,7 @@ Comando para analisar o sistema e identificar dados órfãos
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 
@@ -60,7 +61,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f'  - ID:{loja["id"]} | {loja["slug"]} | Schema esperado: {schema}'))
         
         # 5. Verificar schemas vazios (sem tabelas)
-        self.stdout.write(f'\n📊 Verificando tabelas em cada schema...')
+        self.stdout.write('\n📊 Verificando tabelas em cada schema...')
         schemas_vazios = []
         with connection.cursor() as cursor:
             for schema in schemas_db:

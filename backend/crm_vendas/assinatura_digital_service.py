@@ -6,6 +6,16 @@ import logging
 
 from django.utils import timezone
 
+from .assinatura_digital_emails import enviar_email_assinatura_cliente, enviar_pdf_final
+from .assinatura_digital_notificacoes import (
+    _email_vendedor_documento,
+    _notificar_assinatura_concluida,
+    _notificar_cliente_assinou,
+    _telefone_vendedor_documento,
+    enviar_whatsapp_assinatura_cliente,
+    notificar_vendedor_apos_assinatura_cliente,
+    tentar_enviar_link_vendedor,
+)
 from .assinatura_digital_token import (
     AVISO_LINK_ANTERIOR,
     MSG_LINK_SUBSTITUIDO,
@@ -13,16 +23,6 @@ from .assinatura_digital_token import (
     criar_token_assinatura,
     normalizar_token_assinatura_url,
     verificar_token_assinatura,
-)
-from .assinatura_digital_emails import enviar_email_assinatura_cliente, enviar_pdf_final
-from .assinatura_digital_notificacoes import (
-    _email_vendedor_documento,
-    _notificar_cliente_assinou,
-    _notificar_assinatura_concluida,
-    _telefone_vendedor_documento,
-    enviar_whatsapp_assinatura_cliente,
-    notificar_vendedor_apos_assinatura_cliente,
-    tentar_enviar_link_vendedor,
 )
 
 logger = logging.getLogger(__name__)
@@ -197,14 +197,9 @@ def reenviar_link_assinatura_pendente(documento, loja_id, request, canal='email'
 
 
 # Re-exports (compatibilidade com imports existentes)
-from .assinatura_digital_emails import enviar_email_assinatura_cliente, enviar_pdf_final  # noqa: E402,F401
 from .assinatura_digital_notificacoes import (  # noqa: E402,F401
-    _telefone_vendedor_documento,
     enviar_link_assinatura_vendedor,
     enviar_whatsapp_assinatura_vendedor,
-    enviar_whatsapp_assinatura_cliente,
-    notificar_vendedor_apos_assinatura_cliente,
-    tentar_enviar_link_vendedor,
 )
 
 __all__ = [

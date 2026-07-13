@@ -35,7 +35,6 @@ class AssinaturaDigitalMixin:
             enviar_whatsapp_assinatura_cliente,
         )
 
-        label = self.assinatura_doc_label
         lead = doc.oportunidade.lead
         canal = (canal or 'email').strip().lower()
         if canal not in ('email', 'whatsapp'):

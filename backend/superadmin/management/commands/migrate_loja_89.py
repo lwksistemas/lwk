@@ -3,7 +3,6 @@ Comando para aplicar migrations no schema da loja 89 (cabeleireiro)
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
-from django.core.management import call_command
 
 
 class Command(BaseCommand):

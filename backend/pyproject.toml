@@ -17,6 +17,9 @@ ignore = [
     "B904",   # raise from (muitos legados)
     "SIM108", # ternary (legibilidade)
     "SIM117", # nested with (legibilidade)
+    "B023",   # function-uses-loop-variable (legado intencional)
+    "F403",   # star import (legado)
+    "F405",   # may-be-undefined from star import (legado)
 ]
 
 [tool.ruff.lint.isort]
@@ -28,6 +31,9 @@ known-first-party = [
     "crm_vendas",
     "clinica_estetica",
     "clinica_beleza",
+    "hotel",
+    "homepage",
+    "scripts",
     "cabeleireiro",
     "asaas_integration",
     "nfse_integration",
@@ -38,7 +44,18 @@ known-first-party = [
 
 [tool.ruff.lint.per-file-ignores]
 "migrations/*.py" = ["E", "F", "I", "UP"]
+"**/migrations/*.py" = ["E", "F", "I", "UP"]
 "tests/*.py" = ["B"]
+"**/tests/*.py" = ["B"]
+"config/settings*.py" = ["E402"]
+"scripts/*.py" = ["E402"]
+"superadmin/signals/*.py" = ["E402"]
+"superadmin/views/*.py" = ["E402"]
+"asaas_integration/urls.py" = ["E402"]
+"config/urls.py" = ["E402"]
+"hotel/views.py" = ["E402"]
+"whatsapp/views_evolution_webhook.py" = ["E402"]
+"superadmin/management/commands/*.py" = ["E402"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "crm_vendas/tests", "clinica_estetica/tests", "core"]

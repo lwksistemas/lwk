@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Optional
+from typing import Any
 
 from django.contrib.auth.models import AbstractBaseUser
 
@@ -19,10 +19,10 @@ INFO_PUBLICA_CACHE_TTL = 300
 def resolve_loja_by_slug_or_atalho(
     identifier: str,
     *,
-    owner: Optional[AbstractBaseUser] = None,
+    owner: AbstractBaseUser | None = None,
     is_active: bool = True,
     select_related: tuple[str, ...] = ('plano',),
-) -> Optional[Loja]:
+) -> Loja | None:
     """
     Busca loja pelo slug real (ex.: CPF) ou pelo atalho (ex.: beleza).
     Usado em rotas /loja/{slug}/... quando a URL pode ser atalho ou slug.

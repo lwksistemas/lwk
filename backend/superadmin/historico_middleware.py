@@ -12,10 +12,8 @@ Boas práticas aplicadas:
 - Performance: Assíncrono, não bloqueia requisições
 - Clean Code: Código limpo e documentado
 """
-import logging
 import json
-from django.utils import timezone
-from django.contrib.auth.models import AnonymousUser
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -98,10 +96,7 @@ class HistoricoAcessoMiddleware:
         
         # Registrar apenas métodos de ação (POST, PUT, PATCH, DELETE)
         # GET é muito frequente e polui o histórico
-        if request.method not in self.track_methods:
-            return False
-        
-        return True
+        return request.method in self.track_methods
     
     def _registrar_acao(self, request, response):
         """
@@ -114,10 +109,10 @@ class HistoricoAcessoMiddleware:
             return
         
         # Importar modelo aqui para evitar circular import
-        from .models import HistoricoAcessoGlobal
         from superadmin.models import Loja
-        
+
         from .historico_usuario import resolver_identidade_historico
+        from .models import HistoricoAcessoGlobal
 
         user, usuario_email, usuario_nome, loja_id_sugerida = resolver_identidade_historico(request)
 
@@ -287,7 +282,6 @@ class HistoricoAcessoMiddleware:
         
         Retorna JSON com informações úteis (sem dados sensíveis)
         """
-        import json
         
         detalhes = {}
         

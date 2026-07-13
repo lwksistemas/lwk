@@ -1,6 +1,8 @@
 """Permissões granulares de vendedores CRM (grupos Django + checkboxes)."""
 from __future__ import annotations
 
+import contextlib
+
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 
@@ -143,10 +145,8 @@ def aplicar_permissoes_usuario_crm(user, grupo_id: int | None, permissoes_ids: l
 
     user.groups.remove(*Group.objects.using('default').filter(name__in=CRM_GROUP_NAMES))
     if grupo_id:
-        try:
+        with contextlib.suppress(Group.DoesNotExist):
             user.groups.add(Group.objects.using('default').get(id=grupo_id, name__in=CRM_GROUP_NAMES))
-        except Group.DoesNotExist:
-            pass
 
     atuais = user.user_permissions.filter(id__in=crm_ids)
     user.user_permissions.remove(*atuais)

@@ -1,9 +1,7 @@
 """Testes adicionais dos helpers Google Calendar."""
-from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, override_settings
-from django.utils import timezone
 
 from crm_vendas.google_calendar_helpers import (
     PULL_EVENTS_DAYS,

@@ -5,13 +5,15 @@ Uso:
     python manage.py migrate_all_lojas [app_label]
     python manage.py migrate_all_lojas ecommerce
 """
-from django.core.management.base import BaseCommand
-from django.core.management import call_command
-from django.db.migrations.exceptions import InconsistentMigrationHistory
-from django.db import connections
 import re
-from superadmin.models import Loja
+
+from django.core.management import call_command
+from django.core.management.base import BaseCommand
+from django.db import connections
+from django.db.migrations.exceptions import InconsistentMigrationHistory
+
 from core.db_config import ensure_loja_database_config
+from superadmin.models import Loja
 
 
 class Command(BaseCommand):
@@ -90,7 +92,7 @@ class Command(BaseCommand):
                 # Garantir que database está configurado
                 if not ensure_loja_database_config(loja.database_name):
                     self.stdout.write(
-                        self.style.ERROR(f"  ❌ Erro ao configurar database")
+                        self.style.ERROR("  ❌ Erro ao configurar database")
                     )
                     erros += 1
                     continue
@@ -167,7 +169,7 @@ class Command(BaseCommand):
                         raise
                 
                 self.stdout.write(
-                    self.style.SUCCESS(f"  ✅ Migrations aplicadas com sucesso")
+                    self.style.SUCCESS("  ✅ Migrations aplicadas com sucesso")
                 )
                 sucesso += 1
                 

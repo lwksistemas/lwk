@@ -2,7 +2,9 @@
 Service para limpeza de dados ao excluir uma loja
 Centraliza toda a lógica de exclusão em um único lugar
 """
+import contextlib
 import logging
+
 from django.conf import settings
 from django.db import transaction
 
@@ -180,8 +182,9 @@ class LojaCleanupService:
     def cleanup_logs_and_alerts(self):
         """Remove logs de auditoria e alertas de segurança"""
         try:
-            from superadmin.models import HistoricoAcessoGlobal, ViolacaoSeguranca
             from django.db.models import Q
+
+            from superadmin.models import HistoricoAcessoGlobal, ViolacaoSeguranca
             
             with transaction.atomic():
                 # Logs de auditoria (ações dentro da loja + ações sobre a loja)
@@ -226,8 +229,8 @@ class LojaCleanupService:
     def _cleanup_asaas_payments(self):
         """Cancela TODOS os pagamentos pendentes no Asaas e remove dados locais"""
         try:
-            from asaas_integration.models import LojaAssinatura, AsaasPayment, AsaasCustomer
             from asaas_integration.deletion_service import AsaasDeletionService
+            from asaas_integration.models import AsaasPayment, LojaAssinatura
             
             cancelled_count = 0
             
@@ -355,10 +358,8 @@ class LojaCleanupService:
                     except Exception as e:
                         logger.warning(f"  ⚠️ {schema}.{table_name}: {e}")
                         # Reconectar se a transação abortou
-                        try:
+                        with contextlib.suppress(Exception):
                             connection.rollback() if not connection.get_autocommit() else None
-                        except Exception:
-                            pass
         except Exception as e:
             logger.warning(f"  ⚠️ FK cleanup SQL: {e}")
 

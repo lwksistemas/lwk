@@ -5,6 +5,8 @@ Uso:
     python manage.py ensure_crm_config_colunas
     python manage.py ensure_crm_config_colunas --slug felix
 """
+import contextlib
+
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.db import connections
@@ -56,7 +58,7 @@ class Command(BaseCommand):
                             self.stdout.write(f'{loja.slug}: coluna {col} adicionada')
                             changed = True
                 if changed:
-                    try:
+                    with contextlib.suppress(Exception):
                         call_command(
                             'migrate',
                             'crm_vendas',
@@ -64,8 +66,6 @@ class Command(BaseCommand):
                             database=db_name,
                             verbosity=0,
                         )
-                    except Exception:
-                        pass
                 ok += 1
             except Exception as exc:
                 self.stdout.write(self.style.ERROR(f'{loja.slug}: {exc}'))

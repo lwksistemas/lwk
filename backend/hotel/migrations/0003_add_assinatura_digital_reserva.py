@@ -4,8 +4,8 @@ Adiciona sistema de assinatura digital para reservas de hotel:
 - Modelo ReservaTemplate (templates de confirmação)
 - Modelo ReservaAssinatura (registro de assinatura digital)
 """
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

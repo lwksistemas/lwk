@@ -2,12 +2,14 @@
 Comando para aplicar migrations em todos os schemas das lojas
 ✅ OTIMIZADO: Fecha conexões após cada loja para evitar "too many connections"
 """
-from django.core.management.base import BaseCommand
-from django.core.management import call_command
-from django.conf import settings
-from django.db import connections
-from superadmin.models import Loja
 import os
+
+from django.conf import settings
+from django.core.management import call_command
+from django.core.management.base import BaseCommand
+from django.db import connections
+
+from superadmin.models import Loja
 
 
 class Command(BaseCommand):
@@ -17,8 +19,9 @@ class Command(BaseCommand):
         """
         ✅ FIX: Retry logic para evitar timeout do PostgreSQL
         """
-        from django.db import OperationalError
         import time
+
+        from django.db import OperationalError
         
         self.stdout.write("🔧 Aplicando migrations em todas as lojas...\n")
         
@@ -67,7 +70,7 @@ class Command(BaseCommand):
 
             from core.db_config import ensure_loja_database_config
             if ensure_loja_database_config(loja.database_name, conn_max_age=0):
-                self.stdout.write(f"✅ Banco configurado")
+                self.stdout.write("✅ Banco configurado")
             
             from superadmin.services.database_schema_service import get_apps_esperados_para_loja
 
@@ -118,7 +121,7 @@ class Command(BaseCommand):
             # Remover banco das configurações para liberar memória
             if loja.database_name in settings.DATABASES:
                 del settings.DATABASES[loja.database_name]
-                self.stdout.write(f"✅ Banco removido das configurações")
+                self.stdout.write("✅ Banco removido das configurações")
         
         # Corrige colunas em schemas que têm crm_vendas_atividade
         self.stdout.write(f"\n{'='*60}")

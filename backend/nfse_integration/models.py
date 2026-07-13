@@ -2,7 +2,8 @@
 Modelos para armazenar NFS-e emitidas pelas lojas
 """
 from django.db import models
-from core.mixins import LojaIsolationMixin, LojaIsolationManager
+
+from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 
 class NFSe(LojaIsolationMixin, models.Model):

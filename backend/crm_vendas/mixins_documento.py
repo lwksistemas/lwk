@@ -7,7 +7,8 @@ import logging
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from tenants.middleware import get_current_loja_id, ensure_loja_context
+from tenants.middleware import ensure_loja_context, get_current_loja_id
+
 from .views_common import filtrar_queryset_por_query_params
 
 logger = logging.getLogger(__name__)

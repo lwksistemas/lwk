@@ -79,8 +79,7 @@ class LancamentoFinanceiroCRMSerializer(serializers.ModelSerializer):
                 {'grupo': 'O grupo selecionado não corresponde ao tipo do lançamento.'}
             )
         status = attrs.get('status')
-        if status == LancamentoFinanceiroCRM.STATUS_PAGO and not attrs.get('data_pagamento'):
-            if not (self.instance and self.instance.data_pagamento):
-                from django.utils import timezone
-                attrs['data_pagamento'] = timezone.now().date()
+        if status == LancamentoFinanceiroCRM.STATUS_PAGO and not attrs.get('data_pagamento') and not (self.instance and self.instance.data_pagamento):
+            from django.utils import timezone
+            attrs['data_pagamento'] = timezone.now().date()
         return attrs

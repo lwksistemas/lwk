@@ -1,34 +1,52 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views import (
-    TipoLojaViewSet, PlanoAssinaturaViewSet, LojaViewSet,
-    FinanceiroLojaViewSet, PagamentoLojaViewSet, UsuarioSistemaViewSet,
-    HistoricoAcessoGlobalViewSet, ViolacaoSegurancaViewSet, EstatisticasAuditoriaViewSet,
-    EmailRetryViewSet,
-    recuperar_senha_loja, mercadopago_config, mercadopago_test, mercadopago_webhook,
-    sync_mercadopago_loja,
-    verificar_storage_loja, verificar_storage_todas, listar_storage_lojas,  # ✅ NOVO v738
-    health_check,  # ✅ NOVO v750
-    TipoLojaPublicoViewSet, PlanoAssinaturaPublicoViewSet,  # ✅ NOVO: ViewSets públicos
-    LoginConfigSistemaViewSet, login_config_sistema_publico,  # ✅ NOVO: Configuração de login do sistema
-)
-from .views_security_enhancements import SecurityDashboardViewSet  # ✅ NOVO: Melhorias de segurança
+
+from . import views_nfse as nfse_views
+from .auth_views_secure import SecureLoginView, SecureLogoutView
 from .cloudinary_views import cloudinary_config, cloudinary_test
 from .financeiro_views import (
     FinanceiroLojaViewSet as FinanceiroViewSet,
+)
+from .financeiro_views import (
     PagamentoLojaViewSet as PagamentoViewSet,
+)
+from .financeiro_views import (
     dashboard_financeiro_loja,
     financeiro_unificado,
+    nf_baixar_por_payment,
+    nf_cancelar_por_payment,
+    nf_reenviar_por_payment,
+    nf_xml_por_payment,
     renovar_assinatura_loja,
     renovar_financeiro_por_id,
-    nf_baixar_por_payment,
-    nf_reenviar_por_payment,
-    nf_cancelar_por_payment,
-    nf_xml_por_payment,
 )
-from .auth_views_secure import SecureLoginView, SecureLogoutView
-from . import views_nfse as nfse_views
+from .views import (
+    EmailRetryViewSet,
+    EstatisticasAuditoriaViewSet,
+    FinanceiroLojaViewSet,
+    HistoricoAcessoGlobalViewSet,
+    LoginConfigSistemaViewSet,  # ✅ NOVO: Configuração de login do sistema
+    LojaViewSet,
+    PagamentoLojaViewSet,
+    PlanoAssinaturaPublicoViewSet,
+    PlanoAssinaturaViewSet,
+    TipoLojaPublicoViewSet,  # ✅ NOVO: ViewSets públicos
+    TipoLojaViewSet,
+    UsuarioSistemaViewSet,
+    ViolacaoSegurancaViewSet,
+    health_check,  # ✅ NOVO v750
+    listar_storage_lojas,
+    login_config_sistema_publico,
+    mercadopago_config,
+    mercadopago_test,
+    mercadopago_webhook,
+    recuperar_senha_loja,
+    sync_mercadopago_loja,
+    verificar_storage_loja,  # ✅ NOVO v738
+    verificar_storage_todas,
+)
 from .views import lockouts as lockout_views
+from .views_security_enhancements import SecurityDashboardViewSet  # ✅ NOVO: Melhorias de segurança
 
 router = DefaultRouter()
 router.register(r'tipos-loja', TipoLojaViewSet, basename='tipo-loja')

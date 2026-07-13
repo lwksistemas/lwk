@@ -5,7 +5,6 @@
 
 from django.db import migrations, models
 
-
 TABLES = (
     ('homepage_funcionalidade', 'funcionalidade'),
     ('homepage_modulo_sistema', 'modulosistema'),

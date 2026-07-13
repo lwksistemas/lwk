@@ -1,36 +1,31 @@
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth.models import User
-from django.core.management import call_command
-from django.conf import settings
-from django.db import transaction
-from django.utils import timezone
 import logging
 import re
 
-from drf_spectacular.utils import extend_schema_view, extend_schema
+from django.conf import settings
+from django.core.management import call_command
+from django.db import transaction
+from django.utils import timezone
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
 from core.logging_utils import mask_email
-from ...api_docs import (
-    TIPO_LOJA_LIST_SCHEMA,
-    TIPO_LOJA_CREATE_SCHEMA,
-    PLANO_LIST_SCHEMA,
-    LOJA_LIST_SCHEMA,
-    LOJA_CREATE_SCHEMA,
-    LOJA_DELETE_SCHEMA,
-)
+
 from ...models import (
-    TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, ProfissionalUsuario,
+    FinanceiroLoja,
+    Loja,
+    ProfissionalUsuario,
 )
 from ...serializers import (
-    TipoLojaSerializer, PlanoAssinaturaSerializer, LojaSerializer, LojaCreateSerializer,
+    LojaCreateSerializer,
+    LojaSerializer,
 )
 from ..permissions import IsOwnerOrSuperAdmin, IsSuperAdmin
 
 logger = logging.getLogger(__name__)
 
 from .backup_mixin import LojaBackupMixin
+
 
 class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
     permission_classes = [IsSuperAdmin]
@@ -85,8 +80,9 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             logger.debug(f'✅ Cache HIT para loja {slug}')
             return Response(cached_data)
         
-        from django.db import OperationalError
         import time
+
+        from django.db import OperationalError
         
         max_retries = 3
         retry_delay = 1
@@ -271,8 +267,8 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
         Mantém a sessão ativa. Se outro dispositivo fez login,
         o session_id no banco será diferente → retorna 401.
         """
-        from ...session_manager import SessionManager
         from ...models import UserSession
+        from ...session_manager import SessionManager
         
         if not request.user or not request.user.is_authenticated:
             return Response({
@@ -357,8 +353,8 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             })
 
         from ...loja_utils import resolve_loja_by_slug_or_atalho
-        from ...services.login_service import usuario_precisa_trocar_senha_loja
         from ...models import VendedorUsuario
+        from ...services.login_service import usuario_precisa_trocar_senha_loja
 
         try:
             slug = (request.query_params.get('slug') or '').strip()
@@ -454,7 +450,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
                 {'error': 'As senhas não coincidem'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        from core.password_validation import validate_password_policy, password_policy_requirements
+        from core.password_validation import password_policy_requirements, validate_password_policy
         ok, msg = validate_password_policy(nova_senha)
         if not ok:
             return Response({
@@ -544,7 +540,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
         """Reseta a senha provisória de uma loja (apenas superadmin)"""
         import secrets
         import string
-        from django.core.mail import send_mail
+
         
         loja = self.get_object()
         
@@ -668,8 +664,9 @@ Equipe de Suporte
             loja.senha_foi_alterada = False
             loja.save()
 
-            from ...services.provisional_password_helpers import loja_login_absolute_url
             from core.email_templates import email_senha_provisoria_html
+
+            from ...services.provisional_password_helpers import loja_login_absolute_url
 
             info_adicional = {
                 "Nome da Loja": loja.nome,
@@ -742,7 +739,7 @@ Equipe de Suporte
             call_command('migrate', '--database', db_name, verbosity=0)
             
             from django.contrib.auth.models import User as UserModel
-            admin_loja = UserModel.objects.db_manager(db_name).create_user(
+            UserModel.objects.db_manager(db_name).create_user(
                 username=loja.owner.username,
                 email=loja.owner.email,
                 password='senha123',

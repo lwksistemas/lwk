@@ -7,11 +7,13 @@ Uso:
     python manage.py limpar_clientes_duplicados_asaas
     python manage.py limpar_clientes_duplicados_asaas --dry-run
 """
-from django.core.management.base import BaseCommand
-from asaas_integration.models import AsaasCustomer, LojaAssinatura, AsaasConfig
-from asaas_integration.client import AsaasClient
-from collections import defaultdict
 import logging
+from collections import defaultdict
+
+from django.core.management.base import BaseCommand
+
+from asaas_integration.client import AsaasClient
+from asaas_integration.models import AsaasConfig, AsaasCustomer, LojaAssinatura
 
 logger = logging.getLogger(__name__)
 
@@ -126,23 +128,23 @@ class Command(BaseCommand):
                         ).exists()
                         
                         if tem_assinatura:
-                            self.stdout.write(self.style.WARNING(f'      ⚠️ Cliente tem assinatura vinculada, pulando'))
+                            self.stdout.write(self.style.WARNING('      ⚠️ Cliente tem assinatura vinculada, pulando'))
                             continue
                         
                         # Verificar se tem cobranças
                         try:
                             payments = client.list_customer_payments(customer['id'])
                             if payments.get('data') and len(payments['data']) > 0:
-                                self.stdout.write(self.style.WARNING(f'      ⚠️ Cliente tem cobranças, pulando'))
+                                self.stdout.write(self.style.WARNING('      ⚠️ Cliente tem cobranças, pulando'))
                                 continue
-                        except:
+                        except Exception:
                             pass
                         
                         # Remover do Asaas
                         try:
                             client.delete_customer(customer['id'])
                             total_removidos += 1
-                            self.stdout.write(self.style.SUCCESS(f'      ✅ Removido do Asaas'))
+                            self.stdout.write(self.style.SUCCESS('      ✅ Removido do Asaas'))
                             
                             # Remover do banco local se existir
                             AsaasCustomer.objects.filter(asaas_id=customer['id']).delete()

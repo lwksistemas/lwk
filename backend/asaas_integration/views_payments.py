@@ -1,14 +1,15 @@
 """
 ViewSet para pagamentos Asaas
 """
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
 import logging
 
-from .models import AsaasPayment, AsaasConfig
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from .models import AsaasConfig, AsaasPayment
 from .serializers import AsaasPaymentSerializer
-from .views_config import IsSuperAdmin, REQUESTS_AVAILABLE
+from .views_config import REQUESTS_AVAILABLE, IsSuperAdmin
 
 # Importação condicional do cliente Asaas
 if REQUESTS_AVAILABLE:
@@ -154,7 +155,7 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
                 # Se o pagamento foi confirmado, atualizar financeiro e criar próximo boleto
                 loja_updated = False
                 if payment.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']:
-                    logger.info(f"   - Pagamento está PAGO, iniciando atualização do financeiro...")
+                    logger.info("   - Pagamento está PAGO, iniciando atualização do financeiro...")
                     try:
                         from superadmin.sync_service import AsaasSyncService
                         sync_service = AsaasSyncService()
@@ -162,9 +163,9 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
                         logger.info(f"   - Resultado da atualização: {loja_updated}")
                         
                         if loja_updated:
-                            logger.info(f"✅ Financeiro da loja atualizado com sucesso via botão Atualizar Status")
+                            logger.info("✅ Financeiro da loja atualizado com sucesso via botão Atualizar Status")
                         else:
-                            logger.warning(f"⚠️ Financeiro da loja NÃO foi atualizado (retornou False)")
+                            logger.warning("⚠️ Financeiro da loja NÃO foi atualizado (retornou False)")
                     except Exception as e:
                         logger.error(f"❌ Erro ao atualizar financeiro da loja: {e}")
                         import traceback
@@ -236,7 +237,7 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
             client = AsaasClient(api_key=config.api_key, sandbox=config.sandbox)
             try:
                 client.delete_payment(payment.asaas_id)
-                logger.info(f"✅ Cobrança excluída no Asaas")
+                logger.info("✅ Cobrança excluída no Asaas")
             except Exception as e:
                 logger.error(f"❌ Erro ao excluir no Asaas: {e}")
                 return Response(

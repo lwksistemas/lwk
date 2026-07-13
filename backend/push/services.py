@@ -3,6 +3,7 @@ Envio de push notifications via Web Push (VAPID).
 """
 import json
 import logging
+
 from django.conf import settings
 
 logger = logging.getLogger(__name__)

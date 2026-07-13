@@ -1,20 +1,21 @@
 import logging
 
 from core.views import BaseModelViewSet
+
+from .mixins import CacheInvalidationMixin, CrmGranularPermissionMixin, CRMSchemaRecoveryMixin, VendedorFilterMixin
 from .models import (
-    Oportunidade,
-    ProdutoServico,
     CategoriaProdutoServico,
-    OportunidadeItem,
-    Proposta,
     Contrato,
+    Oportunidade,
+    OportunidadeItem,
+    ProdutoServico,
+    Proposta,
 )
 from .serializers import (
-    ProdutoServicoSerializer,
     CategoriaProdutoServicoSerializer,
     OportunidadeItemSerializer,
+    ProdutoServicoSerializer,
 )
-from .mixins import CRMSchemaRecoveryMixin, VendedorFilterMixin, CacheInvalidationMixin, CrmGranularPermissionMixin
 from .views_common import (
     CRMPagination,
     LojaScopedCatalogMixin,
@@ -79,7 +80,7 @@ class OportunidadeItemViewSet(CRMSchemaRecoveryMixin, CacheInvalidationMixin, Ve
 
     def _recalcular_valor_oportunidade(self, oportunidade_id):
         """Recalcula valor da oportunidade e sincroniza propostas/contratos em rascunho."""
-        from django.db.models import Sum, F
+        from django.db.models import F, Sum
         itens = OportunidadeItem.objects.filter(oportunidade_id=oportunidade_id)
         total = itens.aggregate(
             total=Sum(F('quantidade') * F('preco_unitario'))
@@ -109,19 +110,18 @@ class OportunidadeItemViewSet(CRMSchemaRecoveryMixin, CacheInvalidationMixin, Ve
 # Re-exports para compatibilidade com urls.py
 # ===========================================================================
 from .crm_config_helpers import get_crm_config_for_loja as _get_crm_config_for_loja  # noqa: F401, E402
+from .views_assinatura_publica import AssinaturaPdfView, AssinaturaPublicaView  # noqa: F401, E402
+from .views_cadastros import ContatoViewSet, ContaViewSet, LeadViewSet  # noqa: F401, E402
 from .views_config import (  # noqa: F401, E402
-    _empty_dashboard_response,
-    crm_me,
-    dashboard_data,
     LoginConfigView,
+    _empty_dashboard_response,
     crm_busca,
     crm_config,
     crm_config_asaas_test,
     crm_config_issnet_test,
+    crm_me,
+    dashboard_data,
 )
-from .views_relatorios import gerar_relatorio  # noqa: F401, E402
-from .views_assinatura_publica import AssinaturaPublicaView, AssinaturaPdfView  # noqa: F401, E402
-from .views_cadastros import ContaViewSet, ContatoViewSet, LeadViewSet  # noqa: F401, E402
 from .views_documentos import (  # noqa: F401, E402
     ContratoTemplateViewSet,
     ContratoViewSet,
@@ -129,4 +129,5 @@ from .views_documentos import (  # noqa: F401, E402
     PropostaViewSet,
 )
 from .views_pipelines import AtividadeViewSet, OportunidadeNotaViewSet, OportunidadeViewSet  # noqa: F401, E402
+from .views_relatorios import gerar_relatorio  # noqa: F401, E402
 from .views_vendedor import VendedorViewSet  # noqa: F401, E402

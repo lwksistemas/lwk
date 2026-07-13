@@ -2,8 +2,8 @@
 Documentação da API do Superadmin
 ✅ FASE 7 v771: Documentação centralizada para Swagger
 """
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 
 # Exemplos de respostas para documentação
 LOJA_EXAMPLE = {

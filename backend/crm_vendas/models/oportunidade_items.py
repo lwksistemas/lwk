@@ -1,9 +1,10 @@
 from django.db import models
 
-from core.mixins import LojaIsolationMixin, LojaIsolationManager
+from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 from .catalogo import ProdutoServico
 from .oportunidades import Oportunidade
+
 
 class OportunidadeItem(LojaIsolationMixin, models.Model):
     """Item (produto/serviço) vinculado a uma oportunidade."""

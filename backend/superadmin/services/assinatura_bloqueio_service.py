@@ -208,10 +208,7 @@ def aplicar_bloqueio_inadimplencia_loja(loja, *, persistir: bool = True) -> dict
         elif loja.days_overdue != dias:
             loja.days_overdue = dias
             changed = True
-        if financeiro.status_pagamento not in ('ativo', 'pendente'):
-            financeiro.status_pagamento = 'atrasado'
-            changed = True
-        elif financeiro.status_pagamento == 'suspenso':
+        if financeiro.status_pagamento not in ('ativo', 'pendente') or financeiro.status_pagamento == 'suspenso':
             financeiro.status_pagamento = 'atrasado'
             changed = True
     else:

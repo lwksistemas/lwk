@@ -3,8 +3,7 @@ Serviço de validação centralizado para o módulo superadmin
 Consolida validações comuns em um único lugar
 """
 import re
-from typing import Dict, List, Optional, Tuple
-from django.core.exceptions import ValidationError
+
 from django.contrib.auth.models import User
 
 
@@ -14,7 +13,7 @@ class ValidationService:
     """
     
     @staticmethod
-    def validar_slug(slug: str) -> Tuple[bool, Optional[str]]:
+    def validar_slug(slug: str) -> tuple[bool, str | None]:
         """
         Valida formato de slug
         
@@ -39,7 +38,7 @@ class ValidationService:
         return True, None
     
     @staticmethod
-    def validar_email(email: str) -> Tuple[bool, Optional[str]]:
+    def validar_email(email: str) -> tuple[bool, str | None]:
         """
         Valida formato de email
         
@@ -59,7 +58,7 @@ class ValidationService:
         return True, None
     
     @staticmethod
-    def validar_senha(senha: str, min_length: int = 8) -> Tuple[bool, Optional[str]]:
+    def validar_senha(senha: str, min_length: int = 8) -> tuple[bool, str | None]:
         """
         Valida força da senha (política central em core.password_validation).
         """
@@ -71,7 +70,7 @@ class ValidationService:
         return ok, msg if not ok else None
     
     @staticmethod
-    def validar_username_disponivel(username: str, exclude_id: Optional[int] = None) -> Tuple[bool, Optional[str]]:
+    def validar_username_disponivel(username: str, exclude_id: int | None = None) -> tuple[bool, str | None]:
         """
         Verifica se username está disponível
         
@@ -95,7 +94,7 @@ class ValidationService:
         return True, None
     
     @staticmethod
-    def validar_dados_loja(data: Dict) -> List[str]:
+    def validar_dados_loja(data: dict) -> list[str]:
         """
         Valida dados completos de uma loja
         
@@ -128,7 +127,7 @@ class ValidationService:
         return erros
     
     @staticmethod
-    def validar_permissoes_superadmin(user) -> Tuple[bool, Optional[str]]:
+    def validar_permissoes_superadmin(user) -> tuple[bool, str | None]:
         """
         Verifica se usuário tem permissões de superadmin
         
@@ -147,7 +146,7 @@ class ValidationService:
         return True, None
     
     @staticmethod
-    def validar_dados_pagamento(data: Dict) -> List[str]:
+    def validar_dados_pagamento(data: dict) -> list[str]:
         """
         Valida dados de pagamento
         

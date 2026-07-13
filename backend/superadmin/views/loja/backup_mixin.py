@@ -1,30 +1,10 @@
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth.models import User
-from django.core.management import call_command
-from django.conf import settings
-from django.db import transaction
-from django.utils import timezone
 import logging
 
-from drf_spectacular.utils import extend_schema_view, extend_schema
-from core.logging_utils import mask_email
-from ...api_docs import (
-    TIPO_LOJA_LIST_SCHEMA,
-    TIPO_LOJA_CREATE_SCHEMA,
-    PLANO_LIST_SCHEMA,
-    LOJA_LIST_SCHEMA,
-    LOJA_CREATE_SCHEMA,
-    LOJA_DELETE_SCHEMA,
-)
-from ...models import (
-    TipoLoja, PlanoAssinatura, Loja, FinanceiroLoja, ProfissionalUsuario,
-)
-from ...serializers import (
-    TipoLojaSerializer, PlanoAssinaturaSerializer, LojaSerializer, LojaCreateSerializer,
-)
+from django.conf import settings
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
 from ..permissions import IsOwnerOrSuperAdmin, IsSuperAdmin
 
 logger = logging.getLogger(__name__)
@@ -62,8 +42,9 @@ class LojaBackupMixin:
     def exportar_backup(self, request, pk=None):
         """Exporta backup manual da loja em formato CSV compactado."""
         from django.http import HttpResponse
+
         from ...backup_service import BackupService
-        from ...models import HistoricoBackup, ConfiguracaoBackup
+        from ...models import ConfiguracaoBackup, HistoricoBackup
         
         loja = self.get_object()
         incluir_imagens = self._resolver_incluir_imagens(loja, request)
@@ -128,9 +109,9 @@ class LojaBackupMixin:
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrSuperAdmin], url_path='enviar_backup_agora')
     def enviar_backup_agora(self, request, pk=None):
         """Gera o backup da loja agora e envia por email para o proprietário."""
-        from ...backup_service import BackupService
         from ...backup_email_service import BackupEmailService
-        from ...models import HistoricoBackup, ConfiguracaoBackup
+        from ...backup_service import BackupService
+        from ...models import ConfiguracaoBackup, HistoricoBackup
         from ...tasks import _salvar_arquivo_backup
 
         loja = self.get_object()
@@ -346,8 +327,8 @@ class LojaBackupMixin:
     @action(detail=True, methods=['post'], permission_classes=[IsSuperAdmin])
     def reenviar_backup_email(self, request, pk=None):
         """Reenvia último backup por email."""
-        from ...models import HistoricoBackup
         from ...backup_email_service import BackupEmailService
+        from ...models import HistoricoBackup
         
         loja = self.get_object()
         historico_id = request.data.get('historico_id')

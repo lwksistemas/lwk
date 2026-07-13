@@ -1,12 +1,12 @@
 """
 Comando para aplicar migrations no schema 'suporte' usando o método correto.
 """
-from django.core.management.base import BaseCommand
-from django.db import connection, connections
-from django.conf import settings
-from io import StringIO
-from django.core.management import call_command
 import logging
+from io import StringIO
+
+from django.core.management import call_command
+from django.core.management.base import BaseCommand
+from django.db import connection
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +132,7 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(self.style.WARNING('⚠️  Nenhuma tabela encontrada'))
             
-            self.stdout.write(self.style.SUCCESS(f'\n✅ Migrations aplicadas com sucesso!'))
+            self.stdout.write(self.style.SUCCESS('\n✅ Migrations aplicadas com sucesso!'))
             
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'\n❌ Erro: {e}'))

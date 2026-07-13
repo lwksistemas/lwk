@@ -1,6 +1,8 @@
 """
 Utilitários do superadmin.
 """
+import contextlib
+
 from django.db import connection
 
 
@@ -24,13 +26,11 @@ def delete_user_raw(user_id):
             ('push_pushsubscription', 'user_id'),
         ]
         for tabela, coluna in tabelas_user_fk:
-            try:
+            with contextlib.suppress(Exception):  # Tabela pode não existir (ex: app não migrado)
                 cursor.execute(
                     f'DELETE FROM {tabela} WHERE {coluna} = %s',
                     [user_id]
                 )
-            except Exception:
-                pass  # Tabela pode não existir (ex: app não migrado)
         # JWT blacklist (rest_framework_simplejwt) — antes de apagar auth_user
         for sql in (
             """
@@ -41,10 +41,8 @@ def delete_user_raw(user_id):
             """,
             'DELETE FROM token_blacklist_outstandingtoken WHERE user_id = %s',
         ):
-            try:
+            with contextlib.suppress(Exception):
                 cursor.execute(sql, [user_id])
-            except Exception:
-                pass
         cursor.execute('DELETE FROM auth_user_groups WHERE user_id = %s', [user_id])
         cursor.execute(
             'DELETE FROM auth_user_user_permissions WHERE user_id = %s',

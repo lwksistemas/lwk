@@ -1,13 +1,12 @@
 """Operações de banco de dados para backup de lojas."""
 import logging
-from typing import Dict, List, Optional, Tuple
 
 from django.db import connections
 
 from ..backup_helpers import (
+    BACKUP_SAFE_IDENTIFIER_RE,
     BACKUP_SYSTEM_TABLES_EXCLUDE,
     BACKUP_TABLE_PREFIX_BLACKLIST,
-    BACKUP_SAFE_IDENTIFIER_RE,
     is_safe_pg_schema_token,
 )
 
@@ -61,7 +60,7 @@ class DatabaseHelper:
             logger.warning(f"Falha ao criar schema '{self._pg_schema}': {e}")
             return False
 
-    def _get_current_schema_pg(self) -> Optional[str]:
+    def _get_current_schema_pg(self) -> str | None:
         """Retorna o schema atual da conexão (PostgreSQL). Útil quando search_path está setado."""
         if self._is_sqlite():
             return None
@@ -74,7 +73,7 @@ class DatabaseHelper:
             logger.warning(f"Erro ao obter current_schema: {e}")
             return None
 
-    def get_all_table_names(self) -> List[str]:
+    def get_all_table_names(self) -> list[str]:
         """Lista todas as tabelas do schema/banco (PostgreSQL ou SQLite). Exclui django_migrations.
         Em PostgreSQL: usa current_schema() da conexão (mesmo critério do ORM) para evitar ZIP vazio."""
         tables = []
@@ -169,7 +168,7 @@ class DatabaseHelper:
             logger.warning(f"Erro ao verificar existência da tabela {table_name}: {e}")
             return False
     
-    def get_table_columns(self, table_name: str) -> List[str]:
+    def get_table_columns(self, table_name: str) -> list[str]:
         """Retorna lista de colunas de uma tabela"""
         if not self.is_safe_table_name(table_name):
             return []
@@ -191,7 +190,7 @@ class DatabaseHelper:
 
     def _fetch_pg_attribute_meta(
         self, schema: str, table_name: str
-    ) -> Tuple[List[str], Dict[str, Tuple[bool, str]]]:
+    ) -> tuple[list[str], dict[str, tuple[bool, str]]]:
         """Uma query: nomes de colunas (ordem física) + (aceita NULL?, format_type)."""
         if not self.is_safe_table_name(table_name) or not is_safe_pg_schema_token(schema):
             return [], {}
@@ -222,11 +221,11 @@ class DatabaseHelper:
 
     def get_pg_table_meta_for_backup(
         self, table_name: str
-    ) -> Tuple[List[str], Dict[str, Tuple[bool, str]]]:
+    ) -> tuple[list[str], dict[str, tuple[bool, str]]]:
         """Colunas + tipos via pg_attribute; usa current_schema() e o schema nominal da loja."""
         if self._is_sqlite() or not self.is_safe_table_name(table_name):
             return [], {}
-        schemas: List[str] = []
+        schemas: list[str] = []
         try:
             with self.get_connection().cursor() as cur:
                 cur.execute("SELECT current_schema()")
@@ -249,7 +248,7 @@ class DatabaseHelper:
                 return cols, meta
         return [], {}
 
-    def get_columns_nullable_and_type(self, table_name: str) -> Dict[str, Tuple[bool, str]]:
+    def get_columns_nullable_and_type(self, table_name: str) -> dict[str, tuple[bool, str]]:
         """Retorna dict col -> (is_nullable, data_type) para colunas da tabela."""
         if not self.is_safe_table_name(table_name):
             return {}
@@ -287,8 +286,8 @@ class DatabaseHelper:
         return 'loja_id' in columns
 
     def fetch_all_records(
-        self, table_name: str, loja_id: Optional[int] = None
-    ) -> Tuple[List[str], List[tuple]]:
+        self, table_name: str, loja_id: int | None = None
+    ) -> tuple[list[str], list[tuple]]:
         """
         Busca todos os registros de uma tabela.
         Se loja_id for informado e a tabela tiver coluna loja_id, filtra apenas

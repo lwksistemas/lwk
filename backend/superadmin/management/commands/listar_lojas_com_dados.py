@@ -2,6 +2,7 @@
 Comando para listar lojas ativas com cadastros.
 """
 from django.core.management.base import BaseCommand
+
 from superadmin.models import Loja
 
 

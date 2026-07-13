@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
-from superadmin.models import Loja, VendedorUsuario
+
 from crm_vendas.models import Proposta
+from superadmin.models import Loja, VendedorUsuario
 
 
 class Command(BaseCommand):

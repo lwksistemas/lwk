@@ -3,8 +3,9 @@ Serviço de validação e envio de emails
 Centraliza lógica de emails do superadmin
 """
 import logging
-from typing import Dict, List, Optional
+
 from django.conf import settings
+
 from core.email_delivery import get_from_email, send_system_mail
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ class EmailValidationService:
         destinatario: str,
         assunto: str,
         mensagem: str,
-        remetente: Optional[str] = None
+        remetente: str | None = None
     ) -> bool:
         """
         Envia email simples
@@ -81,11 +82,11 @@ class EmailValidationService:
     
     @staticmethod
     def enviar_email_multiplos_destinatarios(
-        destinatarios: List[str],
+        destinatarios: list[str],
         assunto: str,
         mensagem: str,
-        remetente: Optional[str] = None
-    ) -> Dict[str, bool]:
+        remetente: str | None = None
+    ) -> dict[str, bool]:
         """
         Envia email para múltiplos destinatários
         

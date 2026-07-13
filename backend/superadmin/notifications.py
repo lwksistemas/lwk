@@ -7,11 +7,13 @@ críticas são detectadas, implementando agrupamento para evitar spam.
 
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional
-from core.email_delivery import send_system_mail
+
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+
+from core.email_delivery import send_system_mail
+
 from .models import ViolacaoSeguranca
 
 logger = logging.getLogger(__name__)
@@ -172,7 +174,7 @@ class NotificationService:
             return False
     
     @classmethod
-    def _obter_destinatarios(cls) -> List[str]:
+    def _obter_destinatarios(cls) -> list[str]:
         """
         Obtém lista de emails para notificações.
         

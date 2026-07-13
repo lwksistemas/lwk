@@ -3,7 +3,8 @@ Testes para mixin de conversão para maiúsculas
 """
 from django.test import TestCase
 from rest_framework import serializers
-from core.serializer_mixins import UpperCaseNormalizationMixin, TextNormalizationMixin
+
+from core.serializer_mixins import TextNormalizationMixin, UpperCaseNormalizationMixin
 
 
 # Mock model para testes

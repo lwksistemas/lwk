@@ -1,8 +1,8 @@
 """Desativa e-mails do Asaas para o prestador (LWK) nos clientes já cadastrados."""
 from django.core.management.base import BaseCommand
 
-from asaas_integration.models import AsaasConfig
 from asaas_integration.client import AsaasClient
+from asaas_integration.models import AsaasConfig
 from superadmin.models import FinanceiroLoja
 
 

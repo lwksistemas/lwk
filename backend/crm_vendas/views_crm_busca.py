@@ -7,7 +7,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from tenants.middleware import get_current_loja_id
+
 from .utils import get_current_vendedor_id, is_owner
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -32,6 +34,7 @@ def crm_busca(request):
     vendedor_id = get_current_vendedor_id(request)
 
     from core.text_search import q_icontains_sem_acento
+
     from .models import Conta, Lead, Oportunidade, Proposta
 
     q_filter = (

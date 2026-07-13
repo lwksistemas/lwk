@@ -3,7 +3,9 @@ Comando para limpeza de dados Asaas órfãos
 Remove dados do Asaas que não têm loja correspondente
 """
 from django.core.management.base import BaseCommand
+
 from asaas_integration.deletion_service import AsaasDeletionService
+
 
 class Command(BaseCommand):
     help = 'Limpa dados Asaas órfãos (sem loja correspondente)'

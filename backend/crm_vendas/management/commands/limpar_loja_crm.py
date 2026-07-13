@@ -19,9 +19,18 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         from crm_vendas.models import (
-            Lead, Conta, Contato, Oportunidade, Atividade,
-            ProdutoServico, OportunidadeItem, Proposta, Contrato,
-            AssinaturaDigital, PropostaTemplate, ContratoTemplate
+            AssinaturaDigital,
+            Atividade,
+            Conta,
+            Contato,
+            Contrato,
+            ContratoTemplate,
+            Lead,
+            Oportunidade,
+            OportunidadeItem,
+            ProdutoServico,
+            Proposta,
+            PropostaTemplate,
         )
         from tenants.middleware import set_current_loja_id
         
@@ -143,7 +152,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  ✅ {count} assinaturas digitais excluídas")
                 except Exception:
                     deleted_counts['Assinaturas Digitais'] = 0
-                    self.stdout.write(f"  ⚠️  Tabela de assinaturas digitais não existe (loja antiga)")
+                    self.stdout.write("  ⚠️  Tabela de assinaturas digitais não existe (loja antiga)")
                 
                 # 2. Contratos
                 try:
@@ -152,7 +161,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  ✅ {count} contratos excluídos")
                 except Exception:
                     deleted_counts['Contratos'] = 0
-                    self.stdout.write(f"  ⚠️  Tabela de contratos não existe (loja antiga)")
+                    self.stdout.write("  ⚠️  Tabela de contratos não existe (loja antiga)")
                 
                 # 3. Propostas
                 try:
@@ -161,7 +170,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  ✅ {count} propostas excluídas")
                 except Exception:
                     deleted_counts['Propostas'] = 0
-                    self.stdout.write(f"  ⚠️  Tabela de propostas não existe (loja antiga)")
+                    self.stdout.write("  ⚠️  Tabela de propostas não existe (loja antiga)")
                 
                 # 4. Itens de Oportunidade
                 try:
@@ -170,7 +179,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  ✅ {count} itens de oportunidade excluídos")
                 except Exception:
                     deleted_counts['Itens de Oportunidade'] = 0
-                    self.stdout.write(f"  ⚠️  Tabela de itens não existe (loja antiga)")
+                    self.stdout.write("  ⚠️  Tabela de itens não existe (loja antiga)")
                 
                 # 5. Atividades
                 try:
@@ -179,7 +188,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  ✅ {count} atividades excluídas")
                 except Exception:
                     deleted_counts['Atividades'] = 0
-                    self.stdout.write(f"  ⚠️  Tabela de atividades não existe (loja antiga)")
+                    self.stdout.write("  ⚠️  Tabela de atividades não existe (loja antiga)")
                 
                 # 6. Oportunidades
                 try:
@@ -188,7 +197,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  ✅ {count} oportunidades excluídas")
                 except Exception:
                     deleted_counts['Oportunidades'] = 0
-                    self.stdout.write(f"  ⚠️  Tabela de oportunidades não existe (loja antiga)")
+                    self.stdout.write("  ⚠️  Tabela de oportunidades não existe (loja antiga)")
                 
                 # 7. Contatos
                 try:
@@ -197,7 +206,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  ✅ {count} contatos excluídos")
                 except Exception:
                     deleted_counts['Contatos'] = 0
-                    self.stdout.write(f"  ⚠️  Tabela de contatos não existe (loja antiga)")
+                    self.stdout.write("  ⚠️  Tabela de contatos não existe (loja antiga)")
                 
                 # 8. Leads
                 try:
@@ -206,7 +215,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  ✅ {count} leads excluídos")
                 except Exception:
                     deleted_counts['Leads'] = 0
-                    self.stdout.write(f"  ⚠️  Tabela de leads não existe (loja antiga)")
+                    self.stdout.write("  ⚠️  Tabela de leads não existe (loja antiga)")
                 
                 # 9. Contas
                 try:
@@ -215,7 +224,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  ✅ {count} contas excluídas")
                 except Exception:
                     deleted_counts['Contas'] = 0
-                    self.stdout.write(f"  ⚠️  Tabela de contas não existe (loja antiga)")
+                    self.stdout.write("  ⚠️  Tabela de contas não existe (loja antiga)")
                 
                 # 10. Produtos/Serviços
                 try:
@@ -224,7 +233,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  ✅ {count} produtos/serviços excluídos")
                 except Exception:
                     deleted_counts['Produtos/Serviços'] = 0
-                    self.stdout.write(f"  ⚠️  Tabela de produtos/serviços não existe (loja antiga)")
+                    self.stdout.write("  ⚠️  Tabela de produtos/serviços não existe (loja antiga)")
                 
                 # 11. Templates de Proposta
                 try:
@@ -233,7 +242,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  ✅ {count} templates de proposta excluídos")
                 except Exception:
                     deleted_counts['Templates de Proposta'] = 0
-                    self.stdout.write(f"  ⚠️  Tabela de templates de proposta não existe (loja antiga)")
+                    self.stdout.write("  ⚠️  Tabela de templates de proposta não existe (loja antiga)")
                 
                 # 12. Templates de Contrato
                 try:
@@ -242,11 +251,11 @@ class Command(BaseCommand):
                     self.stdout.write(f"  ✅ {count} templates de contrato excluídos")
                 except Exception:
                     deleted_counts['Templates de Contrato'] = 0
-                    self.stdout.write(f"  ⚠️  Tabela de templates de contrato não existe (loja antiga)")
+                    self.stdout.write("  ⚠️  Tabela de templates de contrato não existe (loja antiga)")
                 
                 total_deleted = sum(deleted_counts.values())
                 
-                self.stdout.write(self.style.SUCCESS(f"\n✅ Limpeza concluída com sucesso!"))
+                self.stdout.write(self.style.SUCCESS("\n✅ Limpeza concluída com sucesso!"))
                 self.stdout.write(f"📊 Total de registros excluídos: {total_deleted}")
                 
                 # Verificar se está limpo

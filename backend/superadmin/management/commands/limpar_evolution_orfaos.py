@@ -9,7 +9,6 @@ Duplicatas/fantasmas (loja ativa com várias instâncias): use
     python manage.py limpar_evolution_instancias --execute
 """
 from django.conf import settings
-
 from django.core.management.base import BaseCommand
 
 from superadmin.models import Loja

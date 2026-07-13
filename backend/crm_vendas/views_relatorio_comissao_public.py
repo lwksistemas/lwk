@@ -132,6 +132,7 @@ def vendedor_assinar_view(request, loja_id, token):
         else:
             try:
                 from superadmin.models import VendedorUsuario
+
                 from .models import Vendedor
 
                 vu = VendedorUsuario.objects.using('default').filter(loja=loja).first()

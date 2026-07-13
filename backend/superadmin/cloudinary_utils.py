@@ -3,12 +3,11 @@ Utilitários para gerenciamento de imagens no Cloudinary
 """
 import logging
 import re
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
-def extract_public_id_from_url(cloudinary_url: str) -> Optional[str]:
+def extract_public_id_from_url(cloudinary_url: str) -> str | None:
     """
     Extrai o public_id de uma URL do Cloudinary
     
@@ -68,6 +67,7 @@ def delete_cloudinary_image(cloudinary_url: str, loja_slug: str = None) -> bool:
         try:
             import cloudinary
             import cloudinary.uploader
+
             from .cloudinary_models import CloudinaryConfig
         except ImportError as e:
             logger.error(f"❌ Biblioteca cloudinary não está instalada: {e}")

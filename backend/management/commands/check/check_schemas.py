@@ -138,7 +138,7 @@ class Command(BaseCommand):
                                 )
                             cursor.execute("SET search_path TO public")
                 
-                except Exception as e:
+                except Exception:
                     # Silenciar erros de schemas sem tabela de leads
                     pass
         

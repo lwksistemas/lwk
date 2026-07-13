@@ -1,8 +1,8 @@
 """Views de configuração, monitoramento e sincronização do Asaas."""
 from ._common import (
+    REQUESTS_AVAILABLE,
     AsaasClient,
     IsSuperAdmin,
-    REQUESTS_AVAILABLE,
     _asaas_webhook_log_context,
     _asaas_webhook_url,
     _build_cadastro_diagnostico,
@@ -18,6 +18,8 @@ __all__ = [
     'IsSuperAdmin',
     'REQUESTS_AVAILABLE',
     '_asaas_webhook_log_context',
+    '_asaas_webhook_url',
+    '_build_cadastro_diagnostico',
     'asaas_config',
     'asaas_test',
     'asaas_status',

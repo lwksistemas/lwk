@@ -2,12 +2,11 @@
 from rest_framework import serializers
 
 from core.serializer_mixins import (
-    CpfCnpjNormalizationMixin,
     TextNormalizationMixin,
-    UniqueDocumentoPerLojaMixin,
 )
 
 from ..models import OportunidadeItem
+
 
 class OportunidadeItemSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     produto_servico_nome = serializers.CharField(source='produto_servico.nome', read_only=True)

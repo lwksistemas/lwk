@@ -42,9 +42,9 @@ class HasLojaAccess(permissions.BasePermission):
         if request.user.is_superuser:
             return True
 
-        from core.tenant_access import user_can_access_loja, resolve_lojas_from_request
-        from tenants.middleware import ensure_loja_context, get_current_loja_id
+        from core.tenant_access import resolve_lojas_from_request, user_can_access_loja
         from superadmin.models import Loja
+        from tenants.middleware import ensure_loja_context, get_current_loja_id
 
         for loja in resolve_lojas_from_request(request):
             if not user_can_access_loja(request.user, loja):

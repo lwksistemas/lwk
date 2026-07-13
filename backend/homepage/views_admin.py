@@ -5,10 +5,17 @@ CRUD completo para Hero, Funcionalidades, Módulos e WhyUs.
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
 from core.permissions import IsSuperAdmin
 
-from .models import HeroSection, Funcionalidade, ModuloSistema, WhyUsBenefit, EmpresaConfig
-from .serializers import HeroSerializer, FuncionalidadeSerializer, ModuloSerializer, WhyUsBenefitSerializer, EmpresaConfigSerializer
+from .models import EmpresaConfig, Funcionalidade, HeroSection, ModuloSistema, WhyUsBenefit
+from .serializers import (
+    EmpresaConfigSerializer,
+    FuncionalidadeSerializer,
+    HeroSerializer,
+    ModuloSerializer,
+    WhyUsBenefitSerializer,
+)
 
 
 class HeroViewSet(viewsets.ModelViewSet):
@@ -48,6 +55,7 @@ class HeroImagemViewSet(viewsets.ModelViewSet):
     
     def get_serializer_class(self):
         from rest_framework import serializers
+
         from .models import HeroImagem
         
         class HeroImagemSerializer(serializers.ModelSerializer):

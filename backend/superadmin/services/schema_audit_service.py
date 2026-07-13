@@ -4,6 +4,7 @@ Usado pelo comando auditar_schema_por_slug e pela API do superadmin.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 from typing import Any
@@ -395,10 +396,8 @@ def auditar_loja(loja) -> dict[str, Any]:
         )
 
     if loja.database_name in connections:
-        try:
+        with contextlib.suppress(Exception):
             connections[loja.database_name].close()
-        except Exception:
-            pass
 
     return base
 

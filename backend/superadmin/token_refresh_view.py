@@ -2,12 +2,13 @@
 View customizada para refresh token.
 Renova JWT e atualiza cookie httpOnly quando habilitado.
 """
+import logging
+
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.views import TokenRefreshView
-import logging
 
 from core.auth_cookies import (
     attach_auth_cookies,
@@ -54,8 +55,9 @@ class SessionAwareTokenRefreshView(TokenRefreshView):
         if access:
             try:
                 from rest_framework_simplejwt.tokens import AccessToken
-                from superadmin.session_manager import SessionManager
+
                 from superadmin.authentication import invalidate_session_cache
+                from superadmin.session_manager import SessionManager
 
                 user_id = AccessToken(access).get('user_id')
                 if user_id:

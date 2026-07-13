@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from ..models import AsaasConfig
-from ._common import AsaasClient, IsSuperAdmin, REQUESTS_AVAILABLE, _asaas_webhook_url
+from ._common import REQUESTS_AVAILABLE, AsaasClient, IsSuperAdmin, _asaas_webhook_url
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ def asaas_config(request):
         if api_key and '...' in api_key:
             api_key = ''
 
-        from asaas_integration.api_key_utils import normalize_asaas_api_key, is_valid_asaas_api_key
+        from asaas_integration.api_key_utils import is_valid_asaas_api_key, normalize_asaas_api_key
         if api_key:
             api_key = normalize_asaas_api_key(api_key)
 
@@ -127,7 +127,7 @@ def asaas_test(request):
         )
     
     try:
-        config = AsaasConfig.get_config()
+        AsaasConfig.get_config()
         api_key = AsaasConfig.resolve_api_key()
         if not api_key:
             return Response(

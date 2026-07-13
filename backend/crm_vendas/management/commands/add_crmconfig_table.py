@@ -3,6 +3,7 @@ Comando para adicionar tabela crm_vendas_config em todos os schemas de lojas.
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 

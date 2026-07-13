@@ -15,14 +15,16 @@ Uso:
     python manage.py limpar_orfaos --dry-run  # Apenas listar
     python manage.py limpar_orfaos --execute  # Executar limpeza
 """
-from django.core.management.base import BaseCommand
-from django.conf import settings
-from django.db import connection, transaction
-from django.contrib.auth import get_user_model
+import contextlib
+import logging
 import os
 import shutil
-import logging
 from pathlib import Path
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+from django.db import connection
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -57,7 +59,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(f'\n{mode}\n'))
 
         # Importar modelos
-        from superadmin.models import Loja, UserSession, ProfissionalUsuario, VendedorUsuario
+        from superadmin.models import Loja, ProfissionalUsuario, UserSession, VendedorUsuario
 
         # 1. Verificar arquivos SQLite órfãos
         self.stdout.write(self.style.HTTP_INFO('\n1️⃣ Verificando arquivos SQLite órfãos...'))
@@ -77,7 +79,7 @@ class Command(BaseCommand):
                 if execute:
                     try:
                         os.remove(settings.BASE_DIR / arquivo)
-                        self.stdout.write(self.style.SUCCESS(f'         ✅ Removido'))
+                        self.stdout.write(self.style.SUCCESS('         ✅ Removido'))
                     except Exception as e:
                         self.stdout.write(self.style.ERROR(f'         ❌ Erro: {e}'))
         else:
@@ -112,7 +114,7 @@ class Command(BaseCommand):
                         try:
                             with connection.cursor() as cursor:
                                 cursor.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
-                            self.stdout.write(self.style.SUCCESS(f'         ✅ Removido'))
+                            self.stdout.write(self.style.SUCCESS('         ✅ Removido'))
                         except Exception as e:
                             self.stdout.write(self.style.ERROR(f'         ❌ Erro: {e}'))
             else:
@@ -138,7 +140,7 @@ class Command(BaseCommand):
                     try:
                         from superadmin.utils import delete_user_raw
                         delete_user_raw(user_id)
-                        self.stdout.write(self.style.SUCCESS(f'         ✅ Removido'))
+                        self.stdout.write(self.style.SUCCESS('         ✅ Removido'))
                     except Exception as e:
                         self.stdout.write(self.style.ERROR(f'         ❌ Erro: {e}'))
         else:
@@ -187,9 +189,8 @@ class Command(BaseCommand):
         configs_orfas = []
 
         for db_name in list(settings.DATABASES.keys()):
-            if db_name.startswith('loja_') and db_name not in ['default', 'suporte', 'loja_template']:
-                if db_name not in lojas_db_names_set:
-                    configs_orfas.append(db_name)
+            if db_name.startswith('loja_') and db_name not in ['default', 'suporte', 'loja_template'] and db_name not in lojas_db_names_set:
+                configs_orfas.append(db_name)
 
         if configs_orfas:
             self.stdout.write(self.style.WARNING(f'   ⚠️ Encontradas {len(configs_orfas)} configurações órfãs:'))
@@ -198,7 +199,7 @@ class Command(BaseCommand):
                 if execute:
                     try:
                         del settings.DATABASES[db_name]
-                        self.stdout.write(self.style.SUCCESS(f'         ✅ Removido do settings'))
+                        self.stdout.write(self.style.SUCCESS('         ✅ Removido do settings'))
                     except Exception as e:
                         self.stdout.write(self.style.ERROR(f'         ❌ Erro: {e}'))
         else:
@@ -250,7 +251,7 @@ class Command(BaseCommand):
 
         # 8a. HistoricoBackup e ConfiguracaoBackup órfãos (via ORM para disparar signals)
         try:
-            from superadmin.models import HistoricoBackup, ConfiguracaoBackup
+            from superadmin.models import ConfiguracaoBackup, HistoricoBackup
             hist_orfaos = HistoricoBackup.objects.exclude(loja_id__in=loja_ids_set)
             cfg_orfaos = ConfiguracaoBackup.objects.exclude(loja_id__in=loja_ids_set)
             hist_count = hist_orfaos.count()
@@ -313,10 +314,8 @@ class Command(BaseCommand):
                 ))
                 if execute:
                     for f in arquivos_orfaos_nfe:
-                        try:
+                        with contextlib.suppress(OSError):
                             f.unlink()
-                        except OSError:
-                            pass
                     self.stdout.write(self.style.SUCCESS(
                         f'      ✅ {len(arquivos_orfaos_nfe)} arquivo(s) NF-e removido(s)'
                     ))

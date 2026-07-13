@@ -3,13 +3,13 @@ Testes de Segurança Multi-Tenant
 
 Valida isolamento de dados entre lojas e previne acesso cross-tenant.
 """
-from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import User
+from django.test import RequestFactory, TestCase
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from superadmin.models import Loja, TipoLoja, PlanoAssinatura, VendedorUsuario
-from crm_vendas.models import Lead, Vendedor, Conta
+from crm_vendas.models import Conta, Lead, Vendedor
+from superadmin.models import Loja, PlanoAssinatura, TipoLoja
 from tenants.middleware import TenantMiddleware, set_current_tenant_db
 
 
@@ -118,14 +118,14 @@ class MultiTenantSecurityTestCase(TestCase):
         """Testa se endpoints da API respeitam isolamento."""
         # Criar lead na loja A
         set_current_tenant_db('loja_a')
-        lead_a = Lead.objects.create(
+        Lead.objects.create(
             nome='Lead A',
             loja_id=self.loja_a.id
         )
         
         # Criar lead na loja B
         set_current_tenant_db('loja_b')
-        lead_b = Lead.objects.create(
+        Lead.objects.create(
             nome='Lead B',
             loja_id=self.loja_b.id
         )

@@ -3,7 +3,8 @@ Utilitários do CRM Vendas.
 """
 import logging
 import re
-from tenants.middleware import get_current_loja_id, ensure_loja_context
+
+from tenants.middleware import ensure_loja_context, get_current_loja_id
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +144,7 @@ def get_current_vendedor_id(request):
         )
         return None
     try:
-        from superadmin.models import VendedorUsuario, Loja
+        from superadmin.models import Loja, VendedorUsuario
         
         # Verificar se tem VendedorUsuario (funciona para owner E vendedores)
         vu = VendedorUsuario.objects.using('default').filter(
@@ -246,8 +247,9 @@ def get_vendedor_destino_merge_loja(loja_id: int):
     if not loja_id:
         return None
     try:
-        from .models import Vendedor
         from superadmin.models import Loja
+
+        from .models import Vendedor
 
         qs = Vendedor.objects.filter(loja_id=loja_id, is_active=True).order_by('id')
         v = qs.filter(is_admin=True).first()

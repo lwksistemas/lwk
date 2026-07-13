@@ -28,8 +28,8 @@ class Command(BaseCommand):
 
         _configure_tenant_db_for_loja(loja)
         from nfse_integration.loja_nfse_api import recuperar_nfse_issnet_loja
-        from nfse_integration.persistencia_nfse_loja import atualizar_nfse_recuperada
         from nfse_integration.models import NFSe
+        from nfse_integration.persistencia_nfse_loja import atualizar_nfse_recuperada
 
         body, status = recuperar_nfse_issnet_loja(
             loja,

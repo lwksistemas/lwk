@@ -3,6 +3,7 @@ Comando para limpar dados da loja modelo/dashboard padrão
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 

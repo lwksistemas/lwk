@@ -1,12 +1,10 @@
 """Modelos Super Admin."""
-import re
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.utils import timezone
-from django.utils.text import slugify
 
 from .loja import Loja
+
 
 class UsuarioSistema(models.Model):
     """Usuários do sistema (Super Admin e Suporte)"""

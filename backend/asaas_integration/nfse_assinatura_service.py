@@ -3,10 +3,11 @@ Serviço de emissão de NFS-e para assinaturas das lojas.
 Emite nota fiscal quando o pagamento da assinatura é confirmado.
 Provedor: Nacional (ADN - Padrão Nacional NFS-e).
 """
+import contextlib
 import logging
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Any
+from typing import Any
 
 from django.utils import timezone
 
@@ -19,7 +20,7 @@ def _data_emissao_resultado(resultado: dict) -> datetime:
     return dt if dt else timezone.now()
 
 
-def emitir_nfse_assinatura(pagamento) -> Dict[str, Any]:
+def emitir_nfse_assinatura(pagamento) -> dict[str, Any]:
     """
     Emite NFS-e para um pagamento de assinatura confirmado.
 
@@ -59,9 +60,7 @@ def emitir_nfse_assinatura(pagamento) -> Dict[str, Any]:
     tomador_email = getattr(loja, 'owner', None) and getattr(loja.owner, 'email', '') or ''
 
     # Endereço do tomador — cidade/UF/IBGE devem bater com o CEP (ISSNet E058/E061)
-    from nfse_integration.nfse_geo import enriquecer_endereco_por_cep
-
-    from nfse_integration.nfse_geo import normalizar_numero_complemento_endereco
+    from nfse_integration.nfse_geo import enriquecer_endereco_por_cep, normalizar_numero_complemento_endereco
 
     numero_norm, compl_norm = normalizar_numero_complemento_endereco(
         getattr(loja, 'numero', '') or '',
@@ -115,10 +114,10 @@ def _emitir_via_nacional(
     tomador_cpf_cnpj: str,
     tomador_nome: str,
     tomador_email: str,
-    tomador_endereco: Dict[str, str],
+    tomador_endereco: dict[str, str],
     descricao: str,
     valor: Decimal,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Emite NFS-e via ADN Nacional usando certificado do superadmin."""
     try:
         from nfse_integration.nacional import NacionalClient
@@ -209,16 +208,17 @@ def _emitir_via_issnet(
     tomador_cpf_cnpj: str,
     tomador_nome: str,
     tomador_email: str,
-    tomador_endereco: Dict[str, str],
+    tomador_endereco: dict[str, str],
     descricao: str,
     valor: Decimal,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Emite NFS-e via WebService ISSNet (municipal)."""
     try:
-        from nfse_integration.issnet_client import ISSNetClient
+        import os
         import re
         import tempfile
-        import os
+
+        from nfse_integration.issnet_client import ISSNetClient
 
         cert_data = config.issnet_certificado or config.nacional_certificado
         senha_cert = config.issnet_senha_certificado or config.nacional_senha_certificado
@@ -236,17 +236,17 @@ def _emitir_via_issnet(
         cnpj_digits = re.sub(r'\D', '', config.prestador_cnpj)
         im = config.prestador_inscricao_municipal or ''
 
+        from nfse_integration.issnet_fiscal_superadmin import fiscal_codes_issnet_superadmin
         from nfse_integration.persistencia_nfse_superadmin import (
             gerar_proximo_numero_rps_superadmin,
             sincronizar_contadores_rps_superadmin,
         )
-        from nfse_integration.issnet_fiscal_superadmin import fiscal_codes_issnet_superadmin
 
         numero_rps = gerar_proximo_numero_rps_superadmin(config)
         item_lista, cod_tributacao, cod_cnae, servico_codigo = fiscal_codes_issnet_superadmin(config)
 
         # Salvar certificado em arquivo temporário (ISSNetClient precisa de path)
-        cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix='issnet_auto_')
+        cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx', prefix='issnet_auto_')  # noqa: SIM115
         cert_tmp.write(bytes(cert_data))
         cert_tmp.close()
 
@@ -283,10 +283,8 @@ def _emitir_via_issnet(
                 codigo_tributacao_municipio=cod_tributacao,
             )
         finally:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(cert_tmp.name)
-            except OSError:
-                pass
 
         if resultado.get('success'):
             logger.info(

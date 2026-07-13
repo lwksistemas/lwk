@@ -6,6 +6,8 @@ from django.utils import timezone
 
 from nfse_integration.issnet_client_factory import (
     certificado_configurado as certificado_tem_bytes,
+)
+from nfse_integration.issnet_client_factory import (
     issnet_client_superadmin,
 )
 from nfse_integration.issnet_shared import CODIGOS_CANCELAMENTO, normalizar_codigo_cancelamento

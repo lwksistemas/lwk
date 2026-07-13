@@ -2,10 +2,11 @@
 ✅ VALIDADORES CUSTOMIZADOS
 Validações de segurança e integridade de dados
 """
+import logging
+import re
+
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
-import re
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +158,7 @@ def validate_cpf(cpf):
     
     # Validar dígitos verificadores
     def calculate_digit(cpf_partial):
-        total = sum(int(digit) * weight for digit, weight in zip(cpf_partial, range(len(cpf_partial) + 1, 1, -1)))
+        total = sum(int(digit) * weight for digit, weight in zip(cpf_partial, range(len(cpf_partial) + 1, 1, -1), strict=False))
         remainder = total % 11
         return 0 if remainder < 2 else 11 - remainder
     
@@ -183,7 +184,7 @@ def gerar_cpf_valido(seed: int | None = None) -> str:
 
     def _digito(partial: str) -> int:
         total = sum(
-            int(d) * w for d, w in zip(partial, range(len(partial) + 1, 1, -1))
+            int(d) * w for d, w in zip(partial, range(len(partial) + 1, 1, -1), strict=False)
         )
         r = total % 11
         return 0 if r < 2 else 11 - r
@@ -227,7 +228,7 @@ def validate_cnpj(cnpj):
     
     # Validar dígitos verificadores
     def calculate_digit(cnpj_partial, weights):
-        total = sum(int(digit) * weight for digit, weight in zip(cnpj_partial, weights))
+        total = sum(int(digit) * weight for digit, weight in zip(cnpj_partial, weights, strict=False))
         remainder = total % 11
         return 0 if remainder < 2 else 11 - remainder
     

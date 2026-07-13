@@ -5,6 +5,7 @@ Previne cadastros duplicados por loja.
 """
 import os
 import sys
+
 import django
 
 # Configurar Django
@@ -57,11 +58,11 @@ def add_unique_constraints():
                 table = constraint['table']
                 column = constraint['column']
                 constraint_name = constraint['constraint_name']
-                description = constraint['description']
+                constraint['description']
                 
                 try:
                     # Verificar se a tabela existe
-                    cursor.execute(f"""
+                    cursor.execute("""
                         SELECT EXISTS (
                             SELECT FROM information_schema.tables 
                             WHERE table_schema = %s
@@ -77,7 +78,7 @@ def add_unique_constraints():
                         continue
                     
                     # Verificar se a coluna existe
-                    cursor.execute(f"""
+                    cursor.execute("""
                         SELECT EXISTS (
                             SELECT FROM information_schema.columns 
                             WHERE table_schema = %s
@@ -94,7 +95,7 @@ def add_unique_constraints():
                         continue
                     
                     # Verificar se já existe constraint
-                    cursor.execute(f"""
+                    cursor.execute("""
                         SELECT EXISTS (
                             SELECT FROM pg_constraint 
                             WHERE conname = %s
@@ -127,8 +128,8 @@ def add_unique_constraints():
                         print(f"  ⚠️  ATENÇÃO: Encontradas {len(duplicates)} duplicatas em {table}.{column}:")
                         for dup in duplicates[:5]:  # Mostrar apenas as primeiras 5
                             print(f"      - {dup[0]}: {dup[1]} registros")
-                        print(f"  ❌ Não é possível adicionar constraint com duplicatas existentes")
-                        print(f"  💡 Resolva as duplicatas manualmente antes de adicionar o constraint")
+                        print("  ❌ Não é possível adicionar constraint com duplicatas existentes")
+                        print("  💡 Resolva as duplicatas manualmente antes de adicionar o constraint")
                         error_count += 1
                         continue
                     

@@ -3,8 +3,9 @@ Comando para ativar o módulo de contatos em todas as lojas.
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
-from superadmin.models import Loja
+
 from crm_vendas.models_config import CRMConfig
+from superadmin.models import Loja
 
 
 class Command(BaseCommand):
@@ -41,7 +42,7 @@ class Command(BaseCommand):
                         
                         # Verificar se contatos já está ativo
                         if modulos_ativos and modulos_ativos.get('contatos'):
-                            self.stdout.write(self.style.SUCCESS(f'  ✅ Módulo CONTATOS já está ativo'))
+                            self.stdout.write(self.style.SUCCESS('  ✅ Módulo CONTATOS já está ativo'))
                         else:
                             # Ativar módulo contatos
                             if not modulos_ativos:
@@ -55,7 +56,7 @@ class Command(BaseCommand):
                                 WHERE id = %s;
                             """, [json.dumps(modulos_ativos), config_id])
                             
-                            self.stdout.write(self.style.SUCCESS(f'  ✅ Módulo CONTATOS ativado com sucesso'))
+                            self.stdout.write(self.style.SUCCESS('  ✅ Módulo CONTATOS ativado com sucesso'))
                     else:
                         # Criar config com módulos padrão
                         import json
@@ -76,7 +77,7 @@ class Command(BaseCommand):
                             json.dumps(modulos_ativos)
                         ])
                         
-                        self.stdout.write(self.style.SUCCESS(f'  ✅ Config criada e módulo CONTATOS ativado'))
+                        self.stdout.write(self.style.SUCCESS('  ✅ Config criada e módulo CONTATOS ativado'))
                     
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f'  ❌ Erro ao processar schema {schema_name}: {str(e)}'))

@@ -4,6 +4,7 @@ Usa SQL direto para copiar estrutura do schema public
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 
@@ -110,7 +111,7 @@ class Command(BaseCommand):
                     if tabelas_criadas > 0:
                         self.stdout.write(self.style.SUCCESS(f'\n   ✅ {tabelas_criadas} tabelas criadas com sucesso!'))
                     else:
-                        self.stdout.write(self.style.WARNING(f'\n   ⚠️  Nenhuma tabela nova criada (todas já existiam)'))
+                        self.stdout.write(self.style.WARNING('\n   ⚠️  Nenhuma tabela nova criada (todas já existiam)'))
                 
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f'\n   ❌ Erro: {e}'))

@@ -6,6 +6,7 @@ Remove vinculação incorreta de owner como vendedor.
 from django.core.management.base import BaseCommand
 from django.db import connection
 from django.db.models import Q
+
 from superadmin.models import Loja, VendedorUsuario
 
 
@@ -48,7 +49,7 @@ class Command(BaseCommand):
                 if not owner:
                     self.stdout.write(
                         self.style.WARNING(
-                            f'  ⚠️  Loja sem owner'
+                            '  ⚠️  Loja sem owner'
                         )
                     )
                     continue
@@ -62,7 +63,7 @@ class Command(BaseCommand):
                 if not vu:
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f'  ✅ Owner não tem VendedorUsuario'
+                            '  ✅ Owner não tem VendedorUsuario'
                         )
                     )
                     total_processadas += 1
@@ -82,7 +83,7 @@ class Command(BaseCommand):
                 
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f'  ✅ Vendedor e VendedorUsuario removidos'
+                        '  ✅ Vendedor e VendedorUsuario removidos'
                     )
                 )
                 
@@ -101,7 +102,7 @@ class Command(BaseCommand):
         self.stdout.write('\n' + '='*60)
         self.stdout.write(
             self.style.SUCCESS(
-                f'\n✅ Processamento concluído!'
+                '\n✅ Processamento concluído!'
             )
         )
         self.stdout.write(f'  📊 Total de lojas processadas: {total_processadas}')

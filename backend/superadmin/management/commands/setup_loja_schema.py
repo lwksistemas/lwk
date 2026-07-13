@@ -15,12 +15,14 @@ Se a loja CRM já existia antes do schema por loja e dá "relation crm_vendas_le
 Uso (local):
   python backend/manage.py setup_loja_schema SLUG_DA_LOJA
 """
-from django.core.management.base import BaseCommand
-from django.core.management import call_command
-from django.db import connection
-from django.conf import settings
-from superadmin.models import Loja
 import os
+
+from django.conf import settings
+from django.core.management import call_command
+from django.core.management.base import BaseCommand
+from django.db import connection
+
+from superadmin.models import Loja
 
 
 class Command(BaseCommand):

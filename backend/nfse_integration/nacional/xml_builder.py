@@ -7,15 +7,12 @@ import logging
 import re
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Optional
 
 from lxml import etree
 
 from .constants import (
     NS_NFSE,
     VERSAO_DPS,
-    AMBIENTE_PRODUCAO,
-    AMBIENTE_HOMOLOGACAO,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,7 +28,7 @@ def _formatar_decimal(valor: Decimal, casas: int = 2) -> str:
 
 def _el(parent, tag: str, text: str = None):
     """Cria subelemento com namespace e texto opcional."""
-    el = etree.SubElement(parent, '{%s}%s' % (NS_NFSE, tag))
+    el = etree.SubElement(parent, f'{{{NS_NFSE}}}{tag}')
     if text is not None:
         el.text = str(text)
     return el
@@ -48,13 +45,13 @@ def construir_xml_dps(
     prestador_inscricao_municipal: str = '',
     prestador_razao_social: str = '',
     prestador_nome_fantasia: str = '',
-    prestador_endereco: Optional[Dict[str, str]] = None,
+    prestador_endereco: dict[str, str] | None = None,
     prestador_telefone: str = '',
     prestador_email: str = '',
     # Tomador
     tomador_cpf_cnpj: str = '',
     tomador_nome: str = '',
-    tomador_endereco: Optional[Dict[str, str]] = None,
+    tomador_endereco: dict[str, str] | None = None,
     tomador_telefone: str = '',
     tomador_email: str = '',
     # Serviço
@@ -77,13 +74,12 @@ def construir_xml_dps(
     # Código numérico
     codigo_numerico: int = 0,
     # Data
-    data_competencia: Optional[datetime] = None,
+    data_competencia: datetime | None = None,
 ) -> str:
     """Constrói o XML da DPS conforme formato real do Portal Contribuinte."""
     if data_competencia is None:
         data_competencia = datetime.now()
 
-    amb_int = AMBIENTE_HOMOLOGACAO if ambiente == 'homologacao' else AMBIENTE_PRODUCAO
     cnpj_digits = _somente_digitos(prestador_cnpj)
     tomador_doc = _somente_digitos(tomador_cpf_cnpj)
     valor = Decimal(str(valor_servicos))
@@ -95,7 +91,7 @@ def construir_xml_dps(
     nsmap = {None: NS_NFSE}
 
     # Root: DPS com versao
-    root = etree.Element('{%s}DPS' % NS_NFSE, nsmap=nsmap)
+    root = etree.Element(f'{{{NS_NFSE}}}DPS', nsmap=nsmap)
     root.set('versao', VERSAO_DPS)
 
     # infDPS com Id (formato TSIdDPS: DPS + CodMun7 + TipoInsc1 + InscFed14 + Serie5 + NumDPS15)
@@ -104,7 +100,7 @@ def construir_xml_dps(
     num_dps_id = str(numero_dps).zfill(15)[:15]
     inf_id = f'DPS{codigo_municipio_prestador[:7].ljust(7, "0")}{tipo_insc}{insc_fed}{serie_formatada}{num_dps_id}'
 
-    inf_dps = etree.SubElement(root, '{%s}infDPS' % NS_NFSE, Id=inf_id)
+    inf_dps = etree.SubElement(root, f'{{{NS_NFSE}}}infDPS', Id=inf_id)
 
     # --- Identificação (ordem conforme XML real) ---
     # Nota: em produção restrita (homologação), usar tpAmb=1 conforme comportamento do portal

@@ -8,6 +8,7 @@ Uso:
   python manage.py limpar_todos_orfaos --tudo       # remover dados + usuários órfãos (pede confirmação)
 """
 from django.core.management.base import BaseCommand
+
 from superadmin.orfaos_config import get_usuarios_orfaos_queryset
 
 
@@ -87,8 +88,9 @@ class Command(BaseCommand):
         self.stdout.write('')
 
     def call_command(self, name, **kwargs):
-        from django.core.management import call_command
         import io
+
+        from django.core.management import call_command
         out = io.StringIO()
         err = io.StringIO()
         try:

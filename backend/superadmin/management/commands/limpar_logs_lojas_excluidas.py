@@ -12,9 +12,11 @@ Este comando remove:
 Útil para limpar dados órfãos de lojas excluídas antes da implementação do v714.
 """
 import logging
+
 from django.core.management.base import BaseCommand
 from django.db import models, transaction
-from superadmin.models import HistoricoAcessoGlobal, ViolacaoSeguranca, Loja
+
+from superadmin.models import HistoricoAcessoGlobal, Loja, ViolacaoSeguranca
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +85,6 @@ class Command(BaseCommand):
             )
         
         # Combinar ambos os tipos de logs órfãos (usar Q para OR)
-        from django.db.models import Q
         logs_orfaos_ids = set(
             list(logs_orfaos_slug.values_list('id', flat=True)) +
             list(logs_orfaos_recurso_com_id.values_list('id', flat=True)) +

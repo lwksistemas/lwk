@@ -5,6 +5,7 @@ Remove schemas que não têm loja correspondente no banco de dados
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 

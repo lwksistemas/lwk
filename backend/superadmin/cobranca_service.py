@@ -8,9 +8,9 @@ Baseado no payment_deletion_service.py existente.
 """
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Any
-from datetime import date, timedelta
 from calendar import monthrange
+from datetime import date, timedelta
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +23,10 @@ def _parse_due_date(value) -> date:
     return date.today()
 
 
-def _registrar_pagamento_loja_pendente(loja, financeiro, result: Dict[str, Any], provedor: str, due_date) -> None:
+def _registrar_pagamento_loja_pendente(loja, financeiro, result: dict[str, Any], provedor: str, due_date) -> None:
     """Registra PagamentoLoja pendente para histórico, boleto e NFS-e após confirmação."""
     from django.utils import timezone
+
     from .models import PagamentoLoja
 
     payment_id = (result.get('payment_id') or '').strip()
@@ -72,7 +73,7 @@ class PaymentProviderStrategy(ABC):
     """Interface abstrata para estratégias de provedor de pagamento"""
     
     @abstractmethod
-    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> Dict[str, Any]:
+    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> dict[str, Any]:
         """
         Cria cobrança no provedor de pagamento
         
@@ -97,13 +98,15 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
     def get_provider_name(self) -> str:
         return 'asaas'
     
-    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> Dict[str, Any]:
+    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> dict[str, Any]:
         """Cria cobrança no Asaas"""
         try:
+            from datetime import datetime
+
+            from django.db import transaction
+
             from asaas_integration.client import AsaasPaymentService
             from asaas_integration.models import AsaasCustomer, AsaasPayment, LojaAssinatura
-            from django.db import transaction
-            from datetime import datetime
             
             logger.info(f"Criando cobrança Asaas para loja: {loja.nome}")
             
@@ -255,7 +258,7 @@ class MercadoPagoPaymentStrategy(PaymentProviderStrategy):
     def get_provider_name(self) -> str:
         return 'mercadopago'
     
-    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> Dict[str, Any]:
+    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> dict[str, Any]:
         """Cria cobrança no Mercado Pago"""
         try:
             from superadmin.mercadopago_service import LojaMercadoPagoService
@@ -323,7 +326,7 @@ class CobrancaService:
             'mercadopago': MercadoPagoPaymentStrategy()
         }
     
-    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> Dict[str, Any]:
+    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> dict[str, Any]:
         """
         Cria cobrança no provedor escolhido pela loja
         
@@ -349,7 +352,7 @@ class CobrancaService:
         
         return strategy.criar_cobranca(loja, financeiro, due_date_override=due_date_override)
     
-    def renovar_cobranca(self, loja, financeiro, dia_vencimento=None, antecipado=False) -> Dict[str, Any]:
+    def renovar_cobranca(self, loja, financeiro, dia_vencimento=None, antecipado=False) -> dict[str, Any]:
         """
         Cria nova cobrança para o proprietário pagar (antecipado ou renovação).
         

@@ -3,6 +3,7 @@ Comando para marcar violações de privilege_escalation como falso positivo
 quando são acessos legítimos de donos de loja
 """
 from django.core.management.base import BaseCommand
+
 from superadmin.models import ViolacaoSeguranca
 
 
@@ -70,7 +71,7 @@ class Command(BaseCommand):
                 )
         
         self.stdout.write('')
-        self.stdout.write(self.style.SUCCESS(f'✅ Processo concluído!'))
+        self.stdout.write(self.style.SUCCESS('✅ Processo concluído!'))
         self.stdout.write(f'📊 Total de violações: {total}')
         self.stdout.write(f'✅ Marcadas como falso positivo: {marcadas}')
         self.stdout.write(f'⚠️  Ainda requerem análise: {total - marcadas}')

@@ -1,9 +1,10 @@
 """Helpers compartilhados para serialização e validação de WhatsAppConfig."""
 import logging
 
-from core.phone_utils import telefone_exibicao_brasileiro, telefone_internacional_br
 from rest_framework import status
 from rest_framework.response import Response
+
+from core.phone_utils import telefone_exibicao_brasileiro, telefone_internacional_br
 
 from .connection_service import sync_evolution_connection
 from .evolution_client import evolution_configured

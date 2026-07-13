@@ -17,9 +17,10 @@ Boas práticas aplicadas:
 """
 import logging
 from datetime import timedelta
-from django.utils import timezone
-from django.db.models import Count, Q
+
 from django.contrib.auth.models import User
+from django.db.models import Count
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +204,7 @@ class SecurityDetector:
         Returns:
             int: Número de violações criadas
         """
-        logger.info(f"🔍 Detectando cross-tenant access...")
+        logger.info("🔍 Detectando cross-tenant access...")
         
         cutoff_time = timezone.now() - timedelta(minutes=time_window_minutes)
         
@@ -283,7 +284,7 @@ class SecurityDetector:
         Returns:
             int: Número de violações criadas
         """
-        logger.info(f"🔍 Detectando privilege escalation...")
+        logger.info("🔍 Detectando privilege escalation...")
         
         cutoff_time = timezone.now() - timedelta(minutes=time_window_minutes)
         
@@ -317,7 +318,7 @@ class SecurityDetector:
         
         # Se não há acessos suspeitos após filtrar, retornar
         if not suspicious_access_filtered:
-            logger.info(f"✅ Privilege escalation: 0 violações criadas (todos os acessos são legítimos)")
+            logger.info("✅ Privilege escalation: 0 violações criadas (todos os acessos são legítimos)")
             return 0
         
         # Filtrar queryset para apenas IDs suspeitos
@@ -458,7 +459,7 @@ class SecurityDetector:
         Returns:
             int: Número de violações criadas
         """
-        logger.info(f"🔍 Detectando IP change...")
+        logger.info("🔍 Detectando IP change...")
         
         cutoff_time = timezone.now() - timedelta(hours=time_window_hours)
         

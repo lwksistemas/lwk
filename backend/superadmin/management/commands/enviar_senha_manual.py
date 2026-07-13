@@ -7,10 +7,12 @@ python manage.py enviar_senha_manual <loja_slug>
 Exemplo:
 python manage.py enviar_senha_manual clinica-luiz-1845
 """
-from django.core.management.base import BaseCommand, CommandError
-from superadmin.models import Loja
-from superadmin.email_service import EmailService
 import logging
+
+from django.core.management.base import BaseCommand, CommandError
+
+from superadmin.email_service import EmailService
+from superadmin.models import Loja
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +37,7 @@ class Command(BaseCommand):
         force = options.get('force', False)
         
         self.stdout.write(f"\n{'='*80}")
-        self.stdout.write(f"ENVIO MANUAL DE SENHA PROVISÓRIA")
+        self.stdout.write("ENVIO MANUAL DE SENHA PROVISÓRIA")
         self.stdout.write(f"{'='*80}\n")
         
         try:

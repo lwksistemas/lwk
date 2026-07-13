@@ -4,6 +4,7 @@ Uso: python manage.py drop_legacy_crm_relatorio_comissao
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 
@@ -32,7 +33,7 @@ class Command(BaseCommand):
                     exists = cur.fetchone()[0]
 
                     if not exists:
-                        self.stdout.write(self.style.SUCCESS(f'  ✅ Tabela não existe — OK'))
+                        self.stdout.write(self.style.SUCCESS('  ✅ Tabela não existe — OK'))
                         continue
 
                     cur.execute('SELECT COUNT(*) FROM crm_relatorio_comissao')
@@ -40,7 +41,7 @@ class Command(BaseCommand):
                     self.stdout.write(f'  Registros: {count}')
 
                     cur.execute('DROP TABLE IF EXISTS crm_relatorio_comissao CASCADE')
-                    self.stdout.write(self.style.SUCCESS(f'  ✅ Tabela crm_relatorio_comissao removida'))
+                    self.stdout.write(self.style.SUCCESS('  ✅ Tabela crm_relatorio_comissao removida'))
 
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f'  ❌ Erro: {e}'))

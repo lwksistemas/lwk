@@ -3,10 +3,11 @@ Gerenciador de Sessões Únicas com JWT
 Garante que cada usuário tenha apenas uma sessão ativa por vez
 e implementa timeout de inatividade de 30 minutos
 """
-from django.utils import timezone
-from django.contrib.auth.models import User
 import hashlib
 import logging
+
+from django.contrib.auth.models import User
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 

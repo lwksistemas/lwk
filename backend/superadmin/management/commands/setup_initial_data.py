@@ -1,10 +1,12 @@
 """
 Comando para criar dados iniciais do sistema
 """
-from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
-from superadmin.models import TipoLoja, PlanoAssinatura, UsuarioSistema
 from decimal import Decimal
+
+from django.contrib.auth.models import User
+from django.core.management.base import BaseCommand
+
+from superadmin.models import PlanoAssinatura, TipoLoja, UsuarioSistema
 
 
 class Command(BaseCommand):
@@ -71,8 +73,8 @@ class Command(BaseCommand):
 
     def create_login_config_sistema(self):
         """Garante logo/fundo padrão nas telas de login do sistema."""
-        from superadmin.models import LoginConfigSistema
         from superadmin.login_sistema_defaults import LOGIN_SISTEMA_DEFAULTS
+        from superadmin.models import LoginConfigSistema
 
         for tipo, defaults in LOGIN_SISTEMA_DEFAULTS.items():
             config, created = LoginConfigSistema.objects.get_or_create(

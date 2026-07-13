@@ -4,6 +4,7 @@ Implementa a interface AssinaturaAdapter do core.
 """
 import logging
 from datetime import timedelta
+
 from django.utils import timezone
 
 from core.assinatura_service import AssinaturaAdapter
@@ -74,9 +75,11 @@ class ReservaAssinaturaAdapter(AssinaturaAdapter):
         )
 
     def buscar_assinatura_por_token(self, token: str):
-        from .models import ReservaAssinatura
-        from core.assinatura_service import normalizar_token_url
         from urllib.parse import unquote
+
+        from core.assinatura_service import normalizar_token_url
+
+        from .models import ReservaAssinatura
 
         token = normalizar_token_url(token)
         try:

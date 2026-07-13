@@ -3,6 +3,7 @@ Comando para invalidar TODAS as sessões ativas
 Força todos os usuários a fazer login novamente
 """
 from django.core.management.base import BaseCommand
+
 from superadmin.models import UserSession
 
 

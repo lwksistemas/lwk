@@ -2,14 +2,14 @@
 🚀 OTIMIZAÇÕES DE PERFORMANCE
 Classes base e mixins para melhorar performance do sistema
 """
-from rest_framework import viewsets, serializers
-from rest_framework.response import Response
-from django.core.cache import cache
-from django.db.models import Prefetch, Q
-from functools import wraps
 import hashlib
 import json
 import logging
+from functools import wraps
+
+from django.core.cache import cache
+from rest_framework import serializers, viewsets
+from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
 
@@ -401,8 +401,7 @@ def log_query_count(func):
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
-        from django.db import connection
-        from django.db import reset_queries
+        from django.db import connection, reset_queries
         
         reset_queries()
         

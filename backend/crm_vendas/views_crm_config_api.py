@@ -2,8 +2,6 @@
 CRM: configuração da loja e testes de integração (Asaas, ISSNet).
 """
 import logging
-import os
-import tempfile
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -11,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from tenants.middleware import get_current_loja_id
+
 from .cache import CRMCacheManager
 from .crm_config_helpers import get_crm_config_for_loja as _get_crm_config_for_loja
 
@@ -23,7 +22,6 @@ def crm_config(request):
     PATCH: Atualiza configurações do CRM (personalizar: origens, etapas, colunas, módulos)
     Admin e vendedores podem acessar e personalizar.
     """
-    from .models import CRMConfig
     from .serializers import CRMConfigSerializer
     
     loja_id = get_current_loja_id()
@@ -34,10 +32,11 @@ def crm_config(request):
     try:
         config = _get_crm_config_for_loja(loja_id)
     except Exception as e:
-        from django.db.utils import ProgrammingError, OperationalError
+        from django.db.utils import OperationalError, ProgrammingError
         if isinstance(e, (ProgrammingError, OperationalError)):
             # Auto-recovery: tentar configurar schema e retry
             from superadmin.models import Loja
+
             from .schema_service import configurar_schema_crm_loja
             loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
             if loja and configurar_schema_crm_loja(loja):
@@ -95,7 +94,6 @@ def crm_config_asaas_test(request):
       - api_key: se omitido ou vazio, usa a chave já salva em CRMConfig
       - asaas_sandbox: se omitido, usa o valor salvo na config
     """
-    from .models import CRMConfig
 
     try:
         from asaas_integration.client import AsaasClient
@@ -118,7 +116,7 @@ def crm_config_asaas_test(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    from asaas_integration.api_key_utils import normalize_asaas_api_key, asaas_key_is_sandbox
+    from asaas_integration.api_key_utils import asaas_key_is_sandbox, normalize_asaas_api_key
 
     body = request.data if isinstance(request.data, dict) else {}
     api_key = (body.get('api_key') or '').strip()
@@ -173,7 +171,6 @@ def crm_config_issnet_test(request):
     Testa conexão com o WebService ISSNet usando certificado da loja.
     Valida PFX/senha e tenta acessar o WSDL.
     """
-    from .models import CRMConfig
 
     loja_id = get_current_loja_id()
     if not loja_id:
@@ -203,15 +200,17 @@ def crm_config_issnet_test(request):
         return Response({'success': False, 'detail': 'Senha do certificado não informada.'}, status=400)
 
     try:
+        import os
+        import tempfile
+
         from nfse_integration.issnet_client import testar_conexao_issnet
-        import tempfile, os
 
         usuario = (request.data.get('issnet_usuario') or '').strip() or getattr(cfg, 'issnet_usuario', '') or ''
         senha_ws = (request.data.get('issnet_senha') or '').strip() or getattr(cfg, 'issnet_senha', '') or ''
         ambiente = 'homologacao' if getattr(cfg, 'issnet_ambiente_homologacao', False) else 'producao'
 
         # Salvar cert em arquivo temporário para a função
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')  # noqa: SIM115
         tmp.write(cert_data)
         tmp.close()
 

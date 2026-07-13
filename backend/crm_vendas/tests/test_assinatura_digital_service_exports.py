@@ -1,6 +1,5 @@
 """Smoke tests: símbolos re-exportados por assinatura_digital_service (regressão pós-refatoração)."""
 import importlib
-import unittest
 
 from django.test import SimpleTestCase
 

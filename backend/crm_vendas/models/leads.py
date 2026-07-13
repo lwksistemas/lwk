@@ -1,8 +1,9 @@
 from django.db import models
 
-from core.mixins import LojaIsolationMixin, LojaIsolationManager
+from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 from .contas import Conta
+
 
 class Lead(LojaIsolationMixin, models.Model):
     """Lead (potencial cliente)."""

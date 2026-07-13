@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from ..models import EmailRetry
 
+
 class EmailRetrySerializer(serializers.ModelSerializer):
     """
     Serializer para EmailRetry

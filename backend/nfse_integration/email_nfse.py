@@ -3,9 +3,6 @@ import logging
 from decimal import Decimal
 from typing import Any
 
-from django.conf import settings
-from django.core.mail import EmailMessage
-
 from core.logging_utils import mask_email
 
 logger = logging.getLogger(__name__)

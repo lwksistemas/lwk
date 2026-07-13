@@ -1,13 +1,14 @@
 """Serializers de oportunidades CRM."""
+import contextlib
+
 from rest_framework import serializers
 
 from core.serializer_mixins import (
-    CpfCnpjNormalizationMixin,
     TextNormalizationMixin,
-    UniqueDocumentoPerLojaMixin,
 )
 
 from ..models import Oportunidade
+
 
 class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     lead_nome = serializers.SerializerMethodField()
@@ -44,10 +45,8 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
 
         conta_nome = None
         if obj.lead.conta_id:
-            try:
+            with contextlib.suppress(Exception):
                 conta_nome = obj.lead.conta.nome
-            except Exception:
-                pass
         return label_empresa_lead(
             obj.lead.cpf_cnpj,
             empresa=obj.lead.empresa,

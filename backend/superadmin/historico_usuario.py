@@ -61,10 +61,10 @@ def _nome_paciente_foto_token(token: str) -> tuple[str, str, int | None]:
         return '', '', loja_id
 
     try:
+        from clinica_beleza.models import Patient
         from core.db_config import ensure_loja_database_config
         from superadmin.models import Loja
         from tenants.middleware import set_current_loja_id, set_current_tenant_db
-        from clinica_beleza.models import Patient
 
         loja = Loja.objects.using('default').filter(id=loja_id).first()
         if not loja or not ensure_loja_database_config(loja.database_name, 0):
@@ -192,7 +192,7 @@ def _enriquecer_nome_usuario_autenticado(user, loja_id) -> str:
         return nome_user
 
     try:
-        from superadmin.models import VendedorUsuario, ProfissionalUsuario, Loja
+        from superadmin.models import Loja, ProfissionalUsuario, VendedorUsuario
 
         vu = VendedorUsuario.objects.using('default').filter(user=user, loja_id=loja_id).first()
         if vu:

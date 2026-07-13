@@ -5,10 +5,11 @@ Garante que cada loja só acesse seus próprios dados
 
 IMPORTANTE: Usa thread-local storage para isolamento entre requisições
 """
-from django.db import models
-from django.core.exceptions import ValidationError
-from threading import local
 import logging
+from threading import local
+
+from django.core.exceptions import ValidationError
+from django.db import models
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +134,7 @@ class LojaIsolationMixin(models.Model):
                 f"mas contexto é loja_id={current_loja_id}"
             )
             raise ValidationError({
-                'loja_id': f'Você não pode criar/editar dados de outra loja'
+                'loja_id': 'Você não pode criar/editar dados de outra loja'
             })
         
         # Evitar dados órfãos: garantir que a loja existe no banco default
@@ -200,7 +201,7 @@ class LojaContextMiddleware:
         self.get_response = get_response
     
     def __call__(self, request):
-        from tenants.middleware import set_current_loja_id, get_current_loja_id
+        from tenants.middleware import get_current_loja_id, set_current_loja_id
         
         # Se ainda não há contexto definido e usuário está autenticado
         if not get_current_loja_id() and request.user and request.user.is_authenticated:
@@ -286,7 +287,6 @@ class ClienteSearchMixin:
         """
         from django.db.models import Q
         from rest_framework.response import Response
-        from rest_framework.decorators import action
         
         params = getattr(request, 'query_params', request.GET)
         query = params.get('q', '')

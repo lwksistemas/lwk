@@ -1,11 +1,11 @@
 """
 Tokens e verificação de links de assinatura digital (CRM).
 """
+import logging
 from datetime import timedelta
 from urllib.parse import unquote
-import logging
 
-from django.core.signing import dumps, loads, BadSignature
+from django.core.signing import BadSignature, dumps, loads
 from django.utils import timezone
 
 from core.assinatura_service import normalizar_token_url

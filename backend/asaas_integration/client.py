@@ -2,13 +2,14 @@
 Cliente para integração com API do Asaas
 Gera boletos e PIX para cobrança de assinaturas das lojas
 """
-import requests
 import json
+import logging
 import re
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Any
+
+import requests
 from django.conf import settings
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class AsaasClient:
             return ''
         try:
             from core.encryption import decrypt_value
+
             from .api_key_utils import normalize_asaas_api_key
             return normalize_asaas_api_key(decrypt_value(api_key))
         except Exception:
@@ -52,7 +54,7 @@ class AsaasClient:
             from .api_key_utils import normalize_asaas_api_key
             return normalize_asaas_api_key(api_key)
     
-    def _make_request(self, method: str, endpoint: str, data: Dict = None) -> Dict[str, Any]:
+    def _make_request(self, method: str, endpoint: str, data: dict = None) -> dict[str, Any]:
         """Faz requisição para API do Asaas"""
         url = f"{self.base_url}/{endpoint}"
         
@@ -85,7 +87,7 @@ class AsaasClient:
             logger.error(f"Erro ao decodificar resposta JSON: {e}")
             raise
     
-    def create_customer(self, customer_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_customer(self, customer_data: dict[str, Any]) -> dict[str, Any]:
         """Cria um cliente no Asaas"""
         endpoint = 'customers'
         return self._make_request('POST', endpoint, customer_data)
@@ -149,10 +151,10 @@ class AsaasClient:
 
     def search_customer(
         self,
-        cpf_cnpj: Optional[str] = None,
-        email: Optional[str] = None,
-        external_reference: Optional[str] = None,
-    ) -> Optional[Dict[str, Any]]:
+        cpf_cnpj: str | None = None,
+        email: str | None = None,
+        external_reference: str | None = None,
+    ) -> dict[str, Any] | None:
         """
         Busca cliente existente no Asaas (evita duplicatas).
         Prioridade: CPF/CNPJ → externalReference → e-mail.
@@ -184,7 +186,7 @@ class AsaasClient:
                 logger.warning('Busca cliente Asaas falhou (%s): %s', params, exc)
         return None
 
-    def get_or_create_customer(self, customer_data: Dict[str, Any]) -> Dict[str, Any]:
+    def get_or_create_customer(self, customer_data: dict[str, Any]) -> dict[str, Any]:
         """Reutiliza cliente por CPF/CNPJ, referência externa ou e-mail; cria só se não existir."""
         payload = dict(customer_data)
         if payload.get('cpfCnpj'):
@@ -206,34 +208,34 @@ class AsaasClient:
             self.disable_provider_notifications(customer_id)
         return customer
     
-    def update_customer(self, customer_id: str, customer_data: Dict[str, Any]) -> Dict[str, Any]:
+    def update_customer(self, customer_id: str, customer_data: dict[str, Any]) -> dict[str, Any]:
         """Atualiza um cliente no Asaas"""
         endpoint = f'customers/{customer_id}'
         return self._make_request('POST', endpoint, customer_data)
     
-    def get_customer(self, customer_id: str) -> Dict[str, Any]:
+    def get_customer(self, customer_id: str) -> dict[str, Any]:
         """Busca um cliente no Asaas"""
         endpoint = f'customers/{customer_id}'
         return self._make_request('GET', endpoint)
     
-    def create_payment(self, payment_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_payment(self, payment_data: dict[str, Any]) -> dict[str, Any]:
         """Cria uma cobrança no Asaas"""
         endpoint = 'payments'
         return self._make_request('POST', endpoint, payment_data)
     
-    def get_payment(self, payment_id: str) -> Dict[str, Any]:
+    def get_payment(self, payment_id: str) -> dict[str, Any]:
         """Busca uma cobrança no Asaas"""
         endpoint = f'payments/{payment_id}'
         return self._make_request('GET', endpoint)
     
-    def delete_payment(self, payment_id: str) -> Dict[str, Any]:
+    def delete_payment(self, payment_id: str) -> dict[str, Any]:
         """Cancela/exclui uma cobrança no Asaas"""
         endpoint = f'payments/{payment_id}'
         return self._make_request('DELETE', endpoint)
     
     # ✅ NOVO: Métodos para cartão de crédito
     
-    def create_payment_link(self, payment_id: str, name: str = None, callback_url: str = None) -> Dict[str, Any]:
+    def create_payment_link(self, payment_id: str, name: str = None, callback_url: str = None) -> dict[str, Any]:
         """
         Cria link de checkout para cobrança existente
         Permite que cliente cadastre cartão e pague online
@@ -247,7 +249,6 @@ class AsaasClient:
             dict com url do link de pagamento
         """
         # Para cobranças específicas, usamos o endpoint de checkout
-        endpoint = f'payments/{payment_id}/identificationField'
         
         # Primeiro, obter os dados da cobrança
         payment_data = self._make_request('GET', f'payments/{payment_id}')
@@ -264,7 +265,7 @@ class AsaasClient:
             'error': 'Link de pagamento não disponível para esta cobrança'
         }
     
-    def tokenize_credit_card(self, card_data: Dict[str, Any]) -> Dict[str, Any]:
+    def tokenize_credit_card(self, card_data: dict[str, Any]) -> dict[str, Any]:
         """
         Tokeniza cartão de crédito para cobranças recorrentes
         
@@ -301,7 +302,7 @@ class AsaasClient:
         credit_card_token: str,
         description: str = None,
         due_date: str = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Cria cobrança no cartão de crédito tokenizado
         
@@ -331,24 +332,24 @@ class AsaasClient:
         
         return self._make_request('POST', endpoint, data)
     
-    def delete_customer(self, customer_id: str) -> Dict[str, Any]:
+    def delete_customer(self, customer_id: str) -> dict[str, Any]:
         """Exclui um cliente no Asaas"""
         endpoint = f'customers/{customer_id}'
         return self._make_request('DELETE', endpoint)
     
-    def list_customer_payments(self, customer_id: str) -> Dict[str, Any]:
+    def list_customer_payments(self, customer_id: str) -> dict[str, Any]:
         """Lista todos os pagamentos de um cliente"""
-        endpoint = f'payments'
+        endpoint = 'payments'
         params = {'customer': customer_id}
         return self._make_request('GET', endpoint, params)
     
-    def list_payments(self, limit: int = 100, offset: int = 0) -> Dict[str, Any]:
+    def list_payments(self, limit: int = 100, offset: int = 0) -> dict[str, Any]:
         """Lista todos os pagamentos"""
         endpoint = 'payments'
         params = {'limit': limit, 'offset': offset}
         return self._make_request('GET', endpoint, params)
     
-    def list_customers(self, limit: int = 100, offset: int = 0) -> Dict[str, Any]:
+    def list_customers(self, limit: int = 100, offset: int = 0) -> dict[str, Any]:
         """Lista todos os clientes"""
         endpoint = 'customers'
         params = {'limit': limit, 'offset': offset}
@@ -398,7 +399,7 @@ class AsaasClient:
 
         raise Exception("Não foi possível baixar o PDF do boleto de nenhuma URL")
     
-    def get_pix_qr_code(self, payment_id: str) -> Dict[str, Any]:
+    def get_pix_qr_code(self, payment_id: str) -> dict[str, Any]:
         """Busca dados do QR Code PIX"""
         endpoint = f'payments/{payment_id}/pixQrCode'
         return self._make_request('GET', endpoint)
@@ -407,8 +408,8 @@ class AsaasClient:
         self,
         payment_id: str,
         value: float,
-        payment_date: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        payment_date: str | None = None,
+    ) -> dict[str, Any]:
         """
         Registra recebimento em dinheiro da cobrança (permite seguir com NFS-e sem liquidação bancária).
         POST /v3/payments/{id}/receiveInCash
@@ -433,12 +434,12 @@ class AsaasClient:
         service_description: str,
         value: float,
         effective_date: str,
-        municipal_service_code: Optional[str] = None,
-        municipal_service_name: Optional[str] = None,
-        municipal_service_id: Optional[str] = None,
-        observations: Optional[str] = None,
-        iss_aliquota: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        municipal_service_code: str | None = None,
+        municipal_service_name: str | None = None,
+        municipal_service_id: str | None = None,
+        observations: str | None = None,
+        iss_aliquota: float | None = None,
+    ) -> dict[str, Any]:
         """
         Agenda uma nota fiscal vinculada a uma cobrança (payment).
         Campos municipais dependem da prefeitura da conta Asaas (LWK).
@@ -473,17 +474,17 @@ class AsaasClient:
         
         return self._make_request('POST', endpoint, data)
 
-    def authorize_invoice(self, invoice_id: str) -> Dict[str, Any]:
+    def authorize_invoice(self, invoice_id: str) -> dict[str, Any]:
         """Emitir (autorizar) uma nota fiscal já agendada."""
         endpoint = f'invoices/{invoice_id}/authorize'
         return self._make_request('POST', endpoint, {})
 
-    def cancel_invoice(self, invoice_id: str) -> Dict[str, Any]:
+    def cancel_invoice(self, invoice_id: str) -> dict[str, Any]:
         """Cancela uma nota fiscal agendada ou emitida."""
         endpoint = f'invoices/{invoice_id}'
         return self._make_request('DELETE', endpoint)
 
-    def get_invoice(self, invoice_id: str) -> Dict[str, Any]:
+    def get_invoice(self, invoice_id: str) -> dict[str, Any]:
         """Busca uma nota fiscal (para obter link do PDF se disponível)."""
         endpoint = f'invoices/{invoice_id}'
         return self._make_request('GET', endpoint)
@@ -495,7 +496,7 @@ class AsaasPaymentService:
         # Obter configuração do banco de dados
         try:
             from .models import AsaasConfig
-            config = AsaasConfig.get_config()
+            AsaasConfig.get_config()
             api_key = AsaasConfig.resolve_api_key()
             sandbox = AsaasConfig.effective_sandbox(api_key)
             self.client = AsaasClient(api_key=api_key, sandbox=sandbox)
@@ -504,7 +505,7 @@ class AsaasPaymentService:
             # Fallback para configuração vazia
             self.client = AsaasClient(api_key='', sandbox=True)
     
-    def create_loja_subscription_payment(self, loja_data: Dict[str, Any], plano_data: Dict[str, Any], due_date: str = None, customer_id: str = None) -> Dict[str, Any]:
+    def create_loja_subscription_payment(self, loja_data: dict[str, Any], plano_data: dict[str, Any], due_date: str = None, customer_id: str = None) -> dict[str, Any]:
         """
         Cria cobrança para assinatura de loja
         
@@ -605,7 +606,7 @@ class AsaasPaymentService:
                 'error': str(e)
             }
     
-    def get_payment_status(self, payment_id: str) -> Dict[str, Any]:
+    def get_payment_status(self, payment_id: str) -> dict[str, Any]:
         """Consulta status de um pagamento"""
         try:
             payment = self.client.get_payment(payment_id)

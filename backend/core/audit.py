@@ -6,7 +6,6 @@ Usa o model AuditLog no banco default (superadmin).
 """
 import functools
 import logging
-from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 

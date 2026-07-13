@@ -1,11 +1,13 @@
-from rest_framework import viewsets, status
+import logging
+
+from django.utils import timezone
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.utils import timezone
-import logging
 
 logger = logging.getLogger(__name__)
 from core.logging_utils import mask_email
+
 from ..models import FinanceiroLoja, PagamentoLoja
 from ..serializers import FinanceiroLojaSerializer, PagamentoLojaSerializer
 from .permissions import IsSuperAdmin
@@ -115,9 +117,9 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def baixar_nota_fiscal(self, request, pk=None):
         """Baixa a nota fiscal mais recente da loja"""
-        from asaas_integration.models import AsaasConfig
+
         from asaas_integration.client import AsaasClient
-        from django.http import HttpResponse
+        from asaas_integration.models import AsaasConfig
         
         try:
             logger.info(f"🧾 [baixar_nota_fiscal] Iniciando - financeiro_id={pk}")
@@ -129,7 +131,7 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
             logger.info(f"🧾 [baixar_nota_fiscal] Payment ID: {financeiro.asaas_payment_id}")
             
             if not financeiro.asaas_payment_id:
-                logger.warning(f"🧾 [baixar_nota_fiscal] Nenhum payment_id encontrado")
+                logger.warning("🧾 [baixar_nota_fiscal] Nenhum payment_id encontrado")
                 return Response({
                     'success': False,
                     'error': 'Nenhum pagamento Asaas encontrado para esta loja'
@@ -137,7 +139,7 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
             
             config = AsaasConfig.get_config()
             if not config or not config.api_key:
-                logger.error(f"🧾 [baixar_nota_fiscal] Asaas não configurado")
+                logger.error("🧾 [baixar_nota_fiscal] Asaas não configurado")
                 return Response({
                     'success': False,
                     'error': 'Asaas não configurado'
@@ -208,10 +210,9 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def reenviar_nota_fiscal(self, request, pk=None):
         """Reenvia nota fiscal por email para o proprietário da loja"""
-        from asaas_integration.models import AsaasConfig
+
         from asaas_integration.client import AsaasClient
-        from django.core.mail import EmailMessage
-        from django.conf import settings
+        from asaas_integration.models import AsaasConfig
         
         try:
             financeiro = self.get_object()
@@ -327,8 +328,8 @@ Equipe LWK Sistemas
     @action(detail=True, methods=['post'])
     def cancelar_nota_fiscal(self, request, pk=None):
         """Cancela a nota fiscal mais recente da loja no Asaas."""
-        from asaas_integration.models import AsaasConfig
         from asaas_integration.client import AsaasClient
+        from asaas_integration.models import AsaasConfig
 
         try:
             financeiro = self.get_object()
@@ -378,7 +379,7 @@ Equipe LWK Sistemas
 
             logger.info(f"Cancelando nota fiscal {invoice_id} (status: {status_nf}) para loja {loja.nome}")
 
-            result = client.cancel_invoice(invoice_id)
+            client.cancel_invoice(invoice_id)
 
             logger.info(f"✅ Nota fiscal {invoice_id} cancelada para loja {loja.nome}")
 

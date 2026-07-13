@@ -8,9 +8,14 @@ Fluxo:
   4. Boleto gerado automaticamente no Asaas
   5. Pagamento confirmado → NFS-e emitida automaticamente → status 'concluido'
 """
+import logging
 import uuid
-from django.db import models
-from core.mixins import LojaIsolationMixin, LojaIsolationManager
+
+from django.db import connections, models
+
+from core.mixins import LojaIsolationManager, LojaIsolationMixin
+
+logger = logging.getLogger(__name__)
 
 
 class RelatorioComissao(LojaIsolationMixin, models.Model):
@@ -168,7 +173,6 @@ class RelatorioComissao(LojaIsolationMixin, models.Model):
         """Gera número sequencial automaticamente. Cria tabela se não existir."""
         if not self.numero and self.loja_id:
             from django.utils import timezone
-            from django.db import connection
             ano = timezone.now().year
             try:
                 ultimo = (
@@ -197,7 +201,6 @@ class RelatorioComissao(LojaIsolationMixin, models.Model):
     @classmethod
     def _criar_tabela_se_necessario(cls, using=None):
         """Cria a tabela via SQL raw se não existir (fallback para multi-tenant)."""
-        from django.db import connections
         db = using or 'default'
         sql = """
         CREATE TABLE IF NOT EXISTS crm_relatorio_comissao (

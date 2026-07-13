@@ -1,5 +1,7 @@
 from django.db import models
+
 from stores.models import Store
+
 
 class Product(models.Model):
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='products')

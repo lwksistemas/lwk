@@ -1,22 +1,18 @@
 """
 Views de Autenticação com Isolamento Total e Validação de Grupo
 """
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
-from core.throttling import AuthLoginThrottle
-from core.auth_cookies import attach_auth_cookies, clear_auth_cookies
-from core.audit import registrar_evento_seguranca
-from core.login_lockout import check_account_locked, record_login_failure, clear_login_failures
-from core.store_membership import resolve_loja_for_user, user_belongs_to_store
-from django.contrib.auth import authenticate
-from rest_framework_simplejwt.tokens import RefreshToken
-from superadmin.session_manager import SessionManager
-from superadmin.models import Loja, UsuarioSistema, ProfissionalUsuario, VendedorUsuario
-from django.db import connection
-from django.db.utils import OperationalError
 import logging
+
+from django.contrib.auth import authenticate
+from django.db import connection
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from core.auth_cookies import attach_auth_cookies, clear_auth_cookies
+from core.throttling import AuthLoginThrottle
+from superadmin.session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -116,8 +112,8 @@ class BeaconLogoutView(APIView):
         """
         Logout via beacon - aceita token no body
         """
-        from rest_framework_simplejwt.tokens import AccessToken
         from rest_framework_simplejwt.exceptions import TokenError
+        from rest_framework_simplejwt.tokens import AccessToken
         
         token_str = request.data.get('token')
         

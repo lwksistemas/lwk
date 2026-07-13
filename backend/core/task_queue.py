@@ -11,14 +11,15 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
 from importlib import import_module
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Literal
 
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-QueueHealthLevel = Optional[Literal['degraded', 'unhealthy']]
+QueueHealthLevel = Literal['degraded', 'unhealthy'] | None
 
 QUEUE_BACKLOG_DEGRADED = int(os.environ.get('LWK_QUEUE_BACKLOG_DEGRADED', '50'))
 QUEUE_BACKLOG_UNHEALTHY = int(os.environ.get('LWK_QUEUE_BACKLOG_UNHEALTHY', '200'))

@@ -4,7 +4,8 @@ Segue o padrão Strategy para permitir múltiplos provedores de pagamento
 """
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Any
+
 from django.db import transaction
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ class PaymentProviderStrategy(ABC):
         pass
     
     @abstractmethod
-    def cancel_payments(self, loja_slug: str) -> Dict[str, Any]:
+    def cancel_payments(self, loja_slug: str) -> dict[str, Any]:
         """
         Cancela pagamentos pendentes na API do provedor
         
@@ -36,7 +37,7 @@ class PaymentProviderStrategy(ABC):
         pass
     
     @abstractmethod
-    def delete_local_data(self, loja_slug: str) -> Dict[str, Any]:
+    def delete_local_data(self, loja_slug: str) -> dict[str, Any]:
         """
         Remove dados locais do provedor (banco de dados)
         
@@ -65,7 +66,7 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
     def available(self) -> bool:
         return self._deletion_service is not None and self._deletion_service.available
     
-    def cancel_payments(self, loja_slug: str) -> Dict[str, Any]:
+    def cancel_payments(self, loja_slug: str) -> dict[str, Any]:
         """Cancela pagamentos na API do Asaas"""
         if not self.available:
             return {
@@ -90,10 +91,10 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
                 'error': str(e)
             }
     
-    def delete_local_data(self, loja_slug: str) -> Dict[str, Any]:
+    def delete_local_data(self, loja_slug: str) -> dict[str, Any]:
         """Remove dados locais do Asaas"""
         try:
-            from asaas_integration.models import AsaasPayment, AsaasCustomer, LojaAssinatura
+            from asaas_integration.models import AsaasPayment, LojaAssinatura
             
             deleted_payments = 0
             deleted_customers = 0
@@ -159,7 +160,7 @@ class MercadoPagoPaymentStrategy(PaymentProviderStrategy):
     def available(self) -> bool:
         return self._service is not None and self._service.available
     
-    def cancel_payments(self, loja_slug: str) -> Dict[str, Any]:
+    def cancel_payments(self, loja_slug: str) -> dict[str, Any]:
         """Cancela pagamentos na API do Mercado Pago"""
         if not self.available:
             return {
@@ -183,7 +184,7 @@ class MercadoPagoPaymentStrategy(PaymentProviderStrategy):
                 'error': str(e)
             }
     
-    def delete_local_data(self, loja_slug: str) -> Dict[str, Any]:
+    def delete_local_data(self, loja_slug: str) -> dict[str, Any]:
         """
         Remove dados locais do Mercado Pago
         
@@ -192,7 +193,7 @@ class MercadoPagoPaymentStrategy(PaymentProviderStrategy):
         A limpeza é feita automaticamente quando a loja é excluída (CASCADE).
         """
         try:
-            from superadmin.models import FinanceiroLoja, PagamentoLoja, Loja
+            from superadmin.models import FinanceiroLoja, Loja, PagamentoLoja
             
             deleted_payments = 0
             
@@ -244,7 +245,7 @@ class UnifiedPaymentDeletionService:
             MercadoPagoPaymentStrategy(),
         ]
     
-    def delete_all_payments_for_loja(self, loja_slug: str) -> Dict[str, Any]:
+    def delete_all_payments_for_loja(self, loja_slug: str) -> dict[str, Any]:
         """
         Cancela pagamentos e remove dados locais de TODOS os provedores
         

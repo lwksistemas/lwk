@@ -4,12 +4,13 @@ Garante a tabela de relatório de comissão nos bancos das lojas.
 Mantém o fallback operacional que antes ficava em um script solto na raiz do
 backend, mas dentro do fluxo padrão de management commands do Django.
 """
+import contextlib
+
 from django.core.management.base import BaseCommand
 from django.db import connections
 
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
-
 
 SQL_CREATE = """
 CREATE TABLE IF NOT EXISTS crm_relatorio_comissao (
@@ -77,10 +78,8 @@ class Command(BaseCommand):
                 skipped += 1
                 self.stdout.write(self.style.WARNING(f'SKIP loja={loja.id} db={db_name}: {exc}'))
             finally:
-                try:
+                with contextlib.suppress(Exception):
                     connections[db_name].close()
-                except Exception:
-                    pass
 
         self.stdout.write(self.style.SUCCESS(
             f'Concluido: {created_or_ok} bancos verificados, {skipped} ignorados.'

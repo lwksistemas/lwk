@@ -1,7 +1,7 @@
 """Resolução de códigos fiscais ISSNet (superadmin / assinaturas)."""
 from __future__ import annotations
 
-from typing import Any, Optional, Tuple
+from typing import Any
 
 from nfse_integration.issnet_xml_builder import normalizar_item_lista_servico_abrasf, somente_digitos
 
@@ -9,7 +9,7 @@ from nfse_integration.issnet_xml_builder import normalizar_item_lista_servico_ab
 def fiscal_codes_issnet_superadmin(
     config: Any,
     payload: Any | None = None,
-) -> Tuple[str, str, Optional[str], str]:
+) -> tuple[str, str, str | None, str]:
     """
     Retorna (item_lista_lc116, codigo_tributacao_municipio, codigo_cnae, servico_codigo_legacy).
 

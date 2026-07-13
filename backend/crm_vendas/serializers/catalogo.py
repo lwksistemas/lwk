@@ -2,12 +2,11 @@
 from rest_framework import serializers
 
 from core.serializer_mixins import (
-    CpfCnpjNormalizationMixin,
     TextNormalizationMixin,
-    UniqueDocumentoPerLojaMixin,
 )
 
 from ..models import CategoriaProdutoServico, ProdutoServico
+
 
 class CategoriaProdutoServicoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     produtos_count = serializers.SerializerMethodField()

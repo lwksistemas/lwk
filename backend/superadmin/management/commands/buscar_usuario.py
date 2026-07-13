@@ -6,8 +6,8 @@ Uso:
   python manage.py buscar_usuario felix
   python manage.py buscar_usuario felix --remover   # Remove o usuário se não for dono de nenhuma loja
 """
-from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
 
 User = get_user_model()
 
@@ -38,7 +38,7 @@ class Command(BaseCommand):
             return
 
         # Contar vínculos
-        from superadmin.models import Loja, UsuarioSistema, ProfissionalUsuario
+        from superadmin.models import Loja, ProfissionalUsuario, UsuarioSistema
 
         lojas_owned = Loja.objects.filter(owner=user)
         n_lojas = lojas_owned.count()

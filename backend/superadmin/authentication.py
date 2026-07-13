@@ -3,10 +3,13 @@ Authenticator customizado que verifica sessão única usando banco de dados.
 Garante bloqueio de acesso simultâneo: se outro dispositivo fez login,
 o token antigo é invalidado imediatamente (não espera heartbeat de 60s).
 """
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.exceptions import AuthenticationFailed
-from superadmin.session_manager import SessionManager, SESSION_TIMEOUT_MINUTES
+import contextlib
 import logging
+
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from superadmin.session_manager import SESSION_TIMEOUT_MINUTES
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +45,10 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         """
         Autentica o usuário e verifica sessão única.
         """
-        from core.auth_cookies import inject_bearer_from_cookie, get_session_id_from_request
-        from core.retry import execute_with_db_retry
         from django.db import OperationalError
+
+        from core.auth_cookies import get_session_id_from_request, inject_bearer_from_cookie
+        from core.retry import execute_with_db_retry
 
         inject_bearer_from_cookie(request)
         
@@ -107,6 +111,7 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         Evita query no DB a cada request.
         """
         import time as _time
+
         from superadmin.models import UserSession
         
         now = _time.time()
@@ -159,10 +164,8 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
                 }
             
             # Sessão válida — atualizar atividade (best-effort)
-            try:
+            with contextlib.suppress(Exception):
                 session.update_activity()
-            except Exception:
-                pass
             
             return {'valid': True}
             

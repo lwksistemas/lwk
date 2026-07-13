@@ -1,5 +1,6 @@
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
+
 
 class Chamado(models.Model):
     """Modelo de chamados de suporte - Banco isolado 'suporte'"""

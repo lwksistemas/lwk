@@ -2,7 +2,6 @@
 
 from django.db import migrations, models
 
-
 # Mapeamento slug -> codigo único (imutável)
 SLUG_TO_CODIGO = {
     'clinica-de-estetica': 'CLIEST',

@@ -62,7 +62,7 @@ def get_loja_database_config(
 
     try:
         # Adicionar search_path na URL (funciona melhor que backend customizado)
-        from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+        from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
         url_com_schema = database_url
         try:

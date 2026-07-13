@@ -31,10 +31,10 @@ def send_lembretes_atividade_crm(antecedencia: str) -> int:
     Envia lembretes WhatsApp para atividades com lembrete_whatsapp=True.
     antecedencia: '24h' ou '2h'
     """
+    from crm_vendas.atividade_whatsapp_service import enviar_lembrete_atividade_whatsapp
     from superadmin.models import Loja
     from tenants.middleware import set_current_loja_id, set_current_tenant_db
     from whatsapp.tasks import _ensure_loja_db, _get_whatsapp_config
-    from crm_vendas.atividade_whatsapp_service import enviar_lembrete_atividade_whatsapp
 
     inicio, fim, campo_enviado, config_flag = _janela_antecedencia(antecedencia)
     lojas = Loja.objects.filter(

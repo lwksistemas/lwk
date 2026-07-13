@@ -4,8 +4,10 @@ Uso: python manage.py cleanup_orphaned_data
 """
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from asaas_integration.models import AsaasPayment, AsaasCustomer, LojaAssinatura
+
+from asaas_integration.models import AsaasCustomer, AsaasPayment, LojaAssinatura
 from superadmin.models import Loja
+
 
 class Command(BaseCommand):
     help = 'Limpa dados órfãos do Asaas (pagamentos, clientes e assinaturas sem lojas associadas)'
@@ -128,7 +130,7 @@ class Command(BaseCommand):
             except Loja.DoesNotExist:
                 assinaturas_orfas.append(assinatura)
         
-        self.stdout.write(f'📊 Dados órfãos encontrados:')
+        self.stdout.write('📊 Dados órfãos encontrados:')
         self.stdout.write(f'   - Pagamentos: {len(pagamentos_orfaos)}')
         self.stdout.write(f'   - Clientes: {len(clientes_orfaos)}')
         self.stdout.write(f'   - Assinaturas: {len(assinaturas_orfas)}')
@@ -195,7 +197,7 @@ class Command(BaseCommand):
         clientes_restantes = AsaasCustomer.objects.count()
         assinaturas_restantes = LojaAssinatura.objects.count()
         
-        self.stdout.write(f'📊 Dados restantes:')
+        self.stdout.write('📊 Dados restantes:')
         self.stdout.write(f'   - Pagamentos: {pagamentos_restantes}')
         self.stdout.write(f'   - Clientes: {clientes_restantes}')
         self.stdout.write(f'   - Assinaturas: {assinaturas_restantes}')

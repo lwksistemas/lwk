@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+
 from superadmin.models import Loja, PlanoAssinatura
 
 
@@ -26,9 +27,9 @@ class Command(BaseCommand):
             if limite_antigo_gb != 1:
                 plano.espaco_storage_gb = 1
                 plano.save(update_fields=['espaco_storage_gb'])
-                self.stdout.write(self.style.SUCCESS(f"    ✅ Atualizado para: 1 GB"))
+                self.stdout.write(self.style.SUCCESS("    ✅ Atualizado para: 1 GB"))
             else:
-                self.stdout.write(f"    ℹ️  Já está em 1 GB")
+                self.stdout.write("    ℹ️  Já está em 1 GB")
         
         self.stdout.write("")
         self.stdout.write("=" * 80)
@@ -53,14 +54,14 @@ class Command(BaseCommand):
                 loja.storage_limite_mb = 500
                 loja.save(update_fields=['storage_limite_mb'])
                 
-                self.stdout.write(self.style.SUCCESS(f"    ✅ Atualizado para: 500 MB"))
+                self.stdout.write(self.style.SUCCESS("    ✅ Atualizado para: 500 MB"))
                 atualizadas += 1
             else:
                 self.stdout.write(f"  ✓ {loja.nome}: já está em 500 MB")
         
         self.stdout.write("")
         self.stdout.write("=" * 80)
-        self.stdout.write(self.style.SUCCESS(f"\n✅ CONCLUÍDO!"))
+        self.stdout.write(self.style.SUCCESS("\n✅ CONCLUÍDO!"))
         self.stdout.write(f"   Total de lojas: {total}")
         self.stdout.write(f"   Lojas atualizadas: {atualizadas}")
         self.stdout.write(f"   Lojas já corretas: {total - atualizadas}")

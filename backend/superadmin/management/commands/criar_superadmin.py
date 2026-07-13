@@ -1,5 +1,6 @@
-from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
+from django.core.management.base import BaseCommand
+
 from superadmin.models import UsuarioSistema
 
 
@@ -51,7 +52,7 @@ class Command(BaseCommand):
         
         self.stdout.write(self.style.SUCCESS(''))
         self.stdout.write(self.style.SUCCESS('🔐 DADOS DE ACESSO:'))
-        self.stdout.write(self.style.SUCCESS(f'   URL: https://lwksistemas.com.br/superadmin/login'))
+        self.stdout.write(self.style.SUCCESS('   URL: https://lwksistemas.com.br/superadmin/login'))
         self.stdout.write(self.style.SUCCESS(f'   Usuário: {username}'))
         self.stdout.write(self.style.SUCCESS(f'   Senha: {password}'))
         self.stdout.write(self.style.SUCCESS(f'   CPF: {cpf}'))

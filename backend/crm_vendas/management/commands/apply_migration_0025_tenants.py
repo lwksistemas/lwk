@@ -3,6 +3,7 @@ Comando para aplicar migration 0025 (remove GenericForeignKey) nos schemas de te
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.models import Loja
 
 
@@ -37,11 +38,11 @@ class Command(BaseCommand):
                     """, [schema_name])
                     
                     if not cursor.fetchone()[0]:
-                        self.stdout.write(self.style.WARNING(f'   ⚠️  Schema não existe'))
+                        self.stdout.write(self.style.WARNING('   ⚠️  Schema não existe'))
                         continue
                     
                     # Verificar se tabela AssinaturaDigital existe
-                    cursor.execute(f"""
+                    cursor.execute("""
                         SELECT EXISTS (
                             SELECT 1 
                             FROM information_schema.tables 
@@ -51,11 +52,11 @@ class Command(BaseCommand):
                     """, [schema_name])
                     
                     if not cursor.fetchone()[0]:
-                        self.stdout.write(self.style.WARNING(f'   ⚠️  Tabela AssinaturaDigital não existe'))
+                        self.stdout.write(self.style.WARNING('   ⚠️  Tabela AssinaturaDigital não existe'))
                         continue
                     
                     # Verificar se migration já foi aplicada (campos novos existem)
-                    cursor.execute(f"""
+                    cursor.execute("""
                         SELECT column_name 
                         FROM information_schema.columns 
                         WHERE table_schema = %s
@@ -66,11 +67,11 @@ class Command(BaseCommand):
                     colunas_existentes = [row[0] for row in cursor.fetchall()]
                     
                     if len(colunas_existentes) == 2:
-                        self.stdout.write(self.style.SUCCESS(f'   ✅ Migration já aplicada'))
+                        self.stdout.write(self.style.SUCCESS('   ✅ Migration já aplicada'))
                         continue
                     
                     # Aplicar migration
-                    self.stdout.write(f'   🔄 Aplicando migration...')
+                    self.stdout.write('   🔄 Aplicando migration...')
                     
                     # Setar search_path
                     cursor.execute(f'SET search_path TO "{schema_name}", public')
@@ -81,14 +82,14 @@ class Command(BaseCommand):
                             ALTER TABLE crm_vendas_assinatura_digital
                             ADD COLUMN proposta_id INTEGER NULL
                         """)
-                        self.stdout.write(f'      ✅ Campo proposta_id adicionado')
+                        self.stdout.write('      ✅ Campo proposta_id adicionado')
                     
                     if 'contrato_id' not in colunas_existentes:
                         cursor.execute("""
                             ALTER TABLE crm_vendas_assinatura_digital
                             ADD COLUMN contrato_id INTEGER NULL
                         """)
-                        self.stdout.write(f'      ✅ Campo contrato_id adicionado')
+                        self.stdout.write('      ✅ Campo contrato_id adicionado')
                     
                     # 2. Migrar dados existentes
                     cursor.execute("""
@@ -124,7 +125,7 @@ class Command(BaseCommand):
                         ON DELETE CASCADE
                         DEFERRABLE INITIALLY DEFERRED
                     """)
-                    self.stdout.write(f'      ✅ ForeignKey proposta_id criada')
+                    self.stdout.write('      ✅ ForeignKey proposta_id criada')
                     
                     cursor.execute("""
                         ALTER TABLE crm_vendas_assinatura_digital
@@ -134,20 +135,20 @@ class Command(BaseCommand):
                         ON DELETE CASCADE
                         DEFERRABLE INITIALLY DEFERRED
                     """)
-                    self.stdout.write(f'      ✅ ForeignKey contrato_id criada')
+                    self.stdout.write('      ✅ ForeignKey contrato_id criada')
                     
                     # 4. Remover campos antigos
                     cursor.execute("""
                         ALTER TABLE crm_vendas_assinatura_digital
                         DROP COLUMN IF EXISTS content_type_id CASCADE
                     """)
-                    self.stdout.write(f'      ✅ Campo content_type_id removido')
+                    self.stdout.write('      ✅ Campo content_type_id removido')
                     
                     cursor.execute("""
                         ALTER TABLE crm_vendas_assinatura_digital
                         DROP COLUMN IF EXISTS object_id CASCADE
                     """)
-                    self.stdout.write(f'      ✅ Campo object_id removido')
+                    self.stdout.write('      ✅ Campo object_id removido')
                     
                     # 5. Remover índice antigo e adicionar novos
                     cursor.execute("""
@@ -158,13 +159,13 @@ class Command(BaseCommand):
                         CREATE INDEX IF NOT EXISTS crm_assin_proposta_idx
                         ON crm_vendas_assinatura_digital(proposta_id)
                     """)
-                    self.stdout.write(f'      ✅ Índice proposta_id criado')
+                    self.stdout.write('      ✅ Índice proposta_id criado')
                     
                     cursor.execute("""
                         CREATE INDEX IF NOT EXISTS crm_assin_contrato_idx
                         ON crm_vendas_assinatura_digital(contrato_id)
                     """)
-                    self.stdout.write(f'      ✅ Índice contrato_id criado')
+                    self.stdout.write('      ✅ Índice contrato_id criado')
                     
                     # 6. Adicionar constraint
                     cursor.execute("""
@@ -175,7 +176,7 @@ class Command(BaseCommand):
                             (proposta_id IS NULL AND contrato_id IS NOT NULL)
                         )
                     """)
-                    self.stdout.write(f'      ✅ Constraint adicionada')
+                    self.stdout.write('      ✅ Constraint adicionada')
                     
                     # 7. Registrar migration como aplicada
                     cursor.execute("""
@@ -184,7 +185,7 @@ class Command(BaseCommand):
                         ON CONFLICT DO NOTHING
                     """)
                     
-                    self.stdout.write(self.style.SUCCESS(f'   ✅ Migration aplicada com sucesso!'))
+                    self.stdout.write(self.style.SUCCESS('   ✅ Migration aplicada com sucesso!'))
                     
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f'   ❌ Erro: {e}'))

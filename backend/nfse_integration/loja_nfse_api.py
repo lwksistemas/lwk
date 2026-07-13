@@ -1,4 +1,5 @@
 """Ações de NFS-e no contexto da loja (CRM / ViewSet)."""
+import contextlib
 import logging
 import re
 from decimal import Decimal
@@ -276,8 +277,8 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
         or ''
     )
 
-    from nfse_integration.issnet_status_sync import consultar_nfse_cancelada_issnet
     from nfse_integration.email_nfse import notificar_cancelamento_nfse
+    from nfse_integration.issnet_status_sync import consultar_nfse_cancelada_issnet
 
     try:
         with issnet_client_loja(cfg) as client:
@@ -300,15 +301,13 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
             nfse.data_cancelamento = nfse.data_cancelamento or timezone.now()
             nfse.save(update_fields=['status', 'data_cancelamento', 'updated_at'])
             message = 'NFS-e marcada como cancelada conforme o ISSNet.'
-            try:
+            with contextlib.suppress(Exception):
                 notificar_cancelamento_nfse(
                     nfse=nfse,
                     loja=loja,
                     loja_id=loja_id,
                     config=cfg,
                 )
-            except Exception:
-                pass
         else:
             message = 'NFS-e já constava como cancelada no sistema.'
     else:
@@ -641,15 +640,11 @@ def _enriquecer_resultado_portal_issnet(
         if forcar or not out.get(key):
             out[key] = novo
     if portal.get('valor') and (forcar or not Decimal(str(out.get('valor') or 0))):
-        try:
+        with contextlib.suppress(Exception):
             out['valor'] = float(Decimal(str(portal['valor'])))
-        except Exception:
-            pass
     if portal.get('valor_iss') and (forcar or not Decimal(str(out.get('valor_iss') or 0))):
-        try:
+        with contextlib.suppress(Exception):
             out['valor_iss'] = float(Decimal(str(portal['valor_iss'])))
-        except Exception:
-            pass
     if not out.get('pdf_url'):
         out['pdf_url'] = url
     return out

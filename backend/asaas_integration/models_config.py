@@ -1,8 +1,9 @@
 """
 Modelo para configuração da integração Asaas
 """
-from django.db import models
 from django.core.exceptions import ValidationError
+from django.db import models
+
 
 class AsaasConfig(models.Model):
     """Configuração da integração Asaas"""

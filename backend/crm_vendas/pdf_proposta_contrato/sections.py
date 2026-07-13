@@ -68,8 +68,8 @@ def _build_cabecalho(elements, logo_url, titulo):
 
 def _build_secao_empresa(elements, loja_data, style):
     """Adiciona seção Dados da Empresa."""
-    from reportlab.platypus import Spacer
     from reportlab.lib.units import cm
+    from reportlab.platypus import Spacer
     elements.append(Spacer(1, 0.2 * cm))
     section = ParagraphStyle('SecEmpresa', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Dados da Empresa</b>', section))
@@ -91,8 +91,8 @@ def _build_secao_empresa(elements, loja_data, style):
 
 def _build_secao_cliente(elements, lead, style):
     """Adiciona seção Dados do Cliente."""
-    from reportlab.platypus import Spacer
     from reportlab.lib.units import cm
+    from reportlab.platypus import Spacer
     elements.append(Spacer(1, 0.2 * cm))
     section = ParagraphStyle('SecCliente', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Dados do Cliente</b>', section))
@@ -116,8 +116,8 @@ def _build_secao_cliente(elements, lead, style):
 
 def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=True):
     """Adiciona seção Produtos e Serviços."""
-    from reportlab.platypus import Spacer
     from reportlab.lib.units import cm
+    from reportlab.platypus import Spacer
     elements.append(Spacer(1, 0.2 * cm))
     section = ParagraphStyle('SecProd', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Produtos e Serviços da Oportunidade</b>', section))
@@ -274,8 +274,8 @@ def _build_secao_conteudo(elements, conteudo, style):
 
 def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir_assinaturas=True, tipo_doc='proposta'):
     """Adiciona seção Assinaturas com dados digitais."""
-    from reportlab.platypus import Spacer
     from reportlab.lib.units import cm
+    from reportlab.platypus import Spacer
     elements.append(Spacer(1, 0.2 * cm))
     section = ParagraphStyle('SecAssin', parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
     elements.append(Paragraph('<b>Assinaturas</b>', section))
@@ -310,7 +310,7 @@ def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir
         ts = _formatar_timestamp_local(assinatura_vendedor.assinado_em)
         vendedor_info.append(f'<font size="8">Assinado em: {ts}</font>')
         vendedor_info.append(f'<font size="8">IP: {assinatura_vendedor.ip_address}</font>')
-        vendedor_info.append(f'<font size="8">Assinado digitalmente</font>')
+        vendedor_info.append('<font size="8">Assinado digitalmente</font>')
 
     cliente_info = [f"Cliente: {cliente_nome_fmt}"]
     if lead_email:
@@ -319,7 +319,7 @@ def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir
         ts = _formatar_timestamp_local(assinatura_cliente.assinado_em)
         cliente_info.append(f'<font size="8">Assinado em: {ts}</font>')
         cliente_info.append(f'<font size="8">IP: {assinatura_cliente.ip_address}</font>')
-        cliente_info.append(f'<font size="8">Assinado digitalmente</font>')
+        cliente_info.append('<font size="8">Assinado digitalmente</font>')
 
     assinatura_data = []
     max_rows = max(len(vendedor_info), len(cliente_info))

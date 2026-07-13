@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from ..models import PlanoAssinatura, TipoLoja
 
+
 class TipoLojaSerializer(serializers.ModelSerializer):
     total_lojas = serializers.SerializerMethodField()
     planos = serializers.SerializerMethodField()

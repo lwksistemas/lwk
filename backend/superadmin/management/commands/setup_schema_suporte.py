@@ -1,9 +1,10 @@
 """
 Comando para configurar o schema 'suporte' com todas as tabelas necessárias.
 """
+import logging
+
 from django.core.management.base import BaseCommand
 from django.db import connection
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +56,9 @@ class Command(BaseCommand):
             self.stdout.write('✅ Tabela django_migrations criada')
         
         # Executar migrations usando call_command
-        from django.core.management import call_command
         from io import StringIO
+
+        from django.core.management import call_command
         
         for app in apps_suporte:
             try:

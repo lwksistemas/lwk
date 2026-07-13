@@ -3,10 +3,10 @@ Configurações de produção para LWK Sistemas (PostgreSQL).
 """
 import logging
 import os
-import dj_database_url
-from pathlib import Path
 from datetime import timedelta
-from urllib.parse import urlparse
+from pathlib import Path
+
+import dj_database_url
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +217,7 @@ if _use_redis_env and _redis_url:
     }
     if _redis_url.startswith('rediss://'):
         import ssl
+
         import certifi
 
         _pool_kwargs['ssl_cert_reqs'] = ssl.CERT_REQUIRED
@@ -304,6 +305,7 @@ CORS_PREFLIGHT_MAX_AGE = 86400  # 24 horas (cache de preflight)
 
 # CORS_ALLOW_HEADERS - Lista de headers permitidos nas requisições CORS
 from corsheaders.defaults import default_headers
+
 CORS_ALLOW_HEADERS = list(default_headers) + [
     'x-loja-id',  # ✅ Header customizado com ID único da loja
     'x-tenant-slug',  # ✅ Header customizado com slug da loja (fallback quando não tem ID)
@@ -421,7 +423,7 @@ _jwt_domain = os.environ.get('JWT_COOKIE_DOMAIN', '').strip()
 JWT_COOKIE_DOMAIN = _jwt_domain or None
 
 # Helpers de segurança (slug, mensagens genéricas)
-from config.security_helpers import validate_store_slug, GENERIC_AUTH_ERROR_MESSAGE  # noqa: E402,F401
+from config.security_helpers import GENERIC_AUTH_ERROR_MESSAGE, validate_store_slug  # noqa: E402,F401
 
 MFA_TOTP_ISSUER = os.environ.get('MFA_TOTP_ISSUER', 'LWK Sistemas')
 MFA_ENFORCE_TYPES = os.environ.get('MFA_ENFORCE_TYPES', '')  # ex: superadmin,suporte

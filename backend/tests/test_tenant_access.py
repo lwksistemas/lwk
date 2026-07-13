@@ -4,9 +4,9 @@ Testes de validação central tenant (JWT → lojas permitidas → header/URL).
 from django.contrib.auth.models import User
 from django.test import RequestFactory, TestCase
 
+from core.tenant_access import check_cross_tenant_access, user_can_access_loja
 from superadmin.models import Loja, PlanoAssinatura, TipoLoja, VendedorUsuario
 from tenants.middleware import TenantMiddleware, ensure_loja_context
-from core.tenant_access import user_can_access_loja, check_cross_tenant_access
 
 
 class TenantAccessTestCase(TestCase):

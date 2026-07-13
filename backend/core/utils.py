@@ -18,10 +18,12 @@ def ensure_owner_as_funcionario(funcionario_model, cargo_padrao='Administrador')
     Returns:
         bool: True se admin existe ou foi criado, False se houve erro
     """
-    from tenants.middleware import get_current_loja_id
-    from superadmin.models import Loja
-    from django.db import connection
     from datetime import date
+
+    from django.db import connection
+
+    from superadmin.models import Loja
+    from tenants.middleware import get_current_loja_id
     
     loja_id = get_current_loja_id()
     

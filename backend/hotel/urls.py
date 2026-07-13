@@ -2,17 +2,17 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    HospedeViewSet,
-    QuartoViewSet,
-    TarifaViewSet,
-    ReservaViewSet,
-    GovernancaTarefaViewSet,
-    HotelDashboardViewSet,
-    FuncionarioViewSet,
-    ReservaTemplateViewSet,
-    ReservaAssinaturaPublicaView,
-    ReservaAssinaturaPdfView,
     ConfiguracaoHotelViewSet,
+    FuncionarioViewSet,
+    GovernancaTarefaViewSet,
+    HospedeViewSet,
+    HotelDashboardViewSet,
+    QuartoViewSet,
+    ReservaAssinaturaPdfView,
+    ReservaAssinaturaPublicaView,
+    ReservaTemplateViewSet,
+    ReservaViewSet,
+    TarifaViewSet,
 )
 
 router = DefaultRouter()

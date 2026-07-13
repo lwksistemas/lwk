@@ -7,6 +7,7 @@ Uso:
 Este comando pode ser executado manualmente ou agendado via cron/celery.
 """
 from django.core.management.base import BaseCommand
+
 from superadmin.security_detector import SecurityDetector
 
 
@@ -21,8 +22,8 @@ class Command(BaseCommand):
         
         total = sum(resultados.values())
         
-        self.stdout.write(self.style.SUCCESS(f'\n✅ Detecção concluída!'))
-        self.stdout.write(f'\n📊 Resumo:')
+        self.stdout.write(self.style.SUCCESS('\n✅ Detecção concluída!'))
+        self.stdout.write('\n📊 Resumo:')
         self.stdout.write(f'  - Brute Force: {resultados["brute_force"]} violações')
         self.stdout.write(f'  - Rate Limit: {resultados["rate_limit"]} violações')
         self.stdout.write(f'  - Cross-Tenant: {resultados["cross_tenant"]} violações')

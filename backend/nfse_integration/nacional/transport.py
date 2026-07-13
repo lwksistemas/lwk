@@ -12,7 +12,7 @@ import gzip
 import logging
 import os
 import tempfile
-from typing import Dict, Any, Optional
+from typing import Any
 
 import requests
 
@@ -64,11 +64,11 @@ def descomprimir_e_decodificar(b64_str: str) -> str:
 def enviar_lote_dfe(
     lote_xml_b64: list,
     ambiente: str = 'producao',
-    pfx_path: Optional[str] = None,
-    pfx_bytes: Optional[bytes] = None,
+    pfx_path: str | None = None,
+    pfx_bytes: bytes | None = None,
     senha_pfx: str = '',
     timeout: int = DEFAULT_TIMEOUT,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Envia lote de DPS ao ADN via POST /DFe com mTLS.
     
@@ -192,11 +192,11 @@ def consultar_dfe_nsu(
     nsu: int,
     cnpj_consulta: str,
     ambiente: str = 'producao',
-    pfx_path: Optional[str] = None,
-    pfx_bytes: Optional[bytes] = None,
+    pfx_path: str | None = None,
+    pfx_bytes: bytes | None = None,
     senha_pfx: str = '',
     timeout: int = DEFAULT_TIMEOUT,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Consulta documento fiscal por NSU (Número Sequencial Único).
     GET /DFe/{NSU}?cnpjConsulta={cnpj}
@@ -250,8 +250,8 @@ def consultar_dfe_nsu(
 
 
 def _preparar_cert_mtls(
-    pfx_path: Optional[str],
-    pfx_bytes: Optional[bytes],
+    pfx_path: str | None,
+    pfx_bytes: bytes | None,
     senha_pfx: str,
 ) -> tuple:
     """
@@ -261,7 +261,10 @@ def _preparar_cert_mtls(
         Tuple (cert_pem_path, key_pem_path)
     """
     from cryptography.hazmat.primitives.serialization import (
-        pkcs12, Encoding, PrivateFormat, NoEncryption,
+        Encoding,
+        NoEncryption,
+        PrivateFormat,
+        pkcs12,
     )
 
     # Carregar PFX
@@ -283,18 +286,18 @@ def _preparar_cert_mtls(
     key_pem = private_key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption())
     cert_pem = certificate.public_bytes(Encoding.PEM)
 
-    cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pem', prefix='nfse_cert_')
+    cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pem', prefix='nfse_cert_')  # noqa: SIM115
     cert_tmp.write(cert_pem)
     cert_tmp.close()
 
-    key_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pem', prefix='nfse_key_')
+    key_tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pem', prefix='nfse_key_')  # noqa: SIM115
     key_tmp.write(key_pem)
     key_tmp.close()
 
     return cert_tmp.name, key_tmp.name
 
 
-def _limpar_temp(cert_path: Optional[str], key_path: Optional[str], pfx_original: Optional[str]) -> None:
+def _limpar_temp(cert_path: str | None, key_path: str | None, pfx_original: str | None) -> None:
     """Remove arquivos temporários PEM (não remove o PFX original)."""
     for path in (cert_path, key_path):
         if path and path != pfx_original:

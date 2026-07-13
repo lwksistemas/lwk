@@ -36,10 +36,10 @@ class Command(BaseCommand):
                     coluna_existe = cursor.fetchone() is not None
                     
                     if coluna_existe:
-                        self.stdout.write(self.style.WARNING(f'  ⚠️  Coluna contato_id já existe'))
+                        self.stdout.write(self.style.WARNING('  ⚠️  Coluna contato_id já existe'))
                     else:
                         # Adicionar coluna contato_id
-                        self.stdout.write(f'  ➕ Adicionando coluna contato_id...')
+                        self.stdout.write('  ➕ Adicionando coluna contato_id...')
                         cursor.execute(f"""
                             ALTER TABLE {schema_name}.crm_vendas_lead 
                             ADD COLUMN contato_id INTEGER NULL
@@ -60,7 +60,7 @@ class Command(BaseCommand):
                             ON {schema_name}.crm_vendas_lead (loja_id, contato_id)
                         """)
                         
-                        self.stdout.write(self.style.SUCCESS(f'  ✅ Coluna contato_id adicionada com sucesso'))
+                        self.stdout.write(self.style.SUCCESS('  ✅ Coluna contato_id adicionada com sucesso'))
                 
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f'  ❌ Erro: {str(e)}'))

@@ -2,8 +2,6 @@
 Serviço para integração com Asaas na criação de lojas
 """
 import logging
-from datetime import datetime, timedelta
-from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +11,8 @@ class LojaAsaasService:
     def __init__(self):
         # Importação condicional para evitar erro se asaas_integration não estiver disponível
         try:
-            from asaas_integration.models import AsaasConfig
             from asaas_integration.client import AsaasPaymentService
+            from asaas_integration.models import AsaasConfig
             self.AsaasConfig = AsaasConfig
             self.AsaasPaymentService = AsaasPaymentService
             self.available = True
@@ -36,8 +34,8 @@ class LojaAsaasService:
         """
         # Opção: Mercado Pago para boletos (preferência da loja ou global)
         try:
-            from .models import MercadoPagoConfig
             from .mercadopago_service import LojaMercadoPagoService
+            from .models import MercadoPagoConfig
             mp_config = MercadoPagoConfig.get_config()
             usar_mp = (
                 mp_config.enabled

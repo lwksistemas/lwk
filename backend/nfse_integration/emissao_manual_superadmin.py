@@ -2,12 +2,12 @@
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from nfse_integration.emissao_issnet_superadmin import emitir_manual_issnet_superadmin
 from nfse_integration.emissao_manual_types import (
     EmissaoManualPayload,
     EmissaoManualResult,
     EmissaoManualValidationError,
 )
-from nfse_integration.emissao_issnet_superadmin import emitir_manual_issnet_superadmin
 from nfse_integration.emissao_nacional_superadmin import emitir_manual_nacional_superadmin
 from nfse_integration.nfse_geo import enriquecer_endereco_por_cep
 

@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from core.serializer_mixins import UpperCaseNormalizationMixin
+
 from .models import Store
 
 

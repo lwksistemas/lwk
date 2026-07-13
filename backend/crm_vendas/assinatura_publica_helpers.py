@@ -38,9 +38,9 @@ def configurar_tenant_para_assinatura_publica(loja_id):
     Garante search_path / banco do tenant antes de consultar AssinaturaDigital.
     Retorna None se OK, ou string de erro para o cliente.
     """
-    from tenants.middleware import set_current_loja_id, set_current_tenant_db
-    from superadmin.models import Loja
     from core.db_config import ensure_loja_database_config
+    from superadmin.models import Loja
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
 
     set_current_loja_id(loja_id)
     loja = Loja.objects.using('default').filter(id=loja_id).first()

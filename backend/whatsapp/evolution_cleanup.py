@@ -122,7 +122,6 @@ def get_active_evolution_instance_by_loja() -> dict[int, str]:
     """
     from core.db_config import ensure_loja_database_config
     from superadmin.models import Loja
-
     from whatsapp.models import WhatsAppConfig
 
     active: dict[int, str] = {}
@@ -197,7 +196,7 @@ def classify_evolution_instances(active_loja_ids: set[int] | None = None) -> dic
     non_standard = []
     for row in list_evolution_instances():
         lid = row.get('loja_id')
-        name = row['instance_name']
+        row['instance_name']
         if lid is None:
             non_standard.append(row)
         elif lid not in active_loja_ids:

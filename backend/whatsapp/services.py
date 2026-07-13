@@ -1,13 +1,14 @@
 """
 Serviço de envio WhatsApp (Meta Cloud API ou Evolution WhatsApp Web) e templates de mensagem (ETAPA 4).
 """
-import re
 import logging
+import re
 import uuid
+
 import requests
 from django.conf import settings
 
-from .models import WhatsAppLog, WhatsAppConfig
+from .models import WhatsAppConfig, WhatsAppLog
 
 logger = logging.getLogger(__name__)
 
@@ -346,17 +347,16 @@ def _validate_whatsapp_send(telefone, mensagem, user=None, config=None, *, log_l
     if config and not getattr(config, 'whatsapp_ativo', False):
         return False, 'WhatsApp não está ativo. Configure em Configurações → WhatsApp.'
 
-    if config and _get_provider(config) == WhatsAppConfig.PROVIDER_EVOLUTION:
-        if config.whatsapp_connection_status != WhatsAppConfig.CONNECTION_CONNECTED:
-            _write_whatsapp_log(
-                loja_id=loja_id,
-                telefone=phone or telefone,
-                mensagem=log_label or mensagem,
-                status='falhou',
-                response={'error': 'evolution_not_connected'},
-                user=user,
-            )
-            return False, 'WhatsApp Web não está conectado. Escaneie o QR Code em Configurações → WhatsApp.'
+    if config and _get_provider(config) == WhatsAppConfig.PROVIDER_EVOLUTION and config.whatsapp_connection_status != WhatsAppConfig.CONNECTION_CONNECTED:
+        _write_whatsapp_log(
+            loja_id=loja_id,
+            telefone=phone or telefone,
+            mensagem=log_label or mensagem,
+            status='falhou',
+            response={'error': 'evolution_not_connected'},
+            user=user,
+        )
+        return False, 'WhatsApp Web não está conectado. Escaneie o QR Code em Configurações → WhatsApp.'
 
     if config and _get_provider(config) != WhatsAppConfig.PROVIDER_EVOLUTION:
         _, _, _, cred_err = _resolve_whatsapp_credentials(config)
@@ -610,8 +610,9 @@ def _contexto_confirmacao_agenda(agendamento, *, link_confirmacao=None) -> dict:
 
 def msg_confirmacao(agendamento, *, link_confirmacao=None, config=None):
     """Solicitação de confirmação de agendamento."""
-    from .message_templates import msg_confirmacao_agendamento
     from clinica_beleza.agenda_display import format_agenda_data, format_agenda_hora
+
+    from .message_templates import msg_confirmacao_agendamento
 
     custom = ''
     if config is not None:
@@ -634,8 +635,9 @@ def msg_confirmacao(agendamento, *, link_confirmacao=None, config=None):
 
 def msg_lembrete(agendamento):
     """Lembrete de atendimento (ex.: dia do atendimento)."""
-    from .message_templates import msg_lembrete_agendamento
     from clinica_beleza.agenda_display import format_agenda_hora
+
+    from .message_templates import msg_lembrete_agendamento
 
     nome = getattr(agendamento.patient, 'name', '') or getattr(agendamento.patient, 'nome', '') or 'Cliente'
     return msg_lembrete_agendamento(

@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
-from superadmin.models import UserSession, ProfissionalUsuario, VendedorUsuario
+
+from superadmin.models import ProfissionalUsuario, UserSession, VendedorUsuario
 from superadmin.orfaos_config import get_usuarios_orfaos_queryset
 
 
@@ -55,7 +56,7 @@ class Command(BaseCommand):
                 user_ids = list(orfaos.values_list('id', flat=True))
                 if user_ids:
                     placeholders = ','.join(['%s'] * len(user_ids))
-                    self.stdout.write(f"🔑 Excluindo tokens...")
+                    self.stdout.write("🔑 Excluindo tokens...")
                     cursor.execute(
                         f"DELETE FROM token_blacklist_outstandingtoken WHERE user_id IN ({placeholders})",
                         user_ids

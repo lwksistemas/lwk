@@ -5,11 +5,12 @@ Usado por: fix_loja_crm (command), auto-recovery nas views.
 Deve aplicar os mesmos apps que DatabaseSchemaService na criação da loja
 (inclui nfse_integration para lojas CRM — NFS-e no schema isolado).
 """
+import contextlib
 import logging
 import os
 
-from django.db import connection, connections
 from django.core.management import call_command
+from django.db import connection, connections
 
 from superadmin.services.database_schema_service import (
     APPS_CRITICOS_MIGRACAO_CRM_VENDAS,
@@ -103,10 +104,8 @@ def configurar_schema_crm_loja(loja) -> bool:
 
         # 6. Fechar conexão para forçar nova conexão com schema correto no retry
         if db_name in connections:
-            try:
+            with contextlib.suppress(Exception):
                 connections[db_name].close()
-            except Exception:
-                pass
 
         return True
     except Exception as e:
@@ -405,6 +404,7 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
     """
     from django.db import connections
     from django.utils import timezone
+
     from core.db_config import ensure_loja_database_config
 
     if not ensure_loja_database_config(db_name, conn_max_age=0):
@@ -499,6 +499,7 @@ def patch_crm_vendas_atividade_columns_if_missing(db_name: str) -> None:
     """Garante colunas das migrations 0056 (conta) e 0061 (lembretes WhatsApp) no tenant."""
     from django.db import connections
     from django.utils import timezone
+
     from core.db_config import ensure_loja_database_config
 
     if not ensure_loja_database_config(db_name, conn_max_age=0):

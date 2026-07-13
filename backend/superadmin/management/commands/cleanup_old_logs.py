@@ -11,8 +11,10 @@ para manter o banco de dados otimizado.
 """
 import logging
 from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+
 from superadmin.models import HistoricoAcessoGlobal
 
 logger = logging.getLogger(__name__)
@@ -38,7 +40,7 @@ class Command(BaseCommand):
         days = options['days']
         dry_run = options['dry_run']
         
-        self.stdout.write(self.style.SUCCESS(f'🧹 Iniciando limpeza de logs antigos...'))
+        self.stdout.write(self.style.SUCCESS('🧹 Iniciando limpeza de logs antigos...'))
         self.stdout.write(f'   Critério: Logs com mais de {days} dias')
         
         if dry_run:

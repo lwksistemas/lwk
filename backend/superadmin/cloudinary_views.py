@@ -1,12 +1,14 @@
 """
 Views para configuração do Cloudinary
 """
+import logging
+
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework import status
+
 from .cloudinary_models import CloudinaryConfig
 from .permissions import IsSuperAdmin
-import logging
 
 logger = logging.getLogger(__name__)
 

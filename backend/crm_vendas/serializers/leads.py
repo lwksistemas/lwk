@@ -9,6 +9,7 @@ from core.serializer_mixins import (
 
 from ..models import Lead
 
+
 class LeadSerializer(
     UniqueDocumentoPerLojaMixin,
     CpfCnpjNormalizationMixin,

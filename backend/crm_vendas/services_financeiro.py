@@ -131,6 +131,7 @@ def aplicar_filtro_periodo_lancamentos(queryset, *, periodo='mes_atual', data_in
     - Lançamentos PENDENTES/outros: filtrados por data_vencimento (competência).
     """
     from django.db.models import Q
+
     from .models.financeiro import LancamentoFinanceiroCRM
 
     inicio, fim = calcular_intervalo_vencimento(periodo, data_inicio, data_fim)
@@ -165,7 +166,8 @@ def resumo_financeiro_crm(
 
     from .models import Oportunidade
     from .models.financeiro import LancamentoFinanceiroCRM
-    from .periodo import calcular_intervalo_datas, filtro_fechamento_no_periodo as _filtro_fechamento_no_periodo
+    from .periodo import calcular_intervalo_datas
+    from .periodo import filtro_fechamento_no_periodo as _filtro_fechamento_no_periodo
 
     inicio, fim = calcular_intervalo_vencimento(periodo, data_inicio, data_fim)
     inicio_opp, fim_opp = calcular_intervalo_datas(periodo, data_inicio, data_fim)

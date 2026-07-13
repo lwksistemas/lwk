@@ -1,5 +1,7 @@
 from django.contrib import admin
+
 from .models import TenantConfig
+
 
 @admin.register(TenantConfig)
 class TenantConfigAdmin(admin.ModelAdmin):

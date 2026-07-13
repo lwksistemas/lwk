@@ -1,5 +1,5 @@
 """Testes de helpers do Google Calendar (parse de eventos e normalização de token)."""
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 
 from django.test import SimpleTestCase
 from django.utils import timezone
@@ -35,7 +35,7 @@ class GoogleCalendarHelpersTest(SimpleTestCase):
         naive = datetime(2026, 6, 1, 12, 0, 0)
         aware = normalize_token_expiry(naive)
         self.assertTrue(timezone.is_aware(aware))
-        self.assertEqual(aware.tzinfo, dt_timezone.utc)
+        self.assertEqual(aware.tzinfo, UTC)
 
     def test_valid_sync_directions(self):
         self.assertIn(SYNC_DIRECTION_PUSH_ONLY, VALID_SYNC_DIRECTIONS)

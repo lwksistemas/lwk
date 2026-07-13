@@ -4,7 +4,6 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, Optional
 from xml.sax.saxutils import escape as xml_escape
 
 from lxml import etree
@@ -28,7 +27,7 @@ def somente_digitos(texto: str) -> str:
     return re.sub(r'\D', '', texto or '')
 
 
-def normalizar_item_lista_servico_abrasf(codigo: Optional[str]) -> str:
+def normalizar_item_lista_servico_abrasf(codigo: str | None) -> str:
     raw = (codigo or '').strip()
     if re.fullmatch(r'\d{2}\.\d{2}', raw):
         return raw
@@ -39,7 +38,7 @@ def normalizar_item_lista_servico_abrasf(codigo: Optional[str]) -> str:
 
 
 def codigo_tributacao_municipio_xml(
-    raw_codigo: Optional[str], item_lista_abrasf: str
+    raw_codigo: str | None, item_lista_abrasf: str
 ) -> str:
     raw = (raw_codigo or '').strip()
     digits = somente_digitos(raw)
@@ -70,12 +69,10 @@ def issnet_erro_parece_negocio_abrasf(erro: str) -> bool:
     err = (erro or '').strip()
     if re.search(r'\[[A-Za-z]?\d+\]', err):
         return True
-    if 'NFS-e nao encontrada na resposta' in err:
-        return True
-    return False
+    return 'NFS-e nao encontrada na resposta' in err
 
 
-def extrair_protocolo_lote(xml_abrasf: str) -> Optional[str]:
+def extrair_protocolo_lote(xml_abrasf: str) -> str | None:
     if not (xml_abrasf or '').strip():
         return None
     try:
@@ -98,7 +95,7 @@ def construir_xml_enviar_lote_rps(
     prestador_inscricao_municipal: str,
     tomador_cpf_cnpj: str,
     tomador_nome: str,
-    tomador_endereco: Dict[str, str],
+    tomador_endereco: dict[str, str],
     servico_codigo: str,
     servico_descricao: str,
     valor_servicos: Decimal,
@@ -107,10 +104,10 @@ def construir_xml_enviar_lote_rps(
     serie_rps: str,
     tipo_rps: int,
     data_emissao: datetime,
-    codigo_cnae: Optional[str] = None,
-    item_lista_servico: Optional[str] = None,
-    codigo_tributacao_municipio: Optional[str] = None,
-    opts: Optional[IssnetEmissaoOpts] = None,
+    codigo_cnae: str | None = None,
+    item_lista_servico: str | None = None,
+    codigo_tributacao_municipio: str | None = None,
+    opts: IssnetEmissaoOpts | None = None,
 ) -> str:
     """Monta EnviarLoteRpsEnvio (ABRASF 2.04) para RecepcionarLoteRps."""
     cfg = opts or IssnetEmissaoOpts()
@@ -122,53 +119,53 @@ def construir_xml_enviar_lote_rps(
     valor_iss = (valor * aliquota / 100).quantize(Decimal('0.01'))
 
     ns = NS_NFSE
-    root = etree.Element('{%s}EnviarLoteRpsEnvio' % ns, nsmap={None: ns})
+    root = etree.Element(f'{{{ns}}}EnviarLoteRpsEnvio', nsmap={None: ns})
 
-    lote = etree.SubElement(root, '{%s}LoteRps' % ns, versao='2.04')
+    lote = etree.SubElement(root, f'{{{ns}}}LoteRps', versao='2.04')
     nlote_cfg = int(cfg.numero_lote_config or 0)
     numero_lote = nlote_cfg if nlote_cfg > 0 else int(numero_rps)
-    etree.SubElement(lote, '{%s}NumeroLote' % ns).text = str(numero_lote)
+    etree.SubElement(lote, f'{{{ns}}}NumeroLote').text = str(numero_lote)
 
-    prest_lote = etree.SubElement(lote, '{%s}Prestador' % ns)
-    cpf_cnpj_pl = etree.SubElement(prest_lote, '{%s}CpfCnpj' % ns)
-    etree.SubElement(cpf_cnpj_pl, '{%s}Cnpj' % ns).text = cnpj_prest
-    etree.SubElement(prest_lote, '{%s}InscricaoMunicipal' % ns).text = prestador_inscricao_municipal
+    prest_lote = etree.SubElement(lote, f'{{{ns}}}Prestador')
+    cpf_cnpj_pl = etree.SubElement(prest_lote, f'{{{ns}}}CpfCnpj')
+    etree.SubElement(cpf_cnpj_pl, f'{{{ns}}}Cnpj').text = cnpj_prest
+    etree.SubElement(prest_lote, f'{{{ns}}}InscricaoMunicipal').text = prestador_inscricao_municipal
 
-    etree.SubElement(lote, '{%s}QuantidadeRps' % ns).text = '1'
+    etree.SubElement(lote, f'{{{ns}}}QuantidadeRps').text = '1'
 
-    lista = etree.SubElement(lote, '{%s}ListaRps' % ns)
-    rps_el = etree.SubElement(lista, '{%s}Rps' % ns)
+    lista = etree.SubElement(lote, f'{{{ns}}}ListaRps')
+    rps_el = etree.SubElement(lista, f'{{{ns}}}Rps')
     inf = etree.SubElement(
-        rps_el, '{%s}InfDeclaracaoPrestacaoServico' % ns, Id=f'rps{numero_rps}'
+        rps_el, f'{{{ns}}}InfDeclaracaoPrestacaoServico', Id=f'rps{numero_rps}'
     )
 
-    rps_inner = etree.SubElement(inf, '{%s}Rps' % ns)
-    id_rps = etree.SubElement(rps_inner, '{%s}IdentificacaoRps' % ns)
-    etree.SubElement(id_rps, '{%s}Numero' % ns).text = str(numero_rps)
-    etree.SubElement(id_rps, '{%s}Serie' % ns).text = serie_rps
-    etree.SubElement(id_rps, '{%s}Tipo' % ns).text = str(tipo_rps)
-    etree.SubElement(rps_inner, '{%s}DataEmissao' % ns).text = data_emissao.strftime('%Y-%m-%d')
-    etree.SubElement(rps_inner, '{%s}Status' % ns).text = '1'
+    rps_inner = etree.SubElement(inf, f'{{{ns}}}Rps')
+    id_rps = etree.SubElement(rps_inner, f'{{{ns}}}IdentificacaoRps')
+    etree.SubElement(id_rps, f'{{{ns}}}Numero').text = str(numero_rps)
+    etree.SubElement(id_rps, f'{{{ns}}}Serie').text = serie_rps
+    etree.SubElement(id_rps, f'{{{ns}}}Tipo').text = str(tipo_rps)
+    etree.SubElement(rps_inner, f'{{{ns}}}DataEmissao').text = data_emissao.strftime('%Y-%m-%d')
+    etree.SubElement(rps_inner, f'{{{ns}}}Status').text = '1'
 
-    etree.SubElement(inf, '{%s}Competencia' % ns).text = data_emissao.strftime('%Y-%m-%d')
+    etree.SubElement(inf, f'{{{ns}}}Competencia').text = data_emissao.strftime('%Y-%m-%d')
 
-    servico = etree.SubElement(inf, '{%s}Servico' % ns)
-    valores = etree.SubElement(servico, '{%s}Valores' % ns)
-    etree.SubElement(valores, '{%s}ValorServicos' % ns).text = f'{valor:.2f}'
-    etree.SubElement(valores, '{%s}ValorDeducoes' % ns).text = '0.00'
-    etree.SubElement(valores, '{%s}ValorPis' % ns).text = '0.00'
-    etree.SubElement(valores, '{%s}ValorCofins' % ns).text = '0.00'
-    etree.SubElement(valores, '{%s}ValorInss' % ns).text = '0.00'
-    etree.SubElement(valores, '{%s}ValorIr' % ns).text = '0.00'
-    etree.SubElement(valores, '{%s}ValorCsll' % ns).text = '0.00'
-    etree.SubElement(valores, '{%s}OutrasRetencoes' % ns).text = '0.00'
-    etree.SubElement(valores, '{%s}ValTotTributos' % ns).text = '0.00'
-    etree.SubElement(valores, '{%s}ValorIss' % ns).text = f'{valor_iss:.2f}'
-    etree.SubElement(valores, '{%s}Aliquota' % ns).text = f'{aliquota:.2f}'
-    etree.SubElement(valores, '{%s}DescontoIncondicionado' % ns).text = '0.00'
-    etree.SubElement(valores, '{%s}DescontoCondicionado' % ns).text = '0.00'
+    servico = etree.SubElement(inf, f'{{{ns}}}Servico')
+    valores = etree.SubElement(servico, f'{{{ns}}}Valores')
+    etree.SubElement(valores, f'{{{ns}}}ValorServicos').text = f'{valor:.2f}'
+    etree.SubElement(valores, f'{{{ns}}}ValorDeducoes').text = '0.00'
+    etree.SubElement(valores, f'{{{ns}}}ValorPis').text = '0.00'
+    etree.SubElement(valores, f'{{{ns}}}ValorCofins').text = '0.00'
+    etree.SubElement(valores, f'{{{ns}}}ValorInss').text = '0.00'
+    etree.SubElement(valores, f'{{{ns}}}ValorIr').text = '0.00'
+    etree.SubElement(valores, f'{{{ns}}}ValorCsll').text = '0.00'
+    etree.SubElement(valores, f'{{{ns}}}OutrasRetencoes').text = '0.00'
+    etree.SubElement(valores, f'{{{ns}}}ValTotTributos').text = '0.00'
+    etree.SubElement(valores, f'{{{ns}}}ValorIss').text = f'{valor_iss:.2f}'
+    etree.SubElement(valores, f'{{{ns}}}Aliquota').text = f'{aliquota:.2f}'
+    etree.SubElement(valores, f'{{{ns}}}DescontoIncondicionado').text = '0.00'
+    etree.SubElement(valores, f'{{{ns}}}DescontoCondicionado').text = '0.00'
 
-    etree.SubElement(servico, '{%s}IssRetido' % ns).text = '2'
+    etree.SubElement(servico, f'{{{ns}}}IssRetido').text = '2'
     if item_lista_servico and str(item_lista_servico).strip():
         item_lista = normalizar_item_lista_servico_abrasf(item_lista_servico)
     else:
@@ -189,32 +186,32 @@ def construir_xml_enviar_lote_rps(
             item_lista,
             cod_tributacao,
         )
-    etree.SubElement(servico, '{%s}ItemListaServico' % ns).text = item_lista
+    etree.SubElement(servico, f'{{{ns}}}ItemListaServico').text = item_lista
     cnae_digits = somente_digitos(codigo_cnae or '')
     if cnae_digits:
-        etree.SubElement(servico, '{%s}CodigoCnae' % ns).text = cnae_digits
-    etree.SubElement(servico, '{%s}CodigoTributacaoMunicipio' % ns).text = cod_tributacao
-    etree.SubElement(servico, '{%s}Discriminacao' % ns).text = servico_descricao
-    etree.SubElement(servico, '{%s}CodigoMunicipio' % ns).text = COD_MUNICIPIO_RP
-    etree.SubElement(servico, '{%s}ExigibilidadeISS' % ns).text = '1'
-    etree.SubElement(servico, '{%s}MunicipioIncidencia' % ns).text = COD_MUNICIPIO_RP
+        etree.SubElement(servico, f'{{{ns}}}CodigoCnae').text = cnae_digits
+    etree.SubElement(servico, f'{{{ns}}}CodigoTributacaoMunicipio').text = cod_tributacao
+    etree.SubElement(servico, f'{{{ns}}}Discriminacao').text = servico_descricao
+    etree.SubElement(servico, f'{{{ns}}}CodigoMunicipio').text = COD_MUNICIPIO_RP
+    etree.SubElement(servico, f'{{{ns}}}ExigibilidadeISS').text = '1'
+    etree.SubElement(servico, f'{{{ns}}}MunicipioIncidencia').text = COD_MUNICIPIO_RP
 
-    prestador = etree.SubElement(inf, '{%s}Prestador' % ns)
-    cpf_cnpj_prest = etree.SubElement(prestador, '{%s}CpfCnpj' % ns)
-    etree.SubElement(cpf_cnpj_prest, '{%s}Cnpj' % ns).text = cnpj_prest
-    etree.SubElement(prestador, '{%s}InscricaoMunicipal' % ns).text = prestador_inscricao_municipal
+    prestador = etree.SubElement(inf, f'{{{ns}}}Prestador')
+    cpf_cnpj_prest = etree.SubElement(prestador, f'{{{ns}}}CpfCnpj')
+    etree.SubElement(cpf_cnpj_prest, f'{{{ns}}}Cnpj').text = cnpj_prest
+    etree.SubElement(prestador, f'{{{ns}}}InscricaoMunicipal').text = prestador_inscricao_municipal
 
-    tomador = etree.SubElement(inf, '{%s}TomadorServico' % ns)
-    id_tom = etree.SubElement(tomador, '{%s}IdentificacaoTomador' % ns)
-    cpf_cnpj_tom = etree.SubElement(id_tom, '{%s}CpfCnpj' % ns)
+    tomador = etree.SubElement(inf, f'{{{ns}}}TomadorServico')
+    id_tom = etree.SubElement(tomador, f'{{{ns}}}IdentificacaoTomador')
+    cpf_cnpj_tom = etree.SubElement(id_tom, f'{{{ns}}}CpfCnpj')
     if len(doc_tomador) == 11:
-        etree.SubElement(cpf_cnpj_tom, '{%s}Cpf' % ns).text = doc_tomador
+        etree.SubElement(cpf_cnpj_tom, f'{{{ns}}}Cpf').text = doc_tomador
     else:
-        etree.SubElement(cpf_cnpj_tom, '{%s}Cnpj' % ns).text = doc_tomador
-    etree.SubElement(tomador, '{%s}RazaoSocial' % ns).text = tomador_nome
+        etree.SubElement(cpf_cnpj_tom, f'{{{ns}}}Cnpj').text = doc_tomador
+    etree.SubElement(tomador, f'{{{ns}}}RazaoSocial').text = tomador_nome
 
-    end = etree.SubElement(tomador, '{%s}Endereco' % ns)
-    etree.SubElement(end, '{%s}Endereco' % ns).text = (
+    end = etree.SubElement(tomador, f'{{{ns}}}Endereco')
+    etree.SubElement(end, f'{{{ns}}}Endereco').text = (
         (tomador_endereco.get('logradouro') or '').strip() or 'Nao informado'
     )
     from nfse_integration.nfse_geo import normalizar_numero_complemento_endereco
@@ -222,12 +219,12 @@ def construir_xml_enviar_lote_rps(
     numero_tomador, _ = normalizar_numero_complemento_endereco(
         (tomador_endereco.get('numero') or '').strip(),
     )
-    etree.SubElement(end, '{%s}Numero' % ns).text = numero_tomador or 'S/N'
+    etree.SubElement(end, f'{{{ns}}}Numero').text = numero_tomador or 'S/N'
     compl = (tomador_endereco.get('complemento') or '').strip()
     if compl:
-        etree.SubElement(end, '{%s}Complemento' % ns).text = compl
+        etree.SubElement(end, f'{{{ns}}}Complemento').text = compl
     bairro = (tomador_endereco.get('bairro') or '').strip() or 'Nao informado'
-    etree.SubElement(end, '{%s}Bairro' % ns).text = bairro[:60]
+    etree.SubElement(end, f'{{{ns}}}Bairro').text = bairro[:60]
     cod_mun_tomador = (tomador_endereco.get('codigo_municipio') or '').strip()
     if not cod_mun_tomador:
         from nfse_integration.nfse_geo import buscar_codigo_ibge_por_cep
@@ -235,31 +232,31 @@ def construir_xml_enviar_lote_rps(
         cod_mun_tomador = buscar_codigo_ibge_por_cep(tomador_endereco.get('cep', ''))
     if not cod_mun_tomador:
         cod_mun_tomador = COD_MUNICIPIO_RP
-    etree.SubElement(end, '{%s}CodigoMunicipio' % ns).text = cod_mun_tomador
-    etree.SubElement(end, '{%s}Uf' % ns).text = (
+    etree.SubElement(end, f'{{{ns}}}CodigoMunicipio').text = cod_mun_tomador
+    etree.SubElement(end, f'{{{ns}}}Uf').text = (
         (tomador_endereco.get('uf') or 'SP').strip()[:2] or 'SP'
     )
     cep = somente_digitos(tomador_endereco.get('cep', ''))[:8]
     if len(cep) != 8:
         cep = '00000000'
-    etree.SubElement(end, '{%s}Cep' % ns).text = cep
+    etree.SubElement(end, f'{{{ns}}}Cep').text = cep
 
     tomador_email = (tomador_endereco.get('email') or '').strip()
     tomador_telefone = somente_digitos(tomador_endereco.get('telefone', ''))[:11]
     if tomador_email or tomador_telefone:
-        contato = etree.SubElement(tomador, '{%s}Contato' % ns)
+        contato = etree.SubElement(tomador, f'{{{ns}}}Contato')
         if tomador_telefone:
-            etree.SubElement(contato, '{%s}Telefone' % ns).text = tomador_telefone
+            etree.SubElement(contato, f'{{{ns}}}Telefone').text = tomador_telefone
         if tomador_email:
-            etree.SubElement(contato, '{%s}Email' % ns).text = tomador_email[:80]
+            etree.SubElement(contato, f'{{{ns}}}Email').text = tomador_email[:80]
 
     regime = (cfg.regime_especial or '').strip()
     if regime and regime != '0':
-        etree.SubElement(inf, '{%s}RegimeEspecialTributacao' % ns).text = regime
+        etree.SubElement(inf, f'{{{ns}}}RegimeEspecialTributacao').text = regime
     optante = '1' if cfg.optante_simples else '2'
-    etree.SubElement(inf, '{%s}OptanteSimplesNacional' % ns).text = optante
+    etree.SubElement(inf, f'{{{ns}}}OptanteSimplesNacional').text = optante
     incentivo = '1' if cfg.incentivador_cultural else '2'
-    etree.SubElement(inf, '{%s}IncentivoFiscal' % ns).text = incentivo
+    etree.SubElement(inf, f'{{{ns}}}IncentivoFiscal').text = incentivo
 
     xml_str = etree.tostring(root, encoding='unicode', pretty_print=False)
     logger.info(
@@ -321,25 +318,25 @@ def construir_xml_consultar_nfse_por_rps(
     im = (inscricao_municipal or '').strip()
     serie = (serie_rps or '').strip() or '1'
     ns = NS_NFSE
-    root = etree.Element('{%s}ConsultarNfseRpsEnvio' % ns, nsmap={None: ns})
-    id_rps = etree.SubElement(root, '{%s}IdentificacaoRps' % ns)
-    etree.SubElement(id_rps, '{%s}Numero' % ns).text = str(int(numero_rps))
-    etree.SubElement(id_rps, '{%s}Serie' % ns).text = serie
-    etree.SubElement(id_rps, '{%s}Tipo' % ns).text = str(int(tipo_rps or 1))
-    prest = etree.SubElement(root, '{%s}Prestador' % ns)
-    cpf_cnpj = etree.SubElement(prest, '{%s}CpfCnpj' % ns)
-    etree.SubElement(cpf_cnpj, '{%s}Cnpj' % ns).text = cnpj_digits
+    root = etree.Element(f'{{{ns}}}ConsultarNfseRpsEnvio', nsmap={None: ns})
+    id_rps = etree.SubElement(root, f'{{{ns}}}IdentificacaoRps')
+    etree.SubElement(id_rps, f'{{{ns}}}Numero').text = str(int(numero_rps))
+    etree.SubElement(id_rps, f'{{{ns}}}Serie').text = serie
+    etree.SubElement(id_rps, f'{{{ns}}}Tipo').text = str(int(tipo_rps or 1))
+    prest = etree.SubElement(root, f'{{{ns}}}Prestador')
+    cpf_cnpj = etree.SubElement(prest, f'{{{ns}}}CpfCnpj')
+    etree.SubElement(cpf_cnpj, f'{{{ns}}}Cnpj').text = cnpj_digits
     if im:
-        etree.SubElement(prest, '{%s}InscricaoMunicipal' % ns).text = im
+        etree.SubElement(prest, f'{{{ns}}}InscricaoMunicipal').text = im
     return etree.tostring(root, encoding='unicode')
 
 
 def _prestador_element(parent, ns: str, cnpj_digits: str, im: str):
-    prest = etree.SubElement(parent, '{%s}Prestador' % ns)
-    cpf_cnpj = etree.SubElement(prest, '{%s}CpfCnpj' % ns)
-    etree.SubElement(cpf_cnpj, '{%s}Cnpj' % ns).text = cnpj_digits
+    prest = etree.SubElement(parent, f'{{{ns}}}Prestador')
+    cpf_cnpj = etree.SubElement(prest, f'{{{ns}}}CpfCnpj')
+    etree.SubElement(cpf_cnpj, f'{{{ns}}}Cnpj').text = cnpj_digits
     if (im or '').strip():
-        etree.SubElement(prest, '{%s}InscricaoMunicipal' % ns).text = im.strip()
+        etree.SubElement(prest, f'{{{ns}}}InscricaoMunicipal').text = im.strip()
 
 
 def construir_xml_consultar_nfse_servico_prestado(
@@ -350,10 +347,10 @@ def construir_xml_consultar_nfse_servico_prestado(
     cnpj_digits = somente_digitos(prestador_cnpj)
     im = (inscricao_municipal or '').strip()
     ns = NS_NFSE
-    root = etree.Element('{%s}ConsultarNfseServicoPrestadoEnvio' % ns, nsmap={None: ns})
+    root = etree.Element(f'{{{ns}}}ConsultarNfseServicoPrestadoEnvio', nsmap={None: ns})
     _prestador_element(root, ns, cnpj_digits, im)
-    etree.SubElement(root, '{%s}NumeroNfse' % ns).text = str(int(numero_nf))
-    etree.SubElement(root, '{%s}Pagina' % ns).text = '1'
+    etree.SubElement(root, f'{{{ns}}}NumeroNfse').text = str(int(numero_nf))
+    etree.SubElement(root, f'{{{ns}}}Pagina').text = '1'
     return etree.tostring(root, encoding='unicode')
 
 
@@ -365,13 +362,13 @@ def construir_xml_consultar_nfse_por_faixa(
     cnpj_digits = somente_digitos(prestador_cnpj)
     im = (inscricao_municipal or '').strip()
     ns = NS_NFSE
-    root = etree.Element('{%s}ConsultarNfsePorFaixaEnvio' % ns, nsmap={None: ns})
+    root = etree.Element(f'{{{ns}}}ConsultarNfsePorFaixaEnvio', nsmap={None: ns})
     _prestador_element(root, ns, cnpj_digits, im)
-    faixa = etree.SubElement(root, '{%s}Faixa' % ns)
+    faixa = etree.SubElement(root, f'{{{ns}}}Faixa')
     n = str(int(numero_nf))
-    etree.SubElement(faixa, '{%s}NumeroNfseInicial' % ns).text = n
-    etree.SubElement(faixa, '{%s}NumeroNfseFinal' % ns).text = n
-    etree.SubElement(root, '{%s}Pagina' % ns).text = '1'
+    etree.SubElement(faixa, f'{{{ns}}}NumeroNfseInicial').text = n
+    etree.SubElement(faixa, f'{{{ns}}}NumeroNfseFinal').text = n
+    etree.SubElement(root, f'{{{ns}}}Pagina').text = '1'
     return etree.tostring(root, encoding='unicode')
 
 
@@ -396,7 +393,7 @@ def construir_xml_cancelar_nfse(
     inscricao_municipal: str,
     codigo_cancelamento: str = '1',
     *,
-    inf_pedido_id: Optional[str] = None,
+    inf_pedido_id: str | None = None,
 ) -> str:
     """
     Monta CancelarNfseEnvio.

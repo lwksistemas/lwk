@@ -3,12 +3,15 @@ Decorators reutilizáveis para CRM Vendas.
 Elimina código duplicado de cache em list() e bloqueio de vendedor.
 """
 from functools import wraps
+
 from django.core.cache import cache
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.response import Response
+
+from tenants.middleware import ensure_loja_context, get_current_loja_id
+
 from .cache import CRMCacheManager
 from .utils import get_current_vendedor_id, is_vendedor_usuario
-from tenants.middleware import get_current_loja_id, ensure_loja_context
 
 
 def cache_list_response(cache_prefix, ttl=120, extra_keys=None):
@@ -130,7 +133,7 @@ def require_admin_access(message='Vendedores não têm permissão para acessar e
     def decorator(func):
         @wraps(func)
         def wrapper(self, request, *args, **kwargs):
-            from .utils import is_owner, is_vendedor_usuario
+            from .utils import is_owner
             
             # Owner SEMPRE tem acesso total
             if is_owner(request):

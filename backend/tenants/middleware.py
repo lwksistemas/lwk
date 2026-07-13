@@ -6,10 +6,9 @@ import logging
 import os
 from pathlib import Path
 from threading import local
+
 from django.conf import settings
 from django.http import JsonResponse
-from django.db import connection
-from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +80,11 @@ def resolve_loja_from_slug_or_cnpj(tenant_slug: str):
     match em ``cpf_cnpj`` normalizado (fallback para slugs legados ``nome-sufixo`` ou
     quando slug e documento divergiram).
     """
-    from superadmin.models import Loja
     import re
+
     from django.db import connection as django_connection
+
+    from superadmin.models import Loja
 
     s = (tenant_slug or '').strip()
     if not s:
@@ -301,7 +302,7 @@ class TenantMiddleware:
                     set_current_tenant_db('default')
                     set_current_loja_id(None)
             else:
-                logger.debug(f"ℹ️ [TenantMiddleware] Nenhum slug detectado - usando default")
+                logger.debug("ℹ️ [TenantMiddleware] Nenhum slug detectado - usando default")
                 set_current_tenant_db('default')
                 set_current_loja_id(None)
             
@@ -377,18 +378,16 @@ class TenantMiddleware:
         # 3. Tentar pegar do parâmetro de query
         tenant_slug = request.GET.get('tenant')
         if tenant_slug:
-            if hasattr(request, 'user') and request.user.is_authenticated:
-                if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                    return None
+            if hasattr(request, 'user') and request.user.is_authenticated and not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                return None
             return tenant_slug
         
         # 4. Tentar pegar da URL (ex: /loja/linda/...)
         path_parts = request.path.split('/')
         if len(path_parts) >= 3 and path_parts[1] == 'loja':
             tenant_slug = path_parts[2]
-            if hasattr(request, 'user') and request.user.is_authenticated:
-                if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                    return None
+            if hasattr(request, 'user') and request.user.is_authenticated and not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                return None
             return tenant_slug
         
         # 5. Tentar pegar do subdomain (hosts de API: configurar TENANT_IGNORE_* se o label não for slug de loja)
@@ -418,9 +417,8 @@ class TenantMiddleware:
             }
             if tenant_slug in ignore_prefixes:
                 return None
-            if hasattr(request, 'user') and request.user.is_authenticated:
-                if not self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                    return None
+            if hasattr(request, 'user') and request.user.is_authenticated and not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+                return None
             return tenant_slug
         
         return None

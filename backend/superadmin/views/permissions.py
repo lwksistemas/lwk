@@ -11,10 +11,7 @@ class IsOwnerOrSuperAdmin(permissions.BasePermission):
             return True
         
         # Usuário autenticado tem permissão (verificação específica será feita no método)
-        if request.user and request.user.is_authenticated:
-            return True
-        
-        return False
+        return bool(request.user and request.user.is_authenticated)
     
     def has_object_permission(self, request, view, obj):
         # Superadmin sempre tem permissão

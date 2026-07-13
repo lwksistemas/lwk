@@ -1,13 +1,13 @@
 """Emissao de NFS-e via ADN Nacional (loja/CRM)."""
 import logging
 import re
-from decimal import Decimal
-from decimal import ROUND_HALF_UP
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
 
 from django.utils import timezone
 
-from nfse_integration.nfse_geo import preparar_endereco_tomador_emissao
+from nfse_integration.nfse_geo import buscar_codigo_ibge_por_cep, preparar_endereco_tomador_emissao
 from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps, salvar_nfse_emitida
 from nfse_integration.prestador_loja import DadosPrestadorNFSe
 
@@ -21,15 +21,15 @@ def emitir_via_nacional_loja(
     tomador_cpf_cnpj: str,
     tomador_nome: str,
     tomador_email: str,
-    tomador_endereco: Dict[str, str],
+    tomador_endereco: dict[str, str],
     servico_descricao: str,
     valor_servicos: Decimal,
     enviar_email: bool,
     enviar_email_fn: Callable[..., None],
-    codigo_cnae_override: Optional[str] = None,
-    codigo_servico_override: Optional[str] = None,
-    prestador: Optional[DadosPrestadorNFSe] = None,
-) -> Dict[str, Any]:
+    codigo_cnae_override: str | None = None,
+    codigo_servico_override: str | None = None,
+    prestador: DadosPrestadorNFSe | None = None,
+) -> dict[str, Any]:
     """Emite NFS-e via ADN Nacional usando certificado da loja."""
     try:
         from nfse_integration.nacional import NacionalClient

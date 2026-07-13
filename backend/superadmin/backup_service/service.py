@@ -1,40 +1,29 @@
 """Orquestração de exportação e importação de backup de lojas."""
+import contextlib
 import csv
 import io
-import json
 import logging
-import os
-import re
 import zipfile
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
 
-from django.conf import settings
-from django.core.mail import EmailMessage
-from django.db import connections, transaction
+from django.db import transaction
 from django.utils import timezone
 
 from ..backup_helpers import (
     BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS,
-    BACKUP_SAFE_IDENTIFIER_RE,
-    BACKUP_SAFE_PG_SCHEMA_RE,
     BACKUP_TIPO_APP_EXCLUDED_PREFIXES,
     BACKUP_TIPO_APP_TABLE_PREFIXES,
     BackupExportError,
     BackupImportError,
     _backup_finalize_crm_config_row_values,
-    _coerce_int_or_zero,
-    _truncate_backup_value_for_pg_type,
     _connection_is_postgresql,
     _ensure_crm_vendas_config_pg_int_defaults,
-    _fetch_crm_vendas_config_pg_colrows,
     _import_crm_vendas_config_via_model,
     _is_crm_issnet_int_col,
     _normalize_backup_csv_row_keys,
-    _parse_pg_qualified_table,
-    _resolve_visible_pg_schema_for_table,
     _sanitize_pg_table_key,
+    _truncate_backup_value_for_pg_type,
     _zip_csv_basename_table_name,
     is_safe_pg_schema_token,
 )
@@ -59,7 +48,7 @@ class BackupService:
         self,
         loja_id: int,
         incluir_imagens: bool = False
-    ) -> Dict:
+    ) -> dict:
         """
         Exporta todos os dados de uma loja em formato CSV compactado.
         
@@ -238,7 +227,7 @@ class BackupService:
         self,
         loja_id: int,
         arquivo_zip: bytes
-    ) -> Dict:
+    ) -> dict:
         """
         Importa dados de um arquivo ZIP de backup.
         
@@ -311,12 +300,11 @@ class BackupService:
                         if cur.fetchone()[0] == 0:
                             logger.info(f"Schema '{db_helper._pg_schema}' vazio - aplicando migrations antes da importação")
                             from django.db import connections
+
                             from superadmin.services.database_schema_service import DatabaseSchemaService
                             DatabaseSchemaService.aplicar_migrations(loja)
-                            try:
+                            with contextlib.suppress(Exception):
                                 connections[loja.database_name].close()
-                            except Exception:
-                                pass
                             # Re-verificar
                             with db_helper.get_connection().cursor() as cur2:
                                 cur2.execute(
@@ -454,15 +442,13 @@ class BackupService:
                             for c in db_columns:
                                 if not DatabaseHelper.is_safe_table_name(c):
                                     continue
-                                if c in csv_header_set:
-                                    cols_for_insert.append(c)
-                                elif (
+                                if c in csv_header_set or (
                                     table_name == "crm_vendas_config"
                                     and _is_crm_issnet_int_col(c)
                                 ):
                                     cols_for_insert.append(c)
                             if table_name == "crm_vendas_config":
-                                missing_issnet: List[str] = []
+                                missing_issnet: list[str] = []
                                 for logical in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
                                     actual = next(
                                         (

@@ -10,6 +10,7 @@ ao esquecer de registrar nova tabela).
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
+
 from superadmin.orfaos_config import TABELAS_LOJA_ID
 
 # Tabelas que têm loja_id mas são de outro schema (tenant) ou não devem ser limpas no default
@@ -34,7 +35,7 @@ class Command(BaseCommand):
         faltando = [t for t in tabelas_com_loja_id if t not in config_tabelas]
         if faltando:
             self.stdout.write(self.style.ERROR(
-                f'TABELAS_LOJA_ID está incompleto. Tabelas com loja_id não registradas:\n  ' +
+                'TABELAS_LOJA_ID está incompleto. Tabelas com loja_id não registradas:\n  ' +
                 '\n  '.join(faltando)
             ))
             self.stdout.write(self.style.WARNING(

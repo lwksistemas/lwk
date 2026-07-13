@@ -1,9 +1,11 @@
 import logging
-from rest_framework import viewsets, permissions, status
+
+from django.utils import timezone
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from django.utils import timezone
-from .models import Chamado, RespostaChamado, ErroFrontend
+
+from .models import Chamado, ErroFrontend, RespostaChamado
 from .serializers import ChamadoSerializer, RespostaChamadoSerializer
 from .services import get_chamados_queryset_for_user
 

@@ -11,8 +11,8 @@ from rest_framework.response import Response
 
 from core.views import BaseModelViewSet
 from tenants.middleware import get_current_loja_id
+
 from .activities_google_sync_queue import (
-    dispatch_sync_atividade_create,
     dispatch_sync_atividade_delete,
     dispatch_sync_atividade_update,
 )
@@ -256,8 +256,8 @@ class AtividadeViewSet(
         atividade = serializer.instance
         if atividade and getattr(atividade, 'loja_id', None):
             try:
-                from superadmin.models import Loja
                 from notificacoes.services import notify
+                from superadmin.models import Loja
 
                 loja = (
                     Loja.objects.using('default')

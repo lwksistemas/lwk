@@ -19,6 +19,97 @@ class LojaAsaasService:
             logger.warning("Asaas integration não disponível")
             self.available = False
 
+    def _salvar_financeiro_mp(self, loja, financeiro, resultado):
+        """Persiste dados do Mercado Pago no financeiro e cria PagamentoLoja."""
+        boleto_url = (resultado.get("boleto_url") or "")[:200]
+        pix_qr = (resultado.get("pix_qr_code") or "")[:2000]
+        pix_paste = (resultado.get("pix_copy_paste") or "")[:500]
+        pix_pid = (resultado.get("pix_payment_id") or "")[:100]
+        financeiro.provedor_boleto = "mercadopago"
+        financeiro.mercadopago_payment_id = (resultado.get("payment_id") or "")[:100]
+        financeiro.mercadopago_pix_payment_id = pix_pid
+        financeiro.asaas_customer_id = ""
+        financeiro.asaas_payment_id = ""
+        financeiro.boleto_url = boleto_url
+        financeiro.pix_qr_code = pix_qr
+        financeiro.pix_copy_paste = pix_paste
+        financeiro.status_pagamento = "pendente"
+        financeiro.save()
+        from .models import PagamentoLoja
+        pagamento = PagamentoLoja.objects.create(
+            loja=loja,
+            financeiro=financeiro,
+            valor=financeiro.valor_mensalidade,
+            referencia_mes=financeiro.data_proxima_cobranca.replace(day=1),
+            status="pendente",
+            forma_pagamento="boleto",
+            data_vencimento=financeiro.data_proxima_cobranca,
+            provedor_boleto="mercadopago",
+            mercadopago_payment_id=(resultado.get("payment_id") or "")[:100],
+            mercadopago_pix_payment_id=pix_pid,
+            asaas_payment_id="",
+            boleto_url=boleto_url,
+            pix_qr_code=pix_qr,
+            pix_copy_paste=pix_paste,
+        )
+        logger.info(
+            "Cobrança Mercado Pago criada para loja %s: %s%s",
+            loja.nome, resultado.get("payment_id"), f", PIX: {pix_pid}" if pix_pid else "",
+        )
+        return {
+            "success": True,
+            "provedor": "mercadopago",
+            "payment_id": resultado.get("payment_id"),
+            "customer_id": "",
+            "boleto_url": resultado.get("boleto_url"),
+            "pix_qr_code": pix_qr or resultado.get("pix_qr_code"),
+            "pix_copy_paste": pix_paste or resultado.get("pix_copy_paste"),
+            "due_date": resultado.get("due_date"),
+            "value": resultado.get("value"),
+            "pagamento_id": pagamento.id,
+        }
+
+    def _salvar_financeiro_asaas(self, loja, financeiro, resultado):
+        """Persiste dados do Asaas no financeiro e cria PagamentoLoja."""
+        boleto_url_asaas = (resultado.get("boleto_url") or "")[:200]
+        financeiro.provedor_boleto = "asaas"
+        financeiro.mercadopago_payment_id = ""
+        financeiro.asaas_customer_id = resultado.get("customer_id", "")
+        financeiro.asaas_payment_id = resultado.get("payment_id", "")
+        financeiro.boleto_url = boleto_url_asaas
+        financeiro.pix_qr_code = (resultado.get("pix_qr_code") or "")[:500]
+        financeiro.pix_copy_paste = (resultado.get("pix_copy_paste") or "")[:500]
+        financeiro.status_pagamento = "pendente"
+        financeiro.save()
+        from .models import PagamentoLoja
+        pagamento = PagamentoLoja.objects.create(
+            loja=loja,
+            financeiro=financeiro,
+            valor=financeiro.valor_mensalidade,
+            referencia_mes=financeiro.data_proxima_cobranca.replace(day=1),
+            status="pendente",
+            forma_pagamento="boleto",
+            data_vencimento=financeiro.data_proxima_cobranca,
+            provedor_boleto="asaas",
+            mercadopago_payment_id="",
+            asaas_payment_id=(resultado.get("payment_id") or "")[:100],
+            boleto_url=boleto_url_asaas,
+            pix_qr_code=(resultado.get("pix_qr_code") or "")[:500],
+            pix_copy_paste=(resultado.get("pix_copy_paste") or "")[:500],
+        )
+        logger.info("Cobrança Asaas criada para loja %s: %s", loja.nome, resultado.get("payment_id"))
+        return {
+            "success": True,
+            "provedor": "asaas",
+            "payment_id": resultado.get("payment_id"),
+            "customer_id": resultado.get("customer_id"),
+            "boleto_url": resultado.get("boleto_url"),
+            "pix_qr_code": resultado.get("pix_qr_code"),
+            "due_date": resultado.get("due_date"),
+            "value": resultado.get("value"),
+            "pagamento_id": pagamento.id,
+        }
+
     def criar_cobranca_loja(self, loja, financeiro):
         """Cria cobrança (boleto) para a loja. Usa Mercado Pago se configurado e
         use_for_boletos ativo; caso contrário usa Asaas.
@@ -31,7 +122,7 @@ class LojaAsaasService:
             dict: Resultado da criação da cobrança
 
         """
-        # Opção: Mercado Pago para boletos (preferência da loja ou global)
+        # Opção: Mercado Pago para boletos
         try:
             from .mercadopago_service import LojaMercadoPagoService
             from .models import MercadoPagoConfig
@@ -46,72 +137,21 @@ class LojaAsaasService:
                 if mp_service.available:
                     resultado = mp_service.criar_cobranca_loja(loja, financeiro)
                     if resultado.get("success"):
-                        # Limitar boleto_url a 200 chars (URLField default) para evitar "value too long"
-                        boleto_url = (resultado.get("boleto_url") or "")[:200]
-                        pix_qr = (resultado.get("pix_qr_code") or "")[:2000]
-                        pix_paste = (resultado.get("pix_copy_paste") or "")[:500]
-                        pix_pid = (resultado.get("pix_payment_id") or "")[:100]
-                        financeiro.provedor_boleto = "mercadopago"
-                        financeiro.mercadopago_payment_id = (resultado.get("payment_id") or "")[:100]
-                        financeiro.mercadopago_pix_payment_id = pix_pid
-                        financeiro.asaas_customer_id = ""
-                        financeiro.asaas_payment_id = ""
-                        financeiro.boleto_url = boleto_url
-                        financeiro.pix_qr_code = pix_qr
-                        financeiro.pix_copy_paste = pix_paste
-                        financeiro.status_pagamento = "pendente"
-                        financeiro.save()
-                        from .models import PagamentoLoja
-                        pagamento = PagamentoLoja.objects.create(
-                            loja=loja,
-                            financeiro=financeiro,
-                            valor=financeiro.valor_mensalidade,
-                            referencia_mes=financeiro.data_proxima_cobranca.replace(day=1),
-                            status="pendente",
-                            forma_pagamento="boleto",
-                            data_vencimento=financeiro.data_proxima_cobranca,
-                            provedor_boleto="mercadopago",
-                            mercadopago_payment_id=(resultado.get("payment_id") or "")[:100],
-                            mercadopago_pix_payment_id=pix_pid,
-                            asaas_payment_id="",
-                            boleto_url=boleto_url,
-                            pix_qr_code=pix_qr,
-                            pix_copy_paste=pix_paste,
-                        )
-                        logger.info(f"Cobrança Mercado Pago criada para loja {loja.nome}: {resultado.get('payment_id')}" + (f", PIX: {pix_pid}" if pix_pid else ""))
-                        return {
-                            "success": True,
-                            "provedor": "mercadopago",
-                            "payment_id": resultado.get("payment_id"),
-                            "customer_id": "",
-                            "boleto_url": resultado.get("boleto_url"),
-                            "pix_qr_code": pix_qr or resultado.get("pix_qr_code"),
-                            "pix_copy_paste": pix_paste or resultado.get("pix_copy_paste"),
-                            "due_date": resultado.get("due_date"),
-                            "value": resultado.get("value"),
-                            "pagamento_id": pagamento.id,
-                        }
+                        return self._salvar_financeiro_mp(loja, financeiro, resultado)
                     return resultado
         except Exception as e:
             logger.warning("Mercado Pago não usado para cobrança: %s", e)
+
         # Fallback: Asaas
         if not self.available:
-            return {
-                "success": False,
-                "error": "Integração Asaas não disponível",
-            }
+            return {"success": False, "error": "Integração Asaas não disponível"}
 
         try:
-            # Verificar se Asaas está configurado
             config = self.AsaasConfig.get_config()
             if not self.AsaasConfig.resolve_api_key() or not config.enabled:
                 logger.warning("Asaas não configurado ou desabilitado")
-                return {
-                    "success": False,
-                    "error": "Asaas não configurado",
-                }
+                return {"success": False, "error": "Asaas não configurado"}
 
-            # Preparar dados da loja
             loja_data = {
                 "nome": loja.nome,
                 "email": loja.owner.email,
@@ -127,88 +167,26 @@ class LojaAsaasService:
                 "cep": loja.cep or "",
                 "slug": loja.slug,
             }
-
-            # Preparar dados do plano
-            plano_data = {
-                "nome": loja.plano.nome,
-                "preco": float(financeiro.valor_mensalidade),
-            }
-
-            # Criar cobrança via serviço Asaas
+            plano_data = {"nome": loja.plano.nome, "preco": float(financeiro.valor_mensalidade)}
             service = self.AsaasPaymentService()
 
-            # Verificar se já existe customer_id no financeiro ou na assinatura
             from asaas_integration.models import LojaAssinatura
             customer_id = (financeiro.asaas_customer_id or "").strip() or None
             if not customer_id:
-                loja_assinatura = LojaAssinatura.objects.filter(
-                    loja_slug=loja.slug,
-                ).select_related("asaas_customer").first()
+                loja_assinatura = LojaAssinatura.objects.filter(loja_slug=loja.slug).select_related("asaas_customer").first()
                 if loja_assinatura and loja_assinatura.asaas_customer_id:
                     customer_id = loja_assinatura.asaas_customer.asaas_id
 
-            resultado = service.create_loja_subscription_payment(
-                loja_data,
-                plano_data,
-                customer_id=customer_id,
-            )
+            resultado = service.create_loja_subscription_payment(loja_data, plano_data, customer_id=customer_id)
 
             if resultado.get("success"):
-                # Atualizar financeiro com dados do Asaas
-                financeiro.provedor_boleto = "asaas"
-                financeiro.mercadopago_payment_id = ""
-                financeiro.asaas_customer_id = resultado.get("customer_id", "")
-                financeiro.asaas_payment_id = resultado.get("payment_id", "")
-                boleto_url_asaas = (resultado.get("boleto_url") or "")[:200]
-                financeiro.boleto_url = boleto_url_asaas
-                financeiro.pix_qr_code = (resultado.get("pix_qr_code") or "")[:500]
-                financeiro.pix_copy_paste = (resultado.get("pix_copy_paste") or "")[:500]
-                financeiro.status_pagamento = "pendente"
-                financeiro.save()
-
-                # Criar registro de pagamento
-                from .models import PagamentoLoja
-                pagamento = PagamentoLoja.objects.create(
-                    loja=loja,
-                    financeiro=financeiro,
-                    valor=financeiro.valor_mensalidade,
-                    referencia_mes=financeiro.data_proxima_cobranca.replace(day=1),
-                    status="pendente",
-                    forma_pagamento="boleto",
-                    data_vencimento=financeiro.data_proxima_cobranca,
-                    provedor_boleto="asaas",
-                    mercadopago_payment_id="",
-                    asaas_payment_id=(resultado.get("payment_id") or "")[:100],
-                    boleto_url=boleto_url_asaas,
-                    pix_qr_code=(resultado.get("pix_qr_code") or "")[:500],
-                    pix_copy_paste=(resultado.get("pix_copy_paste") or "")[:500],
-                )
-
-                logger.info(f"Cobrança Asaas criada para loja {loja.nome}: {resultado.get('payment_id')}")
-
-                return {
-                    "success": True,
-                    "provedor": "asaas",
-                    "payment_id": resultado.get("payment_id"),
-                    "customer_id": resultado.get("customer_id"),
-                    "boleto_url": resultado.get("boleto_url"),
-                    "pix_qr_code": resultado.get("pix_qr_code"),
-                    "due_date": resultado.get("due_date"),
-                    "value": resultado.get("value"),
-                    "pagamento_id": pagamento.id,
-                }
-            logger.error(f"Erro ao criar cobrança Asaas: {resultado.get('error')}")
-            return {
-                "success": False,
-                "error": resultado.get("error", "Erro desconhecido"),
-            }
+                return self._salvar_financeiro_asaas(loja, financeiro, resultado)
+            logger.error("Erro ao criar cobrança Asaas: %s", resultado.get("error"))
+            return {"success": False, "error": resultado.get("error", "Erro desconhecido")}
 
         except Exception as e:
-            logger.error(f"Erro no serviço Asaas: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-            }
+            logger.error("Erro no serviço Asaas: %s", e)
+            return {"success": False, "error": str(e)}
 
     def baixar_pdf_boleto(self, payment_id):
         """Baixa o PDF do boleto do Asaas

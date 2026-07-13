@@ -62,6 +62,87 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
 
         return queryset
 
+    @staticmethod
+    def _fetch_loja_with_retry(slug):
+        """Busca loja por slug/atalho com retry em caso de timeout. Retorna (loja, error_response)."""
+        import time
+
+        from django.db import OperationalError
+        max_retries, retry_delay, loja = 3, 1, None
+        for attempt in range(max_retries):
+            try:
+                loja = Loja.objects.select_related("tipo_loja", "owner").filter(slug__iexact=slug, is_active=True).first()
+                if not loja:
+                    loja = Loja.objects.select_related("tipo_loja", "owner").filter(atalho__iexact=slug, is_active=True).first()
+                return loja, None
+            except OperationalError as e:
+                if "timeout" in str(e).lower() and attempt < max_retries - 1:
+                    logger.warning("⚠️ Timeout ao buscar loja %s (tentativa %d/%d). Tentando em %ds...", slug, attempt + 1, max_retries, retry_delay)
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                else:
+                    logger.error("❌ Falha ao buscar loja %s após %d tentativas: %s", slug, max_retries, e)
+                    return None, Response({"error": "Erro ao conectar ao banco de dados. Tente novamente."}, status=503)
+        return loja, None
+
+    @staticmethod
+    def _build_cores_loja(loja):
+        """Resolve cores primária e secundária com fallback para tipo_loja e padrão."""
+        tipo = getattr(loja, "tipo_loja", None)
+        cor_loja_p = (getattr(loja, "cor_primaria", None) or "").strip()
+        cor_tipo_p = (getattr(tipo, "cor_primaria", None) or "").strip() if tipo else ""
+        cor_loja_s = (getattr(loja, "cor_secundaria", None) or "").strip()
+        cor_tipo_s = (getattr(tipo, "cor_secundaria", None) or "").strip() if tipo else ""
+        return (cor_loja_p or cor_tipo_p or "#10B981"), (cor_loja_s or cor_tipo_s or "#059669")
+
+    @staticmethod
+    def _build_endereco_loja(loja):
+        """Monta string de endereço a partir dos campos da loja."""
+        cidade = getattr(loja, "cidade", "") or ""
+        uf = getattr(loja, "uf", "") or ""
+        cidade_uf = f"{cidade}/{uf}" if (cidade and uf) else (cidade or uf)
+        parts = [
+            getattr(loja, "logradouro", "") or "",
+            getattr(loja, "numero", "") or "",
+            getattr(loja, "complemento", "") or "",
+            getattr(loja, "bairro", "") or "",
+            cidade_uf,
+            f"CEP {loja.cep}" if getattr(loja, "cep", "") else "",
+        ]
+        return ", ".join(p for p in parts if p).strip() or None
+
+    @staticmethod
+    def _build_info_publica_data(loja, slug):
+        """Monta o dict de resposta para info_publica."""
+        tipo = getattr(loja, "tipo_loja", None)
+        cor_primaria, cor_secundaria = LojaViewSet._build_cores_loja(loja)
+        cpf_cnpj_raw = (getattr(loja, "cpf_cnpj", "") or "").strip()
+        cpf_cnpj_digits = re.sub(r"\D", "", cpf_cnpj_raw)
+        if len(cpf_cnpj_digits) not in (11, 14):
+            slug_digits = re.sub(r"\D", "", getattr(loja, "slug", "") or "")
+            if len(slug_digits) in (11, 14):
+                cpf_cnpj_digits = slug_digits
+        return {
+            "id": loja.id,
+            "nome": getattr(loja, "nome", "") or "",
+            "slug": getattr(loja, "slug", "") or slug,
+            "atalho": getattr(loja, "atalho", "") or "",
+            "tipo_loja_nome": tipo.nome if tipo else "Loja",
+            "cor_primaria": cor_primaria,
+            "cor_secundaria": cor_secundaria,
+            "cor_fundo_pagina": (getattr(loja, "cor_fundo_pagina", None) or "").strip(),
+            "agenda_status_colors": getattr(loja, "agenda_status_colors", None) or {},
+            "logo": getattr(loja, "logo", None) or "",
+            "login_background": getattr(loja, "login_background", None) or "",
+            "login_logo": getattr(loja, "login_logo", None) or "",
+            "login_page_url": getattr(loja, "login_page_url", None) or "",
+            "senha_foi_alterada": getattr(loja, "senha_foi_alterada", False),
+            "requer_cpf_cnpj": False,
+            "endereco": LojaViewSet._build_endereco_loja(loja),
+            "cpf_cnpj": cpf_cnpj_digits,
+            "is_blocked": bool(getattr(loja, "is_blocked", False)),
+        }
+
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny], authentication_classes=[])
     def info_publica(self, request):
         """Retorna informações públicas da loja para página de login (sem autenticação).
@@ -76,105 +157,25 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
 
         cached_data = get_loja_info_publica_cached(slug)
         if cached_data:
-            logger.debug(f"✅ Cache HIT para loja {slug}")
+            logger.debug("✅ Cache HIT para loja %s", slug)
             return Response(cached_data)
 
-        import time
-
-        from django.db import OperationalError
-
-        max_retries = 3
-        retry_delay = 1
-        loja = None
-
-        for attempt in range(max_retries):
-            try:
-                loja = Loja.objects.select_related("tipo_loja", "owner").filter(slug__iexact=slug, is_active=True).first()
-                if not loja:
-                    loja = Loja.objects.select_related("tipo_loja", "owner").filter(atalho__iexact=slug, is_active=True).first()
-                break
-
-            except OperationalError as e:
-                if "timeout" in str(e).lower() and attempt < max_retries - 1:
-                    logger.warning(
-                        f"⚠️ Timeout ao buscar loja {slug} (tentativa {attempt + 1}/{max_retries}). "
-                        f"Tentando novamente em {retry_delay}s...",
-                    )
-                    time.sleep(retry_delay)
-                    retry_delay *= 2
-                else:
-                    logger.error(f"❌ Falha ao buscar loja {slug} após {max_retries} tentativas: {e}")
-                    return Response(
-                        {"error": "Erro ao conectar ao banco de dados. Tente novamente."},
-                        status=503,
-                    )
+        loja, err = self._fetch_loja_with_retry(slug)
+        if err:
+            return err
 
         try:
             if not loja:
                 return Response({"error": "Loja não encontrada"}, status=404)
-            tipo = getattr(loja, "tipo_loja", None)
-            tipo_nome = tipo.nome if tipo else "Loja"
-            cor_primaria_loja = (getattr(loja, "cor_primaria", None) or "").strip()
-            cor_secundaria_loja = (getattr(loja, "cor_secundaria", None) or "").strip()
-            cor_primaria_tipo = (getattr(tipo, "cor_primaria", None) or "").strip() if tipo else ""
-            cor_secundaria_tipo = (getattr(tipo, "cor_secundaria", None) or "").strip() if tipo else ""
-            cor_primaria = cor_primaria_loja or cor_primaria_tipo or "#10B981"
-            cor_secundaria = cor_secundaria_loja or cor_secundaria_tipo or "#059669"
-
-            cidade = getattr(loja, "cidade", "") or ""
-            uf = getattr(loja, "uf", "") or ""
-            cidade_uf = f"{cidade}/{uf}" if (cidade and uf) else (cidade or uf)
-            endereco_parts = [
-                getattr(loja, "logradouro", "") or "",
-                getattr(loja, "numero", "") or "",
-                getattr(loja, "complemento", "") or "",
-                getattr(loja, "bairro", "") or "",
-                cidade_uf,
-                f"CEP {loja.cep}" if getattr(loja, "cep", "") else "",
-            ]
-            endereco = ", ".join(p for p in endereco_parts if p).strip() or None
-
-            cpf_cnpj_raw = (getattr(loja, "cpf_cnpj", "") or "").strip()
-            cpf_cnpj_digits = re.sub(r"\D", "", cpf_cnpj_raw)
-            if len(cpf_cnpj_digits) not in (11, 14):
-                slug_digits = re.sub(r"\D", "", getattr(loja, "slug", "") or "")
-                if len(slug_digits) in (11, 14):
-                    cpf_cnpj_digits = slug_digits
-
-            data = {
-                "id": loja.id,
-                "nome": getattr(loja, "nome", "") or "",
-                "slug": getattr(loja, "slug", "") or slug,
-                "atalho": getattr(loja, "atalho", "") or "",
-                "tipo_loja_nome": tipo_nome,
-                "cor_primaria": cor_primaria,
-                "cor_secundaria": cor_secundaria,
-                "cor_fundo_pagina": (getattr(loja, "cor_fundo_pagina", None) or "").strip(),
-                "agenda_status_colors": getattr(loja, "agenda_status_colors", None) or {},
-                "logo": getattr(loja, "logo", None) or "",
-                "login_background": getattr(loja, "login_background", None) or "",
-                "login_logo": getattr(loja, "login_logo", None) or "",
-                "login_page_url": getattr(loja, "login_page_url", None) or "",
-                "senha_foi_alterada": getattr(loja, "senha_foi_alterada", False),
-                "requer_cpf_cnpj": False,
-                "endereco": endereco,
-                "cpf_cnpj": cpf_cnpj_digits,
-                "is_blocked": bool(getattr(loja, "is_blocked", False)),
-            }
-
-            # Grava sob slug e atalho — evita cores divergentes entre URLs.
+            data = self._build_info_publica_data(loja, slug)
             set_loja_info_publica_cache(loja, data, ttl=300)
-            logger.debug(f"💾 Cache SET para loja {slug}")
-
+            logger.debug("💾 Cache SET para loja %s", slug)
             return Response(data)
         except Loja.DoesNotExist:
             return Response({"error": "Loja não encontrada"}, status=404)
         except Exception as e:
             logger.exception("info_publica erro para slug=%s: %s", slug, e)
-            return Response(
-                {"error": "Erro ao carregar dados da loja. Tente novamente."},
-                status=500,
-            )
+            return Response({"error": "Erro ao carregar dados da loja. Tente novamente."}, status=500)
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny], authentication_classes=[], url_path="buscar-por-documento")
     def buscar_por_documento(self, request):

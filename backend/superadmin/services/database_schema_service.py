@@ -213,25 +213,92 @@ class DatabaseSchemaService:
 
 
     @staticmethod
+    def _get_migrations_to_apply(conn, app, schema_name):
+        """Retorna lista ordenada de (app_label, migration_name) pendentes para o app."""
+        from django.db.migrations.executor import MigrationExecutor
+        from django.db.migrations.loader import MigrationLoader
+        with conn.cursor() as cur:
+            cur.execute(f'SET search_path TO "{schema_name}", public')
+            cur.execute("SELECT name FROM django_migrations WHERE app = %s", [app])
+            applied = {row[0] for row in cur.fetchall()}
+        loader = MigrationLoader(conn)
+        migrations_to_apply = []
+        if app in loader.migrated_apps:
+            executor = MigrationExecutor(conn)
+            app_migrations = [k for k in loader.graph.nodes if k[0] == app and k[1] not in applied]
+            if app_migrations:
+                plan = []
+                for migration_key in app_migrations:
+                    try:
+                        for mig in executor.loader.graph.forwards_plan(migration_key):
+                            if mig[0] == app and mig[1] not in applied and mig not in plan:
+                                plan.append(mig)
+                    except Exception as e:
+                        logger.warning("      ⚠️  Erro ao obter plan para %s: %s", migration_key, e)
+                migrations_to_apply = plan
+        if not migrations_to_apply:
+            migrations_to_apply = sorted(
+                [k for k in loader.graph.nodes if k[0] == app and k[1] not in applied],
+                key=lambda x: x[1],
+            )
+        return migrations_to_apply, applied
+
+    @staticmethod
+    def _apply_single_migration(conn, loja_database_name, schema_name, app_label, migration_name, tipo_slug, app):
+        """Executa SQL de uma migration no schema; faz fake se objetos já existem."""
+        from io import StringIO
+
+        from django.core.management import call_command
+        try:
+            sql_out = StringIO()
+            call_command("sqlmigrate", app_label, migration_name, "--database", loja_database_name, stdout=sql_out)
+            sql = sql_out.getvalue()
+            if not sql or sql.strip() == "--":
+                logger.info("      ⚠️  Migration %s sem SQL", migration_name)
+                _record_migration_if_missing(loja_database_name, schema_name, app_label, migration_name)
+                return
+            with conn.cursor() as cur:
+                cur.execute(f'SET search_path TO "{schema_name}", public')
+                cur.execute(sql)
+                cur.execute("INSERT INTO django_migrations (app, name, applied) VALUES (%s, %s, NOW())", [app_label, migration_name])
+            logger.info("      ✅ %s", migration_name)
+        except Exception as e:
+            logger.error("      ❌ Erro em %s: %s", migration_name, e)
+            _rollback_and_reconnect(loja_database_name)
+            if _pg_objects_already_exist(e):
+                logger.warning("      ⚠️  Objetos já existem no schema; registrando %s como aplicada (--fake).", migration_name)
+                try:
+                    _record_migration_if_missing(loja_database_name, schema_name, app_label, migration_name)
+                except Exception as fake_err:
+                    logger.error("      ❌ Falha ao registrar migration fake: %s", fake_err)
+            if tipo_slug == "crm-vendas" and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS and not _pg_objects_already_exist(e):
+                raise
+
+    @staticmethod
+    def _verify_schema_tables(conn, schema_name, apps_to_migrate):
+        """Verifica que o schema tem tabelas após migrations. Levanta RuntimeError se vazio."""
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_type = 'BASE TABLE' AND table_name NOT LIKE 'django_%%'",
+                [schema_name],
+            )
+            tabelas_count = cur.fetchone()[0]
+        if tabelas_count == 0:
+            logger.error("❌ ERRO CRÍTICO: Schema '%s' está VAZIO após migrations! Apps tentados: %s.", schema_name, apps_to_migrate)
+            raise RuntimeError(
+                f"Schema '{schema_name}' está vazio após migrations. "
+                "As tabelas não foram criadas no schema correto. "
+                "Entre em contato com o suporte técnico.",
+            )
+        logger.info("✅ Schema '%s' criado com sucesso: %s tabela(s)", schema_name, tabelas_count)
+
+    @staticmethod
     def aplicar_migrations(loja) -> bool:
         """Aplica migrations no schema da loja executando SQL diretamente.
 
         CORREÇÃO v1016: Django call_command('migrate') ignora search_path COMPLETAMENTE.
         Solução DEFINITIVA: Obter SQL das migrations e executar diretamente no schema.
-
-        Args:
-            loja: Objeto Loja
-
-        Returns:
-            True se aplicado com sucesso
-
         """
-        from io import StringIO
-
-        from django.core.management import call_command
-        from django.db.migrations.executor import MigrationExecutor
-
-        # 1. Adicionar config
         from core.db_config import ensure_loja_database_config
 
         if not ensure_loja_database_config(loja.database_name, conn_max_age=60):
@@ -239,7 +306,6 @@ class DatabaseSchemaService:
                 f"Não foi possível adicionar configuração do banco '{loja.database_name}'. "
                 "Verifique se DATABASE_URL está definida.",
             )
-
         if loja.database_name not in settings.DATABASES:
             raise RuntimeError(f"Config do banco '{loja.database_name}' não encontrada em settings.DATABASES!")
 
@@ -250,10 +316,8 @@ class DatabaseSchemaService:
         try:
             conn = connections[loja.database_name]
             conn.ensure_connection()
+            logger.info("🚀 Iniciando migrations manuais para schema '%s'", schema_name)
 
-            logger.info(f"🚀 Iniciando migrations manuais para schema '{schema_name}'")
-
-            # Criar tabela django_migrations no schema
             with conn.cursor() as cur:
                 cur.execute(f'SET search_path TO "{schema_name}", public')
                 cur.execute("""
@@ -264,185 +328,44 @@ class DatabaseSchemaService:
                         applied TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
                 """)
-                logger.info(f"✅ Tabela django_migrations criada em '{schema_name}'")
+                logger.info("✅ Tabela django_migrations criada em '%s'", schema_name)
 
-            # Para cada app, obter migrations não aplicadas e executar SQL
             for app in apps_to_migrate:
                 try:
-                    logger.info(f"📦 Processando app: {app}")
-
-                    # Obter migrations não aplicadas
-                    with conn.cursor() as cur:
-                        cur.execute(f'SET search_path TO "{schema_name}", public')
-                        cur.execute(
-                            "SELECT name FROM django_migrations WHERE app = %s",
-                            [app],
-                        )
-                        applied = {row[0] for row in cur.fetchall()}
-
-                    # Obter TODAS as migrations do app (não apenas leaf nodes)
-                    from django.db.migrations.loader import MigrationLoader
-                    loader = MigrationLoader(conn)
-
-                    # Obter todas as migrations do app na ordem correta
-                    migrations_to_apply = []
-                    if app in loader.migrated_apps:
-                        # Obter plan de execução completo
-                        from django.db.migrations.executor import MigrationExecutor
-                        executor = MigrationExecutor(conn)
-
-                        # Obter todas as migrations do app
-                        app_migrations = [
-                            key for key in loader.graph.nodes
-                            if key[0] == app and key[1] not in applied
-                        ]
-
-                        # Ordenar usando o grafo de dependências
-                        if app_migrations:
-                            plan = []
-                            for migration_key in app_migrations:
-                                # Adicionar migration e suas dependências
-                                try:
-                                    migration_plan = executor.loader.graph.forwards_plan(migration_key)
-                                    for mig in migration_plan:
-                                        if mig[0] == app and mig[1] not in applied and mig not in plan:
-                                            plan.append(mig)
-                                except Exception as e:
-                                    logger.warning(f"      ⚠️  Erro ao obter plan para {migration_key}: {e}")
-
-                            migrations_to_apply = plan
-
-                    # Se não conseguiu obter via plan, usar ordenação simples
+                    logger.info("📦 Processando app: %s", app)
+                    migrations_to_apply, applied = DatabaseSchemaService._get_migrations_to_apply(conn, app, schema_name)
                     if not migrations_to_apply:
-                        migrations_to_apply = [
-                            key for key in loader.graph.nodes
-                            if key[0] == app and key[1] not in applied
-                        ]
-                        migrations_to_apply = sorted(migrations_to_apply, key=lambda x: x[1])
-
-                    if not migrations_to_apply:
-                        logger.info(f"   ℹ️  Nenhuma migration pendente para {app}")
+                        logger.info("   ℹ️  Nenhuma migration pendente para %s", app)
                         continue
-
-                    # Tabelas já existem sem histórico em django_migrations (comum em clínicas
-                    # onde o CRM foi criado via ensure/SQL). Reaplicar ~50 sqlmigrate estoura
-                    # timeout HTTP do botão "Corrigir esta loja" — fake em lote.
                     n_tab_app = _contar_tabelas_app_no_schema(conn, schema_name, app)
                     if n_tab_app > 0 and len(applied) == 0:
                         logger.warning(
-                            "   ⚠️  App %s: %s tabela(s) sem histórico em django_migrations. "
-                            "Registrando %s migration(s) como aplicadas (--fake em lote).",
-                            app,
-                            n_tab_app,
-                            len(migrations_to_apply),
+                            "   ⚠️  App %s: %s tabela(s) sem histórico. Registrando %s migration(s) como fake.",
+                            app, n_tab_app, len(migrations_to_apply),
                         )
                         for app_label, migration_name in migrations_to_apply:
-                            _record_migration_if_missing(
-                                loja.database_name, schema_name, app_label, migration_name,
-                            )
+                            _record_migration_if_missing(loja.database_name, schema_name, app_label, migration_name)
                         continue
-
-                    logger.info(f"   📝 {len(migrations_to_apply)} migration(s) pendente(s)")
-
-                    # Executar cada migration
+                    logger.info("   📝 %s migration(s) pendente(s)", len(migrations_to_apply))
                     for app_label, migration_name in migrations_to_apply:
-                        try:
-                            # Obter SQL da migration
-                            sql_out = StringIO()
-                            call_command(
-                                "sqlmigrate",
-                                app_label,
-                                migration_name,
-                                "--database", loja.database_name,
-                                stdout=sql_out,
-                            )
-                            sql = sql_out.getvalue()
-
-                            if not sql or sql.strip() == "--":
-                                logger.info(f"      ⚠️  Migration {migration_name} sem SQL")
-                                _record_migration_if_missing(
-                                    loja.database_name, schema_name, app_label, migration_name,
-                                )
-                                continue
-
-                            # Executar SQL no schema
-                            with conn.cursor() as cur:
-                                cur.execute(f'SET search_path TO "{schema_name}", public')
-                                cur.execute(sql)
-                                cur.execute(
-                                    "INSERT INTO django_migrations (app, name, applied) VALUES (%s, %s, NOW())",
-                                    [app_label, migration_name],
-                                )
-
-                            logger.info(f"      ✅ {migration_name}")
-
-                        except Exception as e:
-                            logger.error(f"      ❌ Erro em {migration_name}: {e}")
-                            _rollback_and_reconnect(loja.database_name)
-                            conn = connections[loja.database_name]
-                            if _pg_objects_already_exist(e):
-                                logger.warning(
-                                    f"      ⚠️  Objetos já existem no schema; "
-                                    f"registrando {migration_name} como aplicada (--fake).",
-                                )
-                                try:
-                                    _record_migration_if_missing(
-                                        loja.database_name,
-                                        schema_name,
-                                        app_label,
-                                        migration_name,
-                                    )
-                                except Exception as fake_err:
-                                    logger.error(f"      ❌ Falha ao registrar migration fake: {fake_err}")
-                            if tipo_slug == "crm-vendas" and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS and not _pg_objects_already_exist(e):
-                                raise
-
-                    logger.info(f"   ✅ App {app} concluído")
-
+                        DatabaseSchemaService._apply_single_migration(conn, loja.database_name, schema_name, app_label, migration_name, tipo_slug, app)
+                        conn = connections[loja.database_name]
+                    logger.info("   ✅ App %s concluído", app)
                 except Exception as e:
-                    logger.error(f"❌ Erro ao processar app {app}: {e}")
+                    logger.error("❌ Erro ao processar app %s: %s", app, e)
                     _rollback_and_reconnect(loja.database_name)
                     conn = connections[loja.database_name]
                     if tipo_slug == "crm-vendas" and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS:
                         raise
-                    logger.warning(f"Continuando apesar do erro em {app}")
+                    logger.warning("Continuando apesar do erro em %s", app)
 
             _rollback_and_reconnect(loja.database_name)
             conn = connections[loja.database_name]
-
-            # Verificar se tabelas foram criadas
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT COUNT(*)
-                    FROM information_schema.tables
-                    WHERE table_schema = %s
-                    AND table_type = 'BASE TABLE'
-                    AND table_name NOT LIKE 'django_%%'
-                    """,
-                    [schema_name],
-                )
-                tabelas_count = cur.fetchone()[0]
-
-                if tabelas_count == 0:
-                    logger.error(
-                        f"❌ ERRO CRÍTICO: Schema '{schema_name}' está VAZIO após migrations! "
-                        f"Apps tentados: {apps_to_migrate}.",
-                    )
-
-                    raise RuntimeError(
-                        f"Schema '{schema_name}' está vazio após migrations. "
-                        "As tabelas não foram criadas no schema correto. "
-                        "Entre em contato com o suporte técnico.",
-                    )
-                logger.info(
-                    f"✅ Schema '{schema_name}' criado com sucesso: {tabelas_count} tabela(s)",
-                )
-
-            logger.info(f"🎉 Migrations concluídas para '{loja.database_name}'")
+            DatabaseSchemaService._verify_schema_tables(conn, schema_name, apps_to_migrate)
+            logger.info("🎉 Migrations concluídas para '%s'", loja.database_name)
             return True
         except Exception as e:
-            logger.error(f"Erro ao aplicar migrations: {e}")
+            logger.error("Erro ao aplicar migrations: %s", e)
             import traceback
             logger.error(traceback.format_exc())
             return False

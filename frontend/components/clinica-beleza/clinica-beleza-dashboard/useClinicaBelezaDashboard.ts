@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { logger } from "@/lib/logger";
 import type { LojaInfo } from "@/types/dashboard";
 import type { DashboardData, FinancialSummary } from "./clinica-beleza-dashboard-types";
 import { currentDashboardMesAno, parseDashboardMesAno } from "./clinica-beleza-dashboard-utils";
@@ -30,7 +31,7 @@ export function useClinicaBelezaDashboard(loja: LojaInfo) {
         else setData(null);
         if (finRes?.ok) setFinancial(await finRes.json());
       } catch (err) {
-        console.error("Dashboard fetch error:", err);
+        logger.error("Dashboard fetch error:", err);
         setData(null);
       } finally {
         setLoading(false);

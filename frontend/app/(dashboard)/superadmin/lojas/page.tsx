@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import NextImage from 'next/image';
 import { authService } from '@/lib/auth';
 import { useLojaList, Loja } from '@/hooks/useLojaList';
 import { useLojaActions } from '@/hooks/useLojaActions';
@@ -286,8 +287,7 @@ export default function GerenciarLojasPage() {
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
                               {loja.logo ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img className="h-10 w-10 rounded-full object-cover" src={loja.logo} alt="" />
+                                <NextImage className="h-10 w-10 rounded-full object-cover" src={loja.logo} alt={loja.nome} width={40} height={40} />
                               ) : (
                                 <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
                                   <span className="text-purple-600 font-semibold text-lg">

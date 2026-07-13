@@ -82,10 +82,14 @@ const nextConfig = {
   
   // Otimizar imagens (remotePatterns para Next 14+)
   images: {
-    domains: ['localhost', 'i.pravatar.cc', 'res.cloudinary.com'],
     remotePatterns: [
       { protocol: 'https', hostname: 'i.pravatar.cc', pathname: '/**' },
       { protocol: 'https', hostname: 'res.cloudinary.com', pathname: '/**' },
+      { protocol: 'https', hostname: '*.cloudinary.com', pathname: '/**' },
+      { protocol: 'https', hostname: 'api.lwksistemas.com.br', pathname: '/**' },
+      { protocol: 'https', hostname: 'lwks-backend-production.up.railway.app', pathname: '/**' },
+      { protocol: 'https', hostname: 'lwks-backend-staging-staging.up.railway.app', pathname: '/**' },
+      { protocol: 'http', hostname: 'localhost', pathname: '/**' },
     ],
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,

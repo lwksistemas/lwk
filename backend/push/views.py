@@ -6,18 +6,17 @@ from rest_framework.response import Response
 from .models import PushSubscription
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def subscribe_push(request):
-    """
-    Registra a inscrição push do cliente (Service Worker).
+    """Registra a inscrição push do cliente (Service Worker).
     Body: { "endpoint": "...", "keys": { "p256dh": "...", "auth": "..." } }
     """
-    endpoint = request.data.get('endpoint')
-    keys = request.data.get('keys')
+    endpoint = request.data.get("endpoint")
+    keys = request.data.get("keys")
     if not endpoint or not keys:
         return Response(
-            {'error': 'endpoint e keys são obrigatórios'},
+            {"error": "endpoint e keys são obrigatórios"},
             status=status.HTTP_400_BAD_REQUEST,
         )
     # Evitar duplicata pelo mesmo endpoint
@@ -27,4 +26,4 @@ def subscribe_push(request):
         endpoint=endpoint,
         keys=keys,
     )
-    return Response({'ok': True}, status=status.HTTP_201_CREATED)
+    return Response({"ok": True}, status=status.HTTP_201_CREATED)

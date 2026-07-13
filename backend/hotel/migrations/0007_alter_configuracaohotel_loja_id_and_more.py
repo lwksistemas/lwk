@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('hotel', '0006_configuracaohotel'),
+        ("hotel", "0006_configuracaohotel"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='configuracaohotel',
-            name='loja_id',
-            field=models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro'),
+            model_name="configuracaohotel",
+            name="loja_id",
+            field=models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro"),
         ),
         migrations.AlterField(
-            model_name='reserva',
-            name='status_assinatura',
-            field=models.CharField(choices=[('rascunho', 'Rascunho'), ('aguardando_hospede', 'Aguardando Hóspede'), ('aguardando_funcionario', 'Aguardando Funcionário'), ('concluido', 'Concluído'), ('manual', 'Assinado Manualmente')], default='rascunho', max_length=25),
+            model_name="reserva",
+            name="status_assinatura",
+            field=models.CharField(choices=[("rascunho", "Rascunho"), ("aguardando_hospede", "Aguardando Hóspede"), ("aguardando_funcionario", "Aguardando Funcionário"), ("concluido", "Concluído"), ("manual", "Assinado Manualmente")], default="rascunho", max_length=25),
         ),
     ]

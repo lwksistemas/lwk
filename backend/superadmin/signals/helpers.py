@@ -5,8 +5,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 def _criar_tabelas_crm(cursor, db_name):
-    """
-    Cria tabelas de ProdutoServico, OportunidadeItem, Proposta e Contrato no schema do CRM.
+    """Cria tabelas de ProdutoServico, OportunidadeItem, Proposta e Contrato no schema do CRM.
     Usado no signal de criação de lojas CRM Vendas.
     """
     # Criar tabela ProdutoServico
@@ -23,18 +22,18 @@ def _criar_tabelas_crm(cursor, db_name):
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
     """)
-    
+
     # Criar índices para ProdutoServico
     cursor.execute(f"""
-        CREATE INDEX IF NOT EXISTS crm_ps_loja_tipo_idx 
+        CREATE INDEX IF NOT EXISTS crm_ps_loja_tipo_idx
         ON "{db_name}".crm_vendas_produto_servico (loja_id, tipo);
     """)
-    
+
     cursor.execute(f"""
-        CREATE INDEX IF NOT EXISTS crm_ps_loja_ativo_idx 
+        CREATE INDEX IF NOT EXISTS crm_ps_loja_ativo_idx
         ON "{db_name}".crm_vendas_produto_servico (loja_id, ativo);
     """)
-    
+
     # Criar tabela OportunidadeItem
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS "{db_name}".crm_vendas_oportunidade_item (
@@ -48,13 +47,13 @@ def _criar_tabelas_crm(cursor, db_name):
             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
     """)
-    
+
     # Criar índice para OportunidadeItem
     cursor.execute(f"""
-        CREATE INDEX IF NOT EXISTS crm_oi_loja_opor_idx 
+        CREATE INDEX IF NOT EXISTS crm_oi_loja_opor_idx
         ON "{db_name}".crm_vendas_oportunidade_item (loja_id, oportunidade_id);
     """)
-    
+
     # Criar tabela Proposta
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS "{db_name}".crm_vendas_proposta (
@@ -74,18 +73,18 @@ def _criar_tabelas_crm(cursor, db_name):
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
     """)
-    
+
     # Criar índices para Proposta
     cursor.execute(f"""
-        CREATE INDEX IF NOT EXISTS crm_prop_loja_opor_idx 
+        CREATE INDEX IF NOT EXISTS crm_prop_loja_opor_idx
         ON "{db_name}".crm_vendas_proposta (loja_id, oportunidade_id);
     """)
-    
+
     cursor.execute(f"""
-        CREATE INDEX IF NOT EXISTS crm_prop_loja_status_idx 
+        CREATE INDEX IF NOT EXISTS crm_prop_loja_status_idx
         ON "{db_name}".crm_vendas_proposta (loja_id, status);
     """)
-    
+
     # Criar tabela Contrato
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS "{db_name}".crm_vendas_contrato (
@@ -106,22 +105,21 @@ def _criar_tabelas_crm(cursor, db_name):
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         );
     """)
-    
+
     # Criar índices para Contrato
     cursor.execute(f"""
-        CREATE INDEX IF NOT EXISTS crm_cont_loja_opor_idx 
+        CREATE INDEX IF NOT EXISTS crm_cont_loja_opor_idx
         ON "{db_name}".crm_vendas_contrato (loja_id, oportunidade_id);
     """)
-    
+
     cursor.execute(f"""
-        CREATE INDEX IF NOT EXISTS crm_cont_loja_status_idx 
+        CREATE INDEX IF NOT EXISTS crm_cont_loja_status_idx
         ON "{db_name}".crm_vendas_contrato (loja_id, status);
     """)
 
 
 def _limpar_arquivos_orfaos_loja(loja):
-    """
-    Remove arquivos órfãos ao excluir loja:
+    """Remove arquivos órfãos ao excluir loja:
     - Diretório backups/{slug}/ (arquivos de backup)
     - Arquivos em media/nfe_restaurante/ com prefixo loja_{id}_ (legado removido)
     """
@@ -129,7 +127,7 @@ def _limpar_arquivos_orfaos_loja(loja):
     base_dir = Path(settings.BASE_DIR)
 
     # Diretório de backups da loja
-    backups_dir = base_dir / 'backups' / loja.slug
+    backups_dir = base_dir / "backups" / loja.slug
     if backups_dir.exists():
         try:
             shutil.rmtree(backups_dir)
@@ -138,12 +136,12 @@ def _limpar_arquivos_orfaos_loja(loja):
             logger.warning(f"   ⚠️ Erro ao remover backups/{loja.slug}: {e}")
 
     # Arquivos NF-e em media/nfe_restaurante/ com prefixo loja_{id}_
-    media_root = getattr(settings, 'MEDIA_ROOT', base_dir / 'media')
-    nfe_base = Path(media_root) / 'nfe_restaurante'
+    media_root = getattr(settings, "MEDIA_ROOT", base_dir / "media")
+    nfe_base = Path(media_root) / "nfe_restaurante"
     if nfe_base.exists():
-        prefix = f'loja_{loja.id}_'
+        prefix = f"loja_{loja.id}_"
         removidos = 0
-        for subdir in nfe_base.rglob('*'):
+        for subdir in nfe_base.rglob("*"):
             if subdir.is_file() and prefix in subdir.name:
                 try:
                     subdir.unlink()

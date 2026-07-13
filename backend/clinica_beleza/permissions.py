@@ -1,5 +1,4 @@
-"""
-Permissões RBAC — Clínica da Beleza.
+"""Permissões RBAC — Clínica da Beleza.
 
 Vínculo mínimo: owner ou ProfissionalUsuario da loja (headers X-Loja-ID / tenant).
 Perfis sensíveis: administrador, recepção, profissional, caixa, estoque.
@@ -17,7 +16,7 @@ def _loja_and_profissional(request):
     """
     from .views_base import resolve_loja_id_from_request
 
-    cache_attr = '_clinica_loja_ctx_v1'
+    cache_attr = "_clinica_loja_ctx_v1"
     if hasattr(request, cache_attr):
         return getattr(request, cache_attr)
 
@@ -26,7 +25,7 @@ def _loja_and_profissional(request):
         setattr(request, cache_attr, result)
         return result
     if request.user.is_superuser:
-        result = (None, 'superuser')
+        result = (None, "superuser")
         setattr(request, cache_attr, result)
         return result
 
@@ -57,13 +56,13 @@ def _loja_and_profissional(request):
 class IsClinicaLojaMember(BasePermission):
     """Owner ou qualquer profissional vinculado à loja do contexto."""
 
-    message = 'Acesso permitido apenas a usuários vinculados a esta clínica.'
+    message = "Acesso permitido apenas a usuários vinculados a esta clínica."
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         loja, prof = _loja_and_profissional(request)
-        if prof == 'superuser':
+        if prof == "superuser":
             return True
         if loja and loja.owner_id == request.user.id:
             return True
@@ -71,18 +70,17 @@ class IsClinicaLojaMember(BasePermission):
 
 
 class IsRecepcaoOrAdmin(BasePermission):
-    """
-    Cadastros/recepção ampla: owner, administrador, recepcionista ou recepcao (legado).
+    """Cadastros/recepção ampla: owner, administrador, recepcionista ou recepcao (legado).
     Exclui perfil limpeza, caixa, estoque e profissional.
     """
 
-    message = 'Acesso permitido apenas para administrador ou perfil recepção.'
+    message = "Acesso permitido apenas para administrador ou perfil recepção."
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         loja, prof = _loja_and_profissional(request)
-        if prof == 'superuser':
+        if prof == "superuser":
             return True
         if not loja:
             return False
@@ -99,17 +97,16 @@ class IsRecepcaoOrAdmin(BasePermission):
 
 
 class IsAgendaOrAdmin(BasePermission):
-    """
-    Agenda e bloqueios: recepção/admin (visão completa) ou profissional (escopo próprio).
+    """Agenda e bloqueios: recepção/admin (visão completa) ou profissional (escopo próprio).
     """
 
-    message = 'Acesso permitido apenas para recepção, administrador ou profissional da clínica.'
+    message = "Acesso permitido apenas para recepção, administrador ou profissional da clínica."
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         loja, prof = _loja_and_profissional(request)
-        if prof == 'superuser':
+        if prof == "superuser":
             return True
         if not loja:
             return False
@@ -129,13 +126,13 @@ class IsAgendaOrAdmin(BasePermission):
 class IsClinicaAdmin(BasePermission):
     """Configurações e gestão: owner ou perfil administrador."""
 
-    message = 'Acesso permitido apenas para administrador da clínica.'
+    message = "Acesso permitido apenas para administrador da clínica."
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         loja, prof = _loja_and_profissional(request)
-        if prof == 'superuser':
+        if prof == "superuser":
             return True
         if not loja:
             return False
@@ -150,13 +147,13 @@ class IsClinicaAdmin(BasePermission):
 class IsClinicaClinicalStaff(BasePermission):
     """Prontuário, prescrição e documentos clínicos."""
 
-    message = 'Acesso permitido apenas à equipe clínica autorizada.'
+    message = "Acesso permitido apenas à equipe clínica autorizada."
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         loja, prof = _loja_and_profissional(request)
-        if prof == 'superuser':
+        if prof == "superuser":
             return True
         if not loja:
             return False
@@ -176,13 +173,13 @@ class IsClinicaClinicalStaff(BasePermission):
 class IsClinicaFinanceiro(BasePermission):
     """Financeiro da clínica."""
 
-    message = 'Acesso permitido apenas para administrador, recepção ou caixa.'
+    message = "Acesso permitido apenas para administrador, recepção ou caixa."
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         loja, prof = _loja_and_profissional(request)
-        if prof == 'superuser':
+        if prof == "superuser":
             return True
         if not loja:
             return False
@@ -202,13 +199,13 @@ class IsClinicaFinanceiro(BasePermission):
 class IsClinicaEstoque(BasePermission):
     """Estoque e insumos."""
 
-    message = 'Acesso permitido apenas para administrador, recepção ou estoque.'
+    message = "Acesso permitido apenas para administrador, recepção ou estoque."
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         loja, prof = _loja_and_profissional(request)
-        if prof == 'superuser':
+        if prof == "superuser":
             return True
         if not loja:
             return False
@@ -228,13 +225,13 @@ class IsClinicaEstoque(BasePermission):
 class IsClinicalOrEstoqueStaff(BasePermission):
     """Leitura de estoque na consulta: equipe clínica ou perfil estoque (exclui limpeza/caixa)."""
 
-    message = 'Acesso permitido apenas à equipe clínica ou estoque.'
+    message = "Acesso permitido apenas à equipe clínica ou estoque."
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         loja, prof = _loja_and_profissional(request)
-        if prof == 'superuser':
+        if prof == "superuser":
             return True
         if not loja:
             return False
@@ -253,14 +250,13 @@ class IsClinicalOrEstoqueStaff(BasePermission):
 
 
 def resolve_agenda_professional_scope(request) -> int | None:
-    """
-    Escopo de agenda para o usuário autenticado.
+    """Escopo de agenda para o usuário autenticado.
 
     None — visão completa (owner, admin, recepção).
     int  — professional_id quando perfil profissional (só agenda/bloqueios próprios).
     """
     loja, prof = _loja_and_profissional(request)
-    if prof == 'superuser' or (loja and loja.owner_id == request.user.id):
+    if prof == "superuser" or (loja and loja.owner_id == request.user.id):
         return None
     if not prof:
         return None

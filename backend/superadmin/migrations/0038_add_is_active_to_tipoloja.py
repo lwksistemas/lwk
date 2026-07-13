@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0037_cloudinary_config'),
+        ("superadmin", "0037_cloudinary_config"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='tipoloja',
-            name='is_active',
-            field=models.BooleanField(default=True, help_text='Se inativo, não aparece na lista pública de cadastro'),
+            model_name="tipoloja",
+            name="is_active",
+            field=models.BooleanField(default=True, help_text="Se inativo, não aparece na lista pública de cadastro"),
         ),
     ]

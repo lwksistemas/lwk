@@ -10,20 +10,20 @@ from superadmin.models import Loja
 
 
 class Command(BaseCommand):
-    help = 'Cria config/regras de retorno gratuito e colunas em appointment/consulta (IF NOT EXISTS).'
+    help = "Cria config/regras de retorno gratuito e colunas em appointment/consulta (IF NOT EXISTS)."
 
     def add_arguments(self, parser):
-        parser.add_argument('--slug', type=str, help='Processar apenas loja com este slug/atalho')
+        parser.add_argument("--slug", type=str, help="Processar apenas loja com este slug/atalho")
 
     def handle(self, *args, **options):
-        slug_filter = (options.get('slug') or '').strip().lower()
+        slug_filter = (options.get("slug") or "").strip().lower()
         lojas = Loja.objects.filter(is_active=True, database_created=True)
         ok = skip = 0
 
         for loja in lojas:
             if slug_filter and slug_filter not in (
-                (loja.slug or '').lower(),
-                (getattr(loja, 'atalho', None) or '').lower(),
+                (loja.slug or "").lower(),
+                (getattr(loja, "atalho", None) or "").lower(),
             ):
                 continue
 
@@ -35,26 +35,26 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not table_exists(cursor, 'clinica_beleza_appointment'):
+                    if not table_exists(cursor, "clinica_beleza_appointment"):
                         skip += 1
                         continue
-                    before_config = table_exists(cursor, 'clinica_beleza_agenda_retorno_config')
+                    before_config = table_exists(cursor, "clinica_beleza_agenda_retorno_config")
                     ensure_retorno_gratuito_tables(cursor)
-                    after_config = table_exists(cursor, 'clinica_beleza_agenda_retorno_config')
+                    after_config = table_exists(cursor, "clinica_beleza_agenda_retorno_config")
 
                 if not before_config and after_config:
                     ok += 1
                     self.stdout.write(self.style.SUCCESS(
-                        f'OK loja={loja.id} ({loja.nome}) db={db_name}: retorno gratuito criado'
+                        f"OK loja={loja.id} ({loja.nome}) db={db_name}: retorno gratuito criado",
                     ))
                 else:
                     skip += 1
-                    self.stdout.write(f'OK (já existe) loja={loja.id} ({loja.nome})')
+                    self.stdout.write(f"OK (já existe) loja={loja.id} ({loja.nome})")
             except Exception as exc:
                 skip += 1
-                self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id} ({loja.nome}): {exc}'))
+                self.stdout.write(self.style.ERROR(f"ERRO loja={loja.id} ({loja.nome}): {exc}"))
             finally:
                 with suppress(Exception):
                     connections[db_name].close()
 
-        self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s) atualizada(s), {skip} ignorada(s).'))
+        self.stdout.write(self.style.SUCCESS(f"Concluído: {ok} loja(s) atualizada(s), {skip} ignorada(s)."))

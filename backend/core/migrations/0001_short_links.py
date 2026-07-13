@@ -12,18 +12,18 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='ShortLink',
+            name="ShortLink",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code', models.CharField(db_index=True, max_length=12, unique=True)),
-                ('full_url', models.TextField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('expires_at', models.DateTimeField(blank=True, null=True)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("code", models.CharField(db_index=True, max_length=12, unique=True)),
+                ("full_url", models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("expires_at", models.DateTimeField(blank=True, null=True)),
             ],
             options={
-                'verbose_name': 'Link Curto',
-                'verbose_name_plural': 'Links Curtos',
-                'db_table': 'core_short_links',
+                "verbose_name": "Link Curto",
+                "verbose_name_plural": "Links Curtos",
+                "db_table": "core_short_links",
             },
         ),
     ]

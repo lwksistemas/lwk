@@ -1,5 +1,4 @@
-"""
-Paginação padrão para Clínica da Beleza.
+"""Paginação padrão para Clínica da Beleza.
 
 Uso nas views:
     from .pagination import paginate_queryset
@@ -18,8 +17,7 @@ MAX_PAGE_SIZE = 200
 
 
 def paginate_queryset(queryset, request, serializer_class=None, serializer_context=None, *, to_representation=None):
-    """
-    Pagina o queryset SE o frontend enviar ?page=N.
+    """Pagina o queryset SE o frontend enviar ?page=N.
     Sem ?page → retorna lista completa (retrocompatível).
 
     Resposta paginada:
@@ -37,7 +35,7 @@ def paginate_queryset(queryset, request, serializer_class=None, serializer_conte
         ctx = serializer_context or {}
         return serializer_class(items, many=True, context=ctx).data
 
-    page_param = request.query_params.get('page')
+    page_param = request.query_params.get("page")
     if page_param is None:
         return Response(serialize_items(queryset))
 
@@ -47,7 +45,7 @@ def paginate_queryset(queryset, request, serializer_class=None, serializer_conte
         page = 1
 
     try:
-        page_size = min(MAX_PAGE_SIZE, max(1, int(request.query_params.get('page_size', DEFAULT_PAGE_SIZE))))
+        page_size = min(MAX_PAGE_SIZE, max(1, int(request.query_params.get("page_size", DEFAULT_PAGE_SIZE))))
     except (ValueError, TypeError):
         page_size = DEFAULT_PAGE_SIZE
 
@@ -57,9 +55,9 @@ def paginate_queryset(queryset, request, serializer_class=None, serializer_conte
 
     items = queryset[offset:offset + page_size]
     return Response({
-        'count': total,
-        'page': page,
-        'page_size': page_size,
-        'total_pages': total_pages,
-        'results': serialize_items(items),
+        "count": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+        "results": serialize_items(items),
     })

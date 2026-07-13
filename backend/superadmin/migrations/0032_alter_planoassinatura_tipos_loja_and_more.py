@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0031_add_tipoloja_codigo'),
+        ("superadmin", "0031_add_tipoloja_codigo"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='planoassinatura',
-            name='tipos_loja',
-            field=models.ManyToManyField(blank=True, help_text='Tipos de app que podem usar este plano', related_name='planos', to='superadmin.tipoloja'),
+            model_name="planoassinatura",
+            name="tipos_loja",
+            field=models.ManyToManyField(blank=True, help_text="Tipos de app que podem usar este plano", related_name="planos", to="superadmin.tipoloja"),
         ),
         migrations.AlterField(
-            model_name='tipoloja',
-            name='codigo',
-            field=models.CharField(blank=True, db_index=True, help_text='Código único do tipo (ex: CLIEST, CABEL). Usado em backup e isolamento de dados.', max_length=20, unique=True),
+            model_name="tipoloja",
+            name="codigo",
+            field=models.CharField(blank=True, db_index=True, help_text="Código único do tipo (ex: CLIEST, CABEL). Usado em backup e isolamento de dados.", max_length=20, unique=True),
         ),
     ]

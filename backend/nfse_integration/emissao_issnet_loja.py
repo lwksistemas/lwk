@@ -38,36 +38,36 @@ def emitir_via_issnet_loja(
     """Emite NFS-e via WebService ISSNet municipal."""
     try:
         if not certificado_configurado_loja(config):
-            return {'success': False, 'error': 'Certificado digital não configurado para ISSNet'}
+            return {"success": False, "error": "Certificado digital não configurado para ISSNet"}
         if not senha_certificado_configurada_loja(config):
-            return {'success': False, 'error': 'Senha do certificado não configurada'}
+            return {"success": False, "error": "Senha do certificado não configurada"}
 
         if prestador:
             cnpj_prestador = prestador.cnpj
             im_prestador = prestador.inscricao_municipal
             razao_prestador = prestador.razao_social
         else:
-            cnpj_prestador = re.sub(r'\D', '', loja.cpf_cnpj or '')
+            cnpj_prestador = re.sub(r"\D", "", loja.cpf_cnpj or "")
             im_prestador = (
-                getattr(config, 'inscricao_municipal', '')
-                or getattr(loja, 'inscricao_municipal', '')
-                or ''
+                getattr(config, "inscricao_municipal", "")
+                or getattr(loja, "inscricao_municipal", "")
+                or ""
             )
-            razao_prestador = loja.nome or ''
+            razao_prestador = loja.nome or ""
         codigo_servico_final = (
             codigo_servico_override
-            or getattr(config, 'codigo_servico_municipal', '1401')
-            or '1401'
+            or getattr(config, "codigo_servico_municipal", "1401")
+            or "1401"
         )
-        codigo_cnae_final = codigo_cnae_override or (getattr(config, 'codigo_cnae', '') or '').strip()
+        codigo_cnae_final = codigo_cnae_override or (getattr(config, "codigo_cnae", "") or "").strip()
         item_lista_final = (
             item_lista_override
-            or (getattr(config, 'item_lista_servico', '') or '').strip()
+            or (getattr(config, "item_lista_servico", "") or "").strip()
             or None
         )
-        aliquota = Decimal(str(getattr(config, 'aliquota_iss', 2.00) or 0))
-        valor_iss = (Decimal(str(valor_servicos)) * aliquota / Decimal('100')).quantize(
-            Decimal('0.01'),
+        aliquota = Decimal(str(getattr(config, "aliquota_iss", 2.00) or 0))
+        valor_iss = (Decimal(str(valor_servicos)) * aliquota / Decimal(100)).quantize(
+            Decimal("0.01"),
             rounding=ROUND_HALF_UP,
         )
 
@@ -81,57 +81,57 @@ def emitir_via_issnet_loja(
                 tomador_nome=tomador_nome,
                 tomador_endereco=tomador_endereco,
                 servico_codigo=codigo_servico_final,
-                servico_descricao=servico_descricao or 'Serviço prestado',
+                servico_descricao=servico_descricao or "Serviço prestado",
                 valor_servicos=Decimal(str(valor_servicos)),
                 aliquota_iss=aliquota,
                 numero_rps=numero_rps,
-                serie_rps=getattr(config, 'issnet_serie_rps', '1') or '1',
+                serie_rps=getattr(config, "issnet_serie_rps", "1") or "1",
                 codigo_cnae=codigo_cnae_final or None,
                 item_lista_servico=item_lista_final,
             )
 
-        if resultado.get('success'):
+        if resultado.get("success"):
             resultado_final = {
-                'success': True,
-                'numero_nf': resultado.get('numero_nf', ''),
-                'codigo_verificacao': resultado.get('codigo_verificacao', ''),
-                'numero_rps': numero_rps,
-                'data_emissao': timezone.now(),
-                'valor': float(valor_servicos),
-                'aliquota_iss': float(aliquota),
-                'valor_iss': float(valor_iss),
-                'xml_nfse': resultado.get('xml_nfse', ''),
-                'pdf_url': resultado.get('link_pdf', ''),
-                'tomador_nome': tomador_nome,
-                'tomador_cpf_cnpj': tomador_cpf_cnpj,
-                'servico_descricao': servico_descricao,
+                "success": True,
+                "numero_nf": resultado.get("numero_nf", ""),
+                "codigo_verificacao": resultado.get("codigo_verificacao", ""),
+                "numero_rps": numero_rps,
+                "data_emissao": timezone.now(),
+                "valor": float(valor_servicos),
+                "aliquota_iss": float(aliquota),
+                "valor_iss": float(valor_iss),
+                "xml_nfse": resultado.get("xml_nfse", ""),
+                "pdf_url": resultado.get("link_pdf", ""),
+                "tomador_nome": tomador_nome,
+                "tomador_cpf_cnpj": tomador_cpf_cnpj,
+                "servico_descricao": servico_descricao,
             }
-            if not salvar_nfse_emitida(loja.id, resultado_final, tomador_email, provedor='issnet'):
+            if not salvar_nfse_emitida(loja.id, resultado_final, tomador_email, provedor="issnet"):
                 return {
-                    'success': False,
-                    'error': (
+                    "success": False,
+                    "error": (
                         f'NFS-e {resultado_final["numero_nf"]} aceita no ISSNet, mas falhou ao gravar no sistema. '
                         'Use «Recuperar do ISSNet» informando o RPS '
                         f'{numero_rps}.'
                     ),
-                    'numero_rps': numero_rps,
-                    'numero_nf': resultado_final['numero_nf'],
+                    "numero_rps": numero_rps,
+                    "numero_nf": resultado_final["numero_nf"],
                 }
             if enviar_email and tomador_email:
                 enviar_email_fn(
                     tomador_email=tomador_email,
                     tomador_nome=tomador_nome,
-                    numero_nf=resultado_final['numero_nf'],
+                    numero_nf=resultado_final["numero_nf"],
                     valor=valor_servicos,
                     descricao=servico_descricao,
                 )
             return resultado_final
 
         return {
-            'success': False,
-            'error': resultado.get('error', 'Erro ISSNet'),
-            'numero_rps': numero_rps,
+            "success": False,
+            "error": resultado.get("error", "Erro ISSNet"),
+            "numero_rps": numero_rps,
         }
     except Exception as exc:
-        logger.exception('Erro ao emitir via ISSNet: %s', exc)
-        return {'success': False, 'error': str(exc)}
+        logger.exception("Erro ao emitir via ISSNet: %s", exc)
+        return {"success": False, "error": str(exc)}

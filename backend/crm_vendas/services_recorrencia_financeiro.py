@@ -12,13 +12,13 @@ logger = logging.getLogger(__name__)
 
 
 def _adicionar_periodo(data: date, frequencia: str) -> date:
-    if frequencia == 'trimestral':
+    if frequencia == "trimestral":
         mes = data.month + 3
         ano = data.year + (mes - 1) // 12
         mes = ((mes - 1) % 12) + 1
         dia = min(data.day, calendar.monthrange(ano, mes)[1])
         return date(ano, mes, dia)
-    if frequencia == 'anual':
+    if frequencia == "anual":
         ano = data.year + 1
         dia = min(data.day, calendar.monthrange(ano, data.month)[1])
         return date(ano, data.month, dia)
@@ -38,11 +38,11 @@ def criar_recorrencia_com_primeiro_lancamento(
     descricao: str,
     valor,
     data_vencimento: date,
-    frequencia: str = 'mensal',
+    frequencia: str = "mensal",
     data_fim=None,
     grupo=None,
-    observacoes: str = '',
-    status: str = 'pendente',
+    observacoes: str = "",
+    status: str = "pendente",
     data_pagamento=None,
 ) -> tuple:
     """Cria recorrência e o primeiro lançamento manual vinculado."""
@@ -59,7 +59,7 @@ def criar_recorrencia_com_primeiro_lancamento(
         frequencia=frequencia,
         proximo_vencimento=proximo,
         data_fim=data_fim,
-        observacoes=observacoes or '',
+        observacoes=observacoes or "",
         is_active=True,
     )
     lanc = LancamentoFinanceiroCRM.objects.create(
@@ -73,7 +73,7 @@ def criar_recorrencia_com_primeiro_lancamento(
         status=status,
         data_vencimento=data_vencimento,
         data_pagamento=data_pagamento,
-        observacoes=observacoes or '',
+        observacoes=observacoes or "",
         recorrencia=rec,
     )
     return rec, lanc
@@ -89,11 +89,11 @@ def processar_recorrencias_pendentes(loja_id: int | None = None, *, dry_run: boo
         qs = qs.filter(loja_id=loja_id)
 
     criadas = ignoradas = encerradas = 0
-    for rec in qs.select_related('grupo', 'vendedor').order_by('id'):
+    for rec in qs.select_related("grupo", "vendedor").order_by("id"):
         if rec.data_fim and rec.proximo_vencimento > rec.data_fim:
             if not dry_run:
                 rec.is_active = False
-                rec.save(update_fields=['is_active', 'updated_at'])
+                rec.save(update_fields=["is_active", "updated_at"])
             encerradas += 1
             continue
 
@@ -127,15 +127,15 @@ def processar_recorrencias_pendentes(loja_id: int | None = None, *, dry_run: boo
             if not dry_run:
                 rec.is_active = False
                 rec.proximo_vencimento = proximo
-                rec.save(update_fields=['is_active', 'proximo_vencimento', 'updated_at'])
+                rec.save(update_fields=["is_active", "proximo_vencimento", "updated_at"])
             encerradas += 1
         elif not dry_run:
             rec.proximo_vencimento = proximo
-            rec.save(update_fields=['proximo_vencimento', 'updated_at'])
+            rec.save(update_fields=["proximo_vencimento", "updated_at"])
 
     return {
-        'criadas': criadas,
-        'ignoradas': ignoradas,
-        'encerradas': encerradas,
-        'dry_run': dry_run,
+        "criadas": criadas,
+        "ignoradas": ignoradas,
+        "encerradas": encerradas,
+        "dry_run": dry_run,
     }

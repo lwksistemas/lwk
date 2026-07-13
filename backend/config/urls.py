@@ -10,17 +10,16 @@ def favicon_empty(_request):
 
 
 def short_link_redirect(_request, code: str):
-    """
-    Redireciona /r/<code>/ para a URL completa correspondente.
+    """Redireciona /r/<code>/ para a URL completa correspondente.
     Usado para encurtar links longos de assinatura enviados via WhatsApp.
     """
     from clinica_beleza.throttles import check_rate_limit
-    if not check_rate_limit(_request, 'short_link', '60/min'):
-        return HttpResponse('Muitas tentativas.', status=429)
+    if not check_rate_limit(_request, "short_link", "60/min"):
+        return HttpResponse("Muitas tentativas.", status=429)
     from core.short_link import resolve_short_link
     full_url = resolve_short_link(code)
     if not full_url:
-        return HttpResponseNotFound('Link expirado ou inválido.')
+        return HttpResponseNotFound("Link expirado ou inválido.")
     return HttpResponseRedirect(full_url)
 from config.api_schema_views import (
     ProtectedSpectacularAPIView,
@@ -33,78 +32,78 @@ from superadmin.views import atalho_redirect  # ✅ NOVO v1421: Redirecionamento
 def api_root(request):
     """API Root - Informações do sistema"""
     payload = {
-        'sistema': 'LWK Sistemas',
-        'versao': '1.0.0',
-        'status': 'online',
-        'endpoints': {
-            'admin': '/admin/',
-            'auth': {
-                'superadmin_login': '/api/auth/superadmin/login/',
-                'suporte_login': '/api/auth/suporte/login/',
-                'loja_login': '/api/auth/loja/login/',
-                'refresh': '/api/auth/token/refresh/',
-                'logout': '/api/auth/logout/',
+        "sistema": "LWK Sistemas",
+        "versao": "1.0.0",
+        "status": "online",
+        "endpoints": {
+            "admin": "/admin/",
+            "auth": {
+                "superadmin_login": "/api/auth/superadmin/login/",
+                "suporte_login": "/api/auth/suporte/login/",
+                "loja_login": "/api/auth/loja/login/",
+                "refresh": "/api/auth/token/refresh/",
+                "logout": "/api/auth/logout/",
             },
-            'superadmin': '/api/superadmin/',
-            'suporte': '/api/suporte/',
-            'stores': '/api/stores/',
-            'products': '/api/products/',
-            'asaas': '/api/asaas/',
-            'clinica_beleza': '/api/clinica-beleza/',
-            'hotel': '/api/hotel/',
-            'notificacoes': '/api/notificacoes/',
-            'push': '/api/push/',
-            'crm_vendas': '/api/crm-vendas/',
-            'homepage': '/api/homepage/',
+            "superadmin": "/api/superadmin/",
+            "suporte": "/api/suporte/",
+            "stores": "/api/stores/",
+            "products": "/api/products/",
+            "asaas": "/api/asaas/",
+            "clinica_beleza": "/api/clinica-beleza/",
+            "hotel": "/api/hotel/",
+            "notificacoes": "/api/notificacoes/",
+            "push": "/api/push/",
+            "crm_vendas": "/api/crm-vendas/",
+            "homepage": "/api/homepage/",
         },
-        'documentacao': 'Sistema Multi-Tenant para gestão de lojas',
+        "documentacao": "Sistema Multi-Tenant para gestão de lojas",
     }
-    if getattr(settings, 'SERVE_API_SCHEMA', settings.DEBUG):
-        payload['schema'] = '/api/schema/'
-        payload['swagger_ui'] = '/api/schema/swagger-ui/'
+    if getattr(settings, "SERVE_API_SCHEMA", settings.DEBUG):
+        payload["schema"] = "/api/schema/"
+        payload["swagger_ui"] = "/api/schema/swagger-ui/"
     return JsonResponse(payload)
 
 urlpatterns = [
-    path('favicon.ico', favicon_empty, name='favicon'),
-    path('r/<str:code>/', short_link_redirect, name='short_link_redirect'),
-    path('', api_root, name='api_root'),  # Rota raiz
-    path('api/', api_root, name='api_info'),  # Informações da API
-    path('admin/', admin.site.urls),
-    
+    path("favicon.ico", favicon_empty, name="favicon"),
+    path("r/<str:code>/", short_link_redirect, name="short_link_redirect"),
+    path("", api_root, name="api_root"),  # Rota raiz
+    path("api/", api_root, name="api_info"),  # Informações da API
+    path("admin/", admin.site.urls),
+
     # Autenticação JWT SEGURA com isolamento por grupo
-    path('api/auth/', include('config.urls_auth')),  # Rotas de autenticação
-    path('api/auth/token/refresh/', SessionAwareTokenRefreshView.as_view(), name='token_refresh'),
-    
+    path("api/auth/", include("config.urls_auth")),  # Rotas de autenticação
+    path("api/auth/token/refresh/", SessionAwareTokenRefreshView.as_view(), name="token_refresh"),
+
     # APIs
-    path('api/stores/', include('stores.urls')),
-    path('api/products/', include('products.urls')),
-    path('api/suporte/', include('suporte.urls')),
-    path('api/superadmin/', include('superadmin.urls')),  # API Super Admin
-    path('api/asaas/', include('asaas_integration.urls')),  # API Asaas
-    
+    path("api/stores/", include("stores.urls")),
+    path("api/products/", include("products.urls")),
+    path("api/suporte/", include("suporte.urls")),
+    path("api/superadmin/", include("superadmin.urls")),  # API Super Admin
+    path("api/asaas/", include("asaas_integration.urls")),  # API Asaas
+
     # APIs dos tipos de app
-    path('api/hotel/', include('hotel.urls')),
-    path('api/clinica-beleza/', include('clinica_beleza.urls')),
-    path('api/whatsapp/', include('whatsapp.urls')),
-    path('api/notificacoes/', include('notificacoes.urls')),
-    path('api/push/', include('push.urls')),
-    path('api/crm-vendas/', include('crm_vendas.urls')),
-    path('api/homepage/', include('homepage.urls')),
-    path('api/', include('nfse_integration.urls')),  # API NFS-e
-    
+    path("api/hotel/", include("hotel.urls")),
+    path("api/clinica-beleza/", include("clinica_beleza.urls")),
+    path("api/whatsapp/", include("whatsapp.urls")),
+    path("api/notificacoes/", include("notificacoes.urls")),
+    path("api/push/", include("push.urls")),
+    path("api/crm-vendas/", include("crm_vendas.urls")),
+    path("api/homepage/", include("homepage.urls")),
+    path("api/", include("nfse_integration.urls")),  # API NFS-e
+
     # ✅ NOVO v1421: Redirecionamento por atalho (deve vir por último)
     # Esta rota captura atalhos simples como /felix, /harmonis, etc.
     # e redireciona para a URL completa da loja
     # IMPORTANTE: Vem por último para não conflitar com outras rotas
-    path('<str:atalho>/', atalho_redirect, name='atalho_redirect'),
+    path("<str:atalho>/", atalho_redirect, name="atalho_redirect"),
 ]
 
-if getattr(settings, 'SERVE_API_SCHEMA', settings.DEBUG):
+if getattr(settings, "SERVE_API_SCHEMA", settings.DEBUG):
     urlpatterns = [
-        path('api/schema/', ProtectedSpectacularAPIView.as_view(), name='schema'),
+        path("api/schema/", ProtectedSpectacularAPIView.as_view(), name="schema"),
         path(
-            'api/schema/swagger-ui/',
-            ProtectedSpectacularSwaggerView.as_view(url_name='schema'),
-            name='swagger-ui',
+            "api/schema/swagger-ui/",
+            ProtectedSpectacularSwaggerView.as_view(url_name="schema"),
+            name="swagger-ui",
         ),
     ] + urlpatterns

@@ -12,7 +12,7 @@ class RelatorioComissaoQuerysetTest(SimpleTestCase):
     def _run(self, loja_id=1, empresa_id=10, vendedor_id=None):
         inicio, fim = date(2026, 6, 1), date(2026, 6, 30)
         chain = MagicMock()
-        with patch('crm_vendas.models.Oportunidade') as mock_opp:
+        with patch("crm_vendas.models.Oportunidade") as mock_opp:
             mock_opp.objects.filter.return_value = chain
             chain.filter.return_value = chain
             chain.select_related.return_value = chain
@@ -21,8 +21,8 @@ class RelatorioComissaoQuerysetTest(SimpleTestCase):
 
     def test_filtra_loja_e_closed_won(self):
         mock_opp, chain, result = self._run()
-        mock_opp.objects.filter.assert_called_once_with(loja_id=1, etapa='closed_won')
-        chain.select_related.assert_called_once_with('lead', 'lead__conta', 'vendedor')
+        mock_opp.objects.filter.assert_called_once_with(loja_id=1, etapa="closed_won")
+        chain.select_related.assert_called_once_with("lead", "lead__conta", "vendedor")
         self.assertIs(result, chain)
 
     def test_inclui_empresa_prestadora_ou_nula_no_filtro(self):
@@ -35,7 +35,7 @@ class RelatorioComissaoQuerysetTest(SimpleTestCase):
         )
 
     def test_filtra_vendedor_quando_informado(self):
-        with patch('crm_vendas.utils.get_vendedor_destino_merge_loja', return_value=None):
+        with patch("crm_vendas.utils.get_vendedor_destino_merge_loja", return_value=None):
             _, chain, _ = self._run(vendedor_id=7)
         vendedor_call = chain.filter.call_args_list[-1]
-        self.assertEqual(vendedor_call.kwargs, {'vendedor_id': 7})
+        self.assertEqual(vendedor_call.kwargs, {"vendedor_id": 7})

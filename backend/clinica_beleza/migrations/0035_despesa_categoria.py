@@ -7,70 +7,70 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinica_beleza', '0034_consulta_produto_numero_nota'),
+        ("clinica_beleza", "0034_consulta_produto_numero_nota"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CategoriaDespesa',
+            name="CategoriaDespesa",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('loja_id', models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro')),
-                ('nome', models.CharField(max_length=100, verbose_name='Nome')),
-                ('is_active', models.BooleanField(default=True, verbose_name='Ativa')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Criado em')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("loja_id", models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro")),
+                ("nome", models.CharField(max_length=100, verbose_name="Nome")),
+                ("is_active", models.BooleanField(default=True, verbose_name="Ativa")),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Criado em")),
             ],
             options={
-                'verbose_name': 'Categoria de despesa',
-                'verbose_name_plural': 'Categorias de despesa',
-                'ordering': ['nome'],
+                "verbose_name": "Categoria de despesa",
+                "verbose_name_plural": "Categorias de despesa",
+                "ordering": ["nome"],
             },
         ),
         migrations.CreateModel(
-            name='Despesa',
+            name="Despesa",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('loja_id', models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro')),
-                ('descricao', models.CharField(max_length=200, verbose_name='Descrição')),
-                ('valor', models.DecimalField(decimal_places=2, max_digits=10, verbose_name='Valor (R$)')),
-                ('status', models.CharField(
-                    choices=[('PENDING', 'Pendente'), ('PAID', 'Pago'), ('CANCELLED', 'Cancelado')],
-                    default='PENDING', max_length=20, verbose_name='Status',
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("loja_id", models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro")),
+                ("descricao", models.CharField(max_length=200, verbose_name="Descrição")),
+                ("valor", models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Valor (R$)")),
+                ("status", models.CharField(
+                    choices=[("PENDING", "Pendente"), ("PAID", "Pago"), ("CANCELLED", "Cancelado")],
+                    default="PENDING", max_length=20, verbose_name="Status",
                 )),
-                ('data_vencimento', models.DateField(verbose_name='Vencimento')),
-                ('data_pagamento', models.DateField(blank=True, null=True, verbose_name='Data do pagamento')),
-                ('forma_pagamento', models.CharField(
+                ("data_vencimento", models.DateField(verbose_name="Vencimento")),
+                ("data_pagamento", models.DateField(blank=True, null=True, verbose_name="Data do pagamento")),
+                ("forma_pagamento", models.CharField(
                     blank=True,
                     choices=[
-                        ('CASH', 'Dinheiro'), ('CREDIT_CARD', 'Cartão de Crédito'),
-                        ('DEBIT_CARD', 'Cartão de Débito'), ('PIX', 'PIX'), ('TRANSFER', 'Transferência'),
+                        ("CASH", "Dinheiro"), ("CREDIT_CARD", "Cartão de Crédito"),
+                        ("DEBIT_CARD", "Cartão de Débito"), ("PIX", "PIX"), ("TRANSFER", "Transferência"),
                     ],
-                    default='', max_length=20, verbose_name='Forma de pagamento',
+                    default="", max_length=20, verbose_name="Forma de pagamento",
                 )),
-                ('observacoes', models.TextField(blank=True, default='', verbose_name='Observações')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Criado em')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Atualizado em')),
-                ('categoria', models.ForeignKey(
+                ("observacoes", models.TextField(blank=True, default="", verbose_name="Observações")),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Criado em")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="Atualizado em")),
+                ("categoria", models.ForeignKey(
                     blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL,
-                    related_name='despesas', to='clinica_beleza.categoriadespesa', verbose_name='Categoria',
+                    related_name="despesas", to="clinica_beleza.categoriadespesa", verbose_name="Categoria",
                 )),
             ],
             options={
-                'verbose_name': 'Despesa',
-                'verbose_name_plural': 'Despesas',
-                'ordering': ['-data_vencimento', '-created_at'],
+                "verbose_name": "Despesa",
+                "verbose_name_plural": "Despesas",
+                "ordering": ["-data_vencimento", "-created_at"],
             },
         ),
         migrations.AddIndex(
-            model_name='despesa',
-            index=models.Index(fields=['loja_id', 'status'], name='clinica_beleza_despesa_loja_status_idx'),
+            model_name="despesa",
+            index=models.Index(fields=["loja_id", "status"], name="clinica_beleza_despesa_loja_status_idx"),
         ),
         migrations.AddIndex(
-            model_name='despesa',
-            index=models.Index(fields=['loja_id', 'data_vencimento'], name='clinica_beleza_despesa_loja_venc_idx'),
+            model_name="despesa",
+            index=models.Index(fields=["loja_id", "data_vencimento"], name="clinica_beleza_despesa_loja_venc_idx"),
         ),
         migrations.AddIndex(
-            model_name='despesa',
-            index=models.Index(fields=['loja_id', 'data_pagamento'], name='clinica_beleza_despesa_loja_pag_idx'),
+            model_name="despesa",
+            index=models.Index(fields=["loja_id", "data_pagamento"], name="clinica_beleza_despesa_loja_pag_idx"),
         ),
     ]

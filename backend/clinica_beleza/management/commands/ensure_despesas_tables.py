@@ -1,5 +1,4 @@
-"""
-Garante tabelas de despesas nos schemas das lojas.
+"""Garante tabelas de despesas nos schemas das lojas.
 
 Uso:
     python manage.py ensure_despesas_tables
@@ -16,20 +15,20 @@ from superadmin.models import Loja
 
 
 class Command(BaseCommand):
-    help = 'Cria tabelas de despesas e categorias nos schemas das lojas.'
+    help = "Cria tabelas de despesas e categorias nos schemas das lojas."
 
     def add_arguments(self, parser):
-        parser.add_argument('--slug', type=str, help='Processar apenas loja com este slug/atalho')
+        parser.add_argument("--slug", type=str, help="Processar apenas loja com este slug/atalho")
 
     def handle(self, *args, **options):
-        slug_filter = (options.get('slug') or '').strip().lower()
+        slug_filter = (options.get("slug") or "").strip().lower()
         lojas = Loja.objects.filter(is_active=True, database_created=True)
         ok = skip = 0
 
         for loja in lojas:
             if slug_filter and slug_filter not in (
-                (loja.slug or '').lower(),
-                (getattr(loja, 'atalho', None) or '').lower(),
+                (loja.slug or "").lower(),
+                (getattr(loja, "atalho", None) or "").lower(),
             ):
                 continue
             db_name = loja.database_name
@@ -38,7 +37,7 @@ class Command(BaseCommand):
                 continue
             try:
                 with connections[db_name].cursor() as cursor:
-                    if not table_exists(cursor, 'clinica_beleza_categoriadespesa'):
+                    if not table_exists(cursor, "clinica_beleza_categoriadespesa"):
                         cursor.execute("""
                             CREATE TABLE clinica_beleza_categoriadespesa (
                                 id BIGSERIAL PRIMARY KEY,
@@ -49,11 +48,11 @@ class Command(BaseCommand):
                             )
                         """)
                         cursor.execute(
-                            'CREATE INDEX IF NOT EXISTS clinica_beleza_categoriadespesa_loja_id_idx '
-                            'ON clinica_beleza_categoriadespesa (loja_id)'
+                            "CREATE INDEX IF NOT EXISTS clinica_beleza_categoriadespesa_loja_id_idx "
+                            "ON clinica_beleza_categoriadespesa (loja_id)",
                         )
 
-                    if not table_exists(cursor, 'clinica_beleza_despesa'):
+                    if not table_exists(cursor, "clinica_beleza_despesa"):
                         cursor.execute("""
                             CREATE TABLE clinica_beleza_despesa (
                                 id BIGSERIAL PRIMARY KEY,
@@ -72,12 +71,12 @@ class Command(BaseCommand):
                             )
                         """)
                         for idx_sql in (
-                            'CREATE INDEX IF NOT EXISTS clinica_beleza_despesa_loja_status_idx '
-                            'ON clinica_beleza_despesa (loja_id, status)',
-                            'CREATE INDEX IF NOT EXISTS clinica_beleza_despesa_loja_venc_idx '
-                            'ON clinica_beleza_despesa (loja_id, data_vencimento)',
-                            'CREATE INDEX IF NOT EXISTS clinica_beleza_despesa_loja_pag_idx '
-                            'ON clinica_beleza_despesa (loja_id, data_pagamento)',
+                            "CREATE INDEX IF NOT EXISTS clinica_beleza_despesa_loja_status_idx "
+                            "ON clinica_beleza_despesa (loja_id, status)",
+                            "CREATE INDEX IF NOT EXISTS clinica_beleza_despesa_loja_venc_idx "
+                            "ON clinica_beleza_despesa (loja_id, data_vencimento)",
+                            "CREATE INDEX IF NOT EXISTS clinica_beleza_despesa_loja_pag_idx "
+                            "ON clinica_beleza_despesa (loja_id, data_pagamento)",
                         ):
                             cursor.execute(idx_sql)
 
@@ -91,12 +90,12 @@ class Command(BaseCommand):
                     """)
 
                 ok += 1
-                self.stdout.write(self.style.SUCCESS(f'  OK {loja.slug} ({loja.nome})'))
+                self.stdout.write(self.style.SUCCESS(f"  OK {loja.slug} ({loja.nome})"))
             except Exception as e:
                 skip += 1
-                self.stdout.write(self.style.ERROR(f'  ERRO {loja.slug}: {e}'))
+                self.stdout.write(self.style.ERROR(f"  ERRO {loja.slug}: {e}"))
             finally:
                 with suppress(Exception):
                     connections[db_name].close()
 
-        self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s), {skip} ignorada(s)/erro.'))
+        self.stdout.write(self.style.SUCCESS(f"Concluído: {ok} loja(s), {skip} ignorada(s)/erro."))

@@ -1,1 +1,1 @@
-default_app_config = 'superadmin.apps.SuperadminConfig'
+default_app_config = "superadmin.apps.SuperadminConfig"

@@ -7,13 +7,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('asaas_integration', '0002_alter_asaaspayment_due_date'),
+        ("asaas_integration", "0002_alter_asaaspayment_due_date"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='asaaspayment',
-            name='customer',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='asaas_integration.asaascustomer', verbose_name='Cliente'),
+            model_name="asaaspayment",
+            name="customer",
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to="asaas_integration.asaascustomer", verbose_name="Cliente"),
         ),
     ]

@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0017_profissionalusuario_perfil'),
+        ("superadmin", "0017_profissionalusuario_perfil"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='loja',
-            name='owner_telefone',
-            field=models.CharField(blank=True, help_text='Telefone do administrador da loja', max_length=20),
+            model_name="loja",
+            name="owner_telefone",
+            field=models.CharField(blank=True, help_text="Telefone do administrador da loja", max_length=20),
         ),
     ]

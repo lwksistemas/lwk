@@ -1,5 +1,4 @@
-"""
-Sincronização de Consulta com mudanças de status do agendamento na agenda.
+"""Sincronização de Consulta com mudanças de status do agendamento na agenda.
 A consulta só é criada/atualizada quando o status muda na agenda — não manualmente na listagem.
 """
 
@@ -32,29 +31,29 @@ from .valores import (
 )
 
 __all__ = [
-    'Appointment',
-    'Consulta',
-    'Decimal',
-    'MSG_CONSULTA_CONCLUIDA_NAO_EXCLUI',
-    'MSG_PACIENTE_CONSULTA_EM_ANDAMENTO',
-    'Payment',
-    '_aplicar_local_na_consulta',
-    '_consulta_defaults_from_appointment',
-    '_ensure_payment_for_appointment',
-    '_garantir_valor_consulta_consulta',
-    '_valor_consulta',
-    '_valor_pagamento_padrao',
-    'calcular_comissao_payment_atendimento',
-    'consulta_esta_concluida',
-    'criar_consulta_avulsa',
-    'finalizar_consulta',
-    'iniciar_consulta',
-    'logger',
-    'motivo_bloqueio_exclusao_consulta',
-    'garantir_conta_pendente_consulta',
-    'estornar_recebimento_consulta',
-    'publicar_pagamento_financeiro',
-    'registrar_recebimento_consulta',
-    'sync_consulta_from_appointment_status',
-    'validar_paciente_sem_consulta_em_andamento',
+    "MSG_CONSULTA_CONCLUIDA_NAO_EXCLUI",
+    "MSG_PACIENTE_CONSULTA_EM_ANDAMENTO",
+    "Appointment",
+    "Consulta",
+    "Decimal",
+    "Payment",
+    "_aplicar_local_na_consulta",
+    "_consulta_defaults_from_appointment",
+    "_ensure_payment_for_appointment",
+    "_garantir_valor_consulta_consulta",
+    "_valor_consulta",
+    "_valor_pagamento_padrao",
+    "calcular_comissao_payment_atendimento",
+    "consulta_esta_concluida",
+    "criar_consulta_avulsa",
+    "estornar_recebimento_consulta",
+    "finalizar_consulta",
+    "garantir_conta_pendente_consulta",
+    "iniciar_consulta",
+    "logger",
+    "motivo_bloqueio_exclusao_consulta",
+    "publicar_pagamento_financeiro",
+    "registrar_recebimento_consulta",
+    "sync_consulta_from_appointment_status",
+    "validar_paciente_sem_consulta_em_andamento",
 ]

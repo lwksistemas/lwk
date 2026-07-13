@@ -5,69 +5,69 @@ from superadmin.orfaos_config import get_usuarios_orfaos_queryset
 
 
 class Command(BaseCommand):
-    help = 'Limpa usuários órfãos (sem owner, profissional ou vendedor). Não remove superusers.'
+    help = "Limpa usuários órfãos (sem owner, profissional ou vendedor). Não remove superusers."
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--confirmar',
-            action='store_true',
-            help='Confirma a exclusão dos usuários órfãos',
+            "--confirmar",
+            action="store_true",
+            help="Confirma a exclusão dos usuários órfãos",
         )
 
     def handle(self, *args, **options):
         self.stdout.write("\n" + "="*70)
         self.stdout.write("🧹 LIMPEZA DE USUÁRIOS ÓRFÃOS")
         self.stdout.write("="*70 + "\n")
-        
+
         # Usuários órfãos = sem owner, profissional ou vendedor vinculado (e não superuser/staff)
         orfaos = get_usuarios_orfaos_queryset()
-        
+
         if not orfaos.exists():
             self.stdout.write(self.style.SUCCESS("✅ Nenhum usuário órfão encontrado!"))
             return
-        
+
         self.stdout.write(f"⚠️ Encontrados {orfaos.count()} usuário(s) órfão(s):\n")
-        
+
         for user in orfaos:
             self.stdout.write(f"   - {user.username} ({user.email})")
-        
-        if not options['confirmar']:
+
+        if not options["confirmar"]:
             self.stdout.write("\n" + "="*70)
             self.stdout.write("⚠️ MODO DE VISUALIZAÇÃO")
             self.stdout.write("="*70)
             self.stdout.write("\nPara excluir os usuários, execute:")
             self.stdout.write(self.style.WARNING(
-                "python manage.py limpar_usuarios_orfaos --confirmar"
+                "python manage.py limpar_usuarios_orfaos --confirmar",
             ))
             self.stdout.write("\n")
             return
-        
+
         # Confirmar exclusão
         self.stdout.write("\n" + "="*70)
         self.stdout.write("⚠️ ATENÇÃO: Esta ação é IRREVERSÍVEL!")
         self.stdout.write("="*70)
         self.stdout.write(f"\nSerão excluídos {orfaos.count()} usuário(s).\n")
-        
+
         # Excluir tokens primeiro (se existirem)
         try:
             from django.db import connection
             with connection.cursor() as cursor:
                 # Deletar tokens diretamente via SQL
-                user_ids = list(orfaos.values_list('id', flat=True))
+                user_ids = list(orfaos.values_list("id", flat=True))
                 if user_ids:
-                    placeholders = ','.join(['%s'] * len(user_ids))
+                    placeholders = ",".join(["%s"] * len(user_ids))
                     self.stdout.write("🔑 Excluindo tokens...")
                     cursor.execute(
                         f"DELETE FROM token_blacklist_outstandingtoken WHERE user_id IN ({placeholders})",
-                        user_ids
+                        user_ids,
                     )
                     cursor.execute(
                         f"DELETE FROM token_blacklist_blacklistedtoken WHERE token_id IN (SELECT id FROM token_blacklist_outstandingtoken WHERE user_id IN ({placeholders}))",
-                        user_ids
+                        user_ids,
                     )
         except Exception as e:
             self.stdout.write(f"⚠️ Erro ao excluir tokens: {e}")
-        
+
         # Excluir sessões
         try:
             sessoes_count = UserSession.objects.filter(user__in=orfaos).count()
@@ -104,7 +104,7 @@ class Command(BaseCommand):
         # Excluir usuários
         count = orfaos.count()
         orfaos.delete()
-        
+
         self.stdout.write(self.style.SUCCESS(
-            f"\n✅ {count} usuário(s) órfão(s) excluído(s) com sucesso!\n"
+            f"\n✅ {count} usuário(s) órfão(s) excluído(s) com sucesso!\n",
         ))

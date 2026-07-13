@@ -7,17 +7,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0056_atividade_conta'),
+        ("crm_vendas", "0056_atividade_conta"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='atividade',
-            name='conta',
-            field=models.ForeignKey(blank=True, help_text='Conta (empresa) vinculada a esta atividade', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='atividades', to='crm_vendas.conta'),
+            model_name="atividade",
+            name="conta",
+            field=models.ForeignKey(blank=True, help_text="Conta (empresa) vinculada a esta atividade", null=True, on_delete=django.db.models.deletion.CASCADE, related_name="atividades", to="crm_vendas.conta"),
         ),
         migrations.AddIndex(
-            model_name='atividade',
-            index=models.Index(fields=['loja_id', 'conta'], name='crm_ativ_loja_conta_idx'),
+            model_name="atividade",
+            index=models.Index(fields=["loja_id", "conta"], name="crm_ativ_loja_conta_idx"),
         ),
     ]

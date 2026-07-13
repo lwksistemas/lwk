@@ -31,13 +31,13 @@ from .validation import cloudinary_upload_config, validar_cloudinary_foto_loja
 
 __all__ = [
     "CLOUDINARY_HOST",
-    "FotoCloudinaryInvalida",
-    "FotoUploadInvalida",
     "LIMITE_UPLOAD_BYTES",
     "MAX_LADO_IMAGEM",
     "MODULO",
     "PATH_PUBLICO",
     "TOKEN_EXPIRACAO_HORAS",
+    "FotoCloudinaryInvalida",
+    "FotoUploadInvalida",
     "ambiente_do_token_foto",
     "build_link_foto",
     "cloudinary_upload_config",

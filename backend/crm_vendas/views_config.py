@@ -1,5 +1,4 @@
-"""
-Views de configuração, busca global, dashboard e utilitários do CRM.
+"""Views de configuração, busca global, dashboard e utilitários do CRM.
 Re-exporta módulos divididos para compatibilidade com urls.py e views.py.
 """
 from .views_crm_busca import crm_busca  # noqa: F401

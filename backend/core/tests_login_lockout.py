@@ -14,11 +14,11 @@ from core.login_lockout import (
 
 class LoginLockoutLogicTests(SimpleTestCase):
     def test_normalize_username(self):
-        self.assertEqual(normalize_username('  Admin.User  '), 'admin.user')
-        self.assertEqual(normalize_username(''), '')
+        self.assertEqual(normalize_username("  Admin.User  "), "admin.user")
+        self.assertEqual(normalize_username(""), "")
 
     @override_settings(LOGIN_MAX_FAILURES=3, LOGIN_LOCKOUT_MINUTES=15)
-    @patch('superadmin.models.LoginLockout')
+    @patch("superadmin.models.LoginLockout")
     def test_locks_after_max_failures(self, mock_model):
         row = MagicMock()
         row.failed_attempts = 0
@@ -26,31 +26,31 @@ class LoginLockoutLogicTests(SimpleTestCase):
         mock_model.objects.get_or_create.return_value = (row, True)
         mock_model.objects.filter.return_value.first.return_value = None
 
-        user = 'test.lockout@example'
+        user = "test.lockout@example"
         self.assertFalse(record_login_failure(user))
         self.assertFalse(record_login_failure(user))
         self.assertTrue(record_login_failure(user))
         self.assertIsNotNone(row.locked_until)
 
-    @patch('superadmin.models.LoginLockout')
+    @patch("superadmin.models.LoginLockout")
     def test_check_account_locked_active(self, mock_model):
         until = timezone.now() + timedelta(minutes=10)
         row = MagicMock(locked_until=until)
         mock_model.objects.filter.return_value.first.return_value = row
 
-        locked = check_account_locked('user1')
+        locked = check_account_locked("user1")
         self.assertEqual(locked, until)
 
-    @patch('superadmin.models.LoginLockout')
+    @patch("superadmin.models.LoginLockout")
     def test_check_account_locked_expired_clears_row(self, mock_model):
         until = timezone.now() - timedelta(minutes=1)
         row = MagicMock(locked_until=until)
         mock_model.objects.filter.return_value.first.return_value = row
 
-        self.assertIsNone(check_account_locked('user1'))
+        self.assertIsNone(check_account_locked("user1"))
         row.delete.assert_called_once()
 
-    @patch('superadmin.models.LoginLockout')
+    @patch("superadmin.models.LoginLockout")
     def test_clear_login_failures(self, mock_model):
-        clear_login_failures('User.X')
-        mock_model.objects.filter.assert_called_with(username_key='user.x')
+        clear_login_failures("User.X")
+        mock_model.objects.filter.assert_called_with(username_key="user.x")

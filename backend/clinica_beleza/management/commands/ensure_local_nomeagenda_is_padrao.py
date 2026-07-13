@@ -1,5 +1,4 @@
-"""
-Garante coluna is_padrao em locais_atendimento e nomes_agenda (migration 0050).
+"""Garante coluna is_padrao em locais_atendimento e nomes_agenda (migration 0050).
 
 Uso:
     python manage.py ensure_local_nomeagenda_is_padrao
@@ -13,33 +12,33 @@ from django.db import connection
 from clinica_beleza.schema_ensure import column_exists, table_exists
 from superadmin.models import Loja
 
-MIGRATION = '0050_local_nomeagenda_is_padrao'
-LOCAIS_TABLE = 'clinica_beleza_locais_atendimento'
-NOMES_TABLE = 'clinica_beleza_nomes_agenda'
+MIGRATION = "0050_local_nomeagenda_is_padrao"
+LOCAIS_TABLE = "clinica_beleza_locais_atendimento"
+NOMES_TABLE = "clinica_beleza_nomes_agenda"
 
 
 class Command(BaseCommand):
-    help = 'Adiciona is_padrao em locais de atendimento e nomes de agenda nos schemas das lojas.'
+    help = "Adiciona is_padrao em locais de atendimento e nomes de agenda nos schemas das lojas."
 
     def add_arguments(self, parser):
-        parser.add_argument('--slug', type=str, help='Processar apenas loja com este slug/atalho')
+        parser.add_argument("--slug", type=str, help="Processar apenas loja com este slug/atalho")
 
     def handle(self, *args, **options):
-        slug_filter = (options.get('slug') or '').strip().lower()
+        slug_filter = (options.get("slug") or "").strip().lower()
         lojas = (
             Loja.objects.filter(is_active=True)
-            .exclude(database_name='')
+            .exclude(database_name="")
             .exclude(database_name__isnull=True)
         )
         ok = skip = 0
 
         for loja in lojas:
             if slug_filter and slug_filter not in (
-                (loja.slug or '').lower(),
-                (getattr(loja, 'atalho', None) or '').lower(),
+                (loja.slug or "").lower(),
+                (getattr(loja, "atalho", None) or "").lower(),
             ):
                 continue
-            schema = (loja.database_name or '').replace('-', '_')
+            schema = (loja.database_name or "").replace("-", "_")
             if not schema:
                 skip += 1
                 continue
@@ -52,13 +51,13 @@ class Command(BaseCommand):
                     for table in (LOCAIS_TABLE, NOMES_TABLE):
                         if not table_exists(cursor, table):
                             continue
-                        if column_exists(cursor, table, 'is_padrao'):
+                        if column_exists(cursor, table, "is_padrao"):
                             continue
                         cursor.execute(f"""
                             ALTER TABLE {table}
                             ADD COLUMN IF NOT EXISTS is_padrao BOOLEAN NOT NULL DEFAULT FALSE
                         """)
-                        self.stdout.write(f'  {loja.slug}: {table}.is_padrao adicionada')
+                        self.stdout.write(f"  {loja.slug}: {table}.is_padrao adicionada")
                         changed = True
 
                     if changed:
@@ -80,16 +79,15 @@ class Command(BaseCommand):
                 else:
                     skip += 1
                 self.stdout.write(self.style.SUCCESS(
-                    f'  OK {loja.slug} ({loja.nome}) schema={schema}'
+                    f"  OK {loja.slug} ({loja.nome}) schema={schema}",
                 ))
             except Exception as e:
                 skip += 1
                 with suppress(Exception):
                     connection.rollback()
-                self.stdout.write(self.style.ERROR(f'  ERRO {loja.slug}: {e}'))
+                self.stdout.write(self.style.ERROR(f"  ERRO {loja.slug}: {e}"))
 
-        with suppress(Exception):
-            with connection.cursor() as cursor:
-                cursor.execute('SET search_path TO public')
+        with suppress(Exception), connection.cursor() as cursor:
+            cursor.execute("SET search_path TO public")
 
-        self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s), {skip} ignorada(s)/erro.'))
+        self.stdout.write(self.style.SUCCESS(f"Concluído: {ok} loja(s), {skip} ignorada(s)/erro."))

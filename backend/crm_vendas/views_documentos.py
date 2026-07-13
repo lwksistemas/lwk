@@ -32,84 +32,84 @@ class PropostaViewSet(
     serializer_class = PropostaSerializer
     pagination_class = CRMPagination
 
-    vendedor_filter_field = 'oportunidade__vendedor_id'
+    vendedor_filter_field = "oportunidade__vendedor_id"
     vendedor_filter_related = []
 
-    assinatura_doc_label = 'Proposta'
-    assinatura_cache_key = 'propostas'
-    crm_permission_model = 'proposta'
+    assinatura_doc_label = "Proposta"
+    assinatura_cache_key = "propostas"
+    crm_permission_model = "proposta"
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def confirmar_pedido(self, request, pk=None):
         proposta = self.get_object()
-        if proposta.status != 'aceita':
+        if proposta.status != "aceita":
             return Response(
                 {
-                    'detail': (
-                        f'Apenas propostas Aceitas podem ser confirmadas como Pedido. '
-                        f'Status atual: {proposta.get_status_display()}.'
+                    "detail": (
+                        f"Apenas propostas Aceitas podem ser confirmadas como Pedido. "
+                        f"Status atual: {proposta.get_status_display()}."
                     ),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        proposta.status = 'pedido'
-        proposta.save(update_fields=['status', 'updated_at'])
-        return Response({'detail': 'Proposta confirmada como Pedido.', 'status': 'pedido'})
+        proposta.status = "pedido"
+        proposta.save(update_fields=["status", "updated_at"])
+        return Response({"detail": "Proposta confirmada como Pedido.", "status": "pedido"})
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def cancelar(self, request, pk=None):
         proposta = self.get_object()
-        if proposta.status == 'cancelada':
+        if proposta.status == "cancelada":
             return Response(
-                {'detail': 'Proposta já está cancelada.'},
+                {"detail": "Proposta já está cancelada."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        motivo = (request.data.get('motivo') or '').strip()
+        motivo = (request.data.get("motivo") or "").strip()
         if not motivo:
             return Response(
-                {'detail': 'Informe o motivo do cancelamento.'},
+                {"detail": "Informe o motivo do cancelamento."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        proposta.status = 'cancelada'
+        proposta.status = "cancelada"
         proposta.motivo_cancelamento = motivo
-        if proposta.status_assinatura not in ('rascunho', 'concluido', 'cancelado'):
-            proposta.status_assinatura = 'cancelado'
+        if proposta.status_assinatura not in ("rascunho", "concluido", "cancelado"):
+            proposta.status_assinatura = "cancelado"
             proposta.save(
-                update_fields=['status', 'motivo_cancelamento', 'status_assinatura', 'updated_at']
+                update_fields=["status", "motivo_cancelamento", "status_assinatura", "updated_at"],
             )
         else:
-            proposta.save(update_fields=['status', 'motivo_cancelamento', 'updated_at'])
+            proposta.save(update_fields=["status", "motivo_cancelamento", "updated_at"])
 
         oportunidade = proposta.oportunidade
-        if oportunidade and oportunidade.etapa not in ('closed_won', 'closed_lost'):
-            oportunidade.etapa = 'closed_lost'
+        if oportunidade and oportunidade.etapa not in ("closed_won", "closed_lost"):
+            oportunidade.etapa = "closed_lost"
             oportunidade.data_fechamento_perdido = timezone.now().date()
-            oportunidade.save(update_fields=['etapa', 'data_fechamento_perdido', 'updated_at'])
+            oportunidade.save(update_fields=["etapa", "data_fechamento_perdido", "updated_at"])
 
-        return Response({'detail': 'Proposta cancelada com sucesso.', 'status': 'cancelada'})
+        return Response({"detail": "Proposta cancelada com sucesso.", "status": "cancelada"})
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=["get"])
     def download_pdf(self, request, pk=None):
         from .pdf_proposta_contrato import gerar_pdf_proposta
 
         proposta = self.get_object()
         try:
-            incluir_assinaturas = proposta.status_assinatura == 'concluido'
+            incluir_assinaturas = proposta.status_assinatura == "concluido"
             pdf_buffer = gerar_pdf_proposta(proposta, incluir_assinaturas=incluir_assinaturas)
-            response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+            response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
             filename = (
                 f'proposta_{proposta.numero or proposta.id}_'
                 f'{proposta.titulo.replace(" ", "_")}.pdf'
             )
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
         except Exception as e:
             return Response(
-                {'detail': f'Erro ao gerar PDF: {str(e)}'},
+                {"detail": f"Erro ao gerar PDF: {e!s}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=["get"])
     def download_docx(self, request, pk=None):
         from .docx_proposta_contrato import gerar_docx_proposta
 
@@ -118,15 +118,15 @@ class PropostaViewSet(
             docx_buffer = gerar_docx_proposta(proposta)
             response = HttpResponse(
                 docx_buffer.getvalue(),
-                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             )
-            safe_titulo = (proposta.titulo or '').replace(' ', '_')
-            filename = f'proposta_{proposta.numero or proposta.id}_{safe_titulo}.docx'
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            safe_titulo = (proposta.titulo or "").replace(" ", "_")
+            filename = f"proposta_{proposta.numero or proposta.id}_{safe_titulo}.docx"
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
         except Exception as e:
             return Response(
-                {'detail': f'Erro ao gerar DOCX: {str(e)}'},
+                {"detail": f"Erro ao gerar DOCX: {e!s}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -156,51 +156,51 @@ class ContratoViewSet(
     serializer_class = ContratoSerializer
     pagination_class = CRMPagination
 
-    assinatura_doc_label = 'Contrato'
-    assinatura_cache_key = 'contratos'
-    crm_permission_model = 'contrato'
+    assinatura_doc_label = "Contrato"
+    assinatura_cache_key = "contratos"
+    crm_permission_model = "contrato"
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def cancelar(self, request, pk=None):
         contrato = self.get_object()
-        if contrato.status == 'cancelado':
+        if contrato.status == "cancelado":
             return Response(
-                {'detail': 'Contrato já está cancelado.'},
+                {"detail": "Contrato já está cancelado."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        motivo = (request.data.get('motivo') or '').strip()
+        motivo = (request.data.get("motivo") or "").strip()
         if not motivo:
             return Response(
-                {'detail': 'Informe o motivo do cancelamento.'},
+                {"detail": "Informe o motivo do cancelamento."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        contrato.status = 'cancelado'
+        contrato.status = "cancelado"
         contrato.motivo_cancelamento = motivo
-        contrato.save(update_fields=['status', 'motivo_cancelamento', 'updated_at'])
-        return Response({'detail': 'Contrato cancelado com sucesso.', 'status': 'cancelado'})
+        contrato.save(update_fields=["status", "motivo_cancelamento", "updated_at"])
+        return Response({"detail": "Contrato cancelado com sucesso.", "status": "cancelado"})
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=["get"])
     def download_pdf(self, request, pk=None):
         from .pdf_proposta_contrato import gerar_pdf_contrato
 
         contrato = self.get_object()
         try:
-            incluir_assinaturas = contrato.status_assinatura == 'concluido'
+            incluir_assinaturas = contrato.status_assinatura == "concluido"
             pdf_buffer = gerar_pdf_contrato(contrato, incluir_assinaturas=incluir_assinaturas)
-            response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+            response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
             filename = (
                 f'contrato_{contrato.numero or contrato.id}_'
                 f'{contrato.titulo.replace(" ", "_")}.pdf'
             )
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
         except Exception as e:
             return Response(
-                {'detail': f'Erro ao gerar PDF: {str(e)}'},
+                {"detail": f"Erro ao gerar PDF: {e!s}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=["get"])
     def download_docx(self, request, pk=None):
         from .docx_proposta_contrato import gerar_docx_contrato
 
@@ -209,14 +209,14 @@ class ContratoViewSet(
             docx_buffer = gerar_docx_contrato(contrato)
             response = HttpResponse(
                 docx_buffer.getvalue(),
-                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             )
-            safe_titulo = (contrato.titulo or '').replace(' ', '_')
-            filename = f'contrato_{contrato.numero or contrato.id}_{safe_titulo}.docx'
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            safe_titulo = (contrato.titulo or "").replace(" ", "_")
+            filename = f"contrato_{contrato.numero or contrato.id}_{safe_titulo}.docx"
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
         except Exception as e:
             return Response(
-                {'detail': f'Erro ao gerar DOCX: {str(e)}'},
+                {"detail": f"Erro ao gerar DOCX: {e!s}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

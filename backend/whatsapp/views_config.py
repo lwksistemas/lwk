@@ -1,5 +1,4 @@
-"""
-Configuração WhatsApp centralizada — disponível para qualquer tipo de app/loja.
+"""Configuração WhatsApp centralizada — disponível para qualquer tipo de app/loja.
 """
 import contextlib
 import logging
@@ -46,8 +45,7 @@ def _user_may_configure_whatsapp(request, loja) -> bool:
 
 
 class WhatsAppConfigView(APIView):
-    """
-    GET/PATCH /api/whatsapp/config/
+    """GET/PATCH /api/whatsapp/config/
     Configuração WhatsApp por loja (Meta ou Evolution).
     """
 
@@ -56,41 +54,41 @@ class WhatsAppConfigView(APIView):
     def _get_config(self, request):
         loja = resolve_loja_from_request(request)
         if not loja:
-            logger.warning('WhatsAppConfigView: contexto de loja não encontrado')
+            logger.warning("WhatsAppConfigView: contexto de loja não encontrado")
             return None, None
         if not _user_may_configure_whatsapp(request, loja):
-            return loja, 'forbidden'
+            return loja, "forbidden"
         return get_or_create_whatsapp_config(loja), loja
 
     def get(self, request):
         config, loja = self._get_config(request)
-        if loja == 'forbidden':
-            return Response({'error': 'Sem permissão para configurar WhatsApp desta loja.'}, status=status.HTTP_403_FORBIDDEN)
+        if loja == "forbidden":
+            return Response({"error": "Sem permissão para configurar WhatsApp desta loja."}, status=status.HTTP_403_FORBIDDEN)
         if config is None:
             return Response(default_whatsapp_config_payload())
         try:
             return Response(serialize_whatsapp_config(config, loja=loja, sync_evolution=True))
         except Exception as exc:
-            logger.exception('WhatsAppConfigView.get loja=%s: %s', getattr(loja, 'id', '?'), exc)
+            logger.exception("WhatsAppConfigView.get loja=%s: %s", getattr(loja, "id", "?"), exc)
             payload = default_whatsapp_config_payload(loja)
             with contextlib.suppress(Exception):
                 payload.update({
-                    'whatsapp_ativo': getattr(config, 'whatsapp_ativo', False),
-                    'whatsapp_provider': getattr(config, 'whatsapp_provider', 'meta') or 'meta',
-                    'whatsapp_connection_status': getattr(config, 'whatsapp_connection_status', 'disconnected'),
-                    'connection_status': getattr(config, 'whatsapp_connection_status', 'disconnected'),
-                    'whatsapp_connected_phone': (getattr(config, 'whatsapp_connected_phone', None) or '').strip(),
-                    'connected_phone': (getattr(config, 'whatsapp_connected_phone', None) or '').strip(),
-                    'enviar_confirmacao': getattr(config, 'enviar_confirmacao', True),
+                    "whatsapp_ativo": getattr(config, "whatsapp_ativo", False),
+                    "whatsapp_provider": getattr(config, "whatsapp_provider", "meta") or "meta",
+                    "whatsapp_connection_status": getattr(config, "whatsapp_connection_status", "disconnected"),
+                    "connection_status": getattr(config, "whatsapp_connection_status", "disconnected"),
+                    "whatsapp_connected_phone": (getattr(config, "whatsapp_connected_phone", None) or "").strip(),
+                    "connected_phone": (getattr(config, "whatsapp_connected_phone", None) or "").strip(),
+                    "enviar_confirmacao": getattr(config, "enviar_confirmacao", True),
                 })
             return Response(payload)
 
     def patch(self, request):
         config, loja = self._get_config(request)
-        if loja == 'forbidden':
-            return Response({'error': 'Sem permissão para configurar WhatsApp desta loja.'}, status=status.HTTP_403_FORBIDDEN)
+        if loja == "forbidden":
+            return Response({"error": "Sem permissão para configurar WhatsApp desta loja."}, status=status.HTTP_403_FORBIDDEN)
         if config is None:
-            return Response({'error': 'Contexto de loja não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Contexto de loja não encontrado"}, status=status.HTTP_404_NOT_FOUND)
         update_fields, err = apply_whatsapp_config_patch(config, request.data)
         if err:
             return err
@@ -106,12 +104,12 @@ class WhatsAppConfigView(APIView):
 def _whatsapp_config_for_request(request):
     loja = resolve_loja_from_request(request)
     if not loja:
-        return None, 'not_found'
+        return None, "not_found"
     if not _user_may_configure_whatsapp(request, loja):
-        return None, 'forbidden'
+        return None, "forbidden"
     config = get_or_create_whatsapp_config(loja)
     if config is None:
-        return None, 'schema'
+        return None, "schema"
     return config, None
 
 
@@ -120,8 +118,8 @@ class LojaWhatsAppConnectionStatusView(BaseWhatsAppConnectionStatusView):
 
     def _get_config(self, request):
         config, err = _whatsapp_config_for_request(request)
-        if err == 'forbidden':
-            return 'forbidden'
+        if err == "forbidden":
+            return "forbidden"
         return config
 
 
@@ -130,8 +128,8 @@ class LojaWhatsAppConnectView(BaseWhatsAppConnectView):
 
     def _get_config(self, request):
         config, err = _whatsapp_config_for_request(request)
-        if err == 'forbidden':
-            return 'forbidden'
+        if err == "forbidden":
+            return "forbidden"
         return config
 
 
@@ -140,8 +138,8 @@ class LojaWhatsAppDisconnectView(BaseWhatsAppDisconnectView):
 
     def _get_config(self, request):
         config, err = _whatsapp_config_for_request(request)
-        if err == 'forbidden':
-            return 'forbidden'
+        if err == "forbidden":
+            return "forbidden"
         return config
 
 
@@ -150,6 +148,6 @@ class LojaWhatsAppResetSessionView(BaseWhatsAppResetSessionView):
 
     def _get_config(self, request):
         config, err = _whatsapp_config_for_request(request)
-        if err == 'forbidden':
-            return 'forbidden'
+        if err == "forbidden":
+            return "forbidden"
         return config

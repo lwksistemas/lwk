@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinica_beleza', '0051_produto_dias_alerta_validade'),
+        ("clinica_beleza", "0051_produto_dias_alerta_validade"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='professional',
-            name='is_profissional',
-            field=models.BooleanField(default=True, help_text='Se False, é apenas administrador (não aparece na agenda nem recebe agendamentos).', verbose_name='É profissional'),
+            model_name="professional",
+            name="is_profissional",
+            field=models.BooleanField(default=True, help_text="Se False, é apenas administrador (não aparece na agenda nem recebe agendamentos).", verbose_name="É profissional"),
         ),
     ]

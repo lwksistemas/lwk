@@ -13,7 +13,7 @@ User = get_user_model()
 
 
 def _email_owner(user) -> str:
-    return (getattr(user, 'email', None) or '').strip()
+    return (getattr(user, "email", None) or "").strip()
 
 
 def _profissional_do_owner(loja_id: int, user):
@@ -24,31 +24,30 @@ def _profissional_do_owner(loja_id: int, user):
 
 
 def obter_status_admin_profissional(loja_id: int, user) -> dict:
-    """
-    Retorna { is_enabled: bool, professional_id: int | None }.
+    """Retorna { is_enabled: bool, professional_id: int | None }.
     Habilitado = Professional ativo com is_profissional=True para o e-mail do owner.
     """
     prof = _profissional_do_owner(loja_id, user)
     if not prof:
-        return {'is_enabled': False, 'professional_id': None}
+        return {"is_enabled": False, "professional_id": None}
     enabled = bool(prof.is_active) and (prof.is_profissional is not False)
-    return {'is_enabled': enabled, 'professional_id': prof.id}
+    return {"is_enabled": enabled, "professional_id": prof.id}
 
 
 def habilitar_admin_como_profissional(loja_id: int, user) -> Professional:
     """Cria ou reativa Professional do owner (idempotente)."""
     from superadmin.models import Loja
 
-    loja = Loja.objects.using('default').filter(id=loja_id).first()
+    loja = Loja.objects.using("default").filter(id=loja_id).first()
     if not loja:
-        raise ValueError('Loja não encontrada')
+        raise ValueError("Loja não encontrada")
 
-    email = _email_owner(user) or (loja.owner.email or '').strip()
+    email = _email_owner(user) or (loja.owner.email or "").strip()
     if not email:
-        raise ValueError('E-mail do administrador não cadastrado.')
+        raise ValueError("E-mail do administrador não cadastrado.")
 
-    nome = (user.get_full_name() or user.username or loja.owner.username or 'Administrador').strip()
-    telefone = getattr(loja, 'owner_telefone', '') or ''
+    nome = (user.get_full_name() or user.username or loja.owner.username or "Administrador").strip()
+    telefone = getattr(loja, "owner_telefone", "") or ""
 
     prof = _profissional_do_owner(loja_id, user)
     if prof:
@@ -59,7 +58,7 @@ def habilitar_admin_como_profissional(loja_id: int, user) -> Professional:
         if prof.is_profissional is False:
             prof.is_profissional = True
             changed = True
-        if not (prof.nome or '').strip():
+        if not (prof.nome or "").strip():
             prof.nome = nome
             changed = True
         if changed:
@@ -71,7 +70,7 @@ def habilitar_admin_como_profissional(loja_id: int, user) -> Professional:
         nome=nome,
         email=email,
         telefone=telefone,
-        especialidade='Administrador',
+        especialidade="Administrador",
         is_active=True,
         is_profissional=True,
     )
@@ -83,4 +82,4 @@ def desabilitar_admin_como_profissional(loja_id: int, user) -> None:
     if not prof or not prof.is_active:
         return
     prof.is_active = False
-    prof.save(update_fields=['is_active', 'updated_at'])
+    prof.save(update_fields=["is_active", "updated_at"])

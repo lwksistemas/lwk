@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinica_beleza', '0019_consulta_anamnese_evolucao'),
+        ("clinica_beleza", "0019_consulta_anamnese_evolucao"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='consulta',
-            name='status',
-            field=models.CharField(choices=[('SCHEDULED', 'Agendada'), ('IN_PROGRESS', 'Em Atendimento'), ('COMPLETED', 'Concluída'), ('CANCELLED', 'Cancelada')], default='SCHEDULED', max_length=20, verbose_name='Status'),
+            model_name="consulta",
+            name="status",
+            field=models.CharField(choices=[("SCHEDULED", "Agendada"), ("IN_PROGRESS", "Em Atendimento"), ("COMPLETED", "Concluída"), ("CANCELLED", "Cancelada")], default="SCHEDULED", max_length=20, verbose_name="Status"),
         ),
     ]

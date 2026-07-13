@@ -16,7 +16,7 @@ class AgendaScopeHelpersTest(SimpleTestCase):
         request = MagicMock()
         request.user = MagicMock(is_authenticated=True, id=1)
         loja = MagicMock(owner_id=1)
-        with patch('clinica_beleza.permissions._loja_and_profissional', return_value=(loja, None)):
+        with patch("clinica_beleza.permissions._loja_and_profissional", return_value=(loja, None)):
             self.assertIsNone(resolve_agenda_professional_scope(request))
 
     def test_profissional_escopo_proprio(self):
@@ -24,7 +24,7 @@ class AgendaScopeHelpersTest(SimpleTestCase):
         request.user = MagicMock(is_authenticated=True, id=2)
         prof = MagicMock(perfil=ProfissionalUsuario.PERFIL_PROFISSIONAL, professional_id=42)
         loja = MagicMock(owner_id=99)
-        with patch('clinica_beleza.permissions._loja_and_profissional', return_value=(loja, prof)):
+        with patch("clinica_beleza.permissions._loja_and_profissional", return_value=(loja, prof)):
             self.assertEqual(resolve_agenda_professional_scope(request), 42)
 
     def test_appointment_in_scope(self):
@@ -45,17 +45,17 @@ class LimpezaCadastros403Test(TestCase):
         from superadmin.session_manager import SessionManager
 
         self.tipo = TipoLoja.objects.create(
-            nome='Clínica da Beleza', slug='clinica-beleza', codigo='CLB',
+            nome="Clínica da Beleza", slug="clinica-beleza", codigo="CLB",
         )
         self.plano = PlanoAssinatura.objects.create(
-            nome='Básico', slug='basico', preco_mensal=99,
+            nome="Básico", slug="basico", preco_mensal=99,
         )
-        self.owner = User.objects.create_user('own@t.com', 'own@t.com', 'pass12345')
+        self.owner = User.objects.create_user("own@t.com", "own@t.com", "pass12345")
         self.loja = Loja.objects.create(
-            nome='Test', slug='test-loja', cpf_cnpj='33333333000333',
+            nome="Test", slug="test-loja", cpf_cnpj="33333333000333",
             tipo_loja=self.tipo, plano=self.plano, owner=self.owner,
         )
-        self.limpeza_user = User.objects.create_user('limp@t.com', 'limp@t.com', 'pass12345')
+        self.limpeza_user = User.objects.create_user("limp@t.com", "limp@t.com", "pass12345")
         ProfissionalUsuario.objects.create(
             user=self.limpeza_user,
             loja=self.loja,
@@ -69,7 +69,7 @@ class LimpezaCadastros403Test(TestCase):
         token = str(RefreshToken.for_user(self.limpeza_user).access_token)
         sid = SessionManager.create_session(self.limpeza_user.id, token)
         self.client.credentials(
-            HTTP_AUTHORIZATION=f'Bearer {token}',
+            HTTP_AUTHORIZATION=f"Bearer {token}",
             HTTP_X_SESSION_ID=sid,
             HTTP_X_LOJA_ID=str(self.loja.id),
             HTTP_X_TENANT_SLUG=self.loja.slug,
@@ -84,19 +84,19 @@ class LimpezaCadastros403Test(TestCase):
         )
 
     def test_limpeza_negado_procedimentos(self):
-        r = self._get('/api/clinica-beleza/procedures/')
+        r = self._get("/api/clinica-beleza/procedures/")
         self.assertEqual(r.status_code, 403)
 
     def test_limpeza_negado_convenios(self):
-        r = self._get('/api/clinica-beleza/convenios/')
+        r = self._get("/api/clinica-beleza/convenios/")
         self.assertEqual(r.status_code, 403)
 
     def test_limpeza_negado_pacientes(self):
-        r = self._get('/api/clinica-beleza/patients/')
+        r = self._get("/api/clinica-beleza/patients/")
         self.assertEqual(r.status_code, 403)
 
     def test_limpeza_negado_estoque_listagem(self):
-        r = self._get('/api/clinica-beleza/estoque/')
+        r = self._get("/api/clinica-beleza/estoque/")
         self.assertEqual(r.status_code, 403)
 
 
@@ -111,17 +111,17 @@ class ProfissionalAgendaAccessTest(TestCase):
         from superadmin.session_manager import SessionManager
 
         self.tipo = TipoLoja.objects.create(
-            nome='Clínica da Beleza', slug='clinica-beleza', codigo='CLB2',
+            nome="Clínica da Beleza", slug="clinica-beleza", codigo="CLB2",
         )
         self.plano = PlanoAssinatura.objects.create(
-            nome='Básico', slug='basico2', preco_mensal=99,
+            nome="Básico", slug="basico2", preco_mensal=99,
         )
-        self.owner = User.objects.create_user('own2@t.com', 'own2@t.com', 'pass12345')
+        self.owner = User.objects.create_user("own2@t.com", "own2@t.com", "pass12345")
         self.loja = Loja.objects.create(
-            nome='Test2', slug='test-loja-2', cpf_cnpj='44444444000444',
+            nome="Test2", slug="test-loja-2", cpf_cnpj="44444444000444",
             tipo_loja=self.tipo, plano=self.plano, owner=self.owner,
         )
-        self.prof_user = User.objects.create_user('prof@t.com', 'prof@t.com', 'pass12345')
+        self.prof_user = User.objects.create_user("prof@t.com", "prof@t.com", "pass12345")
         ProfissionalUsuario.objects.create(
             user=self.prof_user,
             loja=self.loja,
@@ -135,18 +135,18 @@ class ProfissionalAgendaAccessTest(TestCase):
         token = str(RefreshToken.for_user(self.prof_user).access_token)
         sid = SessionManager.create_session(self.prof_user.id, token)
         self.client.credentials(
-            HTTP_AUTHORIZATION=f'Bearer {token}',
+            HTTP_AUTHORIZATION=f"Bearer {token}",
             HTTP_X_SESSION_ID=sid,
         )
 
-    @patch('clinica_beleza.views_agenda._agenda_events_queryset')
+    @patch("clinica_beleza.views_agenda._agenda_events_queryset")
     def test_profissional_pode_listar_agenda(self, mock_qs):
         qs = MagicMock()
         qs.filter.return_value = qs
         qs.order_by.return_value = []
         mock_qs.return_value = qs
         r = self.client.get(
-            '/api/clinica-beleza/agenda/',
+            "/api/clinica-beleza/agenda/",
             HTTP_X_LOJA_ID=str(self.loja.id),
             HTTP_X_TENANT_SLUG=self.loja.slug,
         )

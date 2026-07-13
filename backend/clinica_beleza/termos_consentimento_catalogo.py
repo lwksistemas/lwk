@@ -1,5 +1,4 @@
-"""
-Modelos de Termo de Consentimento Livre e Esclarecido (TCLE) para procedimentos estéticos.
+"""Modelos de Termo de Consentimento Livre e Esclarecido (TCLE) para procedimentos estéticos.
 
 Baseado em boas práticas de documentação em clínicas de estética no Brasil (CFM, vigilância
 sanitária e LGPD). Cada clínica deve revisar com seu conselho de classe e assessoria jurídica.
@@ -9,17 +8,17 @@ Placeholders suportados: {paciente_nome}, {paciente_cpf}, {profissional_nome},
 """
 
 _DECLARACAO_LGPD = (
-    '\n\nAutorizo o tratamento dos meus dados pessoais, inclusive sensíveis de saúde, '
-    'nos termos da Lei 13.709/2018 (LGPD), exclusivamente para registro clínico, '
-    'prestação do serviço e guarda do prontuário pelo prazo legal.'
+    "\n\nAutorizo o tratamento dos meus dados pessoais, inclusive sensíveis de saúde, "
+    "nos termos da Lei 13.709/2018 (LGPD), exclusivamente para registro clínico, "
+    "prestação do serviço e guarda do prontuário pelo prazo legal."
 )
 
 _DECLARACAO_FINAL = (
-    '\n\nDeclaro que tive oportunidade de esclarecer minhas dúvidas, que as respostas '
-    'foram satisfatórias, que li e compreendi este termo e concordo voluntariamente com '
-    'a realização do procedimento na data {data}. Comprometo-me a seguir as orientações '
-    'pré e pós-procedimento informadas e a comunicar imediatamente a clínica sobre '
-    'qualquer intercorrência.'
+    "\n\nDeclaro que tive oportunidade de esclarecer minhas dúvidas, que as respostas "
+    "foram satisfatórias, que li e compreendi este termo e concordo voluntariamente com "
+    "a realização do procedimento na data {data}. Comprometo-me a seguir as orientações "
+    "pré e pós-procedimento informadas e a comunicar imediatamente a clínica sobre "
+    "qualquer intercorrência."
 )
 
 TERMO_BOTOX = f"""TERMO DE CONSENTIMENTO ESCLARECIDO — TOXINA BOTULÍNICA
@@ -131,46 +130,45 @@ Fui esclarecido(a) sobre objetivos, benefícios, riscos, efeitos adversos, contr
 
 
 def resolver_termo_consentimento(nome: str) -> tuple[bool, str]:
-    """
-    Retorna (exigir_termo, texto) para o nome do procedimento do catálogo.
+    """Retorna (exigir_termo, texto) para o nome do procedimento do catálogo.
     Procedimentos de baixo risco podem retornar termo inativo.
     """
-    n = (nome or '').lower()
+    n = (nome or "").lower()
 
-    if 'design de sobrancelha' in n:
-        return False, ''
+    if "design de sobrancelha" in n:
+        return False, ""
 
-    if 'botox' in n or 'botul' in n:
+    if "botox" in n or "botul" in n:
         return True, TERMO_BOTOX
-    if 'harmoniza' in n:
+    if "harmoniza" in n:
         return True, TERMO_HARMONIZACAO
-    if 'preench' in n or 'skinbooster' in n:
+    if "preench" in n or "skinbooster" in n:
         return True, TERMO_PREENCHIMENTO
-    if 'peeling' in n:
+    if "peeling" in n:
         return True, TERMO_PEELING
-    if 'microagulh' in n:
+    if "microagulh" in n:
         return True, TERMO_MICROAGULHAMENTO
-    if 'depilação a laser' in n or 'depilacao a laser' in n:
+    if "depilação a laser" in n or "depilacao a laser" in n:
         return True, TERMO_DEPILACAO_LASER
-    if 'laser' in n:
+    if "laser" in n:
         return True, TERMO_LASER
-    if 'criolip' in n or 'cryolip' in n:
+    if "criolip" in n or "cryolip" in n:
         return True, TERMO_CRIOLIPOLISE
-    if 'radiofrequ' in n:
+    if "radiofrequ" in n:
         return True, TERMO_RADIOFREQUENCIA
-    if 'carbox' in n:
+    if "carbox" in n:
         return True, TERMO_CARBOXITERAPIA
-    if 'intradermo' in n or 'mesoterapia' in n or 'enzimas' in n:
+    if "intradermo" in n or "mesoterapia" in n or "enzimas" in n:
         return True, TERMO_INTRADERMOTERAPIA
-    if 'bioestimul' in n:
+    if "bioestimul" in n:
         return True, TERMO_BIOESTIMULADOR
-    if 'soroterapia' in n:
+    if "soroterapia" in n:
         return True, TERMO_SOROTERAPIA
-    if 'micropigment' in n or 'lash lifting' in n:
+    if "micropigment" in n or "lash lifting" in n:
         return True, TERMO_MICROPIGMENTACAO
-    if 'limpeza de pele' in n:
+    if "limpeza de pele" in n:
         return True, TERMO_LIMPEZA_PELE
-    if 'drenagem' in n or 'massagem modeladora' in n:
+    if "drenagem" in n or "massagem modeladora" in n:
         return True, TERMO_DRENAGEM
 
-    return True, TERMO_GENERICO.replace('{procedimento}', nome.upper())
+    return True, TERMO_GENERICO.replace("{procedimento}", nome.upper())

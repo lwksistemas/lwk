@@ -7,7 +7,7 @@ from django.db import migrations, models
 def add_criado_por_vendedor_id_if_exists(apps, schema_editor):
     """Adiciona coluna criado_por_vendedor_id em crm_vendas_atividade se a tabela existir."""
     conn = schema_editor.connection
-    if conn.vendor != 'postgresql':
+    if conn.vendor != "postgresql":
         return
     with conn.cursor() as cursor:
         cursor.execute("""
@@ -38,19 +38,19 @@ def noop_reverse(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0013_add_endereco_to_lead'),
+        ("crm_vendas", "0013_add_endereco_to_lead"),
     ]
 
     operations = [
         migrations.SeparateDatabaseAndState(
             state_operations=[
                 migrations.AddField(
-                    model_name='atividade',
-                    name='criado_por_vendedor_id',
+                    model_name="atividade",
+                    name="criado_por_vendedor_id",
                     field=models.PositiveIntegerField(
                         blank=True,
                         db_index=True,
-                        help_text='Vendedor que criou/importou esta atividade (órfã). Null = proprietário.',
+                        help_text="Vendedor que criou/importou esta atividade (órfã). Null = proprietário.",
                         null=True,
                     ),
                 ),

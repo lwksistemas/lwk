@@ -29,24 +29,24 @@ class RetornoServiceTests(ClinicaBelezaIntegrationTestCase):
     def setUp(self):
         super().setUp()
         self.loja_id = self.loja.id
-        self.patient = Patient.objects.create(nome='Paciente Teste', loja_id=self.loja_id)
-        self.professional = Professional.objects.create(nome='Dr. Teste', loja_id=self.loja_id)
+        self.patient = Patient.objects.create(nome="Paciente Teste", loja_id=self.loja_id)
+        self.professional = Professional.objects.create(nome="Dr. Teste", loja_id=self.loja_id)
         self.procedure = Procedure.objects.create(
-            nome='Botox',
-            preco=Decimal('500.00'),
+            nome="Botox",
+            preco=Decimal("500.00"),
             duracao_minutos=30,
             loja_id=self.loja_id,
         )
         self.local = LocalAtendimento.objects.create(
-            nome='Consultório 1',
-            valor_consulta=Decimal('150.00'),
+            nome="Consultório 1",
+            valor_consulta=Decimal("150.00"),
             loja_id=self.loja_id,
         )
 
     def _consulta_concluida(self, *, procedure=None, days_ago=5):
         appt = Appointment.objects.create(
             date=timezone.now() - timedelta(days=days_ago),
-            status='COMPLETED',
+            status="COMPLETED",
             patient=self.patient,
             professional=self.professional,
             procedure=procedure or self.procedure,
@@ -58,7 +58,7 @@ class RetornoServiceTests(ClinicaBelezaIntegrationTestCase):
             patient=self.patient,
             professional=self.professional,
             procedure=procedure or self.procedure,
-            status='COMPLETED',
+            status="COMPLETED",
             data_fim=timezone.now() - timedelta(days=days_ago),
             valor_consulta=self.local.valor_consulta,
             local_atendimento=self.local,
@@ -82,7 +82,7 @@ class RetornoServiceTests(ClinicaBelezaIntegrationTestCase):
         result = verificar_retorno_consulta(self.patient.id, self.loja_id)
         self.assertIsNotNone(result)
         self.assertTrue(result.elegivel)
-        self.assertEqual(result.tipo, 'consulta')
+        self.assertEqual(result.tipo, "consulta")
 
     def test_retorno_por_procedimento_dentro_prazo(self):
         AgendaRetornoConfig.objects.filter(loja_id=self.loja_id).delete()
@@ -103,7 +103,7 @@ class RetornoServiceTests(ClinicaBelezaIntegrationTestCase):
         )
         self.assertIsNotNone(result)
         self.assertTrue(result.elegivel)
-        self.assertEqual(result.tipo, 'procedimento')
+        self.assertEqual(result.tipo, "procedimento")
 
     def test_aplicar_retorno_zera_valor_consulta(self):
         AgendaRetornoConfig.objects.filter(loja_id=self.loja_id).delete()
@@ -116,7 +116,7 @@ class RetornoServiceTests(ClinicaBelezaIntegrationTestCase):
 
         appt = Appointment.objects.create(
             date=timezone.now(),
-            status='SCHEDULED',
+            status="SCHEDULED",
             patient=self.patient,
             professional=self.professional,
             local_atendimento=self.local,
@@ -126,7 +126,7 @@ class RetornoServiceTests(ClinicaBelezaIntegrationTestCase):
             appointment=appt,
             patient=self.patient,
             professional=self.professional,
-            status='SCHEDULED',
+            status="SCHEDULED",
             valor_consulta=self.local.valor_consulta,
             local_atendimento=self.local,
             loja_id=self.loja_id,
@@ -134,8 +134,8 @@ class RetornoServiceTests(ClinicaBelezaIntegrationTestCase):
         aplicar_retorno_em_consulta(consulta, appt)
         consulta.refresh_from_db()
         self.assertTrue(consulta.retorno_gratuito)
-        self.assertEqual(consulta.retorno_tipo, 'consulta')
-        self.assertEqual(consulta.valor_consulta, Decimal('0'))
+        self.assertEqual(consulta.retorno_tipo, "consulta")
+        self.assertEqual(consulta.valor_consulta, Decimal(0))
 
     def test_verificar_retorno_prioriza_procedimento(self):
         AgendaRetornoConfig.objects.filter(loja_id=self.loja_id).delete()
@@ -153,4 +153,4 @@ class RetornoServiceTests(ClinicaBelezaIntegrationTestCase):
         self._consulta_concluida(days_ago=5)
         result = verificar_retorno(self.patient.id, [self.procedure.id], self.loja_id)
         self.assertTrue(result.elegivel)
-        self.assertEqual(result.tipo, 'procedimento')
+        self.assertEqual(result.tipo, "procedimento")

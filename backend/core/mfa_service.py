@@ -1,5 +1,4 @@
-"""
-MFA TOTP (Google Authenticator, etc.) para usuários do sistema.
+"""MFA TOTP (Google Authenticator, etc.) para usuários do sistema.
 """
 from __future__ import annotations
 
@@ -18,12 +17,12 @@ from core.encryption import decrypt_value, encrypt_value
 
 logger = logging.getLogger(__name__)
 
-ISSUER = getattr(settings, 'MFA_TOTP_ISSUER', 'LWK Sistemas')
+ISSUER = getattr(settings, "MFA_TOTP_ISSUER", "LWK Sistemas")
 
 
 def _require_pyotp():
     if pyotp is None:
-        raise RuntimeError('Dependência pyotp não instalada. Execute: pip install pyotp')
+        raise RuntimeError("Dependência pyotp não instalada. Execute: pip install pyotp")
 
 
 def generate_totp_secret() -> str:
@@ -37,19 +36,19 @@ def encrypt_totp_secret(secret: str) -> str:
 
 def decrypt_totp_secret(stored: str) -> str:
     if not stored:
-        return ''
+        return ""
     return decrypt_value(stored).strip()
 
 
 def provisioning_uri(email: str, secret: str) -> str:
     _require_pyotp()
-    return pyotp.TOTP(secret).provisioning_uri(name=email or 'usuario', issuer_name=ISSUER)
+    return pyotp.TOTP(secret).provisioning_uri(name=email or "usuario", issuer_name=ISSUER)
 
 
 def verify_totp_code(secret: str, code: str, *, valid_window: int = 1) -> bool:
     if not secret or not code:
         return False
-    normalized = ''.join(c for c in str(code).strip() if c.isdigit())
+    normalized = "".join(c for c in str(code).strip() if c.isdigit())
     if len(normalized) != 6:
         return False
     try:
@@ -57,7 +56,7 @@ def verify_totp_code(secret: str, code: str, *, valid_window: int = 1) -> bool:
         totp = pyotp.TOTP(secret)
         return totp.verify(normalized, valid_window=valid_window)
     except Exception as e:
-        logger.warning('verify_totp_code: %s', e)
+        logger.warning("verify_totp_code: %s", e)
         return False
 
 
@@ -66,10 +65,10 @@ def qr_code_base64(uri: str) -> str:
     try:
         import qrcode
     except ImportError:
-        logger.warning('qrcode não instalado — retornando sem imagem QR')
-        return ''
+        logger.warning("qrcode não instalado — retornando sem imagem QR")
+        return ""
 
     img = qrcode.make(uri)
     buf = io.BytesIO()
-    img.save(buf, format='PNG')
-    return base64.b64encode(buf.getvalue()).decode('ascii')
+    img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")

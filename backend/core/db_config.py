@@ -1,5 +1,4 @@
-"""
-Configuração centralizada de banco de dados para lojas (multi-tenant).
+"""Configuração centralizada de banco de dados para lojas (multi-tenant).
 
 Único ponto que define ENGINE, SCHEMA_NAME e parâmetros de conexão.
 Usado por: DatabaseSchemaService, TenantMiddleware, signals, backup, commands.
@@ -26,8 +25,7 @@ def get_loja_database_config(
     database_name: str,
     conn_max_age: int = 0,
 ) -> dict | None:
-    """
-    Retorna a configuração Django para banco de uma loja.
+    """Retorna a configuração Django para banco de uma loja.
 
     CORREÇÃO v1007: Removido backend customizado que estava sendo ignorado.
     Volta para ENGINE padrão + OPTIONS com search_path na URL.
@@ -38,21 +36,22 @@ def get_loja_database_config(
 
     Returns:
         dict de configuração ou None se DATABASE_URL não estiver definida
+
     """
     if not database_name:
         return None
 
-    database_url = os.environ.get('DATABASE_URL')
+    database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         logger.warning("get_loja_database_config: DATABASE_URL não configurada")
         return None
-    if '.rlwy.net' in database_url.lower() and 'sslmode=' not in database_url.lower():
-        database_url += ('&' if '?' in database_url else '?') + 'sslmode=require'
+    if ".rlwy.net" in database_url.lower() and "sslmode=" not in database_url.lower():
+        database_url += ("&" if "?" in database_url else "?") + "sslmode=require"
 
-    if 'postgres' not in database_url.lower():
+    if "postgres" not in database_url.lower():
         return None
 
-    schema_name = database_name.replace('-', '_')
+    schema_name = database_name.replace("-", "_")
     if not _is_valid_loja_pg_schema(schema_name):
         logger.warning(f"get_loja_database_config: nome de schema inválido: {schema_name!r}")
         return None
@@ -67,39 +66,39 @@ def get_loja_database_config(
         url_com_schema = database_url
         try:
             parsed = urlparse(database_url)
-            if parsed.scheme and 'postgres' in parsed.scheme.lower():
+            if parsed.scheme and "postgres" in parsed.scheme.lower():
                 query = parse_qs(parsed.query)
-                query['options'] = [search_path_opt]
+                query["options"] = [search_path_opt]
                 new_query = urlencode(query, doseq=True)
                 url_com_schema = urlunparse((
                     parsed.scheme, parsed.netloc, parsed.path,
-                    parsed.params, new_query, parsed.fragment
+                    parsed.params, new_query, parsed.fragment,
                 ))
         except Exception as url_err:
             logger.warning(f"URL com options falhou: {url_err}")
 
         default_db = dj_database_url.config(default=url_com_schema, conn_max_age=0)
-        opts = dict(default_db.get('OPTIONS', {}) or {})
-        _h = (default_db.get('HOST') or '').lower()
-        if _h.endswith('.rlwy.net'):
-            opts.setdefault('sslmode', 'require')
+        opts = dict(default_db.get("OPTIONS", {}) or {})
+        _h = (default_db.get("HOST") or "").lower()
+        if _h.endswith(".rlwy.net"):
+            opts.setdefault("sslmode", "require")
 
         # Garantir search_path em OPTIONS (fallback se URL não aplicou options)
-        base_opt = opts.get('options', '') or ''
-        if 'search_path' not in base_opt:
-            opts['options'] = (base_opt + ' ' + search_path_opt).strip()
-        merged_opts = opts.get('options', '') or ''
-        if '-c statement_timeout=' not in merged_opts:
-            opts['options'] = (merged_opts + ' -c statement_timeout=25000').strip()
+        base_opt = opts.get("options", "") or ""
+        if "search_path" not in base_opt:
+            opts["options"] = (base_opt + " " + search_path_opt).strip()
+        merged_opts = opts.get("options", "") or ""
+        if "-c statement_timeout=" not in merged_opts:
+            opts["options"] = (merged_opts + " -c statement_timeout=25000").strip()
 
         return {
             **default_db,
-            'OPTIONS': opts,
-            'ATOMIC_REQUESTS': False,
-            'AUTOCOMMIT': True,
-            'CONN_MAX_AGE': conn_max_age,
-            'CONN_HEALTH_CHECKS': False,
-            'TIME_ZONE': None,
+            "OPTIONS": opts,
+            "ATOMIC_REQUESTS": False,
+            "AUTOCOMMIT": True,
+            "CONN_MAX_AGE": conn_max_age,
+            "CONN_HEALTH_CHECKS": False,
+            "TIME_ZONE": None,
         }
     except Exception as e:
         logger.warning(f"get_loja_database_config: erro ao gerar config: {e}")
@@ -107,12 +106,12 @@ def get_loja_database_config(
 
 
 def ensure_loja_database_config(database_name: str, conn_max_age: int = 0) -> bool:
-    """
-    Garante que o banco da loja está em settings.DATABASES.
+    """Garante que o banco da loja está em settings.DATABASES.
     Adiciona a config se ainda não existir.
 
     Returns:
         True se configurado com sucesso
+
     """
     if not database_name or database_name in settings.DATABASES:
         return bool(database_name and database_name in settings.DATABASES)

@@ -16,20 +16,20 @@ from crm_vendas.google_calendar_helpers import (
 
 class GoogleCalendarHelpersTest(SimpleTestCase):
     def test_parse_event_start_datetime(self):
-        ev = {'start': {'dateTime': '2026-06-15T14:30:00+00:00'}}
+        ev = {"start": {"dateTime": "2026-06-15T14:30:00+00:00"}}
         dt = parse_google_event_start(ev)
         self.assertIsNotNone(dt)
         self.assertTrue(timezone.is_aware(dt))
 
     def test_parse_event_start_all_day(self):
-        ev = {'start': {'date': '2026-06-15'}}
+        ev = {"start": {"date": "2026-06-15"}}
         dt = parse_google_event_start(ev)
         self.assertIsNotNone(dt)
         self.assertEqual(dt.hour, 9)
 
     def test_parse_event_start_vazio(self):
         self.assertIsNone(parse_google_event_start({}))
-        self.assertIsNone(parse_google_event_start({'start': {}}))
+        self.assertIsNone(parse_google_event_start({"start": {}}))
 
     def test_normalize_token_expiry_naive(self):
         naive = datetime(2026, 6, 1, 12, 0, 0)

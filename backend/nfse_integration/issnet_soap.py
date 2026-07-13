@@ -4,21 +4,21 @@ from xml.sax.saxutils import escape as xml_escape
 
 
 def strip_xml_declaration(fragment: str) -> str:
-    s = (fragment or '').strip()
-    if s.startswith('<?xml'):
-        s = re.sub(r'^\s*<\?xml[^>]*\?>\s*', '', s, count=1, flags=re.I)
+    s = (fragment or "").strip()
+    if s.startswith("<?xml"):
+        s = re.sub(r"^\s*<\?xml[^>]*\?>\s*", "", s, count=1, flags=re.IGNORECASE)
     return s
 
 
 def cdata_section(payload: str) -> str:
-    s = payload or ''
-    if ']]>' in s:
-        s = s.replace(']]>', ']]]]><![CDATA[>')
-    return f'<![CDATA[{s}]]>'
+    s = payload or ""
+    if "]]>" in s:
+        s = s.replace("]]>", "]]]]><![CDATA[>")
+    return f"<![CDATA[{s}]]>"
 
 
 def montar_soap_envelope_xsd_string(nome_operacao: str, dados_xml: str) -> str:
-    dados = strip_xml_declaration(dados_xml or '')
+    dados = strip_xml_declaration(dados_xml or "")
     cabec_raw = (
         '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
         '<versaoDados>2.04</versaoDados>'
@@ -42,7 +42,7 @@ def montar_soap_envelope_xsd_string(nome_operacao: str, dados_xml: str) -> str:
 
 
 def montar_soap_envelope_aninhado(nome_operacao: str, dados_xml: str) -> str:
-    dados = strip_xml_declaration(dados_xml or '')
+    dados = strip_xml_declaration(dados_xml or "")
     cabec_txt = (
         '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
         '<versaoDados>2.04</versaoDados>'
@@ -66,7 +66,7 @@ def montar_soap_envelope_aninhado(nome_operacao: str, dados_xml: str) -> str:
 
 
 def montar_soap_envelope_cdata(nome_operacao: str, dados_xml: str) -> str:
-    dados = strip_xml_declaration(dados_xml or '')
+    dados = strip_xml_declaration(dados_xml or "")
     cabec_txt = (
         '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
         '<versaoDados>2.04</versaoDados>'
@@ -90,25 +90,25 @@ def montar_soap_envelope_cdata(nome_operacao: str, dados_xml: str) -> str:
 
 
 def issnet_fault_soap_generico(texto: str) -> bool:
-    t = texto or ''
-    if 's:Client' not in t and 'Client</faultcode>' not in t:
+    t = texto or ""
+    if "s:Client" not in t and "Client</faultcode>" not in t:
         return False
-    return bool(re.search(r'<faultstring>\s*Error\s*</faultstring>', t, re.I))
+    return bool(re.search(r"<faultstring>\s*Error\s*</faultstring>", t, re.IGNORECASE))
 
 
 def issnet_corpo_parece_xml(texto: str) -> bool:
-    if not (texto or '').strip():
+    if not (texto or "").strip():
         return False
-    return texto.lstrip().startswith('<')
+    return texto.lstrip().startswith("<")
 
 
 def issnet_decodificar_corpo(resposta) -> str:
-    raw = getattr(resposta, 'content', None) or b''
+    raw = getattr(resposta, "content", None) or b""
     if not raw:
-        return (getattr(resposta, 'text', None) or '').strip()
-    for enc in ('utf-8', 'utf-8-sig', 'iso-8859-1', 'windows-1252'):
+        return (getattr(resposta, "text", None) or "").strip()
+    for enc in ("utf-8", "utf-8-sig", "iso-8859-1", "windows-1252"):
         try:
             return raw.decode(enc)
         except UnicodeDecodeError:
             continue
-    return raw.decode('utf-8', errors='replace')
+    return raw.decode("utf-8", errors="replace")

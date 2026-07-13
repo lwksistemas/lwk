@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0014_violacaoseguranca'),
+        ("superadmin", "0014_violacaoseguranca"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='usuariosistema',
-            name='cpf',
-            field=models.CharField(blank=True, help_text='CPF do usuário (apenas números ou formatado)', max_length=14),
+            model_name="usuariosistema",
+            name="cpf",
+            field=models.CharField(blank=True, help_text="CPF do usuário (apenas números ou formatado)", max_length=14),
         ),
     ]

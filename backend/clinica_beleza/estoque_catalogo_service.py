@@ -18,8 +18,7 @@ def aplicar_estoque_catalogo_padrao(
     log: Callable[[str], None] | None = None,
     adicionar_faltantes: bool = False,
 ) -> dict | None:
-    """
-    Cadastra produtos padrão no estoque da loja.
+    """Cadastra produtos padrão no estoque da loja.
 
     Por padrão só executa se não houver nenhum produto ativo (evita sobrescrever cadastro).
     Com adicionar_faltantes=True, faz update_or_create de cada item do catálogo pelo nome.
@@ -31,13 +30,13 @@ def aplicar_estoque_catalogo_padrao(
         return None
 
     if not loja.database_created or not loja.database_name:
-        emit(f'skip {loja.slug}: schema não criado')
+        emit(f"skip {loja.slug}: schema não criado")
         return None
 
     db = loja.database_name
     lid = loja.id
     if not ensure_loja_database_config(db, conn_max_age=0):
-        emit(f'skip {loja.slug}: banco inacessível')
+        emit(f"skip {loja.slug}: banco inacessível")
         return None
 
     set_current_loja_id(lid)
@@ -50,10 +49,10 @@ def aplicar_estoque_catalogo_padrao(
 
     existentes = ProdutoEstoque.objects.using(db).filter(loja_id=lid, is_active=True).count()
     if existentes > 0 and not adicionar_faltantes:
-        emit(f'  estoque: mantido ({existentes} produto(s) já cadastrado(s))')
-        return {'loja_id': lid, 'slug': loja.slug, 'produtos': 0, 'ignorado': True}
+        emit(f"  estoque: mantido ({existentes} produto(s) já cadastrado(s))")
+        return {"loja_id": lid, "slug": loja.slug, "produtos": 0, "ignorado": True}
 
-    emit(f'Estoque catálogo — {loja.nome} ({loja.slug})')
+    emit(f"Estoque catálogo — {loja.nome} ({loja.slug})")
     criados = 0
     for item in ESTOQUE_CATALOGO:
         cat = resolver_categoria(loja_id=lid, slug=item.categoria)
@@ -67,17 +66,17 @@ def aplicar_estoque_catalogo_padrao(
             criados += 1
 
     stats = {
-        'loja_id': lid,
-        'slug': loja.slug,
-        'produtos': len(ESTOQUE_CATALOGO),
-        'criados': criados,
-        'ignorado': False,
+        "loja_id": lid,
+        "slug": loja.slug,
+        "produtos": len(ESTOQUE_CATALOGO),
+        "criados": criados,
+        "ignorado": False,
     }
     emit(f'  {stats["produtos"]} itens no catálogo ({criados} novo(s))')
     return stats
 
 
 __all__ = [
-    'aplicar_estoque_catalogo_padrao',
-    'lojas_clinica_beleza_com_schema',
+    "aplicar_estoque_catalogo_padrao",
+    "lojas_clinica_beleza_com_schema",
 ]

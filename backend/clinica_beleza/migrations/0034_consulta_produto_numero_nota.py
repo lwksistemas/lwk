@@ -7,47 +7,47 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinica_beleza', '0033_convenioprocedimentopreco_modo'),
+        ("clinica_beleza", "0033_convenioprocedimentopreco_modo"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='produtoestoque',
-            name='numero_nota',
-            field=models.CharField(blank=True, default='', max_length=50, verbose_name='Número da nota fiscal'),
+            model_name="produtoestoque",
+            name="numero_nota",
+            field=models.CharField(blank=True, default="", max_length=50, verbose_name="Número da nota fiscal"),
         ),
         migrations.AlterField(
-            model_name='convenio',
-            name='loja_id',
-            field=models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro'),
+            model_name="convenio",
+            name="loja_id",
+            field=models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro"),
         ),
         migrations.AlterField(
-            model_name='convenioprocedimentopreco',
-            name='loja_id',
-            field=models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro'),
+            model_name="convenioprocedimentopreco",
+            name="loja_id",
+            field=models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro"),
         ),
         migrations.AlterField(
-            model_name='professionalcommission',
-            name='local_atendimento',
-            field=models.ForeignKey(blank=True, help_text='Obrigatório quando tipo = consulta: comissão para este local de atendimento.', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='comissoes', to='clinica_beleza.localatendimento', verbose_name='Local de atendimento'),
+            model_name="professionalcommission",
+            name="local_atendimento",
+            field=models.ForeignKey(blank=True, help_text="Obrigatório quando tipo = consulta: comissão para este local de atendimento.", null=True, on_delete=django.db.models.deletion.CASCADE, related_name="comissoes", to="clinica_beleza.localatendimento", verbose_name="Local de atendimento"),
         ),
         migrations.CreateModel(
-            name='ConsultaProdutoUtilizado',
+            name="ConsultaProdutoUtilizado",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('loja_id', models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro')),
-                ('quantidade', models.DecimalField(decimal_places=2, max_digits=10, verbose_name='Quantidade utilizada')),
-                ('lote', models.CharField(blank=True, default='', max_length=50, verbose_name='Lote utilizado')),
-                ('validade', models.DateField(blank=True, null=True, verbose_name='Validade do lote')),
-                ('estoque_baixado', models.BooleanField(default=False, verbose_name='Estoque já baixado')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Registrado em')),
-                ('consulta', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='produtos_estoque', to='clinica_beleza.consulta', verbose_name='Consulta')),
-                ('produto', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='uso_em_consultas', to='clinica_beleza.produtoestoque', verbose_name='Produto')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("loja_id", models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro")),
+                ("quantidade", models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Quantidade utilizada")),
+                ("lote", models.CharField(blank=True, default="", max_length=50, verbose_name="Lote utilizado")),
+                ("validade", models.DateField(blank=True, null=True, verbose_name="Validade do lote")),
+                ("estoque_baixado", models.BooleanField(default=False, verbose_name="Estoque já baixado")),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="Registrado em")),
+                ("consulta", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="produtos_estoque", to="clinica_beleza.consulta", verbose_name="Consulta")),
+                ("produto", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="uso_em_consultas", to="clinica_beleza.produtoestoque", verbose_name="Produto")),
             ],
             options={
-                'verbose_name': 'Produto utilizado na consulta',
-                'verbose_name_plural': 'Produtos utilizados na consulta',
-                'ordering': ['created_at'],
+                "verbose_name": "Produto utilizado na consulta",
+                "verbose_name_plural": "Produtos utilizados na consulta",
+                "ordering": ["created_at"],
             },
         ),
     ]

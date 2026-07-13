@@ -17,32 +17,34 @@ from ..models import (
 
 class AppointmentListSerializer(serializers.ModelSerializer):
     """Serializer simplificado para listagem de agendamentos."""
-    patient_name = serializers.CharField(source='patient.nome', read_only=True)
-    professional_name = serializers.CharField(source='professional.nome', read_only=True)
-    procedure_name = serializers.CharField(source='procedure.nome', read_only=True)
+
+    patient_name = serializers.CharField(source="patient.nome", read_only=True)
+    professional_name = serializers.CharField(source="professional.nome", read_only=True)
+    procedure_name = serializers.CharField(source="procedure.nome", read_only=True)
     procedure_price = serializers.DecimalField(
-        source='procedure.preco', max_digits=10, decimal_places=2, read_only=True,
+        source="procedure.preco", max_digits=10, decimal_places=2, read_only=True,
     )
     time = serializers.SerializerMethodField()
 
     def get_time(self, obj):
         from django.utils import timezone
         local_dt = timezone.localtime(obj.date)
-        return local_dt.strftime('%H:%M')
+        return local_dt.strftime("%H:%M")
 
     class Meta:
         model = Appointment
         fields = [
-            'id', 'date', 'time', 'status',
-            'patient', 'patient_name',
-            'professional', 'professional_name',
-            'procedure', 'procedure_name', 'procedure_price',
-            'notes', 'created_at', 'updated_at',
+            "id", "date", "time", "status",
+            "patient", "patient_name",
+            "professional", "professional_name",
+            "procedure", "procedure_name", "procedure_price",
+            "notes", "created_at", "updated_at",
         ]
 
 
 class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     """Serializer para criação de agendamentos (suporta múltiplos procedimentos)."""
+
     procedures_ids = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,
@@ -68,49 +70,49 @@ class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializ
         queryset=Procedure.objects.none(),
         required=False,
         allow_null=True,
-        help_text='Procedimento de acompanhamento (retorno gratuito da taxa de consulta).',
+        help_text="Procedimento de acompanhamento (retorno gratuito da taxa de consulta).",
     )
 
     def apply_tenant_querysets(self):
-        self.bind_tenant_queryset('convenio', Convenio.objects.filter(is_active=True))
-        self.bind_tenant_queryset('nome_agenda', NomeAgenda.objects.filter(is_active=True))
-        self.bind_tenant_queryset('local_atendimento', LocalAtendimento.objects.filter(is_active=True))
-        self.bind_tenant_queryset('retorno_procedure', Procedure.objects.filter(is_active=True))
+        self.bind_tenant_queryset("convenio", Convenio.objects.filter(is_active=True))
+        self.bind_tenant_queryset("nome_agenda", NomeAgenda.objects.filter(is_active=True))
+        self.bind_tenant_queryset("local_atendimento", LocalAtendimento.objects.filter(is_active=True))
+        self.bind_tenant_queryset("retorno_procedure", Procedure.objects.filter(is_active=True))
 
     class Meta:
         model = Appointment
         fields = [
-            'date', 'status', 'patient', 'professional', 'procedure',
-            'procedures_ids', 'notes', 'convenio', 'nome_agenda', 'local_atendimento',
-            'retorno_procedure',
+            "date", "status", "patient", "professional", "procedure",
+            "procedures_ids", "notes", "convenio", "nome_agenda", "local_atendimento",
+            "retorno_procedure",
         ]
         extra_kwargs = {
-            'procedure': {'required': False, 'allow_null': True},
-            'professional': {'required': False, 'allow_null': True},
+            "procedure": {"required": False, "allow_null": True},
+            "professional": {"required": False, "allow_null": True},
         }
 
     def validate(self, attrs):
-        procedures_ids = attrs.pop('procedures_ids', None)
-        procedure = attrs.get('procedure')
+        procedures_ids = attrs.pop("procedures_ids", None)
+        procedure = attrs.get("procedure")
         if procedures_ids:
             procedures = list(Procedure.objects.filter(id__in=procedures_ids, is_active=True))
             if len(procedures) != len(procedures_ids):
-                raise serializers.ValidationError({'procedures_ids': 'Um ou mais procedimentos não encontrados.'})
-            attrs['_procedures_list'] = procedures
+                raise serializers.ValidationError({"procedures_ids": "Um ou mais procedimentos não encontrados."})
+            attrs["_procedures_list"] = procedures
             if not procedure:
-                attrs['procedure'] = procedures[0]
-        convenio = attrs.get('convenio')
-        if convenio is None and attrs.get('patient'):
-            patient = attrs['patient']
-            if getattr(patient, 'convenio_id', None) and patient.convenio and patient.convenio.is_active:
-                attrs['convenio'] = patient.convenio
+                attrs["procedure"] = procedures[0]
+        convenio = attrs.get("convenio")
+        if convenio is None and attrs.get("patient"):
+            patient = attrs["patient"]
+            if getattr(patient, "convenio_id", None) and patient.convenio and patient.convenio.is_active:
+                attrs["convenio"] = patient.convenio
         return attrs
 
     def create(self, validated_data):
         from ..convenio_service import criar_appointment_procedures
 
-        procedures_list = validated_data.pop('_procedures_list', None)
-        convenio = validated_data.get('convenio')
+        procedures_list = validated_data.pop("_procedures_list", None)
+        convenio = validated_data.get("convenio")
         appointment = super().create(validated_data)
         if procedures_list:
             criar_appointment_procedures(appointment, procedures_list, convenio=convenio)
@@ -120,26 +122,27 @@ class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializ
             from ..duracao_consulta import calcular_duracao_novo_agendamento
             tempo = calcular_duracao_novo_agendamento(
                 professional=appointment.professional,
-                procedures_list=procedures_list if procedures_list else None,
+                procedures_list=procedures_list or None,
                 procedure=appointment.procedure if appointment.procedure_id else None,
-                local_atendimento=validated_data.get('local_atendimento'),
+                local_atendimento=validated_data.get("local_atendimento"),
             )
             appointment.duracao_minutos = tempo
-            appointment.save(update_fields=['duracao_minutos'])
+            appointment.save(update_fields=["duracao_minutos"])
         return appointment
 
 
 class AppointmentProcedureSerializer(serializers.ModelSerializer):
     """Serializer para procedimentos de um agendamento."""
-    procedure_name = serializers.CharField(source='procedure.nome', read_only=True)
+
+    procedure_name = serializers.CharField(source="procedure.nome", read_only=True)
     duracao = serializers.SerializerMethodField()
     valor_efetivo = serializers.SerializerMethodField()
 
     class Meta:
         model = AppointmentProcedure
         fields = [
-            'id', 'procedure', 'procedure_name', 'duracao_minutos',
-            'duracao', 'valor', 'valor_efetivo', 'ordem',
+            "id", "procedure", "procedure_name", "duracao_minutos",
+            "duracao", "valor", "valor_efetivo", "ordem",
         ]
 
     def get_duracao(self, obj):
@@ -151,37 +154,38 @@ class AppointmentProcedureSerializer(serializers.ModelSerializer):
 
 class AgendaEventSerializer(serializers.ModelSerializer):
     """Serializer para eventos da agenda (formato FullCalendar)."""
+
     title = serializers.SerializerMethodField()
-    start = serializers.DateTimeField(source='date')
+    start = serializers.DateTimeField(source="date")
     end = serializers.SerializerMethodField()
     backgroundColor = serializers.SerializerMethodField()
     borderColor = serializers.SerializerMethodField()
     textColor = serializers.SerializerMethodField()
 
-    patient_name = serializers.CharField(source='patient.nome', read_only=True)
-    patient_phone = serializers.CharField(source='patient.telefone', read_only=True)
-    professional_name = serializers.CharField(source='professional.nome', read_only=True)
-    professional_id = serializers.IntegerField(source='professional.id', read_only=True)
+    patient_name = serializers.CharField(source="patient.nome", read_only=True)
+    patient_phone = serializers.CharField(source="patient.telefone", read_only=True)
+    professional_name = serializers.CharField(source="professional.nome", read_only=True)
+    professional_id = serializers.IntegerField(source="professional.id", read_only=True)
     procedure_name = serializers.SerializerMethodField()
     procedure_duration = serializers.SerializerMethodField()
     duracao_minutos = serializers.SerializerMethodField()
     procedure_price = serializers.SerializerMethodField()
     procedures_list = serializers.SerializerMethodField()
-    convenio_id = serializers.IntegerField(source='convenio.id', read_only=True, allow_null=True)
+    convenio_id = serializers.IntegerField(source="convenio.id", read_only=True, allow_null=True)
     convenio_name = serializers.SerializerMethodField()
-    nome_agenda_id = serializers.IntegerField(source='nome_agenda.id', read_only=True, allow_null=True)
-    nome_agenda_name = serializers.CharField(source='nome_agenda.nome', read_only=True, allow_null=True, default=None)
+    nome_agenda_id = serializers.IntegerField(source="nome_agenda.id", read_only=True, allow_null=True)
+    nome_agenda_name = serializers.CharField(source="nome_agenda.nome", read_only=True, allow_null=True, default=None)
     local_atendimento_id = serializers.IntegerField(
-        source='local_atendimento.id', read_only=True, allow_null=True,
+        source="local_atendimento.id", read_only=True, allow_null=True,
     )
     local_atendimento_name = serializers.CharField(
-        source='local_atendimento.nome', read_only=True, allow_null=True, default=None,
+        source="local_atendimento.nome", read_only=True, allow_null=True, default=None,
     )
     retorno_gratuito = serializers.SerializerMethodField()
     retorno_tipo = serializers.SerializerMethodField()
     retorno_mensagem = serializers.SerializerMethodField()
     retorno_procedure_id = serializers.IntegerField(
-        source='retorno_procedure.id', read_only=True, allow_null=True, default=None,
+        source="retorno_procedure.id", read_only=True, allow_null=True, default=None,
     )
 
     version = serializers.IntegerField(read_only=True)
@@ -191,56 +195,56 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = [
-            'id', 'title', 'start', 'end',
-            'backgroundColor', 'borderColor', 'textColor',
-            'status', 'notes',
-            'patient', 'patient_name', 'patient_phone',
-            'professional', 'professional_name', 'professional_id',
-            'procedure', 'procedure_name', 'procedure_duration', 'duracao_minutos',
-            'procedure_price', 'procedures_list',
-            'convenio', 'convenio_id', 'convenio_name',
-            'nome_agenda', 'nome_agenda_id', 'nome_agenda_name',
-            'local_atendimento', 'local_atendimento_id', 'local_atendimento_name',
-            'retorno_gratuito', 'retorno_tipo', 'retorno_mensagem', 'retorno_procedure_id',
-            'version', 'updated_at', 'updated_by_id',
+            "id", "title", "start", "end",
+            "backgroundColor", "borderColor", "textColor",
+            "status", "notes",
+            "patient", "patient_name", "patient_phone",
+            "professional", "professional_name", "professional_id",
+            "procedure", "procedure_name", "procedure_duration", "duracao_minutos",
+            "procedure_price", "procedures_list",
+            "convenio", "convenio_id", "convenio_name",
+            "nome_agenda", "nome_agenda_id", "nome_agenda_name",
+            "local_atendimento", "local_atendimento_id", "local_atendimento_name",
+            "retorno_gratuito", "retorno_tipo", "retorno_mensagem", "retorno_procedure_id",
+            "version", "updated_at", "updated_by_id",
         ]
 
     def _retorno_info(self, obj):
         from ..retorno_service import verificar_retorno_appointment
-        cached = getattr(obj, '_retorno_cache', None)
+        cached = getattr(obj, "_retorno_cache", None)
         if cached is None:
             cached = verificar_retorno_appointment(obj)
             obj._retorno_cache = cached
         return cached
 
     def get_retorno_gratuito(self, obj):
-        consulta = getattr(obj, 'consulta', None)
-        if consulta is not None and getattr(consulta, 'retorno_gratuito', False):
+        consulta = getattr(obj, "consulta", None)
+        if consulta is not None and getattr(consulta, "retorno_gratuito", False):
             return True
         return self._retorno_info(obj).elegivel
 
     def get_retorno_tipo(self, obj):
-        consulta = getattr(obj, 'consulta', None)
-        if consulta is not None and getattr(consulta, 'retorno_gratuito', False):
-            return getattr(consulta, 'retorno_tipo', '') or None
+        consulta = getattr(obj, "consulta", None)
+        if consulta is not None and getattr(consulta, "retorno_gratuito", False):
+            return getattr(consulta, "retorno_tipo", "") or None
         info = self._retorno_info(obj)
         return info.tipo if info.elegivel else None
 
     def get_retorno_mensagem(self, obj):
-        consulta = getattr(obj, 'consulta', None)
-        if consulta is not None and getattr(consulta, 'retorno_gratuito', False):
-            tipo = getattr(consulta, 'retorno_tipo', '')
-            if tipo == 'procedimento':
-                return 'Retorno de acompanhamento — taxa de consulta isenta.'
-            if tipo == 'consulta':
-                return 'Retorno por consulta — taxa de consulta isenta.'
+        consulta = getattr(obj, "consulta", None)
+        if consulta is not None and getattr(consulta, "retorno_gratuito", False):
+            tipo = getattr(consulta, "retorno_tipo", "")
+            if tipo == "procedimento":
+                return "Retorno de acompanhamento — taxa de consulta isenta."
+            if tipo == "consulta":
+                return "Retorno por consulta — taxa de consulta isenta."
         info = self._retorno_info(obj)
         return info.mensagem if info.elegivel else None
 
     def get_title(self, obj):
         procs = obj.appointment_procedures.all()
         if procs:
-            nomes = ', '.join(ap.procedure.nome for ap in procs)
+            nomes = ", ".join(ap.procedure.nome for ap in procs)
             return f"{obj.patient.nome} - {nomes}"
         if obj.procedure_id:
             return f"{obj.patient.nome} - {obj.procedure.nome}"
@@ -249,13 +253,13 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     def get_procedure_name(self, obj):
         procs = obj.appointment_procedures.all()
         if procs:
-            return ', '.join(ap.procedure.nome for ap in procs)
+            return ", ".join(ap.procedure.nome for ap in procs)
         if obj.procedure_id:
             return obj.procedure.nome
-        local = getattr(obj, 'local_atendimento', None)
-        if local is not None and getattr(local, 'nome', None):
-            return f'Consulta — {local.nome}'
-        return 'Consulta'
+        local = getattr(obj, "local_atendimento", None)
+        if local is not None and getattr(local, "nome", None):
+            return f"Consulta — {local.nome}"
+        return "Consulta"
 
     def get_procedure_duration(self, obj):
         return obj.get_duracao_efetiva()
@@ -269,25 +273,25 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     def get_convenio_name(self, obj):
         if obj.convenio_id and obj.convenio:
             return obj.convenio.nome
-        return 'Particular'
+        return "Particular"
 
     def get_procedures_list(self, obj):
         procs = obj.appointment_procedures.all()
         if not procs:
             if obj.procedure_id:
                 return [{
-                    'id': obj.procedure_id,
-                    'nome': obj.procedure.nome,
-                    'duracao': obj.procedure.duracao_minutos,
-                    'valor': float(obj.procedure.preco or 0),
+                    "id": obj.procedure_id,
+                    "nome": obj.procedure.nome,
+                    "duracao": obj.procedure.duracao_minutos,
+                    "valor": float(obj.procedure.preco or 0),
                 }]
             return []
         return [
             {
-                'id': ap.procedure_id,
-                'nome': ap.procedure.nome,
-                'duracao': ap.get_duracao(),
-                'valor': float(ap.get_valor()),
+                "id": ap.procedure_id,
+                "nome": ap.procedure.nome,
+                "duracao": ap.get_duracao(),
+                "valor": float(ap.get_valor()),
             }
             for ap in procs
         ]
@@ -298,87 +302,88 @@ class AgendaEventSerializer(serializers.ModelSerializer):
 
     def get_backgroundColor(self, obj):
         colors = {
-            'CONFIRMED': '#22c55e',
-            'CLIENT_CONFIRMED': '#06b6d4',
-            'PHONE_CONFIRMED': '#3b82f6',
-            'PENDING': '#f59e0b',
-            'SCHEDULED': '#a855f7',
-            'IN_PROGRESS': '#8b5cf6',
-            'COMPLETED': '#047857',
-            'CANCELLED': '#dc2626',
-            'NO_SHOW': '#b45309',
+            "CONFIRMED": "#22c55e",
+            "CLIENT_CONFIRMED": "#06b6d4",
+            "PHONE_CONFIRMED": "#3b82f6",
+            "PENDING": "#f59e0b",
+            "SCHEDULED": "#a855f7",
+            "IN_PROGRESS": "#8b5cf6",
+            "COMPLETED": "#047857",
+            "CANCELLED": "#dc2626",
+            "NO_SHOW": "#b45309",
         }
-        return colors.get(obj.status, '#3b82f6')
+        return colors.get(obj.status, "#3b82f6")
 
     def get_borderColor(self, obj):
         return self.get_backgroundColor(obj)
 
     def get_textColor(self, obj):
-        return '#ffffff'
+        return "#ffffff"
 
 
 class BloqueioHorarioSerializer(serializers.ModelSerializer):
     """Serializer para Bloqueio de Horário (API usa datetime ISO; model usa date + time)."""
-    professional_name = serializers.CharField(source='professional.nome', read_only=True, default=None)
+
+    professional_name = serializers.CharField(source="professional.nome", read_only=True, default=None)
     data_inicio = serializers.DateTimeField()
     data_fim = serializers.DateTimeField()
 
     class Meta:
         model = BloqueioHorario
         fields = [
-            'id', 'professional', 'professional_name',
-            'data_inicio', 'data_fim', 'motivo', 'observacoes', 'criado_em',
+            "id", "professional", "professional_name",
+            "data_inicio", "data_fim", "motivo", "observacoes", "criado_em",
         ]
-        read_only_fields = ['criado_em']
+        read_only_fields = ["criado_em"]
 
     def to_representation(self, instance):
         inicio, fim = bloqueio_datetime_range(instance)
         prof = instance.professional
         return {
-            'id': instance.id,
-            'professional': instance.professional_id,
-            'professional_name': prof.nome if prof else None,
-            'data_inicio': inicio.isoformat(),
-            'data_fim': fim.isoformat(),
-            'motivo': instance.motivo,
-            'observacoes': instance.observacoes,
-            'criado_em': instance.criado_em,
+            "id": instance.id,
+            "professional": instance.professional_id,
+            "professional_name": prof.nome if prof else None,
+            "data_inicio": inicio.isoformat(),
+            "data_fim": fim.isoformat(),
+            "motivo": instance.motivo,
+            "observacoes": instance.observacoes,
+            "criado_em": instance.criado_em,
         }
 
     def _dia_inteiro_flag(self) -> bool:
-        raw = self.initial_data.get('dia_inteiro') if hasattr(self, 'initial_data') else None
+        raw = self.initial_data.get("dia_inteiro") if hasattr(self, "initial_data") else None
         return (
             raw is True
             or raw == 1
-            or (isinstance(raw, str) and raw.strip().lower() in ('1', 'true', 'yes', 'sim'))
+            or (isinstance(raw, str) and raw.strip().lower() in ("1", "true", "yes", "sim"))
         )
 
     def validate(self, attrs):
-        inicio = attrs.get('data_inicio')
-        fim = attrs.get('data_fim')
+        inicio = attrs.get("data_inicio")
+        fim = attrs.get("data_fim")
         if inicio and fim and fim <= inicio:
-            raise serializers.ValidationError({'data_fim': 'O fim deve ser depois do início.'})
+            raise serializers.ValidationError({"data_fim": "O fim deve ser depois do início."})
         return attrs
 
     def create(self, validated_data):
-        start = validated_data.pop('data_inicio')
-        end = validated_data.pop('data_fim')
+        start = validated_data.pop("data_inicio")
+        end = validated_data.pop("data_fim")
         parts = split_datetime_range(start, end, dia_inteiro=self._dia_inteiro_flag())
-        motivo = (validated_data.get('motivo') or '').strip() or 'Bloqueio'
+        motivo = (validated_data.get("motivo") or "").strip() or "Bloqueio"
         return BloqueioHorario.objects.create(
             **validated_data,
             **parts,
             titulo=motivo,
-            tipo='outros',
+            tipo="outros",
         )
 
     def update(self, instance, validated_data):
-        start = validated_data.pop('data_inicio', None)
-        end = validated_data.pop('data_fim', None)
+        start = validated_data.pop("data_inicio", None)
+        end = validated_data.pop("data_fim", None)
         if start is not None and end is not None:
             for k, v in split_datetime_range(start, end, dia_inteiro=self._dia_inteiro_flag()).items():
                 setattr(instance, k, v)
-        motivo = validated_data.get('motivo')
+        motivo = validated_data.get("motivo")
         if motivo is not None:
             instance.titulo = motivo
         for k, v in validated_data.items():

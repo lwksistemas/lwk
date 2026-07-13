@@ -1,5 +1,4 @@
-"""
-Garante tabela clinica_beleza_nomes_agenda e coluna nome_agenda_id em appointment.
+"""Garante tabela clinica_beleza_nomes_agenda e coluna nome_agenda_id em appointment.
 
 Necessário quando migrate_all_lojas não aplica 0040_nome_agenda por histórico legado.
 """
@@ -12,24 +11,24 @@ from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
-MIGRATION = '0040_nome_agenda'
+MIGRATION = "0040_nome_agenda"
 
 
 class Command(BaseCommand):
-    help = 'Cria nomes de agenda e FK em appointment (IF NOT EXISTS) nos bancos das lojas.'
+    help = "Cria nomes de agenda e FK em appointment (IF NOT EXISTS) nos bancos das lojas."
 
     def add_arguments(self, parser):
-        parser.add_argument('--slug', type=str, help='Processar apenas loja com este slug/atalho')
+        parser.add_argument("--slug", type=str, help="Processar apenas loja com este slug/atalho")
 
     def handle(self, *args, **options):
-        slug_filter = (options.get('slug') or '').strip().lower()
+        slug_filter = (options.get("slug") or "").strip().lower()
         lojas = Loja.objects.filter(is_active=True, database_created=True)
         ok = skip = 0
 
         for loja in lojas:
             if slug_filter and slug_filter not in (
-                (loja.slug or '').lower(),
-                (getattr(loja, 'atalho', None) or '').lower(),
+                (loja.slug or "").lower(),
+                (getattr(loja, "atalho", None) or "").lower(),
             ):
                 continue
 
@@ -41,12 +40,12 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not table_exists(cursor, 'clinica_beleza_appointment'):
+                    if not table_exists(cursor, "clinica_beleza_appointment"):
                         skip += 1
                         continue
 
                     changed = False
-                    if not table_exists(cursor, 'clinica_beleza_nomes_agenda'):
+                    if not table_exists(cursor, "clinica_beleza_nomes_agenda"):
                         cursor.execute("""
                             CREATE TABLE clinica_beleza_nomes_agenda (
                                 id BIGSERIAL PRIMARY KEY,
@@ -58,12 +57,12 @@ class Command(BaseCommand):
                             )
                         """)
                         cursor.execute(
-                            'CREATE INDEX IF NOT EXISTS clinica_beleza_nomes_agenda_loja_id_idx '
-                            'ON clinica_beleza_nomes_agenda (loja_id)'
+                            "CREATE INDEX IF NOT EXISTS clinica_beleza_nomes_agenda_loja_id_idx "
+                            "ON clinica_beleza_nomes_agenda (loja_id)",
                         )
                         changed = True
 
-                    if not column_exists(cursor, 'clinica_beleza_appointment', 'nome_agenda_id'):
+                    if not column_exists(cursor, "clinica_beleza_appointment", "nome_agenda_id"):
                         cursor.execute("""
                             ALTER TABLE clinica_beleza_appointment
                             ADD COLUMN nome_agenda_id BIGINT NULL
@@ -86,16 +85,16 @@ class Command(BaseCommand):
                 if changed:
                     ok += 1
                     self.stdout.write(self.style.SUCCESS(
-                        f'OK loja={loja.id} ({loja.nome}) db={db_name}: nomes_agenda criado/atualizado'
+                        f"OK loja={loja.id} ({loja.nome}) db={db_name}: nomes_agenda criado/atualizado",
                     ))
                 else:
                     skip += 1
-                    self.stdout.write(f'OK (já existe) loja={loja.id} ({loja.nome})')
+                    self.stdout.write(f"OK (já existe) loja={loja.id} ({loja.nome})")
             except Exception as exc:
                 skip += 1
-                self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id} ({loja.nome}): {exc}'))
+                self.stdout.write(self.style.ERROR(f"ERRO loja={loja.id} ({loja.nome}): {exc}"))
             finally:
                 with suppress(Exception):
                     connections[db_name].close()
 
-        self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s) atualizada(s), {skip} ignorada(s).'))
+        self.stdout.write(self.style.SUCCESS(f"Concluído: {ok} loja(s) atualizada(s), {skip} ignorada(s)."))

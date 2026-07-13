@@ -1,5 +1,4 @@
-"""
-Comando para ativar o módulo de contatos em todas as lojas.
+"""Comando para ativar o módulo de contatos em todas as lojas.
 """
 from django.core.management.base import BaseCommand
 from django.db import connection
@@ -9,54 +8,54 @@ from superadmin.models import Loja
 
 
 class Command(BaseCommand):
-    help = 'Ativa o módulo de contatos em todas as lojas'
+    help = "Ativa o módulo de contatos em todas as lojas"
 
     def handle(self, *args, **options):
         lojas = Loja.objects.filter(is_active=True)
-        
-        self.stdout.write(f'Encontradas {lojas.count()} lojas ativas')
-        
+
+        self.stdout.write(f"Encontradas {lojas.count()} lojas ativas")
+
         for loja in lojas:
             schema_name = loja.database_name
-            self.stdout.write(f'\nProcessando loja {loja.id} - {loja.nome} (schema: {schema_name})')
-            
+            self.stdout.write(f"\nProcessando loja {loja.id} - {loja.nome} (schema: {schema_name})")
+
             try:
                 with connection.cursor() as cursor:
                     # Setar o search_path para o schema da loja
                     cursor.execute(f"SET search_path TO {schema_name};")
-                    
+
                     # Buscar ou criar config
                     cursor.execute("""
                         SELECT id, modulos_ativos FROM crm_vendas_config WHERE loja_id = %s LIMIT 1;
                     """, [loja.id])
-                    
+
                     result = cursor.fetchone()
-                    
+
                     if result:
                         config_id, modulos_ativos = result
-                        
+
                         # Parse JSON se for string
                         import json
                         if isinstance(modulos_ativos, str):
                             modulos_ativos = json.loads(modulos_ativos)
-                        
+
                         # Verificar se contatos já está ativo
-                        if modulos_ativos and modulos_ativos.get('contatos'):
-                            self.stdout.write(self.style.SUCCESS('  ✅ Módulo CONTATOS já está ativo'))
+                        if modulos_ativos and modulos_ativos.get("contatos"):
+                            self.stdout.write(self.style.SUCCESS("  ✅ Módulo CONTATOS já está ativo"))
                         else:
                             # Ativar módulo contatos
                             if not modulos_ativos:
                                 modulos_ativos = CRMConfig.get_default_modulos()
                             else:
-                                modulos_ativos['contatos'] = True
-                            
+                                modulos_ativos["contatos"] = True
+
                             cursor.execute("""
-                                UPDATE crm_vendas_config 
+                                UPDATE crm_vendas_config
                                 SET modulos_ativos = %s::jsonb, updated_at = NOW()
                                 WHERE id = %s;
                             """, [json.dumps(modulos_ativos), config_id])
-                            
-                            self.stdout.write(self.style.SUCCESS('  ✅ Módulo CONTATOS ativado com sucesso'))
+
+                            self.stdout.write(self.style.SUCCESS("  ✅ Módulo CONTATOS ativado com sucesso"))
                     else:
                         # Criar config com módulos padrão
                         import json
@@ -64,9 +63,9 @@ class Command(BaseCommand):
                         origens_leads = CRMConfig.get_default_origens()
                         etapas_pipeline = CRMConfig.get_default_etapas()
                         colunas_leads = CRMConfig.get_default_colunas_leads()
-                        
+
                         cursor.execute("""
-                            INSERT INTO crm_vendas_config 
+                            INSERT INTO crm_vendas_config
                             (loja_id, origens_leads, etapas_pipeline, colunas_leads, modulos_ativos, created_at, updated_at)
                             VALUES (%s, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, NOW(), NOW());
                         """, [
@@ -74,12 +73,12 @@ class Command(BaseCommand):
                             json.dumps(origens_leads),
                             json.dumps(etapas_pipeline),
                             json.dumps(colunas_leads),
-                            json.dumps(modulos_ativos)
+                            json.dumps(modulos_ativos),
                         ])
-                        
-                        self.stdout.write(self.style.SUCCESS('  ✅ Config criada e módulo CONTATOS ativado'))
-                    
+
+                        self.stdout.write(self.style.SUCCESS("  ✅ Config criada e módulo CONTATOS ativado"))
+
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f'  ❌ Erro ao processar schema {schema_name}: {str(e)}'))
-        
-        self.stdout.write(self.style.SUCCESS('\n✅ Comando concluído!'))
+                self.stdout.write(self.style.ERROR(f"  ❌ Erro ao processar schema {schema_name}: {e!s}"))
+
+        self.stdout.write(self.style.SUCCESS("\n✅ Comando concluído!"))

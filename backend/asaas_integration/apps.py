@@ -1,5 +1,4 @@
-"""
-Configuração do app Asaas Integration
+"""Configuração do app Asaas Integration
 """
 import logging
 
@@ -8,10 +7,10 @@ from django.apps import AppConfig
 logger = logging.getLogger(__name__)
 
 class AsaasIntegrationConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'asaas_integration'
-    verbose_name = 'Integração Asaas'
-    
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "asaas_integration"
+    verbose_name = "Integração Asaas"
+
     def ready(self):
         """Configuração quando o app está pronto"""
         try:

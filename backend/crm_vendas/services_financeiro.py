@@ -9,13 +9,13 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 GRUPOS_PADRAO = (
-    ('receita', 'Comissão de vendas', 1),
-    ('receita', 'Bonificação', 2),
-    ('receita', 'Outras receitas', 99),
-    ('despesa', 'Transporte', 1),
-    ('despesa', 'Alimentação', 2),
-    ('despesa', 'Marketing pessoal', 3),
-    ('despesa', 'Outras despesas', 99),
+    ("receita", "Comissão de vendas", 1),
+    ("receita", "Bonificação", 2),
+    ("receita", "Outras receitas", 99),
+    ("despesa", "Transporte", 1),
+    ("despesa", "Alimentação", 2),
+    ("despesa", "Marketing pessoal", 3),
+    ("despesa", "Outras despesas", 99),
 )
 
 
@@ -27,7 +27,7 @@ def garantir_grupos_padrao(loja_id: int) -> None:
             loja_id=loja_id,
             tipo=tipo,
             nome=nome,
-            defaults={'ordem': ordem, 'is_active': True},
+            defaults={"ordem": ordem, "is_active": True},
         )
 
 
@@ -38,14 +38,13 @@ def _grupo_comissao(loja_id: int):
     return GrupoFinanceiroCRM.objects.filter(
         loja_id=loja_id,
         tipo=GrupoFinanceiroCRM.TIPO_RECEITA,
-        nome='Comissão de vendas',
+        nome="Comissão de vendas",
         is_active=True,
     ).first()
 
 
 def sincronizar_receita_comissao_oportunidade(oportunidade) -> None:
-    """
-    Cria ou atualiza receita automática quando oportunidade é ganha com comissão.
+    """Cria ou atualiza receita automática quando oportunidade é ganha com comissão.
     Cancela se voltar a aberta/perdida ou comissão zerada.
     """
     from .models.financeiro import LancamentoFinanceiroCRM
@@ -62,17 +61,17 @@ def sincronizar_receita_comissao_oportunidade(oportunidade) -> None:
         ).first()
     )
 
-    if oportunidade.etapa != 'closed_won':
+    if oportunidade.etapa != "closed_won":
         if existente and existente.status != LancamentoFinanceiroCRM.STATUS_CANCELADO:
             existente.status = LancamentoFinanceiroCRM.STATUS_CANCELADO
-            existente.save(update_fields=['status', 'updated_at'])
+            existente.save(update_fields=["status", "updated_at"])
         return
 
     valor = Decimal(str(oportunidade.valor_comissao or 0))
     if valor <= 0:
         if existente and existente.status != LancamentoFinanceiroCRM.STATUS_CANCELADO:
             existente.status = LancamentoFinanceiroCRM.STATUS_CANCELADO
-            existente.save(update_fields=['status', 'updated_at'])
+            existente.save(update_fields=["status", "updated_at"])
         return
 
     grupo = _grupo_comissao(loja_id)
@@ -108,7 +107,7 @@ def sincronizar_receita_comissao_oportunidade(oportunidade) -> None:
         oportunidade_id=oportunidade.id,
     )
     logger.info(
-        'Receita comissão criada oportunidade_id=%s vendedor_id=%s valor=%s',
+        "Receita comissão criada oportunidade_id=%s vendedor_id=%s valor=%s",
         oportunidade.id,
         oportunidade.vendedor_id,
         valor,
@@ -121,9 +120,8 @@ def calcular_intervalo_vencimento(periodo, data_inicio=None, data_fim=None):
     return _calcular_intervalo_vencimento(periodo, data_inicio, data_fim)
 
 
-def aplicar_filtro_periodo_lancamentos(queryset, *, periodo='mes_atual', data_inicio=None, data_fim=None):
-    """
-    Filtra lançamentos pelo período.
+def aplicar_filtro_periodo_lancamentos(queryset, *, periodo="mes_atual", data_inicio=None, data_fim=None):
+    """Filtra lançamentos pelo período.
 
     Lógica:
     - Lançamentos PAGOS com data_pagamento: filtrados por data_pagamento (caixa).
@@ -158,7 +156,7 @@ def resumo_financeiro_crm(
     loja_id: int,
     vendedor_id: int | None = None,
     *,
-    periodo: str = 'mes_atual',
+    periodo: str = "mes_atual",
     data_inicio=None,
     data_fim=None,
 ) -> dict:
@@ -203,7 +201,7 @@ def resumo_financeiro_crm(
         q = qs.filter(tipo=tipo)
         if status:
             q = q.filter(status=status)
-        return float(q.aggregate(t=Sum('valor'))['t'] or 0)
+        return float(q.aggregate(t=Sum("valor"))["t"] or 0)
 
     receitas_pagas = agg(LancamentoFinanceiroCRM.TIPO_RECEITA, LancamentoFinanceiroCRM.STATUS_PAGO)
     receitas_pendentes = agg(LancamentoFinanceiroCRM.TIPO_RECEITA, LancamentoFinanceiroCRM.STATUS_PENDENTE)
@@ -212,41 +210,40 @@ def resumo_financeiro_crm(
 
     # Total de comissões = soma de valor_comissao das oportunidades ganhas no período
     # (mesma lógica do dashboard — não usar valor do lançamento, que pode refletir venda total)
-    opp_qs = Oportunidade.objects.filter(loja_id=loja_id, etapa='closed_won').filter(
+    opp_qs = Oportunidade.objects.filter(loja_id=loja_id, etapa="closed_won").filter(
         _filtro_fechamento_no_periodo(inicio_opp, fim_opp),
     )
     if vendedor_id:
         opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
-    comissao_vendas = float(opp_qs.aggregate(t=Sum('valor_comissao'))['t'] or 0)
+    comissao_vendas = float(opp_qs.aggregate(t=Sum("valor_comissao"))["t"] or 0)
 
     return {
-        'receitas_pagas': receitas_pagas,
-        'receitas_pendentes': receitas_pendentes,
-        'despesas_pagas': despesas_pagas,
-        'despesas_pendentes': despesas_pendentes,
-        'saldo_realizado': receitas_pagas - despesas_pagas,
-        'saldo_previsto': (receitas_pagas + receitas_pendentes) - (despesas_pagas + despesas_pendentes),
-        'comissao_vendas_total': comissao_vendas,
-        'periodo_inicio': inicio.isoformat(),
-        'periodo_fim': fim.isoformat(),
+        "receitas_pagas": receitas_pagas,
+        "receitas_pendentes": receitas_pendentes,
+        "despesas_pagas": despesas_pagas,
+        "despesas_pendentes": despesas_pendentes,
+        "saldo_realizado": receitas_pagas - despesas_pagas,
+        "saldo_previsto": (receitas_pagas + receitas_pendentes) - (despesas_pagas + despesas_pendentes),
+        "comissao_vendas_total": comissao_vendas,
+        "periodo_inicio": inicio.isoformat(),
+        "periodo_fim": fim.isoformat(),
     }
 
 
 def sincronizar_comissoes_retroativas(loja_id: int, *, dry_run: bool = False) -> dict:
-    """
-    Gera receitas de comissão para oportunidades closed_won já existentes.
+    """Gera receitas de comissão para oportunidades closed_won já existentes.
     Útil após ativar o módulo financeiro ou corrigir valor_comissao antigo.
     """
     from .models import Oportunidade
 
     garantir_grupos_padrao(loja_id)
     qs = (
-        Oportunidade.objects.filter(loja_id=loja_id, etapa='closed_won')
+        Oportunidade.objects.filter(loja_id=loja_id, etapa="closed_won")
         .exclude(vendedor_id__isnull=True)
         .exclude(valor_comissao__isnull=True)
         .exclude(valor_comissao=0)
-        .select_related('vendedor')
-        .order_by('id')
+        .select_related("vendedor")
+        .order_by("id")
     )
 
     criadas = atualizadas = ignoradas = 0
@@ -280,12 +277,12 @@ def sincronizar_comissoes_retroativas(loja_id: int, *, dry_run: bool = False) ->
             criadas += 1
 
     return {
-        'loja_id': loja_id,
-        'oportunidades_analisadas': total,
-        'criadas': criadas,
-        'atualizadas': atualizadas,
-        'ignoradas': ignoradas,
-        'dry_run': dry_run,
+        "loja_id": loja_id,
+        "oportunidades_analisadas": total,
+        "criadas": criadas,
+        "atualizadas": atualizadas,
+        "ignoradas": ignoradas,
+        "dry_run": dry_run,
     }
 
 
@@ -295,11 +292,10 @@ def criar_lancamento_crm(
     vendedor_id: int | None,
     is_owner: bool,
     recorrente: bool = False,
-    frequencia: str = 'mensal',
+    frequencia: str = "mensal",
     data_fim_recorrencia=None,
 ):
-    """
-    Cria lançamento financeiro ou recorrência no CRM.
+    """Cria lançamento financeiro ou recorrência no CRM.
 
     - Se recorrente=True: cria série de recorrência e retorna o primeiro lançamento.
     - Se recorrente=False: cria lançamento avulso com origem MANUAL.
@@ -315,6 +311,7 @@ def criar_lancamento_crm(
 
     Returns:
         LancamentoFinanceiroCRM: instância criada
+
     """
     from rest_framework.exceptions import ValidationError
 
@@ -322,31 +319,31 @@ def criar_lancamento_crm(
     from .services_recorrencia_financeiro import criar_recorrencia_com_primeiro_lancamento
 
     if vendedor_id and not is_owner:
-        data['vendedor_id'] = vendedor_id
+        data["vendedor_id"] = vendedor_id
 
     if recorrente:
-        vendedor = data.get('vendedor') or data.get('vendedor_id')
-        vendedor_id_final = getattr(vendedor, 'id', vendedor)
+        vendedor = data.get("vendedor") or data.get("vendedor_id")
+        vendedor_id_final = getattr(vendedor, "id", vendedor)
         if not vendedor_id_final:
-            raise ValidationError({'vendedor': 'Vendedor obrigatório para recorrência.'})
+            raise ValidationError({"vendedor": "Vendedor obrigatório para recorrência."})
         _, lanc = criar_recorrencia_com_primeiro_lancamento(
             loja_id,
             vendedor_id=vendedor_id_final,
-            tipo=data['tipo'],
-            descricao=data['descricao'],
-            valor=data['valor'],
-            data_vencimento=data['data_vencimento'],
+            tipo=data["tipo"],
+            descricao=data["descricao"],
+            valor=data["valor"],
+            data_vencimento=data["data_vencimento"],
             frequencia=frequencia,
             data_fim=data_fim_recorrencia,
-            grupo=data.get('grupo'),
-            observacoes=data.get('observacoes') or '',
-            status=data.get('status', LancamentoFinanceiroCRM.STATUS_PENDENTE),
-            data_pagamento=data.get('data_pagamento'),
+            grupo=data.get("grupo"),
+            observacoes=data.get("observacoes") or "",
+            status=data.get("status", LancamentoFinanceiroCRM.STATUS_PENDENTE),
+            data_pagamento=data.get("data_pagamento"),
         )
         return lanc
 
     # Lançamento avulso
-    extra = {'origem': LancamentoFinanceiroCRM.ORIGEM_MANUAL}
+    extra = {"origem": LancamentoFinanceiroCRM.ORIGEM_MANUAL}
     if vendedor_id and not is_owner:
-        extra['vendedor_id'] = vendedor_id
+        extra["vendedor_id"] = vendedor_id
     return LancamentoFinanceiroCRM.objects.create(**data, **extra)

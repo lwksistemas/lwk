@@ -1,5 +1,4 @@
-"""
-Patch para google-auth: utcnow() deve retornar datetime timezone-aware.
+"""Patch para google-auth: utcnow() deve retornar datetime timezone-aware.
 Evita TypeError: can't compare offset-naive and offset-aware datetimes
 ao verificar expiração do token (credentials.expired).
 """
@@ -9,7 +8,7 @@ from datetime import UTC
 try:
     from datetime import datetime
 
-    import google.auth._helpers as _helpers
+    from google.auth import _helpers
 
     def _utcnow_aware():
         return datetime.now(UTC)
@@ -22,8 +21,8 @@ except Exception:
 import contextlib
 import warnings
 
-for _name in ('oauth2client', 'oauth2client.contrib', 'oauth2client.contrib.locked_file',
-              'googleapiclient.discovery_cache', 'httplib2'):
+for _name in ("oauth2client", "oauth2client.contrib", "oauth2client.contrib.locked_file",
+              "googleapiclient.discovery_cache", "httplib2"):
     with contextlib.suppress(Exception):
         logging.getLogger(_name).setLevel(logging.ERROR)
-warnings.filterwarnings('ignore', message='.*file_cache.*oauth2client.*')
+warnings.filterwarnings("ignore", message=".*file_cache.*oauth2client.*")

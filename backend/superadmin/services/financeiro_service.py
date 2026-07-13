@@ -1,5 +1,4 @@
-"""
-Serviço para gerenciamento financeiro de lojas
+"""Serviço para gerenciamento financeiro de lojas
 Centraliza lógica de criação de financeiro e cobranças
 """
 import contextlib
@@ -11,154 +10,151 @@ logger = logging.getLogger(__name__)
 
 
 class FinanceiroService:
+    """Serviço responsável pelo gerenciamento financeiro das lojas
     """
-    Serviço responsável pelo gerenciamento financeiro das lojas
-    """
-    
+
     @staticmethod
     def calcular_valor_mensalidade(loja) -> float:
-        """
-        Calcula valor da mensalidade baseado no tipo de assinatura
-        
+        """Calcula valor da mensalidade baseado no tipo de assinatura
+
         Args:
             loja: Objeto Loja
-            
+
         Returns:
             Valor da mensalidade
+
         """
-        if loja.tipo_assinatura == 'anual':
+        if loja.tipo_assinatura == "anual":
             if loja.plano.preco_anual:
                 return loja.plano.preco_anual / 12
             return loja.plano.preco_mensal
         return loja.plano.preco_mensal
-    
+
     @staticmethod
     def calcular_primeiro_vencimento(dias_para_vencer: int = 3) -> date:
-        """
-        Calcula data do primeiro vencimento
-        
+        """Calcula data do primeiro vencimento
+
         Args:
             dias_para_vencer: Dias até o vencimento
-            
+
         Returns:
             Data do primeiro vencimento
+
         """
         hoje = date.today()
         return hoje + timedelta(days=dias_para_vencer)
-    
+
     @staticmethod
-    def calcular_proxima_cobranca(dia_vencimento: int, tipo_assinatura: str = 'mensal') -> date:
-        """
-        Calcula data da próxima cobrança baseada no tipo de assinatura
-        
+    def calcular_proxima_cobranca(dia_vencimento: int, tipo_assinatura: str = "mensal") -> date:
+        """Calcula data da próxima cobrança baseada no tipo de assinatura
+
         Args:
             dia_vencimento: Dia do mês para vencimento
             tipo_assinatura: 'mensal' ou 'anual'
-            
+
         Returns:
             Data da próxima cobrança
+
         """
         hoje = date.today()
-        
-        if tipo_assinatura == 'anual':
+
+        if tipo_assinatura == "anual":
             # Para assinatura anual, adicionar 1 ano
             proximo_ano = hoje.year + 1
             proximo_mes = hoje.month
-            
+
             # Ajustar dia se o mês não tiver esse dia (ex: 29 de fevereiro em ano não bissexto)
             ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
             dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
-            
+
             return date(proximo_ano, proximo_mes, dia_cobranca)
+        # Para assinatura mensal, calcular próximo mês
+        if hoje.month == 12:
+            proximo_mes = 1
+            proximo_ano = hoje.year + 1
         else:
-            # Para assinatura mensal, calcular próximo mês
-            if hoje.month == 12:
-                proximo_mes = 1
-                proximo_ano = hoje.year + 1
-            else:
-                proximo_mes = hoje.month + 1
-                proximo_ano = hoje.year
-            
-            # Ajustar dia se o mês não tiver esse dia (ex: dia 31 em fevereiro)
-            ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
-            dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
-            
-            return date(proximo_ano, proximo_mes, dia_cobranca)
-    
+            proximo_mes = hoje.month + 1
+            proximo_ano = hoje.year
+
+        # Ajustar dia se o mês não tiver esse dia (ex: dia 31 em fevereiro)
+        ultimo_dia_mes = monthrange(proximo_ano, proximo_mes)[1]
+        dia_cobranca = min(dia_vencimento, ultimo_dia_mes)
+
+        return date(proximo_ano, proximo_mes, dia_cobranca)
+
     @staticmethod
     def criar_financeiro_loja(loja, dia_vencimento: int = 10):
-        """
-        Cria registro financeiro para a loja
-        
+        """Cria registro financeiro para a loja
+
         Args:
             loja: Objeto Loja
             dia_vencimento: Dia do mês para vencimento
-            
+
         Returns:
             Objeto FinanceiroLoja criado
+
         """
         from superadmin.models import FinanceiroLoja
-        
+
         try:
             # Calcular valores
             valor_mensalidade = FinanceiroService.calcular_valor_mensalidade(loja)
-            
+
             # Calcular datas
             # Primeiro boleto vence em 3 dias
             primeiro_vencimento = FinanceiroService.calcular_primeiro_vencimento(dias_para_vencer=3)
-            
+
             # Usar primeiro vencimento como próxima cobrança
             proxima_cobranca = primeiro_vencimento
-            
+
             # Status inicial sempre pendente (aguardando primeiro pagamento)
-            status_pagamento = 'pendente'
-            
+            status_pagamento = "pendente"
+
             # Criar financeiro
             financeiro = FinanceiroLoja.objects.create(
                 loja=loja,
                 data_proxima_cobranca=proxima_cobranca,
                 valor_mensalidade=valor_mensalidade,
                 dia_vencimento=dia_vencimento,
-                status_pagamento=status_pagamento
+                status_pagamento=status_pagamento,
             )
-            
+
             logger.info(
                 f"Financeiro criado para loja {loja.slug}: "
-                f"valor={valor_mensalidade}, vencimento={proxima_cobranca}, status={status_pagamento}"
+                f"valor={valor_mensalidade}, vencimento={proxima_cobranca}, status={status_pagamento}",
             )
-            
+
             return financeiro
-            
+
         except Exception as e:
             logger.error(f"Erro ao criar financeiro para loja {loja.slug}: {e}")
             raise
-    
+
     @staticmethod
     def atualizar_proxima_cobranca(financeiro, dia_vencimento: int = None):
-        """
-        Atualiza data da próxima cobrança
-        
+        """Atualiza data da próxima cobrança
+
         Args:
             financeiro: Objeto FinanceiroLoja
             dia_vencimento: Dia do mês (opcional, usa o atual se não fornecido)
+
         """
         if dia_vencimento is None:
             dia_vencimento = financeiro.dia_vencimento
-        
+
         # Obter tipo de assinatura da loja
         tipo_assinatura = financeiro.loja.tipo_assinatura
-        
+
         proxima_cobranca = FinanceiroService.calcular_proxima_cobranca(dia_vencimento, tipo_assinatura)
-        
+
         financeiro.data_proxima_cobranca = proxima_cobranca
         financeiro.save()
-        
+
         logger.info(f"Próxima cobrança atualizada para {proxima_cobranca} (tipo: {tipo_assinatura})")
 
     @staticmethod
     def calcular_proxima_cobranca_apos_pagamento(financeiro, loja, data_pagamento=None) -> date:
-        """
-        Próximo vencimento após pagamento confirmado.
+        """Próximo vencimento após pagamento confirmado.
 
         Pagamento antecipado: soma os dias de antecipação ao ciclo
         (ex.: 10 dias antes do vencimento → 40 dias até a próxima mensalidade).
@@ -168,24 +164,24 @@ class FinanceiroService:
 
         if data_pagamento is None:
             data_pagamento = tz.now().date()
-        elif hasattr(data_pagamento, 'date'):
+        elif hasattr(data_pagamento, "date"):
             with contextlib.suppress(AttributeError, TypeError):
                 data_pagamento = data_pagamento.date()
 
         vencimento_periodo = financeiro.data_proxima_cobranca
-        ciclo_dias = 365 if getattr(loja, 'tipo_assinatura', 'mensal') == 'anual' else 30
+        ciclo_dias = 365 if getattr(loja, "tipo_assinatura", "mensal") == "anual" else 30
 
         if vencimento_periodo and vencimento_periodo >= data_pagamento:
             dias_antecipacao = (vencimento_periodo - data_pagamento).days
             proxima = data_pagamento + timedelta(days=ciclo_dias + dias_antecipacao)
             logger.info(
-                'Próxima cobrança justa: pagamento=%s vencimento=%s antecipação=%sd → %s',
+                "Próxima cobrança justa: pagamento=%s vencimento=%s antecipação=%sd → %s",
                 data_pagamento, vencimento_periodo, dias_antecipacao, proxima,
             )
         else:
             proxima = data_pagamento + timedelta(days=ciclo_dias)
             logger.info(
-                'Próxima cobrança (atraso ou sem vencimento): pagamento=%s + %sd → %s',
+                "Próxima cobrança (atraso ou sem vencimento): pagamento=%s + %sd → %s",
                 data_pagamento, ciclo_dias, proxima,
             )
 

@@ -49,14 +49,14 @@ def _financeiro_com_recuperacao_schema(handler):
             return handler()
         except (ProgrammingError, OperationalError) as exc:
             if attempt == 0 and loja_id:
-                loja = Loja.objects.filter(id=loja_id).select_related('tipo_loja').first()
+                loja = Loja.objects.filter(id=loja_id).select_related("tipo_loja").first()
                 if loja:
                     try:
                         apply_crm_tenant_schema_patches(loja.database_name)
                     except Exception as patch_exc:
-                        logger.warning('Patches financeiro CRM falharam: %s', patch_exc)
+                        logger.warning("Patches financeiro CRM falharam: %s", patch_exc)
                     if configurar_schema_crm_loja(loja):
-                        logger.warning('Schema CRM recuperado após erro financeiro: %s', exc)
+                        logger.warning("Schema CRM recuperado após erro financeiro: %s", exc)
                         continue
             raise
 
@@ -70,43 +70,43 @@ class GrupoFinanceiroCRMViewSet(
     queryset = GrupoFinanceiroCRM.objects.all()
     serializer_class = GrupoFinanceiroCRMSerializer
     pagination_class = None
-    cache_keys = ['financeiro_crm']
+    cache_keys = ["financeiro_crm"]
 
     def get_queryset(self):
-        if getattr(self, 'request', None):
+        if getattr(self, "request", None):
             ensure_loja_context(self.request)
         loja_id = get_current_loja_id()
         if loja_id:
             garantir_grupos_padrao(loja_id)
         incluir_inativos = (
-            self.request.query_params.get('incluir_inativos', '').lower() in ('1', 'true', 'sim')
+            self.request.query_params.get("incluir_inativos", "").lower() in ("1", "true", "sim")
         )
         if incluir_inativos and loja_id:
             qs = GrupoFinanceiroCRM.objects.filter(loja_id=loja_id)
         else:
             qs = super().get_queryset()
-        return filtrar_queryset_por_query_params(qs, self.request, {'tipo': 'tipo'})
+        return filtrar_queryset_por_query_params(qs, self.request, {"tipo": "tipo"})
 
     def create(self, request, *args, **kwargs):
-        bloqueio = self.bloquear_vendedor(request, 'Apenas o administrador pode criar grupos.')
+        bloqueio = self.bloquear_vendedor(request, "Apenas o administrador pode criar grupos.")
         if bloqueio:
             return bloqueio
         return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        bloqueio = self.bloquear_vendedor(request, 'Apenas o administrador pode editar grupos.')
+        bloqueio = self.bloquear_vendedor(request, "Apenas o administrador pode editar grupos.")
         if bloqueio:
             return bloqueio
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        bloqueio = self.bloquear_vendedor(request, 'Apenas o administrador pode excluir grupos.')
+        bloqueio = self.bloquear_vendedor(request, "Apenas o administrador pode excluir grupos.")
         if bloqueio:
             return bloqueio
         inst = self.get_object()
         if inst.lancamentos.exists():
             return Response(
-                {'detail': 'Grupo em uso. Desative-o ou mova os lançamentos antes de excluir.'},
+                {"detail": "Grupo em uso. Desative-o ou mova os lançamentos antes de excluir."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return super().destroy(request, *args, **kwargs)
@@ -119,12 +119,12 @@ class LancamentoFinanceiroCRMViewSet(
     BaseModelViewSet,
 ):
     queryset = LancamentoFinanceiroCRM.objects.select_related(
-        'vendedor', 'grupo', 'oportunidade'
+        "vendedor", "grupo", "oportunidade",
     ).all()
     serializer_class = LancamentoFinanceiroCRMSerializer
     pagination_class = CRMPagination
-    vendedor_filter_field = 'vendedor_id'
-    cache_keys = ['financeiro_crm', 'dashboard']
+    vendedor_filter_field = "vendedor_id"
+    cache_keys = ["financeiro_crm", "dashboard"]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -132,28 +132,28 @@ class LancamentoFinanceiroCRMViewSet(
             qs,
             self.request,
             {
-                'tipo': 'tipo',
-                'status': 'status',
-                'vendedor_id': 'vendedor_id',
-                'grupo_id': 'grupo_id',
+                "tipo": "tipo",
+                "status": "status",
+                "vendedor_id": "vendedor_id",
+                "grupo_id": "grupo_id",
             },
         )
         # Período só na listagem — marcar_pago/patch precisam achar o id fora do mês exibido.
-        if getattr(self, 'action', None) == 'list':
+        if getattr(self, "action", None) == "list":
             qs = aplicar_filtro_periodo_lancamentos(
                 qs,
-                periodo=self.request.query_params.get('periodo', 'mes_atual'),
-                data_inicio=self.request.query_params.get('data_inicio'),
-                data_fim=self.request.query_params.get('data_fim'),
+                periodo=self.request.query_params.get("periodo", "mes_atual"),
+                data_inicio=self.request.query_params.get("data_inicio"),
+                data_fim=self.request.query_params.get("data_fim"),
             )
         return qs
 
     def perform_create(self, serializer):
         ensure_loja_context(self.request)
         loja_id = get_current_loja_id()
-        recorrente = serializer.validated_data.pop('recorrente', False)
-        frequencia = serializer.validated_data.pop('frequencia', 'mensal') or 'mensal'
-        data_fim_rec = serializer.validated_data.pop('data_fim_recorrencia', None)
+        recorrente = serializer.validated_data.pop("recorrente", False)
+        frequencia = serializer.validated_data.pop("frequencia", "mensal") or "mensal"
+        data_fim_rec = serializer.validated_data.pop("data_fim_recorrencia", None)
         data = dict(serializer.validated_data)
 
         from .services_financeiro import criar_lancamento_crm
@@ -175,7 +175,7 @@ class LancamentoFinanceiroCRMViewSet(
             LancamentoFinanceiroCRM.ORIGEM_COMISSAO,
             LancamentoFinanceiroCRM.ORIGEM_RECORRENCIA,
         ):
-            allowed = {'status', 'data_pagamento', 'observacoes', 'grupo'}
+            allowed = {"status", "data_pagamento", "observacoes", "grupo"}
             data = {k: v for k, v in serializer.validated_data.items() if k in allowed}
             for k, v in data.items():
                 setattr(inst, k, v)
@@ -189,29 +189,29 @@ class LancamentoFinanceiroCRMViewSet(
         inst = self.get_object()
         if inst.origem == LancamentoFinanceiroCRM.ORIGEM_COMISSAO:
             return Response(
-                {'detail': 'Receitas de comissão automática não podem ser excluídas. Cancele na oportunidade.'},
+                {"detail": "Receitas de comissão automática não podem ser excluídas. Cancele na oportunidade."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if inst.origem == LancamentoFinanceiroCRM.ORIGEM_RECORRENCIA:
             return Response(
-                {'detail': 'Lançamentos gerados por recorrência não podem ser excluídos. Cancele a recorrência.'},
+                {"detail": "Lançamentos gerados por recorrência não podem ser excluídos. Cancele a recorrência."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return super().destroy(request, *args, **kwargs)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def marcar_pago(self, request, pk=None):
         from django.utils import timezone
 
         ensure_loja_context(request)
         inst = self.get_object()
         inst.status = LancamentoFinanceiroCRM.STATUS_PAGO
-        inst.data_pagamento = request.data.get('data_pagamento') or timezone.now().date()
-        inst.save(update_fields=['status', 'data_pagamento', 'updated_at'])
+        inst.data_pagamento = request.data.get("data_pagamento") or timezone.now().date()
+        inst.save(update_fields=["status", "data_pagamento", "updated_at"])
         self._invalidate_caches()
         return Response(self.get_serializer(inst).data)
 
-    @action(detail=False, methods=['post'], url_path='acoes-lote')
+    @action(detail=False, methods=["post"], url_path="acoes-lote")
     def acoes_lote(self, request):
         """Marca vários lançamentos como pagos ou cancelados (ex.: comissões agregadas na UI)."""
         from django.utils import timezone
@@ -219,53 +219,53 @@ class LancamentoFinanceiroCRMViewSet(
         ensure_loja_context(request)
         loja_id = get_current_loja_id()
         if not loja_id:
-            return Response({'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Loja não identificada."}, status=status.HTTP_400_BAD_REQUEST)
 
-        ids_raw = request.data.get('ids') or []
+        ids_raw = request.data.get("ids") or []
         if not isinstance(ids_raw, list):
-            return Response({'detail': 'ids deve ser uma lista.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "ids deve ser uma lista."}, status=status.HTTP_400_BAD_REQUEST)
         try:
             ids = [int(x) for x in ids_raw]
         except (TypeError, ValueError):
-            return Response({'detail': 'ids inválidos.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "ids inválidos."}, status=status.HTTP_400_BAD_REQUEST)
         if not ids:
-            return Response({'detail': 'Informe ao menos um id.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Informe ao menos um id."}, status=status.HTTP_400_BAD_REQUEST)
 
-        acao = (request.data.get('acao') or '').strip()
-        if acao not in ('marcar_pago', 'cancelar'):
-            return Response({'detail': 'Ação inválida.'}, status=status.HTTP_400_BAD_REQUEST)
+        acao = (request.data.get("acao") or "").strip()
+        if acao not in ("marcar_pago", "cancelar"):
+            return Response({"detail": "Ação inválida."}, status=status.HTTP_400_BAD_REQUEST)
 
         qs = self.get_queryset().filter(id__in=ids)
         atualizados = 0
         hoje = timezone.now().date()
         for inst in qs:
-            if acao == 'marcar_pago':
+            if acao == "marcar_pago":
                 if inst.status != LancamentoFinanceiroCRM.STATUS_PENDENTE:
                     continue
                 inst.status = LancamentoFinanceiroCRM.STATUS_PAGO
-                inst.data_pagamento = request.data.get('data_pagamento') or hoje
-                inst.save(update_fields=['status', 'data_pagamento', 'updated_at'])
+                inst.data_pagamento = request.data.get("data_pagamento") or hoje
+                inst.save(update_fields=["status", "data_pagamento", "updated_at"])
                 atualizados += 1
             elif inst.origem == LancamentoFinanceiroCRM.ORIGEM_COMISSAO:
                 if inst.status == LancamentoFinanceiroCRM.STATUS_CANCELADO:
                     continue
                 inst.status = LancamentoFinanceiroCRM.STATUS_CANCELADO
-                inst.save(update_fields=['status', 'updated_at'])
+                inst.save(update_fields=["status", "updated_at"])
                 atualizados += 1
 
         self._invalidate_caches()
         return Response(
             {
-                'success': True,
-                'acao': acao,
-                'solicitados': len(ids),
-                'atualizados': atualizados,
-                'ignorados': len(ids) - atualizados,
-            }
+                "success": True,
+                "acao": acao,
+                "solicitados": len(ids),
+                "atualizados": atualizados,
+                "ignorados": len(ids) - atualizados,
+            },
         )
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 @throttle_classes([DashboardRateThrottle])
 def financeiro_crm_resumo(request):
@@ -274,10 +274,10 @@ def financeiro_crm_resumo(request):
     ensure_loja_context(request)
     loja_id = get_current_loja_id()
     if not loja_id:
-        return Response({'error': 'Loja não identificada'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Loja não identificada"}, status=status.HTTP_400_BAD_REQUEST)
 
     vendedor_id = get_current_vendedor_id(request)
-    filtro = request.query_params.get('vendedor_id')
+    filtro = request.query_params.get("vendedor_id")
     if is_owner(request) and filtro:
         with contextlib.suppress(TypeError, ValueError):
             vendedor_id = int(filtro)
@@ -287,27 +287,27 @@ def financeiro_crm_resumo(request):
     try:
         def _handler():
             garantir_grupos_padrao(loja_id)
-            periodo = request.query_params.get('periodo', 'mes_atual')
+            periodo = request.query_params.get("periodo", "mes_atual")
             return Response(
                 resumo_financeiro_crm(
                     loja_id,
                     vendedor_id,
                     periodo=periodo,
-                    data_inicio=request.query_params.get('data_inicio'),
-                    data_fim=request.query_params.get('data_fim'),
-                )
+                    data_inicio=request.query_params.get("data_inicio"),
+                    data_fim=request.query_params.get("data_fim"),
+                ),
             )
 
         return _financeiro_com_recuperacao_schema(_handler)
     except (ProgrammingError, OperationalError):
-        logger.exception('Erro no resumo financeiro CRM (loja_id=%s)', loja_id)
+        logger.exception("Erro no resumo financeiro CRM (loja_id=%s)", loja_id)
         return Response(
-            {'detail': 'O banco de dados da loja precisa ser configurado.', 'code': 'SCHEMA_NOT_CONFIGURED'},
+            {"detail": "O banco de dados da loja precisa ser configurado.", "code": "SCHEMA_NOT_CONFIGURED"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @throttle_classes([ReportsThrottle])
 def financeiro_crm_relatorio_pdf(request):
@@ -315,13 +315,13 @@ def financeiro_crm_relatorio_pdf(request):
     ensure_loja_context(request)
     loja_id = get_current_loja_id()
     if not loja_id:
-        return Response({'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "Loja não identificada."}, status=status.HTTP_400_BAD_REQUEST)
 
-    periodo = request.data.get('periodo', 'mes_atual')
-    data_inicio = request.data.get('data_inicio')
-    data_fim = request.data.get('data_fim')
-    grupo_id = request.data.get('grupo_id')
-    vendedor_id = request.data.get('vendedor_id')
+    periodo = request.data.get("periodo", "mes_atual")
+    data_inicio = request.data.get("data_inicio")
+    data_fim = request.data.get("data_fim")
+    grupo_id = request.data.get("grupo_id")
+    vendedor_id = request.data.get("vendedor_id")
 
     current_vendedor_id = get_current_vendedor_id(request)
     if current_vendedor_id and not is_owner(request):
@@ -338,9 +338,9 @@ def financeiro_crm_relatorio_pdf(request):
         except (TypeError, ValueError):
             grupo_id = None
 
-    if periodo == 'personalizado' and (not data_inicio or not data_fim):
+    if periodo == "personalizado" and (not data_inicio or not data_fim):
         return Response(
-            {'detail': 'Informe data_inicio e data_fim para período personalizado.'},
+            {"detail": "Informe data_inicio e data_fim para período personalizado."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -355,15 +355,15 @@ def financeiro_crm_relatorio_pdf(request):
             data_inicio=data_inicio,
             data_fim=data_fim,
         )
-        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="financeiro_crm_{periodo}.pdf"'
+        response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="financeiro_crm_{periodo}.pdf"'
         return response
     except Exception as exc:
-        logger.exception('Erro ao gerar PDF financeiro CRM: %s', exc)
-        return Response({'detail': 'Erro ao gerar relatório PDF.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.exception("Erro ao gerar PDF financeiro CRM: %s", exc)
+        return Response({"detail": "Erro ao gerar relatório PDF."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @throttle_classes([ReportsThrottle])
 def financeiro_crm_sync_comissoes(request):
@@ -373,24 +373,24 @@ def financeiro_crm_sync_comissoes(request):
     ensure_loja_context(request)
     loja_id = get_current_loja_id()
     if not loja_id:
-        return Response({'detail': 'Loja não identificada.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "Loja não identificada."}, status=status.HTTP_400_BAD_REQUEST)
 
     if not is_owner(request):
         return Response(
-            {'detail': 'Apenas o administrador pode sincronizar comissões retroativas.'},
+            {"detail": "Apenas o administrador pode sincronizar comissões retroativas."},
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    dry_run = bool(request.data.get('dry_run', False))
+    dry_run = bool(request.data.get("dry_run", False))
 
     try:
         def _handler():
-            return Response({'success': True, **sincronizar_comissoes_retroativas(loja_id, dry_run=dry_run)})
+            return Response({"success": True, **sincronizar_comissoes_retroativas(loja_id, dry_run=dry_run)})
 
         return _financeiro_com_recuperacao_schema(_handler)
     except (ProgrammingError, OperationalError):
-        logger.exception('Erro ao sincronizar comissões CRM (loja_id=%s)', loja_id)
+        logger.exception("Erro ao sincronizar comissões CRM (loja_id=%s)", loja_id)
         return Response(
-            {'detail': 'Não foi possível sincronizar comissões. Tente novamente em instantes.', 'code': 'SCHEMA_NOT_CONFIGURED'},
+            {"detail": "Não foi possível sincronizar comissões. Tente novamente em instantes.", "code": "SCHEMA_NOT_CONFIGURED"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

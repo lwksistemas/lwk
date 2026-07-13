@@ -4,6 +4,6 @@ from __future__ import annotations
 import contextvars
 
 mercadopago_webhook_sync_only: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    'mercadopago_webhook_sync_only',
+    "mercadopago_webhook_sync_only",
     default=False,
 )

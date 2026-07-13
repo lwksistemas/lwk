@@ -1,5 +1,4 @@
-"""
-Modelos para integração com Asaas
+"""Modelos para integração com Asaas
 Armazena dados de cobranças e pagamentos
 """
 
@@ -9,49 +8,49 @@ from django.db import models
 
 class AsaasConfig(models.Model):
     """Configuração da integração Asaas"""
-    
+
     # Chave única para garantir apenas uma configuração
-    singleton_key = models.CharField(max_length=10, default='config', unique=True)
-    
+    singleton_key = models.CharField(max_length=10, default="config", unique=True)
+
     # Configurações da API
     api_key = models.TextField(verbose_name="Chave da API Asaas")
     webhook_token = models.TextField(
         blank=True,
-        default='',
+        default="",
         verbose_name="Token de autenticação do webhook",
     )
     sandbox = models.BooleanField(default=True, verbose_name="Ambiente Sandbox")
     enabled = models.BooleanField(default=False, verbose_name="Integração Habilitada")
-    
+
     # Metadados
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
     last_sync = models.DateTimeField(null=True, blank=True, verbose_name="Última Sincronização")
-    
+
     class Meta:
         verbose_name = "Configuração Asaas"
         verbose_name_plural = "Configurações Asaas"
-        db_table = 'asaas_config'
-    
+        db_table = "asaas_config"
+
     def save(self, *args, **kwargs):
         from core.encryption import encrypt_value, is_encrypted
 
         from .api_key_utils import asaas_key_is_sandbox, is_valid_asaas_api_key, normalize_asaas_api_key
         # Auto-detectar sandbox baseado na chave (antes de criptografar)
-        raw_key = self.api_key or ''
+        raw_key = self.api_key or ""
         if raw_key and not is_encrypted(raw_key):
             raw_key = normalize_asaas_api_key(raw_key)
             self.sandbox = asaas_key_is_sandbox(raw_key)
             if not is_valid_asaas_api_key(raw_key):
                 raise ValidationError(
-                    'Chave API inválida. Use $aact_prod_... (Produção) ou $aact_hmlg_... (Sandbox)'
+                    "Chave API inválida. Use $aact_prod_... (Produção) ou $aact_hmlg_... (Sandbox)",
                 )
             self.api_key = encrypt_value(raw_key)
 
-        raw_webhook = self.webhook_token or ''
+        raw_webhook = self.webhook_token or ""
         if raw_webhook and not is_encrypted(raw_webhook):
             if len(raw_webhook) < 32:
-                raise ValidationError('Token do webhook deve ter pelo menos 32 caracteres')
+                raise ValidationError("Token do webhook deve ter pelo menos 32 caracteres")
             self.webhook_token = encrypt_value(raw_webhook)
 
         super().save(*args, **kwargs)
@@ -60,18 +59,18 @@ class AsaasConfig(models.Model):
     def api_key_decrypted(self):
         """Retorna a API key descriptografada para uso."""
         from core.encryption import decrypt_value
-        return decrypt_value(self.api_key) if self.api_key else ''
+        return decrypt_value(self.api_key) if self.api_key else ""
 
     @property
     def webhook_token_decrypted(self):
         from core.encryption import decrypt_value
-        return decrypt_value(self.webhook_token) if self.webhook_token else ''
-    
+        return decrypt_value(self.webhook_token) if self.webhook_token else ""
+
     def __str__(self):
         env = "Sandbox" if self.sandbox else "Produção"
         status = "Habilitada" if self.enabled else "Desabilitada"
         return f"Configuração Asaas - {env} - {status}"
-    
+
     @classmethod
     def is_valid_api_key(cls, key: str) -> bool:
         from .api_key_utils import is_valid_asaas_api_key
@@ -93,19 +92,19 @@ class AsaasConfig(models.Model):
                 return db_key
         except Exception:
             pass
-        env_key = (getattr(settings, 'ASAAS_API_KEY', None) or '').strip()
+        env_key = (getattr(settings, "ASAAS_API_KEY", None) or "").strip()
         if cls.is_valid_api_key(env_key):
             return env_key
-        return ''
+        return ""
 
     @classmethod
     def effective_sandbox(cls, api_key: str | None = None) -> bool:
         from django.conf import settings as dj_settings
 
         from .api_key_utils import asaas_key_is_sandbox, normalize_asaas_api_key
-        key = normalize_asaas_api_key(api_key or cls.resolve_api_key() or '')
+        key = normalize_asaas_api_key(api_key or cls.resolve_api_key() or "")
         if not key:
-            return bool(getattr(dj_settings, 'ASAAS_SANDBOX', True))
+            return bool(getattr(dj_settings, "ASAAS_SANDBOX", True))
         return asaas_key_is_sandbox(key)
 
     @classmethod
@@ -119,35 +118,35 @@ class AsaasConfig(models.Model):
         from django.conf import settings
 
         config, _ = cls.objects.get_or_create(
-            singleton_key='config',
+            singleton_key="config",
             defaults={
-                'api_key': '',
-                'sandbox': True,
-                'enabled': False
-            }
+                "api_key": "",
+                "sandbox": True,
+                "enabled": False,
+            },
         )
-        env_key = cls.normalize_api_key((getattr(settings, 'ASAAS_API_KEY', None) or '').strip())
+        env_key = cls.normalize_api_key((getattr(settings, "ASAAS_API_KEY", None) or "").strip())
         db_key = config.api_key_decrypted.strip()
         if cls.is_valid_api_key(env_key) and not cls.is_valid_api_key(db_key):
             config.api_key = env_key  # save() vai criptografar
-            config.enabled = bool(getattr(settings, 'ASAAS_INTEGRATION_ENABLED', True))
+            config.enabled = bool(getattr(settings, "ASAAS_INTEGRATION_ENABLED", True))
             config.save()
         elif cls.is_valid_api_key(env_key) and not db_key:
             config.api_key = env_key
-            config.enabled = bool(getattr(settings, 'ASAAS_INTEGRATION_ENABLED', True))
+            config.enabled = bool(getattr(settings, "ASAAS_INTEGRATION_ENABLED", True))
             config.save()
-        env_webhook = (getattr(settings, 'ASAAS_WEBHOOK_TOKEN', None) or '').strip()
+        env_webhook = (getattr(settings, "ASAAS_WEBHOOK_TOKEN", None) or "").strip()
         if env_webhook and not config.webhook_token_decrypted:
             config.webhook_token = env_webhook
-            config.save(update_fields=['webhook_token', 'updated_at'])
+            config.save(update_fields=["webhook_token", "updated_at"])
         return config
-    
+
     @property
     def api_key_masked(self):
         """Retorna chave mascarada para exibição"""
         key = self.api_key_decrypted
         if not key:
-            return ''
+            return ""
         if len(key) <= 14:
             return key
         return f"{key[:10]}...{key[-4:]}"
@@ -156,9 +155,9 @@ class AsaasConfig(models.Model):
     def webhook_token_masked(self):
         token = self.webhook_token_decrypted
         if not token:
-            return ''
+            return ""
         if len(token) <= 10:
-            return '•' * len(token)
+            return "•" * len(token)
         return f"{token[:6]}...{token[-4:]}"
 
     @classmethod
@@ -172,10 +171,10 @@ class AsaasConfig(models.Model):
             pass
         from django.conf import settings
 
-        env_token = (getattr(settings, 'ASAAS_WEBHOOK_TOKEN', None) or '').strip()
+        env_token = (getattr(settings, "ASAAS_WEBHOOK_TOKEN", None) or "").strip()
         if env_token:
             return env_token
-        return (getattr(settings, 'ASAAS_LOJA_WEBHOOK_TOKEN', None) or '').strip()
+        return (getattr(settings, "ASAAS_LOJA_WEBHOOK_TOKEN", None) or "").strip()
 
     @property
     def environment_name(self):
@@ -184,13 +183,13 @@ class AsaasConfig(models.Model):
 
 class AsaasCustomer(models.Model):
     """Cliente no Asaas"""
-    
+
     asaas_id = models.CharField(max_length=100, unique=True, verbose_name="ID no Asaas")
     name = models.CharField(max_length=200, verbose_name="Nome")
     email = models.EmailField(verbose_name="Email")
     cpf_cnpj = models.CharField(max_length=20, verbose_name="CPF/CNPJ")
     phone = models.CharField(max_length=20, blank=True, verbose_name="Telefone")
-    
+
     # Endereço
     address = models.CharField(max_length=200, blank=True, verbose_name="Endereço")
     address_number = models.CharField(max_length=20, blank=True, verbose_name="Número")
@@ -199,144 +198,144 @@ class AsaasCustomer(models.Model):
     city = models.CharField(max_length=100, blank=True, verbose_name="Cidade")
     state = models.CharField(max_length=2, blank=True, verbose_name="Estado")
     postal_code = models.CharField(max_length=10, blank=True, verbose_name="CEP")
-    
+
     # Referência externa (slug da loja)
     external_reference = models.CharField(max_length=100, blank=True, verbose_name="Referência Externa")
-    
+
     # Metadados
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
     raw_data = models.JSONField(default=dict, verbose_name="Dados Brutos do Asaas")
-    
+
     class Meta:
         verbose_name = "Cliente Asaas"
         verbose_name_plural = "Clientes Asaas"
-        db_table = 'asaas_customer'
-    
+        db_table = "asaas_customer"
+
     def __str__(self):
         return f"{self.name} ({self.asaas_id})"
 
 class AsaasPayment(models.Model):
     """Cobrança no Asaas"""
-    
+
     STATUS_CHOICES = [
-        ('PENDING', 'Aguardando pagamento'),
-        ('RECEIVED', 'Recebida'),
-        ('CONFIRMED', 'Pagamento confirmado'),
-        ('OVERDUE', 'Vencida'),
-        ('REFUNDED', 'Estornada'),
-        ('RECEIVED_IN_CASH', 'Recebida à vista'),
-        ('REFUND_REQUESTED', 'Estorno solicitado'),
-        ('REFUND_IN_PROGRESS', 'Estorno em processamento'),
-        ('CHARGEBACK_REQUESTED', 'Chargeback solicitado'),
-        ('CHARGEBACK_DISPUTE', 'Em disputa de chargeback'),
-        ('AWAITING_CHARGEBACK_REVERSAL', 'Aguardando reversão do chargeback'),
-        ('DUNNING_REQUESTED', 'Cobrança solicitada'),
-        ('DUNNING_RECEIVED', 'Cobrança recebida'),
-        ('AWAITING_RISK_ANALYSIS', 'Aguardando análise'),
+        ("PENDING", "Aguardando pagamento"),
+        ("RECEIVED", "Recebida"),
+        ("CONFIRMED", "Pagamento confirmado"),
+        ("OVERDUE", "Vencida"),
+        ("REFUNDED", "Estornada"),
+        ("RECEIVED_IN_CASH", "Recebida à vista"),
+        ("REFUND_REQUESTED", "Estorno solicitado"),
+        ("REFUND_IN_PROGRESS", "Estorno em processamento"),
+        ("CHARGEBACK_REQUESTED", "Chargeback solicitado"),
+        ("CHARGEBACK_DISPUTE", "Em disputa de chargeback"),
+        ("AWAITING_CHARGEBACK_REVERSAL", "Aguardando reversão do chargeback"),
+        ("DUNNING_REQUESTED", "Cobrança solicitada"),
+        ("DUNNING_RECEIVED", "Cobrança recebida"),
+        ("AWAITING_RISK_ANALYSIS", "Aguardando análise"),
     ]
-    
+
     BILLING_TYPE_CHOICES = [
-        ('BOLETO', 'Boleto'),
-        ('CREDIT_CARD', 'Cartão de Crédito'),
-        ('PIX', 'PIX'),
-        ('UNDEFINED', 'Não definido'),
+        ("BOLETO", "Boleto"),
+        ("CREDIT_CARD", "Cartão de Crédito"),
+        ("PIX", "PIX"),
+        ("UNDEFINED", "Não definido"),
     ]
-    
+
     # Identificadores
     asaas_id = models.CharField(max_length=100, unique=True, verbose_name="ID no Asaas")
     customer = models.ForeignKey(AsaasCustomer, on_delete=models.CASCADE, null=True, blank=True, verbose_name="Cliente")
     external_reference = models.CharField(max_length=100, blank=True, verbose_name="Referência Externa")
-    
+
     # Dados da cobrança
     billing_type = models.CharField(max_length=20, choices=BILLING_TYPE_CHOICES, verbose_name="Tipo de Cobrança")
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, verbose_name="Status")
     value = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor")
     net_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor Líquido")
-    
+
     # Datas
     due_date = models.DateField(null=True, blank=True, verbose_name="Data de Vencimento")
     payment_date = models.DateTimeField(null=True, blank=True, verbose_name="Data do Pagamento")
-    
+
     # URLs e dados de pagamento
     invoice_url = models.URLField(blank=True, verbose_name="URL da Fatura")
     bank_slip_url = models.URLField(blank=True, verbose_name="URL do Boleto")
-    
+
     # PIX
     pix_qr_code = models.TextField(blank=True, verbose_name="QR Code PIX")
     pix_copy_paste = models.TextField(blank=True, verbose_name="PIX Copia e Cola")
-    
+
     # Descrição
     description = models.TextField(blank=True, verbose_name="Descrição")
-    
+
     # Metadados
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
     raw_data = models.JSONField(default=dict, verbose_name="Dados Brutos do Asaas")
-    
+
     class Meta:
         verbose_name = "Cobrança Asaas"
         verbose_name_plural = "Cobranças Asaas"
-        db_table = 'asaas_payment'
-        ordering = ['-created_at']
-    
+        db_table = "asaas_payment"
+        ordering = ["-created_at"]
+
     def __str__(self):
         return f"Cobrança {self.asaas_id} - R$ {self.value}"
-    
+
     @property
     def is_paid(self):
         """Verifica se a cobrança foi paga"""
-        return self.status in ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH']
-    
+        return self.status in ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"]
+
     @property
     def is_overdue(self):
         """Verifica se a cobrança está vencida"""
-        return self.status == 'OVERDUE'
-    
+        return self.status == "OVERDUE"
+
     @property
     def is_pending(self):
         """Verifica se a cobrança está pendente"""
-        return self.status == 'PENDING'
+        return self.status == "PENDING"
 
 class LojaAssinatura(models.Model):
     """Relaciona loja com assinatura no Asaas"""
-    
+
     # Referência à loja (usando external_reference para evitar dependência circular)
     loja_slug = models.CharField(max_length=100, unique=True, verbose_name="Slug da Loja")
     loja_nome = models.CharField(max_length=200, verbose_name="Nome da Loja")
-    
+
     # Cliente e pagamentos no Asaas
     asaas_customer = models.ForeignKey(AsaasCustomer, on_delete=models.CASCADE, verbose_name="Cliente Asaas")
-    current_payment = models.ForeignKey(AsaasPayment, null=True, blank=True, on_delete=models.SET_NULL, 
-                                       related_name='current_subscription', verbose_name="Pagamento Atual")
-    
+    current_payment = models.ForeignKey(AsaasPayment, null=True, blank=True, on_delete=models.SET_NULL,
+                                       related_name="current_subscription", verbose_name="Pagamento Atual")
+
     # Dados do plano
     plano_nome = models.CharField(max_length=100, verbose_name="Nome do Plano")
     plano_valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor do Plano")
-    
+
     # Status da assinatura
     ativa = models.BooleanField(default=True, verbose_name="Assinatura Ativa")
     data_ativacao = models.DateTimeField(auto_now_add=True, verbose_name="Data de Ativação")
     data_vencimento = models.DateField(null=True, blank=True, verbose_name="Data de Vencimento")
-    
+
     # Metadados
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
-    
+
     class Meta:
         verbose_name = "Assinatura da Loja"
         verbose_name_plural = "Assinaturas das Lojas"
-        db_table = 'loja_assinatura'
-        ordering = ['-created_at']
-    
+        db_table = "loja_assinatura"
+        ordering = ["-created_at"]
+
     def __str__(self):
         return f"Assinatura {self.loja_nome} - {self.plano_nome}"
-    
+
     def get_all_payments(self):
         """Retorna todos os pagamentos desta assinatura"""
         return AsaasPayment.objects.filter(
-            external_reference__contains=f"loja_{self.loja_slug}"
-        ).order_by('-created_at')
+            external_reference__contains=f"loja_{self.loja_slug}",
+        ).order_by("-created_at")
 
 
 # Registo explícito: o modelo vive em models_nfse_config.py; sem isto o Django ignora-o e gera migration de "delete".

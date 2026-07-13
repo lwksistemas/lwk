@@ -11,7 +11,7 @@ def add_google_event_id_if_table_exists(apps, schema_editor):
     conn = schema_editor.connection
     vendor = conn.vendor
     with conn.cursor() as cursor:
-        if vendor == 'postgresql':
+        if vendor == "postgresql":
             cursor.execute("""
                 SELECT 1 FROM information_schema.tables
                 WHERE table_name = 'crm_vendas_atividade'
@@ -22,21 +22,21 @@ def add_google_event_id_if_table_exists(apps, schema_editor):
                     ALTER TABLE crm_vendas_atividade
                     ADD COLUMN IF NOT EXISTS google_event_id VARCHAR(255) NULL
                 """)
-        elif vendor == 'sqlite':
+        elif vendor == "sqlite":
             cursor.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='crm_vendas_atividade'"
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='crm_vendas_atividade'",
             )
             if cursor.fetchone():
                 with contextlib.suppress(Exception):  # coluna já existe
                     cursor.execute(
-                        "ALTER TABLE crm_vendas_atividade ADD COLUMN google_event_id VARCHAR(255) NULL"
+                        "ALTER TABLE crm_vendas_atividade ADD COLUMN google_event_id VARCHAR(255) NULL",
                     )
 
 
 def reverse_add_google_event_id(apps, schema_editor):
     """Remove coluna google_event_id se a tabela existir (apenas PostgreSQL suporta DROP COLUMN)."""
     conn = schema_editor.connection
-    if conn.vendor != 'postgresql':
+    if conn.vendor != "postgresql":
         return
     with conn.cursor() as cursor:
         cursor.execute("""
@@ -52,16 +52,16 @@ def reverse_add_google_event_id(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0001_initial'),
+        ("crm_vendas", "0001_initial"),
     ]
 
     operations = [
         migrations.SeparateDatabaseAndState(
             state_operations=[
                 migrations.AddField(
-                    model_name='atividade',
-                    name='google_event_id',
-                    field=models.CharField(blank=True, help_text='ID do evento no Google Calendar (sincronização)', max_length=255, null=True),
+                    model_name="atividade",
+                    name="google_event_id",
+                    field=models.CharField(blank=True, help_text="ID do evento no Google Calendar (sincronização)", max_length=255, null=True),
                 ),
             ],
             database_operations=[

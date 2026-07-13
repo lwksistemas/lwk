@@ -1,5 +1,4 @@
-"""
-Converte Payments PAID/PARTIAL de consultas ainda não finalizadas em DRAFT.
+"""Converte Payments PAID/PARTIAL de consultas ainda não finalizadas em DRAFT.
 
 Assim o Financeiro (caixa/comissões) só conta após Finalizar.
 Idempotente — seguro no releaseCommand via ensure_all.
@@ -15,13 +14,13 @@ from superadmin.models import Loja
 
 
 class Command(BaseCommand):
-    help = 'Payment PAID/PARTIAL de consulta não finalizada → DRAFT (fora do Financeiro).'
+    help = "Payment PAID/PARTIAL de consulta não finalizada → DRAFT (fora do Financeiro)."
 
     def handle(self, *args, **options):
         lojas = Loja.objects.filter(
             is_active=True,
             database_created=True,
-            tipo_loja__nome='Clínica da Beleza',
+            tipo_loja__nome="Clínica da Beleza",
         )
         total = 0
         for loja in lojas:
@@ -31,9 +30,9 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not table_exists(cursor, 'clinica_beleza_payment'):
+                    if not table_exists(cursor, "clinica_beleza_payment"):
                         continue
-                    if not table_exists(cursor, 'clinica_beleza_consultas'):
+                    if not table_exists(cursor, "clinica_beleza_consultas"):
                         continue
                     cursor.execute(
                         """
@@ -46,20 +45,20 @@ class Command(BaseCommand):
                           AND c.status <> 'COMPLETED'
                           AND c.status <> 'CANCELLED'
                           AND p.status IN ('PAID', 'PARTIAL')
-                        """
+                        """,
                     )
                     n = cursor.rowcount or 0
                     if n:
                         total += n
                         self.stdout.write(self.style.SUCCESS(
-                            f'OK loja={loja.id} ({loja.nome}): {n} payment(s) → DRAFT'
+                            f"OK loja={loja.id} ({loja.nome}): {n} payment(s) → DRAFT",
                         ))
             except Exception as exc:
-                self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id}: {exc}'))
+                self.stdout.write(self.style.ERROR(f"ERRO loja={loja.id}: {exc}"))
             finally:
                 with suppress(Exception):
                     connections[db_name].close()
 
         self.stdout.write(self.style.SUCCESS(
-            f'Concluído: {total} payment(s) convertidos para DRAFT.'
+            f"Concluído: {total} payment(s) convertidos para DRAFT.",
         ))

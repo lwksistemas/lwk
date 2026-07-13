@@ -13,7 +13,7 @@ class MfaBackupTests(SimpleTestCase):
         codes = generate_backup_codes(3)
         self.assertEqual(len(codes), 3)
         for code in codes:
-            self.assertRegex(code, r'^[A-Z2-9]{4}-[A-Z2-9]{4}$')
+            self.assertRegex(code, r"^[A-Z2-9]{4}-[A-Z2-9]{4}$")
 
     def test_issue_and_consume_single_use(self):
         plain, encrypted = issue_backup_codes(2)
@@ -33,5 +33,5 @@ class MfaBackupTests(SimpleTestCase):
 
     def test_rejects_short_or_wrong_code(self):
         _, encrypted = issue_backup_codes(1)
-        self.assertFalse(verify_and_consume_backup_code(encrypted, 'AB')[0])
-        self.assertFalse(verify_and_consume_backup_code(encrypted, 'ZZZZ-ZZZZ')[0])
+        self.assertFalse(verify_and_consume_backup_code(encrypted, "AB")[0])
+        self.assertFalse(verify_and_consume_backup_code(encrypted, "ZZZZ-ZZZZ")[0])

@@ -17,38 +17,38 @@ class GoogleCalendarHelpersExtraTest(SimpleTestCase):
         self.assertLess(t_min, t_max)
         self.assertEqual((t_max - t_min).days, PULL_EVENTS_DAYS)
 
-    @override_settings(DEBUG=True, FRONTEND_URL='https://app.test')
+    @override_settings(DEBUG=True, FRONTEND_URL="https://app.test")
     def test_redirect_calendario_sucesso(self):
-        response = redirect_calendario('felix', success=True)
+        response = redirect_calendario("felix", success=True)
         self.assertEqual(response.status_code, 302)
-        self.assertIn('felix/crm-vendas/calendario', response.url)
-        self.assertIn('google_connected=1', response.url)
+        self.assertIn("felix/crm-vendas/calendario", response.url)
+        self.assertIn("google_connected=1", response.url)
 
-    @override_settings(DEBUG=True, FRONTEND_URL='https://app.test')
+    @override_settings(DEBUG=True, FRONTEND_URL="https://app.test")
     def test_redirect_calendario_erro(self):
-        response = redirect_calendario('felix', success=False)
-        self.assertIn('google_error=1', response.url)
+        response = redirect_calendario("felix", success=False)
+        self.assertIn("google_error=1", response.url)
 
     @override_settings(DEBUG=True)
     def test_get_redirect_uri_http_local(self):
         request = MagicMock()
-        request.scheme = 'http'
-        request.get_host.return_value = 'localhost:8000'
+        request.scheme = "http"
+        request.get_host.return_value = "localhost:8000"
         request.META = {}
         uri = get_redirect_uri(request)
-        self.assertIn('/api/crm-vendas/google-calendar/callback/', uri)
-        self.assertTrue(uri.startswith('http://'))
+        self.assertIn("/api/crm-vendas/google-calendar/callback/", uri)
+        self.assertTrue(uri.startswith("http://"))
 
     @override_settings(DEBUG=False)
     def test_get_redirect_uri_forca_https_producao(self):
         request = MagicMock()
-        request.scheme = 'http'
-        request.get_host.return_value = 'api.lwksistemas.com.br'
-        request.META = {'HTTP_X_FORWARDED_PROTO': 'https'}
+        request.scheme = "http"
+        request.get_host.return_value = "api.lwksistemas.com.br"
+        request.META = {"HTTP_X_FORWARDED_PROTO": "https"}
         uri = get_redirect_uri(request)
-        self.assertTrue(uri.startswith('https://'))
+        self.assertTrue(uri.startswith("https://"))
 
-    @patch('crm_vendas.google_calendar_helpers.GoogleCalendarConnection')
+    @patch("crm_vendas.google_calendar_helpers.GoogleCalendarConnection")
     def test_get_connection_filtra_vendedor(self, mock_conn):
         from crm_vendas.google_calendar_helpers import get_connection_for_loja_and_vendedor
 
@@ -56,4 +56,4 @@ class GoogleCalendarHelpersExtraTest(SimpleTestCase):
         chain.filter.return_value.first.return_value = MagicMock()
         conn = get_connection_for_loja_and_vendedor(4, vendedor_id=7)
         self.assertIsNotNone(conn)
-        mock_conn.objects.using.assert_called_with('default')
+        mock_conn.objects.using.assert_called_with("default")

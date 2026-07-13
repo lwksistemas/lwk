@@ -6,10 +6,9 @@ from django.dispatch import receiver
 
 logger = logging.getLogger(__name__)
 
-@receiver(pre_delete, sender='superadmin.HistoricoBackup')
+@receiver(pre_delete, sender="superadmin.HistoricoBackup")
 def remover_arquivo_backup_ao_deletar(sender, instance, **kwargs):
-    """
-    Remove o arquivo de backup do disco quando HistoricoBackup é excluído.
+    """Remove o arquivo de backup do disco quando HistoricoBackup é excluído.
     Evita arquivos órfãos em backups/{slug}/.
     """
     if instance.arquivo_path:

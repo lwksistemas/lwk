@@ -9,9 +9,9 @@ class TestPeriodoUnificado(TestCase):
     def test_trimestre_rolante_tres_meses(self):
         from crm_vendas.periodo import calcular_intervalo_datas
 
-        with patch('crm_vendas.periodo.timezone') as mock_tz:
+        with patch("crm_vendas.periodo.timezone") as mock_tz:
             mock_tz.now.return_value.date.return_value = date(2026, 7, 15)
-            inicio, fim = calcular_intervalo_datas('trimestre_atual')
+            inicio, fim = calcular_intervalo_datas("trimestre_atual")
         self.assertEqual(inicio, date(2026, 5, 1))
         self.assertEqual(fim, date(2026, 7, 15))
 
@@ -19,10 +19,10 @@ class TestPeriodoUnificado(TestCase):
         from crm_vendas.periodo import calcular_intervalo_datas
         from crm_vendas.relatorios import calcular_periodo
 
-        with patch('crm_vendas.periodo.timezone') as mock_tz:
+        with patch("crm_vendas.periodo.timezone") as mock_tz:
             mock_tz.now.return_value.date.return_value = date(2026, 7, 15)
-            dash = calcular_intervalo_datas('trimestre_atual')
-            rel = calcular_periodo('trimestre_atual')
+            dash = calcular_intervalo_datas("trimestre_atual")
+            rel = calcular_periodo("trimestre_atual")
         self.assertEqual(dash, rel)
 
     def test_filtro_fechamento_com_prefixo(self):
@@ -41,5 +41,5 @@ class TestPeriodoUnificado(TestCase):
             _filtro_fechamento_no_periodo(inicio, fim),
             filtro_fechamento_no_periodo(inicio, fim),
         )
-        prefixed = filtro_fechamento_no_periodo(inicio, fim, prefix='oportunidades')
+        prefixed = filtro_fechamento_no_periodo(inicio, fim, prefix="oportunidades")
         self.assertIsInstance(prefixed, Q)

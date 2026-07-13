@@ -8,19 +8,18 @@ from .models import MovimentacaoEstoque
 
 class EstoqueMovimentacaoError(Exception):
     """Erro de validação na movimentação de estoque."""
-    pass
+
 
 
 def registrar_movimentacao(
     produto,
     tipo: str,
     quantidade_raw,
-    motivo: str = '',
+    motivo: str = "",
     profissional_id=None,
     appointment_id=None,
 ) -> MovimentacaoEstoque:
-    """
-    Registra entrada/saída/ajuste no estoque de um produto.
+    """Registra entrada/saída/ajuste no estoque de um produto.
 
     Args:
         produto: instância de ProdutoEstoque
@@ -35,30 +34,31 @@ def registrar_movimentacao(
 
     Raises:
         EstoqueMovimentacaoError para validações de negócio
+
     """
-    if tipo not in ('entrada', 'saida', 'ajuste'):
-        raise EstoqueMovimentacaoError('Tipo deve ser: entrada, saida ou ajuste')
+    if tipo not in ("entrada", "saida", "ajuste"):
+        raise EstoqueMovimentacaoError("Tipo deve ser: entrada, saida ou ajuste")
 
     try:
         quantidade = Decimal(str(quantidade_raw))
         if quantidade <= 0:
-            raise EstoqueMovimentacaoError('Quantidade deve ser maior que zero')
+            raise EstoqueMovimentacaoError("Quantidade deve ser maior que zero")
     except (InvalidOperation, ValueError, TypeError):
-        raise EstoqueMovimentacaoError('Quantidade inválida')
+        raise EstoqueMovimentacaoError("Quantidade inválida")
 
-    if tipo == 'entrada':
+    if tipo == "entrada":
         produto.quantidade_atual += quantidade
-    elif tipo == 'saida':
+    elif tipo == "saida":
         if produto.quantidade_atual < quantidade:
             raise EstoqueMovimentacaoError(
-                f'Estoque insuficiente. Disponível: {produto.quantidade_atual} {produto.unidade_medida}'
+                f"Estoque insuficiente. Disponível: {produto.quantidade_atual} {produto.unidade_medida}",
             )
         produto.quantidade_atual -= quantidade
-    elif tipo == 'ajuste':
+    elif tipo == "ajuste":
         produto.quantidade_atual = quantidade
 
     with transaction.atomic():
-        produto.save(update_fields=['quantidade_atual', 'updated_at'])
+        produto.save(update_fields=["quantidade_atual", "updated_at"])
 
         mov = MovimentacaoEstoque.objects.create(
             produto=produto,

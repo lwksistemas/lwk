@@ -8,9 +8,9 @@ from .catalog import (
 from .viewset import LojaViewSet
 
 __all__ = [
-    'TipoLojaPublicoViewSet',
-    'PlanoAssinaturaPublicoViewSet',
-    'TipoLojaViewSet',
-    'PlanoAssinaturaViewSet',
-    'LojaViewSet',
+    "LojaViewSet",
+    "PlanoAssinaturaPublicoViewSet",
+    "PlanoAssinaturaViewSet",
+    "TipoLojaPublicoViewSet",
+    "TipoLojaViewSet",
 ]

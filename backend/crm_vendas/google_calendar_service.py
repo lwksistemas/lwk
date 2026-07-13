@@ -1,5 +1,4 @@
-"""
-Serviço de integração com Google Calendar API.
+"""Serviço de integração com Google Calendar API.
 OAuth2 + criar/atualizar/listar eventos.
 """
 import logging
@@ -12,32 +11,32 @@ logger = logging.getLogger(__name__)
 
 # Scopes necessários para leitura/escrita do calendário
 SCOPES = [
-    'https://www.googleapis.com/auth/calendar',
-    'https://www.googleapis.com/auth/calendar.events',
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/calendar.events",
 ]
 # Fuso padrão para eventos
-TIMEZONE_DEFAULT = 'America/Sao_Paulo'
-TOKEN_URI = 'https://oauth2.googleapis.com/token'
+TIMEZONE_DEFAULT = "America/Sao_Paulo"
+TOKEN_URI = "https://oauth2.googleapis.com/token"
 
 
 def get_flow(redirect_uri):
     """Retorna o Flow do OAuth2 para uso em auth e callback."""
     from google_auth_oauthlib.flow import Flow
 
-    client_id = getattr(settings, 'GOOGLE_CLIENT_ID', None)
-    client_secret = getattr(settings, 'GOOGLE_CLIENT_SECRET', None)
+    client_id = getattr(settings, "GOOGLE_CLIENT_ID", None)
+    client_secret = getattr(settings, "GOOGLE_CLIENT_SECRET", None)
     if not client_id or not client_secret:
-        raise ValueError('GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET devem estar configurados.')
+        raise ValueError("GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET devem estar configurados.")
 
     flow = Flow.from_client_config(
         {
-            'web': {
-                'client_id': client_id,
-                'client_secret': client_secret,
-                'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
-                'token_uri': TOKEN_URI,
-                'redirect_uris': [redirect_uri],
-            }
+            "web": {
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": TOKEN_URI,
+                "redirect_uris": [redirect_uri],
+            },
         },
         scopes=SCOPES,
         redirect_uri=redirect_uri,
@@ -90,12 +89,12 @@ def get_credentials(connection):
             if expiry and timezone.is_naive(expiry):
                 expiry = timezone.make_aware(expiry, timezone.utc)
             connection.token_expiry = expiry
-            connection.save(update_fields=['access_token', 'token_expiry', 'updated_at'])
+            connection.save(update_fields=["access_token", "token_expiry", "updated_at"])
         except RefreshError as e:
-            logger.warning('Refresh token falhou, removendo conexão inválida: %s', e)
+            logger.warning("Refresh token falhou, removendo conexão inválida: %s", e)
             connection.delete()
             raise ValueError(
-                'Token expirado ou inválido. Desconecte e conecte o Google Calendar novamente.'
+                "Token expirado ou inválido. Desconecte e conecte o Google Calendar novamente.",
             ) from e
     return creds
 
@@ -105,7 +104,7 @@ def build_calendar_service(connection):
     from googleapiclient.discovery import build
 
     creds = get_credentials(connection)
-    return build('calendar', 'v3', credentials=creds, cache_discovery=False)
+    return build("calendar", "v3", credentials=creds, cache_discovery=False)
 
 
 def atividade_to_google_event(atividade):
@@ -113,51 +112,50 @@ def atividade_to_google_event(atividade):
     start_dt = atividade.data
     if start_dt.tzinfo is None:
         start_dt = timezone.make_aware(start_dt)
-    duracao_min = getattr(atividade, 'duracao_minutos', None) or 60
+    duracao_min = getattr(atividade, "duracao_minutos", None) or 60
     end_dt = start_dt + timedelta(minutes=duracao_min)
-    
+
     # Mapeamento de tipos para emojis e cores do Google Calendar
     tipo_config = {
-        'call': {'emoji': '📞', 'color': '9'},      # Azul claro (#0ea5e9)
-        'meeting': {'emoji': '🤝', 'color': '1'},   # Azul/roxo (#6366f1)
-        'email': {'emoji': '📧', 'color': '3'},     # Roxo (#8b5cf6)
-        'task': {'emoji': '✅', 'color': '10'},     # Verde (#22c55e)
+        "call": {"emoji": "📞", "color": "9"},      # Azul claro (#0ea5e9)
+        "meeting": {"emoji": "🤝", "color": "1"},   # Azul/roxo (#6366f1)
+        "email": {"emoji": "📧", "color": "3"},     # Roxo (#8b5cf6)
+        "task": {"emoji": "✅", "color": "10"},     # Verde (#22c55e)
     }
-    
-    config = tipo_config.get(atividade.tipo, tipo_config['task'])
-    emoji = config['emoji']
-    color_id = config['color']
-    
+
+    config = tipo_config.get(atividade.tipo, tipo_config["task"])
+    emoji = config["emoji"]
+    color_id = config["color"]
+
     # Adicionar emoji e status de conclusão no título
     titulo = f"{emoji} {atividade.titulo}"
     if atividade.concluido:
         titulo = f"✓ {titulo}"
-    
+
     # Descrição com tipo e observações
     tipo_label = {
-        'call': 'Ligação',
-        'meeting': 'Reunião',
-        'email': 'Email',
-        'task': 'Tarefa',
+        "call": "Ligação",
+        "meeting": "Reunião",
+        "email": "Email",
+        "task": "Tarefa",
     }.get(atividade.tipo, atividade.tipo)
-    
-    desc_parts = [f'[CRM - {tipo_label}]']
+
+    desc_parts = [f"[CRM - {tipo_label}]"]
     if atividade.observacoes:
         desc_parts.append(atividade.observacoes.strip())
-    desc = '\n'.join(desc_parts)
-    
+    desc = "\n".join(desc_parts)
+
     return {
-        'summary': titulo,
-        'description': desc,
-        'start': {'dateTime': start_dt.isoformat(), 'timeZone': TIMEZONE_DEFAULT},
-        'end': {'dateTime': end_dt.isoformat(), 'timeZone': TIMEZONE_DEFAULT},
-        'colorId': color_id,  # Cor do evento no Google Calendar
+        "summary": titulo,
+        "description": desc,
+        "start": {"dateTime": start_dt.isoformat(), "timeZone": TIMEZONE_DEFAULT},
+        "end": {"dateTime": end_dt.isoformat(), "timeZone": TIMEZONE_DEFAULT},
+        "colorId": color_id,  # Cor do evento no Google Calendar
     }
 
 
 def push_atividade_to_google(connection, atividade, calendar_id=None):
-    """
-    Cria ou atualiza um evento no Google Calendar para a atividade.
+    """Cria ou atualiza um evento no Google Calendar para a atividade.
     Retorna o event_id do Google ou None em caso de erro.
     Se o evento foi deletado no Google (404), recria como novo.
     """
@@ -167,7 +165,7 @@ def push_atividade_to_google(connection, atividade, calendar_id=None):
     try:
         service = build_calendar_service(connection)
         body = atividade_to_google_event(atividade)
-        google_event_id = getattr(atividade, 'google_event_id', None)
+        google_event_id = getattr(atividade, "google_event_id", None)
         if google_event_id:
             try:
                 event = service.events().update(
@@ -175,29 +173,28 @@ def push_atividade_to_google(connection, atividade, calendar_id=None):
                     eventId=google_event_id,
                     body=body,
                 ).execute()
-                return event.get('id')
+                return event.get("id")
             except HttpError as e:
                 if e.resp.status == 404:
                     # Evento deletado no Google - recriar como novo
                     logger.info(
-                        'Evento %s não existe mais no Google Calendar, recriando...',
+                        "Evento %s não existe mais no Google Calendar, recriando...",
                         google_event_id,
                     )
                 else:
                     raise
         event = service.events().insert(calendarId=cal_id, body=body).execute()
-        return event.get('id')
+        return event.get("id")
     except HttpError as e:
-        logger.exception('Erro ao enviar atividade para Google Calendar: %s', e)
+        logger.exception("Erro ao enviar atividade para Google Calendar: %s", e)
         return None
     except Exception as e:
-        logger.exception('Erro ao enviar atividade para Google Calendar: %s', e)
+        logger.exception("Erro ao enviar atividade para Google Calendar: %s", e)
         return None
 
 
 def pull_events_from_google(connection, time_min, time_max, calendar_id=None):
-    """
-    Lista eventos do Google Calendar no intervalo.
+    """Lista eventos do Google Calendar no intervalo.
     Retorna lista de dicts com id, summary, start, end, description.
     """
     cal_id = calendar_id or connection.calendar_id
@@ -210,13 +207,13 @@ def pull_events_from_google(connection, time_min, time_max, calendar_id=None):
                 timeMin=time_min.isoformat(),
                 timeMax=time_max.isoformat(),
                 singleEvents=True,
-                orderBy='startTime',
+                orderBy="startTime",
             )
             .execute()
         )
-        return events_result.get('items', [])
+        return events_result.get("items", [])
     except Exception as e:
-        logger.exception('Erro ao listar eventos do Google Calendar: %s', e)
+        logger.exception("Erro ao listar eventos do Google Calendar: %s", e)
         return []
 
 
@@ -228,5 +225,5 @@ def delete_google_event(connection, event_id, calendar_id=None):
         service.events().delete(calendarId=cal_id, eventId=event_id).execute()
         return True
     except Exception as e:
-        logger.exception('Erro ao excluir evento do Google Calendar: %s', e)
+        logger.exception("Erro ao excluir evento do Google Calendar: %s", e)
         return False

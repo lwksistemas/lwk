@@ -1,12 +1,10 @@
-"""
-Regras financeiras: lançamentos ao finalizar atendimento, pendências.
+"""Regras financeiras: lançamentos ao finalizar atendimento, pendências.
 """
 from clinica_beleza.models import Payment
 
 
 def gerar_lancamento(contexto):
-    """
-    Ao finalizar agendamento (COMPLETED), cria um lançamento (Payment) pendente
+    """Ao finalizar agendamento (COMPLETED), cria um lançamento (Payment) pendente
     se ainda não existir para o atendimento.
     contexto: appointment (com procedure para valor)
     """

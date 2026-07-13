@@ -1,5 +1,4 @@
-"""
-Serviço unificado de emissão de NFS-e para lojas.
+"""Serviço unificado de emissão de NFS-e para lojas.
 Roteamento automático:
   - provedor 'issnet' → WebService ISSNet (municipal)
   - provedor 'nacional' → API ADN Nacional (SEFIN)
@@ -30,15 +29,14 @@ class NFSeService:
         validar_config_crm_loja(self.loja, self.config)
 
     def _get_config(self):
-        """
-        Obtém config NFS-e da loja.
+        """Obtém config NFS-e da loja.
         Clínica de beleza usa tabela própria; demais usam CRMConfig.
         """
-        tipo_codigo = ''
-        if hasattr(self.loja, 'tipo_loja') and self.loja.tipo_loja:
-            tipo_codigo = getattr(self.loja.tipo_loja, 'codigo', '') or ''
+        tipo_codigo = ""
+        if hasattr(self.loja, "tipo_loja") and self.loja.tipo_loja:
+            tipo_codigo = getattr(self.loja.tipo_loja, "codigo", "") or ""
 
-        if tipo_codigo in ('CLIEST', 'CLIBEL'):
+        if tipo_codigo in ("CLIEST", "CLIBEL"):
             from clinica_beleza.nfse_config_service import get_or_create_nfse_config
             return get_or_create_nfse_config(self.loja.id)
 
@@ -75,18 +73,18 @@ class NFSeService:
                     empresa_prestadora_id,
                 )
             except PrestadorNFSeNaoEncontradoError as exc:
-                return {'success': False, 'error': str(exc)}
+                return {"success": False, "error": str(exc)}
 
-            provedor = getattr(self.config, 'provedor_nf', 'issnet')
+            provedor = getattr(self.config, "provedor_nf", "issnet")
 
-            if provedor == 'manual':
+            if provedor == "manual":
                 return {
-                    'success': False,
-                    'error': 'Emissão manual configurada - emita a nota no portal da prefeitura',
+                    "success": False,
+                    "error": "Emissão manual configurada - emita a nota no portal da prefeitura",
                 }
 
-            if provedor == 'desabilitado':
-                return {'success': False, 'error': 'Emissão de NFS-e desabilitada'}
+            if provedor == "desabilitado":
+                return {"success": False, "error": "Emissão de NFS-e desabilitada"}
 
             from nfse_integration.nfse_geo import preparar_endereco_tomador_emissao
 
@@ -95,7 +93,7 @@ class NFSeService:
                 email=tomador_email,
             )
             if erro_endereco:
-                return {'success': False, 'error': erro_endereco}
+                return {"success": False, "error": erro_endereco}
 
             kwargs = dict(
                 tomador_cpf_cnpj=tomador_cpf_cnpj,
@@ -112,26 +110,26 @@ class NFSeService:
                 prestador=prestador,
             )
 
-            if provedor == 'issnet':
+            if provedor == "issnet":
                 return emitir_via_issnet_loja(self.loja, self.config, **kwargs)
 
             return emitir_via_nacional_loja(self.loja, self.config, **kwargs)
 
         except Exception as exc:
-            logger.exception('Erro ao emitir NFS-e: %s', exc)
-            return {'success': False, 'error': str(exc)}
+            logger.exception("Erro ao emitir NFS-e: %s", exc)
+            return {"success": False, "error": str(exc)}
 
     def cancelar_nfse(
         self,
         numero_nf: str,
         motivo: str,
-        codigo_cancelamento: str | int | None = '1',
+        codigo_cancelamento: str | int | None = "1",
     ) -> dict[str, Any]:
         from nfse_integration.models import NFSe
 
         nfse = NFSe.objects.filter(loja_id=self.loja.id, numero_nf=numero_nf).first()
         if not nfse:
-            return {'success': False, 'error': 'NFS-e não encontrada'}
+            return {"success": False, "error": "NFS-e não encontrada"}
 
         return cancelar_nfse_loja(
             self.loja,
@@ -183,4 +181,4 @@ class NFSeService:
                 fail_silently=True,
             )
         except Exception as exc:
-            logger.error('Erro ao enviar email NFS-e: %s', exc)
+            logger.error("Erro ao enviar email NFS-e: %s", exc)

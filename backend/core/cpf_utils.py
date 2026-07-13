@@ -1,5 +1,4 @@
-"""
-Utilitários para padronização de CPF e CNPJ.
+"""Utilitários para padronização de CPF e CNPJ.
 Formata CPF no padrão XXX.XXX.XXX-XX e CNPJ no padrão XX.XXX.XXX/XXXX-XX.
 """
 import re
@@ -9,12 +8,11 @@ def limpar_cpf(cpf):
     """Remove todos os caracteres não numéricos do CPF."""
     if not cpf:
         return ""
-    return re.sub(r'\D', '', str(cpf))
+    return re.sub(r"\D", "", str(cpf))
 
 
 def formatar_cpf(cpf):
-    """
-    Formata CPF no padrão XXX.XXX.XXX-XX quando tiver 11 dígitos.
+    """Formata CPF no padrão XXX.XXX.XXX-XX quando tiver 11 dígitos.
     Se não tiver 11 dígitos (incompleto/inválido), retorna apenas os números.
 
     Exemplos:
@@ -34,8 +32,7 @@ def formatar_cpf(cpf):
 
 
 def formatar_cnpj(cnpj):
-    """
-    Formata CNPJ no padrão XX.XXX.XXX/XXXX-XX quando tiver 14 dígitos.
+    """Formata CNPJ no padrão XX.XXX.XXX/XXXX-XX quando tiver 14 dígitos.
 
     Exemplos:
         >>> formatar_cnpj("12345678000199")
@@ -43,7 +40,7 @@ def formatar_cnpj(cnpj):
     """
     if not cnpj:
         return ""
-    numeros = re.sub(r'\D', '', str(cnpj))
+    numeros = re.sub(r"\D", "", str(cnpj))
     if not numeros:
         return ""
     if len(numeros) == 14:
@@ -52,8 +49,7 @@ def formatar_cnpj(cnpj):
 
 
 def normalizar_cpf_cnpj(valor):
-    """
-    Normaliza CPF ou CNPJ: detecta pelo número de dígitos e formata.
+    """Normaliza CPF ou CNPJ: detecta pelo número de dígitos e formata.
     - 11 dígitos → CPF: XXX.XXX.XXX-XX
     - 14 dígitos → CNPJ: XX.XXX.XXX/XXXX-XX
     - Outros → retorna apenas dígitos
@@ -66,7 +62,7 @@ def normalizar_cpf_cnpj(valor):
     """
     if not valor:
         return ""
-    numeros = re.sub(r'\D', '', str(valor))
+    numeros = re.sub(r"\D", "", str(valor))
     if not numeros:
         return ""
     if len(numeros) == 11:
@@ -101,8 +97,7 @@ def eh_cnpj(valor) -> bool:
 
 
 def label_empresa_lead(cpf_cnpj, empresa=None, conta_nome=None) -> str | None:
-    """
-    Rótulo da coluna Empresa em oportunidades/leads.
+    """Rótulo da coluna Empresa em oportunidades/leads.
     CPF → PESSOA FISICA; CNPJ → empresa do lead ou conta vinculada.
     """
     if eh_cpf(cpf_cnpj):
@@ -141,8 +136,7 @@ def existe_documento_duplicado(
     escopo_global: bool = False,
     apenas_ativos: bool = False,
 ) -> bool:
-    """
-    Verifica duplicata comparando somente dígitos (ignora máscara).
+    """Verifica duplicata comparando somente dígitos (ignora máscara).
     Por padrão escopo por loja_id; escopo_global=True para tabelas globais (ex.: Loja).
     """
     digits = somente_digitos_documento(value)

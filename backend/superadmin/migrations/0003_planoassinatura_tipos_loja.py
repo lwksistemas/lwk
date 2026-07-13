@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0002_loja_cpf_cnpj_loja_tipo_assinatura'),
+        ("superadmin", "0002_loja_cpf_cnpj_loja_tipo_assinatura"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='planoassinatura',
-            name='tipos_loja',
-            field=models.ManyToManyField(blank=True, help_text='Tipos de loja que podem usar este plano', related_name='planos', to='superadmin.tipoloja'),
+            model_name="planoassinatura",
+            name="tipos_loja",
+            field=models.ManyToManyField(blank=True, help_text="Tipos de loja que podem usar este plano", related_name="planos", to="superadmin.tipoloja"),
         ),
     ]

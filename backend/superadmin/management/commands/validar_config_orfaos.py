@@ -1,5 +1,4 @@
-"""
-Valida que a configuração de órfãos está completa: todas as tabelas com loja_id
+"""Valida que a configuração de órfãos está completa: todas as tabelas com loja_id
 no banco default devem estar em orfaos_config.TABELAS_LOJA_ID.
 
 Uso: python manage.py validar_config_orfaos
@@ -14,11 +13,11 @@ from django.db import connection
 from superadmin.orfaos_config import TABELAS_LOJA_ID
 
 # Tabelas que têm loja_id mas são de outro schema (tenant) ou não devem ser limpas no default
-IGNORAR_TABELAS = {'django_migrations', 'auth_*', 'django_*', 'superadmin_loja'}  # prefixos
+IGNORAR_TABELAS = {"django_migrations", "auth_*", "django_*", "superadmin_loja"}  # prefixos
 
 
 class Command(BaseCommand):
-    help = 'Valida que todas as tabelas com loja_id no default estão em orfaos_config.TABELAS_LOJA_ID'
+    help = "Valida que todas as tabelas com loja_id no default estão em orfaos_config.TABELAS_LOJA_ID"
 
     def handle(self, *args, **options):
         config_tabelas = {t[0] for t in TABELAS_LOJA_ID}
@@ -35,14 +34,14 @@ class Command(BaseCommand):
         faltando = [t for t in tabelas_com_loja_id if t not in config_tabelas]
         if faltando:
             self.stdout.write(self.style.ERROR(
-                'TABELAS_LOJA_ID está incompleto. Tabelas com loja_id não registradas:\n  ' +
-                '\n  '.join(faltando)
+                "TABELAS_LOJA_ID está incompleto. Tabelas com loja_id não registradas:\n  " +
+                "\n  ".join(faltando),
             ))
             self.stdout.write(self.style.WARNING(
-                '\nAdicione em superadmin/orfaos_config.py em TABELAS_LOJA_ID:\n  '
-                + '\n  '.join(f"('{t}', 'loja_id')," for t in faltando)
+                "\nAdicione em superadmin/orfaos_config.py em TABELAS_LOJA_ID:\n  "
+                + "\n  ".join(f"('{t}', 'loja_id')," for t in faltando),
             ))
             raise SystemExit(1)
         self.stdout.write(self.style.SUCCESS(
-            f'OK: Todas as {len(tabelas_com_loja_id)} tabelas com loja_id estão em TABELAS_LOJA_ID.'
+            f"OK: Todas as {len(tabelas_com_loja_id)} tabelas com loja_id estão em TABELAS_LOJA_ID.",
         ))

@@ -1,5 +1,4 @@
-"""
-Views/API para Clínica da Beleza — módulo de re-exportação.
+"""Views/API para Clínica da Beleza — módulo de re-exportação.
 
 Cada domínio está em seu próprio arquivo:
 - views_dashboard.py   → LojaInfoView, DashboardView

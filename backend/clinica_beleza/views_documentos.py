@@ -1,5 +1,4 @@
-"""
-Views de Documentos Clínicos — Templates e Documentos da Consulta
+"""Views de Documentos Clínicos — Templates e Documentos da Consulta
 """
 from rest_framework import status
 from rest_framework.response import Response
@@ -21,15 +20,14 @@ def _documentos_da_consulta(consulta):
     tenant_db = get_current_tenant_db()
     qs = DocumentoClinico.objects.all_without_filter().filter(
         consulta_id=consulta.id,
-    ).select_related('professional', 'template').order_by('-created_at')
-    if tenant_db and tenant_db != 'default':
+    ).select_related("professional", "template").order_by("-created_at")
+    if tenant_db and tenant_db != "default":
         qs = qs.using(tenant_db)
     return qs
 
 
 def _get_professional_from_request(request, *, consulta=None, professional_id=None):
-    """
-    Resolve o Professional do usuário logado na loja atual.
+    """Resolve o Professional do usuário logado na loja atual.
     Verifica:
     1. ProfissionalUsuario (acesso por vínculo)
     2. Owner da loja (admin habilitado como profissional)
@@ -44,7 +42,7 @@ def _get_professional_from_request(request, *, consulta=None, professional_id=No
         return None
 
     # 1. Vínculo ProfissionalUsuario
-    vinculo = ProfissionalUsuario.objects.using('default').filter(
+    vinculo = ProfissionalUsuario.objects.using("default").filter(
         user=request.user,
         loja_id=loja_id,
     ).first()
@@ -55,7 +53,7 @@ def _get_professional_from_request(request, *, consulta=None, professional_id=No
 
     # 2. Owner da loja — profissional vinculado (admin habilitado) ou email
     try:
-        loja = Loja.objects.using('default').get(pk=loja_id)
+        loja = Loja.objects.using("default").get(pk=loja_id)
         if loja.owner_id == request.user.id:
             owner_prof_id = LojaContextHelper.get_owner_professional_id()
             if owner_prof_id:
@@ -72,7 +70,7 @@ def _get_professional_from_request(request, *, consulta=None, professional_id=No
         pass
 
     # 3. Profissional explícito (query ou argumento) — equipe clínica já autorizada
-    pid = professional_id or request.query_params.get('professional')
+    pid = professional_id or request.query_params.get("professional")
     if pid:
         try:
             prof = Professional.objects.filter(pk=int(pid), is_active=True).first()
@@ -93,30 +91,30 @@ def _get_professional_from_request(request, *, consulta=None, professional_id=No
 
 
 class DocumentTemplateListView(APIView):
-    """
-    GET  /clinica-beleza/templates/ — lista templates do profissional logado.
+    """GET  /clinica-beleza/templates/ — lista templates do profissional logado.
     POST /clinica-beleza/templates/ — cria novo template.
 
     Query params:
         ?tipo=receituario — filtra por tipo
         ?page=1&page_size=20 — paginação (opcional, retrocompatível)
     """
+
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request):
         professional = _get_professional_from_request(request)
         if not professional:
             return Response(
-                {'error': 'Profissional não encontrado para o usuário logado.'},
+                {"error": "Profissional não encontrado para o usuário logado."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         qs = DocumentTemplate.objects.filter(
             professional=professional,
             is_active=True,
-        ).order_by('-updated_at')
+        ).order_by("-updated_at")
 
-        tipo = request.query_params.get('tipo')
+        tipo = request.query_params.get("tipo")
         if tipo:
             qs = qs.filter(tipo=tipo)
 
@@ -126,11 +124,11 @@ class DocumentTemplateListView(APIView):
         professional = _get_professional_from_request(request)
         if not professional:
             return Response(
-                {'error': 'Profissional não encontrado para o usuário logado.'},
+                {"error": "Profissional não encontrado para o usuário logado."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        serializer = DocumentTemplateSerializer(data=request.data, context={'request': request})
+        serializer = DocumentTemplateSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             serializer.save(professional=professional)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -142,23 +140,23 @@ def _verificar_template_do_profissional(request, obj):
     professional = _get_professional_from_request(request)
     if not professional:
         return Response(
-            {'error': 'Profissional não encontrado para o usuário logado.'},
+            {"error": "Profissional não encontrado para o usuário logado."},
             status=status.HTTP_403_FORBIDDEN,
         )
     if obj.professional_id != professional.id:
-        return Response({'error': 'Template não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Template não encontrado."}, status=status.HTTP_404_NOT_FOUND)
     return None
 
 
 class DocumentTemplateDetailView(GetObjectMixin, APIView):
-    """
-    GET    /clinica-beleza/templates/<id>/ — detalhe do template
+    """GET    /clinica-beleza/templates/<id>/ — detalhe do template
     PUT    /clinica-beleza/templates/<id>/ — atualiza template
     DELETE /clinica-beleza/templates/<id>/ — soft-delete (is_active=False)
     """
+
     permission_classes = CLINICA_CLINICAL
     model_class = DocumentTemplate
-    not_found_message = 'Template não encontrado'
+    not_found_message = "Template não encontrado"
 
     def get(self, request, pk):
         obj, error = self.object_or_404(pk)
@@ -190,7 +188,7 @@ class DocumentTemplateDetailView(GetObjectMixin, APIView):
         if erro_owner:
             return erro_owner
         obj.is_active = False
-        obj.save(update_fields=['is_active', 'updated_at'])
+        obj.save(update_fields=["is_active", "updated_at"])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -204,21 +202,21 @@ def _get_consulta_or_none(consulta_id):
 
     return get_consulta_for_tenant(
         consulta_id,
-        select_related=('patient', 'professional', 'procedure'),
+        select_related=("patient", "professional", "procedure"),
     )
 
 
 class ConsultaDocumentoListView(APIView):
-    """
-    GET  /clinica-beleza/consultas/<consulta_id>/documentos/ — lista documentos da consulta.
+    """GET  /clinica-beleza/consultas/<consulta_id>/documentos/ — lista documentos da consulta.
     POST /clinica-beleza/consultas/<consulta_id>/documentos/ — cria documento na consulta.
     """
+
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request, consulta_id):
         consulta = _get_consulta_or_none(consulta_id)
         if not consulta:
-            return Response({'error': 'Consulta não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Consulta não encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
         documentos = _documentos_da_consulta(consulta)
         serializer = DocumentoClinicoSerializer(documentos, many=True)
@@ -227,26 +225,26 @@ class ConsultaDocumentoListView(APIView):
     def post(self, request, consulta_id):
         consulta = _get_consulta_or_none(consulta_id)
         if not consulta:
-            return Response({'error': 'Consulta não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Consulta não encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
-        if consulta.status != 'IN_PROGRESS':
+        if consulta.status != "IN_PROGRESS":
             return Response(
-                {'error': 'Documentos só podem ser criados em consultas em atendimento (IN_PROGRESS).'},
+                {"error": "Documentos só podem ser criados em consultas em atendimento (IN_PROGRESS)."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         professional = _get_professional_from_request(request, consulta=consulta)
         if not professional:
             return Response(
-                {'error': 'Profissional não encontrado para o usuário logado.'},
+                {"error": "Profissional não encontrado para o usuário logado."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         data = request.data
-        tipo = data.get('tipo', '')
-        titulo = data.get('titulo', '')
-        template_id = data.get('template_id')
-        conteudo = data.get('conteudo', '')
+        tipo = data.get("tipo", "")
+        titulo = data.get("titulo", "")
+        template_id = data.get("template_id")
+        conteudo = data.get("conteudo", "")
 
         template_obj = None
         if template_id:
@@ -255,12 +253,12 @@ class ConsultaDocumentoListView(APIView):
                     pk=template_id, is_active=True, professional=professional,
                 )
             except DocumentTemplate.DoesNotExist:
-                return Response({'error': 'Template não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"error": "Template não encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
             context = {
-                'patient': consulta.patient,
-                'professional': professional,
-                'consulta': consulta,
+                "patient": consulta.patient,
+                "professional": professional,
+                "consulta": consulta,
             }
             conteudo = render_template(template_obj.conteudo, context)
 
@@ -277,28 +275,28 @@ class ConsultaDocumentoListView(APIView):
 
 
 class ConsultaDocumentoDeleteView(GetObjectMixin, APIView):
-    """
-    DELETE /clinica-beleza/consultas/<consulta_id>/documentos/<doc_id>/ — exclui documento.
+    """DELETE /clinica-beleza/consultas/<consulta_id>/documentos/<doc_id>/ — exclui documento.
     Só permite exclusão se a consulta está IN_PROGRESS.
     """
+
     permission_classes = CLINICA_CLINICAL
     model_class = DocumentoClinico
-    not_found_message = 'Documento não encontrado'
-    select_related_fields = ['consulta']
+    not_found_message = "Documento não encontrado"
+    select_related_fields = ["consulta"]
 
     def delete(self, request, consulta_id, doc_id):
         consulta = _get_consulta_or_none(consulta_id)
         if not consulta:
-            return Response({'error': 'Consulta não encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Consulta não encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
         obj = _documentos_da_consulta(consulta).filter(pk=doc_id).first()
         if not obj:
-            return Response({'error': 'Documento não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Documento não encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
         # Valida que a consulta está IN_PROGRESS
-        if obj.consulta.status != 'IN_PROGRESS':
+        if obj.consulta.status != "IN_PROGRESS":
             return Response(
-                {'error': 'Só é possível excluir documentos de consultas em atendimento (IN_PROGRESS).'},
+                {"error": "Só é possível excluir documentos de consultas em atendimento (IN_PROGRESS)."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

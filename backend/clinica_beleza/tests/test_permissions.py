@@ -1,5 +1,4 @@
-"""
-Testes unitários para as permissões RBAC da Clínica da Beleza.
+"""Testes unitários para as permissões RBAC da Clínica da Beleza.
 Cobre todos os perfis × todas as classes de permissão.
 """
 from unittest.mock import MagicMock, patch
@@ -36,14 +35,14 @@ def _make_loja(owner_id=1):
     return loja
 
 
-def _make_prof(perfil='profissional', professional_id=10):
+def _make_prof(perfil="profissional", professional_id=10):
     prof = MagicMock()
     prof.perfil = perfil
     prof.professional_id = professional_id
     return prof
 
 
-PATCH_TARGET = 'clinica_beleza.permissions._loja_and_profissional'
+PATCH_TARGET = "clinica_beleza.permissions._loja_and_profissional"
 
 
 class IsClinicaLojaMemberTests(SimpleTestCase):
@@ -58,7 +57,7 @@ class IsClinicaLojaMemberTests(SimpleTestCase):
 
     @patch(PATCH_TARGET)
     def test_superuser_allowed(self, mock_lp):
-        mock_lp.return_value = (None, 'superuser')
+        mock_lp.return_value = (None, "superuser")
         request = _make_request()
         self.assertTrue(self.perm.has_permission(request, None))
 
@@ -73,7 +72,7 @@ class IsClinicaLojaMemberTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_profissional_allowed(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('profissional'))
+        mock_lp.return_value = (loja, _make_prof("profissional"))
         request = _make_request()
         request.user.id = 99
         self.assertTrue(self.perm.has_permission(request, None))
@@ -110,7 +109,7 @@ class IsRecepcaoOrAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_administrador_allowed(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('administrador'))
+        mock_lp.return_value = (loja, _make_prof("administrador"))
         request = _make_request()
         request.user.id = 99
         self.assertTrue(self.perm.has_permission(request, None))
@@ -118,7 +117,7 @@ class IsRecepcaoOrAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_recepcao_allowed(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('recepcao'))
+        mock_lp.return_value = (loja, _make_prof("recepcao"))
         request = _make_request()
         request.user.id = 99
         self.assertTrue(self.perm.has_permission(request, None))
@@ -126,7 +125,7 @@ class IsRecepcaoOrAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_recepcionista_allowed(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('recepcionista'))
+        mock_lp.return_value = (loja, _make_prof("recepcionista"))
         request = _make_request()
         request.user.id = 99
         self.assertTrue(self.perm.has_permission(request, None))
@@ -134,7 +133,7 @@ class IsRecepcaoOrAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_profissional_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('profissional'))
+        mock_lp.return_value = (loja, _make_prof("profissional"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -142,7 +141,7 @@ class IsRecepcaoOrAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_caixa_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('caixa'))
+        mock_lp.return_value = (loja, _make_prof("caixa"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -150,7 +149,7 @@ class IsRecepcaoOrAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_limpeza_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('limpeza'))
+        mock_lp.return_value = (loja, _make_prof("limpeza"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -158,7 +157,7 @@ class IsRecepcaoOrAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_estoque_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('estoque'))
+        mock_lp.return_value = (loja, _make_prof("estoque"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -181,7 +180,7 @@ class IsClinicaAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_administrador_allowed(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('administrador'))
+        mock_lp.return_value = (loja, _make_prof("administrador"))
         request = _make_request()
         request.user.id = 99
         self.assertTrue(self.perm.has_permission(request, None))
@@ -189,7 +188,7 @@ class IsClinicaAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_recepcionista_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('recepcionista'))
+        mock_lp.return_value = (loja, _make_prof("recepcionista"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -197,7 +196,7 @@ class IsClinicaAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_profissional_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('profissional'))
+        mock_lp.return_value = (loja, _make_prof("profissional"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -212,7 +211,7 @@ class IsAgendaOrAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_profissional_allowed(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('profissional'))
+        mock_lp.return_value = (loja, _make_prof("profissional"))
         request = _make_request()
         request.user.id = 99
         self.assertTrue(self.perm.has_permission(request, None))
@@ -220,7 +219,7 @@ class IsAgendaOrAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_caixa_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('caixa'))
+        mock_lp.return_value = (loja, _make_prof("caixa"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -228,7 +227,7 @@ class IsAgendaOrAdminTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_limpeza_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('limpeza'))
+        mock_lp.return_value = (loja, _make_prof("limpeza"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -243,7 +242,7 @@ class IsClinicaFinanceiroTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_caixa_allowed(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('caixa'))
+        mock_lp.return_value = (loja, _make_prof("caixa"))
         request = _make_request()
         request.user.id = 99
         self.assertTrue(self.perm.has_permission(request, None))
@@ -251,7 +250,7 @@ class IsClinicaFinanceiroTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_profissional_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('profissional'))
+        mock_lp.return_value = (loja, _make_prof("profissional"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -259,7 +258,7 @@ class IsClinicaFinanceiroTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_estoque_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('estoque'))
+        mock_lp.return_value = (loja, _make_prof("estoque"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -267,7 +266,7 @@ class IsClinicaFinanceiroTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_limpeza_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('limpeza'))
+        mock_lp.return_value = (loja, _make_prof("limpeza"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -282,7 +281,7 @@ class IsClinicaEstoqueTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_estoque_allowed(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('estoque'))
+        mock_lp.return_value = (loja, _make_prof("estoque"))
         request = _make_request()
         request.user.id = 99
         self.assertTrue(self.perm.has_permission(request, None))
@@ -290,7 +289,7 @@ class IsClinicaEstoqueTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_profissional_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('profissional'))
+        mock_lp.return_value = (loja, _make_prof("profissional"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -298,7 +297,7 @@ class IsClinicaEstoqueTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_caixa_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('caixa'))
+        mock_lp.return_value = (loja, _make_prof("caixa"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -313,7 +312,7 @@ class IsClinicalOrEstoqueStaffTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_profissional_allowed(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('profissional'))
+        mock_lp.return_value = (loja, _make_prof("profissional"))
         request = _make_request()
         request.user.id = 99
         self.assertTrue(self.perm.has_permission(request, None))
@@ -321,7 +320,7 @@ class IsClinicalOrEstoqueStaffTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_estoque_allowed(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('estoque'))
+        mock_lp.return_value = (loja, _make_prof("estoque"))
         request = _make_request()
         request.user.id = 99
         self.assertTrue(self.perm.has_permission(request, None))
@@ -329,7 +328,7 @@ class IsClinicalOrEstoqueStaffTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_caixa_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('caixa'))
+        mock_lp.return_value = (loja, _make_prof("caixa"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -337,7 +336,7 @@ class IsClinicalOrEstoqueStaffTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_limpeza_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('limpeza'))
+        mock_lp.return_value = (loja, _make_prof("limpeza"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))
@@ -357,7 +356,7 @@ class AgendaScopeTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_profissional_gets_scoped(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('profissional', professional_id=42))
+        mock_lp.return_value = (loja, _make_prof("profissional", professional_id=42))
         request = _make_request()
         request.user.id = 99
         self.assertEqual(resolve_agenda_professional_scope(request), 42)
@@ -365,7 +364,7 @@ class AgendaScopeTests(SimpleTestCase):
     @patch(PATCH_TARGET)
     def test_recepcionista_gets_full_scope(self, mock_lp):
         loja = _make_loja(owner_id=1)
-        mock_lp.return_value = (loja, _make_prof('recepcionista'))
+        mock_lp.return_value = (loja, _make_prof("recepcionista"))
         request = _make_request()
         request.user.id = 99
         self.assertIsNone(resolve_agenda_professional_scope(request))

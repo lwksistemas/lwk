@@ -7,7 +7,7 @@ from django.db import migrations, models
 def add_duracao_minutos_if_table_exists(apps, schema_editor):
     """Adiciona coluna duracao_minutos apenas se a tabela crm_vendas_atividade existir."""
     conn = schema_editor.connection
-    if conn.vendor != 'postgresql':
+    if conn.vendor != "postgresql":
         return
     with conn.cursor() as cursor:
         cursor.execute("""
@@ -33,22 +33,21 @@ def add_duracao_minutos_if_table_exists(apps, schema_editor):
 
 def reverse_add_duracao_minutos(apps, schema_editor):
     """No-op: não remove a coluna no reverse."""
-    pass
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0004_ensure_google_event_id_in_tenant_schemas'),
+        ("crm_vendas", "0004_ensure_google_event_id_in_tenant_schemas"),
     ]
 
     operations = [
         migrations.SeparateDatabaseAndState(
             state_operations=[
                 migrations.AddField(
-                    model_name='atividade',
-                    name='duracao_minutos',
-                    field=models.PositiveIntegerField(default=60, help_text='Duração estimada da atividade em minutos'),
+                    model_name="atividade",
+                    name="duracao_minutos",
+                    field=models.PositiveIntegerField(default=60, help_text="Duração estimada da atividade em minutos"),
                 ),
             ],
             database_operations=[

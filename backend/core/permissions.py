@@ -1,18 +1,17 @@
-"""
-Permissões reutilizáveis para o sistema.
+"""Permissões reutilizáveis para o sistema.
 """
 from rest_framework import permissions
 
 
 class IsSuperAdmin(permissions.BasePermission):
-    """
-    Permissão APENAS para super admins.
-    
+    """Permissão APENAS para super admins.
+
     Uso:
         permission_classes = [IsSuperAdmin]
     """
+
     message = "Apenas super administradores podem acessar este recurso."
-    
+
     def has_permission(self, request, view):
         return (
             request.user and
@@ -20,7 +19,7 @@ class IsSuperAdmin(permissions.BasePermission):
             request.user.is_superuser and
             request.user.is_active
         )
-    
+
     def has_object_permission(self, request, view, obj):
         return (
             request.user and
@@ -30,11 +29,11 @@ class IsSuperAdmin(permissions.BasePermission):
 
 
 class HasLojaAccess(permissions.BasePermission):
-    """
-    Exige que o usuário autenticado tenha vínculo com a loja do contexto (headers).
+    """Exige que o usuário autenticado tenha vínculo com a loja do contexto (headers).
     Superuser passa. Endpoints sem headers de loja são negados para usuários de loja.
     """
-    message = 'Você não tem permissão para acessar esta loja.'
+
+    message = "Você não tem permissão para acessar esta loja."
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -60,18 +59,17 @@ class HasLojaAccess(permissions.BasePermission):
 
 
 class IsSuperAdminOrReadOnly(permissions.BasePermission):
-    """
-    Permissão para leitura pública, mas apenas super admin pode editar.
-    
+    """Permissão para leitura pública, mas apenas super admin pode editar.
+
     Uso:
         permission_classes = [IsSuperAdminOrReadOnly]
     """
-    
+
     def has_permission(self, request, view):
         # Leitura permitida para todos
         if request.method in permissions.SAFE_METHODS:
             return True
-        
+
         # Escrita apenas para super admin
         return (
             request.user and
@@ -79,12 +77,12 @@ class IsSuperAdminOrReadOnly(permissions.BasePermission):
             request.user.is_superuser and
             request.user.is_active
         )
-    
+
     def has_object_permission(self, request, view, obj):
         # Leitura permitida para todos
         if request.method in permissions.SAFE_METHODS:
             return True
-        
+
         # Escrita apenas para super admin
         return (
             request.user and

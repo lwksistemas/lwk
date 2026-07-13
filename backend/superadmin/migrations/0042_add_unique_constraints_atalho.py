@@ -7,31 +7,31 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0041_gerar_atalhos_lojas'),
+        ("superadmin", "0041_gerar_atalhos_lojas"),
     ]
 
     operations = [
         # Adicionar unique constraint ao campo atalho
         migrations.AlterField(
-            model_name='loja',
-            name='atalho',
+            model_name="loja",
+            name="atalho",
             field=models.SlugField(
                 blank=True,
-                help_text='Atalho curto para acesso fácil (ex: felix). Gerado automaticamente a partir do nome.',
+                help_text="Atalho curto para acesso fácil (ex: felix). Gerado automaticamente a partir do nome.",
                 max_length=50,
-                unique=True  # Agora com unique
+                unique=True,  # Agora com unique
             ),
         ),
         # Adicionar unique constraint ao campo subdomain
         migrations.AlterField(
-            model_name='loja',
-            name='subdomain',
+            model_name="loja",
+            name="subdomain",
             field=models.SlugField(
                 blank=True,
-                help_text='Subdomínio personalizado (ex: felix.lwksistemas.com.br). Opcional para planos premium.',
+                help_text="Subdomínio personalizado (ex: felix.lwksistemas.com.br). Opcional para planos premium.",
                 max_length=50,
                 null=True,
-                unique=True  # Agora com unique
+                unique=True,  # Agora com unique
             ),
         ),
     ]

@@ -13,7 +13,7 @@ def _merge_timbrado_fundo(content_pdf: bytes, timbrado_pdf: bytes) -> bytes:
     try:
         from pypdf import PdfReader, PdfWriter, Transformation
     except ImportError:
-        logger.warning('pypdf não instalado; PDF sem fundo timbrado.')
+        logger.warning("pypdf não instalado; PDF sem fundo timbrado.")
         return content_pdf
 
     try:
@@ -41,7 +41,7 @@ def _merge_timbrado_fundo(content_pdf: bytes, timbrado_pdf: bytes) -> bytes:
         out.seek(0)
         return out.getvalue()
     except Exception as e:
-        logger.warning('Falha ao mesclar timbrado no PDF de comissões: %s', e)
+        logger.warning("Falha ao mesclar timbrado no PDF de comissões: %s", e)
         return content_pdf
 
 
@@ -63,8 +63,8 @@ def _logo_image(logo_url: str, max_w=5 * cm, max_h=2.5 * cm):
             width = height / aspect
         buf.seek(0)
         img = Image(buf, width=width, height=height)
-        img.hAlign = 'CENTER'
+        img.hAlign = "CENTER"
         return img
     except Exception as e:
-        logger.warning('Logo no PDF de comissões: %s', e)
+        logger.warning("Logo no PDF de comissões: %s", e)
         return None

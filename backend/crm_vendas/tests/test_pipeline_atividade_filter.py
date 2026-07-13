@@ -11,16 +11,16 @@ class AtividadeVendedorFilterTest(SimpleTestCase):
     def setUp(self):
         self.factory = RequestFactory()
         self.view = AtividadeViewSet()
-        self.view.request = self.factory.get('/crm-vendas/atividades/')
+        self.view.request = self.factory.get("/crm-vendas/atividades/")
 
-    @patch('crm_vendas.views_pipelines.get_current_vendedor_id', return_value=None)
+    @patch("crm_vendas.views_pipelines.get_current_vendedor_id", return_value=None)
     def test_sem_vendedor_retorna_queryset_intacto(self, _mock_vid):
         qs = MagicMock()
         result = self.view.filter_by_vendedor(qs)
         self.assertIs(result, qs)
         qs.filter.assert_not_called()
 
-    @patch('crm_vendas.views_pipelines.get_current_vendedor_id', return_value=7)
+    @patch("crm_vendas.views_pipelines.get_current_vendedor_id", return_value=7)
     def test_com_vendedor_aplica_filtro_or_distinct(self, _mock_vid):
         qs = MagicMock()
         filtered = MagicMock()

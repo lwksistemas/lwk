@@ -1,5 +1,4 @@
-"""
-Comando para detectar e limpar dados órfãos no sistema.
+"""Comando para detectar e limpar dados órfãos no sistema.
 
 Verifica:
 1. Arquivos de banco SQLite sem loja correspondente
@@ -31,187 +30,187 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = 'Detecta e remove dados órfãos (arquivos, schemas, usuários, sessões)'
+    help = "Detecta e remove dados órfãos (arquivos, schemas, usuários, sessões)"
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--dry-run',
-            action='store_true',
-            help='Apenas listar órfãos sem remover',
+            "--dry-run",
+            action="store_true",
+            help="Apenas listar órfãos sem remover",
         )
         parser.add_argument(
-            '--execute',
-            action='store_true',
-            help='Executar limpeza de órfãos',
+            "--execute",
+            action="store_true",
+            help="Executar limpeza de órfãos",
         )
 
     def handle(self, *args, **options):
-        dry_run = options['dry_run']
-        execute = options['execute']
+        dry_run = options["dry_run"]
+        execute = options["execute"]
 
         if not dry_run and not execute:
             self.stdout.write(
-                self.style.ERROR('❌ Use --dry-run para listar ou --execute para limpar')
+                self.style.ERROR("❌ Use --dry-run para listar ou --execute para limpar"),
             )
             return
 
-        mode = '🔍 MODO ANÁLISE (dry-run)' if dry_run else '🗑️ MODO EXECUÇÃO'
-        self.stdout.write(self.style.WARNING(f'\n{mode}\n'))
+        mode = "🔍 MODO ANÁLISE (dry-run)" if dry_run else "🗑️ MODO EXECUÇÃO"
+        self.stdout.write(self.style.WARNING(f"\n{mode}\n"))
 
         # Importar modelos
         from superadmin.models import Loja, ProfissionalUsuario, UserSession, VendedorUsuario
 
         # 1. Verificar arquivos SQLite órfãos
-        self.stdout.write(self.style.HTTP_INFO('\n1️⃣ Verificando arquivos SQLite órfãos...'))
-        lojas_db_names = set(Loja.objects.values_list('database_name', flat=True))
+        self.stdout.write(self.style.HTTP_INFO("\n1️⃣ Verificando arquivos SQLite órfãos..."))
+        lojas_db_names = set(Loja.objects.values_list("database_name", flat=True))
         arquivos_orfaos = []
 
         for filename in os.listdir(settings.BASE_DIR):
-            if filename.startswith('db_loja_') and filename.endswith('.sqlite3'):
-                db_name = filename.replace('db_', '').replace('.sqlite3', '')
-                if db_name not in lojas_db_names and db_name != 'loja_template':
+            if filename.startswith("db_loja_") and filename.endswith(".sqlite3"):
+                db_name = filename.replace("db_", "").replace(".sqlite3", "")
+                if db_name not in lojas_db_names and db_name != "loja_template":
                     arquivos_orfaos.append(filename)
 
         if arquivos_orfaos:
-            self.stdout.write(self.style.WARNING(f'   ⚠️ Encontrados {len(arquivos_orfaos)} arquivos órfãos:'))
+            self.stdout.write(self.style.WARNING(f"   ⚠️ Encontrados {len(arquivos_orfaos)} arquivos órfãos:"))
             for arquivo in arquivos_orfaos:
-                self.stdout.write(f'      - {arquivo}')
+                self.stdout.write(f"      - {arquivo}")
                 if execute:
                     try:
                         os.remove(settings.BASE_DIR / arquivo)
-                        self.stdout.write(self.style.SUCCESS('         ✅ Removido'))
+                        self.stdout.write(self.style.SUCCESS("         ✅ Removido"))
                     except Exception as e:
-                        self.stdout.write(self.style.ERROR(f'         ❌ Erro: {e}'))
+                        self.stdout.write(self.style.ERROR(f"         ❌ Erro: {e}"))
         else:
-            self.stdout.write(self.style.SUCCESS('   ✅ Nenhum arquivo SQLite órfão'))
+            self.stdout.write(self.style.SUCCESS("   ✅ Nenhum arquivo SQLite órfão"))
 
         # 2. Verificar schemas PostgreSQL órfãos
-        self.stdout.write(self.style.HTTP_INFO('\n2️⃣ Verificando schemas PostgreSQL órfãos...'))
-        DATABASE_URL = os.environ.get('DATABASE_URL', '')
-        
-        if 'postgres' in DATABASE_URL.lower():
+        self.stdout.write(self.style.HTTP_INFO("\n2️⃣ Verificando schemas PostgreSQL órfãos..."))
+        DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
+        if "postgres" in DATABASE_URL.lower():
             lojas_schemas = set(
-                loja.database_name.replace('-', '_') 
+                loja.database_name.replace("-", "_")
                 for loja in Loja.objects.all()
             )
-            
+
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    SELECT schema_name 
-                    FROM information_schema.schemata 
+                    SELECT schema_name
+                    FROM information_schema.schemata
                     WHERE schema_name LIKE 'loja_%'
                     AND schema_name NOT IN ('public', 'information_schema')
                 """)
                 schemas_existentes = [row[0] for row in cursor.fetchall()]
-            
+
             schemas_orfaos = [s for s in schemas_existentes if s not in lojas_schemas]
-            
+
             if schemas_orfaos:
-                self.stdout.write(self.style.WARNING(f'   ⚠️ Encontrados {len(schemas_orfaos)} schemas órfãos:'))
+                self.stdout.write(self.style.WARNING(f"   ⚠️ Encontrados {len(schemas_orfaos)} schemas órfãos:"))
                 for schema in schemas_orfaos:
-                    self.stdout.write(f'      - {schema}')
+                    self.stdout.write(f"      - {schema}")
                     if execute:
                         try:
                             with connection.cursor() as cursor:
                                 cursor.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
-                            self.stdout.write(self.style.SUCCESS('         ✅ Removido'))
+                            self.stdout.write(self.style.SUCCESS("         ✅ Removido"))
                         except Exception as e:
-                            self.stdout.write(self.style.ERROR(f'         ❌ Erro: {e}'))
+                            self.stdout.write(self.style.ERROR(f"         ❌ Erro: {e}"))
             else:
-                self.stdout.write(self.style.SUCCESS('   ✅ Nenhum schema PostgreSQL órfão'))
+                self.stdout.write(self.style.SUCCESS("   ✅ Nenhum schema PostgreSQL órfão"))
         else:
-            self.stdout.write(self.style.SUCCESS('   ℹ️ Não está usando PostgreSQL'))
+            self.stdout.write(self.style.SUCCESS("   ℹ️ Não está usando PostgreSQL"))
 
         # 3. Verificar usuários órfãos (sem vínculo com loja)
-        self.stdout.write(self.style.HTTP_INFO('\n3️⃣ Verificando usuários órfãos...'))
+        self.stdout.write(self.style.HTTP_INFO("\n3️⃣ Verificando usuários órfãos..."))
         from superadmin.orfaos_config import get_usuarios_orfaos_queryset
 
         usuarios_orfaos = get_usuarios_orfaos_queryset()
 
         if usuarios_orfaos.exists():
-            self.stdout.write(self.style.WARNING(f'   ⚠️ Encontrados {usuarios_orfaos.count()} usuários órfãos:'))
+            self.stdout.write(self.style.WARNING(f"   ⚠️ Encontrados {usuarios_orfaos.count()} usuários órfãos:"))
             # Coletar IDs antes de iterar (evita lazy eval que pode tocar stores_store)
-            user_ids = list(usuarios_orfaos.values_list('id', flat=True))
+            user_ids = list(usuarios_orfaos.values_list("id", flat=True))
             user_info = {u.id: (u.username, u.email) for u in usuarios_orfaos}
             for user_id in user_ids:
-                username, email = user_info.get(user_id, ('?', '?'))
-                self.stdout.write(f'      - {username} (ID: {user_id}, Email: {email})')
+                username, email = user_info.get(user_id, ("?", "?"))
+                self.stdout.write(f"      - {username} (ID: {user_id}, Email: {email})")
                 if execute:
                     try:
                         from superadmin.utils import delete_user_raw
                         delete_user_raw(user_id)
-                        self.stdout.write(self.style.SUCCESS('         ✅ Removido'))
+                        self.stdout.write(self.style.SUCCESS("         ✅ Removido"))
                     except Exception as e:
-                        self.stdout.write(self.style.ERROR(f'         ❌ Erro: {e}'))
+                        self.stdout.write(self.style.ERROR(f"         ❌ Erro: {e}"))
         else:
-            self.stdout.write(self.style.SUCCESS('   ✅ Nenhum usuário órfão'))
+            self.stdout.write(self.style.SUCCESS("   ✅ Nenhum usuário órfão"))
 
         # 4. Verificar sessões de usuários inexistentes
-        self.stdout.write(self.style.HTTP_INFO('\n4️⃣ Verificando sessões órfãs...'))
-        usuarios_ids = set(User.objects.values_list('id', flat=True))
+        self.stdout.write(self.style.HTTP_INFO("\n4️⃣ Verificando sessões órfãs..."))
+        usuarios_ids = set(User.objects.values_list("id", flat=True))
         sessoes_orfas = UserSession.objects.exclude(user_id__in=usuarios_ids)
 
         if sessoes_orfas.exists():
             count = sessoes_orfas.count()
-            self.stdout.write(self.style.WARNING(f'   ⚠️ Encontradas {count} sessões órfãs'))
+            self.stdout.write(self.style.WARNING(f"   ⚠️ Encontradas {count} sessões órfãs"))
             if execute:
                 sessoes_orfas.delete()
-                self.stdout.write(self.style.SUCCESS(f'      ✅ {count} sessões removidas'))
+                self.stdout.write(self.style.SUCCESS(f"      ✅ {count} sessões removidas"))
         else:
-            self.stdout.write(self.style.SUCCESS('   ✅ Nenhuma sessão órfã'))
+            self.stdout.write(self.style.SUCCESS("   ✅ Nenhuma sessão órfã"))
 
         # 5. Verificar ProfissionalUsuario / VendedorUsuario órfãos
-        self.stdout.write(self.style.HTTP_INFO('\n5️⃣ Verificando vínculos profissional/vendedor órfãos...'))
-        lojas_ids = set(Loja.objects.values_list('id', flat=True))
+        self.stdout.write(self.style.HTTP_INFO("\n5️⃣ Verificando vínculos profissional/vendedor órfãos..."))
+        lojas_ids = set(Loja.objects.values_list("id", flat=True))
         prof_usuarios_orfaos = ProfissionalUsuario.objects.exclude(user_id__in=usuarios_ids)
         prof_loja_orfaos = ProfissionalUsuario.objects.exclude(loja_id__in=lojas_ids)
         vend_usuarios_orfaos = VendedorUsuario.objects.exclude(user_id__in=usuarios_ids)
         vend_loja_orfaos = VendedorUsuario.objects.exclude(loja_id__in=lojas_ids)
 
         for label, qs in (
-            ('ProfissionalUsuario (user inexistente)', prof_usuarios_orfaos),
-            ('ProfissionalUsuario (loja inexistente)', prof_loja_orfaos),
-            ('VendedorUsuario (user inexistente)', vend_usuarios_orfaos),
-            ('VendedorUsuario (loja inexistente)', vend_loja_orfaos),
+            ("ProfissionalUsuario (user inexistente)", prof_usuarios_orfaos),
+            ("ProfissionalUsuario (loja inexistente)", prof_loja_orfaos),
+            ("VendedorUsuario (user inexistente)", vend_usuarios_orfaos),
+            ("VendedorUsuario (loja inexistente)", vend_loja_orfaos),
         ):
             if qs.exists():
                 count = qs.count()
-                self.stdout.write(self.style.WARNING(f'   ⚠️ {label}: {count}'))
+                self.stdout.write(self.style.WARNING(f"   ⚠️ {label}: {count}"))
                 if execute:
                     qs.delete()
-                    self.stdout.write(self.style.SUCCESS(f'      ✅ {count} removidos'))
+                    self.stdout.write(self.style.SUCCESS(f"      ✅ {count} removidos"))
             else:
-                self.stdout.write(self.style.SUCCESS(f'   ✅ {label}: nenhum'))
+                self.stdout.write(self.style.SUCCESS(f"   ✅ {label}: nenhum"))
 
         # 6. Verificar configurações de banco órfãs em settings.DATABASES
-        self.stdout.write(self.style.HTTP_INFO('\n6️⃣ Verificando configurações de banco órfãs...'))
-        lojas_db_names_set = set(Loja.objects.values_list('database_name', flat=True))
+        self.stdout.write(self.style.HTTP_INFO("\n6️⃣ Verificando configurações de banco órfãs..."))
+        lojas_db_names_set = set(Loja.objects.values_list("database_name", flat=True))
         configs_orfas = []
 
         for db_name in list(settings.DATABASES.keys()):
-            if db_name.startswith('loja_') and db_name not in ['default', 'suporte', 'loja_template'] and db_name not in lojas_db_names_set:
+            if db_name.startswith("loja_") and db_name not in ["default", "suporte", "loja_template"] and db_name not in lojas_db_names_set:
                 configs_orfas.append(db_name)
 
         if configs_orfas:
-            self.stdout.write(self.style.WARNING(f'   ⚠️ Encontradas {len(configs_orfas)} configurações órfãs:'))
+            self.stdout.write(self.style.WARNING(f"   ⚠️ Encontradas {len(configs_orfas)} configurações órfãs:"))
             for db_name in configs_orfas:
-                self.stdout.write(f'      - {db_name}')
+                self.stdout.write(f"      - {db_name}")
                 if execute:
                     try:
                         del settings.DATABASES[db_name]
-                        self.stdout.write(self.style.SUCCESS('         ✅ Removido do settings'))
+                        self.stdout.write(self.style.SUCCESS("         ✅ Removido do settings"))
                     except Exception as e:
-                        self.stdout.write(self.style.ERROR(f'         ❌ Erro: {e}'))
+                        self.stdout.write(self.style.ERROR(f"         ❌ Erro: {e}"))
         else:
-            self.stdout.write(self.style.SUCCESS('   ✅ Nenhuma configuração órfã'))
+            self.stdout.write(self.style.SUCCESS("   ✅ Nenhuma configuração órfã"))
 
         # 7. Verificar dados em tabelas com loja_id inválido (safety net)
-        self.stdout.write(self.style.HTTP_INFO('\n7️⃣ Verificando dados com loja_id inválido...'))
-        lojas_ids = set(Loja.objects.values_list('id', flat=True))
-        
+        self.stdout.write(self.style.HTTP_INFO("\n7️⃣ Verificando dados com loja_id inválido..."))
+        lojas_ids = set(Loja.objects.values_list("id", flat=True))
+
         # Tabelas a verificar (do orfaos_config.py)
         from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT, tabela_existe_em_public
-        
+
         total_orfaos = 0
         for tabela, coluna in TABELAS_LOJA_ID_DEFAULT:
             try:
@@ -219,35 +218,35 @@ class Command(BaseCommand):
                     if not tabela_existe_em_public(cursor, tabela):
                         continue
                     cursor.execute(f"""
-                        SELECT COUNT(*) FROM {tabela} 
+                        SELECT COUNT(*) FROM {tabela}
                         WHERE {coluna} IS NOT NULL AND {coluna} NOT IN (SELECT id FROM superadmin_loja)
                     """)
                     count = cursor.fetchone()[0]
-                    
+
                     if count > 0:
                         total_orfaos += count
-                        self.stdout.write(self.style.WARNING(f'   ⚠️ {tabela}: {count} registros órfãos'))
-                        
+                        self.stdout.write(self.style.WARNING(f"   ⚠️ {tabela}: {count} registros órfãos"))
+
                         if execute:
                             cursor.execute(f"""
-                                DELETE FROM {tabela} 
+                                DELETE FROM {tabela}
                                 WHERE {coluna} NOT IN (SELECT id FROM superadmin_loja)
                             """)
-                            self.stdout.write(self.style.SUCCESS(f'      ✅ {count} registros removidos'))
+                            self.stdout.write(self.style.SUCCESS(f"      ✅ {count} registros removidos"))
             except Exception as e:
                 # Tabela pode não existir no schema public (ex: crm_vendas em tenants)
-                if 'does not exist' not in str(e).lower():
-                    self.stdout.write(self.style.ERROR(f'   ❌ Erro em {tabela}: {e}'))
+                if "does not exist" not in str(e).lower():
+                    self.stdout.write(self.style.ERROR(f"   ❌ Erro em {tabela}: {e}"))
 
         if total_orfaos == 0:
-            self.stdout.write(self.style.SUCCESS('   ✅ Nenhum dado com loja_id inválido'))
+            self.stdout.write(self.style.SUCCESS("   ✅ Nenhum dado com loja_id inválido"))
 
         # 8. Limpar arquivos órfãos (backups, NF-e, HistoricoBackup)
-        self.stdout.write(self.style.HTTP_INFO('\n8️⃣ Verificando arquivos órfãos...'))
-        loja_slugs = set(Loja.objects.values_list('slug', flat=True))
-        loja_ids_set = set(Loja.objects.values_list('id', flat=True))
+        self.stdout.write(self.style.HTTP_INFO("\n8️⃣ Verificando arquivos órfãos..."))
+        loja_slugs = set(Loja.objects.values_list("slug", flat=True))
+        loja_ids_set = set(Loja.objects.values_list("id", flat=True))
         base_dir = Path(settings.BASE_DIR)
-        media_root = Path(getattr(settings, 'MEDIA_ROOT', base_dir / 'media'))
+        media_root = Path(getattr(settings, "MEDIA_ROOT", base_dir / "media"))
 
         # 8a. HistoricoBackup e ConfiguracaoBackup órfãos (via ORM para disparar signals)
         try:
@@ -258,51 +257,51 @@ class Command(BaseCommand):
             cfg_count = cfg_orfaos.count()
             if hist_count or cfg_count:
                 self.stdout.write(self.style.WARNING(
-                    f'   ⚠️ HistoricoBackup órfãos: {hist_count}, ConfiguracaoBackup: {cfg_count}'
+                    f"   ⚠️ HistoricoBackup órfãos: {hist_count}, ConfiguracaoBackup: {cfg_count}",
                 ))
                 if execute:
                     hist_orfaos.delete()  # Signal remove arquivo do disco
                     cfg_orfaos.delete()
                     self.stdout.write(self.style.SUCCESS(
-                        f'      ✅ {hist_count} HistoricoBackup e {cfg_count} ConfiguracaoBackup removidos'
+                        f"      ✅ {hist_count} HistoricoBackup e {cfg_count} ConfiguracaoBackup removidos",
                     ))
             else:
-                self.stdout.write(self.style.SUCCESS('   ✅ Nenhum HistoricoBackup/ConfiguracaoBackup órfão'))
+                self.stdout.write(self.style.SUCCESS("   ✅ Nenhum HistoricoBackup/ConfiguracaoBackup órfão"))
         except Exception as e:
-            self.stdout.write(self.style.WARNING(f'   ℹ️ HistoricoBackup/ConfiguracaoBackup: {e}'))
+            self.stdout.write(self.style.WARNING(f"   ℹ️ HistoricoBackup/ConfiguracaoBackup: {e}"))
 
         # 8b. Diretórios backups/{slug}/ órfãos
-        backups_base = base_dir / 'backups'
+        backups_base = base_dir / "backups"
         if backups_base.exists():
             dirs_orfaos = [
                 d for d in backups_base.iterdir()
-                if d.is_dir() and d.name not in loja_slugs and d.name != 'loja_template'
+                if d.is_dir() and d.name not in loja_slugs and d.name != "loja_template"
             ]
             if dirs_orfaos:
                 self.stdout.write(self.style.WARNING(
-                    f'   ⚠️ Diretórios backups órfãos: {[d.name for d in dirs_orfaos]}'
+                    f"   ⚠️ Diretórios backups órfãos: {[d.name for d in dirs_orfaos]}",
                 ))
                 if execute:
                     for d in dirs_orfaos:
                         try:
                             shutil.rmtree(d)
-                            self.stdout.write(self.style.SUCCESS(f'      ✅ Removido: backups/{d.name}'))
+                            self.stdout.write(self.style.SUCCESS(f"      ✅ Removido: backups/{d.name}"))
                         except OSError as e:
-                            self.stdout.write(self.style.ERROR(f'      ❌ Erro em backups/{d.name}: {e}'))
+                            self.stdout.write(self.style.ERROR(f"      ❌ Erro em backups/{d.name}: {e}"))
             else:
-                self.stdout.write(self.style.SUCCESS('   ✅ Nenhum diretório backups órfão'))
+                self.stdout.write(self.style.SUCCESS("   ✅ Nenhum diretório backups órfão"))
         else:
-            self.stdout.write(self.style.SUCCESS('   ✅ Diretório backups não existe'))
+            self.stdout.write(self.style.SUCCESS("   ✅ Diretório backups não existe"))
 
         # 8c. Arquivos NF-e órfãos (media/nfe_restaurante/loja_{id}_*)
-        nfe_base = media_root / 'nfe_restaurante'
+        nfe_base = media_root / "nfe_restaurante"
         if nfe_base.exists():
             arquivos_orfaos_nfe = []
-            for f in nfe_base.rglob('*'):
-                if f.is_file() and 'loja_' in f.name:
+            for f in nfe_base.rglob("*"):
+                if f.is_file() and "loja_" in f.name:
                     try:
-                        parts = f.name.split('_')
-                        if len(parts) >= 2 and parts[0] == 'loja' and parts[1].isdigit():
+                        parts = f.name.split("_")
+                        if len(parts) >= 2 and parts[0] == "loja" and parts[1].isdigit():
                             loja_id = int(parts[1])
                             if loja_id not in loja_ids_set:
                                 arquivos_orfaos_nfe.append(f)
@@ -310,33 +309,33 @@ class Command(BaseCommand):
                         pass
             if arquivos_orfaos_nfe:
                 self.stdout.write(self.style.WARNING(
-                    f'   ⚠️ Arquivos NF-e órfãos: {len(arquivos_orfaos_nfe)}'
+                    f"   ⚠️ Arquivos NF-e órfãos: {len(arquivos_orfaos_nfe)}",
                 ))
                 if execute:
                     for f in arquivos_orfaos_nfe:
                         with contextlib.suppress(OSError):
                             f.unlink()
                     self.stdout.write(self.style.SUCCESS(
-                        f'      ✅ {len(arquivos_orfaos_nfe)} arquivo(s) NF-e removido(s)'
+                        f"      ✅ {len(arquivos_orfaos_nfe)} arquivo(s) NF-e removido(s)",
                     ))
             else:
-                self.stdout.write(self.style.SUCCESS('   ✅ Nenhum arquivo NF-e órfão'))
+                self.stdout.write(self.style.SUCCESS("   ✅ Nenhum arquivo NF-e órfão"))
         else:
-            self.stdout.write(self.style.SUCCESS('   ✅ Diretório nfe_restaurante não existe'))
+            self.stdout.write(self.style.SUCCESS("   ✅ Diretório nfe_restaurante não existe"))
 
         # 9. Instâncias Evolution órfãs (lwk_loja_{id} sem loja)
-        self.stdout.write(self.style.HTTP_INFO('\n9️⃣ Verificando instâncias Evolution órfãs...'))
+        self.stdout.write(self.style.HTTP_INFO("\n9️⃣ Verificando instâncias Evolution órfãs..."))
         try:
             from whatsapp.evolution_cleanup import find_orphan_evolution_instances
             from whatsapp.evolution_client import evolution_configured
 
             if not evolution_configured():
-                self.stdout.write(self.style.SUCCESS('   ℹ️ Evolution não configurado — pulando'))
+                self.stdout.write(self.style.SUCCESS("   ℹ️ Evolution não configurado — pulando"))
             else:
                 ev_orphans = find_orphan_evolution_instances(loja_ids_set)
                 if ev_orphans:
                     self.stdout.write(self.style.WARNING(
-                        f'   ⚠️ {len(ev_orphans)} instância(s) órfã(s):'
+                        f"   ⚠️ {len(ev_orphans)} instância(s) órfã(s):",
                     ))
                     for row in ev_orphans:
                         self.stdout.write(f"      - {row['instance_name']} (loja_id={row['loja_id']})")
@@ -344,17 +343,17 @@ class Command(BaseCommand):
                         from whatsapp.evolution_cleanup import delete_orphan_evolution_instances
 
                         results = delete_orphan_evolution_instances(loja_ids_set)
-                        ok = sum(1 for r in results if r.get('ok'))
-                        self.stdout.write(self.style.SUCCESS(f'      ✅ {ok} removida(s) no Evolution'))
+                        ok = sum(1 for r in results if r.get("ok"))
+                        self.stdout.write(self.style.SUCCESS(f"      ✅ {ok} removida(s) no Evolution"))
                 else:
-                    self.stdout.write(self.style.SUCCESS('   ✅ Nenhuma instância Evolution órfã'))
+                    self.stdout.write(self.style.SUCCESS("   ✅ Nenhuma instância Evolution órfã"))
         except Exception as e:
-            self.stdout.write(self.style.WARNING(f'   ℹ️ Evolution: {e}'))
+            self.stdout.write(self.style.WARNING(f"   ℹ️ Evolution: {e}"))
 
         # Resumo final
-        self.stdout.write(self.style.HTTP_INFO('\n' + '='*60))
+        self.stdout.write(self.style.HTTP_INFO("\n" + "="*60))
         if dry_run:
-            self.stdout.write(self.style.WARNING('🔍 Análise concluída. Use --execute para limpar.'))
+            self.stdout.write(self.style.WARNING("🔍 Análise concluída. Use --execute para limpar."))
         else:
-            self.stdout.write(self.style.SUCCESS('✅ Limpeza concluída!'))
-        self.stdout.write(self.style.HTTP_INFO('='*60 + '\n'))
+            self.stdout.write(self.style.SUCCESS("✅ Limpeza concluída!"))
+        self.stdout.write(self.style.HTTP_INFO("="*60 + "\n"))

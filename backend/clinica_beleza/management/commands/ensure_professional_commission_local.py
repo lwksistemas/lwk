@@ -1,5 +1,4 @@
-"""
-Garante coluna local_atendimento_id em clinica_beleza_professional_commissions (comissão por local).
+"""Garante coluna local_atendimento_id em clinica_beleza_professional_commissions (comissão por local).
 
 Uso:
     python manage.py ensure_professional_commission_local
@@ -12,26 +11,26 @@ from clinica_beleza.schema_ensure import column_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
-MIGRATION_NAME = '0031_professional_commission_local'
+MIGRATION_NAME = "0031_professional_commission_local"
 
 
 
 
 class Command(BaseCommand):
-    help = 'Adiciona local_atendimento_id em comissões dos profissionais nos schemas das lojas.'
+    help = "Adiciona local_atendimento_id em comissões dos profissionais nos schemas das lojas."
 
     def add_arguments(self, parser):
-        parser.add_argument('--slug', type=str, help='Processar apenas loja com este slug/atalho')
+        parser.add_argument("--slug", type=str, help="Processar apenas loja com este slug/atalho")
 
     def handle(self, *args, **options):
-        slug_filter = (options.get('slug') or '').strip().lower()
+        slug_filter = (options.get("slug") or "").strip().lower()
         lojas = Loja.objects.filter(is_active=True, database_created=True)
         ok = skip = 0
 
         for loja in lojas:
             if slug_filter and slug_filter not in (
-                (loja.slug or '').lower(),
-                (getattr(loja, 'atalho', None) or '').lower(),
+                (loja.slug or "").lower(),
+                (getattr(loja, "atalho", None) or "").lower(),
             ):
                 continue
             db_name = loja.database_name
@@ -42,7 +41,7 @@ class Command(BaseCommand):
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
                     if not column_exists(
-                        cursor, 'clinica_beleza_professional_commissions', 'local_atendimento_id',
+                        cursor, "clinica_beleza_professional_commissions", "local_atendimento_id",
                     ):
                         cursor.execute("""
                             ALTER TABLE clinica_beleza_professional_commissions
@@ -66,8 +65,8 @@ class Command(BaseCommand):
                         [MIGRATION_NAME, MIGRATION_NAME],
                     )
                 ok += 1
-                self.stdout.write(self.style.SUCCESS(f'   ✓ {loja.slug} ({db_name})'))
+                self.stdout.write(self.style.SUCCESS(f"   ✓ {loja.slug} ({db_name})"))
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f'   ✗ {loja.slug}: {e}'))
+                self.stdout.write(self.style.ERROR(f"   ✗ {loja.slug}: {e}"))
 
-        self.stdout.write(self.style.SUCCESS(f'\nConcluído: {ok} loja(s), {skip} ignorada(s).'))
+        self.stdout.write(self.style.SUCCESS(f"\nConcluído: {ok} loja(s), {skip} ignorada(s)."))

@@ -1,5 +1,4 @@
-"""
-Comando para corrigir schema CRM de lojas existentes.
+"""Comando para corrigir schema CRM de lojas existentes.
 Aplica migrations e cria tabelas faltantes.
 
 Uso:
@@ -17,81 +16,80 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = 'Corrige schema CRM de lojas existentes (aplica migrations e cria tabelas)'
+    help = "Corrige schema CRM de lojas existentes (aplica migrations e cria tabelas)"
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--loja-id',
+            "--loja-id",
             type=int,
-            help='ID da loja específica para corrigir (opcional)',
+            help="ID da loja específica para corrigir (opcional)",
         )
 
     def handle(self, *args, **options):
-        loja_id = options.get('loja_id')
-        
+        loja_id = options.get("loja_id")
+
         # Filtrar lojas CRM Vendas (slug do tipo, não só nome legível)
-        lojas_qs = Loja.objects.using('default').select_related('tipo_loja')
+        lojas_qs = Loja.objects.using("default").select_related("tipo_loja")
         if loja_id:
             lojas_qs = lojas_qs.filter(id=loja_id)
         else:
-            lojas_qs = lojas_qs.filter(tipo_loja__slug='crm-vendas')
-        
+            lojas_qs = lojas_qs.filter(tipo_loja__slug="crm-vendas")
+
         lojas = list(lojas_qs)
-        
+
         if not lojas:
-            self.stdout.write(self.style.WARNING('Nenhuma loja CRM Vendas (tipo crm-vendas) encontrada'))
+            self.stdout.write(self.style.WARNING("Nenhuma loja CRM Vendas (tipo crm-vendas) encontrada"))
             return
-        
-        self.stdout.write(f'Encontradas {len(lojas)} loja(s) CRM Vendas')
-        
+
+        self.stdout.write(f"Encontradas {len(lojas)} loja(s) CRM Vendas")
+
         for loja in lojas:
-            self.stdout.write(f'\n📦 Processando loja: {loja.nome} (ID: {loja.id})')
-            
+            self.stdout.write(f"\n📦 Processando loja: {loja.nome} (ID: {loja.id})")
+
             try:
                 # 1. Configurar schema e aplicar migrations
                 from crm_vendas.schema_service import configurar_schema_crm_loja
                 if not configurar_schema_crm_loja(loja):
-                    self.stdout.write(self.style.ERROR('  ❌ Falha ao configurar schema'))
+                    self.stdout.write(self.style.ERROR("  ❌ Falha ao configurar schema"))
                     continue
-                
-                self.stdout.write(self.style.SUCCESS('  ✅ Schema configurado'))
-                
+
+                self.stdout.write(self.style.SUCCESS("  ✅ Schema configurado"))
+
                 # 2. Criar tabelas de produtos/itens se não existirem
                 db_name = loja.database_name
-                schema_name = db_name.replace('-', '_')
-                
+                schema_name = db_name.replace("-", "_")
+
                 with connection.cursor() as cursor:
                     cursor.execute(f'SET search_path TO "{schema_name}", public;')
-                    
+
                     # Verificar se tabela oportunidade_item existe
                     cursor.execute("""
                         SELECT EXISTS (
-                            SELECT FROM information_schema.tables 
+                            SELECT FROM information_schema.tables
                             WHERE table_schema = %s
                             AND table_name = 'crm_vendas_oportunidade_item'
                         );
                     """, [schema_name])
-                    
+
                     existe = cursor.fetchone()[0]
-                    
+
                     if not existe:
-                        self.stdout.write('  📝 Criando tabelas de produtos/itens...')
+                        self.stdout.write("  📝 Criando tabelas de produtos/itens...")
                         self._criar_tabelas_crm(cursor, schema_name)
-                        self.stdout.write(self.style.SUCCESS('  ✅ Tabelas criadas'))
+                        self.stdout.write(self.style.SUCCESS("  ✅ Tabelas criadas"))
                     else:
-                        self.stdout.write('  ℹ️  Tabelas já existem')
-                
-                self.stdout.write(self.style.SUCCESS(f'✅ Loja {loja.nome} corrigida com sucesso'))
-                
+                        self.stdout.write("  ℹ️  Tabelas já existem")
+
+                self.stdout.write(self.style.SUCCESS(f"✅ Loja {loja.nome} corrigida com sucesso"))
+
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f'  ❌ Erro: {e}'))
-                logger.exception(f'Erro ao corrigir loja {loja.id}')
-        
-        self.stdout.write(self.style.SUCCESS('\n✅ Processamento concluído'))
+                self.stdout.write(self.style.ERROR(f"  ❌ Erro: {e}"))
+                logger.exception(f"Erro ao corrigir loja {loja.id}")
+
+        self.stdout.write(self.style.SUCCESS("\n✅ Processamento concluído"))
 
     def _criar_tabelas_crm(self, cursor, schema_name):
         """Cria tabelas de ProdutoServico, OportunidadeItem, Proposta e Contrato."""
-        
         # Criar tabela ProdutoServico
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS "{schema_name}".crm_vendas_produto_servico (
@@ -106,18 +104,18 @@ class Command(BaseCommand):
                 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
             );
         """)
-        
+
         # Criar índices para ProdutoServico
         cursor.execute(f"""
-            CREATE INDEX IF NOT EXISTS crm_ps_loja_tipo_idx 
+            CREATE INDEX IF NOT EXISTS crm_ps_loja_tipo_idx
             ON "{schema_name}".crm_vendas_produto_servico (loja_id, tipo);
         """)
-        
+
         cursor.execute(f"""
-            CREATE INDEX IF NOT EXISTS crm_ps_loja_ativo_idx 
+            CREATE INDEX IF NOT EXISTS crm_ps_loja_ativo_idx
             ON "{schema_name}".crm_vendas_produto_servico (loja_id, ativo);
         """)
-        
+
         # Criar tabela OportunidadeItem
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS "{schema_name}".crm_vendas_oportunidade_item (
@@ -131,13 +129,13 @@ class Command(BaseCommand):
                 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
             );
         """)
-        
+
         # Criar índice para OportunidadeItem
         cursor.execute(f"""
-            CREATE INDEX IF NOT EXISTS crm_oi_loja_opor_idx 
+            CREATE INDEX IF NOT EXISTS crm_oi_loja_opor_idx
             ON "{schema_name}".crm_vendas_oportunidade_item (loja_id, oportunidade_id);
         """)
-        
+
         # Criar tabela Proposta
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS "{schema_name}".crm_vendas_proposta (
@@ -157,18 +155,18 @@ class Command(BaseCommand):
                 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
             );
         """)
-        
+
         # Criar índices para Proposta
         cursor.execute(f"""
-            CREATE INDEX IF NOT EXISTS crm_prop_loja_opor_idx 
+            CREATE INDEX IF NOT EXISTS crm_prop_loja_opor_idx
             ON "{schema_name}".crm_vendas_proposta (loja_id, oportunidade_id);
         """)
-        
+
         cursor.execute(f"""
-            CREATE INDEX IF NOT EXISTS crm_prop_loja_status_idx 
+            CREATE INDEX IF NOT EXISTS crm_prop_loja_status_idx
             ON "{schema_name}".crm_vendas_proposta (loja_id, status);
         """)
-        
+
         # Criar tabela Contrato
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS "{schema_name}".crm_vendas_contrato (
@@ -189,14 +187,14 @@ class Command(BaseCommand):
                 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
             );
         """)
-        
+
         # Criar índices para Contrato
         cursor.execute(f"""
-            CREATE INDEX IF NOT EXISTS crm_cont_loja_opor_idx 
+            CREATE INDEX IF NOT EXISTS crm_cont_loja_opor_idx
             ON "{schema_name}".crm_vendas_contrato (loja_id, oportunidade_id);
         """)
-        
+
         cursor.execute(f"""
-            CREATE INDEX IF NOT EXISTS crm_cont_loja_status_idx 
+            CREATE INDEX IF NOT EXISTS crm_cont_loja_status_idx
             ON "{schema_name}".crm_vendas_contrato (loja_id, status);
         """)

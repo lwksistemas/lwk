@@ -17,9 +17,9 @@ def run_send_email(payload: dict, fail_silently: bool = False) -> int:
         return deliver_email_sync(msg, fail_silently=fail_silently)
     except Exception:
         logger.exception(
-            'Fila e-mail: falha assunto=%s dest=%s',
-            payload.get('subject'),
-            payload.get('to'),
+            "Fila e-mail: falha assunto=%s dest=%s",
+            payload.get("subject"),
+            payload.get("to"),
         )
         if fail_silently:
             return 0

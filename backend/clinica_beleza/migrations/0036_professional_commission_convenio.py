@@ -7,21 +7,21 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinica_beleza', '0035_despesa_categoria'),
+        ("clinica_beleza", "0035_despesa_categoria"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='professionalcommission',
-            name='convenio',
+            model_name="professionalcommission",
+            name="convenio",
             field=models.ForeignKey(
                 blank=True,
-                help_text='Opcional em procedimento: regra específica por convênio. Vazio = regra geral.',
+                help_text="Opcional em procedimento: regra específica por convênio. Vazio = regra geral.",
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                related_name='comissoes_profissionais',
-                to='clinica_beleza.convenio',
-                verbose_name='Convênio',
+                related_name="comissoes_profissionais",
+                to="clinica_beleza.convenio",
+                verbose_name="Convênio",
             ),
         ),
     ]

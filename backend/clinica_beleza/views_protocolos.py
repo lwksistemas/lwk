@@ -1,5 +1,4 @@
-"""
-Views de Protocolos de Procedimentos — Clínica da Beleza
+"""Views de Protocolos de Procedimentos — Clínica da Beleza
 """
 from contextlib import suppress
 
@@ -15,26 +14,26 @@ from .views_base import GetObjectMixin
 
 
 class ProtocolListView(APIView):
-    """
-    GET /clinica-beleza/protocolos/?procedure=&categoria=&active=true
+    """GET /clinica-beleza/protocolos/?procedure=&categoria=&active=true
     POST /clinica-beleza/protocolos/
     """
+
     permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
-        active_only = request.query_params.get('active', 'true').lower() == 'true'
-        queryset = ProcedureProtocol.objects.select_related('procedure')
+        active_only = request.query_params.get("active", "true").lower() == "true"
+        queryset = ProcedureProtocol.objects.select_related("procedure")
         if active_only:
             queryset = queryset.filter(is_active=True)
-        procedure_id = request.query_params.get('procedure')
+        procedure_id = request.query_params.get("procedure")
         if procedure_id:
             with suppress(ValueError, TypeError):
                 queryset = queryset.filter(procedure_id=int(procedure_id))
-        categoria = (request.query_params.get('categoria') or '').strip()
+        categoria = (request.query_params.get("categoria") or "").strip()
         if categoria:
             queryset = queryset.filter(procedure__categoria__icontains=categoria)
         return paginate_queryset(
-            queryset.order_by('procedure__nome', 'nome'),
+            queryset.order_by("procedure__nome", "nome"),
             request,
             ProcedureProtocolSerializer,
         )
@@ -49,10 +48,11 @@ class ProtocolListView(APIView):
 
 class ProtocolDetailView(GetObjectMixin, APIView):
     """GET / PUT / DELETE /clinica-beleza/protocolos/<id>/"""
+
     permission_classes = CLINICA_RECEPCAO
     model_class = ProcedureProtocol
-    not_found_message = 'Protocolo não encontrado'
-    select_related_fields = ['procedure']
+    not_found_message = "Protocolo não encontrado"
+    select_related_fields = ["procedure"]
 
     def get(self, request, pk):
         obj, error = self.object_or_404(pk)
@@ -75,5 +75,5 @@ class ProtocolDetailView(GetObjectMixin, APIView):
         if error:
             return error
         obj.is_active = False
-        obj.save(update_fields=['is_active', 'updated_at'])
+        obj.save(update_fields=["is_active", "updated_at"])
         return Response(status=status.HTTP_204_NO_CONTENT)

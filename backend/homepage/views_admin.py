@@ -1,5 +1,4 @@
-"""
-API de configuração da Homepage - apenas SuperAdmin (IsAuthenticated + is_superuser).
+"""API de configuração da Homepage - apenas SuperAdmin (IsAuthenticated + is_superuser).
 CRUD completo para Hero, Funcionalidades, Módulos e WhyUs.
 """
 from rest_framework import viewsets
@@ -45,30 +44,32 @@ class WhyUsBenefitViewSet(viewsets.ModelViewSet):
 
 class HeroImagemViewSet(viewsets.ModelViewSet):
     """ViewSet para gerenciar imagens do carrossel do Hero."""
+
     queryset = None
     serializer_class = None
     permission_classes = [IsAuthenticated, IsSuperAdmin]
-    
+
     def get_queryset(self):
         from .models import HeroImagem
         return HeroImagem.objects.all()
-    
+
     def get_serializer_class(self):
         from rest_framework import serializers
 
         from .models import HeroImagem
-        
+
         class HeroImagemSerializer(serializers.ModelSerializer):
             class Meta:
                 model = HeroImagem
-                fields = ['id', 'imagem', 'titulo', 'ordem', 'ativo', 'created_at', 'updated_at']
-                read_only_fields = ['id', 'created_at', 'updated_at']
-        
+                fields = ["id", "imagem", "titulo", "ordem", "ativo", "created_at", "updated_at"]
+                read_only_fields = ["id", "created_at", "updated_at"]
+
         return HeroImagemSerializer
 
 
 class EmpresaConfigViewSet(viewsets.ModelViewSet):
     """ViewSet para gerenciar dados da empresa (CNPJ, endereço, WhatsApp)."""
+
     queryset = EmpresaConfig.objects.all()
     serializer_class = EmpresaConfigSerializer
     permission_classes = [IsAuthenticated, IsSuperAdmin]
@@ -76,7 +77,7 @@ class EmpresaConfigViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         """Retorna a configuração da empresa (cria uma padrão se não existir)."""
         config, _ = EmpresaConfig.objects.get_or_create(pk=1, defaults={
-            'nome_empresa': 'LWK Sistemas',
+            "nome_empresa": "LWK Sistemas",
         })
         serializer = self.get_serializer(config)
         return Response(serializer.data)
@@ -84,7 +85,7 @@ class EmpresaConfigViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """Cria ou atualiza a configuração (singleton)."""
         config, created = EmpresaConfig.objects.get_or_create(pk=1, defaults={
-            'nome_empresa': 'LWK Sistemas',
+            "nome_empresa": "LWK Sistemas",
         })
         serializer = self.get_serializer(config, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)

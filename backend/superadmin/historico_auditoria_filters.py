@@ -3,47 +3,47 @@ from django.db.models import Q
 
 # URLs que não representam ação humana (webhooks, bots)
 URLS_IGNORAR_AUDITORIA = (
-    '/api/whatsapp/evolution/webhook/',
-    '/api/asaas/',
+    "/api/whatsapp/evolution/webhook/",
+    "/api/asaas/",
 )
 
 RECURSOS_INTEGRACAO = (
-    'Webhook Evolution',
+    "Webhook Evolution",
 )
 
 NOMES_USUARIO_IGNORAR_RANKING = (
-    'Anônimo',
-    '',
+    "Anônimo",
+    "",
 )
 
 EMAILS_USUARIO_IGNORAR_RANKING = (
-    'nao-autenticado@sistema',
-    'bot@externo',
-    'api@asaas.sistema',
-    'Anônimo',
+    "nao-autenticado@sistema",
+    "bot@externo",
+    "api@asaas.sistema",
+    "Anônimo",
 )
 
 
 def _slugs_lojas_ativas():
     from superadmin.models import Loja
 
-    return set(Loja.objects.using('default').values_list('slug', flat=True))
+    return set(Loja.objects.using("default").values_list("slug", flat=True))
 
 
 def _ids_lojas_ativas():
     from superadmin.models import Loja
 
-    return set(Loja.objects.using('default').values_list('id', flat=True))
+    return set(Loja.objects.using("default").values_list("id", flat=True))
 
 
 def queryset_excluir_integracoes(qs):
     """Remove webhooks e integrações automáticas do histórico exibido/rankeado."""
     return qs.exclude(
         Q(recurso__in=RECURSOS_INTEGRACAO)
-        | Q(url__contains='/whatsapp/evolution/webhook')
-        | Q(usuario_email__endswith='@webhook')
+        | Q(url__contains="/whatsapp/evolution/webhook")
+        | Q(usuario_email__endswith="@webhook")
         | Q(usuario_email__in=EMAILS_USUARIO_IGNORAR_RANKING)
-        | Q(usuario_nome__in=NOMES_USUARIO_IGNORAR_RANKING)
+        | Q(usuario_nome__in=NOMES_USUARIO_IGNORAR_RANKING),
     )
 
 
@@ -53,7 +53,7 @@ def queryset_excluir_lojas_removidas(qs):
     ids_ativos = _ids_lojas_ativas()
 
     # Slug preenchido de loja excluída (FK já foi anulada)
-    qs = qs.exclude(Q(loja_slug__gt='') & ~Q(loja_slug__in=slugs_ativos))
+    qs = qs.exclude(Q(loja_slug__gt="") & ~Q(loja_slug__in=slugs_ativos))
 
     # FK órfã (não deveria ocorrer, mas protege ranking)
     if ids_ativos:
@@ -86,13 +86,13 @@ def queryset_ranking_usuarios(qs):
     return queryset_auditoria_visivel(qs).exclude(
         Q(usuario_nome__in=NOMES_USUARIO_IGNORAR_RANKING)
         | Q(usuario_email__in=EMAILS_USUARIO_IGNORAR_RANKING)
-        | Q(usuario_email__endswith='@webhook')
-        | Q(usuario_nome__startswith='Paciente:')
-        | Q(usuario_nome__startswith='Cliente:')
-        | Q(usuario_nome__startswith='WhatsApp Evolution')
+        | Q(usuario_email__endswith="@webhook")
+        | Q(usuario_nome__startswith="Paciente:")
+        | Q(usuario_nome__startswith="Cliente:")
+        | Q(usuario_nome__startswith="WhatsApp Evolution"),
     )
 
 
 def url_ignorar_auditoria(path: str) -> bool:
-    p = path or ''
+    p = path or ""
     return any(p.startswith(prefix) for prefix in URLS_IGNORAR_AUDITORIA)

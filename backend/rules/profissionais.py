@@ -1,5 +1,4 @@
-"""
-Regras de profissionais: horário de trabalho, folgas, limite de atendimentos por dia.
+"""Regras de profissionais: horário de trabalho, folgas, limite de atendimentos por dia.
 """
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -20,8 +19,7 @@ def _to_local(dt):
 
 
 def validar_horario_trabalho(contexto):
-    """
-    Impede agendar fora do horário de trabalho configurado do profissional.
+    """Impede agendar fora do horário de trabalho configurado do profissional.
     contexto: profissional, date, date_end
     """
     profissional = contexto.get("profissional")
@@ -49,23 +47,22 @@ def validar_horario_trabalho(contexto):
 
     if t_start < horario.hora_entrada:
         raise ValidationError(
-            f"Horário antes do expediente ({horario.hora_entrada.strftime('%H:%M')})."
+            f"Horário antes do expediente ({horario.hora_entrada.strftime('%H:%M')}).",
         )
     if t_end > horario.hora_saida:
         raise ValidationError(
-            f"Horário após o fim do expediente ({horario.hora_saida.strftime('%H:%M')})."
+            f"Horário após o fim do expediente ({horario.hora_saida.strftime('%H:%M')}).",
         )
 
     if horario.intervalo_inicio and horario.intervalo_fim and t_start < horario.intervalo_fim and t_end > horario.intervalo_inicio:
         raise ValidationError(
             "Horário conflita com o intervalo do profissional "
-            f"({horario.intervalo_inicio.strftime('%H:%M')}–{horario.intervalo_fim.strftime('%H:%M')})."
+            f"({horario.intervalo_inicio.strftime('%H:%M')}–{horario.intervalo_fim.strftime('%H:%M')}).",
         )
 
 
 def limite_atendimentos_dia(contexto):
-    """
-    Impede agendar além de N atendimentos no mesmo dia para o mesmo profissional.
+    """Impede agendar além de N atendimentos no mesmo dia para o mesmo profissional.
     contexto: profissional, date, date_end, appointment_id (opcional)
     """
     profissional = contexto.get("profissional")
@@ -85,7 +82,7 @@ def limite_atendimentos_dia(contexto):
 
     if base.count() >= LIMITE_ATENDIMENTOS_POR_DIA:
         raise ValidationError(
-            f"Limite de {LIMITE_ATENDIMENTOS_POR_DIA} atendimentos por dia para este profissional foi atingido."
+            f"Limite de {LIMITE_ATENDIMENTOS_POR_DIA} atendimentos por dia para este profissional foi atingido.",
         )
 
 

@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0018_alter_field_help_text'),
+        ("crm_vendas", "0018_alter_field_help_text"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='crmconfig',
-            name='loja_id',
-            field=models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro'),
+            model_name="crmconfig",
+            name="loja_id",
+            field=models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro"),
         ),
     ]

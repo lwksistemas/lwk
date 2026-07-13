@@ -4,6 +4,6 @@ from __future__ import annotations
 import contextvars
 
 whatsapp_sync_only: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    'whatsapp_sync_only',
+    "whatsapp_sync_only",
     default=False,
 )

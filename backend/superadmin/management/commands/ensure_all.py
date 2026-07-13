@@ -1,5 +1,4 @@
-"""
-Consolida todos os ensure_* em um único comando para simplificar o releaseCommand.
+"""Consolida todos os ensure_* em um único comando para simplificar o releaseCommand.
 
 Uso:
   python manage.py ensure_all
@@ -22,47 +21,47 @@ logger = logging.getLogger(__name__)
 
 # Ordem de execução dos ensures (mesma ordem anterior do releaseCommand)
 ENSURES = [
-    ('ensure_financeiro_lojas', {}),
-    ('ensure_relatorio_comissao_table', {}),
-    ('ensure_crm_config_colunas', {}),
-    ('ensure_crm_atividade_colunas', {}),
-    ('ensure_crm_financeiro_tabelas', {}),
-    ('ensure_crm_emitente_documento_colunas', {}),
-    ('ensure_crm_negociacao_historico', {}),
-    ('ensure_clinica_beleza_consultas', {}),
-    ('ensure_appointment_duracao_minutos', {}),
-    ('ensure_professional_nascimento_sexo', {}),
-    ('ensure_professional_tempo_consulta', {}),
-    ('ensure_memed_timbrado_table', {}),
-    ('ensure_professional_commission_local', {}),
-    ('ensure_professional_commission_convenio', {}),
-    ('ensure_convenio_tables', {}),
-    ('ensure_nomes_agenda_table', {}),
-    ('ensure_retorno_gratuito_tables', {}),
-    ('ensure_appointment_local_atendimento', {}),
-    ('ensure_local_tempo_consulta', {}),
-    ('ensure_local_nomeagenda_is_padrao', {}),
-    ('normalizar_status_agenda', {}),
-    ('ensure_estoque_produto_fields', {}),
-    ('ensure_categoria_estoque', {}),
-    ('ensure_termo_consentimento', {}),
-    ('ensure_procedimentos_catalogo', {'all_clinica_beleza': True}),
-    ('ensure_estoque_catalogo', {'all_clinica_beleza': True}),
-    ('ensure_paciente_fotos_table', {}),
-    ('ensure_patient_foto_url', {}),
-    ('ensure_whatsapp_evolution_fields', {}),
-    ('ensure_canal_assinatura_vendedor', {}),
-    ('ensure_vendedor_config_acesso', {}),
-    ('ensure_assinatura_link_enviado_em', {}),
-    ('ensure_nfse_tenant_clinica_beleza', {}),
-    ('ensure_payment_draft_nao_finalizadas', {}),
-    ('ensure_suporte_schema', {}),
-    ('verificar_storage_lojas', {}),
+    ("ensure_financeiro_lojas", {}),
+    ("ensure_relatorio_comissao_table", {}),
+    ("ensure_crm_config_colunas", {}),
+    ("ensure_crm_atividade_colunas", {}),
+    ("ensure_crm_financeiro_tabelas", {}),
+    ("ensure_crm_emitente_documento_colunas", {}),
+    ("ensure_crm_negociacao_historico", {}),
+    ("ensure_clinica_beleza_consultas", {}),
+    ("ensure_appointment_duracao_minutos", {}),
+    ("ensure_professional_nascimento_sexo", {}),
+    ("ensure_professional_tempo_consulta", {}),
+    ("ensure_memed_timbrado_table", {}),
+    ("ensure_professional_commission_local", {}),
+    ("ensure_professional_commission_convenio", {}),
+    ("ensure_convenio_tables", {}),
+    ("ensure_nomes_agenda_table", {}),
+    ("ensure_retorno_gratuito_tables", {}),
+    ("ensure_appointment_local_atendimento", {}),
+    ("ensure_local_tempo_consulta", {}),
+    ("ensure_local_nomeagenda_is_padrao", {}),
+    ("normalizar_status_agenda", {}),
+    ("ensure_estoque_produto_fields", {}),
+    ("ensure_categoria_estoque", {}),
+    ("ensure_termo_consentimento", {}),
+    ("ensure_procedimentos_catalogo", {"all_clinica_beleza": True}),
+    ("ensure_estoque_catalogo", {"all_clinica_beleza": True}),
+    ("ensure_paciente_fotos_table", {}),
+    ("ensure_patient_foto_url", {}),
+    ("ensure_whatsapp_evolution_fields", {}),
+    ("ensure_canal_assinatura_vendedor", {}),
+    ("ensure_vendedor_config_acesso", {}),
+    ("ensure_assinatura_link_enviado_em", {}),
+    ("ensure_nfse_tenant_clinica_beleza", {}),
+    ("ensure_payment_draft_nao_finalizadas", {}),
+    ("ensure_suporte_schema", {}),
+    ("verificar_storage_lojas", {}),
 ]
 
 
 class Command(BaseCommand):
-    help = 'Executa todos os ensure_* do deploy em sequência (consolidado)'
+    help = "Executa todos os ensure_* do deploy em sequência (consolidado)"
 
     def handle(self, *args, **options):
         total = len(ENSURES)
@@ -70,23 +69,23 @@ class Command(BaseCommand):
         falhas = []
         inicio = time.time()
 
-        self.stdout.write(f'🚀 ensure_all: executando {total} ensures...\n')
+        self.stdout.write(f"🚀 ensure_all: executando {total} ensures...\n")
 
         for i, (cmd_name, kwargs) in enumerate(ENSURES, 1):
             t0 = time.time()
             try:
                 call_command(cmd_name, **kwargs)
                 dt = time.time() - t0
-                self.stdout.write(f'  [{i}/{total}] ✅ {cmd_name} ({dt:.1f}s)')
+                self.stdout.write(f"  [{i}/{total}] ✅ {cmd_name} ({dt:.1f}s)")
                 sucesso += 1
             except Exception as e:
                 dt = time.time() - t0
-                self.stderr.write(f'  [{i}/{total}] ❌ {cmd_name} ({dt:.1f}s): {e}')
+                self.stderr.write(f"  [{i}/{total}] ❌ {cmd_name} ({dt:.1f}s): {e}")
                 falhas.append(cmd_name)
-                logger.error('ensure_all: falha em %s: %s', cmd_name, e, exc_info=True)
+                logger.error("ensure_all: falha em %s: %s", cmd_name, e, exc_info=True)
 
         elapsed = time.time() - inicio
-        self.stdout.write(f'\n✅ ensure_all concluído em {elapsed:.1f}s: {sucesso}/{total} OK')
+        self.stdout.write(f"\n✅ ensure_all concluído em {elapsed:.1f}s: {sucesso}/{total} OK")
         if falhas:
             self.stderr.write(
                 self.style.WARNING(

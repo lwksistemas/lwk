@@ -7,24 +7,24 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0029_add_categoria_codigo_produto_servico'),
+        ("crm_vendas", "0029_add_categoria_codigo_produto_servico"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='lead',
-            name='contato',
+            model_name="lead",
+            name="contato",
             field=models.ForeignKey(
                 blank=True,
-                help_text='Contato específico vinculado ao lead',
+                help_text="Contato específico vinculado ao lead",
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
-                related_name='leads',
-                to='crm_vendas.contato'
+                related_name="leads",
+                to="crm_vendas.contato",
             ),
         ),
         migrations.AddIndex(
-            model_name='lead',
-            index=models.Index(fields=['loja_id', 'contato'], name='crm_lead_loja_contato_idx'),
+            model_name="lead",
+            index=models.Index(fields=["loja_id", "contato"], name="crm_lead_loja_contato_idx"),
         ),
     ]

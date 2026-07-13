@@ -1,5 +1,4 @@
-"""
-Garante coluna tempo_consulta_minutos em clinica_beleza_professional (schemas das lojas).
+"""Garante coluna tempo_consulta_minutos em clinica_beleza_professional (schemas das lojas).
 """
 from contextlib import suppress
 
@@ -10,25 +9,25 @@ from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
-MIGRATION = '0046_professional_tempo_consulta'
+MIGRATION = "0046_professional_tempo_consulta"
 
 
 class Command(BaseCommand):
-    help = 'Adiciona tempo_consulta_minutos em clinica_beleza_professional (IF NOT EXISTS).'
+    help = "Adiciona tempo_consulta_minutos em clinica_beleza_professional (IF NOT EXISTS)."
 
     def add_arguments(self, parser):
-        parser.add_argument('--slug', type=str, help='Processar apenas loja com este slug/atalho')
+        parser.add_argument("--slug", type=str, help="Processar apenas loja com este slug/atalho")
 
     def handle(self, *args, **options):
-        slug_filter = (options.get('slug') or '').strip().lower()
+        slug_filter = (options.get("slug") or "").strip().lower()
         lojas = Loja.objects.filter(is_active=True, database_created=True)
         ok = 0
         skip = 0
 
         for loja in lojas:
             if slug_filter and slug_filter not in (
-                (loja.slug or '').lower(),
-                (getattr(loja, 'atalho', None) or '').lower(),
+                (loja.slug or "").lower(),
+                (getattr(loja, "atalho", None) or "").lower(),
             ):
                 continue
 
@@ -40,11 +39,11 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not table_exists(cursor, 'clinica_beleza_professional'):
+                    if not table_exists(cursor, "clinica_beleza_professional"):
                         skip += 1
                         continue
 
-                    if column_exists(cursor, 'clinica_beleza_professional', 'tempo_consulta_minutos'):
+                    if column_exists(cursor, "clinica_beleza_professional", "tempo_consulta_minutos"):
                         skip += 1
                         continue
 
@@ -52,7 +51,7 @@ class Command(BaseCommand):
                         """
                         ALTER TABLE clinica_beleza_professional
                         ADD COLUMN tempo_consulta_minutos INTEGER NULL
-                        """
+                        """,
                     )
 
                     cursor.execute(
@@ -69,13 +68,13 @@ class Command(BaseCommand):
 
                 ok += 1
                 self.stdout.write(self.style.SUCCESS(
-                    f'OK loja={loja.id} ({loja.nome}) db={db_name}: tempo_consulta_minutos adicionada'
+                    f"OK loja={loja.id} ({loja.nome}) db={db_name}: tempo_consulta_minutos adicionada",
                 ))
             except Exception as exc:
                 skip += 1
-                self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id} ({loja.nome}): {exc}'))
+                self.stdout.write(self.style.ERROR(f"ERRO loja={loja.id} ({loja.nome}): {exc}"))
             finally:
                 with suppress(Exception):
                     connections[db_name].close()
 
-        self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s) atualizada(s), {skip} ignorada(s).'))
+        self.stdout.write(self.style.SUCCESS(f"Concluído: {ok} loja(s) atualizada(s), {skip} ignorada(s)."))

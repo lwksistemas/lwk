@@ -1,2 +1,2 @@
-CHAVE_CONSULTA = '__consulta__'
-LABEL_CONSULTA = 'Consulta'
+CHAVE_CONSULTA = "__consulta__"
+LABEL_CONSULTA = "Consulta"

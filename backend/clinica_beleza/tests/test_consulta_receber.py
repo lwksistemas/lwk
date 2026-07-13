@@ -12,51 +12,51 @@ from clinica_beleza.consulta_service.payment import (
 
 class AtualizarStatusAposRecebimentoTest(SimpleTestCase):
     def test_quitou_sem_inicio_vai_para_scheduled(self):
-        consulta = MagicMock(status='RECEBER', data_inicio=None)
-        payment = MagicMock(status='PAID')
-        payment.saldo_devedor = Decimal('0')
+        consulta = MagicMock(status="RECEBER", data_inicio=None)
+        payment = MagicMock(status="PAID")
+        payment.saldo_devedor = Decimal(0)
 
         _atualizar_status_consulta_apos_recebimento(consulta, payment)
 
-        self.assertEqual(consulta.status, 'SCHEDULED')
+        self.assertEqual(consulta.status, "SCHEDULED")
         consulta.save.assert_called_once()
 
     def test_quitou_via_status_paid_mesmo_com_saldo_legado(self):
         """status=PAID manda na transição mesmo se saldo_devedor estiver inconsistente."""
-        consulta = MagicMock(status='RECEBER', data_inicio=None)
-        payment = MagicMock(status='PAID')
-        payment.saldo_devedor = Decimal('200')
+        consulta = MagicMock(status="RECEBER", data_inicio=None)
+        payment = MagicMock(status="PAID")
+        payment.saldo_devedor = Decimal(200)
 
         _atualizar_status_consulta_apos_recebimento(consulta, payment)
 
-        self.assertEqual(consulta.status, 'SCHEDULED')
+        self.assertEqual(consulta.status, "SCHEDULED")
 
     def test_quitou_com_inicio_vai_para_in_progress(self):
-        consulta = MagicMock(status='RECEBER', data_inicio='2026-07-08')
-        payment = MagicMock(status='PAID')
-        payment.saldo_devedor = Decimal('0')
+        consulta = MagicMock(status="RECEBER", data_inicio="2026-07-08")
+        payment = MagicMock(status="PAID")
+        payment.saldo_devedor = Decimal(0)
 
         _atualizar_status_consulta_apos_recebimento(consulta, payment)
 
-        self.assertEqual(consulta.status, 'IN_PROGRESS')
+        self.assertEqual(consulta.status, "IN_PROGRESS")
 
     def test_saldo_pendente_mantem_receber(self):
-        consulta = MagicMock(status='RECEBER', data_inicio=None)
-        payment = MagicMock(status='PARTIAL')
-        payment.saldo_devedor = Decimal('50')
+        consulta = MagicMock(status="RECEBER", data_inicio=None)
+        payment = MagicMock(status="PARTIAL")
+        payment.saldo_devedor = Decimal(50)
 
         _atualizar_status_consulta_apos_recebimento(consulta, payment)
 
-        self.assertEqual(consulta.status, 'RECEBER')
+        self.assertEqual(consulta.status, "RECEBER")
 
 
 class RegistrarRecebimentoConsultaTest(SimpleTestCase):
-    @patch('clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento')
-    @patch('clinica_beleza.models.financeiro.PaymentParcela')
-    @patch('clinica_beleza.consulta_service.Payment')
-    @patch('clinica_beleza.consulta_service._garantir_valor_consulta_consulta')
-    @patch('clinica_beleza.consulta_service._valor_pagamento_padrao')
-    @patch('clinica_beleza.consulta_service.calcular_comissao_payment_atendimento')
+    @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
+    @patch("clinica_beleza.models.financeiro.PaymentParcela")
+    @patch("clinica_beleza.consulta_service.Payment")
+    @patch("clinica_beleza.consulta_service._garantir_valor_consulta_consulta")
+    @patch("clinica_beleza.consulta_service._valor_pagamento_padrao")
+    @patch("clinica_beleza.consulta_service.calcular_comissao_payment_atendimento")
     def test_recebimento_total_marca_paid(
         self,
         mock_comissao,
@@ -66,35 +66,35 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         _mock_parcela,
         mock_atualizar_status,
     ):
-        mock_comissao.return_value = (Decimal('10'), Decimal('20'))
-        mock_valor_padrao.return_value = Decimal('200')
+        mock_comissao.return_value = (Decimal(10), Decimal(20))
+        mock_valor_padrao.return_value = Decimal(200)
         payment = MagicMock()
         payment.loja_id = 1
         payment.parcelas.exists.return_value = False
-        payment.saldo_devedor = Decimal('200')
-        payment.valor_pago_parcelas = Decimal('200')
+        payment.saldo_devedor = Decimal(200)
+        payment.valor_pago_parcelas = Decimal(200)
         mock_payment_model.objects.filter.return_value.first.return_value = None
         mock_payment_model.objects.create.return_value = payment
 
-        consulta = MagicMock(status='RECEBER', appointment=MagicMock(loja_id=1))
+        consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1))
 
         registrar_recebimento_consulta(
             consulta,
-            payment_method='PIX',
-            amount=Decimal('200'),
+            payment_method="PIX",
+            amount=Decimal(200),
             mark_as_paid=True,
         )
 
-        self.assertEqual(payment.status, 'DRAFT')
+        self.assertEqual(payment.status, "DRAFT")
         _mock_parcela.objects.create.assert_called_once()
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 
-    @patch('clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento')
-    @patch('clinica_beleza.models.financeiro.PaymentParcela')
-    @patch('clinica_beleza.consulta_service.Payment')
-    @patch('clinica_beleza.consulta_service._garantir_valor_consulta_consulta')
-    @patch('clinica_beleza.consulta_service._valor_pagamento_padrao')
-    @patch('clinica_beleza.consulta_service.calcular_comissao_payment_atendimento')
+    @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
+    @patch("clinica_beleza.models.financeiro.PaymentParcela")
+    @patch("clinica_beleza.consulta_service.Payment")
+    @patch("clinica_beleza.consulta_service._garantir_valor_consulta_consulta")
+    @patch("clinica_beleza.consulta_service._valor_pagamento_padrao")
+    @patch("clinica_beleza.consulta_service.calcular_comissao_payment_atendimento")
     def test_recebimento_parcial_cria_parcela(
         self,
         mock_comissao,
@@ -104,39 +104,39 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         mock_parcela_model,
         mock_atualizar_status,
     ):
-        mock_comissao.return_value = (Decimal('10'), Decimal('20'))
-        mock_valor_padrao.return_value = Decimal('200')
+        mock_comissao.return_value = (Decimal(10), Decimal(20))
+        mock_valor_padrao.return_value = Decimal(200)
         payment = MagicMock()
         payment.loja_id = 1
         payment.parcelas.exists.return_value = False
-        payment.valor_pago_parcelas = Decimal('80')
-        payment.saldo_devedor = Decimal('200')
+        payment.valor_pago_parcelas = Decimal(80)
+        payment.saldo_devedor = Decimal(200)
         mock_payment_model.objects.filter.return_value.first.return_value = payment
 
-        consulta = MagicMock(status='RECEBER', appointment=MagicMock(loja_id=1))
+        consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1))
 
         registrar_recebimento_consulta(
             consulta,
-            payment_method='CASH',
-            amount=Decimal('80'),
+            payment_method="CASH",
+            amount=Decimal(80),
             mark_as_paid=False,
         )
 
         mock_parcela_model.objects.create.assert_called_once()
-        self.assertEqual(payment.status, 'DRAFT')
+        self.assertEqual(payment.status, "DRAFT")
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 
     def test_bloqueia_consulta_finalizada(self):
-        consulta = MagicMock(status='COMPLETED', appointment=MagicMock())
-        with self.assertRaisesMessage(ValueError, 'aberta para recebimento'):
-            registrar_recebimento_consulta(consulta, amount=Decimal('50'))
+        consulta = MagicMock(status="COMPLETED", appointment=MagicMock())
+        with self.assertRaisesMessage(ValueError, "aberta para recebimento"):
+            registrar_recebimento_consulta(consulta, amount=Decimal(50))
 
-    @patch('clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento')
-    @patch('clinica_beleza.models.financeiro.PaymentParcela')
-    @patch('clinica_beleza.consulta_service.Payment')
-    @patch('clinica_beleza.consulta_service._garantir_valor_consulta_consulta')
-    @patch('clinica_beleza.consulta_service._valor_pagamento_padrao')
-    @patch('clinica_beleza.consulta_service.calcular_comissao_payment_atendimento')
+    @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
+    @patch("clinica_beleza.models.financeiro.PaymentParcela")
+    @patch("clinica_beleza.consulta_service.Payment")
+    @patch("clinica_beleza.consulta_service._garantir_valor_consulta_consulta")
+    @patch("clinica_beleza.consulta_service._valor_pagamento_padrao")
+    @patch("clinica_beleza.consulta_service.calcular_comissao_payment_atendimento")
     def test_desconto_e_multiplas_entradas(
         self,
         mock_comissao,
@@ -146,40 +146,40 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         mock_parcela_model,
         mock_atualizar_status,
     ):
-        mock_comissao.return_value = (Decimal('10'), Decimal('50'))
-        mock_valor_padrao.return_value = Decimal('700')
+        mock_comissao.return_value = (Decimal(10), Decimal(50))
+        mock_valor_padrao.return_value = Decimal(700)
         payment = MagicMock()
         payment.loja_id = 1
         payment.valor_total = None
-        payment.valor_pago_parcelas = Decimal('500')
-        payment.saldo_devedor = Decimal('500')
+        payment.valor_pago_parcelas = Decimal(500)
+        payment.saldo_devedor = Decimal(500)
         mock_payment_model.objects.filter.return_value.first.return_value = None
         mock_payment_model.objects.create.return_value = payment
 
-        consulta = MagicMock(status='RECEBER', appointment=MagicMock(loja_id=1))
+        consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1))
 
         registrar_recebimento_consulta(
             consulta,
-            desconto=Decimal('200'),
+            desconto=Decimal(200),
             entradas=[
-                {'payment_method': 'CREDIT_CARD', 'valor': '200'},
-                {'payment_method': 'PIX', 'valor': '200'},
-                {'payment_method': 'DEBIT_CARD', 'valor': '100'},
+                {"payment_method": "CREDIT_CARD", "valor": "200"},
+                {"payment_method": "PIX", "valor": "200"},
+                {"payment_method": "DEBIT_CARD", "valor": "100"},
             ],
             mark_as_paid=True,
         )
 
-        self.assertEqual(payment.valor_total, Decimal('500'))
-        self.assertEqual(payment.status, 'DRAFT')
+        self.assertEqual(payment.valor_total, Decimal(500))
+        self.assertEqual(payment.status, "DRAFT")
         self.assertEqual(mock_parcela_model.objects.create.call_count, 3)
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 
 
 class GarantirContaPendenteConsultaTest(SimpleTestCase):
-    @patch('clinica_beleza.consulta_service.Payment')
-    @patch('clinica_beleza.consulta_service._garantir_valor_consulta_consulta')
-    @patch('clinica_beleza.consulta_service._valor_pagamento_padrao')
-    @patch('clinica_beleza.consulta_service.calcular_comissao_payment_atendimento')
+    @patch("clinica_beleza.consulta_service.Payment")
+    @patch("clinica_beleza.consulta_service._garantir_valor_consulta_consulta")
+    @patch("clinica_beleza.consulta_service._valor_pagamento_padrao")
+    @patch("clinica_beleza.consulta_service.calcular_comissao_payment_atendimento")
     def test_cria_payment_pendente_quando_receber(
         self,
         mock_comissao,
@@ -189,23 +189,23 @@ class GarantirContaPendenteConsultaTest(SimpleTestCase):
     ):
         from clinica_beleza.consulta_service.payment import garantir_conta_pendente_consulta
 
-        mock_comissao.return_value = (Decimal('10'), Decimal('20'))
-        mock_valor_padrao.return_value = Decimal('250')
+        mock_comissao.return_value = (Decimal(10), Decimal(20))
+        mock_valor_padrao.return_value = Decimal(250)
         mock_payment_model.objects.filter.return_value.first.return_value = None
 
-        consulta = MagicMock(status='RECEBER', appointment=MagicMock(loja_id=1))
+        consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1))
 
         garantir_conta_pendente_consulta(consulta)
 
         mock_payment_model.objects.create.assert_called_once()
         kwargs = mock_payment_model.objects.create.call_args.kwargs
-        self.assertEqual(kwargs['status'], 'PENDING')
-        self.assertEqual(kwargs['valor_total'], Decimal('250'))
-        self.assertEqual(kwargs['amount'], Decimal('0'))
+        self.assertEqual(kwargs["status"], "PENDING")
+        self.assertEqual(kwargs["valor_total"], Decimal(250))
+        self.assertEqual(kwargs["amount"], Decimal(0))
 
     def test_ignora_quando_nao_receber(self):
         from clinica_beleza.consulta_service.payment import garantir_conta_pendente_consulta
 
-        consulta = MagicMock(status='SCHEDULED', appointment=MagicMock())
+        consulta = MagicMock(status="SCHEDULED", appointment=MagicMock())
         garantir_conta_pendente_consulta(consulta)
         consulta.appointment.assert_not_called()

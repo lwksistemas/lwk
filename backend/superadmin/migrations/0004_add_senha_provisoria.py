@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0003_planoassinatura_tipos_loja'),
+        ("superadmin", "0003_planoassinatura_tipos_loja"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='loja',
-            name='senha_provisoria',
-            field=models.CharField(blank=True, help_text='Senha provisória gerada automaticamente', max_length=50),
+            model_name="loja",
+            name="senha_provisoria",
+            field=models.CharField(blank=True, help_text="Senha provisória gerada automaticamente", max_length=50),
         ),
     ]

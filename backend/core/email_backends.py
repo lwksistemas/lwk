@@ -1,5 +1,4 @@
-"""
-Backend de e-mail via API Resend (Django EMAIL_BACKEND).
+"""Backend de e-mail via API Resend (Django EMAIL_BACKEND).
 Enfileira envios quando USE_TASK_QUEUE=true no lwks-backend.
 """
 from __future__ import annotations
@@ -35,7 +34,7 @@ class ResendEmailBackend(BaseEmailBackend):
                     sent += deliver_email_message(message, fail_silently=self.fail_silently)
                 except Exception:
                     logger.exception(
-                        'Resend: falha ao enfileirar e-mail assunto=%s dest=%s',
+                        "Resend: falha ao enfileirar e-mail assunto=%s dest=%s",
                         message.subject,
                         message.to,
                     )
@@ -47,7 +46,7 @@ class ResendEmailBackend(BaseEmailBackend):
 
     def _send_messages_sync(self, email_messages):
         if not resend_api_key():
-            raise ValueError('RESEND_API_KEY não configurada')
+            raise ValueError("RESEND_API_KEY não configurada")
 
         from core.email_delivery import deliver_email_sync
 
@@ -57,7 +56,7 @@ class ResendEmailBackend(BaseEmailBackend):
                 sent += deliver_email_sync(message, fail_silently=self.fail_silently)
             except Exception:
                 logger.exception(
-                    'Resend: falha ao enviar e-mail assunto=%s dest=%s',
+                    "Resend: falha ao enviar e-mail assunto=%s dest=%s",
                     message.subject,
                     message.to,
                 )

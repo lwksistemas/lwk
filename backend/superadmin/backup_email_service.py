@@ -1,5 +1,4 @@
-"""
-Serviço de Email para Backups - v800
+"""Serviço de Email para Backups - v800
 
 Responsabilidades:
 - Enviar backups por email
@@ -22,53 +21,52 @@ logger = logging.getLogger(__name__)
 
 
 class BackupEmailService:
-    """
-    Serviço para envio de emails com backups.
-    
+    """Serviço para envio de emails com backups.
+
     Encapsula toda a lógica de envio de emails relacionados a backup.
     """
-    
+
     def __init__(self):
         from core.email_delivery import get_from_email
         self.from_email = get_from_email()
-    
+
     def enviar_backup_email(
         self,
         loja_id: int,
-        historico_backup_id: int
+        historico_backup_id: int,
     ) -> bool:
-        """
-        Envia backup por email para o admin da loja.
-        
+        """Envia backup por email para o admin da loja.
+
         Args:
             loja_id: ID da loja
             historico_backup_id: ID do registro de histórico
-        
+
         Returns:
             bool: True se enviado com sucesso, False caso contrário
+
         """
         from .models import HistoricoBackup, Loja
-        
+
         try:
             # Buscar loja e histórico
-            loja = Loja.objects.select_related('owner').get(id=loja_id)
+            loja = Loja.objects.select_related("owner").get(id=loja_id)
             historico = HistoricoBackup.objects.get(id=historico_backup_id)
-            
-            if historico.status != 'concluido':
+
+            if historico.status != "concluido":
                 logger.error(f"❌ Backup {historico_backup_id} não está concluído")
                 return False
-            
+
             # Email do destinatário
-            destinatario = (loja.owner.email or '').strip()
+            destinatario = (loja.owner.email or "").strip()
             if not destinatario:
-                logger.error('❌ Loja %s (id=%s) não possui email do owner — backup gerado mas não enviado', loja.nome, loja.id)
+                logger.error("❌ Loja %s (id=%s) não possui email do owner — backup gerado mas não enviado", loja.nome, loja.id)
                 return False
-            
+
             # Preparar email
             assunto = self._criar_assunto(loja, historico)
             corpo_html = self._criar_corpo_html(loja, historico)
             corpo_texto = self._criar_corpo_texto(loja, historico)
-            
+
             # Multipart texto + HTML (Resend API exige alternatives, não content_subtype)
             from core.email_delivery import create_email_multipart, send_prepared
             from core.email_sync_context import email_sync_only
@@ -90,7 +88,7 @@ class BackupEmailService:
                 send_prepared(email, fail_silently=False)
             finally:
                 email_sync_only.reset(token)
-            
+
             # Marcar como enviado
             historico.marcar_email_enviado(destinatario)
 
@@ -98,37 +96,37 @@ class BackupEmailService:
 
             from .models import ConfiguracaoBackup
             ConfiguracaoBackup.objects.filter(loja=loja).update(
-                ultimo_envio_email=timezone.now()
+                ultimo_envio_email=timezone.now(),
             )
-            
+
             logger.info(f"✅ Backup enviado por email para {destinatario} (loja {loja.nome})")
             return True
-        
+
         except Exception as e:
             logger.error(f"❌ Erro ao enviar backup por email: {e}")
             return False
 
-    
+
     def _criar_assunto(self, loja, historico) -> str:
         """Cria assunto do email (data em horário local - America/Sao_Paulo)."""
         data_local = timezone.localtime(historico.created_at)
-        data = data_local.strftime('%d/%m/%Y')
+        data = data_local.strftime("%d/%m/%Y")
         return f"Backup Automático - {loja.nome} - {data}"
-    
+
     def _criar_corpo_html(self, loja, historico) -> str:
         """Cria corpo HTML do email (data/hora em horário local)."""
         data_local = timezone.localtime(historico.created_at)
         context = {
-            'loja': loja,
-            'historico': historico,
-            'owner_nome': loja.owner.first_name or loja.owner.username,
-            'data_backup': data_local.strftime('%d/%m/%Y às %H:%M'),
-            'tamanho': historico.get_tamanho_formatado(),
-            'total_registros': historico.total_registros,
-            'tabelas': historico.tabelas_incluidas,
-            'tempo_processamento': historico.get_tempo_processamento_formatado(),
+            "loja": loja,
+            "historico": historico,
+            "owner_nome": loja.owner.first_name or loja.owner.username,
+            "data_backup": data_local.strftime("%d/%m/%Y às %H:%M"),
+            "tamanho": historico.get_tamanho_formatado(),
+            "total_registros": historico.total_registros,
+            "tabelas": historico.tabelas_incluidas,
+            "tempo_processamento": historico.get_tempo_processamento_formatado(),
         }
-        
+
         # Template HTML inline (pode ser movido para arquivo separado)
         html = f"""
         <!DOCTYPE html>
@@ -151,12 +149,12 @@ class BackupEmailService:
                     <h1>💾 Backup Automático</h1>
                     <p>{loja.nome}</p>
                 </div>
-                
+
                 <div class="content">
                     <p>Olá <strong>{context['owner_nome']}</strong>,</p>
-                    
+
                     <p>Segue em anexo o backup automático da sua loja <strong>"{loja.nome}"</strong>.</p>
-                    
+
                     <div class="info-box">
                         <h3>📊 Informações do Backup</h3>
                         <ul>
@@ -166,7 +164,7 @@ class BackupEmailService:
                             <li><strong>Tempo de Processamento:</strong> {context['tempo_processamento']}</li>
                         </ul>
                     </div>
-                    
+
                     <div class="warning">
                         <h3>⚠️ IMPORTANTE</h3>
                         <ul>
@@ -177,7 +175,7 @@ class BackupEmailService:
                         </ul>
                     </div>
                 </div>
-                
+
                 <div class="footer">
                     <p>Atenciosamente,<br>Equipe {getattr(settings, 'SITE_NAME', 'Sistema')}</p>
                     <p>Este é um email automático, não responda.</p>
@@ -186,15 +184,15 @@ class BackupEmailService:
         </body>
         </html>
         """
-        
+
         return html
-    
+
     def _criar_corpo_texto(self, loja, historico) -> str:
         """Cria corpo em texto puro do email (data/hora em horário local)."""
         owner_nome = loja.owner.first_name or loja.owner.username
         data_local = timezone.localtime(historico.created_at)
-        data_backup = data_local.strftime('%d/%m/%Y às %H:%M')
-        
+        data_backup = data_local.strftime("%d/%m/%Y às %H:%M")
+
         texto = f"""
 Backup Automático - {loja.nome}
 
@@ -220,9 +218,9 @@ Equipe {getattr(settings, 'SITE_NAME', 'Sistema')}
 ---
 Este é um email automático, não responda.
         """
-        
+
         return texto.strip()
-    
+
     def _anexar_arquivo(self, email: EmailMessage, historico):
         """Anexa arquivo de backup ao email.
 
@@ -234,22 +232,22 @@ Este é um email automático, não responda.
 
         if not historico.arquivo_path:
             logger.warning(
-                '⚠️ Backup %s (loja=%s) não tem arquivo_path — email enviado sem anexo',
+                "⚠️ Backup %s (loja=%s) não tem arquivo_path — email enviado sem anexo",
                 historico.id, historico.loja_id,
             )
             return
 
         if not os.path.exists(historico.arquivo_path):
             logger.warning(
-                '⚠️ Arquivo de backup não encontrado no disco (%s) — '
-                'container pode ter sido reiniciado após o backup. '
-                'Email enviado sem anexo.',
+                "⚠️ Arquivo de backup não encontrado no disco (%s) — "
+                "container pode ter sido reiniciado após o backup. "
+                "Email enviado sem anexo.",
                 historico.arquivo_path,
             )
             return
 
-        with open(historico.arquivo_path, 'rb') as f:
+        with open(historico.arquivo_path, "rb") as f:
             arquivo_bytes = f.read()
 
-        email.attach(historico.arquivo_nome, arquivo_bytes, 'application/zip')
-        logger.info('📎 Arquivo %s anexado ao email (%s bytes)', historico.arquivo_nome, len(arquivo_bytes))
+        email.attach(historico.arquivo_nome, arquivo_bytes, "application/zip")
+        logger.info("📎 Arquivo %s anexado ao email (%s bytes)", historico.arquivo_nome, len(arquivo_bytes))

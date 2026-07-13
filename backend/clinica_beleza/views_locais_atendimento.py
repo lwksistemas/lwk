@@ -1,5 +1,4 @@
-"""
-Views de Locais de Atendimento — Clínica da Beleza
+"""Views de Locais de Atendimento — Clínica da Beleza
 """
 from rest_framework import status
 from rest_framework.response import Response
@@ -12,14 +11,14 @@ from .views_base import GetObjectMixin
 
 
 class LocalAtendimentoListView(APIView):
-    """
-    GET /clinica-beleza/locais-atendimento/ — lista locais ativos da loja
+    """GET /clinica-beleza/locais-atendimento/ — lista locais ativos da loja
     POST /clinica-beleza/locais-atendimento/ — cria novo local
     """
+
     permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
-        queryset = LocalAtendimento.objects.filter(is_active=True).order_by('nome')
+        queryset = LocalAtendimento.objects.filter(is_active=True).order_by("nome")
         return Response(LocalAtendimentoSerializer(queryset, many=True).data)
 
     def post(self, request):
@@ -32,18 +31,18 @@ class LocalAtendimentoListView(APIView):
             ).exists()
             if not tem_padrao:
                 instance.is_padrao = True
-                instance.save(update_fields=['is_padrao'])
+                instance.save(update_fields=["is_padrao"])
             return Response(LocalAtendimentoSerializer(instance).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LocalAtendimentoDetailView(GetObjectMixin, APIView):
+    """GET / PUT / DELETE /clinica-beleza/locais-atendimento/<pk>/
     """
-    GET / PUT / DELETE /clinica-beleza/locais-atendimento/<pk>/
-    """
+
     permission_classes = CLINICA_RECEPCAO
     model_class = LocalAtendimento
-    not_found_message = 'Local de atendimento não encontrado'
+    not_found_message = "Local de atendimento não encontrado"
 
     def get(self, request, pk):
         obj, error = self.object_or_404(pk)
@@ -77,5 +76,5 @@ class LocalAtendimentoDetailView(GetObjectMixin, APIView):
         if error:
             return error
         obj.is_active = False
-        obj.save(update_fields=['is_active', 'updated_at'])
+        obj.save(update_fields=["is_active", "updated_at"])
         return Response(status=status.HTTP_204_NO_CONTENT)

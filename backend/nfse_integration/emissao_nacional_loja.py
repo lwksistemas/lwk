@@ -35,27 +35,27 @@ def emitir_via_nacional_loja(
         from nfse_integration.nacional import NacionalClient
 
         cert_data = (
-            getattr(config, 'nacional_certificado', None)
-            or getattr(config, 'issnet_certificado', None)
+            getattr(config, "nacional_certificado", None)
+            or getattr(config, "issnet_certificado", None)
         )
         senha_cert = (
-            getattr(config, 'nacional_senha_certificado', '')
-            or getattr(config, 'issnet_senha_certificado', '')
+            getattr(config, "nacional_senha_certificado", "")
+            or getattr(config, "issnet_senha_certificado", "")
         )
-        codigo_municipio = getattr(config, 'nacional_codigo_municipio', '') or ''
+        codigo_municipio = getattr(config, "nacional_codigo_municipio", "") or ""
 
         if not cert_data:
-            return {'success': False, 'error': 'Certificado digital não configurado'}
+            return {"success": False, "error": "Certificado digital não configurado"}
         if not senha_cert:
-            return {'success': False, 'error': 'Senha do certificado não configurada'}
+            return {"success": False, "error": "Senha do certificado não configurada"}
         if not codigo_municipio:
-            cep_loja = getattr(loja, 'cep', '') or ''
+            cep_loja = getattr(loja, "cep", "") or ""
             codigo_municipio = buscar_codigo_ibge_por_cep(cep_loja)
             if not codigo_municipio:
-                return {'success': False, 'error': 'Código IBGE do município não configurado'}
+                return {"success": False, "error": "Código IBGE do município não configurado"}
 
         numero_dps = gerar_proximo_numero_rps(loja.id, config)
-        ambiente = getattr(config, 'nacional_ambiente', 'homologacao') or 'homologacao'
+        ambiente = getattr(config, "nacional_ambiente", "homologacao") or "homologacao"
         client = NacionalClient(
             pfx_bytes=bytes(cert_data),
             senha_pfx=senha_cert,
@@ -67,32 +67,32 @@ def emitir_via_nacional_loja(
             email=tomador_email,
         )
         if erro_endereco:
-            return {'success': False, 'error': erro_endereco}
+            return {"success": False, "error": erro_endereco}
 
         if prestador:
             cnpj_prestador = prestador.cnpj
             im_prestador = prestador.inscricao_municipal
             razao_prestador = prestador.razao_social
         else:
-            cnpj_prestador = re.sub(r'\D', '', loja.cpf_cnpj or '')
+            cnpj_prestador = re.sub(r"\D", "", loja.cpf_cnpj or "")
             im_prestador = (
-                getattr(config, 'inscricao_municipal', '')
-                or getattr(loja, 'inscricao_municipal', '')
-                or ''
+                getattr(config, "inscricao_municipal", "")
+                or getattr(loja, "inscricao_municipal", "")
+                or ""
             )
-            razao_prestador = loja.nome or ''
+            razao_prestador = loja.nome or ""
         codigo_servico_final = (
             codigo_servico_override
-            or getattr(config, 'codigo_servico_municipal', '14.01')
-            or '14.01'
+            or getattr(config, "codigo_servico_municipal", "14.01")
+            or "14.01"
         )
-        codigo_cnae_final = codigo_cnae_override or (getattr(config, 'codigo_cnae', '') or '').strip()
-        aliquota = Decimal(str(getattr(config, 'aliquota_iss', Decimal('2.00')) or 0))
-        valor_iss = (Decimal(str(valor_servicos)) * aliquota / Decimal('100')).quantize(
-            Decimal('0.01'),
+        codigo_cnae_final = codigo_cnae_override or (getattr(config, "codigo_cnae", "") or "").strip()
+        aliquota = Decimal(str(getattr(config, "aliquota_iss", Decimal("2.00")) or 0))
+        valor_iss = (Decimal(str(valor_servicos)) * aliquota / Decimal(100)).quantize(
+            Decimal("0.01"),
             rounding=ROUND_HALF_UP,
         )
-        serie_dps = getattr(config, 'nacional_serie_dps', '900') or '900'
+        serie_dps = getattr(config, "nacional_serie_dps", "900") or "900"
 
         resultado = client.emitir_nfse(
             numero_dps=numero_dps,
@@ -101,7 +101,7 @@ def emitir_via_nacional_loja(
             prestador_cnpj=cnpj_prestador,
             prestador_inscricao_municipal=im_prestador,
             prestador_razao_social=razao_prestador,
-            prestador_email=getattr(loja, 'email', '') or '',
+            prestador_email=getattr(loja, "email", "") or "",
             tomador_cpf_cnpj=tomador_cpf_cnpj,
             tomador_nome=tomador_nome,
             tomador_endereco=tomador_endereco_final,
@@ -109,53 +109,53 @@ def emitir_via_nacional_loja(
             codigo_servico=codigo_servico_final,
             descricao_servico=(
                 servico_descricao
-                or getattr(config, 'descricao_servico_padrao', '')
-                or 'Serviço prestado'
+                or getattr(config, "descricao_servico_padrao", "")
+                or "Serviço prestado"
             ),
             codigo_cnae=codigo_cnae_final,
             codigo_municipio_incidencia=codigo_municipio,
             valor_servicos=valor_servicos,
             aliquota_iss=aliquota,
             iss_retido=False,
-            optante_simples_nacional=getattr(config, 'optante_simples_nacional', True),
-            incentivador_cultural=getattr(config, 'incentivador_cultural', False),
+            optante_simples_nacional=getattr(config, "optante_simples_nacional", True),
+            incentivador_cultural=getattr(config, "incentivador_cultural", False),
         )
 
-        if resultado.get('success'):
+        if resultado.get("success"):
             resultado_final = {
-                'success': True,
-                'numero_nf': resultado.get('chave_acesso', ''),
-                'codigo_verificacao': resultado.get('nsu_recepcao', ''),
-                'numero_rps': numero_dps,
-                'data_emissao': timezone.now(),
-                'valor': float(valor_servicos),
-                'aliquota_iss': float(aliquota),
-                'valor_iss': float(valor_iss),
-                'xml_nfse': resultado.get('xml_dps', ''),
-                'pdf_url': '',
-                'tomador_nome': tomador_nome,
-                'tomador_cpf_cnpj': tomador_cpf_cnpj,
-                'servico_descricao': servico_descricao,
+                "success": True,
+                "numero_nf": resultado.get("chave_acesso", ""),
+                "codigo_verificacao": resultado.get("nsu_recepcao", ""),
+                "numero_rps": numero_dps,
+                "data_emissao": timezone.now(),
+                "valor": float(valor_servicos),
+                "aliquota_iss": float(aliquota),
+                "valor_iss": float(valor_iss),
+                "xml_nfse": resultado.get("xml_dps", ""),
+                "pdf_url": "",
+                "tomador_nome": tomador_nome,
+                "tomador_cpf_cnpj": tomador_cpf_cnpj,
+                "servico_descricao": servico_descricao,
             }
-            salvar_nfse_emitida(loja.id, resultado_final, tomador_email, provedor='nacional')
+            salvar_nfse_emitida(loja.id, resultado_final, tomador_email, provedor="nacional")
             if enviar_email and tomador_email:
                 enviar_email_fn(
                     tomador_email=tomador_email,
                     tomador_nome=tomador_nome,
-                    numero_nf=resultado_final['numero_nf'],
+                    numero_nf=resultado_final["numero_nf"],
                     valor=valor_servicos,
                     descricao=servico_descricao,
                 )
             return resultado_final
 
-        error_msg = resultado.get('error', 'Erro desconhecido')
-        erros = resultado.get('erros', [])
+        error_msg = resultado.get("error", "Erro desconhecido")
+        erros = resultado.get("erros", [])
         if erros:
-            error_msg += ' | ' + '; '.join(
+            error_msg += " | " + "; ".join(
                 f"[{e.get('Codigo', '')}] {e.get('Descricao', '')}" if isinstance(e, dict) else str(e)
                 for e in erros
             )
-        return {'success': False, 'error': error_msg, 'numero_rps': numero_dps}
+        return {"success": False, "error": error_msg, "numero_rps": numero_dps}
     except Exception as exc:
-        logger.exception('Erro ao emitir via Nacional: %s', exc)
-        return {'success': False, 'error': str(exc)}
+        logger.exception("Erro ao emitir via Nacional: %s", exc)
+        return {"success": False, "error": str(exc)}

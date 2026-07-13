@@ -1,5 +1,4 @@
-"""
-Regras de agenda: conflitos de horário, bloqueios, horário comercial.
+"""Regras de agenda: conflitos de horário, bloqueios, horário comercial.
 """
 from datetime import timedelta
 
@@ -9,8 +8,7 @@ from clinica_beleza.models import Appointment
 
 
 def bloquear_conflitos(contexto):
-    """
-    Impede agendamento no mesmo horário para o mesmo profissional.
+    """Impede agendamento no mesmo horário para o mesmo profissional.
     contexto: profissional, date, date_end, appointment_id (opcional, para update)
     """
     profissional = contexto.get("profissional")

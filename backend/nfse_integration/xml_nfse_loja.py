@@ -15,29 +15,29 @@ logger = logging.getLogger(__name__)
 
 def nfse_precisa_buscar_xml(nfse: Any) -> bool:
     """True quando a nota ISSNet emitida não tem XML gravado."""
-    if (getattr(nfse, 'xml_nfse', '') or '').strip() or (getattr(nfse, 'xml_rps', '') or '').strip():
+    if (getattr(nfse, "xml_nfse", "") or "").strip() or (getattr(nfse, "xml_rps", "") or "").strip():
         return False
-    if (getattr(nfse, 'provedor', '') or '').strip().lower() != 'issnet':
+    if (getattr(nfse, "provedor", "") or "").strip().lower() != "issnet":
         return False
-    return (getattr(nfse, 'status', '') or '') in ('emitida', 'cancelada')
+    return (getattr(nfse, "status", "") or "") in ("emitida", "cancelada")
 
 
 def gerar_xml_nfse_reconstruido(nfse: Any, loja: Any) -> str:
     """Monta CompNfse ABRASF com os dados já salvos no CRM (fallback quando o ISSNet não devolve XML)."""
-    cnpj_prest = somente_digitos(getattr(loja, 'cpf_cnpj', '') or '')
-    im_prest = somente_digitos(getattr(loja, 'inscricao_municipal', '') or '')
-    razao_prest = xml_escape((getattr(loja, 'nome', '') or '')[:200])
+    cnpj_prest = somente_digitos(getattr(loja, "cpf_cnpj", "") or "")
+    im_prest = somente_digitos(getattr(loja, "inscricao_municipal", "") or "")
+    razao_prest = xml_escape((getattr(loja, "nome", "") or "")[:200])
 
-    tom_doc = somente_digitos(getattr(nfse, 'tomador_cpf_cnpj', '') or '')
+    tom_doc = somente_digitos(getattr(nfse, "tomador_cpf_cnpj", "") or "")
     if len(tom_doc) == 14:
-        tom_doc_xml = f'<Cnpj>{tom_doc}</Cnpj>'
+        tom_doc_xml = f"<Cnpj>{tom_doc}</Cnpj>"
     elif len(tom_doc) == 11:
-        tom_doc_xml = f'<Cpf>{tom_doc}</Cpf>'
+        tom_doc_xml = f"<Cpf>{tom_doc}</Cpf>"
     else:
-        tom_doc_xml = ''
+        tom_doc_xml = ""
 
-    dt = ''
-    if getattr(nfse, 'data_emissao', None):
+    dt = ""
+    if getattr(nfse, "data_emissao", None):
         dt = nfse.data_emissao.isoformat()
 
     valor = f'{Decimal(str(getattr(nfse, "valor", 0) or 0)):.2f}'
@@ -91,22 +91,22 @@ def _tentar_buscar_xml_issnet(nfse: Any, loja: Any, loja_id: int) -> str:
     )
 
     cfg = _resolver_config_nfse_loja(loja_id)
-    numero_rps = int(getattr(nfse, 'numero_rps', 0) or 0)
-    numero_nf = str(getattr(nfse, 'numero_nf', '') or '').strip()
+    numero_rps = int(getattr(nfse, "numero_rps", 0) or 0)
+    numero_nf = str(getattr(nfse, "numero_nf", "") or "").strip()
 
     if numero_rps > 0:
         parsed, _err = _consultar_nfse_issnet_por_rps(cfg, loja, numero_rps)
-        xml = (parsed or {}).get('xml_nfse') or ''
-        if xml.strip() and re.search(r'<\s*InfNfse\b', xml, re.I):
+        xml = (parsed or {}).get("xml_nfse") or ""
+        if xml.strip() and re.search(r"<\s*InfNfse\b", xml, re.IGNORECASE):
             return xml.strip()
 
-    if numero_nf and not numero_nf.startswith('FALHA-'):
+    if numero_nf and not numero_nf.startswith("FALHA-"):
         parsed, _err = _consultar_nfse_issnet_por_numero(cfg, loja, numero_nf)
-        xml = (parsed or {}).get('xml_nfse') or ''
-        if xml.strip() and re.search(r'<\s*InfNfse\b', xml, re.I):
+        xml = (parsed or {}).get("xml_nfse") or ""
+        if xml.strip() and re.search(r"<\s*InfNfse\b", xml, re.IGNORECASE):
             return xml.strip()
 
-    return ''
+    return ""
 
 
 def resolver_xml_nfse_loja(
@@ -116,31 +116,30 @@ def resolver_xml_nfse_loja(
     *,
     persistir: bool = True,
 ) -> str:
+    """Retorna XML da NFS-e: campo salvo, consulta ISSNet ou reconstrução a partir do registro.
     """
-    Retorna XML da NFS-e: campo salvo, consulta ISSNet ou reconstrução a partir do registro.
-    """
-    existente = (getattr(nfse, 'xml_nfse', '') or getattr(nfse, 'xml_rps', '') or '').strip()
+    existente = (getattr(nfse, "xml_nfse", "") or getattr(nfse, "xml_rps", "") or "").strip()
     if existente:
         return existente
 
-    xml_issnet = ''
+    xml_issnet = ""
     if nfse_precisa_buscar_xml(nfse):
         try:
             xml_issnet = _tentar_buscar_xml_issnet(nfse, loja, loja_id)
         except Exception:
-            logger.exception('Falha ao consultar XML ISSNet nf_id=%s', getattr(nfse, 'id', None))
+            logger.exception("Falha ao consultar XML ISSNet nf_id=%s", getattr(nfse, "id", None))
 
     xml_final = xml_issnet
     if not xml_final and nfse_precisa_buscar_xml(nfse):
         xml_final = gerar_xml_nfse_reconstruido(nfse, loja)
         logger.info(
-            'XML NFS-e reconstruido nf=%s loja_id=%s (ISSNet sem retorno)',
-            getattr(nfse, 'numero_nf', ''),
+            "XML NFS-e reconstruido nf=%s loja_id=%s (ISSNet sem retorno)",
+            getattr(nfse, "numero_nf", ""),
             loja_id,
         )
 
-    if xml_final and persistir and not (getattr(nfse, 'xml_nfse', '') or '').strip():
+    if xml_final and persistir and not (getattr(nfse, "xml_nfse", "") or "").strip():
         nfse.xml_nfse = xml_final
-        nfse.save(update_fields=['xml_nfse'])
+        nfse.save(update_fields=["xml_nfse"])
 
     return xml_final

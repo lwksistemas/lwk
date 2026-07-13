@@ -4,7 +4,7 @@ from stores.models import Store
 
 
 class Product(models.Model):
-    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='products')
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name="products")
     name = models.CharField(max_length=200)
     slug = models.SlugField()
     description = models.TextField(blank=True)
@@ -14,10 +14,10 @@ class Product(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
-        ordering = ['name']
-        unique_together = ['store', 'slug']
-    
+        ordering = ["name"]
+        unique_together = ["store", "slug"]
+
     def __str__(self):
         return f"{self.store.name} - {self.name}"

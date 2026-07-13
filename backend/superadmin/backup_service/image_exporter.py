@@ -19,25 +19,25 @@ MAX_FILE_BYTES = 15 * 1024 * 1024
 MAX_TOTAL_BYTES = 120 * 1024 * 1024
 DOWNLOAD_TIMEOUT = 30
 
-URL_PREFIX_RE = re.compile(r'^https?://', re.I)
-CLOUDINARY_RE = re.compile(r'cloudinary\.com', re.I)
-MEDIA_EXT_RE = re.compile(r'\.(jpe?g|png|gif|webp|bmp|svg|pdf|heic|heif)(?:\?|#|$)', re.I)
+URL_PREFIX_RE = re.compile(r"^https?://", re.IGNORECASE)
+CLOUDINARY_RE = re.compile(r"cloudinary\.com", re.IGNORECASE)
+MEDIA_EXT_RE = re.compile(r"\.(jpe?g|png|gif|webp|bmp|svg|pdf|heic|heif)(?:\?|#|$)", re.IGNORECASE)
 
 TABLE_URL_COLUMNS: dict[str, tuple[str, ...]] = {
-    'clinica_beleza_paciente_fotos': ('cloudinary_url',),
-    'restaurante_cardapio': ('imagem_url',),
-    'ecommerce_produtos': ('imagem_url',),
+    "clinica_beleza_paciente_fotos": ("cloudinary_url",),
+    "restaurante_cardapio": ("imagem_url",),
+    "ecommerce_produtos": ("imagem_url",),
 }
 
 TABLE_BINARY_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     # table -> ((column, zip_suffix), ...)
-    'clinica_beleza_memed_timbrado': (('pdf', 'pdf'),),
+    "clinica_beleza_memed_timbrado": (("pdf", "pdf"),),
 }
 
-LOJA_URL_FIELDS = ('logo', 'login_logo')
+LOJA_URL_FIELDS = ("logo", "login_logo")
 
 _MEDIA_COL_HINTS = (
-    'url', 'logo', 'foto', 'imagem', 'image', 'avatar', 'photo', 'thumb', 'banner', 'capa',
+    "url", "logo", "foto", "imagem", "image", "avatar", "photo", "thumb", "banner", "capa",
 )
 
 
@@ -47,56 +47,56 @@ def _column_might_have_media(column: str) -> bool:
 
 
 def _looks_like_media_url(value: str) -> bool:
-    url = (value or '').strip()
+    url = (value or "").strip()
     if not url or not URL_PREFIX_RE.match(url):
         return False
     if CLOUDINARY_RE.search(url):
         return True
     if MEDIA_EXT_RE.search(urlparse(url).path):
         return True
-    return '/image/upload/' in url or '/raw/upload/' in url
+    return "/image/upload/" in url or "/raw/upload/" in url
 
 
 def _split_url_list(raw: str) -> list[str]:
-    text = (raw or '').strip()
+    text = (raw or "").strip()
     if not text:
         return []
-    if text.startswith('['):
+    if text.startswith("["):
         try:
             parsed = json.loads(text)
             if isinstance(parsed, list):
                 return [str(x).strip() for x in parsed if str(x).strip()]
         except json.JSONDecodeError:
             pass
-    parts = re.split(r'[\s,;|]+', text)
+    parts = re.split(r"[\s,;|]+", text)
     return [p.strip() for p in parts if p.strip()]
 
 
-def _safe_zip_name(prefix: str, url: str, ext_fallback: str = '.bin') -> str:
+def _safe_zip_name(prefix: str, url: str, ext_fallback: str = ".bin") -> str:
     path = urlparse(url).path
-    base = unquote(path.rsplit('/', 1)[-1] if path else '')
-    base = re.sub(r'[^a-zA-Z0-9._-]+', '_', base).strip('._')
+    base = unquote(path.rsplit("/", 1)[-1] if path else "")
+    base = re.sub(r"[^a-zA-Z0-9._-]+", "_", base).strip("._")
     if not base or len(base) > 120:
         digest = hashlib.sha256(url.encode()).hexdigest()[:16]
-        base = f'asset_{digest}{ext_fallback}'
-    if '.' not in base:
-        base = f'{base}{ext_fallback}'
-    return f'{prefix}/{base}'
+        base = f"asset_{digest}{ext_fallback}"
+    if "." not in base:
+        base = f"{base}{ext_fallback}"
+    return f"{prefix}/{base}"
 
 
 def _guess_ext_from_bytes(content: bytes, url: str) -> str:
-    if content[:4] == b'\x89PNG':
-        return '.png'
-    if content[:3] == b'\xFF\xD8\xFF':
-        return '.jpg'
-    if content[:4] == b'%PDF':
-        return '.pdf'
-    if content[:6] in (b'GIF87a', b'GIF89a'):
-        return '.gif'
+    if content[:4] == b"\x89PNG":
+        return ".png"
+    if content[:3] == b"\xFF\xD8\xFF":
+        return ".jpg"
+    if content[:4] == b"%PDF":
+        return ".pdf"
+    if content[:6] in (b"GIF87a", b"GIF89a"):
+        return ".gif"
     m = MEDIA_EXT_RE.search(urlparse(url).path)
     if m:
-        return '.' + m.group(1).lower().replace('jpeg', 'jpg')
-    return '.bin'
+        return "." + m.group(1).lower().replace("jpeg", "jpg")
+    return ".bin"
 
 
 def _download_url(url: str) -> bytes | None:
@@ -110,12 +110,12 @@ def _download_url(url: str) -> bytes | None:
                 continue
             total += len(chunk)
             if total > MAX_FILE_BYTES:
-                logger.warning('Imagem ignorada (arquivo > %s MB): %s', MAX_FILE_BYTES // (1024 * 1024), url)
+                logger.warning("Imagem ignorada (arquivo > %s MB): %s", MAX_FILE_BYTES // (1024 * 1024), url)
                 return None
             chunks.append(chunk)
-        return b''.join(chunks)
+        return b"".join(chunks)
     except Exception as exc:
-        logger.warning('Falha ao baixar mídia %s: %s', url, exc)
+        logger.warning("Falha ao baixar mídia %s: %s", url, exc)
         return None
 
 
@@ -136,27 +136,27 @@ class BackupImageExporter:
         self._export_generic_url_columns(zip_builder, table_names, loja_id)
 
         zip_builder.add_file(
-            'imagens/_manifest.json',
+            "imagens/_manifest.json",
             json.dumps(
                 {
-                    'total_arquivos': len(self.manifest),
-                    'total_bytes': self._total_bytes,
-                    'itens': self.manifest,
+                    "total_arquivos": len(self.manifest),
+                    "total_bytes": self._total_bytes,
+                    "itens": self.manifest,
                 },
                 indent=2,
                 ensure_ascii=False,
-            ).encode('utf-8'),
+            ).encode("utf-8"),
         )
         return {
-            'total_arquivos': len(self.manifest),
-            'total_bytes': self._total_bytes,
-            'limite_total_mb': round(MAX_TOTAL_BYTES / (1024 * 1024), 1),
+            "total_arquivos": len(self.manifest),
+            "total_bytes": self._total_bytes,
+            "limite_total_mb": round(MAX_TOTAL_BYTES / (1024 * 1024), 1),
         }
 
     def _can_add(self, size: int) -> bool:
         if self._total_bytes + size > MAX_TOTAL_BYTES:
             logger.warning(
-                'Limite total de imagens no backup (%s MB) atingido; demais arquivos ignorados.',
+                "Limite total de imagens no backup (%s MB) atingido; demais arquivos ignorados.",
                 MAX_TOTAL_BYTES // (1024 * 1024),
             )
             return False
@@ -170,18 +170,18 @@ class BackupImageExporter:
         *,
         origem: str,
         referencia: str,
-        url: str = '',
+        url: str = "",
     ) -> bool:
         if not content or not self._can_add(len(content)):
             return False
         zip_builder.add_file(zip_path, content)
         self._total_bytes += len(content)
         self.manifest.append({
-            'zip_path': zip_path,
-            'origem': origem,
-            'referencia': referencia,
-            'url': url,
-            'bytes': len(content),
+            "zip_path": zip_path,
+            "origem": origem,
+            "referencia": referencia,
+            "url": url,
+            "bytes": len(content),
         })
         return True
 
@@ -194,7 +194,7 @@ class BackupImageExporter:
         referencia: str,
         zip_prefix: str,
     ) -> bool:
-        normalized = (url or '').strip()
+        normalized = (url or "").strip()
         if not normalized or not _looks_like_media_url(normalized):
             return False
         if normalized in self._seen_urls:
@@ -211,15 +211,15 @@ class BackupImageExporter:
 
     def _export_loja_logos(self, zip_builder: ZipBuilder) -> None:
         for field in LOJA_URL_FIELDS:
-            url = (getattr(self.loja, field, None) or '').strip()
+            url = (getattr(self.loja, field, None) or "").strip()
             if not url:
                 continue
             self._add_url(
                 zip_builder,
                 url,
-                origem='loja',
+                origem="loja",
                 referencia=field,
-                zip_prefix=f'imagens/loja/{field}',
+                zip_prefix=f"imagens/loja/{field}",
             )
 
     def _export_table_binaries(self, zip_builder: ZipBuilder, loja_id: int) -> None:
@@ -230,46 +230,46 @@ class BackupImageExporter:
             if not cols:
                 continue
             qual = self.db_helper.qualified_table_name(table)
-            has_loja = 'loja_id' in cols
-            select_cols = ['id'] + [c[0] for c in columns]
+            has_loja = "loja_id" in cols
+            select_cols = ["id"] + [c[0] for c in columns]
             extra_name_col = None
-            if 'pdf_nome' in cols:
-                select_cols.append('pdf_nome')
-                extra_name_col = 'pdf_nome'
-            col_list = ', '.join(select_cols)
-            sql = f'SELECT {col_list} FROM {qual}'
+            if "pdf_nome" in cols:
+                select_cols.append("pdf_nome")
+                extra_name_col = "pdf_nome"
+            col_list = ", ".join(select_cols)
+            sql = f"SELECT {col_list} FROM {qual}"
             params: list[Any] = []
             if has_loja:
-                sql += ' WHERE loja_id = %s'
+                sql += " WHERE loja_id = %s"
                 params.append(loja_id)
             try:
                 with self.db_helper.get_connection().cursor() as cursor:
                     cursor.execute(sql, params)
                     rows = cursor.fetchall()
             except Exception as exc:
-                logger.warning('Backup imagens: erro ao ler binários de %s: %s', table, exc)
+                logger.warning("Backup imagens: erro ao ler binários de %s: %s", table, exc)
                 continue
             col_index = {name: idx for idx, name in enumerate(select_cols)}
             for row in rows:
-                row_id = row[col_index['id']]
-                nome_arquivo = ''
+                row_id = row[col_index["id"]]
+                nome_arquivo = ""
                 if extra_name_col:
-                    nome_arquivo = (row[col_index[extra_name_col]] or '').strip()
+                    nome_arquivo = (row[col_index[extra_name_col]] or "").strip()
                 for col_name, ext in columns:
                     raw = row[col_index[col_name]]
                     if not raw:
                         continue
                     content = bytes(raw) if not isinstance(raw, bytes) else raw
-                    fname = re.sub(r'[^a-zA-Z0-9._-]+', '_', nome_arquivo or f'{table}_{row_id}').strip('._')
-                    if not fname.lower().endswith(f'.{ext}'):
-                        fname = f'{fname}.{ext}'
-                    zip_path = f'imagens/arquivos/{table}/{row_id}_{fname}'
+                    fname = re.sub(r"[^a-zA-Z0-9._-]+", "_", nome_arquivo or f"{table}_{row_id}").strip("._")
+                    if not fname.lower().endswith(f".{ext}"):
+                        fname = f"{fname}.{ext}"
+                    zip_path = f"imagens/arquivos/{table}/{row_id}_{fname}"
                     self._add_bytes(
                         zip_builder,
                         zip_path,
                         content,
                         origem=table,
-                        referencia=f'id={row_id}',
+                        referencia=f"id={row_id}",
                     )
 
     def _export_known_url_tables(self, zip_builder: ZipBuilder, loja_id: int) -> None:
@@ -280,7 +280,7 @@ class BackupImageExporter:
             if not columns or not records:
                 continue
             col_index = {name: idx for idx, name in enumerate(columns)}
-            pk_col = 'id' if 'id' in col_index else columns[0]
+            pk_col = "id" if "id" in col_index else columns[0]
             for record in records:
                 pk = record[col_index[pk_col]]
                 for col in url_columns:
@@ -294,8 +294,8 @@ class BackupImageExporter:
                             zip_builder,
                             url,
                             origem=table,
-                            referencia=f'{pk_col}={pk}',
-                            zip_prefix=f'imagens/urls/{table}/{pk}',
+                            referencia=f"{pk_col}={pk}",
+                            zip_prefix=f"imagens/urls/{table}/{pk}",
                         )
 
     def _export_generic_url_columns(
@@ -315,7 +315,7 @@ class BackupImageExporter:
             col_types = self.db_helper.get_columns_nullable_and_type(table)
             media_cols = [
                 c for c in media_cols
-                if col_types.get(c, (True, ''))[1].lower() not in ('bytea', 'blob')
+                if col_types.get(c, (True, ""))[1].lower() not in ("bytea", "blob")
             ]
             if not media_cols:
                 continue
@@ -323,7 +323,7 @@ class BackupImageExporter:
             if not records:
                 continue
             col_index = {name: idx for idx, name in enumerate(columns)}
-            pk_col = 'id' if 'id' in col_index else columns[0]
+            pk_col = "id" if "id" in col_index else columns[0]
             for record in records:
                 pk = record[col_index[pk_col]]
                 for col in media_cols:
@@ -335,6 +335,6 @@ class BackupImageExporter:
                             zip_builder,
                             url,
                             origem=table,
-                            referencia=f'{pk_col}={pk}:{col}',
-                            zip_prefix=f'imagens/urls/{table}/{pk}_{col}',
+                            referencia=f"{pk_col}={pk}:{col}",
+                            zip_prefix=f"imagens/urls/{table}/{pk}_{col}",
                         )

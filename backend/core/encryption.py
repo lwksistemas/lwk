@@ -1,5 +1,4 @@
-"""
-Módulo de criptografia para campos sensíveis.
+"""Módulo de criptografia para campos sensíveis.
 
 Usa Fernet (AES-128-CBC + HMAC-SHA256) do pacote cryptography.
 A chave usa FIELD_ENCRYPTION_KEY (recomendado em produção) ou SECRET_KEY via PBKDF2.
@@ -31,14 +30,14 @@ class EncryptionError(Exception):
 _fernet_instance = None
 
 # Prefixo para identificar valores já criptografados
-ENCRYPTED_PREFIX = 'enc::'
+ENCRYPTED_PREFIX = "enc::"
 
 
 def _encryption_secret_bytes() -> bytes:
-    dedicated = (getattr(settings, 'FIELD_ENCRYPTION_KEY', None) or '').strip()
+    dedicated = (getattr(settings, "FIELD_ENCRYPTION_KEY", None) or "").strip()
     if dedicated:
-        return dedicated.encode('utf-8')
-    return settings.SECRET_KEY.encode('utf-8')
+        return dedicated.encode("utf-8")
+    return settings.SECRET_KEY.encode("utf-8")
 
 
 def _get_fernet() -> Fernet:
@@ -50,7 +49,7 @@ def _get_fernet() -> Fernet:
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=b'lwk-nfse-encryption-salt-v1',
+            salt=b"lwk-nfse-encryption-salt-v1",
             iterations=100_000,
         )
         key = base64.urlsafe_b64encode(kdf.derive(secret))
@@ -59,45 +58,43 @@ def _get_fernet() -> Fernet:
 
 
 def encrypt_value(plaintext: str) -> str:
-    """
-    Criptografa um valor de texto.
+    """Criptografa um valor de texto.
     Retorna string com prefixo 'enc::' + token Fernet base64.
     Se o valor já estiver criptografado, retorna sem alterar.
     Se o valor for vazio, retorna vazio.
     """
     if not plaintext:
-        return ''
+        return ""
     if plaintext.startswith(ENCRYPTED_PREFIX):
         return plaintext  # Já criptografado
     try:
         f = _get_fernet()
-        token = f.encrypt(plaintext.encode('utf-8'))
-        return ENCRYPTED_PREFIX + token.decode('utf-8')
+        token = f.encrypt(plaintext.encode("utf-8"))
+        return ENCRYPTED_PREFIX + token.decode("utf-8")
     except Exception as e:
-        logger.error('Erro ao criptografar valor: %s', e)
-        raise EncryptionError('Falha ao criptografar dado sensível') from e
+        logger.error("Erro ao criptografar valor: %s", e)
+        raise EncryptionError("Falha ao criptografar dado sensível") from e
 
 
 def decrypt_value(ciphertext: str) -> str:
-    """
-    Descriptografa um valor criptografado.
+    """Descriptografa um valor criptografado.
     Se o valor não tiver o prefixo 'enc::', assume que é plaintext (migração gradual).
     Se o valor for vazio, retorna vazio.
     """
     if not ciphertext:
-        return ''
+        return ""
     if not ciphertext.startswith(ENCRYPTED_PREFIX):
         return ciphertext  # Plaintext (ainda não migrado)
     try:
         f = _get_fernet()
-        token = ciphertext[len(ENCRYPTED_PREFIX):].encode('utf-8')
-        return f.decrypt(token).decode('utf-8')
+        token = ciphertext[len(ENCRYPTED_PREFIX):].encode("utf-8")
+        return f.decrypt(token).decode("utf-8")
     except InvalidToken:
-        logger.error('Token de criptografia inválido — possível corrupção ou troca de SECRET_KEY')
-        return ''
+        logger.error("Token de criptografia inválido — possível corrupção ou troca de SECRET_KEY")
+        return ""
     except Exception as e:
-        logger.error('Erro ao descriptografar valor: %s', e)
-        return ''
+        logger.error("Erro ao descriptografar valor: %s", e)
+        return ""
 
 
 def is_encrypted(value: str) -> bool:

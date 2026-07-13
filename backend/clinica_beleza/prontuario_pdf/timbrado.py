@@ -9,7 +9,7 @@ def merge_timbrado_fundo(content_pdf: bytes, timbrado_pdf: bytes) -> bytes:
     try:
         from pypdf import PdfReader, PdfWriter, Transformation
     except ImportError:
-        logger.warning('pypdf não instalado; PDF sem fundo timbrado.')
+        logger.warning("pypdf não instalado; PDF sem fundo timbrado.")
         return content_pdf
 
     try:
@@ -37,5 +37,5 @@ def merge_timbrado_fundo(content_pdf: bytes, timbrado_pdf: bytes) -> bytes:
         out.seek(0)
         return out.getvalue()
     except Exception as e:
-        logger.warning('Falha ao mesclar timbrado no PDF: %s', e)
+        logger.warning("Falha ao mesclar timbrado no PDF: %s", e)
         return content_pdf

@@ -1,5 +1,4 @@
-"""
-Utilitários do superadmin.
+"""Utilitários do superadmin.
 """
 import contextlib
 
@@ -7,8 +6,7 @@ from django.db import connection
 
 
 def delete_user_raw(user_id):
-    """
-    Remove usuário via SQL direto, evitando user.delete() que acessa
+    """Remove usuário via SQL direto, evitando user.delete() que acessa
     tabelas como stores_store (app stores legado) que podem não existir.
 
     Ordem: deletar FKs antes de auth_user.
@@ -17,19 +15,19 @@ def delete_user_raw(user_id):
     with connection.cursor() as cursor:
         # (tabela, coluna_que_referencia_user)
         tabelas_user_fk = [
-            ('stores_store', 'owner_id'),  # App stores legado; tabela pode não existir
-            ('superadmin_usersession', 'user_id'),
-            ('superadmin_profissionalusuario', 'user_id'),
-            ('superadmin_vendedorusuario', 'user_id'),
-            ('superadmin_historico_acesso_global', 'user_id'),
-            ('notificacoes_notification', 'user_id'),
-            ('push_pushsubscription', 'user_id'),
+            ("stores_store", "owner_id"),  # App stores legado; tabela pode não existir
+            ("superadmin_usersession", "user_id"),
+            ("superadmin_profissionalusuario", "user_id"),
+            ("superadmin_vendedorusuario", "user_id"),
+            ("superadmin_historico_acesso_global", "user_id"),
+            ("notificacoes_notification", "user_id"),
+            ("push_pushsubscription", "user_id"),
         ]
         for tabela, coluna in tabelas_user_fk:
             with contextlib.suppress(Exception):  # Tabela pode não existir (ex: app não migrado)
                 cursor.execute(
-                    f'DELETE FROM {tabela} WHERE {coluna} = %s',
-                    [user_id]
+                    f"DELETE FROM {tabela} WHERE {coluna} = %s",
+                    [user_id],
                 )
         # JWT blacklist (rest_framework_simplejwt) — antes de apagar auth_user
         for sql in (
@@ -39,13 +37,13 @@ def delete_user_raw(user_id):
                 SELECT id FROM token_blacklist_outstandingtoken WHERE user_id = %s
             )
             """,
-            'DELETE FROM token_blacklist_outstandingtoken WHERE user_id = %s',
+            "DELETE FROM token_blacklist_outstandingtoken WHERE user_id = %s",
         ):
             with contextlib.suppress(Exception):
                 cursor.execute(sql, [user_id])
-        cursor.execute('DELETE FROM auth_user_groups WHERE user_id = %s', [user_id])
+        cursor.execute("DELETE FROM auth_user_groups WHERE user_id = %s", [user_id])
         cursor.execute(
-            'DELETE FROM auth_user_user_permissions WHERE user_id = %s',
-            [user_id]
+            "DELETE FROM auth_user_user_permissions WHERE user_id = %s",
+            [user_id],
         )
-        cursor.execute('DELETE FROM auth_user WHERE id = %s', [user_id])
+        cursor.execute("DELETE FROM auth_user WHERE id = %s", [user_id])

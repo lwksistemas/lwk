@@ -1,5 +1,4 @@
-"""
-Audita schemas PostgreSQL por loja conforme o tipo de app (CRM, clínica, etc.).
+"""Audita schemas PostgreSQL por loja conforme o tipo de app (CRM, clínica, etc.).
 
 Diferente de verificar_schema_loja (focado em tabelas CRM), este comando valida
 apenas os apps esperados para o slug do TipoLoja.
@@ -31,48 +30,48 @@ from superadmin.services.schema_audit_service import (
 
 
 class Command(BaseCommand):
-    help = 'Audita schema isolado por loja (apps esperados conforme tipo, não só CRM)'
+    help = "Audita schema isolado por loja (apps esperados conforme tipo, não só CRM)"
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--slug',
-            action='append',
-            dest='slugs',
+            "--slug",
+            action="append",
+            dest="slugs",
             default=None,
-            help='Slug(s) da loja (CNPJ ou slug custom). Repita --slug para várias.',
+            help="Slug(s) da loja (CNPJ ou slug custom). Repita --slug para várias.",
         )
         parser.add_argument(
-            '--all-active',
-            action='store_true',
-            help='Auditar todas as lojas ativas com database_created=True',
+            "--all-active",
+            action="store_true",
+            help="Auditar todas as lojas ativas com database_created=True",
         )
 
     def handle(self, *args, **options):
-        slugs = options.get('slugs')
-        all_active = options.get('all_active')
+        slugs = options.get("slugs")
+        all_active = options.get("all_active")
 
         if not slugs and not all_active:
             self.stdout.write(
-                self.style.ERROR('Informe --slug <slug> (um ou mais) ou --all-active.')
+                self.style.ERROR("Informe --slug <slug> (um ou mais) ou --all-active."),
             )
             return
 
-        default_engine = (settings.DATABASES.get('default') or {}).get('ENGINE', '')
-        usando_pg = 'postgresql' in default_engine
+        default_engine = (settings.DATABASES.get("default") or {}).get("ENGINE", "")
+        usando_pg = "postgresql" in default_engine
         if not usando_pg:
             self.stdout.write(
                 self.style.WARNING(
-                    'DATABASE default não é PostgreSQL; a auditoria de schema por nome '
-                    'é principalmente para produção (Heroku).'
-                )
+                    "DATABASE default não é PostgreSQL; a auditoria de schema por nome "
+                    "é principalmente para produção (Heroku).",
+                ),
             )
 
-        if not os.environ.get('DATABASE_URL') and usando_pg:
+        if not os.environ.get("DATABASE_URL") and usando_pg:
             self.stdout.write(
-                self.style.WARNING('DATABASE_URL ausente; conexão por loja pode falhar.')
+                self.style.WARNING("DATABASE_URL ausente; conexão por loja pode falhar."),
             )
 
-        qs = Loja.objects.select_related('tipo_loja').order_by('slug')
+        qs = Loja.objects.select_related("tipo_loja").order_by("slug")
         if slugs:
             qs = qs.filter(slug__in=slugs)
         else:
@@ -80,42 +79,42 @@ class Command(BaseCommand):
 
         lojas = list(qs)
         if not lojas:
-            self.stdout.write(self.style.WARNING('Nenhuma loja encontrada para os filtros.'))
+            self.stdout.write(self.style.WARNING("Nenhuma loja encontrada para os filtros."))
             return
 
-        self.stdout.write('\n' + '=' * 88)
-        self.stdout.write('AUDITORIA DE SCHEMA POR LOJA (apps esperados = tipo de app)')
-        self.stdout.write('=' * 88 + '\n')
+        self.stdout.write("\n" + "=" * 88)
+        self.stdout.write("AUDITORIA DE SCHEMA POR LOJA (apps esperados = tipo de app)")
+        self.stdout.write("=" * 88 + "\n")
 
         for loja in lojas:
             self._auditar_loja(loja, usando_pg)
 
-        self.stdout.write('\n' + '=' * 88 + '\n')
+        self.stdout.write("\n" + "=" * 88 + "\n")
 
     def _auditar_loja(self, loja, usando_pg: bool):
-        tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
-        nome_tipo = loja.tipo_loja.nome if loja.tipo_loja else '—'
-        schema_name = (loja.database_name or '').replace('-', '_')
+        tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else "").strip() or "unknown"
+        nome_tipo = loja.tipo_loja.nome if loja.tipo_loja else "—"
+        schema_name = (loja.database_name or "").replace("-", "_")
         apps_esperados = get_apps_esperados_para_loja(loja)
 
         self.stdout.write(f"\n● {loja.nome}")
         self.stdout.write(f"  id={loja.id}  slug={loja.slug}  database_name={loja.database_name}")
         self.stdout.write(
-            f"  tipo: {nome_tipo}  (slug tipo: {tipo_slug})  database_created={loja.database_created}"
+            f"  tipo: {nome_tipo}  (slug tipo: {tipo_slug})  database_created={loja.database_created}",
         )
 
-        if tipo_slug != 'unknown' and tipo_slug not in TIPO_LOJA_EXTRA_APPS:
+        if tipo_slug != "unknown" and tipo_slug not in TIPO_LOJA_EXTRA_APPS:
             self.stdout.write(
                 self.style.WARNING(
                     "  ⚠ Slug de tipo não mapeado em TIPO_LOJA_EXTRA_APPS — "
-                    "só stores/products serão esperados além do vazio."
-                )
+                    "só stores/products serão esperados além do vazio.",
+                ),
             )
 
         self.stdout.write(f"  Apps esperados no schema: {', '.join(apps_esperados)}")
 
         if not loja.database_name:
-            self.stdout.write(self.style.ERROR('  ❌ database_name vazio.'))
+            self.stdout.write(self.style.ERROR("  ❌ database_name vazio."))
             return
 
         if usando_pg:
@@ -136,8 +135,8 @@ class Command(BaseCommand):
         if not ensure_loja_database_config(loja.database_name, conn_max_age=0):
             self.stdout.write(
                 self.style.ERROR(
-                    f'  ❌ Não foi possível configurar conexão para "{loja.database_name}".'
-                )
+                    f'  ❌ Não foi possível configurar conexão para "{loja.database_name}".',
+                ),
             )
             return
 
@@ -145,7 +144,7 @@ class Command(BaseCommand):
         try:
             conn.ensure_connection()
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'  ❌ Erro ao conectar: {e}'))
+            self.stdout.write(self.style.ERROR(f"  ❌ Erro ao conectar: {e}"))
             return
 
         with conn.cursor() as cur:
@@ -171,20 +170,20 @@ class Command(BaseCommand):
             tabelas_negocio = cur.fetchone()[0]
 
         self.stdout.write(
-            f'  Tabelas no schema: {total_tabelas} total ({tabelas_negocio} negócio, excl. django_*)'
+            f"  Tabelas no schema: {total_tabelas} total ({tabelas_negocio} negócio, excl. django_*)",
         )
 
         if tabelas_negocio == 0:
-            self.stdout.write(self.style.ERROR('  ❌ Nenhuma tabela de negócio no schema.'))
+            self.stdout.write(self.style.ERROR("  ❌ Nenhuma tabela de negócio no schema."))
             return
 
         tudo_ok = True
         for app in apps_esperados:
-            pfx_display = ', '.join(f'`{p}*`' for p in prefixos_tabela_para_app(app))
+            pfx_display = ", ".join(f"`{p}*`" for p in prefixos_tabela_para_app(app))
             n_tab = contar_tabelas_app_no_schema(conn, schema_name, app)
             with conn.cursor() as cur:
                 cur.execute(
-                    'SET search_path TO %s, public',
+                    "SET search_path TO %s, public",
                     [schema_name],
                 )
                 cur.execute(
@@ -198,36 +197,36 @@ class Command(BaseCommand):
             if n_tab > 0 and n_mig > 0:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"  ✅ {app}: {n_tab} tabela(s) ({pfx_display}), {n_mig} migration(s) registrada(s)"
-                    )
+                        f"  ✅ {app}: {n_tab} tabela(s) ({pfx_display}), {n_mig} migration(s) registrada(s)",
+                    ),
                 )
             elif n_tab > 0:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"  ⚠ {app}: {n_tab} tabela(s) mas django_migrations vazio ou incompleto ({n_mig})"
-                    )
+                        f"  ⚠ {app}: {n_tab} tabela(s) mas django_migrations vazio ou incompleto ({n_mig})",
+                    ),
                 )
             elif n_mig > 0:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"  ⚠ {app}: {n_mig} migration(s) mas nenhuma tabela ({pfx_display})"
-                    )
+                        f"  ⚠ {app}: {n_mig} migration(s) mas nenhuma tabela ({pfx_display})",
+                    ),
                 )
             else:
                 self.stdout.write(
                     self.style.ERROR(
-                        f"  ❌ {app}: sem tabelas ({pfx_display}) e sem migrations registradas — FALTANDO"
-                    )
+                        f"  ❌ {app}: sem tabelas ({pfx_display}) e sem migrations registradas — FALTANDO",
+                    ),
                 )
                 tudo_ok = False
 
         if tudo_ok and tabelas_negocio > 0:
-            self.stdout.write(self.style.SUCCESS('  → Resumo: OK para os apps esperados deste tipo.'))
+            self.stdout.write(self.style.SUCCESS("  → Resumo: OK para os apps esperados deste tipo."))
         elif not tudo_ok:
             self.stdout.write(
                 self.style.ERROR(
-                    '  → Resumo: FALHA — rode migrate ou DatabaseSchemaService.aplicar_migrations(loja).'
-                )
+                    "  → Resumo: FALHA — rode migrate ou DatabaseSchemaService.aplicar_migrations(loja).",
+                ),
             )
 
         if loja.database_name in connections:

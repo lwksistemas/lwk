@@ -1,5 +1,4 @@
-"""
-Service layer para Relatório de Comissões — Clínica da Beleza.
+"""Service layer para Relatório de Comissões — Clínica da Beleza.
 
 Re-exporta o pacote comissao_relatorio/ para compatibilidade com imports existentes.
 """
@@ -34,26 +33,26 @@ from .comissao_relatorio.relatorio import calcular_comissoes
 from .convenio_service import resolver_convenio_atendimento_comissao
 
 __all__ = [
-    'CHAVE_CONSULTA',
-    'LABEL_CONSULTA',
-    '_agrupar_pagamentos_por_agendamento',
-    '_alocar_valores_pagamento',
-    '_calcular_comissao_regra',
-    '_combinar_formas_pagamento',
-    '_escolher_local_consulta_comissao',
-    '_formatar_regra',
-    '_formatar_regra_brl',
-    '_label_forma_pagamento',
-    '_obter_ou_criar_detalhe',
-    '_procedimentos_vinculados_consulta',
-    '_regras_profissional',
-    '_resolver_local_atendimento_efetivo',
-    '_resolver_regra_consulta',
-    '_resolver_regra_procedimento',
-    '_resolver_valor_consulta_cadastro',
-    '_rotulo_convenio_comissao',
-    '_taxa_consulta_do_local',
-    'calcular_comissao_payment_atendimento',
-    'calcular_comissoes',
-    'resolver_convenio_atendimento_comissao',
+    "CHAVE_CONSULTA",
+    "LABEL_CONSULTA",
+    "_agrupar_pagamentos_por_agendamento",
+    "_alocar_valores_pagamento",
+    "_calcular_comissao_regra",
+    "_combinar_formas_pagamento",
+    "_escolher_local_consulta_comissao",
+    "_formatar_regra",
+    "_formatar_regra_brl",
+    "_label_forma_pagamento",
+    "_obter_ou_criar_detalhe",
+    "_procedimentos_vinculados_consulta",
+    "_regras_profissional",
+    "_resolver_local_atendimento_efetivo",
+    "_resolver_regra_consulta",
+    "_resolver_regra_procedimento",
+    "_resolver_valor_consulta_cadastro",
+    "_rotulo_convenio_comissao",
+    "_taxa_consulta_do_local",
+    "calcular_comissao_payment_atendimento",
+    "calcular_comissoes",
+    "resolver_convenio_atendimento_comissao",
 ]

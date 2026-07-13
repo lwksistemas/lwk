@@ -1,5 +1,4 @@
-"""
-Views de Pacientes — Clínica da Beleza
+"""Views de Pacientes — Clínica da Beleza
 """
 import logging
 
@@ -14,21 +13,21 @@ from .serializers import PatientSerializer
 from .views_base import GetObjectMixin, map_field_names
 
 # Status de agendamento ainda "em aberto" (não terminais)
-_OPEN_APPOINTMENT_STATUSES = ('PENDING', 'SCHEDULED', 'CLIENT_CONFIRMED', 'PHONE_CONFIRMED', 'CONFIRMED', 'IN_PROGRESS')
+_OPEN_APPOINTMENT_STATUSES = ("PENDING", "SCHEDULED", "CLIENT_CONFIRMED", "PHONE_CONFIRMED", "CONFIRMED", "IN_PROGRESS")
 
 logger = logging.getLogger(__name__)
 
 # Mapeamento de campos inglês → português
 _PATIENT_FIELD_MAP = {
-    'name': 'nome',
-    'phone': 'telefone',
-    'birth_date': 'data_nascimento',
-    'address': 'endereco',
-    'notes': 'observacoes',
-    'active': 'is_active',
-    'photo_url': 'foto_url',
+    "name": "nome",
+    "phone": "telefone",
+    "birth_date": "data_nascimento",
+    "address": "endereco",
+    "notes": "observacoes",
+    "active": "is_active",
+    "photo_url": "foto_url",
 }
-_PATIENT_NULL_FIELDS = ('telefone', 'endereco', 'observacoes', 'cpf', 'cidade', 'estado', 'foto_url')
+_PATIENT_NULL_FIELDS = ("telefone", "endereco", "observacoes", "cpf", "cidade", "estado", "foto_url")
 
 
 def _map_patient_data(raw_data):
@@ -40,12 +39,12 @@ def _patient_search_q(search: str):
     """Busca por prefixo do nome; telefone/CPF por dígitos; e-mail por trecho."""
     from django.db.models import Q
 
-    search = (search or '').strip()
+    search = (search or "").strip()
     if not search:
         return Q()
-    digits = ''.join(c for c in search if c.isdigit())
+    digits = "".join(c for c in search if c.isdigit())
     has_letters = any(c.isalpha() for c in search)
-    if '@' in search:
+    if "@" in search:
         return Q(email__icontains=search)
     if len(digits) >= 3 and not has_letters:
         return Q(telefone__icontains=digits) | Q(cpf__icontains=digits)
@@ -58,19 +57,19 @@ def _patient_search_q(search: str):
 
 
 class PatientListView(APIView):
-    """
-    Listagem e criação de pacientes
+    """Listagem e criação de pacientes
     GET /clinica-beleza/patients/
     POST /clinica-beleza/patients/
     """
+
     permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
-        active_only = request.query_params.get('active', 'true').lower() == 'true'
-        queryset = Patient.objects.select_related('convenio').order_by('nome')
+        active_only = request.query_params.get("active", "true").lower() == "true"
+        queryset = Patient.objects.select_related("convenio").order_by("nome")
         if active_only:
             queryset = queryset.filter(is_active=True)
-        search = (request.query_params.get('search') or '').strip()
+        search = (request.query_params.get("search") or "").strip()
         if search:
             queryset = queryset.filter(_patient_search_q(search))
         return paginate_queryset(queryset, request, PatientSerializer)
@@ -82,7 +81,7 @@ class PatientListView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         logger.warning(
-            'Erro ao criar paciente: erros=%s, campos=%s',
+            "Erro ao criar paciente: erros=%s, campos=%s",
             serializer.errors, sorted(data.keys()),
         )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -90,10 +89,11 @@ class PatientListView(APIView):
 
 class PatientDetailView(GetObjectMixin, APIView):
     """GET /clinica-beleza/patients/<id>/  PUT  DELETE"""
+
     permission_classes = CLINICA_RECEPCAO
     model_class = Patient
-    not_found_message = 'Paciente não encontrado'
-    select_related_fields = ('convenio',)
+    not_found_message = "Paciente não encontrado"
+    select_related_fields = ("convenio",)
 
     def get(self, request, pk):
         obj, err = self.object_or_404(pk)
@@ -126,10 +126,10 @@ class PatientDetailView(GetObjectMixin, APIView):
             patient=obj,
             date__gte=agora,
             status__in=_OPEN_APPOINTMENT_STATUSES,
-        ).update(status='CANCELLED', updated_at=agora, version=F('version') + 1)
+        ).update(status="CANCELLED", updated_at=agora, version=F("version") + 1)
         obj.is_active = False
         obj.save()
         return Response(
-            {'message': f'Paciente desativado. {canceladas} agendamento(s) futuro(s) cancelado(s).'},
+            {"message": f"Paciente desativado. {canceladas} agendamento(s) futuro(s) cancelado(s)."},
             status=status.HTTP_200_OK,
         )

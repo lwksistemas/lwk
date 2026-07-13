@@ -9,10 +9,10 @@ from django.db import migrations
 def drop_hero_imagem_column(apps, schema_editor):
     from django.db import connection
 
-    table = 'homepage_hero_section'
-    column = 'imagem'
+    table = "homepage_hero_section"
+    column = "imagem"
     with connection.cursor() as cursor:
-        if connection.vendor == 'sqlite':
+        if connection.vendor == "sqlite":
             cursor.execute(f'PRAGMA table_info("{table}")')
             if not any(row[1] == column for row in cursor.fetchall()):
                 return
@@ -20,13 +20,13 @@ def drop_hero_imagem_column(apps, schema_editor):
             with contextlib.suppress(Exception):
                 cursor.execute(f'ALTER TABLE "{table}" DROP COLUMN "{column}"')
             return
-        cursor.execute(f'ALTER TABLE {table} DROP COLUMN IF EXISTS {column};')
+        cursor.execute(f"ALTER TABLE {table} DROP COLUMN IF EXISTS {column};")
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('homepage', '0039_heroimagem'),
+        ("homepage", "0039_heroimagem"),
     ]
 
     operations = [

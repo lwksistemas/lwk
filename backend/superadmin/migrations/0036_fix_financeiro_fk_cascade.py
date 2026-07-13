@@ -5,13 +5,13 @@ from django.db import migrations
 
 
 def fix_financeiro_fk_cascade(apps, schema_editor):
-    if schema_editor.connection.vendor != 'postgresql':
+    if schema_editor.connection.vendor != "postgresql":
         return
     schema_editor.execute(
         """
         ALTER TABLE superadmin_financeiroloja
         DROP CONSTRAINT IF EXISTS superadmin_financeir_loja_id_5f812886_fk_superadmi;
-        """
+        """,
     )
     schema_editor.execute(
         """
@@ -21,14 +21,14 @@ def fix_financeiro_fk_cascade(apps, schema_editor):
         REFERENCES superadmin_loja(id)
         ON DELETE CASCADE
         DEFERRABLE INITIALLY DEFERRED;
-        """
+        """,
     )
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0035_googlecalendarconnection_vendedor'),
+        ("superadmin", "0035_googlecalendarconnection_vendedor"),
     ]
 
     operations = [

@@ -4,6 +4,6 @@ from __future__ import annotations
 import contextvars
 
 nfse_sync_only: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    'nfse_sync_only',
+    "nfse_sync_only",
     default=False,
 )

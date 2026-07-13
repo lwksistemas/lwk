@@ -4,17 +4,17 @@ from django.utils import timezone
 from .assinatura_digital_token import TOKEN_EXPIRACAO_DIAS
 
 __all__ = [
-    'TOKEN_EXPIRACAO_DIAS',
-    'ano_corrente',
-    'rodape_html_tabela',
-    'rodape_texto_padrao',
-    'montar_email_html',
-    'header_html',
-    'footer_card_html',
-    'cta_assinar_html',
-    'info_box_amarelo_html',
-    'info_box_azul_html',
-    'doc_info_box_html',
+    "TOKEN_EXPIRACAO_DIAS",
+    "ano_corrente",
+    "cta_assinar_html",
+    "doc_info_box_html",
+    "footer_card_html",
+    "header_html",
+    "info_box_amarelo_html",
+    "info_box_azul_html",
+    "montar_email_html",
+    "rodape_html_tabela",
+    "rodape_texto_padrao",
 ]
 
 
@@ -36,7 +36,7 @@ def rodape_html_tabela(loja_nome: str) -> str:
                     </table>"""
 
 
-def rodape_texto_padrao(loja_nome: str, *, tagline: str = 'Este é um email automático. Por favor, não responda.') -> str:
+def rodape_texto_padrao(loja_nome: str, *, tagline: str = "Este é um email automático. Por favor, não responda.") -> str:
     year = ano_corrente()
     return f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -104,7 +104,7 @@ def footer_card_html(loja_nome: str, tagline: str) -> str:
                         </tr>"""
 
 
-def cta_assinar_html(*, link: str, color: str, gradient_end: str, label: str = '✍️ Visualizar e Assinar Documento') -> str:
+def cta_assinar_html(*, link: str, color: str, gradient_end: str, label: str = "✍️ Visualizar e Assinar Documento") -> str:
     return f"""
                                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
                                     <tr>
@@ -153,11 +153,11 @@ def info_box_azul_html(message: str) -> str:
 
 def doc_info_box_html(*, rows: list[tuple[str, str]], border_color: str, bg_color: str) -> str:
     """rows: lista de (label, valor_html). Último valor pode usar estilo destacado."""
-    rows_html = ''
+    rows_html = ""
     for label, value in rows:
-        value_style = 'color: #10b981; font-size: 20px; font-weight: 700;' if label == 'Valor Total' else 'color: #333333; font-size: 16px; font-weight: 600;'
-        if label == 'Cliente':
-            value_style = 'color: #333333; font-size: 15px;'
+        value_style = "color: #10b981; font-size: 20px; font-weight: 700;" if label == "Valor Total" else "color: #333333; font-size: 16px; font-weight: 600;"
+        if label == "Cliente":
+            value_style = "color: #333333; font-size: 15px;"
         rows_html += f"""
                                                 <tr>
                                                     <td style="color: #666666; font-size: 13px; padding-bottom: 8px;">

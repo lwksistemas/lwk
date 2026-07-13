@@ -41,31 +41,31 @@ class ContaViewSet(
     VendedorFilterMixin,
     BaseModelViewSet,
 ):
-    queryset = Conta.objects.select_related('vendedor').all()
+    queryset = Conta.objects.select_related("vendedor").all()
     serializer_class = ContaSerializer
     pagination_class = CRMPagination
-    vendedor_filter_field = 'vendedor_id'
-    cache_keys = ['contas']
-    crm_permission_model = 'conta'
+    vendedor_filter_field = "vendedor_id"
+    cache_keys = ["contas"]
+    crm_permission_model = "conta"
 
     def get_queryset(self):
         qs = super().get_queryset()
         qs = self.filter_by_vendedor(qs)
-        qs = qs.select_related('vendedor')
-        tipo = self.request.query_params.get('tipo')
+        qs = qs.select_related("vendedor")
+        tipo = self.request.query_params.get("tipo")
         if tipo:
-            if tipo == 'prestadora':
-                qs = qs.filter(tipo__in=['prestadora', 'ambos'])
-            elif tipo == 'cliente':
-                qs = qs.filter(tipo__in=['cliente', 'ambos'])
+            if tipo == "prestadora":
+                qs = qs.filter(tipo__in=["prestadora", "ambos"])
+            elif tipo == "cliente":
+                qs = qs.filter(tipo__in=["cliente", "ambos"])
             else:
                 qs = qs.filter(tipo=tipo)
         return filtrar_contas_busca_lista(
-            filtrar_queryset_por_documento(qs, self.request, 'cnpj'),
+            filtrar_queryset_por_documento(qs, self.request, "cnpj"),
             self.request,
         )
 
-    vendedor_create_entity_label = 'conta'
+    vendedor_create_entity_label = "conta"
 
 
 class LeadViewSet(
@@ -77,71 +77,71 @@ class LeadViewSet(
     VendedorFilterMixin,
     BaseModelViewSet,
 ):
-    queryset = Lead.objects.select_related('conta', 'vendedor').all()
+    queryset = Lead.objects.select_related("conta", "vendedor").all()
     serializer_class = LeadSerializer
     pagination_class = CRMPagination
 
-    vendedor_filter_field = 'vendedor_id'
-    vendedor_filter_related = ['oportunidades__vendedor_id']
-    cache_keys = ['leads']
-    crm_permission_model = 'lead'
+    vendedor_filter_field = "vendedor_id"
+    vendedor_filter_related = ["oportunidades__vendedor_id"]
+    cache_keys = ["leads"]
+    crm_permission_model = "lead"
 
     def get_serializer_class(self):
-        if self.action == 'list':
+        if self.action == "list":
             return LeadListSerializer
         return LeadSerializer
 
     def get_queryset(self):
         qs = super().get_queryset()
-        qs = qs.select_related('conta', 'vendedor', 'contato')
-        if self.action != 'list':
+        qs = qs.select_related("conta", "vendedor", "contato")
+        if self.action != "list":
             qs = qs.prefetch_related(
-                'oportunidades',
-                'oportunidades__vendedor',
+                "oportunidades",
+                "oportunidades__vendedor",
             )
 
-        if self.action == 'retrieve':
+        if self.action == "retrieve":
             from superadmin.models import Loja
 
             loja_id = get_current_loja_id()
             if loja_id and self.request and self.request.user:
                 try:
-                    loja = Loja.objects.using('default').filter(id=loja_id).first()
+                    loja = Loja.objects.using("default").filter(id=loja_id).first()
                     if loja and loja.owner_id == self.request.user.id:
                         return filtrar_queryset_por_query_params(
                             qs,
                             self.request,
-                            {'status': 'status', 'origem': 'origem'},
+                            {"status": "status", "origem": "origem"},
                         )
                 except Exception as e:
-                    logger.warning('crm_me: erro ao determinar loja_id=%s: %s', loja_id, e)
+                    logger.warning("crm_me: erro ao determinar loja_id=%s: %s", loja_id, e)
         qs = filtrar_queryset_por_query_params(
             qs,
             self.request,
-            {'status': 'status', 'origem': 'origem'},
+            {"status": "status", "origem": "origem"},
         )
         return filtrar_leads_busca_lista(
             filtrar_leads_por_documento(qs, self.request),
             self.request,
         )
 
-    vendedor_create_entity_label = 'lead'
+    vendedor_create_entity_label = "lead"
 
 
 class ContatoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, CRMNoCacheListMixin, CacheInvalidationMixin, BaseModelViewSet):
-    queryset = Contato.objects.select_related('conta').all()
+    queryset = Contato.objects.select_related("conta").all()
     serializer_class = ContatoSerializer
     pagination_class = CRMPagination
-    cache_keys = ['contatos']
-    crm_permission_model = 'contato'
+    cache_keys = ["contatos"]
+    crm_permission_model = "contato"
 
     def get_queryset(self):
         qs = super().get_queryset()
-        qs = qs.select_related('conta')
+        qs = qs.select_related("conta")
         return filtrar_queryset_por_query_params(
             qs,
             self.request,
-            {'conta_id': 'conta_id'},
+            {"conta_id": "conta_id"},
         )
 
     def perform_update(self, serializer):
@@ -154,24 +154,24 @@ class ContatoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, CRMNoCa
 
         update_fields = {}
         if instance.nome != nome_antes:
-            update_fields['nome'] = instance.nome
+            update_fields["nome"] = instance.nome
         if instance.email != email_antes:
-            update_fields['email'] = instance.email or ''
+            update_fields["email"] = instance.email or ""
         if instance.telefone != telefone_antes:
-            update_fields['telefone'] = instance.telefone or ''
+            update_fields["telefone"] = instance.telefone or ""
 
         if update_fields:
             updated = Lead.objects.filter(contato_id=instance.id).update(**update_fields)
             if updated:
                 logger.info(
-                    'Contato %s atualizado: propagados %s para %d Lead(s) vinculado(s).',
+                    "Contato %s atualizado: propagados %s para %d Lead(s) vinculado(s).",
                     instance.id,
                     list(update_fields.keys()),
                     updated,
                 )
                 try:
-                    CRMCacheManager.invalidate_dashboard(getattr(instance, 'loja_id', None))
+                    CRMCacheManager.invalidate_dashboard(getattr(instance, "loja_id", None))
                 except Exception as e:
-                    logger.warning('Falha ao invalidar cache dashboard contato_id=%s: %s', instance.id, e)
+                    logger.warning("Falha ao invalidar cache dashboard contato_id=%s: %s", instance.id, e)
 
         self._invalidate_caches()

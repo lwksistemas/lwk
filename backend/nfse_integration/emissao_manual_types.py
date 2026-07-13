@@ -30,22 +30,22 @@ class EmissaoManualPayload:
 class EmissaoManualResult:
     success: bool
     http_status: int
-    message: str = ''
-    error: str = ''
-    numero_nf: str = ''
+    message: str = ""
+    error: str = ""
+    numero_nf: str = ""
     nfse_id: int | None = None
-    debug_info: str = ''
+    debug_info: str = ""
 
     def as_response_dict(self) -> dict:
-        body: dict[str, Any] = {'success': self.success}
+        body: dict[str, Any] = {"success": self.success}
         if self.message:
-            body['message'] = self.message
+            body["message"] = self.message
         if self.error:
-            body['error'] = self.error
+            body["error"] = self.error
         if self.numero_nf:
-            body['numero_nf'] = self.numero_nf
+            body["numero_nf"] = self.numero_nf
         if self.nfse_id is not None:
-            body['nfse_id'] = self.nfse_id
+            body["nfse_id"] = self.nfse_id
         if self.debug_info:
-            body['debug_info'] = self.debug_info
+            body["debug_info"] = self.debug_info
         return body

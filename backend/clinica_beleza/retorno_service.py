@@ -1,5 +1,4 @@
-"""
-Retorno gratuito — isenção da taxa de consulta (valor do local de atendimento).
+"""Retorno gratuito — isenção da taxa de consulta (valor do local de atendimento).
 
 Modos (configuráveis pelo administrador):
 - Por procedimento: paciente concluiu procedimento X; dentro de N dias retorna para
@@ -31,14 +30,14 @@ class RetornoElegibilidade:
 
     def to_dict(self):
         return {
-            'elegivel': self.elegivel,
-            'tipo': self.tipo,
-            'procedure_id': self.procedure_id,
-            'procedure_nome': self.procedure_nome,
-            'dias_retorno': self.dias_retorno,
-            'dias_restantes': self.dias_restantes,
-            'consulta_origem_id': self.consulta_origem_id,
-            'mensagem': self.mensagem,
+            "elegivel": self.elegivel,
+            "tipo": self.tipo,
+            "procedure_id": self.procedure_id,
+            "procedure_nome": self.procedure_nome,
+            "dias_retorno": self.dias_retorno,
+            "dias_restantes": self.dias_restantes,
+            "consulta_origem_id": self.consulta_origem_id,
+            "mensagem": self.mensagem,
         }
 
 
@@ -49,7 +48,7 @@ def get_agenda_retorno_config(loja_id):
 
     loja_id = loja_id or get_current_loja_id()
     if not loja_id:
-        raise ValueError('loja_id é obrigatório para configuração de retorno')
+        raise ValueError("loja_id é obrigatório para configuração de retorno")
 
     config = AgendaRetornoConfig.objects.filter(loja_id=loja_id).first()
     if config:
@@ -71,12 +70,12 @@ def _aware_dt(dt):
 
 
 def _data_referencia_consulta(consulta):
-    for attr in ('data_fim', 'data_inicio'):
+    for attr in ("data_fim", "data_inicio"):
         val = getattr(consulta, attr, None)
         if val:
             return _aware_dt(val)
-    appointment = getattr(consulta, 'appointment', None)
-    if appointment and getattr(appointment, 'date', None):
+    appointment = getattr(consulta, "appointment", None)
+    if appointment and getattr(appointment, "date", None):
         return _aware_dt(appointment.date)
     return None
 
@@ -85,21 +84,21 @@ def _procedure_ids_from_appointment(appointment) -> set[int]:
     ids: set[int] = set()
     if not appointment:
         return ids
-    retorno_proc = getattr(appointment, 'retorno_procedure_id', None)
+    retorno_proc = getattr(appointment, "retorno_procedure_id", None)
     if retorno_proc:
         ids.add(int(retorno_proc))
-    if getattr(appointment, 'procedure_id', None):
+    if getattr(appointment, "procedure_id", None):
         ids.add(int(appointment.procedure_id))
     try:
-        for ap in appointment.appointment_procedures.select_related('procedure').all():
+        for ap in appointment.appointment_procedures.select_related("procedure").all():
             ids.add(int(ap.procedure_id))
     except Exception:
-        logger.exception('Erro ao ler procedimentos do agendamento %s', appointment.id)
+        logger.exception("Erro ao ler procedimentos do agendamento %s", appointment.id)
     return ids
 
 
 def _procedure_ids_from_consulta(consulta) -> set[int]:
-    return _procedure_ids_from_appointment(getattr(consulta, 'appointment', None))
+    return _procedure_ids_from_appointment(getattr(consulta, "appointment", None))
 
 
 def _consultas_concluidas(patient_id, loja_id, exclude_appointment_id=None):
@@ -109,11 +108,11 @@ def _consultas_concluidas(patient_id, loja_id, exclude_appointment_id=None):
         Consulta.objects.filter(
             patient_id=patient_id,
             loja_id=loja_id,
-            status='COMPLETED',
+            status="COMPLETED",
         )
-        .select_related('appointment')
-        .prefetch_related('appointment__appointment_procedures')
-        .order_by('-data_fim', '-data_inicio', '-id')
+        .select_related("appointment")
+        .prefetch_related("appointment__appointment_procedures")
+        .order_by("-data_fim", "-data_inicio", "-id")
     )
     if exclude_appointment_id:
         qs = qs.exclude(appointment_id=exclude_appointment_id)
@@ -149,7 +148,7 @@ def verificar_retorno_procedimento(
             loja_id=loja_id,
             is_active=True,
             procedure_id__in=proc_ids,
-        ).select_related('procedure')
+        ).select_related("procedure"),
     )
     if not regras:
         return None
@@ -171,16 +170,16 @@ def verificar_retorno_procedimento(
                 restantes = regra.dias_retorno - dias_passados
                 return RetornoElegibilidade(
                     elegivel=True,
-                    tipo='procedimento',
+                    tipo="procedimento",
                     procedure_id=proc_id,
                     procedure_nome=regra.procedure.nome,
                     dias_retorno=regra.dias_retorno,
                     dias_restantes=max(0, restantes),
                     consulta_origem_id=consulta.id,
                     mensagem=(
-                        f'Retorno de acompanhamento — {regra.procedure.nome} '
-                        f'({restantes} dia(s) restantes no prazo de {regra.dias_retorno}). '
-                        f'Taxa de consulta isenta.'
+                        f"Retorno de acompanhamento — {regra.procedure.nome} "
+                        f"({restantes} dia(s) restantes no prazo de {regra.dias_retorno}). "
+                        f"Taxa de consulta isenta."
                     ),
                 )
     return None
@@ -209,13 +208,13 @@ def verificar_retorno_consulta(
             restantes = dias_limite - dias_passados
             return RetornoElegibilidade(
                 elegivel=True,
-                tipo='consulta',
+                tipo="consulta",
                 dias_retorno=dias_limite,
                 dias_restantes=max(0, restantes),
                 consulta_origem_id=consulta.id,
                 mensagem=(
-                    f'Retorno por consulta ({restantes} dia(s) restantes no prazo de {dias_limite}). '
-                    f'Taxa de consulta isenta.'
+                    f"Retorno por consulta ({restantes} dia(s) restantes no prazo de {dias_limite}). "
+                    f"Taxa de consulta isenta."
                 ),
             )
     return None
@@ -258,7 +257,7 @@ def verificar_retorno_appointment(appointment, reference_date=None) -> RetornoEl
         appointment.patient_id,
         procedure_ids,
         appointment.loja_id,
-        reference_date=reference_date or getattr(appointment, 'date', None),
+        reference_date=reference_date or getattr(appointment, "date", None),
         exclude_appointment_id=appointment.id,
     )
 
@@ -267,18 +266,18 @@ def aplicar_retorno_em_consulta(consulta, appointment=None) -> RetornoElegibilid
     """Zera valor_consulta quando elegível; persiste flags na consulta."""
     appointment = appointment or consulta.appointment
     resultado = verificar_retorno_appointment(appointment)
-    update_fields = ['updated_at']
+    update_fields = ["updated_at"]
 
     if resultado.elegivel:
         if Decimal(str(consulta.valor_consulta or 0)) > 0 or not consulta.retorno_gratuito:
-            consulta.valor_consulta = Decimal('0')
-            update_fields.append('valor_consulta')
+            consulta.valor_consulta = Decimal(0)
+            update_fields.append("valor_consulta")
         if not consulta.retorno_gratuito:
             consulta.retorno_gratuito = True
-            update_fields.append('retorno_gratuito')
-        if consulta.retorno_tipo != (resultado.tipo or ''):
-            consulta.retorno_tipo = resultado.tipo or ''
-            update_fields.append('retorno_tipo')
+            update_fields.append("retorno_gratuito")
+        if consulta.retorno_tipo != (resultado.tipo or ""):
+            consulta.retorno_tipo = resultado.tipo or ""
+            update_fields.append("retorno_tipo")
         if len(update_fields) > 1:
             consulta.save(update_fields=update_fields)
 
@@ -289,5 +288,5 @@ def valor_consulta_com_retorno(appointment, valor_base: Decimal) -> tuple[Decima
     """Retorna (valor_consulta_ajustado, elegibilidade)."""
     resultado = verificar_retorno_appointment(appointment)
     if resultado.elegivel:
-        return Decimal('0'), resultado
+        return Decimal(0), resultado
     return valor_base, resultado

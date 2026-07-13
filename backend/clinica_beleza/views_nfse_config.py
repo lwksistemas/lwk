@@ -1,5 +1,4 @@
-"""
-Views para configuração de NFS-e da Clínica da Beleza (per-loja).
+"""Views para configuração de NFS-e da Clínica da Beleza (per-loja).
 GET/PATCH /api/clinica-beleza/nfse-config/
 POST /api/clinica-beleza/nfse-config/test-issnet/
 """
@@ -24,27 +23,28 @@ logger = logging.getLogger(__name__)
 
 class NFSeConfigView(APIView):
     """GET/PATCH da configuração de NFS-e individual da loja."""
+
     permission_classes = CLINICA_ADMIN
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get(self, request):
         loja_id = get_current_loja_id()
         if not loja_id:
-            return Response({'detail': 'Loja não identificada.'}, status=400)
+            return Response({"detail": "Loja não identificada."}, status=400)
 
         config = get_or_create_nfse_config(loja_id)
-        serializer = ClinicaBelezaNFSeConfigSerializer(config, context={'request': request, 'loja_id': loja_id})
+        serializer = ClinicaBelezaNFSeConfigSerializer(config, context={"request": request, "loja_id": loja_id})
         return Response(serializer.data)
 
     def patch(self, request):
         loja_id = get_current_loja_id()
         if not loja_id:
-            return Response({'detail': 'Loja não identificada.'}, status=400)
+            return Response({"detail": "Loja não identificada."}, status=400)
 
         config = get_or_create_nfse_config(loja_id)
         serializer = ClinicaBelezaNFSeConfigSerializer(
             config, data=request.data, partial=True,
-            context={'request': request, 'loja_id': loja_id},
+            context={"request": request, "loja_id": loja_id},
         )
         if serializer.is_valid():
             serializer.save()
@@ -54,15 +54,16 @@ class NFSeConfigView(APIView):
 
 class NFSeConfigTestISSNetView(APIView):
     """POST - Testa conexão com o WebService ISSNet."""
+
     permission_classes = CLINICA_ADMIN
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def post(self, request):
         loja_id = get_current_loja_id()
         if not loja_id:
-            return Response({'detail': 'Loja não identificada.'}, status=400)
+            return Response({"detail": "Loja não identificada."}, status=400)
 
         config = get_or_create_nfse_config(loja_id)
         result = test_issnet_connection(request, config)
-        http_status = status.HTTP_200_OK if result.get('success') else status.HTTP_400_BAD_REQUEST
+        http_status = status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST
         return Response(result, status=http_status)

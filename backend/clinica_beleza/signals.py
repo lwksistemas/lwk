@@ -43,7 +43,7 @@ def consulta_dashboard_cache(sender, instance, **kwargs):
     )
     mes, ano = None, None
     if ref:
-        d = ref.date() if hasattr(ref, 'date') else ref
+        d = ref.date() if hasattr(ref, "date") else ref
         mes, ano = d.month, d.year
     invalidate_dashboard_cache(
         instance.loja_id,

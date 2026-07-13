@@ -1,5 +1,4 @@
-"""
-Auto-cadastro / sincronização de prescritores na Memed.
+"""Auto-cadastro / sincronização de prescritores na Memed.
 
 Como funciona o vínculo com a loja (multi-tenant):
 - A Memed NÃO tem o conceito de "loja". Existe apenas a sua conta de parceiro
@@ -30,97 +29,96 @@ logger = logging.getLogger(__name__)
 
 
 def _split_nome(nome: str):
-    partes = (nome or '').strip().split()
+    partes = (nome or "").strip().split()
     if not partes:
-        return '', ''
+        return "", ""
     if len(partes) == 1:
         return partes[0], partes[0]
-    return partes[0], ' '.join(partes[1:])
+    return partes[0], " ".join(partes[1:])
 
 
 def external_id_prescritor(professional) -> str:
     """Identificador único do prescritor no nosso sistema (estável e sem colisão entre lojas)."""
-    loja_id = getattr(professional, 'loja_id', None) or 'x'
+    loja_id = getattr(professional, "loja_id", None) or "x"
     return f"lwk-loja{loja_id}-prof{professional.id}"
 
 
 def _payload_prescritor(professional) -> dict:
-    cpf = re.sub(r'\D', '', getattr(professional, 'cpf', '') or '')
+    cpf = re.sub(r"\D", "", getattr(professional, "cpf", "") or "")
     nome, sobrenome = _split_nome(professional.nome)
-    registro = re.sub(r'[^0-9A-Za-z]', '', (getattr(professional, 'registro_profissional', '') or ''))
+    registro = re.sub(r"[^0-9A-Za-z]", "", (getattr(professional, "registro_profissional", "") or ""))
     board = {
-        'board_code': (getattr(professional, 'conselho', '') or '').upper() or None,
-        'board_number': registro or None,
-        'board_state': (getattr(professional, 'conselho_uf', '') or '').upper() or None,
+        "board_code": (getattr(professional, "conselho", "") or "").upper() or None,
+        "board_number": registro or None,
+        "board_state": (getattr(professional, "conselho_uf", "") or "").upper() or None,
     }
-    nascimento = getattr(professional, 'data_nascimento', None)
-    sexo = (getattr(professional, 'sexo', '') or '').upper() or None
+    nascimento = getattr(professional, "data_nascimento", None)
+    sexo = (getattr(professional, "sexo", "") or "").upper() or None
     attrs = {
-        'external_id': external_id_prescritor(professional),
-        'nome': nome,
-        'sobrenome': sobrenome,
-        'cpf': cpf or None,
-        'email': getattr(professional, 'email', None) or None,
-        'telefone': re.sub(r'\D', '', getattr(professional, 'telefone', '') or '') or None,
-        'data_nascimento': nascimento.strftime('%d/%m/%Y') if nascimento else None,
-        'sexo': sexo if sexo in ('M', 'F') else None,
-        'board': {k: v for k, v in board.items() if v} or None,
+        "external_id": external_id_prescritor(professional),
+        "nome": nome,
+        "sobrenome": sobrenome,
+        "cpf": cpf or None,
+        "email": getattr(professional, "email", None) or None,
+        "telefone": re.sub(r"\D", "", getattr(professional, "telefone", "") or "") or None,
+        "data_nascimento": nascimento.strftime("%d/%m/%Y") if nascimento else None,
+        "sexo": sexo if sexo in ("M", "F") else None,
+        "board": {k: v for k, v in board.items() if v} or None,
     }
     return {k: v for k, v in attrs.items() if v}
 
 
 def sincronizar_prescritor(professional, *, force: bool = False) -> dict:
-    """
-    Cria/atualiza o prescritor na Memed a partir do cadastro do profissional.
+    """Cria/atualiza o prescritor na Memed a partir do cadastro do profissional.
 
     Best-effort: NUNCA lança exceção (não pode quebrar o cadastro do profissional).
     Retorna um dict com o resultado para fins de log/diagnóstico.
     """
-    if not force and not getattr(settings, 'MEMED_AUTO_CADASTRO', False):
-        return {'skipped': 'auto_cadastro_desativado'}
+    if not force and not getattr(settings, "MEMED_AUTO_CADASTRO", False):
+        return {"skipped": "auto_cadastro_desativado"}
 
-    cpf = re.sub(r'\D', '', getattr(professional, 'cpf', '') or '')
+    cpf = re.sub(r"\D", "", getattr(professional, "cpf", "") or "")
     if len(cpf) != 11:
-        return {'skipped': 'sem_cpf_valido'}
+        return {"skipped": "sem_cpf_valido"}
 
     env, endpoints = _memed_config()
     api_key, secret_key = _memed_credentials(env)
     if not api_key or not secret_key:
-        return {'skipped': 'sem_credenciais'}
+        return {"skipped": "sem_credenciais"}
 
     url = f"{endpoints['api']}/sinapse-prescricao/usuarios"
-    body = {'data': {'type': 'usuarios', 'attributes': _payload_prescritor(professional)}}
+    body = {"data": {"type": "usuarios", "attributes": _payload_prescritor(professional)}}
     try:
         resp = requests.post(
             url,
-            params={'api-key': api_key, 'secret-key': secret_key},
+            params={"api-key": api_key, "secret-key": secret_key},
             json=body,
             headers={
-                'Accept': 'application/vnd.api+json',
-                'Content-Type': 'application/json',
+                "Accept": "application/vnd.api+json",
+                "Content-Type": "application/json",
             },
             timeout=20,
         )
     except requests.RequestException as e:
-        logger.warning('Memed auto-cadastro: falha de rede (prof %s): %s', getattr(professional, 'id', None), e)
-        return {'ok': False, 'error': 'network'}
+        logger.warning("Memed auto-cadastro: falha de rede (prof %s): %s", getattr(professional, "id", None), e)
+        return {"ok": False, "error": "network"}
 
     ext = external_id_prescritor(professional)
     if resp.status_code in (200, 201):
-        logger.info('Memed auto-cadastro OK prof %s (external_id=%s)', professional.id, ext)
+        logger.info("Memed auto-cadastro OK prof %s (external_id=%s)", professional.id, ext)
         _aplicar_timbrado_automatico(professional)
-        return {'ok': True, 'status': resp.status_code, 'external_id': ext, 'environment': env}
+        return {"ok": True, "status": resp.status_code, "external_id": ext, "environment": env}
 
     # O POST cria o prescritor; reenvios (ex.: ao editar o profissional) retornam erro
     # informando que já existe. Tratamos como sucesso idempotente.
-    corpo = (resp.text or '')
-    if resp.status_code in (400, 409, 422) and ('ja cadastrado' in corpo.lower() or 'external_id' in corpo.lower()):
-        logger.info('Memed auto-cadastro prof %s: prescritor já existe (external_id=%s)', professional.id, ext)
+    corpo = (resp.text or "")
+    if resp.status_code in (400, 409, 422) and ("ja cadastrado" in corpo.lower() or "external_id" in corpo.lower()):
+        logger.info("Memed auto-cadastro prof %s: prescritor já existe (external_id=%s)", professional.id, ext)
         _aplicar_timbrado_automatico(professional)
-        return {'ok': True, 'status': resp.status_code, 'already_exists': True, 'external_id': ext, 'environment': env}
+        return {"ok": True, "status": resp.status_code, "already_exists": True, "external_id": ext, "environment": env}
 
-    logger.info('Memed auto-cadastro prof %s -> HTTP %s: %s', professional.id, resp.status_code, corpo[:300])
-    return {'ok': False, 'status': resp.status_code, 'detail': corpo[:300], 'external_id': ext}
+    logger.info("Memed auto-cadastro prof %s -> HTTP %s: %s", professional.id, resp.status_code, corpo[:300])
+    return {"ok": False, "status": resp.status_code, "detail": corpo[:300], "external_id": ext}
 
 
 def _aplicar_timbrado_automatico(professional):
@@ -129,7 +127,7 @@ def _aplicar_timbrado_automatico(professional):
         from .memed_impressao import aplicar_timbrado_prescritor
         from .models import MemedTimbrado
 
-        loja_id = getattr(professional, 'loja_id', None)
+        loja_id = getattr(professional, "loja_id", None)
         if not loja_id:
             return
         timbrado = MemedTimbrado.objects.filter(loja_id=loja_id).first()
@@ -138,53 +136,52 @@ def _aplicar_timbrado_automatico(professional):
         aplicar_timbrado_prescritor(
             professional,
             bytes(timbrado.pdf),
-            timbrado.pdf_nome or 'timbrado.pdf',
+            timbrado.pdf_nome or "timbrado.pdf",
         )
     except Exception as e:  # noqa: BLE001
-        logger.warning('Memed timbrado automático ignorado (prof %s): %s', getattr(professional, 'id', None), e)
+        logger.warning("Memed timbrado automático ignorado (prof %s): %s", getattr(professional, "id", None), e)
 
 
 def consultar_status_memed(professional) -> dict:
-    """
-    Consulta o status do prescritor na Memed (GET por CPF).
+    """Consulta o status do prescritor na Memed (GET por CPF).
     Best-effort: nunca lança exceção.
     """
-    prof_id = getattr(professional, 'id', None)
-    cpf = re.sub(r'\D', '', getattr(professional, 'cpf', '') or '')
+    prof_id = getattr(professional, "id", None)
+    cpf = re.sub(r"\D", "", getattr(professional, "cpf", "") or "")
     if len(cpf) != 11:
-        return {'professional_id': prof_id, 'state': 'sem_cpf', 'label': 'Sem CPF'}
+        return {"professional_id": prof_id, "state": "sem_cpf", "label": "Sem CPF"}
 
     env, endpoints = _memed_config()
     api_key, secret_key = _memed_credentials(env)
     if not api_key or not secret_key:
-        return {'professional_id': prof_id, 'state': 'sem_credenciais', 'label': 'Memed não configurada'}
+        return {"professional_id": prof_id, "state": "sem_credenciais", "label": "Memed não configurada"}
 
     url = f"{endpoints['api']}/sinapse-prescricao/usuarios/{cpf}"
     try:
         resp = requests.get(
             url,
-            params={'api-key': api_key, 'secret-key': secret_key},
-            headers={'Accept': 'application/vnd.api+json', 'Cache-Control': 'no-cache'},
+            params={"api-key": api_key, "secret-key": secret_key},
+            headers={"Accept": "application/vnd.api+json", "Cache-Control": "no-cache"},
             timeout=12,
         )
     except requests.RequestException as e:
-        logger.warning('Memed status: falha de rede (prof %s): %s', prof_id, e)
-        return {'professional_id': prof_id, 'state': 'erro', 'label': 'Indisponível'}
+        logger.warning("Memed status: falha de rede (prof %s): %s", prof_id, e)
+        return {"professional_id": prof_id, "state": "erro", "label": "Indisponível"}
 
     if resp.status_code == 404:
-        return {'professional_id': prof_id, 'state': 'nao_cadastrado', 'label': 'Não cadastrado'}
+        return {"professional_id": prof_id, "state": "nao_cadastrado", "label": "Não cadastrado"}
 
     if not resp.ok:
-        return {'professional_id': prof_id, 'state': 'erro', 'label': 'Erro ao consultar'}
+        return {"professional_id": prof_id, "state": "erro", "label": "Erro ao consultar"}
 
-    attrs = ((resp.json() or {}).get('data') or {}).get('attributes') or {}
-    status_val = (attrs.get('status') or 'Desconhecido').strip()
+    attrs = ((resp.json() or {}).get("data") or {}).get("attributes") or {}
+    status_val = (attrs.get("status") or "Desconhecido").strip()
     return {
-        'professional_id': prof_id,
-        'state': 'ok',
-        'status': status_val,
-        'label': status_val,
-        'terms_accepted': bool(attrs.get('terms_accepted')),
-        'tem_token': bool(attrs.get('token')),
-        'environment': env,
+        "professional_id": prof_id,
+        "state": "ok",
+        "status": status_val,
+        "label": status_val,
+        "terms_accepted": bool(attrs.get("terms_accepted")),
+        "tem_token": bool(attrs.get("token")),
+        "environment": env,
     }

@@ -6,16 +6,16 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('hotel', '0004_alter_reservaassinatura_loja_id_help_text'),
+        ("hotel", "0004_alter_reservaassinatura_loja_id_help_text"),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='quarto',
-            name='hotel_quarto_loja_numero_uniq',
+            model_name="quarto",
+            name="hotel_quarto_loja_numero_uniq",
         ),
         migrations.AddConstraint(
-            model_name='quarto',
-            constraint=models.UniqueConstraint(condition=models.Q(('is_active', True)), fields=('loja_id', 'numero'), name='hotel_quarto_loja_numero_active_uniq'),
+            model_name="quarto",
+            constraint=models.UniqueConstraint(condition=models.Q(("is_active", True)), fields=("loja_id", "numero"), name="hotel_quarto_loja_numero_active_uniq"),
         ),
     ]

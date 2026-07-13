@@ -9,21 +9,21 @@ from superadmin.services.assinatura_bloqueio_service import (
 
 
 class Command(BaseCommand):
-    help = f'Marca lojas em atraso e bloqueia após {DAYS_TO_BLOCK} dias do vencimento'
+    help = f"Marca lojas em atraso e bloqueia após {DAYS_TO_BLOCK} dias do vencimento"
 
     def add_arguments(self, parser):
-        parser.add_argument('--dry-run', action='store_true', help='Não grava alterações')
+        parser.add_argument("--dry-run", action="store_true", help="Não grava alterações")
 
     def handle(self, *args, **options):
-        dry_run = options.get('dry_run')
+        dry_run = options.get("dry_run")
         if dry_run:
-            self.stdout.write(self.style.WARNING('DRY-RUN: nenhuma alteração será salva\n'))
+            self.stdout.write(self.style.WARNING("DRY-RUN: nenhuma alteração será salva\n"))
 
         from superadmin.models import Loja
 
         bloqueadas = 0
         atrasadas = 0
-        for loja in Loja.objects.filter(is_active=True).select_related('financeiro').iterator():
+        for loja in Loja.objects.filter(is_active=True).select_related("financeiro").iterator():
             dias = dias_atraso_assinatura(loja)
             if dias >= DAYS_TO_BLOCK:
                 bloqueadas += 1
@@ -32,6 +32,6 @@ class Command(BaseCommand):
             aplicar_bloqueio_inadimplencia_loja(loja, persistir=not dry_run)
 
         self.stdout.write(self.style.SUCCESS(
-            f'Verificação concluída: {atrasadas} em atraso (<{DAYS_TO_BLOCK}d), '
-            f'{bloqueadas} para bloqueio (>={DAYS_TO_BLOCK}d)'
+            f"Verificação concluída: {atrasadas} em atraso (<{DAYS_TO_BLOCK}d), "
+            f"{bloqueadas} para bloqueio (>={DAYS_TO_BLOCK}d)",
         ))

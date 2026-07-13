@@ -5,86 +5,86 @@ from superadmin.models import Loja
 
 
 class Command(BaseCommand):
-    help = 'Cria colunas de assinatura em propostas e contratos em todas as lojas'
+    help = "Cria colunas de assinatura em propostas e contratos em todas as lojas"
 
     def handle(self, *args, **options):
-        self.stdout.write('Iniciando criação de colunas de assinatura em todas as lojas...\n')
-        
+        self.stdout.write("Iniciando criação de colunas de assinatura em todas as lojas...\n")
+
         # Buscar todas as lojas
-        lojas = Loja.objects.using('default').all()
-        self.stdout.write(f'Encontradas {lojas.count()} lojas\n')
-        
+        lojas = Loja.objects.using("default").all()
+        self.stdout.write(f"Encontradas {lojas.count()} lojas\n")
+
         for loja in lojas:
-            self.stdout.write(f'\n📦 Processando loja: {loja.nome} (database: {loja.database_name})')
-            
+            self.stdout.write(f"\n📦 Processando loja: {loja.nome} (database: {loja.database_name})")
+
             # Conectar ao database da loja
             with connection.cursor() as cursor:
-                cursor.execute('SET search_path TO public')
-                cursor.execute('SELECT schema_name FROM information_schema.schemata WHERE schema_name = %s', [loja.database_name])
+                cursor.execute("SET search_path TO public")
+                cursor.execute("SELECT schema_name FROM information_schema.schemata WHERE schema_name = %s", [loja.database_name])
                 if not cursor.fetchone():
-                    self.stdout.write(self.style.WARNING(f'  ⚠️  Schema {loja.database_name} não encontrado, pulando...'))
+                    self.stdout.write(self.style.WARNING(f"  ⚠️  Schema {loja.database_name} não encontrado, pulando..."))
                     continue
-                
-                cursor.execute(f'SET search_path TO {loja.database_name}')
+
+                cursor.execute(f"SET search_path TO {loja.database_name}")
                 self._criar_colunas(cursor)
-        
-        self.stdout.write(self.style.SUCCESS('\n✅ Processo concluído em todas as lojas!'))
-    
+
+        self.stdout.write(self.style.SUCCESS("\n✅ Processo concluído em todas as lojas!"))
+
     def _criar_colunas(self, cursor):
         # Verificar e criar colunas em Proposta
         cursor.execute("""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name='crm_vendas_proposta' 
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='crm_vendas_proposta'
             AND column_name IN ('nome_vendedor_assinatura', 'nome_cliente_assinatura');
         """)
         colunas_proposta = [row[0] for row in cursor.fetchall()]
-        
-        if 'nome_vendedor_assinatura' not in colunas_proposta:
-            self.stdout.write('  Criando coluna nome_vendedor_assinatura em crm_vendas_proposta...')
+
+        if "nome_vendedor_assinatura" not in colunas_proposta:
+            self.stdout.write("  Criando coluna nome_vendedor_assinatura em crm_vendas_proposta...")
             cursor.execute("""
-                ALTER TABLE crm_vendas_proposta 
+                ALTER TABLE crm_vendas_proposta
                 ADD COLUMN nome_vendedor_assinatura VARCHAR(255) NULL;
             """)
-            self.stdout.write(self.style.SUCCESS('  ✅ Coluna nome_vendedor_assinatura criada'))
+            self.stdout.write(self.style.SUCCESS("  ✅ Coluna nome_vendedor_assinatura criada"))
         else:
-            self.stdout.write('  ℹ️  Coluna nome_vendedor_assinatura já existe')
-        
-        if 'nome_cliente_assinatura' not in colunas_proposta:
-            self.stdout.write('  Criando coluna nome_cliente_assinatura em crm_vendas_proposta...')
+            self.stdout.write("  ℹ️  Coluna nome_vendedor_assinatura já existe")
+
+        if "nome_cliente_assinatura" not in colunas_proposta:
+            self.stdout.write("  Criando coluna nome_cliente_assinatura em crm_vendas_proposta...")
             cursor.execute("""
-                ALTER TABLE crm_vendas_proposta 
+                ALTER TABLE crm_vendas_proposta
                 ADD COLUMN nome_cliente_assinatura VARCHAR(255) NULL;
             """)
-            self.stdout.write(self.style.SUCCESS('  ✅ Coluna nome_cliente_assinatura criada'))
+            self.stdout.write(self.style.SUCCESS("  ✅ Coluna nome_cliente_assinatura criada"))
         else:
-            self.stdout.write('  ℹ️  Coluna nome_cliente_assinatura já existe')
-        
+            self.stdout.write("  ℹ️  Coluna nome_cliente_assinatura já existe")
+
         # Verificar e criar colunas em Contrato
         cursor.execute("""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name='crm_vendas_contrato' 
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name='crm_vendas_contrato'
             AND column_name IN ('nome_vendedor_assinatura', 'nome_cliente_assinatura');
         """)
         colunas_contrato = [row[0] for row in cursor.fetchall()]
-        
-        if 'nome_vendedor_assinatura' not in colunas_contrato:
-            self.stdout.write('  Criando coluna nome_vendedor_assinatura em crm_vendas_contrato...')
+
+        if "nome_vendedor_assinatura" not in colunas_contrato:
+            self.stdout.write("  Criando coluna nome_vendedor_assinatura em crm_vendas_contrato...")
             cursor.execute("""
-                ALTER TABLE crm_vendas_contrato 
+                ALTER TABLE crm_vendas_contrato
                 ADD COLUMN nome_vendedor_assinatura VARCHAR(255) NULL;
             """)
-            self.stdout.write(self.style.SUCCESS('  ✅ Coluna nome_vendedor_assinatura criada'))
+            self.stdout.write(self.style.SUCCESS("  ✅ Coluna nome_vendedor_assinatura criada"))
         else:
-            self.stdout.write('  ℹ️  Coluna nome_vendedor_assinatura já existe')
-        
-        if 'nome_cliente_assinatura' not in colunas_contrato:
-            self.stdout.write('  Criando coluna nome_cliente_assinatura em crm_vendas_contrato...')
+            self.stdout.write("  ℹ️  Coluna nome_vendedor_assinatura já existe")
+
+        if "nome_cliente_assinatura" not in colunas_contrato:
+            self.stdout.write("  Criando coluna nome_cliente_assinatura em crm_vendas_contrato...")
             cursor.execute("""
-                ALTER TABLE crm_vendas_contrato 
+                ALTER TABLE crm_vendas_contrato
                 ADD COLUMN nome_cliente_assinatura VARCHAR(255) NULL;
             """)
-            self.stdout.write(self.style.SUCCESS('  ✅ Coluna nome_cliente_assinatura criada'))
+            self.stdout.write(self.style.SUCCESS("  ✅ Coluna nome_cliente_assinatura criada"))
         else:
-            self.stdout.write('  ℹ️  Coluna nome_cliente_assinatura já existe')
+            self.stdout.write("  ℹ️  Coluna nome_cliente_assinatura já existe")

@@ -1,5 +1,4 @@
-"""
-Views para integração com Asaas
+"""Views para integração com Asaas
 Módulo de re-exportação — mantém compatibilidade com urls.py
 
 Implementações reais:

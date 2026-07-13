@@ -6,43 +6,43 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0011_rename_user_sessio_user_id_b8e9a5_idx_user_sessio_user_id_2ad246_idx_and_more'),
+        ("superadmin", "0011_rename_user_sessio_user_id_b8e9a5_idx_user_sessio_user_id_2ad246_idx_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='loja',
-            name='bairro',
+            model_name="loja",
+            name="bairro",
             field=models.CharField(blank=True, max_length=100),
         ),
         migrations.AddField(
-            model_name='loja',
-            name='cep',
+            model_name="loja",
+            name="cep",
             field=models.CharField(blank=True, max_length=9),
         ),
         migrations.AddField(
-            model_name='loja',
-            name='cidade',
+            model_name="loja",
+            name="cidade",
             field=models.CharField(blank=True, max_length=100),
         ),
         migrations.AddField(
-            model_name='loja',
-            name='complemento',
+            model_name="loja",
+            name="complemento",
             field=models.CharField(blank=True, max_length=100),
         ),
         migrations.AddField(
-            model_name='loja',
-            name='logradouro',
+            model_name="loja",
+            name="logradouro",
             field=models.CharField(blank=True, max_length=200),
         ),
         migrations.AddField(
-            model_name='loja',
-            name='numero',
+            model_name="loja",
+            name="numero",
             field=models.CharField(blank=True, max_length=20),
         ),
         migrations.AddField(
-            model_name='loja',
-            name='uf',
+            model_name="loja",
+            name="uf",
             field=models.CharField(blank=True, max_length=2),
         ),
     ]

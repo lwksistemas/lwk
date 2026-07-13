@@ -6,23 +6,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('hotel', '0003_add_assinatura_digital_reserva'),
+        ("hotel", "0003_add_assinatura_digital_reserva"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='reservaassinatura',
-            name='loja_id',
-            field=models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro'),
+            model_name="reservaassinatura",
+            name="loja_id",
+            field=models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro"),
         ),
         migrations.AlterField(
-            model_name='reservatemplate',
-            name='is_padrao',
-            field=models.BooleanField(default=False, help_text='Template padrão para novas confirmações'),
+            model_name="reservatemplate",
+            name="is_padrao",
+            field=models.BooleanField(default=False, help_text="Template padrão para novas confirmações"),
         ),
         migrations.AlterField(
-            model_name='reservatemplate',
-            name='loja_id',
-            field=models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro'),
+            model_name="reservatemplate",
+            name="loja_id",
+            field=models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro"),
         ),
     ]

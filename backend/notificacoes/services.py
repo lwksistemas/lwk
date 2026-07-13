@@ -1,5 +1,4 @@
-"""
-Helper para criar notificações a partir do código (ex.: ao criar agendamento).
+"""Helper para criar notificações a partir do código (ex.: ao criar agendamento).
 Quando canal='push', também envia push real via push.services.send_push.
 """
 from .models import Notification
@@ -11,11 +10,10 @@ def notify(
     titulo,
     mensagem,
     tipo,
-    canal='in_app',
+    canal="in_app",
     metadata=None,
 ):
-    """
-    Cria uma notificação para o usuário.
+    """Cria uma notificação para o usuário.
     Se canal='push', envia também a notificação push (dispositivo/celular).
 
     Exemplo:
@@ -37,16 +35,16 @@ def notify(
         canal=canal,
         metadata=metadata or {},
     )
-    if canal == 'push':
+    if canal == "push":
         try:
             from push.services import send_push
-            url = (metadata or {}).get('url') or '/'
+            url = (metadata or {}).get("url") or "/"
             send_push(user=user, title=titulo, body=mensagem, url=url)
         except Exception:
             pass  # Push é best-effort; não falha a notificação in-app
-    if canal == 'whatsapp':
+    if canal == "whatsapp":
         try:
-            telefone = (metadata or {}).get('telefone')
+            telefone = (metadata or {}).get("telefone")
             if telefone:
                 from whatsapp.services import send_whatsapp
                 send_whatsapp(telefone=telefone, mensagem=mensagem, user=user)

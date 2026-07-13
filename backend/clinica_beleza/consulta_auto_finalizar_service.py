@@ -1,5 +1,4 @@
-"""
-Auto-finalização de consultas esquecidas em andamento (IN_PROGRESS).
+"""Auto-finalização de consultas esquecidas em andamento (IN_PROGRESS).
 
 Regras:
 - Consulta SEM procedimentos: finaliza 1h após o término previsto (data_inicio + duração da consulta).
@@ -23,9 +22,9 @@ def _lojas_clinica_beleza():
     from superadmin.models import Loja
 
     return (
-        Loja.objects.using('default')
-        .select_related('tipo_loja')
-        .filter(is_active=True, database_created=True, tipo_loja__nome='Clínica da Beleza')
+        Loja.objects.using("default")
+        .select_related("tipo_loja")
+        .filter(is_active=True, database_created=True, tipo_loja__nome="Clínica da Beleza")
     )
 
 
@@ -36,8 +35,7 @@ def _consulta_tem_procedimentos(consulta) -> bool:
 
 
 def _horario_limite_finalizacao(consulta) -> timezone.datetime:
-    """
-    Calcula o horário limite para auto-finalização:
+    """Calcula o horário limite para auto-finalização:
     - data_inicio + duração efetiva + margem de tolerância.
     """
     if not consulta.data_inicio:
@@ -55,8 +53,7 @@ def _horario_limite_finalizacao(consulta) -> timezone.datetime:
 
 
 def finalizar_consultas_esquecidas() -> int:
-    """
-    Finaliza automaticamente consultas IN_PROGRESS que ultrapassaram o tempo limite.
+    """Finaliza automaticamente consultas IN_PROGRESS que ultrapassaram o tempo limite.
     Retorna quantidade de consultas finalizadas.
     """
     from core.db_config import ensure_loja_database_config
@@ -78,9 +75,9 @@ def finalizar_consultas_esquecidas() -> int:
 
             consultas_em_andamento = (
                 Consulta.objects
-                .filter(status='IN_PROGRESS', data_inicio__isnull=False)
-                .select_related('appointment', 'appointment__professional')
-                .prefetch_related('appointment__appointment_procedures__procedure')
+                .filter(status="IN_PROGRESS", data_inicio__isnull=False)
+                .select_related("appointment", "appointment__professional")
+                .prefetch_related("appointment__appointment_procedures__procedure")
             )
 
             for consulta in consultas_em_andamento.iterator():
@@ -95,24 +92,24 @@ def finalizar_consultas_esquecidas() -> int:
                     finalizar_consulta(consulta, skip_estoque=True)
                     total += 1
                     logger.info(
-                        'Auto-finalização: consulta=%s loja=%s paciente=%s '
-                        '(início=%s, limite=%s)',
+                        "Auto-finalização: consulta=%s loja=%s paciente=%s "
+                        "(início=%s, limite=%s)",
                         consulta.id, loja.id,
-                        consulta.patient.nome if consulta.patient_id else '?',
+                        consulta.patient.nome if consulta.patient_id else "?",
                         consulta.data_inicio.isoformat(),
                         limite.isoformat(),
                     )
                 except Exception as exc:
                     logger.warning(
-                        'Auto-finalização falhou: consulta=%s loja=%s: %s',
+                        "Auto-finalização falhou: consulta=%s loja=%s: %s",
                         consulta.id, loja.id, exc,
                     )
         except Exception as exc:
-            logger.exception('Auto-finalização loja %s: %s', loja.id, exc)
+            logger.exception("Auto-finalização loja %s: %s", loja.id, exc)
         finally:
             set_current_loja_id(None)
-            set_current_tenant_db('default')
+            set_current_tenant_db("default")
 
     if total:
-        logger.info('Auto-finalização: %d consulta(s) finalizada(s) automaticamente', total)
+        logger.info("Auto-finalização: %d consulta(s) finalizada(s) automaticamente", total)
     return total

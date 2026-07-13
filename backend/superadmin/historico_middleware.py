@@ -1,5 +1,4 @@
-"""
-Middleware para captura automática de ações no sistema
+"""Middleware para captura automática de ações no sistema
 
 Registra automaticamente:
 - Logins/logouts
@@ -19,9 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 class HistoricoAcessoMiddleware:
-    """
-    Middleware que registra automaticamente todas as ações no sistema
-    
+    """Middleware que registra automaticamente todas as ações no sistema
+
     Captura:
     - Método HTTP (GET, POST, PUT, DELETE)
     - URL acessada
@@ -30,53 +28,52 @@ class HistoricoAcessoMiddleware:
     - IP e User Agent
     - Sucesso ou erro
     """
-    
+
     def __init__(self, get_response):
         self.get_response = get_response
-        
+
         # URLs que NÃO devem ser registradas (para evitar poluição)
         self.ignore_urls = [
-            '/static/',
-            '/media/',
-            '/favicon.ico',
-            '/api/auth/',  # Autenticação (login/logout) - usuário ainda não está autenticado
-            '/api/superadmin/historico-acessos/',  # Evitar loop infinito
-            '/api/auth/token/refresh/',  # Refresh token (muito frequente)
-            '/api/superadmin/lojas/heartbeat/',  # Heartbeat (muito frequente)
-            '/api/whatsapp/evolution/webhook/',  # Webhook Evolution (muito frequente)
-            '/api/asaas/',  # Webhooks Asaas
+            "/static/",
+            "/media/",
+            "/favicon.ico",
+            "/api/auth/",  # Autenticação (login/logout) - usuário ainda não está autenticado
+            "/api/superadmin/historico-acessos/",  # Evitar loop infinito
+            "/api/auth/token/refresh/",  # Refresh token (muito frequente)
+            "/api/superadmin/lojas/heartbeat/",  # Heartbeat (muito frequente)
+            "/api/whatsapp/evolution/webhook/",  # Webhook Evolution (muito frequente)
+            "/api/asaas/",  # Webhooks Asaas
         ]
         # Raiz do site: bots fazem POST / — não poluir auditoria
-        self.ignore_exact_paths = {'/'}
-        
+        self.ignore_exact_paths = {"/"}
+
         # Métodos que devem ser registrados
-        self.track_methods = ['POST', 'PUT', 'PATCH', 'DELETE']
-    
+        self.track_methods = ["POST", "PUT", "PATCH", "DELETE"]
+
     def __call__(self, request):
         # 🔒 IMPORTANTE: Capturar loja_id ANTES de processar a resposta
         # O TenantMiddleware limpa o contexto após a resposta, então precisamos capturar agora
         from tenants.middleware import get_current_loja_id
         loja_id_contexto = get_current_loja_id()
-        
+
         # Armazenar no request para usar depois
         request._historico_loja_id = loja_id_contexto
-        
+
         # Processar requisição
         response = self.get_response(request)
-        
+
         # Registrar ação (assíncrono para não bloquear)
         try:
             self._registrar_acao(request, response)
         except Exception as e:
             # Não deixar erro no middleware quebrar a aplicação
             logger.error(f"Erro ao registrar histórico: {e}", exc_info=True)
-        
+
         return response
-    
+
     def _deve_registrar(self, request):
-        """
-        Verifica se a requisição deve ser registrada
-        
+        """Verifica se a requisição deve ser registrada
+
         Não registra:
         - URLs ignoradas (static, media, etc.)
         - Requisições OPTIONS (CORS)
@@ -87,27 +84,26 @@ class HistoricoAcessoMiddleware:
             if request.path.startswith(ignore_url):
                 return False
 
-        if request.path in getattr(self, 'ignore_exact_paths', set()):
+        if request.path in getattr(self, "ignore_exact_paths", set()):
             return False
-        
+
         # Ignorar OPTIONS (CORS preflight)
-        if request.method == 'OPTIONS':
+        if request.method == "OPTIONS":
             return False
-        
+
         # Registrar apenas métodos de ação (POST, PUT, PATCH, DELETE)
         # GET é muito frequente e polui o histórico
         return request.method in self.track_methods
-    
+
     def _registrar_acao(self, request, response):
-        """
-        Registra a ação no banco de dados
-        
+        """Registra a ação no banco de dados
+
         Extrai informações da requisição e resposta
         """
         # Verificar se deve registrar
         if not self._deve_registrar(request):
             return
-        
+
         # Importar modelo aqui para evitar circular import
         from superadmin.models import Loja
 
@@ -118,12 +114,12 @@ class HistoricoAcessoMiddleware:
 
         # Extrair informações da loja (se aplicável)
         loja = None
-        loja_nome = ''
-        loja_slug = ''
+        loja_nome = ""
+        loja_slug = ""
 
         # 🔒 IMPORTANTE: Usar loja_id capturado ANTES da resposta
-        loja_id = getattr(request, '_historico_loja_id', None) or loja_id_sugerida
-        
+        loja_id = getattr(request, "_historico_loja_id", None) or loja_id_sugerida
+
         if loja_id:
             try:
                 loja = Loja.objects.get(id=loja_id)
@@ -132,41 +128,40 @@ class HistoricoAcessoMiddleware:
                 logger.debug(f"✅ [HistoricoMiddleware] Loja capturada: {loja_nome} (ID: {loja_id})")
             except Loja.DoesNotExist:
                 logger.warning(f"⚠️ [HistoricoMiddleware] Loja {loja_id} não encontrada")
-                pass
-        
+
         # Determinar ação baseada no método HTTP e URL
         acao = self._determinar_acao(request.method, request.path)
-        
+
         # Extrair recurso da URL (ex: /api/clinica/clientes/ -> Cliente)
         recurso = self._extrair_recurso(request.path)
-        
+
         # Extrair ID do recurso (ex: /api/clinica/clientes/123/ -> 123)
         recurso_id = self._extrair_recurso_id(request.path)
-        
+
         # Extrair detalhes relevantes da requisição
         detalhes = self._extrair_detalhes(request)
-        
+
         # Extrair IP
         ip_address = self._get_client_ip(request)
-        
+
         # User Agent
-        user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]  # Limitar tamanho
-        
+        user_agent = request.META.get("HTTP_USER_AGENT", "")[:500]  # Limitar tamanho
+
         # Verificar sucesso (2xx = sucesso)
         sucesso = 200 <= response.status_code < 300
-        
+
         # Extrair erro (se houver)
-        erro = ''
+        erro = ""
         if not sucesso:
             try:
                 # Tentar extrair mensagem de erro do response
-                if hasattr(response, 'data'):
+                if hasattr(response, "data"):
                     erro = str(response.data)[:500]  # Limitar tamanho
-                elif hasattr(response, 'content'):
-                    erro = response.content.decode('utf-8')[:500]
+                elif hasattr(response, "content"):
+                    erro = response.content.decode("utf-8")[:500]
             except Exception:
-                erro = f'HTTP {response.status_code}'
-        
+                erro = f"HTTP {response.status_code}"
+
         # Criar registro (usar create para evitar signals)
         try:
             HistoricoAcessoGlobal.objects.create(
@@ -190,81 +185,77 @@ class HistoricoAcessoMiddleware:
             logger.debug(f"✅ Histórico registrado: {usuario_nome} - {acao} - {recurso} (ID: {recurso_id})")
         except Exception as e:
             logger.error(f"❌ Erro ao criar registro de histórico: {e}", exc_info=True)
-    
+
     def _determinar_acao(self, method, path):
-        """
-        Determina a ação baseada no método HTTP
-        
+        """Determina a ação baseada no método HTTP
+
         POST = criar
         PUT/PATCH = editar
         DELETE = excluir
         """
         # Login/Logout
-        if '/login/' in path:
-            return 'login'
-        if '/logout/' in path:
-            return 'logout'
-        
+        if "/login/" in path:
+            return "login"
+        if "/logout/" in path:
+            return "logout"
+
         # Ações baseadas no método HTTP
-        if method == 'POST':
-            return 'criar'
-        elif method in ['PUT', 'PATCH']:
-            return 'editar'
-        elif method == 'DELETE':
-            return 'excluir'
-        
-        return 'visualizar'
-    
+        if method == "POST":
+            return "criar"
+        if method in ["PUT", "PATCH"]:
+            return "editar"
+        if method == "DELETE":
+            return "excluir"
+
+        return "visualizar"
+
     def _extrair_recurso(self, path):
-        """
-        Extrai o recurso da URL
-        
+        """Extrai o recurso da URL
+
         Exemplos:
         /api/clinica/clientes/ -> Cliente
         /api/clinica/procedimentos/123/ -> Procedimento
         /api/crm/vendas/ -> Venda
         """
-        if '/whatsapp/evolution/webhook' in path:
-            return 'Webhook Evolution'
-        if '/whatsapp/config/connect' in path:
-            return 'WhatsApp (conectar)'
-        if '/whatsapp/config/disconnect' in path:
-            return 'WhatsApp (desconectar)'
+        if "/whatsapp/evolution/webhook" in path:
+            return "Webhook Evolution"
+        if "/whatsapp/config/connect" in path:
+            return "WhatsApp (conectar)"
+        if "/whatsapp/config/disconnect" in path:
+            return "WhatsApp (desconectar)"
 
         # Remover /api/ do início
-        path = path.replace('/api/', '')
+        path = path.replace("/api/", "")
 
         # Dividir por /
-        parts = [p for p in path.split('/') if p]
+        parts = [p for p in path.split("/") if p]
 
         if len(parts) >= 2:
             # Pegar o segundo elemento (recurso)
             recurso = parts[1]
-            
+
             # Capitalizar e remover plural
             recurso = recurso.capitalize()
-            if recurso.endswith('s'):
-                recurso = recurso[:-1]
-            
+            recurso = recurso.removesuffix("s")
+
             return recurso
-        
-        return ''
-    
+
+        return ""
+
     def _extrair_recurso_id(self, path):
-        """
-        Extrai o ID do recurso da URL
-        
+        """Extrai o ID do recurso da URL
+
         Exemplos:
         /api/clinica/clientes/123/ -> 123
         /api/clinica/procedimentos/456/editar/ -> 456
         /api/crm/vendas/789/ -> 789
         """
         # Remover /api/ do início
-        path = path.replace('/api/', '')
-        
+        path = path.replace("/api/", "")
+
         # Dividir por /
-        parts = [p for p in path.split('/') if p]
-        
+        parts = [p for p in path.split("/") if p]
+
         # Procurar por número (ID) nas partes — IntegerField no PG tem limite ~2e9;
         # slugs numéricos longos (ex.: CNPJ em /webhooks/asaas/41449198000172/) não são IDs.
         max_int = 2147483647
@@ -273,46 +264,43 @@ class HistoricoAcessoMiddleware:
                 val = int(part)
                 if val <= max_int:
                     return val
-        
+
         return None
-    
+
     def _extrair_detalhes(self, request):
-        """
-        Extrai detalhes relevantes da requisição
-        
+        """Extrai detalhes relevantes da requisição
+
         Retorna JSON com informações úteis (sem dados sensíveis)
         """
-        
         detalhes = {}
-        
+
         # Adicionar query params (se houver)
         if request.GET:
-            detalhes['query_params'] = dict(request.GET)
-        
+            detalhes["query_params"] = dict(request.GET)
+
         # Adicionar tamanho do body (sem incluir o conteúdo por segurança)
-        if request.method in ['POST', 'PUT', 'PATCH']:
+        if request.method in ["POST", "PUT", "PATCH"]:
             try:
-                if hasattr(request, 'body'):
-                    detalhes['body_size'] = len(request.body)
+                if hasattr(request, "body"):
+                    detalhes["body_size"] = len(request.body)
             except Exception:
                 pass
-        
+
         # Adicionar informações de autenticação
-        if hasattr(request, 'user') and request.user.is_authenticated:
-            detalhes['authenticated'] = True
-            detalhes['is_superuser'] = request.user.is_superuser
+        if hasattr(request, "user") and request.user.is_authenticated:
+            detalhes["authenticated"] = True
+            detalhes["is_superuser"] = request.user.is_superuser
         else:
-            detalhes['authenticated'] = False
-        
-        return json.dumps(detalhes) if detalhes else ''
-    
+            detalhes["authenticated"] = False
+
+        return json.dumps(detalhes) if detalhes else ""
+
     def _get_client_ip(self, request):
+        """Obtém o IP real do cliente (considerando proxies)
         """
-        Obtém o IP real do cliente (considerando proxies)
-        """
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
         if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0].strip()
+            ip = x_forwarded_for.split(",")[0].strip()
         else:
-            ip = request.META.get('REMOTE_ADDR', '0.0.0.0')
+            ip = request.META.get("REMOTE_ADDR", "0.0.0.0")
         return ip

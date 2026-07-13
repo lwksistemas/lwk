@@ -1,5 +1,4 @@
-"""
-Comando para excluir TODAS as lojas do sistema.
+"""Comando para excluir TODAS as lojas do sistema.
 Usa a mesma lógica da view destroy (chamados, Asaas, loja, owner).
 Requer --confirmar para executar.
 """
@@ -15,11 +14,11 @@ def _drop_loja_schema(database_name: str) -> None:
     """Remove schema PostgreSQL da loja (idempotente)."""
     if not database_name:
         return
-    using_pg = connection.settings_dict.get('ENGINE', '').endswith('postgresql')
+    using_pg = connection.settings_dict.get("ENGINE", "").endswith("postgresql")
     if not using_pg:
         return
-    schema_name = database_name.replace('-', '_')
-    if not schema_name or schema_name == 'public':
+    schema_name = database_name.replace("-", "_")
+    if not schema_name or schema_name == "public":
         return
     with connection.cursor() as cursor:
         cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
@@ -38,8 +37,7 @@ def _limpar_fks_public_loja(loja: Loja) -> None:
 
 
 def _delete_loja_registro(loja: Loja) -> None:
-    """
-    Remove a loja do public. Limpa FKs conhecidas e faz fallback SQL se CASCADE falhar
+    """Remove a loja do public. Limpa FKs conhecidas e faz fallback SQL se CASCADE falhar
     (ex.: whatsapp_whatsappconfig ausente no public para lojas CRM).
     """
     _limpar_fks_public_loja(loja)
@@ -49,52 +47,52 @@ def _delete_loja_registro(loja: Loja) -> None:
     except Exception as exc:
         err = str(exc).lower()
         recoverable = (
-            'whatsapp_whatsappconfig' in err
-            or 'historico_acesso_global' in err
-            or 'superadmin_historico' in err
-            or 'superadmin_nfse' in err
-            or 'violates foreign key constraint' in err
+            "whatsapp_whatsappconfig" in err
+            or "historico_acesso_global" in err
+            or "superadmin_historico" in err
+            or "superadmin_nfse" in err
+            or "violates foreign key constraint" in err
         )
         if not recoverable:
             raise
     _limpar_fks_public_loja(loja)
     with connection.cursor() as cursor:
-        cursor.execute('DELETE FROM superadmin_loja WHERE id = %s', [loja.id])
+        cursor.execute("DELETE FROM superadmin_loja WHERE id = %s", [loja.id])
 
 
 class Command(BaseCommand):
-    help = 'Exclui todas as lojas do sistema (chamados, Asaas, loja, owner). Use --confirmar para executar.'
+    help = "Exclui todas as lojas do sistema (chamados, Asaas, loja, owner). Use --confirmar para executar."
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--confirmar',
-            action='store_true',
-            help='Confirma que deseja excluir TODAS as lojas.',
+            "--confirmar",
+            action="store_true",
+            help="Confirma que deseja excluir TODAS as lojas.",
         )
 
     def handle(self, *args, **options):
-        if not options['confirmar']:
+        if not options["confirmar"]:
             self.stdout.write(self.style.WARNING(
-                '⚠️  Para excluir todas as lojas, execute: python manage.py excluir_todas_lojas --confirmar'
+                "⚠️  Para excluir todas as lojas, execute: python manage.py excluir_todas_lojas --confirmar",
             ))
             return
 
         lojas = list(Loja.objects.all())
         total = len(lojas)
         if total == 0:
-            self.stdout.write(self.style.SUCCESS('Nenhuma loja cadastrada.'))
+            self.stdout.write(self.style.SUCCESS("Nenhuma loja cadastrada."))
             return
 
-        self.stdout.write(f'Excluindo {total} loja(s)...')
+        self.stdout.write(f"Excluindo {total} loja(s)...")
 
         for loja in lojas:
             self._excluir_loja(loja)
 
         restantes = Loja.objects.count()
         if restantes:
-            self.stdout.write(self.style.ERROR(f'⚠️  Ainda restam {restantes} loja(s) no cadastro.'))
+            self.stdout.write(self.style.ERROR(f"⚠️  Ainda restam {restantes} loja(s) no cadastro."))
         else:
-            self.stdout.write(self.style.SUCCESS(f'\n✅ Concluído. {total} loja(s) processada(s).'))
+            self.stdout.write(self.style.SUCCESS(f"\n✅ Concluído. {total} loja(s) processada(s)."))
 
     def _excluir_loja(self, loja):
         loja_slug = loja.slug
@@ -115,9 +113,9 @@ class Command(BaseCommand):
                     chamados = Chamado.objects.filter(loja_slug=loja_slug)
                     n = chamados.count()
                     chamados.delete()
-                    self.stdout.write(f'   [{loja_slug}] Chamados removidos: {n}')
+                    self.stdout.write(f"   [{loja_slug}] Chamados removidos: {n}")
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f'   [{loja_slug}] Chamados: {e}'))
+                self.stdout.write(self.style.WARNING(f"   [{loja_slug}] Chamados: {e}"))
 
             # 2. Asaas (API + local)
             try:
@@ -135,11 +133,11 @@ class Command(BaseCommand):
                         AsaasPayment.objects.filter(customer=customer).delete()
                         assinatura.delete()
                         customer.delete()
-                        self.stdout.write(f'   [{loja_slug}] Asaas local removido')
+                        self.stdout.write(f"   [{loja_slug}] Asaas local removido")
                     except LojaAssinatura.DoesNotExist:
                         pass
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f'   [{loja_slug}] Asaas: {e}'))
+                self.stdout.write(self.style.WARNING(f"   [{loja_slug}] Asaas: {e}"))
 
             # 2b. Mercado Pago: cancelar boletos pendentes
             try:
@@ -147,33 +145,33 @@ class Command(BaseCommand):
                 mp_service = LojaMercadoPagoService()
                 if mp_service.available:
                     result = mp_service.cancel_pending_payments_loja(loja_slug)
-                    if result.get('success') and result.get('cancelled_count', 0):
+                    if result.get("success") and result.get("cancelled_count", 0):
                         self.stdout.write(
-                            f'   [{loja_slug}] Mercado Pago: {result["cancelled_count"]} boleto(s) cancelado(s)'
+                            f'   [{loja_slug}] Mercado Pago: {result["cancelled_count"]} boleto(s) cancelado(s)',
                         )
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f'   [{loja_slug}] Mercado Pago: {e}'))
+                self.stdout.write(self.style.WARNING(f"   [{loja_slug}] Mercado Pago: {e}"))
 
             # 3. Excluir loja (dispara signal pre_delete que limpa dados do tipo de app)
             _delete_loja_registro(loja)
-            self.stdout.write(self.style.SUCCESS(f'   [{loja_slug}] Loja excluída'))
+            self.stdout.write(self.style.SUCCESS(f"   [{loja_slug}] Loja excluída"))
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'   [{loja_slug}] Erro: {e}'))
+            self.stdout.write(self.style.ERROR(f"   [{loja_slug}] Erro: {e}"))
         finally:
             # 4. Sempre tentar remover schema/config (mesmo se delete da loja falhou parcialmente)
             if database_created:
                 try:
                     if database_name in settings.DATABASES:
                         del settings.DATABASES[database_name]
-                    db_path = settings.BASE_DIR / f'db_{database_name}.sqlite3'
-                    if hasattr(db_path, 'exists') and db_path.exists():
+                    db_path = settings.BASE_DIR / f"db_{database_name}.sqlite3"
+                    if hasattr(db_path, "exists") and db_path.exists():
                         import os
                         os.remove(db_path)
                     _drop_loja_schema(database_name)
-                    self.stdout.write(f'   [{loja_slug}] Schema PostgreSQL removido (garantia)')
+                    self.stdout.write(f"   [{loja_slug}] Schema PostgreSQL removido (garantia)")
                 except Exception as e:
-                    self.stdout.write(self.style.WARNING(f'   [{loja_slug}] Banco/schema: {e}'))
+                    self.stdout.write(self.style.WARNING(f"   [{loja_slug}] Banco/schema: {e}"))
 
             # 5. Owner se não tiver outras lojas
             if usuario_sera_removido and not Loja.objects.filter(owner_id=owner_id).exists():
@@ -184,6 +182,6 @@ class Command(BaseCommand):
                             user.groups.clear()
                             user.user_permissions.clear()
                             user.delete()
-                        self.stdout.write(f'   [{loja_slug}] Usuário {owner_username} removido')
+                        self.stdout.write(f"   [{loja_slug}] Usuário {owner_username} removido")
                 except Exception as e:
-                    self.stdout.write(self.style.WARNING(f'   [{loja_slug}] Usuário: {e}'))
+                    self.stdout.write(self.style.WARNING(f"   [{loja_slug}] Usuário: {e}"))

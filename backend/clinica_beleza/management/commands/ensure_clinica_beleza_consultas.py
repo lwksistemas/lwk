@@ -1,5 +1,4 @@
-"""
-Garante tabelas de Consultas/Protocolos nos schemas das lojas (Clínica da Beleza).
+"""Garante tabelas de Consultas/Protocolos nos schemas das lojas (Clínica da Beleza).
 
 Necessário quando migrate_all_lojas falha por histórico legado inconsistente.
 """
@@ -101,22 +100,22 @@ SQL_STATEMENTS = [
 
 COLUMN_PATCHES = [
     (
-        'clinica_beleza_consultas',
-        'local_atendimento_id',
-        'ALTER TABLE clinica_beleza_consultas ADD COLUMN local_atendimento_id BIGINT NULL '
-        'REFERENCES clinica_beleza_locais_atendimento(id) ON DELETE SET NULL',
+        "clinica_beleza_consultas",
+        "local_atendimento_id",
+        "ALTER TABLE clinica_beleza_consultas ADD COLUMN local_atendimento_id BIGINT NULL "
+        "REFERENCES clinica_beleza_locais_atendimento(id) ON DELETE SET NULL",
     ),
     (
-        'clinica_beleza_consultas',
-        'convenio_id',
-        'ALTER TABLE clinica_beleza_consultas ADD COLUMN convenio_id BIGINT NULL '
-        'REFERENCES clinica_beleza_convenios(id) ON DELETE SET NULL',
+        "clinica_beleza_consultas",
+        "convenio_id",
+        "ALTER TABLE clinica_beleza_consultas ADD COLUMN convenio_id BIGINT NULL "
+        "REFERENCES clinica_beleza_convenios(id) ON DELETE SET NULL",
     ),
     (
-        'clinica_beleza_patient',
-        'convenio_id',
-        'ALTER TABLE clinica_beleza_patient ADD COLUMN convenio_id BIGINT NULL '
-        'REFERENCES clinica_beleza_convenios(id) ON DELETE SET NULL',
+        "clinica_beleza_patient",
+        "convenio_id",
+        "ALTER TABLE clinica_beleza_patient ADD COLUMN convenio_id BIGINT NULL "
+        "REFERENCES clinica_beleza_convenios(id) ON DELETE SET NULL",
     ),
 ]
 
@@ -128,37 +127,37 @@ def _apply_patches(cursor):
 
 
 class Command(BaseCommand):
-    help = 'Cria tabelas de consultas/protocolos da Clínica da Beleza nos bancos das lojas (IF NOT EXISTS).'
+    help = "Cria tabelas de consultas/protocolos da Clínica da Beleza nos bancos das lojas (IF NOT EXISTS)."
 
     def add_arguments(self, parser):
-        parser.add_argument('--slug', type=str, help='Processar apenas loja com este slug/atalho')
+        parser.add_argument("--slug", type=str, help="Processar apenas loja com este slug/atalho")
 
     def handle(self, *args, **options):
-        slug_filter = (options.get('slug') or '').strip().lower()
+        slug_filter = (options.get("slug") or "").strip().lower()
         lojas = Loja.objects.filter(is_active=True, database_created=True)
         ok = 0
         skip = 0
 
         for loja in lojas:
             if slug_filter and slug_filter not in (
-                (loja.slug or '').lower(),
-                (getattr(loja, 'atalho', None) or '').lower(),
+                (loja.slug or "").lower(),
+                (getattr(loja, "atalho", None) or "").lower(),
             ):
                 continue
 
             db_name = loja.database_name
             if not ensure_loja_database_config(db_name, conn_max_age=0):
                 skip += 1
-                self.stdout.write(self.style.WARNING(f'SKIP loja={loja.id}: banco não configurado'))
+                self.stdout.write(self.style.WARNING(f"SKIP loja={loja.id}: banco não configurado"))
                 continue
 
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not table_exists(cursor, 'clinica_beleza_appointment'):
+                    if not table_exists(cursor, "clinica_beleza_appointment"):
                         skip += 1
                         self.stdout.write(self.style.WARNING(
-                            f'SKIP loja={loja.id} ({loja.nome}): sem tabelas clinica_beleza'
+                            f"SKIP loja={loja.id} ({loja.nome}): sem tabelas clinica_beleza",
                         ))
                         continue
 
@@ -168,13 +167,13 @@ class Command(BaseCommand):
 
                 ok += 1
                 self.stdout.write(self.style.SUCCESS(
-                    f'OK loja={loja.id} ({loja.nome}) db={db_name}'
+                    f"OK loja={loja.id} ({loja.nome}) db={db_name}",
                 ))
             except Exception as exc:
                 skip += 1
-                self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id} ({loja.nome}): {exc}'))
+                self.stdout.write(self.style.ERROR(f"ERRO loja={loja.id} ({loja.nome}): {exc}"))
             finally:
                 with suppress(Exception):
                     connections[db_name].close()
 
-        self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s) OK, {skip} ignorada(s).'))
+        self.stdout.write(self.style.SUCCESS(f"Concluído: {ok} loja(s) OK, {skip} ignorada(s)."))

@@ -10,14 +10,14 @@ from .views_base import GetObjectMixin
 
 
 class NomeAgendaListView(APIView):
-    """
-    GET /clinica-beleza/nomes-agenda/ — lista nomes ativos da loja
+    """GET /clinica-beleza/nomes-agenda/ — lista nomes ativos da loja
     POST /clinica-beleza/nomes-agenda/ — cria novo nome
     """
+
     permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
-        queryset = NomeAgenda.objects.filter(is_active=True).order_by('nome')
+        queryset = NomeAgenda.objects.filter(is_active=True).order_by("nome")
         return Response(NomeAgendaSerializer(queryset, many=True).data)
 
     def post(self, request):
@@ -30,16 +30,17 @@ class NomeAgendaListView(APIView):
             ).exists()
             if not tem_padrao:
                 instance.is_padrao = True
-                instance.save(update_fields=['is_padrao'])
+                instance.save(update_fields=["is_padrao"])
             return Response(NomeAgendaSerializer(instance).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class NomeAgendaDetailView(GetObjectMixin, APIView):
     """GET / PUT / PATCH / DELETE /clinica-beleza/nomes-agenda/<pk>/"""
+
     permission_classes = CLINICA_RECEPCAO
     model_class = NomeAgenda
-    not_found_message = 'Nome de agenda não encontrado'
+    not_found_message = "Nome de agenda não encontrado"
 
     def get(self, request, pk):
         obj, error = self.object_or_404(pk)
@@ -73,5 +74,5 @@ class NomeAgendaDetailView(GetObjectMixin, APIView):
         if error:
             return error
         obj.is_active = False
-        obj.save(update_fields=['is_active', 'updated_at'])
+        obj.save(update_fields=["is_active", "updated_at"])
         return Response(status=status.HTTP_204_NO_CONTENT)

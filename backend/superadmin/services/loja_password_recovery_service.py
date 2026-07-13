@@ -1,5 +1,4 @@
-"""
-Recuperação pública de senha do proprietário da loja (email + slug).
+"""Recuperação pública de senha do proprietário da loja (email + slug).
 """
 from __future__ import annotations
 
@@ -16,7 +15,7 @@ from .provisional_password_helpers import loja_login_absolute_url
 logger = logging.getLogger(__name__)
 
 _RECOVERY_OK_MESSAGE = (
-    'Se o email estiver cadastrado para esta loja, você receberá uma senha provisória em instantes.'
+    "Se o email estiver cadastrado para esta loja, você receberá uma senha provisória em instantes."
 )
 
 _REQUEST_LIMIT_PER_IP = 30
@@ -35,7 +34,7 @@ def _client_ip(request) -> str:
 def _retry_after_seconds(cache_key: str, window_seconds: int) -> int:
     from django.core.cache import cache
 
-    if hasattr(cache, 'ttl'):
+    if hasattr(cache, "ttl"):
         ttl = cache.ttl(cache_key)
         if ttl is not None and ttl > 0:
             return int(ttl)
@@ -46,11 +45,11 @@ def _rate_limit_response(retry_after: int) -> tuple[dict[str, Any], int]:
     minutes = max(1, (retry_after + 59) // 60)
     return (
         {
-            'detail': (
-                f'Muitas solicitações de recuperação de senha. '
-                f'Tente novamente em cerca de {minutes} minuto(s).'
+            "detail": (
+                f"Muitas solicitações de recuperação de senha. "
+                f"Tente novamente em cerca de {minutes} minuto(s)."
             ),
-            'retry_after': retry_after,
+            "retry_after": retry_after,
         },
         http_status.HTTP_429_TOO_MANY_REQUESTS,
     )
@@ -63,14 +62,14 @@ def check_loja_password_recovery_request_limit(request) -> tuple[dict[str, Any],
     from django.core.cache import cache
 
     ip = _client_ip(request)
-    cache_key = f'pwd_recovery_req:{ip}'
+    cache_key = f"pwd_recovery_req:{ip}"
     count = cache.get(cache_key, 0)
     if count >= _REQUEST_LIMIT_PER_IP:
         return _rate_limit_response(_retry_after_seconds(cache_key, _REQUEST_WINDOW_SECONDS))
     if count == 0:
         cache.set(cache_key, 1, _REQUEST_WINDOW_SECONDS)
     else:
-        ttl = cache.ttl(cache_key) if hasattr(cache, 'ttl') else _REQUEST_WINDOW_SECONDS
+        ttl = cache.ttl(cache_key) if hasattr(cache, "ttl") else _REQUEST_WINDOW_SECONDS
         cache.set(cache_key, count + 1, ttl or _REQUEST_WINDOW_SECONDS)
     return None
 
@@ -86,11 +85,11 @@ def check_loja_password_recovery_send_limit(
     from django.core.cache import cache
 
     ip = _client_ip(request)
-    email_norm = (email or '').strip().lower()
-    slug_norm = (slug or '').strip().lower()
+    email_norm = (email or "").strip().lower()
+    slug_norm = (slug or "").strip().lower()
     keys = [
-        (f'pwd_recovery_send:ip:{ip}', _SEND_LIMIT_PER_IP),
-        (f'pwd_recovery_send:{slug_norm}:{email_norm}', _SEND_LIMIT_PER_EMAIL),
+        (f"pwd_recovery_send:ip:{ip}", _SEND_LIMIT_PER_IP),
+        (f"pwd_recovery_send:{slug_norm}:{email_norm}", _SEND_LIMIT_PER_EMAIL),
     ]
     for cache_key, limit in keys:
         if cache.get(cache_key, 0) >= limit:
@@ -102,22 +101,21 @@ def check_loja_password_recovery_send_limit(
         if count == 0:
             cache.set(cache_key, 1, _SEND_WINDOW_SECONDS)
         else:
-            ttl = cache.ttl(cache_key) if hasattr(cache, 'ttl') else _SEND_WINDOW_SECONDS
+            ttl = cache.ttl(cache_key) if hasattr(cache, "ttl") else _SEND_WINDOW_SECONDS
             cache.set(cache_key, count + 1, ttl or _SEND_WINDOW_SECONDS)
     return None
 
 
 def resolve_loja_user_for_password_recovery(loja, email: str) -> User | None:
-    """
-    Usuário com acesso à loja cujo email coincide (proprietário, profissional ou vendedor).
+    """Usuário com acesso à loja cujo email coincide (proprietário, profissional ou vendedor).
     Busca também o email no cadastro do tenant (Professional/Vendedor), pois pode divergir do User.email.
     """
-    email_norm = (email or '').strip().lower()
+    email_norm = (email or "").strip().lower()
     if not email_norm or not loja:
         return None
 
     owner = loja.owner
-    if owner and (owner.email or '').strip().lower() == email_norm:
+    if owner and (owner.email or "").strip().lower() == email_norm:
         return owner
 
     user = User.objects.filter(email__iexact=email.strip()).first()
@@ -132,8 +130,8 @@ def resolve_loja_user_for_password_recovery(loja, email: str) -> User | None:
 
 def _resolve_user_by_tenant_email(loja, email_norm: str) -> User | None:
     """Resolve User via email cadastrado no profissional/vendedor do schema da loja."""
-    db = getattr(loja, 'database_name', None)
-    if not db or not getattr(loja, 'database_created', False):
+    db = getattr(loja, "database_name", None)
+    if not db or not getattr(loja, "database_created", False):
         return None
 
     from core.db_config import ensure_loja_database_config
@@ -141,14 +139,14 @@ def _resolve_user_by_tenant_email(loja, email_norm: str) -> User | None:
     if not ensure_loja_database_config(db, conn_max_age=60):
         return None
 
-    tipo_slug = (getattr(loja.tipo_loja, 'slug', None) or '').strip().lower()
-    tipo_nome = (getattr(loja.tipo_loja, 'nome', None) or '').strip()
+    tipo_slug = (getattr(loja.tipo_loja, "slug", None) or "").strip().lower()
+    tipo_nome = (getattr(loja.tipo_loja, "nome", None) or "").strip()
 
     prof_id = _find_tenant_professional_id(loja, db, email_norm, tipo_slug, tipo_nome)
     if prof_id is not None:
         pu = (
             ProfissionalUsuario.objects.filter(loja=loja, professional_id=prof_id)
-            .select_related('user')
+            .select_related("user")
             .first()
         )
         if pu and pu.user_id:
@@ -158,7 +156,7 @@ def _resolve_user_by_tenant_email(loja, email_norm: str) -> User | None:
     if vendedor_id is not None:
         vu = (
             VendedorUsuario.objects.filter(loja=loja, vendedor_id=vendedor_id)
-            .select_related('user')
+            .select_related("user")
             .first()
         )
         if vu and vu.user_id:
@@ -169,7 +167,7 @@ def _resolve_user_by_tenant_email(loja, email_norm: str) -> User | None:
 
 def _find_tenant_professional_id(loja, db: str, email_norm: str, tipo_slug: str, tipo_nome: str):
     prof_model = None
-    if tipo_slug == 'clinica-beleza' or tipo_nome == 'Clínica da Beleza':
+    if tipo_slug == "clinica-beleza" or tipo_nome == "Clínica da Beleza":
         from clinica_beleza.models import Professional as prof_model
 
     if prof_model is None:
@@ -179,17 +177,17 @@ def _find_tenant_professional_id(loja, db: str, email_norm: str, tipo_slug: str,
         prof = (
             prof_model.objects.using(db)
             .filter(loja_id=loja.id, email__iexact=email_norm, is_active=True)
-            .values_list('id', flat=True)
+            .values_list("id", flat=True)
             .first()
         )
         return prof
     except Exception as exc:
-        logger.debug('Recuperação de senha: busca profissional tenant falhou (loja=%s): %s', loja.slug, exc)
+        logger.debug("Recuperação de senha: busca profissional tenant falhou (loja=%s): %s", loja.slug, exc)
         return None
 
 
 def _find_tenant_vendedor_id(loja, db: str, email_norm: str, tipo_slug: str, tipo_nome: str):
-    if tipo_slug != 'crm-vendas' and tipo_nome != 'CRM Vendas':
+    if tipo_slug != "crm-vendas" and tipo_nome != "CRM Vendas":
         return None
     try:
         from crm_vendas.models import Vendedor
@@ -197,11 +195,11 @@ def _find_tenant_vendedor_id(loja, db: str, email_norm: str, tipo_slug: str, tip
         return (
             Vendedor.objects.using(db)
             .filter(loja_id=loja.id, email__iexact=email_norm, is_active=True)
-            .values_list('id', flat=True)
+            .values_list("id", flat=True)
             .first()
         )
     except Exception as exc:
-        logger.debug('Recuperação de senha: busca vendedor tenant falhou (loja=%s): %s', loja.slug, exc)
+        logger.debug("Recuperação de senha: busca vendedor tenant falhou (loja=%s): %s", loja.slug, exc)
         return None
 
 
@@ -211,7 +209,7 @@ class LojaPasswordRecoveryService:
     def execute(self, email: str, slug: str, request=None) -> tuple[dict[str, Any], int]:
         if not email or not slug:
             return (
-                {'detail': 'Email e slug são obrigatórios'},
+                {"detail": "Email e slug são obrigatórios"},
                 http_status.HTTP_400_BAD_REQUEST,
             )
 
@@ -222,16 +220,16 @@ class LojaPasswordRecoveryService:
         loja = resolve_loja_by_slug_or_atalho(
             slug,
             is_active=True,
-            select_related=('owner', 'tipo_loja', 'plano'),
+            select_related=("owner", "tipo_loja", "plano"),
         )
         user = resolve_loja_user_for_password_recovery(loja, email) if loja else None
         if not user:
             logger.info(
-                'Recuperação de senha loja: solicitação ignorada (identificador=%s, loja_encontrada=%s)',
+                "Recuperação de senha loja: solicitação ignorada (identificador=%s, loja_encontrada=%s)",
                 slug,
                 bool(loja),
             )
-            return ({'message': _RECOVERY_OK_MESSAGE}, http_status.HTTP_200_OK)
+            return ({"message": _RECOVERY_OK_MESSAGE}, http_status.HTTP_200_OK)
 
         limited = check_loja_password_recovery_send_limit(request, email, slug)
         if limited:
@@ -242,12 +240,12 @@ class LojaPasswordRecoveryService:
         nova_senha = generate_provisional_password()
 
         user.set_password(nova_senha)
-        user.save(update_fields=['password'])
+        user.save(update_fields=["password"])
 
         if loja.owner_id == user.id:
             loja.senha_provisoria = nova_senha
             loja.senha_foi_alterada = False
-            loja.save(update_fields=['senha_provisoria', 'senha_foi_alterada'])
+            loja.save(update_fields=["senha_provisoria", "senha_foi_alterada"])
 
         ProfissionalUsuario.objects.filter(user=user, loja=loja).update(
             precisa_trocar_senha=True,
@@ -256,15 +254,15 @@ class LojaPasswordRecoveryService:
             precisa_trocar_senha=True,
         )
 
-        assunto = f'Recuperação de Senha - {loja.nome}'
+        assunto = f"Recuperação de Senha - {loja.nome}"
         login_url = loja_login_absolute_url(loja)
 
         from core.email_templates import email_senha_provisoria_html
 
         info_adicional = {
-            'Nome da Loja': loja.nome,
-            'Tipo de Sistema': loja.tipo_loja.nome if loja.tipo_loja_id else 'Loja',
-            'Plano Contratado': loja.plano.nome if loja.plano_id else '—',
+            "Nome da Loja": loja.nome,
+            "Tipo de Sistema": loja.tipo_loja.nome if loja.tipo_loja_id else "Loja",
+            "Plano Contratado": loja.plano.nome if loja.plano_id else "—",
         }
 
         html_content, texto_plano = email_senha_provisoria_html(
@@ -272,8 +270,8 @@ class LojaPasswordRecoveryService:
             usuario=user.username,
             senha=nova_senha,
             url_login=login_url,
-            titulo_principal='Recuperação de Senha',
-            subtitulo='Sua senha foi redefinida com sucesso',
+            titulo_principal="Recuperação de Senha",
+            subtitulo="Sua senha foi redefinida com sucesso",
             info_adicional=info_adicional,
             nome_sistema=loja.nome,
         )
@@ -294,16 +292,16 @@ class LojaPasswordRecoveryService:
             finally:
                 email_sync_only.reset(token)
             logger.info(
-                'Recuperação de senha loja: email enviado (loja=%s, user=%s, identificador=%s)',
+                "Recuperação de senha loja: email enviado (loja=%s, user=%s, identificador=%s)",
                 loja.slug,
                 user.username,
                 slug,
             )
         except Exception as e:
-            logger.exception('Erro ao enviar email de recuperação de senha: %s', e)
+            logger.exception("Erro ao enviar email de recuperação de senha: %s", e)
             return (
-                {'detail': 'Erro ao enviar email de recuperação. Tente novamente mais tarde.'},
+                {"detail": "Erro ao enviar email de recuperação. Tente novamente mais tarde."},
                 http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        return ({'message': _RECOVERY_OK_MESSAGE}, http_status.HTTP_200_OK)
+        return ({"message": _RECOVERY_OK_MESSAGE}, http_status.HTTP_200_OK)

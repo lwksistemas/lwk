@@ -1,5 +1,4 @@
-"""
-Utility de retry para operações de banco de dados com backoff exponencial.
+"""Utility de retry para operações de banco de dados com backoff exponencial.
 
 Substitui retry logic duplicada em:
 - config/security_middleware.py (SecurityIsolationMiddleware._authenticate_jwt)
@@ -26,8 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def retry_on_db_timeout(max_retries: int = 3, initial_delay: float = 0.5, backoff_factor: float = 2.0):
-    """
-    Decorator que retenta operação em caso de timeout do banco de dados.
+    """Decorator que retenta operação em caso de timeout do banco de dados.
 
     Args:
         max_retries: Número máximo de tentativas (padrão: 3)
@@ -39,6 +37,7 @@ def retry_on_db_timeout(max_retries: int = 3, initial_delay: float = 0.5, backof
 
     Raises:
         OperationalError: Se todas as tentativas falharem.
+
     """
     def decorator(func):
         @functools.wraps(func)
@@ -51,7 +50,7 @@ def retry_on_db_timeout(max_retries: int = 3, initial_delay: float = 0.5, backof
                     return func(*args, **kwargs)
                 except OperationalError as e:
                     last_exception = e
-                    if 'timeout' not in str(e).lower() or attempt >= max_retries - 1:
+                    if "timeout" not in str(e).lower() or attempt >= max_retries - 1:
                         raise
                     logger.warning(
                         "DB timeout na tentativa %d/%d de %s. Retrying em %.1fs...",
@@ -67,8 +66,7 @@ def retry_on_db_timeout(max_retries: int = 3, initial_delay: float = 0.5, backof
 
 
 def execute_with_db_retry(callable_fn, max_retries: int = 3, initial_delay: float = 0.5):
-    """
-    Executa um callable com retry em caso de timeout do DB.
+    """Executa um callable com retry em caso de timeout do DB.
     Versão funcional (sem decorator) para uso inline.
 
     Args:
@@ -81,5 +79,6 @@ def execute_with_db_retry(callable_fn, max_retries: int = 3, initial_delay: floa
 
     Raises:
         OperationalError: Se todas as tentativas falharem.
+
     """
     return retry_on_db_timeout(max_retries=max_retries, initial_delay=initial_delay)(callable_fn)()

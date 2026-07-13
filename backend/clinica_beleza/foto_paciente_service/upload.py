@@ -26,7 +26,7 @@ def _extrair_arquivo_multipart_bruto(body: bytes, content_type: str) -> bytes | 
     """Fallback quando o Django não populou request.FILES (ex.: proxy ou iOS)."""
     import re
 
-    match = re.search(r"boundary=([^;\s]+)", content_type or "", re.I)
+    match = re.search(r"boundary=([^;\s]+)", content_type or "", re.IGNORECASE)
     if not match or not body:
         return None
     boundary = match.group(1).strip().strip('"').encode()

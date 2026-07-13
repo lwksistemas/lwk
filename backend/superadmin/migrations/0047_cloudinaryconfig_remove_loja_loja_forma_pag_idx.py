@@ -9,75 +9,75 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0046_normalize_cpf_cnpj_add_index'),
+        ("superadmin", "0046_normalize_cpf_cnpj_add_index"),
     ]
 
     operations = [
         migrations.SeparateDatabaseAndState(
             state_operations=[
                 migrations.CreateModel(
-                    name='CloudinaryConfig',
+                    name="CloudinaryConfig",
                     fields=[
                         (
-                            'id',
+                            "id",
                             models.BigAutoField(
                                 auto_created=True,
                                 primary_key=True,
                                 serialize=False,
-                                verbose_name='ID',
+                                verbose_name="ID",
                             ),
                         ),
                         (
-                            'singleton_key',
+                            "singleton_key",
                             models.CharField(
-                                default='config', max_length=10, unique=True
+                                default="config", max_length=10, unique=True,
                             ),
                         ),
                         (
-                            'cloud_name',
-                            models.CharField(
-                                blank=True,
-                                max_length=100,
-                                verbose_name='Cloud Name',
-                            ),
-                        ),
-                        (
-                            'api_key',
+                            "cloud_name",
                             models.CharField(
                                 blank=True,
                                 max_length=100,
-                                verbose_name='API Key',
+                                verbose_name="Cloud Name",
                             ),
                         ),
                         (
-                            'api_secret',
+                            "api_key",
                             models.CharField(
                                 blank=True,
                                 max_length=100,
-                                verbose_name='API Secret',
+                                verbose_name="API Key",
                             ),
                         ),
                         (
-                            'enabled',
+                            "api_secret",
+                            models.CharField(
+                                blank=True,
+                                max_length=100,
+                                verbose_name="API Secret",
+                            ),
+                        ),
+                        (
+                            "enabled",
                             models.BooleanField(
                                 default=False,
-                                verbose_name='Integração habilitada',
+                                verbose_name="Integração habilitada",
                             ),
                         ),
-                        ('created_at', models.DateTimeField(auto_now_add=True)),
-                        ('updated_at', models.DateTimeField(auto_now=True)),
+                        ("created_at", models.DateTimeField(auto_now_add=True)),
+                        ("updated_at", models.DateTimeField(auto_now=True)),
                     ],
                     options={
-                        'verbose_name': 'Configuração Cloudinary',
-                        'verbose_name_plural': 'Configurações Cloudinary',
-                        'db_table': 'superadmin_cloudinary_config',
+                        "verbose_name": "Configuração Cloudinary",
+                        "verbose_name_plural": "Configurações Cloudinary",
+                        "db_table": "superadmin_cloudinary_config",
                     },
                 ),
             ],
             database_operations=[],
         ),
         migrations.RemoveIndex(
-            model_name='loja',
-            name='loja_forma_pag_idx',
+            model_name="loja",
+            name="loja_forma_pag_idx",
         ),
     ]

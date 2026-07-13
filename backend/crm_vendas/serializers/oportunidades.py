@@ -12,30 +12,30 @@ from ..models import Oportunidade
 
 class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     lead_nome = serializers.SerializerMethodField()
-    vendedor_nome = serializers.CharField(source='vendedor.nome', read_only=True)
+    vendedor_nome = serializers.CharField(source="vendedor.nome", read_only=True)
     conta_nome = serializers.SerializerMethodField()
     empresa_prestadora_nome = serializers.SerializerMethodField()
 
-    uppercase_fields = ['titulo']
+    uppercase_fields = ["titulo"]
 
     class Meta:
         model = Oportunidade
         fields = [
-            'id', 'titulo', 'lead', 'lead_nome', 'conta_nome',
-            'empresa_prestadora', 'empresa_prestadora_nome',
-            'valor', 'etapa', 'vendedor', 'vendedor_nome',
-            'probabilidade', 'data_fechamento_prevista', 'data_fechamento',
-            'data_fechamento_ganho', 'data_fechamento_perdido', 'valor_comissao',
-            'observacoes', 'motivo_perda', 'feedback_pos_venda',
-            'created_at', 'updated_at',
+            "id", "titulo", "lead", "lead_nome", "conta_nome",
+            "empresa_prestadora", "empresa_prestadora_nome",
+            "valor", "etapa", "vendedor", "vendedor_nome",
+            "probabilidade", "data_fechamento_prevista", "data_fechamento",
+            "data_fechamento_ganho", "data_fechamento_perdido", "valor_comissao",
+            "observacoes", "motivo_perda", "feedback_pos_venda",
+            "created_at", "updated_at",
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ["created_at", "updated_at"]
 
     def get_lead_nome(self, obj):
         """Nome da pessoa (lead), não da empresa vinculada."""
         if obj.lead:
-            return obj.lead.nome or ''
-        return ''
+            return obj.lead.nome or ""
+        return ""
 
     def get_conta_nome(self, obj):
         """Empresa do lead: PESSOA FISICA (CPF), campo empresa ou conta vinculada."""
@@ -64,24 +64,24 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
 
     def validate(self, attrs):
         """Empresa prestadora é obrigatória ao criar uma oportunidade."""
-        request = self.context.get('request')
-        is_create = request and request.method == 'POST'
-        if is_create and not attrs.get('empresa_prestadora'):
+        request = self.context.get("request")
+        is_create = request and request.method == "POST"
+        if is_create and not attrs.get("empresa_prestadora"):
             raise serializers.ValidationError({
-                'empresa_prestadora': 'Empresa prestadora é obrigatória. Selecione a empresa que irá prestar o serviço.'
+                "empresa_prestadora": "Empresa prestadora é obrigatória. Selecione a empresa que irá prestar o serviço.",
             })
 
-        etapa = attrs.get('etapa')
+        etapa = attrs.get("etapa")
         if etapa is None and self.instance:
             etapa = self.instance.etapa
 
-        if etapa == 'closed_lost':
-            motivo = attrs.get('motivo_perda')
+        if etapa == "closed_lost":
+            motivo = attrs.get("motivo_perda")
             if motivo is None and self.instance:
                 motivo = self.instance.motivo_perda
-            if not (motivo or '').strip():
+            if not (motivo or "").strip():
                 raise serializers.ValidationError({
-                    'motivo_perda': 'Informe o motivo da perda ou cancelamento da negociação.',
+                    "motivo_perda": "Informe o motivo da perda ou cancelamento da negociação.",
                 })
 
         return attrs

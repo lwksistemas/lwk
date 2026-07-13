@@ -1,5 +1,4 @@
-"""
-Views — assinatura digital do termo de consentimento.
+"""Views — assinatura digital do termo de consentimento.
 
 Re-exporta módulos internos e públicos para compatibilidade com urls.py.
 """
@@ -17,12 +16,12 @@ from .views_assinatura_consentimento_publicas import (
 )
 
 __all__ = [
-    'ConsultaAssinaturaPdfPublicaView',
-    'ConsultaAssinaturaPublicaView',
-    'ConsultaDownloadTermoPdfView',
-    'ConsultaEnviarTermoAssinaturaView',
-    'ConsultaEnviarTermoPdfWhatsappView',
-    'ConsultaReenviarTermoAssinaturaView',
-    'ConsultaTermoConsentimentoStatusView',
-    'TermoConsentimentoPdfPublicView',
+    "ConsultaAssinaturaPdfPublicaView",
+    "ConsultaAssinaturaPublicaView",
+    "ConsultaDownloadTermoPdfView",
+    "ConsultaEnviarTermoAssinaturaView",
+    "ConsultaEnviarTermoPdfWhatsappView",
+    "ConsultaReenviarTermoAssinaturaView",
+    "ConsultaTermoConsentimentoStatusView",
+    "TermoConsentimentoPdfPublicView",
 ]

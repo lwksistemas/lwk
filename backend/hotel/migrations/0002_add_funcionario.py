@@ -6,27 +6,27 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('hotel', '0001_initial'),
+        ("hotel", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Funcionario',
+            name="Funcionario",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('loja_id', models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro')),
-                ('nome', models.CharField(max_length=200)),
-                ('email', models.EmailField(blank=True, default='', max_length=254)),
-                ('cargo', models.CharField(blank=True, default='', max_length=100)),
-                ('telefone', models.CharField(blank=True, default='', max_length=30)),
-                ('is_active', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("loja_id", models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro")),
+                ("nome", models.CharField(max_length=200)),
+                ("email", models.EmailField(blank=True, default="", max_length=254)),
+                ("cargo", models.CharField(blank=True, default="", max_length=100)),
+                ("telefone", models.CharField(blank=True, default="", max_length=30)),
+                ("is_active", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'db_table': 'hotel_funcionarios',
-                'ordering': ['nome'],
-                'indexes': [models.Index(fields=['loja_id', 'is_active'], name='hotel_func_loja_act_idx')],
+                "db_table": "hotel_funcionarios",
+                "ordering": ["nome"],
+                "indexes": [models.Index(fields=["loja_id", "is_active"], name="hotel_func_loja_act_idx")],
             },
         ),
     ]

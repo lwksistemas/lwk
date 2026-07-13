@@ -7,39 +7,39 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0039_loginconfigsistema'),
+        ("superadmin", "0039_loginconfigsistema"),
     ]
 
     operations = [
         # Adicionar campos SEM unique constraint primeiro
         migrations.AddField(
-            model_name='loja',
-            name='atalho',
+            model_name="loja",
+            name="atalho",
             field=models.SlugField(
                 blank=True,
-                help_text='Atalho curto para acesso fácil (ex: felix). Gerado automaticamente a partir do nome.',
+                help_text="Atalho curto para acesso fácil (ex: felix). Gerado automaticamente a partir do nome.",
                 max_length=50,
-                unique=False  # Temporariamente sem unique
+                unique=False,  # Temporariamente sem unique
             ),
         ),
         migrations.AddField(
-            model_name='loja',
-            name='subdomain',
+            model_name="loja",
+            name="subdomain",
             field=models.SlugField(
                 blank=True,
-                help_text='Subdomínio personalizado (ex: felix.lwksistemas.com.br). Opcional para planos premium.',
+                help_text="Subdomínio personalizado (ex: felix.lwksistemas.com.br). Opcional para planos premium.",
                 max_length=50,
                 null=True,
-                unique=False  # Temporariamente sem unique
+                unique=False,  # Temporariamente sem unique
             ),
         ),
         # Adicionar índices (não unique)
         migrations.AddIndex(
-            model_name='loja',
-            index=models.Index(fields=['atalho'], name='loja_atalho_idx'),
+            model_name="loja",
+            index=models.Index(fields=["atalho"], name="loja_atalho_idx"),
         ),
         migrations.AddIndex(
-            model_name='loja',
-            index=models.Index(fields=['subdomain'], name='loja_subdomain_idx'),
+            model_name="loja",
+            index=models.Index(fields=["subdomain"], name="loja_subdomain_idx"),
         ),
     ]

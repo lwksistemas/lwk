@@ -1,5 +1,4 @@
-"""
-Views para NFS-e
+"""Views para NFS-e
 """
 import logging
 
@@ -37,8 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet para NFS-e.
+    """ViewSet para NFS-e.
 
     Endpoints:
     - GET /api/nfse/ - Listar NFS-e emitidas
@@ -52,19 +50,19 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
 
     serializer_class = NFSeSerializer
     permission_classes = [IsAuthenticated]
-    http_method_names = ['get', 'post', 'delete', 'head', 'options']
+    http_method_names = ["get", "post", "delete", "head", "options"]
 
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
         db_name = get_current_tenant_db()
-        if db_name and db_name != 'default':
+        if db_name and db_name != "default":
             try:
                 from .schema_patch import patch_nfse_asaas_columns_if_missing
 
                 patch_nfse_asaas_columns_if_missing(db_name)
             except Exception as e:
                 logger.exception(
-                    'NFSe: falha ao aplicar patch de colunas Asaas no tenant %s: %s',
+                    "NFSe: falha ao aplicar patch de colunas Asaas no tenant %s: %s",
                     db_name,
                     e,
                 )
@@ -74,24 +72,24 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
         if not loja_id:
             return NFSe.objects.none()
 
-        queryset = NFSe.objects.filter(loja_id=loja_id).order_by('-data_emissao')
+        queryset = NFSe.objects.filter(loja_id=loja_id).order_by("-data_emissao")
 
-        status_filter = self.request.query_params.get('status')
+        status_filter = self.request.query_params.get("status")
         if status_filter:
             queryset = queryset.filter(status=status_filter)
 
-        tomador = self.request.query_params.get('tomador')
-        busca = (self.request.query_params.get('busca') or tomador or '').strip()
+        tomador = self.request.query_params.get("tomador")
+        busca = (self.request.query_params.get("busca") or tomador or "").strip()
         if busca:
             queryset = queryset.filter(
                 models.Q(tomador_nome__icontains=busca)
                 | models.Q(tomador_cpf_cnpj__icontains=busca)
-                | models.Q(numero_nf__icontains=busca)
+                | models.Q(numero_nf__icontains=busca),
             )
 
         return queryset
 
-    @action(detail=False, methods=['get'], url_path='buscar-tomador')
+    @action(detail=False, methods=["get"], url_path="buscar-tomador")
     def buscar_tomador(self, request):
         """Busca tomador por CPF/CNPJ no CRM ou em NFS-e já emitidas."""
         from tenants.middleware import ensure_loja_context
@@ -100,14 +98,14 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
         loja_id = get_current_loja_id()
         if not loja_id:
             return Response(
-                {'encontrado': False, 'error': 'Loja não identificada'},
+                {"encontrado": False, "error": "Loja não identificada"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        documento = (request.query_params.get('documento') or '').strip()
+        documento = (request.query_params.get("documento") or "").strip()
         if not documento:
             return Response(
-                {'encontrado': False, 'error': 'Informe o CPF ou CNPJ do tomador.'},
+                {"encontrado": False, "error": "Informe o CPF ou CNPJ do tomador."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -115,11 +113,11 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             resultado = buscar_tomador_nfse_loja(loja_id, documento)
             if resultado:
                 return Response(resultado)
-            return Response({'encontrado': False})
+            return Response({"encontrado": False})
         except Exception as e:
-            logger.exception('Erro ao buscar tomador NFS-e: %s', e)
+            logger.exception("Erro ao buscar tomador NFS-e: %s", e)
             return Response(
-                {'encontrado': False, 'error': 'Erro ao buscar cliente no cadastro.'},
+                {"encontrado": False, "error": "Erro ao buscar cliente no cadastro."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -129,7 +127,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             return None, None
         return loja_id, Loja.objects.get(id=loja_id)
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=["post"])
     def emitir(self, request):
         serializer = EmitirNFSeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -138,43 +136,43 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             loja_id, loja = self._obter_loja_atual()
             if not loja_id:
                 return Response(
-                    {'error': 'Loja não identificada'},
+                    {"error": "Loja não identificada"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
             body, http_status = processar_emissao_nfse_loja(
-                loja, loja_id, serializer.validated_data
+                loja, loja_id, serializer.validated_data,
             )
             return Response(body, status=http_status)
 
         except ContaTomadorNaoEncontrada as exc:
             return Response(
-                {'error': f'Conta {exc.conta_id} não encontrada'},
+                {"error": f"Conta {exc.conta_id} não encontrada"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:
-            logger.exception('Erro ao emitir NFS-e: %s', e)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Erro ao emitir NFS-e: %s", e)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=False, methods=['post'], url_path='recuperar-issnet')
+    @action(detail=False, methods=["post"], url_path="recuperar-issnet")
     def recuperar_issnet(self, request):
         """Recupera NFS-e emitida no ISSNet que não consta no CRM (por RPS ou número da NF)."""
         try:
             loja_id, loja = self._obter_loja_atual()
             if not loja_id:
                 return Response(
-                    {'error': 'Loja não identificada'},
+                    {"error": "Loja não identificada"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            numero_rps = request.data.get('numero_rps')
-            numero_nf = (request.data.get('numero_nf') or '').strip() or None
+            numero_rps = request.data.get("numero_rps")
+            numero_nf = (request.data.get("numero_nf") or "").strip() or None
             rps_int = None
-            if numero_rps is not None and str(numero_rps).strip() != '':
+            if numero_rps is not None and str(numero_rps).strip() != "":
                 try:
                     rps_int = int(numero_rps)
                 except (TypeError, ValueError):
                     return Response(
-                        {'error': 'Número do RPS inválido.'},
+                        {"error": "Número do RPS inválido."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
             body, http_status = recuperar_nfse_issnet_loja(
@@ -185,10 +183,10 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             )
             return Response(body, status=http_status)
         except Exception as e:
-            logger.exception('Erro ao recuperar NFS-e do ISSNet: %s', e)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Erro ao recuperar NFS-e do ISSNet: %s", e)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def cancelar(self, request, pk=None):
         serializer = CancelarNFSeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -199,15 +197,15 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             body, http_status = processar_cancelamento_nfse_loja(
                 loja,
                 nfse,
-                serializer.validated_data['motivo'],
-                request.data.get('codigo_cancelamento', '1'),
+                serializer.validated_data["motivo"],
+                request.data.get("codigo_cancelamento", "1"),
             )
             return Response(body, status=http_status)
         except Exception as e:
-            logger.exception('Erro ao cancelar NFS-e: %s', e)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Erro ao cancelar NFS-e: %s", e)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['post'], url_path='sincronizar-asaas')
+    @action(detail=True, methods=["post"], url_path="sincronizar-asaas")
     def sincronizar_asaas(self, request, pk=None):
         try:
             nfse = self.get_object()
@@ -215,49 +213,49 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             body, http_status = sincronizar_nfse_asaas_loja(nfse, loja_id)
             return Response(body, status=http_status)
         except Exception as e:
-            logger.exception('Erro ao sincronizar NFS-e com Asaas: %s', e)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Erro ao sincronizar NFS-e com Asaas: %s", e)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['post'], url_path='sincronizar-issnet')
+    @action(detail=True, methods=["post"], url_path="sincronizar-issnet")
     def sincronizar_issnet(self, request, pk=None):
         try:
             nfse = self.get_object()
             loja_id, loja = self._obter_loja_atual()
             if not loja_id:
                 return Response(
-                    {'error': 'Loja não identificada'},
+                    {"error": "Loja não identificada"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             body, http_status = sincronizar_nfse_issnet_loja(nfse, loja, loja_id)
             return Response(body, status=http_status)
         except Exception as e:
-            logger.exception('Erro ao sincronizar NFS-e com ISSNet: %s', e)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Erro ao sincronizar NFS-e com ISSNet: %s", e)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['get'], url_path='download_pdf')
+    @action(detail=True, methods=["get"], url_path="download_pdf")
     def download_pdf(self, request, pk=None):
         try:
             nfse = self.get_object()
             loja_id, loja = self._obter_loja_atual()
             resultado = resolver_download_pdf_loja(nfse, loja, loja_id)
 
-            if resultado.tipo == 'url':
-                return Response({'url': resultado.url})
+            if resultado.tipo == "url":
+                return Response({"url": resultado.url})
 
-            response = HttpResponse(resultado.conteudo_pdf, content_type='application/pdf')
-            response['Content-Disposition'] = (
+            response = HttpResponse(resultado.conteudo_pdf, content_type="application/pdf")
+            response["Content-Disposition"] = (
                 f'{resultado.content_disposition}; filename="{resultado.nome_arquivo}"'
             )
             return response
 
         except Exception as e:
-            logger.exception('Erro ao gerar PDF da NFS-e: %s', e)
+            logger.exception("Erro ao gerar PDF da NFS-e: %s", e)
             return Response(
-                {'error': f'Erro ao gerar PDF: {str(e)}'},
+                {"error": f"Erro ao gerar PDF: {e!s}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    @action(detail=True, methods=['get'], url_path='download_xml')
+    @action(detail=True, methods=["get"], url_path="download_xml")
     def download_xml(self, request, pk=None):
         try:
             nfse = self.get_object()
@@ -266,85 +264,85 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             xml_content = resolver_xml_nfse_loja(nfse, loja, loja_id) or xml_nfse_conteudo(nfse)
             if not xml_content:
                 return Response(
-                    {'error': 'XML não disponível para esta NFS-e'},
+                    {"error": "XML não disponível para esta NFS-e"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            filename = f'nfse_{nfse.numero_nf or nfse.id}.xml'
-            response = HttpResponse(xml_content, content_type='application/xml')
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            filename = f"nfse_{nfse.numero_nf or nfse.id}.xml"
+            response = HttpResponse(xml_content, content_type="application/xml")
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
 
         except Exception as e:
-            logger.exception('Erro ao baixar XML da NFS-e: %s', e)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Erro ao baixar XML da NFS-e: %s", e)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def enviar_whatsapp(self, request, pk=None):
         try:
             nfse = self.get_object()
             loja_id, loja = self._obter_loja_atual()
-            telefone = (request.data.get('telefone') or '').strip()
+            telefone = (request.data.get("telefone") or "").strip()
             destino = enviar_whatsapp_nfse_loja(nfse, loja, loja_id, telefone, request)
             return Response({
-                'success': True,
-                'message': f'NFS-e enviada por WhatsApp para {destino}',
+                "success": True,
+                "message": f"NFS-e enviada por WhatsApp para {destino}",
             })
         except ReenvioNFSeLojaError as exc:
-            return Response({'error': exc.message}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": exc.message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.exception('Erro ao enviar NFS-e por WhatsApp: %s', e)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Erro ao enviar NFS-e por WhatsApp: %s", e)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def reenviar_email(self, request, pk=None):
         try:
             nfse = self.get_object()
             loja_id, loja = self._obter_loja_atual()
             email = reenviar_email_nfse_loja(nfse, loja, loja_id)
             return Response({
-                'success': True,
-                'message': f'Email reenviado para {email}',
+                "success": True,
+                "message": f"Email reenviado para {email}",
             })
         except ReenvioNFSeLojaError as exc:
-            return Response({'error': exc.message}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": exc.message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.exception('Erro ao reenviar email: %s', e)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception("Erro ao reenviar email: %s", e)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def destroy(self, request, pk=None):
         loja_id = get_current_loja_id()
         if not loja_id:
             return Response(
-                {'error': 'Contexto de loja não encontrado.'},
+                {"error": "Contexto de loja não encontrado."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
             nfse = NFSe.objects.filter(id=pk, loja_id=loja_id).first()
             if not nfse:
                 return Response(
-                    {'error': 'NFS-e não encontrada ou não pertence a esta loja.'},
+                    {"error": "NFS-e não encontrada ou não pertence a esta loja."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
             validar_exclusao_nfse_loja(nfse)
             numero = nfse.numero_nf
             nfse.delete()
             logger.info(
-                'NFS-e %s (id=%s) excluída por user_id=%s loja_id=%s',
+                "NFS-e %s (id=%s) excluída por user_id=%s loja_id=%s",
                 numero,
                 pk,
                 request.user.id,
                 loja_id,
             )
             return Response(
-                {'success': True, 'message': f'NFS-e {numero} excluída com sucesso.'},
+                {"success": True, "message": f"NFS-e {numero} excluída com sucesso."},
                 status=status.HTTP_200_OK,
             )
         except ExclusaoNFSeLojaError as exc:
-            return Response({'error': exc.message}, status=exc.http_status)
+            return Response({"error": exc.message}, status=exc.http_status)
         except Exception as e:
-            logger.exception('Erro ao excluir NFS-e id=%s: %s', pk, e)
+            logger.exception("Erro ao excluir NFS-e id=%s: %s", pk, e)
             return Response(
-                {'error': f'Erro ao excluir NFS-e: {str(e)}'},
+                {"error": f"Erro ao excluir NFS-e: {e!s}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

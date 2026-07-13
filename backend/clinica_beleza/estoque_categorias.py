@@ -6,16 +6,16 @@ from django.db.models import Count, Q
 from .models.estoque import CATEGORIAS_ESTOQUE_PADRAO, CategoriaEstoque
 
 _ALIASES = {
-    'cosmetico': 'cosmético',
-    'Medicamentos': 'medicamentos',
-    'medicamento': 'medicamentos',
+    "cosmetico": "cosmético",
+    "Medicamentos": "medicamentos",
+    "medicamento": "medicamentos",
 }
 
 
 def normalizar_slug_categoria(raw: str | None) -> str:
-    s = (raw or '').strip()
+    s = (raw or "").strip()
     if not s:
-        return 'outro'
+        return "outro"
     return _ALIASES.get(s, s)
 
 
@@ -29,7 +29,7 @@ def garantir_categorias_estoque_padrao(loja_id: int | None) -> None:
         CategoriaEstoque.objects.get_or_create(
             loja_id=loja_id,
             slug=slug,
-            defaults={'nome': nome, 'ordem': ordem, 'cor': '#8B3D52', 'is_active': True},
+            defaults={"nome": nome, "ordem": ordem, "cor": "#8B3D52", "is_active": True},
         )
 
 
@@ -54,15 +54,15 @@ def resolver_categoria(
         cat = CategoriaEstoque.objects.filter(loja_id=loja_id, slug=slug_n).first()
         if cat:
             return cat
-        return CategoriaEstoque.objects.filter(loja_id=loja_id, slug='outro').first()
+        return CategoriaEstoque.objects.filter(loja_id=loja_id, slug="outro").first()
     return None
 
 
 def categorias_com_contagem(loja_id: int | None = None):
     qs = (
         CategoriaEstoque.objects.filter(is_active=True)
-        .annotate(produtos_count=Count('produtos', filter=Q(produtos__is_active=True)))
-        .order_by('ordem', 'nome')
+        .annotate(produtos_count=Count("produtos", filter=Q(produtos__is_active=True)))
+        .order_by("ordem", "nome")
     )
     if loja_id:
         qs = qs.filter(loja_id=loja_id)

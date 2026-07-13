@@ -1,5 +1,4 @@
-"""
-Remove tabela legado crm_relatorio_comissao do schema CRM Vendas.
+"""Remove tabela legado crm_relatorio_comissao do schema CRM Vendas.
 Uso: python manage.py drop_legacy_crm_relatorio_comissao
 """
 from django.core.management.base import BaseCommand
@@ -9,17 +8,17 @@ from superadmin.models import Loja
 
 
 class Command(BaseCommand):
-    help = 'Remove tabela legado crm_relatorio_comissao dos schemas CRM Vendas'
+    help = "Remove tabela legado crm_relatorio_comissao dos schemas CRM Vendas"
 
     def handle(self, *args, **options):
-        lojas = Loja.objects.filter(is_active=True, tipo_loja__nome__icontains='CRM')
+        lojas = Loja.objects.filter(is_active=True, tipo_loja__nome__icontains="CRM")
         if not lojas.exists():
-            lojas = Loja.objects.filter(cpf_cnpj='41.449.198/0001-72')
+            lojas = Loja.objects.filter(cpf_cnpj="41.449.198/0001-72")
 
         for loja in lojas:
-            cpf = loja.cpf_cnpj.replace('.', '').replace('-', '').replace('/', '')
-            schema = f'loja_{cpf}'
-            self.stdout.write(f'Verificando {loja.nome} ({schema})...')
+            cpf = loja.cpf_cnpj.replace(".", "").replace("-", "").replace("/", "")
+            schema = f"loja_{cpf}"
+            self.stdout.write(f"Verificando {loja.nome} ({schema})...")
 
             try:
                 with connection.cursor() as cur:
@@ -33,17 +32,17 @@ class Command(BaseCommand):
                     exists = cur.fetchone()[0]
 
                     if not exists:
-                        self.stdout.write(self.style.SUCCESS('  ✅ Tabela não existe — OK'))
+                        self.stdout.write(self.style.SUCCESS("  ✅ Tabela não existe — OK"))
                         continue
 
-                    cur.execute('SELECT COUNT(*) FROM crm_relatorio_comissao')
+                    cur.execute("SELECT COUNT(*) FROM crm_relatorio_comissao")
                     count = cur.fetchone()[0]
-                    self.stdout.write(f'  Registros: {count}')
+                    self.stdout.write(f"  Registros: {count}")
 
-                    cur.execute('DROP TABLE IF EXISTS crm_relatorio_comissao CASCADE')
-                    self.stdout.write(self.style.SUCCESS('  ✅ Tabela crm_relatorio_comissao removida'))
+                    cur.execute("DROP TABLE IF EXISTS crm_relatorio_comissao CASCADE")
+                    self.stdout.write(self.style.SUCCESS("  ✅ Tabela crm_relatorio_comissao removida"))
 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f'  ❌ Erro: {e}'))
+                self.stdout.write(self.style.ERROR(f"  ❌ Erro: {e}"))
 
-        self.stdout.write(self.style.SUCCESS('\nDone!'))
+        self.stdout.write(self.style.SUCCESS("\nDone!"))

@@ -1,15 +1,15 @@
 """SQL idempotente para histórico de negociação CRM (migration 0069) em tenants."""
 from clinica_beleza.schema_ensure import column_exists, table_exists
 
-TABLE_OPORTUNIDADE = 'crm_vendas_oportunidade'
-TABLE_NOTA = 'crm_vendas_oportunidade_nota'
-MIGRATION_NAME = '0069_oportunidade_negociacao_historico'
+TABLE_OPORTUNIDADE = "crm_vendas_oportunidade"
+TABLE_NOTA = "crm_vendas_oportunidade_nota"
+MIGRATION_NAME = "0069_oportunidade_negociacao_historico"
 
 
 def negociacao_historico_schema_missing(cursor) -> bool:
-    if not column_exists(cursor, TABLE_OPORTUNIDADE, 'motivo_perda'):
+    if not column_exists(cursor, TABLE_OPORTUNIDADE, "motivo_perda"):
         return True
-    if not column_exists(cursor, TABLE_OPORTUNIDADE, 'feedback_pos_venda'):
+    if not column_exists(cursor, TABLE_OPORTUNIDADE, "feedback_pos_venda"):
         return True
     return not table_exists(cursor, TABLE_NOTA)
 
@@ -21,19 +21,19 @@ def ensure_negociacao_historico_schema(cursor, schema_name: str) -> bool:
     if not negociacao_historico_schema_missing(cursor):
         return False
 
-    if not column_exists(cursor, TABLE_OPORTUNIDADE, 'motivo_perda'):
+    if not column_exists(cursor, TABLE_OPORTUNIDADE, "motivo_perda"):
         cursor.execute(
             f"""
             ALTER TABLE "{schema_name}".{TABLE_OPORTUNIDADE}
             ADD COLUMN IF NOT EXISTS motivo_perda TEXT NOT NULL DEFAULT ''
-            """
+            """,
         )
-    if not column_exists(cursor, TABLE_OPORTUNIDADE, 'feedback_pos_venda'):
+    if not column_exists(cursor, TABLE_OPORTUNIDADE, "feedback_pos_venda"):
         cursor.execute(
             f"""
             ALTER TABLE "{schema_name}".{TABLE_OPORTUNIDADE}
             ADD COLUMN IF NOT EXISTS feedback_pos_venda TEXT NOT NULL DEFAULT ''
-            """
+            """,
         )
 
     if not table_exists(cursor, TABLE_NOTA):
@@ -49,19 +49,19 @@ def ensure_negociacao_historico_schema(cursor, schema_name: str) -> bool:
                 oportunidade_id BIGINT NOT NULL
                     REFERENCES "{schema_name}".{TABLE_OPORTUNIDADE}(id) ON DELETE CASCADE
             )
-            """
+            """,
         )
         cursor.execute(
             f"""
             CREATE INDEX IF NOT EXISTS crm_opor_nota_loja_op_idx
             ON "{schema_name}".{TABLE_NOTA} (loja_id, oportunidade_id)
-            """
+            """,
         )
         cursor.execute(
             f"""
             CREATE INDEX IF NOT EXISTS crm_opor_nota_loja_dt_idx
             ON "{schema_name}".{TABLE_NOTA} (loja_id, created_at)
-            """
+            """,
         )
 
     cursor.execute(

@@ -11,18 +11,18 @@ def add_conta_column(apps, schema_editor):
         cursor.execute(
             "ALTER TABLE crm_vendas_atividade "
             "ADD COLUMN IF NOT EXISTS conta_id BIGINT NULL "
-            "REFERENCES crm_vendas_conta(id) ON DELETE CASCADE;"
+            "REFERENCES crm_vendas_conta(id) ON DELETE CASCADE;",
         )
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS crm_ativ_loja_conta_idx "
-            "ON crm_vendas_atividade (loja_id, conta_id);"
+            "ON crm_vendas_atividade (loja_id, conta_id);",
         )
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0055_produtoservico_recorrencia'),
+        ("crm_vendas", "0055_produtoservico_recorrencia"),
     ]
 
     operations = [

@@ -5,85 +5,85 @@ from pathlib import Path
 
 from decouple import config
 
-_settings_logger = logging.getLogger('django.setup')
+_settings_logger = logging.getLogger("django.setup")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DEBUG = config('DEBUG', default=True, cast=bool)
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-change-in-production-12345')
-if not DEBUG and 'insecure' in SECRET_KEY:
+DEBUG = config("DEBUG", default=True, cast=bool)
+SECRET_KEY = config("SECRET_KEY", default="django-insecure-dev-key-change-in-production-12345")
+if not DEBUG and "insecure" in SECRET_KEY:
     raise ValueError("SEGURANÇA: SECRET_KEY de produção não pode conter valor default inseguro. Defina SECRET_KEY no ambiente.")
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
-    'drf_spectacular',
-    'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',  # 🔐 SEGURANÇA: Blacklist para invalidar tokens
-    'corsheaders',
-    'django_q',  # ✅ Task queue para jobs agendados
-    'core',  # App base com modelos abstratos
-    'stores',
-    'products',
-    'suporte',  # App de suporte/chamados
-    'tenants',  # App de gerenciamento de tenants
-    'superadmin',  # App de super admin
-    'asaas_integration',  # App de integração com Asaas
-    'nfse_integration.apps.NfseIntegrationConfig',  # App de integração NFS-e (ISSNet, API Nacional, etc)
-    'hotel.apps.HotelConfig',  # App de hotelaria (Hotel / Pousada)
-    'clinica_beleza.apps.ClinicaBelezaConfig',  # App de clínica da beleza
-    'notificacoes.apps.NotificacoesConfig',  # Base de notificações (in-app, push, email, etc.)
-    'push.apps.PushConfig',  # Push notifications (VAPID)
-    'whatsapp.apps.WhatsappConfig',  # WhatsApp oficial (Meta Cloud API) - ETAPA 4
-    'rules.apps.RulesConfig',  # Motor de regras automáticas - ETAPA 5
-    'crm_vendas.apps.CrmVendasConfig',  # CRM Vendas (Leads, Oportunidades, Pipeline)
-    'homepage.apps.HomepageConfig',  # Homepage configurável (hero, funcionalidades, módulos)
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "rest_framework",
+    "drf_spectacular",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",  # 🔐 SEGURANÇA: Blacklist para invalidar tokens
+    "corsheaders",
+    "django_q",  # ✅ Task queue para jobs agendados
+    "core",  # App base com modelos abstratos
+    "stores",
+    "products",
+    "suporte",  # App de suporte/chamados
+    "tenants",  # App de gerenciamento de tenants
+    "superadmin",  # App de super admin
+    "asaas_integration",  # App de integração com Asaas
+    "nfse_integration.apps.NfseIntegrationConfig",  # App de integração NFS-e (ISSNet, API Nacional, etc)
+    "hotel.apps.HotelConfig",  # App de hotelaria (Hotel / Pousada)
+    "clinica_beleza.apps.ClinicaBelezaConfig",  # App de clínica da beleza
+    "notificacoes.apps.NotificacoesConfig",  # Base de notificações (in-app, push, email, etc.)
+    "push.apps.PushConfig",  # Push notifications (VAPID)
+    "whatsapp.apps.WhatsappConfig",  # WhatsApp oficial (Meta Cloud API) - ETAPA 4
+    "rules.apps.RulesConfig",  # Motor de regras automáticas - ETAPA 5
+    "crm_vendas.apps.CrmVendasConfig",  # CRM Vendas (Leads, Oportunidades, Pipeline)
+    "homepage.apps.HomepageConfig",  # Homepage configurável (hero, funcionalidades, módulos)
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.gzip.GZipMiddleware',  # ✅ OTIMIZAÇÃO: Compressão de resposta
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',  # ✅ DEVE VIR ANTES do SecurityIsolationMiddleware
-    'config.security_middleware.SecurityIsolationMiddleware',  # ✅ MOVIDO PARA DEPOIS do AuthenticationMiddleware
-    'superadmin.middleware.inadimplencia.LojaInadimplenciaMiddleware',
-    'core.mixins.LojaContextMiddleware',
-    'tenants.middleware.TenantMiddleware',
-    'core.middleware.no_cache_api.NoCacheAPIMiddleware',  # ✅ v1375: Prevenir cache de APIs
-    'superadmin.historico_middleware.HistoricoAcessoMiddleware',  # ✅ Histórico de acessos
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.gzip.GZipMiddleware",  # ✅ OTIMIZAÇÃO: Compressão de resposta
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",  # ✅ DEVE VIR ANTES do SecurityIsolationMiddleware
+    "config.security_middleware.SecurityIsolationMiddleware",  # ✅ MOVIDO PARA DEPOIS do AuthenticationMiddleware
+    "superadmin.middleware.inadimplencia.LojaInadimplenciaMiddleware",
+    "core.mixins.LojaContextMiddleware",
+    "tenants.middleware.TenantMiddleware",
+    "core.middleware.no_cache_api.NoCacheAPIMiddleware",  # ✅ v1375: Prevenir cache de APIs
+    "superadmin.historico_middleware.HistoricoAcessoMiddleware",  # ✅ Histórico de acessos
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'config.wsgi.application'
+WSGI_APPLICATION = "config.wsgi.application"
 
 # ============================================
 # CONFIGURAÇÃO MULTI-DATABASE (3 BANCOS ISOLADOS)
@@ -94,75 +94,75 @@ import dj_database_url
 # Configuração padrão para desenvolvimento (SQLite)
 DATABASES = {
     # BANCO 1: Super Admin (default) - Gerencia tudo
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db_superadmin.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db_superadmin.sqlite3",
         # ✅ OTIMIZAÇÃO: Connection pooling
-        'CONN_MAX_AGE': 600,  # Reutilizar conexões por 10 minutos
-        'ATOMIC_REQUESTS': False,
-        'OPTIONS': {
-            'timeout': 20,
-            'check_same_thread': False,
-        }
+        "CONN_MAX_AGE": 600,  # Reutilizar conexões por 10 minutos
+        "ATOMIC_REQUESTS": False,
+        "OPTIONS": {
+            "timeout": 20,
+            "check_same_thread": False,
+        },
     },
-    
+
     # BANCO 2: Suporte - Sistema de chamados/tickets
-    'suporte': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db_suporte.sqlite3',
+    "suporte": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db_suporte.sqlite3",
         # ✅ OTIMIZAÇÃO: Connection pooling
-        'CONN_MAX_AGE': 600,
-        'OPTIONS': {
-            'timeout': 20,
-            'check_same_thread': False,
-        }
+        "CONN_MAX_AGE": 600,
+        "OPTIONS": {
+            "timeout": 20,
+            "check_same_thread": False,
+        },
     },
-    
+
     # BANCO 3: Template para lojas (será clonado para cada loja)
-    'loja_template': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db_loja_template.sqlite3',
+    "loja_template": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db_loja_template.sqlite3",
         # ✅ OTIMIZAÇÃO: Connection pooling
-        'CONN_MAX_AGE': 600,
-        'OPTIONS': {
-            'timeout': 20,
-            'check_same_thread': False,
-        }
+        "CONN_MAX_AGE": 600,
+        "OPTIONS": {
+            "timeout": 20,
+            "check_same_thread": False,
+        },
     },
-    
+
     # Bancos das lojas existentes
-    'loja_loja-tech': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db_loja_loja-tech.sqlite3',
-        'CONN_MAX_AGE': 600,
-        'OPTIONS': {
-            'timeout': 20,
-            'check_same_thread': False,
-        }
+    "loja_loja-tech": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db_loja_loja-tech.sqlite3",
+        "CONN_MAX_AGE": 600,
+        "OPTIONS": {
+            "timeout": 20,
+            "check_same_thread": False,
+        },
     },
-    'loja_moda-store': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db_loja_moda-store.sqlite3',
-        'CONN_MAX_AGE': 600,
-        'OPTIONS': {
-            'timeout': 20,
-            'check_same_thread': False,
-        }
+    "loja_moda-store": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db_loja_moda-store.sqlite3",
+        "CONN_MAX_AGE": 600,
+        "OPTIONS": {
+            "timeout": 20,
+            "check_same_thread": False,
+        },
     },
 }
 
 # ✅ CORREÇÃO v895: Configuração PostgreSQL para Produção (Heroku)
 # Sobrescrever 'default' e 'suporte' se DATABASE_URL estiver presente
-if 'DATABASE_URL' in os.environ:
-    DATABASE_URL = os.environ['DATABASE_URL']
+if "DATABASE_URL" in os.environ:
+    DATABASE_URL = os.environ["DATABASE_URL"]
     # Postgres interno Railway (*.railway.internal) não usa TLS como o Heroku; ssl exigido quebra a conexão.
-    _ssl_env = os.environ.get('DATABASE_SSL_REQUIRE', '').strip().lower()
-    if _ssl_env in ('true', '1', 'yes'):
+    _ssl_env = os.environ.get("DATABASE_SSL_REQUIRE", "").strip().lower()
+    if _ssl_env in ("true", "1", "yes"):
         _ssl_require = True
-    elif _ssl_env in ('false', '0', 'no'):
+    elif _ssl_env in ("false", "0", "no"):
         _ssl_require = False
     else:
-        _ssl_require = 'railway.internal' not in DATABASE_URL.lower()
+        _ssl_require = "railway.internal" not in DATABASE_URL.lower()
 
     default_db_config = dj_database_url.config(
         default=DATABASE_URL,
@@ -170,195 +170,195 @@ if 'DATABASE_URL' in os.environ:
         ssl_require=_ssl_require,
         conn_health_checks=True,
     )
-    
+
     # Configurar PostgreSQL com timeouts otimizados
-    DATABASES['default'] = {
+    DATABASES["default"] = {
         **default_db_config,
-        'OPTIONS': {
-            'connect_timeout': 10,
-            'options': '-c statement_timeout=25000',
+        "OPTIONS": {
+            "connect_timeout": 10,
+            "options": "-c statement_timeout=25000",
         },
-        'ATOMIC_REQUESTS': False,
-        'AUTOCOMMIT': True,
-        'CONN_HEALTH_CHECKS': True,
+        "ATOMIC_REQUESTS": False,
+        "AUTOCOMMIT": True,
+        "CONN_HEALTH_CHECKS": True,
     }
-    
+
     # ✅ Banco suporte: mesmo PostgreSQL, schema isolado (evita SQLite efêmero no Heroku)
-    DATABASES['suporte'] = {
+    DATABASES["suporte"] = {
         **default_db_config,
-        'OPTIONS': {
-            'connect_timeout': 10,
-            'options': '-c search_path=suporte,public',
+        "OPTIONS": {
+            "connect_timeout": 10,
+            "options": "-c search_path=suporte,public",
         },
-        'ATOMIC_REQUESTS': False,
-        'AUTOCOMMIT': True,
-        'CONN_HEALTH_CHECKS': True,
+        "ATOMIC_REQUESTS": False,
+        "AUTOCOMMIT": True,
+        "CONN_HEALTH_CHECKS": True,
     }
-    
+
     _settings_logger.info("PostgreSQL configurado: default connect_timeout=10s, statement_timeout=25s; suporte schema isolado")
 
 # Database Router para isolamento
-DATABASE_ROUTERS = ['config.db_router.MultiTenantRouter']
+DATABASE_ROUTERS = ["config.db_router.MultiTenantRouter"]
 
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LANGUAGE_CODE = 'pt-br'
-TIME_ZONE = 'America/Sao_Paulo'
+LANGUAGE_CODE = "pt-br"
+TIME_ZONE = "America/Sao_Paulo"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-_disable_manifest = os.environ.get('DISABLE_STATICFILES_MANIFEST', '').lower() in ('true', '1', 'yes')
-_manifest_exists = (STATIC_ROOT / 'staticfiles.json').exists()
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+_disable_manifest = os.environ.get("DISABLE_STATICFILES_MANIFEST", "").lower() in ("true", "1", "yes")
+_manifest_exists = (STATIC_ROOT / "staticfiles.json").exists()
 if _disable_manifest or not _manifest_exists:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 else:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # ✅ OTIMIZAÇÃO: Whitenoise otimizado
 WHITENOISE_COMPRESS_OFFLINE = True
 WHITENOISE_MAX_AGE = 31536000  # 1 ano de cache
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ============================================
 # REDIS CACHE CONFIGURATION
 # ============================================
 
-USE_REDIS = os.environ.get('USE_REDIS', 'false').lower() == 'true'
+USE_REDIS = os.environ.get("USE_REDIS", "false").lower() == "true"
 
 if USE_REDIS:
-    REDIS_URL = os.environ.get('REDIS_URL')
+    REDIS_URL = os.environ.get("REDIS_URL")
     if REDIS_URL:
         CACHES = {
-            'default': {
-                'BACKEND': 'django_redis.cache.RedisCache',
-                'LOCATION': REDIS_URL,
-                'OPTIONS': {
-                    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                    'SOCKET_CONNECT_TIMEOUT': 5,
-                    'SOCKET_TIMEOUT': 5,
-                    'CONNECTION_POOL_KWARGS': {
-                        'max_connections': 50,
-                        'retry_on_timeout': True,
+            "default": {
+                "BACKEND": "django_redis.cache.RedisCache",
+                "LOCATION": REDIS_URL,
+                "OPTIONS": {
+                    "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                    "SOCKET_CONNECT_TIMEOUT": 5,
+                    "SOCKET_TIMEOUT": 5,
+                    "CONNECTION_POOL_KWARGS": {
+                        "max_connections": 50,
+                        "retry_on_timeout": True,
                     },
                 },
-                'KEY_PREFIX': 'lwk',
-                'TIMEOUT': 300,  # 5 minutos padrão
-            }
+                "KEY_PREFIX": "lwk",
+                "TIMEOUT": 300,  # 5 minutos padrão
+            },
         }
         _settings_logger.info("Redis cache ativado: %s...", REDIS_URL[:30])
     else:
         _settings_logger.warning("USE_REDIS=true mas REDIS_URL não encontrado")
         # Fallback para LocMemCache
         CACHES = {
-            'default': {
-                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-                'LOCATION': 'lwk-cache',
-                'OPTIONS': {
-                    'MAX_ENTRIES': 10000,
-                }
-            }
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                "LOCATION": "lwk-cache",
+                "OPTIONS": {
+                    "MAX_ENTRIES": 10000,
+                },
+            },
         }
 else:
     # ✅ CACHE: Usando cache local em memória
     CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'lwk-cache',
-            'OPTIONS': {
-                'MAX_ENTRIES': 10000,
-            }
-        }
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "lwk-cache",
+            "OPTIONS": {
+                "MAX_ENTRIES": 10000,
+            },
+        },
     }
     _settings_logger.info("Redis cache desativado (USE_REDIS=false)")
 
 # ✅ OTIMIZAÇÃO: GZip compression
 GZIP_COMPRESSIBLE_TYPES = [
-    'text/html',
-    'text/css',
-    'text/javascript',
-    'application/javascript',
-    'application/json',
+    "text/html",
+    "text/css",
+    "text/javascript",
+    "application/javascript",
+    "application/json",
 ]
 
 # REST Framework
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'superadmin.authentication.SessionAwareJWTAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "superadmin.authentication.SessionAwareJWTAuthentication",
     ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
     ],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     # Paginação otimizada para 40 lojas
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 50,
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 50,
     # Throttling otimizado para 500 usuários simultâneos
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
     ],
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',
-        'user': '10000/hour',  # 166 req/min = 2.7 req/seg por usuário (suporta 500 usuários)
-        'public_loja_create': '5/hour',
-        'public_loja_lookup': '20/hour',
-        'auth_login': '20/minute',
-        'password_reset': '3/hour',
-    }
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/hour",
+        "user": "10000/hour",  # 166 req/min = 2.7 req/seg por usuário (suporta 500 usuários)
+        "public_loja_create": "5/hour",
+        "public_loja_lookup": "20/hour",
+        "auth_login": "20/minute",
+        "password_reset": "3/hour",
+    },
 }
 
 # OpenAPI: expor schema apenas em DEBUG ou com flag explícita
-SERVE_API_SCHEMA = config('SERVE_API_SCHEMA', default=DEBUG, cast=bool)
+SERVE_API_SCHEMA = config("SERVE_API_SCHEMA", default=DEBUG, cast=bool)
 
 # Webhooks — tokens configurados no painel Asaas / Mercado Pago
-WEBHOOK_STRICT_VERIFY = config('WEBHOOK_STRICT_VERIFY', default=not DEBUG, cast=bool)
-ASAAS_WEBHOOK_TOKEN = config('ASAAS_WEBHOOK_TOKEN', default='').strip()
-ASAAS_LOJA_WEBHOOK_TOKEN = config('ASAAS_LOJA_WEBHOOK_TOKEN', default='').strip()
-MERCADOPAGO_WEBHOOK_SECRET = config('MERCADOPAGO_WEBHOOK_SECRET', default='').strip()
+WEBHOOK_STRICT_VERIFY = config("WEBHOOK_STRICT_VERIFY", default=not DEBUG, cast=bool)
+ASAAS_WEBHOOK_TOKEN = config("ASAAS_WEBHOOK_TOKEN", default="").strip()
+ASAAS_LOJA_WEBHOOK_TOKEN = config("ASAAS_LOJA_WEBHOOK_TOKEN", default="").strip()
+MERCADOPAGO_WEBHOOK_SECRET = config("MERCADOPAGO_WEBHOOK_SECRET", default="").strip()
 
-JWT_USE_HTTPONLY_COOKIES = config('JWT_USE_HTTPONLY_COOKIES', default=False, cast=bool)
-JWT_COOKIE_DOMAIN = config('JWT_COOKIE_DOMAIN', default='').strip() or None
+JWT_USE_HTTPONLY_COOKIES = config("JWT_USE_HTTPONLY_COOKIES", default=False, cast=bool)
+JWT_COOKIE_DOMAIN = config("JWT_COOKIE_DOMAIN", default="").strip() or None
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = True
 
-MFA_TOTP_ISSUER = config('MFA_TOTP_ISSUER', default='LWK Sistemas')
-MFA_ENFORCE_TYPES = config('MFA_ENFORCE_TYPES', default='')  # ex: superadmin,suporte
+MFA_TOTP_ISSUER = config("MFA_TOTP_ISSUER", default="LWK Sistemas")
+MFA_ENFORCE_TYPES = config("MFA_ENFORCE_TYPES", default="")  # ex: superadmin,suporte
 
 # Criptografia de campos (MFA backup, TOTP, ISSNet). Preferir chave dedicada em produção.
-FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='').strip()
+FIELD_ENCRYPTION_KEY = config("FIELD_ENCRYPTION_KEY", default="").strip()
 # Em produção (DEBUG=False), falha o boot se superadmin/auth/contenttypes tiverem migrate pendente
-MIGRATION_GUARD_STRICT = config('MIGRATION_GUARD_STRICT', default=not DEBUG, cast=bool)
+MIGRATION_GUARD_STRICT = config("MIGRATION_GUARD_STRICT", default=not DEBUG, cast=bool)
 
 # drf-spectacular (OpenAPI / Swagger)
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'LWK Sistemas API',
-    'DESCRIPTION': 'API Multi-Tenant para gestão de lojas (superadmin, suporte, clinica-beleza, crm-vendas, hotel).',
-    'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
+    "TITLE": "LWK Sistemas API",
+    "DESCRIPTION": "API Multi-Tenant para gestão de lojas (superadmin, suporte, clinica-beleza, crm-vendas, hotel).",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 # JWT Settings
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Access token curto (renovado pelo refresh)
-    'REFRESH_TOKEN_LIFETIME': timedelta(hours=2),    # Sessão expira após 2h de inatividade
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),  # Access token curto (renovado pelo refresh)
+    "REFRESH_TOKEN_LIFETIME": timedelta(hours=2),    # Sessão expira após 2h de inatividade
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 # CORS
 CORS_ALLOWED_ORIGINS = config(
-    'CORS_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000'
-).split(',')
+    "CORS_ORIGINS",
+    default="http://localhost:3000,http://127.0.0.1:3000",
+).split(",")
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False  # Nunca permitir todas as origens
 
@@ -366,8 +366,8 @@ CORS_ALLOW_ALL_ORIGINS = False  # Nunca permitir todas as origens
 CORS_ALLOWED_ORIGIN_REGEXES = []
 if DEBUG:
     CORS_ALLOWED_ORIGIN_REGEXES = [
-        r'^http://192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$',
-        r'^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$',
+        r"^http://192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$",
+        r"^http://10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$",
     ]
 
 # ✅ OTIMIZAÇÃO v663: Cache de preflight CORS por 24h
@@ -376,132 +376,132 @@ CORS_PREFLIGHT_MAX_AGE = 86400  # 24 horas em segundos
 
 # Permitir headers customizados X-Loja-ID e X-Tenant-Slug
 CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-    'x-loja-id',  # ✅ Header customizado com ID único da loja
-    'x-tenant-slug',  # ✅ Header customizado com slug da loja (fallback quando não tem ID)
-    'x-session-id',  # ✅ Header para validação de sessão única (bloqueio simultâneo)
-    'cache-control',  # ✅ v1377: Permitir header de cache do service worker
-    'pragma',  # ✅ v1377: Permitir header de cache do service worker
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-loja-id",  # ✅ Header customizado com ID único da loja
+    "x-tenant-slug",  # ✅ Header customizado com slug da loja (fallback quando não tem ID)
+    "x-session-id",  # ✅ Header para validação de sessão única (bloqueio simultâneo)
+    "cache-control",  # ✅ v1377: Permitir header de cache do service worker
+    "pragma",  # ✅ v1377: Permitir header de cache do service worker
 ]
 
 # Expor headers customizados para o frontend
 CORS_EXPOSE_HEADERS = [
-    'content-type',
-    'x-loja-id',
-    'x-tenant-slug',
+    "content-type",
+    "x-loja-id",
+    "x-tenant-slug",
 ]
 
 # Permitir métodos HTTP
 CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
 ]
 # Email Settings (dev: console; prod: ver settings_production — Resend ou Gmail)
-RESEND_API_KEY = config('RESEND_API_KEY', default='').strip()
-EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
-EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+RESEND_API_KEY = config("RESEND_API_KEY", default="").strip()
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 if RESEND_API_KEY:
-    EMAIL_HOST = config('EMAIL_HOST', default='smtp.resend.com')
-    EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='resend')
+    EMAIL_HOST = config("EMAIL_HOST", default="smtp.resend.com")
+    EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="resend")
     EMAIL_HOST_PASSWORD = RESEND_API_KEY
     DEFAULT_FROM_EMAIL = config(
-        'DEFAULT_FROM_EMAIL',
-        default='LWK Sistemas <noreply@lwksistemas.com.br>',
+        "DEFAULT_FROM_EMAIL",
+        default="LWK Sistemas <noreply@lwksistemas.com.br>",
     )
 else:
-    EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
-    EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-    EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-    _dev_from = EMAIL_HOST_USER or 'noreply@lwksistemas.com.br'
+    EMAIL_HOST = config("EMAIL_HOST", default="smtp.gmail.com")
+    EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+    EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+    _dev_from = EMAIL_HOST_USER or "noreply@lwksistemas.com.br"
     DEFAULT_FROM_EMAIL = config(
-        'DEFAULT_FROM_EMAIL',
-        default=f'LWK Sistemas <{_dev_from}>',
+        "DEFAULT_FROM_EMAIL",
+        default=f"LWK Sistemas <{_dev_from}>",
     )
-DEFAULT_REPLY_TO = config('DEFAULT_REPLY_TO', default='contato@lwksistemas.com.br')
+DEFAULT_REPLY_TO = config("DEFAULT_REPLY_TO", default="contato@lwksistemas.com.br")
 
 # Para desenvolvimento, usar console backend (mostra emails no terminal)
 if DEBUG:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Configurações de Notificações de Segurança
 SECURITY_NOTIFICATION_EMAILS = config(
-    'SECURITY_NOTIFICATION_EMAILS',
-    default='',
-    cast=lambda v: [email.strip() for email in v.split(',') if email.strip()]
+    "SECURITY_NOTIFICATION_EMAILS",
+    default="",
+    cast=lambda v: [email.strip() for email in v.split(",") if email.strip()],
 )
-SITE_URL = config('SITE_URL', default='http://localhost:3000')
+SITE_URL = config("SITE_URL", default="http://localhost:3000")
 
 # Nota Fiscal Asaas (emissão ao confirmar pagamento da assinatura)
 # Serviço municipal conforme configuração da prefeitura da conta LWK no Asaas
 # ✅ CORREÇÃO v1317: Usar os.environ.get() diretamente para evitar problema com python-decouple
-ASAAS_INVOICE_SERVICE_CODE = os.environ.get('ASAAS_INVOICE_SERVICE_CODE', '01.07')
-ASAAS_INVOICE_SERVICE_NAME = os.environ.get('ASAAS_INVOICE_SERVICE_NAME', 'Software sob demanda / Assinatura de sistema')
-ASAAS_INVOICE_SERVICE_ID = os.environ.get('ASAAS_INVOICE_SERVICE_ID', '')
+ASAAS_INVOICE_SERVICE_CODE = os.environ.get("ASAAS_INVOICE_SERVICE_CODE", "01.07")
+ASAAS_INVOICE_SERVICE_NAME = os.environ.get("ASAAS_INVOICE_SERVICE_NAME", "Software sob demanda / Assinatura de sistema")
+ASAAS_INVOICE_SERVICE_ID = os.environ.get("ASAAS_INVOICE_SERVICE_ID", "")
 
 # ============================================
 # MEMED — Prescrição digital (Clínica da Beleza)
 # Receituário e exames. api-key/secret-key ficam no servidor; o frontend recebe
 # apenas o token do prescritor. Docs: https://doc.memed.com.br/docs/backend-api
 # ============================================
-MEMED_API_KEY = os.environ.get('MEMED_API_KEY', '')
-MEMED_SECRET_KEY = os.environ.get('MEMED_SECRET_KEY', '')
+MEMED_API_KEY = os.environ.get("MEMED_API_KEY", "")
+MEMED_SECRET_KEY = os.environ.get("MEMED_SECRET_KEY", "")
 # 'integration' (sandbox/homologação) ou 'production'
-MEMED_ENVIRONMENT = os.environ.get('MEMED_ENVIRONMENT', 'integration')
+MEMED_ENVIRONMENT = os.environ.get("MEMED_ENVIRONMENT", "integration")
 # Prescritor padrão (CPF, external_id ou registro+UF, ex.: '12345SP') quando o
 # profissional não tiver registro_profissional cadastrado. Útil para testes.
-MEMED_PRESCRITOR_ID = os.environ.get('MEMED_PRESCRITOR_ID', '')
+MEMED_PRESCRITOR_ID = os.environ.get("MEMED_PRESCRITOR_ID", "")
 # UF usada junto ao registro profissional (CRM) para identificar o prescritor.
-MEMED_DEFAULT_UF = os.environ.get('MEMED_DEFAULT_UF', '')
+MEMED_DEFAULT_UF = os.environ.get("MEMED_DEFAULT_UF", "")
 # Chaves específicas de PRODUÇÃO. Quando MEMED_ENVIRONMENT=production e estas
 # estiverem preenchidas, têm prioridade sobre as genéricas acima (que ficam para
 # homologação/sandbox). Se vazias, faz fallback para MEMED_API_KEY/SECRET_KEY.
-MEMED_API_KEY_PROD = os.environ.get('MEMED_API_KEY_PROD', '')
-MEMED_SECRET_KEY_PROD = os.environ.get('MEMED_SECRET_KEY_PROD', '')
-MEMED_PRESCRITOR_ID_PROD = os.environ.get('MEMED_PRESCRITOR_ID_PROD', '')
+MEMED_API_KEY_PROD = os.environ.get("MEMED_API_KEY_PROD", "")
+MEMED_SECRET_KEY_PROD = os.environ.get("MEMED_SECRET_KEY_PROD", "")
+MEMED_PRESCRITOR_ID_PROD = os.environ.get("MEMED_PRESCRITOR_ID_PROD", "")
 # Auto-cadastro do prescritor na Memed ao salvar um profissional (POST de usuário).
 # O endpoint de criação não está na doc pública da Memed — ative só depois de confirmar
 # com o suporte de parceiros que sua conta tem permissão para criar prescritores via API.
-MEMED_AUTO_CADASTRO = os.environ.get('MEMED_AUTO_CADASTRO', 'false').strip().lower() in ('1', 'true', 'yes', 'on')
+MEMED_AUTO_CADASTRO = os.environ.get("MEMED_AUTO_CADASTRO", "false").strip().lower() in ("1", "true", "yes", "on")
 
 # ============================================
 # DJANGO-Q CONFIGURATION (Task Queue)
 # ============================================
 from core.q_cluster_settings import build_q_cluster
 
-_redis_url_dev = os.environ.get('REDIS_URL') if USE_REDIS else None
-USE_TASK_QUEUE = os.environ.get('USE_TASK_QUEUE', 'false').lower() in ('true', '1', 'yes')
+_redis_url_dev = os.environ.get("REDIS_URL") if USE_REDIS else None
+USE_TASK_QUEUE = os.environ.get("USE_TASK_QUEUE", "false").lower() in ("true", "1", "yes")
 Q_CLUSTER = build_q_cluster(
-    workers=int(os.environ.get('DJANGO_Q_WORKERS', '2')),
+    workers=int(os.environ.get("DJANGO_Q_WORKERS", "2")),
     redis_url=_redis_url_dev if USE_TASK_QUEUE else None,
 )
 
 # Push Notifications (VAPID) - chave privada no backend; chave pública no frontend (NEXT_PUBLIC_VAPID_PUBLIC_KEY)
-VAPID_PRIVATE_KEY = config('VAPID_PRIVATE_KEY', default='')
-VAPID_CLAIM_MAILTO = config('VAPID_CLAIM_MAILTO', default='mailto:admin@lwksistemas.com.br')
+VAPID_PRIVATE_KEY = config("VAPID_PRIVATE_KEY", default="")
+VAPID_CLAIM_MAILTO = config("VAPID_CLAIM_MAILTO", default="mailto:admin@lwksistemas.com.br")
 
 # WhatsApp oficial (Meta Cloud API) - ETAPA 4
-WHATSAPP_API_URL = config('WHATSAPP_API_URL', default='https://graph.facebook.com/v19.0')
-WHATSAPP_PHONE_ID = config('WHATSAPP_PHONE_ID', default='')
-WHATSAPP_TOKEN = config('WHATSAPP_TOKEN', default='')
+WHATSAPP_API_URL = config("WHATSAPP_API_URL", default="https://graph.facebook.com/v19.0")
+WHATSAPP_PHONE_ID = config("WHATSAPP_PHONE_ID", default="")
+WHATSAPP_TOKEN = config("WHATSAPP_TOKEN", default="")
 
 # WhatsApp Web (Evolution API) — opcional; uma instância por loja
-EVOLUTION_API_URL = config('EVOLUTION_API_URL', default='')
-EVOLUTION_API_KEY = config('EVOLUTION_API_KEY', default='')
+EVOLUTION_API_URL = config("EVOLUTION_API_URL", default="")
+EVOLUTION_API_KEY = config("EVOLUTION_API_KEY", default="")
 
 # Google Calendar (OAuth2 + API) - CRM Vendas
-GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
-GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')
-FRONTEND_URL = config('FRONTEND_URL', default='https://lwksistemas.com.br')  # Base URL do front (redirect pós-OAuth)
+GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
+GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET", default="")
+FRONTEND_URL = config("FRONTEND_URL", default="https://lwksistemas.com.br")  # Base URL do front (redirect pós-OAuth)

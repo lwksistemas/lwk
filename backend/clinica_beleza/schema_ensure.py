@@ -1,5 +1,4 @@
-"""
-Utilitários compartilhados para comandos ensure_* (schemas multi-tenant).
+"""Utilitários compartilhados para comandos ensure_* (schemas multi-tenant).
 """
 import logging
 from collections.abc import Callable, Iterable
@@ -12,15 +11,15 @@ from superadmin.models import Loja
 
 logger = logging.getLogger(__name__)
 
-CONSULTA_TABLE = 'clinica_beleza_consultas'
-PRODUTO_ESTOQUE_TABLE = 'clinica_beleza_produtoestoque'
-CONSULTA_PRODUTO_TABLE = 'clinica_beleza_consultaprodutoutilizado'
-MIGRATION_CONSULTA_PRODUTO = '0034_consulta_produto_numero_nota'
-MIGRATION_RETORNO_GRATUITO = '0047_retorno_gratuito_agenda'
-MIGRATION_PATIENT_FOTO_URL = '0048_patient_foto_url'
-MIGRATION_PATIENT_ANAMNESE = '0019_consulta_anamnese_evolucao'
-PATIENT_TABLE = 'clinica_beleza_patient'
-ANAMNESE_TABLE = 'clinica_beleza_anamneses'
+CONSULTA_TABLE = "clinica_beleza_consultas"
+PRODUTO_ESTOQUE_TABLE = "clinica_beleza_produtoestoque"
+CONSULTA_PRODUTO_TABLE = "clinica_beleza_consultaprodutoutilizado"
+MIGRATION_CONSULTA_PRODUTO = "0034_consulta_produto_numero_nota"
+MIGRATION_RETORNO_GRATUITO = "0047_retorno_gratuito_agenda"
+MIGRATION_PATIENT_FOTO_URL = "0048_patient_foto_url"
+MIGRATION_PATIENT_ANAMNESE = "0019_consulta_anamnese_evolucao"
+PATIENT_TABLE = "clinica_beleza_patient"
+ANAMNESE_TABLE = "clinica_beleza_anamneses"
 
 
 def table_exists(cursor, table: str) -> bool:
@@ -47,17 +46,16 @@ def column_exists(cursor, table: str, column: str) -> bool:
 
 
 def ensure_consulta_produto_utilizado_table(cursor) -> bool:
-    """
-    Cria clinica_beleza_consultaprodutoutilizado se ausente no schema atual.
+    """Cria clinica_beleza_consultaprodutoutilizado se ausente no schema atual.
     Retorna True quando a tabela existe ou foi criada com sucesso.
     """
     if table_exists(cursor, CONSULTA_PRODUTO_TABLE):
         return True
     if not table_exists(cursor, CONSULTA_TABLE):
-        logger.warning('ensure_consulta_produto: tabela %s ausente', CONSULTA_TABLE)
+        logger.warning("ensure_consulta_produto: tabela %s ausente", CONSULTA_TABLE)
         return False
     if not table_exists(cursor, PRODUTO_ESTOQUE_TABLE):
-        logger.warning('ensure_consulta_produto: tabela %s ausente', PRODUTO_ESTOQUE_TABLE)
+        logger.warning("ensure_consulta_produto: tabela %s ausente", PRODUTO_ESTOQUE_TABLE)
         return False
 
     cursor.execute(f"""
@@ -76,8 +74,8 @@ def ensure_consulta_produto_utilizado_table(cursor) -> bool:
         )
     """)
     cursor.execute(
-        f'CREATE INDEX IF NOT EXISTS {CONSULTA_PRODUTO_TABLE}_loja_id_idx '
-        f'ON {CONSULTA_PRODUTO_TABLE} (loja_id)'
+        f"CREATE INDEX IF NOT EXISTS {CONSULTA_PRODUTO_TABLE}_loja_id_idx "
+        f"ON {CONSULTA_PRODUTO_TABLE} (loja_id)",
     )
     cursor.execute(
         """
@@ -95,11 +93,11 @@ def ensure_consulta_produto_utilizado_table(cursor) -> bool:
 
 def ensure_retorno_gratuito_tables(cursor) -> bool:
     """Cria tabelas/colunas de retorno gratuito no schema atual (IF NOT EXISTS)."""
-    if not table_exists(cursor, 'clinica_beleza_appointment'):
-        logger.warning('ensure_retorno: tabela clinica_beleza_appointment ausente')
+    if not table_exists(cursor, "clinica_beleza_appointment"):
+        logger.warning("ensure_retorno: tabela clinica_beleza_appointment ausente")
         return False
 
-    if not table_exists(cursor, 'clinica_beleza_agenda_retorno_config'):
+    if not table_exists(cursor, "clinica_beleza_agenda_retorno_config"):
         cursor.execute("""
             CREATE TABLE clinica_beleza_agenda_retorno_config (
                 id BIGSERIAL PRIMARY KEY,
@@ -113,14 +111,14 @@ def ensure_retorno_gratuito_tables(cursor) -> bool:
             )
         """)
         cursor.execute(
-            'CREATE INDEX IF NOT EXISTS clinica_beleza_agenda_retorno_config_loja_id_idx '
-            'ON clinica_beleza_agenda_retorno_config (loja_id)'
+            "CREATE INDEX IF NOT EXISTS clinica_beleza_agenda_retorno_config_loja_id_idx "
+            "ON clinica_beleza_agenda_retorno_config (loja_id)",
         )
 
-    if not table_exists(cursor, 'clinica_beleza_retorno_procedimento_regra'):
-        if not table_exists(cursor, 'clinica_beleza_procedure'):
+    if not table_exists(cursor, "clinica_beleza_retorno_procedimento_regra"):
+        if not table_exists(cursor, "clinica_beleza_procedure"):
             logger.warning(
-                'ensure_retorno: tabela clinica_beleza_procedure ausente — regras por procedimento omitidas'
+                "ensure_retorno: tabela clinica_beleza_procedure ausente — regras por procedimento omitidas",
             )
         else:
             cursor.execute("""
@@ -138,13 +136,13 @@ def ensure_retorno_gratuito_tables(cursor) -> bool:
             )
         """)
             cursor.execute(
-                'CREATE INDEX IF NOT EXISTS clinica_beleza_retorno_procedimento_regra_loja_id_idx '
-                'ON clinica_beleza_retorno_procedimento_regra (loja_id)'
+                "CREATE INDEX IF NOT EXISTS clinica_beleza_retorno_procedimento_regra_loja_id_idx "
+                "ON clinica_beleza_retorno_procedimento_regra (loja_id)",
             )
 
     if (
-        not column_exists(cursor, 'clinica_beleza_appointment', 'retorno_procedure_id')
-        and table_exists(cursor, 'clinica_beleza_procedure')
+        not column_exists(cursor, "clinica_beleza_appointment", "retorno_procedure_id")
+        and table_exists(cursor, "clinica_beleza_procedure")
     ):
         cursor.execute("""
             ALTER TABLE clinica_beleza_appointment
@@ -153,15 +151,15 @@ def ensure_retorno_gratuito_tables(cursor) -> bool:
         """)
 
     if table_exists(cursor, CONSULTA_TABLE):
-        if not column_exists(cursor, CONSULTA_TABLE, 'retorno_gratuito'):
+        if not column_exists(cursor, CONSULTA_TABLE, "retorno_gratuito"):
             cursor.execute(
-                f'ALTER TABLE {CONSULTA_TABLE} '
-                'ADD COLUMN retorno_gratuito BOOLEAN NOT NULL DEFAULT FALSE'
+                f"ALTER TABLE {CONSULTA_TABLE} "
+                "ADD COLUMN retorno_gratuito BOOLEAN NOT NULL DEFAULT FALSE",
             )
-        if not column_exists(cursor, CONSULTA_TABLE, 'retorno_tipo'):
+        if not column_exists(cursor, CONSULTA_TABLE, "retorno_tipo"):
             cursor.execute(
-                f'ALTER TABLE {CONSULTA_TABLE} '
-                "ADD COLUMN retorno_tipo VARCHAR(20) NOT NULL DEFAULT ''"
+                f"ALTER TABLE {CONSULTA_TABLE} "
+                "ADD COLUMN retorno_tipo VARCHAR(20) NOT NULL DEFAULT ''",
             )
 
     cursor.execute(
@@ -181,11 +179,11 @@ def ensure_retorno_gratuito_tables(cursor) -> bool:
 def ensure_patient_foto_url_column(cursor) -> bool:
     """Adiciona foto_url em clinica_beleza_patient se ausente no schema atual."""
     if not table_exists(cursor, PATIENT_TABLE):
-        logger.warning('ensure_patient_foto_url: tabela %s ausente', PATIENT_TABLE)
+        logger.warning("ensure_patient_foto_url: tabela %s ausente", PATIENT_TABLE)
         return False
-    if not column_exists(cursor, PATIENT_TABLE, 'foto_url'):
+    if not column_exists(cursor, PATIENT_TABLE, "foto_url"):
         cursor.execute(
-            f"ALTER TABLE {PATIENT_TABLE} ADD COLUMN foto_url VARCHAR(500) NOT NULL DEFAULT ''"
+            f"ALTER TABLE {PATIENT_TABLE} ADD COLUMN foto_url VARCHAR(500) NOT NULL DEFAULT ''",
         )
     cursor.execute(
         """
@@ -206,7 +204,7 @@ def ensure_patient_anamnese_table(cursor) -> bool:
     if table_exists(cursor, ANAMNESE_TABLE):
         return True
     if not table_exists(cursor, PATIENT_TABLE):
-        logger.warning('ensure_patient_anamnese: tabela %s ausente', PATIENT_TABLE)
+        logger.warning("ensure_patient_anamnese: tabela %s ausente", PATIENT_TABLE)
         return False
 
     cursor.execute(f"""
@@ -247,14 +245,14 @@ def ensure_patient_anamnese_for_tenant() -> bool:
     from tenants.middleware import get_current_tenant_db
 
     tenant_db = get_current_tenant_db()
-    if not tenant_db or tenant_db == 'default':
+    if not tenant_db or tenant_db == "default":
         return True
     try:
         conn = connections[tenant_db]
         with conn.cursor() as cursor:
             return ensure_patient_anamnese_table(cursor)
     except Exception as exc:
-        logger.exception('ensure_patient_anamnese_for_tenant falhou: %s', exc)
+        logger.exception("ensure_patient_anamnese_for_tenant falhou: %s", exc)
         return False
 
 
@@ -263,14 +261,14 @@ def ensure_patient_foto_url_for_tenant() -> bool:
     from tenants.middleware import get_current_tenant_db
 
     tenant_db = get_current_tenant_db()
-    if not tenant_db or tenant_db == 'default':
+    if not tenant_db or tenant_db == "default":
         return True
     try:
         conn = connections[tenant_db]
         with conn.cursor() as cursor:
             return ensure_patient_foto_url_column(cursor)
     except Exception as exc:
-        logger.exception('ensure_patient_foto_url_for_tenant falhou: %s', exc)
+        logger.exception("ensure_patient_foto_url_for_tenant falhou: %s", exc)
         return False
 
 
@@ -279,14 +277,14 @@ def ensure_retorno_gratuito_for_tenant() -> bool:
     from tenants.middleware import get_current_tenant_db
 
     tenant_db = get_current_tenant_db()
-    if not tenant_db or tenant_db == 'default':
+    if not tenant_db or tenant_db == "default":
         return True
     try:
         conn = connections[tenant_db]
         with conn.cursor() as cursor:
             return ensure_retorno_gratuito_tables(cursor)
     except Exception as exc:
-        logger.exception('ensure_retorno_gratuito_for_tenant falhou: %s', exc)
+        logger.exception("ensure_retorno_gratuito_for_tenant falhou: %s", exc)
         return False
 
 
@@ -295,24 +293,24 @@ def ensure_consulta_produto_utilizado_for_tenant() -> bool:
     from tenants.middleware import get_current_tenant_db
 
     tenant_db = get_current_tenant_db()
-    if not tenant_db or tenant_db == 'default':
+    if not tenant_db or tenant_db == "default":
         return True
     try:
         conn = connections[tenant_db]
         with conn.cursor() as cursor:
             return ensure_consulta_produto_utilizado_table(cursor)
     except Exception as exc:
-        logger.exception('ensure_consulta_produto_for_tenant falhou: %s', exc)
+        logger.exception("ensure_consulta_produto_for_tenant falhou: %s", exc)
         return False
 
 
-def iter_lojas(slug_filter: str = '') -> Iterable[Loja]:
-    slug = (slug_filter or '').strip().lower()
+def iter_lojas(slug_filter: str = "") -> Iterable[Loja]:
+    slug = (slug_filter or "").strip().lower()
     lojas = Loja.objects.filter(is_active=True, database_created=True)
     for loja in lojas:
         if slug and slug not in (
-            (loja.slug or '').lower(),
-            (getattr(loja, 'atalho', None) or '').lower(),
+            (loja.slug or "").lower(),
+            (getattr(loja, "atalho", None) or "").lower(),
         ):
             continue
         yield loja
@@ -324,8 +322,7 @@ def run_for_lojas(
     prerequisite_table: str | None = None,
     apply_fn: Callable,
 ) -> tuple[int, int]:
-    """
-    Executa apply_fn(cursor, loja) em cada loja ativa.
+    """Executa apply_fn(cursor, loja) em cada loja ativa.
     Retorna (ok_count, skip_count).
     """
     ok = skip = 0

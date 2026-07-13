@@ -26,11 +26,11 @@ from .styles import _get_styles
 from .timbrado import merge_timbrado_fundo
 
 SECOES_CONSULTA_PDF = {
-    'atendimento': 'Atendimento',
-    'produtos': 'Produtos utilizados',
-    'anamnese': 'Anamnese',
-    'evolucao': 'Evolução',
-    'evolucoes': 'Evolução',
+    "atendimento": "Atendimento",
+    "produtos": "Produtos utilizados",
+    "anamnese": "Anamnese",
+    "evolucao": "Evolução",
+    "evolucoes": "Evolução",
 }
 
 
@@ -38,7 +38,7 @@ def _finalize_pdf_bytes(loja_id: int, buffer: BytesIO) -> BytesIO:
     """Aplica papel timbrado de fundo quando configurado para a loja."""
     tipo_cab, dados_cab = _resolver_cabecalho(loja_id)
     pdf_bytes = buffer.getvalue()
-    if tipo_cab == 'timbrado':
+    if tipo_cab == "timbrado":
         pdf_bytes = merge_timbrado_fundo(pdf_bytes, dados_cab)
     out = BytesIO(pdf_bytes)
     out.seek(0)
@@ -74,8 +74,7 @@ def gerar_pdf_prescricao_memed(prescricao) -> BytesIO:
 
 
 def gerar_pdf_documento(documento) -> BytesIO:
-    """
-    Gera PDF individual de um DocumentoClinico com timbrado da clínica.
+    """Gera PDF individual de um DocumentoClinico com timbrado da clínica.
     Retorna BytesIO pronto para resposta HTTP.
     """
     styles = _get_styles()
@@ -85,57 +84,55 @@ def gerar_pdf_documento(documento) -> BytesIO:
 
 
 def gerar_pdf_consulta_secao(consulta, secao: str) -> BytesIO:
-    """
-    Gera PDF de uma seção da consulta (atendimento, produtos, anamnese, evolução).
+    """Gera PDF de uma seção da consulta (atendimento, produtos, anamnese, evolução).
     Usa logo ou papel timbrado da loja, igual aos documentos clínicos.
     """
-    secao = (secao or 'atendimento').strip().lower()
+    secao = (secao or "atendimento").strip().lower()
     if secao not in SECOES_CONSULTA_PDF:
-        raise ValueError(f'Seção inválida: {secao}')
+        raise ValueError(f"Seção inválida: {secao}")
 
-    if not consulta or not getattr(consulta, 'pk', None):
-        raise ValueError('Consulta não encontrada.')
+    if not consulta or not getattr(consulta, "pk", None):
+        raise ValueError("Consulta não encontrada.")
 
     loja_id = consulta.loja_id
     styles = _get_styles()
     titulo = SECOES_CONSULTA_PDF[secao]
     elements = _build_consulta_meta_elements(consulta, titulo, styles)
 
-    if secao == 'atendimento':
+    if secao == "atendimento":
         elements.extend(_build_atendimento_elements(consulta, styles))
-    elif secao == 'produtos':
+    elif secao == "produtos":
         produtos = list(
             ConsultaProdutoUtilizado.objects
             .filter(consulta=consulta)
-            .select_related('produto')
-            .order_by('created_at')
+            .select_related("produto")
+            .order_by("created_at"),
         )
         elements.extend(_build_produtos_consulta_elements(produtos, styles))
-    elif secao == 'anamnese':
+    elif secao == "anamnese":
         anamnese = PatientAnamnese.objects.filter(patient_id=consulta.patient_id).first()
         if anamnese:
             elements.extend(_build_anamnese_elements(anamnese, styles))
         else:
-            elements.append(Paragraph('Nenhuma anamnese registrada.', styles['DocBody']))
-    elif secao in ('evolucao', 'evolucoes'):
+            elements.append(Paragraph("Nenhuma anamnese registrada.", styles["DocBody"]))
+    elif secao in ("evolucao", "evolucoes"):
         evolucoes = list(
             ConsultaEvolucao.objects
             .filter(consulta=consulta)
-            .select_related('professional')
-            .order_by('created_at')
+            .select_related("professional")
+            .order_by("created_at"),
         )
         if evolucoes:
             for ev in evolucoes:
                 elements.extend(_build_evolucao_elements(ev, styles))
         else:
-            elements.append(Paragraph('Nenhuma evolução registrada nesta consulta.', styles['DocBody']))
+            elements.append(Paragraph("Nenhuma evolução registrada nesta consulta.", styles["DocBody"]))
 
     return _build_pdf(loja_id, elements)
 
 
 def gerar_pdf_secao(patient_id: int, secao: str) -> BytesIO:
-    """
-    Gera PDF com todos os documentos de uma seção do prontuário.
+    """Gera PDF com todos os documentos de uma seção do prontuário.
     Retorna BytesIO pronto para resposta HTTP.
     """
     from .documento_service import listar_prontuario_paciente
@@ -146,7 +143,7 @@ def gerar_pdf_secao(patient_id: int, secao: str) -> BytesIO:
     # Obter paciente para resolver loja_id
     patient = Patient.objects.filter(id=patient_id).first()
     if not patient:
-        raise ValueError(f'Paciente {patient_id} não encontrado.')
+        raise ValueError(f"Paciente {patient_id} não encontrado.")
 
     loja_id = patient.loja_id
 
@@ -166,37 +163,37 @@ def gerar_pdf_secao(patient_id: int, secao: str) -> BytesIO:
 
     # Título da seção
     secao_titles = {
-        'receituario': 'Receituário',
-        'pedido_exame': 'Pedidos de Exame',
-        'atestado': 'Atestados',
-        'documento_personalizado': 'Atendimento',
-        'anamnese': 'Anamnese',
-        'evolucao': 'Evolução',
+        "receituario": "Receituário",
+        "pedido_exame": "Pedidos de Exame",
+        "atestado": "Atestados",
+        "documento_personalizado": "Atendimento",
+        "anamnese": "Anamnese",
+        "evolucao": "Evolução",
     }
     titulo_secao = secao_titles.get(secao, secao.capitalize())
     elements.append(Paragraph(
-        f'Prontuário — {patient.nome}',
-        styles['SectionTitle'],
+        f"Prontuário — {patient.nome}",
+        styles["SectionTitle"],
     ))
-    elements.append(Paragraph(titulo_secao, styles['DocTitle']))
+    elements.append(Paragraph(titulo_secao, styles["DocTitle"]))
     elements.append(Spacer(1, 4 * mm))
 
     # Dados da seção
     prontuario = listar_prontuario_paciente(patient_id, secao=secao)
     dados = prontuario.get(secao)
 
-    if secao == 'anamnese':
+    if secao == "anamnese":
         if dados:
             elements.extend(_build_anamnese_elements(dados, styles))
         else:
-            elements.append(Paragraph('Nenhuma anamnese registrada.', styles['DocBody']))
-    elif secao == 'evolucao':
+            elements.append(Paragraph("Nenhuma anamnese registrada.", styles["DocBody"]))
+    elif secao == "evolucao":
         if dados:
             for evolucao in dados:
                 elements.extend(_build_evolucao_elements(evolucao, styles))
         else:
-            elements.append(Paragraph('Nenhuma evolução registrada.', styles['DocBody']))
-    elif secao == 'receituario':
+            elements.append(Paragraph("Nenhuma evolução registrada.", styles["DocBody"]))
+    elif secao == "receituario":
         if dados:
             from ..models import PrescricaoMemed
             for item in dados:
@@ -206,15 +203,14 @@ def gerar_pdf_secao(patient_id: int, secao: str) -> BytesIO:
                     elements.extend(_build_documento_elements(item, styles))
                     elements.append(Spacer(1, 4 * mm))
         else:
-            elements.append(Paragraph('Nenhum receituário registrado.', styles['DocBody']))
+            elements.append(Paragraph("Nenhum receituário registrado.", styles["DocBody"]))
+    # pedido_exame, atestado, atendimento
+    elif dados:
+        for doc_item in dados:
+            elements.extend(_build_documento_elements(doc_item, styles))
+            elements.append(Spacer(1, 4 * mm))
     else:
-        # pedido_exame, atestado, atendimento
-        if dados:
-            for doc_item in dados:
-                elements.extend(_build_documento_elements(doc_item, styles))
-                elements.append(Spacer(1, 4 * mm))
-        else:
-            elements.append(Paragraph('Nenhum documento registrado nesta seção.', styles['DocBody']))
+        elements.append(Paragraph("Nenhum documento registrado nesta seção.", styles["DocBody"]))
 
     doc.build(elements)
     buffer.seek(0)
@@ -222,8 +218,7 @@ def gerar_pdf_secao(patient_id: int, secao: str) -> BytesIO:
 
 
 def gerar_pdf_prontuario_completo(patient_id: int) -> BytesIO:
-    """
-    Gera PDF com prontuário completo (todas as seções).
+    """Gera PDF com prontuário completo (todas as seções).
     Retorna BytesIO pronto para resposta HTTP.
     """
     from ..models import PrescricaoMemed
@@ -235,7 +230,7 @@ def gerar_pdf_prontuario_completo(patient_id: int) -> BytesIO:
     # Obter paciente para resolver loja_id
     patient = Patient.objects.filter(id=patient_id).first()
     if not patient:
-        raise ValueError(f'Paciente {patient_id} não encontrado.')
+        raise ValueError(f"Paciente {patient_id} não encontrado.")
 
     loja_id = patient.loja_id
 
@@ -255,8 +250,8 @@ def gerar_pdf_prontuario_completo(patient_id: int) -> BytesIO:
 
     # Título do prontuário
     elements.append(Paragraph(
-        f'Prontuário Completo — {patient.nome}',
-        styles['SectionTitle'],
+        f"Prontuário Completo — {patient.nome}",
+        styles["SectionTitle"],
     ))
     elements.append(Spacer(1, 4 * mm))
 
@@ -264,34 +259,34 @@ def gerar_pdf_prontuario_completo(patient_id: int) -> BytesIO:
     prontuario = listar_prontuario_paciente(patient_id)
 
     secoes_ordem = [
-        ('anamnese', 'Anamnese'),
-        ('receituario', 'Receituário'),
-        ('pedido_exame', 'Pedidos de Exame'),
-        ('atestado', 'Atestados'),
-        ('documento_personalizado', 'Atendimento'),
-        ('evolucao', 'Evolução'),
+        ("anamnese", "Anamnese"),
+        ("receituario", "Receituário"),
+        ("pedido_exame", "Pedidos de Exame"),
+        ("atestado", "Atestados"),
+        ("documento_personalizado", "Atendimento"),
+        ("evolucao", "Evolução"),
     ]
 
     for secao_key, secao_titulo in secoes_ordem:
         dados = prontuario.get(secao_key)
 
         # Título da seção
-        elements.append(Paragraph(secao_titulo, styles['SectionTitle']))
+        elements.append(Paragraph(secao_titulo, styles["SectionTitle"]))
 
-        if secao_key == 'anamnese':
+        if secao_key == "anamnese":
             if dados:
                 elements.extend(_build_anamnese_elements(dados, styles))
             else:
-                elements.append(Paragraph('Nenhuma anamnese registrada.', styles['DocBody']))
+                elements.append(Paragraph("Nenhuma anamnese registrada.", styles["DocBody"]))
 
-        elif secao_key == 'evolucao':
+        elif secao_key == "evolucao":
             if dados:
                 for evolucao in dados:
                     elements.extend(_build_evolucao_elements(evolucao, styles))
             else:
-                elements.append(Paragraph('Nenhuma evolução registrada.', styles['DocBody']))
+                elements.append(Paragraph("Nenhuma evolução registrada.", styles["DocBody"]))
 
-        elif secao_key == 'receituario':
+        elif secao_key == "receituario":
             if dados:
                 for item in dados:
                     if isinstance(item, PrescricaoMemed):
@@ -300,16 +295,15 @@ def gerar_pdf_prontuario_completo(patient_id: int) -> BytesIO:
                         elements.extend(_build_documento_elements(item, styles))
                         elements.append(Spacer(1, 4 * mm))
             else:
-                elements.append(Paragraph('Nenhum receituário registrado.', styles['DocBody']))
+                elements.append(Paragraph("Nenhum receituário registrado.", styles["DocBody"]))
 
+        # pedido_exame, atestado, atendimento
+        elif dados:
+            for doc_item in dados:
+                elements.extend(_build_documento_elements(doc_item, styles))
+                elements.append(Spacer(1, 4 * mm))
         else:
-            # pedido_exame, atestado, atendimento
-            if dados:
-                for doc_item in dados:
-                    elements.extend(_build_documento_elements(doc_item, styles))
-                    elements.append(Spacer(1, 4 * mm))
-            else:
-                elements.append(Paragraph('Nenhum documento registrado nesta seção.', styles['DocBody']))
+            elements.append(Paragraph("Nenhum documento registrado nesta seção.", styles["DocBody"]))
 
         elements.append(Spacer(1, 6 * mm))
 

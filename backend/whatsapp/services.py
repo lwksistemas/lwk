@@ -1,5 +1,4 @@
-"""
-Serviço de envio WhatsApp (Meta Cloud API ou Evolution WhatsApp Web) e templates de mensagem (ETAPA 4).
+"""Serviço de envio WhatsApp (Meta Cloud API ou Evolution WhatsApp Web) e templates de mensagem (ETAPA 4).
 """
 import logging
 import re
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 def _config_loja_id(config):
     if not config:
         return None
-    return getattr(config, 'loja_id', None)
+    return getattr(config, "loja_id", None)
 
 
 def _whatsapp_log_db(loja_id):
@@ -24,33 +23,32 @@ def _whatsapp_log_db(loja_id):
     from tenants.middleware import get_current_tenant_db
 
     tenant_db = get_current_tenant_db()
-    if tenant_db and tenant_db != 'default':
+    if tenant_db and tenant_db != "default":
         return tenant_db
     if not loja_id:
-        return 'default'
+        return "default"
     try:
         from core.db_config import ensure_loja_database_config
         from superadmin.models import Loja
 
-        loja = Loja.objects.using('default').filter(pk=loja_id).first()
+        loja = Loja.objects.using("default").filter(pk=loja_id).first()
         if not loja:
-            return 'default'
-        db_name = getattr(loja, 'database_name', None) or f'loja_{getattr(loja, "slug", loja_id)}'.replace('-', '_')
+            return "default"
+        db_name = getattr(loja, "database_name", None) or f'loja_{getattr(loja, "slug", loja_id)}'.replace("-", "_")
         if ensure_loja_database_config(db_name, conn_max_age=0):
             return db_name
     except Exception:
         pass
-    return 'default'
+    return "default"
 
 
 def _resolve_whatsapp_log_user_id(db, user):
-    """
-    auth.User fica no schema public; WhatsAppLog no schema da loja.
+    """auth.User fica no schema public; WhatsAppLog no schema da loja.
     Só preenche FK se o usuário existir no mesmo banco do log.
     """
     if not user:
         return None
-    user_id = getattr(user, 'pk', None) or getattr(user, 'id', None)
+    user_id = getattr(user, "pk", None) or getattr(user, "id", None)
     if not user_id:
         return None
     from django.contrib.auth import get_user_model
@@ -67,9 +65,9 @@ def _write_whatsapp_log(*, loja_id, telefone, mensagem, status, response=None, u
         user_id = _resolve_whatsapp_log_user_id(db, user)
         log_response = dict(response) if isinstance(response, dict) else response
         if user and user_id is None:
-            requested_by = getattr(user, 'pk', None) or getattr(user, 'id', None)
+            requested_by = getattr(user, "pk", None) or getattr(user, "id", None)
             if requested_by:
-                extra = {'requested_by_user_id': requested_by}
+                extra = {"requested_by_user_id": requested_by}
                 if isinstance(log_response, dict):
                     log_response = {**log_response, **extra}
                 else:
@@ -77,72 +75,70 @@ def _write_whatsapp_log(*, loja_id, telefone, mensagem, status, response=None, u
         WhatsAppLog.objects.using(db).create(
             loja_id=loja_id,
             user_id=user_id,
-            telefone=str(telefone or '')[:20],
-            mensagem=str(mensagem or '')[:500],
+            telefone=str(telefone or "")[:20],
+            mensagem=str(mensagem or "")[:500],
             status=status,
             response=log_response,
         )
     except Exception as exc:
-        logger.warning('WhatsAppLog não registrado (loja_id=%s): %s', loja_id, exc)
+        logger.warning("WhatsAppLog não registrado (loja_id=%s): %s", loja_id, exc)
 
 
 def _normalize_phone(telefone):
-    """
-    Remove tudo que não for dígito. Retorna número em formato internacional (com código do país).
+    """Remove tudo que não for dígito. Retorna número em formato internacional (com código do país).
     Meta Cloud API exige "to" com código do país, sem + (ex.: 5511999999999, 15551779791).
     """
     if not telefone:
         return None
-    digits = re.sub(r'\D', '', str(telefone))
+    digits = re.sub(r"\D", "", str(telefone))
     if len(digits) < 10:
         return None
     # Já tem código do país (12–15 dígitos): usar como está (remover zero à esquerda após 55)
     if len(digits) >= 12:
         out = digits[:15]
-        if out.startswith('55') and len(out) > 12 and out[2] == '0':
-            out = '55' + out[3:].lstrip('0')  # ex.: 55016981402966 → 5516981402966
+        if out.startswith("55") and len(out) > 12 and out[2] == "0":
+            out = "55" + out[3:].lstrip("0")  # ex.: 55016981402966 → 5516981402966
         return out
     # 11 dígitos: BR (DDD 11–99 + celular 9…) ou EUA (1 + 10)
     if len(digits) == 11:
         ddd = int(digits[:2])
-        if 11 <= ddd <= 99 and digits[2] == '9':
-            return '55' + digits
-        if digits.startswith('1'):
+        if 11 <= ddd <= 99 and digits[2] == "9":
+            return "55" + digits
+        if digits.startswith("1"):
             return digits
-        br = digits.lstrip('0')
+        br = digits.lstrip("0")
         if len(br) < 10:
             return None
-        return '55' + br
+        return "55" + br
     # 10 dígitos: assumir Brasil (DDD 2 + 8 dígitos)
     if len(digits) == 10:
-        return '55' + digits.lstrip('0') if digits.lstrip('0') else '55' + digits
+        return "55" + digits.lstrip("0") if digits.lstrip("0") else "55" + digits
     return digits[:15]
 
 
 def _resolve_whatsapp_credentials(config):
-    """
-    Credenciais Meta por loja (modelo oficial LWK).
+    """Credenciais Meta por loja (modelo oficial LWK).
     Com config ativo, exige Phone ID + token da loja — sem fallback para número central.
     Retorna (phone_id, token, api_url, error) para provider meta.
     """
     provider = _get_provider(config)
     if provider == WhatsAppConfig.PROVIDER_EVOLUTION:
         return None, None, None, None
-    api_url = getattr(settings, 'WHATSAPP_API_URL', None) or 'https://graph.facebook.com/v19.0'
-    if config and getattr(config, 'whatsapp_ativo', False):
-        phone_id = (getattr(config, 'whatsapp_phone_id', None) or '').strip()
-        token = (getattr(config, 'whatsapp_token', None) or '').strip()
+    api_url = getattr(settings, "WHATSAPP_API_URL", None) or "https://graph.facebook.com/v19.0"
+    if config and getattr(config, "whatsapp_ativo", False):
+        phone_id = (getattr(config, "whatsapp_phone_id", None) or "").strip()
+        token = (getattr(config, "whatsapp_token", None) or "").strip()
         if not phone_id or not token:
             return None, None, api_url, (
-                'Cada loja usa seu próprio WhatsApp na Meta. '
-                'Preencha Phone Number ID e token em Configurações → WhatsApp.'
+                "Cada loja usa seu próprio WhatsApp na Meta. "
+                "Preencha Phone Number ID e token em Configurações → WhatsApp."
             )
         return phone_id, token, api_url, None
-    phone_id = (getattr(settings, 'WHATSAPP_PHONE_ID', None) or '').strip()
-    token = (getattr(settings, 'WHATSAPP_TOKEN', None) or '').strip()
+    phone_id = (getattr(settings, "WHATSAPP_PHONE_ID", None) or "").strip()
+    token = (getattr(settings, "WHATSAPP_TOKEN", None) or "").strip()
     if not phone_id or not token:
         return None, None, api_url, (
-            'Phone Number ID e Token não configurados. Configure em Configurações → WhatsApp.'
+            "Phone Number ID e Token não configurados. Configure em Configurações → WhatsApp."
         )
     return phone_id, token, api_url, None
 
@@ -150,7 +146,7 @@ def _resolve_whatsapp_credentials(config):
 def _get_provider(config):
     if not config:
         return WhatsAppConfig.PROVIDER_META
-    return getattr(config, 'whatsapp_provider', WhatsAppConfig.PROVIDER_META) or WhatsAppConfig.PROVIDER_META
+    return getattr(config, "whatsapp_provider", WhatsAppConfig.PROVIDER_META) or WhatsAppConfig.PROVIDER_META
 
 
 def _mark_evolution_disconnected(config):
@@ -160,14 +156,14 @@ def _mark_evolution_disconnected(config):
         return
     config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_DISCONNECTED
     config.whatsapp_connected_at = None
-    config.whatsapp_connected_phone = ''
+    config.whatsapp_connected_phone = ""
     config.save(update_fields=[
-        'whatsapp_connection_status',
-        'whatsapp_connected_at',
-        'whatsapp_connected_phone',
-        'updated_at',
+        "whatsapp_connection_status",
+        "whatsapp_connected_at",
+        "whatsapp_connected_phone",
+        "updated_at",
     ])
-    loja_id = getattr(config, 'loja_id', None)
+    loja_id = getattr(config, "loja_id", None)
     if loja_id:
         try:
             from .connection_service import _invalidate_whatsapp_config_cache, _sync_whatsapp_status_to_public
@@ -179,13 +175,13 @@ def _mark_evolution_disconnected(config):
 
 
 def _evolution_ready(config):
-    if not config or not getattr(config, 'whatsapp_ativo', False):
-        return False, 'WhatsApp não está ativo. Configure em Configurações → WhatsApp.'
+    if not config or not getattr(config, "whatsapp_ativo", False):
+        return False, "WhatsApp não está ativo. Configure em Configurações → WhatsApp."
     if _get_provider(config) != WhatsAppConfig.PROVIDER_EVOLUTION:
         return False, None
     if config.whatsapp_connection_status != WhatsAppConfig.CONNECTION_CONNECTED:
-        return False, 'WhatsApp Web não está conectado. Escaneie o QR Code em Configurações → WhatsApp.'
-    instance = (getattr(config, 'evolution_instance_name', None) or '').strip()
+        return False, "WhatsApp Web não está conectado. Escaneie o QR Code em Configurações → WhatsApp."
+    instance = (getattr(config, "evolution_instance_name", None) or "").strip()
     if not instance:
         from .evolution_client import evolution_instance_name
         instance = evolution_instance_name(config.loja_id)
@@ -205,8 +201,8 @@ def _send_whatsapp_evolution(telefone, mensagem, user=None, config=None, log_lab
             loja_id=loja_id,
             telefone=telefone,
             mensagem=log_label or mensagem,
-            status='falhou',
-            response={'error': 'telefone_invalido'},
+            status="falhou",
+            response={"error": "telefone_invalido"},
             user=user,
         )
         return False, "Telefone inválido ou incompleto (use DDD + número com código do país)."
@@ -217,8 +213,8 @@ def _send_whatsapp_evolution(telefone, mensagem, user=None, config=None, log_lab
             loja_id=loja_id,
             telefone=phone,
             mensagem=log_label or mensagem,
-            status='falhou',
-            response={'error': 'evolution_not_connected'},
+            status="falhou",
+            response={"error": "evolution_not_connected"},
             user=user,
         )
         return False, instance_or_err
@@ -229,23 +225,23 @@ def _send_whatsapp_evolution(telefone, mensagem, user=None, config=None, log_lab
             loja_id=loja_id,
             telefone=phone,
             mensagem=log_label or mensagem,
-            status='enviado',
+            status="enviado",
             response=data,
             user=user,
         )
         return True, None
     except EvolutionAPIError as exc:
         err_msg = evolution_send_error_message(exc)
-        combined = f'{exc} {exc.response}'.lower()
-        if 'connection closed' in combined or 'precondition required' in combined:
+        combined = f"{exc} {exc.response}".lower()
+        if "connection closed" in combined or "precondition required" in combined:
             _mark_evolution_disconnected(config)
         logger.warning("WhatsApp Evolution loja_id=%s: %s", loja_id, err_msg)
         _write_whatsapp_log(
             loja_id=loja_id,
             telefone=phone,
             mensagem=log_label or mensagem,
-            status='falhou',
-            response={'error': err_msg, 'response': exc.response},
+            status="falhou",
+            response={"error": err_msg, "response": exc.response},
             user=user,
         )
         return False, err_msg
@@ -275,13 +271,13 @@ def _send_whatsapp_document_evolution(
             document_url,
             filename,
             caption=caption,
-            mimetype=mimetype or 'application/pdf',
+            mimetype=mimetype or "application/pdf",
         )
         _write_whatsapp_log(
             loja_id=loja_id,
             telefone=phone,
             mensagem=f"[documento] {filename}",
-            status='enviado',
+            status="enviado",
             response=data,
             user=user,
         )
@@ -291,27 +287,27 @@ def _send_whatsapp_document_evolution(
             loja_id=loja_id,
             telefone=phone,
             mensagem=f"[documento] {filename}",
-            status='falhou',
-            response={'error': str(exc), 'response': exc.response},
+            status="falhou",
+            response={"error": str(exc), "response": exc.response},
             user=user,
         )
         return False, str(exc)
 
 def _loja_plano_permite_whatsapp(loja_or_id):
     """Bloqueia envio se o plano da loja não inclui integração WhatsApp."""
-    loja_id = loja_or_id if isinstance(loja_or_id, int) else getattr(loja_or_id, 'pk', None)
+    loja_id = loja_or_id if isinstance(loja_or_id, int) else getattr(loja_or_id, "pk", None)
     if not loja_id:
         return True, None
     try:
         from superadmin.models import Loja
-        loja_ref = Loja.objects.using('default').select_related('plano').filter(pk=loja_id).first()
+        loja_ref = Loja.objects.using("default").select_related("plano").filter(pk=loja_id).first()
         if not loja_ref or not loja_ref.plano_id:
             return True, None
         if loja_ref.plano.tem_whatsapp_integration:
             return True, None
         return False, (
-            'Seu plano não inclui integração WhatsApp. '
-            'Entre em contato com o suporte LWK para habilitar.'
+            "Seu plano não inclui integração WhatsApp. "
+            "Entre em contato com o suporte LWK para habilitar."
         )
     except Exception:
         return True, None
@@ -338,25 +334,25 @@ def _validate_whatsapp_send(telefone, mensagem, user=None, config=None, *, log_l
             loja_id=loja_id,
             telefone=telefone,
             mensagem=log_label or mensagem,
-            status='falhou',
-            response={'error': 'telefone_invalido'},
+            status="falhou",
+            response={"error": "telefone_invalido"},
             user=user,
         )
         return False, "Telefone inválido ou incompleto (use DDD + número com código do país)."
 
-    if config and not getattr(config, 'whatsapp_ativo', False):
-        return False, 'WhatsApp não está ativo. Configure em Configurações → WhatsApp.'
+    if config and not getattr(config, "whatsapp_ativo", False):
+        return False, "WhatsApp não está ativo. Configure em Configurações → WhatsApp."
 
     if config and _get_provider(config) == WhatsAppConfig.PROVIDER_EVOLUTION and config.whatsapp_connection_status != WhatsAppConfig.CONNECTION_CONNECTED:
         _write_whatsapp_log(
             loja_id=loja_id,
             telefone=phone or telefone,
             mensagem=log_label or mensagem,
-            status='falhou',
-            response={'error': 'evolution_not_connected'},
+            status="falhou",
+            response={"error": "evolution_not_connected"},
             user=user,
         )
-        return False, 'WhatsApp Web não está conectado. Escaneie o QR Code em Configurações → WhatsApp.'
+        return False, "WhatsApp Web não está conectado. Escaneie o QR Code em Configurações → WhatsApp."
 
     if config and _get_provider(config) != WhatsAppConfig.PROVIDER_EVOLUTION:
         _, _, _, cred_err = _resolve_whatsapp_credentials(config)
@@ -366,8 +362,8 @@ def _validate_whatsapp_send(telefone, mensagem, user=None, config=None, *, log_l
                 loja_id=loja_id,
                 telefone=phone,
                 mensagem=log_label or mensagem,
-                status='falhou',
-                response={'error': 'config_missing'},
+                status="falhou",
+                response={"error": "config_missing"},
                 user=user,
             )
             return False, cred_err
@@ -376,18 +372,17 @@ def _validate_whatsapp_send(telefone, mensagem, user=None, config=None, *, log_l
 
 
 def send_whatsapp_document(telefone, document_url, filename, caption=None, user=None, config=None):
-    """
-    Envia documento (PDF) via WhatsApp Cloud API ou Evolution (WhatsApp Web).
+    """Envia documento (PDF) via WhatsApp Cloud API ou Evolution (WhatsApp Web).
     document_url: URL pública HTTPS do documento.
     Retorna (True, None) ou (False, mensagem_erro).
     """
     loja_id = _config_loja_id(config)
     ok_val, err_val = _validate_whatsapp_send(
         telefone,
-        f'[documento] {filename}',
+        f"[documento] {filename}",
         user=user,
         config=config,
-        log_label=f'[documento] {filename}',
+        log_label=f"[documento] {filename}",
     )
     if not ok_val:
         return False, err_val
@@ -395,11 +390,11 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
     if _should_enqueue_whatsapp() and loja_id:
         from core.task_queue import enqueue_task
 
-        user_id = getattr(user, 'pk', None) if user else None
+        user_id = getattr(user, "pk", None) if user else None
         phone = _normalize_phone(telefone) or telefone
         enqueue_task(
-            f'wa-doc-{loja_id}-{str(phone)[-6:]}-{uuid.uuid4().hex[:8]}',
-            'whatsapp.queue_tasks.run_send_whatsapp_document',
+            f"wa-doc-{loja_id}-{str(phone)[-6:]}-{uuid.uuid4().hex[:8]}",
+            "whatsapp.queue_tasks.run_send_whatsapp_document",
             telefone,
             document_url,
             filename,
@@ -421,8 +416,8 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
             loja_id=loja_id,
             telefone=phone,
             mensagem=f"[documento] {filename}",
-            status='falhou',
-            response={'error': 'config_missing'},
+            status="falhou",
+            response={"error": "config_missing"},
             user=user,
         )
         return False, cred_err
@@ -444,38 +439,37 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
 
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=30)
-        data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+        data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
     except Exception as e:
         logger.exception("WhatsApp documento: erro de requisição")
         _write_whatsapp_log(
             loja_id=loja_id,
             telefone=phone,
             mensagem=f"[documento] {filename}",
-            status='falhou',
-            response={'error': str(e)},
+            status="falhou",
+            response={"error": str(e)},
             user=user,
         )
-        return False, f"Erro de conexão: {str(e)}"
+        return False, f"Erro de conexão: {e!s}"
 
-    ok = response.ok and bool(data.get('messages'))
+    ok = response.ok and bool(data.get("messages"))
     _write_whatsapp_log(
         loja_id=loja_id,
         telefone=phone,
         mensagem=f"[documento] {filename}",
-        status='enviado' if ok else 'falhou',
+        status="enviado" if ok else "falhou",
         response=data,
         user=user,
     )
     if ok:
         return True, None
-    err = data.get('error') or {}
-    msg = (err.get('message') or err.get('error_user_msg') or '').strip()
+    err = data.get("error") or {}
+    msg = (err.get("message") or err.get("error_user_msg") or "").strip()
     return False, msg or "Erro ao enviar documento pelo WhatsApp."
 
 
 def send_whatsapp(telefone, mensagem, user=None, config=None):
-    """
-    Envia mensagem de texto via Meta Cloud API ou Evolution (WhatsApp Web).
+    """Envia mensagem de texto via Meta Cloud API ou Evolution (WhatsApp Web).
     Registra em WhatsAppLog (auditoria por loja).
     Retorna (True, None) se enviou com sucesso; (False, mensagem_erro) em caso de falha.
     Com USE_TASK_QUEUE=true no lwks-backend, enfileira envio para o lwks-worker.
@@ -488,11 +482,11 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
     if _should_enqueue_whatsapp() and loja_id:
         from core.task_queue import enqueue_task
 
-        user_id = getattr(user, 'pk', None) if user else None
+        user_id = getattr(user, "pk", None) if user else None
         phone = _normalize_phone(telefone) or telefone
         enqueue_task(
-            f'wa-text-{loja_id}-{str(phone)[-6:]}-{uuid.uuid4().hex[:8]}',
-            'whatsapp.queue_tasks.run_send_whatsapp',
+            f"wa-text-{loja_id}-{str(phone)[-6:]}-{uuid.uuid4().hex[:8]}",
+            "whatsapp.queue_tasks.run_send_whatsapp",
             telefone,
             mensagem,
             loja_id,
@@ -511,8 +505,8 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
             loja_id=loja_id,
             telefone=phone,
             mensagem=mensagem,
-            status='falhou',
-            response={'error': 'config_missing'},
+            status="falhou",
+            response={"error": "config_missing"},
             user=user,
         )
         return False, cred_err
@@ -531,45 +525,45 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
 
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=15)
-        data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+        data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
     except Exception as e:
         logger.exception("WhatsApp: erro de requisição")
         _write_whatsapp_log(
             loja_id=loja_id,
             telefone=phone,
             mensagem=mensagem,
-            status='falhou',
-            response={'error': str(e)},
+            status="falhou",
+            response={"error": str(e)},
             user=user,
         )
-        return False, f"Erro de conexão: {str(e)}"
+        return False, f"Erro de conexão: {e!s}"
 
     # Sucesso só quando a Meta devolve o id da mensagem (messages não vazio)
-    ok = response.ok and bool(data.get('messages'))
+    ok = response.ok and bool(data.get("messages"))
     if response.ok and not ok:
         logger.warning("WhatsApp: Meta respondeu %s mas sem 'messages' na resposta: %s", response.status_code, data)
     _write_whatsapp_log(
         loja_id=loja_id,
         telefone=phone,
         mensagem=mensagem,
-        status='enviado' if ok else 'falhou',
+        status="enviado" if ok else "falhou",
         response=data,
         user=user,
     )
     if ok:
         return True, None
     # Erro da API Meta: ex.: invalid phone_number_id, token expirado, recipient não elegível
-    err = data.get('error') or {}
-    code = err.get('code')
-    msg = (err.get('message') or err.get('error_user_msg') or '').strip()
-    if not msg and isinstance(err.get('error_data'), dict):
-        msg = (err['error_data'].get('details') or '').strip()
+    err = data.get("error") or {}
+    code = err.get("code")
+    msg = (err.get("message") or err.get("error_user_msg") or "").strip()
+    if not msg and isinstance(err.get("error_data"), dict):
+        msg = (err["error_data"].get("details") or "").strip()
     # Mensagem amigável para erro de "lista de permitidos" (app em modo teste)
-    if msg and 'not in allowed list' in msg.lower():
+    if msg and "not in allowed list" in msg.lower():
         detail = (
             "O número do paciente não está na lista de números permitidos da Meta. "
             "Com o app em modo de teste, só é possível enviar para números cadastrados. "
-            "Em developers.facebook.com → seu app → WhatsApp → API Setup, adicione o número do paciente em \"To\" (números de teste)."
+            'Em developers.facebook.com → seu app → WhatsApp → API Setup, adicione o número do paciente em "To" (números de teste).'
         )
     else:
         detail = msg or (f"Erro da API Meta (código {code})" if code else "Resposta inesperada da API Meta.")
@@ -579,32 +573,32 @@ def send_whatsapp(telefone, mensagem, user=None, config=None):
 # --- Templates de mensagem (padrão clínica) ---
 
 def _procedure_label(agendamento):
-    if hasattr(agendamento, 'procedures') and agendamento.procedures.exists():
-        return ', '.join(agendamento.procedures.values_list('nome', flat=True))
-    proc = getattr(agendamento, 'procedure', None)
+    if hasattr(agendamento, "procedures") and agendamento.procedures.exists():
+        return ", ".join(agendamento.procedures.values_list("nome", flat=True))
+    proc = getattr(agendamento, "procedure", None)
     if proc:
-        return getattr(proc, 'nome', None) or getattr(proc, 'name', None) or 'Atendimento'
-    return 'Atendimento'
+        return getattr(proc, "nome", None) or getattr(proc, "name", None) or "Atendimento"
+    return "Atendimento"
 
 
 def _render_mensagem_template(template: str, context: dict) -> str:
     msg = template
     for key, value in context.items():
-        msg = msg.replace(f'{{{key}}}', value or '')
+        msg = msg.replace(f"{{{key}}}", value or "")
     return msg
 
 
 def _contexto_confirmacao_agenda(agendamento, *, link_confirmacao=None) -> dict:
     from clinica_beleza.agenda_display import format_agenda_data, format_agenda_hora
 
-    prof = getattr(agendamento.professional, 'nome', '') or ''
+    prof = getattr(agendamento.professional, "nome", "") or ""
     return {
-        'nome': getattr(agendamento.patient, 'name', '') or 'Cliente',
-        'data': format_agenda_data(agendamento),
-        'hora': format_agenda_hora(agendamento),
-        'procedimento': _procedure_label(agendamento),
-        'profissional': prof,
-        'link': (link_confirmacao or '').strip(),
+        "nome": getattr(agendamento.patient, "name", "") or "Cliente",
+        "data": format_agenda_data(agendamento),
+        "hora": format_agenda_hora(agendamento),
+        "procedimento": _procedure_label(agendamento),
+        "profissional": prof,
+        "link": (link_confirmacao or "").strip(),
     }
 
 
@@ -614,15 +608,15 @@ def msg_confirmacao(agendamento, *, link_confirmacao=None, config=None):
 
     from .message_templates import msg_confirmacao_agendamento
 
-    custom = ''
+    custom = ""
     if config is not None:
-        custom = (getattr(config, 'mensagem_confirmacao_agenda', None) or '').strip()
+        custom = (getattr(config, "mensagem_confirmacao_agenda", None) or "").strip()
     if custom:
         ctx = _contexto_confirmacao_agenda(agendamento, link_confirmacao=link_confirmacao)
         return _render_mensagem_template(custom, ctx)
 
-    nome = getattr(agendamento.patient, 'name', '') or getattr(agendamento.patient, 'nome', '') or 'Cliente'
-    prof = getattr(agendamento.professional, 'nome', '') if agendamento.professional else ''
+    nome = getattr(agendamento.patient, "name", "") or getattr(agendamento.patient, "nome", "") or "Cliente"
+    prof = getattr(agendamento.professional, "nome", "") if agendamento.professional else ""
     return msg_confirmacao_agendamento(
         nome=nome,
         data=format_agenda_data(agendamento),
@@ -639,7 +633,7 @@ def msg_lembrete(agendamento):
 
     from .message_templates import msg_lembrete_agendamento
 
-    nome = getattr(agendamento.patient, 'name', '') or getattr(agendamento.patient, 'nome', '') or 'Cliente'
+    nome = getattr(agendamento.patient, "name", "") or getattr(agendamento.patient, "nome", "") or "Cliente"
     return msg_lembrete_agendamento(
         nome=nome,
         hora=format_agenda_hora(agendamento),
@@ -649,8 +643,8 @@ def msg_lembrete(agendamento):
 
 def msg_cobranca(paciente, valor):
     """Cobrança / pagamento pendente."""
-    nome = getattr(paciente, 'name', '') or 'Cliente'
-    valor_str = f"{float(valor):.2f}".replace('.', ',')
+    nome = getattr(paciente, "name", "") or "Cliente"
+    valor_str = f"{float(valor):.2f}".replace(".", ",")
     return (
         f"Olá {nome} 💳\n\n"
         f"Identificamos um pagamento pendente no valor de R$ {valor_str}.\n"
@@ -661,13 +655,12 @@ def msg_cobranca(paciente, valor):
 # --- Integração com agendamentos (chamar ao confirmar / lembrete / cobrança) ---
 
 def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
-    """
-    Envia solicitação de confirmação por WhatsApp ao paciente.
+    """Envia solicitação de confirmação por WhatsApp ao paciente.
     Evolution: tenta botões interativos (URL ou reply) antes de fallback texto.
     Meta: envia texto formatado com link.
     Retorna (True, None) ou (False, mensagem_erro).
     """
-    phone = getattr(agendamento.patient, 'phone', None) or getattr(agendamento.patient, 'telefone', None)
+    phone = getattr(agendamento.patient, "phone", None) or getattr(agendamento.patient, "telefone", None)
     if not phone:
         return False, "Paciente sem telefone cadastrado."
 
@@ -676,7 +669,7 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
         url_confirmacao_frontend,
     )
 
-    loja_id = getattr(agendamento, 'loja_id', None) or _config_loja_id(config)
+    loja_id = getattr(agendamento, "loja_id", None) or _config_loja_id(config)
     link = None
     if loja_id and agendamento.id:
         token = gerar_token_confirmacao(loja_id, agendamento.id)
@@ -703,8 +696,7 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
 
 
 def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, config=None):
-    """
-    Envia confirmação por texto com link.
+    """Envia confirmação por texto com link.
 
     Botões URL/reply da Evolution (Baileys) frequentemente retornam sucesso sem
     entregar; o recibo (texto) chega. Usar o mesmo caminho confiável.
@@ -728,22 +720,22 @@ def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, conf
         data = send_text(instance_or_err, phone, mensagem)
         _write_whatsapp_log(
             loja_id=loja_id, telefone=phone,
-            mensagem=mensagem, status='enviado', response=data, user=user,
+            mensagem=mensagem, status="enviado", response=data, user=user,
         )
         return True, None
     except EvolutionAPIError as exc2:
-        logger.info('Evolution texto falhou agendamento %s: %s', ap_id, exc2)
+        logger.info("Evolution texto falhou agendamento %s: %s", ap_id, exc2)
         _write_whatsapp_log(
             loja_id=loja_id, telefone=phone,
-            mensagem=mensagem, status='falhou',
-            response={'error': str(exc2)}, user=user,
+            mensagem=mensagem, status="falhou",
+            response={"error": str(exc2)}, user=user,
         )
         return False, str(exc2)
 
 
 def enviar_lembrete_agendamento(agendamento, user=None, config=None):
     """Envia lembrete por WhatsApp (ex.: dia do atendimento). Passar config da loja. Retorna (ok, erro)."""
-    phone = getattr(agendamento.patient, 'phone', None)
+    phone = getattr(agendamento.patient, "phone", None)
     if not phone:
         return False, "Paciente sem telefone cadastrado."
     msg = msg_lembrete(agendamento)
@@ -752,7 +744,7 @@ def enviar_lembrete_agendamento(agendamento, user=None, config=None):
 
 def enviar_cobranca_whatsapp(paciente, valor, user=None, config=None):
     """Envia mensagem de cobrança por WhatsApp. Passar config da loja. Retorna (ok, erro)."""
-    phone = getattr(paciente, 'phone', None)
+    phone = getattr(paciente, "phone", None)
     if not phone:
         return False, "Paciente sem telefone cadastrado."
     msg = msg_cobranca(paciente, valor)

@@ -1,5 +1,4 @@
-"""
-superadmin/views — pacote refatorado (antes: views.py monolítico com 4029 linhas).
+"""superadmin/views — pacote refatorado (antes: views.py monolítico com 4029 linhas).
 
 Módulos:
     permissions   — Classes de permissão (IsOwnerOrSuperAdmin, IsSuperAdmin)
@@ -45,35 +44,35 @@ from .usuarios import (
 
 __all__ = [
     # Permissions
-    'IsOwnerOrSuperAdmin',
-    'IsSuperAdmin',
+    "IsOwnerOrSuperAdmin",
+    "IsSuperAdmin",
     # Loja
-    'TipoLojaPublicoViewSet',
-    'PlanoAssinaturaPublicoViewSet',
-    'TipoLojaViewSet',
-    'PlanoAssinaturaViewSet',
-    'LojaViewSet',
+    "TipoLojaPublicoViewSet",
+    "PlanoAssinaturaPublicoViewSet",
+    "TipoLojaViewSet",
+    "PlanoAssinaturaViewSet",
+    "LojaViewSet",
     # Financeiro
-    'FinanceiroLojaViewSet',
-    'PagamentoLojaViewSet',
+    "FinanceiroLojaViewSet",
+    "PagamentoLojaViewSet",
     # Usuarios
-    'UsuarioSistemaViewSet',
-    'EmailRetryViewSet',
-    'mercadopago_config',
-    'mercadopago_test',
-    'mercadopago_webhook',
-    'sync_mercadopago_loja',
-    'recuperar_senha_loja',
+    "UsuarioSistemaViewSet",
+    "EmailRetryViewSet",
+    "mercadopago_config",
+    "mercadopago_test",
+    "mercadopago_webhook",
+    "sync_mercadopago_loja",
+    "recuperar_senha_loja",
     # Auditoria
-    'HistoricoAcessoGlobalViewSet',
-    'ViolacaoSegurancaViewSet',
-    'EstatisticasAuditoriaViewSet',
+    "HistoricoAcessoGlobalViewSet",
+    "ViolacaoSegurancaViewSet",
+    "EstatisticasAuditoriaViewSet",
     # Sistema
-    'verificar_storage_loja',
-    'verificar_storage_todas',
-    'listar_storage_lojas',
-    'health_check',
-    'LoginConfigSistemaViewSet',
-    'login_config_sistema_publico',
-    'atalho_redirect',
+    "verificar_storage_loja",
+    "verificar_storage_todas",
+    "listar_storage_lojas",
+    "health_check",
+    "LoginConfigSistemaViewSet",
+    "login_config_sistema_publico",
+    "atalho_redirect",
 ]

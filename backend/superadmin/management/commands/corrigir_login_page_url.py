@@ -1,5 +1,4 @@
-"""
-Management command para corrigir login_page_url de lojas que usam slug/CPF
+"""Management command para corrigir login_page_url de lojas que usam slug/CPF
 em vez do atalho amigável.
 
 Uso:
@@ -20,27 +19,27 @@ from superadmin.models import Loja
 
 
 class Command(BaseCommand):
-    help = 'Corrige login_page_url para usar atalho amigável em vez do slug/CPF'
+    help = "Corrige login_page_url para usar atalho amigável em vez do slug/CPF"
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--apply',
-            action='store_true',
+            "--apply",
+            action="store_true",
             default=False,
-            help='Aplica as correções (sem esta flag executa em modo dry-run)',
+            help="Aplica as correções (sem esta flag executa em modo dry-run)",
         )
         parser.add_argument(
-            '--atalho',
+            "--atalho",
             type=str,
-            default='',
-            help='Corrigir apenas a loja com este atalho',
+            default="",
+            help="Corrigir apenas a loja com este atalho",
         )
 
     def handle(self, *args, **options):
-        apply = options['apply']
-        atalho_filtro = (options['atalho'] or '').strip().lower()
+        apply = options["apply"]
+        atalho_filtro = (options["atalho"] or "").strip().lower()
 
-        qs = Loja.objects.exclude(atalho='').filter(is_active=True)
+        qs = Loja.objects.exclude(atalho="").filter(is_active=True)
         if atalho_filtro:
             qs = qs.filter(atalho__iexact=atalho_filtro)
 
@@ -48,28 +47,28 @@ class Command(BaseCommand):
         ja_corretas = 0
 
         for loja in qs:
-            url_esperada = f'/loja/{loja.atalho}/login'
+            url_esperada = f"/loja/{loja.atalho}/login"
             if loja.login_page_url == url_esperada:
                 ja_corretas += 1
                 continue
 
             self.stdout.write(
-                f'  [{loja.id}] {loja.nome}\n'
-                f'       login_page_url atual:   {loja.login_page_url!r}\n'
-                f'       login_page_url correta: {url_esperada!r}\n'
+                f"  [{loja.id}] {loja.nome}\n"
+                f"       login_page_url atual:   {loja.login_page_url!r}\n"
+                f"       login_page_url correta: {url_esperada!r}\n",
             )
 
             if apply:
                 loja.login_page_url = url_esperada
-                loja.save(update_fields=['login_page_url'])
-                self.stdout.write(self.style.SUCCESS('       ✅ Corrigida'))
+                loja.save(update_fields=["login_page_url"])
+                self.stdout.write(self.style.SUCCESS("       ✅ Corrigida"))
             else:
-                self.stdout.write(self.style.WARNING('       ⚠️  Dry-run — use --apply para corrigir'))
+                self.stdout.write(self.style.WARNING("       ⚠️  Dry-run — use --apply para corrigir"))
 
             corrigidas += 1
 
-        self.stdout.write('')
-        self.stdout.write(f'Lojas já corretas:  {ja_corretas}')
+        self.stdout.write("")
+        self.stdout.write(f"Lojas já corretas:  {ja_corretas}")
         self.stdout.write(f'Lojas {"corrigidas" if apply else "a corrigir"}: {corrigidas}')
         if not apply and corrigidas:
-            self.stdout.write(self.style.WARNING('Execute com --apply para aplicar as correções.'))
+            self.stdout.write(self.style.WARNING("Execute com --apply para aplicar as correções."))

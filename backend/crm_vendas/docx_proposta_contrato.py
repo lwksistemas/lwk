@@ -1,5 +1,4 @@
-"""
-Geração de DOCX (Word) para Proposta e Contrato do CRM.
+"""Geração de DOCX (Word) para Proposta e Contrato do CRM.
 
 Implementação simples (sem conversão HTML->DOCX completa):
 - Cabeçalho (título + metadados)
@@ -20,8 +19,7 @@ from .emitente_documento import obter_dados_emitente_documento
 
 
 class _HtmlToDocxBlocksParser(HTMLParser):
-    """
-    Parser simples para transformar HTML em blocos (parágrafos e listas).
+    """Parser simples para transformar HTML em blocos (parágrafos e listas).
     Suporta: <p>, <br>, <b>/<strong>, <i>/<em>, <ul>/<ol>/<li>.
     """
 
@@ -53,7 +51,7 @@ class _HtmlToDocxBlocksParser(HTMLParser):
                 "text": text,
                 "bold": self._bold > 0,
                 "italic": self._italic > 0,
-            }
+            },
         )
 
     def handle_starttag(self, tag, attrs):
@@ -101,8 +99,7 @@ class _HtmlToDocxBlocksParser(HTMLParser):
 
 
 def _add_html_as_docx(document, html: str):
-    """
-    Adiciona HTML ao DOCX com layout simples (parágrafos + listas).
+    """Adiciona HTML ao DOCX com layout simples (parágrafos + listas).
     """
     if not html:
         document.add_paragraph("Conteúdo não informado.")
@@ -189,7 +186,7 @@ def _formatar_endereco_lead(lead) -> str:
         return "—"
     parts = [
         getattr(lead, "logradouro", "") or "",
-        getattr(lead, "numero", "") and f"nº {lead.numero}" or "",
+        (getattr(lead, "numero", "") and f"nº {lead.numero}") or "",
         getattr(lead, "complemento", "") or "",
         getattr(lead, "bairro", "") or "",
         (
@@ -197,7 +194,7 @@ def _formatar_endereco_lead(lead) -> str:
             if (getattr(lead, "cidade", "") and getattr(lead, "uf", ""))
             else (getattr(lead, "cidade", "") or getattr(lead, "uf", ""))
         ),
-        getattr(lead, "cep", "") and f"CEP {lead.cep}" or "",
+        (getattr(lead, "cep", "") and f"CEP {lead.cep}") or "",
     ]
     return ", ".join(p for p in parts if p).strip() or "—"
 

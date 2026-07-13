@@ -2,16 +2,15 @@
 
 
 def tempo_consulta_base_minutos(professional=None, local_atendimento=None) -> int:
-    """
-    Tempo padrão de consulta: profissional > local de atendimento (legado) > 30 min.
+    """Tempo padrão de consulta: profissional > local de atendimento (legado) > 30 min.
     Configurado em Profissionais → Ações → Tempo da consulta.
     """
     if professional is not None:
-        prof_tempo = getattr(professional, 'tempo_consulta_minutos', None)
+        prof_tempo = getattr(professional, "tempo_consulta_minutos", None)
         if prof_tempo and int(prof_tempo) > 0:
             return int(prof_tempo)
     if local_atendimento is not None:
-        local_tempo = getattr(local_atendimento, 'tempo_consulta_minutos', None)
+        local_tempo = getattr(local_atendimento, "tempo_consulta_minutos", None)
         if local_tempo and int(local_tempo) > 0:
             return int(local_tempo)
     return 30
@@ -24,8 +23,7 @@ def calcular_duracao_novo_agendamento(
     procedure=None,
     local_atendimento=None,
 ) -> int:
-    """
-    Duração ao criar agendamento.
+    """Duração ao criar agendamento.
     Com procedimentos: max(soma procedimentos, tempo base do profissional/local).
     Sem procedimentos: tempo base do profissional/local.
     """
@@ -49,8 +47,7 @@ def calcular_duracao_efetiva_agendamento(
     appointment_procedures=None,
     procedure_principal=None,
 ) -> int:
-    """
-    Duração efetiva de um agendamento existente (sem override manual).
+    """Duração efetiva de um agendamento existente (sem override manual).
     """
     if duracao_manual is not None:
         return int(duracao_manual)

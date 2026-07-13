@@ -1,5 +1,4 @@
-"""
-Service layer para configuração de NFS-e da Clínica da Beleza.
+"""Service layer para configuração de NFS-e da Clínica da Beleza.
 """
 import logging
 import os
@@ -20,43 +19,42 @@ def get_or_create_nfse_config(loja_id: int) -> ClinicaBelezaNFSeConfig:
 
 
 def test_issnet_connection(request, config: ClinicaBelezaNFSeConfig) -> dict:
-    """
-    Testa conexão com o WebService ISSNet usando certificado da loja.
+    """Testa conexão com o WebService ISSNet usando certificado da loja.
     Valida PFX/senha e tenta acessar o WSDL.
     Retorna dict com 'success', 'message'/'detail'.
     """
     # Certificado: do upload ou do banco
-    cert_file = request.FILES.get('issnet_certificado')
+    cert_file = request.FILES.get("issnet_certificado")
     if cert_file:
         cert_data = cert_file.read()
     else:
-        cert_data = getattr(config, 'issnet_certificado', None)
+        cert_data = getattr(config, "issnet_certificado", None)
         if cert_data:
             cert_data = bytes(cert_data)
 
-    senha = (request.data.get('issnet_senha_certificado') or '').strip()
+    senha = (request.data.get("issnet_senha_certificado") or "").strip()
     if not senha:
-        senha = getattr(config, 'issnet_senha_certificado', '') or ''
+        senha = getattr(config, "issnet_senha_certificado", "") or ""
 
     if not cert_data:
-        return {'success': False, 'detail': 'Certificado .pfx não configurado.'}
+        return {"success": False, "detail": "Certificado .pfx não configurado."}
     if not senha:
-        return {'success': False, 'detail': 'Senha do certificado não informada.'}
+        return {"success": False, "detail": "Senha do certificado não informada."}
 
     try:
         from nfse_integration.issnet_client import testar_conexao_issnet
 
         usuario = (
-            (request.data.get('issnet_usuario') or '').strip()
-            or getattr(config, 'issnet_usuario', '') or ''
+            (request.data.get("issnet_usuario") or "").strip()
+            or getattr(config, "issnet_usuario", "") or ""
         )
         senha_ws = (
-            (request.data.get('issnet_senha') or '').strip()
-            or getattr(config, 'issnet_senha', '') or ''
+            (request.data.get("issnet_senha") or "").strip()
+            or getattr(config, "issnet_senha", "") or ""
         )
-        ambiente = 'homologacao' if getattr(config, 'issnet_ambiente_homologacao', False) else 'producao'
+        ambiente = "homologacao" if getattr(config, "issnet_ambiente_homologacao", False) else "producao"
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pfx') as tmp:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pfx") as tmp:
             tmp.write(cert_data)
             tmp_path = tmp.name
 
@@ -71,18 +69,17 @@ def test_issnet_connection(request, config: ClinicaBelezaNFSeConfig) -> dict:
         finally:
             os.unlink(tmp_path)
 
-        if resultado.get('success'):
+        if resultado.get("success"):
             return {
-                'success': True,
-                'message': resultado.get('message', 'Conexão ISSNet OK.'),
-                'ambiente': ambiente,
+                "success": True,
+                "message": resultado.get("message", "Conexão ISSNet OK."),
+                "ambiente": ambiente,
             }
-        else:
-            return {
-                'success': False,
-                'detail': resultado.get('detail', 'Falha ao conectar ao ISSNet.'),
-            }
+        return {
+            "success": False,
+            "detail": resultado.get("detail", "Falha ao conectar ao ISSNet."),
+        }
 
     except Exception as e:
-        logger.warning('test_issnet_connection (clinica_beleza): %s', e)
-        return {'success': False, 'detail': str(e)}
+        logger.warning("test_issnet_connection (clinica_beleza): %s", e)
+        return {"success": False, "detail": str(e)}

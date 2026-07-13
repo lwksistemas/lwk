@@ -1,5 +1,4 @@
-"""
-Helpers e constantes para o serviço de backup de lojas.
+"""Helpers e constantes para o serviço de backup de lojas.
 
 Extraído de backup_service.py para melhor organização.
 Contém: constantes, funções auxiliares e exceções de backup.
@@ -19,46 +18,46 @@ logger = logging.getLogger(__name__)
 
 # Tabelas de sistema que NUNCA entram no backup
 BACKUP_SYSTEM_TABLES_EXCLUDE = {
-    'django_migrations',
-    'django_content_type',
-    'django_session',
-    'auth_permission',
-    'auth_group',
+    "django_migrations",
+    "django_content_type",
+    "django_session",
+    "auth_permission",
+    "auth_group",
 }
 # Prefixos de tabelas que NUNCA devem entrar no backup (superadmin, auth, django, etc.)
 BACKUP_TABLE_PREFIX_BLACKLIST = (
-    'auth_',
-    'django_',
-    'admin_',
-    'superadmin_',
-    'sessions_',
-    'account_',
-    'socialaccount_',
+    "auth_",
+    "django_",
+    "admin_",
+    "superadmin_",
+    "sessions_",
+    "account_",
+    "socialaccount_",
 )
 # Quando o backup usa schema PUBLIC: só exportar tabelas cujo prefixo pertence ao tipo de app da loja.
 # Evita incluir cabeleireiro_*, clinica_beleza_*, crm_*, etc. no backup de uma clínica de estética.
 BACKUP_TIPO_APP_TABLE_PREFIXES = {
-    'clinica-de-estetica': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_', 'crm_vendas_', 'nfse_integration_'),
-    'clinica-estetica': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_', 'crm_vendas_', 'nfse_integration_'),
-    'clinica-da-beleza': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_', 'crm_vendas_', 'nfse_integration_'),
-    'clinica-beleza': ('stores_', 'products_', 'clinica_beleza_', 'whatsapp_', 'crm_vendas_', 'nfse_integration_'),
-    'e-commerce': ('stores_', 'products_', 'ecommerce_'),
-    'restaurante': ('stores_', 'products_', 'restaurante_'),
-    'servicos': ('stores_', 'products_', 'servicos_'),
-    'cabeleireiro': ('stores_', 'products_', 'cabeleireiro_'),
-    'crm-vendas': ('stores_', 'products_', 'crm_vendas_', 'nfse_integration_'),
+    "clinica-de-estetica": ("stores_", "products_", "clinica_beleza_", "whatsapp_", "crm_vendas_", "nfse_integration_"),
+    "clinica-estetica": ("stores_", "products_", "clinica_beleza_", "whatsapp_", "crm_vendas_", "nfse_integration_"),
+    "clinica-da-beleza": ("stores_", "products_", "clinica_beleza_", "whatsapp_", "crm_vendas_", "nfse_integration_"),
+    "clinica-beleza": ("stores_", "products_", "clinica_beleza_", "whatsapp_", "crm_vendas_", "nfse_integration_"),
+    "e-commerce": ("stores_", "products_", "ecommerce_"),
+    "restaurante": ("stores_", "products_", "restaurante_"),
+    "servicos": ("stores_", "products_", "servicos_"),
+    "cabeleireiro": ("stores_", "products_", "cabeleireiro_"),
+    "crm-vendas": ("stores_", "products_", "crm_vendas_", "nfse_integration_"),
 }
 # Prefixos a excluir por tipo de app (legado clinica_* removido — unificado em clinica_beleza)
 BACKUP_TIPO_APP_EXCLUDED_PREFIXES: dict[str, tuple[str, ...]] = {}
 # Regex para validar nome de tabela/coluna (segurança SQL: apenas alfanumérico e underscore)
-BACKUP_SAFE_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+BACKUP_SAFE_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 # Schema PostgreSQL derivado de loja.database_name (valor controlado pelo backend).
 # Permite nome que começa com dígito (ex.: CNPJ como schema), sempre entre aspas em SQL literal.
-BACKUP_SAFE_PG_SCHEMA_RE = re.compile(r'^[a-zA-Z0-9_]{1,63}$')
+BACKUP_SAFE_PG_SCHEMA_RE = re.compile(r"^[a-zA-Z0-9_]{1,63}$")
 
 # Backups antigos podem omitir estas colunas no CSV; no PG podem ser NOT NULL sem DEFAULT no servidor.
 BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS = frozenset(
-    {"issnet_numero_lote", "issnet_ultimo_rps_conhecido"}
+    {"issnet_numero_lote", "issnet_ultimo_rps_conhecido"},
 )
 
 
@@ -68,12 +67,12 @@ BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS = frozenset(
 
 class BackupExportError(Exception):
     """Exceção customizada para erros de exportação"""
-    pass
+
 
 
 class BackupImportError(Exception):
     """Exceção customizada para erros de importação"""
-    pass
+
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +89,7 @@ def _is_safe_table_name(name: str) -> bool:
 
 
 _VARCHAR_LEN_RE = re.compile(
-    r'^(?:character varying|varchar|character)\((\d+)\)',
+    r"^(?:character varying|varchar|character)\((\d+)\)",
     re.IGNORECASE,
 )
 
@@ -99,14 +98,14 @@ def _truncate_backup_value_for_pg_type(val: Any, dtype: str) -> Any:
     """Trunca strings quando o tipo PG tem limite (ex.: character varying(200))."""
     if not isinstance(val, str) or not dtype:
         return val
-    match = _VARCHAR_LEN_RE.match((dtype or '').strip())
+    match = _VARCHAR_LEN_RE.match((dtype or "").strip())
     if not match:
         return val
     max_len = int(match.group(1))
     if len(val) <= max_len:
         return val
     logger.warning(
-        'Backup import: truncando coluna varchar(%s) de %s para %s chars',
+        "Backup import: truncando coluna varchar(%s) de %s para %s chars",
         max_len,
         len(val),
         max_len,
@@ -123,19 +122,18 @@ def _zip_csv_basename_table_name(zip_inner_path: str) -> str:
 
 
 def _ensure_crm_vendas_config_pg_int_defaults(cursor, qual: str) -> None:
-    """
-    Garante DEFAULT 0 no PostgreSQL para inteiros ISSNet.
+    """Garante DEFAULT 0 no PostgreSQL para inteiros ISSNet.
     INSERT que omitir a coluna (código/CSV antigo) deixa de gerar NULL em NOT NULL.
     """
     try:
         cursor.execute(
-            f"ALTER TABLE {qual} ALTER COLUMN issnet_numero_lote SET DEFAULT 0"
+            f"ALTER TABLE {qual} ALTER COLUMN issnet_numero_lote SET DEFAULT 0",
         )
     except Exception as e:
         logger.warning("ALTER issnet_numero_lote SET DEFAULT 0: %s", e)
     try:
         cursor.execute(
-            f"ALTER TABLE {qual} ALTER COLUMN issnet_ultimo_rps_conhecido SET DEFAULT 0"
+            f"ALTER TABLE {qual} ALTER COLUMN issnet_ultimo_rps_conhecido SET DEFAULT 0",
         )
     except Exception as e:
         logger.warning("ALTER issnet_ultimo_rps_conhecido SET DEFAULT 0: %s", e)
@@ -179,7 +177,7 @@ def _coerce_int_or_zero(val: Any) -> int:
 
 
 def _backup_finalize_crm_config_row_values(
-    cols_for_insert: list[str], values: list[Any]
+    cols_for_insert: list[str], values: list[Any],
 ) -> list[Any]:
     """Garante inteiros NOT NULL do CRM mesmo com CSV/col_info inconsistentes."""
     out: list[Any] = []
@@ -201,8 +199,7 @@ def _sanitize_pg_table_key(name: str) -> str:
 
 
 def _parse_pg_qualified_table(qual: str) -> tuple[str | None, str]:
-    """
-    Extrai (schema, tabela) de "schema"."tabela".
+    """Extrai (schema, tabela) de "schema"."tabela".
     Se não estiver qualificado, retorna (None, nome_da_tabela).
     """
     q = (qual or "").strip()
@@ -223,8 +220,7 @@ def _connection_is_postgresql(conn) -> bool:
 
 
 def _resolve_visible_pg_schema_for_table(cur, table_name: str) -> str | None:
-    """
-    Primeiro schema no search_path onde existe uma relação visível com relname = table_name.
+    """Primeiro schema no search_path onde existe uma relação visível com relname = table_name.
     Alinha metadados com INSERT não qualificado em PostgreSQL.
     """
     if not _is_safe_table_name(table_name):
@@ -251,10 +247,9 @@ def _resolve_visible_pg_schema_for_table(cur, table_name: str) -> str | None:
 
 
 def _fetch_crm_vendas_config_pg_colrows(
-    cur, qual: str, pg_schema: str
+    cur, qual: str, pg_schema: str,
 ) -> list[tuple[Any, Any, Any]]:
-    """
-    Colunas da tabela física em ordem: (nome, is_nullable YES/NO, tipo/format_type).
+    """Colunas da tabela física em ordem: (nome, is_nullable YES/NO, tipo/format_type).
     Prioriza o schema do qual(...) do INSERT (evita omitir NOT NULL quando pg_schema ≠ schema real).
     """
     q_schema, q_table = _parse_pg_qualified_table(qual)
@@ -321,8 +316,7 @@ def _import_crm_vendas_config_via_model(
     using: str,
     pg_schema: str,
 ) -> None:
-    """
-    Importa crm_vendas_config com INSERT explícito no schema da loja (qual).
+    """Importa crm_vendas_config com INSERT explícito no schema da loja (qual).
 
     Usa a ordem e o conjunto de colunas da tabela real no PostgreSQL
     (information_schema), para não omitir colunas NOT NULL que existam na BD
@@ -381,8 +375,7 @@ def _import_crm_vendas_config_via_model(
         s = str(raw).strip()
         if s.startswith("\\x") or s.startswith("\\\\x"):
             hx = s.replace("\\\\x", "\\x")
-            if hx.startswith("\\x"):
-                hx = hx[2:]
+            hx = hx.removeprefix("\\x")
             try:
                 return bytes.fromhex(hx)
             except ValueError:
@@ -448,7 +441,7 @@ def _import_crm_vendas_config_via_model(
                     continue
 
                 if isinstance(field, dm.DecimalField):
-                    d0 = field.get_default() if field.has_default() else Decimal("0")
+                    d0 = field.get_default() if field.has_default() else Decimal(0)
                     if not isinstance(d0, Decimal):
                         d0 = Decimal(str(d0))
                     kwargs[att] = as_dec(raw, d0)
@@ -464,7 +457,7 @@ def _import_crm_vendas_config_via_model(
                     continue
 
                 if isinstance(
-                    field, (dm.IntegerField, dm.BigIntegerField, dm.SmallIntegerField)
+                    field, (dm.IntegerField, dm.BigIntegerField, dm.SmallIntegerField),
                 ):
                     d = 0
                     if field.has_default():
@@ -484,12 +477,12 @@ def _import_crm_vendas_config_via_model(
 
             kwargs["issnet_numero_lote"] = as_int(row.get("issnet_numero_lote"), 0)
             kwargs["issnet_ultimo_rps_conhecido"] = as_int(
-                row.get("issnet_ultimo_rps_conhecido"), 0
+                row.get("issnet_ultimo_rps_conhecido"), 0,
             )
             kwargs["loja_id"] = loja.id
 
             def _value_for_physical_column(
-                col_name: str, nullable: bool, pg_dtype: str
+                col_name: str, nullable: bool, pg_dtype: str,
             ) -> Any:
                 dt = (pg_dtype or "").lower()
                 raw_kw = kwargs.get(col_name)
@@ -519,7 +512,7 @@ def _import_crm_vendas_config_via_model(
                 if dt == "boolean":
                     return False
                 if dt.startswith("numeric") or dt == "decimal":
-                    return Decimal("0")
+                    return Decimal(0)
                 if "timestamp" in dt or dt == "date":
                     return timezone.now()
                 if dt == "bytea":
@@ -579,14 +572,14 @@ def _import_crm_vendas_config_via_model(
             qcols = ", ".join(f'"{c}"' for c in ordered_cols)
             if not ordered_cols:
                 raise BackupImportError(
-                    "crm_vendas_config: nenhuma coluna para INSERT (schema inesperado)"
+                    "crm_vendas_config: nenhuma coluna para INSERT (schema inesperado)",
                 )
 
             for must in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS:
                 if not any((c or "").strip().lower() == must for c in ordered_cols):
                     raise BackupImportError(
                         f"crm_vendas_config: coluna obrigatória {must!r} ausente após merge; "
-                        f"qual={qual!r} colunas={ordered_cols[:25]}..."
+                        f"qual={qual!r} colunas={ordered_cols[:25]}...",
                     )
 
             for i, c in enumerate(ordered_cols):

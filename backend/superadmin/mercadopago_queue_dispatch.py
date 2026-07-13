@@ -12,13 +12,13 @@ def should_enqueue_mercadopago_webhook() -> bool:
 def enqueue_mercadopago_webhook(payment_id: str) -> bool:
     from core.task_queue import enqueue_task
 
-    pid = (payment_id or '').strip()
+    pid = (payment_id or "").strip()
     if not pid:
         return False
 
     enqueue_task(
-        f'mp-webhook-{pid}',
-        'superadmin.mercadopago_queue_tasks.run_mercadopago_webhook',
+        f"mp-webhook-{pid}",
+        "superadmin.mercadopago_queue_tasks.run_mercadopago_webhook",
         pid,
     )
     return True

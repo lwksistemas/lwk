@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0050_proposta_contrato_desconto'),
+        ("crm_vendas", "0050_proposta_contrato_desconto"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='proposta',
-            name='status',
-            field=models.CharField(choices=[('rascunho', 'Rascunho'), ('enviada', 'Enviada'), ('aceita', 'Aceita'), ('rejeitada', 'Rejeitada'), ('cancelada', 'Cancelada')], default='rascunho', max_length=20),
+            model_name="proposta",
+            name="status",
+            field=models.CharField(choices=[("rascunho", "Rascunho"), ("enviada", "Enviada"), ("aceita", "Aceita"), ("rejeitada", "Rejeitada"), ("cancelada", "Cancelada")], default="rascunho", max_length=20),
         ),
     ]

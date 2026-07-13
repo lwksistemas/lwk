@@ -7,31 +7,31 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinica_beleza', '0029_document_templates_and_documentos'),
+        ("clinica_beleza", "0029_document_templates_and_documentos"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='LocalAtendimento',
+            name="LocalAtendimento",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('loja_id', models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro')),
-                ('nome', models.CharField(max_length=200, verbose_name='Nome do local')),
-                ('valor_consulta', models.DecimalField(decimal_places=2, max_digits=10, verbose_name='Valor da consulta (R$)')),
-                ('is_active', models.BooleanField(default=True, verbose_name='Ativo')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("loja_id", models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro")),
+                ("nome", models.CharField(max_length=200, verbose_name="Nome do local")),
+                ("valor_consulta", models.DecimalField(decimal_places=2, max_digits=10, verbose_name="Valor da consulta (R$)")),
+                ("is_active", models.BooleanField(default=True, verbose_name="Ativo")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'verbose_name': 'Local de atendimento',
-                'verbose_name_plural': 'Locais de atendimento',
-                'db_table': 'clinica_beleza_locais_atendimento',
-                'ordering': ['nome'],
+                "verbose_name": "Local de atendimento",
+                "verbose_name_plural": "Locais de atendimento",
+                "db_table": "clinica_beleza_locais_atendimento",
+                "ordering": ["nome"],
             },
         ),
         migrations.AddField(
-            model_name='consulta',
-            name='local_atendimento',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='consultas', to='clinica_beleza.localatendimento', verbose_name='Local de atendimento'),
+            model_name="consulta",
+            name="local_atendimento",
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="consultas", to="clinica_beleza.localatendimento", verbose_name="Local de atendimento"),
         ),
     ]

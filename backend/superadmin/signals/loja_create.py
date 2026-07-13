@@ -6,19 +6,19 @@ from django.dispatch import receiver
 logger = logging.getLogger(__name__)
 
 
-@receiver(post_save, sender='superadmin.Loja')
+@receiver(post_save, sender="superadmin.Loja")
 def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
-    """
-    Cria automaticamente um funcionário para o administrador quando uma loja é criada.
-    
+    """Cria automaticamente um funcionário para o administrador quando uma loja é criada.
+
     Este signal é executado APENAS na criação de novas lojas (created=True).
     Não é executado em atualizações de lojas existentes.
-    
+
     Args:
         sender: Modelo Loja
         instance: Instância da loja criada
         created: True se a loja foi criada, False se foi atualizada
         **kwargs: Argumentos adicionais do signal
+
     """
     if not created:
         return
@@ -28,108 +28,108 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
         ensure_loja_cloudinary_folders(instance)
     except Exception as cloud_err:
         logger.warning(
-            'Pastas Cloudinary não criadas para loja %s: %s',
+            "Pastas Cloudinary não criadas para loja %s: %s",
             instance.slug,
             cloud_err,
         )
-    
+
     try:
         tipo_loja_nome = instance.tipo_loja.nome
         owner = instance.owner
-        
+
         # Dados básicos do funcionário
         funcionario_data = {
-            'nome': owner.get_full_name() or owner.username,
-            'email': owner.email,
-            'telefone': '',  # Será preenchido posteriormente pelo admin
-            'cargo': 'Administrador',
-            'is_admin': True,  # Marca como administrador da loja
-            'loja_id': instance.id  # ID da loja (obrigatório para LojaIsolationMixin)
+            "nome": owner.get_full_name() or owner.username,
+            "email": owner.email,
+            "telefone": "",  # Será preenchido posteriormente pelo admin
+            "cargo": "Administrador",
+            "is_admin": True,  # Marca como administrador da loja
+            "loja_id": instance.id,  # ID da loja (obrigatório para LojaIsolationMixin)
         }
-        
+
         funcionario_criado = None
-        
+
         # Criar funcionário baseado no tipo de app
-        if tipo_loja_nome == 'CRM Vendas':
+        if tipo_loja_nome == "CRM Vendas":
             # CRM Vendas: admin (owner) é criado como Vendedor com is_admin=True
             # Isso permite que o admin apareça na lista de funcionários e tenha acesso total
             from crm_vendas.models import Vendedor
-            
+
             if not Vendedor.objects.filter(email=owner.email, loja_id=instance.id).exists():
                 vendedor_data = {
-                    'nome': owner.get_full_name() or owner.username,
-                    'email': owner.email,
-                    'telefone': '',
-                    'cargo': 'Administrador',
-                    'is_admin': True,
-                    'is_active': True,
-                    'loja_id': instance.id
+                    "nome": owner.get_full_name() or owner.username,
+                    "email": owner.email,
+                    "telefone": "",
+                    "cargo": "Administrador",
+                    "is_admin": True,
+                    "is_active": True,
+                    "loja_id": instance.id,
                 }
                 funcionario_criado = Vendedor.objects.create(**vendedor_data)
                 logger.info(f"✅ Vendedor Administrador criado para CRM Vendas: {funcionario_criado.nome}")
-            
+
             # Criar categorias padrão de produtos/serviços
             try:
                 from crm_vendas.models import CategoriaProdutoServico
-                
+
                 categorias_padrao = [
-                    {'nome': 'Hardware', 'cor': '#3B82F6', 'ordem': 1},
-                    {'nome': 'Software', 'cor': '#8B5CF6', 'ordem': 2},
-                    {'nome': 'Consultoria', 'cor': '#10B981', 'ordem': 3},
-                    {'nome': 'Suporte Técnico', 'cor': '#F59E0B', 'ordem': 4},
-                    {'nome': 'Treinamento', 'cor': '#EF4444', 'ordem': 5},
+                    {"nome": "Hardware", "cor": "#3B82F6", "ordem": 1},
+                    {"nome": "Software", "cor": "#8B5CF6", "ordem": 2},
+                    {"nome": "Consultoria", "cor": "#10B981", "ordem": 3},
+                    {"nome": "Suporte Técnico", "cor": "#F59E0B", "ordem": 4},
+                    {"nome": "Treinamento", "cor": "#EF4444", "ordem": 5},
                 ]
-                
+
                 for cat_data in categorias_padrao:
                     CategoriaProdutoServico.objects.get_or_create(
                         loja_id=instance.id,
-                        nome=cat_data['nome'],
+                        nome=cat_data["nome"],
                         defaults={
-                            'cor': cat_data['cor'],
-                            'ordem': cat_data['ordem'],
-                            'ativo': True,
-                        }
+                            "cor": cat_data["cor"],
+                            "ordem": cat_data["ordem"],
+                            "ativo": True,
+                        },
                     )
-                
+
                 logger.info(f"✅ Categorias padrão criadas para loja CRM Vendas: {instance.nome}")
             except Exception as e:
                 logger.error(f"❌ Erro ao criar categorias padrão para loja {instance.nome}: {e}")
 
-        elif tipo_loja_nome == 'Hotel':
+        elif tipo_loja_nome == "Hotel":
             from hotel.models import Funcionario
 
             if not Funcionario.objects.filter(email=owner.email, loja_id=instance.id).exists():
                 funcionario_criado = Funcionario.objects.create(**funcionario_data)
 
-        elif tipo_loja_nome == 'Clínica da Beleza':
+        elif tipo_loja_nome == "Clínica da Beleza":
             # Owner é vinculado como Professional + ProfissionalUsuario (recepção) no serializer,
             # após a criação do schema e das tabelas clinica_beleza.
             logger.info(
-                f"Clínica da Beleza: owner {owner.username} será vinculado como administrador no cadastro de profissionais (serializer)"
+                f"Clínica da Beleza: owner {owner.username} será vinculado como administrador no cadastro de profissionais (serializer)",
             )
             return
-            
+
         else:
             logger.warning(f"Tipo de app não reconhecido: {tipo_loja_nome}")
             return
-        
+
         if funcionario_criado:
             logger.info(
                 f"✅ Funcionário admin criado automaticamente: "
-                f"{funcionario_criado.nome} para loja {instance.nome} ({tipo_loja_nome})"
+                f"{funcionario_criado.nome} para loja {instance.nome} ({tipo_loja_nome})",
             )
         else:
             logger.info(
-                f"ℹ️ Funcionário já existe para {owner.username} na loja {instance.nome}"
+                f"ℹ️ Funcionário já existe para {owner.username} na loja {instance.nome}",
             )
-        
+
     except Exception as e:
         # Ignorar erro de tabela inexistente (schema ainda não criado — vendedor será criado após migrations)
         err_str = str(e)
-        if 'does not exist' in err_str or 'UndefinedTable' in err_str:
+        if "does not exist" in err_str or "UndefinedTable" in err_str:
             logger.debug(
                 f"ℹ️ Tabela ainda não existe para loja {instance.nome} — "
-                f"vendedor/funcionário será criado após migrations do schema."
+                f"vendedor/funcionário será criado após migrations do schema.",
             )
         else:
             logger.error(f"❌ Erro ao criar funcionário para loja {instance.nome}: {e}")

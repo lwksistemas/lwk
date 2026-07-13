@@ -5,29 +5,29 @@ from .models import Funcionalidade, HeroImagem, HeroSection, ModuloSistema
 
 @admin.register(HeroSection)
 class HeroSectionAdmin(admin.ModelAdmin):
-    list_display = ['titulo', 'ativo', 'ordem', 'updated_at']
-    list_editable = ['ativo', 'ordem']
-    search_fields = ['titulo', 'subtitulo']
+    list_display = ["titulo", "ativo", "ordem", "updated_at"]
+    list_editable = ["ativo", "ordem"]
+    search_fields = ["titulo", "subtitulo"]
 
 
 @admin.register(Funcionalidade)
 class FuncionalidadeAdmin(admin.ModelAdmin):
-    list_display = ['titulo', 'icone', 'ativo', 'ordem', 'updated_at']
-    list_editable = ['ativo', 'ordem']
-    search_fields = ['titulo', 'descricao']
+    list_display = ["titulo", "icone", "ativo", "ordem", "updated_at"]
+    list_editable = ["ativo", "ordem"]
+    search_fields = ["titulo", "descricao"]
 
 
 @admin.register(ModuloSistema)
 class ModuloSistemaAdmin(admin.ModelAdmin):
-    list_display = ['nome', 'slug', 'ativo', 'ordem', 'updated_at']
-    list_editable = ['ativo', 'ordem']
-    search_fields = ['nome', 'descricao']
-    prepopulated_fields = {'slug': ('nome',)}
+    list_display = ["nome", "slug", "ativo", "ordem", "updated_at"]
+    list_editable = ["ativo", "ordem"]
+    search_fields = ["nome", "descricao"]
+    prepopulated_fields = {"slug": ("nome",)}
 
 
 @admin.register(HeroImagem)
 class HeroImagemAdmin(admin.ModelAdmin):
-    list_display = ['titulo', 'ativo', 'ordem', 'updated_at']
-    list_editable = ['ativo', 'ordem']
-    search_fields = ['titulo']
-    readonly_fields = ['created_at', 'updated_at']
+    list_display = ["titulo", "ativo", "ordem", "updated_at"]
+    list_editable = ["ativo", "ordem"]
+    search_fields = ["titulo"]
+    readonly_fields = ["created_at", "updated_at"]

@@ -10,38 +10,38 @@ from .professionals import Professional
 
 # Categorias padrão (seed) — slug → nome
 CATEGORIAS_ESTOQUE_PADRAO = [
-    ('injetavel', 'Injetável'),
-    ('soroterapia', 'Soroterapia'),
-    ('cosmético', 'Cosmético'),
-    ('medicamentos', 'Medicamentos'),
-    ('descartavel', 'Descartável'),
-    ('equipamento', 'Equipamento'),
-    ('outro', 'Outro'),
+    ("injetavel", "Injetável"),
+    ("soroterapia", "Soroterapia"),
+    ("cosmético", "Cosmético"),
+    ("medicamentos", "Medicamentos"),
+    ("descartavel", "Descartável"),
+    ("equipamento", "Equipamento"),
+    ("outro", "Outro"),
 ]
 
 
 class CategoriaEstoque(LojaIsolationMixin, models.Model):
     """Categoria configurável do estoque da clínica."""
 
-    nome = models.CharField(max_length=100, verbose_name='Nome')
-    slug = models.SlugField(max_length=50, verbose_name='Slug')
-    cor = models.CharField(max_length=7, default='#8B3D52', verbose_name='Cor')
-    ordem = models.IntegerField(default=0, verbose_name='Ordem')
-    is_active = models.BooleanField(default=True, verbose_name='Ativa')
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
-    updated_at = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
+    nome = models.CharField(max_length=100, verbose_name="Nome")
+    slug = models.SlugField(max_length=50, verbose_name="Slug")
+    cor = models.CharField(max_length=7, default="#8B3D52", verbose_name="Cor")
+    ordem = models.IntegerField(default=0, verbose_name="Ordem")
+    is_active = models.BooleanField(default=True, verbose_name="Ativa")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
 
     objects = LojaIsolationManager()
 
     class Meta:
-        app_label = 'clinica_beleza'
-        verbose_name = 'Categoria de estoque'
-        verbose_name_plural = 'Categorias de estoque'
-        ordering = ['ordem', 'nome']
+        app_label = "clinica_beleza"
+        verbose_name = "Categoria de estoque"
+        verbose_name_plural = "Categorias de estoque"
+        ordering = ["ordem", "nome"]
         constraints = [
             models.UniqueConstraint(
-                fields=['loja_id', 'slug'],
-                name='cb_estoque_cat_loja_slug_uniq',
+                fields=["loja_id", "slug"],
+                name="cb_estoque_cat_loja_slug_uniq",
             ),
         ]
 
@@ -50,12 +50,13 @@ class CategoriaEstoque(LojaIsolationMixin, models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug and self.nome:
-            self.slug = slugify(self.nome, allow_unicode=True)[:50] or 'categoria'
+            self.slug = slugify(self.nome, allow_unicode=True)[:50] or "categoria"
         super().save(*args, **kwargs)
 
 
 class ProdutoEstoque(LojaIsolationMixin, models.Model):
     """Produto do estoque da clínica (botox, ácido hialurônico, soro, etc.)"""
+
     # Compat / seed; preferir FK categoria.
     CATEGORIA_CHOICES = list(CATEGORIAS_ESTOQUE_PADRAO)
 
@@ -65,13 +66,13 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='produtos',
-        verbose_name='Categoria',
+        related_name="produtos",
+        verbose_name="Categoria",
     )
-    marca = models.CharField(max_length=100, blank=True, default='', verbose_name="Marca/Fabricante")
+    marca = models.CharField(max_length=100, blank=True, default="", verbose_name="Marca/Fabricante")
     unidade_medida = models.CharField(
         max_length=30,
-        default='unidade',
+        default="unidade",
         verbose_name="Unidade de medida",
         help_text="Ex: unidade, ml, mg, ampola, frasco",
     )
@@ -92,19 +93,19 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
         max_digits=10, decimal_places=2, default=0, verbose_name="Preço de venda (R$)",
     )
     validade = models.DateField(null=True, blank=True, verbose_name="Data de validade")
-    lote = models.CharField(max_length=50, blank=True, default='', verbose_name="Lote")
+    lote = models.CharField(max_length=50, blank=True, default="", verbose_name="Lote")
     numero_nota = models.CharField(
-        max_length=50, blank=True, default='', verbose_name="Número da nota fiscal",
+        max_length=50, blank=True, default="", verbose_name="Número da nota fiscal",
     )
-    observacoes = models.TextField(blank=True, default='', verbose_name="Observações")
+    observacoes = models.TextField(blank=True, default="", verbose_name="Observações")
     procedure = models.ForeignKey(
         Procedure,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='produtos_estoque',
-        verbose_name='Procedimento vinculado',
-        help_text='Vincula o produto ao procedimento (ex.: termo de consentimento).',
+        related_name="produtos_estoque",
+        verbose_name="Procedimento vinculado",
+        help_text="Vincula o produto ao procedimento (ex.: termo de consentimento).",
     )
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
     dias_alerta_validade = models.PositiveIntegerField(
@@ -118,12 +119,12 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
     objects = LojaIsolationManager()
 
     class Meta:
-        app_label = 'clinica_beleza'
+        app_label = "clinica_beleza"
         verbose_name = "Produto do estoque"
         verbose_name_plural = "Produtos do estoque"
-        ordering = ['nome']
+        ordering = ["nome"]
         indexes = [
-            models.Index(fields=['validade'], name='cb_estoque_validade_idx'),
+            models.Index(fields=["validade"], name="cb_estoque_validade_idx"),
         ]
 
     def __str__(self):
@@ -131,11 +132,11 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
 
     @property
     def categoria_slug(self):
-        return self.categoria.slug if self.categoria_id else 'outro'
+        return self.categoria.slug if self.categoria_id else "outro"
 
     @property
     def categoria_display(self):
-        return self.categoria.nome if self.categoria_id else 'Outro'
+        return self.categoria.nome if self.categoria_id else "Outro"
 
     @property
     def estoque_baixo(self):
@@ -152,16 +153,17 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
 
 class MovimentacaoEstoque(LojaIsolationMixin, models.Model):
     """Registro de entrada/saída de produtos do estoque."""
+
     TIPO_CHOICES = [
-        ('entrada', 'Entrada'),
-        ('saida', 'Saída'),
-        ('ajuste', 'Ajuste de inventário'),
+        ("entrada", "Entrada"),
+        ("saida", "Saída"),
+        ("ajuste", "Ajuste de inventário"),
     ]
 
-    produto = models.ForeignKey(ProdutoEstoque, on_delete=models.CASCADE, related_name='movimentacoes')
+    produto = models.ForeignKey(ProdutoEstoque, on_delete=models.CASCADE, related_name="movimentacoes")
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
     quantidade = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Quantidade")
-    motivo = models.CharField(max_length=200, blank=True, default='', verbose_name="Motivo/Observação")
+    motivo = models.CharField(max_length=200, blank=True, default="", verbose_name="Motivo/Observação")
     profissional = models.ForeignKey(
         Professional,
         on_delete=models.SET_NULL,
@@ -181,12 +183,12 @@ class MovimentacaoEstoque(LojaIsolationMixin, models.Model):
     objects = LojaIsolationManager()
 
     class Meta:
-        app_label = 'clinica_beleza'
+        app_label = "clinica_beleza"
         verbose_name = "Movimentação de estoque"
         verbose_name_plural = "Movimentações de estoque"
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['produto', '-created_at'], name='cb_movest_produto_idx'),
+            models.Index(fields=["produto", "-created_at"], name="cb_movest_produto_idx"),
         ]
 
     def __str__(self):
@@ -195,31 +197,32 @@ class MovimentacaoEstoque(LojaIsolationMixin, models.Model):
 
 class ConsultaProdutoUtilizado(LojaIsolationMixin, models.Model):
     """Produto do estoque utilizado em uma consulta (baixa ao finalizar)."""
+
     consulta = models.ForeignKey(
-        'Consulta',
+        "Consulta",
         on_delete=models.CASCADE,
-        related_name='produtos_estoque',
-        verbose_name='Consulta',
+        related_name="produtos_estoque",
+        verbose_name="Consulta",
     )
     produto = models.ForeignKey(
         ProdutoEstoque,
         on_delete=models.PROTECT,
-        related_name='uso_em_consultas',
-        verbose_name='Produto',
+        related_name="uso_em_consultas",
+        verbose_name="Produto",
     )
-    quantidade = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Quantidade utilizada')
-    lote = models.CharField(max_length=50, blank=True, default='', verbose_name='Lote utilizado')
-    validade = models.DateField(null=True, blank=True, verbose_name='Validade do lote')
-    estoque_baixado = models.BooleanField(default=False, verbose_name='Estoque já baixado')
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Registrado em')
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Quantidade utilizada")
+    lote = models.CharField(max_length=50, blank=True, default="", verbose_name="Lote utilizado")
+    validade = models.DateField(null=True, blank=True, verbose_name="Validade do lote")
+    estoque_baixado = models.BooleanField(default=False, verbose_name="Estoque já baixado")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Registrado em")
 
     objects = LojaIsolationManager()
 
     class Meta:
-        app_label = 'clinica_beleza'
-        verbose_name = 'Produto utilizado na consulta'
-        verbose_name_plural = 'Produtos utilizados na consulta'
-        ordering = ['created_at']
+        app_label = "clinica_beleza"
+        verbose_name = "Produto utilizado na consulta"
+        verbose_name_plural = "Produtos utilizados na consulta"
+        ordering = ["created_at"]
 
     def __str__(self):
-        return f'{self.produto.nome} x{self.quantidade} (consulta {self.consulta_id})'
+        return f"{self.produto.nome} x{self.quantidade} (consulta {self.consulta_id})"

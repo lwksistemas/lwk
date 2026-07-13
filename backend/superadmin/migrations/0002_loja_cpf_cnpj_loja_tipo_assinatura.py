@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0001_initial'),
+        ("superadmin", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='loja',
-            name='cpf_cnpj',
-            field=models.CharField(blank=True, help_text='CPF ou CNPJ da loja', max_length=18),
+            model_name="loja",
+            name="cpf_cnpj",
+            field=models.CharField(blank=True, help_text="CPF ou CNPJ da loja", max_length=18),
         ),
         migrations.AddField(
-            model_name='loja',
-            name='tipo_assinatura',
-            field=models.CharField(choices=[('mensal', 'Mensal'), ('anual', 'Anual')], default='mensal', max_length=10),
+            model_name="loja",
+            name="tipo_assinatura",
+            field=models.CharField(choices=[("mensal", "Mensal"), ("anual", "Anual")], default="mensal", max_length=10),
         ),
     ]

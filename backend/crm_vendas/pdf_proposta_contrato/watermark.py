@@ -15,12 +15,12 @@ def _build_watermark_callback(logo_url, assinatura_vendedor, assinatura_cliente)
         resp = requests.get(logo_url, timeout=5)
         if resp.status_code != 200:
             return None
-        pil_img = PILImage.open(BytesIO(resp.content)).convert('RGBA')
+        pil_img = PILImage.open(BytesIO(resp.content)).convert("RGBA")
         alpha = pil_img.split()[3]
         alpha = alpha.point(lambda p: int(p * 0.25))
         pil_img.putalpha(alpha)
         out_buf = BytesIO()
-        pil_img.save(out_buf, format='PNG')
+        pil_img.save(out_buf, format="PNG")
         return out_buf.getvalue()
     except Exception:
         return None
@@ -52,8 +52,8 @@ def _inserir_watermark_flowable(elements, wm_data, *, cell_width_cm=8, max_wm_w_
                 cell_w = cell_width_cm * cm
                 x_left = (cell_w - wm_w) / 2
                 x_right = cell_w + (cell_w - wm_w) / 2
-                self.canv.drawImage(img, x_left, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
-                self.canv.drawImage(img, x_right, y_offset, width=wm_w, height=wm_h, mask='auto', preserveAspectRatio=True)
+                self.canv.drawImage(img, x_left, y_offset, width=wm_w, height=wm_h, mask="auto", preserveAspectRatio=True)
+                self.canv.drawImage(img, x_right, y_offset, width=wm_w, height=wm_h, mask="auto", preserveAspectRatio=True)
             except Exception:
                 pass
 

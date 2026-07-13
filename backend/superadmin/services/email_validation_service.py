@@ -1,5 +1,4 @@
-"""
-Serviço de validação e envio de emails
+"""Serviço de validação e envio de emails
 Centraliza lógica de emails do superadmin
 """
 import logging
@@ -12,58 +11,57 @@ logger = logging.getLogger(__name__)
 
 
 class EmailValidationService:
+    """Serviço para validação e envio de emails
     """
-    Serviço para validação e envio de emails
-    """
-    
+
     @staticmethod
     def validar_configuracao_email() -> bool:
-        """
-        Verifica se as configurações de email estão corretas
-        
+        """Verifica se as configurações de email estão corretas
+
         Returns:
             True se configurado corretamente
+
         """
-        if getattr(settings, 'RESEND_API_KEY', '').strip():
-            return bool(getattr(settings, 'DEFAULT_FROM_EMAIL', ''))
+        if getattr(settings, "RESEND_API_KEY", "").strip():
+            return bool(getattr(settings, "DEFAULT_FROM_EMAIL", ""))
 
         required_settings = [
-            'EMAIL_HOST',
-            'EMAIL_PORT',
-            'EMAIL_HOST_USER',
-            'EMAIL_HOST_PASSWORD',
+            "EMAIL_HOST",
+            "EMAIL_PORT",
+            "EMAIL_HOST_USER",
+            "EMAIL_HOST_PASSWORD",
         ]
-        
+
         for setting in required_settings:
             if not hasattr(settings, setting) or not getattr(settings, setting):
                 logger.warning(f"Configuração de email ausente: {setting}")
                 return False
-        
+
         return True
-    
+
     @staticmethod
     def enviar_email_simples(
         destinatario: str,
         assunto: str,
         mensagem: str,
-        remetente: str | None = None
+        remetente: str | None = None,
     ) -> bool:
-        """
-        Envia email simples
-        
+        """Envia email simples
+
         Args:
             destinatario: Email do destinatário
             assunto: Assunto do email
             mensagem: Corpo do email
             remetente: Email do remetente (opcional)
-            
+
         Returns:
             True se enviado com sucesso
+
         """
         if not EmailValidationService.validar_configuracao_email():
             logger.error("Configuração de email inválida")
             return False
-        
+
         try:
             send_system_mail(
                 assunto,
@@ -72,42 +70,42 @@ class EmailValidationService:
                 from_email=remetente or get_from_email(),
                 fail_silently=False,
             )
-            
+
             logger.info(f"Email enviado com sucesso para {destinatario}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Erro ao enviar email: {e}")
             return False
-    
+
     @staticmethod
     def enviar_email_multiplos_destinatarios(
         destinatarios: list[str],
         assunto: str,
         mensagem: str,
-        remetente: str | None = None
+        remetente: str | None = None,
     ) -> dict[str, bool]:
-        """
-        Envia email para múltiplos destinatários
-        
+        """Envia email para múltiplos destinatários
+
         Args:
             destinatarios: Lista de emails
             assunto: Assunto do email
             mensagem: Corpo do email
             remetente: Email do remetente (opcional)
-            
+
         Returns:
             Dicionário com status de envio para cada destinatário
+
         """
         resultados = {}
-        
+
         for destinatario in destinatarios:
             sucesso = EmailValidationService.enviar_email_simples(
                 destinatario=destinatario,
                 assunto=assunto,
                 mensagem=mensagem,
-                remetente=remetente
+                remetente=remetente,
             )
             resultados[destinatario] = sucesso
-        
+
         return resultados

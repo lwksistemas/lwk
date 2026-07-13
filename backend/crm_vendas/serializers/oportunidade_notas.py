@@ -7,17 +7,17 @@ from ..models import OportunidadeNota
 
 
 class OportunidadeNotaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
-    tipo_label = serializers.CharField(source='get_tipo_display', read_only=True)
+    tipo_label = serializers.CharField(source="get_tipo_display", read_only=True)
 
     class Meta:
         model = OportunidadeNota
         fields = [
-            'id', 'oportunidade', 'tipo', 'tipo_label', 'texto',
-            'autor_nome', 'created_at',
+            "id", "oportunidade", "tipo", "tipo_label", "texto",
+            "autor_nome", "created_at",
         ]
-        read_only_fields = ['id', 'autor_nome', 'created_at', 'tipo_label']
+        read_only_fields = ["id", "autor_nome", "created_at", "tipo_label"]
 
     def validate_texto(self, value):
-        if not (value or '').strip():
-            raise serializers.ValidationError('Informe o texto da nota.')
+        if not (value or "").strip():
+            raise serializers.ValidationError("Informe o texto da nota.")
         return value.strip()

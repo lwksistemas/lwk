@@ -6,13 +6,13 @@
 from django.db import migrations, models
 
 TABLES = (
-    ('homepage_funcionalidade', 'funcionalidade'),
-    ('homepage_modulo_sistema', 'modulosistema'),
+    ("homepage_funcionalidade", "funcionalidade"),
+    ("homepage_modulo_sistema", "modulosistema"),
 )
 
 
 def _column_exists(cursor, vendor, table: str) -> bool:
-    if vendor == 'postgresql':
+    if vendor == "postgresql":
         cursor.execute(
             """
             SELECT 1 FROM information_schema.columns
@@ -22,9 +22,9 @@ def _column_exists(cursor, vendor, table: str) -> bool:
             [table],
         )
         return cursor.fetchone() is not None
-    if vendor == 'sqlite':
-        cursor.execute(f'PRAGMA table_info({table})')
-        return any(row[1] == 'imagem' for row in cursor.fetchall())
+    if vendor == "sqlite":
+        cursor.execute(f"PRAGMA table_info({table})")
+        return any(row[1] == "imagem" for row in cursor.fetchall())
     return False
 
 
@@ -36,41 +36,41 @@ def add_imagem_columns_if_missing(apps, schema_editor):
         for table, _label in TABLES:
             if _column_exists(cursor, vendor, table):
                 continue
-            if vendor == 'sqlite':
+            if vendor == "sqlite":
                 cursor.execute(
-                    f'ALTER TABLE {table} ADD COLUMN imagem varchar(500) NULL'
+                    f"ALTER TABLE {table} ADD COLUMN imagem varchar(500) NULL",
                 )
             else:
                 cursor.execute(
-                    f'ALTER TABLE "{table}" ADD COLUMN imagem VARCHAR(500) NULL'
+                    f'ALTER TABLE "{table}" ADD COLUMN imagem VARCHAR(500) NULL',
                 )
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('homepage', '0040_remove_herosection_imagem'),
+        ("homepage", "0040_remove_herosection_imagem"),
     ]
 
     operations = [
         migrations.SeparateDatabaseAndState(
             state_operations=[
                 migrations.AddField(
-                    model_name='funcionalidade',
-                    name='imagem',
+                    model_name="funcionalidade",
+                    name="imagem",
                     field=models.URLField(
                         blank=True,
-                        help_text='URL da imagem da funcionalidade (opcional, substitui ícone)',
+                        help_text="URL da imagem da funcionalidade (opcional, substitui ícone)",
                         max_length=500,
                         null=True,
                     ),
                 ),
                 migrations.AddField(
-                    model_name='modulosistema',
-                    name='imagem',
+                    model_name="modulosistema",
+                    name="imagem",
                     field=models.URLField(
                         blank=True,
-                        help_text='URL da imagem do módulo (opcional, substitui ícone)',
+                        help_text="URL da imagem do módulo (opcional, substitui ícone)",
                         max_length=500,
                         null=True,
                     ),

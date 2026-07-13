@@ -4,7 +4,7 @@ from django.db import migrations
 
 
 def _column_exists(cursor, vendor, table, column):
-    if vendor == 'sqlite':
+    if vendor == "sqlite":
         cursor.execute(f'PRAGMA table_info("{table}")')
         return any(row[1] == column for row in cursor.fetchall())
     cursor.execute(
@@ -23,9 +23,9 @@ def add_imagem_if_not_exists(apps, schema_editor):
     from django.db import connection
 
     targets = (
-        ('homepage_funcionalidade', 'imagem'),
-        ('homepage_hero_section', 'imagem'),
-        ('homepage_modulo_sistema', 'imagem'),
+        ("homepage_funcionalidade", "imagem"),
+        ("homepage_hero_section", "imagem"),
+        ("homepage_modulo_sistema", "imagem"),
     )
 
     with connection.cursor() as cursor:
@@ -41,7 +41,7 @@ def add_imagem_if_not_exists(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('homepage', '0003_herosection_botao_principal_ativo'),
+        ("homepage", "0003_herosection_botao_principal_ativo"),
     ]
 
     operations = [

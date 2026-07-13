@@ -6,7 +6,7 @@ from django.db import migrations
 def ensure_google_event_id(apps, schema_editor):
     """Adiciona google_event_id se a tabela existir e a coluna não existir."""
     conn = schema_editor.connection
-    if conn.vendor != 'postgresql':
+    if conn.vendor != "postgresql":
         return
     with conn.cursor() as cursor:
         cursor.execute("""
@@ -32,13 +32,12 @@ def ensure_google_event_id(apps, schema_editor):
 
 def reverse_ensure_google_event_id(apps, schema_editor):
     """No-op: não remove a coluna no reverse."""
-    pass
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0003_add_google_event_id_tenant_schemas'),
+        ("crm_vendas", "0003_add_google_event_id_tenant_schemas"),
     ]
 
     operations = [

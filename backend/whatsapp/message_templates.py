@@ -1,5 +1,4 @@
-"""
-Templates de mensagem WhatsApp — LWK Sistemas.
+"""Templates de mensagem WhatsApp — LWK Sistemas.
 
 Design profissional e seguro para mensagens com links de ação.
 Evita aparência de spam/phishing com:
@@ -10,7 +9,7 @@ Evita aparência de spam/phishing com:
 """
 from __future__ import annotations
 
-SEPARADOR = '━━━━━━━━━━━━━━━━━━━━'
+SEPARADOR = "━━━━━━━━━━━━━━━━━━━━"
 DIAS_EXPIRACAO_PADRAO = 7
 
 # ---------------------------------------------------------------------------
@@ -26,29 +25,28 @@ def msg_assinatura_cliente(
     link: str,
     dias: int = DIAS_EXPIRACAO_PADRAO,
 ) -> str:
-    """
-    Mensagem para o CLIENTE assinar proposta, contrato ou termo de consentimento.
+    """Mensagem para o CLIENTE assinar proposta, contrato ou termo de consentimento.
     Aparência profissional — evita parecer spam/phishing.
     """
-    subtitulo = f'_{titulo}_' if titulo and titulo.strip() else ''
+    subtitulo = f"_{titulo}_" if titulo and titulo.strip() else ""
     linhas = [
-        '🔐 *Documento para Assinatura Digital*',
+        "🔐 *Documento para Assinatura Digital*",
         SEPARADOR,
-        f'Olá *{nome}*!',
-        '',
-        f'*{loja_nome}* enviou um documento que precisa da sua assinatura:',
-        '',
-        f'📋 *{tipo_doc}*' + (f'\n   {subtitulo}' if subtitulo else ''),
-        '',
-        '👇 *Toque no link abaixo para ler e assinar:*',
+        f"Olá *{nome}*!",
+        "",
+        f"*{loja_nome}* enviou um documento que precisa da sua assinatura:",
+        "",
+        f"📋 *{tipo_doc}*" + (f"\n   {subtitulo}" if subtitulo else ""),
+        "",
+        "👇 *Toque no link abaixo para ler e assinar:*",
         link,
-        '',
-        f'⏳ Válido por {dias} dias',
-        '🔒 Documento verificado por LWK Sistemas',
+        "",
+        f"⏳ Válido por {dias} dias",
+        "🔒 Documento verificado por LWK Sistemas",
         SEPARADOR,
-        '_Este link é exclusivo para você. Não compartilhe._',
+        "_Este link é exclusivo para você. Não compartilhe._",
     ]
-    return '\n'.join(linhas)
+    return "\n".join(linhas)
 
 
 def msg_assinatura_vendedor(
@@ -61,33 +59,32 @@ def msg_assinatura_vendedor(
     nome_cliente: str | None = None,
     dias: int = DIAS_EXPIRACAO_PADRAO,
 ) -> str:
+    """Mensagem para o VENDEDOR finalizar assinatura após o cliente já ter assinado.
     """
-    Mensagem para o VENDEDOR finalizar assinatura após o cliente já ter assinado.
-    """
-    subtitulo = f'_{titulo}_' if titulo and titulo.strip() else ''
-    cliente_linha = f'👤 *Cliente:* {nome_cliente}' if nome_cliente else ''
+    subtitulo = f"_{titulo}_" if titulo and titulo.strip() else ""
+    cliente_linha = f"👤 *Cliente:* {nome_cliente}" if nome_cliente else ""
     linhas = [
-        '✅ *Assinatura do Cliente Concluída*',
+        "✅ *Assinatura do Cliente Concluída*",
         SEPARADOR,
-        f'Olá *{nome}*!',
-        '',
-        f'O cliente assinou o documento de *{loja_nome}*.',
-        'Agora é a sua vez de finalizar:',
-        '',
-        f'📋 *{tipo_doc}*' + (f'\n   {subtitulo}' if subtitulo else ''),
+        f"Olá *{nome}*!",
+        "",
+        f"O cliente assinou o documento de *{loja_nome}*.",
+        "Agora é a sua vez de finalizar:",
+        "",
+        f"📋 *{tipo_doc}*" + (f"\n   {subtitulo}" if subtitulo else ""),
     ]
     if cliente_linha:
         linhas.append(cliente_linha)
     linhas.extend([
-        '',
-        '👇 *Toque para assinar e concluir:*',
+        "",
+        "👇 *Toque para assinar e concluir:*",
         link,
-        '',
-        f'⏳ Válido por {dias} dias',
-        '🔒 Documento verificado por LWK Sistemas',
+        "",
+        f"⏳ Válido por {dias} dias",
+        "🔒 Documento verificado por LWK Sistemas",
         SEPARADOR,
     ])
-    return '\n'.join(linhas)
+    return "\n".join(linhas)
 
 
 def msg_termo_consentimento(
@@ -98,32 +95,31 @@ def msg_termo_consentimento(
     link: str,
     dias: int = DIAS_EXPIRACAO_PADRAO,
 ) -> str:
+    """Mensagem para o PACIENTE assinar termo de consentimento (Clínica da Beleza).
     """
-    Mensagem para o PACIENTE assinar termo de consentimento (Clínica da Beleza).
-    """
-    proc_linha = f'💉 *Procedimento:* {procedimento}' if procedimento else ''
+    proc_linha = f"💉 *Procedimento:* {procedimento}" if procedimento else ""
     linhas = [
-        '📋 *Termo de Consentimento*',
+        "📋 *Termo de Consentimento*",
         SEPARADOR,
-        f'Olá *{nome}*!',
-        '',
-        f'*{loja_nome}* precisa da sua assinatura no',
-        'Termo de Consentimento Livre e Esclarecido (TCLE):',
-        '',
+        f"Olá *{nome}*!",
+        "",
+        f"*{loja_nome}* precisa da sua assinatura no",
+        "Termo de Consentimento Livre e Esclarecido (TCLE):",
+        "",
     ]
     if proc_linha:
         linhas.append(proc_linha)
-        linhas.append('')
+        linhas.append("")
     linhas.extend([
-        '👇 *Toque para ler e assinar:*',
+        "👇 *Toque para ler e assinar:*",
         link,
-        '',
-        f'⏳ Válido por {dias} dias',
-        '🔒 Documento verificado por LWK Sistemas',
+        "",
+        f"⏳ Válido por {dias} dias",
+        "🔒 Documento verificado por LWK Sistemas",
         SEPARADOR,
-        '_Sua assinatura confirma que foi informado(a) sobre o procedimento._',
+        "_Sua assinatura confirma que foi informado(a) sobre o procedimento._",
     ])
-    return '\n'.join(linhas)
+    return "\n".join(linhas)
 
 
 # ---------------------------------------------------------------------------
@@ -139,59 +135,58 @@ def msg_confirmacao_agendamento(
     profissional: str | None = None,
     link: str | None = None,
 ) -> str:
-    """
-    Mensagem de confirmação de agendamento — versão texto (fallback ou Meta API).
+    """Mensagem de confirmação de agendamento — versão texto (fallback ou Meta API).
     Quando Evolution + link disponível, usar junto com send_url_button_or_text.
     """
     linhas = [
-        '📅 *Confirmação de Agendamento*',
+        "📅 *Confirmação de Agendamento*",
         SEPARADOR,
-        f'Olá *{nome}*! 😊',
-        '',
-        'Você tem um agendamento confirmado:',
-        '',
-        f'📆 *Data:* {data}',
-        f'⏰ *Hora:* {hora}',
-        f'💆 *Procedimento:* {procedimento}',
+        f"Olá *{nome}*! 😊",
+        "",
+        "Você tem um agendamento confirmado:",
+        "",
+        f"📆 *Data:* {data}",
+        f"⏰ *Hora:* {hora}",
+        f"💆 *Procedimento:* {procedimento}",
     ]
     if profissional:
-        linhas.append(f'👤 *Profissional:* {profissional}')
+        linhas.append(f"👤 *Profissional:* {profissional}")
 
-    linhas.append('')
+    linhas.append("")
 
     if link:
         linhas.extend([
-            'Por favor, confirme ou cancele sua consulta:',
-            '',
-            '👇 *Abra o link e toque em Confirmar ou Cancelar:*',
+            "Por favor, confirme ou cancele sua consulta:",
+            "",
+            "👇 *Abra o link e toque em Confirmar ou Cancelar:*",
             link,
-            '',
-            '_Ou responda neste chat:_ *CONFIRMAR* ou *CANCELAR*',
-            '',
+            "",
+            "_Ou responda neste chat:_ *CONFIRMAR* ou *CANCELAR*",
+            "",
             SEPARADOR,
-            '_Qualquer dúvida, entre em contato conosco._',
+            "_Qualquer dúvida, entre em contato conosco._",
         ])
     else:
         linhas.extend([
-            'Responda *CONFIRMAR* ou *CANCELAR* para este chat.',
-            '',
+            "Responda *CONFIRMAR* ou *CANCELAR* para este chat.",
+            "",
             SEPARADOR,
-            '_Qualquer dúvida, entre em contato conosco._',
+            "_Qualquer dúvida, entre em contato conosco._",
         ])
-    return '\n'.join(linhas)
+    return "\n".join(linhas)
 
 
 def msg_lembrete_agendamento(*, nome: str, hora: str, procedimento: str) -> str:
     """Lembrete de agendamento no dia."""
-    return '\n'.join([
-        '⏰ *Lembrete de Agendamento*',
+    return "\n".join([
+        "⏰ *Lembrete de Agendamento*",
         SEPARADOR,
-        f'Olá *{nome}*! 😊',
-        '',
-        f'Seu agendamento é *hoje às {hora}*.',
-        f'💆 *{procedimento}*',
-        '',
-        'Estamos te aguardando! 🤗',
+        f"Olá *{nome}*! 😊",
+        "",
+        f"Seu agendamento é *hoje às {hora}*.",
+        f"💆 *{procedimento}*",
+        "",
+        "Estamos te aguardando! 🤗",
         SEPARADOR,
     ])
 
@@ -207,23 +202,23 @@ def msg_lembrete_tarefa(
     data_hora: str,
     loja_nome: str,
     lead_nome: str | None = None,
-    antecedencia: str = '24h',
+    antecedencia: str = "24h",
 ) -> str:
     """Lembrete automático de atividade CRM — sem link."""
-    quando = '24 horas' if antecedencia == '24h' else '2 horas'
+    quando = "24 horas" if antecedencia == "24h" else "2 horas"
     linhas = [
-        f'🔔 *Lembrete — faltam {quando}*',
+        f"🔔 *Lembrete — faltam {quando}*",
         SEPARADOR,
-        f'📅 *{loja_nome}*',
-        '',
-        f'*{tipo}:* {titulo}',
-        f'*Quando:* {data_hora}',
+        f"📅 *{loja_nome}*",
+        "",
+        f"*{tipo}:* {titulo}",
+        f"*Quando:* {data_hora}",
     ]
     if lead_nome:
-        linhas.append(f'*Cliente:* {lead_nome}')
+        linhas.append(f"*Cliente:* {lead_nome}")
     linhas.extend([
-        '',
+        "",
         SEPARADOR,
-        '_Mensagem automática do calendário CRM._',
+        "_Mensagem automática do calendário CRM._",
     ])
-    return '\n'.join(linhas)
+    return "\n".join(linhas)

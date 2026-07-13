@@ -1,5 +1,4 @@
-"""
-Normaliza status legado PENDING → SCHEDULED nos agendamentos das lojas.
+"""Normaliza status legado PENDING → SCHEDULED nos agendamentos das lojas.
 """
 from contextlib import suppress
 
@@ -12,11 +11,11 @@ from superadmin.models import Loja
 
 
 class Command(BaseCommand):
-    help = 'Converte agendamentos PENDING para SCHEDULED (remove redundância).'
+    help = "Converte agendamentos PENDING para SCHEDULED (remove redundância)."
 
     def handle(self, *args, **options):
         lojas = (
-            Loja.objects.filter(is_active=True, database_created=True, tipo_loja__nome='Clínica da Beleza')
+            Loja.objects.filter(is_active=True, database_created=True, tipo_loja__nome="Clínica da Beleza")
         )
         total = 0
         for loja in lojas:
@@ -26,25 +25,25 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not table_exists(cursor, 'clinica_beleza_appointment'):
+                    if not table_exists(cursor, "clinica_beleza_appointment"):
                         continue
                     cursor.execute(
                         """
                         UPDATE clinica_beleza_appointment
                         SET status = 'SCHEDULED', updated_at = NOW()
                         WHERE status = 'PENDING'
-                        """
+                        """,
                     )
                     n = cursor.rowcount or 0
                     if n:
                         total += n
                         self.stdout.write(self.style.SUCCESS(
-                            f'OK loja={loja.id} ({loja.nome}): {n} PENDING → SCHEDULED'
+                            f"OK loja={loja.id} ({loja.nome}): {n} PENDING → SCHEDULED",
                         ))
             except Exception as exc:
-                self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id}: {exc}'))
+                self.stdout.write(self.style.ERROR(f"ERRO loja={loja.id}: {exc}"))
             finally:
                 with suppress(Exception):
                     connections[db_name].close()
 
-        self.stdout.write(self.style.SUCCESS(f'Concluído: {total} agendamento(s) normalizado(s).'))
+        self.stdout.write(self.style.SUCCESS(f"Concluído: {total} agendamento(s) normalizado(s)."))

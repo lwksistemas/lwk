@@ -1,5 +1,4 @@
-"""
-Templates HTML profissionais para emails do sistema.
+"""Templates HTML profissionais para emails do sistema.
 """
 from datetime import datetime
 
@@ -12,11 +11,10 @@ def email_senha_provisoria_html(
     titulo_principal: str,
     subtitulo: str,
     info_adicional: dict,
-    nome_sistema: str = "LWK Sistemas"
+    nome_sistema: str = "LWK Sistemas",
 ) -> tuple[str, str]:
-    """
-    Gera email HTML profissional para envio de senha provisória.
-    
+    """Gera email HTML profissional para envio de senha provisória.
+
     Args:
         nome_destinatario: Nome da pessoa que receberá o email
         usuario: Nome de usuário para login
@@ -26,15 +24,15 @@ def email_senha_provisoria_html(
         subtitulo: Subtítulo explicativo
         info_adicional: Dict com informações adicionais (ex: {"Loja": "Nome da Loja", "Plano": "Premium"})
         nome_sistema: Nome do sistema/loja
-    
+
     Returns:
         tuple: (html_content, texto_plano)
+
     """
-    
     # Construir linhas de informações adicionais
     info_lines_html = ""
     info_lines_text = ""
-    
+
     for chave, valor in info_adicional.items():
         info_lines_html += f"""
                                                 <tr>
@@ -49,7 +47,7 @@ def email_senha_provisoria_html(
                                                 </tr>
         """
         info_lines_text += f"{chave}: {valor}\n"
-    
+
     html_content = f"""
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -74,18 +72,18 @@ def email_senha_provisoria_html(
                                 </p>
                             </td>
                         </tr>
-                        
+
                         <!-- Body -->
                         <tr>
                             <td style="padding: 40px 30px;">
                                 <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
                                     Olá <strong>{nome_destinatario}</strong>,
                                 </p>
-                                
+
                                 <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 30px 0;">
                                     Seus dados de acesso ao sistema foram gerados com sucesso!
                                 </p>
-                                
+
                                 <!-- Credentials Box -->
                                 <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid #667eea; border-radius: 4px; margin-bottom: 30px;">
                                     <tr>
@@ -115,7 +113,7 @@ def email_senha_provisoria_html(
                                         </td>
                                     </tr>
                                 </table>
-                                
+
                                 <!-- CTA Button (bulletproof Outlook-compatible) -->
                                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
                                     <tr>
@@ -134,7 +132,7 @@ def email_senha_provisoria_html(
                                         </td>
                                     </tr>
                                 </table>
-                                
+
                                 <!-- Warning Box -->
                                 <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fff3cd; border-radius: 4px; margin-bottom: 30px;">
                                     <tr>
@@ -151,7 +149,7 @@ def email_senha_provisoria_html(
                                         </td>
                                     </tr>
                                 </table>
-                                
+
                                 <!-- Additional Info -->
                                 {f'''
                                 <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #e7f3ff; border-left: 4px solid #2196F3; border-radius: 4px; margin-bottom: 20px;">
@@ -167,13 +165,13 @@ def email_senha_provisoria_html(
                                     </tr>
                                 </table>
                                 ''' if info_adicional else ''}
-                                
+
                                 <p style="color: #666666; font-size: 14px; line-height: 1.6; margin: 0;">
                                     Se você tiver alguma dúvida, entre em contato com nosso suporte.
                                 </p>
                             </td>
                         </tr>
-                        
+
                         <!-- Footer -->
                         <tr>
                             <td style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; text-align: center; border-top: 1px solid #e9ecef;">
@@ -189,7 +187,7 @@ def email_senha_provisoria_html(
                             </td>
                         </tr>
                     </table>
-                    
+
                     <!-- Footer Text -->
                     <table width="600" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
                         <tr>
@@ -206,7 +204,7 @@ def email_senha_provisoria_html(
     </body>
     </html>
     """
-    
+
     # Texto plano como fallback
     texto_plano = f"""
 ═══════════════════════════════════════════════════════════════
@@ -261,5 +259,5 @@ Este é um email automático. Por favor, não responda.
 
 ═══════════════════════════════════════════════════════════════
     """
-    
+
     return html_content, texto_plano

@@ -1,5 +1,4 @@
-"""
-Comando para executar a verificação de backups automáticos agendados.
+"""Comando para executar a verificação de backups automáticos agendados.
 
 Chama executar_backups_automaticos(): para cada loja com backup automático ativo,
 verifica se está no horário e se ainda não rodou hoje; se sim, processa o backup
@@ -25,15 +24,15 @@ logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = (
-        'Verifica backups automáticos agendados e processa os que estão no horário. '
-        'Agende no Heroku Scheduler a cada hora para que o backup por email funcione.'
+        "Verifica backups automáticos agendados e processa os que estão no horário. "
+        "Agende no Heroku Scheduler a cada hora para que o backup por email funcione."
     )
 
     def handle(self, *args, **options):
         from superadmin.tasks import executar_backups_automaticos
 
         self.stdout.write(
-            self.style.SUCCESS(f'=== Verificação de backups automáticos em {timezone.localtime(timezone.now())} ===')
+            self.style.SUCCESS(f"=== Verificação de backups automáticos em {timezone.localtime(timezone.now())} ==="),
         )
 
         result = executar_backups_automaticos()
@@ -41,6 +40,6 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"Verificação concluída: {result['total_agendados']} backup(s) agendado(s) "
-                f"(configurações verificadas: {result['total_verificados']})."
-            )
+                f"(configurações verificadas: {result['total_verificados']}).",
+            ),
         )

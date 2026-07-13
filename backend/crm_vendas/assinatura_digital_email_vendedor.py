@@ -11,7 +11,7 @@ from .assinatura_digital_email_layout import (
 
 
 def montar_email_vendedor_assinatura(*, assinatura, lead, documento, loja_nome, link_assinatura, tipo_doc):
-    valor = documento.valor_total or '0,00'
+    valor = documento.valor_total or "0,00"
     body = f"""
                                 <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
                                     Olá <strong>{assinatura.nome_assinante}</strong>,
@@ -39,16 +39,16 @@ def montar_email_vendedor_assinatura(*, assinatura, lead, documento, loja_nome, 
                                 </p>"""
 
     html_content = montar_email_html(
-        title=f'Assinatura Digital - {tipo_doc}',
+        title=f"Assinatura Digital - {tipo_doc}",
         loja_nome=loja_nome,
         header=header_html(
-            bgcolor='#10b981',
-            gradient_end='#059669',
-            title='✅ Cliente Assinou!',
-            subtitle='Sua assinatura é necessária para finalizar',
+            bgcolor="#10b981",
+            gradient_end="#059669",
+            title="✅ Cliente Assinou!",
+            subtitle="Sua assinatura é necessária para finalizar",
         ),
         body=body,
-        footer_tagline='Este é um email automático. Por favor, não responda.',
+        footer_tagline="Este é um email automático. Por favor, não responda.",
     )
 
     texto_plano = f"""

@@ -1,5 +1,4 @@
-"""
-Cliente para integração com API do Asaas
+"""Cliente para integração com API do Asaas
 Gera boletos e PIX para cobrança de assinaturas das lojas
 """
 import json
@@ -15,35 +14,35 @@ logger = logging.getLogger(__name__)
 
 class AsaasClient:
     """Cliente para API do Asaas"""
-    
+
     def __init__(self, api_key: str = None, sandbox: bool = None):
-        raw_api_key = api_key or getattr(settings, 'ASAAS_API_KEY', '')
+        raw_api_key = api_key or getattr(settings, "ASAAS_API_KEY", "")
         self.api_key = self._normalize_api_key(raw_api_key)
-        self.timeout = float(getattr(settings, 'ASAAS_API_TIMEOUT', 15))
-        
+        self.timeout = float(getattr(settings, "ASAAS_API_TIMEOUT", 15))
+
         # Auto-detectar sandbox se não especificado
         if sandbox is None:
             # Detectar automaticamente baseado na chave
-            self.sandbox = 'hmlg' in self.api_key if self.api_key else True
+            self.sandbox = "hmlg" in self.api_key if self.api_key else True
         else:
             self.sandbox = sandbox
-        
+
         if self.sandbox:
-            self.base_url = 'https://sandbox.asaas.com/api/v3'
+            self.base_url = "https://sandbox.asaas.com/api/v3"
         else:
-            self.base_url = 'https://api.asaas.com/v3'
-        
+            self.base_url = "https://api.asaas.com/v3"
+
         self.headers = {
-            'access_token': self.api_key,
-            'Content-Type': 'application/json',
-            'User-Agent': 'LWK Sistemas/1.0'
+            "access_token": self.api_key,
+            "Content-Type": "application/json",
+            "User-Agent": "LWK Sistemas/1.0",
         }
 
     @staticmethod
     def _normalize_api_key(api_key: str) -> str:
         """Aceita chaves em texto ou criptografadas pelo core.encryption."""
         if not api_key:
-            return ''
+            return ""
         try:
             from core.encryption import decrypt_value
 
@@ -53,55 +52,54 @@ class AsaasClient:
             logger.exception("Erro ao preparar chave Asaas para uso")
             from .api_key_utils import normalize_asaas_api_key
             return normalize_asaas_api_key(api_key)
-    
+
     def _make_request(self, method: str, endpoint: str, data: dict = None) -> dict[str, Any]:
         """Faz requisição para API do Asaas"""
         url = f"{self.base_url}/{endpoint}"
-        
+
         try:
             logger.info(f"Asaas API Request: {method} {url}")
-            
-            if method.upper() == 'GET':
+
+            if method.upper() == "GET":
                 response = requests.get(url, headers=self.headers, params=data, timeout=self.timeout)
-            elif method.upper() == 'POST':
+            elif method.upper() == "POST":
                 response = requests.post(url, headers=self.headers, json=data, timeout=self.timeout)
-            elif method.upper() == 'PUT':
+            elif method.upper() == "PUT":
                 response = requests.put(url, headers=self.headers, json=data, timeout=self.timeout)
-            elif method.upper() == 'DELETE':
+            elif method.upper() == "DELETE":
                 response = requests.delete(url, headers=self.headers, timeout=self.timeout)
             else:
                 raise ValueError(f"Método HTTP não suportado: {method}")
-            
+
             logger.info(f"Asaas API Response: {response.status_code}")
-            
+
             if response.status_code >= 400:
                 logger.error(f"Erro na API Asaas: {response.status_code} - {response.text}")
                 response.raise_for_status()
-            
+
             return response.json()
-            
+
         except requests.exceptions.RequestException as e:
             logger.error(f"Erro na requisição para Asaas: {e}")
             raise
         except json.JSONDecodeError as e:
             logger.error(f"Erro ao decodificar resposta JSON: {e}")
             raise
-    
+
     def create_customer(self, customer_data: dict[str, Any]) -> dict[str, Any]:
         """Cria um cliente no Asaas"""
-        endpoint = 'customers'
-        return self._make_request('POST', endpoint, customer_data)
+        endpoint = "customers"
+        return self._make_request("POST", endpoint, customer_data)
 
     def list_customer_notifications(self, customer_id: str) -> list:
         """Lista regras de notificação de cobrança de um cliente Asaas."""
         if not customer_id:
             return []
-        response = self._make_request('GET', f'customers/{customer_id}/notifications')
-        return response.get('data') or []
+        response = self._make_request("GET", f"customers/{customer_id}/notifications")
+        return response.get("data") or []
 
     def disable_provider_notifications(self, customer_id: str) -> None:
-        """
-        Desativa e-mails/SMS do Asaas para o prestador (conta LWK — coluna "Para mim").
+        """Desativa e-mails/SMS do Asaas para o prestador (conta LWK — coluna "Para mim").
         Mantém notificações para o cliente da loja (boleto, lembretes).
         """
         if not customer_id:
@@ -110,44 +108,44 @@ class AsaasClient:
             items = self.list_customer_notifications(customer_id)
             updates = []
             for notif in items:
-                if notif.get('deleted'):
+                if notif.get("deleted"):
                     continue
-                notif_id = notif.get('id')
+                notif_id = notif.get("id")
                 if not notif_id:
                     continue
-                if not (notif.get('emailEnabledForProvider') or notif.get('smsEnabledForProvider')):
+                if not (notif.get("emailEnabledForProvider") or notif.get("smsEnabledForProvider")):
                     continue
                 updates.append({
-                    'id': notif_id,
-                    'enabled': notif.get('enabled', True),
-                    'emailEnabledForProvider': False,
-                    'smsEnabledForProvider': False,
-                    'emailEnabledForCustomer': notif.get('emailEnabledForCustomer', True),
-                    'smsEnabledForCustomer': notif.get('smsEnabledForCustomer', False),
-                    'phoneCallEnabledForCustomer': notif.get('phoneCallEnabledForCustomer', False),
-                    'whatsappEnabledForCustomer': notif.get('whatsappEnabledForCustomer', False),
+                    "id": notif_id,
+                    "enabled": notif.get("enabled", True),
+                    "emailEnabledForProvider": False,
+                    "smsEnabledForProvider": False,
+                    "emailEnabledForCustomer": notif.get("emailEnabledForCustomer", True),
+                    "smsEnabledForCustomer": notif.get("smsEnabledForCustomer", False),
+                    "phoneCallEnabledForCustomer": notif.get("phoneCallEnabledForCustomer", False),
+                    "whatsappEnabledForCustomer": notif.get("whatsappEnabledForCustomer", False),
                 })
             if not updates:
                 return
-            self._make_request('POST', 'notifications/batch', {
-                'customer': customer_id,
-                'notifications': updates,
+            self._make_request("POST", "notifications/batch", {
+                "customer": customer_id,
+                "notifications": updates,
             })
             logger.info(
-                'Asaas: notificações do prestador desativadas para cliente %s (%s regra(s))',
+                "Asaas: notificações do prestador desativadas para cliente %s (%s regra(s))",
                 customer_id,
                 len(updates),
             )
         except Exception as exc:
             logger.warning(
-                'Asaas: falha ao desativar notificações do prestador (%s): %s',
+                "Asaas: falha ao desativar notificações do prestador (%s): %s",
                 customer_id,
                 exc,
             )
 
     @staticmethod
     def _only_digits(value: str) -> str:
-        return re.sub(r'\D', '', value or '')
+        return re.sub(r"\D", "", value or "")
 
     def search_customer(
         self,
@@ -155,120 +153,118 @@ class AsaasClient:
         email: str | None = None,
         external_reference: str | None = None,
     ) -> dict[str, Any] | None:
-        """
-        Busca cliente existente no Asaas (evita duplicatas).
+        """Busca cliente existente no Asaas (evita duplicatas).
         Prioridade: CPF/CNPJ → externalReference → e-mail.
         """
         searches = []
-        cpf_digits = self._only_digits(cpf_cnpj or '')
+        cpf_digits = self._only_digits(cpf_cnpj or "")
         if cpf_digits:
-            searches.append({'cpfCnpj': cpf_digits})
-        ext = (external_reference or '').strip()
+            searches.append({"cpfCnpj": cpf_digits})
+        ext = (external_reference or "").strip()
         if ext:
-            searches.append({'externalReference': ext})
-        email_clean = (email or '').strip().lower()
+            searches.append({"externalReference": ext})
+        email_clean = (email or "").strip().lower()
         if email_clean:
-            searches.append({'email': email_clean})
+            searches.append({"email": email_clean})
 
         for params in searches:
             try:
-                response = self._make_request('GET', 'customers', params)
-                items = response.get('data') or []
+                response = self._make_request("GET", "customers", params)
+                items = response.get("data") or []
                 if items:
                     found = items[0]
                     logger.info(
-                        'Cliente Asaas encontrado: id=%s filtro=%s',
-                        found.get('id'),
+                        "Cliente Asaas encontrado: id=%s filtro=%s",
+                        found.get("id"),
                         list(params.keys())[0],
                     )
                     return found
             except Exception as exc:
-                logger.warning('Busca cliente Asaas falhou (%s): %s', params, exc)
+                logger.warning("Busca cliente Asaas falhou (%s): %s", params, exc)
         return None
 
     def get_or_create_customer(self, customer_data: dict[str, Any]) -> dict[str, Any]:
         """Reutiliza cliente por CPF/CNPJ, referência externa ou e-mail; cria só se não existir."""
         payload = dict(customer_data)
-        if payload.get('cpfCnpj'):
-            payload['cpfCnpj'] = self._only_digits(str(payload['cpfCnpj']))
+        if payload.get("cpfCnpj"):
+            payload["cpfCnpj"] = self._only_digits(str(payload["cpfCnpj"]))
 
         existing = self.search_customer(
-            cpf_cnpj=payload.get('cpfCnpj'),
-            email=payload.get('email'),
-            external_reference=payload.get('externalReference'),
+            cpf_cnpj=payload.get("cpfCnpj"),
+            email=payload.get("email"),
+            external_reference=payload.get("externalReference"),
         )
         if existing:
             customer = existing
         else:
-            logger.info('Criando novo cliente Asaas: %s', payload.get('name'))
+            logger.info("Criando novo cliente Asaas: %s", payload.get("name"))
             customer = self.create_customer(payload)
 
-        customer_id = customer.get('id')
+        customer_id = customer.get("id")
         if customer_id:
             self.disable_provider_notifications(customer_id)
         return customer
-    
+
     def update_customer(self, customer_id: str, customer_data: dict[str, Any]) -> dict[str, Any]:
         """Atualiza um cliente no Asaas"""
-        endpoint = f'customers/{customer_id}'
-        return self._make_request('POST', endpoint, customer_data)
-    
+        endpoint = f"customers/{customer_id}"
+        return self._make_request("POST", endpoint, customer_data)
+
     def get_customer(self, customer_id: str) -> dict[str, Any]:
         """Busca um cliente no Asaas"""
-        endpoint = f'customers/{customer_id}'
-        return self._make_request('GET', endpoint)
-    
+        endpoint = f"customers/{customer_id}"
+        return self._make_request("GET", endpoint)
+
     def create_payment(self, payment_data: dict[str, Any]) -> dict[str, Any]:
         """Cria uma cobrança no Asaas"""
-        endpoint = 'payments'
-        return self._make_request('POST', endpoint, payment_data)
-    
+        endpoint = "payments"
+        return self._make_request("POST", endpoint, payment_data)
+
     def get_payment(self, payment_id: str) -> dict[str, Any]:
         """Busca uma cobrança no Asaas"""
-        endpoint = f'payments/{payment_id}'
-        return self._make_request('GET', endpoint)
-    
+        endpoint = f"payments/{payment_id}"
+        return self._make_request("GET", endpoint)
+
     def delete_payment(self, payment_id: str) -> dict[str, Any]:
         """Cancela/exclui uma cobrança no Asaas"""
-        endpoint = f'payments/{payment_id}'
-        return self._make_request('DELETE', endpoint)
-    
+        endpoint = f"payments/{payment_id}"
+        return self._make_request("DELETE", endpoint)
+
     # ✅ NOVO: Métodos para cartão de crédito
-    
+
     def create_payment_link(self, payment_id: str, name: str = None, callback_url: str = None) -> dict[str, Any]:
-        """
-        Cria link de checkout para cobrança existente
+        """Cria link de checkout para cobrança existente
         Permite que cliente cadastre cartão e pague online
-        
+
         Args:
             payment_id: ID da cobrança no Asaas
             name: Nome do link (não usado neste endpoint)
             callback_url: URL de retorno após pagamento (opcional)
-        
+
         Returns:
             dict com url do link de pagamento
+
         """
         # Para cobranças específicas, usamos o endpoint de checkout
-        
+
         # Primeiro, obter os dados da cobrança
-        payment_data = self._make_request('GET', f'payments/{payment_id}')
-        
+        payment_data = self._make_request("GET", f"payments/{payment_id}")
+
         # O link de checkout já vem na resposta da cobrança
-        if payment_data.get('invoiceUrl'):
+        if payment_data.get("invoiceUrl"):
             return {
-                'url': payment_data.get('invoiceUrl'),
-                'id': payment_id
+                "url": payment_data.get("invoiceUrl"),
+                "id": payment_id,
             }
-        
+
         # Se não tiver, retornar erro
         return {
-            'error': 'Link de pagamento não disponível para esta cobrança'
+            "error": "Link de pagamento não disponível para esta cobrança",
         }
-    
+
     def tokenize_credit_card(self, card_data: dict[str, Any]) -> dict[str, Any]:
-        """
-        Tokeniza cartão de crédito para cobranças recorrentes
-        
+        """Tokeniza cartão de crédito para cobranças recorrentes
+
         Args:
             card_data: {
                 'customer': customer_id,
@@ -288,73 +284,74 @@ class AsaasClient:
                     'phone': '11999999999'
                 }
             }
-        
+
         Returns:
             dict com creditCardToken
+
         """
-        endpoint = 'creditCard/tokenize'
-        return self._make_request('POST', endpoint, card_data)
-    
+        endpoint = "creditCard/tokenize"
+        return self._make_request("POST", endpoint, card_data)
+
     def charge_credit_card(
-        self, 
-        customer_id: str, 
-        value: float, 
+        self,
+        customer_id: str,
+        value: float,
         credit_card_token: str,
         description: str = None,
-        due_date: str = None
+        due_date: str = None,
     ) -> dict[str, Any]:
-        """
-        Cria cobrança no cartão de crédito tokenizado
-        
+        """Cria cobrança no cartão de crédito tokenizado
+
         Args:
             customer_id: ID do cliente no Asaas
             value: Valor da cobrança
             credit_card_token: Token do cartão tokenizado
             description: Descrição da cobrança
             due_date: Data de vencimento (YYYY-MM-DD)
-        
+
         Returns:
             dict com dados da cobrança
+
         """
-        endpoint = 'payments'
+        endpoint = "payments"
         data = {
-            'customer': customer_id,
-            'billingType': 'CREDIT_CARD',
-            'value': value,
-            'dueDate': due_date or (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d'),
-            'creditCard': {
-                'creditCardToken': credit_card_token
-            }
+            "customer": customer_id,
+            "billingType": "CREDIT_CARD",
+            "value": value,
+            "dueDate": due_date or (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d"),
+            "creditCard": {
+                "creditCardToken": credit_card_token,
+            },
         }
-        
+
         if description:
-            data['description'] = description
-        
-        return self._make_request('POST', endpoint, data)
-    
+            data["description"] = description
+
+        return self._make_request("POST", endpoint, data)
+
     def delete_customer(self, customer_id: str) -> dict[str, Any]:
         """Exclui um cliente no Asaas"""
-        endpoint = f'customers/{customer_id}'
-        return self._make_request('DELETE', endpoint)
-    
+        endpoint = f"customers/{customer_id}"
+        return self._make_request("DELETE", endpoint)
+
     def list_customer_payments(self, customer_id: str) -> dict[str, Any]:
         """Lista todos os pagamentos de um cliente"""
-        endpoint = 'payments'
-        params = {'customer': customer_id}
-        return self._make_request('GET', endpoint, params)
-    
+        endpoint = "payments"
+        params = {"customer": customer_id}
+        return self._make_request("GET", endpoint, params)
+
     def list_payments(self, limit: int = 100, offset: int = 0) -> dict[str, Any]:
         """Lista todos os pagamentos"""
-        endpoint = 'payments'
-        params = {'limit': limit, 'offset': offset}
-        return self._make_request('GET', endpoint, params)
-    
+        endpoint = "payments"
+        params = {"limit": limit, "offset": offset}
+        return self._make_request("GET", endpoint, params)
+
     def list_customers(self, limit: int = 100, offset: int = 0) -> dict[str, Any]:
         """Lista todos os clientes"""
-        endpoint = 'customers'
-        params = {'limit': limit, 'offset': offset}
-        return self._make_request('GET', endpoint, params)
-    
+        endpoint = "customers"
+        params = {"limit": limit, "offset": offset}
+        return self._make_request("GET", endpoint, params)
+
     def get_payment_pdf(self, payment_id: str) -> bytes:
         """Baixa o PDF do boleto via bankSlipUrl da API ou URLs alternativas."""
         urls_to_try = []
@@ -362,15 +359,15 @@ class AsaasClient:
         # 1. Obter bankSlipUrl da API (formato correto segundo documentação Asaas)
         try:
             payment = self.get_payment(payment_id)
-            bank_slip_url = payment.get('bankSlipUrl')
+            bank_slip_url = payment.get("bankSlipUrl")
             if bank_slip_url:
                 urls_to_try.append(bank_slip_url)  # URL pública do boleto
         except Exception as e:
             logger.warning(f"Erro ao obter payment para bankSlipUrl: {e}")
 
         # 2. URLs alternativas b/pdf (sandbox usa ID sem prefixo pay_ em alguns casos)
-        id_sem_prefixo = payment_id.replace('pay_', '', 1) if payment_id.startswith('pay_') else payment_id
-        base_b_pdf = 'https://sandbox.asaas.com' if self.sandbox else 'https://www.asaas.com'
+        id_sem_prefixo = payment_id.replace("pay_", "", 1) if payment_id.startswith("pay_") else payment_id
+        base_b_pdf = "https://sandbox.asaas.com" if self.sandbox else "https://www.asaas.com"
         urls_to_try.append(f"{base_b_pdf}/b/pdf/{id_sem_prefixo}")
         urls_to_try.append(f"{base_b_pdf}/b/pdf/{payment_id}")
 
@@ -379,16 +376,16 @@ class AsaasClient:
                 logger.info(f"Tentando baixar PDF de: {url}")
                 # URLs públicas (bankSlipUrl, b/pdf) — User-Agent browser-like para evitar bloqueio
                 headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'application/pdf,*/*',
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "application/pdf,*/*",
                 }
                 response = requests.get(url, headers=headers, timeout=15)
 
                 if response.status_code == 200:
-                    content_type = response.headers.get('content-type', '')
+                    content_type = response.headers.get("content-type", "")
                     content = response.content
-                    if ('application/pdf' in content_type.lower() or
-                            (content and len(content) >= 4 and content[:4] == b'%PDF')):
+                    if ("application/pdf" in content_type.lower() or
+                            (content and len(content) >= 4 and content[:4] == b"%PDF")):
                         logger.info(f"PDF baixado com sucesso de: {url}")
                         return content
                     logger.warning(f"Conteúdo retornado não é PDF: {content_type}")
@@ -398,11 +395,11 @@ class AsaasClient:
                 logger.warning(f"Erro ao baixar PDF de {url}: {e}")
 
         raise Exception("Não foi possível baixar o PDF do boleto de nenhuma URL")
-    
+
     def get_pix_qr_code(self, payment_id: str) -> dict[str, Any]:
         """Busca dados do QR Code PIX"""
-        endpoint = f'payments/{payment_id}/pixQrCode'
-        return self._make_request('GET', endpoint)
+        endpoint = f"payments/{payment_id}/pixQrCode"
+        return self._make_request("GET", endpoint)
 
     def receive_payment_in_cash(
         self,
@@ -410,20 +407,19 @@ class AsaasClient:
         value: float,
         payment_date: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Registra recebimento em dinheiro da cobrança (permite seguir com NFS-e sem liquidação bancária).
+        """Registra recebimento em dinheiro da cobrança (permite seguir com NFS-e sem liquidação bancária).
         POST /v3/payments/{id}/receiveInCash
         """
         from datetime import date
         if payment_date is None:
             payment_date = date.today().isoformat()
-        endpoint = f'payments/{payment_id}/receiveInCash'
+        endpoint = f"payments/{payment_id}/receiveInCash"
         payload = {
-            'paymentDate': payment_date,
-            'value': float(value),
-            'notifyCustomer': False,
+            "paymentDate": payment_date,
+            "value": float(value),
+            "notifyCustomer": False,
         }
-        return self._make_request('POST', endpoint, payload)
+        return self._make_request("POST", endpoint, payload)
 
     # ---------- Notas Fiscais (INVOICE) ----------
     # Requer permissão INVOICE:WRITE na chave da API Asaas
@@ -440,58 +436,57 @@ class AsaasClient:
         observations: str | None = None,
         iss_aliquota: float | None = None,
     ) -> dict[str, Any]:
-        """
-        Agenda uma nota fiscal vinculada a uma cobrança (payment).
+        """Agenda uma nota fiscal vinculada a uma cobrança (payment).
         Campos municipais dependem da prefeitura da conta Asaas (LWK).
         """
-        endpoint = 'invoices'
+        endpoint = "invoices"
         data = {
-            'payment': payment_id,
-            'serviceDescription': service_description,
-            'value': value,
-            'effectiveDate': effective_date,
+            "payment": payment_id,
+            "serviceDescription": service_description,
+            "value": value,
+            "effectiveDate": effective_date,
         }
         if municipal_service_id:
-            data['municipalServiceId'] = municipal_service_id
+            data["municipalServiceId"] = municipal_service_id
         if municipal_service_code:
-            data['municipalServiceCode'] = municipal_service_code
+            data["municipalServiceCode"] = municipal_service_code
         if municipal_service_name:
-            data['municipalServiceName'] = municipal_service_name
+            data["municipalServiceName"] = municipal_service_name
         if observations:
-            data['observations'] = observations
-        
+            data["observations"] = observations
+
         # Alíquota ISS (prefeitura / configuração da loja)
         iss_pct = float(iss_aliquota) if iss_aliquota is not None else 2.0
-        data['taxes'] = {
-            'retainIss': False,
-            'iss': iss_pct,
-            'cofins': 0.0,
-            'csll': 0.0,
-            'inss': 0.0,
-            'ir': 0.0,
-            'pis': 0.0,
+        data["taxes"] = {
+            "retainIss": False,
+            "iss": iss_pct,
+            "cofins": 0.0,
+            "csll": 0.0,
+            "inss": 0.0,
+            "ir": 0.0,
+            "pis": 0.0,
         }
-        
-        return self._make_request('POST', endpoint, data)
+
+        return self._make_request("POST", endpoint, data)
 
     def authorize_invoice(self, invoice_id: str) -> dict[str, Any]:
         """Emitir (autorizar) uma nota fiscal já agendada."""
-        endpoint = f'invoices/{invoice_id}/authorize'
-        return self._make_request('POST', endpoint, {})
+        endpoint = f"invoices/{invoice_id}/authorize"
+        return self._make_request("POST", endpoint, {})
 
     def cancel_invoice(self, invoice_id: str) -> dict[str, Any]:
         """Cancela uma nota fiscal agendada ou emitida."""
-        endpoint = f'invoices/{invoice_id}'
-        return self._make_request('DELETE', endpoint)
+        endpoint = f"invoices/{invoice_id}"
+        return self._make_request("DELETE", endpoint)
 
     def get_invoice(self, invoice_id: str) -> dict[str, Any]:
         """Busca uma nota fiscal (para obter link do PDF se disponível)."""
-        endpoint = f'invoices/{invoice_id}'
-        return self._make_request('GET', endpoint)
+        endpoint = f"invoices/{invoice_id}"
+        return self._make_request("GET", endpoint)
 
 class AsaasPaymentService:
     """Serviço para gerenciar pagamentos via Asaas"""
-    
+
     def __init__(self):
         # Obter configuração do banco de dados
         try:
@@ -503,129 +498,129 @@ class AsaasPaymentService:
         except Exception as e:
             logger.error(f"Erro ao obter configuração Asaas: {e}")
             # Fallback para configuração vazia
-            self.client = AsaasClient(api_key='', sandbox=True)
-    
+            self.client = AsaasClient(api_key="", sandbox=True)
+
     def create_loja_subscription_payment(self, loja_data: dict[str, Any], plano_data: dict[str, Any], due_date: str = None, customer_id: str = None) -> dict[str, Any]:
-        """
-        Cria cobrança para assinatura de loja
-        
+        """Cria cobrança para assinatura de loja
+
         Args:
             loja_data: Dados da loja (nome, email, cpf_cnpj, etc)
             plano_data: Dados do plano (valor, nome, etc)
             due_date: Data de vencimento no formato YYYY-MM-DD (opcional, padrão: +7 dias)
             customer_id: ID do customer existente no Asaas (opcional, se não fornecido cria novo)
-        
+
         Returns:
             Dict com dados da cobrança criada
+
         """
         try:
             # 1. Usar customer existente ou buscar/criar sem duplicar
-            customer_id = (customer_id or '').strip() or None
+            customer_id = (customer_id or "").strip() or None
             if customer_id:
                 logger.info(f"Usando customer existente: {customer_id}")
                 try:
                     customer = self.client.get_customer(customer_id)
                 except Exception:
                     logger.warning(
-                        'Customer %s inválido; buscando por CPF/e-mail/referência',
+                        "Customer %s inválido; buscando por CPF/e-mail/referência",
                         customer_id,
                     )
                     customer_id = None
 
             if not customer_id:
-                cep_raw = loja_data.get('cep', '')
-                cep_limpo = ''.join(c for c in cep_raw if c.isdigit())
+                cep_raw = loja_data.get("cep", "")
+                cep_limpo = "".join(c for c in cep_raw if c.isdigit())
 
                 customer_data = {
-                    'name': loja_data['nome'],
-                    'email': loja_data['email'],
-                    'cpfCnpj': loja_data['cpf_cnpj'],
-                    'phone': loja_data.get('telefone', ''),
-                    'address': loja_data.get('endereco', ''),
-                    'addressNumber': loja_data.get('numero', ''),
-                    'complement': loja_data.get('complemento', ''),
-                    'province': loja_data.get('bairro', ''),
-                    'city': loja_data.get('cidade', ''),
-                    'state': loja_data.get('estado', ''),
-                    'postalCode': cep_limpo,
-                    'externalReference': f"loja_{loja_data['slug']}",
+                    "name": loja_data["nome"],
+                    "email": loja_data["email"],
+                    "cpfCnpj": loja_data["cpf_cnpj"],
+                    "phone": loja_data.get("telefone", ""),
+                    "address": loja_data.get("endereco", ""),
+                    "addressNumber": loja_data.get("numero", ""),
+                    "complement": loja_data.get("complemento", ""),
+                    "province": loja_data.get("bairro", ""),
+                    "city": loja_data.get("cidade", ""),
+                    "state": loja_data.get("estado", ""),
+                    "postalCode": cep_limpo,
+                    "externalReference": f"loja_{loja_data['slug']}",
                 }
 
                 logger.info(f"Buscando/criando cliente Asaas para loja: {loja_data['nome']}")
                 customer = self.client.get_or_create_customer(customer_data)
-            
-            customer_id = customer['id']
-            
+
+            customer_id = customer["id"]
+
             # 2. Criar cobrança
             # Usar data fornecida ou calcular +7 dias
             if due_date:
                 payment_due_date = due_date
             else:
-                payment_due_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
-            
+                payment_due_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
+
             payment_data = {
-                'customer': customer_id,
-                'billingType': 'BOLETO',  # Boleto com PIX
-                'value': float(plano_data['preco']),
-                'dueDate': payment_due_date,
-                'description': f"Assinatura {plano_data['nome']} - Loja {loja_data['nome']}",
-                'externalReference': f"loja_{loja_data['slug']}_assinatura",
-                'postalService': False,
-                'split': []
+                "customer": customer_id,
+                "billingType": "BOLETO",  # Boleto com PIX
+                "value": float(plano_data["preco"]),
+                "dueDate": payment_due_date,
+                "description": f"Assinatura {plano_data['nome']} - Loja {loja_data['nome']}",
+                "externalReference": f"loja_{loja_data['slug']}_assinatura",
+                "postalService": False,
+                "split": [],
             }
-            
+
             logger.info(f"Criando cobrança Asaas: R$ {plano_data['preco']} - Vencimento: {payment_due_date}")
             payment = self.client.create_payment(payment_data)
-            
+
             # 3. Buscar dados do PIX (se disponível)
             pix_data = None
             try:
-                pix_data = self.client.get_pix_qr_code(payment['id'])
+                pix_data = self.client.get_pix_qr_code(payment["id"])
             except Exception as e:
                 logger.warning(f"PIX não disponível para esta cobrança: {e}")
-            
+
             return {
-                'success': True,
-                'customer_id': customer_id,
-                'payment_id': payment['id'],
-                'payment_url': payment.get('invoiceUrl', ''),
-                'boleto_url': payment.get('bankSlipUrl', ''),
-                'due_date': payment['dueDate'],
-                'value': payment['value'],
-                'status': payment['status'],
-                'pix_qr_code': pix_data.get('qrCode', '') if pix_data else '',
-                'pix_copy_paste': pix_data.get('payload', '') if pix_data else '',
-                'raw_payment': payment,
-                'raw_customer': customer
+                "success": True,
+                "customer_id": customer_id,
+                "payment_id": payment["id"],
+                "payment_url": payment.get("invoiceUrl", ""),
+                "boleto_url": payment.get("bankSlipUrl", ""),
+                "due_date": payment["dueDate"],
+                "value": payment["value"],
+                "status": payment["status"],
+                "pix_qr_code": pix_data.get("qrCode", "") if pix_data else "",
+                "pix_copy_paste": pix_data.get("payload", "") if pix_data else "",
+                "raw_payment": payment,
+                "raw_customer": customer,
             }
-            
+
         except Exception as e:
             logger.error(f"Erro ao criar cobrança Asaas: {e}")
             return {
-                'success': False,
-                'error': str(e)
+                "success": False,
+                "error": str(e),
             }
-    
+
     def get_payment_status(self, payment_id: str) -> dict[str, Any]:
         """Consulta status de um pagamento"""
         try:
             payment = self.client.get_payment(payment_id)
             return {
-                'success': True,
-                'payment_id': payment_id,
-                'status': payment['status'],
-                'value': payment['value'],
-                'due_date': payment['dueDate'],
-                'payment_date': payment.get('paymentDate'),
-                'raw_payment': payment
+                "success": True,
+                "payment_id": payment_id,
+                "status": payment["status"],
+                "value": payment["value"],
+                "due_date": payment["dueDate"],
+                "payment_date": payment.get("paymentDate"),
+                "raw_payment": payment,
             }
         except Exception as e:
             logger.error(f"Erro ao consultar pagamento: {e}")
             return {
-                'success': False,
-                'error': str(e)
+                "success": False,
+                "error": str(e),
             }
-    
+
     def download_boleto_pdf(self, payment_id: str) -> bytes:
         """Baixa PDF do boleto"""
         try:

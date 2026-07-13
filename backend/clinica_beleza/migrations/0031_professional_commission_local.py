@@ -7,34 +7,34 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinica_beleza', '0030_localatendimento_consulta_local_atendimento'),
+        ("clinica_beleza", "0030_localatendimento_consulta_local_atendimento"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='professionalcommission',
-            name='local_atendimento',
+            model_name="professionalcommission",
+            name="local_atendimento",
             field=models.ForeignKey(
                 blank=True,
-                help_text='Quando tipo = consulta: regra só para este local. Vazio = regra geral.',
+                help_text="Quando tipo = consulta: regra só para este local. Vazio = regra geral.",
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                related_name='comissoes',
-                to='clinica_beleza.localatendimento',
-                verbose_name='Local de atendimento',
+                related_name="comissoes",
+                to="clinica_beleza.localatendimento",
+                verbose_name="Local de atendimento",
             ),
         ),
         migrations.AlterField(
-            model_name='professionalcommission',
-            name='procedure',
+            model_name="professionalcommission",
+            name="procedure",
             field=models.ForeignKey(
                 blank=True,
-                help_text='Obrigatório quando tipo = procedimento. Vazio em consulta.',
+                help_text="Obrigatório quando tipo = procedimento. Vazio em consulta.",
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                related_name='comissoes',
-                to='clinica_beleza.procedure',
-                verbose_name='Procedimento',
+                related_name="comissoes",
+                to="clinica_beleza.procedure",
+                verbose_name="Procedimento",
             ),
         ),
     ]

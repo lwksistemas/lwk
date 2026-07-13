@@ -1,5 +1,4 @@
-"""
-Verifica migrations críticas pendentes no banco default (evita 500 por schema desatualizado).
+"""Verifica migrations críticas pendentes no banco default (evita 500 por schema desatualizado).
 """
 from __future__ import annotations
 
@@ -9,7 +8,7 @@ import sys
 logger = logging.getLogger(__name__)
 
 # Apps cujo schema no default deve estar alinhado antes de servir tráfego
-CRITICAL_APPS = ('superadmin', 'auth', 'contenttypes')
+CRITICAL_APPS = ("superadmin", "auth", "contenttypes")
 
 
 def _should_skip_check() -> bool:
@@ -17,17 +16,17 @@ def _should_skip_check() -> bool:
     if not argv:
         return True
     script = argv[0]
-    if 'manage.py' in script or script.endswith('manage.py'):
-        cmd = argv[1] if len(argv) > 1 else ''
+    if "manage.py" in script or script.endswith("manage.py"):
+        cmd = argv[1] if len(argv) > 1 else ""
         if cmd in (
-            'migrate', 'makemigrations', 'showmigrations', 'sqlmigrate',
-            'test', 'shell', 'collectstatic', 'check',
+            "migrate", "makemigrations", "showmigrations", "sqlmigrate",
+            "test", "shell", "collectstatic", "check",
         ):
             return True
-    return bool('pytest' in script or 'py.test' in script)
+    return bool("pytest" in script or "py.test" in script)
 
 
-def get_pending_critical_migrations(database: str = 'default') -> list[tuple[str, str]]:
+def get_pending_critical_migrations(database: str = "default") -> list[tuple[str, str]]:
     from django.db import connections
     from django.db.migrations.executor import MigrationExecutor
 
@@ -53,19 +52,19 @@ def run_migration_guard() -> None:
     try:
         pending = get_pending_critical_migrations()
     except Exception as e:
-        logger.warning('migration_guard: não foi possível verificar migrations: %s', e)
+        logger.warning("migration_guard: não foi possível verificar migrations: %s", e)
         return
 
     if not pending:
         return
 
-    labels = [f'{app}.{name}' for app, name in pending]
+    labels = [f"{app}.{name}" for app, name in pending]
     msg = (
-        'Migrations críticas pendentes no banco default: '
-        + ', '.join(labels)
-        + '. Execute: python manage.py migrate'
+        "Migrations críticas pendentes no banco default: "
+        + ", ".join(labels)
+        + ". Execute: python manage.py migrate"
     )
-    strict = getattr(settings, 'MIGRATION_GUARD_STRICT', not settings.DEBUG)
+    strict = getattr(settings, "MIGRATION_GUARD_STRICT", not settings.DEBUG)
     if strict:
         from django.core.exceptions import ImproperlyConfigured
         raise ImproperlyConfigured(msg)

@@ -19,11 +19,11 @@ class CampanhaEnviarIntegracaoTest(SimpleTestCase):
         campanha.ativa = True
         campanha.data_inicio = hoje - timedelta(days=1)
         campanha.data_fim = hoje + timedelta(days=1)
-        campanha.mensagem = 'Promo'
+        campanha.mensagem = "Promo"
 
         self.assertIsNone(_validar_campanha_para_envio(campanha))
 
-        p1 = MagicMock(id=1, telefone='11999990001', is_active=True, allow_whatsapp=True)
+        p1 = MagicMock(id=1, telefone="11999990001", is_active=True, allow_whatsapp=True)
         qs = MagicMock()
         qs.exclude.return_value = qs
         qs.filter.return_value = qs
@@ -34,22 +34,22 @@ class CampanhaEnviarIntegracaoTest(SimpleTestCase):
         owner = MagicMock()
         owner.is_authenticated = True
 
-        with patch('clinica_beleza.views_whatsapp.Patient.objects') as mock_patient:
+        with patch("clinica_beleza.views_whatsapp.Patient.objects") as mock_patient:
             mock_patient.filter.return_value = qs
-            with patch('clinica_beleza.views_whatsapp.LojaContextHelper.get_whatsapp_config') as mock_wa:
+            with patch("clinica_beleza.views_whatsapp.LojaContextHelper.get_whatsapp_config") as mock_wa:
                 mock_wa.return_value = (MagicMock(whatsapp_ativo=True), None)
-                with patch('whatsapp.services.send_whatsapp', return_value=(True, None)):
-                    with patch('core.task_queue.task_queue_enabled', return_value=False):
+                with patch("whatsapp.services.send_whatsapp", return_value=(True, None)):
+                    with patch("core.task_queue.task_queue_enabled", return_value=False):
                         factory = APIRequestFactory()
                         request = factory.post(
-                            '/api/clinica-beleza/campanhas/1/enviar/',
-                            {'patient_ids': [1]},
-                            format='json',
+                            "/api/clinica-beleza/campanhas/1/enviar/",
+                            {"patient_ids": [1]},
+                            format="json",
                         )
                         request.user = owner
-                        with patch('clinica_beleza.views_whatsapp.CampanhaPromocao.objects') as mock_camp:
+                        with patch("clinica_beleza.views_whatsapp.CampanhaPromocao.objects") as mock_camp:
                             mock_camp.get.return_value = campanha
-                            with patch.object(CampanhaPromocaoEnviarView, 'permission_classes', []):
+                            with patch.object(CampanhaPromocaoEnviarView, "permission_classes", []):
                                 response = CampanhaPromocaoEnviarView.as_view()(request, pk=1)
 
         self.assertEqual(response.status_code, 200)
@@ -60,7 +60,7 @@ class ClinicaCrmRouteBlockTest(SimpleTestCase):
     def setUp(self):
         self.owner = MagicMock()
         self.owner.is_authenticated = True
-        self.owner.username = 'owner'
+        self.owner.username = "owner"
         self.factory = RequestFactory()
         self.mw = SecurityIsolationMiddleware(lambda r: None)
 
@@ -77,27 +77,27 @@ class ClinicaCrmRouteBlockTest(SimpleTestCase):
         mock_qs.select_related.return_value.first.return_value = loja
         return mock_qs
 
-    @patch('superadmin.models.Loja.objects')
+    @patch("superadmin.models.Loja.objects")
     def test_bloqueia_leads_para_clinica(self, mock_loja_objects):
-        mock_loja_objects.filter.return_value = self._mock_loja_tipo('minha-clinica', 'clinica-beleza')
+        mock_loja_objects.filter.return_value = self._mock_loja_tipo("minha-clinica", "clinica-beleza")
         response = self.mw._check_clinica_crm_route_restriction(
-            self._request('/api/crm-vendas/leads/', 'minha-clinica'),
+            self._request("/api/crm-vendas/leads/", "minha-clinica"),
         )
         self.assertIsNotNone(response)
         self.assertEqual(response.status_code, 403)
 
-    @patch('superadmin.models.Loja.objects')
+    @patch("superadmin.models.Loja.objects")
     def test_permite_config_nfse_para_clinica(self, mock_loja_objects):
-        mock_loja_objects.filter.return_value = self._mock_loja_tipo('minha-clinica', 'clinica-beleza')
+        mock_loja_objects.filter.return_value = self._mock_loja_tipo("minha-clinica", "clinica-beleza")
         response = self.mw._check_clinica_crm_route_restriction(
-            self._request('/api/crm-vendas/config/', 'minha-clinica'),
+            self._request("/api/crm-vendas/config/", "minha-clinica"),
         )
         self.assertIsNone(response)
 
-    @patch('superadmin.models.Loja.objects')
+    @patch("superadmin.models.Loja.objects")
     def test_permite_leads_para_crm_puro(self, mock_loja_objects):
-        mock_loja_objects.filter.return_value = self._mock_loja_tipo('minha-crm', 'crm-vendas')
+        mock_loja_objects.filter.return_value = self._mock_loja_tipo("minha-crm", "crm-vendas")
         response = self.mw._check_clinica_crm_route_restriction(
-            self._request('/api/crm-vendas/leads/', 'minha-crm'),
+            self._request("/api/crm-vendas/leads/", "minha-crm"),
         )
         self.assertIsNone(response)

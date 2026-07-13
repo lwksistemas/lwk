@@ -1,5 +1,4 @@
-"""
-Service de autenticação — encapsula lógica de login com isolamento por grupo.
+"""Service de autenticação — encapsula lógica de login com isolamento por grupo.
 
 Responsabilidades:
 - Validar credenciais (com retry para timeout de DB)
@@ -33,8 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 def usuario_precisa_trocar_senha_loja(user, loja, *, pu=None, vu=None) -> bool:
-    """
-    True se o usuário deve trocar senha provisória nesta loja
+    """True se o usuário deve trocar senha provisória nesta loja
     (proprietário, profissional ou vendedor vinculado).
     """
     if not user or not loja:
@@ -60,6 +58,7 @@ def usuario_precisa_trocar_senha_loja(user, loja, *, pu=None, vu=None) -> bool:
 @dataclass
 class LoginResult:
     """Resultado do login — sucesso ou erro."""
+
     success: bool
     data: dict[str, Any]
     status_code: int
@@ -71,8 +70,7 @@ class LoginService:
     """Lógica completa de login por tipo de usuário."""
 
     def execute(self, request, user_type: str | None = None) -> LoginResult:
-        """
-        Executa o fluxo completo de login.
+        """Executa o fluxo completo de login.
 
         Args:
             request: DRF request com data (username, password, loja_slug, cpf_cnpj)
@@ -80,17 +78,18 @@ class LoginService:
 
         Returns:
             LoginResult com dados para a Response.
+
         """
-        username = request.data.get('username')
-        password = request.data.get('password')
-        loja_slug = request.data.get('loja_slug')
-        cpf_cnpj = (request.data.get('cpf_cnpj') or '').strip()
+        username = request.data.get("username")
+        password = request.data.get("password")
+        loja_slug = request.data.get("loja_slug")
+        cpf_cnpj = (request.data.get("cpf_cnpj") or "").strip()
 
         # 1. Validar campos obrigatórios
         if not username or not password:
             return LoginResult(
                 success=False,
-                data={'error': 'Username e password são obrigatórios', 'code': 'MISSING_CREDENTIALS'},
+                data={"error": "Username e password são obrigatórios", "code": "MISSING_CREDENTIALS"},
                 status_code=http_status.HTTP_400_BAD_REQUEST,
             )
 
@@ -98,17 +97,17 @@ class LoginService:
         locked_until = check_account_locked(username)
         if locked_until:
             registrar_evento_seguranca(
-                'login_conta_bloqueada',
-                f'Tentativa de login com conta bloqueada ({user_type})',
+                "login_conta_bloqueada",
+                f"Tentativa de login com conta bloqueada ({user_type})",
                 request=request, username=username, sucesso=False,
-                detalhes={'locked_until': locked_until.isoformat(), 'user_type': user_type},
+                detalhes={"locked_until": locked_until.isoformat(), "user_type": user_type},
             )
             return LoginResult(
                 success=False,
                 data={
-                    'error': 'Muitas tentativas de login. Aguarde alguns minutos ou contate o suporte.',
-                    'code': 'ACCOUNT_LOCKED',
-                    'locked_until': locked_until.isoformat(),
+                    "error": "Muitas tentativas de login. Aguarde alguns minutos ou contate o suporte.",
+                    "code": "ACCOUNT_LOCKED",
+                    "locked_until": locked_until.isoformat(),
                 },
                 status_code=http_status.HTTP_403_FORBIDDEN,
             )
@@ -128,42 +127,42 @@ class LoginService:
 
         # 5. Identificar tipo real do usuário
         real_user_type = self._get_user_type(user, loja_slug)
-        if user_type == 'loja' and real_user_type == 'unknown' and loja_slug and user_belongs_to_store(user, loja_slug):
-            real_user_type = 'loja'
+        if user_type == "loja" and real_user_type == "unknown" and loja_slug and user_belongs_to_store(user, loja_slug):
+            real_user_type = "loja"
 
         # 6. Validar endpoint correto
         if user_type and real_user_type != user_type:
             logger.critical(
-                '🚨 VIOLAÇÃO: Usuário %s (tipo: %s) tentou login no endpoint de %s',
+                "🚨 VIOLAÇÃO: Usuário %s (tipo: %s) tentou login no endpoint de %s",
                 username, real_user_type, user_type,
             )
             return LoginResult(
                 success=False,
                 data={
-                    'error': 'Este usuário não pode fazer login aqui',
-                    'code': 'WRONG_LOGIN_ENDPOINT',
-                    'seu_tipo': real_user_type,
-                    'endpoint_correto': self._get_correct_endpoint(real_user_type),
+                    "error": "Este usuário não pode fazer login aqui",
+                    "code": "WRONG_LOGIN_ENDPOINT",
+                    "seu_tipo": real_user_type,
+                    "endpoint_correto": self._get_correct_endpoint(real_user_type),
                 },
                 status_code=http_status.HTTP_403_FORBIDDEN,
             )
 
         # 7. Resolver loja
         loja_login = None
-        if real_user_type == 'loja':
+        if real_user_type == "loja":
             loja_login = resolve_loja_for_user(user, loja_slug)
             if not loja_login:
                 return LoginResult(
                     success=False,
-                    data={'error': 'Usuário não possui loja ativa', 'code': 'NO_ACTIVE_STORE'},
+                    data={"error": "Usuário não possui loja ativa", "code": "NO_ACTIVE_STORE"},
                     status_code=http_status.HTTP_403_FORBIDDEN,
                 )
             if loja_slug and not user_belongs_to_store(user, loja_slug):
                 record_login_failure(username)
-                logger.critical('🚨 VIOLAÇÃO: Usuário %s tentou login na loja errada', username)
+                logger.critical("🚨 VIOLAÇÃO: Usuário %s tentou login na loja errada", username)
                 return LoginResult(
                     success=False,
-                    data={'error': 'Você não pode fazer login nesta loja', 'code': 'WRONG_STORE', 'sua_loja': loja_login.slug},
+                    data={"error": "Você não pode fazer login nesta loja", "code": "WRONG_STORE", "sua_loja": loja_login.slug},
                     status_code=http_status.HTTP_403_FORBIDDEN,
                 )
 
@@ -188,15 +187,15 @@ class LoginService:
         )
 
         logger.info(
-            'login.ok user_id=%s type=%s password_change=%s',
-            user.id, real_user_type, response_data.get('precisa_trocar_senha', False),
+            "login.ok user_id=%s type=%s password_change=%s",
+            user.id, real_user_type, response_data.get("precisa_trocar_senha", False),
         )
 
         return LoginResult(
             success=True,
             data=response_data,
             status_code=http_status.HTTP_200_OK,
-            cookies={'access': access, 'refresh': refresh_str, 'session_id': session_id},
+            cookies={"access": access, "refresh": refresh_str, "session_id": session_id},
         )
 
     # ─── Métodos privados ───────────────────────────────────────────
@@ -208,24 +207,24 @@ class LoginService:
             return authenticate_with_retry(username, password, max_retries=3)
         except OperationalError as e:
             error_msg = str(e).lower()
-            if 'timeout' in error_msg or 'timed out' in error_msg:
-                logger.critical('🔴 TIMEOUT: banco para %s', username)
+            if "timeout" in error_msg or "timed out" in error_msg:
+                logger.critical("🔴 TIMEOUT: banco para %s", username)
                 return LoginResult(
                     success=False,
-                    data={'error': 'Sistema temporariamente indisponível. Tente novamente em instantes.', 'code': 'DATABASE_TIMEOUT'},
+                    data={"error": "Sistema temporariamente indisponível. Tente novamente em instantes.", "code": "DATABASE_TIMEOUT"},
                     status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
                 )
-            logger.critical('🔴 ERRO DE BANCO: %s', e)
+            logger.critical("🔴 ERRO DE BANCO: %s", e)
             return LoginResult(
                 success=False,
-                data={'error': 'Erro ao acessar o banco de dados.', 'code': 'DATABASE_ERROR'},
+                data={"error": "Erro ao acessar o banco de dados.", "code": "DATABASE_ERROR"},
                 status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         except Exception as e:
-            logger.critical('🔴 ERRO INESPERADO: %s', e)
+            logger.critical("🔴 ERRO INESPERADO: %s", e)
             return LoginResult(
                 success=False,
-                data={'error': 'Erro inesperado. Tente novamente.', 'code': 'UNEXPECTED_ERROR'},
+                data={"error": "Erro inesperado. Tente novamente.", "code": "UNEXPECTED_ERROR"},
                 status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -233,17 +232,17 @@ class LoginService:
         just_locked = record_login_failure(username)
         if just_locked:
             registrar_evento_seguranca(
-                'login_lockout_ativado',
-                f'Conta bloqueada após falhas ({user_type})',
+                "login_lockout_ativado",
+                f"Conta bloqueada após falhas ({user_type})",
                 request=request, username=username, sucesso=False,
             )
-        logger.warning('❌ Login falhou: %s', username)
+        logger.warning("❌ Login falhou: %s", username)
         return LoginResult(
             success=False,
             data={
-                'error': 'Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.',
-                'code': 'INVALID_CREDENTIALS',
-                'detalhes': 'Se você esqueceu sua senha, clique em "Esqueci minha senha" para receber uma nova senha provisória por email.',
+                "error": "Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.",
+                "code": "INVALID_CREDENTIALS",
+                "detalhes": 'Se você esqueceu sua senha, clique em "Esqueci minha senha" para receber uma nova senha provisória por email.',
             },
             status_code=http_status.HTTP_401_UNAUTHORIZED,
         )
@@ -253,30 +252,30 @@ class LoginService:
         if not cpf_cnpj:
             return None
 
-        cpf_cnpj_limpo = re.sub(r'[^0-9]', '', cpf_cnpj)
+        cpf_cnpj_limpo = re.sub(r"[^0-9]", "", cpf_cnpj)
 
-        if user_type == 'loja':
+        if user_type == "loja":
             loja = Loja.objects.filter(owner=user, is_active=True).first()
             if loja and loja.cpf_cnpj:
-                loja_doc = re.sub(r'[^0-9]', '', loja.cpf_cnpj)
+                loja_doc = re.sub(r"[^0-9]", "", loja.cpf_cnpj)
                 if cpf_cnpj_limpo != loja_doc:
                     record_login_failure(username)
-                    logger.critical('🚨 VIOLAÇÃO: CPF/CNPJ incorreto para %s', username)
+                    logger.critical("🚨 VIOLAÇÃO: CPF/CNPJ incorreto para %s", username)
                     return LoginResult(
                         success=False,
-                        data={'error': 'CPF/CNPJ incorreto.', 'code': 'INVALID_CPF_CNPJ'},
+                        data={"error": "CPF/CNPJ incorreto.", "code": "INVALID_CPF_CNPJ"},
                         status_code=http_status.HTTP_401_UNAUTHORIZED,
                     )
 
-        elif user_type in ('superadmin', 'suporte'):
+        elif user_type in ("superadmin", "suporte"):
             try:
                 us = UsuarioSistema.objects.get(user=user, tipo=user_type, is_active=True)
-                if us.cpf and cpf_cnpj_limpo != re.sub(r'[^0-9]', '', us.cpf):
+                if us.cpf and cpf_cnpj_limpo != re.sub(r"[^0-9]", "", us.cpf):
                     record_login_failure(username)
-                    logger.critical('🚨 VIOLAÇÃO: CPF incorreto para %s (%s)', username, user_type)
+                    logger.critical("🚨 VIOLAÇÃO: CPF incorreto para %s (%s)", username, user_type)
                     return LoginResult(
                         success=False,
-                        data={'error': 'CPF incorreto.', 'code': 'INVALID_CPF'},
+                        data={"error": "CPF incorreto.", "code": "INVALID_CPF"},
                         status_code=http_status.HTTP_401_UNAUTHORIZED,
                     )
             except UsuarioSistema.DoesNotExist:
@@ -286,47 +285,47 @@ class LoginService:
 
     def _get_user_type(self, user, loja_slug=None) -> str:
         if user.is_superuser:
-            return 'superadmin'
+            return "superadmin"
         us = UsuarioSistema.objects.filter(user=user, is_active=True).first()
         if us:
             return us.tipo
         if Loja.objects.filter(owner=user, is_active=True).exists():
-            return 'loja'
+            return "loja"
         if loja_slug:
             from django.db.models import Q
             slug_match = Q(loja__slug=loja_slug) | Q(loja__atalho=loja_slug)
             if ProfissionalUsuario.objects.filter(slug_match, user=user, loja__is_active=True).exists():
-                return 'loja'
+                return "loja"
             if VendedorUsuario.objects.filter(slug_match, user=user, loja__is_active=True).exists():
-                return 'loja'
+                return "loja"
             if user_belongs_to_store(user, loja_slug):
-                return 'loja'
-        return 'unknown'
+                return "loja"
+        return "unknown"
 
     @staticmethod
     def _get_correct_endpoint(user_type: str) -> str:
         return {
-            'superadmin': '/api/auth/superadmin/login/',
-            'suporte': '/api/auth/suporte/login/',
-            'loja': '/api/auth/loja/login/',
-        }.get(user_type, '/api/auth/token/')
+            "superadmin": "/api/auth/superadmin/login/",
+            "suporte": "/api/auth/suporte/login/",
+            "loja": "/api/auth/loja/login/",
+        }.get(user_type, "/api/auth/token/")
 
     def _generate_tokens(self, user, real_user_type: str, loja_login):
         refresh = RefreshToken.for_user(user)
-        refresh['user_type'] = real_user_type
-        refresh['username'] = user.username
-        refresh['email'] = user.email
-        if real_user_type == 'loja' and loja_login:
-            refresh['loja_id'] = loja_login.id
-            refresh['loja_slug'] = loja_login.slug
+        refresh["user_type"] = real_user_type
+        refresh["username"] = user.username
+        refresh["email"] = user.email
+        if real_user_type == "loja" and loja_login:
+            refresh["loja_id"] = loja_login.id
+            refresh["loja_slug"] = loja_login.slug
 
         access_token = refresh.access_token
-        access_token['user_type'] = real_user_type
-        access_token['username'] = user.username
-        access_token['email'] = user.email
-        if real_user_type == 'loja' and loja_login:
-            access_token['loja_id'] = loja_login.id
-            access_token['loja_slug'] = loja_login.slug
+        access_token["user_type"] = real_user_type
+        access_token["username"] = user.username
+        access_token["email"] = user.email
+        if real_user_type == "loja" and loja_login:
+            access_token["loja_id"] = loja_login.id
+            access_token["loja_slug"] = loja_login.slug
 
         access = str(access_token)
         session_id = SessionManager.create_session(user.id, access)
@@ -334,30 +333,30 @@ class LoginService:
 
     def _build_response(self, user, real_user_type, loja_login, loja_slug, access, refresh_str, session_id) -> dict:
         response_data = {
-            'access': access,
-            'refresh': refresh_str,
-            'session_id': session_id,
-            'session_timeout_minutes': SessionManager.SESSION_TIMEOUT_MINUTES,
-            'user_type': real_user_type,
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'is_superuser': user.is_superuser,
-                'user_type': real_user_type,
+            "access": access,
+            "refresh": refresh_str,
+            "session_id": session_id,
+            "session_timeout_minutes": SessionManager.SESSION_TIMEOUT_MINUTES,
+            "user_type": real_user_type,
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "is_superuser": user.is_superuser,
+                "user_type": real_user_type,
             },
         }
 
         precisa_trocar_senha = False
 
-        if real_user_type == 'loja' and loja_login:
+        if real_user_type == "loja" and loja_login:
             precisa_trocar_senha = self._enrich_loja_response(response_data, user, loja_login, loja_slug)
-        elif real_user_type in ('suporte', 'superadmin'):
+        elif real_user_type in ("suporte", "superadmin"):
             precisa_trocar_senha = self._check_sistema_senha(response_data, user, real_user_type)
 
         if precisa_trocar_senha:
             from core.password_validation import password_policy_requirements
-            response_data['requisitos_senha'] = password_policy_requirements()
+            response_data["requisitos_senha"] = password_policy_requirements()
 
         return response_data
 
@@ -367,28 +366,28 @@ class LoginService:
         vu = None
 
         if pu:
-            response_data['professional_id'] = pu.professional_id
-            response_data['is_professional'] = True
+            response_data["professional_id"] = pu.professional_id
+            response_data["is_professional"] = True
         else:
             vu = VendedorUsuario.objects.filter(user=user, loja=loja).first()
             if vu:
-                response_data['vendedor_id'] = vu.vendedor_id
+                response_data["vendedor_id"] = vu.vendedor_id
                 if loja.owner_id != user.id:
-                    response_data['is_vendedor'] = True
-                    if user.groups.filter(name='Gerente de Vendas').exists():
-                        response_data['is_gerente'] = True
+                    response_data["is_vendedor"] = True
+                    if user.groups.filter(name="Gerente de Vendas").exists():
+                        response_data["is_gerente"] = True
 
         precisa = usuario_precisa_trocar_senha_loja(user, loja, pu=pu, vu=vu)
-        response_data['precisa_trocar_senha'] = precisa
+        response_data["precisa_trocar_senha"] = precisa
 
-        response_data['loja'] = {
-            'id': loja.id,
-            'slug': loja.slug,
-            'atalho': getattr(loja, 'atalho', '') or '',
-            'nome': loja.nome,
-            'tipo_loja': loja.tipo_loja.nome if loja.tipo_loja else None,
+        response_data["loja"] = {
+            "id": loja.id,
+            "slug": loja.slug,
+            "atalho": getattr(loja, "atalho", "") or "",
+            "nome": loja.nome,
+            "tipo_loja": loja.tipo_loja.nome if loja.tipo_loja else None,
         }
-        response_data['loja_slug'] = (getattr(loja, 'atalho', '') or '') or loja.slug
+        response_data["loja_slug"] = (getattr(loja, "atalho", "") or "") or loja.slug
 
         return precisa
 
@@ -398,7 +397,7 @@ class LoginService:
         try:
             us = UsuarioSistema.objects.get(user=user, tipo=tipo, is_active=True)
             precisa = not us.senha_foi_alterada and bool(us.senha_provisoria)
-            response_data['precisa_trocar_senha'] = precisa
+            response_data["precisa_trocar_senha"] = precisa
             return precisa
         except UsuarioSistema.DoesNotExist:
             return False

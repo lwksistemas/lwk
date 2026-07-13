@@ -17,29 +17,29 @@ from .models import (
 
 
 class HospedeSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin, BaseLojaSerializer):
-    unique_documento_fields = ['documento']
-    unique_documento_entidade = 'hóspede'
+    unique_documento_fields = ["documento"]
+    unique_documento_entidade = "hóspede"
     unique_documento_apenas_ativos = True
-    uppercase_fields = ['nome']
-    phone_fields = ['telefone']
+    uppercase_fields = ["nome"]
+    phone_fields = ["telefone"]
 
     class Meta:
         model = Hospede
         fields = [
-            'id', 'nome', 'documento', 'telefone', 'email',
-            'observacoes', 'is_active', 'created_at', 'updated_at',
+            "id", "nome", "documento", "telefone", "email",
+            "observacoes", "is_active", "created_at", "updated_at",
         ]
-        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+        read_only_fields = ["created_at", "updated_at", "loja_id"]
 
 
 class QuartoSerializer(BaseLojaSerializer):
     class Meta:
         model = Quarto
         fields = [
-            'id', 'numero', 'nome', 'tipo', 'capacidade',
-            'status', 'observacoes', 'is_active', 'created_at', 'updated_at',
+            "id", "numero", "nome", "tipo", "capacidade",
+            "status", "observacoes", "is_active", "created_at", "updated_at",
         ]
-        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+        read_only_fields = ["created_at", "updated_at", "loja_id"]
 
     def validate_numero(self, value):
         """Valida unicidade do número do quarto na mesma loja, excluindo a instância atual."""
@@ -50,51 +50,51 @@ class QuartoSerializer(BaseLojaSerializer):
             if self.instance:
                 qs = qs.exclude(pk=self.instance.pk)
             if qs.exists():
-                raise serializers.ValidationError('Já existe um quarto com este número.')
+                raise serializers.ValidationError("Já existe um quarto com este número.")
         return value
 
 
 class TarifaSerializer(TextNormalizationMixin, BaseLojaSerializer):
-    uppercase_fields = ['nome']
+    uppercase_fields = ["nome"]
     phone_fields = []
 
     class Meta:
         model = Tarifa
         fields = [
-            'id', 'nome', 'tipo_quarto', 'valor_diaria',
-            'is_active', 'created_at', 'updated_at',
+            "id", "nome", "tipo_quarto", "valor_diaria",
+            "is_active", "created_at", "updated_at",
         ]
-        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+        read_only_fields = ["created_at", "updated_at", "loja_id"]
 
 
 class ReservaSerializer(BaseLojaSerializer):
-    hospede_nome = serializers.CharField(source='hospede.nome', read_only=True)
-    hospede_email = serializers.CharField(source='hospede.email', read_only=True)
-    quarto_numero = serializers.CharField(source='quarto.numero', read_only=True)
-    quarto_nome = serializers.CharField(source='quarto.nome', read_only=True)
-    tarifa_nome = serializers.CharField(source='tarifa.nome', read_only=True, allow_null=True)
+    hospede_nome = serializers.CharField(source="hospede.nome", read_only=True)
+    hospede_email = serializers.CharField(source="hospede.email", read_only=True)
+    quarto_numero = serializers.CharField(source="quarto.numero", read_only=True)
+    quarto_nome = serializers.CharField(source="quarto.nome", read_only=True)
+    tarifa_nome = serializers.CharField(source="tarifa.nome", read_only=True, allow_null=True)
 
     class Meta:
         model = Reserva
         fields = [
-            'id', 'hospede', 'hospede_nome', 'hospede_email', 'quarto', 'quarto_numero', 'quarto_nome',
-            'tarifa', 'tarifa_nome', 'data_checkin', 'data_checkout',
-            'adultos', 'criancas', 'canal', 'status',
-            'status_assinatura', 'conteudo_confirmacao',
-            'nome_hospede_assinatura', 'nome_funcionario_assinatura',
-            'valor_diaria', 'valor_total', 'observacoes',
-            'is_active', 'created_at', 'updated_at',
+            "id", "hospede", "hospede_nome", "hospede_email", "quarto", "quarto_numero", "quarto_nome",
+            "tarifa", "tarifa_nome", "data_checkin", "data_checkout",
+            "adultos", "criancas", "canal", "status",
+            "status_assinatura", "conteudo_confirmacao",
+            "nome_hospede_assinatura", "nome_funcionario_assinatura",
+            "valor_diaria", "valor_total", "observacoes",
+            "is_active", "created_at", "updated_at",
         ]
-        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+        read_only_fields = ["created_at", "updated_at", "loja_id"]
 
     def validate(self, data):
-        data_checkin = data.get('data_checkin') or getattr(self.instance, 'data_checkin', None)
-        data_checkout = data.get('data_checkout') or getattr(self.instance, 'data_checkout', None)
+        data_checkin = data.get("data_checkin") or getattr(self.instance, "data_checkin", None)
+        data_checkout = data.get("data_checkout") or getattr(self.instance, "data_checkout", None)
         if data_checkin and data_checkout and data_checkout <= data_checkin:
-            raise serializers.ValidationError({'data_checkout': 'Checkout deve ser após o check-in.'})
+            raise serializers.ValidationError({"data_checkout": "Checkout deve ser após o check-in."})
 
         # Validar conflito de datas no mesmo quarto
-        quarto = data.get('quarto') or getattr(self.instance, 'quarto', None)
+        quarto = data.get("quarto") or getattr(self.instance, "quarto", None)
         if quarto and data_checkin and data_checkout:
             conflito_qs = Reserva.objects.filter(
                 quarto=quarto,
@@ -108,65 +108,65 @@ class ReservaSerializer(BaseLojaSerializer):
                 conflito_qs = conflito_qs.exclude(pk=self.instance.pk)
             if conflito_qs.exists():
                 raise serializers.ValidationError({
-                    'quarto': 'Este quarto já possui reserva ativa neste período.',
+                    "quarto": "Este quarto já possui reserva ativa neste período.",
                 })
 
         return data
 
 
 class GovernancaTarefaSerializer(BaseLojaSerializer):
-    quarto_numero = serializers.CharField(source='quarto.numero', read_only=True)
+    quarto_numero = serializers.CharField(source="quarto.numero", read_only=True)
 
     class Meta:
         model = GovernancaTarefa
         fields = [
-            'id', 'quarto', 'quarto_numero', 'tipo', 'status',
-            'descricao', 'prioridade', 'concluido_em',
-            'is_active', 'created_at', 'updated_at',
+            "id", "quarto", "quarto_numero", "tipo", "status",
+            "descricao", "prioridade", "concluido_em",
+            "is_active", "created_at", "updated_at",
         ]
-        read_only_fields = ['created_at', 'updated_at', 'concluido_em', 'loja_id']
+        read_only_fields = ["created_at", "updated_at", "concluido_em", "loja_id"]
 
 
 class FuncionarioSerializer(TextNormalizationMixin, BaseLojaSerializer):
-    uppercase_fields = ['nome', 'cargo']
-    phone_fields = ['telefone']
+    uppercase_fields = ["nome", "cargo"]
+    phone_fields = ["telefone"]
 
     class Meta:
         model = Funcionario
         fields = [
-            'id', 'nome', 'email', 'cargo', 'telefone',
-            'is_active', 'created_at', 'updated_at',
+            "id", "nome", "email", "cargo", "telefone",
+            "is_active", "created_at", "updated_at",
         ]
-        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+        read_only_fields = ["created_at", "updated_at", "loja_id"]
 
 
 class ReservaTemplateSerializer(BaseLojaSerializer):
     class Meta:
         model = ReservaTemplate
         fields = [
-            'id', 'nome', 'conteudo', 'is_padrao', 'ativo',
-            'created_at', 'updated_at',
+            "id", "nome", "conteudo", "is_padrao", "ativo",
+            "created_at", "updated_at",
         ]
-        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+        read_only_fields = ["created_at", "updated_at", "loja_id"]
 
 
 class ReservaAssinaturaSerializer(BaseLojaSerializer):
     class Meta:
         model = ReservaAssinatura
         fields = [
-            'id', 'reserva', 'tipo', 'nome_assinante', 'email_assinante',
-            'ip_address', 'assinado', 'assinado_em',
-            'created_at', 'updated_at',
+            "id", "reserva", "tipo", "nome_assinante", "email_assinante",
+            "ip_address", "assinado", "assinado_em",
+            "created_at", "updated_at",
         ]
-        read_only_fields = ['created_at', 'updated_at', 'loja_id', 'ip_address', 'assinado', 'assinado_em']
+        read_only_fields = ["created_at", "updated_at", "loja_id", "ip_address", "assinado", "assinado_em"]
 
 
 class ConfiguracaoHotelSerializer(BaseLojaSerializer):
     class Meta:
         model = ConfiguracaoHotel
         fields = [
-            'id', 'horario_checkin', 'horario_checkout',
-            'politica_cancelamento', 'informacoes_adicionais',
-            'created_at', 'updated_at',
+            "id", "horario_checkin", "horario_checkout",
+            "politica_cancelamento", "informacoes_adicionais",
+            "created_at", "updated_at",
         ]
-        read_only_fields = ['created_at', 'updated_at', 'loja_id']
+        read_only_fields = ["created_at", "updated_at", "loja_id"]

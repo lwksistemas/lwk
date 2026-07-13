@@ -6,8 +6,8 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0002_usersession'),
-        ('superadmin', '0009_add_sync_and_block_fields'),
+        ("superadmin", "0002_usersession"),
+        ("superadmin", "0009_add_sync_and_block_fields"),
     ]
 
     operations = [

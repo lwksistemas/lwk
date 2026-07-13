@@ -1,5 +1,4 @@
-"""
-Envio de e-mails transacionais com remetente e Reply-To padronizados.
+"""Envio de e-mails transacionais com remetente e Reply-To padronizados.
 
 Produção (Railway): API Resend quando RESEND_API_KEY estiver definida.
 """
@@ -37,7 +36,7 @@ def deliver_email_sync(msg: EmailMessage, *, fail_silently: bool = False) -> int
             return 1
         except Exception:
             logger.exception(
-                'Falha Resend API: assunto=%s dest=%s',
+                "Falha Resend API: assunto=%s dest=%s",
                 msg.subject,
                 msg.to,
             )
@@ -45,10 +44,10 @@ def deliver_email_sync(msg: EmailMessage, *, fail_silently: bool = False) -> int
                 return 0
             raise
 
-    if os.environ.get('RAILWAY_ENVIRONMENT'):
+    if os.environ.get("RAILWAY_ENVIRONMENT"):
         raise RuntimeError(
-            'RESEND_API_KEY não está configurada no Railway. '
-            'Adicione a chave do Resend e remova EMAIL_HOST / EMAIL_HOST_PASSWORD do Gmail.'
+            "RESEND_API_KEY não está configurada no Railway. "
+            "Adicione a chave do Resend e remova EMAIL_HOST / EMAIL_HOST_PASSWORD do Gmail.",
         )
 
     return msg.send(fail_silently=fail_silently)
@@ -66,17 +65,17 @@ def deliver_email_message(msg: EmailMessage, *, fail_silently: bool = False) -> 
     payload = serialize_email_message(prepared)
     if payload_too_large_for_queue(payload, MAX_EMAIL_QUEUE_BYTES):
         logger.info(
-            'E-mail grande (%s bytes) — envio síncrono: assunto=%s',
-            payload.get('payload_bytes'),
-            payload.get('subject'),
+            "E-mail grande (%s bytes) — envio síncrono: assunto=%s",
+            payload.get("payload_bytes"),
+            payload.get("subject"),
         )
         return deliver_email_sync(prepared, fail_silently=fail_silently)
 
-    to_label = (payload.get('to') or ['?'])[0]
-    task_key = abs(hash((payload.get('subject', ''), to_label, payload.get('payload_bytes', 0))))
+    to_label = (payload.get("to") or ["?"])[0]
+    task_key = abs(hash((payload.get("subject", ""), to_label, payload.get("payload_bytes", 0))))
     enqueue_task(
-        f'email-{task_key}',
-        'core.email_queue_tasks.run_send_email',
+        f"email-{task_key}",
+        "core.email_queue_tasks.run_send_email",
         payload,
         fail_silently,
     )
@@ -86,17 +85,17 @@ def deliver_email_message(msg: EmailMessage, *, fail_silently: bool = False) -> 
 def get_from_email() -> str:
     return getattr(
         settings,
-        'DEFAULT_FROM_EMAIL',
-        'LWK Sistemas <noreply@lwksistemas.com.br>',
+        "DEFAULT_FROM_EMAIL",
+        "LWK Sistemas <noreply@lwksistemas.com.br>",
     )
 
 
 def get_reply_to() -> list[str]:
-    raw = getattr(settings, 'DEFAULT_REPLY_TO', '') or ''
+    raw = getattr(settings, "DEFAULT_REPLY_TO", "") or ""
     if isinstance(raw, (list, tuple)):
         return [str(x).strip() for x in raw if str(x).strip()]
     if isinstance(raw, str) and raw.strip():
-        return [e.strip() for e in raw.replace(';', ',').split(',') if e.strip()]
+        return [e.strip() for e in raw.replace(";", ",").split(",") if e.strip()]
     return []
 
 
@@ -155,7 +154,7 @@ def create_email_multipart(
         **kwargs,
     )
     if html:
-        msg.attach_alternative(html, 'text/html')
+        msg.attach_alternative(html, "text/html")
     return prepare_outbound_email(msg)
 
 
@@ -188,7 +187,7 @@ def send_system_mail(
     try:
         return deliver_email_message(msg, fail_silently=fail_silently)
     except Exception:
-        logger.exception('Falha ao enviar e-mail: assunto=%s destinatarios=%s', subject, to)
+        logger.exception("Falha ao enviar e-mail: assunto=%s destinatarios=%s", subject, to)
         raise
 
 
@@ -209,6 +208,6 @@ def send_mail_with_reply(
         message,
         recipient_list,
         fail_silently=fail_silently,
-        from_email=kwargs.get('from_email'),
-        html_message=kwargs.get('html_message'),
+        from_email=kwargs.get("from_email"),
+        html_message=kwargs.get("html_message"),
     )

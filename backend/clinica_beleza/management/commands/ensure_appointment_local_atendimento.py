@@ -1,5 +1,4 @@
-"""
-Garante coluna local_atendimento_id em clinica_beleza_appointment (schemas das lojas).
+"""Garante coluna local_atendimento_id em clinica_beleza_appointment (schemas das lojas).
 
 Necessário quando migrate_all_lojas não aplica 0041 por histórico legado.
 """
@@ -12,24 +11,24 @@ from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
-MIGRATION = '0041_appointment_local_atendimento'
+MIGRATION = "0041_appointment_local_atendimento"
 
 
 class Command(BaseCommand):
-    help = 'Adiciona local_atendimento_id em clinica_beleza_appointment (IF NOT EXISTS).'
+    help = "Adiciona local_atendimento_id em clinica_beleza_appointment (IF NOT EXISTS)."
 
     def add_arguments(self, parser):
-        parser.add_argument('--slug', type=str, help='Processar apenas loja com este slug/atalho')
+        parser.add_argument("--slug", type=str, help="Processar apenas loja com este slug/atalho")
 
     def handle(self, *args, **options):
-        slug_filter = (options.get('slug') or '').strip().lower()
+        slug_filter = (options.get("slug") or "").strip().lower()
         lojas = Loja.objects.filter(is_active=True, database_created=True)
         ok = skip = 0
 
         for loja in lojas:
             if slug_filter and slug_filter not in (
-                (loja.slug or '').lower(),
-                (getattr(loja, 'atalho', None) or '').lower(),
+                (loja.slug or "").lower(),
+                (getattr(loja, "atalho", None) or "").lower(),
             ):
                 continue
 
@@ -41,16 +40,16 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not table_exists(cursor, 'clinica_beleza_appointment'):
+                    if not table_exists(cursor, "clinica_beleza_appointment"):
                         skip += 1
                         continue
-                    if not table_exists(cursor, 'clinica_beleza_locais_atendimento'):
+                    if not table_exists(cursor, "clinica_beleza_locais_atendimento"):
                         skip += 1
                         continue
 
-                    if column_exists(cursor, 'clinica_beleza_appointment', 'local_atendimento_id'):
+                    if column_exists(cursor, "clinica_beleza_appointment", "local_atendimento_id"):
                         skip += 1
-                        self.stdout.write(f'OK (já existe) loja={loja.id} ({loja.nome})')
+                        self.stdout.write(f"OK (já existe) loja={loja.id} ({loja.nome})")
                         continue
 
                     cursor.execute("""
@@ -72,13 +71,13 @@ class Command(BaseCommand):
 
                 ok += 1
                 self.stdout.write(self.style.SUCCESS(
-                    f'OK loja={loja.id} ({loja.nome}) db={db_name}: local_atendimento_id adicionada'
+                    f"OK loja={loja.id} ({loja.nome}) db={db_name}: local_atendimento_id adicionada",
                 ))
             except Exception as exc:
                 skip += 1
-                self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id} ({loja.nome}): {exc}'))
+                self.stdout.write(self.style.ERROR(f"ERRO loja={loja.id} ({loja.nome}): {exc}"))
             finally:
                 with suppress(Exception):
                     connections[db_name].close()
 
-        self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s) atualizada(s), {skip} ignorada(s).'))
+        self.stdout.write(self.style.SUCCESS(f"Concluído: {ok} loja(s) atualizada(s), {skip} ignorada(s)."))

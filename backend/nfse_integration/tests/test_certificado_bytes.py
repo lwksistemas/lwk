@@ -15,11 +15,11 @@ class CertificadoConfiguradoTests(SimpleTestCase):
 
     def test_nome_sem_conteudo_nao_conta(self):
         cfg = MagicMock()
-        cfg.issnet_certificado = b''
+        cfg.issnet_certificado = b""
         cfg.nacional_certificado = None
         self.assertFalse(certificado_configurado(cfg))
 
     def test_com_pfx_valido(self):
         cfg = MagicMock()
-        cfg.issnet_certificado = b'fake-pfx-bytes'
+        cfg.issnet_certificado = b"fake-pfx-bytes"
         self.assertTrue(certificado_configurado(cfg))

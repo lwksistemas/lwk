@@ -1,5 +1,4 @@
-"""
-Cron central LWK (serviço Railway lwks-cron).
+"""Cron central LWK (serviço Railway lwks-cron).
 
 Executa a cada 15 minutos:
 - Lembretes WhatsApp de atividades CRM (24h e 2h antes)
@@ -18,11 +17,11 @@ from django.utils import timezone
 
 
 class Command(BaseCommand):
-    help = 'Cron LWK: lembretes WhatsApp (CRM + clínica) e backups automáticos'
+    help = "Cron LWK: lembretes WhatsApp (CRM + clínica) e backups automáticos"
 
     def handle(self, *args, **options):
         now = timezone.localtime(timezone.now())
-        self.stdout.write(self.style.SUCCESS(f'=== Cron LWK {now.isoformat()} ==='))
+        self.stdout.write(self.style.SUCCESS(f"=== Cron LWK {now.isoformat()} ==="))
 
         from asaas_integration.nfse_assinatura_retry import processar_nfse_assinatura_pendentes
         from clinica_beleza.agenda_no_show_service import marcar_faltas_agenda_automatico
@@ -41,32 +40,32 @@ class Command(BaseCommand):
         auto_fin = finalizar_consultas_esquecidas()
         vendedor = processar_envios_vendedor_pendentes()
         nfse = processar_nfse_assinatura_pendentes()
-        self.stdout.write(f'  CRM atividades: 24h={crm_24h} | 2h={crm_2h}')
-        self.stdout.write(f'  Clínica 2h: {clin_2h} | NO_SHOW auto: {no_show} | Auto-fin: {auto_fin}')
-        self.stdout.write(f'  Assinatura vendedor retry: {vendedor} | NFS-e pendentes: {nfse}')
+        self.stdout.write(f"  CRM atividades: 24h={crm_24h} | 2h={crm_2h}")
+        self.stdout.write(f"  Clínica 2h: {clin_2h} | NO_SHOW auto: {no_show} | Auto-fin: {auto_fin}")
+        self.stdout.write(f"  Assinatura vendedor retry: {vendedor} | NFS-e pendentes: {nfse}")
 
         if 7 <= now.hour <= 9:
             from whatsapp.tasks import send_cobrancas_pendentes_whatsapp, send_lembretes_24h_whatsapp
             clin_24h = send_lembretes_24h_whatsapp()
             cobranca = send_cobrancas_pendentes_whatsapp()
-            self.stdout.write(f'  Clínica 24h: {clin_24h} | Cobranças WA: {cobranca}')
-            call_command('notificar_tarefas_crm', verbosity=1)
+            self.stdout.write(f"  Clínica 24h: {clin_24h} | Cobranças WA: {cobranca}")
+            call_command("notificar_tarefas_crm", verbosity=1)
 
         if now.hour == 6 and now.minute < 15:
-            call_command('gerar_recorrencias_financeiro_crm', verbosity=1)
+            call_command("gerar_recorrencias_financeiro_crm", verbosity=1)
 
         if now.hour == 8 and now.minute < 15:
-            call_command('criar_boletos_proximos', verbosity=1)
+            call_command("criar_boletos_proximos", verbosity=1)
 
-        call_command('aplicar_bloqueio_assinaturas', verbosity=1)
+        call_command("aplicar_bloqueio_assinaturas", verbosity=1)
 
         from superadmin.tasks import detect_security_violations
         detect_security_violations()
 
         if now.hour == 4 and now.minute < 15:
-            call_command('limpar_evolution_instancias', '--execute', verbosity=1)
+            call_command("limpar_evolution_instancias", "--execute", verbosity=1)
 
         if now.minute < 15:
-            call_command('executar_backups_automaticos', verbosity=1)
+            call_command("executar_backups_automaticos", verbosity=1)
 
-        self.stdout.write(self.style.SUCCESS('=== Cron LWK concluído ==='))
+        self.stdout.write(self.style.SUCCESS("=== Cron LWK concluído ==="))

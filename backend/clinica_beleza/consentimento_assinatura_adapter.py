@@ -1,5 +1,4 @@
-"""
-Adapter de assinatura digital do termo de consentimento — Clínica da Beleza.
+"""Adapter de assinatura digital do termo de consentimento — Clínica da Beleza.
 Cada procedimento tem termo e fluxo de assinatura independentes.
 """
 import logging
@@ -20,66 +19,66 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
         return termo_proc.consulta
 
     def _nome_procedimento(self, termo_proc) -> str:
-        return termo_proc.procedure.nome if termo_proc.procedure_id else 'Procedimento clínico'
+        return termo_proc.procedure.nome if termo_proc.procedure_id else "Procedimento clínico"
 
     def get_titulo(self, termo_proc) -> str:
         return self._nome_procedimento(termo_proc)
 
     def get_valor_display(self, termo_proc) -> str:
-        return ''
+        return ""
 
     def incluir_valor_no_email(self) -> bool:
         return False
 
     def get_rotulo_titulo_email(self) -> str:
-        return 'Procedimento'
+        return "Procedimento"
 
     def get_assunto_email_parte1(self, termo_proc, loja_nome: str) -> str:
-        return f'📄 Termo de Consentimento — {self._nome_procedimento(termo_proc)}'
+        return f"📄 Termo de Consentimento — {self._nome_procedimento(termo_proc)}"
 
     def get_assunto_email_parte2(self, termo_proc, loja_nome: str) -> str:
         consulta = self._consulta(termo_proc)
-        paciente = consulta.patient.nome if consulta.patient else 'Paciente'
-        return f'✅ Paciente assinou — {self._nome_procedimento(termo_proc)} ({paciente})'
+        paciente = consulta.patient.nome if consulta.patient else "Paciente"
+        return f"✅ Paciente assinou — {self._nome_procedimento(termo_proc)} ({paciente})"
 
     def get_destinatario_parte1(self, termo_proc) -> tuple[str, str]:
         consulta = self._consulta(termo_proc)
         paciente = consulta.patient
         if not paciente:
-            return ('', '')
-        email = (getattr(paciente, 'email', '') or '').strip()
+            return ("", "")
+        email = (getattr(paciente, "email", "") or "").strip()
         return (paciente.nome, email)
 
     def get_telefone_parte1(self, termo_proc) -> str:
         consulta = self._consulta(termo_proc)
         paciente = consulta.patient
         if not paciente:
-            return ''
-        return (getattr(paciente, 'telefone', '') or getattr(paciente, 'phone', '') or '').strip()
+            return ""
+        return (getattr(paciente, "telefone", "") or getattr(paciente, "phone", "") or "").strip()
 
     def get_destinatario_parte2(self, termo_proc, loja_id: int) -> tuple[str, str]:
         consulta = self._consulta(termo_proc)
         prof = consulta.professional
         if prof:
-            email = (getattr(prof, 'email', '') or '').strip()
+            email = (getattr(prof, "email", "") or "").strip()
             if email:
                 return (prof.nome, email)
         from superadmin.models import Loja
-        loja = Loja.objects.using('default').filter(id=loja_id).select_related('owner').first()
+        loja = Loja.objects.using("default").filter(id=loja_id).select_related("owner").first()
         if loja and loja.owner and loja.owner.email:
-            return (prof.nome if prof else 'Profissional', loja.owner.email)
-        return (prof.nome if prof else 'Profissional', '')
+            return (prof.nome if prof else "Profissional", loja.owner.email)
+        return (prof.nome if prof else "Profissional", "")
 
     def get_tipo_documento_label(self, termo_proc) -> str:
-        return 'Termo de Consentimento Esclarecido'
+        return "Termo de Consentimento Esclarecido"
 
     def get_info_extra_email(self, termo_proc) -> dict:
         consulta = self._consulta(termo_proc)
         info = {}
         if consulta.professional:
-            info['Profissional'] = consulta.professional.nome
+            info["Profissional"] = consulta.professional.nome
         if consulta.data_inicio:
-            info['Data do atendimento'] = timezone.localtime(consulta.data_inicio).strftime('%d/%m/%Y')
+            info["Data do atendimento"] = timezone.localtime(consulta.data_inicio).strftime("%d/%m/%Y")
         return info
 
     def criar_registro_assinatura(self, termo_proc, tipo, nome, email, token, loja_id):
@@ -104,8 +103,8 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
 
         token = normalizar_token_url(token)
         qs = ConsultaAssinaturaTermo.objects.select_related(
-            'consulta', 'consulta__patient', 'consulta__professional',
-            'termo_procedimento', 'termo_procedimento__procedure',
+            "consulta", "consulta__patient", "consulta__professional",
+            "termo_procedimento", "termo_procedimento__procedure",
         )
         try:
             return qs.get(token=token)
@@ -125,15 +124,15 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
         termos = garantir_termos_procedimento(assinatura.consulta)
         if len(termos) == 1:
             return termos[0]
-        raise ValueError('Assinatura legada sem procedimento vinculado.')
+        raise ValueError("Assinatura legada sem procedimento vinculado.")
 
     def atualizar_status_assinatura(self, termo_proc, novo_status: str):
         termo_proc.status_assinatura_termo = novo_status
-        termo_proc.save(update_fields=['status_assinatura_termo', 'updated_at'])
+        termo_proc.save(update_fields=["status_assinatura_termo", "updated_at"])
         sincronizar_status_consulta(termo_proc.consulta)
 
     def get_status_assinatura(self, termo_proc) -> str:
-        return termo_proc.status_assinatura_termo or 'rascunho'
+        return termo_proc.status_assinatura_termo or "rascunho"
 
     def gerar_pdf(self, termo_proc, incluir_assinaturas: bool = False):
         from .termo_consentimento_pdf import gerar_pdf_termo_consentimento
@@ -150,16 +149,16 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
         return emails
 
     def get_label_parte1(self) -> str:
-        return 'paciente'
+        return "paciente"
 
     def get_label_parte2(self) -> str:
-        return 'profissional'
+        return "profissional"
 
     def get_modulo(self) -> str:
-        return 'clinica_beleza'
+        return "clinica_beleza"
 
     def get_pagina_assinatura_path(self) -> str:
-        return '/assinar-consentimento/'
+        return "/assinar-consentimento/"
 
     def deletar_assinaturas_pendentes(self, termo_proc, tipo: str):
         from .models import ConsultaAssinaturaTermo
@@ -169,7 +168,7 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
 
     def on_assinatura_concluida(self, termo_proc, loja_id: int):
         logger.info(
-            'Termo de consentimento assinado — consulta #%s, procedimento %s',
+            "Termo de consentimento assinado — consulta #%s, procedimento %s",
             termo_proc.consulta_id,
             self._nome_procedimento(termo_proc),
         )

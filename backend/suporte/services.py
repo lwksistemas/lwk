@@ -1,5 +1,4 @@
-"""
-Serviços do app suporte - lógica de negócio reutilizável.
+"""Serviços do app suporte - lógica de negócio reutilizável.
 
 Princípios: Single Responsibility, DRY, separação de concerns.
 """
@@ -10,8 +9,7 @@ from .models import Chamado
 
 
 def get_chamados_queryset_for_user(user: User):
-    """
-    Retorna o queryset de chamados filtrado conforme permissões do usuário.
+    """Retorna o queryset de chamados filtrado conforme permissões do usuário.
 
     Regras:
     - Super admin: todos os chamados
@@ -22,17 +20,17 @@ def get_chamados_queryset_for_user(user: User):
     if user.is_superuser:
         return Chamado.objects.all()
 
-    if user.groups.filter(name='suporte').exists():
+    if user.groups.filter(name="suporte").exists():
         try:
             from superadmin.models import UsuarioSistema
-            usuario_sistema = UsuarioSistema.objects.select_related('user').prefetch_related(
-                'lojas_acesso'
-            ).get(user=user, tipo='suporte', is_active=True)
+            usuario_sistema = UsuarioSistema.objects.select_related("user").prefetch_related(
+                "lojas_acesso",
+            ).get(user=user, tipo="suporte", is_active=True)
 
             if usuario_sistema.pode_acessar_todas_lojas:
                 return Chamado.objects.all()
 
-            slugs = list(usuario_sistema.lojas_acesso.values_list('slug', flat=True))
+            slugs = list(usuario_sistema.lojas_acesso.values_list("slug", flat=True))
             if not slugs:
                 return Chamado.objects.none()
             return Chamado.objects.filter(loja_slug__in=slugs)

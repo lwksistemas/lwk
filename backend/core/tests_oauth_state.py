@@ -12,6 +12,6 @@ class OAuthStateTests(SimpleTestCase):
         self.assertEqual(vendedor_id, 7)
 
     def test_legacy_format(self):
-        loja_id, vendedor_id = parse_oauth_state('99:3')
+        loja_id, vendedor_id = parse_oauth_state("99:3")
         self.assertEqual(loja_id, 99)
         self.assertEqual(vendedor_id, 3)

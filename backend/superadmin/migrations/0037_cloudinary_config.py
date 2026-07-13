@@ -8,8 +8,8 @@ def check_table_exists(table_name):
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public' 
+                SELECT FROM information_schema.tables
+                WHERE table_schema = 'public'
                 AND table_name = %s
             );
         """, [table_name])
@@ -18,9 +18,9 @@ def check_table_exists(table_name):
 
 def create_cloudinary_config_if_not_exists(apps, schema_editor):
     """Cria a tabela CloudinaryConfig apenas se ela não existir (PostgreSQL)."""
-    if schema_editor.connection.vendor != 'postgresql':
+    if schema_editor.connection.vendor != "postgresql":
         return
-    if not check_table_exists('superadmin_cloudinary_config'):
+    if not check_table_exists("superadmin_cloudinary_config"):
         # Tabela não existe, criar normalmente
         schema_editor.execute("""
             CREATE TABLE superadmin_cloudinary_config (
@@ -42,7 +42,7 @@ def create_cloudinary_config_if_not_exists(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('superadmin', '0036_fix_financeiro_fk_cascade'),
+        ("superadmin", "0036_fix_financeiro_fk_cascade"),
     ]
 
     operations = [

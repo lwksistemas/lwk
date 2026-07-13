@@ -1,5 +1,4 @@
-"""
-Organiza a árvore de pastas no Cloudinary sob lwksistemas.
+"""Organiza a árvore de pastas no Cloudinary sob lwksistemas.
 
 Estrutura alvo:
   lwksistemas/producao/superadmin/{homepage,login}
@@ -32,10 +31,10 @@ def _subfolder_paths(parent: str) -> list[str]:
     except Exception:
         return []
     paths: list[str] = []
-    for item in result.get('folders', []):
-        if item.get('path'):
-            paths.append(item['path'])
-        elif item.get('name'):
+    for item in result.get("folders", []):
+        if item.get("path"):
+            paths.append(item["path"])
+        elif item.get("name"):
             paths.append(f'{parent}/{item["name"]}')
     return paths
 
@@ -48,91 +47,91 @@ def _delete_folder_tree(path: str) -> None:
     try:
         cloudinary.api.delete_folder(path)
     except Exception as exc:
-        raise RuntimeError(f'{path}: {exc}') from exc
+        raise RuntimeError(f"{path}: {exc}") from exc
 
 
 def _target_skeleton() -> list[str]:
     skeleton = []
-    for env in ('producao', 'beta'):
+    for env in ("producao", "beta"):
         skeleton.extend([
-            f'{ROOT}/{env}',
-            f'{ROOT}/{env}/superadmin',
-            f'{ROOT}/{env}/superadmin/homepage',
-            f'{ROOT}/{env}/superadmin/login',
-            f'{ROOT}/{env}/suporte',
-            f'{ROOT}/{env}/suporte/login',
+            f"{ROOT}/{env}",
+            f"{ROOT}/{env}/superadmin",
+            f"{ROOT}/{env}/superadmin/homepage",
+            f"{ROOT}/{env}/superadmin/login",
+            f"{ROOT}/{env}/suporte",
+            f"{ROOT}/{env}/suporte/login",
         ])
     return skeleton
 
 
 def _legacy_roots_under_lwksistemas() -> list[str]:
     """Pastas na raiz de lwksistemas que não são producao/beta."""
-    allowed = {'producao', 'beta'}
+    allowed = {"producao", "beta"}
     legacy = []
     for name in _subfolder_paths(ROOT):
-        leaf = name.split('/')[-1]
+        leaf = name.split("/")[-1]
         if leaf not in allowed:
             legacy.append(name)
     return legacy
 
 
 def _legacy_inside_producao() -> list[str]:
-    allowed = {'superadmin', 'suporte'}
+    allowed = {"superadmin", "suporte"}
     legacy = []
-    for name in _subfolder_paths(f'{ROOT}/producao'):
-        leaf = name.split('/')[-1]
+    for name in _subfolder_paths(f"{ROOT}/producao"):
+        leaf = name.split("/")[-1]
         if leaf not in allowed:
             legacy.append(name)
     return legacy
 
 
 class Command(BaseCommand):
-    help = 'Cria pastas producao/beta e remove pastas legadas vazias em lwksistemas.'
+    help = "Cria pastas producao/beta e remove pastas legadas vazias em lwksistemas."
 
     def add_arguments(self, parser):
-        parser.add_argument('--confirm', action='store_true', help='Executa alterações.')
+        parser.add_argument("--confirm", action="store_true", help="Executa alterações.")
 
     def handle(self, *args, **options):
-        confirm = options['confirm']
+        confirm = options["confirm"]
         if not _configure_sdk():
-            self.stdout.write(self.style.ERROR('Cloudinary não configurado.'))
+            self.stdout.write(self.style.ERROR("Cloudinary não configurado."))
             return
 
         skeleton = _target_skeleton()
         legacy = _legacy_roots_under_lwksistemas() + _legacy_inside_producao()
 
-        self.stdout.write('Pastas alvo a criar:')
+        self.stdout.write("Pastas alvo a criar:")
         for p in skeleton:
-            self.stdout.write(f'  + {p}')
+            self.stdout.write(f"  + {p}")
 
-        self.stdout.write('Pastas legadas a remover (devem estar vazias):')
+        self.stdout.write("Pastas legadas a remover (devem estar vazias):")
         if legacy:
             for p in legacy:
-                self.stdout.write(f'  - {p}')
+                self.stdout.write(f"  - {p}")
         else:
-            self.stdout.write('  (nenhuma)')
+            self.stdout.write("  (nenhuma)")
 
         if not confirm:
-            self.stdout.write(self.style.WARNING('Simulação. Use --confirm para aplicar.'))
+            self.stdout.write(self.style.WARNING("Simulação. Use --confirm para aplicar."))
             return
 
         ensure_cloudinary_folders(skeleton)
-        self.stdout.write(self.style.SUCCESS('Estrutura alvo criada/verificada.'))
+        self.stdout.write(self.style.SUCCESS("Estrutura alvo criada/verificada."))
 
         errors = 0
         for path in sorted(legacy, key=len, reverse=True):
             try:
                 _delete_folder_tree(path)
-                self.stdout.write(self.style.SUCCESS(f'Removida: {path}'))
+                self.stdout.write(self.style.SUCCESS(f"Removida: {path}"))
             except Exception as exc:
                 errors += 1
-                self.stdout.write(self.style.ERROR(f'Falha {path}: {exc}'))
+                self.stdout.write(self.style.ERROR(f"Falha {path}: {exc}"))
 
         if errors:
-            self.stdout.write(self.style.WARNING(f'{errors} pasta(s) não removida(s) (podem ter arquivos).'))
+            self.stdout.write(self.style.WARNING(f"{errors} pasta(s) não removida(s) (podem ter arquivos)."))
         else:
-            self.stdout.write(self.style.SUCCESS('Limpeza concluída.'))
+            self.stdout.write(self.style.SUCCESS("Limpeza concluída."))
 
-        self.stdout.write('Raiz lwksistemas agora:')
+        self.stdout.write("Raiz lwksistemas agora:")
         for p in _subfolder_paths(ROOT):
-            self.stdout.write(f'  {p}')
+            self.stdout.write(f"  {p}")

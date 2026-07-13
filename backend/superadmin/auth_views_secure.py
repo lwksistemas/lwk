@@ -1,5 +1,4 @@
-"""
-Views de Autenticação com Isolamento Total e Validação de Grupo
+"""Views de Autenticação com Isolamento Total e Validação de Grupo
 """
 import logging
 
@@ -18,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def authenticate_with_retry(username, password, max_retries=3):
-    """
-    Autenticar com retry em caso de timeout de conexão.
+    """Autenticar com retry em caso de timeout de conexão.
 
     Args:
         username: Nome de usuário
@@ -28,6 +26,7 @@ def authenticate_with_retry(username, password, max_retries=3):
 
     Returns:
         User object ou None
+
     """
     from core.retry import retry_on_db_timeout
 
@@ -41,16 +40,16 @@ def authenticate_with_retry(username, password, max_retries=3):
 
 
 class SecureLoginView(APIView):
-    """
-    View de login segura com validação de grupo e endpoint.
+    """View de login segura com validação de grupo e endpoint.
 
     Delega toda a lógica para LoginService (service layer).
-    
+
     REGRAS:
     - /api/auth/superadmin/login/ - Apenas superadmin
     - /api/auth/suporte/login/ - Apenas suporte
     - /api/auth/loja/login/ - Apenas proprietários de loja
     """
+
     permission_classes = [AllowAny]
     throttle_classes = [AuthLoginThrottle]
 
@@ -63,91 +62,90 @@ class SecureLoginView(APIView):
         if result.success and result.cookies:
             return attach_auth_cookies(
                 response,
-                access=result.cookies['access'],
-                refresh=result.cookies['refresh'],
-                session_id=result.cookies['session_id'],
+                access=result.cookies["access"],
+                refresh=result.cookies["refresh"],
+                session_id=result.cookies["session_id"],
             )
         return response
 
 
 class SecureLogoutView(APIView):
     """View de logout segura"""
-    
+
     def post(self, request):
         if request.user and request.user.is_authenticated:
             user_id = request.user.id
             username = request.user.username
-            
+
             # Destruir sessão
             SessionManager.destroy_session(user_id)
-            
+
             logger.info(f"👋 Logout: {username} (ID: {user_id})")
-            
+
             response = Response({
-                'message': 'Logout realizado com sucesso',
-                'code': 'LOGOUT_SUCCESS'
+                "message": "Logout realizado com sucesso",
+                "code": "LOGOUT_SUCCESS",
             }, status=status.HTTP_200_OK)
             return clear_auth_cookies(response)
 
         response = Response({
-            'error': 'Usuário não autenticado',
-            'code': 'NOT_AUTHENTICATED'
+            "error": "Usuário não autenticado",
+            "code": "NOT_AUTHENTICATED",
         }, status=status.HTTP_401_UNAUTHORIZED)
         return clear_auth_cookies(response)
 
 
 class BeaconLogoutView(APIView):
-    """
-    View de logout via sendBeacon (ao fechar aba do navegador)
-    
+    """View de logout via sendBeacon (ao fechar aba do navegador)
+
     Esta view é especial porque:
     - Aceita requisições sem header de autenticação
     - Recebe o token no body da requisição
     - Usa navigator.sendBeacon() que não permite headers customizados
     """
+
     permission_classes = [AllowAny]
     throttle_classes = [AuthLoginThrottle]  # Rate limit: 20/min por IP
-    
+
     def post(self, request):
-        """
-        Logout via beacon - aceita token no body
+        """Logout via beacon - aceita token no body
         """
         from rest_framework_simplejwt.exceptions import TokenError
         from rest_framework_simplejwt.tokens import AccessToken
-        
-        token_str = request.data.get('token')
-        
+
+        token_str = request.data.get("token")
+
         if not token_str:
             logger.warning("🚪 Beacon logout: token não fornecido")
             return Response({
-                'error': 'Token não fornecido',
-                'code': 'NO_TOKEN'
+                "error": "Token não fornecido",
+                "code": "NO_TOKEN",
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             # Decodificar token para obter user_id
             token = AccessToken(token_str)
-            user_id = token['user_id']
-            
+            user_id = token["user_id"]
+
             # Destruir sessão
             SessionManager.destroy_session(user_id)
-            
+
             logger.info(f"🚪 Beacon logout: Usuário {user_id} deslogado (aba fechada)")
-            
+
             return Response({
-                'message': 'Logout via beacon realizado',
-                'code': 'BEACON_LOGOUT_SUCCESS'
+                "message": "Logout via beacon realizado",
+                "code": "BEACON_LOGOUT_SUCCESS",
             }, status=status.HTTP_200_OK)
-            
+
         except TokenError as e:
             logger.warning(f"🚪 Beacon logout: token inválido - {e}")
             return Response({
-                'error': 'Token inválido',
-                'code': 'INVALID_TOKEN'
+                "error": "Token inválido",
+                "code": "INVALID_TOKEN",
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"🚪 Beacon logout: erro - {e}")
             return Response({
-                'error': 'Erro ao processar logout',
-                'code': 'LOGOUT_ERROR'
+                "error": "Erro ao processar logout",
+                "code": "LOGOUT_ERROR",
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

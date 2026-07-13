@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinica_beleza', '0049_appointment_professional_optional'),
+        ("clinica_beleza", "0049_appointment_professional_optional"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='localatendimento',
-            name='is_padrao',
-            field=models.BooleanField(default=False, help_text='Local pré-selecionado ao criar agendamento.', verbose_name='Padrão'),
+            model_name="localatendimento",
+            name="is_padrao",
+            field=models.BooleanField(default=False, help_text="Local pré-selecionado ao criar agendamento.", verbose_name="Padrão"),
         ),
         migrations.AddField(
-            model_name='nomeagenda',
-            name='is_padrao',
-            field=models.BooleanField(default=False, help_text='Nome de agenda pré-selecionado ao criar agendamento.', verbose_name='Padrão'),
+            model_name="nomeagenda",
+            name="is_padrao",
+            field=models.BooleanField(default=False, help_text="Nome de agenda pré-selecionado ao criar agendamento.", verbose_name="Padrão"),
         ),
     ]

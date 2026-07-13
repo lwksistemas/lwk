@@ -8,7 +8,7 @@ from django.db import migrations, models
 def add_vendedor_columns_if_tables_exist(apps, schema_editor):
     """Adiciona coluna vendedor_id em lead e conta apenas se as tabelas existirem no schema atual."""
     conn = schema_editor.connection
-    if conn.vendor != 'postgresql':
+    if conn.vendor != "postgresql":
         return
     with conn.cursor() as cursor:
         # Lead
@@ -59,34 +59,34 @@ def noop_reverse(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0005_add_duracao_minutos'),
+        ("crm_vendas", "0005_add_duracao_minutos"),
     ]
 
     operations = [
         migrations.SeparateDatabaseAndState(
             state_operations=[
                 migrations.AddField(
-                    model_name='lead',
-                    name='vendedor',
+                    model_name="lead",
+                    name="vendedor",
                     field=models.ForeignKey(
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
-                        related_name='leads',
-                        to='crm_vendas.vendedor',
-                        help_text='Vendedor responsável pelo lead (quando criado por vendedor)',
+                        related_name="leads",
+                        to="crm_vendas.vendedor",
+                        help_text="Vendedor responsável pelo lead (quando criado por vendedor)",
                     ),
                 ),
                 migrations.AddField(
-                    model_name='conta',
-                    name='vendedor',
+                    model_name="conta",
+                    name="vendedor",
                     field=models.ForeignKey(
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
-                        related_name='contas',
-                        to='crm_vendas.vendedor',
-                        help_text='Vendedor responsável pela conta (quando criado por vendedor)',
+                        related_name="contas",
+                        to="crm_vendas.vendedor",
+                        help_text="Vendedor responsável pela conta (quando criado por vendedor)",
                     ),
                 ),
             ],

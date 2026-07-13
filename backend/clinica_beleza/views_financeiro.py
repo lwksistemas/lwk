@@ -1,5 +1,4 @@
-"""
-Views de Pagamentos e Financeiro — Clínica da Beleza
+"""Views de Pagamentos e Financeiro — Clínica da Beleza
 """
 from decimal import Decimal, InvalidOperation
 
@@ -23,16 +22,15 @@ from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
 
 def _payments_visiveis_financeiro(qs=None):
-    """
-    Financeiro só mostra lançamentos de consultas finalizadas.
+    """Financeiro só mostra lançamentos de consultas finalizadas.
     Rascunhos (DRAFT) do Receber ficam só na consulta até Finalizar.
     """
     from django.db.models import Q
 
     if qs is None:
         qs = Payment.objects.all()
-    return qs.exclude(status='DRAFT').filter(
-        Q(appointment__consulta__status='COMPLETED') | Q(appointment__consulta__isnull=True)
+    return qs.exclude(status="DRAFT").filter(
+        Q(appointment__consulta__status="COMPLETED") | Q(appointment__consulta__isnull=True),
     )
 
 
@@ -44,26 +42,26 @@ def _garantir_categorias_despesa_padrao(loja_id: int) -> None:
 
 
 class PaymentListView(APIView):
-    """
-    GET /clinica-beleza/payments/
+    """GET /clinica-beleza/payments/
     POST /clinica-beleza/payments/
     """
+
     permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
         queryset = _payments_visiveis_financeiro(
             Payment.objects.select_related(
-                'appointment', 'appointment__patient',
-                'appointment__professional', 'appointment__procedure',
+                "appointment", "appointment__patient",
+                "appointment__professional", "appointment__procedure",
             ).prefetch_related(
-                'appointment__appointment_procedures__procedure',
-            )
-        ).order_by('-created_at')
-        if s := request.query_params.get('status'):
+                "appointment__appointment_procedures__procedure",
+            ),
+        ).order_by("-created_at")
+        if s := request.query_params.get("status"):
             queryset = queryset.filter(status=s)
-        if d := request.query_params.get('date'):
+        if d := request.query_params.get("date"):
             queryset = queryset.filter(payment_date__date=d)
-        if p := request.query_params.get('professional'):
+        if p := request.query_params.get("professional"):
             queryset = queryset.filter(appointment__professional_id=p)
         return paginate_queryset(queryset, request, PaymentSerializer)
 
@@ -76,20 +74,20 @@ class PaymentListView(APIView):
 
 
 class PaymentDetailView(GetObjectMixin, APIView):
-    """
-    GET/PUT/DELETE /clinica-beleza/payments/<id>/
+    """GET/PUT/DELETE /clinica-beleza/payments/<id>/
 
     CRUD genérico de pagamento (API/admin). O frontend da clínica usa
     listagem + parcelas; não remove — útil para correções manuais/scripts.
     """
+
     permission_classes = CLINICA_FINANCEIRO
     model_class = Payment
-    not_found_message = 'Pagamento não encontrado'
+    not_found_message = "Pagamento não encontrado"
     select_related_fields = (
-        'appointment', 'appointment__patient',
-        'appointment__professional', 'appointment__procedure',
+        "appointment", "appointment__patient",
+        "appointment__professional", "appointment__procedure",
     )
-    prefetch_related_fields = ('appointment__appointment_procedures__procedure',)
+    prefetch_related_fields = ("appointment__appointment_procedures__procedure",)
 
     def get(self, request, pk):
         obj, err = self.object_or_404(pk)
@@ -101,13 +99,13 @@ class PaymentDetailView(GetObjectMixin, APIView):
         obj, err = self.object_or_404(pk)
         if err:
             return err
-        consulta = getattr(getattr(obj, 'appointment', None), 'consulta', None)
-        if consulta is not None and consulta.status != 'COMPLETED':
+        consulta = getattr(getattr(obj, "appointment", None), "consulta", None)
+        if consulta is not None and consulta.status != "COMPLETED":
             return Response(
                 {
-                    'error': (
-                        'Pagamento de consulta não finalizada só pode ser alterado '
-                        'pelo Receber da consulta.'
+                    "error": (
+                        "Pagamento de consulta não finalizada só pode ser alterado "
+                        "pelo Receber da consulta."
                     ),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -127,21 +125,21 @@ class PaymentDetailView(GetObjectMixin, APIView):
 
 
 class PaymentParcelaView(APIView):
-    """
-    GET  /clinica-beleza/payments/<id>/parcelas/ — lista parcelas de um pagamento
+    """GET  /clinica-beleza/payments/<id>/parcelas/ — lista parcelas de um pagamento
     POST /clinica-beleza/payments/<id>/parcelas/ — registra nova entrada parcial
     """
+
     permission_classes = CLINICA_FINANCEIRO
 
     def _get_payment(self, pk):
         try:
             return (
                 Payment.objects
-                .select_related('appointment', 'appointment__consulta')
+                .select_related("appointment", "appointment__consulta")
                 .get(pk=pk)
             ), None
         except Payment.DoesNotExist:
-            return None, Response({'error': 'Pagamento não encontrado'}, status=status.HTTP_404_NOT_FOUND)
+            return None, Response({"error": "Pagamento não encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
     def get(self, request, pk):
         payment, err = self._get_payment(pk)
@@ -149,11 +147,11 @@ class PaymentParcelaView(APIView):
             return err
         parcelas = payment.parcelas.all()
         return Response({
-            'valor_total': float(payment.valor_total_efetivo),
-            'valor_pago': float(payment.valor_pago_parcelas),
-            'saldo_devedor': float(payment.saldo_devedor),
-            'status': payment.status,
-            'parcelas': PaymentParcelaSerializer(parcelas, many=True).data,
+            "valor_total": float(payment.valor_total_efetivo),
+            "valor_pago": float(payment.valor_pago_parcelas),
+            "saldo_devedor": float(payment.saldo_devedor),
+            "status": payment.status,
+            "parcelas": PaymentParcelaSerializer(parcelas, many=True).data,
         })
 
     def post(self, request, pk):
@@ -161,36 +159,36 @@ class PaymentParcelaView(APIView):
         if err:
             return err
 
-        if payment.status == 'CANCELLED':
-            return Response({'error': 'Pagamento cancelado.'}, status=status.HTTP_400_BAD_REQUEST)
-        if payment.status == 'PAID':
-            return Response({'error': 'Pagamento já está quitado.'}, status=status.HTTP_400_BAD_REQUEST)
+        if payment.status == "CANCELLED":
+            return Response({"error": "Pagamento cancelado."}, status=status.HTTP_400_BAD_REQUEST)
+        if payment.status == "PAID":
+            return Response({"error": "Pagamento já está quitado."}, status=status.HTTP_400_BAD_REQUEST)
         # DRAFT quitado (saldo 0) também bloqueia nova parcela via financeiro
-        if payment.status == 'DRAFT':
+        if payment.status == "DRAFT":
             try:
                 saldo = Decimal(str(payment.saldo_devedor or 0))
             except (InvalidOperation, TypeError, ValueError):
-                saldo = Decimal('0')
+                saldo = Decimal(0)
             if saldo <= 0:
                 return Response(
-                    {'error': 'Pagamento já quitado na consulta. Corrija pelo Receber ou finalize.'},
+                    {"error": "Pagamento já quitado na consulta. Corrija pelo Receber ou finalize."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
         try:
-            valor = Decimal(str(request.data.get('valor') or '0'))
+            valor = Decimal(str(request.data.get("valor") or "0"))
         except InvalidOperation:
-            return Response({'error': 'Valor inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Valor inválido."}, status=status.HTTP_400_BAD_REQUEST)
 
         if valor <= 0:
-            return Response({'error': 'Valor deve ser maior que zero.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Valor deve ser maior que zero."}, status=status.HTTP_400_BAD_REQUEST)
 
-        payment_method = (request.data.get('payment_method') or 'CASH').strip()
-        payment_date = request.data.get('payment_date') or now().date().isoformat()
-        observacoes = request.data.get('observacoes') or ''
+        payment_method = (request.data.get("payment_method") or "CASH").strip()
+        payment_date = request.data.get("payment_date") or now().date().isoformat()
+        observacoes = request.data.get("observacoes") or ""
 
-        consulta = getattr(payment.appointment, 'consulta', None)
-        if consulta and consulta.status not in ('COMPLETED', 'CANCELLED'):
+        consulta = getattr(payment.appointment, "consulta", None)
+        if consulta and consulta.status not in ("COMPLETED", "CANCELLED"):
             from .consulta_service import registrar_recebimento_consulta
             try:
                 payment = registrar_recebimento_consulta(
@@ -200,9 +198,9 @@ class PaymentParcelaView(APIView):
                     mark_as_paid=False,
                 )
             except ValueError as e:
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            parcela = payment.parcelas.order_by('-id').first()
-        elif consulta and consulta.status == 'COMPLETED':
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            parcela = payment.parcelas.order_by("-id").first()
+        elif consulta and consulta.status == "COMPLETED":
             parcela = PaymentParcela.objects.create(
                 payment=payment,
                 valor=valor,
@@ -214,39 +212,40 @@ class PaymentParcelaView(APIView):
             total_pago = payment.valor_pago_parcelas
             total_devedor = payment.valor_total_efetivo
             if total_pago >= total_devedor:
-                payment.status = 'PAID'
+                payment.status = "PAID"
                 payment.amount = total_pago
                 payment.payment_date = now()
             else:
-                payment.status = 'PARTIAL'
+                payment.status = "PARTIAL"
                 payment.amount = total_pago
-            payment.save(update_fields=['status', 'amount', 'payment_date', 'updated_at'])
+            payment.save(update_fields=["status", "amount", "payment_date", "updated_at"])
         else:
             return Response(
                 {
-                    'error': (
-                        'Não é possível registrar parcela neste pagamento. '
-                        'Use o Receber da consulta ou finalize o atendimento.'
+                    "error": (
+                        "Não é possível registrar parcela neste pagamento. "
+                        "Use o Receber da consulta ou finalize o atendimento."
                     ),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         return Response({
-            'parcela': PaymentParcelaSerializer(parcela).data if parcela else None,
-            'valor_total': float(payment.valor_total_efetivo),
-            'valor_pago': float(payment.valor_pago_parcelas),
-            'saldo_devedor': float(payment.saldo_devedor),
-            'status': payment.status,
+            "parcela": PaymentParcelaSerializer(parcela).data if parcela else None,
+            "valor_total": float(payment.valor_total_efetivo),
+            "valor_pago": float(payment.valor_pago_parcelas),
+            "saldo_devedor": float(payment.saldo_devedor),
+            "status": payment.status,
         }, status=status.HTTP_201_CREATED)
 
 
 class PaymentEnviarReciboView(GetObjectMixin, APIView):
     """POST /clinica-beleza/payments/<id>/enviar-recibo/ — envia recibo por email ou WhatsApp."""
+
     permission_classes = CLINICA_FINANCEIRO
     model_class = Payment
-    not_found_message = 'Pagamento não encontrado'
-    select_related_fields = ('appointment', 'appointment__patient')
+    not_found_message = "Pagamento não encontrado"
+    select_related_fields = ("appointment", "appointment__patient")
 
     def post(self, request, pk):
         from .recibo_service import enviar_recibo_pagamento
@@ -255,18 +254,19 @@ class PaymentEnviarReciboView(GetObjectMixin, APIView):
         if err:
             return err
 
-        canal = (request.data.get('canal') or '').strip()
-        if canal not in ('email', 'whatsapp'):
-            return Response({'error': 'Canal deve ser "email" ou "whatsapp".'}, status=status.HTTP_400_BAD_REQUEST)
+        canal = (request.data.get("canal") or "").strip()
+        if canal not in ("email", "whatsapp"):
+            return Response({"error": 'Canal deve ser "email" ou "whatsapp".'}, status=status.HTTP_400_BAD_REQUEST)
 
         ok, msg = enviar_recibo_pagamento(payment, canal=canal)
         if ok:
-            return Response({'success': True, 'message': msg})
-        return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "message": msg})
+        return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ReciboPdfPublicView(APIView):
     """GET /clinica-beleza/payments/<id>/recibo-pdf/<token>/ — retorna PDF público (para WhatsApp)."""
+
     permission_classes = []
     authentication_classes = []
 
@@ -274,29 +274,29 @@ class ReciboPdfPublicView(APIView):
         from django.core.cache import cache as django_cache
         from django.http import HttpResponse
 
-        cache_key = f'recibo_pdf_{token}'
+        cache_key = f"recibo_pdf_{token}"
         cached = django_cache.get(cache_key)
         if not cached:
-            return Response({'error': 'Recibo expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Recibo expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
 
         # Token amarrado ao payment id — cache legado (só bytes) é rejeitado
-        if not isinstance(cached, dict) or cached.get('payment_id') != pk:
-            return Response({'error': 'Recibo expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
-        pdf_bytes = cached.get('pdf')
+        if not isinstance(cached, dict) or cached.get("payment_id") != pk:
+            return Response({"error": "Recibo expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
+        pdf_bytes = cached.get("pdf")
         if not pdf_bytes:
-            return Response({'error': 'Recibo expirado ou inválido.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Recibo expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
 
-        response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        response['Content-Disposition'] = f'inline; filename="recibo_{pk}.pdf"'
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="recibo_{pk}.pdf"'
         return response
 
 
 class FinanceiroResumoView(APIView):
-    """
-    GET /clinica-beleza/financeiro/resumo/
+    """GET /clinica-beleza/financeiro/resumo/
     Resumo: caixa diário, total mês, contas a receber, comissões.
     Query: mes, ano (opcional — padrão mês atual).
     """
+
     permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
@@ -305,8 +305,8 @@ class FinanceiroResumoView(APIView):
 
         today = now().date()
         try:
-            ano = int(request.query_params.get('ano') or today.year)
-            mes = int(request.query_params.get('mes') or today.month)
+            ano = int(request.query_params.get("ano") or today.year)
+            mes = int(request.query_params.get("mes") or today.month)
             if not (1 <= mes <= 12):
                 raise ValueError
         except (ValueError, TypeError):
@@ -317,66 +317,67 @@ class FinanceiroResumoView(APIView):
         period_end = today if (ano == today.year and mes == today.month) else last_day
 
         def _sum(qs):
-            return float(qs.aggregate(total=Sum('amount'))['total'] or 0)
+            return float(qs.aggregate(total=Sum("amount"))["total"] or 0)
 
         faturamento = _sum(_payments_visiveis_financeiro(Payment.objects.filter(
-            status='PAID',
+            status="PAID",
             payment_date__date__gte=first_day,
             payment_date__date__lte=period_end,
         )))
         # Contas a receber: só consultas já finalizadas (PENDING/PARTIAL publicados)
-        contas_pendentes = _payments_visiveis_financeiro(Payment.objects.filter(status='PENDING'))
-        contas_parciais = _payments_visiveis_financeiro(Payment.objects.filter(status='PARTIAL'))
+        contas_pendentes = _payments_visiveis_financeiro(Payment.objects.filter(status="PENDING"))
+        contas_parciais = _payments_visiveis_financeiro(Payment.objects.filter(status="PARTIAL"))
         total_pendente = 0.0
-        for p in contas_pendentes.only('amount', 'valor_total', 'status'):
+        for p in contas_pendentes.only("amount", "valor_total", "status"):
             total_pendente += float(p.saldo_devedor)
-        for p in contas_parciais.only('amount', 'valor_total', 'status'):
+        for p in contas_parciais.only("amount", "valor_total", "status"):
             total_pendente += float(p.saldo_devedor)
         contas_a_receber = total_pendente
         comissao_mes = float(
             _payments_visiveis_financeiro(Payment.objects.filter(
-                status='PAID',
+                status="PAID",
                 payment_date__date__gte=first_day,
                 payment_date__date__lte=period_end,
-            )).aggregate(total=Sum('comissao_valor'))['total'] or 0
+            )).aggregate(total=Sum("comissao_valor"))["total"] or 0,
         )
 
         def _sum_despesa(qs):
-            return float(qs.aggregate(total=Sum('valor'))['total'] or 0)
+            return float(qs.aggregate(total=Sum("valor"))["total"] or 0)
 
         despesas_operacionais = _sum_despesa(Despesa.objects.filter(
-            status='PAID',
+            status="PAID",
             data_pagamento__gte=first_day,
             data_pagamento__lte=period_end,
         ))
-        despesas_pendentes = _sum_despesa(Despesa.objects.filter(status='PENDING'))
+        despesas_pendentes = _sum_despesa(Despesa.objects.filter(status="PENDING"))
         despesas_total = comissao_mes + despesas_operacionais
 
         return Response({
-            'caixa_diario': _sum(_payments_visiveis_financeiro(
-                Payment.objects.filter(status='PAID', payment_date__date=today)
+            "caixa_diario": _sum(_payments_visiveis_financeiro(
+                Payment.objects.filter(status="PAID", payment_date__date=today),
             )),
-            'total_mes': faturamento,
-            'contas_a_receber': contas_a_receber,
-            'comissao_mes': comissao_mes,
-            'despesas_operacionais': despesas_operacionais,
-            'despesas_pendentes': despesas_pendentes,
-            'faturamento': faturamento,
-            'despesas': despesas_total,
-            'lucro': faturamento - despesas_total,
-            'filter': {'mes': mes, 'ano': ano},
+            "total_mes": faturamento,
+            "contas_a_receber": contas_a_receber,
+            "comissao_mes": comissao_mes,
+            "despesas_operacionais": despesas_operacionais,
+            "despesas_pendentes": despesas_pendentes,
+            "faturamento": faturamento,
+            "despesas": despesas_total,
+            "lucro": faturamento - despesas_total,
+            "filter": {"mes": mes, "ano": ano},
         })
 
 
 class CategoriaDespesaListView(APIView):
     """GET/POST /clinica-beleza/despesas/categorias/"""
+
     permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
         loja_id = resolve_loja_id_from_request(request)
         if loja_id:
             _garantir_categorias_despesa_padrao(loja_id)
-        qs = CategoriaDespesa.objects.filter(is_active=True).order_by('nome')
+        qs = CategoriaDespesa.objects.filter(is_active=True).order_by("nome")
         return Response(CategoriaDespesaSerializer(qs, many=True).data)
 
     def post(self, request):
@@ -390,17 +391,18 @@ class CategoriaDespesaListView(APIView):
 
 class DespesaListView(APIView):
     """GET/POST /clinica-beleza/despesas/"""
+
     permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
-        qs = Despesa.objects.select_related('categoria').order_by('-data_vencimento', '-created_at')
-        if s := request.query_params.get('status'):
+        qs = Despesa.objects.select_related("categoria").order_by("-data_vencimento", "-created_at")
+        if s := request.query_params.get("status"):
             qs = qs.filter(status=s)
-        if c := request.query_params.get('categoria'):
+        if c := request.query_params.get("categoria"):
             qs = qs.filter(categoria_id=c)
-        if d := request.query_params.get('date'):
+        if d := request.query_params.get("date"):
             qs = qs.filter(data_vencimento=d)
-        if d := request.query_params.get('data_pagamento'):
+        if d := request.query_params.get("data_pagamento"):
             qs = qs.filter(data_pagamento=d)
         return paginate_queryset(qs, request, DespesaSerializer)
 
@@ -415,10 +417,11 @@ class DespesaListView(APIView):
 
 class DespesaDetailView(GetObjectMixin, APIView):
     """GET/PUT/DELETE /clinica-beleza/despesas/<id>/"""
+
     permission_classes = CLINICA_FINANCEIRO
     model_class = Despesa
-    not_found_message = 'Despesa não encontrada'
-    select_related_fields = ('categoria',)
+    not_found_message = "Despesa não encontrada"
+    select_related_fields = ("categoria",)
 
     def get(self, request, pk):
         obj, err = self.object_or_404(pk)

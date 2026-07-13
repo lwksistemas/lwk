@@ -12,28 +12,27 @@ def carregar_certificado(pfx_path: str, senha: str):
     """Carrega chave privada e certificado de um arquivo .pfx."""
     from cryptography.hazmat.primitives.serialization import pkcs12
 
-    with open(pfx_path, 'rb') as f:
+    with open(pfx_path, "rb") as f:
         pfx_data = f.read()
     private_key, certificate, extra = pkcs12.load_key_and_certificates(
-        pfx_data, senha.encode()
+        pfx_data, senha.encode(),
     )
     if certificate is None:
-        raise ValueError('O arquivo .pfx nao contem certificado valido.')
+        raise ValueError("O arquivo .pfx nao contem certificado valido.")
     return private_key, certificate, extra
 
 
 def materializar_pem_mtls(
-    pfx_path: str, senha: str
+    pfx_path: str, senha: str,
 ) -> tuple[str, str, PrivateKeyTypes, x509.Certificate]:
-    """
-    Grava chave e cadeia em arquivos PEM temporários para mTLS (requests/zeep).
+    """Grava chave e cadeia em arquivos PEM temporários para mTLS (requests/zeep).
     Retorna (key_path, cert_path, private_key, certificate).
     """
     from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
 
     private_key_obj, cert_obj, extra = carregar_certificado(pfx_path, senha)
     key_pem = private_key_obj.private_bytes(
-        Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()
+        Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption(),
     )
     cert_pem = cert_obj.public_bytes(Encoding.PEM)
     if extra:
@@ -41,8 +40,8 @@ def materializar_pem_mtls(
             if add is not None:
                 cert_pem += add.public_bytes(Encoding.PEM)
 
-    ktf = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')  # noqa: SIM115
-    ctf = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')  # noqa: SIM115
+    ktf = tempfile.NamedTemporaryFile(delete=False, suffix=".pem")  # noqa: SIM115
+    ctf = tempfile.NamedTemporaryFile(delete=False, suffix=".pem")  # noqa: SIM115
     try:
         ktf.write(key_pem)
         ctf.write(cert_pem)
@@ -56,7 +55,7 @@ def materializar_pem_mtls(
 
 @contextmanager
 def certificado_mtls_temporario(
-    pfx_path: str, senha: str
+    pfx_path: str, senha: str,
 ) -> Generator[tuple[str, str], None, None]:
     """Context manager: paths PEM para mTLS; remove arquivos ao sair."""
     key_path, cert_path, _key, _cert = materializar_pem_mtls(pfx_path, senha)

@@ -1,5 +1,4 @@
-"""
-Serviço de sincronização de atividades com Google Calendar.
+"""Serviço de sincronização de atividades com Google Calendar.
 Extrai a lógica de sync do AtividadeViewSet para centralizar e evitar duplicação.
 """
 import logging
@@ -13,8 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def _get_connection(loja_id: int, vendedor_id=None):
-    """
-    Busca a conexão do Google Calendar para a loja (owner ou vendedor).
+    """Busca a conexão do Google Calendar para a loja (owner ou vendedor).
     Retorna None se não houver conexão.
     """
     from superadmin.models import GoogleCalendarConnection
@@ -22,7 +20,7 @@ def _get_connection(loja_id: int, vendedor_id=None):
     if not loja_id:
         return None
 
-    qs = GoogleCalendarConnection.objects.using('default').filter(loja_id=loja_id)
+    qs = GoogleCalendarConnection.objects.using("default").filter(loja_id=loja_id)
     if vendedor_id is None:
         qs = qs.filter(vendedor_id__isnull=True)
     else:
@@ -41,7 +39,7 @@ def _get_connection_for_request(request):
 
 def sync_atividade_create_for_context(atividade, *, vendedor_id=None):
     """Sincroniza atividade criada (worker ou chamada direta com contexto explícito)."""
-    if not atividade or not getattr(atividade, 'loja_id', None):
+    if not atividade or not getattr(atividade, "loja_id", None):
         return
 
     try:
@@ -52,7 +50,7 @@ def sync_atividade_create_for_context(atividade, *, vendedor_id=None):
         event_id = push_atividade_to_google(connection, atividade)
         if event_id:
             atividade.google_event_id = event_id
-            atividade.save(update_fields=['google_event_id'])
+            atividade.save(update_fields=["google_event_id"])
             logger.info("✅ Atividade %s sincronizada com Google Calendar: %s", atividade.id, event_id)
     except Exception as e:
         logger.warning("⚠️ Erro ao sincronizar atividade com Google Calendar: %s", e)
@@ -60,7 +58,7 @@ def sync_atividade_create_for_context(atividade, *, vendedor_id=None):
 
 def sync_atividade_update_for_context(atividade, *, vendedor_id=None):
     """Sincroniza atividade atualizada (worker ou chamada direta com contexto explícito)."""
-    if not atividade or not getattr(atividade, 'loja_id', None):
+    if not atividade or not getattr(atividade, "loja_id", None):
         return
 
     try:
@@ -71,7 +69,7 @@ def sync_atividade_update_for_context(atividade, *, vendedor_id=None):
         event_id = push_atividade_to_google(connection, atividade)
         if event_id and not atividade.google_event_id:
             atividade.google_event_id = event_id
-            atividade.save(update_fields=['google_event_id'])
+            atividade.save(update_fields=["google_event_id"])
         logger.info("✅ Atividade %s atualizada no Google Calendar: %s", atividade.id, event_id)
     except Exception as e:
         logger.warning("⚠️ Erro ao atualizar atividade no Google Calendar: %s", e)
@@ -89,7 +87,7 @@ def sync_atividade_delete_event(loja_id, google_event_id, *, vendedor_id=None):
         if not connection or not connection.access_token:
             connection = (
                 GoogleCalendarConnection.objects.filter(loja_id=loja_id)
-                .exclude(access_token='')
+                .exclude(access_token="")
                 .first()
             )
         if not connection:
@@ -105,8 +103,7 @@ def sync_atividade_delete_event(loja_id, google_event_id, *, vendedor_id=None):
 
 
 def sync_atividade_create(request, atividade):
-    """
-    Sincroniza uma atividade recém-criada com o Google Calendar.
+    """Sincroniza uma atividade recém-criada com o Google Calendar.
     Atualiza atividade.google_event_id se a sincronização for bem-sucedida.
     """
     vendedor_id = get_current_vendedor_id(request) if request else None
@@ -114,8 +111,7 @@ def sync_atividade_create(request, atividade):
 
 
 def sync_atividade_update(request, atividade):
-    """
-    Sincroniza uma atividade atualizada com o Google Calendar.
+    """Sincroniza uma atividade atualizada com o Google Calendar.
     Cria evento no Google se ainda não existir (google_event_id vazio).
     """
     vendedor_id = get_current_vendedor_id(request) if request else None
@@ -123,8 +119,7 @@ def sync_atividade_update(request, atividade):
 
 
 def sync_atividade_delete(loja_id, atividade):
-    """
-    Remove o evento do Google Calendar ao excluir uma atividade.
+    """Remove o evento do Google Calendar ao excluir uma atividade.
     Usa loja_id pois o request pode não estar disponível no perform_destroy.
     """
     if not atividade or not atividade.google_event_id:

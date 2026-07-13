@@ -8,21 +8,21 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('superadmin', '0018_add_owner_telefone'),
+        ("superadmin", "0018_add_owner_telefone"),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='profissionalusuario',
-            name='superadmin_profissionalusuario_user_loja_uniq',
+            model_name="profissionalusuario",
+            name="superadmin_profissionalusuario_user_loja_uniq",
         ),
         migrations.AlterField(
-            model_name='profissionalusuario',
-            name='perfil',
-            field=models.CharField(choices=[('administrador', 'Administrador'), ('profissional', 'Profissional (só agenda e bloqueios próprios)'), ('recepcao', 'Recepção (acesso completo)'), ('recepcionista', 'Recepcionista'), ('caixa', 'Caixa'), ('limpeza', 'Limpeza'), ('estoque', 'Estoque')], default='profissional', help_text='Tipo de acesso: administrador, profissional, recepcionista, caixa, limpeza, estoque.', max_length=20),
+            model_name="profissionalusuario",
+            name="perfil",
+            field=models.CharField(choices=[("administrador", "Administrador"), ("profissional", "Profissional (só agenda e bloqueios próprios)"), ("recepcao", "Recepção (acesso completo)"), ("recepcionista", "Recepcionista"), ("caixa", "Caixa"), ("limpeza", "Limpeza"), ("estoque", "Estoque")], default="profissional", help_text="Tipo de acesso: administrador, profissional, recepcionista, caixa, limpeza, estoque.", max_length=20),
         ),
         migrations.AlterUniqueTogether(
-            name='profissionalusuario',
-            unique_together={('user', 'loja')},
+            name="profissionalusuario",
+            unique_together={("user", "loja")},
         ),
     ]

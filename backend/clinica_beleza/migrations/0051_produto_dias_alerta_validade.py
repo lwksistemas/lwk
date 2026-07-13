@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinica_beleza', '0050_local_nomeagenda_is_padrao'),
+        ("clinica_beleza", "0050_local_nomeagenda_is_padrao"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='produtoestoque',
-            name='dias_alerta_validade',
-            field=models.PositiveIntegerField(default=90, help_text='Quantidade de dias antes do vencimento para emitir alerta (ex: 90).', verbose_name='Dias para alerta de validade'),
+            model_name="produtoestoque",
+            name="dias_alerta_validade",
+            field=models.PositiveIntegerField(default=90, help_text="Quantidade de dias antes do vencimento para emitir alerta (ex: 90).", verbose_name="Dias para alerta de validade"),
         ),
     ]

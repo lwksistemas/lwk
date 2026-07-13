@@ -7,29 +7,29 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clinica_beleza', '0026_appointment_multi_procedures'),
+        ("clinica_beleza", "0026_appointment_multi_procedures"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ProfessionalCommission',
+            name="ProfessionalCommission",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('loja_id', models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro')),
-                ('tipo', models.CharField(choices=[('consulta', 'Por consulta (atendimento)'), ('procedimento', 'Por procedimento')], max_length=20, verbose_name='Tipo de comissão')),
-                ('modo', models.CharField(choices=[('percentual', 'Percentual (%)'), ('fixo', 'Valor fixo (R$)')], default='percentual', max_length=15, verbose_name='Modo de cálculo')),
-                ('valor', models.DecimalField(decimal_places=2, default=0, help_text='Percentual (ex: 30.00 = 30%) ou valor fixo em R$.', max_digits=10, verbose_name='Valor')),
-                ('is_active', models.BooleanField(default=True, verbose_name='Ativo')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('procedure', models.ForeignKey(blank=True, help_text='Obrigatório quando tipo = procedimento. Vazio = comissão geral por consulta.', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='comissoes', to='clinica_beleza.procedure', verbose_name='Procedimento')),
-                ('professional', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='comissoes', to='clinica_beleza.professional', verbose_name='Profissional')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("loja_id", models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro")),
+                ("tipo", models.CharField(choices=[("consulta", "Por consulta (atendimento)"), ("procedimento", "Por procedimento")], max_length=20, verbose_name="Tipo de comissão")),
+                ("modo", models.CharField(choices=[("percentual", "Percentual (%)"), ("fixo", "Valor fixo (R$)")], default="percentual", max_length=15, verbose_name="Modo de cálculo")),
+                ("valor", models.DecimalField(decimal_places=2, default=0, help_text="Percentual (ex: 30.00 = 30%) ou valor fixo em R$.", max_digits=10, verbose_name="Valor")),
+                ("is_active", models.BooleanField(default=True, verbose_name="Ativo")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("procedure", models.ForeignKey(blank=True, help_text="Obrigatório quando tipo = procedimento. Vazio = comissão geral por consulta.", null=True, on_delete=django.db.models.deletion.CASCADE, related_name="comissoes", to="clinica_beleza.procedure", verbose_name="Procedimento")),
+                ("professional", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="comissoes", to="clinica_beleza.professional", verbose_name="Profissional")),
             ],
             options={
-                'verbose_name': 'Comissão do profissional',
-                'verbose_name_plural': 'Comissões dos profissionais',
-                'db_table': 'clinica_beleza_professional_commissions',
-                'ordering': ['professional', 'tipo', 'procedure'],
+                "verbose_name": "Comissão do profissional",
+                "verbose_name_plural": "Comissões dos profissionais",
+                "db_table": "clinica_beleza_professional_commissions",
+                "ordering": ["professional", "tipo", "procedure"],
             },
         ),
     ]

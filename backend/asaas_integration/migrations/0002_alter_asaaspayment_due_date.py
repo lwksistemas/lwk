@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('asaas_integration', '0001_initial'),
+        ("asaas_integration", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='asaaspayment',
-            name='due_date',
-            field=models.DateField(blank=True, null=True, verbose_name='Data de Vencimento'),
+            model_name="asaaspayment",
+            name="due_date",
+            field=models.DateField(blank=True, null=True, verbose_name="Data de Vencimento"),
         ),
     ]

@@ -5,43 +5,43 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm_vendas', '0012_remove_origem_choices_constraint'),
+        ("crm_vendas", "0012_remove_origem_choices_constraint"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='lead',
-            name='cep',
+            model_name="lead",
+            name="cep",
             field=models.CharField(blank=True, max_length=10),
         ),
         migrations.AddField(
-            model_name='lead',
-            name='logradouro',
+            model_name="lead",
+            name="logradouro",
             field=models.CharField(blank=True, max_length=200),
         ),
         migrations.AddField(
-            model_name='lead',
-            name='numero',
+            model_name="lead",
+            name="numero",
             field=models.CharField(blank=True, max_length=20),
         ),
         migrations.AddField(
-            model_name='lead',
-            name='complemento',
+            model_name="lead",
+            name="complemento",
             field=models.CharField(blank=True, max_length=100),
         ),
         migrations.AddField(
-            model_name='lead',
-            name='bairro',
+            model_name="lead",
+            name="bairro",
             field=models.CharField(blank=True, max_length=100),
         ),
         migrations.AddField(
-            model_name='lead',
-            name='cidade',
+            model_name="lead",
+            name="cidade",
             field=models.CharField(blank=True, max_length=100),
         ),
         migrations.AddField(
-            model_name='lead',
-            name='uf',
+            model_name="lead",
+            name="uf",
             field=models.CharField(blank=True, max_length=2),
         ),
     ]

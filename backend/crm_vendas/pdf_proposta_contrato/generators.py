@@ -26,14 +26,14 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.2 * cm, bottomMargin=0.5 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
     elements = []
     styles = getSampleStyleSheet()
-    compact = ParagraphStyle('Compact', parent=styles['Normal'], fontSize=9, spaceBefore=0, spaceAfter=1, leading=11)
+    compact = ParagraphStyle("Compact", parent=styles["Normal"], fontSize=9, spaceBefore=0, spaceAfter=1, leading=11)
 
-    loja_id = getattr(proposta, 'loja_id', None)
+    loja_id = getattr(proposta, "loja_id", None)
     loja_data = obter_dados_emitente_documento(proposta)
-    if loja_id and not loja_data.get('logo'):
-        loja_data = {**loja_data, 'logo': (_obter_dados_loja(loja_id) or {}).get('logo')}
-    logo_url = loja_data.get('logo')
-    _build_cabecalho(elements, logo_url, 'PROPOSTA COMERCIAL')
+    if loja_id and not loja_data.get("logo"):
+        loja_data = {**loja_data, "logo": (_obter_dados_loja(loja_id) or {}).get("logo")}
+    logo_url = loja_data.get("logo")
+    _build_cabecalho(elements, logo_url, "PROPOSTA COMERCIAL")
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', compact))
 
     if loja_data:
@@ -47,8 +47,8 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     _build_secao_desconto(elements, proposta, compact)
     _build_secao_conteudo(elements, proposta.conteudo, compact)
 
-    vendedor = proposta.oportunidade.vendedor if proposta.oportunidade and getattr(proposta.oportunidade, 'vendedor', None) else None
-    ass_v, ass_c = _build_secao_assinaturas(elements, proposta, lead, vendedor, compact, incluir_assinaturas, 'proposta')
+    vendedor = proposta.oportunidade.vendedor if proposta.oportunidade and getattr(proposta.oportunidade, "vendedor", None) else None
+    ass_v, ass_c = _build_secao_assinaturas(elements, proposta, lead, vendedor, compact, incluir_assinaturas, "proposta")
 
     wm_data = _build_watermark_callback(logo_url, ass_v, ass_c)
     _inserir_watermark_flowable(elements, wm_data, max_wm_w_cm=7.5, max_wm_h_cm=5, y_factor=0.8)
@@ -64,14 +64,14 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5 * cm, bottomMargin=1 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
     elements = []
     styles = getSampleStyleSheet()
-    normal = styles['Normal']
+    normal = styles["Normal"]
 
-    loja_id = getattr(contrato, 'loja_id', None)
+    loja_id = getattr(contrato, "loja_id", None)
     loja_data = obter_dados_emitente_documento(contrato)
-    if loja_id and not loja_data.get('logo'):
-        loja_data = {**loja_data, 'logo': (_obter_dados_loja(loja_id) or {}).get('logo')}
-    logo_url = loja_data.get('logo')
-    _build_cabecalho(elements, logo_url, 'CONTRATO')
+    if loja_id and not loja_data.get("logo"):
+        loja_data = {**loja_data, "logo": (_obter_dados_loja(loja_id) or {}).get("logo")}
+    logo_url = loja_data.get("logo")
+    _build_cabecalho(elements, logo_url, "CONTRATO")
     elements.append(Spacer(1, 0.4 * cm))
     elements.append(Paragraph(f'<b>Número:</b> {contrato.numero or "—"}', normal))
     elements.append(Paragraph(f'<b>Título:</b> {contrato.titulo or "—"}', normal))
@@ -92,8 +92,8 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
 
     _build_secao_conteudo(elements, contrato.conteudo, normal)
 
-    vendedor = contrato.oportunidade.vendedor if contrato.oportunidade and getattr(contrato.oportunidade, 'vendedor', None) else None
-    ass_v, ass_c = _build_secao_assinaturas(elements, contrato, lead, vendedor, normal, incluir_assinaturas, 'contrato')
+    vendedor = contrato.oportunidade.vendedor if contrato.oportunidade and getattr(contrato.oportunidade, "vendedor", None) else None
+    ass_v, ass_c = _build_secao_assinaturas(elements, contrato, lead, vendedor, normal, incluir_assinaturas, "contrato")
 
     wm_data = _build_watermark_callback(logo_url, ass_v, ass_c)
     _inserir_watermark_flowable(elements, wm_data, max_wm_w_cm=5.5, max_wm_h_cm=3.5, y_factor=1.0)

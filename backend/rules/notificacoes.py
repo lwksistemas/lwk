@@ -1,5 +1,4 @@
-"""
-Regras de notificação: avisar profissional, paciente (in-app / push / WhatsApp).
+"""Regras de notificação: avisar profissional, paciente (in-app / push / WhatsApp).
 """
 from notificacoes.services import notify
 
@@ -26,8 +25,7 @@ def _user_do_profissional(professional):
 
 
 def notificar_profissional_novo_agendamento(contexto):
-    """
-    Ao criar agendamento, notifica o profissional (in-app + push se tiver dispositivo).
+    """Ao criar agendamento, notifica o profissional (in-app + push se tiver dispositivo).
     contexto: profissional, appointment (opcional, para link)
     """
     profissional = contexto.get("profissional")

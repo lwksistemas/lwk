@@ -46,18 +46,18 @@ class DashboardFilterMetaTests(SimpleTestCase):
             period_start=date(2026, 6, 1),
             period_end=date(2026, 6, 15),
         )
-        self.assertEqual(meta['label'], 'Junho/2026')
-        self.assertTrue(meta['is_current_month'])
-        self.assertEqual(meta['period_start'], '2026-06-01')
+        self.assertEqual(meta["label"], "Junho/2026")
+        self.assertTrue(meta["is_current_month"])
+        self.assertEqual(meta["period_start"], "2026-06-01")
 
 
 class DashboardQueryParamParsingTests(SimpleTestCase):
     def test_period_default(self):
-        self.assertEqual(parse_next_appointments_period(None), 'proximos')
+        self.assertEqual(parse_next_appointments_period(None), "proximos")
 
     def test_professional_id_invalido(self):
-        self.assertIsNone(parse_professional_id('abc'))
+        self.assertIsNone(parse_professional_id("abc"))
 
     def test_next_appointments_limit(self):
-        self.assertEqual(next_appointments_limit('hoje'), 10)
-        self.assertEqual(next_appointments_limit('semana'), 15)
+        self.assertEqual(next_appointments_limit("hoje"), 10)
+        self.assertEqual(next_appointments_limit("semana"), 15)

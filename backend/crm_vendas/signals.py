@@ -1,5 +1,4 @@
-"""
-Signals do CRM Vendas - invalida cache do dashboard ao alterar dados.
+"""Signals do CRM Vendas - invalida cache do dashboard ao alterar dados.
 Refatorado para usar CRMCacheManager centralizado.
 """
 from django.db.models.signals import post_delete, post_save
@@ -11,7 +10,7 @@ from .models import Atividade, Lead, Oportunidade
 
 def _get_loja_id(instance):
     """Obtém loja_id da instância."""
-    return getattr(instance, 'loja_id', None)
+    return getattr(instance, "loja_id", None)
 
 
 @receiver(post_save, sender=Lead)

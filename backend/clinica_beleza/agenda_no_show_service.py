@@ -1,5 +1,4 @@
-"""
-Marca agendamentos como Faltou (NO_SHOW) quando passam 2h do horário sem chegada.
+"""Marca agendamentos como Faltou (NO_SHOW) quando passam 2h do horário sem chegada.
 """
 import logging
 from datetime import timedelta
@@ -10,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 NO_SHOW_HORAS = 2
 _STATUS_ELEGIVEL_FALTA = frozenset({
-    'SCHEDULED', 'PENDING', 'CLIENT_CONFIRMED', 'PHONE_CONFIRMED',
+    "SCHEDULED", "PENDING", "CLIENT_CONFIRMED", "PHONE_CONFIRMED",
 })
 
 
@@ -18,15 +17,14 @@ def _lojas_clinica_beleza():
     from superadmin.models import Loja
 
     return (
-        Loja.objects.using('default')
-        .select_related('tipo_loja')
-        .filter(is_active=True, database_created=True, tipo_loja__nome='Clínica da Beleza')
+        Loja.objects.using("default")
+        .select_related("tipo_loja")
+        .filter(is_active=True, database_created=True, tipo_loja__nome="Clínica da Beleza")
     )
 
 
 def marcar_faltas_agenda_automatico() -> int:
-    """
-    Atualiza agendamentos elegíveis para NO_SHOW.
+    """Atualiza agendamentos elegíveis para NO_SHOW.
     Retorna quantidade de registros alterados.
     """
     from core.db_config import ensure_loja_database_config
@@ -48,23 +46,23 @@ def marcar_faltas_agenda_automatico() -> int:
             qs = (
                 Appointment.objects
                 .filter(status__in=_STATUS_ELEGIVEL_FALTA, date__lt=limite)
-                .order_by('date')
+                .order_by("date")
             )
             for appointment in qs.iterator():
                 try:
-                    atualizar_agendamento(appointment, new_status='NO_SHOW', user=None, request=None)
+                    atualizar_agendamento(appointment, new_status="NO_SHOW", user=None, request=None)
                     total += 1
                 except Exception as exc:
                     logger.warning(
-                        'NO_SHOW automático falhou loja=%s agendamento=%s: %s',
+                        "NO_SHOW automático falhou loja=%s agendamento=%s: %s",
                         loja.id, appointment.id, exc,
                     )
         except Exception as exc:
-            logger.exception('NO_SHOW automático loja %s: %s', loja.id, exc)
+            logger.exception("NO_SHOW automático loja %s: %s", loja.id, exc)
         finally:
             set_current_loja_id(None)
-            set_current_tenant_db('default')
+            set_current_tenant_db("default")
 
     if total:
-        logger.info('NO_SHOW automático: %d agendamento(s) marcado(s) como faltou', total)
+        logger.info("NO_SHOW automático: %d agendamento(s) marcado(s) como faltou", total)
     return total

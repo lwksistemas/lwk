@@ -1,5 +1,4 @@
-"""
-Busca um usuário pelo username e mostra vínculos (lojas, UsuarioSistema, ProfissionalUsuario).
+"""Busca um usuário pelo username e mostra vínculos (lojas, UsuarioSistema, ProfissionalUsuario).
 Útil para descobrir quem está usando um username quando dá "duplicate key auth_user_username_key".
 
 Uso:
@@ -73,7 +72,7 @@ class Command(BaseCommand):
         if remover:
             if n_lojas > 0:
                 self.stdout.write(
-                    self.style.ERROR(f"Não é possível remover: o usuário é owner de {n_lojas} loja(s).")
+                    self.style.ERROR(f"Não é possível remover: o usuário é owner de {n_lojas} loja(s)."),
                 )
                 return
             if tem_usuario_sistema:
@@ -81,8 +80,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"Removendo usuário '{username}' (id={user.id})..."))
             user.delete()
             self.stdout.write(self.style.SUCCESS("Usuário removido. Agora você pode criar uma nova loja com esse username."))
-        else:
-            if n_lojas == 0 and not tem_usuario_sistema:
-                self.stdout.write(
-                    self.style.WARNING("Este usuário não é owner de nenhuma loja. Para removê-lo e liberar o username, use: --remover")
-                )
+        elif n_lojas == 0 and not tem_usuario_sistema:
+            self.stdout.write(
+                self.style.WARNING("Este usuário não é owner de nenhuma loja. Para removê-lo e liberar o username, use: --remover"),
+            )

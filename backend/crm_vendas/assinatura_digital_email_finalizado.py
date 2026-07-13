@@ -9,7 +9,7 @@ from .assinatura_digital_email_layout import (
 
 
 def montar_email_pdf_final(*, documento, lead, loja_nome, tipo_doc):
-    valor = documento.valor_total or '0,00'
+    valor = documento.valor_total or "0,00"
     body = f"""
                                 <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
                                     Olá,
@@ -37,16 +37,16 @@ def montar_email_pdf_final(*, documento, lead, loja_nome, tipo_doc):
                                 </p>"""
 
     html_content = montar_email_html(
-        title=f'{tipo_doc} Assinado',
+        title=f"{tipo_doc} Assinado",
         loja_nome=loja_nome,
         header=header_html(
-            bgcolor='#10b981',
-            gradient_end='#059669',
-            title='🎉 Documento Assinado!',
-            subtitle='Processo de assinatura concluído com sucesso',
+            bgcolor="#10b981",
+            gradient_end="#059669",
+            title="🎉 Documento Assinado!",
+            subtitle="Processo de assinatura concluído com sucesso",
         ),
         body=body,
-        footer_tagline='Obrigado por utilizar nossos serviços!',
+        footer_tagline="Obrigado por utilizar nossos serviços!",
     )
 
     texto_plano = f"""

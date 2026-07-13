@@ -1,5 +1,4 @@
-"""
-Serviço para gerenciamento de schemas de banco de dados.
+"""Serviço para gerenciamento de schemas de banco de dados.
 Centraliza lógica de criação e configuração de schemas PostgreSQL.
 
 Isolamento por loja:
@@ -21,13 +20,13 @@ logger = logging.getLogger(__name__)
 def _pg_objects_already_exist(exc: BaseException) -> bool:
     """True quando o SQL da migration falhou só porque tabela/índice/sequence já existe no schema."""
     text = str(exc).lower()
-    if 'already exists' in text:
+    if "already exists" in text:
         return True
-    if 'duplicate' in text and any(
-        k in text for k in ('relation', 'table', 'index', 'constraint', 'sequence')
+    if "duplicate" in text and any(
+        k in text for k in ("relation", "table", "index", "constraint", "sequence")
     ):
         return True
-    cause = getattr(exc, '__cause__', None)
+    cause = getattr(exc, "__cause__", None)
     if cause is not None and cause is not exc:
         return _pg_objects_already_exist(cause)
     return False
@@ -52,20 +51,20 @@ def _record_migration_if_missing(alias: str, schema_name: str, app_label: str, m
 
 def _prefixos_tabela_app(app_label: str) -> list[str]:
     """Prefixos de table_name usados para detectar se o app já tem tabelas no schema."""
-    if app_label == 'clinica_estetica':
-        return ['clinica_']
-    if app_label == 'contenttypes':
-        return ['django_content_type']
-    if app_label == 'crm_vendas':
+    if app_label == "clinica_estetica":
+        return ["clinica_"]
+    if app_label == "contenttypes":
+        return ["django_content_type"]
+    if app_label == "crm_vendas":
         # models/financeiro.py usa crm_financeiro_*; demais usam crm_vendas_*
-        return ['crm_vendas_', 'crm_financeiro_']
-    return [f'{app_label}_']
+        return ["crm_vendas_", "crm_financeiro_"]
+    return [f"{app_label}_"]
 
 
 def _contar_tabelas_app_no_schema(conn, schema_name: str, app_label: str) -> int:
     prefixes = _prefixos_tabela_app(app_label)
-    or_parts = ' OR '.join(['table_name LIKE %s'] * len(prefixes))
-    params: list[str] = [schema_name] + [f'{p}%' for p in prefixes]
+    or_parts = " OR ".join(["table_name LIKE %s"] * len(prefixes))
+    params: list[str] = [schema_name] + [f"{p}%" for p in prefixes]
     with conn.cursor() as cur:
         cur.execute(
             f"""
@@ -79,8 +78,7 @@ def _contar_tabelas_app_no_schema(conn, schema_name: str, app_label: str) -> int
 
 
 def _rollback_and_reconnect(alias: str) -> None:
-    """
-    Após erro em cur.execute(sql) com script multi-statement (ex.: BEGIN do sqlmigrate),
+    """Após erro em cur.execute(sql) com script multi-statement (ex.: BEGIN do sqlmigrate),
     só rollback pode não bastar; fecha e reabre a conexão do tenant.
     """
     if alias not in connections:
@@ -106,129 +104,127 @@ def _reset_tenant_connection(alias: str) -> None:
 
 # Apps extras por slug de TipoLoja (única fonte para migrate / auditoria)
 TIPO_LOJA_EXTRA_APPS = {
-    'clinica-de-estetica': ['clinica_beleza', 'whatsapp', 'crm_vendas', 'nfse_integration'],
-    'clinica-estetica': ['clinica_beleza', 'whatsapp', 'crm_vendas', 'nfse_integration'],
-    'clinica-da-beleza': ['clinica_beleza', 'whatsapp', 'crm_vendas', 'nfse_integration'],
-    'clinica-beleza': ['clinica_beleza', 'whatsapp', 'crm_vendas', 'nfse_integration'],
-    'e-commerce': ['ecommerce'],
-    'ecommerce': ['ecommerce'],
-    'restaurante': ['restaurante'],
-    'servicos': ['servicos'],
-    'cabeleireiro': ['cabeleireiro'],
-    'crm-vendas': ['crm_vendas', 'nfse_integration', 'whatsapp'],
-    'hotel-pousada': ['hotel'],
-    'hotel': ['hotel'],
+    "clinica-de-estetica": ["clinica_beleza", "whatsapp", "crm_vendas", "nfse_integration"],
+    "clinica-estetica": ["clinica_beleza", "whatsapp", "crm_vendas", "nfse_integration"],
+    "clinica-da-beleza": ["clinica_beleza", "whatsapp", "crm_vendas", "nfse_integration"],
+    "clinica-beleza": ["clinica_beleza", "whatsapp", "crm_vendas", "nfse_integration"],
+    "e-commerce": ["ecommerce"],
+    "ecommerce": ["ecommerce"],
+    "restaurante": ["restaurante"],
+    "servicos": ["servicos"],
+    "cabeleireiro": ["cabeleireiro"],
+    "crm-vendas": ["crm_vendas", "nfse_integration", "whatsapp"],
+    "hotel-pousada": ["hotel"],
+    "hotel": ["hotel"],
 }
 
 # Falha de migration nestes apps aborta criação/recuperação de loja tipo CRM Vendas (NFS-e no tenant).
-APPS_CRITICOS_MIGRACAO_CRM_VENDAS = frozenset({'crm_vendas', 'nfse_integration'})
+APPS_CRITICOS_MIGRACAO_CRM_VENDAS = frozenset({"crm_vendas", "nfse_integration"})
 
 
 def get_apps_esperados_para_loja(loja) -> list[str]:
-    """
-    Apps cujo schema deve existir para esta loja (alinhado a aplicar_migrations).
+    """Apps cujo schema deve existir para esta loja (alinhado a aplicar_migrations).
     contenttypes e auth são migrados para evitar erros do Django, mas não precisam
     ser auditados (não criam tabelas com prefixo próprio em todos os schemas).
     """
-    tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
-    base = ['contenttypes', 'auth', 'stores', 'products']
+    tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else "").strip() or "unknown"
+    base = ["contenttypes", "auth", "stores", "products"]
     return base + TIPO_LOJA_EXTRA_APPS.get(tipo_slug, [])
 
 
 class DatabaseSchemaService:
+    """Serviço responsável por criar e configurar schemas de banco de dados
     """
-    Serviço responsável por criar e configurar schemas de banco de dados
-    """
-    
+
     @staticmethod
     def validar_nome_schema(schema_name: str) -> bool:
-        """
-        Valida nome do schema para evitar SQL injection
-        
+        """Valida nome do schema para evitar SQL injection
+
         Args:
             schema_name: Nome do schema a ser validado
-            
+
         Returns:
             True se válido
-            
+
         Raises:
             ValueError: Se nome for inválido
+
         """
-        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', schema_name):
+        if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", schema_name):
             raise ValueError(f"Nome de schema inválido: {schema_name}")
         return True
-    
+
     @staticmethod
     def criar_schema(loja) -> bool:
-        """
-        Cria schema no PostgreSQL para a loja
-        
+        """Cria schema no PostgreSQL para a loja
+
         Args:
             loja: Objeto Loja
-            
+
         Returns:
             True se criado com sucesso
-            
+
         Raises:
             Exception: Se houver erro na criação
+
         """
-        schema_name = loja.database_name.replace('-', '_')
-        
+        schema_name = loja.database_name.replace("-", "_")
+
         try:
             # Validar nome
             DatabaseSchemaService.validar_nome_schema(schema_name)
-            
+
             # Criar schema
             with connection.cursor() as cursor:
                 cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
-            
+
             logger.info(f"Schema '{schema_name}' criado no PostgreSQL")
-            
+
             # Verificar criação
             if not DatabaseSchemaService.verificar_schema_existe(schema_name):
                 raise Exception(f"Schema '{schema_name}' não foi criado corretamente!")
-            
+
             logger.info(f"Schema '{schema_name}' verificado e confirmado")
             return True
-            
+
         except Exception as e:
             logger.error(f"Erro ao criar schema '{schema_name}': {e}")
             raise
-    
+
     @staticmethod
     def verificar_schema_existe(schema_name: str) -> bool:
-        """
-        Verifica se schema existe no banco
-        
+        """Verifica se schema existe no banco
+
         Args:
             schema_name: Nome do schema
-            
+
         Returns:
             True se existe
+
         """
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT COUNT(*) 
-                FROM information_schema.schemata 
+                SELECT COUNT(*)
+                FROM information_schema.schemata
                 WHERE schema_name = %s
             """, [schema_name])
             return cursor.fetchone()[0] > 0
-    
 
-    
+
+
     @staticmethod
     def aplicar_migrations(loja) -> bool:
-        """
-        Aplica migrations no schema da loja executando SQL diretamente.
-        
+        """Aplica migrations no schema da loja executando SQL diretamente.
+
         CORREÇÃO v1016: Django call_command('migrate') ignora search_path COMPLETAMENTE.
         Solução DEFINITIVA: Obter SQL das migrations e executar diretamente no schema.
-        
+
         Args:
             loja: Objeto Loja
-            
+
         Returns:
             True se aplicado com sucesso
+
         """
         from io import StringIO
 
@@ -237,26 +233,26 @@ class DatabaseSchemaService:
 
         # 1. Adicionar config
         from core.db_config import ensure_loja_database_config
-        
+
         if not ensure_loja_database_config(loja.database_name, conn_max_age=60):
             raise RuntimeError(
                 f"Não foi possível adicionar configuração do banco '{loja.database_name}'. "
-                "Verifique se DATABASE_URL está definida."
+                "Verifique se DATABASE_URL está definida.",
             )
-        
+
         if loja.database_name not in settings.DATABASES:
             raise RuntimeError(f"Config do banco '{loja.database_name}' não encontrada em settings.DATABASES!")
-        
-        tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
+
+        tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else "").strip() or "unknown"
         apps_to_migrate = get_apps_esperados_para_loja(loja)
-        schema_name = loja.database_name.replace('-', '_')
-        
+        schema_name = loja.database_name.replace("-", "_")
+
         try:
             conn = connections[loja.database_name]
             conn.ensure_connection()
-            
+
             logger.info(f"🚀 Iniciando migrations manuais para schema '{schema_name}'")
-            
+
             # Criar tabela django_migrations no schema
             with conn.cursor() as cur:
                 cur.execute(f'SET search_path TO "{schema_name}", public')
@@ -269,38 +265,38 @@ class DatabaseSchemaService:
                     )
                 """)
                 logger.info(f"✅ Tabela django_migrations criada em '{schema_name}'")
-            
+
             # Para cada app, obter migrations não aplicadas e executar SQL
             for app in apps_to_migrate:
                 try:
                     logger.info(f"📦 Processando app: {app}")
-                    
+
                     # Obter migrations não aplicadas
                     with conn.cursor() as cur:
                         cur.execute(f'SET search_path TO "{schema_name}", public')
                         cur.execute(
                             "SELECT name FROM django_migrations WHERE app = %s",
-                            [app]
+                            [app],
                         )
                         applied = {row[0] for row in cur.fetchall()}
-                    
+
                     # Obter TODAS as migrations do app (não apenas leaf nodes)
                     from django.db.migrations.loader import MigrationLoader
                     loader = MigrationLoader(conn)
-                    
+
                     # Obter todas as migrations do app na ordem correta
                     migrations_to_apply = []
                     if app in loader.migrated_apps:
                         # Obter plan de execução completo
                         from django.db.migrations.executor import MigrationExecutor
                         executor = MigrationExecutor(conn)
-                        
+
                         # Obter todas as migrations do app
                         app_migrations = [
-                            key for key in loader.graph.nodes 
+                            key for key in loader.graph.nodes
                             if key[0] == app and key[1] not in applied
                         ]
-                        
+
                         # Ordenar usando o grafo de dependências
                         if app_migrations:
                             plan = []
@@ -313,17 +309,17 @@ class DatabaseSchemaService:
                                             plan.append(mig)
                                 except Exception as e:
                                     logger.warning(f"      ⚠️  Erro ao obter plan para {migration_key}: {e}")
-                            
+
                             migrations_to_apply = plan
-                    
+
                     # Se não conseguiu obter via plan, usar ordenação simples
                     if not migrations_to_apply:
                         migrations_to_apply = [
-                            key for key in loader.graph.nodes 
+                            key for key in loader.graph.nodes
                             if key[0] == app and key[1] not in applied
                         ]
                         migrations_to_apply = sorted(migrations_to_apply, key=lambda x: x[1])
-                    
+
                     if not migrations_to_apply:
                         logger.info(f"   ℹ️  Nenhuma migration pendente para {app}")
                         continue
@@ -342,33 +338,33 @@ class DatabaseSchemaService:
                         )
                         for app_label, migration_name in migrations_to_apply:
                             _record_migration_if_missing(
-                                loja.database_name, schema_name, app_label, migration_name
+                                loja.database_name, schema_name, app_label, migration_name,
                             )
                         continue
-                    
+
                     logger.info(f"   📝 {len(migrations_to_apply)} migration(s) pendente(s)")
-                    
+
                     # Executar cada migration
                     for app_label, migration_name in migrations_to_apply:
                         try:
                             # Obter SQL da migration
                             sql_out = StringIO()
                             call_command(
-                                'sqlmigrate',
+                                "sqlmigrate",
                                 app_label,
                                 migration_name,
-                                '--database', loja.database_name,
-                                stdout=sql_out
+                                "--database", loja.database_name,
+                                stdout=sql_out,
                             )
                             sql = sql_out.getvalue()
-                            
-                            if not sql or sql.strip() == '--':
+
+                            if not sql or sql.strip() == "--":
                                 logger.info(f"      ⚠️  Migration {migration_name} sem SQL")
                                 _record_migration_if_missing(
-                                    loja.database_name, schema_name, app_label, migration_name
+                                    loja.database_name, schema_name, app_label, migration_name,
                                 )
                                 continue
-                            
+
                             # Executar SQL no schema
                             with conn.cursor() as cur:
                                 cur.execute(f'SET search_path TO "{schema_name}", public')
@@ -377,9 +373,9 @@ class DatabaseSchemaService:
                                     "INSERT INTO django_migrations (app, name, applied) VALUES (%s, %s, NOW())",
                                     [app_label, migration_name],
                                 )
-                            
+
                             logger.info(f"      ✅ {migration_name}")
-                            
+
                         except Exception as e:
                             logger.error(f"      ❌ Erro em {migration_name}: {e}")
                             _rollback_and_reconnect(loja.database_name)
@@ -387,7 +383,7 @@ class DatabaseSchemaService:
                             if _pg_objects_already_exist(e):
                                 logger.warning(
                                     f"      ⚠️  Objetos já existem no schema; "
-                                    f"registrando {migration_name} como aplicada (--fake)."
+                                    f"registrando {migration_name} como aplicada (--fake).",
                                 )
                                 try:
                                     _record_migration_if_missing(
@@ -398,19 +394,19 @@ class DatabaseSchemaService:
                                     )
                                 except Exception as fake_err:
                                     logger.error(f"      ❌ Falha ao registrar migration fake: {fake_err}")
-                            if tipo_slug == 'crm-vendas' and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS and not _pg_objects_already_exist(e):
+                            if tipo_slug == "crm-vendas" and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS and not _pg_objects_already_exist(e):
                                 raise
-                    
+
                     logger.info(f"   ✅ App {app} concluído")
-                    
+
                 except Exception as e:
                     logger.error(f"❌ Erro ao processar app {app}: {e}")
                     _rollback_and_reconnect(loja.database_name)
                     conn = connections[loja.database_name]
-                    if tipo_slug == 'crm-vendas' and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS:
+                    if tipo_slug == "crm-vendas" and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS:
                         raise
                     logger.warning(f"Continuando apesar do erro em {app}")
-            
+
             _rollback_and_reconnect(loja.database_name)
             conn = connections[loja.database_name]
 
@@ -418,32 +414,31 @@ class DatabaseSchemaService:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT COUNT(*) 
-                    FROM information_schema.tables 
-                    WHERE table_schema = %s 
-                    AND table_type = 'BASE TABLE' 
+                    SELECT COUNT(*)
+                    FROM information_schema.tables
+                    WHERE table_schema = %s
+                    AND table_type = 'BASE TABLE'
                     AND table_name NOT LIKE 'django_%%'
                     """,
-                    [schema_name]
+                    [schema_name],
                 )
                 tabelas_count = cur.fetchone()[0]
-                
+
                 if tabelas_count == 0:
                     logger.error(
                         f"❌ ERRO CRÍTICO: Schema '{schema_name}' está VAZIO após migrations! "
-                        f"Apps tentados: {apps_to_migrate}."
+                        f"Apps tentados: {apps_to_migrate}.",
                     )
-                    
+
                     raise RuntimeError(
                         f"Schema '{schema_name}' está vazio após migrations. "
                         "As tabelas não foram criadas no schema correto. "
-                        "Entre em contato com o suporte técnico."
+                        "Entre em contato com o suporte técnico.",
                     )
-                else:
-                    logger.info(
-                        f"✅ Schema '{schema_name}' criado com sucesso: {tabelas_count} tabela(s)"
-                    )
-            
+                logger.info(
+                    f"✅ Schema '{schema_name}' criado com sucesso: {tabelas_count} tabela(s)",
+                )
+
             logger.info(f"🎉 Migrations concluídas para '{loja.database_name}'")
             return True
         except Exception as e:
@@ -456,9 +451,8 @@ class DatabaseSchemaService:
 
     @staticmethod
     def _mover_tabelas_public_para_schema(loja, schema_name: str, apps_to_migrate: list) -> None:
-        """
-        Fallback: se migrate criou tabelas em public, move-as para o schema da loja.
-        
+        """Fallback: se migrate criou tabelas em public, move-as para o schema da loja.
+
         CORREÇÃO v983: Melhorado para ser mais robusto e informativo.
         """
         from django.db import connections
@@ -467,9 +461,9 @@ class DatabaseSchemaService:
         except ValueError:
             logger.warning(f"Nome de schema inválido: {schema_name}")
             return
-        
+
         app_prefixes = [f"{app}_" for app in apps_to_migrate]
-        
+
         try:
             conn = connections[loja.database_name]
             conn.ensure_connection()
@@ -477,10 +471,10 @@ class DatabaseSchemaService:
                 # Verificar se schema já tem tabelas (não precisa mover)
                 cur.execute(
                     """
-                    SELECT COUNT(*) 
-                    FROM information_schema.tables 
-                    WHERE table_schema = %s 
-                    AND table_type = 'BASE TABLE' 
+                    SELECT COUNT(*)
+                    FROM information_schema.tables
+                    WHERE table_schema = %s
+                    AND table_type = 'BASE TABLE'
                     AND table_name NOT LIKE 'django_%%'
                     """,
                     [schema_name],
@@ -488,84 +482,84 @@ class DatabaseSchemaService:
                 if cur.fetchone()[0] > 0:
                     logger.info(f"Schema '{schema_name}' já possui tabelas, não precisa mover")
                     return
-                
+
                 # Buscar tabelas em public que pertencem aos apps da loja
                 cur.execute(
                     """
-                    SELECT table_name 
-                    FROM information_schema.tables 
-                    WHERE table_schema = 'public' 
-                    AND table_type = 'BASE TABLE' 
+                    SELECT table_name
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                    AND table_type = 'BASE TABLE'
                     ORDER BY table_name
-                    """
+                    """,
                 )
                 todas = [r[0] for r in cur.fetchall()]
                 tabelas_mover = [t for t in todas if any(t.startswith(p) for p in app_prefixes)]
-                
+
                 if not tabelas_mover:
                     logger.warning(
                         f"⚠️  Nenhuma tabela encontrada em 'public' para mover para '{schema_name}'. "
-                        f"Apps esperados: {apps_to_migrate}"
+                        f"Apps esperados: {apps_to_migrate}",
                     )
                     return
-                
+
                 logger.info(
                     f"🔄 Fallback ativado: movendo {len(tabelas_mover)} tabela(s) "
-                    f"de 'public' para '{schema_name}'"
+                    f"de 'public' para '{schema_name}'",
                 )
-                
+
                 # Mover django_migrations primeiro (se existir)
                 cur.execute(
                     """
                     SELECT EXISTS (
-                        SELECT 1 
-                        FROM information_schema.tables 
-                        WHERE table_schema = 'public' 
+                        SELECT 1
+                        FROM information_schema.tables
+                        WHERE table_schema = 'public'
                         AND table_name = 'django_migrations'
                     )
-                    """
+                    """,
                 )
-                
+
                 if cur.fetchone()[0]:
                     # Buscar migrations dos apps da loja
                     cur.execute(
                         "SELECT app, name, applied FROM public.django_migrations WHERE app = ANY(%s)",
-                        [apps_to_migrate]
+                        [apps_to_migrate],
                     )
                     migracoes = cur.fetchall()
-                    
+
                     if migracoes:
                         # Criar tabela django_migrations no schema
                         cur.execute(
-                            f'''
+                            f"""
                             CREATE TABLE IF NOT EXISTS "{schema_name}".django_migrations (
                                 id SERIAL PRIMARY KEY,
                                 app VARCHAR(255) NOT NULL,
                                 name VARCHAR(255) NOT NULL,
                                 applied TIMESTAMPTZ NOT NULL
                             )
-                            '''
+                            """,
                         )
-                        
+
                         # Copiar migrations
                         for app, name, applied in migracoes:
                             cur.execute(
                                 f'INSERT INTO "{schema_name}".django_migrations (app, name, applied) VALUES (%s, %s, %s)',
-                                [app, name, applied]
+                                [app, name, applied],
                             )
-                        
+
                         # Remover de public
                         cur.execute(
                             "DELETE FROM public.django_migrations WHERE app = ANY(%s)",
-                            [apps_to_migrate]
+                            [apps_to_migrate],
                         )
-                        
+
                         logger.info(f"✅ {len(migracoes)} migration(s) movida(s) para '{schema_name}'")
-                
+
                 # Mover tabelas
                 tabelas_movidas = 0
                 for table_name in tabelas_mover:
-                    if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+                    if re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", table_name):
                         try:
                             cur.execute(f'ALTER TABLE public."{table_name}" SET SCHEMA "{schema_name}"')
                             tabelas_movidas += 1
@@ -574,12 +568,12 @@ class DatabaseSchemaService:
                             logger.error(f"❌ Erro ao mover {table_name}: {e}")
                     else:
                         logger.warning(f"⚠️  Nome de tabela inválido (ignorado): {table_name}")
-                
+
                 logger.info(
                     f"✅ Fallback concluído: {tabelas_movidas}/{len(tabelas_mover)} tabela(s) "
-                    f"movida(s) para '{schema_name}'"
+                    f"movida(s) para '{schema_name}'",
                 )
-                
+
         except Exception as e:
             logger.error(f"❌ Erro no fallback de movimentação de tabelas: {e}")
             import traceback
@@ -587,8 +581,7 @@ class DatabaseSchemaService:
 
     @staticmethod
     def configurar_schema_completo(loja) -> bool:
-        """
-        Executa todo o processo de configuração do schema individual da loja.
+        """Executa todo o processo de configuração do schema individual da loja.
         Deve ser chamado na criação da loja para garantir banco/schema isolado
         e evitar que o backup exporte dados de outras lojas ou do superadmin.
 
@@ -599,21 +592,22 @@ class DatabaseSchemaService:
 
         Returns:
             True se configurado com sucesso
+
         """
         try:
             # 1. Criar schema
             DatabaseSchemaService.criar_schema(loja)
-            
+
             # 2. Marcar como criado
             loja.database_created = True
             loja.save()
-            
+
             # 3. Aplicar migrations (já adiciona configuração Django internamente)
             if not DatabaseSchemaService.aplicar_migrations(loja):
-                tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else '').strip() or 'unknown'
+                tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else "").strip() or "unknown"
                 raise RuntimeError(
                     f"Falha ao aplicar migrations no schema da loja (tipo: {tipo_slug}). "
-                    "O cadastro não pode ser concluído sem as tabelas do app."
+                    "O cadastro não pode ser concluído sem as tabelas do app.",
                 )
 
             # Catálogo padrão (locais + procedimentos) para novas lojas Clínica da Beleza
@@ -623,7 +617,7 @@ class DatabaseSchemaService:
                     aplicar_catalogo_padrao(loja)
             except Exception as catalogo_exc:
                 logger.warning(
-                    'Catálogo padrão Clínica da Beleza não aplicado em %s: %s',
+                    "Catálogo padrão Clínica da Beleza não aplicado em %s: %s",
                     loja.slug,
                     catalogo_exc,
                 )

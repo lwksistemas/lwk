@@ -11,14 +11,14 @@ from .unificado import financeiro_unificado
 from .viewsets import FinanceiroLojaViewSet, PagamentoLojaViewSet
 
 __all__ = [
-    'FinanceiroLojaViewSet',
-    'PagamentoLojaViewSet',
-    'dashboard_financeiro_loja',
-    'financeiro_unificado',
-    'renovar_assinatura_loja',
-    'renovar_financeiro_por_id',
-    'nf_baixar_por_payment',
-    'nf_reenviar_por_payment',
-    'nf_cancelar_por_payment',
-    'nf_xml_por_payment',
+    "FinanceiroLojaViewSet",
+    "PagamentoLojaViewSet",
+    "dashboard_financeiro_loja",
+    "financeiro_unificado",
+    "nf_baixar_por_payment",
+    "nf_cancelar_por_payment",
+    "nf_reenviar_por_payment",
+    "nf_xml_por_payment",
+    "renovar_assinatura_loja",
+    "renovar_financeiro_por_id",
 ]

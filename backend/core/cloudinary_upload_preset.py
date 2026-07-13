@@ -6,24 +6,24 @@ import os
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PRESET = os.environ.get('CLOUDINARY_UPLOAD_PRESET', 'lwk_padrao')
+DEFAULT_PRESET = os.environ.get("CLOUDINARY_UPLOAD_PRESET", "lwk_padrao")
 
 
 def server_image_upload_options(folder: str) -> dict:
     """Upload autenticado no modo de pastas dinâmicas do Cloudinary."""
     return {
-        'asset_folder': folder,
-        'use_asset_folder_as_public_id_prefix': True,
-        'resource_type': 'image',
+        "asset_folder": folder,
+        "use_asset_folder_as_public_id_prefix": True,
+        "resource_type": "image",
     }
 
 
 def _configure_cloudinary_sdk() -> bool:
     import cloudinary
 
-    cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', '').strip()
-    api_key = os.environ.get('CLOUDINARY_API_KEY', '').strip()
-    api_secret = os.environ.get('CLOUDINARY_API_SECRET', '').strip()
+    cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip()
+    api_key = os.environ.get("CLOUDINARY_API_KEY", "").strip()
+    api_secret = os.environ.get("CLOUDINARY_API_SECRET", "").strip()
 
     if not cloud_name or not api_key or not api_secret:
         try:
@@ -35,7 +35,7 @@ def _configure_cloudinary_sdk() -> bool:
                 api_key = cfg.api_key
                 api_secret = cfg.api_secret
         except Exception as exc:
-            logger.debug('CloudinaryConfig indisponível: %s', exc)
+            logger.debug("CloudinaryConfig indisponível: %s", exc)
 
     if not cloud_name or not api_key or not api_secret:
         return False
@@ -50,37 +50,36 @@ def _configure_cloudinary_sdk() -> bool:
 
 
 def ensure_cloudinary_upload_preset(preset_name: str = DEFAULT_PRESET) -> bool:
-    """
-    Remove asset_folder fixo do preset para o widget enviar subpastas (ex.: lwksistemas/felix/login).
+    """Remove asset_folder fixo do preset para o widget enviar subpastas (ex.: lwksistemas/felix/login).
     """
     try:
         import cloudinary.api
 
         if not _configure_cloudinary_sdk():
-            logger.warning('Cloudinary não configurado; preset não atualizado')
+            logger.warning("Cloudinary não configurado; preset não atualizado")
             return False
 
         desired = {
-            'overwrite': False,
-            'use_filename': False,
-            'unique_filename': True,
-            'use_filename_as_display_name': True,
-            'use_asset_folder_as_public_id_prefix': True,
-            'type': 'upload',
+            "overwrite": False,
+            "use_filename": False,
+            "unique_filename": True,
+            "use_filename_as_display_name": True,
+            "use_asset_folder_as_public_id_prefix": True,
+            "type": "upload",
         }
 
         current = cloudinary.api.upload_preset(preset_name)
-        settings = current.get('settings') or {}
-        if settings.get('asset_folder'):
-            logger.info('Removendo asset_folder fixo do preset %s', preset_name)
+        settings = current.get("settings") or {}
+        if settings.get("asset_folder"):
+            logger.info("Removendo asset_folder fixo do preset %s", preset_name)
 
-        if settings == desired and not settings.get('asset_folder'):
-            logger.debug('Preset %s já está correto', preset_name)
+        if settings == desired and not settings.get("asset_folder"):
+            logger.debug("Preset %s já está correto", preset_name)
             return True
 
         cloudinary.api.update_upload_preset(preset_name, unsigned=True, settings=desired)
-        logger.info('Preset Cloudinary %s atualizado para pastas dinâmicas', preset_name)
+        logger.info("Preset Cloudinary %s atualizado para pastas dinâmicas", preset_name)
         return True
     except Exception as exc:
-        logger.warning('Não foi possível atualizar preset Cloudinary %s: %s', preset_name, exc)
+        logger.warning("Não foi possível atualizar preset Cloudinary %s: %s", preset_name, exc)
         return False

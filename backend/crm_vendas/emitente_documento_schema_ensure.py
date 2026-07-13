@@ -1,16 +1,16 @@
 """SQL idempotente para colunas emitente_* em proposta/contrato (migration 0068)."""
 from clinica_beleza.schema_ensure import column_exists, table_exists
 
-TABLE_PROPOSTA = 'crm_vendas_proposta'
-TABLE_CONTRATO = 'crm_vendas_contrato'
-MIGRATION_NAME = '0068_emitente_documento_snapshot'
+TABLE_PROPOSTA = "crm_vendas_proposta"
+TABLE_CONTRATO = "crm_vendas_contrato"
+MIGRATION_NAME = "0068_emitente_documento_snapshot"
 
 EMITENTE_COLUMNS = (
-    ('emitente_nome', "VARCHAR(255) NOT NULL DEFAULT ''"),
-    ('emitente_endereco', "VARCHAR(500) NOT NULL DEFAULT ''"),
-    ('emitente_cpf_cnpj', "VARCHAR(18) NOT NULL DEFAULT ''"),
-    ('emitente_responsavel', "VARCHAR(255) NOT NULL DEFAULT ''"),
-    ('emitente_email', "VARCHAR(254) NOT NULL DEFAULT ''"),
+    ("emitente_nome", "VARCHAR(255) NOT NULL DEFAULT ''"),
+    ("emitente_endereco", "VARCHAR(500) NOT NULL DEFAULT ''"),
+    ("emitente_cpf_cnpj", "VARCHAR(18) NOT NULL DEFAULT ''"),
+    ("emitente_responsavel", "VARCHAR(255) NOT NULL DEFAULT ''"),
+    ("emitente_email", "VARCHAR(254) NOT NULL DEFAULT ''"),
 )
 
 
@@ -45,4 +45,4 @@ def emitente_columns_missing(cursor) -> bool:
     """True se proposta existe mas falta emitente_nome."""
     if not table_exists(cursor, TABLE_PROPOSTA):
         return False
-    return not column_exists(cursor, TABLE_PROPOSTA, 'emitente_nome')
+    return not column_exists(cursor, TABLE_PROPOSTA, "emitente_nome")

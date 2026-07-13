@@ -1,5 +1,4 @@
-"""
-Serviço para integração com Mercado Pago na geração de boletos para lojas.
+"""Serviço para integração com Mercado Pago na geração de boletos para lojas.
 API: https://www.mercadopago.com.br/developers/pt/reference/payments/_payments/post
 """
 import logging
@@ -58,8 +57,7 @@ class MercadoPagoClient:
         city: str = "",
         federal_unit: str = "",
     ) -> dict[str, Any]:
-        """
-        Cria um pagamento por boleto (Brasil - bolbradesco).
+        """Cria um pagamento por boleto (Brasil - bolbradesco).
 
         due_date: YYYY-MM-DD.
         payer_doc_type: 'CPF' ou 'CNPJ'.
@@ -118,8 +116,7 @@ class MercadoPagoClient:
         description: str,
         external_reference: str = "",
     ) -> dict[str, Any]:
-        """
-        Cria um pagamento por PIX (Brasil).
+        """Cria um pagamento por PIX (Brasil).
         Retorna o mesmo formato da API; qr_code (copia e cola) e qr_code_base64 vêm em point_of_interaction.transaction_data.
         """
         doc_number = "".join(c for c in str(payer_doc_number) if c.isdigit()) or "00000000000"
@@ -146,8 +143,7 @@ class MercadoPagoClient:
         return self._post_payment(payload)
 
     def test_connection(self) -> dict[str, Any]:
-        """
-        Testa a conexão com a API do Mercado Pago (valida o Access Token).
+        """Testa a conexão com a API do Mercado Pago (valida o Access Token).
         Usa GET /v1/payment_methods como health check.
         """
         try:
@@ -200,8 +196,7 @@ class MercadoPagoClient:
             return None
 
     def cancel_payment(self, payment_id: str) -> bool:
-        """
-        Cancela um pagamento pendente no Mercado Pago (PUT status=cancelled).
+        """Cancela um pagamento pendente no Mercado Pago (PUT status=cancelled).
         Só é possível cancelar quando status é 'pending' ou 'in_process'.
         Retorna True se cancelou, False se não cancelou (já pago, já cancelado ou erro).
         """
@@ -259,8 +254,7 @@ class LojaMercadoPagoService:
         )
 
     def criar_cobranca_loja(self, loja, financeiro, criar_pix: bool = True) -> dict[str, Any]:
-        """
-        Cria cobrança no Mercado Pago (boleto + PIX) para a loja.
+        """Cria cobrança no Mercado Pago (boleto + PIX) para a loja.
 
         Por padrão cria boleto e PIX (QR + copia e cola) para a loja pagar rápido
         e a assinatura ser atualizada/liberada via webhook.
@@ -272,6 +266,7 @@ class LojaMercadoPagoService:
 
         Returns:
             dict com success, payment_id, boleto_url, due_date, value ou error.
+
         """
         if not self.available:
             return {"success": False, "error": "Mercado Pago não configurado ou desabilitado"}
@@ -458,8 +453,7 @@ class LojaMercadoPagoService:
         }
 
     def get_boleto_url(self, payment_id: str) -> str | None:
-        """
-        Obtém a URL completa do boleto consultando o pagamento na API do MP.
+        """Obtém a URL completa do boleto consultando o pagamento na API do MP.
         Sempre use este método ao exibir/baixar boleto: a URL salva em boleto_url
         é truncada a 200 chars e perde o hash, gerando 'Pagamento não encontrado'.
         """
@@ -502,8 +496,7 @@ class LojaMercadoPagoService:
             return None
 
     def cancel_pending_payments_loja(self, loja_slug: str) -> dict[str, Any]:
-        """
-        Cancela todos os boletos pendentes do Mercado Pago associados à loja
+        """Cancela todos os boletos pendentes do Mercado Pago associados à loja
         (igual ao fluxo Asaas na exclusão da loja).
         Retorna dict com success, cancelled_count, error (opcional).
         """
@@ -528,13 +521,13 @@ class LojaMercadoPagoService:
 
             payment_ids = set()
             for fin in FinanceiroLoja.objects.filter(loja=loja).exclude(
-                mercadopago_payment_id=""
+                mercadopago_payment_id="",
             ).values_list("mercadopago_payment_id", "mercadopago_pix_payment_id"):
                 for pid in fin:
                     if pid:
                         payment_ids.add(str(pid).strip())
             for pag in PagamentoLoja.objects.filter(loja=loja).values_list(
-                "mercadopago_payment_id", "mercadopago_pix_payment_id"
+                "mercadopago_payment_id", "mercadopago_pix_payment_id",
             ):
                 for pid in pag:
                     if pid:
@@ -575,8 +568,7 @@ class LojaMercadoPagoService:
             }
 
     def gerar_pix_para_pagamento(self, pagamento) -> dict[str, Any]:
-        """
-        Gera PIX para um PagamentoLoja que já tem boleto MP mas ainda não tem PIX
+        """Gera PIX para um PagamentoLoja que já tem boleto MP mas ainda não tem PIX
         (ex.: cobrança criada antes da opção PIX ou falha na criação).
         Persiste em FinanceiroLoja e PagamentoLoja e retorna pix_copy_paste e pix_qr_code.
         """

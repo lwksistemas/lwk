@@ -1,5 +1,4 @@
-"""
-Cancela agendamentos em aberto vinculados a pacientes inativos (soft-deleted).
+"""Cancela agendamentos em aberto vinculados a pacientes inativos (soft-deleted).
 
 Útil para limpar a agenda quando pacientes foram excluídos antes do novo
 comportamento (que já cancela os agendamentos futuros na exclusão).
@@ -17,7 +16,7 @@ from django.db import connections
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
-_OPEN_STATUSES = ('PENDING', 'SCHEDULED', 'CLIENT_CONFIRMED', 'PHONE_CONFIRMED', 'CONFIRMED', 'IN_PROGRESS')
+_OPEN_STATUSES = ("PENDING", "SCHEDULED", "CLIENT_CONFIRMED", "PHONE_CONFIRMED", "CONFIRMED", "IN_PROGRESS")
 
 
 def _table_exists(cursor, table: str) -> bool:
@@ -32,37 +31,37 @@ def _table_exists(cursor, table: str) -> bool:
 
 
 class Command(BaseCommand):
-    help = 'Cancela agendamentos em aberto de pacientes inativos (soft-deleted).'
+    help = "Cancela agendamentos em aberto de pacientes inativos (soft-deleted)."
 
     def add_arguments(self, parser):
-        parser.add_argument('--slug', type=str, help='Processar apenas loja com este slug/atalho')
-        parser.add_argument('--dry-run', action='store_true', help='Apenas relata, não altera nada')
+        parser.add_argument("--slug", type=str, help="Processar apenas loja com este slug/atalho")
+        parser.add_argument("--dry-run", action="store_true", help="Apenas relata, não altera nada")
 
     def handle(self, *args, **options):
-        slug_filter = (options.get('slug') or '').strip().lower()
-        dry_run = bool(options.get('dry_run'))
+        slug_filter = (options.get("slug") or "").strip().lower()
+        dry_run = bool(options.get("dry_run"))
         lojas = Loja.objects.filter(is_active=True, database_created=True)
         total = 0
         skip = 0
-        placeholders = ', '.join(['%s'] * len(_OPEN_STATUSES))
+        placeholders = ", ".join(["%s"] * len(_OPEN_STATUSES))
 
         for loja in lojas:
             if slug_filter and slug_filter not in (
-                (loja.slug or '').lower(),
-                (getattr(loja, 'atalho', None) or '').lower(),
+                (loja.slug or "").lower(),
+                (getattr(loja, "atalho", None) or "").lower(),
             ):
                 continue
 
             db_name = loja.database_name
             if not ensure_loja_database_config(db_name, conn_max_age=0):
                 skip += 1
-                self.stdout.write(self.style.WARNING(f'SKIP loja={loja.id}: banco não configurado'))
+                self.stdout.write(self.style.WARNING(f"SKIP loja={loja.id}: banco não configurado"))
                 continue
 
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    if not _table_exists(cursor, 'clinica_beleza_appointment'):
+                    if not _table_exists(cursor, "clinica_beleza_appointment"):
                         skip += 1
                         continue
 
@@ -88,20 +87,20 @@ class Command(BaseCommand):
                         cursor.execute(update_sql, list(_OPEN_STATUSES))
 
                 total += qtd
-                prefix = '[dry-run] ' if dry_run else ''
+                prefix = "[dry-run] " if dry_run else ""
                 style = self.style.WARNING if dry_run else self.style.SUCCESS
                 self.stdout.write(style(
-                    f'{prefix}loja={loja.id} ({loja.nome}) db={db_name}: '
-                    f'{qtd} agendamento(s) de pacientes inativos'
+                    f"{prefix}loja={loja.id} ({loja.nome}) db={db_name}: "
+                    f"{qtd} agendamento(s) de pacientes inativos",
                 ))
             except Exception as exc:
                 skip += 1
-                self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id} ({loja.nome}): {exc}'))
+                self.stdout.write(self.style.ERROR(f"ERRO loja={loja.id} ({loja.nome}): {exc}"))
             finally:
                 with suppress(Exception):
                     connections[db_name].close()
 
-        acao = 'encontrado(s)' if dry_run else 'cancelado(s)'
+        acao = "encontrado(s)" if dry_run else "cancelado(s)"
         self.stdout.write(self.style.SUCCESS(
-            f'Concluído: {total} agendamento(s) {acao}, {skip} loja(s) ignorada(s).'
+            f"Concluído: {total} agendamento(s) {acao}, {skip} loja(s) ignorada(s).",
         ))

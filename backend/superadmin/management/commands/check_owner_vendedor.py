@@ -1,5 +1,4 @@
-"""
-Comando para verificar se owner tem VendedorUsuario vinculado.
+"""Comando para verificar se owner tem VendedorUsuario vinculado.
 Uso: python manage.py check_owner_vendedor <cpf_cnpj>
 """
 from django.core.management.base import BaseCommand
@@ -10,42 +9,42 @@ from tenants.middleware import set_current_loja_id
 
 
 class Command(BaseCommand):
-    help = 'Verifica se owner da loja tem VendedorUsuario vinculado (causa perfil intermitente)'
+    help = "Verifica se owner da loja tem VendedorUsuario vinculado (causa perfil intermitente)"
 
     def add_arguments(self, parser):
-        parser.add_argument('loja_identifier', type=str, help='Slug, ID ou CPF/CNPJ da loja')
+        parser.add_argument("loja_identifier", type=str, help="Slug, ID ou CPF/CNPJ da loja")
 
     def handle(self, *args, **options):
-        loja_identifier = options['loja_identifier']
-        
+        loja_identifier = options["loja_identifier"]
+
         self.stdout.write("\n" + "="*60)
         self.stdout.write(f"🔍 VERIFICANDO LOJA: {loja_identifier}")
         self.stdout.write("="*60 + "\n")
-        
+
         # Buscar loja por slug, ID ou CPF/CNPJ
         loja = None
         try:
             # Tentar por slug primeiro (mais comum)
-            loja = Loja.objects.using('default').select_related('owner').filter(slug=loja_identifier).first()
-            
+            loja = Loja.objects.using("default").select_related("owner").filter(slug=loja_identifier).first()
+
             # Se não encontrou, tentar por ID (se for número pequeno)
             if not loja and loja_identifier.isdigit() and len(loja_identifier) <= 5:
-                loja = Loja.objects.using('default').select_related('owner').filter(id=int(loja_identifier)).first()
-            
+                loja = Loja.objects.using("default").select_related("owner").filter(id=int(loja_identifier)).first()
+
             # Se não encontrou, tentar por CPF/CNPJ
             if not loja:
-                loja = Loja.objects.using('default').select_related('owner').filter(cpf_cnpj=loja_identifier).first()
+                loja = Loja.objects.using("default").select_related("owner").filter(cpf_cnpj=loja_identifier).first()
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ ERRO ao buscar loja: {e}"))
             return
-        
+
         if not loja:
             self.stdout.write(self.style.ERROR(f"❌ ERRO: Loja '{loja_identifier}' não encontrada"))
             self.stdout.write("Tente usar: slug da loja (ex: 41449198000172) ou ID da loja")
             return
-        
+
         owner = loja.owner
-        
+
         self.stdout.write(self.style.SUCCESS("✅ Loja encontrada:"))
         self.stdout.write(f"   Nome: {loja.nome}")
         self.stdout.write(f"   ID: {loja.id}")
@@ -55,33 +54,33 @@ class Command(BaseCommand):
         self.stdout.write(f"   Email: {owner.email}")
         self.stdout.write(f"   ID: {owner.id}")
         self.stdout.write(f"   Owner ID da loja: {loja.owner_id}")
-        
+
         # Verificar se owner tem VendedorUsuario
         self.stdout.write("\n" + "="*60)
         self.stdout.write("🔍 VERIFICANDO VendedorUsuario")
         self.stdout.write("="*60 + "\n")
-        
-        vu_list = VendedorUsuario.objects.using('default').filter(
+
+        vu_list = VendedorUsuario.objects.using("default").filter(
             user=owner,
-            loja=loja
-        ).select_related('loja')
-        
+            loja=loja,
+        ).select_related("loja")
+
         if vu_list.exists():
             self.stdout.write(self.style.ERROR(
-                f"❌ PROBLEMA ENCONTRADO: Owner tem {vu_list.count()} VendedorUsuario(s) vinculado(s)!\n"
+                f"❌ PROBLEMA ENCONTRADO: Owner tem {vu_list.count()} VendedorUsuario(s) vinculado(s)!\n",
             ))
-            
+
             for vu in vu_list:
                 self.stdout.write(f"   VendedorUsuario ID: {vu.id}")
                 self.stdout.write(f"   Vendedor ID: {vu.vendedor_id}")
                 self.stdout.write(f"   Precisa trocar senha: {vu.precisa_trocar_senha}")
                 self.stdout.write(f"   Criado em: {vu.created_at}")
-                
+
                 # Buscar dados do vendedor
                 try:
                     set_current_loja_id(loja.id)
                     vendedor = Vendedor.objects.filter(id=vu.vendedor_id).first()
-                    
+
                     if vendedor:
                         self.stdout.write(f"   Vendedor Nome: {vendedor.nome}")
                         self.stdout.write(f"   Vendedor Email: {vendedor.email}")
@@ -90,15 +89,15 @@ class Command(BaseCommand):
                         self.stdout.write(self.style.WARNING("   ⚠️ Vendedor não encontrado no banco da loja"))
                 except Exception as e:
                     self.stdout.write(self.style.WARNING(f"   ⚠️ Erro ao buscar vendedor: {e}"))
-                
+
                 self.stdout.write("")
-            
+
             self.stdout.write("\n" + "="*60)
             self.stdout.write(self.style.WARNING("🔧 SOLUÇÃO RECOMENDADA"))
             self.stdout.write("="*60 + "\n")
             self.stdout.write("Execute o seguinte comando para corrigir:\n")
             self.stdout.write(self.style.SUCCESS(f"python manage.py fix_owner_vendedor {loja_identifier}"))
-            
+
         else:
             self.stdout.write(self.style.SUCCESS("✅ OK: Owner NÃO tem VendedorUsuario vinculado"))
             self.stdout.write("\nO problema pode ser causado por:")
@@ -109,5 +108,5 @@ class Command(BaseCommand):
             self.stdout.write("1. Limpar sessionStorage no navegador (DevTools → Application)")
             self.stdout.write("2. Fazer logout e login novamente")
             self.stdout.write("3. Limpar cookies e cache do navegador")
-        
+
         self.stdout.write("\n" + "="*60 + "\n")

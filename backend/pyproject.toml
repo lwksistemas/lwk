@@ -6,11 +6,13 @@ fix = true
 [tool.ruff.lint]
 select = [
     "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings (trailing whitespace, etc)
     "F",    # pyflakes
     "I",    # isort
     "UP",   # pyupgrade
     "B",    # flake8-bugbear
     "SIM",  # flake8-simplify
+    "C90",  # mccabe complexity
 ]
 ignore = [
     "E501",   # line too long (deixar para o formatter)
@@ -20,7 +22,12 @@ ignore = [
     "B023",   # function-uses-loop-variable (legado intencional)
     "F403",   # star import (legado)
     "F405",   # may-be-undefined from star import (legado)
+    "C901",   # TODO: refatorar funções complexas progressivamente
+    "G004",   # TODO: migrar f-strings em logging para %s (734 ocorrências)
 ]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
 
 [tool.ruff.lint.isort]
 known-first-party = [

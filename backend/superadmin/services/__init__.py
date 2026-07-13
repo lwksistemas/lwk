@@ -1,5 +1,4 @@
-"""
-Módulo de serviços do superadmin
+"""Módulo de serviços do superadmin
 Centraliza lógica de negócio em services reutilizáveis
 """
 from .database_schema_service import DatabaseSchemaService
@@ -18,16 +17,16 @@ from .provisional_password_helpers import (
 from .validation_service import ValidationService
 
 __all__ = [
-    'LojaCleanupService',
-    'ValidationService',
-    'EmailValidationService',
-    'LojaCreationService',
-    'DatabaseSchemaService',
-    'FinanceiroService',
-    'ProfessionalService',
-    'MercadoPagoAdminService',
-    'LojaPasswordRecoveryService',
-    'frontend_base_url',
-    'loja_login_absolute_url',
-    'sistema_usuario_login_url',
+    "DatabaseSchemaService",
+    "EmailValidationService",
+    "FinanceiroService",
+    "LojaCleanupService",
+    "LojaCreationService",
+    "LojaPasswordRecoveryService",
+    "MercadoPagoAdminService",
+    "ProfessionalService",
+    "ValidationService",
+    "frontend_base_url",
+    "loja_login_absolute_url",
+    "sistema_usuario_login_url",
 ]

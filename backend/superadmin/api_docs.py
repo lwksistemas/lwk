@@ -1,5 +1,4 @@
-"""
-Documentação da API do Superadmin
+"""Documentação da API do Superadmin
 ✅ FASE 7 v771: Documentação centralizada para Swagger
 """
 from drf_spectacular.types import OpenApiTypes
@@ -12,15 +11,15 @@ LOJA_EXAMPLE = {
     "slug": "clinica-exemplo",
     "tipo_loja": {
         "id": 1,
-        "nome": "Clínica de Estética"
+        "nome": "Clínica de Estética",
     },
     "plano": {
         "id": 1,
-        "nome": "Plano Básico"
+        "nome": "Plano Básico",
     },
     "is_active": True,
     "database_created": True,
-    "created_at": "2024-01-01T00:00:00Z"
+    "created_at": "2024-01-01T00:00:00Z",
 }
 
 TIPO_LOJA_EXAMPLE = {
@@ -36,7 +35,7 @@ TIPO_LOJA_EXAMPLE = {
     "tem_agendamento": True,
     "tem_delivery": False,
     "tem_estoque": True,
-    "total_lojas": 5
+    "total_lojas": 5,
 }
 
 PLANO_EXAMPLE = {
@@ -47,7 +46,7 @@ PLANO_EXAMPLE = {
     "limite_usuarios": 5,
     "limite_produtos": 100,
     "tem_suporte": True,
-    "tipos_loja": [1, 2]
+    "tipos_loja": [1, 2],
 }
 
 # Schemas para documentação de endpoints
@@ -61,13 +60,13 @@ LOJA_LIST_SCHEMA = extend_schema(
             name="page",
             type=OpenApiTypes.INT,
             location=OpenApiParameter.QUERY,
-            description="Número da página"
+            description="Número da página",
         ),
         OpenApiParameter(
             name="search",
             type=OpenApiTypes.STR,
             location=OpenApiParameter.QUERY,
-            description="Buscar por nome ou slug"
+            description="Buscar por nome ou slug",
         ),
     ],
     examples=[
@@ -75,16 +74,16 @@ LOJA_LIST_SCHEMA = extend_schema(
             "Exemplo de Loja",
             value=LOJA_EXAMPLE,
             response_only=True,
-        )
+        ),
     ],
-    tags=["Lojas"]
+    tags=["Lojas"],
 )
 
 LOJA_CREATE_SCHEMA = extend_schema(
     summary="Criar Loja",
     description="""
     Cria uma nova loja no sistema.
-    
+
     **Processo:**
     1. Cria usuário owner
     2. Cria loja
@@ -93,7 +92,7 @@ LOJA_CREATE_SCHEMA = extend_schema(
     5. Cria financeiro
     6. Cria profissional/funcionário admin
     7. Integra com Asaas (via signal)
-    
+
     **Nota:** A senha será enviada por email após confirmação do pagamento.
     """,
     examples=[
@@ -108,7 +107,7 @@ LOJA_CREATE_SCHEMA = extend_schema(
                 "owner_username": "joao.silva",
                 "owner_email": "joao@exemplo.com",
                 "owner_telefone": "(11) 99999-9999",
-                "dia_vencimento": 10
+                "dia_vencimento": 10,
             },
             request_only=True,
         ),
@@ -116,16 +115,16 @@ LOJA_CREATE_SCHEMA = extend_schema(
             "Loja Criada",
             value=LOJA_EXAMPLE,
             response_only=True,
-        )
+        ),
     ],
-    tags=["Lojas"]
+    tags=["Lojas"],
 )
 
 LOJA_DELETE_SCHEMA = extend_schema(
     summary="Excluir Loja",
     description="""
     Exclui uma loja e todos os dados relacionados.
-    
+
     **Limpeza realizada:**
     - Chamados de suporte
     - Logs de auditoria
@@ -133,10 +132,10 @@ LOJA_DELETE_SCHEMA = extend_schema(
     - Pagamentos (Asaas + Mercado Pago)
     - Arquivo do banco de dados
     - Usuário proprietário (se não tiver outras lojas)
-    
+
     **Nota:** Esta ação é irreversível!
     """,
-    tags=["Lojas"]
+    tags=["Lojas"],
 )
 
 # Tipos de App
@@ -148,9 +147,9 @@ TIPO_LOJA_LIST_SCHEMA = extend_schema(
             "Exemplo de Tipo",
             value=TIPO_LOJA_EXAMPLE,
             response_only=True,
-        )
+        ),
     ],
-    tags=["Tipos de App"]
+    tags=["Tipos de App"],
 )
 
 TIPO_LOJA_CREATE_SCHEMA = extend_schema(
@@ -168,12 +167,12 @@ TIPO_LOJA_CREATE_SCHEMA = extend_schema(
                 "cor_secundaria": "#059669",
                 "tem_produtos": True,
                 "tem_servicos": True,
-                "tem_agendamento": True
+                "tem_agendamento": True,
             },
             request_only=True,
-        )
+        ),
     ],
-    tags=["Tipos de App"]
+    tags=["Tipos de App"],
 )
 
 # Planos
@@ -185,7 +184,7 @@ PLANO_LIST_SCHEMA = extend_schema(
             name="tipo_loja",
             type=OpenApiTypes.INT,
             location=OpenApiParameter.QUERY,
-            description="Filtrar por tipo de app"
+            description="Filtrar por tipo de app",
         ),
     ],
     examples=[
@@ -193,9 +192,9 @@ PLANO_LIST_SCHEMA = extend_schema(
             "Exemplo de Plano",
             value=PLANO_EXAMPLE,
             response_only=True,
-        )
+        ),
     ],
-    tags=["Planos"]
+    tags=["Planos"],
 )
 
 # Financeiro
@@ -207,10 +206,10 @@ FINANCEIRO_LIST_SCHEMA = extend_schema(
             name="status",
             type=OpenApiTypes.STR,
             location=OpenApiParameter.QUERY,
-            description="Filtrar por status (ativo, pendente, inadimplente)"
+            description="Filtrar por status (ativo, pendente, inadimplente)",
         ),
     ],
-    tags=["Financeiro"]
+    tags=["Financeiro"],
 )
 
 # Auditoria
@@ -218,7 +217,7 @@ AUDITORIA_LIST_SCHEMA = extend_schema(
     summary="Listar Logs de Auditoria",
     description="""
     Lista logs de auditoria do sistema.
-    
+
     **Informações registradas:**
     - Usuário que realizou a ação
     - Loja relacionada
@@ -233,26 +232,26 @@ AUDITORIA_LIST_SCHEMA = extend_schema(
             name="loja_slug",
             type=OpenApiTypes.STR,
             location=OpenApiParameter.QUERY,
-            description="Filtrar por loja"
+            description="Filtrar por loja",
         ),
         OpenApiParameter(
             name="acao",
             type=OpenApiTypes.STR,
             location=OpenApiParameter.QUERY,
-            description="Filtrar por tipo de ação"
+            description="Filtrar por tipo de ação",
         ),
         OpenApiParameter(
             name="data_inicio",
             type=OpenApiTypes.DATE,
             location=OpenApiParameter.QUERY,
-            description="Data inicial (YYYY-MM-DD)"
+            description="Data inicial (YYYY-MM-DD)",
         ),
         OpenApiParameter(
             name="data_fim",
             type=OpenApiTypes.DATE,
             location=OpenApiParameter.QUERY,
-            description="Data final (YYYY-MM-DD)"
+            description="Data final (YYYY-MM-DD)",
         ),
     ],
-    tags=["Auditoria"]
+    tags=["Auditoria"],
 )

@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('nfse_integration', '0002_nfse_asaas_ids'),
+        ("nfse_integration", "0002_nfse_asaas_ids"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='nfse',
-            name='loja_id',
-            field=models.IntegerField(db_index=True, help_text='ID da loja proprietária deste registro'),
+            model_name="nfse",
+            name="loja_id",
+            field=models.IntegerField(db_index=True, help_text="ID da loja proprietária deste registro"),
         ),
     ]

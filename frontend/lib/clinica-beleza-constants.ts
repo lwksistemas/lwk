@@ -122,7 +122,7 @@ export function getAgendaStatusOpcoesModal(currentStatus: string) {
 
 /** Status da consulta clínica (fluxo em Consultas). */
 export const CLINICA_CONSULTA_STATUS_LABEL: Record<string, string> = {
-  RECEBER: 'EM ANDAMENTO',
+  RECEBER: 'AGUARDANDO RECEBIMENTO',
   SCHEDULED: 'AGUARDANDO INÍCIO',
   IN_PROGRESS: 'EM ATENDIMENTO',
   COMPLETED: 'FINALIZADA',

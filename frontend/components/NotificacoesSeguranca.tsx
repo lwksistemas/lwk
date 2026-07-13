@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { formatDateTime } from '@/lib/financeiro-helpers';
 
-interface Violacao {
+export interface Violacao {
   id: number;
   tipo: string;
   tipo_display: string;

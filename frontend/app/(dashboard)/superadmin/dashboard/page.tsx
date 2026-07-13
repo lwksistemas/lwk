@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 import { formatCurrency } from '@/lib/financeiro-helpers';
-import NotificacoesSeguranca from '@/components/NotificacoesSeguranca';
+import NotificacoesSeguranca, { type Violacao } from '@/components/NotificacoesSeguranca';
 import { ToastContainer, useToast } from '@/components/ToastNotificacao';
 import { ThemeToggle } from '@/components/ui/ThemeProvider';
 
@@ -185,7 +185,7 @@ export default function SuperAdminDashboard() {
     router.push('/superadmin/login');
   };
 
-  const handleNovaViolacao = (violacao: any) => {
+  const handleNovaViolacao = (violacao: Violacao) => {
     // Mostrar toast apenas para violações críticas e altas
     const toastConfig = {
       critica: {

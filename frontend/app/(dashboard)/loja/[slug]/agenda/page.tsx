@@ -97,7 +97,7 @@ export default function AgendaPage() {
     setShowModal,
   });
 
-  const { handleEventClick, abrirEventoDaLista, handleDateClick } = useAgendaPageHandlers({
+  const { handleEventClick, handleEventClickArg, abrirEventoDaLista, handleDateClick } = useAgendaPageHandlers({
     selectedProfessional,
     horariosTrabalho,
     bloqueios,
@@ -160,7 +160,7 @@ export default function AgendaPage() {
             slotMinTime={slotMinTime}
             slotMaxTime={slotMaxTime}
             onAbrirLista={abrirEventoDaLista}
-            onEventClick={handleEventClick}
+            onEventClick={handleEventClickArg}
             onDateClick={handleDateClick}
             onEventDrop={(info) => {
               void moverEvento(info);

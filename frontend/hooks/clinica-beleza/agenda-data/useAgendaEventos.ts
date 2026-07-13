@@ -66,16 +66,15 @@ export function useAgendaEventos({
         buscarAgendamentosOffline(),
         buscarProfissionaisOffline(),
       ]);
-      const profsList = profs as ClinicaProfessional[];
       const intervalos =
         selectedProfessional && horariosOffline.length > 0
-          ? intervalosAgendaProfissional(selectedProfessional, horariosOffline, profsList)
+          ? intervalosAgendaProfissional(selectedProfessional, horariosOffline, profs)
           : [];
       const temExpediente = temExpedienteProfissional(selectedProfessional, horariosOffline);
-      if (Array.isArray(agendaRaw) && agendaRaw.length > 0) {
-        let list = agendaRaw as Record<string, unknown>[];
+      if (agendaRaw.length > 0) {
+        let list = agendaRaw;
         if (selectedProfessional) {
-          list = list.filter((e) => String(e.professional) === selectedProfessional);
+          list = list.filter((e) => String(e.extendedProps?.professional) === selectedProfessional);
         }
         setOfflineEventos([
           ...list.map((e) => formatarAgendaEvento(e, temExpediente, colors)),

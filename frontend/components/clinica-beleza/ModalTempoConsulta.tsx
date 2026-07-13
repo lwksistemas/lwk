@@ -33,7 +33,7 @@ export function ModalTempoConsulta({
       setLoading(true);
       setError("");
       try {
-        const data = await ClinicaBelezaAPI.professionals.get<{ tempo_consulta_minutos?: number | null }>(professionalId);
+        const data = await ClinicaBelezaAPI.professionals.get(professionalId);
         const minutos = data?.tempo_consulta_minutos;
         setTempo(
           minutos != null && minutos > 0 ? String(minutos) : "",

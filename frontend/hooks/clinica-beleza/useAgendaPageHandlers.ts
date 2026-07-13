@@ -9,16 +9,18 @@ import {
   workHoursRejectionMessage,
 } from "@/lib/clinica-beleza-work-hours";
 import { useToast } from "@/components/ui/Toast";
+import type { DateClickArg } from "@fullcalendar/interaction";
+import type { EventClickArg } from "@fullcalendar/core";
 
-type AgendaEventClickInfo = {
+export type AgendaEventClickInfo = {
   event: {
     id: string;
     title: string;
     start: Date | null;
     end: Date | null;
-    backgroundColor: string;
-    borderColor: string;
-    textColor: string;
+    backgroundColor?: string;
+    borderColor?: string;
+    textColor?: string;
     extendedProps: AgendaEventData["extendedProps"] & {
       isIntervalo?: boolean;
       isBloqueio?: boolean;
@@ -69,12 +71,13 @@ export function useAgendaPageHandlers({
 
   const handleEventClick = useCallback(
     (info: AgendaEventClickInfo) => {
-      if (info.event.extendedProps?.isIntervalo) return;
-      if (info.event.extendedProps?.isBloqueio) {
+      const ext = info.event.extendedProps;
+      if (ext?.isIntervalo) return;
+      if (ext?.isBloqueio) {
         setSelectedBloqueio({
-          id: info.event.extendedProps.bloqueioId!,
-          motivo: info.event.extendedProps.motivo || info.event.title,
-          professional_name: info.event.extendedProps.professional_name || "Todos",
+          id: ext.bloqueioId!,
+          motivo: ext.motivo || info.event.title,
+          professional_name: ext.professional_name || "Todos",
         });
         return;
       }
@@ -83,10 +86,10 @@ export function useAgendaPageHandlers({
         title: info.event.title,
         start: info.event.start ? info.event.start.toISOString() : '',
         end: info.event.end ? info.event.end.toISOString() : '',
-        backgroundColor: info.event.backgroundColor,
-        borderColor: info.event.borderColor,
-        textColor: info.event.textColor,
-        extendedProps: info.event.extendedProps,
+        backgroundColor: info.event.backgroundColor || "",
+        borderColor: info.event.borderColor || "",
+        textColor: info.event.textColor || "",
+        extendedProps: ext,
       });
       setShowModal(true);
     },
@@ -112,7 +115,7 @@ export function useAgendaPageHandlers({
   );
 
   const handleDateClick = useCallback(
-    (info: { date: Date }) => {
+    (info: DateClickArg) => {
       const date = info.date;
       if (selectedProfessional) {
         const msg = workHoursRejectionMessage(date, 30, horariosTrabalho);
@@ -140,8 +143,33 @@ export function useAgendaPageHandlers({
     ],
   );
 
+  const handleEventClickArg = useCallback(
+    (info: EventClickArg) => {
+      handleEventClick({
+        event: {
+          id: info.event.id,
+          title: info.event.title,
+          start: info.event.start,
+          end: info.event.end,
+          backgroundColor: info.event.backgroundColor || "",
+          borderColor: info.event.borderColor || "",
+          textColor: info.event.textColor || "",
+          extendedProps: info.event.extendedProps as AgendaEventData["extendedProps"] & {
+            isIntervalo?: boolean;
+            isBloqueio?: boolean;
+            bloqueioId?: number;
+            motivo?: string;
+            professional_name?: string;
+          },
+        },
+      });
+    },
+    [handleEventClick],
+  );
+
   return {
     handleEventClick,
+    handleEventClickArg,
     abrirEventoDaLista,
     handleDateClick,
   };

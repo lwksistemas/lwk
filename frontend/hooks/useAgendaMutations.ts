@@ -7,6 +7,8 @@ import type { AgendaConflictPayload, AgendaEventData } from "@/lib/clinica-belez
 import type { ConflitoAgendaData } from "@/components/clinica-beleza/ModalConflitoAgenda";
 import { useToast } from "@/components/ui/Toast";
 import { logger } from "@/lib/logger";
+import type { EventDropArg } from "@fullcalendar/core";
+import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 
 type ConflictState = (ConflitoAgendaData & {
   appointmentId: number;
@@ -103,7 +105,7 @@ export function useAgendaMutations({
     return true;
   }, []);
 
-  const moverEvento = useCallback(async (info: { event: { id: string; start: Date | null; end: Date | null; extendedProps?: Record<string, unknown> }; revert: () => void }) => {
+  const moverEvento = useCallback(async (info: EventDropArg) => {
     if (!info.event.start) {
       info.revert();
       return;
@@ -127,7 +129,7 @@ export function useAgendaMutations({
     }
   }, [atualizarBloqueioHorario, onReload, patchAgendamento, toast]);
 
-  const redimensionarEvento = useCallback(async (info: { event: { id: string; start: Date | null; end: Date | null; extendedProps?: Record<string, unknown> }; revert: () => void }) => {
+  const redimensionarEvento = useCallback(async (info: EventResizeDoneArg) => {
     if (info.event.extendedProps?.isIntervalo) {
       info.revert();
       return;

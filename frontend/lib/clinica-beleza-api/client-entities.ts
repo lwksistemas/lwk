@@ -9,6 +9,7 @@ import type {
 } from "./types-entities";
 import type { Anamnese } from "@/components/clinica-beleza/consultas/consultas-types";
 import type { ClinicaPatient, HorarioTrabalhoRow } from "@/lib/clinica-beleza-entities";
+import type { ProfissionalApiRow } from "@/components/clinica-beleza/profissional-form/profissional-form-utils";
 import { cbDelete, cbGet, cbGetList, cbPost, cbPut } from "./client-http";
 
 export const anamneseApi = {
@@ -23,12 +24,14 @@ export const patientsApi = {
   get: (id: number) => cbGet<ClinicaPatient>(`/patients/${id}/`),
 };
 
+type ProfessionalRow = ProfissionalApiRow & { id: number; tempo_consulta_minutos?: number | null };
+
 export const professionalsApi = {
   list: (params?: { active?: boolean; with_schedule?: boolean; page?: number; page_size?: number }) =>
-    cbGetList("/professionals/", params),
-  get: <T = unknown>(id: number) => cbGet<T>(`/professionals/${id}/`),
-  create: (data: Record<string, unknown>) => cbPost("/professionals/", data),
-  update: (id: number, data: Record<string, unknown>) => cbPut(`/professionals/${id}/`, data),
+    cbGetList<ProfessionalRow>("/professionals/", params),
+  get: (id: number) => cbGet<ProfessionalRow>(`/professionals/${id}/`),
+  create: (data: Record<string, unknown>) => cbPost<ProfessionalRow>("/professionals/", data),
+  update: (id: number, data: Record<string, unknown>) => cbPut<ProfessionalRow>(`/professionals/${id}/`, data),
   delete: (id: number) => cbDelete(`/professionals/${id}/`),
   comissoes: {
     list: (id: number) => cbGet(`/professionals/${id}/comissoes/`),

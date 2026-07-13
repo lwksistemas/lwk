@@ -51,7 +51,7 @@ export function useProfissionalForm(editId: string | null, onDone: () => void) {
         await ClinicaBelezaAPI.professionals.update(editing.id, body);
         profId = editing.id;
       } else {
-        profId = (await ClinicaBelezaAPI.professionals.create(body) as { id: number }).id;
+        profId = (await ClinicaBelezaAPI.professionals.create(body)).id;
       }
       await salvarComissoesOnline(profId);
     },
@@ -85,7 +85,7 @@ export function useProfissionalForm(editId: string | null, onDone: () => void) {
         ]);
         const locaisAtivos = Array.isArray(locaisData) ? locaisData : [];
         setLocais(locaisAtivos);
-        setForm(mapProfissionalFormFromApi(prof as unknown as ProfissionalApiRow));
+        setForm(mapProfissionalFormFromApi(prof));
         comissoesState.setComissoes(mapComissoesProcedimentoFromApi(comissoesData));
         comissoesState.setComissoesConsultaLocal(
           mapComissoesConsultaFromApi(comissoesData, locaisAtivos),

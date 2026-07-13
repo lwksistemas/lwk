@@ -16,38 +16,39 @@ import type {
 import { intervalosEventsFromHorarios } from "@/lib/clinica-beleza-work-hours";
 
 export function formatarAgendaEvento(
-  e: Record<string, unknown>,
+  e: AgendaEventData | Record<string, unknown>,
   comRestricaoExpediente: boolean,
   statusColors: AgendaStatusColorMap = CLINICA_AGENDA_STATUS_COLORS,
 ): AgendaEventData {
-  const status = String(e.status ?? "");
+  const raw = e as Record<string, unknown>;
+  const status = String(raw.status ?? "");
   const cores = getAgendaStatusColor(status, statusColors);
   const titulo =
-    [e.patient_name, e.procedure_name].filter(Boolean).join(" • ") ||
-    String(e.title ?? "") ||
+    [raw.patient_name, raw.procedure_name].filter(Boolean).join(" • ") ||
+    String(raw.title ?? "") ||
     "Agendamento";
   return {
-    id: String(e.id),
+    id: String(raw.id),
     title: titulo,
-    start: String(e.start),
-    end: String(e.end),
+    start: String(raw.start),
+    end: String(raw.end),
     backgroundColor: cores.bg,
     borderColor: cores.border,
     textColor: "#fff",
     ...(comRestricaoExpediente ? { constraint: "businessHours" as const } : {}),
     extendedProps: {
-      dbId: e.id as string | number,
+      dbId: raw.id as string | number,
       status,
-      patient_name: String(e.patient_name ?? ""),
-      patient_phone: String(e.patient_phone ?? ""),
-      professional_name: String(e.professional_name ?? ""),
-      procedure_name: String(e.procedure_name ?? ""),
-      procedure_duration: e.procedure_duration as number | undefined,
-      duracao_minutos: e.duracao_minutos as number | undefined,
-      procedure_price: e.procedure_price as string | undefined,
-      notes: String(e.notes ?? ""),
-      version: e.version as number | undefined,
-      updated_at: e.updated_at as string | undefined,
+      patient_name: String(raw.patient_name ?? ""),
+      patient_phone: String(raw.patient_phone ?? ""),
+      professional_name: String(raw.professional_name ?? ""),
+      procedure_name: String(raw.procedure_name ?? ""),
+      procedure_duration: raw.procedure_duration as number | undefined,
+      duracao_minutos: raw.duracao_minutos as number | undefined,
+      procedure_price: raw.procedure_price as string | undefined,
+      notes: String(raw.notes ?? ""),
+      version: raw.version as number | undefined,
+      updated_at: raw.updated_at as string | undefined,
     },
   };
 }

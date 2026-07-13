@@ -4,6 +4,8 @@
  */
 
 import { openDB, DBSchema, IDBPDatabase } from "idb";
+import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
+import type { ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 
 const DB_NAME = "clinica-beleza-offline";
 const DB_VERSION = 1;
@@ -86,12 +88,12 @@ export async function salvarProfissionaisOffline(list: unknown[]): Promise<void>
   await database.put("profissionais", { lojaSlug: slug, list });
 }
 
-export async function buscarProfissionaisOffline(): Promise<unknown[]> {
+export async function buscarProfissionaisOffline(): Promise<ClinicaProfessional[]> {
   const slug = getLojaSlug();
   if (!slug) return [];
   const database = await getDB();
   const row = await database.get("profissionais", slug);
-  return row?.list ?? [];
+  return (row?.list as ClinicaProfessional[]) ?? [];
 }
 
 export async function salvarProcedimentosOffline(list: unknown[]): Promise<void> {
@@ -116,12 +118,12 @@ export async function salvarAgendamentosOffline(list: unknown[]): Promise<void> 
   await database.put("agendamentos", { lojaSlug: slug, list });
 }
 
-export async function buscarAgendamentosOffline(): Promise<unknown[]> {
+export async function buscarAgendamentosOffline(): Promise<AgendaEventData[]> {
   const slug = getLojaSlug();
   if (!slug) return [];
   const database = await getDB();
   const row = await database.get("agendamentos", slug);
-  return row?.list ?? [];
+  return (row?.list as AgendaEventData[]) ?? [];
 }
 
 export async function adicionarNaFilaSync(item: Omit<FilaSyncItem, "createdAt">): Promise<number> {

@@ -72,10 +72,13 @@ export default function MonitoramentoStoragePage() {
         setLojas(lojasData);
         setError('');
       }
-    } catch (err: any) {
+    } catch (err) {
       logger.warn('❌ Erro ao carregar storage:', err);
       if (!silent) {
-        setError(err.response?.data?.error || 'Erro ao carregar dados de storage');
+        const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+        const data = errorObj?.response as Record<string, unknown> | undefined;
+        const errorMsg = typeof data?.error === 'string' ? data.error : 'Erro ao carregar dados de storage';
+        setError(errorMsg);
       }
     } finally {
       if (!silent) setLoading(false);
@@ -86,9 +89,12 @@ export default function MonitoramentoStoragePage() {
     try {
       await apiClient.post(`/superadmin/lojas/${lojaId}/verificar-storage/`);
       carregarLojas(true);
-    } catch (err: any) {
+    } catch (err) {
       logger.warn('Erro ao verificar storage:', err);
-      alert(err.response?.data?.error || 'Erro ao verificar storage');
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const data = errorObj?.response as Record<string, unknown> | undefined;
+      const errorMsg = typeof data?.error === 'string' ? data.error : 'Erro ao verificar storage';
+      alert(errorMsg);
     }
   };
 
@@ -97,9 +103,12 @@ export default function MonitoramentoStoragePage() {
       setVerificando(true);
       await apiClient.post('/superadmin/storage/verificar-todas/');
       await carregarLojas(true);
-    } catch (err: any) {
+    } catch (err) {
       logger.warn('Erro ao verificar storage de todas as lojas:', err);
-      setError(err.response?.data?.error || 'Erro ao recalcular storage das lojas');
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const data = errorObj?.response as Record<string, unknown> | undefined;
+      const errorMsg = typeof data?.error === 'string' ? data.error : 'Erro ao recalcular storage das lojas';
+      setError(errorMsg);
     } finally {
       setVerificando(false);
     }
@@ -194,7 +203,10 @@ export default function MonitoramentoStoragePage() {
               <label className="text-sm text-gray-600 mr-2">Ordenar por:</label>
               <select
                 value={ordenacao}
-                onChange={(e) => setOrdenacao(e.target.value as any)}
+                onChange={(e) => {
+                  const value = e.target.value as typeof ordenacao;
+                  setOrdenacao(value);
+                }}
                 className="px-3 py-2 border border-gray-300 rounded-lg"
               >
                 <option value="percentual">% de Uso (maior primeiro)</option>
@@ -206,7 +218,10 @@ export default function MonitoramentoStoragePage() {
               <label className="text-sm text-gray-600 mr-2">Filtrar por status:</label>
               <select
                 value={filtroStatus}
-                onChange={(e) => setFiltroStatus(e.target.value as any)}
+                onChange={(e) => {
+                  const value = e.target.value as typeof filtroStatus;
+                  setFiltroStatus(value);
+                }}
                 className="px-3 py-2 border border-gray-300 rounded-lg"
               >
                 <option value="todos">Todos</option>

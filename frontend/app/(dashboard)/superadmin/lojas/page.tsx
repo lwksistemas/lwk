@@ -286,6 +286,7 @@ export default function GerenciarLojasPage() {
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
                               {loja.logo ? (
+                                // eslint-disable-next-line @next/next/no-img-element
                                 <img className="h-10 w-10 rounded-full object-cover" src={loja.logo} alt="" />
                               ) : (
                                 <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">

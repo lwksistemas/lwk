@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import {
@@ -27,11 +27,7 @@ export default function NFSeEmitidasPage() {
   const [nfCancelamento, setNfCancelamento] = useState<NFSeEmitida | null>(null);
   const [cancelandoNFSe, setCancelandoNFSe] = useState(false);
 
-  useEffect(() => {
-    loadNotas();
-  }, [filtroStatus]);
-
-  const loadNotas = async () => {
+  const loadNotas = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -44,7 +40,11 @@ export default function NFSeEmitidasPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filtroStatus]);
+
+  useEffect(() => {
+    void loadNotas();
+  }, [loadNotas]);
 
   const handleBaixarXml = async (nf: NFSeEmitida) => {
     try {

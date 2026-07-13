@@ -83,6 +83,7 @@ export function useFinanceiroPage() {
       despesasList.load(),
     ]);
     setLoadingResumo(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadResumo, loadProfessionals, paymentsList.load, despesasList.load]);
 
   useEffect(() => {

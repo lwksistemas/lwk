@@ -36,7 +36,7 @@ export function useClinicaBelezaDashboard(loja: LojaInfo) {
         setLoading(false);
       }
     },
-    [loja?.id, loja?.slug, loja.slug, slug, mesAno],
+    [loja?.id, loja?.slug, slug, mesAno],
   );
 
   useEffect(() => {

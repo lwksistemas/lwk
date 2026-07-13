@@ -74,6 +74,7 @@ export function useConsultasDeepLink(slug: string, consultas: Consulta[]) {
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, consultas, selected?.id]);
 
   return {

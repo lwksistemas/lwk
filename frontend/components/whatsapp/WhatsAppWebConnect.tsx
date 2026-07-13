@@ -103,7 +103,7 @@ export function WhatsAppWebConnect({
     } catch {
       /* ignore transient poll errors */
     }
-  }, [fetchConnection, onConnectionUpdate, stopPolling]);
+  }, [fetchConnection, onConnectionUpdate]);
 
   useEffect(() => {
     if (provider !== 'evolution') {

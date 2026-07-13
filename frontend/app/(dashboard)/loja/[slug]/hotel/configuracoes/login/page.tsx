@@ -100,7 +100,8 @@ export default function HotelLoginConfigPage() {
               <div className="p-6">
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                    <Image className="w-6 h-6" />
+                    {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                    <Image className="w-6 h-6" aria-hidden="true" />
                   </div>
                   <div className="flex-1">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Logo do Login</h2>
@@ -119,7 +120,8 @@ export default function HotelLoginConfigPage() {
               <div className="p-6">
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                    <Image className="w-6 h-6" />
+                    {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                    <Image className="w-6 h-6" aria-hidden="true" />
                   </div>
                   <div className="flex-1">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Background do Login</h2>

@@ -68,6 +68,7 @@ export function useCrmCalendarioPage() {
   const handleDelete = useCallback(() => {
     if (!atividades.requestDeleteAtividade()) return;
     setConfirmAction('delete_atividade');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [atividades.requestDeleteAtividade]);
 
   const closeConfirm = useCallback(() => {
@@ -89,6 +90,7 @@ export function useCrmCalendarioPage() {
     } finally {
       setConfirmando(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirmAction, atividades.executeDeleteAtividade, google.executeDisconnectGoogle]);
 
   return {

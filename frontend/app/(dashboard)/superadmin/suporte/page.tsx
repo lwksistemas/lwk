@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { formatDateTime } from '@/lib/financeiro-helpers';
@@ -41,11 +41,7 @@ export default function SuperadminSuportePage() {
   const [enviandoResposta, setEnviandoResposta] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState<string>('');
 
-  useEffect(() => {
-    loadChamados();
-  }, [filtroStatus]);
-
-  const loadChamados = async () => {
+  const loadChamados = useCallback(async () => {
     try {
       setLoading(true);
       const params = filtroStatus ? { status: filtroStatus } : {};
@@ -56,7 +52,11 @@ export default function SuperadminSuportePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filtroStatus]);
+
+  useEffect(() => {
+    void loadChamados();
+  }, [loadChamados]);
 
   const handleVerDetalhes = (chamado: Chamado) => {
     setChamadoSelecionado(chamado);

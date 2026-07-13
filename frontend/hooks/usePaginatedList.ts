@@ -29,6 +29,7 @@ export function usePaginatedList<T>(
       }
     }
     return cleaned;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsKey]);
 
   const [page, setPage] = useState(1);

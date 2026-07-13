@@ -45,7 +45,7 @@ export default function HotelQuartosPage() {
   const summary = useMemo(() => {
     const byStatus = items.reduce((acc, it) => { acc[it.status] = (acc[it.status] || 0) + 1; return acc; }, {} as Record<string, number>);
     return { total: totalCount, byStatus };
-  }, [items]);
+  }, [items, totalCount]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">

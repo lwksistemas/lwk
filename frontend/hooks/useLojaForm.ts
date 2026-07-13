@@ -87,11 +87,12 @@ export function useLojaForm(incluirSenha: boolean = true) {
   const [buscarCnpjLoading, setBuscarCnpjLoading] = useState(false);
 
   useEffect(() => {
-    loadTiposEPlanos();
+    void loadTiposEPlanos();
     if (incluirSenha) {
-      loadMercadoPagoDefault();
+      void loadMercadoPagoDefault();
       gerarSenhaProvisoria();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incluirSenha]);
 
   const loadMercadoPagoDefault = async () => {

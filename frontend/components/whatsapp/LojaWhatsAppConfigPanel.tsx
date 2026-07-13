@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { WhatsAppConfigHelp, WhatsAppConfigStatus } from '@/components/whatsapp/WhatsAppConfigHelp';
 import {
   WhatsAppConnectionState,
@@ -67,7 +67,7 @@ export function LojaWhatsAppConfigPanel({
     setEnviarTermoConsentimentoWhatsapp(data.enviar_termo_consentimento_whatsapp ?? true);
   };
 
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     setLoading(true);
     setLoadError('');
     const evolutionFromHealth = await fetchEvolutionAvailableFromHealth();
@@ -95,11 +95,11 @@ export function LojaWhatsAppConfigPanel({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadConfig();
-  }, []);
+    void loadConfig();
+  }, [loadConfig]);
 
   const saveConfig = async () => {
     setSaving(true);

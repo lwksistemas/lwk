@@ -60,10 +60,10 @@ export default function HotelReservasPage() {
     } catch { /* best-effort */ }
   }, []);
 
-  useEffect(() => { loadBase(); }, [loadBase]);
-  useEffect(() => { if (searchParams.get('novo') === '1') openNew(); }, []);
+  const openNew = useCallback(() => { setEditing(null); resetForm(); setModalOpen(true); }, []);
 
-  const openNew = () => { setEditing(null); resetForm(); setModalOpen(true); };
+  useEffect(() => { loadBase(); }, [loadBase]);
+  useEffect(() => { if (searchParams.get('novo') === '1') openNew(); }, [searchParams, openNew]);
   const openEdit = (r: Reserva) => {
     setEditing(r);
     setForm({

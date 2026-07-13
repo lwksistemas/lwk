@@ -612,6 +612,7 @@ export default function RelatorioComissoesPage() {
       <div className="hidden print:block mb-6 text-center">
         {logoUrl ? (
           <div className="flex justify-center mb-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={logoUrl} alt={clinicaNome} className="max-h-20 object-contain" />
           </div>
         ) : clinicaNome ? (

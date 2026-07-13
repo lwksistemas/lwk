@@ -139,6 +139,7 @@ export function useDashboardData<T, U>({
     return () => {
       isMountedRef.current = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]); // Depende de enabled para recarregar se mudar
 
   return {

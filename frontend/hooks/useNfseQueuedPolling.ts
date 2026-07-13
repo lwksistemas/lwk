@@ -66,5 +66,6 @@ export function useNfseQueuedPolling(options: {
     }, intervalMs);
 
     return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, countBefore, paramsKey, intervalMs, maxAttempts, onTick, onFound, onTimeout]);
 }

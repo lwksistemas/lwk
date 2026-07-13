@@ -169,6 +169,7 @@ export function useClinicaBelezaEntityList<T>({
       setPage(result.page);
       return result;
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [path, pageSize, fetchOffline, saveOffline, paginate, queryParams, loja?.id, loja?.slug],
   );
 

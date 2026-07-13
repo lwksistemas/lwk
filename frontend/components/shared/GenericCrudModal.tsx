@@ -33,9 +33,9 @@ interface GenericCrudModalProps<T extends { id: number }> {
   loja: LojaInfo;
   onClose: () => void;
   onSuccess?: () => void;
-  renderCustomField?: (field: FieldConfig, value: any, onChange: (value: any) => void) => React.ReactNode;
-  transformDataBeforeSave?: (data: any) => any;
-  transformDataAfterLoad?: (data: T) => any;
+  renderCustomField?: (field: FieldConfig, value: unknown, onChange: (value: unknown) => void) => React.ReactNode;
+  transformDataBeforeSave?: (data: Record<string, unknown>) => Record<string, unknown>;
+  transformDataAfterLoad?: (data: T) => Record<string, unknown>;
 }
 
 export function GenericCrudModal<T extends { id: number }>({
@@ -54,13 +54,13 @@ export function GenericCrudModal<T extends { id: number }>({
   const [loadError, setLoadError] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<T | null>(null);
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
 
   // Inicializar formData com valores vazios
   useEffect(() => {
-    const initialData: Record<string, any> = {};
+    const initialData: Record<string, unknown> = {};
     fields.forEach(field => {
       initialData[field.name] = '';
     });
@@ -74,7 +74,7 @@ export function GenericCrudModal<T extends { id: number }>({
       const response = await apiClient.get(endpoint);
       const data = extractArrayData<T>(response);
       setItems(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.warn(`Erro ao carregar ${title}:`, error);
       setLoadError(true);
     } finally {
@@ -88,7 +88,7 @@ export function GenericCrudModal<T extends { id: number }>({
 
   const handleAdd = () => {
     setEditingItem(null);
-    const initialData: Record<string, any> = {};
+    const initialData: Record<string, unknown> = {};
     fields.forEach(field => {
       initialData[field.name] = '';
     });
@@ -98,8 +98,8 @@ export function GenericCrudModal<T extends { id: number }>({
 
   const handleEdit = (item: T) => {
     setEditingItem(item);
-    let data = transformDataAfterLoad ? transformDataAfterLoad(item) : item;
-    data = applyTelefoneFormatPayload(data as Record<string, unknown>) as T;
+    let data = transformDataAfterLoad ? transformDataAfterLoad(item) : (item as unknown as Record<string, unknown>);
+    data = applyTelefoneFormatPayload(data);
     setFormData({ ...data });
     setShowForm(true);
   };
@@ -112,7 +112,7 @@ export function GenericCrudModal<T extends { id: number }>({
       await apiClient.delete(`${endpoint}${id}/`);
       await loadItems();
       onSuccess?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert(formatApiError(error));
     } finally {
       setDeleting(null);
@@ -138,7 +138,7 @@ export function GenericCrudModal<T extends { id: number }>({
       setShowForm(false);
       await loadItems();
       onSuccess?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert(formatApiError(error));
     } finally {
       setSaving(false);
@@ -153,7 +153,7 @@ export function GenericCrudModal<T extends { id: number }>({
   };
 
   const renderField = (field: FieldConfig) => {
-    const value = formData[field.name] || '';
+    const value = String(formData[field.name] ?? '');
 
     // Permitir customização de campos específicos
     if (renderCustomField) {
@@ -264,15 +264,15 @@ export function GenericCrudModal<T extends { id: number }>({
 
             {!loading && !loadError && items.length > 0 && (
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {items.map((item: any) => (
+                {items.map((item) => (
                   <div
                     key={item.id}
                     className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100"
                   >
                     <div className="flex-1">
-                      <p className="font-medium">{item.nome || item.name || item.titulo || `#${item.id}`}</p>
-                      {item.email && <p className="text-sm text-gray-600">{item.email}</p>}
-                      {item.telefone && <p className="text-sm text-gray-600">{formatTelefone(item.telefone)}</p>}
+                      <p className="font-medium">{String((item as Record<string, unknown>).nome || (item as Record<string, unknown>).name || (item as Record<string, unknown>).titulo || `#${item.id}`)}</p>
+                      {(item as Record<string, unknown>).email ? <p className="text-sm text-gray-600">{String((item as Record<string, unknown>).email)}</p> : null}
+                      {(item as Record<string, unknown>).telefone ? <p className="text-sm text-gray-600">{formatTelefone(String((item as Record<string, unknown>).telefone))}</p> : null}
                     </div>
                     <div className="flex gap-2">
                       <button

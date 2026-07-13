@@ -9,6 +9,200 @@ logger = logging.getLogger(__name__)
 
 from .helpers import _limpar_arquivos_orfaos_loja
 
+# ---------------------------------------------------------------------------
+# Helpers privados do signal de exclusão
+# ---------------------------------------------------------------------------
+
+def _setup_db_alias(instance):
+    """Configura e retorna o db_alias da loja, ou None se não disponível."""
+    from django.conf import settings
+    db_name = getattr(instance, "database_name", None)
+    if not db_name:
+        return None
+    import os
+    if "postgres" in os.environ.get("DATABASE_URL", "").lower() and db_name not in settings.DATABASES:
+        try:
+            from core.db_config import ensure_loja_database_config
+            ensure_loja_database_config(db_name, conn_max_age=0)
+        except Exception as e:
+            logger.warning(f"   ⚠️ Não foi possível configurar banco da loja {db_name}: {e}")
+    return db_name if db_name in settings.DATABASES else None
+
+
+def _delete_evolution_whatsapp(loja_id):
+    """Remove instância Evolution (WhatsApp Web) da loja."""
+    try:
+        from whatsapp.evolution_cleanup import delete_evolution_for_loja
+        delete_evolution_for_loja(loja_id)
+    except Exception as e:
+        logger.warning(f"   ⚠️ Erro ao remover Evolution: {e}")
+
+
+def _delete_asaas_assinatura(instance):
+    """Remove LojaAssinatura por slug (evita órfãos)."""
+    try:
+        from asaas_integration.models import LojaAssinatura
+        n = LojaAssinatura.objects.filter(loja_slug=instance.slug).count()
+        LojaAssinatura.objects.filter(loja_slug=instance.slug).delete()
+        if n:
+            logger.info(f"   ✅ {n} assinatura(s) Asaas (loja_slug) removida(s)")
+    except Exception as e:
+        logger.warning(f"   ⚠️ Erro ao remover LojaAssinatura por slug: {e}")
+
+
+def _delete_crm_data(loja_id, db_alias):
+    """Deleta todos os dados CRM Vendas da loja."""
+    from crm_vendas.models import Atividade, Conta, Contato, Lead, Oportunidade, Vendedor
+
+    def _delete(model, nome):
+        try:
+            qs = model.objects.all_without_filter().filter(loja_id=loja_id) if hasattr(model.objects, "all_without_filter") else model.objects.filter(loja_id=loja_id)
+            if db_alias:
+                qs = qs.using(db_alias)
+            count = qs.count()
+            qs.delete()
+            logger.info(f"   ✅ {count} {nome} (CRM Vendas) deletados")
+        except Exception as e:
+            if "does not exist" in str(e).lower():
+                logger.debug(f"   ℹ️ Schema vazio: {nome} não existem (ok)")
+            else:
+                logger.warning(f"   ⚠️ Erro ao deletar {nome} CRM Vendas: {e}")
+
+    for model, nome in [
+        (Atividade, "atividades"), (Oportunidade, "oportunidades"), (Lead, "leads"),
+        (Contato, "contatos"), (Conta, "contas"), (Vendedor, "vendedores"),
+    ]:
+        _delete(model, nome)
+
+
+def _delete_clinica_beleza_data(loja_id, db_alias):
+    """Deleta todos os dados Clínica da Beleza da loja."""
+    if db_alias:
+        from superadmin.tenant_cleanup import delete_clinica_beleza_tenant_data
+        delete_clinica_beleza_tenant_data(db_alias, loja_id)
+        return
+
+    from clinica_beleza.models import (
+        Appointment,
+        BloqueioHorario,
+        CampanhaPromocao,
+        HorarioTrabalhoProfissional,
+        Patient,
+        Payment,
+        Procedure,
+        Professional,
+    )
+
+    def _delete(model, nome):
+        try:
+            qs = model.objects.all_without_filter().filter(loja_id=loja_id) if hasattr(model.objects, "all_without_filter") else model.objects.filter(loja_id=loja_id)
+            count = qs.count()
+            qs.delete()
+            logger.info(f"   ✅ {count} {nome} (Clínica da Beleza) deletados")
+        except Exception as e:
+            err = str(e).lower()
+            if "does not exist" in err or "undefinedcolumn" in err:
+                logger.debug(f"   ℹ️ {nome}: schema parcial (ok)")
+            else:
+                logger.warning(f"   ⚠️ Erro ao deletar {nome} Clínica da Beleza: {e}")
+
+    for model, nome in [
+        (Payment, "pagamentos"), (Appointment, "agendamentos"),
+        (BloqueioHorario, "bloqueios horário"),
+        (HorarioTrabalhoProfissional, "horários trabalho profissional"),
+        (CampanhaPromocao, "campanhas promoção"), (Procedure, "procedimentos"),
+        (Professional, "profissionais"), (Patient, "pacientes"),
+    ]:
+        _delete(model, nome)
+
+
+def _delete_tenant_data(instance, loja_id, db_alias, tipo_loja_nome):
+    """Deleta dados específicos do tipo de app da loja."""
+    if tipo_loja_nome == "CRM Vendas":
+        _delete_crm_data(loja_id, db_alias)
+    elif tipo_loja_nome == "Clínica da Beleza":
+        _delete_clinica_beleza_data(loja_id, db_alias)
+    elif tipo_loja_nome:
+        logger.info(
+            f"   ℹ️ Tipo {tipo_loja_nome!r}: sem exclusão linha-a-linha neste signal; "
+            "schema tenant será removido por DROP SCHEMA CASCADE.",
+        )
+
+
+def _delete_user_sessions(instance):
+    """Deleta sessões do usuário owner."""
+    try:
+        from superadmin.models import UserSession
+        owner_id = instance.owner_id
+        if owner_id:
+            count = UserSession.objects.filter(user_id=owner_id).count()
+            UserSession.objects.filter(user_id=owner_id).delete()
+            logger.info(f"   ✅ {count} sessões deletadas")
+    except Exception as e:
+        logger.warning(f"   ⚠️ Erro ao deletar sessões: {e}")
+
+
+def _drop_postgres_schema(instance):
+    """Exclui o schema PostgreSQL da loja com CASCADE."""
+    import os
+    if "postgres" not in os.environ.get("DATABASE_URL", "").lower():
+        logger.info("   ℹ️ Não está usando PostgreSQL, schema não será removido")
+        return
+    try:
+        from django.db import connection
+        schema_name = instance.database_name.replace("-", "_")
+        if not schema_name or schema_name == "public":
+            logger.warning(f"   ⚠️ Schema inválido ou público, não será removido: {schema_name}")
+            return
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT schema_name FROM information_schema.schemata WHERE schema_name = %s",
+                [schema_name],
+            )
+            if cursor.fetchone():
+                cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
+                logger.info(f"   ✅ Schema PostgreSQL removido: {schema_name}")
+            else:
+                logger.info(f"   ℹ️ Schema PostgreSQL não existe: {schema_name}")
+    except Exception as e:
+        logger.error(f"   ❌ Erro ao remover schema PostgreSQL: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+
+
+def _safety_net_default_tables(loja_id):
+    """Rede de segurança: limpa tabelas do schema public com loja_id."""
+    try:
+        from django.db import connection, transaction
+
+        from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT, tabela_existe_em_public
+        for tabela, coluna in TABELAS_LOJA_ID_DEFAULT:
+            try:
+                with transaction.atomic(), connection.cursor() as cursor:
+                    if not tabela_existe_em_public(cursor, tabela):
+                        continue
+                    cursor.execute(f"DELETE FROM {tabela} WHERE {coluna} = %s", [loja_id])
+                    if cursor.rowcount:
+                        logger.info(f"   ✅ Safety net: {cursor.rowcount} linha(s) em {tabela} removida(s)")
+            except Exception as e:
+                logger.warning(f"   ⚠️ Safety net {tabela}: {e}")
+    except Exception as e:
+        logger.warning(f"   ⚠️ Erro na rede de segurança TABELAS_LOJA_ID_DEFAULT: {e}")
+
+
+def _cleanup_db_config(instance):
+    """Remove configuração do banco de settings.DATABASES."""
+    from django.conf import settings
+    db_name = getattr(instance, "database_name", None)
+    if db_name and db_name in settings.DATABASES:
+        try:
+            del settings.DATABASES[db_name]
+            logger.info(f"   ✅ Config do banco removida do settings: {db_name}")
+        except Exception as e:
+            logger.warning(f"   ⚠️ Erro ao remover config do banco: {e}")
+
+
+# ---------------------------------------------------------------------------
 
 @receiver(pre_delete, sender="superadmin.Loja")
 def delete_all_loja_data(sender, instance, **kwargs):
@@ -40,7 +234,6 @@ def delete_all_loja_data(sender, instance, **kwargs):
     """
     loja_id = instance.id
     loja_nome = instance.nome
-    # Acesso seguro ao tipo_loja para evitar KeyError
     tipo_loja_nome = getattr(instance.tipo_loja, "nome", None) if instance.tipo_loja else None
 
     logger.info(f"🗑️ Iniciando exclusão em cascata para loja: {loja_nome} (ID: {loja_id})")
@@ -51,221 +244,21 @@ def delete_all_loja_data(sender, instance, **kwargs):
         )
 
     try:
-        # Alias do banco da loja: usar schema isolado (evita deletar no default e criar órfãos)
-        from django.conf import settings
-        db_alias = None
-        db_name = getattr(instance, "database_name", None)
-        if db_name:
-            import os
-            DATABASE_URL = os.environ.get("DATABASE_URL", "")
-            if "postgres" in DATABASE_URL.lower() and db_name not in settings.DATABASES:
-                try:
-                    from core.db_config import ensure_loja_database_config
-                    ensure_loja_database_config(db_name, conn_max_age=0)
-                except Exception as e:
-                    logger.warning(f"   ⚠️ Não foi possível configurar banco da loja {db_name}: {e}")
-            if db_name in settings.DATABASES:
-                db_alias = db_name
-
-        # 0. Remover instância Evolution (WhatsApp Web)
-        try:
-            from whatsapp.evolution_cleanup import delete_evolution_for_loja
-
-            delete_evolution_for_loja(loja_id)
-        except Exception as e:
-            logger.warning(f"   ⚠️ Erro ao remover Evolution: {e}")
-
-        # 0b. Remover LojaAssinatura por slug (evita órfãos se loja for excluída fora da API)
-        try:
-            from asaas_integration.models import LojaAssinatura
-            n = LojaAssinatura.objects.filter(loja_slug=instance.slug).count()
-            LojaAssinatura.objects.filter(loja_slug=instance.slug).delete()
-            if n:
-                logger.info(f"   ✅ {n} assinatura(s) Asaas (loja_slug) removida(s)")
-        except Exception as e:
-            logger.warning(f"   ⚠️ Erro ao remover LojaAssinatura por slug: {e}")
-
-        # 1. Deletar funcionários/vendedores baseado no tipo de app (no schema da loja quando db_alias definido)
-        if tipo_loja_nome == "CRM Vendas":
-            from crm_vendas.models import Atividade, Conta, Contato, Lead, Oportunidade, Vendedor
-            _db = db_alias
-
-            def _delete_crm(model, nome):
-                try:
-                    if hasattr(model.objects, "all_without_filter"):
-                        qs = model.objects.all_without_filter().filter(loja_id=loja_id)
-                    else:
-                        qs = model.objects.filter(loja_id=loja_id)
-                    if _db:
-                        qs = qs.using(_db)
-                    count = qs.count()
-                    qs.delete()
-                    logger.info(f"   ✅ {count} {nome} (CRM Vendas) deletados")
-                except Exception as e:
-                    # Schema vazio (tabelas nunca criadas): esperado, não é erro
-                    if "does not exist" in str(e).lower():
-                        logger.debug(f"   ℹ️ Schema vazio: {nome} não existem (ok)")
-                    else:
-                        logger.warning(f"   ⚠️ Erro ao deletar {nome} CRM Vendas: {e}")
-
-            _delete_crm(Atividade, "atividades")
-            _delete_crm(Oportunidade, "oportunidades")
-            _delete_crm(Lead, "leads")
-            _delete_crm(Contato, "contatos")
-            _delete_crm(Conta, "contas")
-            _delete_crm(Vendedor, "vendedores")
-
-        elif tipo_loja_nome == "Clínica da Beleza":
-            if db_alias:
-                from superadmin.tenant_cleanup import delete_clinica_beleza_tenant_data
-                delete_clinica_beleza_tenant_data(db_alias, loja_id)
-            else:
-                from clinica_beleza.models import (
-                    Appointment,
-                    BloqueioHorario,
-                    CampanhaPromocao,
-                    HorarioTrabalhoProfissional,
-                    Patient,
-                    Payment,
-                    Procedure,
-                    Professional,
-                )
-
-                def _delete_clinica_beleza(model, nome):
-                    try:
-                        if hasattr(model.objects, "all_without_filter"):
-                            qs = model.objects.all_without_filter().filter(loja_id=loja_id)
-                        else:
-                            qs = model.objects.filter(loja_id=loja_id)
-                        count = qs.count()
-                        qs.delete()
-                        logger.info(f"   ✅ {count} {nome} (Clínica da Beleza) deletados")
-                    except Exception as e:
-                        err = str(e).lower()
-                        if "does not exist" in err or "undefinedcolumn" in err:
-                            logger.debug(f"   ℹ️ {nome}: schema parcial (ok)")
-                        else:
-                            logger.warning(f"   ⚠️ Erro ao deletar {nome} Clínica da Beleza: {e}")
-
-                _delete_clinica_beleza(Payment, "pagamentos")
-                _delete_clinica_beleza(Appointment, "agendamentos")
-                _delete_clinica_beleza(BloqueioHorario, "bloqueios horário")
-                _delete_clinica_beleza(HorarioTrabalhoProfissional, "horários trabalho profissional")
-                _delete_clinica_beleza(CampanhaPromocao, "campanhas promoção")
-                _delete_clinica_beleza(Procedure, "procedimentos")
-                _delete_clinica_beleza(Professional, "profissionais")
-                _delete_clinica_beleza(Patient, "pacientes")
-
-        elif tipo_loja_nome:
-            # Hotel, E-commerce e outros: sem ramo explícito acima — tabelas somem com DROP SCHEMA CASCADE.
-            logger.info(
-                f"   ℹ️ Tipo {tipo_loja_nome!r}: sem exclusão linha-a-linha neste signal; "
-                "schema tenant será removido por DROP SCHEMA CASCADE.",
-            )
-
-        # NOTA: A exclusão do owner é feita na views.py após a exclusão da loja
-        # para evitar TransactionManagementError
-
-        # 2. Deletar sessões do usuário (usando owner_id para evitar problemas de transação)
-        try:
-            from superadmin.models import UserSession
-            owner_id = instance.owner_id
-            if owner_id:
-                sessoes_count = UserSession.objects.filter(user_id=owner_id).count()
-                UserSession.objects.filter(user_id=owner_id).delete()
-                logger.info(f"   ✅ {sessoes_count} sessões deletadas")
-        except Exception as e:
-            logger.warning(f"   ⚠️ Erro ao deletar sessões: {e}")
-
-        # 3. Verificar pagamentos Asaas relacionados (remoção feita na views.py)
-        try:
-            logger.info("   ℹ️ Pagamentos Asaas serão removidos pela views.py")
-        except Exception as e:
-            logger.warning(f"   ⚠️ Erro ao verificar Asaas: {e}")
-
-        # 4. Excluir schema PostgreSQL (CRÍTICO: prevenir schemas órfãos)
-        try:
-            import os
-
-            from django.db import connection
-
-            # Verificar se está usando PostgreSQL (produção)
-            DATABASE_URL = os.environ.get("DATABASE_URL", "")
-            if "postgres" in DATABASE_URL.lower():
-                # Obter nome do schema (database_name da loja)
-                schema_name = instance.database_name.replace("-", "_")
-
-                # Validar que não é schema público
-                if schema_name and schema_name != "public":
-                    with connection.cursor() as cursor:
-                        # Verificar se schema existe
-                        cursor.execute(
-                            "SELECT schema_name FROM information_schema.schemata WHERE schema_name = %s",
-                            [schema_name],
-                        )
-                        schema_exists = cursor.fetchone()
-
-                        if schema_exists:
-                            # Excluir schema com CASCADE (remove todas as tabelas)
-                            cursor.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
-                            logger.info(f"   ✅ Schema PostgreSQL removido: {schema_name}")
-                        else:
-                            logger.info(f"   ℹ️ Schema PostgreSQL não existe: {schema_name}")
-                else:
-                    logger.warning(f"   ⚠️ Schema inválido ou público, não será removido: {schema_name}")
-            else:
-                logger.info("   ℹ️ Não está usando PostgreSQL, schema não será removido")
-
-        except Exception as e:
-            logger.error(f"   ❌ Erro ao remover schema PostgreSQL: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            # Não interrompe a exclusão da loja, apenas loga o erro
-
-        # 5. Rede de segurança: limpar só tabelas do default (public) com loja_id.
-        # Dados operacionais da loja estão no schema da loja (já limpos acima com .using());
-        # no default ficam só superadmin/asaas (TABELAS_LOJA_ID_DEFAULT).
-        # Cada tabela usa transaction.atomic() (savepoint) para que falha em uma (ex: tabela
-        # inexistente) não aborte a transação principal do loja.delete()
-        try:
-            from django.db import connection, transaction
-
-            from superadmin.orfaos_config import TABELAS_LOJA_ID_DEFAULT, tabela_existe_em_public
-            for tabela, coluna in TABELAS_LOJA_ID_DEFAULT:
-                try:
-                    with transaction.atomic(), connection.cursor() as cursor:
-                        if not tabela_existe_em_public(cursor, tabela):
-                            continue
-                        cursor.execute(
-                            f"DELETE FROM {tabela} WHERE {coluna} = %s",
-                            [loja_id],
-                        )
-                        if cursor.rowcount:
-                            logger.info(f"   ✅ Safety net: {cursor.rowcount} linha(s) em {tabela} removida(s)")
-                except Exception as e:
-                    logger.warning(f"   ⚠️ Safety net {tabela}: {e}")
-        except Exception as e:
-            logger.warning(f"   ⚠️ Erro na rede de segurança TABELAS_LOJA_ID_DEFAULT: {e}")
-
-        # 6. Remover config do banco de settings.DATABASES (evitar nome órfão no default)
-        db_name = getattr(instance, "database_name", None)
-        if db_name and db_name in settings.DATABASES:
-            try:
-                del settings.DATABASES[db_name]
-                logger.info(f"   ✅ Config do banco removida do settings: {db_name}")
-            except Exception as e:
-                logger.warning(f"   ⚠️ Erro ao remover config do banco: {e}")
-
-        # 7. Remover arquivos órfãos: diretório de backups e media da loja
+        db_alias = _setup_db_alias(instance)
+        _delete_evolution_whatsapp(loja_id)
+        _delete_asaas_assinatura(instance)
+        _delete_tenant_data(instance, loja_id, db_alias, tipo_loja_nome)
+        _delete_user_sessions(instance)
+        logger.info("   ℹ️ Pagamentos Asaas serão removidos pela views.py")
+        _drop_postgres_schema(instance)
+        _safety_net_default_tables(loja_id)
+        _cleanup_db_config(instance)
         _limpar_arquivos_orfaos_loja(instance)
-
         logger.info(f"✅ Exclusão em cascata concluída para loja: {loja_nome}")
-
     except Exception as e:
         logger.error(f"❌ Erro durante exclusão em cascata da loja {loja_nome}: {e}")
         import traceback
         logger.error(traceback.format_exc())
-        # Não interrompe a exclusão da loja, apenas loga o erro
 
 
 @receiver(post_delete, sender="superadmin.Loja")

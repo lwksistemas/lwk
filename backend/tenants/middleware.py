@@ -170,251 +170,235 @@ class TenantMiddleware:
 
     def __call__(self, request):
         # 🧹 LIMPAR contexto da requisição ANTERIOR no INÍCIO desta requisição
-        # Isso garante que não há vazamento entre requisições mas não quebra a serialização
         set_current_loja_id(None)
         set_current_tenant_db("default")
 
         try:
-            # Health check: responder AQUI sem passar por views/DRF/templates (evita 500 staticfiles no Render)
-            if request.path.rstrip("/") == "/api/superadmin/health":
-                set_current_tenant_db("default")
-                set_current_loja_id(None)
-                if request.method not in ("GET", "HEAD"):
-                    return JsonResponse({"error": "Method Not Allowed"}, status=405)
-                from superadmin.views.sistema import health_check
-                return health_check(request)
-            # Login / refresh / logout: sem tenant (evita X-Tenant-Slug residual e host da API como slug).
-            path_norm = request.path.rstrip("/") or "/"
-            if path_norm.startswith("/api/auth"):
-                return self.get_response(request)
+            early = self._handle_early_returns(request)
+            if early is not None:
+                return early
 
-            from core.tenant_access import check_cross_tenant_access
-            denied = check_cross_tenant_access(request)
-            if denied is not None:
-                return denied
-
-            # Detectar tenant por subdomain, header ou parâmetro
             tenant_slug = self._get_tenant_slug(request)
-
             if tenant_slug:
-                # Buscar a loja pelo slug (case-insensitive: dani/Dani funcionam)
-                from superadmin.models import Loja
-                try:
-                    # OTIMIZAÇÃO: Usar cache para evitar query repetida
-                    cache_key = tenant_slug.lower()
-
-                    if cache_key in self._loja_cache:
-                        loja_data = self._loja_cache[cache_key]
-                        loja_id = loja_data["id"]
-                        db_name = loja_data["database_name"]
-
-                        # 🔒 SEGURANÇA: Validar que loja ainda existe (pode ter sido excluída)
-                        loja_exists = Loja.objects.filter(id=loja_id).exists()
-                        if not loja_exists:
-                            logger.warning(f"⚠️ [TenantMiddleware] Loja {tenant_slug} (ID {loja_id}) foi excluída - removendo do cache")
-                            del self._loja_cache[cache_key]
-                            # Limpar contexto thread-local imediatamente
-                            set_current_loja_id(None)
-                            set_current_tenant_db("default")
-                            raise Loja.DoesNotExist
-
-                        logger.debug(f"✅ [TenantMiddleware] Loja {tenant_slug} encontrada no cache")
-                    else:
-                        loja = resolve_loja_from_slug_or_cnpj(tenant_slug)
-                        if not loja:
-                            raise Loja.DoesNotExist
-
-                        loja_id = loja.id
-                        db_name = getattr(loja, "database_name", None) or f'loja_{getattr(loja, "slug", tenant_slug)}'
-
-                        # Armazenar no cache (com limite para evitar crescimento ilimitado por worker)
-                        if len(self._loja_cache) >= self.LOJA_CACHE_MAX:
-                            self._loja_cache.clear()
-                        self._loja_cache[cache_key] = {
-                            "id": loja_id,
-                            "database_name": db_name,
-                            "slug": loja.slug,
-                        }
-                        logger.debug(f"✅ [TenantMiddleware] Loja {tenant_slug} adicionada ao cache")
-
-                    # Configurar banco dinamicamente (SEMPRE reconfigurar para garantir schema correto)
-                    try:
-                        from core.db_config import ensure_loja_database_config
-                        if ensure_loja_database_config(db_name, conn_max_age=0):
-                            logger.debug(f"✅ [TenantMiddleware] Banco '{db_name}' configurado")
-                    except Exception as db_err:
-                        logger.warning("TenantMiddleware: falha ao configurar banco %s, usando default: %s", db_name, db_err)
-                        db_name = "default"
-
-                    # Verificar se o banco existe nas configurações
-                    if db_name in settings.DATABASES:
-                        # Limite de tamanho: bloquear escritas se o arquivo SQLite da loja >= 512 MB
-                        # NOTA: Isso só se aplica a SQLite local, não PostgreSQL em produção
-                        if request.method in ("POST", "PUT", "PATCH", "DELETE"):
-                            db_path = getattr(settings, "BASE_DIR", None)
-                            # Verificar se é SQLite (não PostgreSQL)
-                            if db_path is not None and "sqlite" in str(settings.DATABASES.get(db_name, {}).get("ENGINE", "")):
-                                path = Path(db_path) / f"db_{db_name}.sqlite3"
-                                if path.exists():
-                                    try:
-                                        size = path.stat().st_size
-                                        if size >= LIMITE_BANCO_LOJA_BYTES:
-                                            logger.warning(
-                                                f"⚠️ [TenantMiddleware] Loja {tenant_slug} atingiu limite "
-                                                f"de banco ({size / (1024*1024):.1f} MB >= {LIMITE_BANCO_LOJA_MB} MB)",
-                                            )
-                                            return JsonResponse(
-                                                {
-                                                    "error": (
-                                                        f"Limite de armazenamento da loja atingido "
-                                                        f"({LIMITE_BANCO_LOJA_MB} MB). "
-                                                        "Entre em contato com o suporte para ampliar o plano."
-                                                    ),
-                                                    "code": "STORAGE_LIMIT_REACHED",
-                                                    "limite_mb": LIMITE_BANCO_LOJA_MB,
-                                                },
-                                                status=507,
-                                            )
-                                    except OSError:
-                                        pass
-                        set_current_tenant_db(db_name)
-                    else:
-                        set_current_tenant_db("default")
-
-                    # Sempre setar loja_id para o LojaIsolationManager (funciona com default DB)
-                    set_current_loja_id(loja_id)
-                    logger.debug(f"✅ [TenantMiddleware] Contexto setado: loja_id={loja_id}, db={getattr(_thread_locals, 'current_tenant_db', 'default')}")
-
-                except Loja.DoesNotExist:
-                    # Não logar aviso se for requisição de API sem tenant (ex: /api/superadmin/)
-                    # Isso evita poluir logs com avisos desnecessários
-                    if not request.path.startswith("/api/superadmin/") and not request.path.startswith("/api/suporte/"):
-                        logger.warning(f"⚠️ [TenantMiddleware] Loja não encontrada: slug={tenant_slug}")
-                    set_current_tenant_db("default")
-                    set_current_loja_id(None)
-                except Exception as e:
-                    logger.exception("TenantMiddleware erro para slug=%s: %s", tenant_slug, e)
-                    set_current_tenant_db("default")
-                    set_current_loja_id(None)
+                self._apply_tenant_context(request, tenant_slug)
             else:
                 logger.debug("ℹ️ [TenantMiddleware] Nenhum slug detectado - usando default")
-                set_current_tenant_db("default")
-                set_current_loja_id(None)
 
-            response = self.get_response(request)
-
-            # 🛡️ SEGURANÇA: Limpar contexto SOMENTE após resposta ser completamente processada
-            # IMPORTANTE: Não limpar aqui pois a serialização pode acontecer depois
-            # O contexto será limpo automaticamente na próxima requisição
-            # Isso previne o problema intermitente de queryset vazio
-
-            # NOTA: Em produção com workers isolados, cada worker tem seu próprio thread-local
-            # então não há risco de vazamento entre requisições de usuários diferentes
-
-            return response
+            return self.get_response(request)
         except Exception as e:
-            # Em caso de erro, apenas logar e re-raise
-            # Não limpar contexto aqui para evitar problemas com serialização
             logger.error(f"❌ [TenantMiddleware] Erro: {e}")
             raise
         finally:
             # ⚠️ NÃO limpar thread-local aqui!
             # A serialização DRF acontece APÓS o middleware retornar a response.
-            # Se limpar aqui, o serializer perde o contexto e retorna dados vazios.
-            # A limpeza é feita no INÍCIO da próxima requisição (linha ~170: set_current_loja_id(None)).
             pass
 
-    def _get_tenant_slug(self, request):
-        """Extrai o slug do tenant da requisição
+    def _handle_early_returns(self, request):
+        """Trata health check e rotas de auth antes de resolver tenant. Retorna Response ou None."""
+        if request.path.rstrip("/") == "/api/superadmin/health":
+            set_current_tenant_db("default")
+            set_current_loja_id(None)
+            if request.method not in ("GET", "HEAD"):
+                return JsonResponse({"error": "Method Not Allowed"}, status=405)
+            from superadmin.views.sistema import health_check
+            return health_check(request)
 
-        SEGURANÇA: Valida que o usuário autenticado pertence à loja solicitada
-        """
-        # 1. X-Tenant-Slug primeiro (alinhado à URL /loja/[slug]/… no frontend).
-        # X-Loja-ID no sessionStorage pode ficar desatualizado ao trocar de loja → loja_id no
-        # thread-local errado → LojaIsolationManager filtra outro loja_id → listas vazias (~52 bytes).
-        tenant_slug = request.headers.get("X-Tenant-Slug")
-        if tenant_slug:
-            tenant_slug = tenant_slug.strip()
-            if hasattr(request, "user") and request.user.is_authenticated:
-                if self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                    return tenant_slug
-                # Slug rejeitado (ex.: CNPJ na URL enquanto Loja.slug no banco é outro; ou após
-                # logout/login com storage inconsistente). Não abortar: tentar X-Loja-ID abaixo.
-                logger.debug(
-                    "[_get_tenant_slug] X-Tenant-Slug=%s rejeitado para user=%s; tentando X-Loja-ID",
-                    tenant_slug,
-                    getattr(request.user, "id", None),
-                )
-            else:
-                return tenant_slug
+        path_norm = request.path.rstrip("/") or "/"
+        if path_norm.startswith("/api/auth"):
+            return self.get_response(request)
 
-        # 2. X-Loja-ID (ex.: páginas fora de /loja/… que só enviam ID)
-        loja_id = request.headers.get("X-Loja-ID")
-        if loja_id and hasattr(request, "user") and request.user.is_authenticated:
-            try:
-                from superadmin.models import Loja
-                loja = Loja.objects.get(id=int(loja_id))
-                if self._validate_user_owns_loja(request, loja):
-                    return loja.slug
-                logger.warning(
-                    f"⚠️ [_get_tenant_slug] X-Loja-ID={loja_id} rejeitado para user={request.user.id}",
-                )
-            except (Loja.DoesNotExist, ValueError):
-                logger.warning(
-                    f"⚠️ [_get_tenant_slug] Loja id={loja_id} inválida",
-                )
-        elif loja_id:
-            logger.debug(
-                "X-Loja-ID presente mas usuário ainda não autenticado na pilha Django (ex.: JWT)",
-            )
+        from core.tenant_access import check_cross_tenant_access
+        return check_cross_tenant_access(request)
 
-        # 3. Tentar pegar do parâmetro de query
-        tenant_slug = request.GET.get("tenant")
-        if tenant_slug:
-            if hasattr(request, "user") and request.user.is_authenticated and not self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                return None
-            return tenant_slug
+    def _resolve_loja_from_cache_or_db(self, tenant_slug):
+        """Retorna (loja_id, db_name) do cache em memória ou via DB. Lança Loja.DoesNotExist se não achar."""
+        from superadmin.models import Loja
 
-        # 4. Tentar pegar da URL (ex: /loja/linda/...)
-        path_parts = request.path.split("/")
-        if len(path_parts) >= 3 and path_parts[1] == "loja":
-            tenant_slug = path_parts[2]
-            if hasattr(request, "user") and request.user.is_authenticated and not self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                return None
-            return tenant_slug
+        cache_key = tenant_slug.lower()
+        if cache_key in self._loja_cache:
+            loja_data = self._loja_cache[cache_key]
+            loja_id = loja_data["id"]
+            db_name = loja_data["database_name"]
+            if not Loja.objects.filter(id=loja_id).exists():
+                logger.warning(f"⚠️ [TenantMiddleware] Loja {tenant_slug} (ID {loja_id}) foi excluída - removendo do cache")
+                del self._loja_cache[cache_key]
+                set_current_loja_id(None)
+                set_current_tenant_db("default")
+                raise Loja.DoesNotExist
+            logger.debug(f"✅ [TenantMiddleware] Loja {tenant_slug} encontrada no cache")
+            return loja_id, db_name
 
-        # 5. Tentar pegar do subdomain (hosts de API: configurar TENANT_IGNORE_* se o label não for slug de loja)
-        host = request.get_host().split(":")[0].lower()
-        # Host público do serviço na Railway (evita tratar o hostname do deploy como slug de loja)
-        _railway_pub = (os.environ.get("RAILWAY_PUBLIC_DOMAIN") or "").strip().lower().split(":")[0]
-        if _railway_pub and host == _railway_pub:
+        loja = resolve_loja_from_slug_or_cnpj(tenant_slug)
+        if not loja:
+            raise Loja.DoesNotExist
+
+        loja_id = loja.id
+        db_name = getattr(loja, "database_name", None) or f'loja_{getattr(loja, "slug", tenant_slug)}'
+        if len(self._loja_cache) >= self.LOJA_CACHE_MAX:
+            self._loja_cache.clear()
+        self._loja_cache[cache_key] = {"id": loja_id, "database_name": db_name, "slug": loja.slug}
+        logger.debug(f"✅ [TenantMiddleware] Loja {tenant_slug} adicionada ao cache")
+        return loja_id, db_name
+
+    def _check_storage_limit(self, request, db_name, tenant_slug):
+        """Bloqueia escritas se o arquivo SQLite da loja atingiu 512 MB. Retorna JsonResponse ou None."""
+        if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
             return None
-        # Hostnames de PaaS onde o 1.º label é o nome do serviço (não slug de loja)
+        db_path = getattr(settings, "BASE_DIR", None)
+        if db_path is None or "sqlite" not in str(settings.DATABASES.get(db_name, {}).get("ENGINE", "")):
+            return None
+        path = Path(db_path) / f"db_{db_name}.sqlite3"
+        if not path.exists():
+            return None
+        try:
+            size = path.stat().st_size
+        except OSError:
+            return None
+        if size < LIMITE_BANCO_LOJA_BYTES:
+            return None
+        logger.warning(
+            f"⚠️ [TenantMiddleware] Loja {tenant_slug} atingiu limite "
+            f"de banco ({size / (1024*1024):.1f} MB >= {LIMITE_BANCO_LOJA_MB} MB)",
+        )
+        return JsonResponse(
+            {
+                "error": f"Limite de armazenamento da loja atingido ({LIMITE_BANCO_LOJA_MB} MB). Entre em contato com o suporte para ampliar o plano.",
+                "code": "STORAGE_LIMIT_REACHED",
+                "limite_mb": LIMITE_BANCO_LOJA_MB,
+            },
+            status=507,
+        )
+
+    def _apply_tenant_context(self, request, tenant_slug):
+        """Resolve loja, configura banco e seta thread-locals. Retorna JsonResponse de erro ou None."""
+        from superadmin.models import Loja
+        try:
+            loja_id, db_name = self._resolve_loja_from_cache_or_db(tenant_slug)
+
+            try:
+                from core.db_config import ensure_loja_database_config
+                if ensure_loja_database_config(db_name, conn_max_age=0):
+                    logger.debug(f"✅ [TenantMiddleware] Banco '{db_name}' configurado")
+            except Exception as db_err:
+                logger.warning("TenantMiddleware: falha ao configurar banco %s, usando default: %s", db_name, db_err)
+                db_name = "default"
+
+            if db_name in settings.DATABASES:
+                storage_err = self._check_storage_limit(request, db_name, tenant_slug)
+                if storage_err:
+                    return storage_err
+                set_current_tenant_db(db_name)
+            else:
+                set_current_tenant_db("default")
+
+            set_current_loja_id(loja_id)
+            logger.debug(f"✅ [TenantMiddleware] Contexto setado: loja_id={loja_id}, db={getattr(_thread_locals, 'current_tenant_db', 'default')}")
+
+        except Loja.DoesNotExist:
+            if not request.path.startswith("/api/superadmin/") and not request.path.startswith("/api/suporte/"):
+                logger.warning(f"⚠️ [TenantMiddleware] Loja não encontrada: slug={tenant_slug}")
+            set_current_tenant_db("default")
+            set_current_loja_id(None)
+        except Exception as e:
+            logger.exception("TenantMiddleware erro para slug=%s: %s", tenant_slug, e)
+            set_current_tenant_db("default")
+            set_current_loja_id(None)
+
+    def _get_tenant_slug(self, request):
+        """Extrai o slug do tenant da requisição (tenta header, ID, query, URL e subdomain).
+
+        SEGURANÇA: Valida que o usuário autenticado pertence à loja solicitada.
+        """
+        return (
+            self._slug_from_header(request)
+            or self._slug_from_loja_id_header(request)
+            or self._slug_from_query(request)
+            or self._slug_from_url_path(request)
+            or self._slug_from_subdomain(request)
+        )
+
+    def _slug_from_header(self, request):
+        """Tenta resolver o tenant pelo header X-Tenant-Slug."""
+        tenant_slug = (request.headers.get("X-Tenant-Slug") or "").strip()
+        if not tenant_slug:
+            return None
+        if not (hasattr(request, "user") and request.user.is_authenticated):
+            return tenant_slug
+        if self._validate_user_owns_loja_by_slug(request, tenant_slug):
+            return tenant_slug
+        logger.debug(
+            "[_get_tenant_slug] X-Tenant-Slug=%s rejeitado para user=%s; tentando X-Loja-ID",
+            tenant_slug, getattr(request.user, "id", None),
+        )
+        return None
+
+    def _slug_from_loja_id_header(self, request):
+        """Tenta resolver o tenant pelo header X-Loja-ID."""
+        loja_id = request.headers.get("X-Loja-ID")
+        if not loja_id:
+            return None
+        if not (hasattr(request, "user") and request.user.is_authenticated):
+            logger.debug("X-Loja-ID presente mas usuário ainda não autenticado na pilha Django (ex.: JWT)")
+            return None
+        try:
+            from superadmin.models import Loja
+            loja = Loja.objects.get(id=int(loja_id))
+            if self._validate_user_owns_loja(request, loja):
+                return loja.slug
+            logger.warning(f"⚠️ [_get_tenant_slug] X-Loja-ID={loja_id} rejeitado para user={request.user.id}")
+        except (Loja.DoesNotExist, ValueError):
+            logger.warning(f"⚠️ [_get_tenant_slug] Loja id={loja_id} inválida")
+        return None
+
+    def _slug_from_query(self, request):
+        """Tenta resolver o tenant pelo parâmetro de query ?tenant=."""
+        tenant_slug = request.GET.get("tenant")
+        if not tenant_slug:
+            return None
+        if hasattr(request, "user") and request.user.is_authenticated and not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+            return None
+        return tenant_slug
+
+    def _slug_from_url_path(self, request):
+        """Tenta resolver o tenant pela URL /loja/<slug>/."""
+        path_parts = request.path.split("/")
+        if len(path_parts) < 3 or path_parts[1] != "loja":
+            return None
+        tenant_slug = path_parts[2]
+        if hasattr(request, "user") and request.user.is_authenticated and not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+            return None
+        return tenant_slug
+
+    def _slug_from_subdomain(self, request):
+        """Tenta resolver o tenant pelo subdomínio (ex: loja1.exemplo.com)."""
+        host = request.get_host().split(":")[0].lower()
+        railway_pub = (os.environ.get("RAILWAY_PUBLIC_DOMAIN") or "").strip().lower().split(":")[0]
+        if railway_pub and host == railway_pub:
+            return None
         for suf in (".up.railway.app", ".railway.app"):
             if host.endswith(suf):
                 return None
-        for suf in (
+        ignore_suffixes = {
             s.strip().lower()
             for s in os.environ.get("TENANT_IGNORE_SUBDOMAIN_SUFFIXES", "").split(",")
             if s.strip()
-        ):
-            if host.endswith(suf):
-                return None
+        }
+        if any(host.endswith(suf) for suf in ignore_suffixes):
+            return None
         parts = host.split(".")
-        if len(parts) > 2:  # ex: loja1.localhost
-            tenant_slug = parts[0]
-            ignore_prefixes = {
-                p.strip().lower()
-                for p in os.environ.get("TENANT_IGNORE_SUBDOMAIN_PREFIXES", "").split(",")
-                if p.strip()
-            }
-            if tenant_slug in ignore_prefixes:
-                return None
-            if hasattr(request, "user") and request.user.is_authenticated and not self._validate_user_owns_loja_by_slug(request, tenant_slug):
-                return None
-            return tenant_slug
-
-        return None
+        if len(parts) <= 2:
+            return None
+        tenant_slug = parts[0]
+        ignore_prefixes = {
+            p.strip().lower()
+            for p in os.environ.get("TENANT_IGNORE_SUBDOMAIN_PREFIXES", "").split(",")
+            if p.strip()
+        }
+        if tenant_slug in ignore_prefixes:
+            return None
+        if hasattr(request, "user") and request.user.is_authenticated and not self._validate_user_owns_loja_by_slug(request, tenant_slug):
+            return None
+        return tenant_slug
 
     def _validate_user_owns_loja(self, request, loja):
         """Valida que usuário autenticado pode acessar a loja."""

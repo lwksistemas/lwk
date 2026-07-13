@@ -148,9 +148,9 @@ export default function NFSeConfigPage() {
 
   const refreshConfigSilent = async (): Promise<NFSeConfig | null> => {
     try {
-      const { data } = await apiClient.get('/asaas/nfse-config/', { timeout: 20000 })
+      const { data } = await apiClient.get<Record<string, unknown>>('/asaas/nfse-config/', { timeout: 20000 })
       if (data && typeof data === 'object') {
-        const normalized = normalizeConfigResponse(data as Record<string, unknown>)
+        const normalized = normalizeConfigResponse(data)
         setConfig(normalized)
         return normalized
       }
@@ -242,9 +242,9 @@ export default function NFSeConfigPage() {
   const loadConfig = async () => {
     setLoading(true)
     try {
-      const { data } = await apiClient.get('/asaas/nfse-config/', { timeout: 20000 })
+      const { data } = await apiClient.get<Record<string, unknown>>('/asaas/nfse-config/', { timeout: 20000 })
       if (data && typeof data === 'object') {
-        setConfig(normalizeConfigResponse(data as Record<string, unknown>))
+        setConfig(normalizeConfigResponse(data))
       }
     } catch (error) {
       logger.warn('Erro ao carregar configuração NFS-e:', error)

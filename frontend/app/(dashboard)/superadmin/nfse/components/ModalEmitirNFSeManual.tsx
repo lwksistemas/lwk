@@ -19,8 +19,27 @@ interface LojaOption {
   razao_social: string
 }
 
-const INITIAL_FORM = {
-  loja_id: null as number | null,
+interface NFSeManualForm {
+  loja_id: number | null;
+  tomador_cpf_cnpj: string;
+  tomador_nome: string;
+  tomador_email: string;
+  tomador_logradouro: string;
+  tomador_numero: string;
+  tomador_complemento: string;
+  tomador_bairro: string;
+  tomador_cidade: string;
+  tomador_uf: string;
+  tomador_cep: string;
+  servico_descricao: string;
+  valor_servicos: string;
+  enviar_email: boolean;
+  codigo_cnae: string;
+  codigo_servico: string;
+}
+
+const INITIAL_FORM: NFSeManualForm = {
+  loja_id: null,
   tomador_cpf_cnpj: '',
   tomador_nome: '',
   tomador_email: '',
@@ -46,7 +65,7 @@ export function ModalEmitirNFSeManual({ onClose, onSuccess }: ModalEmitirNFSeMan
   const [error, setError] = useState('')
   const [lojas, setLojas] = useState<LojaOption[]>([])
   const [loadingLojas, setLoadingLojas] = useState(false)
-  const [formData, setFormData] = useState(INITIAL_FORM)
+  const [formData, setFormData] = useState<NFSeManualForm>(INITIAL_FORM)
   const [selectedLojaId, setSelectedLojaId] = useState('')
 
   useEffect(() => {
@@ -123,10 +142,18 @@ export function ModalEmitirNFSeManual({ onClose, onSuccess }: ModalEmitirNFSeMan
       } else {
         setError(data.error || 'Erro ao emitir NFS-e')
       }
-    } catch (err: any) {
+    } catch (err) {
       logger.warn('Erro ao emitir NFS-e:', err)
-      const errData = err.response?.data
-      const errMsg = errData?.error || errData?.detail || (typeof errData === 'string' ? errData : JSON.stringify(errData)) || 'Erro ao emitir NFS-e'
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null
+      const response = errorObj?.response as Record<string, unknown> | undefined
+      const errData = response?.data
+      const errMsg =
+        (typeof errData === 'object' && errData !== null
+          ? (errData as { error?: string; detail?: string }).error || (errData as { detail?: string }).detail
+          : null) ||
+        (typeof errData === 'string' ? errData : null) ||
+        (err instanceof Error ? err.message : null) ||
+        'Erro ao emitir NFS-e'
       setError(errMsg)
     } finally {
       setLoading(false)
@@ -390,7 +417,7 @@ function ServicoFields({ formData, onChange }: { formData: typeof INITIAL_FORM; 
   };
 
   const selectedIdx = ATIVIDADES_COMUNS.findIndex(
-    (a) => a.cnae === ((formData as any).codigo_cnae || '') && a.servico === ((formData as any).codigo_servico || '')
+    (a) => a.cnae === (formData.codigo_cnae || '') && a.servico === (formData.codigo_servico || '')
   );
 
   return (

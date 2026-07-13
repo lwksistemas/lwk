@@ -63,7 +63,7 @@ export default function NFSeEmitidasPage() {
   const handleBaixarPdf = async (nf: NFSeEmitida) => {
     try {
       const res = await apiClient.get(`/superadmin/nfse-emitidas/${nf.id}/pdf/`, { responseType: 'blob' });
-      await openPdfFromApiBlobResponse(res as unknown as { data: unknown; headers?: Record<string, string | undefined> });
+      await openPdfFromApiBlobResponse(res);
     } catch {
       setMessage({ type: 'error', text: 'PDF não disponível.' });
     }

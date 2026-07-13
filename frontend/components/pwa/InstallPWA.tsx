@@ -33,11 +33,21 @@ export function isInstallPWALojaPath(pathname: string | null): boolean {
   return getPWAContext(pathname).allow;
 }
 
+declare global {
+  interface Navigator {
+    standalone?: boolean;
+  }
+  interface BeforeInstallPromptEvent extends Event {
+    prompt: () => Promise<void>;
+    userChoice?: Promise<{ outcome: "accepted" | "dismissed" }>;
+  }
+}
+
 function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
-    (window.navigator as { standalone?: boolean }).standalone === true
+    window.navigator.standalone === true
   );
 }
 
@@ -50,7 +60,7 @@ export function InstallPWA() {
   const pathname = usePathname();
   const { allow, type } = getPWAContext(pathname);
 
-  const [prompt, setPrompt] = useState<{ prompt: () => Promise<void> } | null>(null);
+  const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
   const [showIOSHint, setShowIOSHint] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -100,13 +110,12 @@ export function InstallPWA() {
   useEffect(() => {
     if (isStandalone() || dismissed || !allow) return;
 
-    const handler = (e: Event) => {
+    const handler = (e: BeforeInstallPromptEvent) => {
       e.preventDefault();
-      const ev = e as unknown as { prompt: () => Promise<void> };
-      setPrompt(ev);
+      setPrompt(e);
       setVisible(true);
     };
-    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("beforeinstallprompt", handler as EventListener);
 
     const ios = isIOS();
     if (ios) {
@@ -123,16 +132,16 @@ export function InstallPWA() {
       }, 1200);
       return () => {
         clearTimeout(t);
-        window.removeEventListener("beforeinstallprompt", handler);
+        window.removeEventListener("beforeinstallprompt", handler as EventListener);
       };
     }
 
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler as EventListener);
   }, [dismissed, allow, type]);
 
   const handleInstall = () => {
-    if (prompt && "prompt" in prompt) {
-      (prompt as { prompt: () => Promise<void> }).prompt();
+    if (prompt) {
+      void prompt.prompt();
       setVisible(false);
     }
   };

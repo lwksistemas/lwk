@@ -697,6 +697,118 @@ def _persistir_nfse_recuperada(
     return salvar_nfse_emitida(loja_id, resultado, "", provedor="issnet")
 
 
+def _issnet_resposta_portal(loja_id, loja, cfg, url_portal, numero_nf_busca, rps, existente_nf, cnpj_prestador, NFSeSerializer, http_status):
+    """Tenta persistir NFS-e a partir da URL do portal ISSNet. Retorna (response_tuple | None)."""
+    from decimal import Decimal
+
+    from nfse_integration.persistencia_nfse_loja import nfse_importacao_incompleta
+    if not url_portal:
+        return None
+    resultado_url = _sanitizar_resultado_recuperacao(
+        _enriquecer_resultado_portal_issnet(
+            url_portal,
+            {
+                "numero_nf": numero_nf_busca or str(rps),
+                "numero_rps": rps,
+                "pdf_url": url_portal,
+                "servico_descricao": "Recuperada do ISSNet (consulta por URL)",
+            },
+            prestador_cnpj=cnpj_prestador,
+            forcar=bool(existente_nf and nfse_importacao_incompleta(existente_nf, loja=loja)),
+        ),
+        cnpj_prestador,
+    )
+    nfse = _persistir_nfse_recuperada(loja_id, resultado_url, existente=existente_nf, loja=loja)
+    if not nfse:
+        return None
+    label = numero_nf_busca or str(rps)
+    incompleta = not (
+        (getattr(nfse, "tomador_nome", "") or "").strip()
+        and Decimal(str(getattr(nfse, "valor", 0) or 0)) > 0
+    )
+    msg = f"NFS-e {label} importada pelo portal ISSNet." + (
+        " Confira tomador e valor na prefeitura." if incompleta else " Dados do tomador e valor preenchidos."
+    )
+    return (
+        {"success": True, "message": msg, "nfse": NFSeSerializer(nfse).data},
+        http_status.HTTP_200_OK if existente_nf else http_status.HTTP_201_CREATED,
+    )
+
+
+def _issnet_buscar_por_numero_nf(cfg, loja, loja_id, numero_nf_busca, NFSe, NFSeSerializer, nfse_importacao_incompleta, http_status):
+    """Busca NFS-e por número, retorna (existente_nf, parsed, url_portal, early_return)."""
+    existente_nf = NFSe.objects.filter(loja_id=loja_id, numero_nf=numero_nf_busca).first()
+    if existente_nf and not nfse_importacao_incompleta(existente_nf, loja=loja):
+        from nfse_integration.xml_nfse_loja import nfse_precisa_buscar_xml, resolver_xml_nfse_loja
+        if nfse_precisa_buscar_xml(existente_nf):
+            resolver_xml_nfse_loja(existente_nf, loja, loja_id)
+            existente_nf.refresh_from_db()
+        early = (
+            {"success": True, "message": "NFS-e já consta no sistema.", "nfse": NFSeSerializer(existente_nf).data},
+            http_status.HTTP_200_OK,
+        )
+        return existente_nf, None, None, early
+    parsed_numero, _err = _consultar_nfse_issnet_por_numero(cfg, loja, numero_nf_busca)
+    parsed = parsed_numero if (parsed_numero and parsed_numero.get("numero_nf")) else None
+    url_portal = (getattr(existente_nf, "pdf_url", "") or "").strip() or None
+    if not url_portal or not parsed:
+        url_cand, parsed_url, _url_err = _consultar_url_nfse_issnet(cfg, loja, numero_nf_busca)
+        if url_cand:
+            url_portal = url_cand
+        if parsed_url and parsed_url.get("numero_nf") and not parsed:
+            parsed = parsed_url
+    return existente_nf, parsed, url_portal, None
+
+
+def _issnet_resolver_rps_por_numero_nf(cfg, loja, loja_id, numero_nf_busca):
+    """Busca o RPS correspondente a numero_nf_busca varrendo candidatos recentes. Retorna (parsed, rps)."""
+    from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps
+    proximo = gerar_proximo_numero_rps(loja_id, cfg)
+    for candidato in range(max(1, proximo - 8), proximo + 3):
+        candidato_parsed, _err = _consultar_nfse_issnet_por_rps(cfg, loja, candidato)
+        if candidato_parsed and str(candidato_parsed.get("numero_nf", "")).strip() == numero_nf_busca:
+            return candidato_parsed, candidato
+    return None, 0
+
+
+def _issnet_persistir_parsed(loja_id, loja, parsed, rps, url_portal, existente_nf, cnpj_prestador, NFSe, NFSeSerializer, nfse_importacao_incompleta, http_status):
+    """Valida parsed, verifica duplicata e persiste NFS-e. Retorna response tuple."""
+    numero_nf_final = str(parsed.get("numero_nf", "")).strip()
+    if not numero_nf_final:
+        return ({"success": False, "error": "ISSNet não retornou número da NFS-e."}, http_status.HTTP_400_BAD_REQUEST)
+    existente = existente_nf or NFSe.objects.filter(loja_id=loja_id, numero_nf=numero_nf_final).first()
+    if existente and not nfse_importacao_incompleta(existente, loja=loja):
+        from nfse_integration.xml_nfse_loja import nfse_precisa_buscar_xml, resolver_xml_nfse_loja
+        if nfse_precisa_buscar_xml(existente):
+            resolver_xml_nfse_loja(existente, loja, loja_id)
+            existente.refresh_from_db()
+        return ({"success": True, "message": f"NFS-e {numero_nf_final} já consta no sistema.", "nfse": NFSeSerializer(existente).data}, http_status.HTTP_200_OK)
+    resultado = _resultado_recuperacao_de_parsed(parsed, rps=rps, url_portal=url_portal)
+    if not resultado.get("pdf_url") and url_portal:
+        resultado["pdf_url"] = url_portal
+    resultado = _enriquecer_resultado_portal_issnet(
+        resultado.get("pdf_url") or url_portal, resultado,
+        prestador_cnpj=cnpj_prestador,
+        forcar=bool(existente_nf and nfse_importacao_incompleta(existente_nf, loja=loja)),
+    )
+    resultado = _sanitizar_resultado_recuperacao(resultado, cnpj_prestador)
+    nfse = _persistir_nfse_recuperada(loja_id, resultado, existente=existente, loja=loja)
+    if not nfse:
+        return ({"success": False, "error": "Falha ao gravar NFS-e recuperada no banco."}, http_status.HTTP_500_INTERNAL_SERVER_ERROR)
+    atualizada = bool(existente)
+    return (
+        {
+            "success": True,
+            "message": (
+                f"NFS-e {numero_nf_final} atualizada com dados do ISSNet (RPS {rps})."
+                if atualizada else f"NFS-e {numero_nf_final} recuperada do ISSNet (RPS {rps})."
+            ),
+            "nfse": NFSeSerializer(nfse).data,
+        },
+        http_status.HTTP_200_OK if atualizada else http_status.HTTP_201_CREATED,
+    )
+
+
 def recuperar_nfse_issnet_loja(
     loja: Any,
     loja_id: int,
@@ -707,8 +819,6 @@ def recuperar_nfse_issnet_loja(
     """Importa NFS-e já emitida no ISSNet que não consta no CRM (ex.: falha ao salvar no worker).
     Informe numero_rps (recomendado) ou numero_nf (busca em RPS recentes).
     """
-    from decimal import Decimal
-
     from rest_framework import status as http_status
 
     from nfse_integration.models import NFSe
@@ -717,213 +827,43 @@ def recuperar_nfse_issnet_loja(
 
     cfg = _resolver_config_nfse_loja(loja_id)
     if (getattr(cfg, "provedor_nf", "") or "").strip().lower() != "issnet":
-        return (
-            {"success": False, "error": "Recuperação disponível apenas para provedor ISSNet."},
-            http_status.HTTP_400_BAD_REQUEST,
-        )
+        return ({"success": False, "error": "Recuperação disponível apenas para provedor ISSNet."}, http_status.HTTP_400_BAD_REQUEST)
 
     numero_nf_busca = (numero_nf or "").strip()
     rps = int(numero_rps) if numero_rps else 0
     parsed: dict[str, Any] | None = None
     url_portal: str | None = None
     existente_nf: Any | None = None
-
     cnpj_prestador = getattr(loja, "cpf_cnpj", "") or ""
 
-    def _kwargs_portal() -> dict[str, Any]:
-        return {
-            "prestador_cnpj": cnpj_prestador,
-            "forcar": bool(existente_nf and nfse_importacao_incompleta(existente_nf, loja=loja)),
-        }
-
     if numero_nf_busca:
-        existente_nf = NFSe.objects.filter(loja_id=loja_id, numero_nf=numero_nf_busca).first()
-        if existente_nf and not nfse_importacao_incompleta(existente_nf, loja=loja):
-            from nfse_integration.xml_nfse_loja import nfse_precisa_buscar_xml, resolver_xml_nfse_loja
-
-            if nfse_precisa_buscar_xml(existente_nf):
-                resolver_xml_nfse_loja(existente_nf, loja, loja_id)
-                existente_nf.refresh_from_db()
-            return (
-                {
-                    "success": True,
-                    "message": "NFS-e já consta no sistema.",
-                    "nfse": NFSeSerializer(existente_nf).data,
-                },
-                http_status.HTTP_200_OK,
-            )
-        parsed_numero, _err_num = _consultar_nfse_issnet_por_numero(cfg, loja, numero_nf_busca)
-        if parsed_numero and parsed_numero.get("numero_nf"):
-            parsed = parsed_numero
-        url_portal = (getattr(existente_nf, "pdf_url", "") or "").strip() or None
-        if not url_portal or not parsed:
-            url_cand, parsed_url, _url_err = _consultar_url_nfse_issnet(cfg, loja, numero_nf_busca)
-            if url_cand:
-                url_portal = url_cand
-            if parsed_url and parsed_url.get("numero_nf") and not parsed:
-                parsed = parsed_url
+        existente_nf, parsed, url_portal, early = _issnet_buscar_por_numero_nf(
+            cfg, loja, loja_id, numero_nf_busca, NFSe, NFSeSerializer, nfse_importacao_incompleta, http_status,
+        )
+        if early:
+            return early
 
     if not rps and numero_nf_busca:
-        from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps
-
-        proximo = gerar_proximo_numero_rps(loja_id, cfg)
-        for candidato in range(max(1, proximo - 8), proximo + 3):
-            candidato_parsed, _err = _consultar_nfse_issnet_por_rps(cfg, loja, candidato)
-            if candidato_parsed and str(candidato_parsed.get("numero_nf", "")).strip() == numero_nf_busca:
-                parsed = candidato_parsed
-                rps = candidato
-                break
+        parsed, rps = _issnet_resolver_rps_por_numero_nf(cfg, loja, loja_id, numero_nf_busca)
 
     if rps and not parsed:
         parsed, erro = _consultar_nfse_issnet_por_rps(cfg, loja, rps)
         if not parsed:
-            if url_portal:
-                resultado_url = _sanitizar_resultado_recuperacao(
-                    _enriquecer_resultado_portal_issnet(
-                        url_portal,
-                        {
-                            "numero_nf": numero_nf_busca or str(rps),
-                            "numero_rps": rps,
-                            "pdf_url": url_portal,
-                            "servico_descricao": "Recuperada do ISSNet (consulta por URL)",
-                        },
-                        **_kwargs_portal(),
-                    ),
-                    cnpj_prestador,
-                )
-                nfse = _persistir_nfse_recuperada(
-                    loja_id, resultado_url, existente=existente_nf, loja=loja,
-                )
-                if nfse:
-                    incompleta = not (
-                        (getattr(nfse, "tomador_nome", "") or "").strip()
-                        and Decimal(str(getattr(nfse, "valor", 0) or 0)) > 0
-                    )
-                    msg = (
-                        f"NFS-e {numero_nf_busca or rps} importada pelo portal ISSNet."
-                        + (
-                            " Confira tomador e valor na prefeitura."
-                            if incompleta
-                            else " Dados do tomador e valor preenchidos."
-                        )
-                    )
-                    return (
-                        {
-                            "success": True,
-                            "message": msg,
-                            "nfse": NFSeSerializer(nfse).data,
-                        },
-                        http_status.HTTP_200_OK if existente_nf else http_status.HTTP_201_CREATED,
-                    )
-            return (
-                {"success": False, "error": erro or "NFS-e não encontrada no ISSNet."},
-                http_status.HTTP_404_NOT_FOUND,
-            )
+            resp = _issnet_resposta_portal(loja_id, loja, cfg, url_portal, numero_nf_busca, rps, existente_nf, cnpj_prestador, NFSeSerializer, http_status)
+            if resp:
+                return resp
+            return ({"success": False, "error": erro or "NFS-e não encontrada no ISSNet."}, http_status.HTTP_404_NOT_FOUND)
     elif not rps and numero_nf_busca and url_portal:
-        resultado_url = _sanitizar_resultado_recuperacao(
-            _enriquecer_resultado_portal_issnet(
-                url_portal,
-                {
-                    "numero_nf": numero_nf_busca,
-                    "numero_rps": 0,
-                    "pdf_url": url_portal,
-                    "servico_descricao": "Recuperada do ISSNet (consulta por URL)",
-                },
-                **_kwargs_portal(),
-            ),
-            cnpj_prestador,
-        )
-        nfse = _persistir_nfse_recuperada(
-            loja_id, resultado_url, existente=existente_nf, loja=loja,
-        )
-        if nfse:
-            incompleta = not (
-                (getattr(nfse, "tomador_nome", "") or "").strip()
-                and Decimal(str(getattr(nfse, "valor", 0) or 0)) > 0
-            )
-            msg = (
-                f"NFS-e {numero_nf_busca} importada pelo portal ISSNet."
-                + (
-                    " Confira tomador e valor na prefeitura."
-                    if incompleta
-                    else " Dados do tomador e valor preenchidos."
-                )
-            )
-            return (
-                {
-                    "success": True,
-                    "message": msg,
-                    "nfse": NFSeSerializer(nfse).data,
-                },
-                http_status.HTTP_200_OK if existente_nf else http_status.HTTP_201_CREATED,
-            )
+        resp = _issnet_resposta_portal(loja_id, loja, cfg, url_portal, numero_nf_busca, 0, existente_nf, cnpj_prestador, NFSeSerializer, http_status)
+        if resp:
+            return resp
 
     if not parsed:
         if not rps and not numero_nf_busca:
-            return (
-                {"success": False, "error": "Informe o número do RPS ou da NFS-e."},
-                http_status.HTTP_400_BAD_REQUEST,
-            )
+            return ({"success": False, "error": "Informe o número do RPS ou da NFS-e."}, http_status.HTTP_400_BAD_REQUEST)
         return (
-            {
-                "success": False,
-                "error": (
-                    f"NFS-e {numero_nf_busca or rps} não localizada no ISSNet. "
-                    "Verifique número/RPS e a série configurada em Nota fiscal."
-                ),
-            },
+            {"success": False, "error": f"NFS-e {numero_nf_busca or rps} não localizada no ISSNet. Verifique número/RPS e a série configurada em Nota fiscal."},
             http_status.HTTP_404_NOT_FOUND,
         )
 
-    numero_nf_final = str(parsed.get("numero_nf", "")).strip()
-    if not numero_nf_final:
-        return (
-            {"success": False, "error": "ISSNet não retornou número da NFS-e."},
-            http_status.HTTP_400_BAD_REQUEST,
-        )
-
-    existente = existente_nf or NFSe.objects.filter(loja_id=loja_id, numero_nf=numero_nf_final).first()
-    if existente and not nfse_importacao_incompleta(existente, loja=loja):
-        from nfse_integration.xml_nfse_loja import nfse_precisa_buscar_xml, resolver_xml_nfse_loja
-
-        if nfse_precisa_buscar_xml(existente):
-            resolver_xml_nfse_loja(existente, loja, loja_id)
-            existente.refresh_from_db()
-        return (
-            {
-                "success": True,
-                "message": f"NFS-e {numero_nf_final} já consta no sistema.",
-                "nfse": NFSeSerializer(existente).data,
-            },
-            http_status.HTTP_200_OK,
-        )
-
-    resultado = _resultado_recuperacao_de_parsed(parsed, rps=rps, url_portal=url_portal)
-    if not resultado.get("pdf_url") and url_portal:
-        resultado["pdf_url"] = url_portal
-    resultado = _enriquecer_resultado_portal_issnet(
-        resultado.get("pdf_url") or url_portal,
-        resultado,
-        **_kwargs_portal(),
-    )
-    resultado = _sanitizar_resultado_recuperacao(resultado, cnpj_prestador)
-    nfse = _persistir_nfse_recuperada(loja_id, resultado, existente=existente, loja=loja)
-    if not nfse:
-        return (
-            {"success": False, "error": "Falha ao gravar NFS-e recuperada no banco."},
-            http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-
-    atualizada = bool(existente)
-    return (
-        {
-            "success": True,
-            "message": (
-                f"NFS-e {numero_nf_final} atualizada com dados do ISSNet (RPS {rps})."
-                if atualizada
-                else f"NFS-e {numero_nf_final} recuperada do ISSNet (RPS {rps})."
-            ),
-            "nfse": NFSeSerializer(nfse).data,
-        },
-        http_status.HTTP_200_OK if atualizada else http_status.HTTP_201_CREATED,
-    )
+    return _issnet_persistir_parsed(loja_id, loja, parsed, rps, url_portal, existente_nf, cnpj_prestador, NFSe, NFSeSerializer, nfse_importacao_incompleta, http_status)

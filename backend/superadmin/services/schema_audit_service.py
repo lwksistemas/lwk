@@ -452,6 +452,92 @@ def corrigir_loja(loja) -> dict[str, Any]:
     return out
 
 
+def _processar_schema_especial(schema_esp: dict, aplicar_correcao: bool, resumo: dict) -> dict:
+    """Audita e opcionalmente corrige um schema especial (public/suporte)."""
+    audit: dict[str, Any] = {
+        "loja_id": None, "slug": schema_esp["slug"], "nome": schema_esp["nome"],
+        "database_name": schema_esp["schema_nome"], "database_created": True,
+        "tipo_slug": schema_esp["tipo_slug"], "tipo_nome": schema_esp["tipo_nome"],
+        "schema_nome": schema_esp["schema_nome"], "tipo_mapeado": True,
+        "apps_esperados": [], "schema_existe": None, "conexao_ok": False,
+        "tabelas_total": 0, "tabelas_negocio": 0, "apps_detalhe": [],
+        "ok": False, "erro": None, "especial": True,
+    }
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT 1 FROM information_schema.schemata WHERE schema_name = %s",
+                [schema_esp["schema_nome"]],
+            )
+            audit["schema_existe"] = cursor.fetchone() is not None
+        if audit["schema_existe"]:
+            audit["conexao_ok"] = True
+            with connection.cursor() as cur:
+                cur.execute(
+                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_type = 'BASE TABLE'",
+                    [schema_esp["schema_nome"]],
+                )
+                audit["tabelas_total"] = cur.fetchone()[0]
+                cur.execute(
+                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_type = 'BASE TABLE' AND table_name NOT LIKE 'django_%%'",
+                    [schema_esp["schema_nome"]],
+                )
+                audit["tabelas_negocio"] = cur.fetchone()[0]
+            audit["ok"] = audit["tabelas_total"] > 0
+        else:
+            audit["erro"] = f'Schema "{schema_esp["schema_nome"]}" não existe.'
+    except Exception as e:
+        audit["erro"] = f"Erro ao verificar schema: {e}"
+    correcao: dict[str, Any] | None = None
+    audit_pos: dict[str, Any] | None = None
+    ok_final = bool(audit.get("ok"))
+    if aplicar_correcao and not ok_final and not audit["schema_existe"]:
+        correcao = {"slug": schema_esp["slug"], "sucesso": False, "mensagem": ""}
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(f'CREATE SCHEMA IF NOT EXISTS {schema_esp["schema_nome"]}')
+                logger.info(f'Schema {schema_esp["schema_nome"]} criado com sucesso.')
+            correcao["sucesso"] = True
+            correcao["mensagem"] = f'Schema {schema_esp["schema_nome"]} criado.'
+            resumo["corrigidos"] += 1
+            audit_pos = audit.copy()
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT 1 FROM information_schema.schemata WHERE schema_name = %s",
+                    [schema_esp["schema_nome"]],
+                )
+                audit_pos["schema_existe"] = cursor.fetchone() is not None
+                audit_pos["ok"] = audit_pos["schema_existe"]
+                audit_pos["erro"] = None if audit_pos["schema_existe"] else audit_pos["erro"]
+            ok_final = bool(audit_pos.get("ok"))
+        except Exception as e:
+            logger.exception(f'Erro ao criar schema {schema_esp["schema_nome"]}')
+            correcao["mensagem"] = f"Erro ao criar schema: {e}"
+    return {"audit": audit, "correcao": correcao, "audit_pos": audit_pos, "ok_final": ok_final}
+
+
+def _processar_loja_auditoria(loja, aplicar_correcao: bool, resumo: dict) -> dict:
+    """Audita e opcionalmente corrige uma loja individual."""
+    audit = auditar_loja(loja)
+    correcao: dict[str, Any] | None = None
+    audit_pos: dict[str, Any] | None = None
+    ok_final = bool(audit.get("ok"))
+    if aplicar_correcao:
+        if not ok_final:
+            correcao = corrigir_loja(loja)
+            if correcao.get("sucesso"):
+                resumo["corrigidos"] += 1
+            audit_pos = auditar_loja(loja)
+            ok_final = bool(audit_pos.get("ok"))
+        elif audit.get("tabelas_extras_count", 0) > 0:
+            correcao = limpar_tabelas_extras_loja(loja)
+            if correcao.get("sucesso") and correcao.get("removidas"):
+                resumo["corrigidos"] += 1
+            audit_pos = auditar_loja(loja)
+            ok_final = bool(audit_pos.get("ok"))
+    return {"audit": audit, "correcao": correcao, "audit_pos": audit_pos, "ok_final": ok_final}
+
+
 def auditar_e_opcionalmente_corrigir(
     lojas,
     aplicar_correcao: bool,
@@ -469,163 +555,25 @@ def auditar_e_opcionalmente_corrigir(
     resultados: list[dict[str, Any]] = []
     resumo = {"total": 0, "ok": 0, "falhas": 0, "corrigidos": 0}
 
-    # Adicionar schemas especiais (public/default e suporte) no início
     schemas_especiais = [
-        {
-            "schema_nome": "public",
-            "slug": "default",
-            "nome": "Schema Público (Default)",
-            "tipo_nome": "Sistema",
-            "tipo_slug": "sistema",
-            "especial": True,
-        },
-        {
-            "schema_nome": "suporte",
-            "slug": "suporte",
-            "nome": "Schema de Suporte",
-            "tipo_nome": "Suporte",
-            "tipo_slug": "suporte",
-            "especial": True,
-        },
+        {"schema_nome": "public", "slug": "default", "nome": "Schema Público (Default)", "tipo_nome": "Sistema", "tipo_slug": "sistema", "especial": True},
+        {"schema_nome": "suporte", "slug": "suporte", "nome": "Schema de Suporte", "tipo_nome": "Suporte", "tipo_slug": "suporte", "especial": True},
     ]
 
     for schema_esp in schemas_especiais:
         resumo["total"] += 1
-        audit = {
-            "loja_id": None,
-            "slug": schema_esp["slug"],
-            "nome": schema_esp["nome"],
-            "database_name": schema_esp["schema_nome"],
-            "database_created": True,
-            "tipo_slug": schema_esp["tipo_slug"],
-            "tipo_nome": schema_esp["tipo_nome"],
-            "schema_nome": schema_esp["schema_nome"],
-            "tipo_mapeado": True,
-            "apps_esperados": [],
-            "schema_existe": None,
-            "conexao_ok": False,
-            "tabelas_total": 0,
-            "tabelas_negocio": 0,
-            "apps_detalhe": [],
-            "ok": False,
-            "erro": None,
-            "especial": True,
-        }
-
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT 1 FROM information_schema.schemata WHERE schema_name = %s",
-                    [schema_esp["schema_nome"]],
-                )
-                audit["schema_existe"] = cursor.fetchone() is not None
-
-            if audit["schema_existe"]:
-                audit["conexao_ok"] = True
-                with connection.cursor() as cur:
-                    cur.execute(
-                        """
-                        SELECT COUNT(*) FROM information_schema.tables
-                        WHERE table_schema = %s AND table_type = 'BASE TABLE'
-                        """,
-                        [schema_esp["schema_nome"]],
-                    )
-                    audit["tabelas_total"] = cur.fetchone()[0]
-                    cur.execute(
-                        """
-                        SELECT COUNT(*) FROM information_schema.tables
-                        WHERE table_schema = %s AND table_type = 'BASE TABLE'
-                          AND table_name NOT LIKE 'django_%%'
-                        """,
-                        [schema_esp["schema_nome"]],
-                    )
-                    audit["tabelas_negocio"] = cur.fetchone()[0]
-
-                audit["ok"] = audit["tabelas_total"] > 0
-            else:
-                audit["erro"] = f'Schema "{schema_esp["schema_nome"]}" não existe.'
-
-        except Exception as e:
-            audit["erro"] = f"Erro ao verificar schema: {e}"
-
-        # Aplicar correção se solicitado e schema não existe
-        correcao: dict[str, Any] | None = None
-        audit_pos: dict[str, Any] | None = None
-        ok_final = bool(audit.get("ok"))
-
-        if aplicar_correcao and not ok_final and not audit["schema_existe"]:
-            # Criar schema especial se não existir
-            correcao = {
-                "slug": schema_esp["slug"],
-                "sucesso": False,
-                "mensagem": "",
-            }
-            try:
-                with connection.cursor() as cursor:
-                    cursor.execute(f'CREATE SCHEMA IF NOT EXISTS {schema_esp["schema_nome"]}')
-                    logger.info(f'Schema {schema_esp["schema_nome"]} criado com sucesso.')
-                correcao["sucesso"] = True
-                correcao["mensagem"] = f'Schema {schema_esp["schema_nome"]} criado.'
-                resumo["corrigidos"] += 1
-
-                # Re-auditar após correção
-                audit_pos = audit.copy()
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        "SELECT 1 FROM information_schema.schemata WHERE schema_name = %s",
-                        [schema_esp["schema_nome"]],
-                    )
-                    audit_pos["schema_existe"] = cursor.fetchone() is not None
-                    audit_pos["ok"] = audit_pos["schema_existe"]
-                    audit_pos["erro"] = None if audit_pos["schema_existe"] else audit_pos["erro"]
-                ok_final = bool(audit_pos.get("ok"))
-            except Exception as e:
-                logger.exception(f'Erro ao criar schema {schema_esp["schema_nome"]}')
-                correcao["mensagem"] = f"Erro ao criar schema: {e}"
-
-        resultados.append({
-            "audit": audit,
-            "correcao": correcao,
-            "audit_pos": audit_pos,
-            "ok_final": ok_final,
-        })
-
-        if ok_final:
+        result = _processar_schema_especial(schema_esp, aplicar_correcao, resumo)
+        resultados.append(result)
+        if result["ok_final"]:
             resumo["ok"] += 1
         else:
             resumo["falhas"] += 1
 
-    # Processar lojas normais
     for loja in lojas:
         resumo["total"] += 1
-        audit = auditar_loja(loja)
-        correcao: dict[str, Any] | None = None
-        audit_pos: dict[str, Any] | None = None
-        ok_final = bool(audit.get("ok"))
-
-        if aplicar_correcao:
-            if not ok_final:
-                correcao = corrigir_loja(loja)
-                if correcao.get("sucesso"):
-                    resumo["corrigidos"] += 1
-                audit_pos = auditar_loja(loja)
-                ok_final = bool(audit_pos.get("ok"))
-            elif audit.get("tabelas_extras_count", 0) > 0:
-                correcao = limpar_tabelas_extras_loja(loja)
-                if correcao.get("sucesso") and correcao.get("removidas"):
-                    resumo["corrigidos"] += 1
-                audit_pos = auditar_loja(loja)
-                ok_final = bool(audit_pos.get("ok"))
-
-        resultados.append(
-            {
-                "audit": audit,
-                "correcao": correcao,
-                "audit_pos": audit_pos,
-                "ok_final": ok_final,
-            },
-        )
-        if ok_final:
+        result = _processar_loja_auditoria(loja, aplicar_correcao, resumo)
+        resultados.append(result)
+        if result["ok_final"]:
             resumo["ok"] += 1
         else:
             resumo["falhas"] += 1

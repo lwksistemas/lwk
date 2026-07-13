@@ -177,6 +177,29 @@ def _suprimir_pendentes_obsoletos_historico(historico):
     return result
 
 
+def _dedup_processar_item(item, seen_asaas: set, seen_open: set, kept_ids: set) -> bool:
+    """Retorna True se o item deve ser mantido (não é duplicata), atualizando os conjuntos."""
+    asaas_id = (item.get("asaas_id") or "").strip()
+    is_open = item.get("is_pending") or item.get("is_overdue")
+    open_key = None
+    if is_open:
+        open_key = (item.get("data_vencimento") or "", round(float(item.get("valor") or 0), 2))
+    if asaas_id:
+        if asaas_id in seen_asaas:
+            return False
+        seen_asaas.add(asaas_id)
+    elif open_key:
+        if open_key in seen_open:
+            return False
+        seen_open.add(open_key)
+    pid = item.get("pagamento_loja_id") or item.get("id")
+    if pid and pid in kept_ids:
+        return False
+    if pid:
+        kept_ids.add(pid)
+    return True
+
+
 def _deduplicar_historico_pagamentos(historico):
     """Remove cobranças duplicadas (mesmo asaas_id ou mesma fatura em aberto)."""
     if not historico:
@@ -199,28 +222,8 @@ def _deduplicar_historico_pagamentos(historico):
     result = []
 
     for item in ordered:
-        asaas_id = (item.get("asaas_id") or "").strip()
-        is_open = item.get("is_pending") or item.get("is_overdue")
-        open_key = None
-        if is_open:
-            open_key = (
-                item.get("data_vencimento") or "",
-                round(float(item.get("valor") or 0), 2),
-            )
-        if asaas_id:
-            if asaas_id in seen_asaas:
-                continue
-            seen_asaas.add(asaas_id)
-        elif open_key:
-            if open_key in seen_open:
-                continue
-            seen_open.add(open_key)
-        pid = item.get("pagamento_loja_id") or item.get("id")
-        if pid and pid in kept_ids:
-            continue
-        if pid:
-            kept_ids.add(pid)
-        result.append(item)
+        if _dedup_processar_item(item, seen_asaas, seen_open, kept_ids):
+            result.append(item)
 
     result.sort(key=lambda x: x.get("data_vencimento") or "", reverse=True)
     return result

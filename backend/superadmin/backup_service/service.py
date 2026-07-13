@@ -283,6 +283,25 @@ class BackupService:
         return result
 
     @staticmethod
+    def _resolver_cols_para_insert(table_name: str, db_columns: list, csv_header_set: set) -> list:
+        """Retorna lista de colunas válidas para INSERT, resolvendo extras do crm_vendas_config."""
+        cols = [
+            c for c in db_columns
+            if DatabaseHelper.is_safe_table_name(c) and (
+                c in csv_header_set or (table_name == "crm_vendas_config" and _is_crm_issnet_int_col(c))
+            )
+        ]
+        if table_name == "crm_vendas_config":
+            missing = [
+                next((d for d in db_columns if (d or "").strip().lower() == lg), None)
+                for lg in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS
+            ]
+            for actual in missing:
+                if actual and actual not in cols:
+                    cols = [c for c in db_columns if c in set(cols) | {actual} and DatabaseHelper.is_safe_table_name(c)]
+        return cols
+
+    @staticmethod
     def _normalizar_str_csv(val, col: str):
         """Converte string vazia/null/nan para None; retorna val inalterado caso contrário."""
         if isinstance(val, str):
@@ -331,18 +350,7 @@ class BackupService:
             _ensure_crm_vendas_config_pg_int_defaults(cursor, qual)
         cursor.execute(f"DELETE FROM {qual}")
         csv_header_set = set(rows[0].keys())
-        cols_for_insert = [
-            c for c in db_columns
-            if DatabaseHelper.is_safe_table_name(c) and (
-                c in csv_header_set or (table_name == "crm_vendas_config" and _is_crm_issnet_int_col(c))
-            )
-        ]
-        if table_name == "crm_vendas_config":
-            missing = [next((d for d in db_columns if (d or "").strip().lower() == lg), None)
-                       for lg in BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS]
-            for actual in missing:
-                if actual and actual not in cols_for_insert:
-                    cols_for_insert = [c for c in db_columns if c in set(cols_for_insert) | {actual} and DatabaseHelper.is_safe_table_name(c)]
+        cols_for_insert = BackupService._resolver_cols_para_insert(table_name, db_columns, csv_header_set)
         if not cols_for_insert:
             logger.warning(f"⚠️ Nenhuma coluna comum entre CSV e tabela {table_name}")
             return 0

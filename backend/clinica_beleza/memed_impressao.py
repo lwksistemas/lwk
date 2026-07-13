@@ -59,6 +59,82 @@ def _params_com_token(token: str) -> tuple[str, dict, dict] | None:
     return base, params, headers
 
 
+def _upload_template_memed(base: str, params: dict, headers: dict, filename: str, pdf_bytes: bytes, prof_id) -> tuple[dict | None, dict]:
+    """Faz upload do PDF timbrado. Retorna (upload_attrs, erro_dict) — erro_dict vazio se ok."""
+    try:
+        resp = requests.post(
+            f"{base}/opcoes-receituario/upload-template",
+            params={"token": params["token"]},
+            files={"template": (filename, pdf_bytes, "application/pdf")},
+            headers=headers,
+            timeout=90,
+        )
+    except requests.RequestException as e:
+        logger.warning("Memed timbrado upload prof %s: %s", prof_id, e)
+        return None, {"ok": False, "professional_id": prof_id, "error": "network"}
+    if not resp.ok:
+        detail = (resp.text or "")[:400]
+        logger.info("Memed timbrado upload prof %s -> HTTP %s: %s", prof_id, resp.status_code, detail)
+        return None, {"ok": False, "professional_id": prof_id, "error": "upload_falhou", "status": resp.status_code, "detail": detail}
+    upload_attrs = ((resp.json() or {}).get("data") or {}).get("attributes") or {}
+    return upload_attrs, {}
+
+
+def _buscar_tema_memed(base: str, params: dict, headers: dict, prof_id) -> tuple[dict | None, dict]:
+    """Busca o tema de impressão 1 do prescritor. Retorna (tema_attrs, erro_dict)."""
+    try:
+        resp = requests.get(f"{base}/opcoes-receituario", params=params, headers=headers, timeout=30)
+    except requests.RequestException as e:
+        logger.warning("Memed timbrado get config prof %s: %s", prof_id, e)
+        return None, {"ok": False, "professional_id": prof_id, "error": "network"}
+    if not resp.ok:
+        return None, {"ok": False, "professional_id": prof_id, "error": "config_nao_encontrada", "status": resp.status_code}
+    configs = (resp.json() or {}).get("data") or []
+    tema = next((c for c in configs if (c.get("attributes") or {}).get("indice") == 1), configs[0] if configs else None)
+    if not tema:
+        return None, {"ok": False, "professional_id": prof_id, "error": "sem_tema_impressao"}
+    attrs = tema.get("attributes") or {}
+    if not attrs.get("medicos_id"):
+        return None, {"ok": False, "professional_id": prof_id, "error": "sem_medicos_id"}
+    return attrs, {}
+
+
+def _montar_config_attrs_timbrado(attrs: dict, upload_attrs: dict) -> dict:
+    """Monta dict de atributos para configurar o tema de impressão Memed, removendo campos read-only."""
+    config_attrs = dict(attrs)
+    config_attrs.update({
+        "medicos_id": attrs.get("medicos_id"),
+        "indice": 1,
+        "mostrar_cabecalho_rodape_simples": 1,
+        "mostrar_cabecalho_rodape_especial": 1,
+        "tamanho_cabecalho": 3.5,
+        "tamanho_rodape": 2.5,
+    })
+    if upload_attrs.get("header_image"):
+        config_attrs["header_image"] = upload_attrs["header_image"]
+    if upload_attrs.get("footer_image"):
+        config_attrs["footer_image"] = upload_attrs["footer_image"]
+    for key in ("id", "created_at", "updated_at", "ativo"):
+        config_attrs.pop(key, None)
+    return config_attrs
+
+
+def _interpretar_resp_configure(resp_cfg, prof_id, prescritor_id, upload_attrs: dict) -> dict:
+    """Interpreta resposta do POST de configuração do timbrado Memed e retorna resultado."""
+    if resp_cfg.ok:
+        logger.info("Memed timbrado OK prof %s (prescritor=%s)", prof_id, prescritor_id)
+        return {"ok": True, "professional_id": prof_id, "prescritor_id": prescritor_id,
+                "header_image": upload_attrs.get("header_image"), "footer_image": upload_attrs.get("footer_image")}
+    if resp_cfg.status_code == 403:
+        logger.info("Memed timbrado prof %s: upload OK, configure 403 (permissão). Template aplicado via upload.", prof_id)
+        return {"ok": True, "professional_id": prof_id, "prescritor_id": prescritor_id,
+                "header_image": upload_attrs.get("header_image"), "footer_image": upload_attrs.get("footer_image"),
+                "warning": "Configuração de tamanhos não permitida (403). Template aplicado via upload."}
+    detail = (resp_cfg.text or "")[:400]
+    logger.info("Memed timbrado configure prof %s -> HTTP %s: %s", prof_id, resp_cfg.status_code, detail)
+    return {"ok": False, "professional_id": prof_id, "error": "configure_falhou", "status": resp_cfg.status_code, "detail": detail}
+
+
 def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = "timbrado.pdf") -> dict:
     """Envia o PDF timbrado à Memed e ativa cabeçalho/rodapé no tema 1 do prescritor.
     Best-effort: não lança exceção.
@@ -81,70 +157,17 @@ def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = 
         return {"ok": False, "professional_id": prof_id, "error": "sem_credenciais"}
     base, params, headers = ctx
 
-    try:
-        resp_up = requests.post(
-            f"{base}/opcoes-receituario/upload-template",
-            params={"token": params["token"]},
-            files={"template": (filename, pdf_bytes, "application/pdf")},
-            headers=headers,
-            timeout=90,
-        )
-    except requests.RequestException as e:
-        logger.warning("Memed timbrado upload prof %s: %s", prof_id, e)
-        return {"ok": False, "professional_id": prof_id, "error": "network"}
+    upload_attrs, err = _upload_template_memed(base, params, headers, filename, pdf_bytes, prof_id)
+    if err:
+        return err
 
-    if not resp_up.ok:
-        detail = (resp_up.text or "")[:400]
-        logger.info("Memed timbrado upload prof %s -> HTTP %s: %s", prof_id, resp_up.status_code, detail)
-        return {"ok": False, "professional_id": prof_id, "error": "upload_falhou", "status": resp_up.status_code, "detail": detail}
+    attrs, err = _buscar_tema_memed(base, params, headers, prof_id)
+    if err:
+        return err
 
-    upload_attrs = ((resp_up.json() or {}).get("data") or {}).get("attributes") or {}
-
-    try:
-        resp_get = requests.get(
-            f"{base}/opcoes-receituario",
-            params=params,
-            headers=headers,
-            timeout=30,
-        )
-    except requests.RequestException as e:
-        logger.warning("Memed timbrado get config prof %s: %s", prof_id, e)
-        return {"ok": False, "professional_id": prof_id, "error": "network"}
-
-    if not resp_get.ok:
-        return {"ok": False, "professional_id": prof_id, "error": "config_nao_encontrada", "status": resp_get.status_code}
-
-    configs = (resp_get.json() or {}).get("data") or []
-    tema = next(
-        (c for c in configs if (c.get("attributes") or {}).get("indice") == 1),
-        configs[0] if configs else None,
-    )
-    if not tema:
-        return {"ok": False, "professional_id": prof_id, "error": "sem_tema_impressao"}
-
-    attrs = tema.get("attributes") or {}
     medicos_id = attrs.get("medicos_id")
-    if not medicos_id:
-        return {"ok": False, "professional_id": prof_id, "error": "sem_medicos_id"}
 
-    # Manter todos os atributos existentes e apenas atualizar cabeçalho/rodapé
-    config_attrs = dict(attrs)
-    config_attrs.update({
-        "medicos_id": medicos_id,
-        "indice": 1,
-        "mostrar_cabecalho_rodape_simples": 1,
-        "mostrar_cabecalho_rodape_especial": 1,
-        "tamanho_cabecalho": 3.5,
-        "tamanho_rodape": 2.5,
-    })
-    if upload_attrs.get("header_image"):
-        config_attrs["header_image"] = upload_attrs["header_image"]
-    if upload_attrs.get("footer_image"):
-        config_attrs["footer_image"] = upload_attrs["footer_image"]
-    # Remover campos read-only que a API não aceita no POST
-    for key in ("id", "created_at", "updated_at", "ativo"):
-        config_attrs.pop(key, None)
-
+    config_attrs = _montar_config_attrs_timbrado(attrs, upload_attrs)
     body = {"data": {"type": "configuracoes-prescricao", "attributes": config_attrs}}
     logger.info("Memed timbrado configure prof %s: medicos_id=%s", prof_id, medicos_id)
     try:
@@ -157,40 +180,10 @@ def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = 
         )
     except requests.RequestException as e:
         logger.warning("Memed timbrado configure prof %s: %s", prof_id, e)
-        # Upload funcionou; configure falhou por rede. Considerar sucesso parcial.
-        return {
-            "ok": True, "professional_id": prof_id, "prescritor_id": prescritor_id,
-            "header_image": upload_attrs.get("header_image"),
-            "footer_image": upload_attrs.get("footer_image"),
-            "warning": "Upload OK, configure falhou (rede)",
-        }
-
-    if resp_cfg.ok:
-        logger.info("Memed timbrado OK prof %s (prescritor=%s)", prof_id, prescritor_id)
-        return {
-            "ok": True,
-            "professional_id": prof_id,
-            "prescritor_id": prescritor_id,
-            "header_image": upload_attrs.get("header_image"),
-            "footer_image": upload_attrs.get("footer_image"),
-        }
-
-    # Se configure retorna 403 mas upload funcionou, considerar sucesso
-    # (a Memed aplica o template automaticamente pelo upload)
-    if resp_cfg.status_code == 403:
-        logger.info("Memed timbrado prof %s: upload OK, configure 403 (permissão). Template aplicado via upload.", prof_id)
-        return {
-            "ok": True,
-            "professional_id": prof_id,
-            "prescritor_id": prescritor_id,
-            "header_image": upload_attrs.get("header_image"),
-            "footer_image": upload_attrs.get("footer_image"),
-            "warning": "Configuração de tamanhos não permitida (403). Template aplicado via upload.",
-        }
-
-    detail = (resp_cfg.text or "")[:400]
-    logger.info("Memed timbrado configure prof %s -> HTTP %s: %s", prof_id, resp_cfg.status_code, detail)
-    return {"ok": False, "professional_id": prof_id, "error": "configure_falhou", "status": resp_cfg.status_code, "detail": detail}
+        return {"ok": True, "professional_id": prof_id, "prescritor_id": prescritor_id,
+                "header_image": upload_attrs.get("header_image"), "footer_image": upload_attrs.get("footer_image"),
+                "warning": "Upload OK, configure falhou (rede)"}
+    return _interpretar_resp_configure(resp_cfg, prof_id, prescritor_id, upload_attrs)
 
 
 def aplicar_timbrado_loja_a_profissionais(pdf_bytes: bytes, filename: str, professionals) -> dict:

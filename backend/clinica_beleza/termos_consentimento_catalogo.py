@@ -129,46 +129,36 @@ Eu, {{paciente_nome}}, portador(a) do CPF {{paciente_cpf}}, declaro ter sido inf
 Fui esclarecido(a) sobre objetivos, benefícios, riscos, efeitos adversos, contraindicações, alternativas terapêuticas e cuidados necessários.{_DECLARACAO_FINAL}{_DECLARACAO_LGPD}"""
 
 
+_BAIXO_RISCO = ("design de sobrancelha",)
+
+_MAPA_TERMOS: list[tuple[tuple[str, ...], object]] = [
+    (("botox", "botul"), TERMO_BOTOX),
+    (("harmoniza",), TERMO_HARMONIZACAO),
+    (("preench", "skinbooster"), TERMO_PREENCHIMENTO),
+    (("peeling",), TERMO_PEELING),
+    (("microagulh",), TERMO_MICROAGULHAMENTO),
+    (("depilação a laser", "depilacao a laser"), TERMO_DEPILACAO_LASER),
+    (("laser",), TERMO_LASER),
+    (("criolip", "cryolip"), TERMO_CRIOLIPOLISE),
+    (("radiofrequ",), TERMO_RADIOFREQUENCIA),
+    (("carbox",), TERMO_CARBOXITERAPIA),
+    (("intradermo", "mesoterapia", "enzimas"), TERMO_INTRADERMOTERAPIA),
+    (("bioestimul",), TERMO_BIOESTIMULADOR),
+    (("soroterapia",), TERMO_SOROTERAPIA),
+    (("micropigment", "lash lifting"), TERMO_MICROPIGMENTACAO),
+    (("limpeza de pele",), TERMO_LIMPEZA_PELE),
+    (("drenagem", "massagem modeladora"), TERMO_DRENAGEM),
+]
+
+
 def resolver_termo_consentimento(nome: str) -> tuple[bool, str]:
     """Retorna (exigir_termo, texto) para o nome do procedimento do catálogo.
     Procedimentos de baixo risco podem retornar termo inativo.
     """
     n = (nome or "").lower()
-
-    if "design de sobrancelha" in n:
+    if any(p in n for p in _BAIXO_RISCO):
         return False, ""
-
-    if "botox" in n or "botul" in n:
-        return True, TERMO_BOTOX
-    if "harmoniza" in n:
-        return True, TERMO_HARMONIZACAO
-    if "preench" in n or "skinbooster" in n:
-        return True, TERMO_PREENCHIMENTO
-    if "peeling" in n:
-        return True, TERMO_PEELING
-    if "microagulh" in n:
-        return True, TERMO_MICROAGULHAMENTO
-    if "depilação a laser" in n or "depilacao a laser" in n:
-        return True, TERMO_DEPILACAO_LASER
-    if "laser" in n:
-        return True, TERMO_LASER
-    if "criolip" in n or "cryolip" in n:
-        return True, TERMO_CRIOLIPOLISE
-    if "radiofrequ" in n:
-        return True, TERMO_RADIOFREQUENCIA
-    if "carbox" in n:
-        return True, TERMO_CARBOXITERAPIA
-    if "intradermo" in n or "mesoterapia" in n or "enzimas" in n:
-        return True, TERMO_INTRADERMOTERAPIA
-    if "bioestimul" in n:
-        return True, TERMO_BIOESTIMULADOR
-    if "soroterapia" in n:
-        return True, TERMO_SOROTERAPIA
-    if "micropigment" in n or "lash lifting" in n:
-        return True, TERMO_MICROPIGMENTACAO
-    if "limpeza de pele" in n:
-        return True, TERMO_LIMPEZA_PELE
-    if "drenagem" in n or "massagem modeladora" in n:
-        return True, TERMO_DRENAGEM
-
+    for palavras, termo in _MAPA_TERMOS:
+        if any(p in n for p in palavras):
+            return True, termo
     return True, TERMO_GENERICO.replace("{procedimento}", nome.upper())

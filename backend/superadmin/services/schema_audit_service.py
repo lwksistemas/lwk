@@ -221,6 +221,84 @@ def _usando_postgresql() -> bool:
     return "postgresql" in eng
 
 
+def _verificar_pre_condicoes_schema(loja, schema_name: str, base: dict) -> str | None:
+    """Verifica pré-condições para auditoria: database_name, PostgreSQL, DATABASE_URL e existência do schema.
+    Retorna mensagem de erro ou None se tudo ok. Atualiza base in-place.
+    """
+    if not loja.database_name:
+        return "database_name vazio"
+    if not _usando_postgresql():
+        return "Ambiente não usa PostgreSQL no default; schema por loja não se aplica."
+    if not os.environ.get("DATABASE_URL"):
+        return "DATABASE_URL não configurada."
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1 FROM information_schema.schemata WHERE schema_name = %s", [schema_name])
+            base["schema_existe"] = cursor.fetchone() is not None
+    except Exception as e:
+        return f"Erro ao verificar schema: {e}"
+    if not base["schema_existe"]:
+        return f'Schema "{schema_name}" não existe.'
+    return None
+
+
+def _contar_tabelas_schema(conn, schema_name: str) -> tuple[int, int]:
+    """Retorna (total_tabelas, tabelas_negocio) para o schema."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_type = 'BASE TABLE'",
+            [schema_name],
+        )
+        total = cur.fetchone()[0]
+        cur.execute(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_type = 'BASE TABLE' AND table_name NOT LIKE 'django_%%'",
+            [schema_name],
+        )
+        negocio = cur.fetchone()[0]
+    return total, negocio
+
+
+def _auditar_app_infra(conn, schema_name: str, app: str) -> dict:
+    """Audita app de infraestrutura Django (sem tabelas de negócio próprias)."""
+    with conn.cursor() as cur:
+        cur.execute("SET search_path TO %s, public", [schema_name])
+        cur.execute("SELECT COUNT(*) FROM django_migrations WHERE app = %s", [app])
+        n_mig = cur.fetchone()[0]
+    return {"app": app, "prefixos_tabela": [], "tabelas_prefixo": 0,
+            "migrations_registradas": n_mig, "ok": n_mig > 0, "infra": True}
+
+
+def _auditar_app_negocio(conn, schema_name: str, app: str) -> dict:
+    """Audita app de negócio verificando tabelas e migrations no schema."""
+    pfx_list = prefixos_tabela_para_app(app)
+    n_tab = contar_tabelas_app_no_schema(conn, schema_name, app)
+    with conn.cursor() as cur:
+        cur.execute("SET search_path TO %s, public", [schema_name])
+        cur.execute("SELECT COUNT(*) FROM django_migrations WHERE app = %s", [app])
+        n_mig = cur.fetchone()[0]
+    return {"app": app, "prefixos_tabela": pfx_list, "tabelas_prefixo": n_tab,
+            "migrations_registradas": n_mig, "ok": n_tab > 0 and n_mig > 0}
+
+
+def _finalizar_auditoria_loja(base: dict, conn, schema_name: str, tipo_slug: str, apps_esperados: list) -> dict:
+    """Verifica tabelas obrigatórias faltando e tabelas extras; atualiza base in-place."""
+    tabelas_obrigatorias = TABELAS_OBRIGATORIAS_POR_TIPO.get(tipo_slug, [])
+    tabelas_faltando = [t for t in tabelas_obrigatorias if not tabela_existe_no_schema(conn, schema_name, t)]
+    base["tabelas_faltando"] = tabelas_faltando
+    if tabelas_faltando:
+        base["ok"] = False
+        faltando_txt = ", ".join(tabelas_faltando)
+        base["erro"] = base.get("erro") or f"Tabelas obrigatórias faltando: {faltando_txt}"
+    extras = listar_tabelas_extras_no_schema(conn, schema_name, apps_esperados, tipo_slug=tipo_slug)
+    base["tabelas_extras"] = extras
+    base["tabelas_extras_count"] = len(extras)
+    if extras:
+        amostra = ", ".join(extras[:5])
+        sufixo = f" (+{len(extras) - 5} mais)" if len(extras) > 5 else ""
+        base["aviso_tabelas_extras"] = f"{len(extras)} tabela(s) legado/não esperada(s) para {tipo_slug}: {amostra}{sufixo}"
+    return base
+
+
 def auditar_loja(loja) -> dict[str, Any]:
     """Retorna dict com status do schema e de cada app esperado para o tipo da loja.
     """
@@ -252,31 +330,9 @@ def auditar_loja(loja) -> dict[str, Any]:
         "erro": None,
     }
 
-    if not loja.database_name:
-        base["erro"] = "database_name vazio"
-        return base
-
-    if not _usando_postgresql():
-        base["erro"] = "Ambiente não usa PostgreSQL no default; schema por loja não se aplica."
-        return base
-
-    if not os.environ.get("DATABASE_URL"):
-        base["erro"] = "DATABASE_URL não configurada."
-        return base
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT 1 FROM information_schema.schemata WHERE schema_name = %s",
-                [schema_name],
-            )
-            base["schema_existe"] = cursor.fetchone() is not None
-    except Exception as e:
-        base["erro"] = f"Erro ao verificar schema: {e}"
-        return base
-
-    if not base["schema_existe"]:
-        base["erro"] = f'Schema "{schema_name}" não existe.'
+    erro = _verificar_pre_condicoes_schema(loja, schema_name, base)
+    if erro:
+        base["erro"] = erro
         return base
 
     if not ensure_loja_database_config(loja.database_name, conn_max_age=0):
@@ -291,105 +347,24 @@ def auditar_loja(loja) -> dict[str, Any]:
         base["erro"] = f"Erro ao conectar: {e}"
         return base
 
-    with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT COUNT(*) FROM information_schema.tables
-            WHERE table_schema = %s AND table_type = 'BASE TABLE'
-            """,
-            [schema_name],
-        )
-        base["tabelas_total"] = cur.fetchone()[0]
-        cur.execute(
-            """
-            SELECT COUNT(*) FROM information_schema.tables
-            WHERE table_schema = %s AND table_type = 'BASE TABLE'
-              AND table_name NOT LIKE 'django_%%'
-            """,
-            [schema_name],
-        )
-        base["tabelas_negocio"] = cur.fetchone()[0]
-
+    base["tabelas_total"], base["tabelas_negocio"] = _contar_tabelas_schema(conn, schema_name)
     if base["tabelas_negocio"] == 0:
         base["erro"] = "Nenhuma tabela de negócio no schema."
         return base
 
-    tudo_ok = True
-    # Apps de infraestrutura Django que não criam tabelas com prefixo próprio nos schemas tenant
     APPS_INFRA_SKIP_TABELA = {"contenttypes", "auth"}
-
+    tudo_ok = True
     for app in apps_esperados:
-        # Pular verificação de tabela para apps de infra (só verificar migration)
         if app in APPS_INFRA_SKIP_TABELA:
-            with conn.cursor() as cur:
-                cur.execute("SET search_path TO %s, public", [schema_name])
-                cur.execute(
-                    "SELECT COUNT(*) FROM django_migrations WHERE app = %s",
-                    [app],
-                )
-                n_mig = cur.fetchone()[0]
-            ok_app = n_mig > 0
-            if not ok_app:
-                tudo_ok = False
-            base["apps_detalhe"].append(
-                {
-                    "app": app,
-                    "prefixos_tabela": [],
-                    "tabelas_prefixo": 0,
-                    "migrations_registradas": n_mig,
-                    "ok": ok_app,
-                    "infra": True,
-                },
-            )
-            continue
-
-        pfx_list = prefixos_tabela_para_app(app)
-        n_tab = contar_tabelas_app_no_schema(conn, schema_name, app)
-        with conn.cursor() as cur:
-            cur.execute("SET search_path TO %s, public", [schema_name])
-            cur.execute(
-                "SELECT COUNT(*) FROM django_migrations WHERE app = %s",
-                [app],
-            )
-            n_mig = cur.fetchone()[0]
-
-        ok_app = n_tab > 0 and n_mig > 0
-        if not ok_app:
+            detalhe = _auditar_app_infra(conn, schema_name, app)
+        else:
+            detalhe = _auditar_app_negocio(conn, schema_name, app)
+        if not detalhe["ok"]:
             tudo_ok = False
-        base["apps_detalhe"].append(
-            {
-                "app": app,
-                "prefixos_tabela": pfx_list,
-                "tabelas_prefixo": n_tab,
-                "migrations_registradas": n_mig,
-                "ok": ok_app,
-            },
-        )
-
-    tabelas_obrigatorias = TABELAS_OBRIGATORIAS_POR_TIPO.get(tipo_slug, [])
-    tabelas_faltando = [
-        tbl
-        for tbl in tabelas_obrigatorias
-        if not tabela_existe_no_schema(conn, schema_name, tbl)
-    ]
-    base["tabelas_faltando"] = tabelas_faltando
-    if tabelas_faltando:
-        tudo_ok = False
-        faltando_txt = ", ".join(tabelas_faltando)
-        base["erro"] = base.get("erro") or f"Tabelas obrigatórias faltando: {faltando_txt}"
+        base["apps_detalhe"].append(detalhe)
 
     base["ok"] = tudo_ok
-
-    extras = listar_tabelas_extras_no_schema(conn, schema_name, apps_esperados, tipo_slug=tipo_slug)
-    base["tabelas_extras"] = extras
-    base["tabelas_extras_count"] = len(extras)
-    if extras:
-        amostra = ", ".join(extras[:5])
-        sufixo = f" (+{len(extras) - 5} mais)" if len(extras) > 5 else ""
-        base["aviso_tabelas_extras"] = (
-            f"{len(extras)} tabela(s) legado/não esperada(s) para {tipo_slug}: "
-            f"{amostra}{sufixo}"
-        )
+    _finalizar_auditoria_loja(base, conn, schema_name, tipo_slug, apps_esperados)
 
     if loja.database_name in connections:
         with contextlib.suppress(Exception):

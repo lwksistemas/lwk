@@ -19,6 +19,49 @@ def _data_emissao_resultado(resultado: dict) -> datetime:
     return dt or timezone.now()
 
 
+def _montar_tomador_loja(loja) -> dict | None:
+    """Monta dict de endereço do tomador e enriquece por CEP. Retorna None se CEP inválido."""
+    from core.cep_utils import normalizar_cep
+    from nfse_integration.nfse_geo import enriquecer_endereco_por_cep, normalizar_numero_complemento_endereco
+
+    numero_norm, compl_norm = normalizar_numero_complemento_endereco(
+        getattr(loja, "numero", "") or "",
+        getattr(loja, "complemento", "") or "",
+    )
+    tomador_email = (getattr(loja, "owner", None) and getattr(loja.owner, "email", "")) or ""
+    endereco = {
+        "logradouro": getattr(loja, "logradouro", "") or "",
+        "numero": numero_norm or "S/N",
+        "complemento": compl_norm,
+        "bairro": getattr(loja, "bairro", "") or "",
+        "cidade": getattr(loja, "cidade", "") or "",
+        "uf": getattr(loja, "uf", "") or "",
+        "cep": getattr(loja, "cep", "") or "",
+        "email": tomador_email,
+        "telefone": getattr(loja, "owner_telefone", "") or "",
+    }
+    cep_norm = normalizar_cep(endereco["cep"])
+    if cep_norm:
+        endereco["cep"] = cep_norm
+        if cep_norm != (getattr(loja, "cep", "") or ""):
+            loja.cep = cep_norm
+            loja.save(update_fields=["cep", "updated_at"])
+    if not enriquecer_endereco_por_cep(endereco):
+        return None
+    return endereco
+
+
+def _montar_descricao_nfse(config, pagamento, loja) -> str:
+    """Monta descrição do serviço para NFS-e de assinatura."""
+    referencia = pagamento.referencia_mes.strftime("%m/%Y") if pagamento.referencia_mes else ""
+    descricao = config.descricao_servico_padrao or "Licenciamento de uso de software SaaS"
+    if referencia:
+        descricao = f"{descricao} - Ref. {referencia}"
+    if loja.nome:
+        descricao = f"{descricao} - {loja.nome}"
+    return descricao
+
+
 def emitir_nfse_assinatura(pagamento) -> dict[str, Any]:
     """Emite NFS-e para um pagamento de assinatura confirmado.
 
@@ -52,52 +95,16 @@ def emitir_nfse_assinatura(pagamento) -> dict[str, Any]:
 
     loja = pagamento.loja
     valor = Decimal(str(pagamento.valor))
-
-    # Dados do tomador (a loja que pagou a assinatura)
     tomador_cpf_cnpj = getattr(loja, "cpf_cnpj", "") or ""
     tomador_nome = loja.nome or ""
     tomador_email = (getattr(loja, "owner", None) and getattr(loja.owner, "email", "")) or ""
-
-    # Endereço do tomador — cidade/UF/IBGE devem bater com o CEP (ISSNet E058/E061)
-    from nfse_integration.nfse_geo import enriquecer_endereco_por_cep, normalizar_numero_complemento_endereco
-
-    numero_norm, compl_norm = normalizar_numero_complemento_endereco(
-        getattr(loja, "numero", "") or "",
-        getattr(loja, "complemento", "") or "",
-    )
-    tomador_endereco = {
-        "logradouro": getattr(loja, "logradouro", "") or "",
-        "numero": numero_norm or "S/N",
-        "complemento": compl_norm,
-        "bairro": getattr(loja, "bairro", "") or "",
-        "cidade": getattr(loja, "cidade", "") or "",
-        "uf": getattr(loja, "uf", "") or "",
-        "cep": getattr(loja, "cep", "") or "",
-        "email": tomador_email,
-        "telefone": getattr(loja, "owner_telefone", "") or "",
-    }
-    from core.cep_utils import normalizar_cep
-    cep_norm = normalizar_cep(tomador_endereco["cep"])
-    if cep_norm:
-        tomador_endereco["cep"] = cep_norm
-        if cep_norm != (getattr(loja, "cep", "") or ""):
-            loja.cep = cep_norm
-            loja.save(update_fields=["cep", "updated_at"])
-    if not enriquecer_endereco_por_cep(tomador_endereco):
-        msg = (
-            f'CEP do tomador inválido ou não localizado ({tomador_endereco.get("cep") or "vazio"}). '
-            'Corrija o endereço da loja antes de emitir a NFS-e.'
-        )
+    tomador_endereco = _montar_tomador_loja(loja)
+    if tomador_endereco is None:
+        cep_val = getattr(loja, "cep", "") or "vazio"
+        msg = f'CEP do tomador inválido ou não localizado ({cep_val}). Corrija o endereço da loja antes de emitir a NFS-e.'
         logger.warning("NFS-e assinatura: %s (loja=%s)", msg, loja.slug)
         return {"success": False, "error": msg}
-
-    # Descrição do serviço
-    referencia = pagamento.referencia_mes.strftime("%m/%Y") if pagamento.referencia_mes else ""
-    descricao = config.descricao_servico_padrao or "Licenciamento de uso de software SaaS"
-    if referencia:
-        descricao = f"{descricao} - Ref. {referencia}"
-    if loja.nome:
-        descricao = f"{descricao} - {loja.nome}"
+    descricao = _montar_descricao_nfse(config, pagamento, loja)
 
     if config.provedor_nfse == "nacional":
         return _emitir_via_nacional(pagamento, config, tomador_cpf_cnpj, tomador_nome, tomador_email, tomador_endereco, descricao, valor)

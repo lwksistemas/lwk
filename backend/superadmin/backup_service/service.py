@@ -365,6 +365,37 @@ class BackupService:
             cursor.execute(insert_sql, values)
         return len(rows)
 
+    def _import_processar_uma_tabela(self, zip_file, table_name: str, csv_filename: str, loja, db_helper) -> int | None:
+        """Importa uma única tabela do zip. Retorna contagem de registros ou None para skip."""
+        table_name = _sanitize_pg_table_key(table_name)
+        if _zip_csv_basename_table_name(csv_filename).lower() == "crm_vendas_config":
+            table_name = "crm_vendas_config"
+        if not DatabaseHelper.is_safe_table_name(table_name) or not db_helper.table_exists(table_name):
+            if DatabaseHelper.is_safe_table_name(table_name):
+                logger.warning(f"⚠️ Tabela {table_name} não existe no banco da loja")
+            return None
+        rows = [_normalize_backup_csv_row_keys(r) for r in csv.DictReader(io.StringIO(zip_file.read(csv_filename).decode("utf-8")))]
+        if not rows:
+            return 0
+        if table_name == "crm_vendas_config":
+            qual = db_helper.qualified_table_name(table_name)
+            _import_crm_vendas_config_via_model(loja, rows, qual, loja.database_name, db_helper._pg_schema)
+            logger.info("✅ Tabela %s: %s registros importados (INSERT explícito CRMConfig)", table_name, len(rows))
+            return len(rows)
+        db_columns = [str(c).strip() for c in db_helper.get_table_columns(table_name) if c is not None and str(c).strip()]
+        col_info = db_helper.get_columns_nullable_and_type(table_name)
+        if not db_helper._is_sqlite():
+            pg_cols, pg_info = db_helper.get_pg_table_meta_for_backup(table_name)
+            if pg_cols:
+                db_columns = pg_cols
+            if pg_info:
+                col_info = pg_info
+        if not db_columns:
+            logger.warning(f"⚠️ Não foi possível obter colunas da tabela {table_name}")
+            return None
+        with db_helper.get_connection().cursor() as cursor:
+            return self._import_table_rows(cursor, loja, db_helper, table_name, rows, col_info, db_columns)
+
     def _import_processar_tables(self, zip_file, loja, db_helper, processar):
         """Importa todas as tabelas da lista processar dentro de uma transação atômica."""
         total_registros = 0
@@ -375,47 +406,14 @@ class BackupService:
                     sch = db_helper._pg_schema.replace('"', "")
                     _spc.execute(f'SET LOCAL search_path TO "{sch}", public')
             for table_name, csv_filename in processar:
-                table_name = _sanitize_pg_table_key(table_name)
-                if _zip_csv_basename_table_name(csv_filename).lower() == "crm_vendas_config":
-                    table_name = "crm_vendas_config"
-                if not DatabaseHelper.is_safe_table_name(table_name) or not db_helper.table_exists(table_name):
-                    if not DatabaseHelper.is_safe_table_name(table_name):
-                        pass
-                    else:
-                        logger.warning(f"⚠️ Tabela {table_name} não existe no banco da loja")
-                    continue
                 try:
-                    rows = [_normalize_backup_csv_row_keys(r) for r in csv.DictReader(io.StringIO(zip_file.read(csv_filename).decode("utf-8")))]
-                    if not rows:
-                        tabelas_stats[table_name] = 0
+                    count = self._import_processar_uma_tabela(zip_file, table_name, csv_filename, loja, db_helper)
+                    if count is None:
                         continue
-                    if table_name == "crm_vendas_config":
-                        qual = db_helper.qualified_table_name(table_name)
-                        _import_crm_vendas_config_via_model(loja, rows, qual, loja.database_name, db_helper._pg_schema)
-                        count = len(rows)
-                        total_registros += count
-                        tabelas_stats[table_name] = count
-                        logger.info("✅ Tabela %s: %s registros importados (INSERT explícito CRMConfig)", table_name, count)
-                        continue
-                    db_columns = [str(c).strip() for c in db_helper.get_table_columns(table_name) if c is not None and str(c).strip()]
-                    col_info = db_helper.get_columns_nullable_and_type(table_name)
-                    if not db_helper._is_sqlite():
-                        pg_cols, pg_info = db_helper.get_pg_table_meta_for_backup(table_name)
-                        if pg_cols:
-                            db_columns = pg_cols
-                        if pg_info:
-                            col_info = pg_info
-                    if not db_columns:
-                        logger.warning(f"⚠️ Não foi possível obter colunas da tabela {table_name}")
-                        continue
-                    with db_helper.get_connection().cursor() as cursor:
-                        count = self._import_table_rows(cursor, loja, db_helper, table_name, rows, col_info, db_columns)
+                    tabelas_stats[_sanitize_pg_table_key(table_name)] = count
                     if count:
                         total_registros += count
-                        tabelas_stats[table_name] = count
                         logger.info(f"✅ Tabela {table_name}: {count} registros importados")
-                    else:
-                        tabelas_stats[table_name] = 0
                 except Exception as e:
                     logger.error(f"❌ Erro ao importar tabela {table_name}: {e}")
                     raise BackupImportError(f"Erro ao importar {table_name}: {e!s}")

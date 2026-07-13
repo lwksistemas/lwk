@@ -59,6 +59,21 @@ def obter_url_visualizacao_nfse_loja(
     return ""
 
 
+def _resolver_cnpj_im_danfe(config, loja, nfse) -> tuple[str, str]:
+    """Resolve (cnpj_prestador, im_prestador) para busca de DANFE ISSNet."""
+    cnpj_prestador = getattr(config, "cnpj_prestador", "") or ""
+    if not cnpj_prestador and loja is not None:
+        cnpj_prestador = re.sub(r"\D", "", getattr(loja, "cpf_cnpj", "") or "")
+    im_prestador = (
+        getattr(config, "inscricao_municipal", "")
+        or getattr(loja, "inscricao_municipal", "")
+        or ""
+    )
+    xml_nfse = getattr(nfse, "xml_nfse", "") if nfse else ""
+    xml_cnpj, xml_im = _extrair_prestador_do_xml(xml_nfse)
+    return xml_cnpj or cnpj_prestador, xml_im or im_prestador
+
+
 def buscar_url_danfe_issnet(
     nfse: Any | None = None,
     *,
@@ -101,19 +116,7 @@ def buscar_url_danfe_issnet(
         if not certificado_configurado_loja(config):
             return ""
 
-        cnpj_prestador = getattr(config, "cnpj_prestador", "") or ""
-        if not cnpj_prestador and loja is not None:
-            cnpj_prestador = re.sub(r"\D", "", getattr(loja, "cpf_cnpj", "") or "")
-        im_prestador = (
-            getattr(config, "inscricao_municipal", "")
-            or getattr(loja, "inscricao_municipal", "")
-            or ""
-        )
-
-        xml_nfse = getattr(nfse, "xml_nfse", "") if nfse else ""
-        xml_cnpj, xml_im = _extrair_prestador_do_xml(xml_nfse)
-        cnpj_prestador = xml_cnpj or cnpj_prestador
-        im_prestador = xml_im or im_prestador
+        cnpj_prestador, im_prestador = _resolver_cnpj_im_danfe(config, loja, nfse)
 
         with issnet_client_loja(config, prefix="issnet_danfe_") as client:
             resultado = client.consultar_url_nfse(

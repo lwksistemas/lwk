@@ -814,6 +814,28 @@ def _issnet_persistir_parsed(loja_id, loja, parsed, rps, url_portal, existente_n
     )
 
 
+def _resolver_parsed_nfse_issnet(
+    cfg, loja, loja_id: int, numero_nf_busca: str, rps: int,
+    parsed, url_portal, existente_nf, cnpj_prestador,
+    NFSe, NFSeSerializer, nfse_importacao_incompleta, http_status,
+) -> tuple[dict, int] | None:
+    """Busca e resolve `parsed` para recuperar_nfse_issnet_loja.
+    Retorna (resposta, status_code) para retorno antecipado, ou None para continuar.
+    """
+    if rps and not parsed:
+        parsed, erro = _consultar_nfse_issnet_por_rps(cfg, loja, rps)
+        if not parsed:
+            resp = _issnet_resposta_portal(loja_id, loja, cfg, url_portal, numero_nf_busca, rps, existente_nf, cnpj_prestador, NFSeSerializer, http_status)
+            if resp:
+                return resp
+            return ({"success": False, "error": erro or "NFS-e não encontrada no ISSNet."}, http_status.HTTP_404_NOT_FOUND)
+    elif not rps and numero_nf_busca and url_portal:
+        resp = _issnet_resposta_portal(loja_id, loja, cfg, url_portal, numero_nf_busca, 0, existente_nf, cnpj_prestador, NFSeSerializer, http_status)
+        if resp:
+            return resp
+    return None
+
+
 def recuperar_nfse_issnet_loja(
     loja: Any,
     loja_id: int,
@@ -851,17 +873,9 @@ def recuperar_nfse_issnet_loja(
     if not rps and numero_nf_busca:
         parsed, rps = _issnet_resolver_rps_por_numero_nf(cfg, loja, loja_id, numero_nf_busca)
 
-    if rps and not parsed:
-        parsed, erro = _consultar_nfse_issnet_por_rps(cfg, loja, rps)
-        if not parsed:
-            resp = _issnet_resposta_portal(loja_id, loja, cfg, url_portal, numero_nf_busca, rps, existente_nf, cnpj_prestador, NFSeSerializer, http_status)
-            if resp:
-                return resp
-            return ({"success": False, "error": erro or "NFS-e não encontrada no ISSNet."}, http_status.HTTP_404_NOT_FOUND)
-    elif not rps and numero_nf_busca and url_portal:
-        resp = _issnet_resposta_portal(loja_id, loja, cfg, url_portal, numero_nf_busca, 0, existente_nf, cnpj_prestador, NFSeSerializer, http_status)
-        if resp:
-            return resp
+    early = _resolver_parsed_nfse_issnet(cfg, loja, loja_id, numero_nf_busca, rps, parsed, url_portal, existente_nf, cnpj_prestador, NFSe, NFSeSerializer, nfse_importacao_incompleta, http_status)
+    if early:
+        return early
 
     if not parsed:
         if not rps and not numero_nf_busca:

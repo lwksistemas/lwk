@@ -230,33 +230,50 @@ def nfse_config_view(request):
     return _apply_nfse_config_update(request, config)
 
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated, IsSuperAdmin])
-@parser_classes([JSONParser, MultiPartParser, FormParser])
+def _resolver_cert_senha_nfse(request, config) -> tuple[bytes | None, str]:
+    """Resolve (cert_data, senha_cert) para teste de NFS-e."""
+    from core.encryption import decrypt_value
+    cert_file = request.FILES.get("issnet_certificado") or request.FILES.get("nacional_certificado")
+    cert_data = cert_file.read() if cert_file else (config.issnet_certificado or config.nacional_certificado)
+    data = request.data
+    senha_cert_raw = str(_data_get(data, "issnet_senha_certificado", "")).strip()
+    if not senha_cert_raw:
+        senha_cert_raw = str(_data_get(data, "nacional_senha_certificado", "")).strip()
+    senha_cert = senha_cert_raw or decrypt_value(
+        config.issnet_senha_certificado or config.nacional_senha_certificado or "",
+    )
+    return cert_data, senha_cert
+
+
+def _testar_conexao_issnet_nfse(data, config, cert_data: bytes, senha_cert: str) -> dict:
+    """Executa teste de conexão com o provedor ISSNet usando certificado temporário."""
+    import tempfile
+
+    from core.encryption import decrypt_value
+    from nfse_integration.issnet_client import testar_conexao_issnet
+    usuario = str(_data_get(data, "issnet_usuario", "")).strip() or decrypt_value(config.issnet_usuario or "")
+    senha_ws = str(_data_get(data, "issnet_senha", "")).strip() or decrypt_value(config.issnet_senha or "")
+    ambiente = str(_data_get(data, "nacional_ambiente", "")).strip() or config.nacional_ambiente or "producao"
+    cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_test_")  # noqa: SIM115
+    cert_tmp.write(bytes(cert_data))
+    cert_tmp.close()
+    try:
+        return testar_conexao_issnet(
+            usuario=usuario, senha=senha_ws,
+            certificado_path=cert_tmp.name, senha_certificado=senha_cert, ambiente=ambiente,
+        )
+    finally:
+        if os.path.isfile(cert_tmp.name):
+            os.unlink(cert_tmp.name)
+
+
 def nfse_config_test_nacional(request):
     """Testa conexão com o provedor configurado (ISSNet ou ADN Nacional)."""
     from .models_nfse_config import SuperadminNFSeConfig
 
     config = SuperadminNFSeConfig.get_config()
     data = request.data
-
-    cert_file = request.FILES.get("issnet_certificado") or request.FILES.get("nacional_certificado")
-    if cert_file:
-        cert_data = cert_file.read()
-    else:
-        cert_data = config.issnet_certificado or config.nacional_certificado
-
-    from core.encryption import decrypt_value
-
-    senha_cert_raw = str(_data_get(data, "issnet_senha_certificado", "")).strip()
-    if not senha_cert_raw:
-        senha_cert_raw = str(_data_get(data, "nacional_senha_certificado", "")).strip()
-    if senha_cert_raw:
-        senha_cert = senha_cert_raw
-    else:
-        senha_cert = decrypt_value(
-            config.issnet_senha_certificado or config.nacional_senha_certificado or "",
-        )
+    cert_data, senha_cert = _resolver_cert_senha_nfse(request, config)
 
     if not cert_data:
         return Response({"success": False, "detail": "Certificado não configurado"}, status=400)
@@ -265,41 +282,11 @@ def nfse_config_test_nacional(request):
 
     try:
         if config.provedor_nfse == "issnet":
-            from nfse_integration.issnet_client import testar_conexao_issnet
-
-            usuario = str(_data_get(data, "issnet_usuario", "")).strip()
-            if not usuario:
-                usuario = decrypt_value(config.issnet_usuario or "")
-
-            senha_ws = str(_data_get(data, "issnet_senha", "")).strip()
-            if not senha_ws:
-                senha_ws = decrypt_value(config.issnet_senha or "")
-
-            ambiente = str(_data_get(data, "nacional_ambiente", "")).strip() or config.nacional_ambiente or "producao"
-
-            import os
-            import tempfile
-
-            cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_test_")  # noqa: SIM115
-            cert_tmp.write(bytes(cert_data))
-            cert_tmp.close()
-            try:
-                resultado = testar_conexao_issnet(
-                    usuario=usuario,
-                    senha=senha_ws,
-                    certificado_path=cert_tmp.name,
-                    senha_certificado=senha_cert,
-                    ambiente=ambiente,
-                )
-            finally:
-                if os.path.isfile(cert_tmp.name):
-                    os.unlink(cert_tmp.name)
+            resultado = _testar_conexao_issnet_nfse(data, config, cert_data, senha_cert)
         else:
             from nfse_integration.nacional import NacionalClient
-
             client = NacionalClient(
-                pfx_bytes=bytes(cert_data),
-                senha_pfx=senha_cert,
+                pfx_bytes=bytes(cert_data), senha_pfx=senha_cert,
                 ambiente=config.nacional_ambiente or "homologacao",
             )
             resultado = client.testar_conexao()

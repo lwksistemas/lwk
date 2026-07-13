@@ -33,6 +33,57 @@ def _el(parent, tag: str, text: str = None):
     return el
 
 
+def _construir_xml_prestador(inf_dps, cnpj_digits: str, prestador_inscricao_municipal: str, prestador_telefone: str, prestador_email: str, optante_simples_nacional: bool, regime_especial: int):
+    """Constrói o bloco <prest> no infDPS."""
+    prest = _el(inf_dps, "prest")
+    _el(prest, "CNPJ", cnpj_digits)
+    if prestador_inscricao_municipal:
+        _el(prest, "IM", _somente_digitos(prestador_inscricao_municipal))
+    if prestador_telefone:
+        _el(prest, "fone", _somente_digitos(prestador_telefone)[:11])
+    if prestador_email:
+        _el(prest, "email", prestador_email[:80])
+    reg_trib = _el(prest, "regTrib")
+    if optante_simples_nacional:
+        _el(reg_trib, "opSimpNac", "3")
+        _el(reg_trib, "regApTribSN", "1")
+    else:
+        _el(reg_trib, "opSimpNac", "1")
+    _el(reg_trib, "regEspTrib", str(regime_especial))
+
+
+def _construir_xml_tomador(inf_dps, tomador_doc: str, tomador_nome: str, tomador_endereco, tomador_telefone: str, tomador_email: str):
+    """Constrói o bloco <toma> no infDPS."""
+    toma = _el(inf_dps, "toma")
+    if len(tomador_doc) == 11:
+        _el(toma, "CPF", tomador_doc)
+    elif len(tomador_doc) == 14:
+        _el(toma, "CNPJ", tomador_doc)
+    if tomador_nome:
+        _el(toma, "xNome", tomador_nome[:150])
+    if tomador_endereco:
+        end_toma = _el(toma, "end")
+        end_nac = _el(end_toma, "endNac")
+        cep = _somente_digitos(tomador_endereco.get("cep", ""))[:8]
+        cod_mun = tomador_endereco.get("codigo_municipio", "")
+        if cod_mun:
+            _el(end_nac, "cMun", cod_mun[:7])
+        if cep:
+            _el(end_nac, "CEP", cep.zfill(8))
+        logradouro = (tomador_endereco.get("logradouro") or "").strip()
+        if logradouro:
+            _el(end_toma, "xLgr", logradouro[:60])
+        numero = (tomador_endereco.get("numero") or "S/N").strip()
+        _el(end_toma, "nro", numero[:10])
+        bairro = (tomador_endereco.get("bairro") or "").strip()
+        if bairro:
+            _el(end_toma, "xBairro", bairro[:60])
+    if tomador_telefone:
+        _el(toma, "fone", _somente_digitos(tomador_telefone)[:11])
+    if tomador_email:
+        _el(toma, "email", tomador_email[:80])
+
+
 def construir_xml_dps(
     # Identificação
     numero_dps: int,
@@ -113,53 +164,10 @@ def construir_xml_dps(
     _el(inf_dps, "cLocEmi", codigo_municipio_prestador)
 
     # === PRESTADOR (prest) - conforme XML real ===
-    prest = _el(inf_dps, "prest")
-    _el(prest, "CNPJ", cnpj_digits)
-    if prestador_inscricao_municipal:
-        _el(prest, "IM", _somente_digitos(prestador_inscricao_municipal))
-    if prestador_telefone:
-        _el(prest, "fone", _somente_digitos(prestador_telefone)[:11])
-    if prestador_email:
-        _el(prest, "email", prestador_email[:80])
-    # regTrib (regime tributário) - obrigatório conforme XML real
-    reg_trib = _el(prest, "regTrib")
-    if optante_simples_nacional:
-        _el(reg_trib, "opSimpNac", "3")  # 3=Optante ME/EPP
-        _el(reg_trib, "regApTribSN", "1")  # 1=Regime de apuração
-    else:
-        _el(reg_trib, "opSimpNac", "1")  # 1=Não optante
-    _el(reg_trib, "regEspTrib", str(regime_especial))
+    _construir_xml_prestador(inf_dps, cnpj_digits, prestador_inscricao_municipal, prestador_telefone, prestador_email, optante_simples_nacional, regime_especial)
 
     # === TOMADOR (toma) - conforme XML real ===
-    toma = _el(inf_dps, "toma")
-    if len(tomador_doc) == 11:
-        _el(toma, "CPF", tomador_doc)
-    elif len(tomador_doc) == 14:
-        _el(toma, "CNPJ", tomador_doc)
-    if tomador_nome:
-        _el(toma, "xNome", tomador_nome[:150])
-    # Endereço do tomador
-    if tomador_endereco:
-        end_toma = _el(toma, "end")
-        end_nac = _el(end_toma, "endNac")
-        cep = _somente_digitos(tomador_endereco.get("cep", ""))[:8]
-        cod_mun = tomador_endereco.get("codigo_municipio", "")
-        if cod_mun:
-            _el(end_nac, "cMun", cod_mun[:7])
-        if cep:
-            _el(end_nac, "CEP", cep.zfill(8))
-        logradouro = (tomador_endereco.get("logradouro") or "").strip()
-        if logradouro:
-            _el(end_toma, "xLgr", logradouro[:60])
-        numero = (tomador_endereco.get("numero") or "S/N").strip()
-        _el(end_toma, "nro", numero[:10])
-        bairro = (tomador_endereco.get("bairro") or "").strip()
-        if bairro:
-            _el(end_toma, "xBairro", bairro[:60])
-    if tomador_telefone:
-        _el(toma, "fone", _somente_digitos(tomador_telefone)[:11])
-    if tomador_email:
-        _el(toma, "email", tomador_email[:80])
+    _construir_xml_tomador(inf_dps, tomador_doc, tomador_nome, tomador_endereco, tomador_telefone, tomador_email)
 
     # === SERVIÇO (serv) ===
     serv = _el(inf_dps, "serv")

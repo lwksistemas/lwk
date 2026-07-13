@@ -366,8 +366,8 @@ def _crm_as_bytes(raw: Any) -> bytes | None:
         return None
 
 
-def _mapear_campo_crm(field, att: str, row: dict, dm, parse_datetime) -> tuple[bool, Any]:
-    """Retorna (aplica, valor) para um campo do CRMConfig. aplica=False indica 'skip'."""
+def _mapear_campo_auto_crm(field, att: str, row: dict, dm, parse_datetime) -> tuple[bool, Any] | None:
+    """Trata auto_now/auto_now_add e AutoField. Retorna None se não se aplica."""
     if getattr(field, "auto_now", False) or getattr(field, "auto_now_add", False):
         raw_dt = row.get(att)
         if raw_dt:
@@ -380,6 +380,37 @@ def _mapear_campo_crm(field, att: str, row: dict, dm, parse_datetime) -> tuple[b
         if raw_id is not None and str(raw_id).strip() != "":
             return True, _crm_as_int(raw_id, 0)
         return False, None
+    return None
+
+
+def _mapear_campo_bool_crm(field, raw, dm) -> tuple[bool, Any]:
+    """Retorna (aplica, valor) para campos booleanos do CRMConfig."""
+    d = field.get_default() if field.has_default() else False
+    return True, _crm_as_bool(raw, bool(d) if not isinstance(d, bool) else d)
+
+
+def _mapear_campo_decimal_crm(field, raw, dm) -> tuple[bool, Any]:
+    """Retorna (aplica, valor) para campos Decimal do CRMConfig."""
+    d0 = field.get_default() if field.has_default() else Decimal(0)
+    return True, _crm_as_dec(raw, Decimal(str(d0)) if not isinstance(d0, Decimal) else d0)
+
+
+def _mapear_campo_int_crm(field, raw, dm) -> tuple[bool, Any]:
+    """Retorna (aplica, valor) para campos inteiros do CRMConfig."""
+    d = 0
+    if field.has_default():
+        try:
+            d = int(field.get_default())
+        except (TypeError, ValueError):
+            d = 0
+    return True, _crm_as_int(raw, d)
+
+
+def _mapear_campo_crm(field, att: str, row: dict, dm, parse_datetime) -> tuple[bool, Any]:
+    """Retorna (aplica, valor) para um campo do CRMConfig. aplica=False indica 'skip'."""
+    auto_result = _mapear_campo_auto_crm(field, att, row, dm, parse_datetime)
+    if auto_result is not None:
+        return auto_result
     raw = row.get(att)
     if isinstance(field, dm.BinaryField):
         if raw is None or (isinstance(raw, str) and not str(raw).strip()):
@@ -388,24 +419,16 @@ def _mapear_campo_crm(field, att: str, row: dict, dm, parse_datetime) -> tuple[b
     if isinstance(field, dm.JSONField):
         return True, _crm_as_json(raw, field.get_default())
     if isinstance(field, dm.BooleanField):
-        d = field.get_default() if field.has_default() else False
-        return True, _crm_as_bool(raw, bool(d) if not isinstance(d, bool) else d)
+        return _mapear_campo_bool_crm(field, raw, dm)
     if isinstance(field, dm.DecimalField):
-        d0 = field.get_default() if field.has_default() else Decimal(0)
-        return True, _crm_as_dec(raw, Decimal(str(d0)) if not isinstance(d0, Decimal) else d0)
+        return _mapear_campo_decimal_crm(field, raw, dm)
     if isinstance(field, dm.DateTimeField):
         if raw is None or (isinstance(raw, str) and not str(raw).strip()):
-            return True, None if field.null else None
+            return True, None
         parsed = parse_datetime(str(raw))
         return True, parsed if parsed is not None else None
     if isinstance(field, (dm.IntegerField, dm.BigIntegerField, dm.SmallIntegerField)):
-        d = 0
-        if field.has_default():
-            try:
-                d = int(field.get_default())
-            except (TypeError, ValueError):
-                d = 0
-        return True, _crm_as_int(raw, d)
+        return _mapear_campo_int_crm(field, raw, dm)
     return True, str(raw) if raw is not None else (field.get_default() if field.has_default() else "")
 
 

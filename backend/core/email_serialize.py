@@ -64,39 +64,34 @@ def serialize_email_message(msg: EmailMessage) -> dict[str, Any]:
     }
 
 
+def _build_email_kwargs(data: dict[str, Any]) -> dict[str, Any]:
+    """Monta kwargs comuns para EmailMessage / EmailMultiAlternatives."""
+    return {
+        "subject": data.get("subject") or "",
+        "body": data.get("body") or "",
+        "from_email": data.get("from_email"),
+        "to": data.get("to") or [],
+        "cc": data.get("cc") or None,
+        "bcc": data.get("bcc") or None,
+        "reply_to": data.get("reply_to") or None,
+    }
+
+
 def deserialize_email_message(data: dict[str, Any]) -> EmailMessage:
+    kwargs = _build_email_kwargs(data)
     alternatives = data.get("alternatives") or []
     if alternatives:
-        msg: EmailMessage = EmailMultiAlternatives(
-            subject=data.get("subject") or "",
-            body=data.get("body") or "",
-            from_email=data.get("from_email"),
-            to=data.get("to") or [],
-            cc=data.get("cc") or None,
-            bcc=data.get("bcc") or None,
-            reply_to=data.get("reply_to") or None,
-        )
+        msg: EmailMessage = EmailMultiAlternatives(**kwargs)
         for alt in alternatives:
             msg.attach_alternative(alt["content"], alt["mimetype"])
     else:
-        msg = EmailMessage(
-            subject=data.get("subject") or "",
-            body=data.get("body") or "",
-            from_email=data.get("from_email"),
-            to=data.get("to") or [],
-            cc=data.get("cc") or None,
-            bcc=data.get("bcc") or None,
-            reply_to=data.get("reply_to") or None,
-        )
+        msg = EmailMessage(**kwargs)
         subtype = data.get("content_subtype") or "plain"
         if subtype != "plain":
             msg.content_subtype = subtype
 
     for att in data.get("attachments") or []:
-        if att.get("binary"):
-            content = base64.b64decode(att["content_b64"])
-        else:
-            content = att["content"]
+        content = base64.b64decode(att["content_b64"]) if att.get("binary") else att["content"]
         msg.attach(att["filename"], content, att.get("mimetype") or "application/octet-stream")
 
     return msg

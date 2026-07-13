@@ -8,11 +8,9 @@ from .models import (
     Consulta,
     ConsultaEvolucao,
     DocumentoClinico,
-    DocumentTemplate,
     PatientAnamnese,
     PrescricaoMemed,
 )
-
 
 # ---------------------------------------------------------------------------
 # Placeholders suportados nos templates de documentos clínicos

@@ -5,6 +5,8 @@ Uso:
     python manage.py ensure_local_nomeagenda_is_padrao
     python manage.py ensure_local_nomeagenda_is_padrao --slug beta
 """
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand
 from django.db import connection
 
@@ -82,16 +84,12 @@ class Command(BaseCommand):
                 ))
             except Exception as e:
                 skip += 1
-                try:
+                with suppress(Exception):
                     connection.rollback()
-                except Exception:
-                    pass
                 self.stdout.write(self.style.ERROR(f'  ERRO {loja.slug}: {e}'))
 
-        try:
+        with suppress(Exception):
             with connection.cursor() as cursor:
                 cursor.execute('SET search_path TO public')
-        except Exception:
-            pass
 
         self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s), {skip} ignorada(s)/erro.'))

@@ -13,8 +13,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from tenants.middleware import (
-    resolve_loja_from_slug_or_cnpj,
     _configure_tenant_db_for_loja,
+    resolve_loja_from_slug_or_cnpj,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,11 +50,12 @@ def clinica_beleza_asaas_webhook(request, loja_slug: str):
             'clinica_beleza_asaas_webhook: falha tenant loja_id=%s', loja.id
         )
 
-    from .models import ClinicaBelezaNFSeConfig
     from core.webhook_security import (
         verify_asaas_access_token,
         webhook_auth_failed_response,
     )
+
+    from .models import ClinicaBelezaNFSeConfig
 
     # Buscar token do webhook da config da clínica
     config = ClinicaBelezaNFSeConfig.objects.filter(loja_id=loja.id).first()

@@ -2,8 +2,9 @@
 from rest_framework import serializers
 
 from ..models import (
-    ConsultaEvolucao, DocumentoClinico, DocumentTemplate,
-    PatientAnamnese, PrescricaoMemed,
+    DocumentoClinico,
+    DocumentTemplate,
+    PrescricaoMemed,
 )
 
 
@@ -86,11 +87,10 @@ class DocumentoClinicoSerializer(serializers.ModelSerializer):
         if not value.is_active:
             raise serializers.ValidationError('O template selecionado está inativo.')
         request = self.context.get('request')
-        if request and hasattr(request, 'professional'):
-            if value.professional_id != request.professional.id:
-                raise serializers.ValidationError(
-                    'O template selecionado não pertence ao profissional atual.',
-                )
+        if request and hasattr(request, 'professional') and value.professional_id != request.professional.id:
+            raise serializers.ValidationError(
+                'O template selecionado não pertence ao profissional atual.',
+            )
         return value
 
 

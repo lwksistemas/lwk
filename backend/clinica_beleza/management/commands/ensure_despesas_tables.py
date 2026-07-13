@@ -5,6 +5,8 @@ Uso:
     python manage.py ensure_despesas_tables
     python manage.py ensure_despesas_tables --slug beleza
 """
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand
 from django.db import connections
 
@@ -94,9 +96,7 @@ class Command(BaseCommand):
                 skip += 1
                 self.stdout.write(self.style.ERROR(f'  ERRO {loja.slug}: {e}'))
             finally:
-                try:
+                with suppress(Exception):
                     connections[db_name].close()
-                except Exception:
-                    pass
 
         self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s), {skip} ignorada(s)/erro.'))

@@ -4,6 +4,7 @@ from decimal import Decimal
 def _consulta_defaults_from_appointment(appointment, **extra):
     """Campos comuns ao criar Consulta a partir de um Appointment."""
     from clinica_beleza import consulta_service
+
     from ..retorno_service import valor_consulta_com_retorno
 
     valor_base = consulta_service._valor_consulta(appointment)

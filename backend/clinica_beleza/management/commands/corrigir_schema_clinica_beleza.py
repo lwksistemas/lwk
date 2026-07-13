@@ -49,9 +49,10 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(self.style.WARNING(f'   ⚠️ {result.get("mensagem", "Falha")}'))
 
-            from core.db_config import ensure_loja_database_config
             from django.db import connection
+
             from clinica_beleza.schema_ensure import table_exists
+            from core.db_config import ensure_loja_database_config
 
             if ensure_loja_database_config(loja.database_name):
                 schema = loja.database_name.replace('-', '_')

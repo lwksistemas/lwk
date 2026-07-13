@@ -2,8 +2,6 @@
 
 import django.db.models.deletion
 from django.db import migrations, models
-from django.utils.text import slugify
-
 
 CATEGORIAS_PADRAO = [
     ('injetavel', 'Injetável', 1),

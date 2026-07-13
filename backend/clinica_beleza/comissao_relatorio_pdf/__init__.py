@@ -6,7 +6,7 @@ from .blocos import (
     _bloco_resumo_profissional,
     _bloco_totais_final,
 )
-from .constants import LABEL_CONSULTA, _CINZA, _COR_PRIMARIA, _LARGURA_UTIL
+from .constants import _CINZA, _COR_PRIMARIA, _LARGURA_UTIL, LABEL_CONSULTA
 from .formatting import (
     _codigo_pagamento_pdf,
     _fmt_brl,

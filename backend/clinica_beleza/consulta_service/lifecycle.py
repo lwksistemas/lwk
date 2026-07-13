@@ -33,6 +33,7 @@ def criar_consulta_avulsa(
     Retorna a Consulta criada.
     """
     from clinica_beleza import consulta_service
+
     from ..convenio_service import criar_appointment_procedures, resolver_convenio
     from ..models import LocalAtendimento, NomeAgenda, Procedure
 
@@ -164,6 +165,7 @@ def _publicar_ou_garantir_pagamento_ao_finalizar(
 ):
     """Publica DRAFT no Financeiro ou cria lançamento se ainda não houver PAID."""
     from clinica_beleza import consulta_service
+
     from ..models import Payment
 
     payment = Payment.objects.filter(appointment=appointment).first()

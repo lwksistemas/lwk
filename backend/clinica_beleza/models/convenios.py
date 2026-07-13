@@ -7,6 +7,7 @@ from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 from .procedures import Procedure
 
+
 class LocalAtendimento(LojaIsolationMixin, models.Model):
     """Local de atendimento com valor de consulta associado (ex: Consultório, Home Care, Telemedicina)."""
     nome = models.CharField(max_length=200, verbose_name="Nome do local")

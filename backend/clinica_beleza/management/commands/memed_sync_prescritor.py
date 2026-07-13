@@ -13,12 +13,11 @@ import re
 
 from django.core.management.base import BaseCommand, CommandError
 
+from clinica_beleza.memed_service import external_id_prescritor, sincronizar_prescritor
+from clinica_beleza.models import Professional
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 from tenants.middleware import set_current_loja_id, set_current_tenant_db
-
-from clinica_beleza.models import Professional
-from clinica_beleza.memed_service import sincronizar_prescritor, external_id_prescritor
 
 
 class Command(BaseCommand):

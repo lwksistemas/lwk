@@ -5,7 +5,6 @@ from django.db.models import Count, Q
 
 from .models.estoque import CATEGORIAS_ESTOQUE_PADRAO, CategoriaEstoque
 
-
 _ALIASES = {
     'cosmetico': 'cosmético',
     'Medicamentos': 'medicamentos',

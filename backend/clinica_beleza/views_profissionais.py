@@ -3,18 +3,21 @@ Views de Profissionais e Horários de Trabalho — Clínica da Beleza
 """
 import json
 import logging
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .permissions import CLINICA_ADMIN, CLINICA_AGENDA
-from rest_framework import status
 
-from .models import Professional, HorarioTrabalhoProfissional, Appointment, BloqueioHorario, ProfessionalCommission
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .models import Appointment, BloqueioHorario, HorarioTrabalhoProfissional, Professional, ProfessionalCommission
+from .pagination import paginate_queryset
+from .permissions import CLINICA_ADMIN, CLINICA_AGENDA
 from .serializers import (
-    ProfessionalSerializer, ProfessionalCreateWithUserSerializer,
-    HorarioTrabalhoProfissionalSerializer, ProfessionalCommissionSerializer,
+    HorarioTrabalhoProfissionalSerializer,
+    ProfessionalCommissionSerializer,
+    ProfessionalCreateWithUserSerializer,
+    ProfessionalSerializer,
 )
 from .utils import LojaContextHelper
-from .pagination import paginate_queryset
 from .views_base import GetObjectMixin, map_field_names
 
 logger = logging.getLogger(__name__)

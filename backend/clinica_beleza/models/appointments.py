@@ -5,11 +5,10 @@ from django.db import models
 
 from agenda_base.models import (
     BloqueioAgendaBase,
-    ClienteBase,
 )
 from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
-from .convenios import Convenio, LocalAtendimento, NomeAgenda
+from .convenios import LocalAtendimento, NomeAgenda
 from .patients import Patient
 from .procedures import Procedure
 from .professionals import Professional

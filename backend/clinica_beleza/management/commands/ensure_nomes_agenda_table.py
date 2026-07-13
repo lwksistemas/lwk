@@ -3,6 +3,8 @@ Garante tabela clinica_beleza_nomes_agenda e coluna nome_agenda_id em appointmen
 
 Necessário quando migrate_all_lojas não aplica 0040_nome_agenda por histórico legado.
 """
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand
 from django.db import connections
 
@@ -93,9 +95,7 @@ class Command(BaseCommand):
                 skip += 1
                 self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id} ({loja.nome}): {exc}'))
             finally:
-                try:
+                with suppress(Exception):
                     connections[db_name].close()
-                except Exception:
-                    pass
 
         self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s) atualizada(s), {skip} ignorada(s).'))

@@ -8,6 +8,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from core.assinatura_service import AssinaturaAdapter
+
 from .consentimento_service import sincronizar_status_consulta
 
 logger = logging.getLogger(__name__)
@@ -95,9 +96,11 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
         )
 
     def buscar_assinatura_por_token(self, token: str):
-        from .models import ConsultaAssinaturaTermo
-        from core.assinatura_service import normalizar_token_url
         from urllib.parse import unquote
+
+        from core.assinatura_service import normalizar_token_url
+
+        from .models import ConsultaAssinaturaTermo
 
         token = normalizar_token_url(token)
         qs = ConsultaAssinaturaTermo.objects.select_related(

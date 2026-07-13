@@ -3,17 +3,22 @@ Views de Pagamentos e Financeiro — Clínica da Beleza
 """
 from decimal import Decimal, InvalidOperation
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .permissions import CLINICA_FINANCEIRO
-from rest_framework import status
-from django.utils.timezone import now
 from django.db.models import Sum
+from django.utils.timezone import now
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import CategoriaDespesa, Despesa, Payment
 from .models.financeiro import CATEGORIAS_DESPESA_PADRAO, PaymentParcela
-from .serializers.financeiro import CategoriaDespesaSerializer, DespesaSerializer, PaymentParcelaSerializer, PaymentSerializer
 from .pagination import paginate_queryset
+from .permissions import CLINICA_FINANCEIRO
+from .serializers.financeiro import (
+    CategoriaDespesaSerializer,
+    DespesaSerializer,
+    PaymentParcelaSerializer,
+    PaymentSerializer,
+)
 from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
 
@@ -152,7 +157,6 @@ class PaymentParcelaView(APIView):
         })
 
     def post(self, request, pk):
-        from decimal import Decimal, InvalidOperation
         payment, err = self._get_payment(pk)
         if err:
             return err
@@ -296,8 +300,8 @@ class FinanceiroResumoView(APIView):
     permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
-        from datetime import date
         import calendar
+        from datetime import date
 
         today = now().date()
         try:

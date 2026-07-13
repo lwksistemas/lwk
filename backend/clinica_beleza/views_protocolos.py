@@ -1,14 +1,16 @@
 """
 Views de Protocolos de Procedimentos — Clínica da Beleza
 """
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .permissions import CLINICA_RECEPCAO
+from contextlib import suppress
+
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import ProcedureProtocol
-from .serializers import ProcedureProtocolSerializer
 from .pagination import paginate_queryset
+from .permissions import CLINICA_RECEPCAO
+from .serializers import ProcedureProtocolSerializer
 from .views_base import GetObjectMixin
 
 
@@ -26,10 +28,8 @@ class ProtocolListView(APIView):
             queryset = queryset.filter(is_active=True)
         procedure_id = request.query_params.get('procedure')
         if procedure_id:
-            try:
+            with suppress(ValueError, TypeError):
                 queryset = queryset.filter(procedure_id=int(procedure_id))
-            except (ValueError, TypeError):
-                pass
         categoria = (request.query_params.get('categoria') or '').strip()
         if categoria:
             queryset = queryset.filter(procedure__categoria__icontains=categoria)

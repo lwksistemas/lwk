@@ -7,23 +7,23 @@ import re
 
 from django.db.models import F, Sum
 from django.utils.text import slugify
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .permissions import CLINICA_ESTOQUE, CLINICA_ESTOQUE_LEITURA
-from .models import ProdutoEstoque, MovimentacaoEstoque
-from .models.estoque import CategoriaEstoque
-from .serializers import ProdutoEstoqueSerializer, MovimentacaoEstoqueSerializer
-from .serializers.estoque import CategoriaEstoqueSerializer
-from .pagination import paginate_queryset
-from .views_base import GetObjectMixin, resolve_loja_id_from_request
 from .estoque_categorias import (
     categorias_com_contagem,
     garantir_categorias_estoque_padrao,
     normalizar_slug_categoria,
     resolver_categoria,
 )
+from .models import MovimentacaoEstoque, ProdutoEstoque
+from .models.estoque import CategoriaEstoque
+from .pagination import paginate_queryset
+from .permissions import CLINICA_ESTOQUE, CLINICA_ESTOQUE_LEITURA
+from .serializers import MovimentacaoEstoqueSerializer, ProdutoEstoqueSerializer
+from .serializers.estoque import CategoriaEstoqueSerializer
+from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
 logger = logging.getLogger(__name__)
 
@@ -256,6 +256,7 @@ class ProdutoEstoqueDetailView(GetObjectMixin, APIView):
 
     def delete(self, request, pk):
         from django.db.models.deletion import ProtectedError
+
         from .models import ConsultaProdutoUtilizado
 
         obj, error = self.object_or_404(pk)
@@ -357,7 +358,7 @@ class MovimentacaoEstoqueView(GetObjectMixin, APIView):
         if error:
             return error
 
-        from .estoque_movimentacao_service import registrar_movimentacao, EstoqueMovimentacaoError
+        from .estoque_movimentacao_service import EstoqueMovimentacaoError, registrar_movimentacao
 
         try:
             mov = registrar_movimentacao(
@@ -389,8 +390,9 @@ class EstoqueResumoView(APIView):
     permission_classes = CLINICA_ESTOQUE
 
     def get(self, request):
-        from tenants.middleware import ensure_loja_context
         from datetime import date, timedelta
+
+        from tenants.middleware import ensure_loja_context
 
         ensure_loja_context(request)
         produtos = ProdutoEstoque.objects.filter(is_active=True)
@@ -427,6 +429,7 @@ class EstoqueImportarXmlView(APIView):
 
     def post(self, request):
         from core.upload_validation import validate_xml_upload
+
         from .estoque_xml_import_service import importar_produtos_xml
 
         arquivo = request.FILES.get('arquivo')
@@ -468,8 +471,8 @@ class EstoqueImportarXmlView(APIView):
 
         if not confirmar:
             aviso_destinatario = None
-            from tenants.middleware import get_current_loja_id
             from superadmin.models import Loja
+            from tenants.middleware import get_current_loja_id
 
             lid = get_current_loja_id() or loja_id
             if lid and resultado.get('nota', {}).get('destinatario_documento'):
@@ -491,8 +494,9 @@ class EstoqueImportarXmlView(APIView):
                 response_data['aviso_destinatario'] = aviso_destinatario
             return Response(response_data)
 
-        from .estoque_xml_import_service import confirmar_importacao_xml
         import json
+
+        from .estoque_xml_import_service import confirmar_importacao_xml
 
         # Permite override por item enviado no confirm (JSON string ou lista)
         produtos_override = request.data.get('produtos')
@@ -526,8 +530,8 @@ class EstoqueImportarXmlView(APIView):
         result = confirmar_importacao_xml(resultado['produtos'], loja_id=loja_id)
 
         aviso_destinatario = None
-        from tenants.middleware import get_current_loja_id
         from superadmin.models import Loja
+        from tenants.middleware import get_current_loja_id
 
         lid = get_current_loja_id() or loja_id
         if lid and resultado.get('nota', {}).get('destinatario_documento'):

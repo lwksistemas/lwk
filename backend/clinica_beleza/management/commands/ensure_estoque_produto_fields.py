@@ -5,6 +5,8 @@ Uso:
     python manage.py ensure_estoque_produto_fields
     python manage.py ensure_estoque_produto_fields --slug clinicaharmonis
 """
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand
 from django.db import connection
 
@@ -84,10 +86,12 @@ class Command(BaseCommand):
                             )
                         """)
 
-                    if table_exists(cursor, CONSULTA_TABLE):
-                        if ensure_consulta_produto_utilizado_table(cursor):
-                            if table_exists(cursor, 'clinica_beleza_consultaprodutoutilizado'):
-                                self.stdout.write(f'  {loja.slug}: tabela consulta_produto OK')
+                    if (
+                        table_exists(cursor, CONSULTA_TABLE)
+                        and ensure_consulta_produto_utilizado_table(cursor)
+                        and table_exists(cursor, 'clinica_beleza_consultaprodutoutilizado')
+                    ):
+                        self.stdout.write(f'  {loja.slug}: tabela consulta_produto OK')
                     else:
                         self.stdout.write(self.style.WARNING(
                             f'  skip {loja.slug}: sem tabela {CONSULTA_TABLE}'
@@ -98,16 +102,12 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f'  OK {loja.slug} ({loja.nome}) schema={schema}'))
             except Exception as e:
                 skip += 1
-                try:
+                with suppress(Exception):
                     connection.rollback()
-                except Exception:
-                    pass
                 self.stdout.write(self.style.ERROR(f'  ERRO {loja.slug}: {e}'))
 
-        try:
+        with suppress(Exception):
             with connection.cursor() as cursor:
                 cursor.execute('SET search_path TO public')
-        except Exception:
-            pass
 
         self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s), {skip} ignorada(s)/erro.'))

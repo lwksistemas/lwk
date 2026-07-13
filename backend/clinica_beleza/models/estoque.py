@@ -5,8 +5,8 @@ from django.utils.text import slugify
 from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 from .appointments import Appointment
-from .professionals import Professional
 from .procedures import Procedure
+from .professionals import Professional
 
 # Categorias padrão (seed) — slug → nome
 CATEGORIAS_ESTOQUE_PADRAO = [

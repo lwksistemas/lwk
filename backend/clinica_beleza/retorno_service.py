@@ -9,14 +9,13 @@ Modos (configuráveis pelo administrador):
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import timedelta
 from decimal import Decimal
-from typing import Iterable
-
-logger = logging.getLogger(__name__)
 
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

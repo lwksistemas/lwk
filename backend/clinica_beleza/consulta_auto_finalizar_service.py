@@ -32,11 +32,7 @@ def _lojas_clinica_beleza():
 def _consulta_tem_procedimentos(consulta) -> bool:
     """Verifica se a consulta/appointment tem procedimentos associados."""
     appointment = consulta.appointment
-    if appointment.appointment_procedures.exists():
-        return True
-    if appointment.procedure_id:
-        return True
-    return False
+    return bool(appointment.appointment_procedures.exists() or appointment.procedure_id)
 
 
 def _horario_limite_finalizacao(consulta) -> timezone.datetime:

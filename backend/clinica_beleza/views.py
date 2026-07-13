@@ -15,44 +15,53 @@ Cada domínio está em seu próprio arquivo:
 """
 
 # Dashboard & Info
-from .views_dashboard import LojaInfoView, DashboardView  # noqa: F401
-
-# Pacientes
-from .views_pacientes import PatientListView, PatientDetailView  # noqa: F401
-
-# Profissionais
-from .views_profissionais import (  # noqa: F401
-    ProfessionalListView, ProfessionalDetailView,
-    HorarioTrabalhoProfissionalView, ProfessionalCommissionView,
+# Agenda & Bloqueios
+from .views_agenda import (  # noqa: F401
+    AgendaCreateView,
+    AgendaDeleteView,
+    AgendaReenviarMensagemView,
+    AgendaUpdateView,
+    AgendaView,
+    BloqueioHorarioDetailView,
+    BloqueioHorarioListView,
 )
-
-# Procedimentos
-from .views_procedimentos import (  # noqa: F401
-    ProcedureListView,
-    ProcedureDetailView,
-    ProcedimentoConvenioPrecosMatrixView,
-    ProcedurePrecosConvenioView,
-)
-from .views_protocolos import ProtocolListView, ProtocolDetailView
-from .views_consultas import (
-    ConsultaListView, ConsultaDetailView, ConsultaAplicarProtocoloView, ConsultaFinalizarView,
-    PatientAnamneseView, ConsultaEvolucaoListView, PatientHistoricoConsultasView,
-)  # noqa: F401
+from .views_dashboard import DashboardView, LojaInfoView  # noqa: F401
 
 # Financeiro
 from .views_financeiro import (  # noqa: F401
-    PaymentListView, PaymentDetailView, PaymentParcelaView, PaymentEnviarReciboView, ReciboPdfPublicView, FinanceiroResumoView,
-    CategoriaDespesaListView, DespesaListView, DespesaDetailView,
+    CategoriaDespesaListView,
+    DespesaDetailView,
+    DespesaListView,
+    FinanceiroResumoView,
+    PaymentDetailView,
+    PaymentEnviarReciboView,
+    PaymentListView,
+    PaymentParcelaView,
+    ReciboPdfPublicView,
 )
 
-# Agenda & Bloqueios
-from .views_agenda import (  # noqa: F401
-    AgendaView, AgendaUpdateView, AgendaCreateView,
-    AgendaDeleteView, AgendaReenviarMensagemView,
-    BloqueioHorarioListView, BloqueioHorarioDetailView,
+# Pacientes
+from .views_pacientes import PatientDetailView, PatientListView  # noqa: F401
+
+# Procedimentos
+from .views_procedimentos import (  # noqa: F401
+    ProcedimentoConvenioPrecosMatrixView,
+    ProcedureDetailView,
+    ProcedureListView,
+    ProcedurePrecosConvenioView,
+)
+
+# Profissionais
+from .views_profissionais import (  # noqa: F401
+    HorarioTrabalhoProfissionalView,
+    ProfessionalCommissionView,
+    ProfessionalDetailView,
+    ProfessionalListView,
 )
 
 # Campanhas WhatsApp
 from .views_whatsapp import (  # noqa: F401
-    CampanhaPromocaoListView, CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView,
+    CampanhaPromocaoDetailView,
+    CampanhaPromocaoEnviarView,
+    CampanhaPromocaoListView,
 )

@@ -12,15 +12,14 @@ logger = logging.getLogger(__name__)
 
 
 def _parece_imagem_bytes(conteudo: bytes) -> bool:
-    if len(conteudo) < 4:
-        return False
-    if conteudo[:3] == b"\xff\xd8\xff":
-        return True
-    if conteudo[:8] == b"\x89PNG\r\n\x1a\n":
-        return True
-    if len(conteudo) > 12 and conteudo[:4] == b"RIFF" and conteudo[8:12] == b"WEBP":
-        return True
-    return False
+    return (
+        len(conteudo) >= 4
+        and (
+            conteudo[:3] == b"\xff\xd8\xff"
+            or conteudo[:8] == b"\x89PNG\r\n\x1a\n"
+            or (len(conteudo) > 12 and conteudo[:4] == b"RIFF" and conteudo[8:12] == b"WEBP")
+        )
+    )
 
 
 def _extrair_arquivo_multipart_bruto(body: bytes, content_type: str) -> bytes | None:
@@ -226,9 +225,9 @@ def excluir_foto_cloudinary(loja, cloudinary_url: str, public_id: str = "") -> b
         logger.error("Cloudinary indisponível para exclusão de foto do paciente")
         return False
 
-    from superadmin.cloudinary_utils import extract_public_id_from_url
-
     import cloudinary.uploader
+
+    from superadmin.cloudinary_utils import extract_public_id_from_url
 
     target_pid = pid or extract_public_id_from_url(url)
     if not target_pid:

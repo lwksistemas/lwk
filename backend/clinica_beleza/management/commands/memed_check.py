@@ -14,7 +14,8 @@ import requests
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from clinica_beleza.memed_config import MEMED_ENDPOINTS, memed_credentials as _memed_credentials
+from clinica_beleza.memed_config import MEMED_ENDPOINTS
+from clinica_beleza.memed_config import memed_credentials as _memed_credentials
 
 PLACEHOLDER_MARK = 'COLE_AQUI'
 

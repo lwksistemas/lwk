@@ -1,4 +1,6 @@
 """Views públicas — assinatura digital do termo de consentimento."""
+from contextlib import suppress
+
 from django.http import HttpResponse, JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -135,16 +137,13 @@ class ConsultaAssinaturaPublicaView(View):
 
         if novo_status == 'concluido':
             enviar_pdf_final(adapter, termo_proc, loja_id)
-            try:
+            with suppress(Exception):
                 enviar_termo_assinado_whatsapp(
                     termo_proc=termo_proc,
                     adapter=adapter,
                     loja_id=loja_id,
                     user=request.user if request.user.is_authenticated else None,
                 )
-            except Exception:
-                # Falha no WhatsApp não impede o sucesso da assinatura.
-                pass
 
         return JsonResponse({
             'success': True,

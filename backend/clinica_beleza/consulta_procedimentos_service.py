@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from django.db.models import Max
 
-from .convenio_service import resolver_convenio, resolver_preco_procedimento
 from .consentimento_service import garantir_termos_procedimento
 from .consulta_service.payment import _sincronizar_recebimento_apos_procedimento
+from .convenio_service import resolver_convenio, resolver_preco_procedimento
 from .models import AppointmentProcedure, Consulta, ConsultaTermoProcedimento, Procedure
 
 

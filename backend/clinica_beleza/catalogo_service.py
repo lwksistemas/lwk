@@ -6,7 +6,7 @@ Idempotente: update_or_create por nome, sem apagar cadastros personalizados.
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from clinica_beleza.procedimentos_catalogo import (
     CONVENIO_PARTICULAR_CATALOGO,
@@ -93,6 +93,7 @@ def is_clinica_beleza_loja(loja) -> bool:
 
 def lojas_clinica_beleza_com_schema(*, apenas_ativas: bool = True):
     from django.db.models import Q
+
     from superadmin.models import Loja
 
     qs = Loja.objects.using('default').filter(
@@ -130,7 +131,14 @@ def aplicar_catalogo_padrao(loja, *, log: Callable[[str], None] | None = None) -
     set_current_loja_id(lid)
     set_current_tenant_db(db)
 
-    from clinica_beleza.models import Convenio, ConvenioProcedimentoPreco, LocalAtendimento, NomeAgenda, Patient, Procedure
+    from clinica_beleza.models import (
+        Convenio,
+        ConvenioProcedimentoPreco,
+        LocalAtendimento,
+        NomeAgenda,
+        Patient,
+        Procedure,
+    )
 
     emit(f'Catálogo padrão — {loja.nome} ({loja.slug})')
 

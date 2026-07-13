@@ -1,7 +1,7 @@
 # Generated manually — comissão de consulta por local de atendimento
 
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

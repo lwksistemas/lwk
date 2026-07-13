@@ -9,15 +9,15 @@ Uso:
     python manage.py ensure_memed_prescricao_table
     python manage.py ensure_memed_prescricao_table --slug beleza
 """
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand
 from django.db import connections
 
+from clinica_beleza.models import PrescricaoMemed
+from clinica_beleza.schema_ensure import table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
-
-from clinica_beleza.schema_ensure import column_exists, table_exists
-
-from clinica_beleza.models import PrescricaoMemed
 
 MIGRATION_NAME = '0023_prescricao_memed'
 TABLE_NAME = 'clinica_beleza_prescricoes_memed'
@@ -86,9 +86,7 @@ class Command(BaseCommand):
                 skip += 1
                 self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id} ({loja.nome}): {exc}'))
             finally:
-                try:
+                with suppress(Exception):
                     connections[db_name].close()
-                except Exception:
-                    pass
 
         self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s) atualizada(s), {skip} ignorada(s).'))

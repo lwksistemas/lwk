@@ -4,26 +4,29 @@ Views de Agenda, Bloqueios de Horário e Agendamentos — Clínica da Beleza
 import logging
 
 from django.db.models import Q
-from rest_framework.views import APIView
+from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .agenda_service import (
+    AgendaConflictError,
+    AgendaValidationError,
+    atualizar_agendamento,
+    detectar_conflito,
+)
+from .models import Appointment, BloqueioHorario
 from .permissions import (
     CLINICA_AGENDA,
     appointment_in_agenda_scope,
     resolve_agenda_professional_scope,
 )
-from rest_framework import status
-
-from .models import Appointment, BloqueioHorario
 from .serializers import (
-    AppointmentCreateSerializer, AgendaEventSerializer,
+    AgendaEventSerializer,
+    AppointmentCreateSerializer,
     BloqueioHorarioSerializer,
 )
 from .utils import LojaContextHelper
 from .views_base import GetObjectMixin
-from .agenda_service import (
-    AgendaConflictError, AgendaValidationError,
-    atualizar_agendamento, detectar_conflito,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -328,9 +331,8 @@ class BloqueioHorarioDetailView(GetObjectMixin, APIView):
         if error:
             return error
         scope = resolve_agenda_professional_scope(request)
-        if scope is not None:
-            if scope and obj.professional_id not in (scope, None):
-                return _agenda_scope_forbidden_response()
+        if scope is not None and scope and obj.professional_id not in (scope, None):
+            return _agenda_scope_forbidden_response()
         return Response(BloqueioHorarioSerializer(obj).data)
 
     def put(self, request, pk):
@@ -338,9 +340,9 @@ class BloqueioHorarioDetailView(GetObjectMixin, APIView):
         if error:
             return error
         scope = resolve_agenda_professional_scope(request)
+        if scope is not None and scope and obj.professional_id not in (scope, None):
+            return _agenda_scope_forbidden_response()
         if scope is not None:
-            if scope and obj.professional_id not in (scope, None):
-                return _agenda_scope_forbidden_response()
             prof_in = request.data.get('professional')
             if prof_in and int(prof_in) != scope:
                 return _agenda_scope_forbidden_response()

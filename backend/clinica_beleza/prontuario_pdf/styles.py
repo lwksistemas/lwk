@@ -3,6 +3,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 
+
 def _get_styles():
     """Retorna estilos customizados para os PDFs do prontuário."""
     styles = getSampleStyleSheet()

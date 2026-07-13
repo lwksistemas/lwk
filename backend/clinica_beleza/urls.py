@@ -1,52 +1,123 @@
 """
 URLs para Clínica da Beleza
 """
-from django.urls import path, include
+from django.urls import path
+
 from .views import (
-    DashboardView,
-    LojaInfoView,
-    PatientListView, PatientDetailView,
-    ProfessionalListView, ProfessionalDetailView,
-    HorarioTrabalhoProfissionalView,
-    ProfessionalCommissionView,
-    ProcedureListView, ProcedureDetailView,
-    ProcedimentoConvenioPrecosMatrixView, ProcedurePrecosConvenioView,
-    PaymentListView, PaymentDetailView, PaymentParcelaView, PaymentEnviarReciboView, ReciboPdfPublicView,
-    FinanceiroResumoView, CategoriaDespesaListView, DespesaListView, DespesaDetailView,
-    AgendaView, AgendaUpdateView, AgendaCreateView, AgendaDeleteView,
+    AgendaCreateView,
+    AgendaDeleteView,
     AgendaReenviarMensagemView,
-    BloqueioHorarioListView, BloqueioHorarioDetailView,
-    CampanhaPromocaoListView, CampanhaPromocaoDetailView, CampanhaPromocaoEnviarView,
+    AgendaUpdateView,
+    AgendaView,
+    BloqueioHorarioDetailView,
+    BloqueioHorarioListView,
+    CampanhaPromocaoDetailView,
+    CampanhaPromocaoEnviarView,
+    CampanhaPromocaoListView,
+    CategoriaDespesaListView,
+    DashboardView,
+    DespesaDetailView,
+    DespesaListView,
+    FinanceiroResumoView,
+    HorarioTrabalhoProfissionalView,
+    LojaInfoView,
+    PatientDetailView,
+    PatientListView,
+    PaymentDetailView,
+    PaymentEnviarReciboView,
+    PaymentListView,
+    PaymentParcelaView,
+    ProcedimentoConvenioPrecosMatrixView,
+    ProcedureDetailView,
+    ProcedureListView,
+    ProcedurePrecosConvenioView,
+    ProfessionalCommissionView,
+    ProfessionalDetailView,
+    ProfessionalListView,
+    ReciboPdfPublicView,
+)
+from .views_admin_professional import AdminProfessionalStatusView, AdminProfessionalToggleView
+from .views_agenda_confirmacao import ConfirmarAgendamentoPublicaView
+from .views_asaas_webhook import clinica_beleza_asaas_webhook
+from .views_assinatura_consentimento import (
+    ConsultaAssinaturaPdfPublicaView,
+    ConsultaAssinaturaPublicaView,
+    ConsultaDownloadTermoPdfView,
+    ConsultaEnviarTermoAssinaturaView,
+    ConsultaEnviarTermoPdfWhatsappView,
+    ConsultaReenviarTermoAssinaturaView,
+    ConsultaTermoConsentimentoStatusView,
+    TermoConsentimentoPdfPublicView,
 )
 from .views_consultas import (
-    ConsultaListView, ConsultaDetailView, ConsultaAplicarProtocoloView,
-    ConsultaIniciarView, ConsultaReceberView, ConsultaEstornarPagamentoView, ConsultaFinalizarView,
-    PatientAnamneseView, ConsultaEvolucaoListView, PatientHistoricoConsultasView,
-    ConsultaPrescricaoView, PatientPrescricaoView, PrescricaoMemedPdfView,
-    ConsultaProdutoListView, ConsultaProdutoDetailView,
-    ConsultaProcedimentoListView, ConsultaProcedimentoDetailView,
+    ConsultaAplicarProtocoloView,
+    ConsultaDetailView,
+    ConsultaEstornarPagamentoView,
+    ConsultaEvolucaoListView,
+    ConsultaFinalizarView,
+    ConsultaIniciarView,
+    ConsultaListView,
+    ConsultaPrescricaoView,
+    ConsultaProcedimentoDetailView,
+    ConsultaProcedimentoListView,
+    ConsultaProdutoDetailView,
+    ConsultaProdutoListView,
+    ConsultaReceberView,
     ConsultaSecaoPDFView,
+    PatientAnamneseView,
+    PatientHistoricoConsultasView,
+    PatientPrescricaoView,
+    PrescricaoMemedPdfView,
+)
+from .views_convenios import (
+    ConvenioDetailView,
+    ConvenioListView,
+    ConvenioPrecosView,
+)
+from .views_documentos import (
+    ConsultaDocumentoDeleteView,
+    ConsultaDocumentoListView,
+    DocumentTemplateDetailView,
+    DocumentTemplateListView,
 )
 from .views_estoque import (
-    ProdutoEstoqueListView, ProdutoEstoqueDetailView, ProdutoEstoqueMoverView,
-    MovimentacaoEstoqueView, EstoqueResumoView, EstoqueImportarXmlView,
-    CategoriaEstoqueListView, CategoriaEstoqueDetailView,
+    CategoriaEstoqueDetailView,
+    CategoriaEstoqueListView,
+    EstoqueImportarXmlView,
+    EstoqueResumoView,
+    MovimentacaoEstoqueView,
+    ProdutoEstoqueDetailView,
+    ProdutoEstoqueListView,
+    ProdutoEstoqueMoverView,
 )
-from .views_protocolos import ProtocolListView, ProtocolDetailView
-from .views_memed import MemedTokenView, MemedTimbradoView, MemedStatusView
-from .views_admin_professional import AdminProfessionalStatusView, AdminProfessionalToggleView
-from .views_documentos import (
-    DocumentTemplateListView, DocumentTemplateDetailView,
-    ConsultaDocumentoListView, ConsultaDocumentoDeleteView,
-)
-from .views_prontuario import (
-    ProntuarioView, ProntuarioPDFView, DocumentoPDFView,
+from .views_foto_paciente import (
+    ConsultaFotoDeleteView,
+    ConsultaFotoQrView,
+    ConsultaFotosPacienteView,
+    EnviarFotoPublicaView,
 )
 from .views_locais_atendimento import (
-    LocalAtendimentoListView, LocalAtendimentoDetailView,
+    LocalAtendimentoDetailView,
+    LocalAtendimentoListView,
 )
+from .views_memed import MemedStatusView, MemedTimbradoView, MemedTokenView
+from .views_nfse_config import NFSeConfigTestISSNetView, NFSeConfigView
 from .views_nomes_agenda import (
-    NomeAgendaListView, NomeAgendaDetailView,
+    NomeAgendaDetailView,
+    NomeAgendaListView,
+)
+from .views_prontuario import (
+    DocumentoPDFView,
+    ProntuarioPDFView,
+    ProntuarioView,
+)
+from .views_protocolos import ProtocolDetailView, ProtocolListView
+from .views_relatorios import (
+    RelatorioComissoesPdfView,
+    RelatorioComissoesView,
+    RelatorioFaturamentoView,
+    RelatorioRepasseConsultaPdfView,
+    RelatorioRepasseConsultaView,
 )
 from .views_retorno import (
     RetornoConfigView,
@@ -54,35 +125,6 @@ from .views_retorno import (
     RetornoProcedimentoRegraListView,
     RetornoVerificarView,
 )
-from .views_convenios import (
-    ConvenioListView, ConvenioDetailView, ConvenioPrecosView,
-)
-from .views_relatorios import (
-    RelatorioComissoesView,
-    RelatorioComissoesPdfView,
-    RelatorioFaturamentoView,
-    RelatorioRepasseConsultaView,
-    RelatorioRepasseConsultaPdfView,
-)
-from .views_assinatura_consentimento import (
-    ConsultaAssinaturaPublicaView,
-    ConsultaAssinaturaPdfPublicaView,
-    ConsultaTermoConsentimentoStatusView,
-    ConsultaEnviarTermoAssinaturaView,
-    ConsultaReenviarTermoAssinaturaView,
-    ConsultaDownloadTermoPdfView,
-    ConsultaEnviarTermoPdfWhatsappView,
-    TermoConsentimentoPdfPublicView,
-)
-from .views_foto_paciente import (
-    ConsultaFotosPacienteView,
-    ConsultaFotoQrView,
-    ConsultaFotoDeleteView,
-    EnviarFotoPublicaView,
-)
-from .views_agenda_confirmacao import ConfirmarAgendamentoPublicaView
-from .views_nfse_config import NFSeConfigView, NFSeConfigTestISSNetView
-from .views_asaas_webhook import clinica_beleza_asaas_webhook
 
 app_name = 'clinica_beleza'
 

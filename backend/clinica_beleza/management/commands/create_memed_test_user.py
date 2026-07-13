@@ -14,11 +14,10 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
+from clinica_beleza.models import Appointment, Consulta, Patient, Procedure, Professional
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja, ProfissionalUsuario
 from tenants.middleware import set_current_loja_id, set_current_tenant_db
-
-from clinica_beleza.models import Patient, Professional, Procedure, Appointment, Consulta
 
 User = get_user_model()
 

@@ -6,14 +6,14 @@ import unicodedata
 from decimal import Decimal, InvalidOperation
 
 from django.db.models import Q
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .permissions import CLINICA_RECEPCAO
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import Convenio, ConvenioProcedimentoPreco, Procedure
-from .serializers import ProcedureSerializer, ConvenioListSerializer, ConvenioPrecoSerializer
 from .pagination import paginate_queryset
+from .permissions import CLINICA_RECEPCAO
+from .serializers import ConvenioListSerializer, ConvenioPrecoSerializer, ProcedureSerializer
 from .views_base import GetObjectMixin, map_field_names
 
 logger = logging.getLogger(__name__)

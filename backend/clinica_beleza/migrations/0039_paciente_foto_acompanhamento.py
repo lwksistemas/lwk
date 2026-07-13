@@ -1,6 +1,6 @@
 # Fotos de acompanhamento do paciente (QR + painel)
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

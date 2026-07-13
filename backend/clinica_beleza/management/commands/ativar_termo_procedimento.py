@@ -7,12 +7,11 @@ Uso:
 """
 from django.core.management.base import BaseCommand
 
+from clinica_beleza.models import Procedure
+from clinica_beleza.termos_consentimento_catalogo import resolver_termo_consentimento
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 from tenants.middleware import set_current_loja_id, set_current_tenant_db
-
-from clinica_beleza.models import Procedure
-from clinica_beleza.termos_consentimento_catalogo import resolver_termo_consentimento
 
 
 def _resolver_loja(slug_filter: str):

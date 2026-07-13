@@ -7,7 +7,6 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, Spacer
 
-from .constants import MARGIN, PAGE_WIDTH
 from .header import _linha_separadora
 
 

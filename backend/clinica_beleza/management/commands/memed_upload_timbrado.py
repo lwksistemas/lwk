@@ -10,12 +10,11 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
+from clinica_beleza.memed_impressao import aplicar_timbrado_loja_a_profissionais
+from clinica_beleza.models import MemedTimbrado, Professional
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 from tenants.middleware import set_current_loja_id, set_current_tenant_db
-
-from clinica_beleza.models import Professional, MemedTimbrado
-from clinica_beleza.memed_impressao import aplicar_timbrado_loja_a_profissionais
 
 
 class Command(BaseCommand):

@@ -1,7 +1,6 @@
 """
 Testes unitários para nfse_config_service e nfse_consulta_service.
 """
-from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase

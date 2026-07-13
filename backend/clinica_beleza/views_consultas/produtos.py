@@ -9,6 +9,7 @@ from ..models import Consulta, ConsultaProdutoUtilizado, ProdutoEstoque
 from ..permissions import CLINICA_CLINICAL
 from ..serializers import ConsultaProdutoUtilizadoSerializer
 
+
 class ConsultaProdutoListView(APIView):
     """
     GET  /clinica-beleza/consultas/<consulta_id>/produtos/

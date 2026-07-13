@@ -1,6 +1,5 @@
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
 from ..convenio_service import resolver_convenio_atendimento_comissao
 from ..models import Payment
@@ -21,9 +20,9 @@ from .regras import (
 
 def calcular_comissoes(
     *,
-    data_inicio: Optional[date] = None,
-    data_fim: Optional[date] = None,
-    professional_id: Optional[int] = None,
+    data_inicio: date | None = None,
+    data_fim: date | None = None,
+    professional_id: int | None = None,
 ) -> dict:
     """
     Calcula comissões dos profissionais.

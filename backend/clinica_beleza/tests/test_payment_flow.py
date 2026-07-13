@@ -3,7 +3,7 @@ Testes unitários para o fluxo de pagamento da Clínica da Beleza.
 Cobre: recibo service (formas pagamento, mensagens) e validações de estado.
 """
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from django.test import SimpleTestCase
 

@@ -145,6 +145,7 @@ def enviar_termo_assinado_whatsapp(
 
     from django.conf import settings
     from django.core.cache import cache as django_cache
+
     from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
     from whatsapp.models import WhatsAppConfig
     from whatsapp.services import send_whatsapp, send_whatsapp_document

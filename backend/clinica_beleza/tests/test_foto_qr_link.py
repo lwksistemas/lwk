@@ -3,7 +3,6 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
-from django.test import RequestFactory
 from rest_framework import status
 
 from clinica_beleza.foto_paciente_service import (
@@ -77,6 +76,7 @@ class FotoQrLinkTests(TestCase):
     @patch('clinica_beleza.foto_paciente_service.build_link_foto')
     def test_gerar_qr_foto_usa_frontend_beta(self, mock_link):
         from types import SimpleNamespace
+
         from clinica_beleza.foto_paciente_service import gerar_qr_foto
 
         mock_link.return_value = 'https://beta.lwksistemas.com.br/enviar-foto?t=tok'

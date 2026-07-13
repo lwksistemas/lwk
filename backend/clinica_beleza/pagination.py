@@ -13,7 +13,6 @@ O frontend opta por paginar enviando ?page=1&page_size=20.
 """
 from rest_framework.response import Response
 
-
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
 

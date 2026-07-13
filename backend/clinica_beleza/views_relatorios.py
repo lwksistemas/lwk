@@ -4,12 +4,12 @@ Views para Relatórios — Clínica da Beleza.
 from datetime import date, datetime
 
 from django.http import HttpResponse
-from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .permissions import CLINICA_FINANCEIRO
 from .comissao_relatorio_service import calcular_comissoes
 from .comissao_repasse_service import calcular_repasse_por_consulta
+from .permissions import CLINICA_FINANCEIRO
 
 
 def _float_or_zero(value) -> float:
@@ -121,6 +121,7 @@ class RelatorioComissoesPdfView(APIView):
     def get(self, request):
         from superadmin.models import Loja
         from tenants.middleware import get_current_loja_id
+
         from .comissao_relatorio_pdf import gerar_pdf_comissoes
         from .models import Professional
 
@@ -265,6 +266,7 @@ class RelatorioRepasseConsultaPdfView(APIView):
     def get(self, request):
         from superadmin.models import Loja
         from tenants.middleware import get_current_loja_id
+
         from .comissao_repasse_pdf import gerar_pdf_repasse_consulta
         from .models import Professional
 

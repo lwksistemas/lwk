@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from clinica_beleza.catalogo_service import is_clinica_beleza_loja, lojas_clinica_beleza_com_schema
 from clinica_beleza.estoque_catalogo import ESTOQUE_CATALOGO, estoque_catalogo_defaults
@@ -43,8 +43,8 @@ def aplicar_estoque_catalogo_padrao(
     set_current_loja_id(lid)
     set_current_tenant_db(db)
 
-    from clinica_beleza.models import ProdutoEstoque
     from clinica_beleza.estoque_categorias import garantir_categorias_estoque_padrao, resolver_categoria
+    from clinica_beleza.models import ProdutoEstoque
 
     garantir_categorias_estoque_padrao(lid)
 

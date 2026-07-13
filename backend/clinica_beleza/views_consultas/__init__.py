@@ -1,4 +1,10 @@
 """Views de consultas — re-export do pacote modular."""
+from .clinical import (
+    ConsultaEvolucaoListView,
+    ConsultaSecaoPDFView,
+    PatientAnamneseView,
+    PatientHistoricoConsultasView,
+)
 from .crud import (
     ConsultaAplicarProtocoloView,
     ConsultaDetailView,
@@ -8,19 +14,13 @@ from .crud import (
     ConsultaListView,
     ConsultaReceberView,
 )
-from .clinical import (
-    ConsultaEvolucaoListView,
-    ConsultaSecaoPDFView,
-    PatientAnamneseView,
-    PatientHistoricoConsultasView,
-)
 from .prescricoes import (
     ConsultaPrescricaoView,
     PatientPrescricaoView,
     PrescricaoMemedPdfView,
 )
-from .produtos import ConsultaProdutoDetailView, ConsultaProdutoListView
 from .procedimentos import ConsultaProcedimentoDetailView, ConsultaProcedimentoListView
+from .produtos import ConsultaProdutoDetailView, ConsultaProdutoListView
 
 __all__ = [
     'ConsultaListView',

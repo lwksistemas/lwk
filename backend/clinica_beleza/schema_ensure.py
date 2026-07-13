@@ -2,7 +2,8 @@
 Utilitários compartilhados para comandos ensure_* (schemas multi-tenant).
 """
 import logging
-from typing import Callable, Iterable, Optional
+from collections.abc import Callable, Iterable
+from contextlib import suppress
 
 from django.db import connections
 
@@ -141,13 +142,15 @@ def ensure_retorno_gratuito_tables(cursor) -> bool:
                 'ON clinica_beleza_retorno_procedimento_regra (loja_id)'
             )
 
-    if not column_exists(cursor, 'clinica_beleza_appointment', 'retorno_procedure_id'):
-        if table_exists(cursor, 'clinica_beleza_procedure'):
-            cursor.execute("""
-                ALTER TABLE clinica_beleza_appointment
-                ADD COLUMN retorno_procedure_id BIGINT NULL
-                REFERENCES clinica_beleza_procedure(id) ON DELETE SET NULL
-            """)
+    if (
+        not column_exists(cursor, 'clinica_beleza_appointment', 'retorno_procedure_id')
+        and table_exists(cursor, 'clinica_beleza_procedure')
+    ):
+        cursor.execute("""
+            ALTER TABLE clinica_beleza_appointment
+            ADD COLUMN retorno_procedure_id BIGINT NULL
+            REFERENCES clinica_beleza_procedure(id) ON DELETE SET NULL
+        """)
 
     if table_exists(cursor, CONSULTA_TABLE):
         if not column_exists(cursor, CONSULTA_TABLE, 'retorno_gratuito'):
@@ -318,7 +321,7 @@ def iter_lojas(slug_filter: str = '') -> Iterable[Loja]:
 def run_for_lojas(
     slug_filter: str,
     *,
-    prerequisite_table: Optional[str] = None,
+    prerequisite_table: str | None = None,
     apply_fn: Callable,
 ) -> tuple[int, int]:
     """
@@ -343,8 +346,6 @@ def run_for_lojas(
             skip += 1
             raise
         finally:
-            try:
+            with suppress(Exception):
                 connections[db_name].close()
-            except Exception:
-                pass
     return ok, skip

@@ -5,7 +5,6 @@ Destinado ao profissional apresentar à clínica o que foi realizado e a comiss�
 """
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
 from .comissao_relatorio_service import (
     _agrupar_pagamentos_por_agendamento,
@@ -15,9 +14,9 @@ from .comissao_relatorio_service import (
     _formatar_regra,
     _procedimentos_vinculados_consulta,
     _regras_profissional,
+    _resolver_local_atendimento_efetivo,
     _resolver_regra_consulta,
     _resolver_regra_procedimento,
-    _resolver_local_atendimento_efetivo,
     _resolver_valor_consulta_cadastro,
 )
 from .convenio_service import resolver_convenio_atendimento_comissao
@@ -26,9 +25,9 @@ from .models import Payment
 
 def calcular_repasse_por_consulta(
     *,
-    data_inicio: Optional[date] = None,
-    data_fim: Optional[date] = None,
-    professional_id: Optional[int] = None,
+    data_inicio: date | None = None,
+    data_fim: date | None = None,
+    professional_id: int | None = None,
 ) -> dict:
     qs = Payment.objects.filter(status='PAID').select_related(
         'appointment__professional',

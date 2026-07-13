@@ -1,11 +1,10 @@
 from decimal import Decimal
-from typing import Optional
 
 from ..commission_utils import calcular_comissao_decimal
 from ..models import Convenio, ProfessionalCommission
 
 
-def _calcular_comissao_regra(comissao: Optional[ProfessionalCommission], base: Decimal) -> Decimal:
+def _calcular_comissao_regra(comissao: ProfessionalCommission | None, base: Decimal) -> Decimal:
     return calcular_comissao_decimal(comissao, base)
 
 
@@ -35,7 +34,7 @@ def _regras_profissional(professional_id: int) -> dict:
     }
 
 
-def _resolver_regra_procedimento(proc_map: dict, procedure_id: int, convenio_id: Optional[int]):
+def _resolver_regra_procedimento(proc_map: dict, procedure_id: int, convenio_id: int | None):
     """Regra do procedimento: convênio específico ou regra geral (convenio_id nulo)."""
     regra = proc_map.get((procedure_id, convenio_id))
     if regra:
@@ -43,7 +42,7 @@ def _resolver_regra_procedimento(proc_map: dict, procedure_id: int, convenio_id:
     return proc_map.get((procedure_id, None))
 
 
-def _rotulo_convenio_comissao(regra_proc, convenio_id: Optional[int]) -> str:
+def _rotulo_convenio_comissao(regra_proc, convenio_id: int | None) -> str:
     """Nome do convênio exibido na linha de comissão do procedimento."""
     if regra_proc and getattr(regra_proc, 'convenio', None):
         return regra_proc.convenio.nome
@@ -54,7 +53,7 @@ def _rotulo_convenio_comissao(regra_proc, convenio_id: Optional[int]) -> str:
     return 'Particular'
 
 
-def _resolver_regra_consulta(regras: dict, local_id: Optional[int]):
+def _resolver_regra_consulta(regras: dict, local_id: int | None):
     """Regra de consulta: local específico ou regra geral (sem local)."""
     if local_id:
         local_rule = regras.get('consultas_local', {}).get(local_id)

@@ -23,7 +23,8 @@ import re
 import requests
 from django.conf import settings
 
-from .memed_config import memed_config as _memed_config, memed_credentials as _memed_credentials
+from .memed_config import memed_config as _memed_config
+from .memed_config import memed_credentials as _memed_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -125,8 +126,8 @@ def sincronizar_prescritor(professional, *, force: bool = False) -> dict:
 def _aplicar_timbrado_automatico(professional):
     """Se a loja tiver PDF timbrado salvo, aplica na Memed para o prescritor (best-effort)."""
     try:
-        from .models import MemedTimbrado
         from .memed_impressao import aplicar_timbrado_prescritor
+        from .models import MemedTimbrado
 
         loja_id = getattr(professional, 'loja_id', None)
         if not loja_id:

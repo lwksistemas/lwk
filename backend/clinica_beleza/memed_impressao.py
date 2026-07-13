@@ -12,8 +12,9 @@ import re
 
 import requests
 
+from .memed_config import memed_config as _memed_config
+from .memed_config import memed_credentials as _memed_credentials
 from .memed_service import consultar_status_memed, external_id_prescritor
-from .memed_config import memed_config as _memed_config, memed_credentials as _memed_credentials
 
 logger = logging.getLogger(__name__)
 

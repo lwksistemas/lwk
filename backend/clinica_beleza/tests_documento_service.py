@@ -5,10 +5,8 @@ from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
-from django.utils.timezone import make_aware
 
 from clinica_beleza.documento_service import (
-    PLACEHOLDERS,
     criar_documento,
     listar_prontuario_paciente,
     render_template,

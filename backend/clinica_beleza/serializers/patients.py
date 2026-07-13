@@ -1,13 +1,14 @@
 """Serializers de pacientes e anamnese."""
 from rest_framework import serializers
 
-from ..models import Convenio, Patient, PatientAnamnese
 from core.serializer_mixins import (
     CpfNormalizationMixin,
     TenantQuerysetMixin,
     TextNormalizationMixin,
     UniqueDocumentoPerLojaMixin,
 )
+
+from ..models import Convenio, Patient, PatientAnamnese
 
 
 class PatientSerializer(

@@ -1,6 +1,6 @@
 """Helpers compartilhados das views de consulta."""
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.response import Response
 
 from ..models import Consulta, Patient
 

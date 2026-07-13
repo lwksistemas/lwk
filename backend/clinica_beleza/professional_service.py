@@ -10,9 +10,6 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.utils.crypto import get_random_string
-from rest_framework import serializers
-
-from core.logging_utils import mask_email
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -131,8 +128,9 @@ def _enviar_email_senha(loja, email, name, username, senha, perfil):
     }.get(perfil, 'Profissional')
 
     try:
-        from core.email_templates import email_senha_provisoria_html
         from django.core.mail import EmailMultiAlternatives
+
+        from core.email_templates import email_senha_provisoria_html
 
         info_adicional = {
             "Loja": loja.nome,

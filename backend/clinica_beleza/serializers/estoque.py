@@ -1,9 +1,9 @@
 """Serializers de estoque."""
 from rest_framework import serializers
 
+from ..estoque_categorias import normalizar_slug_categoria, resolver_categoria
 from ..models import ConsultaProdutoUtilizado, MovimentacaoEstoque, ProdutoEstoque
 from ..models.estoque import CategoriaEstoque
-from ..estoque_categorias import normalizar_slug_categoria, resolver_categoria
 from ..views_base import resolve_loja_id_from_request
 
 

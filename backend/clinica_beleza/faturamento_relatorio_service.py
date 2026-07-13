@@ -10,22 +10,19 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
-from typing import Literal, Optional
-
-from django.db.models import Sum
+from typing import Literal
 
 from .models import Consulta, Payment
-
 
 AgrupamentoType = Literal['profissional', 'procedimento', 'local', 'convenio']
 
 
 def calcular_faturamento(
     *,
-    data_inicio: Optional[date] = None,
-    data_fim: Optional[date] = None,
+    data_inicio: date | None = None,
+    data_fim: date | None = None,
     agrupar: AgrupamentoType = 'profissional',
-    professional_id: Optional[int] = None,
+    professional_id: int | None = None,
 ) -> dict:
     """
     Calcula faturamento da clínica agrupado pelo critério selecionado.
@@ -118,10 +115,10 @@ def calcular_faturamento(
         linha['valor_total'] = float(linha['valor_total'])
 
     totais = {
-        'total_atendimentos': sum(l['total_atendimentos'] for l in linhas),
-        'valor_consulta': sum(l['valor_consulta'] for l in linhas),
-        'valor_procedimento': sum(l['valor_procedimento'] for l in linhas),
-        'valor_total': sum(l['valor_total'] for l in linhas),
+        'total_atendimentos': sum(linha['total_atendimentos'] for linha in linhas),
+        'valor_consulta': sum(linha['valor_consulta'] for linha in linhas),
+        'valor_procedimento': sum(linha['valor_procedimento'] for linha in linhas),
+        'valor_total': sum(linha['valor_total'] for linha in linhas),
     }
 
     return {

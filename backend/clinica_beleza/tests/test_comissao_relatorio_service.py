@@ -10,9 +10,9 @@ from clinica_beleza.comissao_relatorio_service import (
     _combinar_formas_pagamento,
     _formatar_regra,
     _procedimentos_vinculados_consulta,
+    _resolver_local_atendimento_efetivo,
     _resolver_regra_consulta,
     _resolver_regra_procedimento,
-    _resolver_local_atendimento_efetivo,
     _resolver_valor_consulta_cadastro,
     calcular_comissao_payment_atendimento,
 )

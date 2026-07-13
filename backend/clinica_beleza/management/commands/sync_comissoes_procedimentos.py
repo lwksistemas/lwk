@@ -55,7 +55,7 @@ class Command(BaseCommand):
         set_current_loja_id(lid)
         set_current_tenant_db(db)
 
-        from clinica_beleza.models import Professional, ProfessionalCommission, Procedure
+        from clinica_beleza.models import Procedure, Professional, ProfessionalCommission
 
         nome_busca = (options['nome'] or '').strip()
         prof = (

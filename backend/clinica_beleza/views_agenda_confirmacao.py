@@ -24,8 +24,9 @@ class ConfirmarAgendamentoPublicaView(View):
     """
 
     def dispatch(self, request, *args, **kwargs):
-        from .throttles import check_rate_limit
         from django.http import JsonResponse
+
+        from .throttles import check_rate_limit
         if not check_rate_limit(request, 'public_confirmacao', '30/min'):
             return JsonResponse({'error': 'Muitas tentativas. Aguarde alguns segundos e tente novamente.'}, status=429)
         return super().dispatch(request, *args, **kwargs)

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import calendar
 from datetime import date, datetime, timedelta
-from typing import Optional
 
 from django.db.models import Count, F, Q, Sum
 from django.db.models.functions import TruncDay
@@ -45,8 +44,8 @@ VOLUME_APPOINTMENT_STATUSES = (
 
 def parse_dashboard_period(
     *,
-    mes: Optional[int],
-    ano: Optional[int],
+    mes: int | None,
+    ano: int | None,
     today: date,
 ) -> tuple[date, date, int, int]:
     """Intervalo do filtro mensal (mes/ano). No mês atual, termina em today."""
@@ -222,7 +221,7 @@ def build_dashboard_statistics(*, today: date, period_start: date, period_end: d
 def next_appointments_queryset(
     *,
     period: str,
-    professional_id: Optional[int],
+    professional_id: int | None,
     today: date,
     current: datetime,
 ):
@@ -248,11 +247,11 @@ def next_appointments_limit(period: str) -> int:
     return 10 if period == 'hoje' else 15
 
 
-def parse_next_appointments_period(period_raw: Optional[str]) -> str:
+def parse_next_appointments_period(period_raw: str | None) -> str:
     return (period_raw or 'proximos').strip().lower()
 
 
-def parse_professional_id(professional_raw: Optional[str]) -> Optional[int]:
+def parse_professional_id(professional_raw: str | None) -> int | None:
     if not professional_raw:
         return None
     try:
@@ -263,12 +262,12 @@ def parse_professional_id(professional_raw: Optional[str]) -> Optional[int]:
 
 def build_dashboard_data(
     *,
-    mes: Optional[int],
-    ano: Optional[int],
-    period_raw: Optional[str],
-    professional_raw: Optional[str],
-    today: Optional[date] = None,
-    current: Optional[datetime] = None,
+    mes: int | None,
+    ano: int | None,
+    period_raw: str | None,
+    professional_raw: str | None,
+    today: date | None = None,
+    current: datetime | None = None,
 ) -> dict:
     """Monta payload completo do dashboard (sem cache)."""
     today = today or now().date()

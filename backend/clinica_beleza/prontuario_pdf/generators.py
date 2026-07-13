@@ -2,11 +2,10 @@
 from io import BytesIO
 
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm, mm
+from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from ..models import (
-    Consulta,
     ConsultaEvolucao,
     ConsultaProdutoUtilizado,
     Patient,
@@ -227,8 +226,8 @@ def gerar_pdf_prontuario_completo(patient_id: int) -> BytesIO:
     Gera PDF com prontuário completo (todas as seções).
     Retorna BytesIO pronto para resposta HTTP.
     """
-    from .documento_service import listar_prontuario_paciente
     from ..models import PrescricaoMemed
+    from .documento_service import listar_prontuario_paciente
 
     buffer = BytesIO()
     styles = _get_styles()

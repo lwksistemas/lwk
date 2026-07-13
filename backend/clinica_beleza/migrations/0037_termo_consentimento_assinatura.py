@@ -1,6 +1,6 @@
 # Generated manually — termo de consentimento e assinatura digital em consultas
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

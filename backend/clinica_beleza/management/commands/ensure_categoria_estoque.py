@@ -7,6 +7,8 @@ Uso:
     python manage.py ensure_categoria_estoque
     python manage.py ensure_categoria_estoque --slug clinicaharmonis
 """
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand
 from django.db import connection
 
@@ -79,17 +81,13 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS(f'  OK {loja.slug} ({msg})'))
             except Exception as e:
                 skip += 1
-                try:
+                with suppress(Exception):
                     connection.rollback()
-                except Exception:
-                    pass
                 self.stdout.write(self.style.ERROR(f'  ERRO {loja.slug}: {e}'))
 
-        try:
+        with suppress(Exception):
             with connection.cursor() as cursor:
                 cursor.execute('SET search_path TO public')
-        except Exception:
-            pass
         self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s), {skip} ignorada(s)/erro.'))
 
     def _ensure_schema(self, cursor, loja_id: int) -> bool:
@@ -180,7 +178,7 @@ class Command(BaseCommand):
             cursor.execute(f'ALTER TABLE {PROD_TABLE} DROP COLUMN IF EXISTS categoria_slug_tmp')
             if has_char:
                 # só dropa se ainda for texto (não a FK)
-                cursor.execute(f"""
+                cursor.execute("""
                     SELECT data_type FROM information_schema.columns
                     WHERE table_name=%s AND column_name='categoria'
                 """, [PROD_TABLE])

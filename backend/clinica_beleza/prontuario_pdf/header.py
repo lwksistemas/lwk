@@ -6,8 +6,9 @@ from reportlab.lib import colors
 from reportlab.lib.units import cm, mm
 from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
 
-from .constants import MARGIN, PAGE_WIDTH, logger
 from ..models import MemedTimbrado
+from .constants import MARGIN, PAGE_WIDTH, logger
+
 
 def _resolver_cabecalho(loja_id):
     """

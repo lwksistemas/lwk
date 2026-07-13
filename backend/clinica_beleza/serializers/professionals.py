@@ -1,7 +1,8 @@
 """Serializers de profissionais, horários e comissões."""
 from rest_framework import serializers
-from core.serializer_mixins import TextNormalizationMixin, UniqueDocumentoPerLojaMixin
+
 from core.cpf_utils import documento_preenchido, existe_documento_duplicado, mensagem_documento_duplicado
+from core.serializer_mixins import TextNormalizationMixin, UniqueDocumentoPerLojaMixin
 from tenants.middleware import get_current_loja_id
 
 from ..models import HorarioTrabalhoProfissional, Professional, ProfessionalCommission
@@ -78,7 +79,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
         )
 
         if criar_acesso:
-            from ..professional_service import criar_profissional_com_acesso, ProfessionalAccessError
+            from ..professional_service import ProfessionalAccessError, criar_profissional_com_acesso
             try:
                 criar_profissional_com_acesso(
                     professional,

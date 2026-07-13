@@ -4,6 +4,8 @@ Converte Payments PAID/PARTIAL de consultas ainda não finalizadas em DRAFT.
 Assim o Financeiro (caixa/comissões) só conta após Finalizar.
 Idempotente — seguro no releaseCommand via ensure_all.
 """
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand
 from django.db import connections
 
@@ -55,10 +57,8 @@ class Command(BaseCommand):
             except Exception as exc:
                 self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id}: {exc}'))
             finally:
-                try:
+                with suppress(Exception):
                     connections[db_name].close()
-                except Exception:
-                    pass
 
         self.stdout.write(self.style.SUCCESS(
             f'Concluído: {total} payment(s) convertidos para DRAFT.'

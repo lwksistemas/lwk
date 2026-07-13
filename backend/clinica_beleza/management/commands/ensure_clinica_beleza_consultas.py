@@ -3,6 +3,8 @@ Garante tabelas de Consultas/Protocolos nos schemas das lojas (Clínica da Belez
 
 Necessário quando migrate_all_lojas falha por histórico legado inconsistente.
 """
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand
 from django.db import connections
 
@@ -172,9 +174,7 @@ class Command(BaseCommand):
                 skip += 1
                 self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id} ({loja.nome}): {exc}'))
             finally:
-                try:
+                with suppress(Exception):
                     connections[db_name].close()
-                except Exception:
-                    pass
 
         self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s) OK, {skip} ignorada(s).'))

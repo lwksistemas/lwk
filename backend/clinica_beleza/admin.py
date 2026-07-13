@@ -2,7 +2,8 @@
 Admin para Clínica da Beleza
 """
 from django.contrib import admin
-from .models import Patient, Professional, Procedure, Appointment, Payment
+
+from .models import Appointment, Patient, Payment, Procedure, Professional
 
 
 @admin.register(Patient)

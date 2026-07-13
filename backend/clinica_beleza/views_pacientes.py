@@ -2,15 +2,16 @@
 Views de Pacientes — Clínica da Beleza
 """
 import logging
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .permissions import CLINICA_RECEPCAO
-from rest_framework import status
 
-from .models import Patient, Appointment
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .models import Appointment, Patient
+from .pagination import paginate_queryset
+from .permissions import CLINICA_RECEPCAO
 from .serializers import PatientSerializer
 from .views_base import GetObjectMixin, map_field_names
-from .pagination import paginate_queryset
 
 # Status de agendamento ainda "em aberto" (não terminais)
 _OPEN_APPOINTMENT_STATUSES = ('PENDING', 'SCHEDULED', 'CLIENT_CONFIRMED', 'PHONE_CONFIRMED', 'CONFIRMED', 'IN_PROGRESS')
@@ -112,8 +113,8 @@ class PatientDetailView(GetObjectMixin, APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        from django.utils import timezone
         from django.db.models import F
+        from django.utils import timezone
 
         obj, err = self.object_or_404(pk)
         if err:

@@ -12,8 +12,8 @@ STATUS_DISPLAY = {
 
 def configurar_tenant_publico_clinica(loja_id: int) -> str | None:
     from core.db_config import ensure_loja_database_config
-    from tenants.middleware import set_current_loja_id, set_current_tenant_db
     from superadmin.models import Loja
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
 
     loja = Loja.objects.using('default').filter(id=loja_id, is_active=True).first()
     if not loja:

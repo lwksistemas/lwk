@@ -5,13 +5,14 @@ Uso:
     python manage.py ensure_paciente_fotos_table
     python manage.py ensure_paciente_fotos_table --slug beleza
 """
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand
 from django.db import connections
 
+from clinica_beleza.schema_ensure import table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
-
-from clinica_beleza.schema_ensure import table_exists
 
 MIGRATION_NAME = '0039_paciente_foto_acompanhamento'
 
@@ -80,9 +81,7 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f'   ✗ {loja.slug}: {e}'))
             finally:
-                try:
+                with suppress(Exception):
                     connections[db_name].close()
-                except Exception:
-                    pass
 
         self.stdout.write(self.style.SUCCESS(f'\nConcluído: {ok} loja(s), {skip} ignorada(s).'))

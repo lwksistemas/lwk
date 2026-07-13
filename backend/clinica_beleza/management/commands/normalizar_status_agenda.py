@@ -1,6 +1,8 @@
 """
 Normaliza status legado PENDING → SCHEDULED nos agendamentos das lojas.
 """
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand
 from django.db import connections
 
@@ -42,9 +44,7 @@ class Command(BaseCommand):
             except Exception as exc:
                 self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id}: {exc}'))
             finally:
-                try:
+                with suppress(Exception):
                     connections[db_name].close()
-                except Exception:
-                    pass
 
         self.stdout.write(self.style.SUCCESS(f'Concluído: {total} agendamento(s) normalizado(s).'))

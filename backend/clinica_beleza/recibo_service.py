@@ -6,7 +6,7 @@ import re
 import time
 from decimal import Decimal, InvalidOperation
 
-from core.cpf_utils import eh_cpf, eh_cnpj, normalizar_cpf_cnpj
+from core.cpf_utils import eh_cnpj, eh_cpf, normalizar_cpf_cnpj
 from core.phone_utils import telefone_exibicao_brasileiro
 
 logger = logging.getLogger(__name__)
@@ -233,11 +233,11 @@ def _linha_documento_loja(ctx: dict) -> str:
 
 def _gerar_pdf_recibo(ctx: dict) -> bytes:
     """Gera PDF do recibo em formato cupom fiscal com layout profissional."""
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
     from reportlab.lib.pagesizes import mm
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-    from reportlab.lib import colors
+    from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     buf = io.BytesIO()
     page_w = 80 * mm
@@ -411,6 +411,7 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
     try:
         from django.conf import settings
         from django.core.cache import cache as django_cache
+
         from whatsapp.models import WhatsAppConfig
         from whatsapp.services import send_whatsapp
 

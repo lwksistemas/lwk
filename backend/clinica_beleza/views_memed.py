@@ -12,14 +12,14 @@ import re
 
 import requests
 from django.conf import settings
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .permissions import CLINICA_CLINICAL
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from .memed_config import memed_config as _memed_config
+from .memed_config import memed_credentials as _memed_credentials
 from .models import Professional
-
-from .memed_config import MEMED_ENDPOINTS, memed_config as _memed_config, memed_credentials as _memed_credentials
+from .permissions import CLINICA_CLINICAL
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,8 @@ def _dados_clinica(request):
     nesse caso o frontend simplesmente não chama setWorkplace.
     """
     try:
-        from tenants.middleware import ensure_loja_context, get_current_loja_id
         from superadmin.models import Loja
+        from tenants.middleware import ensure_loja_context, get_current_loja_id
 
         ensure_loja_context(request)
         loja_id = get_current_loja_id()
@@ -88,6 +88,7 @@ class MemedTokenView(APIView):
 
         # Cache do token por prescritor (evita chamada HTTP a cada clique)
         from django.core.cache import cache
+
         from tenants.middleware import get_current_loja_id
         loja_id = get_current_loja_id() or 0
         cache_key = f'memed_token_{loja_id}_{prescritor_id}'
@@ -270,8 +271,8 @@ class MemedTimbradoView(APIView):
     def post(self, request):
         import re
 
-        from .models import MemedTimbrado, Professional
         from .memed_impressao import aplicar_timbrado_loja_a_profissionais
+        from .models import MemedTimbrado, Professional
 
         if request.data.get('aplicar') in (True, 'true', '1', 1):
             timbrado = MemedTimbrado.objects.first()

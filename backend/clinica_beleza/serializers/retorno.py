@@ -2,6 +2,7 @@
 from rest_framework import serializers
 
 from core.serializer_mixins import TenantQuerysetMixin
+
 from ..models import AgendaRetornoConfig, Procedure, RetornoProcedimentoRegra
 
 

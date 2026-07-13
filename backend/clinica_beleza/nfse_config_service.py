@@ -56,20 +56,20 @@ def test_issnet_connection(request, config: ClinicaBelezaNFSeConfig) -> dict:
         )
         ambiente = 'homologacao' if getattr(config, 'issnet_ambiente_homologacao', False) else 'producao'
 
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.pfx')
-        tmp.write(cert_data)
-        tmp.close()
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pfx') as tmp:
+            tmp.write(cert_data)
+            tmp_path = tmp.name
 
         try:
             resultado = testar_conexao_issnet(
                 usuario=usuario,
                 senha=senha_ws,
-                certificado_path=tmp.name,
+                certificado_path=tmp_path,
                 senha_certificado=senha,
                 ambiente=ambiente,
             )
         finally:
-            os.unlink(tmp.name)
+            os.unlink(tmp_path)
 
         if resultado.get('success'):
             return {

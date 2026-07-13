@@ -7,16 +7,15 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase
 
 from clinica_beleza.permissions import (
-    IsClinicaLojaMember,
-    IsRecepcaoOrAdmin,
     IsAgendaOrAdmin,
     IsClinicaAdmin,
-    IsClinicaClinicalStaff,
-    IsClinicaFinanceiro,
     IsClinicaEstoque,
+    IsClinicaFinanceiro,
+    IsClinicaLojaMember,
     IsClinicalOrEstoqueStaff,
-    resolve_agenda_professional_scope,
+    IsRecepcaoOrAdmin,
     appointment_in_agenda_scope,
+    resolve_agenda_professional_scope,
 )
 
 

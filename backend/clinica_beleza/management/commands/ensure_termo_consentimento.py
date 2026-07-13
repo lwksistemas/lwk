@@ -8,10 +8,9 @@ Uso:
 from django.core.management.base import BaseCommand
 from django.db import connections
 
+from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
-
-from clinica_beleza.schema_ensure import column_exists, table_exists
 
 MIGRATION_NAMES = (
     '0037_termo_consentimento_assinatura',
@@ -54,13 +53,12 @@ class Command(BaseCommand):
                                 "ALTER TABLE clinica_beleza_procedure "
                                 "ADD COLUMN termo_consentimento_ativo BOOLEAN NOT NULL DEFAULT FALSE"
                             )
-                    if table_exists(cursor, 'clinica_beleza_produtoestoque'):
-                        if not column_exists(cursor, 'clinica_beleza_produtoestoque', 'procedure_id'):
-                            cursor.execute(
-                                "ALTER TABLE clinica_beleza_produtoestoque "
-                                "ADD COLUMN procedure_id BIGINT NULL "
-                                "REFERENCES clinica_beleza_procedure(id) ON DELETE SET NULL"
-                            )
+                    if table_exists(cursor, 'clinica_beleza_produtoestoque') and not column_exists(cursor, 'clinica_beleza_produtoestoque', 'procedure_id'):
+                        cursor.execute(
+                            "ALTER TABLE clinica_beleza_produtoestoque "
+                            "ADD COLUMN procedure_id BIGINT NULL "
+                            "REFERENCES clinica_beleza_procedure(id) ON DELETE SET NULL"
+                        )
                     if table_exists(cursor, 'clinica_beleza_consultas'):
                         if not column_exists(cursor, 'clinica_beleza_consultas', 'status_assinatura_termo'):
                             cursor.execute(
@@ -118,19 +116,18 @@ class Command(BaseCommand):
                             "CREATE INDEX clin_cb_termo_cons_st_idx "
                             "ON clinica_beleza_consulta_termo_procedimento (consulta_id, status_assinatura_termo)"
                         )
-                    if table_exists(cursor, 'clinica_beleza_consulta_assinaturas_termo'):
-                        if not column_exists(
-                            cursor, 'clinica_beleza_consulta_assinaturas_termo', 'termo_procedimento_id',
-                        ):
-                            cursor.execute(
-                                "ALTER TABLE clinica_beleza_consulta_assinaturas_termo "
-                                "ADD COLUMN termo_procedimento_id BIGINT NULL "
-                                "REFERENCES clinica_beleza_consulta_termo_procedimento(id) ON DELETE CASCADE"
-                            )
-                            cursor.execute(
-                                "CREATE INDEX clin_cb_assin_termo_tipo_idx "
-                                "ON clinica_beleza_consulta_assinaturas_termo (termo_procedimento_id, tipo)"
-                            )
+                    if table_exists(cursor, 'clinica_beleza_consulta_assinaturas_termo') and not column_exists(
+                        cursor, 'clinica_beleza_consulta_assinaturas_termo', 'termo_procedimento_id',
+                    ):
+                        cursor.execute(
+                            "ALTER TABLE clinica_beleza_consulta_assinaturas_termo "
+                            "ADD COLUMN termo_procedimento_id BIGINT NULL "
+                            "REFERENCES clinica_beleza_consulta_termo_procedimento(id) ON DELETE CASCADE"
+                        )
+                        cursor.execute(
+                            "CREATE INDEX clin_cb_assin_termo_tipo_idx "
+                            "ON clinica_beleza_consulta_assinaturas_termo (termo_procedimento_id, tipo)"
+                        )
                     for mig_name in MIGRATION_NAMES:
                         cursor.execute(
                             """

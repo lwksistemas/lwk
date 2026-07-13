@@ -25,7 +25,7 @@ class TestFaturamentoRelatorioCampos(TestCase):
         mock_payment.objects.filter.return_value = qs_mock
         mock_consulta.objects.filter.return_value.select_related.return_value = []
 
-        result = calcular_faturamento()
+        calcular_faturamento()
 
         # Deve chamar Payment.objects.filter com status='PAID'
         call_args = mock_payment.objects.filter.call_args
@@ -61,7 +61,6 @@ class TestCobrancaDuplicadaConsultaAvulsa(TestCase):
 
     def test_valor_consulta_zero_sem_local(self):
         """Sem local_atendimento, valor_consulta deve ser 0 (procedimentos contam à parte)."""
-        from clinica_beleza.consulta_service import Decimal as _
 
         # Simular o cálculo
         # Sem local, sem override → valor_final = 0

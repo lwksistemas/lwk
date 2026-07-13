@@ -1,8 +1,7 @@
 from decimal import Decimal
-from typing import Optional
 
 
-def _escolher_local_consulta_comissao(consulta, regras: dict) -> tuple[Optional[int], str]:
+def _escolher_local_consulta_comissao(consulta, regras: dict) -> tuple[int | None, str]:
     """Escolhe o local de atendimento para aplicar a regra de comissão da consulta."""
     if consulta.local_atendimento_id:
         nome = consulta.local_atendimento.nome if consulta.local_atendimento else ''
@@ -25,7 +24,7 @@ def _escolher_local_consulta_comissao(consulta, regras: dict) -> tuple[Optional[
     return None, ''
 
 
-def _taxa_consulta_do_local(local_id: Optional[int]) -> Decimal:
+def _taxa_consulta_do_local(local_id: int | None) -> Decimal:
     if not local_id:
         return Decimal('0')
     from ..models import LocalAtendimento
@@ -78,7 +77,7 @@ def _resolver_local_atendimento_efetivo(
     consulta,
     regras: dict,
     taxa: Decimal,
-) -> tuple[Optional[int], str]:
+) -> tuple[int | None, str]:
     """
     Local usado no relatório de comissões.
 

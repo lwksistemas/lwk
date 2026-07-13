@@ -1,5 +1,6 @@
 """Serializers de convênios e locais de atendimento."""
 from rest_framework import serializers
+
 from core.serializer_mixins import TextNormalizationMixin
 
 from ..models import Convenio, ConvenioProcedimentoPreco, LocalAtendimento, NomeAgenda

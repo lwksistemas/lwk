@@ -4,6 +4,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from core.serializer_mixins import TenantQuerysetMixin
+
 from ..models import Consulta, ConsultaEvolucao, Convenio, LocalAtendimento, PrescricaoMemed
 
 

@@ -5,7 +5,6 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import timedelta
-
 from urllib.parse import quote
 
 from django.conf import settings
@@ -13,6 +12,7 @@ from django.core.signing import BadSignature, dumps, loads
 from django.utils import timezone
 
 from core.assinatura_service import normalizar_token_url
+
 from .agenda_display import format_agenda_data, format_agenda_hora
 
 logger = logging.getLogger(__name__)

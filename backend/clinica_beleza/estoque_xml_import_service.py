@@ -8,7 +8,6 @@ from __future__ import annotations
 import logging
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from typing import Optional
 from xml.etree import ElementTree as ET
 
 logger = logging.getLogger(__name__)
@@ -102,7 +101,7 @@ def _parse_decimal(value: str) -> Decimal:
         return Decimal('0')
 
 
-def _parse_date(value: str) -> Optional[date]:
+def _parse_date(value: str) -> date | None:
     """Converte YYYY-MM-DD para date."""
     if not value:
         return None
@@ -182,8 +181,8 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
         if prod is None:
             continue
 
-        def get_prod_text(field: str) -> str:
-            for el in prod:
+        def get_prod_text(field: str, prod_node=prod) -> str:
+            for el in prod_node:
                 el_tag = el.tag.split('}')[-1] if '}' in el.tag else el.tag
                 if el_tag == field:
                     return (el.text or '').strip()
@@ -319,9 +318,10 @@ def confirmar_importacao_xml(
         dict com 'criados', 'atualizados', 'erros'.
     """
     from decimal import Decimal
-    from .models import ProdutoEstoque, MovimentacaoEstoque
-    from .serializers import ProdutoEstoqueSerializer
+
     from .estoque_categorias import resolver_categoria
+    from .models import MovimentacaoEstoque, ProdutoEstoque
+    from .serializers import ProdutoEstoqueSerializer
 
     criados = 0
     atualizados = 0

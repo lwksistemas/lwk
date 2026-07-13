@@ -1,5 +1,4 @@
 """Models — pacientes e anamnese."""
-from decimal import Decimal
 
 from django.db import models
 

@@ -6,10 +6,10 @@ from django.db import models
 from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 from .appointments import Appointment
-from .convenios import Convenio, LocalAtendimento
 from .patients import Patient
 from .procedures import Procedure, ProcedureProtocol
 from .professionals import Professional
+
 
 class Consulta(LojaIsolationMixin, models.Model):
     """Consulta clínica — criada automaticamente ao mudar status do agendamento na agenda."""

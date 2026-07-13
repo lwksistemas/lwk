@@ -1,13 +1,13 @@
 """
 Views de Locais de Atendimento — Clínica da Beleza
 """
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import LocalAtendimento
-from .serializers import LocalAtendimentoSerializer
 from .permissions import CLINICA_RECEPCAO
+from .serializers import LocalAtendimentoSerializer
 from .views_base import GetObjectMixin
 
 

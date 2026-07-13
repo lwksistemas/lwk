@@ -1,4 +1,6 @@
 """Garante tabelas/colunas de retorno gratuito (migration 0047) nos schemas das lojas."""
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand
 from django.db import connections
 
@@ -52,9 +54,7 @@ class Command(BaseCommand):
                 skip += 1
                 self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id} ({loja.nome}): {exc}'))
             finally:
-                try:
+                with suppress(Exception):
                     connections[db_name].close()
-                except Exception:
-                    pass
 
         self.stdout.write(self.style.SUCCESS(f'Concluído: {ok} loja(s) atualizada(s), {skip} ignorada(s).'))

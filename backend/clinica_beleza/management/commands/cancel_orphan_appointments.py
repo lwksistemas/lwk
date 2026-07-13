@@ -9,6 +9,8 @@ Uso:
     python manage.py cancel_orphan_appointments --slug beleza
     python manage.py cancel_orphan_appointments --dry-run   # só relata
 """
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand
 from django.db import connections
 
@@ -96,10 +98,8 @@ class Command(BaseCommand):
                 skip += 1
                 self.stdout.write(self.style.ERROR(f'ERRO loja={loja.id} ({loja.nome}): {exc}'))
             finally:
-                try:
+                with suppress(Exception):
                     connections[db_name].close()
-                except Exception:
-                    pass
 
         acao = 'encontrado(s)' if dry_run else 'cancelado(s)'
         self.stdout.write(self.style.SUCCESS(

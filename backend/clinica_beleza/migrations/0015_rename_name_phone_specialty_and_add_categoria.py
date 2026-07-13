@@ -1,6 +1,7 @@
 # Migração manual: Renomear name/phone/specialty e adicionar categoria
 
 from decimal import Decimal
+
 from django.db import migrations, models
 
 

@@ -38,9 +38,10 @@ class LimpezaCadastros403Test(TestCase):
     """Perfil limpeza não acessa cadastros (CLINICA_RECEPCAO)."""
 
     def setUp(self):
-        from superadmin.models import Loja, PlanoAssinatura, TipoLoja
         from rest_framework.test import APIClient
         from rest_framework_simplejwt.tokens import RefreshToken
+
+        from superadmin.models import Loja, PlanoAssinatura, TipoLoja
         from superadmin.session_manager import SessionManager
 
         self.tipo = TipoLoja.objects.create(
@@ -103,9 +104,10 @@ class ProfissionalAgendaAccessTest(TestCase):
     """Profissional acessa agenda (CLINICA_AGENDA) — não recebe 403 por permissão."""
 
     def setUp(self):
-        from superadmin.models import Loja, PlanoAssinatura, TipoLoja
         from rest_framework.test import APIClient
         from rest_framework_simplejwt.tokens import RefreshToken
+
+        from superadmin.models import Loja, PlanoAssinatura, TipoLoja
         from superadmin.session_manager import SessionManager
 
         self.tipo = TipoLoja.objects.create(

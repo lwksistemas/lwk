@@ -54,8 +54,13 @@ class Command(BaseCommand):
 
     def _limpar_atendimentos(self, db, lid):
         from clinica_beleza.models import (
-            Payment, Consulta, AppointmentProcedure, Appointment,
-            ConsultaEvolucao, DocumentoClinico, PrescricaoMemed,
+            Appointment,
+            AppointmentProcedure,
+            Consulta,
+            ConsultaEvolucao,
+            DocumentoClinico,
+            Payment,
+            PrescricaoMemed,
         )
 
         Payment.objects.using(db).filter(loja_id=lid).delete()
@@ -69,10 +74,14 @@ class Command(BaseCommand):
 
     def _limpar_completo(self, db, lid):
         from clinica_beleza.models import (
-            Payment, Consulta, AppointmentProcedure, Appointment,
-            ProfessionalCommission, HorarioTrabalhoProfissional,
-            BloqueioHorario, LocalAtendimento, Procedure, Professional, Patient,
-            ConsultaEvolucao, DocumentoClinico, PrescricaoMemed, CampanhaPromocao,
+            BloqueioHorario,
+            CampanhaPromocao,
+            HorarioTrabalhoProfissional,
+            LocalAtendimento,
+            Patient,
+            Procedure,
+            Professional,
+            ProfessionalCommission,
         )
 
         self._limpar_atendimentos(db, lid)
@@ -111,9 +120,16 @@ class Command(BaseCommand):
             self._limpar_atendimentos(db, lid)
 
         from clinica_beleza.models import (
-            Patient, Professional, Procedure, LocalAtendimento,
-            ProfessionalCommission, HorarioTrabalhoProfissional,
-            Appointment, AppointmentProcedure, Consulta, Payment,
+            Appointment,
+            AppointmentProcedure,
+            Consulta,
+            HorarioTrabalhoProfissional,
+            LocalAtendimento,
+            Patient,
+            Payment,
+            Procedure,
+            Professional,
+            ProfessionalCommission,
         )
 
         self.stdout.write(self.style.SUCCESS(f'\n=== Seed Clínica da Beleza — {loja.nome} ({loja.slug}) ===\n'))
@@ -262,15 +278,18 @@ class Command(BaseCommand):
 
         self.stdout.write('\nAtendimentos concluídos + pagamentos (demonstração):')
         seed_note = 'Seed demonstração — validação comissões'
-        if Payment.objects.using(db).filter(loja_id=lid, notes=seed_note).exists():
-            if not options['reset_atendimentos'] and not options['reset_completo']:
-                self.stdout.write(
-                    self.style.WARNING(
-                        '   Já existem atendimentos de demonstração. '
-                        'Use --reset-atendimentos para recriar.'
-                    )
+        if (
+            Payment.objects.using(db).filter(loja_id=lid, notes=seed_note).exists()
+            and not options['reset_atendimentos']
+            and not options['reset_completo']
+        ):
+            self.stdout.write(
+                self.style.WARNING(
+                    '   Já existem atendimentos de demonstração. '
+                    'Use --reset-atendimentos para recriar.'
                 )
-                atendimentos_demo = []
+            )
+            atendimentos_demo = []
 
         def criar_atendimento_pago(dia_offset, hora, prof, paciente, nomes_proc, local):
             data = inicio_mes + timedelta(days=dia_offset - 1)
@@ -302,7 +321,7 @@ class Command(BaseCommand):
                 valor_procs = sum(p.preco for p in proc_list)
                 valor_total = valor_consulta + valor_procs
 
-                consulta = Consulta.objects.using(db).create(
+                Consulta.objects.using(db).create(
                     appointment=appointment,
                     patient=paciente,
                     professional=prof,

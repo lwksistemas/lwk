@@ -2,13 +2,12 @@
 Cálculo unificado de comissão profissional (percentual ou valor fixo).
 """
 from decimal import Decimal
-from typing import Optional
 
 from .models import ProfessionalCommission
 
 
 def calcular_comissao_decimal(
-    comissao: Optional[ProfessionalCommission],
+    comissao: ProfessionalCommission | None,
     base: Decimal,
 ) -> Decimal:
     """Percentual sobre a base; valor fixo por atendimento (independente da base)."""

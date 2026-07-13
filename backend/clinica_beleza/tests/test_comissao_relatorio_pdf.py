@@ -1,6 +1,6 @@
 """Testes do PDF de comissões (merge timbrado)."""
-from io import BytesIO
 import unittest
+from io import BytesIO
 
 try:
     from pypdf import PdfReader, PdfWriter

@@ -5,6 +5,7 @@ from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 from .appointments import Appointment
 
+
 class Payment(LojaIsolationMixin, models.Model):
     """Pagamentos"""
     PAYMENT_METHOD_CHOICES = (
@@ -63,7 +64,6 @@ class Payment(LojaIsolationMixin, models.Model):
     @property
     def valor_total_efetivo(self):
         """Valor total do atendimento (usa valor_total se definido, senão amount)."""
-        from decimal import Decimal
         return self.valor_total if self.valor_total is not None else self.amount
 
     @property

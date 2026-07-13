@@ -75,9 +75,9 @@ class ClinicaBelezaNFSeConfigSerializer(serializers.ModelSerializer):
         api_key = validated_data.get('asaas_api_key')
         if api_key is not None:
             from asaas_integration.api_key_utils import (
-                normalize_asaas_api_key,
-                is_valid_asaas_api_key,
                 asaas_key_is_sandbox,
+                is_valid_asaas_api_key,
+                normalize_asaas_api_key,
             )
             raw = (api_key or '').strip()
             if not raw:

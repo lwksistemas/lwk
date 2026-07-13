@@ -234,6 +234,7 @@ def registrar_recebimento_consulta(
     Só entra no Financeiro (PAID/PARTIAL + payment_date + NFS-e) ao finalizar a consulta.
     """
     from clinica_beleza import consulta_service
+
     from ..models.financeiro import PaymentParcela
 
     if consulta.status in ('COMPLETED', 'CANCELLED'):
@@ -419,6 +420,7 @@ def publicar_pagamento_financeiro(consulta):
 
         def _emitir_nfse():
             from clinica_beleza import consulta_service as cs
+
             from ..models.consultas import Consulta as ConsultaModel
 
             pay = cs.Payment.objects.filter(pk=payment_id).first()
@@ -441,6 +443,7 @@ def estornar_recebimento_consulta(consulta):
     - Volta consulta para RECEBER
     """
     from clinica_beleza import consulta_service
+
     from ..models.financeiro import PaymentParcela
 
     if consulta.status == 'COMPLETED':

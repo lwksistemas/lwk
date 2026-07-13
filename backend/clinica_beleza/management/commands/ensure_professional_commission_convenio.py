@@ -8,10 +8,9 @@ Uso:
 from django.core.management.base import BaseCommand
 from django.db import connections
 
+from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
-
-from clinica_beleza.schema_ensure import column_exists, table_exists
 
 MIGRATION_NAME = '0036_professional_commission_convenio'
 

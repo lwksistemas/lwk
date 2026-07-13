@@ -96,8 +96,15 @@ class Command(BaseCommand):
 
     def _limpar_seed(self, db, lid):
         from clinica_beleza.models import (
-            Payment, Consulta, AppointmentProcedure, Appointment,
-            ProfessionalCommission, Procedure, LocalAtendimento, Patient, Professional,
+            Appointment,
+            AppointmentProcedure,
+            Consulta,
+            LocalAtendimento,
+            Patient,
+            Payment,
+            Procedure,
+            Professional,
+            ProfessionalCommission,
         )
 
         pay_ids = list(
@@ -153,9 +160,16 @@ class Command(BaseCommand):
             self._limpar_seed(db, lid)
 
         from clinica_beleza.models import (
-            Patient, Professional, Procedure, LocalAtendimento,
-            ProfessionalCommission, HorarioTrabalhoProfissional,
-            Appointment, AppointmentProcedure, Consulta, Payment,
+            Appointment,
+            AppointmentProcedure,
+            Consulta,
+            HorarioTrabalhoProfissional,
+            LocalAtendimento,
+            Patient,
+            Payment,
+            Procedure,
+            Professional,
+            ProfessionalCommission,
         )
 
         self.stdout.write(self.style.SUCCESS(
@@ -279,7 +293,7 @@ class Command(BaseCommand):
                     modo, valor = 'fixo', Decimal(str(25 + (i % 8) * 10))
             self._upsert_comissao(db, lid, prof, 'procedimento', proc, modo, valor)
             self.stdout.write(
-                f'   • {nome}: R$ {preco} — {prof.nome}: {modo} {valor}'
+                f'   • {proc.nome}: R$ {proc.preco} — {prof.nome}: {modo} {valor}'
             )
 
         # ── Pacientes ──

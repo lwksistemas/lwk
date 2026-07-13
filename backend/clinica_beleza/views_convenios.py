@@ -3,16 +3,18 @@ Views de Convênios — Clínica da Beleza
 """
 from decimal import Decimal, InvalidOperation
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import Convenio, ConvenioProcedimentoPreco, Procedure
-from .serializers import ConvenioSerializer, ConvenioListSerializer, ConvenioPrecoSerializer
-from .serializers.convenios import gerar_codigo_convenio
-from .permissions import CLINICA_RECEPCAO
 from .pagination import paginate_queryset
+from .permissions import CLINICA_RECEPCAO
+from .serializers import ConvenioListSerializer, ConvenioPrecoSerializer, ConvenioSerializer
+from .serializers.convenios import gerar_codigo_convenio
 from .views_base import GetObjectMixin
+
+
 class ConvenioListView(APIView):
     """
     GET /clinica-beleza/convenios/ — lista convênios ativos

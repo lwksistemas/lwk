@@ -11,6 +11,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .consentimento_assinatura_publica_service import configurar_tenant_publico_clinica
 from .foto_paciente_service import (
     FotoCloudinaryInvalida,
     FotoUploadInvalida,
@@ -28,7 +29,6 @@ from .foto_paciente_service import (
 )
 from .models import Consulta, PacienteFotoAcompanhamento
 from .permissions import CLINICA_CLINICAL
-from .consentimento_assinatura_publica_service import configurar_tenant_publico_clinica
 from .views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
@@ -132,8 +132,9 @@ class EnviarFotoPublicaView(View):
     """GET/POST /api/clinica-beleza/enviar-foto/{token}/ ou ?t=token"""
 
     def dispatch(self, request, *args, **kwargs):
-        from .throttles import check_rate_limit
         from django.http import JsonResponse
+
+        from .throttles import check_rate_limit
         if not check_rate_limit(request, 'public_foto', '10/min'):
             return JsonResponse({'error': 'Muitas tentativas. Aguarde alguns segundos e tente novamente.'}, status=429)
         return super().dispatch(request, *args, **kwargs)

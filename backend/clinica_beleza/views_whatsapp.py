@@ -4,14 +4,15 @@ Views de Campanhas de Promoção — Clínica da Beleza.
 Configuração WhatsApp: /api/whatsapp/config/ (app whatsapp centralizado).
 """
 import logging
-from django.utils import timezone
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .permissions import CLINICA_ADMIN
-from rest_framework import status
 
-from .models import Patient, CampanhaPromocao
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .models import CampanhaPromocao, Patient
 from .pagination import paginate_queryset
+from .permissions import CLINICA_ADMIN
 from .utils import LojaContextHelper
 from .views_base import GetObjectMixin
 
@@ -130,8 +131,8 @@ class CampanhaPromocaoEnviarView(GetObjectMixin, APIView):
         if not config or not getattr(config, 'whatsapp_ativo', False):
             return Response({'error': 'WhatsApp não está ativo. Configure em Configurações.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        from whatsapp.services import send_whatsapp
         from core.task_queue import task_queue_enabled
+        from whatsapp.services import send_whatsapp
 
         pacientes = Patient.objects.filter(
             is_active=True, allow_whatsapp=True

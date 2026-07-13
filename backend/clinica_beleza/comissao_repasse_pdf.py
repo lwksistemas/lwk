@@ -19,8 +19,8 @@ from reportlab.platypus import (
 )
 
 from .comissao_relatorio_pdf import (
-    _COR_PRIMARIA,
     _CINZA,
+    _COR_PRIMARIA,
     _LARGURA_UTIL,
     _fmt_brl,
     _fmt_data_br,

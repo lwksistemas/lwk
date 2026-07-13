@@ -10,6 +10,7 @@ from ..permissions import CLINICA_CLINICAL
 from ..serializers import ConsultaEvolucaoSerializer, PatientAnamneseSerializer
 from .helpers import get_patient_or_404
 
+
 class PatientAnamneseView(APIView):
     """GET / PUT /clinica-beleza/patients/<patient_id>/anamnese/"""
     permission_classes = CLINICA_CLINICAL

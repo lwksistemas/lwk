@@ -2,16 +2,16 @@
 Views do Prontuário — Visualização e geração de PDF
 """
 from django.http import HttpResponse
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .permissions import CLINICA_CLINICAL
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from .documento_service import listar_prontuario_paciente
 from .models import DocumentoClinico, Patient
+from .permissions import CLINICA_CLINICAL
+from .prontuario_pdf import gerar_pdf_documento, gerar_pdf_prontuario_completo, gerar_pdf_secao
 from .serializers import ProntuarioSectionSerializer
 from .views_base import GetObjectMixin
-from .documento_service import listar_prontuario_paciente
-from .prontuario_pdf import gerar_pdf_documento, gerar_pdf_secao, gerar_pdf_prontuario_completo
 
 
 class ProntuarioView(APIView):

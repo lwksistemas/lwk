@@ -5,19 +5,19 @@ POST /api/clinica-beleza/nfse-config/test-issnet/
 """
 import logging
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework import status
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from tenants.middleware import get_current_loja_id
-from .permissions import CLINICA_ADMIN
-from .models import ClinicaBelezaNFSeConfig
-from .serializers.nfse_config import ClinicaBelezaNFSeConfigSerializer
+
 from .nfse_config_service import (
     get_or_create_nfse_config,
     test_issnet_connection,
 )
+from .permissions import CLINICA_ADMIN
+from .serializers.nfse_config import ClinicaBelezaNFSeConfigSerializer
 
 logger = logging.getLogger(__name__)
 

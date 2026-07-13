@@ -1,4 +1,3 @@
-from typing import Optional
 
 from ..models import ProfessionalCommission
 
@@ -8,7 +7,7 @@ def _formatar_regra_brl(valor) -> str:
     return f'R$ {v:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
 
 
-def _formatar_regra(comissao: Optional[ProfessionalCommission]) -> tuple[str, str]:
+def _formatar_regra(comissao: ProfessionalCommission | None) -> tuple[str, str]:
     if not comissao:
         return '', ''
     if comissao.modo == 'percentual':

@@ -21,6 +21,7 @@ from clinica_beleza.retorno_service import (
     verificar_retorno_consulta,
     verificar_retorno_procedimento,
 )
+
 from .tenant_test_case import ClinicaBelezaIntegrationTestCase
 
 

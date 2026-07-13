@@ -3,7 +3,8 @@ Configuração de NFS-e individual por loja (Clínica da Beleza).
 Cada loja tem suas próprias credenciais, certificado e dados fiscais.
 """
 from django.db import models
-from core.mixins import LojaIsolationMixin, LojaIsolationManager
+
+from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 
 class ClinicaBelezaNFSeConfig(LojaIsolationMixin, models.Model):

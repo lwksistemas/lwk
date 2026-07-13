@@ -7,6 +7,7 @@ from ..models import Consulta, PrescricaoMemed, Professional
 from ..permissions import CLINICA_CLINICAL
 from ..serializers import PrescricaoMemedSerializer
 
+
 class ConsultaPrescricaoView(APIView):
     """
     GET  /clinica-beleza/consultas/<consulta_id>/prescricoes/ — lista prescrições da consulta.

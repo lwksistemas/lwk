@@ -2,9 +2,8 @@
 Resolução de preços por convênio — Clínica da Beleza.
 """
 from decimal import Decimal
-from typing import Optional
 
-from .models import Convenio, ConvenioProcedimentoPreco, AppointmentProcedure
+from .models import AppointmentProcedure, Convenio, ConvenioProcedimentoPreco
 
 
 def resolver_convenio(convenio_id, *, loja_id=None):
@@ -69,20 +68,20 @@ def mapa_precos_convenio(convenio):
     }
 
 
-def convenio_particular_id() -> Optional[int]:
+def convenio_particular_id() -> int | None:
     """ID do convênio Particular da loja (para fallback em comissões/preços)."""
     row = Convenio.objects.filter(is_active=True, nome__icontains='particular').order_by('id').first()
     return row.id if row else None
 
 
-def inferir_convenio_por_valores_procedimentos(procedimentos: list[dict]) -> Optional[int]:
+def inferir_convenio_por_valores_procedimentos(procedimentos: list[dict]) -> int | None:
     """
     Infere o convênio quando o valor cobrado coincide com a tabela de preços.
     Retorna o convênio comum a todos os procedimentos do atendimento.
     """
     if not procedimentos:
         return None
-    candidatos: Optional[set[int]] = None
+    candidatos: set[int] | None = None
     for proc in procedimentos:
         valor = proc.get('valor')
         if valor is None:
@@ -112,8 +111,8 @@ def inferir_convenio_por_valores_procedimentos(procedimentos: list[dict]) -> Opt
 def resolver_convenio_atendimento_comissao(
     appointment,
     consulta,
-    procedimentos: Optional[list[dict]] = None,
-) -> Optional[int]:
+    procedimentos: list[dict] | None = None,
+) -> int | None:
     """
     Convênio efetivo para cálculo de comissão:
     agendamento → consulta → paciente → inferência por valores → Particular.

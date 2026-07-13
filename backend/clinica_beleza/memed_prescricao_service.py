@@ -8,7 +8,9 @@ from typing import Any
 import requests
 
 from core.cloudinary_folders import loja_clinica_memed
-from .memed_config import memed_config as _memed_config, memed_credentials as _memed_credentials
+
+from .memed_config import memed_config as _memed_config
+from .memed_config import memed_credentials as _memed_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -205,6 +207,7 @@ def arquivar_pdf_bytes_cloudinary(loja, conteudo: bytes) -> str:
         return ''
     try:
         import cloudinary.uploader
+
         from superadmin.cloudinary_models import CloudinaryConfig
 
         cfg = CloudinaryConfig.get_config()
@@ -252,6 +255,7 @@ def arquivar_pdf_cloudinary(loja, pdf_url: str) -> str:
 
     try:
         import cloudinary.uploader
+
         from superadmin.cloudinary_models import CloudinaryConfig
 
         cfg = CloudinaryConfig.get_config()

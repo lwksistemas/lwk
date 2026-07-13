@@ -5,6 +5,7 @@ Uso:
     python manage.py recalcular_comissoes_payments
     python manage.py recalcular_comissoes_payments --slug beleza
 """
+from contextlib import suppress
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
@@ -72,9 +73,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(
                 f'  {loja.slug}: {atualizados} payment(s) atualizado(s)',
             ))
-            try:
+            with suppress(Exception):
                 connections[loja.database_name].close()
-            except Exception:
-                pass
 
         self.stdout.write(self.style.SUCCESS(f'Concluído: {total_atualizados} payment(s) no total.'))

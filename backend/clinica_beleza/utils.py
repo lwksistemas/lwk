@@ -1,8 +1,9 @@
 """
 Utilitários compartilhados para Clínica da Beleza
 """
-from tenants.middleware import get_current_loja_id
 from django.core.cache import cache
+
+from tenants.middleware import get_current_loja_id
 
 
 class LojaContextHelper:

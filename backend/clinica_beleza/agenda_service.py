@@ -7,7 +7,6 @@ Extrai a lógica de negócio que antes ficava diretamente nas views de agenda
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Optional
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -193,8 +192,8 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
 @dataclass
 class UpdateResult:
     appointment: Appointment
-    consulta_id: Optional[int] = None
-    consulta_error: Optional[str] = None
+    consulta_id: int | None = None
+    consulta_error: str | None = None
 
 
 def atualizar_agendamento(appointment, *, new_date=None, new_status=None,

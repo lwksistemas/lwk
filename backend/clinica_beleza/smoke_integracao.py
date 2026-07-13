@@ -7,9 +7,9 @@ Uso CLI (PostgreSQL / schema loja_*):
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Callable
 
 from django.contrib.auth.models import User
 from django.db import connections, transaction

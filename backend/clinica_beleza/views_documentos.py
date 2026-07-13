@@ -1,17 +1,17 @@
 """
 Views de Documentos Clínicos — Templates e Documentos da Consulta
 """
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .permissions import CLINICA_CLINICAL
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .models import Consulta, DocumentoClinico, DocumentTemplate, Professional
-from .serializers import DocumentoClinicoSerializer, DocumentTemplateSerializer
-from .pagination import paginate_queryset
-from .views_base import GetObjectMixin, resolve_loja_id_from_request
 from .documento_service import criar_documento, render_template
+from .models import DocumentoClinico, DocumentTemplate, Professional
+from .pagination import paginate_queryset
+from .permissions import CLINICA_CLINICAL
+from .serializers import DocumentoClinicoSerializer, DocumentTemplateSerializer
 from .utils import LojaContextHelper
+from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
 
 def _documentos_da_consulta(consulta):

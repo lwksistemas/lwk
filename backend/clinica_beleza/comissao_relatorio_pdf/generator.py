@@ -15,7 +15,7 @@ from .blocos import (
     _bloco_resumo_profissional,
     _bloco_totais_final,
 )
-from .constants import _COR_PRIMARIA, _CINZA
+from .constants import _CINZA, _COR_PRIMARIA
 from .formatting import _fmt_data_br, _is_linha_consulta
 from .timbrado import _logo_image, _merge_timbrado_fundo
 

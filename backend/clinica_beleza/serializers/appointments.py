@@ -2,10 +2,18 @@
 from rest_framework import serializers
 
 from core.serializer_mixins import TenantQuerysetMixin
+
 from ..bloqueio_utils import bloqueio_datetime_range, split_datetime_range
 from ..models import (
-    Appointment, AppointmentProcedure, BloqueioHorario, Convenio, LocalAtendimento, NomeAgenda, Procedure,
+    Appointment,
+    AppointmentProcedure,
+    BloqueioHorario,
+    Convenio,
+    LocalAtendimento,
+    NomeAgenda,
+    Procedure,
 )
+
 
 class AppointmentListSerializer(serializers.ModelSerializer):
     """Serializer simplificado para listagem de agendamentos."""
@@ -339,11 +347,11 @@ class BloqueioHorarioSerializer(serializers.ModelSerializer):
 
     def _dia_inteiro_flag(self) -> bool:
         raw = self.initial_data.get('dia_inteiro') if hasattr(self, 'initial_data') else None
-        if raw is True or raw == 1:
-            return True
-        if isinstance(raw, str) and raw.strip().lower() in ('1', 'true', 'yes', 'sim'):
-            return True
-        return False
+        return (
+            raw is True
+            or raw == 1
+            or (isinstance(raw, str) and raw.strip().lower() in ('1', 'true', 'yes', 'sim'))
+        )
 
     def validate(self, attrs):
         inicio = attrs.get('data_inicio')

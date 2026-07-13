@@ -251,14 +251,19 @@ def _resolve_status_pagamento(pl, ap):
     return status_raw, status_display, is_paid, is_pending, is_overdue
 
 
-def _resolve_urls_boleto_pix(pl, ap, is_paid, is_pending, is_overdue, boleto_url_fallback, pix_copy_fallback, asaas_due_fallback):
-    """Resolve boleto_url, pix_copy e pix_qr para um PagamentoLoja, aplicando regras de visibilidade."""
+def _resolve_boleto_url(pl, ap, is_pending, boleto_url_fallback, asaas_due_fallback) -> str:
+    """Resolve boleto_url para um PagamentoLoja."""
     boleto_url = (pl.boleto_url or "").strip()
     if not boleto_url and ap:
         boleto_url = (ap.bank_slip_url or ap.invoice_url or "").strip()
-    if not boleto_url and is_pending and boleto_url_fallback and asaas_due_fallback and pl.data_vencimento == asaas_due_fallback:
+    tem_fallback = boleto_url_fallback and asaas_due_fallback and pl.data_vencimento == asaas_due_fallback
+    if not boleto_url and is_pending and tem_fallback:
         boleto_url = boleto_url_fallback
+    return boleto_url
 
+
+def _resolve_pix_urls(pl, ap, is_pending, pix_copy_fallback) -> tuple[str, str]:
+    """Resolve pix_copy e pix_qr para um PagamentoLoja."""
     pix_copy = (pl.pix_copy_paste or "").strip()
     pix_qr = (pl.pix_qr_code or "").strip()
     if ap:
@@ -266,10 +271,16 @@ def _resolve_urls_boleto_pix(pl, ap, is_paid, is_pending, is_overdue, boleto_url
         pix_qr = pix_qr or (ap.pix_qr_code or "").strip()
     if not pix_copy and is_pending:
         pix_copy = (pix_copy_fallback or "").strip()
+    return pix_copy, pix_qr
 
-    if (is_pending or is_overdue) and pl.data_vencimento and not _boleto_pix_liberado_para_vencimento(pl.data_vencimento):
-        boleto_url = pix_copy = pix_qr = ""
 
+def _resolve_urls_boleto_pix(pl, ap, is_paid, is_pending, is_overdue, boleto_url_fallback, pix_copy_fallback, asaas_due_fallback):
+    """Resolve boleto_url, pix_copy e pix_qr para um PagamentoLoja, aplicando regras de visibilidade."""
+    boleto_url = _resolve_boleto_url(pl, ap, is_pending, boleto_url_fallback, asaas_due_fallback)
+    pix_copy, pix_qr = _resolve_pix_urls(pl, ap, is_pending, pix_copy_fallback)
+    vencimento_bloqueado = (is_pending or is_overdue) and pl.data_vencimento and not _boleto_pix_liberado_para_vencimento(pl.data_vencimento)
+    if vencimento_bloqueado:
+        return "", "", ""
     return boleto_url, pix_copy, pix_qr
 
 

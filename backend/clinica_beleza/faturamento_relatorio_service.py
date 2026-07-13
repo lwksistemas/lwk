@@ -16,6 +16,36 @@ from .models import Consulta, Payment
 AgrupamentoType = Literal["profissional", "procedimento", "local", "convenio"]
 
 
+def _calcular_valor_pagamento(payment, consulta_map: dict) -> tuple[Decimal, Decimal, bool]:
+    """Retorna (valor_consulta, valor_proc, usar_amount_total).
+    Quando usar_amount_total=True, o chamador deve usar payment.amount como valor_total.
+    """
+    appt = payment.appointment
+    consulta = consulta_map.get(appt.id) if appt else None
+    valor_consulta = Decimal(0)
+    if consulta:
+        vc = Decimal(str(consulta.valor_consulta or 0))
+        if vc > 0:
+            valor_consulta = vc
+        elif consulta.local_atendimento:
+            valor_consulta = Decimal(str(consulta.local_atendimento.valor_consulta or 0))
+    valor_proc = Decimal(0)
+    if appt:
+        for ap in appt.appointment_procedures.all():
+            valor_proc += ap.valor or ap.procedure.preco or Decimal(0)
+    return valor_consulta, valor_proc, (valor_consulta == 0 and valor_proc == 0)
+
+
+def _carregar_consultas_map(payments_list: list) -> dict:
+    """Retorna mapa appointment_id -> Consulta para os pagamentos fornecidos."""
+    appt_ids = [p.appointment_id for p in payments_list if p.appointment_id]
+    consulta_map = {}
+    if appt_ids:
+        for c in Consulta.objects.filter(appointment_id__in=appt_ids).select_related("local_atendimento", "procedure", "convenio"):
+            consulta_map[c.appointment_id] = c
+    return consulta_map
+
+
 def calcular_faturamento(
     *,
     data_inicio: date | None = None,
@@ -49,13 +79,7 @@ def calcular_faturamento(
 
     # Carregar consultas vinculadas para ter valor_consulta e local
     payments_list = list(qs.prefetch_related("appointment__appointment_procedures__procedure"))
-    appt_ids = [p.appointment_id for p in payments_list if p.appointment_id]
-    consulta_map = {}
-    if appt_ids:
-        for c in Consulta.objects.filter(
-            appointment_id__in=appt_ids,
-        ).select_related("local_atendimento", "procedure", "convenio"):
-            consulta_map[c.appointment_id] = c
+    consulta_map = _carregar_consultas_map(payments_list)
 
     # Acumular dados por grupo
     grupos: dict[str, dict] = defaultdict(lambda: {
@@ -72,31 +96,13 @@ def calcular_faturamento(
             continue
 
         consulta = consulta_map.get(appt.id)
-
-        # Determinar chave e nome do grupo
         chave = _get_grupo_chave(appt, consulta, agrupar)
         nome = _get_grupo_nome(appt, consulta, agrupar)
-
         grupo = grupos[chave]
         grupo["nome"] = nome
         grupo["total_atendimentos"] += 1
-
-        # Valor da taxa de consulta (do registro Consulta ou local)
-        valor_consulta = Decimal(0)
-        if consulta:
-            vc = Decimal(str(consulta.valor_consulta or 0))
-            if vc > 0:
-                valor_consulta = vc
-            elif consulta.local_atendimento:
-                valor_consulta = Decimal(str(consulta.local_atendimento.valor_consulta or 0))
-
-        # Valor dos procedimentos (AppointmentProcedure.valor ou procedure.preco)
-        valor_proc = Decimal(0)
-        for ap in appt.appointment_procedures.all():
-            valor_proc += ap.valor or ap.procedure.preco or Decimal(0)
-
-        # Se não tem procedimentos nem consulta com valor, usar amount total
-        if valor_consulta == 0 and valor_proc == 0:
+        valor_consulta, valor_proc, usar_amount = _calcular_valor_pagamento(payment, consulta_map)
+        if usar_amount:
             grupo["valor_total"] += payment.amount or Decimal(0)
         else:
             grupo["valor_consulta"] += valor_consulta

@@ -18,6 +18,76 @@ from nfse_integration.prestador_loja import DadosPrestadorNFSe
 logger = logging.getLogger(__name__)
 
 
+def _resolver_dados_prestador_issnet(loja, config, prestador) -> tuple[str, str, str]:
+    """Retorna (cnpj_prestador, im_prestador, razao_prestador) resolvendo de DadosPrestadorNFSe ou loja."""
+    if prestador:
+        return prestador.cnpj, prestador.inscricao_municipal, prestador.razao_social
+    cnpj = re.sub(r"\D", "", loja.cpf_cnpj or "")
+    im = (getattr(config, "inscricao_municipal", "") or getattr(loja, "inscricao_municipal", "") or "")
+    return cnpj, im, loja.nome or ""
+
+
+def _montar_resultado_issnet(
+    resultado: dict,
+    numero_rps: int,
+    valor_servicos,
+    aliquota,
+    valor_iss,
+    tomador_nome: str,
+    tomador_cpf_cnpj: str,
+    servico_descricao: str,
+) -> dict:
+    """Monta dict resultado_final a partir da resposta do ISSNet."""
+    return {
+        "success": True,
+        "numero_nf": resultado.get("numero_nf", ""),
+        "codigo_verificacao": resultado.get("codigo_verificacao", ""),
+        "numero_rps": numero_rps,
+        "data_emissao": timezone.now(),
+        "valor": float(valor_servicos),
+        "aliquota_iss": float(aliquota),
+        "valor_iss": float(valor_iss),
+        "xml_nfse": resultado.get("xml_nfse", ""),
+        "pdf_url": resultado.get("link_pdf", ""),
+        "tomador_nome": tomador_nome,
+        "tomador_cpf_cnpj": tomador_cpf_cnpj,
+        "servico_descricao": servico_descricao,
+    }
+
+
+def _preparar_params_servico_issnet(config, valor_servicos, codigo_servico_override, codigo_cnae_override, item_lista_override) -> tuple:
+    """Resolve código de serviço, CNAE, item de lista e cálculo de ISS. Retorna (codigo_servico, codigo_cnae, item_lista, aliquota, valor_iss)."""
+    codigo_servico = codigo_servico_override or getattr(config, "codigo_servico_municipal", "1401") or "1401"
+    codigo_cnae = codigo_cnae_override or (getattr(config, "codigo_cnae", "") or "").strip()
+    item_lista = (item_lista_override or (getattr(config, "item_lista_servico", "") or "").strip()) or None
+    aliquota = Decimal(str(getattr(config, "aliquota_iss", 2.00) or 0))
+    valor_iss = (Decimal(str(valor_servicos)) * aliquota / Decimal(100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return codigo_servico, codigo_cnae, item_lista, aliquota, valor_iss
+
+
+def _salvar_e_enviar_issnet(loja, resultado_final, tomador_email, tomador_nome, numero_rps, valor_servicos, enviar_email, enviar_email_fn) -> dict:
+    """Grava NFS-e emitida e opcionalmente envia e-mail. Retorna resultado_final ou erro de persistência."""
+    if not salvar_nfse_emitida(loja.id, resultado_final, tomador_email, provedor="issnet"):
+        return {
+            "success": False,
+            "error": (
+                f'NFS-e {resultado_final["numero_nf"]} aceita no ISSNet, mas falhou ao gravar no sistema. '
+                f'Use «Recuperar do ISSNet» informando o RPS {numero_rps}.'
+            ),
+            "numero_rps": numero_rps,
+            "numero_nf": resultado_final["numero_nf"],
+        }
+    if enviar_email and tomador_email:
+        enviar_email_fn(
+            tomador_email=tomador_email,
+            tomador_nome=tomador_nome,
+            numero_nf=resultado_final["numero_nf"],
+            valor=valor_servicos,
+            descricao=resultado_final["servico_descricao"],
+        )
+    return resultado_final
+
+
 def emitir_via_issnet_loja(
     loja: Any,
     config: Any,
@@ -42,35 +112,10 @@ def emitir_via_issnet_loja(
         if not senha_certificado_configurada_loja(config):
             return {"success": False, "error": "Senha do certificado não configurada"}
 
-        if prestador:
-            cnpj_prestador = prestador.cnpj
-            im_prestador = prestador.inscricao_municipal
-            razao_prestador = prestador.razao_social
-        else:
-            cnpj_prestador = re.sub(r"\D", "", loja.cpf_cnpj or "")
-            im_prestador = (
-                getattr(config, "inscricao_municipal", "")
-                or getattr(loja, "inscricao_municipal", "")
-                or ""
-            )
-            razao_prestador = loja.nome or ""
-        codigo_servico_final = (
-            codigo_servico_override
-            or getattr(config, "codigo_servico_municipal", "1401")
-            or "1401"
+        cnpj_prestador, im_prestador, razao_prestador = _resolver_dados_prestador_issnet(loja, config, prestador)
+        codigo_servico_final, codigo_cnae_final, item_lista_final, aliquota, valor_iss = _preparar_params_servico_issnet(
+            config, valor_servicos, codigo_servico_override, codigo_cnae_override, item_lista_override,
         )
-        codigo_cnae_final = codigo_cnae_override or (getattr(config, "codigo_cnae", "") or "").strip()
-        item_lista_final = (
-            item_lista_override
-            or (getattr(config, "item_lista_servico", "") or "").strip()
-            or None
-        )
-        aliquota = Decimal(str(getattr(config, "aliquota_iss", 2.00) or 0))
-        valor_iss = (Decimal(str(valor_servicos)) * aliquota / Decimal(100)).quantize(
-            Decimal("0.01"),
-            rounding=ROUND_HALF_UP,
-        )
-
         with issnet_client_loja(config) as client:
             numero_rps = gerar_proximo_numero_rps(loja.id, config)
             resultado = client.emitir_nfse(
@@ -89,49 +134,13 @@ def emitir_via_issnet_loja(
                 codigo_cnae=codigo_cnae_final or None,
                 item_lista_servico=item_lista_final,
             )
-
         if resultado.get("success"):
-            resultado_final = {
-                "success": True,
-                "numero_nf": resultado.get("numero_nf", ""),
-                "codigo_verificacao": resultado.get("codigo_verificacao", ""),
-                "numero_rps": numero_rps,
-                "data_emissao": timezone.now(),
-                "valor": float(valor_servicos),
-                "aliquota_iss": float(aliquota),
-                "valor_iss": float(valor_iss),
-                "xml_nfse": resultado.get("xml_nfse", ""),
-                "pdf_url": resultado.get("link_pdf", ""),
-                "tomador_nome": tomador_nome,
-                "tomador_cpf_cnpj": tomador_cpf_cnpj,
-                "servico_descricao": servico_descricao,
-            }
-            if not salvar_nfse_emitida(loja.id, resultado_final, tomador_email, provedor="issnet"):
-                return {
-                    "success": False,
-                    "error": (
-                        f'NFS-e {resultado_final["numero_nf"]} aceita no ISSNet, mas falhou ao gravar no sistema. '
-                        'Use «Recuperar do ISSNet» informando o RPS '
-                        f'{numero_rps}.'
-                    ),
-                    "numero_rps": numero_rps,
-                    "numero_nf": resultado_final["numero_nf"],
-                }
-            if enviar_email and tomador_email:
-                enviar_email_fn(
-                    tomador_email=tomador_email,
-                    tomador_nome=tomador_nome,
-                    numero_nf=resultado_final["numero_nf"],
-                    valor=valor_servicos,
-                    descricao=servico_descricao,
-                )
-            return resultado_final
-
-        return {
-            "success": False,
-            "error": resultado.get("error", "Erro ISSNet"),
-            "numero_rps": numero_rps,
-        }
+            resultado_final = _montar_resultado_issnet(
+                resultado, numero_rps, valor_servicos, aliquota, valor_iss,
+                tomador_nome, tomador_cpf_cnpj, servico_descricao,
+            )
+            return _salvar_e_enviar_issnet(loja, resultado_final, tomador_email, tomador_nome, numero_rps, valor_servicos, enviar_email, enviar_email_fn)
+        return {"success": False, "error": resultado.get("error", "Erro ISSNet"), "numero_rps": numero_rps}
     except Exception as exc:
         logger.exception("Erro ao emitir via ISSNet: %s", exc)
         return {"success": False, "error": str(exc)}

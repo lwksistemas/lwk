@@ -110,6 +110,68 @@ class LojaAsaasService:
             "pagamento_id": pagamento.id,
         }
 
+    def _criar_cobranca_asaas(self, loja, financeiro) -> dict:
+        """Cria cobrança via Asaas. Retorna dict de resultado."""
+        try:
+            config = self.AsaasConfig.get_config()
+            if not self.AsaasConfig.resolve_api_key() or not config.enabled:
+                logger.warning("Asaas não configurado ou desabilitado")
+                return {"success": False, "error": "Asaas não configurado"}
+            loja_data = {
+                "nome": loja.nome,
+                "email": loja.owner.email,
+                "cpf_cnpj": loja.cpf_cnpj or "00000000000",
+                "telefone": loja.owner_telefone or "",
+                "endereco": loja.logradouro or "",
+                "numero": loja.numero or "",
+                "complemento": loja.complemento or "",
+                "bairro": loja.bairro or "",
+                "cidade": loja.cidade or "",
+                "estado": loja.uf or "",
+                "cep": loja.cep or "",
+                "slug": loja.slug,
+            }
+            plano_data = {"nome": loja.plano.nome, "preco": float(financeiro.valor_mensalidade)}
+            service = self.AsaasPaymentService()
+            from asaas_integration.models import LojaAssinatura
+            customer_id = (financeiro.asaas_customer_id or "").strip() or None
+            if not customer_id:
+                loja_assinatura = LojaAssinatura.objects.filter(loja_slug=loja.slug).select_related("asaas_customer").first()
+                if loja_assinatura and loja_assinatura.asaas_customer_id:
+                    customer_id = loja_assinatura.asaas_customer.asaas_id
+            resultado = service.create_loja_subscription_payment(loja_data, plano_data, customer_id=customer_id)
+            if resultado.get("success"):
+                return self._salvar_financeiro_asaas(loja, financeiro, resultado)
+            logger.error("Erro ao criar cobrança Asaas: %s", resultado.get("error"))
+            return {"success": False, "error": resultado.get("error", "Erro desconhecido")}
+        except Exception as e:
+            logger.error("Erro no serviço Asaas: %s", e)
+            return {"success": False, "error": str(e)}
+
+    def _tentar_cobranca_mercadopago(self, loja, financeiro) -> dict | None:
+        """Tenta criar cobrança via Mercado Pago se configurado. Retorna resultado ou None para usar fallback Asaas."""
+        try:
+            from .mercadopago_service import LojaMercadoPagoService
+            from .models import MercadoPagoConfig
+            mp_config = MercadoPagoConfig.get_config()
+            usar_mp = (
+                mp_config.enabled
+                and mp_config.access_token
+                and getattr(loja, "provedor_boleto_preferido", "asaas") == "mercadopago"
+            )
+            if not usar_mp:
+                return None
+            mp_service = LojaMercadoPagoService()
+            if not mp_service.available:
+                return None
+            resultado = mp_service.criar_cobranca_loja(loja, financeiro)
+            if resultado.get("success"):
+                return self._salvar_financeiro_mp(loja, financeiro, resultado)
+            return resultado
+        except Exception as e:
+            logger.warning("Mercado Pago não usado para cobrança: %s", e)
+            return None
+
     def criar_cobranca_loja(self, loja, financeiro):
         """Cria cobrança (boleto) para a loja. Usa Mercado Pago se configurado e
         use_for_boletos ativo; caso contrário usa Asaas.
@@ -122,71 +184,14 @@ class LojaAsaasService:
             dict: Resultado da criação da cobrança
 
         """
-        # Opção: Mercado Pago para boletos
-        try:
-            from .mercadopago_service import LojaMercadoPagoService
-            from .models import MercadoPagoConfig
-            mp_config = MercadoPagoConfig.get_config()
-            usar_mp = (
-                mp_config.enabled
-                and mp_config.access_token
-                and getattr(loja, "provedor_boleto_preferido", "asaas") == "mercadopago"
-            )
-            if usar_mp:
-                mp_service = LojaMercadoPagoService()
-                if mp_service.available:
-                    resultado = mp_service.criar_cobranca_loja(loja, financeiro)
-                    if resultado.get("success"):
-                        return self._salvar_financeiro_mp(loja, financeiro, resultado)
-                    return resultado
-        except Exception as e:
-            logger.warning("Mercado Pago não usado para cobrança: %s", e)
+        mp_resultado = self._tentar_cobranca_mercadopago(loja, financeiro)
+        if mp_resultado is not None:
+            return mp_resultado
 
         # Fallback: Asaas
         if not self.available:
             return {"success": False, "error": "Integração Asaas não disponível"}
-
-        try:
-            config = self.AsaasConfig.get_config()
-            if not self.AsaasConfig.resolve_api_key() or not config.enabled:
-                logger.warning("Asaas não configurado ou desabilitado")
-                return {"success": False, "error": "Asaas não configurado"}
-
-            loja_data = {
-                "nome": loja.nome,
-                "email": loja.owner.email,
-                "cpf_cnpj": loja.cpf_cnpj or "00000000000",  # CPF/CNPJ obrigatório
-                "telefone": loja.owner_telefone or "",  # ✅ CORREÇÃO: Telefone do administrador para NF
-                # ✅ CORREÇÃO v1320: Incluir endereço completo para emissão de NF
-                "endereco": loja.logradouro or "",
-                "numero": loja.numero or "",
-                "complemento": loja.complemento or "",
-                "bairro": loja.bairro or "",
-                "cidade": loja.cidade or "",
-                "estado": loja.uf or "",
-                "cep": loja.cep or "",
-                "slug": loja.slug,
-            }
-            plano_data = {"nome": loja.plano.nome, "preco": float(financeiro.valor_mensalidade)}
-            service = self.AsaasPaymentService()
-
-            from asaas_integration.models import LojaAssinatura
-            customer_id = (financeiro.asaas_customer_id or "").strip() or None
-            if not customer_id:
-                loja_assinatura = LojaAssinatura.objects.filter(loja_slug=loja.slug).select_related("asaas_customer").first()
-                if loja_assinatura and loja_assinatura.asaas_customer_id:
-                    customer_id = loja_assinatura.asaas_customer.asaas_id
-
-            resultado = service.create_loja_subscription_payment(loja_data, plano_data, customer_id=customer_id)
-
-            if resultado.get("success"):
-                return self._salvar_financeiro_asaas(loja, financeiro, resultado)
-            logger.error("Erro ao criar cobrança Asaas: %s", resultado.get("error"))
-            return {"success": False, "error": resultado.get("error", "Erro desconhecido")}
-
-        except Exception as e:
-            logger.error("Erro no serviço Asaas: %s", e)
-            return {"success": False, "error": str(e)}
+        return self._criar_cobranca_asaas(loja, financeiro)
 
     def baixar_pdf_boleto(self, payment_id):
         """Baixa o PDF do boleto do Asaas

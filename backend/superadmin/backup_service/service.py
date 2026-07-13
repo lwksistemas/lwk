@@ -33,6 +33,97 @@ from .exporters import CSVExporter, ZipBuilder
 
 logger = logging.getLogger(__name__)
 
+def _filtrar_tabelas_schema_public(db_helper, loja, table_names: list) -> list:
+    """Quando schema é public, filtra tabelas por loja_id e prefixo do tipo de app."""
+    table_names = [t for t in table_names if db_helper._table_has_loja_id(t)]
+    tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else "").strip() or ""
+    allowed_prefixes = BACKUP_TIPO_APP_TABLE_PREFIXES.get(tipo_slug, ())
+    excluded_prefixes = BACKUP_TIPO_APP_EXCLUDED_PREFIXES.get(tipo_slug, ())
+    if allowed_prefixes:
+        def _pertence(name: str) -> bool:
+            if any(name.startswith(p) for p in excluded_prefixes):
+                return False
+            return any(name.startswith(p) for p in allowed_prefixes)
+        table_names = [t for t in table_names if _pertence(t)]
+    if table_names:
+        logger.info(
+            "Backup (schema public): exportando %d tabela(s) do tipo '%s' (prefixos: %s)",
+            len(table_names), tipo_slug, allowed_prefixes,
+        )
+    return table_names
+
+
+def _preparar_tabelas_backup(db_helper, config, loja) -> list:
+    """Define search_path PostgreSQL e retorna lista de tabelas a exportar."""
+    if not db_helper._is_sqlite() and db_helper._pg_schema and is_safe_pg_schema_token(db_helper._pg_schema):
+        try:
+            with db_helper.get_connection().cursor() as cursor:
+                cursor.execute(f'SET search_path TO "{db_helper._pg_schema}", public')
+            logger.info("Backup: search_path definido para '%s'", db_helper._pg_schema)
+        except Exception as e:
+            logger.warning("Backup: não foi possível SET search_path: %s", e)
+    try:
+        table_names = db_helper.get_all_table_names()
+    except Exception as e:
+        logger.warning("⚠️ Fallback para lista fixa de tabelas: %s", e)
+        table_names = [t.nome for t in config.get_tabelas_ordenadas_exportacao()]
+    if getattr(db_helper, "_pg_schema", None) == "public":
+        table_names = _filtrar_tabelas_schema_public(db_helper, loja, table_names)
+    if not table_names:
+        logger.warning(
+            "⚠️ Nenhuma tabela no schema da loja %s (database_name=%s, schema_pg=%s). "
+            "Verifique se o schema existe e se as migrations foram aplicadas.",
+            loja.nome, loja.database_name, getattr(db_helper, "_pg_schema", "N/A"),
+        )
+    return table_names
+
+
+def _finalizar_zip_backup(loja, db_helper, zip_builder, table_names, total_registros, tabelas_stats, incluir_imagens, imagens_stats) -> dict:
+    """Adiciona metadados, finaliza o ZIP e retorna dict de sucesso."""
+    metadata = {
+        "loja_id": loja.id,
+        "loja_nome": loja.nome,
+        "loja_slug": loja.slug,
+        "database_name": loja.database_name,
+        "schema_exportado": getattr(db_helper, "_pg_schema", loja.database_name or ""),
+        "data_backup": timezone.now().isoformat(),
+        "total_registros": total_registros,
+        "tabelas": tabelas_stats,
+        "incluir_imagens": incluir_imagens,
+        "imagens": imagens_stats,
+        "versao_backup": "1.1",
+    }
+    zip_builder.add_metadata(metadata)
+    zip_bytes = zip_builder.finalize()
+    tamanho_mb = zip_builder.get_size_mb(zip_bytes)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    arquivo_nome = f"backup_{loja.slug}_{timestamp}.zip"
+    logger.info("✅ Backup concluído - %s - %.2f MB - %d registros", arquivo_nome, tamanho_mb, total_registros)
+    return {"success": True, "arquivo_nome": arquivo_nome, "arquivo_bytes": zip_bytes,
+            "tamanho_mb": tamanho_mb, "total_registros": total_registros, "tabelas": tabelas_stats, "imagens": imagens_stats}
+
+
+def _exportar_tabelas_para_zip(db_helper, zip_builder, table_names: list, loja_id: int) -> tuple[int, dict]:
+    """Itera tabelas, exporta CSV e adiciona ao ZIP. Retorna (total_registros, tabelas_stats)."""
+    total_registros = 0
+    tabelas_stats = {}
+    for table_name in table_names:
+        if not db_helper.table_exists(table_name):
+            continue
+        try:
+            columns, records = db_helper.fetch_all_records(table_name, loja_id=loja_id)
+            count = len(records)
+            csv_content = CSVExporter.export_table_to_csv(table_name, columns, records)
+            zip_builder.add_csv(f"{table_name}.csv", csv_content)
+            total_registros += count
+            tabelas_stats[table_name] = count
+            logger.info("✅ Tabela %s: %d registros exportados", table_name, count)
+        except Exception as e:
+            logger.error("❌ Erro ao exportar tabela %s: %s", table_name, e)
+            tabelas_stats[table_name] = 0
+    return total_registros, tabelas_stats
+
+
 class BackupService:
     """Serviço principal de backup.
 
@@ -79,132 +170,17 @@ class BackupService:
             # Inicializar helpers
             db_helper = DatabaseHelper(loja.database_name)
             zip_builder = ZipBuilder()
-
-            # Estatísticas
-            total_registros = 0
-            tabelas_stats = {}
-
-            # Forçar search_path na conexão (PostgreSQL) para garantir que usamos o schema da loja
-            if not db_helper._is_sqlite() and db_helper._pg_schema and is_safe_pg_schema_token(db_helper._pg_schema):
-                try:
-                    with db_helper.get_connection().cursor() as cursor:
-                        cursor.execute(f'SET search_path TO "{db_helper._pg_schema}", public')
-                    logger.info(f"Backup: search_path definido para '{db_helper._pg_schema}'")
-                except Exception as e:
-                    logger.warning(f"Backup: não foi possível SET search_path: {e}")
-
-            # Listar tabelas dinamicamente (qualquer tipo de app: clínica, loja, etc.)
-            try:
-                table_names = db_helper.get_all_table_names()
-            except Exception as e:
-                logger.warning(f"⚠️ Fallback para lista fixa de tabelas: {e}")
-                table_names = [t.nome for t in self.config.get_tabelas_ordenadas_exportacao()]
-
-            # Quando o backup usa schema PUBLIC (fallback): exportar APENAS tabelas com coluna loja_id
-            # e cujo prefixo pertence ao tipo de app da loja (evita cabeleireiro_*, clinica_beleza_*, crm_*, etc.).
-            if getattr(db_helper, "_pg_schema", None) == "public":
-                table_names = [t for t in table_names if db_helper._table_has_loja_id(t)]
-                tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else "").strip() or ""
-                allowed_prefixes = BACKUP_TIPO_APP_TABLE_PREFIXES.get(tipo_slug, ())
-                excluded_prefixes = BACKUP_TIPO_APP_EXCLUDED_PREFIXES.get(tipo_slug, ())
-                if allowed_prefixes:
-                    def _table_belongs_to_tipo(name: str) -> bool:
-                        if any(name.startswith(p) for p in excluded_prefixes):
-                            return False
-                        return any(name.startswith(p) for p in allowed_prefixes)
-                    table_names = [t for t in table_names if _table_belongs_to_tipo(t)]
-                if table_names:
-                    logger.info(
-                        f"Backup (schema public): exportando {len(table_names)} tabela(s) do tipo '{tipo_slug}' (prefixos: {allowed_prefixes})",
-                    )
-
-            if not table_names:
-                logger.warning(
-                    f"⚠️ Nenhuma tabela no schema da loja {loja.nome} (database_name={loja.database_name}, "
-                    f"schema_pg={getattr(db_helper, '_pg_schema', 'N/A')}). Verifique se o schema existe e se as migrations foram aplicadas.",
-                )
-
-            for table_name in table_names:
-                if not db_helper.table_exists(table_name):
-                    continue
-
-                try:
-                    # Buscar dados (apenas cadastros da loja: filtro por loja_id quando a tabela tiver essa coluna)
-                    columns, records = db_helper.fetch_all_records(
-                        table_name, loja_id=loja.id,
-                    )
-                    count = len(records)
-
-                    # Exportar para CSV
-                    csv_content = CSVExporter.export_table_to_csv(
-                        table_name,
-                        columns,
-                        records,
-                    )
-
-                    # Adicionar ao ZIP
-                    zip_builder.add_csv(f"{table_name}.csv", csv_content)
-
-                    # Atualizar estatísticas
-                    total_registros += count
-                    tabelas_stats[table_name] = count
-
-                    logger.info(f"✅ Tabela {table_name}: {count} registros exportados")
-
-                except Exception as e:
-                    logger.error(f"❌ Erro ao exportar tabela {table_name}: {e}")
-                    tabelas_stats[table_name] = 0
-
+            table_names = _preparar_tabelas_backup(db_helper, self.config, loja)
+            total_registros, tabelas_stats = _exportar_tabelas_para_zip(db_helper, zip_builder, table_names, loja.id)
             imagens_stats = None
             if incluir_imagens:
                 from .image_exporter import BackupImageExporter
-
-                logger.info(f"🖼️ Incluindo imagens no backup da loja {loja.nome}")
+                logger.info("🖼️ Incluindo imagens no backup da loja %s", loja.nome)
                 image_exporter = BackupImageExporter(loja, db_helper)
                 imagens_stats = image_exporter.export_to_zip(zip_builder, table_names, loja.id)
-                logger.info(
-                    f"🖼️ Imagens no backup: {imagens_stats.get('total_arquivos', 0)} arquivo(s), "
-                    f"{imagens_stats.get('total_bytes', 0) / (1024 * 1024):.2f} MB",
-                )
-
-            # Adicionar metadados (inclui schema efetivo para rastreabilidade quando fallback para public)
-            metadata = {
-                "loja_id": loja.id,
-                "loja_nome": loja.nome,
-                "loja_slug": loja.slug,
-                "database_name": loja.database_name,
-                "schema_exportado": getattr(db_helper, "_pg_schema", loja.database_name or ""),
-                "data_backup": timezone.now().isoformat(),
-                "total_registros": total_registros,
-                "tabelas": tabelas_stats,
-                "incluir_imagens": incluir_imagens,
-                "imagens": imagens_stats,
-                "versao_backup": "1.1",
-            }
-            zip_builder.add_metadata(metadata)
-
-            # Finalizar ZIP
-            zip_bytes = zip_builder.finalize()
-            tamanho_mb = zip_builder.get_size_mb(zip_bytes)
-
-            # Nome do arquivo
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            arquivo_nome = f"backup_{loja.slug}_{timestamp}.zip"
-
-            logger.info(
-                f"✅ Backup concluído - {arquivo_nome} - "
-                f"{tamanho_mb:.2f} MB - {total_registros} registros",
-            )
-
-            return {
-                "success": True,
-                "arquivo_nome": arquivo_nome,
-                "arquivo_bytes": zip_bytes,
-                "tamanho_mb": tamanho_mb,
-                "total_registros": total_registros,
-                "tabelas": tabelas_stats,
-                "imagens": imagens_stats,
-            }
+                logger.info("🖼️ Imagens no backup: %d arquivo(s), %.2f MB",
+                    imagens_stats.get("total_arquivos", 0), imagens_stats.get("total_bytes", 0) / (1024 * 1024))
+            return _finalizar_zip_backup(loja, db_helper, zip_builder, table_names, total_registros, tabelas_stats, incluir_imagens, imagens_stats)
 
         except Loja.DoesNotExist:
             erro = f"Loja com ID {loja_id} não encontrada"

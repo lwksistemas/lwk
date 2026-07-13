@@ -67,6 +67,31 @@ def aplicar_cache_control_sem_store(response) -> None:
     _aplicar(response)
 
 
+def _recuperar_vendedor_owner(loja, loja_id: int, owner_email_lower: str, serialize_vendedor) -> list[dict]:
+    """Tenta recuperar o vendedor do owner quando results está vazio. Retorna lista com 1 item ou admin virtual."""
+    from superadmin.models import VendedorUsuario
+
+    from .models import Vendedor
+    vu = VendedorUsuario.objects.using("default").filter(user=loja.owner, loja_id=loja_id).first()
+    if vu and serialize_vendedor:
+        tenant_db = get_current_tenant_db()
+        qs = Vendedor.objects.all_without_filter()
+        if tenant_db and tenant_db != "default":
+            qs = qs.using(tenant_db)
+        vend = qs.filter(pk=vu.vendedor_id).first()
+        if vend and vend.loja_id == loja_id and vend.is_active:
+            row = serialize_vendedor(vend)
+            if owner_email_lower and (row.get("email") or "").strip().lower() == owner_email_lower:
+                row["is_admin"] = True
+                row["cargo"] = "Administrador"
+            return [row]
+        if vend:
+            logger.warning("Vendedor %s inconsistente (loja_id=%s, is_active=%s)", vu.vendedor_id, vend.loja_id, vend.is_active)
+        else:
+            logger.warning("VendedorUsuario órfão: vendedor_id=%s", vu.vendedor_id)
+    return [dict_admin_loja(loja)]
+
+
 def ajustar_lista_vendedores_com_admin(
     loja,
     loja_id: int,
@@ -78,7 +103,6 @@ def ajustar_lista_vendedores_com_admin(
     """
     from superadmin.models import VendedorUsuario
 
-    from .models import Vendedor
 
     owner_email_lower = (loja.owner.email or "").strip().lower()
     owner_tem_vendedor = VendedorUsuario.objects.using("default").filter(
@@ -108,35 +132,7 @@ def ajustar_lista_vendedores_com_admin(
         results.insert(0, dict_admin_loja(loja))
 
     if not results and owner_tem_vendedor:
-        vu = VendedorUsuario.objects.using("default").filter(
-            user=loja.owner,
-            loja_id=loja_id,
-        ).first()
-        recovered = False
-        if vu and serialize_vendedor:
-            tenant_db = get_current_tenant_db()
-            qs = Vendedor.objects.all_without_filter()
-            if tenant_db and tenant_db != "default":
-                qs = qs.using(tenant_db)
-            vend = qs.filter(pk=vu.vendedor_id).first()
-            if vend and vend.loja_id == loja_id and vend.is_active:
-                row = serialize_vendedor(vend)
-                if owner_email_lower and (row.get("email") or "").strip().lower() == owner_email_lower:
-                    row["is_admin"] = True
-                    row["cargo"] = "Administrador"
-                results = [row]
-                recovered = True
-            elif vend:
-                logger.warning(
-                    "Vendedor %s inconsistente (loja_id=%s, is_active=%s)",
-                    vu.vendedor_id,
-                    vend.loja_id,
-                    vend.is_active,
-                )
-            else:
-                logger.warning("VendedorUsuario órfão: vendedor_id=%s", vu.vendedor_id)
-        if not recovered:
-            results.insert(0, dict_admin_loja(loja))
+        results = _recuperar_vendedor_owner(loja, loja_id, owner_email_lower, serialize_vendedor)
 
     return results
 

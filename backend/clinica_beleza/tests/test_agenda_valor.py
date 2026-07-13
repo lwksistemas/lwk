@@ -43,3 +43,18 @@ class AgendaValorExibicaoTests(TestCase):
             consulta=consulta,
         )
         self.assertEqual(valor, Decimal("90.00"))
+
+    def test_retorno_gratuito_zera_taxa_local(self):
+        local = SimpleNamespace(valor_consulta=Decimal("150.00"))
+        consulta = SimpleNamespace(valor_consulta=Decimal("150.00"), retorno_gratuito=True)
+        valor = calcular_valor_exibicao_agenda(
+            Decimal("50.00"),
+            local_atendimento=local,
+            consulta=consulta,
+        )
+        self.assertEqual(valor, Decimal("50.00"))
+
+    def test_retorno_gratuito_sem_local_zera_taxa(self):
+        consulta = SimpleNamespace(valor_consulta=Decimal("90.00"), retorno_gratuito=True)
+        valor = calcular_valor_exibicao_agenda(Decimal(0), consulta=consulta)
+        self.assertEqual(valor, Decimal(0))

@@ -1,5 +1,6 @@
 """Testes unitários do recibo (rótulo CPF/CNPJ, telefone, desconto em notes)."""
 from types import SimpleNamespace
+
 from django.test import SimpleTestCase
 
 from clinica_beleza.recibo_service import (

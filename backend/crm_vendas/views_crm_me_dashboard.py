@@ -105,6 +105,74 @@ def crm_me(request):
     }, status=200)
 
 
+def _is_owner_loja(loja_id, user_id) -> bool:
+    from superadmin.models import Loja
+
+    try:
+        loja = Loja.objects.using("default").filter(id=loja_id).first()
+        return bool(loja and loja.owner_id == user_id)
+    except Exception as e:
+        logger.warning("dashboard_data: erro ao verificar owner loja_id=%s: %s", loja_id, e)
+        return False
+
+
+def _dashboard_cache_key(loja_id, vendedor_id, tem_filtros):
+    if tem_filtros:
+        return None
+    return CRMCacheManager.get_cache_key(CRMCacheManager.DASHBOARD, loja_id, vendedor_id)
+
+
+def _dashboard_cached_response(cache_key):
+    if not cache_key:
+        return None
+    from django.core.cache import cache
+
+    cached = cache.get(cache_key)
+    return Response(cached) if cached else None
+
+
+def _store_dashboard_cache(cache_key, payload) -> None:
+    if not cache_key:
+        return
+    from django.core.cache import cache
+
+    cache.set(cache_key, payload, 120)
+
+
+def _try_recover_dashboard_schema(exc, loja_id) -> bool:
+    """Tenta corrigir schema CRM após ProgrammingError/OperationalError."""
+    from django.db.utils import OperationalError, ProgrammingError
+    from superadmin.models import Loja
+
+    from .schema_service import (
+        configurar_schema_crm_loja,
+        patch_atividade_schema_on_column_error,
+    )
+
+    if not isinstance(exc, (ProgrammingError, OperationalError)):
+        return False
+    db_name = get_current_tenant_db()
+    if patch_atividade_schema_on_column_error(exc, db_name):
+        return True
+    loja_obj = Loja.objects.filter(id=loja_id).select_related("tipo_loja").first()
+    return bool(loja_obj and configurar_schema_crm_loja(loja_obj))
+
+
+def _dashboard_error_response(exc):
+    from django.db.utils import OperationalError, ProgrammingError
+
+    logger.exception("Erro no dashboard CRM: %s", exc)
+    if isinstance(exc, (ProgrammingError, OperationalError)):
+        return Response(
+            {"detail": "O banco de dados da loja precisa ser configurado.", "code": "SCHEMA_NOT_CONFIGURED"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    return Response(
+        {"detail": "Erro ao carregar dashboard. Tente novamente."},
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 @throttle_classes([DashboardRateThrottle])
@@ -118,16 +186,7 @@ def dashboard_data(request):
     if not loja_id:
         return Response(_empty_dashboard_response(), status=200)
 
-    # Verificar se é owner
-    from superadmin.models import Loja
-    is_owner_flag = False
-    try:
-        loja = Loja.objects.using("default").filter(id=loja_id).first()
-        if loja and loja.owner_id == request.user.id:
-            is_owner_flag = True
-    except Exception as e:
-        logger.warning("dashboard_data: erro ao verificar owner loja_id=%s: %s", loja_id, e)
-
+    is_owner_flag = _is_owner_loja(loja_id, request.user.id)
     periodo = request.GET.get("periodo", "mes_atual")
     data_inicio_param = request.GET.get("data_inicio")
     data_fim_param = request.GET.get("data_fim")
@@ -139,16 +198,10 @@ def dashboard_data(request):
         or vendedor_id_filtro or status_filtro != "todas"
     )
     vendedor_id = None if is_owner_flag else get_current_vendedor_id(request)
-
-    # Cache
-    cache_key = None
-    if not tem_filtros:
-        cache_key = CRMCacheManager.get_cache_key(CRMCacheManager.DASHBOARD, loja_id, vendedor_id)
-        if cache_key:
-            from django.core.cache import cache
-            cached = cache.get(cache_key)
-            if cached:
-                return Response(cached)
+    cache_key = _dashboard_cache_key(loja_id, vendedor_id, tem_filtros)
+    cached_resp = _dashboard_cached_response(cache_key)
+    if cached_resp is not None:
+        return cached_resp
 
     for attempt in range(2):
         try:
@@ -156,31 +209,9 @@ def dashboard_data(request):
                 loja_id, vendedor_id, periodo, data_inicio_param,
                 data_fim_param, vendedor_id_filtro, status_filtro, is_owner_flag,
             )
-            if cache_key:
-                from django.core.cache import cache
-                cache.set(cache_key, payload, 120)
+            _store_dashboard_cache(cache_key, payload)
             return Response(payload)
         except Exception as e:
-            from django.db.utils import OperationalError, ProgrammingError
-            if isinstance(e, (ProgrammingError, OperationalError)) and attempt == 0:
-                from .schema_service import (
-                    configurar_schema_crm_loja,
-                    patch_atividade_schema_on_column_error,
-                )
-
-                db_name = get_current_tenant_db()
-                if patch_atividade_schema_on_column_error(e, db_name):
-                    continue
-                loja_obj = Loja.objects.filter(id=loja_id).select_related("tipo_loja").first()
-                if loja_obj and configurar_schema_crm_loja(loja_obj):
-                    continue
-            logger.exception("Erro no dashboard CRM: %s", e)
-            if isinstance(e, (ProgrammingError, OperationalError)):
-                return Response(
-                    {"detail": "O banco de dados da loja precisa ser configurado.", "code": "SCHEMA_NOT_CONFIGURED"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-            return Response(
-                {"detail": "Erro ao carregar dashboard. Tente novamente."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            if attempt == 0 and _try_recover_dashboard_schema(e, loja_id):
+                continue
+            return _dashboard_error_response(e)

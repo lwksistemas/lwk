@@ -108,28 +108,33 @@ class LojaCreateSerializer(
             "atalho", "subdomain",  # ✅ NOVO v1421: Sistema híbrido de acesso
         ]
 
-    def _validate_cep_enriquecer(self, attrs: dict) -> dict:
-        """Tenta enriquecer CEP e normaliza campos de endereço. Retorna attrs modificado."""
-        from core.cep_utils import cep_digitos_validos, normalizar_cep
-        from nfse_integration.nfse_geo import (
-            enriquecer_endereco_por_cep,
-            normalizar_numero_complemento_endereco,
-        )
-        cep_raw = (attrs.get("cep") or "").strip()
-        if cep_raw and not cep_digitos_validos(cep_raw):
-            endereco = {
-                "cep": cep_raw,
-                "logradouro": (attrs.get("logradouro") or "").strip(),
-                "bairro": (attrs.get("bairro") or "").strip(),
-                "cidade": (attrs.get("cidade") or "").strip(),
-                "uf": (attrs.get("uf") or "").strip(),
-            }
-            if enriquecer_endereco_por_cep(endereco):
-                attrs["cep"] = endereco["cep"]
-                for campo in ("logradouro", "bairro", "cidade", "uf"):
-                    if (endereco.get(campo) or "").strip():
-                        attrs[campo] = endereco[campo]
-                cep_raw = attrs["cep"]
+    @staticmethod
+    def _tentar_enriquecer_cep_attrs(attrs: dict, cep_raw: str) -> str:
+        """Se CEP inválido, tenta ViaCEP e devolve o CEP atualizado."""
+        from core.cep_utils import cep_digitos_validos
+        from nfse_integration.nfse_geo import enriquecer_endereco_por_cep
+
+        if not cep_raw or cep_digitos_validos(cep_raw):
+            return cep_raw
+        endereco = {
+            "cep": cep_raw,
+            "logradouro": (attrs.get("logradouro") or "").strip(),
+            "bairro": (attrs.get("bairro") or "").strip(),
+            "cidade": (attrs.get("cidade") or "").strip(),
+            "uf": (attrs.get("uf") or "").strip(),
+        }
+        if not enriquecer_endereco_por_cep(endereco):
+            return cep_raw
+        attrs["cep"] = endereco["cep"]
+        for campo in ("logradouro", "bairro", "cidade", "uf"):
+            if (endereco.get(campo) or "").strip():
+                attrs[campo] = endereco[campo]
+        return attrs["cep"]
+
+    @staticmethod
+    def _aplicar_numero_complemento_attrs(attrs: dict) -> None:
+        from nfse_integration.nfse_geo import normalizar_numero_complemento_endereco
+
         numero_norm, compl_norm = normalizar_numero_complemento_endereco(
             attrs.get("numero") or "",
             attrs.get("complemento") or "",
@@ -138,14 +143,32 @@ class LojaCreateSerializer(
             attrs["numero"] = numero_norm
         if compl_norm:
             attrs["complemento"] = compl_norm
+
+    @staticmethod
+    def _exigir_cep_valido_attrs(attrs: dict, cep_raw: str) -> None:
+        from core.cep_utils import cep_digitos_validos, normalizar_cep
+
         if cep_raw:
             if not cep_digitos_validos(cep_raw):
-                raise serializers.ValidationError({"cep": "Informe um CEP válido com 8 dígitos (ex.: 14026-583)."})
+                raise serializers.ValidationError(
+                    {"cep": "Informe um CEP válido com 8 dígitos (ex.: 14026-583)."}
+                )
             attrs["cep"] = normalizar_cep(cep_raw)
-        elif any((attrs.get(k) or "").strip() for k in ("logradouro", "cidade", "uf", "bairro")):
-            raise serializers.ValidationError({"cep": "CEP é obrigatório quando o endereço é informado."})
-        else:
-            raise serializers.ValidationError({"cep": "CEP é obrigatório para emissão da nota fiscal após o pagamento."})
+            return
+        if any((attrs.get(k) or "").strip() for k in ("logradouro", "cidade", "uf", "bairro")):
+            raise serializers.ValidationError(
+                {"cep": "CEP é obrigatório quando o endereço é informado."}
+            )
+        raise serializers.ValidationError(
+            {"cep": "CEP é obrigatório para emissão da nota fiscal após o pagamento."}
+        )
+
+    def _validate_cep_enriquecer(self, attrs: dict) -> dict:
+        """Tenta enriquecer CEP e normaliza campos de endereço. Retorna attrs modificado."""
+        cep_raw = (attrs.get("cep") or "").strip()
+        cep_raw = self._tentar_enriquecer_cep_attrs(attrs, cep_raw)
+        self._aplicar_numero_complemento_attrs(attrs)
+        self._exigir_cep_valido_attrs(attrs, cep_raw)
         return attrs
 
     def validate(self, attrs):

@@ -14,6 +14,52 @@ from .procedures import Procedure
 from .professionals import Professional
 
 
+def _taxa_base_agenda(local_atendimento=None, consulta=None) -> Decimal:
+    """Taxa de consulta a partir do local ou da consulta vinculada."""
+    if local_atendimento is not None:
+        return Decimal(str(getattr(local_atendimento, "valor_consulta", 0) or 0))
+    if consulta is not None:
+        vc = Decimal(str(getattr(consulta, "valor_consulta", 0) or 0))
+        if vc > 0:
+            return vc
+    return Decimal(0)
+
+
+def _aplicar_retorno_na_taxa(taxa: Decimal, *, appointment=None, consulta=None) -> Decimal:
+    """Zera taxa quando o atendimento é retorno gratuito elegível."""
+    if taxa <= 0:
+        return taxa
+    if appointment is not None:
+        from ..retorno_service import verificar_retorno_appointment
+        if verificar_retorno_appointment(appointment).elegivel:
+            return Decimal(0)
+    elif consulta is not None and getattr(consulta, "retorno_gratuito", False):
+        return Decimal(0)
+    return taxa
+
+
+def _fallback_valor_agenda(
+    total_proc: Decimal,
+    taxa: Decimal,
+    *,
+    consulta=None,
+    procedure=None,
+    procedure_id=None,
+) -> Decimal:
+    """Quando não há local: procedimentos, taxa, valor da consulta ou preço legado."""
+    if total_proc > 0:
+        return total_proc
+    if taxa > 0:
+        return taxa
+    if consulta is not None and not getattr(consulta, "retorno_gratuito", False):
+        vc = Decimal(str(getattr(consulta, "valor_consulta", 0) or 0))
+        if vc > 0:
+            return vc
+    if procedure_id and procedure is not None:
+        return Decimal(str(getattr(procedure, "preco", 0) or 0))
+    return Decimal(0)
+
+
 def calcular_valor_exibicao_agenda(
     proc_total,
     *,
@@ -25,33 +71,17 @@ def calcular_valor_exibicao_agenda(
 ) -> Decimal:
     """Valor exibido na agenda: taxa do local + procedimentos (sem duplicar legacy procedure)."""
     total_proc = Decimal(str(proc_total or 0))
-    taxa = Decimal(0)
-    if local_atendimento is not None:
-        taxa = Decimal(str(getattr(local_atendimento, "valor_consulta", 0) or 0))
-    elif consulta is not None:
-        vc = Decimal(str(getattr(consulta, "valor_consulta", 0) or 0))
-        if vc > 0:
-            taxa = vc
-    if appointment is not None and taxa > 0:
-        from ..retorno_service import verificar_retorno_appointment
-        if verificar_retorno_appointment(appointment).elegivel:
-            taxa = Decimal(0)
-    elif consulta is not None and getattr(consulta, "retorno_gratuito", False):
-        taxa = Decimal(0)
-
+    taxa = _taxa_base_agenda(local_atendimento, consulta)
+    taxa = _aplicar_retorno_na_taxa(taxa, appointment=appointment, consulta=consulta)
     if local_atendimento is not None:
         return taxa + total_proc
-    if total_proc > 0:
-        return total_proc
-    if taxa > 0:
-        return taxa
-    if consulta is not None:
-        vc = Decimal(str(getattr(consulta, "valor_consulta", 0) or 0))
-        if vc > 0:
-            return vc
-    if procedure_id and procedure is not None:
-        return Decimal(str(getattr(procedure, "preco", 0) or 0))
-    return Decimal(0)
+    return _fallback_valor_agenda(
+        total_proc,
+        taxa,
+        consulta=consulta,
+        procedure=procedure,
+        procedure_id=procedure_id,
+    )
 
 
 class Appointment(LojaIsolationMixin, models.Model):

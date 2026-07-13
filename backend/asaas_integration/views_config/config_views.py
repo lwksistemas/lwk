@@ -11,8 +11,70 @@ from ._common import REQUESTS_AVAILABLE, AsaasClient, IsSuperAdmin, _asaas_webho
 
 logger = logging.getLogger(__name__)
 
-@api_view(["GET", "POST"])
-@permission_classes([IsSuperAdmin])
+def _asaas_config_get(request, config, resolved_key):
+    """Handler GET de asaas_config."""
+    webhook_token = config.webhook_token_decrypted or AsaasConfig.resolve_webhook_token()
+    return Response({
+        "api_key": "",
+        "api_key_masked": config.api_key_masked if config.api_key_decrypted else (
+            f"{resolved_key[:10]}...{resolved_key[-4:]}" if len(resolved_key) > 14 else ""
+        ),
+        "api_key_configured": bool(resolved_key),
+        "api_key_length": len(resolved_key),
+        "sandbox": AsaasConfig.effective_sandbox(resolved_key),
+        "enabled": config.enabled,
+        "last_sync": config.last_sync.isoformat() if config.last_sync else None,
+        "webhook_url": _asaas_webhook_url(request),
+        "webhook_token": config.webhook_token_masked,
+        "webhook_token_configured": bool(webhook_token),
+        "webhook_token_length": len(webhook_token) if webhook_token else 0,
+    })
+
+
+def _asaas_config_post(request, config, resolved_key):
+    """Handler POST de asaas_config."""
+    from asaas_integration.api_key_utils import is_valid_asaas_api_key, normalize_asaas_api_key
+    api_key = request.data.get("api_key", "").strip()
+    enabled = request.data.get("enabled", False)
+    webhook_token = request.data.get("webhook_token")
+    if api_key and "..." in api_key:
+        api_key = ""
+    if api_key:
+        api_key = normalize_asaas_api_key(api_key)
+    webhook_incoming = webhook_token.strip() if isinstance(webhook_token, str) else ""
+    if not api_key and not resolved_key and not webhook_incoming:
+        return Response({"detail": "Chave da API é obrigatória na primeira configuração"}, status=status.HTTP_400_BAD_REQUEST)
+    if api_key and not is_valid_asaas_api_key(api_key):
+        return Response({"detail": "Chave API inválida. Use $aact_prod_... (Produção) ou $aact_hmlg_... (Sandbox)"}, status=status.HTTP_400_BAD_REQUEST)
+    if api_key and (len(api_key) < 40 or "..." in api_key):
+        return Response({"detail": "Cole a chave API completa do painel Asaas (não use o valor mascarado da tela)"}, status=status.HTTP_400_BAD_REQUEST)
+    if webhook_incoming and len(webhook_incoming) < 32:
+        return Response({"detail": "Token do webhook deve ter pelo menos 32 caracteres (requisito Asaas)"}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        if api_key:
+            config.api_key = api_key
+        config.enabled = enabled
+        if webhook_incoming:
+            config.webhook_token = webhook_incoming
+        config.save()
+        effective_webhook = config.webhook_token_decrypted or AsaasConfig.resolve_webhook_token()
+        return Response({
+            "message": "Configuração salva com sucesso no banco de dados.",
+            "api_key": "",
+            "api_key_masked": config.api_key_masked,
+            "api_key_configured": bool(AsaasConfig.resolve_api_key()),
+            "api_key_length": len(AsaasConfig.resolve_api_key()),
+            "sandbox": config.sandbox,
+            "enabled": config.enabled,
+            "webhook_url": _asaas_webhook_url(request),
+            "webhook_token": config.webhook_token_masked,
+            "webhook_token_configured": bool(effective_webhook),
+            "webhook_token_length": len(effective_webhook) if effective_webhook else 0,
+        })
+    except Exception as e:
+        return Response({"detail": f"Erro ao salvar configuração: {e!s}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 def asaas_config(request):
     """Gerenciar configurações do Asaas"""
     if not REQUESTS_AVAILABLE:
@@ -21,98 +83,12 @@ def asaas_config(request):
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
+    config = AsaasConfig.get_config()
+    resolved_key = AsaasConfig.resolve_api_key()
     if request.method == "GET":
-        # Retornar configurações atuais do banco de dados
-        config = AsaasConfig.get_config()
-        resolved_key = AsaasConfig.resolve_api_key()
-        webhook_token = config.webhook_token_decrypted or AsaasConfig.resolve_webhook_token()
-
-        return Response({
-            "api_key": "",
-            "api_key_masked": config.api_key_masked if config.api_key_decrypted else (
-                f"{resolved_key[:10]}...{resolved_key[-4:]}" if len(resolved_key) > 14 else ""
-            ),
-            "api_key_configured": bool(resolved_key),
-            "api_key_length": len(resolved_key),
-            "sandbox": AsaasConfig.effective_sandbox(resolved_key),
-            "enabled": config.enabled,
-            "last_sync": config.last_sync.isoformat() if config.last_sync else None,
-            "webhook_url": _asaas_webhook_url(request),
-            "webhook_token": config.webhook_token_masked,
-            "webhook_token_configured": bool(webhook_token),
-            "webhook_token_length": len(webhook_token) if webhook_token else 0,
-        })
-
+        return _asaas_config_get(request, config, resolved_key)
     if request.method == "POST":
-        # Salvar novas configurações no banco de dados
-        api_key = request.data.get("api_key", "").strip()
-        enabled = request.data.get("enabled", False)
-        webhook_token = request.data.get("webhook_token")
-
-        if api_key and "..." in api_key:
-            api_key = ""
-
-        from asaas_integration.api_key_utils import is_valid_asaas_api_key, normalize_asaas_api_key
-        if api_key:
-            api_key = normalize_asaas_api_key(api_key)
-
-        config = AsaasConfig.get_config()
-        webhook_incoming = webhook_token.strip() if isinstance(webhook_token, str) else ""
-        resolved_key = AsaasConfig.resolve_api_key()
-
-        if not api_key and not resolved_key and not webhook_incoming:
-            return Response(
-                {"detail": "Chave da API é obrigatória na primeira configuração"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if api_key and not is_valid_asaas_api_key(api_key):
-            return Response(
-                {"detail": "Chave API inválida. Use $aact_prod_... (Produção) ou $aact_hmlg_... (Sandbox)"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if api_key and (len(api_key) < 40 or "..." in api_key):
-            return Response(
-                {"detail": "Cole a chave API completa do painel Asaas (não use o valor mascarado da tela)"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if webhook_incoming and len(webhook_incoming) < 32:
-            return Response(
-                {"detail": "Token do webhook deve ter pelo menos 32 caracteres (requisito Asaas)"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Salvar configuração no banco
-        try:
-            if api_key:
-                config.api_key = api_key
-            config.enabled = enabled
-            if webhook_incoming:
-                config.webhook_token = webhook_incoming
-            config.save()  # O sandbox será detectado automaticamente no save()
-
-            effective_webhook = config.webhook_token_decrypted or AsaasConfig.resolve_webhook_token()
-            return Response({
-                "message": "Configuração salva com sucesso no banco de dados.",
-                "api_key": "",
-                "api_key_masked": config.api_key_masked,
-                "api_key_configured": bool(AsaasConfig.resolve_api_key()),
-                "api_key_length": len(AsaasConfig.resolve_api_key()),
-                "sandbox": config.sandbox,
-                "enabled": config.enabled,
-                "webhook_url": _asaas_webhook_url(request),
-                "webhook_token": config.webhook_token_masked,
-                "webhook_token_configured": bool(effective_webhook),
-                "webhook_token_length": len(effective_webhook) if effective_webhook else 0,
-            })
-
-        except Exception as e:
-            return Response(
-                {"detail": f"Erro ao salvar configuração: {e!s}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        return _asaas_config_post(request, config, resolved_key)
 
 @api_view(["POST"])
 @permission_classes([IsSuperAdmin])

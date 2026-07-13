@@ -168,6 +168,21 @@ def _doc_diferente_prestador(doc_digits: str, prestador_cnpj: str) -> bool:
     return bool(doc_digits and doc_digits != prest)
 
 
+def _extrair_doc_tomador_portal(html: str, bloco_tomador: str, prestador_cnpj: str, out: dict) -> None:
+    """Extrai nome e CPF/CNPJ do tomador do HTML do portal ISSNet e popula out."""
+    tomador = _valor_por_rotulo_html(bloco_tomador, _ROTULOS_TOMADOR)
+    if not tomador:
+        tomador = _valor_por_rotulo_html(html, _ROTULOS_TOMADOR)
+    if tomador and tomador.lower() not in ("tomador", "prestador") and not out.get("tomador_nome"):
+        out["tomador_nome"] = tomador[:200]
+    doc = _valor_por_rotulo_html(bloco_tomador, _ROTULOS_CPF_CNPJ_TOMADOR)
+    if not doc:
+        doc = _valor_por_rotulo_html(bloco_tomador, ("CPF/CNPJ", "CNPJ/CPF"))
+    doc_digits = _somente_digitos_doc(doc)
+    if doc_digits and _doc_diferente_prestador(doc_digits, prestador_cnpj) and not out.get("tomador_cpf_cnpj"):
+        out["tomador_cpf_cnpj"] = doc_digits
+
+
 def extrair_detalhes_portal_issnet_html(
     html: str,
     *,
@@ -181,19 +196,7 @@ def extrair_detalhes_portal_issnet_html(
     _aplicar_campos_span_issnet(html, out, prestador_cnpj=prestador_cnpj)
 
     bloco_tomador = _extrair_bloco_tomador(html)
-
-    tomador = _valor_por_rotulo_html(bloco_tomador, _ROTULOS_TOMADOR)
-    if not tomador:
-        tomador = _valor_por_rotulo_html(html, _ROTULOS_TOMADOR)
-    if tomador and tomador.lower() not in ("tomador", "prestador") and not out.get("tomador_nome"):
-        out["tomador_nome"] = tomador[:200]
-
-    doc = _valor_por_rotulo_html(bloco_tomador, _ROTULOS_CPF_CNPJ_TOMADOR)
-    if not doc:
-        doc = _valor_por_rotulo_html(bloco_tomador, ("CPF/CNPJ", "CNPJ/CPF"))
-    doc_digits = _somente_digitos_doc(doc)
-    if doc_digits and _doc_diferente_prestador(doc_digits, prestador_cnpj) and not out.get("tomador_cpf_cnpj"):
-        out["tomador_cpf_cnpj"] = doc_digits
+    _extrair_doc_tomador_portal(html, bloco_tomador, prestador_cnpj, out)
 
     valor_txt = _valor_por_rotulo_html(html, _ROTULOS_VALOR)
     valor = _parse_moeda_br(valor_txt)

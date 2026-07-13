@@ -13,6 +13,56 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 logger = logging.getLogger(__name__)
 
 
+def _pdf_nfse_secao_prestador(elements, loja, section_style, info_style) -> None:
+    """Adiciona seção de prestador ao PDF da NFS-e."""
+    elements.append(Paragraph("<b>Prestador de Serviços</b>", section_style))
+    elements.append(Paragraph(f"<b>Razão Social:</b> {getattr(loja, 'nome', '') or '—'}", info_style))
+    elements.append(Paragraph(f"<b>CNPJ:</b> {getattr(loja, 'cpf_cnpj', '') or '—'}", info_style))
+    if getattr(loja, "logradouro", ""):
+        endereco_parts = [
+            getattr(loja, "logradouro", "") or "",
+            getattr(loja, "numero", "") or "",
+            getattr(loja, "bairro", "") or "",
+            f"{getattr(loja, 'cidade', '') or ''}/{getattr(loja, 'uf', '') or ''}",
+        ]
+        endereco = ", ".join(p for p in endereco_parts if p)
+        elements.append(Paragraph(f"<b>Endereço:</b> {endereco}", info_style))
+    elements.append(Spacer(1, 0.2*cm))
+
+
+def _pdf_nfse_secao_servico_valores(elements, nfse, section_style, info_style) -> None:
+    """Adiciona seções de serviço e valores ao PDF da NFS-e."""
+    servico_descricao = (
+        getattr(nfse, "servico_descricao", None)
+        or getattr(nfse, "descricao_servico", None)
+        or "—"
+    )
+    servico_codigo = getattr(nfse, "servico_codigo", None) or getattr(nfse, "codigo_servico", None)
+    elements.append(Paragraph("<b>Descrição do Serviço</b>", section_style))
+    elements.append(Paragraph(servico_descricao, info_style))
+    if servico_codigo:
+        elements.append(Paragraph(f"<b>Código do Serviço:</b> {servico_codigo}", info_style))
+    elements.append(Spacer(1, 0.3*cm))
+    elements.append(Paragraph("<b>Valores</b>", section_style))
+    valor_data = [
+        ["Valor dos Serviços:", f"R$ {float(nfse.valor):.2f}"],
+        ["Alíquota ISS:", f"{float(nfse.aliquota_iss):.2f}%"],
+        ["Valor ISS:", f"R$ {float(nfse.valor_iss):.2f}"],
+        ["Valor Líquido:", f"R$ {float(nfse.valor - nfse.valor_iss):.2f}"],
+    ]
+    t2 = Table(valor_data, colWidths=[120, 120])
+    t2.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LINEBELOW", (0, -1), (-1, -1), 1, colors.grey),
+    ]))
+    elements.append(t2)
+    elements.append(Spacer(1, 0.5*cm))
+
+
 def gerar_pdf_nfse(nfse, loja) -> BytesIO:
     """Gera PDF da NFS-e.
 
@@ -80,19 +130,7 @@ def gerar_pdf_nfse(nfse, loja) -> BytesIO:
     elements.append(Spacer(1, 0.3*cm))
 
     # Prestador
-    elements.append(Paragraph("<b>Prestador de Serviços</b>", section_style))
-    elements.append(Paragraph(f"<b>Razão Social:</b> {getattr(loja, 'nome', '') or '—'}", info_style))
-    elements.append(Paragraph(f"<b>CNPJ:</b> {getattr(loja, 'cpf_cnpj', '') or '—'}", info_style))
-    if getattr(loja, "logradouro", ""):
-        endereco_parts = [
-            getattr(loja, "logradouro", "") or "",
-            getattr(loja, "numero", "") or "",
-            getattr(loja, "bairro", "") or "",
-            f"{getattr(loja, 'cidade', '') or ''}/{getattr(loja, 'uf', '') or ''}",
-        ]
-        endereco = ", ".join(p for p in endereco_parts if p)
-        elements.append(Paragraph(f"<b>Endereço:</b> {endereco}", info_style))
-    elements.append(Spacer(1, 0.2*cm))
+    _pdf_nfse_secao_prestador(elements, loja, section_style, info_style)
 
     # Tomador
     elements.append(Paragraph("<b>Tomador de Serviços (Cliente)</b>", section_style))
@@ -102,39 +140,8 @@ def gerar_pdf_nfse(nfse, loja) -> BytesIO:
         elements.append(Paragraph(f"<b>Email:</b> {nfse.tomador_email}", info_style))
     elements.append(Spacer(1, 0.2*cm))
 
-    # Serviço — suporta tanto 'servico_descricao' (NFSe da loja) quanto 'descricao_servico' (NFSeEmitida)
-    servico_descricao = (
-        getattr(nfse, "servico_descricao", None)
-        or getattr(nfse, "descricao_servico", None)
-        or "—"
-    )
-    servico_codigo = getattr(nfse, "servico_codigo", None) or getattr(nfse, "codigo_servico", None)
-
-    elements.append(Paragraph("<b>Descrição do Serviço</b>", section_style))
-    elements.append(Paragraph(servico_descricao, info_style))
-    if servico_codigo:
-        elements.append(Paragraph(f"<b>Código do Serviço:</b> {servico_codigo}", info_style))
-    elements.append(Spacer(1, 0.3*cm))
-
-    # Valores
-    elements.append(Paragraph("<b>Valores</b>", section_style))
-    valor_data = [
-        ["Valor dos Serviços:", f"R$ {float(nfse.valor):.2f}"],
-        ["Alíquota ISS:", f"{float(nfse.aliquota_iss):.2f}%"],
-        ["Valor ISS:", f"R$ {float(nfse.valor_iss):.2f}"],
-        ["Valor Líquido:", f"R$ {float(nfse.valor - nfse.valor_iss):.2f}"],
-    ]
-    t2 = Table(valor_data, colWidths=[120, 120])
-    t2.setStyle(TableStyle([
-        ("FONTSIZE", (0, 0), (-1, -1), 10),
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("LINEBELOW", (0, -1), (-1, -1), 1, colors.grey),
-    ]))
-    elements.append(t2)
-    elements.append(Spacer(1, 0.5*cm))
+    # Serviço + Valores
+    _pdf_nfse_secao_servico_valores(elements, nfse, section_style, info_style)
 
     # Rodapé
     footer_style = ParagraphStyle(

@@ -10,6 +10,38 @@ from lxml import etree
 from nfse_integration.issnet_constants import NS_NFSE
 
 
+def _extrair_fault_soap(first) -> str | None:
+    """Extrai mensagem de Fault SOAP. Retorna string XML de erro ou None se não é Fault."""
+    tag = etree.QName(first.tag).localname if isinstance(first.tag, str) else ""
+    if tag != "Fault":
+        return None
+    faultstring = first.findtext("{http://schemas.xmlsoap.org/soap/envelope/}faultstring", "") or first.findtext("faultstring", "")
+    detail = first.findtext("{http://schemas.xmlsoap.org/soap/envelope/}detail", "") or first.findtext("detail", "")
+    if not (detail or "").strip():
+        for el in first.iter():
+            if etree.QName(el.tag).localname == "detail":
+                detail = "".join(el.itertext()).strip()
+                break
+    msg = faultstring or "Erro SOAP desconhecido"
+    if (msg or "").strip().lower() == "error":
+        msg = (
+            "Erro genérico do webservice ISSNet (sem detail). "
+            "Verifique certificado mTLS, cadastro na prefeitura e XML (RPS/assinatura). "
+            "Se o mesmo RPS foi tentado várias vezes, confira no portal ISSNet o último "
+            "RPS aceito e atualize no CRM o campo «Ultimo RPS conhecido»."
+        )
+    if detail:
+        msg += f" - {detail}"
+    return (
+        f'<ListaMensagemRetorno xmlns="{NS_NFSE}">'
+        f'<MensagemRetorno>'
+        f'<Codigo>SOAP</Codigo>'
+        f'<Mensagem>{xml_escape(msg)}</Mensagem>'
+        f'</MensagemRetorno>'
+        f'</ListaMensagemRetorno>'
+    )
+
+
 def extrair_body_soap(soap_xml: str) -> str:
     try:
         root = etree.fromstring(soap_xml.encode("utf-8") if isinstance(soap_xml, str) else soap_xml)
@@ -18,37 +50,9 @@ def extrair_body_soap(soap_xml: str) -> str:
             body = root.find(".//{http://www.w3.org/2003/05/soap-envelope}Body")
         if body is not None and len(body) > 0:
             first = body[0]
-            tag = etree.QName(first.tag).localname if isinstance(first.tag, str) else ""
-            if tag == "Fault":
-                faultstring = first.findtext(
-                    "{http://schemas.xmlsoap.org/soap/envelope/}faultstring", "",
-                ) or first.findtext("faultstring", "")
-                detail = first.findtext(
-                    "{http://schemas.xmlsoap.org/soap/envelope/}detail", "",
-                ) or first.findtext("detail", "")
-                if not (detail or "").strip():
-                    for el in first.iter():
-                        if etree.QName(el.tag).localname == "detail":
-                            detail = "".join(el.itertext()).strip()
-                            break
-                msg = faultstring or "Erro SOAP desconhecido"
-                if (msg or "").strip().lower() == "error":
-                    msg = (
-                        "Erro genérico do webservice ISSNet (sem detail). "
-                        "Verifique certificado mTLS, cadastro na prefeitura e XML (RPS/assinatura). "
-                        "Se o mesmo RPS foi tentado várias vezes, confira no portal ISSNet o último "
-                        "RPS aceito e atualize no CRM o campo «Último RPS conhecido»."
-                    )
-                if detail:
-                    msg += f" - {detail}"
-                return (
-                    f'<ListaMensagemRetorno xmlns="{NS_NFSE}">'
-                    f'<MensagemRetorno>'
-                    f'<Codigo>SOAP</Codigo>'
-                    f'<Mensagem>{xml_escape(msg)}</Mensagem>'
-                    f'</MensagemRetorno>'
-                    f'</ListaMensagemRetorno>'
-                )
+            fault_xml = _extrair_fault_soap(first)
+            if fault_xml is not None:
+                return fault_xml
             for el in first.iter():
                 if etree.QName(el.tag).localname == "outputXML":
                     inner = (el.text or "").strip()
@@ -198,6 +202,21 @@ def parse_resposta_xml_nfse_por_numero(xml_str: str, numero_nf: str) -> dict[str
     return parse_resposta_xml(xml_str)
 
 
+def _extrair_tomador_nfse_xml(inf, ns: str, out: dict) -> None:
+    """Extrai campos do tomador do inf XML e popula out."""
+    tomador = inf.find(f".//{{{ns}}}TomadorServico")
+    if tomador is None:
+        return
+    out["tomador_nome"] = (
+        tomador.findtext(f"{{{ns}}}RazaoSocial", "")
+        or tomador.findtext(f".//{{{ns}}}RazaoSocial", "")
+        or ""
+    )
+    cpf = tomador.findtext(f".//{{{ns}}}Cpf", "") or ""
+    cnpj = tomador.findtext(f".//{{{ns}}}Cnpj", "") or ""
+    out["tomador_cpf_cnpj"] = cnpj or cpf or ""
+
+
 def extrair_detalhes_nfse_xml(xml_str: str) -> dict[str, Any]:
     """Extrai tomador, valores e descrição do XML ABRASF (consulta/recuperação)."""
     out: dict[str, Any] = {}
@@ -221,16 +240,7 @@ def extrair_detalhes_nfse_xml(xml_str: str) -> dict[str, Any]:
         or inf.findtext(f"{{{ns}}}Servico/{{{ns}}}ItemListaServico", "")
         or ""
     )
-    tomador = inf.find(f".//{{{ns}}}TomadorServico")
-    if tomador is not None:
-        out["tomador_nome"] = (
-            tomador.findtext(f"{{{ns}}}RazaoSocial", "")
-            or tomador.findtext(f".//{{{ns}}}RazaoSocial", "")
-            or ""
-        )
-        cpf = tomador.findtext(f".//{{{ns}}}Cpf", "") or ""
-        cnpj = tomador.findtext(f".//{{{ns}}}Cnpj", "") or ""
-        out["tomador_cpf_cnpj"] = cnpj or cpf or ""
+    _extrair_tomador_nfse_xml(inf, ns, out)
     id_rps = inf.find(f".//{{{ns}}}IdentificacaoRps/{{{ns}}}Numero")
     if id_rps is not None and (id_rps.text or "").strip().isdigit():
         out["numero_rps"] = int((id_rps.text or "").strip())

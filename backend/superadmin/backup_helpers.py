@@ -246,19 +246,11 @@ def _resolve_visible_pg_schema_for_table(cur, table_name: str) -> str | None:
     return None
 
 
-def _fetch_crm_vendas_config_pg_colrows(
-    cur, qual: str, pg_schema: str,
-) -> list[tuple[Any, Any, Any]]:
-    """Colunas da tabela física em ordem: (nome, is_nullable YES/NO, tipo/format_type).
-    Prioriza o schema do qual(...) do INSERT (evita omitir NOT NULL quando pg_schema ≠ schema real).
-    """
-    q_schema, q_table = _parse_pg_qualified_table(qual)
-    if not BACKUP_SAFE_IDENTIFIER_RE.match(q_table):
-        q_table = "crm_vendas_config"
+def _resolver_candidatos_schema(cur, q_schema: str | None, pg_schema: str) -> list[str]:
+    """Resolve lista de schemas candidatos para busca de colunas."""
     candidates: list[str] = []
-    # INSERT sem schema: mesma tabela que o PostgreSQL resolve via search_path
     if q_schema is None:
-        vis = _resolve_visible_pg_schema_for_table(cur, q_table)
+        vis = _resolve_visible_pg_schema_for_table(cur, "crm_vendas_config")
         if vis and vis not in candidates:
             candidates.append(vis)
     for s in (q_schema, pg_schema):
@@ -273,6 +265,19 @@ def _fetch_crm_vendas_config_pg_colrows(
         pass
     if q_schema is None and "public" not in candidates:
         candidates.append("public")
+    return candidates
+
+
+def _fetch_crm_vendas_config_pg_colrows(
+    cur, qual: str, pg_schema: str,
+) -> list[tuple[Any, Any, Any]]:
+    """Colunas da tabela física em ordem: (nome, is_nullable YES/NO, tipo/format_type).
+    Prioriza o schema do qual(...) do INSERT (evita omitir NOT NULL quando pg_schema ≠ schema real).
+    """
+    q_schema, q_table = _parse_pg_qualified_table(qual)
+    if not BACKUP_SAFE_IDENTIFIER_RE.match(q_table):
+        q_table = "crm_vendas_config"
+    candidates = _resolver_candidatos_schema(cur, q_schema, pg_schema)
 
     for schema_try in candidates:
         cur.execute(

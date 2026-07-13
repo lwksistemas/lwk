@@ -85,40 +85,15 @@ class LoginService:
         loja_slug = request.data.get("loja_slug")
         cpf_cnpj = (request.data.get("cpf_cnpj") or "").strip()
 
-        # 1. Validar campos obrigatórios
-        if not username or not password:
-            return LoginResult(
-                success=False,
-                data={"error": "Username e password são obrigatórios", "code": "MISSING_CREDENTIALS"},
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-            )
+        # 1+3. Validar credenciais e autenticar
+        user, cred_err = self._validar_credenciais_login(request, username, password, user_type)
+        if cred_err:
+            return cred_err
 
         # 2. Verificar lockout
-        locked_until = check_account_locked(username)
-        if locked_until:
-            registrar_evento_seguranca(
-                "login_conta_bloqueada",
-                f"Tentativa de login com conta bloqueada ({user_type})",
-                request=request, username=username, sucesso=False,
-                detalhes={"locked_until": locked_until.isoformat(), "user_type": user_type},
-            )
-            return LoginResult(
-                success=False,
-                data={
-                    "error": "Muitas tentativas de login. Aguarde alguns minutos ou contate o suporte.",
-                    "code": "ACCOUNT_LOCKED",
-                    "locked_until": locked_until.isoformat(),
-                },
-                status_code=http_status.HTTP_403_FORBIDDEN,
-            )
-
-        # 3. Autenticar
-        user = self._authenticate(username, password)
-        if isinstance(user, LoginResult):
-            return user  # Erro de DB
-
-        if not user:
-            return self._handle_auth_failure(request, username, user_type)
+        lockout_err = self._verificar_lockout(request, username, user_type)
+        if lockout_err:
+            return lockout_err
 
         # 4. Validar CPF/CNPJ
         cpf_result = self._validate_cpf_cnpj(user, user_type, cpf_cnpj, username)
@@ -127,44 +102,18 @@ class LoginService:
 
         # 5. Identificar tipo real do usuário
         real_user_type = self._get_user_type(user, loja_slug)
+
+        # 6. Validar endpoint correto
+        endpoint_err = self._validar_endpoint_usuario(user, real_user_type, user_type, loja_slug, username)
+        if endpoint_err:
+            return endpoint_err
         if user_type == "loja" and real_user_type == "unknown" and loja_slug and user_belongs_to_store(user, loja_slug):
             real_user_type = "loja"
 
-        # 6. Validar endpoint correto
-        if user_type and real_user_type != user_type:
-            logger.critical(
-                "🚨 VIOLAÇÃO: Usuário %s (tipo: %s) tentou login no endpoint de %s",
-                username, real_user_type, user_type,
-            )
-            return LoginResult(
-                success=False,
-                data={
-                    "error": "Este usuário não pode fazer login aqui",
-                    "code": "WRONG_LOGIN_ENDPOINT",
-                    "seu_tipo": real_user_type,
-                    "endpoint_correto": self._get_correct_endpoint(real_user_type),
-                },
-                status_code=http_status.HTTP_403_FORBIDDEN,
-            )
-
         # 7. Resolver loja
-        loja_login = None
-        if real_user_type == "loja":
-            loja_login = resolve_loja_for_user(user, loja_slug)
-            if not loja_login:
-                return LoginResult(
-                    success=False,
-                    data={"error": "Usuário não possui loja ativa", "code": "NO_ACTIVE_STORE"},
-                    status_code=http_status.HTTP_403_FORBIDDEN,
-                )
-            if loja_slug and not user_belongs_to_store(user, loja_slug):
-                record_login_failure(username)
-                logger.critical("🚨 VIOLAÇÃO: Usuário %s tentou login na loja errada", username)
-                return LoginResult(
-                    success=False,
-                    data={"error": "Você não pode fazer login nesta loja", "code": "WRONG_STORE", "sua_loja": loja_login.slug},
-                    status_code=http_status.HTTP_403_FORBIDDEN,
-                )
+        loja_login, loja_err = self._resolver_loja_login(user, real_user_type, loja_slug, username)
+        if loja_err:
+            return loja_err
 
         # 8. MFA
         from superadmin.mfa_views import validate_mfa_at_login
@@ -197,6 +146,84 @@ class LoginService:
             status_code=http_status.HTTP_200_OK,
             cookies={"access": access, "refresh": refresh_str, "session_id": session_id},
         )
+
+    def _validar_credenciais_login(self, request, username, password, user_type):
+        """Valida presença de credenciais e autentica. Retorna (user, erro|None)."""
+        if not username or not password:
+            return None, LoginResult(
+                success=False,
+                data={"error": "Username e password são obrigatórios", "code": "MISSING_CREDENTIALS"},
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+            )
+        user = self._authenticate(username, password)
+        if isinstance(user, LoginResult):
+            return None, user
+        if not user:
+            return None, self._handle_auth_failure(request, username, user_type)
+        return user, None
+
+    def _verificar_lockout(self, request, username: str, user_type) -> LoginResult | None:
+        """Verifica lockout de conta. Retorna LoginResult de erro ou None."""
+        locked_until = check_account_locked(username)
+        if not locked_until:
+            return None
+        registrar_evento_seguranca(
+            "login_conta_bloqueada",
+            f"Tentativa de login com conta bloqueada ({user_type})",
+            request=request, username=username, sucesso=False,
+            detalhes={"locked_until": locked_until.isoformat(), "user_type": user_type},
+        )
+        return LoginResult(
+            success=False,
+            data={
+                "error": "Muitas tentativas de login. Aguarde alguns minutos ou contate o suporte.",
+                "code": "ACCOUNT_LOCKED",
+                "locked_until": locked_until.isoformat(),
+            },
+            status_code=http_status.HTTP_403_FORBIDDEN,
+        )
+
+    def _validar_endpoint_usuario(self, user, real_user_type: str, user_type, loja_slug: str | None, username: str):
+        """Valida que o usuário está usando o endpoint correto. Retorna LoginResult de erro ou None."""
+        if user_type == "loja" and real_user_type == "unknown" and loja_slug and user_belongs_to_store(user, loja_slug):
+            return None
+        if user_type and real_user_type != user_type:
+            logger.critical(
+                "🚨 VIOLAÇÃO: Usuário %s (tipo: %s) tentou login no endpoint de %s",
+                username, real_user_type, user_type,
+            )
+            return LoginResult(
+                success=False,
+                data={
+                    "error": "Este usuário não pode fazer login aqui",
+                    "code": "WRONG_LOGIN_ENDPOINT",
+                    "seu_tipo": real_user_type,
+                    "endpoint_correto": self._get_correct_endpoint(real_user_type),
+                },
+                status_code=http_status.HTTP_403_FORBIDDEN,
+            )
+        return None
+
+    def _resolver_loja_login(self, user, real_user_type: str, loja_slug, username: str):
+        """Resolve a loja para login tipo 'loja'. Retorna (loja, erro|None)."""
+        if real_user_type != "loja":
+            return None, None
+        loja_login = resolve_loja_for_user(user, loja_slug)
+        if not loja_login:
+            return None, LoginResult(
+                success=False,
+                data={"error": "Usuário não possui loja ativa", "code": "NO_ACTIVE_STORE"},
+                status_code=http_status.HTTP_403_FORBIDDEN,
+            )
+        if loja_slug and not user_belongs_to_store(user, loja_slug):
+            record_login_failure(username)
+            logger.critical("🚨 VIOLAÇÃO: Usuário %s tentou login na loja errada", username)
+            return None, LoginResult(
+                success=False,
+                data={"error": "Você não pode fazer login nesta loja", "code": "WRONG_STORE", "sua_loja": loja_login.slug},
+                status_code=http_status.HTTP_403_FORBIDDEN,
+            )
+        return loja_login, None
 
     # ─── Métodos privados ───────────────────────────────────────────
 

@@ -108,10 +108,13 @@ class LojaCreateSerializer(
             "atalho", "subdomain",  # ✅ NOVO v1421: Sistema híbrido de acesso
         ]
 
-    def validate(self, attrs):
+    def _validate_cep_enriquecer(self, attrs: dict) -> dict:
+        """Tenta enriquecer CEP e normaliza campos de endereço. Retorna attrs modificado."""
         from core.cep_utils import cep_digitos_validos, normalizar_cep
-        from nfse_integration.nfse_geo import enriquecer_endereco_por_cep
-
+        from nfse_integration.nfse_geo import (
+            enriquecer_endereco_por_cep,
+            normalizar_numero_complemento_endereco,
+        )
         cep_raw = (attrs.get("cep") or "").strip()
         if cep_raw and not cep_digitos_validos(cep_raw):
             endereco = {
@@ -127,9 +130,6 @@ class LojaCreateSerializer(
                     if (endereco.get(campo) or "").strip():
                         attrs[campo] = endereco[campo]
                 cep_raw = attrs["cep"]
-
-        from nfse_integration.nfse_geo import normalizar_numero_complemento_endereco
-
         numero_norm, compl_norm = normalizar_numero_complemento_endereco(
             attrs.get("numero") or "",
             attrs.get("complemento") or "",
@@ -138,22 +138,18 @@ class LojaCreateSerializer(
             attrs["numero"] = numero_norm
         if compl_norm:
             attrs["complemento"] = compl_norm
-
         if cep_raw:
             if not cep_digitos_validos(cep_raw):
-                raise serializers.ValidationError({
-                    "cep": "Informe um CEP válido com 8 dígitos (ex.: 14026-583).",
-                })
+                raise serializers.ValidationError({"cep": "Informe um CEP válido com 8 dígitos (ex.: 14026-583)."})
             attrs["cep"] = normalizar_cep(cep_raw)
         elif any((attrs.get(k) or "").strip() for k in ("logradouro", "cidade", "uf", "bairro")):
-            raise serializers.ValidationError({
-                "cep": "CEP é obrigatório quando o endereço é informado.",
-            })
+            raise serializers.ValidationError({"cep": "CEP é obrigatório quando o endereço é informado."})
         else:
-            raise serializers.ValidationError({
-                "cep": "CEP é obrigatório para emissão da nota fiscal após o pagamento.",
-            })
+            raise serializers.ValidationError({"cep": "CEP é obrigatório para emissão da nota fiscal após o pagamento."})
+        return attrs
 
+    def validate(self, attrs):
+        attrs = self._validate_cep_enriquecer(attrs)
         return super().validate(attrs)
 
     def create(self, validated_data):

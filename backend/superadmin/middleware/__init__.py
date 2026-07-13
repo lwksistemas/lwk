@@ -65,6 +65,45 @@ class SuperAdminSecurityMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    def _verificar_autenticacao_superadmin(self, request, is_owner_allowed: bool):
+        """Verifica autenticação e permissão para rotas superadmin não-públicas. Retorna JsonResponse ou None."""
+        if not hasattr(request, "user") or not request.user.is_authenticated:
+            logger.warning(f"Tentativa de acesso não autenticado ao superadmin: {request.path}")
+            return JsonResponse({"error": "Autenticação necessária", "code": "AUTHENTICATION_REQUIRED"}, status=401)
+        if is_owner_allowed:
+            logger.info(f"Acesso de proprietário permitido: {request.user.username} -> {request.path}")
+            return None
+        if "/loja/" in request.path and "/financeiro/" in request.path:
+            return self._verificar_acesso_loja_financeiro(request)
+        if request.path.rstrip("/").endswith("heartbeat"):
+            return None
+        if not request.user.is_superuser:
+            logger.critical(f"VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} tentou acessar {request.path}")
+            return JsonResponse({"error": "Acesso negado - Apenas superadministradores", "code": "SUPERADMIN_REQUIRED"}, status=403)
+        return None
+
+    def _verificar_acesso_loja_financeiro(self, request):
+        """Verifica se o usuário pode acessar o financeiro da loja na URL. Retorna JsonResponse ou None."""
+        path_parts = request.path.split("/")
+        if "loja" not in path_parts:
+            return None
+        loja_index = path_parts.index("loja")
+        if loja_index + 1 >= len(path_parts):
+            return None
+        loja_key = path_parts[loja_index + 1]
+        try:
+            from superadmin.loja_utils import resolve_loja_by_slug_or_atalho
+            loja = resolve_loja_by_slug_or_atalho(loja_key, is_active=True)
+            if not loja:
+                return JsonResponse({"error": "Loja não encontrada", "code": "STORE_NOT_FOUND"}, status=404)
+            if request.user != loja.owner and not request.user.is_superuser:
+                logger.warning("Usuário %s tentou acessar financeiro de loja não autorizada: %s", request.user.username, loja_key)
+                return JsonResponse({"error": "Acesso negado - Você só pode acessar dados da sua loja", "code": "STORE_ACCESS_DENIED"}, status=403)
+        except Exception as e:
+            logger.error("Erro ao verificar permissões da loja: %s", e)
+            return JsonResponse({"error": "Erro interno do servidor", "code": "INTERNAL_ERROR"}, status=500)
+        return None
+
     def __call__(self, request):
         # Verificar se é uma rota do superadmin
         if request.path.startswith("/api/superadmin/"):
@@ -111,60 +150,9 @@ class SuperAdminSecurityMiddleware:
             is_owner_allowed = any(pattern in request.path for pattern in owner_allowed_patterns)
 
             if not is_public:
-                # Verificar autenticação
-                if not hasattr(request, "user") or not request.user.is_authenticated:
-                    logger.warning(f"Tentativa de acesso não autenticado ao superadmin: {request.path}")
-                    return JsonResponse({
-                        "error": "Autenticação necessária",
-                        "code": "AUTHENTICATION_REQUIRED",
-                    }, status=401)
-
-                # Se é um endpoint permitido para owners, deixar a view fazer a verificação específica
-                if is_owner_allowed:
-                    # A view fará a verificação de permissão (IsOwnerOrSuperAdmin ou verificação manual)
-                    logger.info(f"Acesso de proprietário permitido: {request.user.username} -> {request.path}")
-
-                # Permitir acesso a dados financeiros da própria loja (slug ou atalho na URL)
-                elif "/loja/" in request.path and "/financeiro/" in request.path:
-                    path_parts = request.path.split("/")
-                    if "loja" in path_parts:
-                        loja_index = path_parts.index("loja")
-                        if loja_index + 1 < len(path_parts):
-                            loja_key = path_parts[loja_index + 1]
-                            try:
-                                from superadmin.loja_utils import resolve_loja_by_slug_or_atalho
-                                loja = resolve_loja_by_slug_or_atalho(loja_key, is_active=True)
-                                if not loja:
-                                    return JsonResponse({
-                                        "error": "Loja não encontrada",
-                                        "code": "STORE_NOT_FOUND",
-                                    }, status=404)
-                                if request.user != loja.owner and not request.user.is_superuser:
-                                    logger.warning(
-                                        "Usuário %s tentou acessar financeiro de loja não autorizada: %s",
-                                        request.user.username, loja_key,
-                                    )
-                                    return JsonResponse({
-                                        "error": "Acesso negado - Você só pode acessar dados da sua loja",
-                                        "code": "STORE_ACCESS_DENIED",
-                                    }, status=403)
-                            except Exception as e:
-                                logger.error("Erro ao verificar permissões da loja: %s", e)
-                                return JsonResponse({
-                                    "error": "Erro interno do servidor",
-                                    "code": "INTERNAL_ERROR",
-                                }, status=500)
-
-                # Heartbeat: qualquer usuário autenticado (superadmin ou loja) para monitor de sessão única
-                elif request.path.rstrip("/").endswith("heartbeat"):
-                    pass  # View usa IsAuthenticated
-                # Para outras rotas do superadmin, exigir superuser
-                elif not request.user.is_superuser:
-                    logger.critical(f"VIOLAÇÃO DE SEGURANÇA: Usuário {request.user.username} tentou acessar {request.path}")
-                    return JsonResponse({
-                        "error": "Acesso negado - Apenas superadministradores",
-                        "code": "SUPERADMIN_REQUIRED",
-                    }, status=403)
+                err = self._verificar_autenticacao_superadmin(request, is_owner_allowed)
+                if err:
+                    return err
 
         # IMPORTANTE: Não interferir com outras rotas (auth, clinica, etc.)
         response = self.get_response(request)

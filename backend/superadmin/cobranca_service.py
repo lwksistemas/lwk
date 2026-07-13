@@ -95,6 +95,52 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
     def get_provider_name(self) -> str:
         return "asaas"
 
+    @staticmethod
+    def _resolver_customer_id_asaas(financeiro, loja_slug: str) -> str | None:
+        """Resolve o customer_id Asaas a partir do financeiro ou da assinatura existente."""
+        from asaas_integration.models import LojaAssinatura
+        customer_id = (financeiro.asaas_customer_id or "").strip() or None
+        if not customer_id:
+            loja_assinatura = LojaAssinatura.objects.filter(
+                loja_slug=loja_slug,
+            ).select_related("asaas_customer").first()
+            if loja_assinatura and loja_assinatura.asaas_customer_id:
+                customer_id = loja_assinatura.asaas_customer.asaas_id
+        return customer_id
+
+    @staticmethod
+    def _salvar_assinatura_cobranca(loja_data, plano_data, result, customer, payment, financeiro):
+        """Salva/atualiza LojaAssinatura e FinanceiroLoja após criação de cobrança Asaas."""
+        from asaas_integration.models import LojaAssinatura
+        loja_assinatura_existente = LojaAssinatura.objects.filter(loja_slug=loja_data["slug"]).first()
+        if loja_assinatura_existente:
+            loja_assinatura_existente.loja_nome = loja_data["nome"]
+            loja_assinatura_existente.asaas_customer = customer
+            loja_assinatura_existente.current_payment = payment
+            loja_assinatura_existente.plano_nome = plano_data["nome"]
+            loja_assinatura_existente.plano_valor = plano_data["preco"]
+            loja_assinatura_existente.save()
+        else:
+            LojaAssinatura.objects.create(
+                loja_slug=loja_data["slug"],
+                loja_nome=loja_data["nome"],
+                asaas_customer=customer,
+                current_payment=payment,
+                plano_nome=plano_data["nome"],
+                plano_valor=plano_data["preco"],
+                data_vencimento=payment.due_date,
+            )
+        financeiro.provedor_boleto = "asaas"
+        financeiro.asaas_customer_id = result["customer_id"]
+        financeiro.asaas_payment_id = result["payment_id"]
+        financeiro.boleto_url = result.get("boleto_url", "")
+        financeiro.pix_qr_code = result.get("pix_qr_code", "")
+        financeiro.pix_copy_paste = result.get("pix_copy_paste", "")
+        financeiro.save(update_fields=[
+            "provedor_boleto", "asaas_customer_id", "asaas_payment_id",
+            "boleto_url", "pix_qr_code", "pix_copy_paste",
+        ])
+
     def criar_cobranca(self, loja, financeiro, due_date_override=None) -> dict[str, Any]:
         """Cria cobrança no Asaas"""
         try:
@@ -103,7 +149,7 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
             from django.db import transaction
 
             from asaas_integration.client import AsaasPaymentService
-            from asaas_integration.models import AsaasCustomer, AsaasPayment, LojaAssinatura
+            from asaas_integration.models import AsaasCustomer, AsaasPayment
 
             logger.info(f"Criando cobrança Asaas para loja: {loja.nome}")
 
@@ -136,13 +182,7 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
             service = AsaasPaymentService()
 
             # Verificar se já existe customer_id no financeiro ou na assinatura
-            customer_id = (financeiro.asaas_customer_id or "").strip() or None
-            if not customer_id:
-                loja_assinatura = LojaAssinatura.objects.filter(
-                    loja_slug=loja.slug,
-                ).select_related("asaas_customer").first()
-                if loja_assinatura and loja_assinatura.asaas_customer_id:
-                    customer_id = loja_assinatura.asaas_customer.asaas_id
+            customer_id = self._resolver_customer_id_asaas(financeiro, loja.slug)
 
             result = service.create_loja_subscription_payment(
                 loja_data,
@@ -187,47 +227,8 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
                     raw_data=result.get("raw_payment", {}),
                 )
 
-                # Criar/atualizar assinatura
-                # ✅ CORREÇÃO: Não sobrescrever data_vencimento em assinaturas existentes
-                # O data_vencimento correto é calculado pelo webhook quando o pagamento é confirmado
-                # (mensal: +30 dias, anual: +365 dias). Sobrescrever com payment.due_date
-                # causava bug em planos anuais (ex: vencimento ficava 14/04/2026 em vez de 14/04/2027)
-                loja_assinatura_existente = LojaAssinatura.objects.filter(
-                    loja_slug=loja_data["slug"],
-                ).first()
-
-                if loja_assinatura_existente:
-                    # Assinatura já existe: atualizar apenas current_payment e dados do plano
-                    # NÃO sobrescrever data_vencimento
-                    loja_assinatura_existente.loja_nome = loja_data["nome"]
-                    loja_assinatura_existente.asaas_customer = customer
-                    loja_assinatura_existente.current_payment = payment
-                    loja_assinatura_existente.plano_nome = plano_data["nome"]
-                    loja_assinatura_existente.plano_valor = plano_data["preco"]
-                    loja_assinatura_existente.save()
-                else:
-                    # Nova assinatura: usar payment.due_date como data_vencimento inicial
-                    LojaAssinatura.objects.create(
-                        loja_slug=loja_data["slug"],
-                        loja_nome=loja_data["nome"],
-                        asaas_customer=customer,
-                        current_payment=payment,
-                        plano_nome=plano_data["nome"],
-                        plano_valor=plano_data["preco"],
-                        data_vencimento=payment.due_date,
-                    )
-
-                # Atualizar FinanceiroLoja
-                financeiro.provedor_boleto = "asaas"
-                financeiro.asaas_customer_id = result["customer_id"]
-                financeiro.asaas_payment_id = result["payment_id"]
-                financeiro.boleto_url = result.get("boleto_url", "")
-                financeiro.pix_qr_code = result.get("pix_qr_code", "")
-                financeiro.pix_copy_paste = result.get("pix_copy_paste", "")
-                financeiro.save(update_fields=[
-                    "provedor_boleto", "asaas_customer_id", "asaas_payment_id",
-                    "boleto_url", "pix_qr_code", "pix_copy_paste",
-                ])
+                # Criar/atualizar assinatura e FinanceiroLoja
+                self._salvar_assinatura_cobranca(loja_data, plano_data, result, customer, payment, financeiro)
 
             logger.info(f"✅ Cobrança Asaas criada: payment_id={result['payment_id']}")
 

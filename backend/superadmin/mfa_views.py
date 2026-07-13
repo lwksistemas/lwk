@@ -143,27 +143,28 @@ class MfaRegenerateBackupView(APIView):
         })
 
 
-def validate_mfa_at_login(request, user, user_type: str):
-    """Valida TOTP no login de superadmin/suporte.
-    Retorna Response de erro ou None se OK / MFA não aplicável.
-    """
-    from django.conf import settings
+def _verificar_backup_code_mfa(usuario, mfa_backup_enc: str, backup_code: str, user_id: int):
+    """Tenta verificar e consumir um backup code. Retorna True se válido, False caso contrário."""
+    ok, new_blob = verify_and_consume_backup_code(mfa_backup_enc, backup_code)
+    if ok:
+        try:
+            usuario.mfa_backup_codes = new_blob
+            usuario.save(update_fields=["mfa_backup_codes", "updated_at"])
+        except Exception as e:
+            logger.error("Falha ao consumir código backup user_id=%s: %s", user_id, e)
+        return True
+    return False
 
-    if user_type not in ("superadmin", "suporte"):
-        return None
 
+def _buscar_usuario_mfa(user, user_type: str):
+    """Busca UsuarioSistema para MFA. Retorna (usuario, mfa_enabled, mfa_secret_enc, mfa_backup_enc) ou None em falha."""
     from django.db import DatabaseError, connection
-
     try:
         usuario = UsuarioSistema.objects.get(user=user, tipo=user_type, is_active=True)
-        mfa_enabled = bool(usuario.mfa_enabled)
-        mfa_secret_enc = usuario.mfa_totp_secret or ""
-        mfa_backup_enc = usuario.mfa_backup_codes or ""
+        return usuario, bool(usuario.mfa_enabled), usuario.mfa_totp_secret or "", usuario.mfa_backup_codes or ""
     except UsuarioSistema.DoesNotExist:
         return None
     except DatabaseError as e:
-        # Schema desatualizado (ex.: colunas MFA ausentes) não pode derrubar o login.
-        # Trata como MFA não configurado e registra para correção (rodar migrate).
         logger.critical(
             "MFA indisponível no login user_id=%s (schema desatualizado?): %s. "
             "Aplique: python manage.py migrate superadmin", user.id, e,
@@ -172,16 +173,37 @@ def validate_mfa_at_login(request, user, user_type: str):
             connection.rollback()
         return None
 
+
+def _verificar_enforce_mfa(user_type: str, mfa_enabled: bool) -> "Response | None":
+    """Retorna Response de erro se MFA obrigatório não estiver configurado, ou None."""
+    from django.conf import settings
     enforce = getattr(settings, "MFA_ENFORCE_TYPES", [])
     if isinstance(enforce, str):
         enforce = [t.strip() for t in enforce.split(",") if t.strip()]
-
     if user_type in enforce and not mfa_enabled:
         return Response({
             "error": "Autenticação em duas etapas é obrigatória. Configure MFA no painel.",
             "code": "MFA_SETUP_REQUIRED",
             "mfa_required": True,
         }, status=status.HTTP_403_FORBIDDEN)
+    return None
+
+
+def validate_mfa_at_login(request, user, user_type: str):
+    """Valida TOTP no login de superadmin/suporte.
+    Retorna Response de erro ou None se OK / MFA não aplicável.
+    """
+    if user_type not in ("superadmin", "suporte"):
+        return None
+
+    result = _buscar_usuario_mfa(user, user_type)
+    if result is None:
+        return None
+    usuario, mfa_enabled, mfa_secret_enc, mfa_backup_enc = result
+
+    enforce_err = _verificar_enforce_mfa(user_type, mfa_enabled)
+    if enforce_err:
+        return enforce_err
 
     if not mfa_enabled:
         return None
@@ -195,15 +217,8 @@ def validate_mfa_at_login(request, user, user_type: str):
             "mfa_required": True,
         }, status=status.HTTP_403_FORBIDDEN)
 
-    if backup_code:
-        ok, new_blob = verify_and_consume_backup_code(mfa_backup_enc, backup_code)
-        if ok:
-            try:
-                usuario.mfa_backup_codes = new_blob
-                usuario.save(update_fields=["mfa_backup_codes", "updated_at"])
-            except Exception as e:
-                logger.error("Falha ao consumir código backup user_id=%s: %s", user.id, e)
-            return None
+    if backup_code and _verificar_backup_code_mfa(usuario, mfa_backup_enc, backup_code, user.id):
+        return None
 
     secret = decrypt_totp_secret(mfa_secret_enc)
     if not secret or not verify_totp_code(secret, otp_code):

@@ -88,12 +88,35 @@ def _serialize_nfse_config(config) -> dict:
     }
 
 
-def _apply_nfse_config_update(request, config):
-    """Aplica PATCH/POST no singleton de config NFS-e."""
-    data = request.data
-    update_fields = ["updated_at"]
-    from core.encryption import encrypt_value
+def _apply_nfse_cert_file(request, config, update_fields: list):
+    """Processa uploads de certificados (nacional e issnet) em _apply_nfse_config_update.
+    Retorna Response de erro ou None.
+    """
+    cert_file = request.FILES.get("nacional_certificado")
+    if cert_file:
+        ext = os.path.splitext(cert_file.name)[1].lower()
+        if ext not in (".pfx", ".p12"):
+            return Response({"error": "Formato inválido. Envie .pfx ou .p12"}, status=status.HTTP_400_BAD_REQUEST)
+        if cert_file.size > 5 * 1024 * 1024:
+            return Response({"error": "Certificado muito grande (máx 5MB)"}, status=status.HTTP_400_BAD_REQUEST)
+        config.nacional_certificado = cert_file.read()
+        config.nacional_certificado_nome = cert_file.name[:255]
+        update_fields.extend(["nacional_certificado", "nacional_certificado_nome"])
+    issnet_cert_file = request.FILES.get("issnet_certificado")
+    if issnet_cert_file:
+        ext = os.path.splitext(issnet_cert_file.name)[1].lower()
+        if ext not in (".pfx", ".p12"):
+            return Response({"error": "Formato inválido. Envie .pfx ou .p12"}, status=status.HTTP_400_BAD_REQUEST)
+        if issnet_cert_file.size > 5 * 1024 * 1024:
+            return Response({"error": "Certificado muito grande (máx 5MB)"}, status=status.HTTP_400_BAD_REQUEST)
+        config.issnet_certificado = issnet_cert_file.read()
+        config.issnet_certificado_nome = issnet_cert_file.name[:255]
+        update_fields.extend(["issnet_certificado", "issnet_certificado_nome"])
+    return None
 
+
+def _apply_nfse_simple_fields(data, config, update_fields: list) -> None:
+    """Aplica campos simples/booleanos/intégros do PATCH NFS-e em config."""
     simple_fields = [
         "provedor_nfse", "emitir_automaticamente", "prestador_cnpj",
         "prestador_razao_social", "prestador_inscricao_municipal",
@@ -125,37 +148,28 @@ def _apply_nfse_config_update(request, config):
         setattr(config, field, val)
         update_fields.append(field)
 
+
+def _apply_nfse_config_update(request, config):
+    """Aplica PATCH/POST no singleton de config NFS-e."""
+    data = request.data
+    update_fields = ["updated_at"]
+    from core.encryption import encrypt_value
+
+    _apply_nfse_simple_fields(data, config, update_fields)
+
     if "aliquota_iss" in data:
         from decimal import Decimal
         config.aliquota_iss = Decimal(str(_data_get(data, "aliquota_iss")))
         update_fields.append("aliquota_iss")
 
-    cert_file = request.FILES.get("nacional_certificado")
-    if cert_file:
-        ext = os.path.splitext(cert_file.name)[1].lower()
-        if ext not in (".pfx", ".p12"):
-            return Response({"error": "Formato inválido. Envie .pfx ou .p12"}, status=status.HTTP_400_BAD_REQUEST)
-        if cert_file.size > 5 * 1024 * 1024:
-            return Response({"error": "Certificado muito grande (máx 5MB)"}, status=status.HTTP_400_BAD_REQUEST)
-        config.nacional_certificado = cert_file.read()
-        config.nacional_certificado_nome = cert_file.name[:255]
-        update_fields.extend(["nacional_certificado", "nacional_certificado_nome"])
+    cert_err = _apply_nfse_cert_file(request, config, update_fields)
+    if cert_err:
+        return cert_err
 
     nacional_senha_cert = str(_data_get(data, "nacional_senha_certificado", "")).strip()
     if nacional_senha_cert:
         config.nacional_senha_certificado = encrypt_value(nacional_senha_cert)
         update_fields.append("nacional_senha_certificado")
-
-    issnet_cert_file = request.FILES.get("issnet_certificado")
-    if issnet_cert_file:
-        ext = os.path.splitext(issnet_cert_file.name)[1].lower()
-        if ext not in (".pfx", ".p12"):
-            return Response({"error": "Formato inválido. Envie .pfx ou .p12"}, status=status.HTTP_400_BAD_REQUEST)
-        if issnet_cert_file.size > 5 * 1024 * 1024:
-            return Response({"error": "Certificado muito grande (máx 5MB)"}, status=status.HTTP_400_BAD_REQUEST)
-        config.issnet_certificado = issnet_cert_file.read()
-        config.issnet_certificado_nome = issnet_cert_file.name[:255]
-        update_fields.extend(["issnet_certificado", "issnet_certificado_nome"])
 
     issnet_senha = str(_data_get(data, "issnet_senha", "")).strip()
     if issnet_senha:

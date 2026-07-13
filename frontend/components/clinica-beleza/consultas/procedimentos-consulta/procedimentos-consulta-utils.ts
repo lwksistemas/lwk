@@ -1,3 +1,4 @@
+import { formatApiErrorBody } from "@/lib/api-errors";
 import type { ConsultaProcedimento } from "../consultas-types";
 import type { AppointmentProcedureItem, ProcedureOption } from "./procedimentos-consulta-types";
 
@@ -26,11 +27,7 @@ export function normalizarCatalogoProcedimentos(
 }
 
 export function extractProcedimentosConsultaError(err: unknown, fallback: string): string {
-  if (!err || typeof err !== "object") return fallback;
-  const body = err as Record<string, unknown>;
-  if (typeof body.error === "string") return body.error;
-  if (typeof body.detail === "string") return body.detail;
-  return fallback;
+  return formatApiErrorBody(err) || fallback;
 }
 
 export function avisoTermoProcedimentoAdicionado(

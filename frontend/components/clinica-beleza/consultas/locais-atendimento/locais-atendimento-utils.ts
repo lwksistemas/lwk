@@ -1,4 +1,5 @@
 import { formatCurrency } from "@/lib/financeiro-helpers";
+import { formatApiErrorBody } from "@/lib/api-errors";
 
 export function parseValorInput(value: string): number {
   const trimmed = value.trim();
@@ -22,13 +23,5 @@ export function formatCurrencyBR(value: string | number): string {
 }
 
 export function extractLocaisAtendimentoError(err: unknown, fallback: string): string {
-  if (!err || typeof err !== "object") return fallback;
-  const body = err as Record<string, unknown>;
-  if (typeof body.error === "string") return body.error;
-  if (typeof body.detail === "string") return body.detail;
-  for (const [key, val] of Object.entries(body)) {
-    if (Array.isArray(val) && typeof val[0] === "string") return `${key}: ${val[0]}`;
-    if (typeof val === "string") return val;
-  }
-  return fallback;
+  return formatApiErrorBody(err) || fallback;
 }

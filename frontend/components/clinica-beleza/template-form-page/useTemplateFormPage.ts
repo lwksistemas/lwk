@@ -76,7 +76,7 @@ export function useTemplateFormPage() {
       }
       voltarLista();
     } catch (e) {
-      setError(extractTemplateSaveError(e as Record<string, unknown>));
+      setError(extractTemplateSaveError(e));
     } finally {
       setSaving(false);
     }

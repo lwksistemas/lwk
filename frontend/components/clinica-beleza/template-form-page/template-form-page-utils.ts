@@ -16,13 +16,14 @@ export function validateTemplateForm(form: TemplateFormState): string | null {
   return null;
 }
 
-export function extractTemplateSaveError(e: Record<string, unknown>): string {
+export function extractTemplateSaveError(e: unknown): string {
+  const obj = e && typeof e === "object" ? (e as Record<string, unknown>) : {};
   const msg =
-    (Array.isArray(e?.nome) ? e.nome[0] : null) ||
-    (Array.isArray(e?.tipo) ? e.tipo[0] : null) ||
-    (Array.isArray(e?.conteudo) ? e.conteudo[0] : null) ||
-    (typeof e?.detail === "string" ? e.detail : null) ||
-    (typeof e?.message === "string" ? e.message : null) ||
+    (Array.isArray(obj?.nome) ? obj.nome[0] : null) ||
+    (Array.isArray(obj?.tipo) ? obj.tipo[0] : null) ||
+    (Array.isArray(obj?.conteudo) ? obj.conteudo[0] : null) ||
+    (typeof obj?.detail === "string" ? obj.detail : null) ||
+    (typeof obj?.message === "string" ? obj.message : null) ||
     "Erro ao salvar template.";
   return typeof msg === "string" ? msg : JSON.stringify(msg);
 }

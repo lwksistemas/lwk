@@ -1,3 +1,5 @@
+import { formatApiErrorBody } from "@/lib/api-errors";
+
 export interface EstoqueCategoria {
   id: number;
   nome: string;
@@ -83,21 +85,7 @@ export const estoqueCategoriaLabel = (
 };
 
 export const extractEstoqueApiError = (err: unknown, fallback: string): string => {
-  if (err && typeof err === "object" && "error" in err) {
-    return String((err as { error: string }).error);
-  }
-  if (err && typeof err === "object" && "detail" in err) {
-    return String((err as { detail: string }).detail);
-  }
-  if (err && typeof err === "object") {
-    const parts = Object.entries(err as Record<string, unknown>).flatMap(([key, val]) => {
-      if (Array.isArray(val)) return val.map((v) => `${key}: ${v}`);
-      if (typeof val === "string") return [`${key}: ${val}`];
-      return [];
-    });
-    if (parts.length) return parts.join("; ");
-  }
-  return fallback;
+  return formatApiErrorBody(err) || fallback;
 };
 
 export const ESTOQUE_INPUT_CLASS =

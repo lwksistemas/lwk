@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import { authService } from '@/lib/auth';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
 import PasswordInput from '@/components/auth/PasswordInput';
@@ -86,9 +87,9 @@ export default function TrocarSenhaLojaPage() {
         ? `/loja/${lojaSlug}/crm-vendas`
         : `/loja/${lojaSlug}/dashboard`;
       router.push(destino);
-    } catch (error: any) {
+    } catch (error) {
       logger.warn('Erro ao alterar senha:', error);
-      setErro(error.response?.data?.error || 'Erro ao alterar senha');
+      setErro(formatApiErrorBody(error) || 'Erro ao alterar senha');
     } finally {
       setLoading(false);
     }

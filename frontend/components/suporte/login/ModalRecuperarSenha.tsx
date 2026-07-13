@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { formatApiErrorBody } from '@/lib/api-errors';
 
 interface ModalRecuperarSenhaProps {
   isOpen: boolean;
@@ -29,8 +30,8 @@ export function ModalRecuperarSenha({ isOpen, onClose }: ModalRecuperarSenhaProp
       setTimeout(() => {
         handleClose();
       }, 3000);
-    } catch (err: any) {
-      setMensagemRecuperacao(err.response?.data?.detail || '❌ Erro ao recuperar senha. Verifique o email.');
+    } catch (err) {
+      setMensagemRecuperacao(formatApiErrorBody(err) || '❌ Erro ao recuperar senha. Verifique o email.');
     } finally {
       setLoadingRecuperacao(false);
     }

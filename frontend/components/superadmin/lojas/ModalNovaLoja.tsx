@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import { formatCurrency } from '@/lib/financeiro-helpers';
+import type { TipoLojaOption, PlanoOption } from '@/hooks/useLojaForm';
 import { applyTelefoneInternacionalPayload, formatTelefone, cepDigitosValidos } from '@/lib/format-br';
 import { consultaCnpj, resolverCepDadosCnpj } from '@/lib/consulta-cnpj';
 import { logger } from '@/lib/logger';
 
 export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
-  const [tipos, setTipos] = useState<any[]>([]);
-  const [planos, setPlanos] = useState<any[]>([]);
+  const [tipos, setTipos] = useState<TipoLojaOption[]>([]);
+  const [planos, setPlanos] = useState<PlanoOption[]>([]);
   const [formData, setFormData] = useState({
     nome: '',
     slug: '',
@@ -289,40 +291,22 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
       setTimeout(() => {
         onClose();
       }, 3200);
-    } catch (error: any) {
+    } catch (error) {
       logger.warn('Erro ao criar loja:', error);
-      
-      let mensagemErro = '❌ Erro ao criar loja:\n\n';
-      
-      if (error.response?.data) {
-        // Se for um objeto com erros de validação
-        if (typeof error.response.data === 'object') {
-          Object.entries(error.response.data).forEach(([campo, erros]: [string, any]) => {
-            if (Array.isArray(erros)) {
-              mensagemErro += `• ${campo}: ${erros.join(', ')}\n`;
-            } else {
-              mensagemErro += `• ${campo}: ${erros}\n`;
-            }
-          });
-        } else {
-          mensagemErro += error.response.data;
-        }
-      } else {
-        mensagemErro += 'Erro desconhecido ao criar loja';
-      }
-      
-      alert(mensagemErro);
+      const formatted = formatApiErrorBody(error);
+      alert(`❌ Erro ao criar loja:\n\n${formatted || 'Erro desconhecido ao criar loja'}`);
     } finally {
       setLoading(false);
     }
   };
 
   const planoSelecionado = planos.find(p => p.id === parseInt(formData.plano));
-  const valorAssinatura = planoSelecionado 
-    ? (formData.tipo_assinatura === 'anual' 
-        ? planoSelecionado.preco_anual 
+  const rawValor = planoSelecionado
+    ? (formData.tipo_assinatura === 'anual'
+        ? planoSelecionado.preco_anual
         : planoSelecionado.preco_mensal)
     : 0;
+  const valorAssinatura = typeof rawValor === 'string' ? parseFloat(rawValor) || 0 : rawValor ?? 0;
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-0">
@@ -718,12 +702,12 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                         <div className="text-center">
                           <h4 className="font-bold text-lg mb-2 text-gray-900 dark:text-gray-100">{plano.nome}</h4>
                           <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-2">
-                            {formatCurrency(plano.preco_mensal)}
+                            {formatCurrency(typeof plano.preco_mensal === 'string' ? parseFloat(plano.preco_mensal) || 0 : plano.preco_mensal ?? 0)}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">por mês</p>
                           {plano.preco_anual && (
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              ou {formatCurrency(plano.preco_anual)}/ano
+                              ou {formatCurrency(typeof plano.preco_anual === 'string' ? parseFloat(plano.preco_anual) || 0 : plano.preco_anual)}/ano
                             </p>
                           )}
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">

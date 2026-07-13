@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import { cepDigitosValidos } from '@/lib/format-br';
 import { logger } from '@/lib/logger';
-import { useLojaForm } from '@/hooks/useLojaForm';
+import { useLojaForm, type LojaCadastrada } from '@/hooks/useLojaForm';
 import { CadastroFundo } from '@/components/cadastro/CadastroFundo';
 import { FormularioCadastroLoja } from '@/components/cadastro/FormularioCadastroLoja';
 import { SucessoCadastro } from '@/components/cadastro/SucessoCadastro';
@@ -14,7 +15,7 @@ import { applyTelefoneInternacionalPayload } from '@/lib/format-br';
 export default function CadastroPublicoPage() {
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [createdLoja, setCreatedLoja] = useState<any>(null);
+  const [createdLoja, setCreatedLoja] = useState<LojaCadastrada | null>(null);
   
   // Hook customizado sem campo de senha (gerada automaticamente no backend)
   const lojaForm = useLojaForm(false);
@@ -39,28 +40,10 @@ export default function CadastroPublicoPage() {
       const loja = response.data;
       setCreatedLoja(loja);
       setShowSuccess(true);
-    } catch (error: any) {
+    } catch (error) {
       logger.warn('Erro ao criar loja:', error);
-      
-      let mensagemErro = '❌ Erro ao criar cadastro:\n\n';
-      
-      if (error.response?.data) {
-        if (typeof error.response.data === 'object') {
-          Object.entries(error.response.data).forEach(([campo, erros]: [string, any]) => {
-            if (Array.isArray(erros)) {
-              mensagemErro += `• ${campo}: ${erros.join(', ')}\n`;
-            } else {
-              mensagemErro += `• ${campo}: ${erros}\n`;
-            }
-          });
-        } else {
-          mensagemErro += error.response.data;
-        }
-      } else {
-        mensagemErro += 'Erro desconhecido ao criar cadastro';
-      }
-      
-      alert(mensagemErro);
+      const formatted = formatApiErrorBody(error);
+      alert(`❌ Erro ao criar cadastro:\n\n${formatted || 'Erro desconhecido ao criar cadastro'}`);
     } finally {
       setLoading(false);
     }

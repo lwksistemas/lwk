@@ -107,7 +107,7 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
         titulo: 'Backup',
         mensagem
       });
-    } catch (error: any) {
+    } catch (error) {
       logger.warn('Erro ao exportar backup:', error);
       const msg = await getBackupErrorMessage(error, 'Erro ao exportar backup');
       addToast({ tipo: 'erro', titulo: 'Erro', mensagem: msg });
@@ -122,8 +122,8 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
     input.type = 'file';
     input.accept = '.zip';
     
-    input.onchange = async (e: any) => {
-      const file = e.target.files?.[0];
+    input.onchange = async (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       
       if (!file.name.endsWith('.zip')) {
@@ -187,7 +187,7 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
             mensagem: response.data.error || 'Erro ao importar backup'
           });
         }
-      } catch (error: any) {
+      } catch (error) {
         logger.warn('Erro ao importar backup:', error);
         const msg = await getBackupErrorMessage(error, 'Erro ao importar backup', { isImport: true });
         addToast({ tipo: 'erro', titulo: 'Erro', mensagem: msg });

@@ -4,6 +4,14 @@ import { logger } from '@/lib/logger';
 import { formatCep, cepDigitosValidos } from '@/lib/format-br';
 import { consultaCnpj, resolverCepDadosCnpj } from '@/lib/consulta-cnpj';
 
+export interface LojaCadastrada {
+  nome: string;
+  slug: string;
+  atalho?: string;
+  boleto_url?: string;
+  pix_qr_code?: string;
+}
+
 export interface TipoLojaOption {
   id: number;
   nome: string;

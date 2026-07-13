@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { apiClient } from '@/lib/api-client'
+import { formatApiErrorBody } from '@/lib/api-errors'
 import { errorLogger } from '@/lib/error-logger'
 
 interface ModalChamadoProps {
@@ -84,8 +85,8 @@ export default function ModalChamado({ aberto, onFechar, lojaSlug, lojaNome, cor
         setIncluirLogs(true)
       }, 2000)
       
-    } catch (error: any) {
-      setErro(error.response?.data?.error || 'Erro ao criar chamado')
+    } catch (error) {
+      setErro(formatApiErrorBody(error) || 'Erro ao criar chamado')
     } finally {
       setLoading(false)
     }

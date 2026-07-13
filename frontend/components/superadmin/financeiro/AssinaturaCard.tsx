@@ -5,7 +5,7 @@
  */
 import { useState } from 'react';
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
-import type { Assinatura } from '@/hooks/useAssinaturas';
+import type { Assinatura, Pagamento } from '@/hooks/useAssinaturas';
 import { apiClient } from '@/lib/api-client';
 import { AssinaturaAsaas } from './AssinaturaAsaas';
 import { AssinaturaMercadoPago } from './AssinaturaMercadoPago';
@@ -13,19 +13,19 @@ import { AssinaturaMercadoPago } from './AssinaturaMercadoPago';
 interface AssinaturaCardProps {
   assinatura: Assinatura;
   // Ações Asaas
-  onDownloadBoletoAsaas: (payment: any) => void;
+  onDownloadBoletoAsaas: (payment: Pagamento) => void;
   onCopyPixAsaas: (pixCode: string) => void;
   onUpdateStatusAsaas: (paymentId: number) => void;
   onNovaCobranca: (assinatura: Assinatura) => void;
-  onExcluirAsaas: (payment: any) => void;
+  onExcluirAsaas: (payment: Pagamento) => void;
   gerandoCobranca: number | null;
   // Ações Mercado Pago
-  onDownloadBoletoMP: (payment: any) => void;
+  onDownloadBoletoMP: (payment: Pagamento) => void;
   onCopyPixMP: (pixCode: string) => void;
-  onGerarPixMP: (payment: any) => void;
+  onGerarPixMP: (payment: Pagamento) => void;
   onUpdateStatusMP: (lojaSlug: string) => void;
   onNovaCobrancaMP: (assinatura: Assinatura) => void;
-  onExcluirMP: (payment: any) => void;
+  onExcluirMP: (payment: Pagamento) => void;
   gerandoPix: number | null;
   atualizandoMP: string | null;
   gerandoCobrancaMP: string | number | null;

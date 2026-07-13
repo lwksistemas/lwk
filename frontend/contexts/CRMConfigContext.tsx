@@ -14,10 +14,18 @@ import {
 } from '@/lib/crm-colunas-config';
 import { ETAPAS_PIPELINE_PADRAO } from '@/constants/crm';
 
+interface EtapaPipeline {
+  key: string;
+  label: string;
+  cor?: string;
+  ordem?: number;
+  ativo?: boolean;
+}
+
 interface CRMConfig {
   id: number;
   origens_leads: Array<{ key: string; label: string; ativo: boolean }>;
-  etapas_pipeline: any[];
+  etapas_pipeline: EtapaPipeline[];
   colunas_leads: string[];
   colunas_contas: string[];
   colunas_contatos: string[];
@@ -133,8 +141,8 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
 
     const ativas = config.etapas_pipeline
       .filter((e) => e.ativo)
-      .sort((a, b) => a.ordem - b.ordem)
-      .map((e) => ({ key: e.key, label: e.label, ordem: e.ordem }));
+      .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+      .map((e, idx) => ({ key: e.key, label: e.label, ordem: e.ordem ?? idx }));
 
     if (ativas.length === 0) {
       return ETAPAS_PIPELINE_PADRAO.map(({ key, label, ordem }) => ({ key, label, ordem }));

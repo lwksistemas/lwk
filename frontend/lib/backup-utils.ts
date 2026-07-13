@@ -14,17 +14,20 @@ const IMPORT_403_MESSAGE = 'Sem permissão para importar backup nesta loja.';
  * Trata responseType: 'blob' (resposta de erro vem como Blob com JSON dentro).
  */
 export async function getBackupErrorMessage(
-  error: any,
+  error: unknown,
   fallback: string,
   options?: { isImport?: boolean }
 ): Promise<string> {
-  if (error?.response?.status === 403) {
+  const errorObj = error && typeof error === 'object' ? (error as Record<string, unknown>) : null;
+  const response = errorObj?.response as Record<string, unknown> | undefined;
+  const status = typeof response?.status === 'number' ? response.status : undefined;
+  if (status === 403) {
     return options?.isImport ? IMPORT_403_MESSAGE : BACKUP_403_MESSAGE;
   }
-  const data = error?.response?.data;
+  const data = response?.data;
   if (data == null) return fallback;
   if (typeof data === 'string') return data;
-  if (data.error) return data.error;
+  if (typeof data === 'object' && data !== null && (data as { error?: unknown }).error) return String((data as { error?: unknown }).error);
   if (data instanceof Blob) {
     try {
       const text = await data.text();

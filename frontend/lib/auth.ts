@@ -141,21 +141,24 @@ class AuthService {
       }
 
       return data;
-    } catch (error: any) {
-      const data = error.response?.data;
-      if (data?.mfa_required || data?.code === 'MFA_REQUIRED') {
-        const err = new Error(data.error || 'Informe o código do autenticador.');
+    } catch (error) {
+      const errorObj = error && typeof error === 'object' ? (error as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const data = response?.data;
+      const dataObj = typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : null;
+      if (dataObj?.mfa_required === true || dataObj?.code === 'MFA_REQUIRED') {
+        const err = new Error(typeof dataObj.error === 'string' ? dataObj.error : 'Informe o código do autenticador.');
         (err as Error & { mfaRequired?: boolean }).mfaRequired = true;
         throw err;
       }
-      if (data?.code === 'ACCOUNT_LOCKED') {
-        throw new Error(data.error || 'Conta temporariamente bloqueada. Tente mais tarde.');
+      if (dataObj?.code === 'ACCOUNT_LOCKED') {
+        throw new Error(typeof dataObj.error === 'string' ? dataObj.error : 'Conta temporariamente bloqueada. Tente mais tarde.');
       }
-      if (error.response?.data?.error) {
-        throw new Error(error.response.data.error);
-      } else if (error.response?.data?.detail) {
-        throw new Error(error.response.data.detail);
-      } else if (error.message) {
+      if (typeof dataObj?.error === 'string') {
+        throw new Error(dataObj.error);
+      } else if (typeof dataObj?.detail === 'string') {
+        throw new Error(dataObj.detail);
+      } else if (error instanceof Error) {
         throw new Error(error.message);
       } else {
         throw new Error('Erro ao fazer login. Tente novamente.');

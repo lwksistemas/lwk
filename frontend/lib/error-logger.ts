@@ -10,7 +10,7 @@ interface ErrorLog {
   url?: string;
   timestamp: string;
   userAgent?: string;
-  extra?: Record<string, any>;
+  extra?: Record<string, unknown>;
 }
 
 class ErrorLogger {

@@ -2,7 +2,7 @@
  * Componente da tab de assinaturas
  * ✅ REFATORADO v780: Extraído da página de financeiro
  */
-import type { Assinatura } from '@/hooks/useAssinaturas';
+import type { Assinatura, Pagamento } from '@/hooks/useAssinaturas';
 import { AssinaturaCard } from './AssinaturaCard';
 
 interface AssinaturasTabProps {
@@ -11,19 +11,19 @@ interface AssinaturasTabProps {
   filtroProvedor: 'todos' | 'asaas' | 'mercadopago';
   setFiltroProvedor: (filtro: 'todos' | 'asaas' | 'mercadopago') => void;
   // Asaas actions
-  onDownloadBoletoAsaas: (payment: any) => void;
+  onDownloadBoletoAsaas: (payment: Pagamento) => void;
   onCopyPixAsaas: (pixCode: string) => void;
   onUpdateStatusAsaas: (paymentId: number) => void;
   onNovaCobranca: (assinatura: Assinatura) => void;
-  onExcluirAsaas: (payment: any) => void;
+  onExcluirAsaas: (payment: Pagamento) => void;
   gerandoCobranca: number | null;
   // Mercado Pago actions
-  onDownloadBoletoMP: (payment: any) => void;
+  onDownloadBoletoMP: (payment: Pagamento) => void;
   onCopyPixMP: (pixCode: string) => void;
-  onGerarPixMP: (payment: any) => void;
+  onGerarPixMP: (payment: Pagamento) => void;
   onUpdateStatusMP: (lojaSlug: string) => void;
   onNovaCobrancaMP: (assinatura: Assinatura) => void;
-  onExcluirMP: (payment: any) => void;
+  onExcluirMP: (payment: Pagamento) => void;
   gerandoPix: number | null;
   atualizandoMP: string | null;
   gerandoCobrancaMP: string | number | null;

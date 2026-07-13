@@ -1,13 +1,6 @@
 import Link from 'next/link';
 import { CadastroFundo } from '@/components/cadastro/CadastroFundo';
-
-interface LojaCadastrada {
-  nome: string;
-  slug: string;
-  atalho?: string;
-  boleto_url?: string;
-  pix_qr_code?: string;
-}
+import type { LojaCadastrada } from '@/hooks/useLojaForm';
 
 interface SucessoCadastroProps {
   loja: LojaCadastrada;

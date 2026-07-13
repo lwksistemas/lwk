@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import apiClient from '@/lib/api-client';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import { logger } from '@/lib/logger';
 
 interface Loja {
@@ -61,12 +62,9 @@ export function ModalEditarLoja({ loja, onClose, onSuccess }: ModalEditarLojaPro
       await apiClient.patch(`/superadmin/lojas/${loja.id}/`, payload);
       alert('✅ Loja atualizada com sucesso!');
       onSuccess();
-    } catch (error: any) {
+    } catch (error) {
       logger.warn('Erro ao atualizar loja:', error);
-      const errMsg = error.response?.data?.error 
-        || error.response?.data?.owner_email_edit?.[0] 
-        || error.response?.data?.owner_username_edit?.[0]
-        || 'Erro desconhecido';
+      const errMsg = formatApiErrorBody(error) || 'Erro desconhecido';
       alert(`❌ Erro ao atualizar loja: ${errMsg}`);
     } finally {
       setLoading(false);

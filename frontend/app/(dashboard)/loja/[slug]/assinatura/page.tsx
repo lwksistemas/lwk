@@ -14,6 +14,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import { resolveLojaApiSlug } from '@/lib/resolve-loja-slug';
 import { useLojaTheme } from '@/hooks/useLojaTheme';
 import { LojaThemedPageShell } from '@/components/loja/LojaThemedPageShell';
@@ -140,16 +141,25 @@ export default function AssinaturaLojaPage() {
       const { data: d } = await apiClient.get<AssinaturaData>(`/superadmin/loja/${apiSlug}/financeiro/`);
       setData(d);
       await sincronizarBloqueio(Boolean(d?.is_blocked));
-    } catch (err: any) {
-      const ax = err?.response;
-      const detail = ax?.data?.error ?? ax?.data?.detail;
+    } catch (err) {
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const errData = response?.data;
+      const detail =
+        typeof errData === 'object' && errData !== null
+          ? (errData as { error?: unknown; detail?: unknown }).error ?? (errData as { detail?: unknown }).detail
+          : null;
       const detailStr = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.join(', ') : '';
-      if (ax?.status === 403) setError('Sem permissão. Apenas o responsável pode acessar.');
+      const status = typeof response?.status === 'number' ? response.status : undefined;
+      const networkError =
+        !response &&
+        (errorObj?.code === 'ERR_NETWORK' ||
+          (err instanceof Error ? err.message.includes('Network') : false));
+      if (status === 403) setError('Sem permissão. Apenas o responsável pode acessar.');
       else if (detailStr) setError(detailStr);
-      else if (ax?.status === 404) setError('Financeiro não encontrado para esta loja.');
-      else if (ax?.status && ax.status >= 500) setError('Erro no servidor. Aguarde um momento e tente novamente.');
-      else if (!ax && (err?.code === 'ERR_NETWORK' || err?.message?.includes('Network')))
-        setError('Erro de conexão com o servidor. Verifique sua internet e tente novamente.');
+      else if (status === 404) setError('Financeiro não encontrado para esta loja.');
+      else if (status && status >= 500) setError('Erro no servidor. Aguarde um momento e tente novamente.');
+      else if (networkError) setError('Erro de conexão com o servidor. Verifique sua internet e tente novamente.');
       else setError('Não foi possível carregar os dados. Faça login novamente se o problema continuar.');
     } finally {
       if (!silencioso) setLoading(false);
@@ -198,20 +208,28 @@ export default function AssinaturaLojaPage() {
           setShowModal(true);
           await carregarDados();
           return;
-        } catch (err: any) {
+        } catch (err) {
           lastErr = err;
-          const st = err?.response?.status;
+          const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+          const response = errorObj?.response as Record<string, unknown> | undefined;
+          const st = typeof response?.status === 'number' ? response.status : undefined;
           if (st !== 404 && st !== 405) break;
         }
       }
       throw lastErr;
-    } catch (err: any) {
-      const ax = err?.response;
-      const raw = ax?.data?.error ?? ax?.data?.detail;
+    } catch (err) {
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const errData = response?.data;
+      const raw =
+        typeof errData === 'object' && errData !== null
+          ? (errData as { error?: unknown; detail?: unknown }).error ?? (errData as { detail?: unknown }).detail
+          : null;
+      const status = typeof response?.status === 'number' ? response.status : undefined;
       const msg =
         typeof raw === 'string'
           ? raw
-          : ax?.status === 404
+          : status === 404
             ? 'Serviço de cobrança indisponível. Tente em alguns minutos ou avise o suporte.'
             : 'Erro ao gerar cobrança';
       alert(`Erro: ${msg}`);

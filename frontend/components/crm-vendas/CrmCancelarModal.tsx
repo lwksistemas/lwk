@@ -24,8 +24,8 @@ export default function CrmCancelarModal({ titulo, tipo, onConfirm, onClose }: P
     setErro('');
     try {
       await onConfirm(motivo.trim());
-    } catch (e: any) {
-      setErro(e?.message || 'Erro ao cancelar.');
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao cancelar.');
       setEnviando(false);
     }
   };

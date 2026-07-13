@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import { logger } from '@/lib/logger';
 import PasswordInput from '@/components/auth/PasswordInput';
 import { AuthScreenShell } from '@/components/auth/AuthScreenShell';
@@ -70,9 +71,9 @@ export default function TrocarSenhaForm({
 
       alert('✅ Senha alterada com sucesso!');
       router.push(redirectTo);
-    } catch (error: any) {
+    } catch (error) {
       logger.warn('Erro ao alterar senha:', error);
-      setErro(error.response?.data?.error || error.response?.data?.detail || 'Erro ao alterar senha');
+      setErro(formatApiErrorBody(error) || 'Erro ao alterar senha');
     } finally {
       setLoading(false);
     }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import type { ToastNotificacao } from '@/components/ToastNotificacao';
 
 export interface ConfigBackup {
@@ -83,10 +84,8 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
           mensagem: res.data?.errors ? Object.values(res.data.errors).flat().join(' ') : 'Erro ao salvar.',
         });
       }
-    } catch (e: any) {
-      const msg = e.response?.data?.errors
-        ? Object.values(e.response.data.errors).flat().join(' ')
-        : 'Erro ao salvar configuração.';
+    } catch (e) {
+      const msg = formatApiErrorBody(e) || 'Erro ao salvar configuração.';
       addToast({ tipo: 'erro', titulo: 'Erro', mensagem: msg });
     } finally {
       setSaving(false);
@@ -114,8 +113,8 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
           mensagem: res.data?.error || 'Falha ao enviar backup.',
         });
       }
-    } catch (e: any) {
-      const msg = e.response?.data?.error ?? 'Falha ao enviar backup. Tente novamente.';
+    } catch (e) {
+      const msg = formatApiErrorBody(e) || 'Falha ao enviar backup. Tente novamente.';
       addToast({ tipo: 'erro', titulo: 'Erro', mensagem: msg });
     } finally {
       setSending(false);

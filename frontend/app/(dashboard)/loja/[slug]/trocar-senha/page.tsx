@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import { isTipoCRMVendas } from '@/lib/loja-tipo';
 import PasswordInput from '@/components/auth/PasswordInput';
 import { AuthScreenShell } from '@/components/auth/AuthScreenShell';
@@ -104,9 +105,9 @@ export default function TrocarSenhaLojaComSlugPage() {
 
       alert('✅ Senha alterada com sucesso!');
       router.push(getDestinoAposTroca());
-    } catch (error: any) {
+    } catch (error) {
       logger.warn('Erro ao alterar senha:', error);
-      const msg = error.response?.data?.error || 'Erro ao alterar senha';
+      const msg = formatApiErrorBody(error) || 'Erro ao alterar senha';
       if (typeof msg === 'string' && msg.toLowerCase().includes('já foi alterada')) {
         router.replace(getDestinoAposTroca());
         return;

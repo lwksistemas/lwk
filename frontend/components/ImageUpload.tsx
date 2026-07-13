@@ -19,9 +19,16 @@ interface ImageUploadProps {
   buttonLabel?: string;
 }
 
+interface CloudinaryWidget {
+  createUploadWidget: (
+    options: Record<string, unknown>,
+    callback: (error: unknown, result: { event: string; info?: Record<string, unknown> }) => void
+  ) => { open: () => void; destroy: () => void };
+}
+
 declare global {
   interface Window {
-    cloudinary: any;
+    cloudinary?: CloudinaryWidget;
   }
 }
 
@@ -261,7 +268,7 @@ export function ImageUpload({
 
     const widget = window.cloudinary.createUploadWidget(
       uploadOptions,
-      (error: any, result: any) => {
+      (error, result) => {
         if (error) {
           logger.warn('Erro no upload Cloudinary:', error, result);
           setError(
@@ -272,8 +279,8 @@ export function ImageUpload({
         }
 
         if (result && result.event === 'success') {
-          const imageUrl = result.info.secure_url;
-          onChange(imageUrl);
+          const imageUrl = result.info?.secure_url;
+          if (typeof imageUrl === 'string') onChange(imageUrl);
           setUploading(false);
           setError(null);
         }

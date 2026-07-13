@@ -196,8 +196,8 @@ export default function LojaLoginDinamicoPage() {
       markInternalNavigation();
       const timestamp = new Date().getTime();
       window.location.replace(`${destino}?_t=${timestamp}`);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao fazer login. Tente novamente.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao fazer login. Tente novamente.');
     } finally {
       setLoading(false);
     }

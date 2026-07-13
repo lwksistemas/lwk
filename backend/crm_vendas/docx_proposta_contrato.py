@@ -138,41 +138,41 @@ def _formatar_valor(valor) -> str:
         return "—"
 
 
+def _montar_endereco_loja(loja) -> str | None:
+    """Monta endereço formatado da loja."""
+    cidade = getattr(loja, "cidade", "") or ""
+    uf = getattr(loja, "uf", "") or ""
+    cidade_uf = f"{cidade}/{uf}" if (cidade and uf) else (cidade or uf)
+    parts = [
+        getattr(loja, "logradouro", "") or "",
+        getattr(loja, "numero", "") or "",
+        getattr(loja, "complemento", "") or "",
+        getattr(loja, "bairro", "") or "",
+        cidade_uf,
+        f"CEP {loja.cep}" if getattr(loja, "cep", "") else "",
+    ]
+    return ", ".join(p for p in parts if p).strip() or None
+
+
+def _montar_admin_loja(owner) -> tuple[str | None, str | None]:
+    """Retorna (admin_nome, admin_email) a partir do owner da loja."""
+    if not owner:
+        return None, None
+    admin_nome = f"{getattr(owner, 'first_name', '') or ''} {getattr(owner, 'last_name', '') or ''}".strip() or getattr(owner, "username", "") or None
+    admin_email = getattr(owner, "email", None) or None
+    return admin_nome, admin_email
+
+
 def _obter_dados_loja(loja_id: int) -> dict:
     try:
         from superadmin.models import Loja
-
-        loja = (
-            Loja.objects.using("default")
-            .filter(id=loja_id)
-            .select_related("owner")
-            .first()
-        )
+        loja = Loja.objects.using("default").filter(id=loja_id).select_related("owner").first()
         if not loja:
             return {}
-        cidade = getattr(loja, "cidade", "") or ""
-        uf = getattr(loja, "uf", "") or ""
-        cidade_uf = f"{cidade}/{uf}" if (cidade and uf) else (cidade or uf)
-        endereco_parts = [
-            getattr(loja, "logradouro", "") or "",
-            getattr(loja, "numero", "") or "",
-            getattr(loja, "complemento", "") or "",
-            getattr(loja, "bairro", "") or "",
-            cidade_uf,
-            f"CEP {loja.cep}" if getattr(loja, "cep", "") else "",
-        ]
-        endereco = ", ".join(p for p in endereco_parts if p).strip() or None
-        owner = getattr(loja, "owner", None)
-        admin_nome = None
-        admin_email = None
-        if owner:
-            admin_nome = (
-                f"{getattr(owner, 'first_name', '') or ''} {getattr(owner, 'last_name', '') or ''}"
-            ).strip() or getattr(owner, "username", "") or None
-            admin_email = getattr(owner, "email", None) or None
+        admin_nome, admin_email = _montar_admin_loja(getattr(loja, "owner", None))
         return {
             "nome": getattr(loja, "nome", "") or "",
-            "endereco": endereco,
+            "endereco": _montar_endereco_loja(loja),
             "cpf_cnpj": getattr(loja, "cpf_cnpj", "") or None,
             "admin_nome": admin_nome,
             "admin_email": admin_email,
@@ -208,6 +208,63 @@ def _formatar_nome_usuario(user) -> str:
     return full or getattr(user, "nome", "") or getattr(user, "username", "") or "—"
 
 
+def _docx_add_dados_empresa(doc, loja: dict | None) -> None:
+    """Adiciona seção de dados da empresa ao documento."""
+    if not loja:
+        return
+    doc.add_heading("Dados da Empresa", level=2)
+    doc.add_paragraph(f"Nome: {loja.get('nome') or '—'}")
+    if loja.get("endereco"):
+        doc.add_paragraph(f"Endereço: {loja.get('endereco')}")
+    if loja.get("cpf_cnpj"):
+        doc.add_paragraph(f"CPF/CNPJ: {loja.get('cpf_cnpj')}")
+    if loja.get("admin_nome"):
+        doc.add_paragraph(f"Administrador: {loja.get('admin_nome')}")
+    if loja.get("admin_email"):
+        doc.add_paragraph(f"Email do administrador: {loja.get('admin_email')}")
+
+
+def _docx_add_dados_cliente(doc, lead) -> None:
+    """Adiciona seção de dados do cliente ao documento."""
+    if not lead:
+        return
+    doc.add_heading("Dados do Cliente", level=2)
+    doc.add_paragraph(f"Nome: {getattr(lead, 'nome', '') or '—'}")
+    if getattr(lead, "empresa", ""):
+        doc.add_paragraph(f"Empresa: {lead.empresa}")
+    if getattr(lead, "cpf_cnpj", ""):
+        doc.add_paragraph(f"CPF/CNPJ: {lead.cpf_cnpj}")
+    if getattr(lead, "email", ""):
+        doc.add_paragraph(f"Email: {lead.email}")
+    if getattr(lead, "telefone", ""):
+        tel_fmt = telefone_exibicao_brasileiro(lead.telefone) or lead.telefone
+        doc.add_paragraph(f"Telefone: {tel_fmt}")
+    doc.add_paragraph(f"Endereço: {_formatar_endereco_lead(lead)}")
+
+
+def _docx_add_tabela_itens(doc, itens: list) -> None:
+    """Adiciona tabela de itens ao documento."""
+    doc.add_heading("Produtos e Serviços da Oportunidade", level=2)
+    if not itens:
+        doc.add_paragraph("Nenhum item cadastrado.")
+        return
+    table = doc.add_table(rows=1, cols=4)
+    hdr = table.rows[0].cells
+    hdr[0].text = "Item"
+    hdr[1].text = "Qtd"
+    hdr[2].text = "Preço Unit."
+    hdr[3].text = "Subtotal"
+    for item in itens:
+        ps = getattr(item, "produto_servico", None)
+        tipo_ps = ps.get_tipo_display() if ps and hasattr(ps, "get_tipo_display") else (getattr(ps, "tipo", "") if ps else "")
+        nome = f"{tipo_ps}: {ps.nome}" if (ps and tipo_ps) else (getattr(ps, "nome", "—") if ps else "—")
+        row = table.add_row().cells
+        row[0].text = nome
+        row[1].text = str(getattr(item, "quantidade", None) or 1)
+        row[2].text = _formatar_valor(getattr(item, "preco_unitario", None))
+        row[3].text = _formatar_valor(getattr(item, "subtotal", None))
+
+
 def gerar_docx_proposta(proposta) -> BytesIO:
     from docx import Document
 
@@ -220,67 +277,17 @@ def gerar_docx_proposta(proposta) -> BytesIO:
     doc.add_paragraph(f"Valor total: {_formatar_valor(getattr(proposta, 'valor_total', None))}")
 
     loja = obter_dados_emitente_documento(proposta)
-    if loja:
-        doc.add_heading("Dados da Empresa", level=2)
-        doc.add_paragraph(f"Nome: {loja.get('nome') or '—'}")
-        if loja.get("endereco"):
-            doc.add_paragraph(f"Endereço: {loja.get('endereco')}")
-        if loja.get("cpf_cnpj"):
-            doc.add_paragraph(f"CPF/CNPJ: {loja.get('cpf_cnpj')}")
-        if loja.get("admin_nome"):
-            doc.add_paragraph(f"Administrador: {loja.get('admin_nome')}")
-        if loja.get("admin_email"):
-            doc.add_paragraph(f"Email do administrador: {loja.get('admin_email')}")
-
+    _docx_add_dados_empresa(doc, loja)
     lead = (
         proposta.oportunidade.lead
         if getattr(proposta, "oportunidade", None) and getattr(proposta.oportunidade, "lead", None)
         else None
     )
-    if lead:
-        doc.add_heading("Dados do Cliente", level=2)
-        doc.add_paragraph(f"Nome: {getattr(lead, 'nome', '') or '—'}")
-        if getattr(lead, "empresa", ""):
-            doc.add_paragraph(f"Empresa: {lead.empresa}")
-        if getattr(lead, "cpf_cnpj", ""):
-            doc.add_paragraph(f"CPF/CNPJ: {lead.cpf_cnpj}")
-        if getattr(lead, "email", ""):
-            doc.add_paragraph(f"Email: {lead.email}")
-        if getattr(lead, "telefone", ""):
-            tel_fmt = telefone_exibicao_brasileiro(lead.telefone) or lead.telefone
-            doc.add_paragraph(f"Telefone: {tel_fmt}")
-        doc.add_paragraph(f"Endereço: {_formatar_endereco_lead(lead)}")
-
-    doc.add_heading("Produtos e Serviços da Oportunidade", level=2)
-    itens = []
-    if getattr(proposta, "oportunidade", None):
-        itens = list(getattr(proposta.oportunidade, "itens", []).all())
-
-    if itens:
-        table = doc.add_table(rows=1, cols=4)
-        hdr = table.rows[0].cells
-        hdr[0].text = "Item"
-        hdr[1].text = "Qtd"
-        hdr[2].text = "Preço Unit."
-        hdr[3].text = "Subtotal"
-        for item in itens:
-            ps = getattr(item, "produto_servico", None)
-            tipo_ps = ps.get_tipo_display() if ps and hasattr(ps, "get_tipo_display") else (getattr(ps, "tipo", "") if ps else "")
-            nome = f"{tipo_ps}: {ps.nome}" if (ps and tipo_ps) else (getattr(ps, "nome", "—") if ps else "—")
-            qtd = str(getattr(item, "quantidade", None) or 1)
-            preco = _formatar_valor(getattr(item, "preco_unitario", None))
-            subtotal = _formatar_valor(getattr(item, "subtotal", None))
-            row = table.add_row().cells
-            row[0].text = nome
-            row[1].text = qtd
-            row[2].text = preco
-            row[3].text = subtotal
-    else:
-        doc.add_paragraph("Nenhum item cadastrado.")
-
+    _docx_add_dados_cliente(doc, lead)
+    itens = list(getattr(proposta.oportunidade, "itens", []).all()) if getattr(proposta, "oportunidade", None) else []
+    _docx_add_tabela_itens(doc, itens)
     doc.add_heading("Conteúdo", level=2)
     _add_html_as_docx(doc, getattr(proposta, "conteudo", "") or "")
-
     doc.add_heading("Assinaturas", level=2)
     vendedor = (
         proposta.oportunidade.vendedor
@@ -308,67 +315,17 @@ def gerar_docx_contrato(contrato) -> BytesIO:
     doc.add_paragraph(f"Valor total: {_formatar_valor(getattr(contrato, 'valor_total', None))}")
 
     loja = obter_dados_emitente_documento(contrato)
-    if loja:
-        doc.add_heading("Dados da Empresa", level=2)
-        doc.add_paragraph(f"Nome: {loja.get('nome') or '—'}")
-        if loja.get("endereco"):
-            doc.add_paragraph(f"Endereço: {loja.get('endereco')}")
-        if loja.get("cpf_cnpj"):
-            doc.add_paragraph(f"CPF/CNPJ: {loja.get('cpf_cnpj')}")
-        if loja.get("admin_nome"):
-            doc.add_paragraph(f"Administrador: {loja.get('admin_nome')}")
-        if loja.get("admin_email"):
-            doc.add_paragraph(f"Email do administrador: {loja.get('admin_email')}")
-
+    _docx_add_dados_empresa(doc, loja)
     lead = (
         contrato.oportunidade.lead
         if getattr(contrato, "oportunidade", None) and getattr(contrato.oportunidade, "lead", None)
         else None
     )
-    if lead:
-        doc.add_heading("Dados do Cliente", level=2)
-        doc.add_paragraph(f"Nome: {getattr(lead, 'nome', '') or '—'}")
-        if getattr(lead, "empresa", ""):
-            doc.add_paragraph(f"Empresa: {lead.empresa}")
-        if getattr(lead, "cpf_cnpj", ""):
-            doc.add_paragraph(f"CPF/CNPJ: {lead.cpf_cnpj}")
-        if getattr(lead, "email", ""):
-            doc.add_paragraph(f"Email: {lead.email}")
-        if getattr(lead, "telefone", ""):
-            tel_fmt = telefone_exibicao_brasileiro(lead.telefone) or lead.telefone
-            doc.add_paragraph(f"Telefone: {tel_fmt}")
-        doc.add_paragraph(f"Endereço: {_formatar_endereco_lead(lead)}")
-
-    doc.add_heading("Produtos e Serviços da Oportunidade", level=2)
-    itens = []
-    if getattr(contrato, "oportunidade", None):
-        itens = list(getattr(contrato.oportunidade, "itens", []).all())
-
-    if itens:
-        table = doc.add_table(rows=1, cols=4)
-        hdr = table.rows[0].cells
-        hdr[0].text = "Item"
-        hdr[1].text = "Qtd"
-        hdr[2].text = "Preço Unit."
-        hdr[3].text = "Subtotal"
-        for item in itens:
-            ps = getattr(item, "produto_servico", None)
-            tipo_ps = ps.get_tipo_display() if ps and hasattr(ps, "get_tipo_display") else (getattr(ps, "tipo", "") if ps else "")
-            nome = f"{tipo_ps}: {ps.nome}" if (ps and tipo_ps) else (getattr(ps, "nome", "—") if ps else "—")
-            qtd = str(getattr(item, "quantidade", None) or 1)
-            preco = _formatar_valor(getattr(item, "preco_unitario", None))
-            subtotal = _formatar_valor(getattr(item, "subtotal", None))
-            row = table.add_row().cells
-            row[0].text = nome
-            row[1].text = qtd
-            row[2].text = preco
-            row[3].text = subtotal
-    else:
-        doc.add_paragraph("Nenhum item cadastrado.")
-
+    _docx_add_dados_cliente(doc, lead)
+    itens = list(getattr(contrato.oportunidade, "itens", []).all()) if getattr(contrato, "oportunidade", None) else []
+    _docx_add_tabela_itens(doc, itens)
     doc.add_heading("Conteúdo", level=2)
     _add_html_as_docx(doc, getattr(contrato, "conteudo", "") or "")
-
     doc.add_heading("Assinaturas", level=2)
     vendedor = (
         contrato.oportunidade.vendedor

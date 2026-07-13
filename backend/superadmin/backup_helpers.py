@@ -366,6 +366,49 @@ def _crm_as_bytes(raw: Any) -> bytes | None:
         return None
 
 
+def _mapear_campo_crm(field, att: str, row: dict, dm, parse_datetime) -> tuple[bool, Any]:
+    """Retorna (aplica, valor) para um campo do CRMConfig. aplica=False indica 'skip'."""
+    if getattr(field, "auto_now", False) or getattr(field, "auto_now_add", False):
+        raw_dt = row.get(att)
+        if raw_dt:
+            parsed = parse_datetime(str(raw_dt))
+            if parsed is not None:
+                return True, parsed
+        return False, None
+    if isinstance(field, dm.AutoField):
+        raw_id = row.get(att)
+        if raw_id is not None and str(raw_id).strip() != "":
+            return True, _crm_as_int(raw_id, 0)
+        return False, None
+    raw = row.get(att)
+    if isinstance(field, dm.BinaryField):
+        if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+            raw = row.get("issnet_certificado_binary")
+        return True, _crm_as_bytes(raw)
+    if isinstance(field, dm.JSONField):
+        return True, _crm_as_json(raw, field.get_default())
+    if isinstance(field, dm.BooleanField):
+        d = field.get_default() if field.has_default() else False
+        return True, _crm_as_bool(raw, bool(d) if not isinstance(d, bool) else d)
+    if isinstance(field, dm.DecimalField):
+        d0 = field.get_default() if field.has_default() else Decimal(0)
+        return True, _crm_as_dec(raw, Decimal(str(d0)) if not isinstance(d0, Decimal) else d0)
+    if isinstance(field, dm.DateTimeField):
+        if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+            return True, None if field.null else None
+        parsed = parse_datetime(str(raw))
+        return True, parsed if parsed is not None else None
+    if isinstance(field, (dm.IntegerField, dm.BigIntegerField, dm.SmallIntegerField)):
+        d = 0
+        if field.has_default():
+            try:
+                d = int(field.get_default())
+            except (TypeError, ValueError):
+                d = 0
+        return True, _crm_as_int(raw, d)
+    return True, str(raw) if raw is not None else (field.get_default() if field.has_default() else "")
+
+
 def _build_crm_row_kwargs(row: dict, loja_id: int, CRMConfig, dm, parse_datetime) -> dict:
     """Constrói dict kwargs para um row de crm_vendas_config mapeando cada field do modelo."""
     kwargs: dict[str, Any] = {"loja_id": loja_id}
@@ -373,53 +416,9 @@ def _build_crm_row_kwargs(row: dict, loja_id: int, CRMConfig, dm, parse_datetime
         att = field.attname
         if att == "loja_id":
             continue
-        if getattr(field, "auto_now", False) or getattr(field, "auto_now_add", False):
-            raw_dt = row.get(att)
-            if raw_dt:
-                parsed = parse_datetime(str(raw_dt))
-                if parsed is not None:
-                    kwargs[att] = parsed
-            continue
-        if isinstance(field, dm.AutoField):
-            raw_id = row.get(att)
-            if raw_id is not None and str(raw_id).strip() != "":
-                kwargs[att] = _crm_as_int(raw_id, 0)
-            continue
-        raw = row.get(att)
-        if isinstance(field, dm.BinaryField):
-            if raw is None or (isinstance(raw, str) and not str(raw).strip()):
-                raw = row.get("issnet_certificado_binary")
-            kwargs[att] = _crm_as_bytes(raw)
-            continue
-        if isinstance(field, dm.JSONField):
-            kwargs[att] = _crm_as_json(raw, field.get_default())
-            continue
-        if isinstance(field, dm.BooleanField):
-            d = field.get_default() if field.has_default() else False
-            kwargs[att] = _crm_as_bool(raw, bool(d) if not isinstance(d, bool) else d)
-            continue
-        if isinstance(field, dm.DecimalField):
-            d0 = field.get_default() if field.has_default() else Decimal(0)
-            kwargs[att] = _crm_as_dec(raw, Decimal(str(d0)) if not isinstance(d0, Decimal) else d0)
-            continue
-        if isinstance(field, dm.DateTimeField):
-            if raw is None or (isinstance(raw, str) and not str(raw).strip()):
-                if field.null:
-                    kwargs[att] = None
-                continue
-            parsed = parse_datetime(str(raw))
-            kwargs[att] = parsed if parsed is not None else None
-            continue
-        if isinstance(field, (dm.IntegerField, dm.BigIntegerField, dm.SmallIntegerField)):
-            d = 0
-            if field.has_default():
-                try:
-                    d = int(field.get_default())
-                except (TypeError, ValueError):
-                    d = 0
-            kwargs[att] = _crm_as_int(raw, d)
-            continue
-        kwargs[att] = str(raw) if raw is not None else (field.get_default() if field.has_default() else "")
+        aplica, valor = _mapear_campo_crm(field, att, row, dm, parse_datetime)
+        if aplica:
+            kwargs[att] = valor
     kwargs["issnet_numero_lote"] = _crm_as_int(row.get("issnet_numero_lote"), 0)
     kwargs["issnet_ultimo_rps_conhecido"] = _crm_as_int(row.get("issnet_ultimo_rps_conhecido"), 0)
     kwargs["loja_id"] = loja_id

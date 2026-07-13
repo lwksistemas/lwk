@@ -93,6 +93,31 @@ def _html_to_paragraphs(html):
     return paragraphs or ["Conteúdo não informado."]
 
 
+def _montar_endereco_loja(loja) -> str | None:
+    """Monta endereço formatado da loja."""
+    cidade = getattr(loja, "cidade", "") or ""
+    uf = getattr(loja, "uf", "") or ""
+    cidade_uf = f"{cidade}/{uf}" if (cidade and uf) else (cidade or uf)
+    parts = [
+        getattr(loja, "logradouro", "") or "",
+        getattr(loja, "numero", "") or "",
+        getattr(loja, "complemento", "") or "",
+        getattr(loja, "bairro", "") or "",
+        cidade_uf,
+        f"CEP {loja.cep}" if getattr(loja, "cep", "") else "",
+    ]
+    return ", ".join(p for p in parts if p).strip() or None
+
+
+def _montar_admin_loja(owner) -> tuple[str | None, str | None]:
+    """Retorna (admin_nome, admin_email) a partir do owner da loja."""
+    if not owner:
+        return None, None
+    admin_nome = f"{getattr(owner, 'first_name', '') or ''} {getattr(owner, 'last_name', '') or ''}".strip() or getattr(owner, "username", "") or None
+    admin_email = getattr(owner, "email", None) or None
+    return admin_nome, admin_email
+
+
 def _obter_dados_loja(loja_id):
     """Obtém dados da loja do superadmin (nome, endereço, CPF/CNPJ, admin, logo, telefone)."""
     try:
@@ -100,24 +125,8 @@ def _obter_dados_loja(loja_id):
         loja = Loja.objects.using("default").filter(id=loja_id).select_related("owner").first()
         if not loja:
             return {}
-        cidade = getattr(loja, "cidade", "") or ""
-        uf = getattr(loja, "uf", "") or ""
-        cidade_uf = f"{cidade}/{uf}" if (cidade and uf) else (cidade or uf)
-        endereco_parts = [
-            getattr(loja, "logradouro", "") or "",
-            getattr(loja, "numero", "") or "",
-            getattr(loja, "complemento", "") or "",
-            getattr(loja, "bairro", "") or "",
-            cidade_uf,
-            f"CEP {loja.cep}" if getattr(loja, "cep", "") else "",
-        ]
-        endereco = ", ".join(p for p in endereco_parts if p).strip() or None
-        owner = getattr(loja, "owner", None)
-        admin_nome = None
-        admin_email = None
-        if owner:
-            admin_nome = f"{getattr(owner, 'first_name', '') or ''} {getattr(owner, 'last_name', '') or ''}".strip() or getattr(owner, "username", "") or None
-            admin_email = getattr(owner, "email", None) or None
+        endereco = _montar_endereco_loja(loja)
+        admin_nome, admin_email = _montar_admin_loja(getattr(loja, "owner", None))
         telefone = getattr(loja, "owner_telefone", "") or getattr(loja, "telefone", "") or ""
         return {
             "nome": getattr(loja, "nome", "") or "",

@@ -177,19 +177,8 @@ def _insert_watermark(elements, wm_bytes: bytes):
         elements.insert(insert_idx, WatermarkFlowable(wm_bytes))
 
 
-def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False) -> BytesIO:
-    """PDF de um único procedimento — conteúdo e assinaturas isolados."""
-    consulta = termo_proc.consulta
-    procedure = termo_proc.procedure
-    buf = BytesIO()
-    doc = SimpleDocTemplate(
-        buf, pagesize=A4, topMargin=1.5 * cm, bottomMargin=1.5 * cm,
-        leftMargin=2 * cm, rightMargin=2 * cm,
-    )
-    elements = []
-    styles = getSampleStyleSheet()
-    col1, col2 = 5.5 * cm, 11 * cm
-
+def _criar_styles_termo(styles) -> tuple:
+    """Retorna (title_style, section_style, body_style, compact) para o termo."""
     title_style = ParagraphStyle(
         "Title", parent=styles["Heading1"], fontSize=18,
         textColor=COR_PRIMARIA, alignment=TA_CENTER, spaceAfter=8,
@@ -204,12 +193,49 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
     compact = ParagraphStyle(
         "Compact", parent=styles["Normal"], fontSize=9, spaceBefore=0, spaceAfter=1, leading=11,
     )
+    return title_style, section_style, body_style, compact
 
-    from superadmin.models import Loja
-    loja = Loja.objects.using("default").filter(id=consulta.loja_id).first()
-    nome_clinica = loja.nome if loja else "Clínica"
+
+def _build_tabela_dados_termo(consulta, procedure, loja, col1, col2) -> Table:
+    """Monta e retorna a tabela de dados do paciente/procedimento."""
+    from django.utils import timezone as dj_tz
+    paciente = consulta.patient
+    prof = consulta.professional
+    data_str = dj_tz.localtime().strftime("%d/%m/%Y")
+    if consulta.data_inicio:
+        data_str = dj_tz.localtime(consulta.data_inicio).strftime("%d/%m/%Y")
+    dados = [
+        ["Paciente", paciente.nome if paciente else "—"],
+        ["CPF", getattr(paciente, "cpf", "") or "—"],
+        ["Procedimento", procedure.nome if procedure else "—"],
+        ["Profissional", prof.nome if prof else "—"],
+        ["Conselho", (prof.formatar_conselho() if prof else "") or "—"],
+        ["Data", data_str],
+    ]
+    if loja and loja.cpf_cnpj:
+        dados.append(["CNPJ Clínica", loja.cpf_cnpj])
+    if loja:
+        endereco = ", ".join(
+            p for p in [getattr(loja, "endereco", "") or "", getattr(loja, "cidade", "") or "", getattr(loja, "estado", "") or ""] if p
+        )
+        if endereco:
+            dados.append(["Endereço", endereco])
+    t = Table(dados, colWidths=[col1, col2])
+    t.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fafafa")),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7eb")),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    return t
+
+
+def _build_cabecalho_logo_termo(elements: list, loja, styles, nome_clinica: str) -> str:
+    """Adiciona logo (se disponível) e nome da clínica aos elements. Retorna logo_url para uso posterior."""
     logo_url = _logo_url_loja(loja)
-
     if logo_url:
         try:
             resp = http_requests.get(logo_url, timeout=5)
@@ -229,56 +255,16 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
                 elements.append(Spacer(1, 0.3 * cm))
         except Exception as e:
             logger.warning("Logo termo consentimento: %s", e)
-
     elements.append(Paragraph(nome_clinica, ParagraphStyle(
         "Clinica", parent=styles["Normal"], fontSize=11,
         textColor=colors.grey, alignment=TA_CENTER,
     )))
     elements.append(Spacer(1, 0.2 * cm))
-    elements.append(Paragraph("Termo de Consentimento Esclarecido", title_style))
+    return logo_url
 
-    from django.utils import timezone as dj_tz
 
-    paciente = consulta.patient
-    prof = consulta.professional
-    data_str = dj_tz.localtime().strftime("%d/%m/%Y")
-    if consulta.data_inicio:
-        data_str = dj_tz.localtime(consulta.data_inicio).strftime("%d/%m/%Y")
-    dados = [
-        ["Paciente", paciente.nome if paciente else "—"],
-        ["CPF", getattr(paciente, "cpf", "") or "—"],
-        ["Procedimento", procedure.nome if procedure else "—"],
-        ["Profissional", prof.nome if prof else "—"],
-        ["Conselho", (prof.formatar_conselho() if prof else "") or "—"],
-        ["Data", data_str],
-    ]
-    if loja and loja.cpf_cnpj:
-        dados.append(["CNPJ Clínica", loja.cpf_cnpj])
-    if loja:
-        endereco = ", ".join(
-            p for p in [
-                getattr(loja, "endereco", "") or "",
-                getattr(loja, "cidade", "") or "",
-                getattr(loja, "estado", "") or "",
-            ] if p
-        )
-        if endereco:
-            dados.append(["Endereço", endereco])
-    t = Table(dados, colWidths=[col1, col2])
-    t.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 10),
-        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fafafa")),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7eb")),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-    ]))
-    elements.append(Spacer(1, 0.4 * cm))
-    elements.append(t)
-
-    elements.append(Spacer(1, 0.5 * cm))
-    elements.append(Paragraph("Conteúdo do Termo", section_style))
+def _build_conteudo_texto_termo(elements: list, termo_proc, consulta, procedure, body_style) -> None:
+    """Adiciona o conteúdo textual do termo (parágrafos) aos elements."""
     from .consentimento_service import limpar_conteudo_termo_exibicao, montar_conteudo_termo_procedimento
     if termo_proc.status_assinatura_termo == "concluido":
         conteudo = limpar_conteudo_termo_exibicao(termo_proc.conteudo_termo or "")
@@ -294,6 +280,32 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
             elements.append(Spacer(1, 0.12 * cm))
         else:
             elements.append(Paragraph(stripped.replace("&", "&amp;"), body_style))
+
+
+def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False) -> BytesIO:
+    """PDF de um único procedimento — conteúdo e assinaturas isolados."""
+    consulta = termo_proc.consulta
+    procedure = termo_proc.procedure
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4, topMargin=1.5 * cm, bottomMargin=1.5 * cm,
+        leftMargin=2 * cm, rightMargin=2 * cm,
+    )
+    elements = []
+    styles = getSampleStyleSheet()
+    col1, col2 = 5.5 * cm, 11 * cm
+    title_style, section_style, body_style, compact = _criar_styles_termo(styles)
+    from superadmin.models import Loja
+    loja = Loja.objects.using("default").filter(id=consulta.loja_id).first()
+    nome_clinica = loja.nome if loja else "Clínica"
+    logo_url = _build_cabecalho_logo_termo(elements, loja, styles, nome_clinica)
+    elements.append(Paragraph("Termo de Consentimento Esclarecido", title_style))
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(_build_tabela_dados_termo(consulta, procedure, loja, col1, col2))
+
+    elements.append(Spacer(1, 0.5 * cm))
+    elements.append(Paragraph("Conteúdo do Termo", section_style))
+    _build_conteudo_texto_termo(elements, termo_proc, consulta, procedure, body_style)
 
     elements.append(Spacer(1, 0.4 * cm))
     elements.append(Paragraph(

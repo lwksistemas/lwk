@@ -63,9 +63,9 @@ export default function LojaLoginDinamicoPage() {
 
       // Se o slug é CPF/CNPJ (só dígitos) e a loja tem atalho, redirecionar para URL amigável
       const isNumericSlug = /^\d{11,14}$/.test(slug);
-      if (isNumericSlug && data && (data as any).atalho) {
+      if (isNumericSlug && data?.atalho) {
         setRedirecting(true);
-        router.replace(`/loja/${(data as any).atalho}/login`);
+        router.replace(`/loja/${data.atalho}/login`);
         return;
       }
 

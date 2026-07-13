@@ -6,6 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import { FileText, Upload, AlertCircle, CheckCircle2, Info, Loader2, ArrowLeft } from 'lucide-react';
 
 type ConfiguracaoNotaFiscalPageProps = {
@@ -131,11 +132,11 @@ export default function ConfiguracaoNotaFiscalPage({
         issnet_senha_certificado: '',
       }));
       setCertificadoFile(null);
-    } catch (error: any) {
+    } catch (error) {
       logger.warn('Erro ao salvar configurações fiscais:', error);
       setMessage({
         type: 'error',
-        text: error.response?.data?.detail || 'Erro ao salvar configurações',
+        text: formatApiErrorBody(error) || 'Erro ao salvar configurações',
       });
     } finally {
       setLoading(false);
@@ -306,7 +307,7 @@ export default function ConfiguracaoNotaFiscalPage({
                     name="provedor_nf"
                     value={key}
                     checked={formData.provedor_nf === key}
-                    onChange={(e) => setFormData({ ...formData, provedor_nf: e.target.value as any })}
+                    onChange={(e) => setFormData({ ...formData, provedor_nf: e.target.value as typeof formData.provedor_nf })}
                     disabled={isDisabled}
                     className="mt-1"
                   />

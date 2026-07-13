@@ -55,9 +55,9 @@ export function parsePrescricaoMemed(data: unknown): PrescricaoMemedParseResult 
   const meds: unknown[] = Array.isArray(d.medicamentos)
     ? d.medicamentos
     : Array.isArray(prescricao?.medicamentos)
-      ? (prescricao.medicamentos as unknown[])
+      ? prescricao.medicamentos
       : Array.isArray(prescricao?.itens)
-        ? (prescricao.itens as unknown[])
+        ? prescricao.itens
         : [];
   const prescricaoId = String(prescricao?.id ?? d.prescricao_id ?? d.id ?? "");
 

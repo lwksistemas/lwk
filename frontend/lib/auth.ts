@@ -26,6 +26,17 @@ interface LoginResponse {
   user_type: UserType;
   loja_slug?: string;
   precisa_trocar_senha?: boolean;
+  user?: {
+    user_type?: UserType;
+  };
+  loja?: {
+    id?: number;
+    slug?: string;
+  };
+  is_vendedor?: boolean;
+  vendedor_id?: number;
+  is_gerente?: boolean;
+  session_id?: string;
 }
 
 class AuthService {
@@ -82,9 +93,9 @@ class AuthService {
       const data: LoginResponse = response.data;
 
       // user_type/loja_slug podem vir no topo ou dentro de user/loja (compatível com backend antigo)
-      const responseUserType = data.user_type ?? (data as any).user?.user_type;
-      const lojaSlug = data.loja_slug ?? (data as any).loja?.slug;
-      const lojaId = (data as any).loja?.id;
+      const responseUserType = data.user_type ?? data.user?.user_type;
+      const lojaSlug = data.loja_slug ?? data.loja?.slug;
+      const lojaId = data.loja?.id;
 
       // Limpar flags de vendedor ANTES de processar novo login
       if (typeof window !== 'undefined') {
@@ -103,21 +114,21 @@ class AuthService {
       }
       
       // Só setar is_vendedor se vier EXPLICITAMENTE como true do backend
-      if ((data as any).is_vendedor === true) {
+      if (data.is_vendedor === true) {
         sessionStorage.setItem('is_vendedor', '1');
-        if (typeof (data as any).vendedor_id === 'number') {
-          sessionStorage.setItem('current_vendedor_id', String((data as any).vendedor_id));
+        if (typeof data.vendedor_id === 'number') {
+          sessionStorage.setItem('current_vendedor_id', String(data.vendedor_id));
         }
       }
-      
+
       // Setar is_gerente se vier do backend
-      if ((data as any).is_gerente === true) {
+      if (data.is_gerente === true) {
         sessionStorage.setItem('is_gerente', '1');
       }
 
       // Salvar session_id se vier do backend
-      if (typeof window !== 'undefined' && (data as any).session_id) {
-        sessionStorage.setItem('session_id', (data as any).session_id);
+      if (typeof window !== 'undefined' && data.session_id) {
+        sessionStorage.setItem('session_id', data.session_id);
       }
 
       // Também salvar nos cookies para o middleware (só se tiver responseUserType)

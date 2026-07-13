@@ -26,7 +26,7 @@ export interface LojaInfo {
   cor_primaria: string;
 }
 
-interface GenericCrudModalProps<T extends { id: number }> {
+interface GenericCrudModalProps<T extends Record<string, unknown> & { id: number }> {
   title: string;
   endpoint: string;
   fields: FieldConfig[];
@@ -38,7 +38,7 @@ interface GenericCrudModalProps<T extends { id: number }> {
   transformDataAfterLoad?: (data: T) => Record<string, unknown>;
 }
 
-export function GenericCrudModal<T extends { id: number }>({
+export function GenericCrudModal<T extends Record<string, unknown> & { id: number }>({
   title,
   endpoint,
   fields,
@@ -98,7 +98,7 @@ export function GenericCrudModal<T extends { id: number }>({
 
   const handleEdit = (item: T) => {
     setEditingItem(item);
-    let data = transformDataAfterLoad ? transformDataAfterLoad(item) : (item as unknown as Record<string, unknown>);
+    let data = transformDataAfterLoad ? transformDataAfterLoad(item) : item;
     data = applyTelefoneFormatPayload(data);
     setFormData({ ...data });
     setShowForm(true);

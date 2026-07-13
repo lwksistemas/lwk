@@ -6,14 +6,14 @@ import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-t
 export const consultasApi = {
   criar: (data: {
     patient: number;
-    professional: number;
+    professional?: number;
     procedure?: number;
     procedures_ids?: number[];
     iniciar?: boolean;
     local_atendimento?: number;
     valor_consulta?: number | string;
     convenio?: number | null;
-  }) => cbPost("/consultas/", data),
+  }) => cbPost<{ id?: number }>("/consultas/", data),
   get: (id: number) => cbGet<Consulta>(`/consultas/${id}/`),
   update: (id: number, data: Partial<Consulta> | Record<string, unknown>) =>
     cbPatch<Consulta>(`/consultas/${id}/`, data),

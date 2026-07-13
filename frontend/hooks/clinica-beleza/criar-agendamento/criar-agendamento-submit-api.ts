@@ -2,6 +2,7 @@ import { formatApiErrorBody } from "@/lib/api-errors";
 import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { buildQuickPatientBody, extractQuickPatientError } from "./criar-agendamento-submit-utils";
+import type { CriarAgendamentoPayload } from "./criar-agendamento-builders";
 
 export async function createQuickPatient(data: {
   nome: string;
@@ -20,21 +21,12 @@ export async function createQuickPatient(data: {
 }
 
 export async function submitConsultaOnline(
-  payload: Record<string, unknown>,
+  payload: CriarAgendamentoPayload,
 ): Promise<{ id?: number } | null> {
-  return ClinicaBelezaAPI.consultas.criar(
-    payload as {
-      patient: number;
-      professional: number;
-      procedure?: number;
-      procedures_ids?: number[];
-      local_atendimento?: number;
-      convenio?: number | null;
-    },
-  ) as Promise<{ id?: number } | null>;
+  return ClinicaBelezaAPI.consultas.criar(payload);
 }
 
-export async function submitAgendamentoOnline(payload: Record<string, unknown>): Promise<void> {
+export async function submitAgendamentoOnline(payload: CriarAgendamentoPayload): Promise<void> {
   const res = await clinicaBelezaFetch("/agenda/create/", {
     method: "POST",
     body: JSON.stringify({ ...payload, status: "SCHEDULED" }),

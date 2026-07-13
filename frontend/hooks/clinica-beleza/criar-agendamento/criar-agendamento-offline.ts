@@ -5,13 +5,14 @@ import { notificarFilaAtualizada } from "@/hooks/useSyncPending";
 import type { NomeAgendaItem } from "@/lib/clinica-beleza-api";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { adicionarNaFilaSync } from "@/lib/offline-db";
+import type { CriarAgendamentoPayload } from "./criar-agendamento-builders";
 
-export async function enqueueConsultaOffline(payload: Record<string, unknown>) {
+export async function enqueueConsultaOffline(payload: CriarAgendamentoPayload | Record<string, unknown>) {
   await adicionarNaFilaSync({ tipo: "consulta", payload });
   notificarFilaAtualizada();
 }
 
-export async function enqueueAgendamentoOffline(payload: Record<string, unknown>) {
+export async function enqueueAgendamentoOffline(payload: CriarAgendamentoPayload | Record<string, unknown>) {
   await adicionarNaFilaSync({ tipo: "agendamento", payload: { ...payload, status: "SCHEDULED" } });
   notificarFilaAtualizada();
 }

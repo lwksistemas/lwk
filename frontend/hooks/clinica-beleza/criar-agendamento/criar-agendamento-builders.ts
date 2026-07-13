@@ -14,6 +14,19 @@ export function buildAppointmentDate(
   return date;
 }
 
+export interface CriarAgendamentoPayload {
+  patient: number;
+  nome_agenda: number;
+  notes: string | null;
+  date: string;
+  professional?: number;
+  local_atendimento?: number;
+  convenio?: number;
+  procedure?: number;
+  procedures_ids?: number[];
+  retorno_procedure?: number;
+}
+
 export function buildCriarAgendamentoPayload({
   patientId,
   agendaId,
@@ -34,8 +47,8 @@ export function buildCriarAgendamentoPayload({
   convenioId: number | "";
   selectedProcedures: number[];
   retornoProcedureId: number | "";
-}): Record<string, unknown> {
-  const basePayload: Record<string, unknown> = {
+}): CriarAgendamentoPayload {
+  const basePayload: CriarAgendamentoPayload = {
     patient: Number(patientId),
     nome_agenda: Number(agendaId),
     notes: notes.trim() || null,

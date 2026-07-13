@@ -2,6 +2,7 @@
  * Busca paginada de cadastros — Clínica da Beleza (pacientes, procedimentos, etc.).
  */
 import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
+import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 import {
   ClinicaBelezaAPI,
@@ -123,8 +124,8 @@ export async function searchClinicaProcedures(query: string, categoria?: string)
   return ClinicaBelezaAPI.getList<ConsultaFormProcedure>("/procedures/", params);
 }
 
-export async function fetchHistoricoPaciente(patientId: number) {
-  return ClinicaBelezaAPI.getList(`/patients/${patientId}/consultas/`, {
+export async function fetchHistoricoPaciente(patientId: number): Promise<Consulta[]> {
+  return ClinicaBelezaAPI.getList<Consulta>(`/patients/${patientId}/consultas/`, {
     page: 1,
     page_size: HISTORICO_PAGE_SIZE,
   });

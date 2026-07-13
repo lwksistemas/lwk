@@ -33,7 +33,7 @@ export const consultasApi = {
     },
   ) => cbPost(`/consultas/${id}/receber/`, data),
   estornarPagamento: (id: number) =>
-    cbPost<{ consulta: Record<string, unknown>; payment: Record<string, unknown>; message?: string }>(
+    cbPost<{ consulta: Partial<Consulta>; payment: Record<string, unknown>; message?: string }>(
       `/consultas/${id}/estornar-pagamento/`,
       {},
     ),

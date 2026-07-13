@@ -68,8 +68,8 @@ export function ConsultasPageContent() {
   }, []);
 
   const aposRecebimentoLista = useCallback(
-    async (atualizada: Consulta) => {
-      setReceberConsulta(atualizada);
+    async (atualizada: Partial<Consulta>) => {
+      setReceberConsulta((prev) => (prev ? { ...prev, ...atualizada } : null));
       await loadConsultas();
     },
     [loadConsultas],

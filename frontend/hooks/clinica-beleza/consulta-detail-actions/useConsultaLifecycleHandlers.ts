@@ -71,7 +71,7 @@ export function useConsultaLifecycleHandlers(
         setSelected({ ...selected, ...data });
         await onListRefresh();
         const hist = await fetchHistoricoPaciente(selected.patient).catch(() => []);
-        setHistorico(Array.isArray(hist) ? (hist as Consulta[]) : []);
+        setHistorico(hist);
         toast.success("Consulta iniciada.");
       } catch (e: unknown) {
         toast.error(formatApiErrorBody(e) || "Erro ao iniciar consulta.");
@@ -94,7 +94,7 @@ export function useConsultaLifecycleHandlers(
   const abrirReceberModal = useCallback(async () => {
     setRecebendo(true);
     try {
-      const fresh = (await ClinicaBelezaAPI.consultas.get(selected.id)) as Consulta;
+      const fresh = await ClinicaBelezaAPI.consultas.get(selected.id);
       setSelected({ ...selected, ...fresh });
       setShowReceberModal(true);
     } catch {
@@ -105,11 +105,12 @@ export function useConsultaLifecycleHandlers(
   }, [selected, setRecebendo, setSelected, setShowReceberModal]);
 
   const aposRecebimento = useCallback(
-    async (consultaAtualizada: Consulta) => {
+    async (consultaAtualizada: Partial<Consulta>) => {
       setRecebendo(true);
       try {
-        setSelected({ ...selected, ...consultaAtualizada });
-        await loadDetalhes(consultaAtualizada);
+        const merged = { ...selected, ...consultaAtualizada };
+        setSelected(merged);
+        await loadDetalhes(merged);
         await onListRefresh();
         // NÃO fechar o modal aqui — mostra tela de recibo para o usuário imprimir/enviar.
       } finally {
@@ -129,8 +130,7 @@ export function useConsultaLifecycleHandlers(
     if (!confirm("Finalizar consulta? A agenda será marcada como Concluída.")) return;
     setFinalizando(true);
     try {
-      const updated = (await ClinicaBelezaAPI.consultas.finalizar(selected.id, {})) as Consulta & { error?: string };
-      if (updated?.error) throw new Error(updated.error);
+      const updated = await ClinicaBelezaAPI.consultas.finalizar(selected.id, {});
       const consultaAtualizada = { ...selected, ...updated };
       setSelected(consultaAtualizada);
       setTab("atendimento");

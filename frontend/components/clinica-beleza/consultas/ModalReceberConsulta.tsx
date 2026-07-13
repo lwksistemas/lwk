@@ -45,7 +45,7 @@ interface ModalReceberConsultaProps {
   open: boolean;
   consulta: Consulta;
   onClose: () => void;
-  onSuccess: (consulta: Consulta) => void;
+  onSuccess: (consulta: Partial<Consulta>) => void;
 }
 
 const fieldClass =
@@ -206,7 +206,7 @@ export function ModalReceberConsulta({
     setError("");
     try {
       const res = await ClinicaBelezaAPI.consultas.estornarPagamento(consulta.id);
-      const atualizada = ((res as unknown as { consulta?: Consulta }).consulta || (res as unknown as Consulta));
+      const atualizada = res.consulta;
       setConfirmado(false);
       setConsultaAtualizada(null);
       setReciboSnapshot(null);

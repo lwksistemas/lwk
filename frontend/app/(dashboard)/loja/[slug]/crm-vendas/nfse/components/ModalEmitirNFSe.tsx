@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import { X, AlertCircle } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
@@ -14,6 +15,7 @@ import {
 } from '@/lib/nfse-emissao-form';
 import { parseNfseEmissaoResult, type NfseEmissaoResult, type NfseEmitirResponse } from '@/lib/nfse-helpers';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
+import { useLojaInfoPublica } from '@/hooks/useLojaInfoPublica';
 import { ServicoFields } from './ServicoFields';
 import { ModalFormButtons } from './ModalFormButtons';
 import { ModalEmitirNFSeStepInicio } from './ModalEmitirNFSeStepInicio';
@@ -27,6 +29,10 @@ interface ModalEmitirNFSeProps {
 }
 
 export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmitirNFSeProps) {
+  const params = useParams();
+  const slug = (params?.slug as string) || '';
+  const { loja } = useLojaInfoPublica(slug);
+  const emitenteNome = (loja?.nome || '').trim();
   const { config } = useCRMConfig();
   const defaultsServico = defaultsServicoFromCrmConfig(config);
   const [step, setStep] = useState<'inicio' | 'formulario'>('inicio');
@@ -186,6 +192,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
               buscandoTomador={buscandoTomador}
               onContinuar={handleContinuarInicio}
               onClose={onClose}
+              emitenteNome={emitenteNome}
             />
           )}
 
@@ -193,7 +200,9 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3 text-sm">
                 <span className="font-medium text-blue-900 dark:text-blue-100">Emissor: </span>
-                <span className="text-blue-800 dark:text-blue-200">Felix Representações</span>
+                <span className="text-blue-800 dark:text-blue-200">
+                  {emitenteNome || 'Loja atual (CNPJ do cadastro)'}
+                </span>
               </div>
 
               {modoTomador === 'cadastrado' ? (

@@ -14,6 +14,7 @@ export function ModalEmitirNFSeStepInicio({
   buscandoTomador,
   onContinuar,
   onClose,
+  emitenteNome,
 }: {
   documentoTomador: string;
   onDocumentoChange: (value: string) => void;
@@ -23,11 +24,14 @@ export function ModalEmitirNFSeStepInicio({
   buscandoTomador: boolean;
   onContinuar: () => void | Promise<void>;
   onClose: () => void;
+  /** Razão social / nome da loja logada (prestador da NFS-e). */
+  emitenteNome: string;
 }) {
+  const nome = (emitenteNome || '').trim() || 'esta loja';
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3 text-sm text-blue-900 dark:text-blue-100">
-        A nota será emitida pela <strong>Felix Representações</strong> (CNPJ da loja) para o
+        A nota será emitida pela <strong>{nome}</strong> (CNPJ cadastrado desta loja) para o
         cliente informado abaixo.
       </div>
 

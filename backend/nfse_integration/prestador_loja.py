@@ -23,7 +23,7 @@ def resolver_prestador_emissao_loja(
     empresa_prestadora_id: int | None = None,
 ) -> DadosPrestadorNFSe:
     """Emissor da NFS-e no CRM da loja: sempre CNPJ/razão social da loja
-    (ex.: Felix Representações). Contas tipo prestadora no CRM servem ao
+    autenticada (tenant). Contas tipo prestadora no CRM servem ao
     pipeline/comissões; o tomador é o cliente informado na emissão.
     """
     del empresa_prestadora_id, loja_id

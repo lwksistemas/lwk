@@ -75,18 +75,25 @@ class ErrorLogger {
   /**
    * Captura erro de API
    */
-  logApiError(error: any, endpoint: string) {
+  logApiError(error: unknown, endpoint: string) {
+    const errorObj = error && typeof error === 'object' ? (error as Record<string, unknown>) : null;
+    const response = errorObj?.response as Record<string, unknown> | undefined;
+    const errData = response?.data;
+    const errorMsg =
+      (typeof errData === 'object' && errData !== null ? (errData as { error?: string }).error : null) ||
+      (error instanceof Error ? error.message : null) ||
+      'Erro na API';
     this.logError({
       tipo: 'api',
-      mensagem: error.response?.data?.error || error.message || 'Erro na API',
-      stack: error.stack,
+      mensagem: errorMsg,
+      stack: error instanceof Error ? error.stack : undefined,
       url: endpoint,
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
       extra: {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
+        status: response?.status,
+        statusText: response?.statusText,
+        data: errData,
       },
     });
   }
@@ -201,7 +208,7 @@ export const errorLogger = new ErrorLogger();
 // Hook para React Error Boundary
 export function useErrorLogger() {
   return {
-    logError: (error: Error, errorInfo?: any) => {
+    logError: (error: Error, errorInfo?: { componentStack?: string }) => {
       errorLogger.logFrontendError(error, errorInfo?.componentStack);
     },
   };

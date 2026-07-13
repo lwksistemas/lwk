@@ -1,10 +1,25 @@
 'use client';
 
+import type React from 'react';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { formatCep, formatTelefone, cepDigitosValidos } from '@/lib/format-br';
+import type { LojaFormData, TipoLojaOption, PlanoOption } from '@/hooks/useLojaForm';
 
 interface FormularioCadastroLojaProps {
-  lojaForm: any;
+  lojaForm: {
+    formData: LojaFormData;
+    setFormData: React.Dispatch<React.SetStateAction<LojaFormData>>;
+    tipos: TipoLojaOption[];
+    planos: PlanoOption[];
+    buscarCepLoading: boolean;
+    buscarCnpjLoading: boolean;
+    loadPlanosPorTipo: (tipoId: string) => Promise<void>;
+    getSuggestedSlug: (_nome: string, cpfCnpj: string) => string;
+    formatCpfCnpj: (value: string) => string;
+    buscarCep: () => Promise<void>;
+    buscarCnpj: () => Promise<void>;
+    gerarSenhaProvisoria: () => void;
+  };
   onSubmit: (e: React.FormEvent) => void;
   loading: boolean;
   mostrarSenha?: boolean;
@@ -35,30 +50,30 @@ export function FormularioCadastroLoja({
     const { name, value } = e.target;
     
     if (name === 'cep') {
-      setFormData((prev: any) => ({ ...prev, cep: formatCep(value) }));
+      setFormData((prev) => ({ ...prev, cep: formatCep(value) }));
       return;
     }
 
     if (name === 'owner_telefone') {
-      setFormData((prev: any) => ({ ...prev, owner_telefone: formatTelefone(value) }));
+      setFormData((prev) => ({ ...prev, owner_telefone: formatTelefone(value) }));
       return;
     }
-    
-    setFormData((prev: any) => ({ ...prev, [name]: value }));
-    
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
     if (name === 'nome') {
-      setFormData((prev: any) => ({ ...prev, slug: getSuggestedSlug(value, prev.cpf_cnpj) }));
+      setFormData((prev) => ({ ...prev, slug: getSuggestedSlug(value, prev.cpf_cnpj) }));
     }
-    
+
     if (name === 'tipo_loja' && value) {
       loadPlanosPorTipo(value);
-      setFormData((prev: any) => ({ ...prev, plano: '' }));
+      setFormData((prev) => ({ ...prev, plano: '' }));
     }
   };
 
   const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCpfCnpj(e.target.value);
-    setFormData((prev: any) => ({ 
+    setFormData((prev) => ({ 
       ...prev, 
       cpf_cnpj: formatted, 
       slug: getSuggestedSlug(prev.nome, formatted) 
@@ -72,12 +87,13 @@ export function FormularioCadastroLoja({
     }
   };
 
-  const planoSelecionado = planos.find((p: any) => p.id === parseInt(formData.plano));
-  const valorAssinatura = planoSelecionado 
-    ? (formData.tipo_assinatura === 'anual' 
-        ? planoSelecionado.preco_anual 
+  const planoSelecionado = planos.find((p) => p.id === parseInt(formData.plano));
+  const rawValor = planoSelecionado
+    ? (formData.tipo_assinatura === 'anual'
+        ? planoSelecionado.preco_anual
         : planoSelecionado.preco_mensal)
     : 0;
+  const valorAssinatura = typeof rawValor === 'string' ? parseFloat(rawValor) || 0 : rawValor ?? 0;
 
   return (
     <form onSubmit={onSubmit} className="space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-8">
@@ -240,7 +256,7 @@ export function FormularioCadastroLoja({
       <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
         <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">3. Tipo de Sistema</h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {tipos.map((tipo: any) => (
+          {tipos.map((tipo) => (
             <label
               key={tipo.id}
               className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
@@ -283,7 +299,7 @@ export function FormularioCadastroLoja({
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {planos.map((plano: any) => (
+            {planos.map((plano) => (
               <label
                 key={plano.id}
                 className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
@@ -304,12 +320,12 @@ export function FormularioCadastroLoja({
                 <div className="text-center">
                   <h4 className="font-bold text-lg mb-2">{plano.nome}</h4>
                   <p className="text-2xl font-bold text-blue-600 mb-2">
-                    {formatCurrency(plano.preco_mensal)}
+                    {formatCurrency(typeof plano.preco_mensal === 'string' ? parseFloat(plano.preco_mensal) || 0 : plano.preco_mensal ?? 0)}
                   </p>
                   <p className="text-sm text-gray-600">por mês</p>
                   {plano.preco_anual && (
                     <p className="text-xs text-gray-500 mt-1">
-                      ou {formatCurrency(plano.preco_anual)}/ano
+                      ou {formatCurrency(typeof plano.preco_anual === 'string' ? parseFloat(plano.preco_anual) || 0 : plano.preco_anual)}/ano
                     </p>
                   )}
                 </div>

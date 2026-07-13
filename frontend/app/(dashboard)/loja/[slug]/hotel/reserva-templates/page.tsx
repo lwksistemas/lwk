@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,8 +77,8 @@ export default function ReservaTemplatesPage() {
       }
       setModalOpen(false);
       loadTemplates();
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erro ao salvar template.');
+    } catch (err) {
+      alert(formatApiErrorBody(err) || 'Erro ao salvar template.');
     } finally { setSaving(false); }
   };
 

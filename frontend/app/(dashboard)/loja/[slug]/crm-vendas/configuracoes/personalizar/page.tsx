@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Settings } from 'lucide-react';
 import apiClient from '@/lib/api-client';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { OrigensSection } from './components/OrigensSection';
 import { ModulosSection } from './components/ModulosSection';
@@ -38,7 +39,7 @@ export default function ConfiguracoesPage() {
   useEffect(() => {
     apiClient.get<CRMConfig>('/crm-vendas/config/')
       .then((res) => setConfig(res.data))
-      .catch((e: any) => setError(e.response?.data?.detail || 'Erro ao carregar configurações.'))
+      .catch((e) => setError(formatApiErrorBody(e) || 'Erro ao carregar configurações.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -50,8 +51,8 @@ export default function ConfiguracoesPage() {
       setSuccess('Configurações salvas com sucesso!');
       setTimeout(() => setSuccess(null), 3000);
       await recarregar();
-    } catch (e: any) {
-      setError(e.response?.data?.detail || 'Erro ao salvar configurações.');
+    } catch (e) {
+      setError(formatApiErrorBody(e) || 'Erro ao salvar configurações.');
     } finally {
       setSaving(false);
     }

@@ -4,6 +4,22 @@ import { logger } from '@/lib/logger';
 import { formatCep, cepDigitosValidos } from '@/lib/format-br';
 import { consultaCnpj, resolverCepDadosCnpj } from '@/lib/consulta-cnpj';
 
+export interface TipoLojaOption {
+  id: number;
+  nome: string;
+  slug: string;
+  cor_primaria?: string;
+}
+
+export interface PlanoOption {
+  id: number;
+  nome: string;
+  slug?: string;
+  preco_mensal?: number | string;
+  preco_anual?: number | string;
+  descricao?: string;
+}
+
 export interface LojaFormData {
   nome: string;
   slug: string;
@@ -57,8 +73,8 @@ export function useLojaForm(incluirSenha: boolean = true) {
     owner_telefone: '',
   });
 
-  const [tipos, setTipos] = useState<any[]>([]);
-  const [planos, setPlanos] = useState<any[]>([]);
+  const [tipos, setTipos] = useState<TipoLojaOption[]>([]);
+  const [planos, setPlanos] = useState<PlanoOption[]>([]);
   const [buscarCepLoading, setBuscarCepLoading] = useState(false);
   const [buscarCnpjLoading, setBuscarCnpjLoading] = useState(false);
 
@@ -107,12 +123,14 @@ export function useLojaForm(incluirSenha: boolean = true) {
       const baseUrl = incluirSenha ? '/superadmin' : '/superadmin/public';
       
       const [tiposRes, planosRes] = await Promise.all([
-        apiClient.get(`${baseUrl}/tipos-loja/`),
-        apiClient.get(`${baseUrl}/planos/`)
+        apiClient.get<{ results?: TipoLojaOption[] } | TipoLojaOption[]>(`${baseUrl}/tipos-loja/`),
+        apiClient.get<{ results?: PlanoOption[] } | PlanoOption[]>(`${baseUrl}/planos/`)
       ]);
-      
-      setTipos(tiposRes.data.results || tiposRes.data);
-      setPlanos(planosRes.data.results || planosRes.data);
+
+      const tiposData = tiposRes.data;
+      const planosData = planosRes.data;
+      setTipos(Array.isArray(tiposData) ? tiposData : tiposData.results || []);
+      setPlanos(Array.isArray(planosData) ? planosData : planosData.results || []);
     } catch (error) {
       logger.warn('Erro ao carregar tipos e planos:', error);
     }
@@ -127,8 +145,9 @@ export function useLojaForm(incluirSenha: boolean = true) {
     try {
       // Usar endpoints públicos quando não incluir senha (cadastro público)
       const baseUrl = incluirSenha ? '/superadmin' : '/superadmin/public';
-      const response = await apiClient.get(`${baseUrl}/planos/por_tipo/?tipo_id=${tipoId}`);
-      setPlanos(response.data);
+      const response = await apiClient.get<{ results?: PlanoOption[] } | PlanoOption[]>(`${baseUrl}/planos/por_tipo/?tipo_id=${tipoId}`);
+      const data = response.data;
+      setPlanos(Array.isArray(data) ? data : data.results || []);
     } catch (error) {
       logger.warn('Erro ao carregar planos por tipo:', error);
       setPlanos([]);

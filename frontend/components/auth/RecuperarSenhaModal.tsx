@@ -3,12 +3,16 @@
 import { useState, FormEvent } from 'react';
 import apiClient from '@/lib/api-client';
 
-function formatRecoveryError(err: any): string {
-  const data = err.response?.data;
-  const detail = data?.detail || data?.error;
+function formatRecoveryError(err: unknown): string {
+  const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+  const response = errorObj?.response as Record<string, unknown> | undefined;
+  const data = response?.data;
+  const detail = (typeof data === 'object' && data !== null ? (data as { detail?: string; error?: string }).detail || (data as { error?: string }).error : null) ||
+    (typeof data === 'string' ? data : null);
+  const status = typeof response?.status === 'number' ? response.status : undefined;
   if (typeof detail === 'string' && detail.trim()) {
-    if (err.response?.status === 429) {
-      const retryAfter = Number(data?.retry_after);
+    if (status === 429) {
+      const retryAfter = typeof data === 'object' && data !== null ? Number((data as { retry_after?: unknown }).retry_after) : NaN;
       if (Number.isFinite(retryAfter) && retryAfter > 0) {
         const minutes = Math.max(1, Math.ceil(retryAfter / 60));
         return `Muitas tentativas. Aguarde cerca de ${minutes} minuto(s) e tente novamente.`;
@@ -28,7 +32,7 @@ interface RecuperarSenhaModalProps {
   isOpen: boolean;
   onClose: () => void;
   endpoint: string;
-  extraData?: Record<string, any>;
+  extraData?: Record<string, unknown>;
   title?: string;
   description?: string;
   primaryColor?: string;
@@ -66,7 +70,7 @@ export default function RecuperarSenhaModal({
       setTimeout(() => {
         handleClose();
       }, 3000);
-    } catch (err: any) {
+    } catch (err) {
       setTipoMensagem('error');
       setMensagem(formatRecoveryError(err));
     } finally {

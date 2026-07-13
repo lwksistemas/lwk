@@ -13,7 +13,8 @@ export { formatApiError } from './api-errors';
  * Extrai dados de forma segura de uma resposta da API
  * @deprecated Use ensureArray de array-helpers.ts
  */
-export function extractArrayData<T>(response: any): T[] {
+export function extractArrayData<T>(response: unknown): T[] {
   const { ensureArray } = require('./array-helpers');
-  return ensureArray(response?.data) as T[];
+  const data = response && typeof response === 'object' ? (response as Record<string, unknown>).data : undefined;
+  return ensureArray(data) as T[];
 }

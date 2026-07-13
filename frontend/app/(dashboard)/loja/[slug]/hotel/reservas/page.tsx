@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import apiClient from '@/lib/api-client';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -145,8 +146,8 @@ export default function HotelReservasPage() {
       const res = await apiClient.post(`/hotel/reservas/${reservaId}/enviar_para_assinatura/`);
       alert(res.data?.message || 'Email de assinatura enviado!');
       load();
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erro ao enviar para assinatura.');
+    } catch (err) {
+      alert(formatApiErrorBody(err) || 'Erro ao enviar para assinatura.');
     } finally {
       setEnviandoAssinatura(null);
     }
@@ -158,8 +159,8 @@ export default function HotelReservasPage() {
       const res = await apiClient.post(`/hotel/reservas/${reservaId}/reenviar_para_assinatura/`);
       alert(res.data?.message || 'Link reenviado!');
       load();
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erro ao reenviar.');
+    } catch (err) {
+      alert(formatApiErrorBody(err) || 'Erro ao reenviar.');
     }
   };
 
@@ -185,8 +186,8 @@ export default function HotelReservasPage() {
     try {
       await apiClient.patch(`/hotel/reservas/${reservaId}/`, { status: 'cancelada' });
       load();
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erro ao cancelar reserva.');
+    } catch (err) {
+      alert(formatApiErrorBody(err) || 'Erro ao cancelar reserva.');
     }
   };
 
@@ -197,8 +198,8 @@ export default function HotelReservasPage() {
       await apiClient.post(`/hotel/reservas/${reservaId}/assinar_manual/`);
       alert('Assinatura manual registrada. Agora é possível fazer o check-in.');
       load();
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erro ao registrar assinatura manual.');
+    } catch (err) {
+      alert(formatApiErrorBody(err) || 'Erro ao registrar assinatura manual.');
     }
   };
 
@@ -208,8 +209,8 @@ export default function HotelReservasPage() {
       const res = await apiClient.post(`/hotel/reservas/${reservaId}/checkin/`);
       if (res.data?.aviso) alert(`✅ Check-in realizado!\n\n⚠️ ${res.data.aviso}`);
       load();
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erro ao fazer check-in.');
+    } catch (err) {
+      alert(formatApiErrorBody(err) || 'Erro ao fazer check-in.');
     }
   };
 

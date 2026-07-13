@@ -13,12 +13,18 @@ export function usePlanoList(tipoId?: number | null) {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.get(`/superadmin/planos/por_tipo/?tipo_id=${tipoLojaId}`);
+      const response = await apiClient.get<{ results?: Plano[]; data?: Plano[] } | Plano[]>(`/superadmin/planos/por_tipo/?tipo_id=${tipoLojaId}`);
       const raw = response.data;
-      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+      const list = Array.isArray(raw) ? raw : Array.isArray((raw as { results?: Plano[] }).results) ? (raw as { results: Plano[] }).results : [];
       setPlanos(list);
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Erro ao carregar planos';
+    } catch (err) {
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const errData = response?.data;
+      const errorMsg =
+        (typeof errData === 'object' && errData !== null ? (errData as { error?: string }).error : null) ||
+        (typeof errData === 'string' ? errData : null) ||
+        'Erro ao carregar planos';
       setError(errorMsg);
       setPlanos([]);
     } finally {

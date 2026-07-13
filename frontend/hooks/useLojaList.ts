@@ -33,20 +33,29 @@ export function useLojaList() {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiClient.get('/superadmin/lojas/');
+      const response = await apiClient.get<{ results?: Loja[]; data?: Loja[] }>('/superadmin/lojas/');
       const data = response.data.results || response.data;
       const list = Array.isArray(data) ? data : [];
       setLojas(list);
-      const slugs = list.flatMap((loja: Loja) =>
+      const slugs = list.flatMap((loja) =>
         [loja.slug, loja.atalho].filter((s): s is string => Boolean(s))
       );
       clearOrphanStorageKeys(slugs);
-    } catch (err: any) {
-      const status = err.response?.status;
+    } catch (err) {
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const status = typeof response?.status === 'number' ? response.status : undefined;
+      const errData = response?.data;
+      const apiError =
+        typeof errData === 'object' && errData !== null
+          ? (errData as { error?: string; detail?: string }).error || (errData as { detail?: string }).detail
+          : typeof errData === 'string'
+            ? errData
+            : null;
       const errorMsg =
         status === 401
           ? 'Sessão expirada ou inválida. Faça login novamente no beta.'
-          : err.response?.data?.error || err.response?.data?.detail || 'Erro ao carregar lojas';
+          : apiError || 'Erro ao carregar lojas';
       setError(typeof errorMsg === 'string' ? errorMsg : 'Erro ao carregar lojas');
       setLojas([]);
     } finally {

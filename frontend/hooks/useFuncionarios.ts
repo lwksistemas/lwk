@@ -5,7 +5,7 @@ import { logger } from '@/lib/logger';
 
 interface UseFuncionariosOptions {
   endpoint: string;
-  onError?: (error: any) => void;
+  onError?: (error: unknown) => void;
 }
 
 interface Funcionario {

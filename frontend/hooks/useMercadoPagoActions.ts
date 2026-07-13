@@ -5,6 +5,7 @@
 import { useState, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import { formatApiErrorBody } from '@/lib/api-errors';
 import type { Pagamento } from './useAssinaturas';
 
 export function useMercadoPagoActions() {
@@ -25,9 +26,8 @@ export function useMercadoPagoActions() {
         } else {
           alert('Link do boleto não disponível. Verifique se o pagamento existe na conta (produção/sandbox).');
         }
-      } catch (e: unknown) {
-        const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-        alert(msg || 'Não foi possível obter o link do boleto.');
+      } catch (e) {
+        alert(formatApiErrorBody(e) || 'Não foi possível obter o link do boleto.');
       }
       return;
     }
@@ -46,9 +46,8 @@ export function useMercadoPagoActions() {
       } else {
         alert('Link do boleto não disponível. Verifique se o pagamento existe na conta (produção/sandbox).');
       }
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      alert(msg || 'Não foi possível obter o link do boleto.');
+    } catch (e) {
+      alert(formatApiErrorBody(e) || 'Não foi possível obter o link do boleto.');
     }
   }, []);
 
@@ -65,9 +64,8 @@ export function useMercadoPagoActions() {
         if (onSuccess) onSuccess();
         alert('PIX gerado! O código foi copiado para a área de transferência.');
       }
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      alert(msg || 'Não foi possível gerar o PIX.');
+    } catch (e) {
+      alert(formatApiErrorBody(e) || 'Não foi possível gerar o PIX.');
     } finally {
       setGerandoPix(null);
     }
@@ -85,10 +83,9 @@ export function useMercadoPagoActions() {
       } else {
         alert(res.data?.message || 'Nenhuma alteração. O pagamento pode ainda estar pendente no Mercado Pago.');
       }
-    } catch (error: unknown) {
+    } catch (error) {
       logger.warn('Erro ao sincronizar Mercado Pago:', error);
-      const msg = (error as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      alert(msg || 'Erro ao atualizar status. Tente novamente.');
+      alert(formatApiErrorBody(error) || 'Erro ao atualizar status. Tente novamente.');
     } finally {
       setAtualizandoMP(null);
     }
@@ -121,9 +118,9 @@ export function useMercadoPagoActions() {
         alert(response.data.error || 'Erro ao criar cobrança');
         return false;
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.warn('Erro ao criar cobrança Mercado Pago:', error);
-      alert(`Erro: ${error.response?.data?.error || error.message || 'Erro ao criar cobrança'}`);
+      alert(`Erro: ${formatApiErrorBody(error) || (error instanceof Error ? error.message : 'Erro ao criar cobrança')}`);
       return false;
     } finally {
       setGerandoCobranca(null);
@@ -143,9 +140,9 @@ export function useMercadoPagoActions() {
         alert(response.data.error || 'Erro ao excluir cobrança');
         return false;
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.warn('Erro ao excluir cobrança Mercado Pago:', error);
-      alert(`Erro: ${error.response?.data?.error || error.message || 'Erro ao excluir cobrança'}`);
+      alert(`Erro: ${formatApiErrorBody(error) || (error instanceof Error ? error.message : 'Erro ao excluir cobrança')}`);
       return false;
     } finally {
       setExcluindoPagamento(false);

@@ -20,10 +20,10 @@ export function useTipoAppList() {
     setError(null);
 
     try {
-      const response = await apiClient.get('/superadmin/tipos-loja/');
+      const response = await apiClient.get<{ results?: TipoApp[]; data?: TipoApp[] }>('/superadmin/tipos-loja/');
       const data = response.data.results || response.data;
       setTipos(Array.isArray(data) ? data : []);
-    } catch (err: any) {
+    } catch (err) {
       logger.warn('Erro ao carregar tipos de app:', err);
       setError('Erro ao carregar tipos de app');
       setTipos([]);

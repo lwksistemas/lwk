@@ -44,12 +44,19 @@ export function useLojaInfo() {
     setLojaInfo(null);
 
     try {
-      const response = await apiClient.get(`/superadmin/lojas/${lojaId}/info_loja/`);
+      const response = await apiClient.get<LojaInfo>(`/superadmin/lojas/${lojaId}/info_loja/`);
       setLojaInfo(response.data);
       return true;
-    } catch (err: any) {
+    } catch (err) {
       logger.warn('Erro ao carregar informações da loja:', err);
-      const mensagemErro = `Erro ao carregar informações: ${err.response?.data?.error || 'Erro desconhecido'}`;
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const errData = response?.data;
+      const errorText =
+        (typeof errData === 'object' && errData !== null ? (errData as { error?: string }).error : null) ||
+        (typeof errData === 'string' ? errData : null) ||
+        'Erro desconhecido';
+      const mensagemErro = `Erro ao carregar informações: ${errorText}`;
       setError(mensagemErro);
       return false;
     } finally {

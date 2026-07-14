@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { X, MessageCircle } from "lucide-react";
 import {
   getAgendaStatusColor,
-  getAgendaStatusLabel,
+  getAgendaStatusLabelModal,
   getAgendaStatusOpcoesModal,
   normalizeAgendaStatus,
 } from "@/lib/clinica-beleza-constants";
@@ -45,7 +45,7 @@ export function ModalDetalheAgendamento({
 
   const status = event.extendedProps.status || "SCHEDULED";
   const statusSomenteLeitura = status === "IN_PROGRESS" || status === "COMPLETED";
-  const statusLabel = getAgendaStatusLabel(status);
+  const statusLabel = getAgendaStatusLabelModal(status);
   const opcoesStatus = getAgendaStatusOpcoesModal(status);
   const coresStatus = getAgendaStatusColor(status, statusColors);
 
@@ -139,11 +139,24 @@ export function ModalDetalheAgendamento({
               </div>
             )}
             {statusSomenteLeitura ? (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                {status === "COMPLETED"
-                  ? "Consulta finalizada em Consultas — exibido em verde escuro na agenda."
-                  : "Início e conclusão do atendimento são feitos em Consultas."}
-              </p>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 space-y-2">
+                <p>
+                  {status === "COMPLETED"
+                    ? "Consulta finalizada em Consultas — exibido em verde escuro na agenda."
+                    : status === "IN_PROGRESS"
+                      ? "Em atendimento: o horário da agenda foi atualizado para o início real. Finalize a consulta em Consultas quando terminar (não pela agenda)."
+                      : "Início e conclusão do atendimento são feitos em Consultas."}
+                </p>
+                {status === "IN_PROGRESS" && event.extendedProps.consulta_id != null && (
+                  <Link
+                    href={buildConsultaDetailHref(slug, event.extendedProps.consulta_id)}
+                    className="inline-flex text-sm font-medium text-violet-700 dark:text-violet-300 hover:underline"
+                    onClick={onClose}
+                  >
+                    Abrir consulta em atendimento →
+                  </Link>
+                )}
+              </div>
             ) : status === "SCHEDULED" || status === "PENDING" ? (
               <p className="text-xs text-amber-700 dark:text-amber-400 mt-1.5">
                 Aguardando resposta do cliente no WhatsApp ou pelo link. A agenda atualiza sozinha em alguns segundos.

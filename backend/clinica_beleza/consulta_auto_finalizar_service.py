@@ -1,8 +1,9 @@
 """Auto-finalização de consultas esquecidas em andamento (IN_PROGRESS).
 
 Regras:
-- Consulta SEM procedimentos: finaliza 1h após o término previsto (data_inicio + duração da consulta).
-- Consulta COM procedimentos: finaliza 2h após o término previsto (data_inicio + soma da duração dos procedimentos).
+- Consulta SEM procedimentos: finaliza após o término previsto + margem.
+- Consulta COM procedimentos: finaliza após o término previsto + margem maior.
+- Nunca finaliza se houve atividade recente na consulta (updated_at).
 
 Roda a cada 15 min via cron (executar_cron_lwks).
 """
@@ -13,9 +14,11 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-# Margem de tolerância após o fim previsto da consulta
-MARGEM_SEM_PROCEDIMENTO_HORAS = 1
-MARGEM_COM_PROCEDIMENTO_HORAS = 2
+# Margem após o fim previsto (atendimentos longos / multi-procedimento)
+MARGEM_SEM_PROCEDIMENTO_HORAS = 4
+MARGEM_COM_PROCEDIMENTO_HORAS = 8
+# Se o profissional ainda edita a consulta, não auto-finaliza
+INATIVIDADE_MINIMA_HORAS = 3
 
 
 def _lojas_clinica_beleza():
@@ -86,6 +89,10 @@ def finalizar_consultas_esquecidas() -> int:
                     if limite is None:
                         continue
                     if agora < limite:
+                        continue
+                    # Atividade recente (evolução, produtos, etc.) → ainda em uso
+                    ref_atividade = consulta.updated_at or consulta.data_inicio
+                    if ref_atividade and (agora - ref_atividade) < timedelta(hours=INATIVIDADE_MINIMA_HORAS):
                         continue
 
                     # Auto-finalizar a consulta (pula verificação de estoque)

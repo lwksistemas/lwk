@@ -98,6 +98,13 @@ export const CLINICA_AGENDA_STATUS_OPCOES_MODAL = [
   { value: 'CANCELLED', label: '🔴 Cancelado' },
 ] as const;
 
+/** Labels com ícone para status só-leitura no modal da agenda. */
+export const CLINICA_AGENDA_STATUS_LABEL_MODAL: Record<string, string> = {
+  ...CLINICA_AGENDA_STATUS_LABEL,
+  IN_PROGRESS: '🟣 Em atendimento',
+  COMPLETED: '🟢 Finalizada',
+};
+
 /** PENDING legado equivale a SCHEDULED na exibição. */
 export function normalizeAgendaStatus(status: string): string {
   return status === 'PENDING' ? 'SCHEDULED' : status;
@@ -105,6 +112,11 @@ export function normalizeAgendaStatus(status: string): string {
 
 export function getAgendaStatusLabel(status: string): string {
   return CLINICA_AGENDA_STATUS_LABEL[normalizeAgendaStatus(status)] || status;
+}
+
+export function getAgendaStatusLabelModal(status: string): string {
+  const key = normalizeAgendaStatus(status);
+  return CLINICA_AGENDA_STATUS_LABEL_MODAL[key] || getAgendaStatusLabel(status);
 }
 
 /** Opções do select — lista completa + status atual se for só leitura (ex.: em atendimento). */
@@ -115,7 +127,7 @@ export function getAgendaStatusOpcoesModal(currentStatus: string) {
     return base;
   }
   return [
-    { value: currentStatus, label: getAgendaStatusLabel(currentStatus) },
+    { value: currentStatus, label: getAgendaStatusLabelModal(currentStatus) },
     ...base,
   ];
 }

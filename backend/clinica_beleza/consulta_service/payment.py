@@ -224,16 +224,20 @@ def _garantir_conta_pendente_consulta_inner(consulta) -> None:
 
 
 def _atualizar_status_consulta_apos_recebimento(consulta, payment) -> None:
-    """Após recebimento: SCHEDULED se quitou e não iniciou; IN_PROGRESS se já em atendimento."""
+    """Após recebimento: SCHEDULED se quitou e não iniciou; IN_PROGRESS se já em atendimento.
+
+    Se já iniciou (data_inicio) e o saldo ainda está aberto, mantém IN_PROGRESS —
+    o botão Receber usa saldo/payment_status, não precisa rebaixar para RECEBER.
+    """
     try:
         quitado = payment.saldo_devedor <= Decimal("0.01")
     except Exception:
         quitado = payment.status in ("PAID", "DRAFT") and Decimal(str(payment.amount or 0)) > 0
 
-    if not quitado:
-        consulta.status = "RECEBER"
-    elif consulta.data_inicio:
+    if getattr(consulta, "data_inicio", None):
         consulta.status = "IN_PROGRESS"
+    elif not quitado:
+        consulta.status = "RECEBER"
     else:
         consulta.status = "SCHEDULED"
     consulta.save(update_fields=["status", "updated_at"])

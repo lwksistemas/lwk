@@ -33,12 +33,30 @@ from .views_base import GetObjectMixin
 logger = logging.getLogger(__name__)
 
 MSG_APENAS_EM_ANDAMENTO = "Envio de fotos permitido apenas com a consulta em andamento."
+MSG_LINK_SO_EM_ANDAMENTO = "Este link só vale durante a consulta em andamento."
+MSG_LINK_FINALIZADA = "Consulta já foi finalizada. Gere um novo QR na próxima consulta."
 
 
 def _consulta_permite_envio_foto(consulta) -> Response | None:
+    """Painel autenticado: IN_PROGRESS ou RECEBER (pagamento em aberto)."""
     if consulta.status not in ("IN_PROGRESS", "RECEBER"):
         return Response({"detail": MSG_APENAS_EM_ANDAMENTO}, status=status.HTTP_400_BAD_REQUEST)
     return None
+
+
+def _consulta_permite_envio_foto_publico(consulta) -> str | None:
+    """Link QR público: atendimento iniciado (IN_PROGRESS) ou RECEBER já iniciado.
+
+    RECEBER + data_inicio ocorre quando o profissional já iniciou e o pagamento
+    ainda está em aberto — o paciente deve conseguir enviar fotos nesse intervalo.
+    """
+    if consulta.status == "IN_PROGRESS":
+        return None
+    if consulta.status == "RECEBER" and getattr(consulta, "data_inicio", None):
+        return None
+    if consulta.status in ("COMPLETED", "CANCELLED"):
+        return MSG_LINK_FINALIZADA
+    return MSG_LINK_SO_EM_ANDAMENTO
 
 
 class ConsultaFotosPacienteView(GetObjectMixin, APIView):
@@ -166,8 +184,9 @@ class EnviarFotoPublicaView(View):
         if consulta.patient_id != payload.get("patient_id"):
             return JsonResponse({"error": "Link inválido."}, status=400)
 
-        if consulta.status != "IN_PROGRESS":
-            return JsonResponse({"error": "Este link só vale durante a consulta em andamento."}, status=400)
+        bloqueio = _consulta_permite_envio_foto_publico(consulta)
+        if bloqueio:
+            return JsonResponse({"error": bloqueio}, status=400)
 
         loja = Loja.objects.using("default").filter(id=payload["loja_id"]).first()
         ambiente = ambiente_do_token_foto(payload, request)
@@ -195,11 +214,9 @@ class EnviarFotoPublicaView(View):
         if consulta.patient_id != payload.get("patient_id"):
             return None, JsonResponse({"error": "Link inválido."}, status=400)
 
-        if consulta.status != "IN_PROGRESS":
-            return None, JsonResponse(
-                {"error": "Consulta já foi finalizada. Gere um novo QR na próxima consulta."},
-                status=400,
-            )
+        bloqueio = _consulta_permite_envio_foto_publico(consulta)
+        if bloqueio:
+            return None, JsonResponse({"error": bloqueio}, status=400)
         return consulta, None
 
     def post(self, request, token=None):

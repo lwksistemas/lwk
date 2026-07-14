@@ -52,6 +52,16 @@ class AtualizarStatusAposRecebimentoTest(SimpleTestCase):
 
         self.assertEqual(consulta.status, "RECEBER")
 
+    def test_saldo_pendente_com_inicio_mantem_in_progress(self):
+        """Já iniciou: não rebaixa para RECEBER por saldo em aberto (QR/fotos)."""
+        consulta = MagicMock(status="IN_PROGRESS", data_inicio="2026-07-14")
+        payment = MagicMock(status="PARTIAL")
+        payment.saldo_devedor = Decimal(50)
+
+        _atualizar_status_consulta_apos_recebimento(consulta, payment)
+
+        self.assertEqual(consulta.status, "IN_PROGRESS")
+
 
 class RegistrarRecebimentoConsultaTest(SimpleTestCase):
     @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")

@@ -134,8 +134,10 @@ class FotoQrLinkTests(TestCase):
 
 
 class ConsultaFotoPermissaoStatusTests(TestCase):
-    def _consulta(self, status_value):
-        return SimpleNamespace(id=1, patient_id=2, loja_id=3, status=status_value)
+    def _consulta(self, status_value, data_inicio=None):
+        return SimpleNamespace(
+            id=1, patient_id=2, loja_id=3, status=status_value, data_inicio=data_inicio,
+        )
 
     def test_geracao_qr_permitida_em_in_progress(self):
         from clinica_beleza.views_foto_paciente import _consulta_permite_envio_foto
@@ -153,3 +155,31 @@ class ConsultaFotoPermissaoStatusTests(TestCase):
         res = _consulta_permite_envio_foto(self._consulta("SCHEDULED"))
         self.assertIsNotNone(res)
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_link_publico_permite_receber_com_inicio(self):
+        from django.utils import timezone
+
+        from clinica_beleza.views_foto_paciente import _consulta_permite_envio_foto_publico
+
+        self.assertIsNone(
+            _consulta_permite_envio_foto_publico(
+                self._consulta("RECEBER", data_inicio=timezone.now()),
+            ),
+        )
+
+    def test_link_publico_bloqueia_receber_sem_inicio(self):
+        from clinica_beleza.views_foto_paciente import _consulta_permite_envio_foto_publico
+
+        err = _consulta_permite_envio_foto_publico(self._consulta("RECEBER", data_inicio=None))
+        self.assertIsNotNone(err)
+
+    def test_link_publico_bloqueia_finalizada(self):
+        from clinica_beleza.views_foto_paciente import (
+            MSG_LINK_FINALIZADA,
+            _consulta_permite_envio_foto_publico,
+        )
+
+        self.assertEqual(
+            _consulta_permite_envio_foto_publico(self._consulta("COMPLETED")),
+            MSG_LINK_FINALIZADA,
+        )

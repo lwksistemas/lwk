@@ -2,12 +2,15 @@
   "name": "multi-store-frontend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "postbuild": "echo 'PWA desabilitado temporariamente'",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:crm-public": "playwright test e2e/crm-smoke.spec.ts e2e/crm-assinatura-publica.spec.ts --grep-invert autenticado",
@@ -33,9 +36,9 @@
     "framer-motion": "^12.34.0",
     "idb": "^8.0.3",
     "lucide-react": "^0.460.0",
-    "next": "15.5.20",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "next": "16.2.10",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "recharts": "^3.7.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
@@ -43,15 +46,15 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
-    "@types/node": "20.17.6",
+    "@tailwindcss/postcss": "^4.3.2",
+    "@types/node": "^20.19.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "autoprefixer": "^10.0.1",
-    "eslint": "^8",
-    "eslint-config-next": "15.1.0",
+    "eslint": "^9.30.0",
+    "eslint-config-next": "16.2.10",
     "postcss": "^8",
-    "tailwindcss": "^3.3.0",
-    "typescript": "5.8.2",
+    "tailwindcss": "^4.3.2",
+    "typescript": "7.0.2",
     "vitest": "^3.2.6"
   }
 }

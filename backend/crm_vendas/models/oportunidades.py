@@ -81,7 +81,7 @@ class Oportunidade(LojaIsolationMixin, models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(probabilidade__gte=0) & models.Q(probabilidade__lte=100),
+                condition=models.Q(probabilidade__gte=0) & models.Q(probabilidade__lte=100),
                 name="crm_opor_prob_range",
             ),
         ]

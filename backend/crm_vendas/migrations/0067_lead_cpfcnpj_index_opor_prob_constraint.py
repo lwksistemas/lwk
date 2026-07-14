@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="oportunidade",
             constraint=models.CheckConstraint(
-                check=models.Q(probabilidade__gte=0) & models.Q(probabilidade__lte=100),
+                condition=models.Q(probabilidade__gte=0) & models.Q(probabilidade__lte=100),
                 name="crm_opor_prob_range",
             ),
         ),

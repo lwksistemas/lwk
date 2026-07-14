@@ -101,7 +101,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="assinaturadigital",
             constraint=models.CheckConstraint(
-                check=(
+                condition=(
                     models.Q(proposta__isnull=False, contrato__isnull=True) |
                     models.Q(proposta__isnull=True, contrato__isnull=False)
                 ),

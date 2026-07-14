@@ -66,17 +66,13 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  
-  // Ignorar erros de ESLint durante o build (necessário para Vercel)
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
 
-  // Ignorar erros de TypeScript durante o build
+  // Next 16: lint não roda no build; use `npm run lint`. TS: ignorar erros no CI/Vercel.
   typescript: {
     ignoreBuildErrors: true,
   },
   
+
   // Otimizações de performance
   compress: true,
   
@@ -98,25 +94,6 @@ const nextConfig = {
   // Otimizar compilação
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
-  },
-  
-  // ✅ OTIMIZAÇÃO: Webpack optimization
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.optimization.splitChunks = {
-        chunks: 'all',
-        cacheGroups: {
-          default: false,
-          vendors: false,
-          commons: {
-            name: 'commons',
-            chunks: 'all',
-            minChunks: 2,
-          },
-        },
-      };
-    }
-    return config;
   },
   
   // Headers de cache

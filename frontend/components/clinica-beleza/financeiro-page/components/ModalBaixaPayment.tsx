@@ -104,82 +104,120 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
     }
   };
 
+  const inputClass =
+    "w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600";
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b dark:border-neutral-700">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-3 sm:p-4">
+      <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-5 border-b dark:border-neutral-700 shrink-0">
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Registrar Pagamento</h2>
-          <button type="button" onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg"
+            aria-label="Fechar"
+          >
             <X size={18} />
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-4 space-y-4">
-          {/* Resumo do atendimento */}
-          <div className="text-sm space-y-1">
-            <p><strong>Paciente:</strong> {payment.paciente_nome || "—"}</p>
-            <p><strong>Procedimento:</strong> {payment.procedimento_nome || "—"}</p>
-          </div>
-
-          {/* Painel de saldo */}
-          <div className={`p-3 rounded-xl text-sm border ${saldoDevedor <= 0 ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700" : "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700"}`}>
-            <div className="flex justify-between mb-1">
-              <span className="text-gray-600 dark:text-gray-400">Valor total:</span>
-              <span className="font-semibold">{formatCurrency(valorTotal)}</span>
-            </div>
-            <div className="flex justify-between mb-1">
-              <span className="text-gray-600 dark:text-gray-400">Já pago:</span>
-              <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(valorPago)}</span>
-            </div>
-            <div className="flex justify-between border-t dark:border-neutral-600 pt-1 mt-1">
-              <span className="font-semibold">Saldo devedor:</span>
-              <span className={`font-bold text-base ${saldoDevedor <= 0 ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-300"}`}>
-                {saldoDevedor <= 0 ? "✅ Quitado" : formatCurrency(saldoDevedor)}
-              </span>
-            </div>
-          </div>
-
-          {/* Histórico de parcelas */}
-          {loadingParcelas && (
-            <p className="text-xs text-gray-500 text-center">Carregando histórico...</p>
-          )}
-          {parcelas.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Histórico de pagamentos</p>
-              <div className="space-y-1">
-                {parcelas.map((p) => (
-                  <div key={p.id} className="flex justify-between items-center text-sm bg-gray-50 dark:bg-neutral-700/50 rounded-lg px-3 py-2">
-                    <div>
-                      <span className="font-medium">{formatCurrency(Number(p.valor))}</span>
-                      <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
-                        {p.payment_method_label || CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {new Date(p.payment_date + "T12:00:00").toLocaleDateString("pt-BR")}
-                    </span>
-                  </div>
-                ))}
+        <div className="overflow-y-auto flex-1 p-4 sm:p-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 md:items-start">
+            {/* Coluna esquerda — contexto + saldo + histórico */}
+            <div className="space-y-4 min-w-0">
+              <div className="text-sm space-y-1">
+                <p>
+                  <strong>Paciente:</strong> {payment.paciente_nome || "—"}
+                </p>
+                <p>
+                  <strong>Procedimento:</strong> {payment.procedimento_nome || "—"}
+                </p>
               </div>
-            </div>
-          )}
 
-          {/* Formulário de nova entrada — só se houver saldo */}
-          {saldoDevedor > 0 && (
-            <>
-              <div className="border-t dark:border-neutral-700 pt-3">
-                <p className="text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">Registrar novo pagamento</p>
+              <div
+                className={`p-3 rounded-xl text-sm border ${
+                  saldoDevedor <= 0
+                    ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700"
+                    : "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700"
+                }`}
+              >
+                <div className="flex justify-between mb-1">
+                  <span className="text-gray-600 dark:text-gray-400">Valor total:</span>
+                  <span className="font-semibold">{formatCurrency(valorTotal)}</span>
+                </div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-gray-600 dark:text-gray-400">Já pago:</span>
+                  <span className="font-semibold text-green-700 dark:text-green-400">
+                    {formatCurrency(valorPago)}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t dark:border-neutral-600 pt-1 mt-1">
+                  <span className="font-semibold">Saldo devedor:</span>
+                  <span
+                    className={`font-bold text-base ${
+                      saldoDevedor <= 0
+                        ? "text-green-700 dark:text-green-400"
+                        : "text-amber-700 dark:text-amber-300"
+                    }`}
+                  >
+                    {saldoDevedor <= 0 ? "Quitado" : formatCurrency(saldoDevedor)}
+                  </span>
+                </div>
+              </div>
 
-                {error && (
-                  <div className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm mb-3">
-                    {error}
+              {loadingParcelas && (
+                <p className="text-xs text-gray-500 text-center">Carregando histórico...</p>
+              )}
+              {parcelas.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                    Histórico de pagamentos
+                  </p>
+                  <div className="space-y-1 max-h-48 md:max-h-[min(40vh,280px)] overflow-y-auto pr-1">
+                    {parcelas.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex justify-between items-center text-sm bg-gray-50 dark:bg-neutral-700/50 rounded-lg px-3 py-2 gap-2"
+                      >
+                        <div className="min-w-0">
+                          <span className="font-medium">{formatCurrency(Number(p.valor))}</span>
+                          <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
+                            {p.payment_method_label ||
+                              CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] ||
+                              p.payment_method}
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
+                          {new Date(p.payment_date + "T12:00:00").toLocaleDateString("pt-BR")}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
+            </div>
 
+            {/* Coluna direita — formulário */}
+            <div className="min-w-0 md:border-l md:border-neutral-200 dark:md:border-neutral-700 md:pl-6">
+              {saldoDevedor > 0 ? (
                 <div className="space-y-3">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Registrar novo pagamento
+                  </p>
+
+                  {error && (
+                    <div className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+                      {error}
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Valor recebido (R$) <span className="text-gray-400 font-normal text-xs">— saldo: {formatCurrency(saldoDevedor)}</span>
+                      Valor recebido (R$){" "}
+                      <span className="text-gray-400 font-normal text-xs">
+                        — saldo: {formatCurrency(saldoDevedor)}
+                      </span>
                     </label>
                     <input
                       type="number"
@@ -189,59 +227,76 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
                       value={valor}
                       onChange={(e) => setValor(e.target.value)}
                       placeholder={String(saldoDevedor.toFixed(2))}
-                      className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                      className={inputClass}
                     />
                     {valorEntrada > 0 && (
-                      <p className={`text-xs mt-1 font-medium ${quitaTotal ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
-                        {quitaTotal ? "✅ Quita o saldo completo" : `Restará ${formatCurrency(saldoAposEntrada)} após este pagamento`}
+                      <p
+                        className={`text-xs mt-1 font-medium ${
+                          quitaTotal
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-amber-600 dark:text-amber-400"
+                        }`}
+                      >
+                        {quitaTotal
+                          ? "Quita o saldo completo"
+                          : `Restará ${formatCurrency(saldoAposEntrada)} após este pagamento`}
                       </p>
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Forma de pagamento</label>
-                    <select
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
-                    >
-                      {Object.entries(CLINICA_FORMA_PAGAMENTO_LABEL).map(([v, label]) => (
-                        <option key={v} value={v}>{label}</option>
-                      ))}
-                    </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Forma de pagamento</label>
+                      <select
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className={inputClass}
+                      >
+                        {Object.entries(CLINICA_FORMA_PAGAMENTO_LABEL).map(([v, label]) => (
+                          <option key={v} value={v}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Data do pagamento</label>
+                      <input
+                        type="date"
+                        value={paymentDate}
+                        onChange={(e) => setPaymentDate(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">Data do pagamento</label>
-                    <input
-                      type="date"
-                      value={paymentDate}
-                      onChange={(e) => setPaymentDate(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Observações <span className="text-gray-400 font-normal">(opcional)</span></label>
+                    <label className="block text-sm font-medium mb-1">
+                      Observações <span className="text-gray-400 font-normal">(opcional)</span>
+                    </label>
                     <input
                       type="text"
                       value={observacoes}
                       onChange={(e) => setObservacoes(e.target.value)}
                       placeholder="Ex: 1ª parcela, cheque nº 123..."
-                      className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+                      className={inputClass}
                     />
                   </div>
                 </div>
-              </div>
-            </>
-          )}
+              ) : (
+                <div className="h-full flex items-center justify-center text-sm text-green-700 dark:text-green-400 font-medium py-8 md:py-12">
+                  Este atendimento já está quitado.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="p-4 border-t dark:border-neutral-700 flex gap-2">
+        <div className="px-4 py-3 sm:px-5 border-t dark:border-neutral-700 flex gap-2 shrink-0 md:justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-neutral-600"
+            className="flex-1 md:flex-none md:min-w-[120px] py-2 px-4 rounded-lg border border-gray-300 dark:border-neutral-600"
           >
             {saldoDevedor <= 0 ? "Fechar" : "Cancelar"}
           </button>
@@ -250,8 +305,8 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
               type="button"
               onClick={handleConfirm}
               disabled={saving || !valor || Number(valor) <= 0}
-              className="flex-1 py-2 rounded-lg text-white disabled:opacity-50 font-medium"
-              style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
+              className="flex-1 md:flex-none md:min-w-[160px] py-2 px-4 rounded-lg text-white disabled:opacity-50 font-medium"
+              style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
             >
               {saving ? "Registrando..." : quitaTotal ? "Quitar Tudo" : "Registrar Entrada"}
             </button>

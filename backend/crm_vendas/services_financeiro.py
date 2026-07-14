@@ -18,12 +18,16 @@ GRUPOS_PADRAO = (
     ("despesa", "Outras despesas", 99),
 )
 
+# Único grupo que o sistema pode reativar: comissões automáticas dependem dele.
+GRUPOS_SISTEMA_OBRIGATORIOS = frozenset({("receita", "Comissão de vendas")})
+
 
 def _deduplicar_grupo_financeiro(loja_id: int, tipo: str, nome: str, ordem: int) -> None:
-    """Garante um único grupo (loja, tipo, nome), fundindo duplicatas se existirem.
+    """Garante no máximo um grupo (loja, tipo, nome), sem desfazer exclusão do usuário.
 
-    `get_or_create` quebra com MultipleObjectsReturned quando há 2+ linhas iguais
-    (sem unique constraint) — caso observado em produção no Felix.
+    - Cria só se não existir nenhum registro (ativo ou inativo).
+    - Não reativa grupo soft-deleted, exceto Comissão de vendas (obrigatório).
+    - Funde duplicatas apontando FKs para o registro mantido.
     """
     from .models.financeiro import (
         GrupoFinanceiroCRM,
@@ -46,18 +50,27 @@ def _deduplicar_grupo_financeiro(loja_id: int, tipo: str, nome: str, ordem: int)
         )
         return
 
-    keep = existentes[0]
+    ativos = [g for g in existentes if g.is_active]
+    keep = ativos[0] if ativos else existentes[0]
     dirty_fields: list[str] = []
-    if keep.ordem != ordem:
+    if keep.is_active and keep.ordem != ordem:
         keep.ordem = ordem
         dirty_fields.append("ordem")
-    if not keep.is_active:
+    if (
+        not keep.is_active
+        and (tipo, nome) in GRUPOS_SISTEMA_OBRIGATORIOS
+    ):
         keep.is_active = True
         dirty_fields.append("is_active")
+        if keep.ordem != ordem:
+            keep.ordem = ordem
+            dirty_fields.append("ordem")
     if dirty_fields:
-        keep.save(update_fields=dirty_fields)
+        keep.save(update_fields=list(dict.fromkeys(dirty_fields)))
 
-    for dup in existentes[1:]:
+    for dup in existentes:
+        if dup.id == keep.id:
+            continue
         LancamentoFinanceiroCRM.objects.filter(grupo_id=dup.id).update(grupo_id=keep.id)
         RecorrenciaFinanceiroCRM.objects.filter(grupo_id=dup.id).update(grupo_id=keep.id)
         logger.warning(
@@ -72,7 +85,21 @@ def _deduplicar_grupo_financeiro(loja_id: int, tipo: str, nome: str, ordem: int)
 
 
 def garantir_grupos_padrao(loja_id: int) -> None:
+    """Garante grupos iniciais sem desfazer exclusões do usuário.
+
+    - Loja sem nenhum grupo: cria todos os padrões.
+    - Loja já configurada: só assegura Comissão de vendas e deduplica nomes que ainda existem.
+    """
+    from .models.financeiro import GrupoFinanceiroCRM
+
+    tem_qualquer = GrupoFinanceiroCRM.objects.filter(loja_id=loja_id).exists()
     for tipo, nome, ordem in GRUPOS_PADRAO:
+        obrigatorio = (tipo, nome) in GRUPOS_SISTEMA_OBRIGATORIOS
+        if tem_qualquer and not obrigatorio:
+            if not GrupoFinanceiroCRM.objects.filter(
+                loja_id=loja_id, tipo=tipo, nome=nome,
+            ).exists():
+                continue
         _deduplicar_grupo_financeiro(loja_id, tipo, nome, ordem)
 
 

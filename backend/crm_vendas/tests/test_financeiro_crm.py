@@ -174,8 +174,6 @@ class TestGarantirGruposPadraoDedup(TestCase):
         ) as mock_lanc, patch(
             "crm_vendas.models.financeiro.RecorrenciaFinanceiroCRM",
         ) as mock_rec:
-            # Só o primeiro grupo padrão (Comissão de vendas) terá 2 itens;
-            # demais retornam lista com 1 (já ok) para não criar em loop.
             calls = {"n": 0}
 
             def filter_side_effect(**_kwargs):
@@ -192,6 +190,21 @@ class TestGarantirGruposPadraoDedup(TestCase):
             mock_lanc.objects.filter.assert_called()
             mock_rec.objects.filter.assert_called()
             dup.delete.assert_called_once()
+            mock_grupo.objects.create.assert_not_called()
+
+    def test_nao_reativa_grupo_excluido_pelo_usuario(self):
+        from crm_vendas.services_financeiro import _deduplicar_grupo_financeiro
+
+        inativo = MagicMock(id=5, ordem=99, is_active=False)
+        with patch("crm_vendas.models.financeiro.GrupoFinanceiroCRM") as mock_grupo, patch(
+            "crm_vendas.models.financeiro.LancamentoFinanceiroCRM",
+        ), patch(
+            "crm_vendas.models.financeiro.RecorrenciaFinanceiroCRM",
+        ):
+            mock_grupo.objects.filter.return_value.order_by.return_value = [inativo]
+            _deduplicar_grupo_financeiro(1, "receita", "Outras receitas", 99)
+            self.assertFalse(inativo.is_active)
+            inativo.save.assert_not_called()
             mock_grupo.objects.create.assert_not_called()
 
 

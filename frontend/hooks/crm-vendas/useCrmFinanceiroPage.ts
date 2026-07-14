@@ -153,9 +153,10 @@ export function useCrmFinanceiroPage() {
   const executeRemoverGrupo = async (grupo: GrupoFinanceiro) => {
     try {
       await apiClient.delete(`crm-vendas/financeiro-grupos/${grupo.id}/`);
+      toast.success(`Grupo "${grupo.nome}" excluído.`);
       await data.loadAll();
-    } catch {
-      toast.error('Não foi possível excluir. O grupo pode estar em uso.');
+    } catch (err: unknown) {
+      toast.error(getCrmApiErrorDetail(err, 'Não foi possível excluir. O grupo pode estar em uso.'));
       throw new Error('excluir_grupo');
     }
   };

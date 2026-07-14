@@ -109,7 +109,16 @@ class GrupoFinanceiroCRMViewSet(
                 {"detail": "Grupo em uso. Desative-o ou mova os lançamentos antes de excluir."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        return super().destroy(request, *args, **kwargs)
+        if inst.recorrencias.exists():
+            return Response(
+                {"detail": "Grupo em uso por recorrências. Altere ou encerre as recorrências antes de excluir."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # Hard delete: soft-delete + garantir_grupos_padrao reaparecia grupos padrão.
+        nome, tipo = inst.nome, inst.tipo
+        inst.delete()
+        logger.info("Grupo financeiro excluído loja_id=%s id removido tipo=%s nome=%s", get_current_loja_id(), tipo, nome)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class LancamentoFinanceiroCRMViewSet(

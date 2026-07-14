@@ -44,11 +44,28 @@ export function usePaginatedList<T>(
   }, [paramsKey, path]);
 
   const reload = useCallback(
-    async (silent = false) => {
+    async (
+      silent = false,
+      overrides?: {
+        page?: number;
+        params?: Record<string, string | number | undefined | null>;
+      },
+    ) => {
       if (!enabled) return;
       if (!silent) setLoading(true);
       try {
-        const data = await fetchCrmPaginatedPage<T>(path, page, pageSize, queryParams);
+        const pageToLoad = overrides?.page ?? page;
+        let paramsToLoad = queryParams;
+        if (overrides?.params) {
+          const cleaned: Record<string, string | number> = {};
+          for (const [key, value] of Object.entries(overrides.params)) {
+            if (value !== undefined && value !== null && value !== '') {
+              cleaned[key] = value;
+            }
+          }
+          paramsToLoad = cleaned;
+        }
+        const data = await fetchCrmPaginatedPage<T>(path, pageToLoad, pageSize, paramsToLoad);
         setItems(data.results);
         setTotalCount(data.count);
         setTotalPages(data.totalPages);

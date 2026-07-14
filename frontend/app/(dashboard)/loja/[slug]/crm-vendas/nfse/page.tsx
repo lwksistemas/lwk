@@ -57,6 +57,7 @@ export default function NFSePage() {
     requestReenviarEmail,
     handleEmitirSuccess,
     handleRecuperarSuccess,
+    carregarNFSes,
   } = useCrmNfsePage();
 
   return (
@@ -119,7 +120,14 @@ export default function NFSePage() {
       )}
 
       {showModal && (
-        <ModalEmitirNFSe onClose={() => setShowModal(false)} onSuccess={handleEmitirSuccess} />
+        <ModalEmitirNFSe
+          onClose={() => setShowModal(false)}
+          onSuccess={handleEmitirSuccess}
+          onRefreshList={() => {
+            setPage(1);
+            void carregarNFSes(false, { page: 1, params: {} });
+          }}
+        />
       )}
 
       {nfCancelamento && (

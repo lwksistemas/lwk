@@ -34,8 +34,9 @@ export function useNfseQueuedPolling(options: {
     onTick,
     onFound,
     onTimeout,
-    intervalMs = 3000,
-    maxAttempts = 12,
+    intervalMs = 2500,
+    // ISSNet/nacional pode demorar > 1 min; ~3 min de polling
+    maxAttempts = 72,
   } = options;
 
   const paramsKey = JSON.stringify(queryParams);
@@ -44,28 +45,47 @@ export function useNfseQueuedPolling(options: {
     if (!active) return;
 
     let attempts = 0;
+    let cancelled = false;
     const cleaned = cleanQueryParams(queryParams);
 
-    const timer = setInterval(async () => {
+    const tick = async () => {
+      if (cancelled) return;
       attempts++;
       onTick();
       try {
         const data = await fetchCrmPaginatedPage('/nfse/', 1, DEFAULT_PAGE_SIZE, cleaned);
+        if (cancelled) return;
         if (data.count > countBefore) {
-          clearInterval(timer);
           onFound();
-          return;
+          return true;
         }
       } catch {
         // tenta de novo no próximo intervalo
       }
       if (attempts >= maxAttempts) {
-        clearInterval(timer);
         onTimeout();
+        return true;
       }
-    }, intervalMs);
+      return false;
+    };
 
-    return () => clearInterval(timer);
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    void (async () => {
+      // Primeira checagem imediata (não espera o intervalo)
+      const done = await tick();
+      if (done || cancelled) return;
+      timer = setInterval(() => {
+        void tick().then((finished) => {
+          if (finished && timer) clearInterval(timer);
+        });
+      }, intervalMs);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, countBefore, paramsKey, intervalMs, maxAttempts, onTick, onFound, onTimeout]);
 }

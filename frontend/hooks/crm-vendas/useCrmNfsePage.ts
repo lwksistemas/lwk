@@ -120,11 +120,12 @@ export function useCrmNfsePage() {
 
   const handlePollingTimeout = useCallback(() => {
     setEmissaoPolling({ active: false, countBefore: 0 });
+    void carregarNFSes(false);
     setSyncMsg({
-      type: 'ok',
-      text: 'Lista atualizada. Se a nota não apareceu, aguarde mais um momento ou atualize a página.',
+      type: 'info',
+      text: 'Ainda processando a emissão. A lista foi atualizada — se a nota não aparecer, aguarde alguns segundos e atualize (F5).',
     });
-  }, []);
+  }, [carregarNFSes]);
 
   useNfseQueuedPolling({
     active: emissaoPolling.active,
@@ -273,19 +274,30 @@ export function useCrmNfsePage() {
   const handleEmitirSuccess = (result: NfseEmissaoResult) => {
     setShowModal(false);
     const countBefore = totalCount;
-    void carregarNFSes(true);
+    // Garante que a nova nota não fique escondida por filtro/página
+    setFiltroStatus('');
+    setBusca('');
+    setBuscaDebounced('');
+    setPage(1);
     if (result.queued) {
       setEmissaoPolling({ active: true, countBefore });
       setSyncMsg({ type: 'info', text: result.message });
     } else {
+      setEmissaoPolling({ active: false, countBefore: 0 });
       setSyncMsg({ type: 'ok', text: result.message });
     }
+    // Página 1 sem filtros — evita closure com filtro/página antigos
+    void carregarNFSes(false, { page: 1, params: {} });
   };
 
   const handleRecuperarSuccess = (message: string) => {
     setShowRecuperarModal(false);
     setSyncMsg({ type: 'ok', text: message });
-    void carregarNFSes(true);
+    setFiltroStatus('');
+    setBusca('');
+    setBuscaDebounced('');
+    setPage(1);
+    void carregarNFSes(false, { page: 1, params: {} });
   };
 
   const confirmCopy = confirmAction ? CONFIRM_COPY[confirmAction.type] : null;
@@ -331,5 +343,6 @@ export function useCrmNfsePage() {
     requestReenviarEmail,
     handleEmitirSuccess,
     handleRecuperarSuccess,
+    carregarNFSes,
   };
 }

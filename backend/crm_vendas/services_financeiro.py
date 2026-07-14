@@ -19,16 +19,61 @@ GRUPOS_PADRAO = (
 )
 
 
-def garantir_grupos_padrao(loja_id: int) -> None:
-    from .models.financeiro import GrupoFinanceiroCRM
+def _deduplicar_grupo_financeiro(loja_id: int, tipo: str, nome: str, ordem: int) -> None:
+    """Garante um único grupo (loja, tipo, nome), fundindo duplicatas se existirem.
 
-    for tipo, nome, ordem in GRUPOS_PADRAO:
-        GrupoFinanceiroCRM.objects.get_or_create(
+    `get_or_create` quebra com MultipleObjectsReturned quando há 2+ linhas iguais
+    (sem unique constraint) — caso observado em produção no Felix.
+    """
+    from .models.financeiro import (
+        GrupoFinanceiroCRM,
+        LancamentoFinanceiroCRM,
+        RecorrenciaFinanceiroCRM,
+    )
+
+    qs = (
+        GrupoFinanceiroCRM.objects.filter(loja_id=loja_id, tipo=tipo, nome=nome)
+        .order_by("id")
+    )
+    existentes = list(qs)
+    if not existentes:
+        GrupoFinanceiroCRM.objects.create(
             loja_id=loja_id,
             tipo=tipo,
             nome=nome,
-            defaults={"ordem": ordem, "is_active": True},
+            ordem=ordem,
+            is_active=True,
         )
+        return
+
+    keep = existentes[0]
+    dirty_fields: list[str] = []
+    if keep.ordem != ordem:
+        keep.ordem = ordem
+        dirty_fields.append("ordem")
+    if not keep.is_active:
+        keep.is_active = True
+        dirty_fields.append("is_active")
+    if dirty_fields:
+        keep.save(update_fields=dirty_fields)
+
+    for dup in existentes[1:]:
+        LancamentoFinanceiroCRM.objects.filter(grupo_id=dup.id).update(grupo_id=keep.id)
+        RecorrenciaFinanceiroCRM.objects.filter(grupo_id=dup.id).update(grupo_id=keep.id)
+        logger.warning(
+            "Grupo financeiro duplicado removido loja_id=%s tipo=%s nome=%s dup_id=%s keep_id=%s",
+            loja_id,
+            tipo,
+            nome,
+            dup.id,
+            keep.id,
+        )
+        dup.delete()
+
+
+def garantir_grupos_padrao(loja_id: int) -> None:
+    for tipo, nome, ordem in GRUPOS_PADRAO:
+        _deduplicar_grupo_financeiro(loja_id, tipo, nome, ordem)
 
 
 def _grupo_comissao(loja_id: int):

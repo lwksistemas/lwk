@@ -174,8 +174,8 @@ export function useCrmFinanceiroPage() {
           `criadas: ${syncData.criadas}, atualizadas: ${syncData.atualizadas}, ignoradas: ${syncData.ignoradas}`,
       );
       await data.loadAll();
-    } catch {
-      toast.error('Erro ao sincronizar comissões.');
+    } catch (err: unknown) {
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao sincronizar comissões.'));
       throw new Error('sync_comissoes');
     } finally {
       setSincronizando(false);

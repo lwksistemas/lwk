@@ -162,6 +162,39 @@ class TestSincronizarComissoesRetroativas(TestCase):
             self.assertEqual(out["oportunidades_analisadas"], 2)
 
 
+class TestGarantirGruposPadraoDedup(TestCase):
+    def test_remove_grupos_duplicados(self):
+        from crm_vendas.services_financeiro import garantir_grupos_padrao
+
+        keep = MagicMock(id=1, ordem=0, is_active=True)
+        dup = MagicMock(id=2, ordem=0, is_active=True)
+
+        with patch("crm_vendas.models.financeiro.GrupoFinanceiroCRM") as mock_grupo, patch(
+            "crm_vendas.models.financeiro.LancamentoFinanceiroCRM",
+        ) as mock_lanc, patch(
+            "crm_vendas.models.financeiro.RecorrenciaFinanceiroCRM",
+        ) as mock_rec:
+            # Só o primeiro grupo padrão (Comissão de vendas) terá 2 itens;
+            # demais retornam lista com 1 (já ok) para não criar em loop.
+            calls = {"n": 0}
+
+            def filter_side_effect(**_kwargs):
+                qs = MagicMock()
+                calls["n"] += 1
+                if calls["n"] == 1:
+                    qs.order_by.return_value = [keep, dup]
+                else:
+                    qs.order_by.return_value = [MagicMock(id=10 + calls["n"], ordem=1, is_active=True)]
+                return qs
+
+            mock_grupo.objects.filter.side_effect = filter_side_effect
+            garantir_grupos_padrao(1)
+            mock_lanc.objects.filter.assert_called()
+            mock_rec.objects.filter.assert_called()
+            dup.delete.assert_called_once()
+            mock_grupo.objects.create.assert_not_called()
+
+
 class TestRecorrenciaFinanceiro(TestCase):
     def test_adicionar_periodo_mensal(self):
         from crm_vendas.services_recorrencia_financeiro import _adicionar_periodo

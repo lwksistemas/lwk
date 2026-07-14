@@ -70,6 +70,16 @@ export default function LojaDashboardDinamicoPage() {
 
   useEffect(() => {
     if (!ready || !isLoja) return;
+    // Aquece cache Redis do dashboard em paralelo com info_publica (sem waterfall).
+    const now = new Date();
+    const mes = now.getMonth() + 1;
+    const ano = now.getFullYear();
+    void import("@/lib/clinica-beleza-api").then(({ clinicaBelezaFetch }) =>
+      Promise.all([
+        clinicaBelezaFetch(`/dashboard/?period=proximos&mes=${mes}&ano=${ano}`, {}, { slug }),
+        clinicaBelezaFetch(`/financeiro/resumo/?mes=${mes}&ano=${ano}`, {}, { slug }),
+      ]).catch(() => undefined),
+    );
     verificarECarregarLoja();
   }, [ready, isLoja, slug, verificarECarregarLoja]);
 

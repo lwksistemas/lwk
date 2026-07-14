@@ -6,7 +6,11 @@ import type { LojaInfo } from "@/types/dashboard";
 import type { DashboardData, FinancialSummary } from "./clinica-beleza-dashboard-types";
 import { currentDashboardMesAno, parseDashboardMesAno } from "./clinica-beleza-dashboard-utils";
 
-export function useClinicaBelezaDashboard(loja: LojaInfo) {
+/**
+ * Dashboard clínica: dispara dashboard + financeiro em paralelo assim que houver slug.
+ * Não espera info_publica terminar (waterfall removido).
+ */
+export function useClinicaBelezaDashboard(loja: LojaInfo | null | undefined) {
   const params = useParams();
   const slug = (params?.slug as string) || loja?.slug || "";
   const [data, setData] = useState<DashboardData | null>(null);
@@ -17,11 +21,11 @@ export function useClinicaBelezaDashboard(loja: LojaInfo) {
 
   const fetchData = useCallback(
     async (forceRefresh = false) => {
-      if (!loja?.id && !loja?.slug) return;
+      if (!slug && !loja?.id) return;
       setLoading(true);
       try {
         const { mes, ano } = parseDashboardMesAno(mesAno);
-        const lojaCtx = loja?.id || loja?.slug ? { id: loja.id, slug: loja.slug || slug } : undefined;
+        const lojaCtx = { id: loja?.id, slug: loja?.slug || slug };
         const qs = `period=proximos&mes=${mes}&ano=${ano}${forceRefresh ? "&refresh=1" : ""}`;
         const [dashRes, finRes] = await Promise.all([
           clinicaBelezaFetch(`/dashboard/?${qs}`, {}, lojaCtx),

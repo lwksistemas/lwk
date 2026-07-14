@@ -2,7 +2,8 @@
 """
 from decimal import Decimal, InvalidOperation
 
-from django.db.models import Sum
+from django.db.models import Case, DecimalField, F, OuterRef, Q, Subquery, Sum, Value, When
+from django.db.models.functions import Coalesce, Greatest
 from django.utils.timezone import now
 from rest_framework import status
 from rest_framework.response import Response
@@ -20,18 +21,49 @@ from .serializers.financeiro import (
 )
 from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
+_DEC = DecimalField(max_digits=14, decimal_places=2)
+
 
 def _payments_visiveis_financeiro(qs=None):
     """Financeiro só mostra lançamentos de consultas finalizadas.
     Rascunhos (DRAFT) do Receber ficam só na consulta até Finalizar.
     """
-    from django.db.models import Q
-
     if qs is None:
         qs = Payment.objects.all()
     return qs.exclude(status="DRAFT").filter(
         Q(appointment__consulta__status="COMPLETED") | Q(appointment__consulta__isnull=True),
     )
+
+
+def somar_contas_a_receber(qs=None) -> float:
+    """Soma saldo_devedor de PENDING/PARTIAL em 1 query (sem N+1 por parcela)."""
+    base = _payments_visiveis_financeiro(qs).filter(status__in=("PENDING", "PARTIAL"))
+    pago_sub = (
+        PaymentParcela.objects.filter(payment_id=OuterRef("pk"), status="PAID")
+        .values("payment_id")
+        .annotate(s=Sum("valor"))
+        .values("s")[:1]
+    )
+    agregado = (
+        base.annotate(
+            _pago_parc=Subquery(pago_sub, output_field=_DEC),
+            _total=Coalesce(F("valor_total"), F("amount"), Value(0), output_field=_DEC),
+        )
+        .annotate(
+            _pago=Case(
+                When(_pago_parc__isnull=False, then=F("_pago_parc")),
+                When(
+                    status__in=("PARTIAL", "PAID", "DRAFT"),
+                    then=Coalesce(F("amount"), Value(0), output_field=_DEC),
+                ),
+                default=Value(0),
+                output_field=_DEC,
+            ),
+        )
+        .annotate(_saldo=Greatest(F("_total") - F("_pago"), Value(0), output_field=_DEC))
+        .aggregate(t=Sum("_saldo"))
+    )
+    return float(agregado["t"] or 0)
 
 
 def _garantir_categorias_despesa_padrao(loja_id: int) -> None:
@@ -324,15 +356,8 @@ class FinanceiroResumoView(APIView):
             payment_date__date__gte=first_day,
             payment_date__date__lte=period_end,
         )))
-        # Contas a receber: só consultas já finalizadas (PENDING/PARTIAL publicados)
-        contas_pendentes = _payments_visiveis_financeiro(Payment.objects.filter(status="PENDING"))
-        contas_parciais = _payments_visiveis_financeiro(Payment.objects.filter(status="PARTIAL"))
-        total_pendente = 0.0
-        for p in contas_pendentes.only("amount", "valor_total", "status"):
-            total_pendente += float(p.saldo_devedor)
-        for p in contas_parciais.only("amount", "valor_total", "status"):
-            total_pendente += float(p.saldo_devedor)
-        contas_a_receber = total_pendente
+        # Contas a receber: 1 agregação SQL (evita N+1 em parcelas)
+        contas_a_receber = somar_contas_a_receber()
         comissao_mes = float(
             _payments_visiveis_financeiro(Payment.objects.filter(
                 status="PAID",

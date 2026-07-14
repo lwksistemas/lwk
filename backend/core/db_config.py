@@ -105,7 +105,15 @@ def get_loja_database_config(
         return None
 
 
-def ensure_loja_database_config(database_name: str, conn_max_age: int = 0) -> bool:
+def _default_tenant_conn_max_age() -> int:
+    """Pool de conexões do tenant no hot path (web). Override: CONN_MAX_AGE."""
+    try:
+        return int(getattr(settings, "CONN_MAX_AGE", None) or os.environ.get("CONN_MAX_AGE", "120") or 120)
+    except (TypeError, ValueError):
+        return 120
+
+
+def ensure_loja_database_config(database_name: str, conn_max_age: int | None = None) -> bool:
     """Garante que o banco da loja está em settings.DATABASES.
     Adiciona a config se ainda não existir.
 
@@ -113,8 +121,19 @@ def ensure_loja_database_config(database_name: str, conn_max_age: int = 0) -> bo
         True se configurado com sucesso
 
     """
-    if not database_name or database_name in settings.DATABASES:
-        return bool(database_name and database_name in settings.DATABASES)
+    if conn_max_age is None:
+        conn_max_age = _default_tenant_conn_max_age()
+
+    if not database_name:
+        return False
+
+    if database_name in settings.DATABASES:
+        # Se a config foi criada com conn_max_age=0 (legado), promove para pool.
+        cfg = settings.DATABASES[database_name]
+        current = int(cfg.get("CONN_MAX_AGE") or 0)
+        if conn_max_age > 0 and current == 0:
+            cfg["CONN_MAX_AGE"] = conn_max_age
+        return True
 
     config = get_loja_database_config(database_name, conn_max_age)
     if not config:

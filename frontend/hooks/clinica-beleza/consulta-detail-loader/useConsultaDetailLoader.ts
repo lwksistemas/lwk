@@ -84,17 +84,18 @@ export function useConsultaDetailLoader({
           setSelected(consultaAtual);
         }
 
-        const hist = await fetchHistoricoPaciente(consultaAtual.patient).catch(() => []);
-        const histList = normalizeConsultaList(hist);
+        // Atendimento primeiro (UI rápida); histórico em paralelo — sem waterfall.
+        setTab("atendimento");
+        const histPromise = fetchHistoricoPaciente(consultaAtual.patient).catch(() => []);
+        await loadTabData("atendimento", consultaAtual, true);
+
+        const histList = normalizeConsultaList(await histPromise);
         setHistorico(histList);
         const initialTab = resolveInitialConsultaTab(consultaAtual.status, histList.length);
-        setTab(initialTab);
-
         if (initialTab === "historico") {
+          setTab("historico");
           loadedTabsRef.current.add("historico");
           await loadHistoricoExtras(consultaAtual.patient);
-        } else {
-          await loadTabData(initialTab, consultaAtual, true);
         }
       } catch (e) {
         logger.warn("Erro ao carregar detalhes da consulta:", e);

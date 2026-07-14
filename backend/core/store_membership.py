@@ -37,7 +37,7 @@ def funcionario_email_ativo_na_loja(user, loja) -> bool:
         from tenants.middleware import set_current_loja_id, set_current_tenant_db
 
         db_name = getattr(loja, "database_name", None) or f"loja_{loja.slug}"
-        if not ensure_loja_database_config(db_name, conn_max_age=0):
+        if not ensure_loja_database_config(db_name):
             return False
         set_current_tenant_db(db_name)
         set_current_loja_id(loja.id)

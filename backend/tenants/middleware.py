@@ -42,7 +42,7 @@ def _configure_tenant_db_for_loja(loja, request=None):
     db_name = getattr(loja, "database_name", None) or f'loja_{getattr(loja, "slug", "")}'
     try:
         from core.db_config import ensure_loja_database_config
-        if ensure_loja_database_config(db_name, conn_max_age=0):
+        if ensure_loja_database_config(db_name):
             logger.debug("ensure_loja_context: banco '%s' configurado para loja_id=%s", db_name, loja_id)
     except Exception as db_err:
         logger.warning("ensure_loja_context: falha ao configurar banco %s: %s", db_name, db_err)
@@ -277,7 +277,7 @@ class TenantMiddleware:
 
             try:
                 from core.db_config import ensure_loja_database_config
-                if ensure_loja_database_config(db_name, conn_max_age=0):
+                if ensure_loja_database_config(db_name):
                     logger.debug(f"✅ [TenantMiddleware] Banco '{db_name}' configurado")
             except Exception as db_err:
                 logger.warning("TenantMiddleware: falha ao configurar banco %s, usando default: %s", db_name, db_err)

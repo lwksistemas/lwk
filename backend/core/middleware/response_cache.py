@@ -28,6 +28,7 @@ CACHED_ENDPOINTS = [
     # Endpoints autenticados — cache por loja_id + user_id
     ("/api/crm-vendas/config/", 120, True),
     ("/api/clinica-beleza/dashboard/", 60, True),
+    ("/api/clinica-beleza/financeiro/resumo/", 60, True),
     ("/api/restaurante/categorias/", 120, True),
     ("/api/cabeleireiro/servicos/", 120, True),
     ("/api/hotel/tipos-quarto/", 120, True),

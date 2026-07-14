@@ -75,6 +75,9 @@ const nextConfig = {
     return config;
   },
   reactStrictMode: true,
+  experimental: {
+    cpus: 1,
+  },
   poweredByHeader: false,
 
   // Next 16: lint não roda no build; use `npm run lint`. TS: ignorar erros no CI/Vercel.

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useParams, usePathname, useRouter } from 'next/navigation';
 import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
 import {
@@ -21,7 +21,9 @@ type Props = {
 };
 
 export function SalaoShell({ loja, onLogout, children }: Props) {
-  const slug = loja.slug;
+  const params = useParams();
+  /** Slug da URL (pode ser atalho, ex.: luminademo) — deve bater com o cookie loja_slug do middleware. */
+  const slug = ((params?.slug as string) || loja.slug || '').trim();
   const pathname = usePathname() || '';
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -29,7 +31,10 @@ export function SalaoShell({ loja, onLogout, children }: Props) {
   const primary = loja.cor_primaria || SALAO_PRIMARY;
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !slug) return;
+    // Mantém cookie/session alinhados ao path atual (atalho ou slug canônico).
+    sessionStorage.setItem('loja_slug', slug);
+    document.cookie = `loja_slug=${encodeURIComponent(slug)}; path=/; max-age=86400; SameSite=Lax`;
     setSidebarHidden(sessionStorage.getItem(sidebarStorageKey(slug)) === '1');
 
     const onToggle = (e: Event) => {

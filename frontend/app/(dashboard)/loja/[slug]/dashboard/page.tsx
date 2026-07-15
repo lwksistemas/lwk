@@ -57,7 +57,9 @@ export default function LojaDashboardDinamicoPage() {
       const data = lojaResponse.data;
       if (data?.id && typeof window !== 'undefined') {
         sessionStorage.setItem('current_loja_id', String(data.id));
-        if (data.slug) sessionStorage.setItem('loja_slug', data.slug);
+        // Preferir o slug/atalho da URL (bate com cookie do middleware).
+        sessionStorage.setItem('loja_slug', slug);
+        document.cookie = `loja_slug=${encodeURIComponent(slug)}; path=/; max-age=86400; SameSite=Lax`;
       }
       setLojaInfo(data);
     } catch (error: unknown) {

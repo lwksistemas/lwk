@@ -28,7 +28,9 @@ export function SalaoLojaLayout({ children }: { children: ReactNode }) {
       setLoja(data);
       if (typeof window !== 'undefined' && data?.id) {
         sessionStorage.setItem('current_loja_id', String(data.id));
-        if (data.slug) sessionStorage.setItem('loja_slug', data.slug);
+        // Preferir o slug/atalho da URL (ex.: luminademo) para o middleware não bloquear o menu.
+        sessionStorage.setItem('loja_slug', slug);
+        document.cookie = `loja_slug=${encodeURIComponent(slug)}; path=/; max-age=86400; SameSite=Lax`;
       }
     } catch {
       setLoja(null);

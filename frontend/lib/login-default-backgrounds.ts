@@ -14,8 +14,8 @@ export const LOGIN_BACKGROUND_PATHS = {
   clinicaBeleza: '/login-backgrounds/clinica-beleza.jpg',
   hotel: '/login-backgrounds/hotel.jpg',
   crm: '/login-backgrounds/crm-vendas.jpg',
-  /** Reusa visual clínica até haver asset dedicado do salão */
-  salao: '/login-backgrounds/clinica-beleza.jpg',
+  /** Salão / cabeleireiro — interior do segmento (Lumina) */
+  salao: '/login-backgrounds/cabeleireiro.jpg',
   default: '/login-backgrounds/default.jpg',
 } as const;
 

@@ -1,10 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Check, MessageCircle } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { CalendarDays, Check, MessageCircle, Plus } from 'lucide-react';
+import type { DatesSetArg, EventClickArg, EventDropArg } from '@fullcalendar/core';
+import type { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction';
 import { Modal } from '@/components/ui/Modal';
 import { SalaoPageHeader } from '@/components/cabeleireiro/SalaoPageHeader';
 import { SALAO_PRIMARY } from '@/components/cabeleireiro/salao-nav';
+import {
+  dateFromFc,
+  formatDateRangeISO,
+  salaoAgendamentoToEvent,
+  type SalaoCalendarEvent,
+} from '@/components/cabeleireiro/salao-agenda-mappers';
 import {
   CabeleireiroAPI,
   type SalaoAgendamento,
@@ -13,77 +22,121 @@ import {
   type SalaoServico,
 } from '@/lib/cabeleireiro-api';
 
-function todayISO() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
+const FullCalendar = dynamic(() => import('@fullcalendar/react'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center min-h-[420px] text-sm text-gray-500">
+      Carregando calendário...
+    </div>
+  ),
+});
+
+const MOBILE_BP = 640;
 
 export default function SalaoAgendaPage() {
-  const [data, setData] = useState(todayISO());
-  const [list, setList] = useState<SalaoAgendamento[]>([]);
+  const [plugins, setPlugins] = useState<unknown[]>([]);
+  const [locale, setLocale] = useState<unknown>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [events, setEvents] = useState<SalaoCalendarEvent[]>([]);
   const [clientes, setClientes] = useState<SalaoCliente[]>([]);
   const [profissionais, setProfissionais] = useState<SalaoProfissional[]>([]);
   const [servicos, setServicos] = useState<SalaoServico[]>([]);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
+  const [range, setRange] = useState<{ data_inicio: string; data_fim: string } | null>(null);
+  const [openCreate, setOpenCreate] = useState(false);
+  const [detail, setDetail] = useState<SalaoAgendamento | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reenviando, setReenviando] = useState(false);
   const [error, setError] = useState('');
-  const [reenviandoId, setReenviandoId] = useState<number | null>(null);
   const [form, setForm] = useState({
     cliente: '',
     profissional: '',
     servico: '',
+    data: '',
     hora_inicio: '09:00',
     observacoes: '',
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [ags, cls, prs, svs] = await Promise.all([
-        CabeleireiroAPI.agendamentos.list({ data }),
-        CabeleireiroAPI.clientes.list(),
-        CabeleireiroAPI.profissionais.list(),
-        CabeleireiroAPI.servicos.list(),
-      ]);
-      setList(ags);
-      setClientes(cls);
-      setProfissionais(prs);
-      setServicos(svs);
-    } catch {
-      setList([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [data]);
+  const servicosById = useMemo(() => new Map(servicos.map((s) => [s.id, s])), [servicos]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void Promise.all([
+      import('@fullcalendar/daygrid').then((m) => m.default),
+      import('@fullcalendar/timegrid').then((m) => m.default),
+      import('@fullcalendar/interaction').then((m) => m.default),
+      import('@fullcalendar/core/locales/pt-br').then((m) => m.default),
+    ]).then(([dayGrid, timeGrid, interaction, ptBr]) => {
+      setPlugins([dayGrid, timeGrid, interaction]);
+      setLocale(ptBr);
+    });
+  }, []);
 
-  const sorted = useMemo(
-    () => [...list].sort((a, b) => (a.hora_inicio || '').localeCompare(b.hora_inicio || '')),
-    [list],
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BP - 1}px)`);
+    const sync = () => setIsMobile(mql.matches);
+    sync();
+    mql.addEventListener('change', sync);
+    return () => mql.removeEventListener('change', sync);
+  }, []);
+
+  useEffect(() => {
+    void Promise.all([
+      CabeleireiroAPI.clientes.list(),
+      CabeleireiroAPI.profissionais.list(),
+      CabeleireiroAPI.servicos.list(),
+    ])
+      .then(([cls, prs, svs]) => {
+        setClientes(cls);
+        setProfissionais(prs);
+        setServicos(svs);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const loadRange = useCallback(
+    async (data_inicio: string, data_fim: string) => {
+      setLoading(true);
+      try {
+        const list = await CabeleireiroAPI.agendamentos.list({ data_inicio, data_fim });
+        setEvents(list.map((ag) => salaoAgendamentoToEvent(ag, servicosById)));
+      } catch {
+        setEvents([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [servicosById],
   );
 
-  const openNew = () => {
+  useEffect(() => {
+    if (!range) return;
+    void loadRange(range.data_inicio, range.data_fim);
+  }, [range, loadRange]);
+
+  const onDatesSet = (arg: DatesSetArg) => {
+    const next = formatDateRangeISO(arg.start, arg.end);
+    setRange((prev) => {
+      if (prev?.data_inicio === next.data_inicio && prev?.data_fim === next.data_fim) return prev;
+      return next;
+    });
+  };
+
+  const openNew = (prefill?: { data?: string; hora_inicio?: string }) => {
     setForm({
       cliente: clientes[0] ? String(clientes[0].id) : '',
       profissional: profissionais[0] ? String(profissionais[0].id) : '',
       servico: servicos[0] ? String(servicos[0].id) : '',
-      hora_inicio: '09:00',
+      data: prefill?.data || new Date().toISOString().slice(0, 10),
+      hora_inicio: prefill?.hora_inicio || '09:00',
       observacoes: '',
     });
     setError('');
-    setOpen(true);
+    setOpenCreate(true);
   };
 
-  const save = async () => {
-    if (!form.cliente) {
-      setError('Selecione um cliente');
+  const saveCreate = async () => {
+    if (!form.cliente || !form.data) {
+      setError('Selecione cliente e data');
       return;
     }
     setSaving(true);
@@ -94,14 +147,14 @@ export default function SalaoAgendaPage() {
         cliente: Number(form.cliente),
         profissional: form.profissional ? Number(form.profissional) : null,
         servico: form.servico ? Number(form.servico) : null,
-        data,
+        data: form.data,
         hora_inicio: form.hora_inicio,
         valor: servico?.preco ?? 0,
         observacoes: form.observacoes,
         status: 'SCHEDULED',
       });
-      setOpen(false);
-      await load();
+      setOpenCreate(false);
+      if (range) await loadRange(range.data_inicio, range.data_fim);
     } catch {
       setError('Erro ao criar agendamento');
     } finally {
@@ -109,110 +162,147 @@ export default function SalaoAgendaPage() {
     }
   };
 
-  const confirmarChegada = async (ag: SalaoAgendamento) => {
+  const onEventClick = (info: EventClickArg) => {
+    const ag = info.event.extendedProps.agendamento as SalaoAgendamento | undefined;
+    if (ag) setDetail(ag);
+  };
+
+  const onDateClick = (info: DateClickArg) => {
+    const { data, hora_inicio } = dateFromFc(info.date);
+    openNew({ data, hora_inicio: info.allDay ? '09:00' : hora_inicio });
+  };
+
+  const patchFromCalendar = async (agId: number, start: Date, end: Date | null) => {
+    const { data, hora_inicio } = dateFromFc(start);
+    const payload: Record<string, unknown> = { data, hora_inicio };
+    if (end) {
+      payload.hora_fim = `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
+    }
+    await CabeleireiroAPI.agendamentos.update(agId, payload);
+    if (range) await loadRange(range.data_inicio, range.data_fim);
+  };
+
+  const onEventDrop = async (info: EventDropArg) => {
     try {
-      await CabeleireiroAPI.confirmarChegada(ag.id);
-      await load();
+      await patchFromCalendar(
+        Number(info.event.id),
+        info.event.start!,
+        info.event.end,
+      );
+    } catch {
+      info.revert();
+      alert('Não foi possível mover o agendamento');
+    }
+  };
+
+  const onEventResize = async (info: EventResizeDoneArg) => {
+    try {
+      await patchFromCalendar(
+        Number(info.event.id),
+        info.event.start!,
+        info.event.end,
+      );
+    } catch {
+      info.revert();
+      alert('Não foi possível alterar a duração');
+    }
+  };
+
+  const confirmarChegada = async () => {
+    if (!detail) return;
+    try {
+      const updated = await CabeleireiroAPI.confirmarChegada(detail.id);
+      setDetail(updated);
+      if (range) await loadRange(range.data_inicio, range.data_fim);
     } catch {
       alert('Não foi possível confirmar chegada');
     }
   };
 
-  const reenviarWhatsApp = async (ag: SalaoAgendamento) => {
-    setReenviandoId(ag.id);
+  const reenviarWhatsApp = async () => {
+    if (!detail) return;
+    setReenviando(true);
     try {
-      await CabeleireiroAPI.reenviarConfirmacaoWhatsApp(ag.id);
+      await CabeleireiroAPI.reenviarConfirmacaoWhatsApp(detail.id);
       alert('Confirmação reenviada por WhatsApp.');
     } catch (e: unknown) {
-      const detail =
+      const detailMsg =
         e && typeof e === 'object' && 'response' in e
           ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
           : null;
-      alert(detail || 'Não foi possível reenviar. Verifique WhatsApp em Configurações.');
+      alert(detailMsg || 'Não foi possível reenviar. Verifique WhatsApp em Configurações.');
     } finally {
-      setReenviandoId(null);
+      setReenviando(false);
     }
   };
 
   return (
-    <div>
+    <div className="flex flex-col h-full min-h-[70vh]">
       <SalaoPageHeader
         title="Agenda"
-        subtitle="Agendamentos do dia"
+        subtitle="Dia, semana e mês — mesmo padrão da clínica"
         icon={CalendarDays}
-        onNew={openNew}
+        onNew={() => openNew()}
         newLabel="Novo agendamento"
-      >
-        <input
-          type="date"
-          value={data}
-          onChange={(e) => setData(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
-        />
-      </SalaoPageHeader>
+      />
 
-      <div className="p-4 md:p-6 space-y-3">
-        {loading ? (
-          <p className="text-sm text-gray-500 text-center py-10">Carregando...</p>
-        ) : sorted.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-10">Nenhum agendamento neste dia</p>
+      <div className="relative flex-1 min-h-0 p-3 md:p-4">
+        {loading && (
+          <div className="absolute top-4 right-4 z-10 text-xs text-gray-500 bg-white/90 px-2 py-1 rounded-md border border-[#E8D5DC]">
+            Atualizando...
+          </div>
+        )}
+        {plugins.length > 0 && locale ? (
+          <div className="fc-salao-agenda bg-white rounded-xl border border-[#E8D5DC] p-2 md:p-3 min-h-[520px]">
+            <FullCalendar
+              key={isMobile ? 'mobile' : 'desktop'}
+              plugins={plugins as never[]}
+              initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
+              locale={locale as never}
+              editable
+              eventStartEditable
+              eventDurationEditable
+              selectable
+              selectMirror
+              dayMaxEvents={isMobile ? 6 : true}
+              weekends
+              events={events}
+              datesSet={onDatesSet}
+              eventDrop={onEventDrop}
+              eventResize={onEventResize}
+              eventClick={onEventClick}
+              dateClick={onDateClick}
+              height="auto"
+              headerToolbar={
+                isMobile
+                  ? { left: 'prev,next', center: 'title', right: 'today' }
+                  : {
+                      left: 'prev,next today',
+                      center: 'title',
+                      right: 'timeGridDay,timeGridWeek,dayGridMonth',
+                    }
+              }
+              buttonText={isMobile ? { today: 'Hoje' } : undefined}
+              slotMinTime="07:00:00"
+              slotMaxTime="21:00:00"
+              allDaySlot={false}
+              slotDuration="00:15:00"
+              slotLabelInterval="01:00:00"
+              snapDuration="00:15:00"
+            />
+          </div>
         ) : (
-          sorted.map((ag) => (
-            <div
-              key={ag.id}
-              className="flex flex-col sm:flex-row sm:items-center gap-3 bg-white rounded-xl border border-[#E8D5DC] px-4 py-3"
-            >
-              <div
-                className="w-16 text-center rounded-lg py-1.5 shrink-0"
-                style={{ backgroundColor: '#F3E4EA', color: SALAO_PRIMARY }}
-              >
-                <div className="text-sm font-bold">{(ag.hora_inicio || '').slice(0, 5)}</div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 truncate">{ag.cliente_nome}</p>
-                <p className="text-xs text-gray-500 truncate">
-                  {ag.servico_nome || 'Serviço'}
-                  {ag.profissional_nome ? ` · ${ag.profissional_nome}` : ''}
-                  {ag.status_display ? ` · ${ag.status_display}` : ''}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
-                {ag.status === 'SCHEDULED' && (
-                  <button
-                    type="button"
-                    disabled={reenviandoId === ag.id}
-                    onClick={() => void reenviarWhatsApp(ag)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-[#E8D5DC] bg-white hover:bg-[#F7F0F3] disabled:opacity-60"
-                    style={{ color: SALAO_PRIMARY }}
-                    title="Reenviar confirmação por WhatsApp"
-                  >
-                    <MessageCircle size={14} />
-                    {reenviandoId === ag.id ? 'Enviando...' : 'WhatsApp'}
-                  </button>
-                )}
-                {(ag.status === 'SCHEDULED' ||
-                  ag.status === 'CLIENT_CONFIRMED' ||
-                  ag.status === 'ARRIVED') && (
-                  <button
-                    type="button"
-                    disabled={ag.status === 'ARRIVED'}
-                    onClick={() => void confirmarChegada(ag)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white disabled:opacity-60"
-                    style={{ backgroundColor: SALAO_PRIMARY }}
-                  >
-                    <Check size={14} />
-                    {ag.status === 'ARRIVED' ? 'Chegou' : 'Confirmar chegada'}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))
+          <div className="flex items-center justify-center min-h-[420px] text-sm text-gray-500">
+            Carregando calendário...
+          </div>
         )}
       </div>
 
-      <Modal isOpen={open} onClose={() => setOpen(false)} maxWidth="lg">
+      <Modal isOpen={openCreate} onClose={() => setOpenCreate(false)} maxWidth="lg">
         <div className="p-6 space-y-4">
-          <h2 className="text-lg font-semibold">Novo agendamento</h2>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Plus size={18} /> Novo agendamento
+          </h2>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="sm:col-span-2 text-sm space-y-1">
@@ -261,6 +351,15 @@ export default function SalaoAgendaPage() {
               </select>
             </label>
             <label className="text-sm space-y-1">
+              <span>Data</span>
+              <input
+                type="date"
+                className="w-full border rounded-lg px-3 py-2"
+                value={form.data}
+                onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))}
+              />
+            </label>
+            <label className="text-sm space-y-1">
               <span>Horário</span>
               <input
                 type="time"
@@ -279,13 +378,13 @@ export default function SalaoAgendaPage() {
             </label>
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setOpen(false)} className="px-4 py-2 border rounded-lg text-sm">
+            <button type="button" onClick={() => setOpenCreate(false)} className="px-4 py-2 border rounded-lg text-sm">
               Cancelar
             </button>
             <button
               type="button"
               disabled={saving}
-              onClick={() => void save()}
+              onClick={() => void saveCreate()}
               className="px-4 py-2 rounded-lg text-sm text-white disabled:opacity-60"
               style={{ backgroundColor: SALAO_PRIMARY }}
             >
@@ -293,6 +392,59 @@ export default function SalaoAgendaPage() {
             </button>
           </div>
         </div>
+      </Modal>
+
+      <Modal isOpen={Boolean(detail)} onClose={() => setDetail(null)} maxWidth="md">
+        {detail && (
+          <div className="p-6 space-y-4">
+            <h2 className="text-lg font-semibold">{detail.cliente_nome}</h2>
+            <div className="text-sm text-gray-600 space-y-1">
+              <p>
+                <strong>Quando:</strong> {detail.data} às {(detail.hora_inicio || '').slice(0, 5)}
+              </p>
+              <p>
+                <strong>Serviço:</strong> {detail.servico_nome || '—'}
+              </p>
+              <p>
+                <strong>Profissional:</strong> {detail.profissional_nome || '—'}
+              </p>
+              <p>
+                <strong>Status:</strong> {detail.status_display || detail.status}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-2">
+              {detail.status === 'SCHEDULED' && (
+                <button
+                  type="button"
+                  disabled={reenviando}
+                  onClick={() => void reenviarWhatsApp()}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border"
+                  style={{ color: SALAO_PRIMARY, borderColor: '#E8D5DC' }}
+                >
+                  <MessageCircle size={14} />
+                  {reenviando ? 'Enviando...' : 'Reenviar WhatsApp'}
+                </button>
+              )}
+              {(detail.status === 'SCHEDULED' ||
+                detail.status === 'CLIENT_CONFIRMED' ||
+                detail.status === 'ARRIVED') && (
+                <button
+                  type="button"
+                  disabled={detail.status === 'ARRIVED'}
+                  onClick={() => void confirmarChegada()}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white disabled:opacity-60"
+                  style={{ backgroundColor: SALAO_PRIMARY }}
+                >
+                  <Check size={14} />
+                  {detail.status === 'ARRIVED' ? 'Chegou' : 'Confirmar chegada'}
+                </button>
+              )}
+              <button type="button" onClick={() => setDetail(null)} className="ml-auto px-3 py-2 text-sm border rounded-lg">
+                Fechar
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

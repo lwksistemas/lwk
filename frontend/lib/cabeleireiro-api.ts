@@ -152,7 +152,13 @@ export const CabeleireiroAPI = {
     },
   },
   agendamentos: {
-    list: async (params?: { data?: string; status?: string }) => {
+    list: async (params?: {
+      data?: string;
+      data_inicio?: string;
+      data_fim?: string;
+      status?: string;
+      profissional?: number | string;
+    }) => {
       const { data } = await apiClient.get(`${BASE}/agendamentos/`, { params });
       return unwrapList<SalaoAgendamento>(data);
     },

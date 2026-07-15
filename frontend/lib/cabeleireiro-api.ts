@@ -45,6 +45,26 @@ export type SalaoServico = {
   categoria?: string;
 };
 
+export type SalaoCategoriaServico = {
+  id: number;
+  nome: string;
+  ordem?: number;
+  is_active?: boolean;
+};
+
+export type SalaoHorarioTrabalho = {
+  id?: number;
+  profissional?: number;
+  professional?: number;
+  dia_semana: number;
+  dia_semana_display?: string;
+  hora_entrada: string;
+  hora_saida: string;
+  intervalo_inicio?: string | null;
+  intervalo_fim?: string | null;
+  ativo: boolean;
+};
+
 export type SalaoAgendamento = {
   id: number;
   cliente: number;
@@ -144,6 +164,36 @@ export const CabeleireiroAPI = {
     },
     remove: async (id: number) => {
       await apiClient.delete(`${BASE}/profissionais/${id}/`);
+    },
+    horarios: {
+      get: async (id: number) => {
+        const { data } = await apiClient.get(`${BASE}/profissionais/${id}/horarios-trabalho/`);
+        return unwrapList<SalaoHorarioTrabalho>(data);
+      },
+      save: async (id: number, payload: Record<string, unknown>[]) => {
+        const { data } = await apiClient.put(`${BASE}/profissionais/${id}/horarios-trabalho/`, payload);
+        return unwrapList<SalaoHorarioTrabalho>(data);
+      },
+    },
+  },
+  categorias: {
+    list: async () => {
+      const { data } = await apiClient.get(`${BASE}/categorias-servico/`);
+      return unwrapList<SalaoCategoriaServico>(data);
+    },
+    create: async (payload: Record<string, unknown>) => {
+      const { data } = await apiClient.post<SalaoCategoriaServico>(`${BASE}/categorias-servico/`, payload);
+      return data;
+    },
+    update: async (id: number, payload: Record<string, unknown>) => {
+      const { data } = await apiClient.patch<SalaoCategoriaServico>(
+        `${BASE}/categorias-servico/${id}/`,
+        payload,
+      );
+      return data;
+    },
+    remove: async (id: number) => {
+      await apiClient.delete(`${BASE}/categorias-servico/${id}/`);
     },
   },
   servicos: {

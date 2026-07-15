@@ -5,7 +5,13 @@ from decimal import Decimal
 from django.core.validators import MinValueValidator
 from django.db import models
 
-from agenda_base.models import BloqueioAgendaBase, ClienteBase, ProfissionalBase, ServicoBase
+from agenda_base.models import (
+    BloqueioAgendaBase,
+    ClienteBase,
+    HorarioTrabalhoProfissionalBase,
+    ProfissionalBase,
+    ServicoBase,
+)
 from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 
@@ -56,6 +62,60 @@ class Servico(ServicoBase):
         db_table = "cabeleireiro_servico"
         verbose_name = "Serviço"
         verbose_name_plural = "Serviços"
+
+
+class CategoriaServico(LojaIsolationMixin, models.Model):
+    """Categoria gerenciável de serviços do salão (criar / editar / excluir)."""
+
+    nome = models.CharField(max_length=100, verbose_name="Nome")
+    ordem = models.PositiveIntegerField(default=0, verbose_name="Ordem")
+    is_active = models.BooleanField(default=True, verbose_name="Ativo")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "cabeleireiro"
+        db_table = "cabeleireiro_categoriaservico"
+        verbose_name = "Categoria de serviço"
+        verbose_name_plural = "Categorias de serviço"
+        ordering = ["ordem", "nome"]
+        indexes = [
+            models.Index(fields=["loja_id", "is_active"], name="cab_cat_loja_idx"),
+        ]
+
+    def __str__(self):
+        return self.nome
+
+
+class HorarioTrabalhoProfissional(HorarioTrabalhoProfissionalBase):
+    """Dias e horários de trabalho do profissional do salão."""
+
+    profissional = models.ForeignKey(
+        Profissional,
+        on_delete=models.CASCADE,
+        related_name="horarios_trabalho",
+        verbose_name="Profissional",
+    )
+
+    class Meta(HorarioTrabalhoProfissionalBase.Meta):
+        app_label = "cabeleireiro"
+        db_table = "cabeleireiro_horariotrabalhoprofissional"
+        verbose_name = "Horário de trabalho"
+        verbose_name_plural = "Horários de trabalho"
+        ordering = ["profissional", "dia_semana"]
+        unique_together = [["profissional", "dia_semana"]]
+        indexes = [
+            models.Index(fields=["profissional", "dia_semana"], name="cab_ht_prof_dia_idx"),
+            models.Index(fields=["loja_id", "profissional"], name="cab_ht_loja_prof_idx"),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.profissional.nome} - {self.get_dia_semana_display()}: "
+            f"{self.hora_entrada}-{self.hora_saida}"
+        )
 
 
 class Agendamento(LojaIsolationMixin, models.Model):

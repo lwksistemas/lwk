@@ -154,8 +154,19 @@ export default function SalaoClientesPage() {
       else await CabeleireiroAPI.clientes.create(payload);
       await load();
       voltar();
-    } catch {
-      setError('Erro ao salvar cliente');
+    } catch (e: unknown) {
+      const data =
+        e && typeof e === 'object' && 'response' in e
+          ? (e as { response?: { data?: Record<string, unknown> } }).response?.data
+          : null;
+      const detail =
+        (typeof data?.detail === 'string' && data.detail) ||
+        (typeof data?.cpf === 'string' && data.cpf) ||
+        (Array.isArray(data?.cpf) && String(data.cpf[0])) ||
+        (typeof data?.nome === 'string' && data.nome) ||
+        (Array.isArray(data?.nome) && String(data.nome[0])) ||
+        null;
+      setError(detail || 'Erro ao salvar cliente');
     } finally {
       setSaving(false);
     }

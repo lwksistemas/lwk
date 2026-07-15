@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Edit2, Trash2, UserCog } from 'lucide-react';
+import { Clock, Edit2, Trash2, UserCog } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { ModalHorariosSalao } from '@/components/cabeleireiro/ModalHorariosSalao';
 import { SalaoPageHeader } from '@/components/cabeleireiro/SalaoPageHeader';
 import { SALAO_PRIMARY } from '@/components/cabeleireiro/salao-nav';
 import { CabeleireiroAPI, type SalaoProfissional } from '@/lib/cabeleireiro-api';
@@ -21,6 +22,7 @@ export default function SalaoProfissionaisPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SalaoProfissional | null>(null);
+  const [horariosProf, setHorariosProf] = useState<SalaoProfissional | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -100,7 +102,7 @@ export default function SalaoProfissionaisPage() {
     <div>
       <SalaoPageHeader
         title="Profissionais"
-        subtitle="Equipe do salão (sem Memed/prescritor)"
+        subtitle="Equipe, cores na agenda e dias de trabalho"
         icon={UserCog}
         onNew={openNew}
         newLabel="Novo profissional"
@@ -137,6 +139,14 @@ export default function SalaoProfissionaisPage() {
                     <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{p.telefone || '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
+                        <button
+                          type="button"
+                          title="Dias e horários de trabalho"
+                          onClick={() => setHorariosProf(p)}
+                          className="p-2 hover:bg-amber-50 rounded-md text-amber-700"
+                        >
+                          <Clock size={16} />
+                        </button>
                         <button type="button" onClick={() => openEdit(p)} className="p-2 hover:bg-gray-100 rounded-md">
                           <Edit2 size={16} />
                         </button>
@@ -217,6 +227,14 @@ export default function SalaoProfissionaisPage() {
           </div>
         </div>
       </Modal>
+
+      {horariosProf && (
+        <ModalHorariosSalao
+          profissionalId={horariosProf.id}
+          profissionalNome={horariosProf.nome}
+          onClose={() => setHorariosProf(null)}
+        />
+      )}
     </div>
   );
 }

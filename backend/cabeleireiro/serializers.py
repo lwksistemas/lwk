@@ -9,7 +9,15 @@ from core.serializer_mixins import (
 
 from clinica_beleza.bloqueio_utils import bloqueio_datetime_range, split_datetime_range
 
-from .models import Agendamento, BloqueioHorario, Cliente, Profissional, Servico
+from .models import (
+    Agendamento,
+    BloqueioHorario,
+    CategoriaServico,
+    Cliente,
+    HorarioTrabalhoProfissional,
+    Profissional,
+    Servico,
+)
 
 
 class ClienteSerializer(
@@ -74,6 +82,28 @@ class ClienteSerializer(
         data["name"] = instance.nome
         return data
 
+    def _strip_aliases(self, validated_data):
+        """Remove aliases EN que não existem no model (phone/birth_date/name/notes)."""
+        phone = validated_data.pop("phone", None)
+        if phone is not None and not validated_data.get("telefone"):
+            validated_data["telefone"] = phone or ""
+        birth = validated_data.pop("birth_date", serializers.empty)
+        if birth is not serializers.empty and validated_data.get("data_nascimento") is None:
+            validated_data["data_nascimento"] = birth
+        name = validated_data.pop("name", None)
+        if name and not validated_data.get("nome"):
+            validated_data["nome"] = name
+        notes = validated_data.pop("notes", serializers.empty)
+        if notes is not serializers.empty and not validated_data.get("observacoes"):
+            validated_data["observacoes"] = notes or ""
+        return validated_data
+
+    def create(self, validated_data):
+        return super().create(self._strip_aliases(validated_data))
+
+    def update(self, instance, validated_data):
+        return super().update(instance, self._strip_aliases(validated_data))
+
 
 class ProfissionalSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     uppercase_fields = ["nome", "especialidade"]
@@ -89,6 +119,37 @@ class ServicoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     class Meta:
         model = Servico
         exclude = ["loja_id"]
+
+
+class CategoriaServicoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
+    uppercase_fields = ["nome"]
+
+    class Meta:
+        model = CategoriaServico
+        exclude = ["loja_id"]
+        read_only_fields = ["created_at", "updated_at"]
+
+
+class HorarioTrabalhoProfissionalSerializer(serializers.ModelSerializer):
+    dia_semana_display = serializers.CharField(source="get_dia_semana_display", read_only=True)
+    # Alias EN para reutilizar ModalHorariosTrabalho da clínica
+    professional = serializers.IntegerField(source="profissional_id", read_only=True)
+
+    class Meta:
+        model = HorarioTrabalhoProfissional
+        fields = [
+            "id",
+            "profissional",
+            "professional",
+            "dia_semana",
+            "dia_semana_display",
+            "hora_entrada",
+            "hora_saida",
+            "intervalo_inicio",
+            "intervalo_fim",
+            "ativo",
+        ]
+        read_only_fields = ["profissional", "professional"]
 
 
 class AgendamentoSerializer(TenantQuerysetMixin, serializers.ModelSerializer):

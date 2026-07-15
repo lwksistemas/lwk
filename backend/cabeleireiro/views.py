@@ -11,11 +11,21 @@ from rest_framework.viewsets import ViewSet
 from core.views import BaseModelViewSet
 from tenants.middleware import get_current_loja_id
 
-from .models import Agendamento, BloqueioHorario, Cliente, Profissional, Servico
+from .models import (
+    Agendamento,
+    BloqueioHorario,
+    CategoriaServico,
+    Cliente,
+    HorarioTrabalhoProfissional,
+    Profissional,
+    Servico,
+)
 from .serializers import (
     AgendamentoSerializer,
     BloqueioHorarioSerializer,
+    CategoriaServicoSerializer,
     ClienteSerializer,
+    HorarioTrabalhoProfissionalSerializer,
     ProfissionalSerializer,
     ServicoSerializer,
 )
@@ -37,6 +47,34 @@ class ProfissionalViewSet(BaseModelViewSet):
     def get_queryset(self):
         return Profissional.objects.filter(is_active=True).order_by("nome")
 
+    @action(detail=True, methods=["get", "put"], url_path="horarios-trabalho")
+    def horarios_trabalho(self, request, pk=None):
+        profissional = self.get_object()
+        if request.method == "GET":
+            qs = HorarioTrabalhoProfissional.objects.filter(profissional=profissional).order_by("dia_semana")
+            return Response(HorarioTrabalhoProfissionalSerializer(qs, many=True).data)
+
+        if not isinstance(request.data, list):
+            return Response(
+                {
+                    "error": (
+                        'Envie uma lista de horários. Ex.: [{"dia_semana": 0, '
+                        '"hora_entrada": "08:00", "hora_saida": "18:00", "ativo": true}]'
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        HorarioTrabalhoProfissional.objects.filter(profissional=profissional).delete()
+        created = []
+        for item in request.data:
+            serializer = HorarioTrabalhoProfissionalSerializer(data=dict(item))
+            if not serializer.is_valid():
+                HorarioTrabalhoProfissional.objects.filter(profissional=profissional).delete()
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            obj = serializer.save(profissional=profissional)
+            created.append(HorarioTrabalhoProfissionalSerializer(obj).data)
+        return Response(created, status=status.HTTP_200_OK)
+
 
 class ServicoViewSet(BaseModelViewSet):
     serializer_class = ServicoSerializer
@@ -44,6 +82,19 @@ class ServicoViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         return Servico.objects.filter(is_active=True).order_by("categoria", "nome")
+
+
+class CategoriaServicoViewSet(BaseModelViewSet):
+    serializer_class = CategoriaServicoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return CategoriaServico.objects.filter(is_active=True).order_by("ordem", "nome")
+
+    def perform_destroy(self, instance):
+        # Soft delete; serviços que usam o nome da categoria continuam com o texto
+        instance.is_active = False
+        instance.save(update_fields=["is_active", "updated_at"])
 
 
 class AgendamentoViewSet(BaseModelViewSet):

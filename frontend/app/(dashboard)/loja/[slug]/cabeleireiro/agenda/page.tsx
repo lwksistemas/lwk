@@ -326,7 +326,8 @@ export default function SalaoAgendaPage() {
   };
 
   const statusColor = detail
-    ? SALAO_STATUS_COLORS[detail.status] || { bg: SALAO_PRIMARY, border: SALAO_PRIMARY, text: '#fff' }
+    ? statusColors[detail.status] ||
+      SALAO_STATUS_COLORS[detail.status] || { bg: SALAO_PRIMARY, border: SALAO_PRIMARY, text: '#fff' }
     : null;
 
   return (

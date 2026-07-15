@@ -16,6 +16,7 @@ from .models import (
     Cliente,
     HorarioTrabalhoProfissional,
     Profissional,
+    ProfissionalComissao,
     Servico,
 )
 
@@ -128,6 +129,42 @@ class CategoriaServicoSerializer(TextNormalizationMixin, serializers.ModelSerial
         model = CategoriaServico
         exclude = ["loja_id"]
         read_only_fields = ["created_at", "updated_at"]
+
+
+class ProfissionalComissaoSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
+    categoria_nome = serializers.CharField(source="categoria.nome", read_only=True)
+    modo_display = serializers.CharField(source="get_modo_display", read_only=True)
+
+    def apply_tenant_querysets(self):
+        self.bind_tenant_queryset("categoria", CategoriaServico.objects.filter(is_active=True))
+
+    class Meta:
+        model = ProfissionalComissao
+        fields = [
+            "id",
+            "profissional",
+            "categoria",
+            "categoria_nome",
+            "modo",
+            "modo_display",
+            "valor",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["profissional", "is_active", "created_at", "updated_at"]
+
+    def validate_valor(self, value):
+        if value is None or value < 0:
+            raise serializers.ValidationError("Valor deve ser zero ou positivo.")
+        return value
+
+    def validate(self, attrs):
+        modo = attrs.get("modo") or getattr(self.instance, "modo", None)
+        valor = attrs.get("valor") if "valor" in attrs else getattr(self.instance, "valor", None)
+        if modo == ProfissionalComissao.MODO_PERCENTUAL and valor is not None and valor > 100:
+            raise serializers.ValidationError({"valor": "Percentual não pode ser maior que 100."})
+        return attrs
 
 
 class HorarioTrabalhoProfissionalSerializer(serializers.ModelSerializer):

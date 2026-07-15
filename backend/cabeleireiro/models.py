@@ -89,6 +89,64 @@ class CategoriaServico(LojaIsolationMixin, models.Model):
         return self.nome
 
 
+class ProfissionalComissao(LojaIsolationMixin, models.Model):
+    """Comissão do profissional vinculada a uma categoria de serviço (fixo ou %)."""
+
+    MODO_PERCENTUAL = "percentual"
+    MODO_FIXO = "fixo"
+    MODO_CHOICES = (
+        (MODO_PERCENTUAL, "Percentual (%)"),
+        (MODO_FIXO, "Valor fixo (R$)"),
+    )
+
+    profissional = models.ForeignKey(
+        Profissional,
+        on_delete=models.CASCADE,
+        related_name="comissoes",
+        verbose_name="Profissional",
+    )
+    categoria = models.ForeignKey(
+        CategoriaServico,
+        on_delete=models.CASCADE,
+        related_name="comissoes",
+        verbose_name="Categoria de serviço",
+    )
+    modo = models.CharField(
+        max_length=15,
+        choices=MODO_CHOICES,
+        default=MODO_PERCENTUAL,
+        verbose_name="Modo de cálculo",
+    )
+    valor = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+        verbose_name="Valor",
+        help_text="Percentual (ex: 40.00 = 40%) ou valor fixo em R$.",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Ativo")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "cabeleireiro"
+        db_table = "cabeleireiro_profissionalcomissao"
+        verbose_name = "Comissão do profissional"
+        verbose_name_plural = "Comissões dos profissionais"
+        ordering = ["profissional", "categoria"]
+        indexes = [
+            models.Index(fields=["loja_id", "profissional", "is_active"], name="cab_com_loja_prof_idx"),
+            models.Index(fields=["profissional", "categoria"], name="cab_com_prof_cat_idx"),
+        ]
+
+    def __str__(self):
+        sufixo = "%" if self.modo == self.MODO_PERCENTUAL else "R$"
+        return f"{self.profissional_id} / {self.categoria_id}: {self.valor}{sufixo}"
+
+
 class HorarioTrabalhoProfissional(HorarioTrabalhoProfissionalBase):
     """Dias e horários de trabalho do profissional do salão."""
 

@@ -18,6 +18,7 @@ from .models import (
     Cliente,
     HorarioTrabalhoProfissional,
     Profissional,
+    ProfissionalComissao,
     Servico,
 )
 from .serializers import (
@@ -26,6 +27,7 @@ from .serializers import (
     CategoriaServicoSerializer,
     ClienteSerializer,
     HorarioTrabalhoProfissionalSerializer,
+    ProfissionalComissaoSerializer,
     ProfissionalSerializer,
     ServicoSerializer,
 )
@@ -95,6 +97,66 @@ class ProfissionalViewSet(BaseModelViewSet):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             obj = serializer.save(profissional=profissional)
             created.append(HorarioTrabalhoProfissionalSerializer(obj).data)
+        return Response(created, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["get", "post"], url_path="comissoes")
+    def comissoes(self, request, pk=None):
+        """GET lista ativas; POST substitui todas (lista de categoria + modo + valor)."""
+        profissional = self.get_object()
+        if request.method == "GET":
+            qs = (
+                ProfissionalComissao.objects.filter(profissional=profissional, is_active=True)
+                .select_related("categoria")
+                .order_by("categoria__nome")
+            )
+            return Response(ProfissionalComissaoSerializer(qs, many=True).data)
+
+        if not isinstance(request.data, list):
+            return Response(
+                {
+                    "error": (
+                        'Envie uma lista. Ex.: [{"categoria": 1, "modo": "percentual", "valor": 40}]'
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        categorias_vistas = set()
+        prepared = []
+        for item in request.data:
+            data = dict(item) if not isinstance(item, dict) else {**item}
+            data.pop("profissional", None)
+            data.pop("id", None)
+            cat_id = data.get("categoria")
+            if not cat_id:
+                return Response(
+                    {"categoria": "Informe a categoria de serviço em cada comissão."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                cat_id = int(cat_id)
+            except (TypeError, ValueError):
+                return Response(
+                    {"categoria": "Categoria inválida."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if cat_id in categorias_vistas:
+                return Response(
+                    {"categoria": "Não repita a mesma categoria de serviço."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            categorias_vistas.add(cat_id)
+            data["categoria"] = cat_id
+            serializer = ProfissionalComissaoSerializer(data=data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            prepared.append(serializer)
+
+        ProfissionalComissao.objects.filter(profissional=profissional).update(is_active=False)
+        created = []
+        for serializer in prepared:
+            obj = serializer.save(profissional=profissional, is_active=True)
+            created.append(ProfissionalComissaoSerializer(obj).data)
         return Response(created, status=status.HTTP_200_OK)
 
 

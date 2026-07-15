@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Clock, Edit2, Trash2, UserCog } from 'lucide-react';
+import { Clock, Edit2, Percent, Trash2, UserCog } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { ModalComissoesSalao } from '@/components/cabeleireiro/ModalComissoesSalao';
 import { ModalHorariosSalao } from '@/components/cabeleireiro/ModalHorariosSalao';
 import { SalaoPageHeader } from '@/components/cabeleireiro/SalaoPageHeader';
 import { SALAO_PRIMARY } from '@/components/cabeleireiro/salao-nav';
@@ -23,6 +24,7 @@ export default function SalaoProfissionaisPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SalaoProfissional | null>(null);
   const [horariosProf, setHorariosProf] = useState<SalaoProfissional | null>(null);
+  const [comissoesProf, setComissoesProf] = useState<SalaoProfissional | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -154,6 +156,14 @@ export default function SalaoProfissionaisPage() {
                         >
                           <Clock size={16} />
                         </button>
+                        <button
+                          type="button"
+                          title="Comissões por categoria"
+                          onClick={() => setComissoesProf(p)}
+                          className="p-2 hover:bg-emerald-50 rounded-md text-emerald-700"
+                        >
+                          <Percent size={16} />
+                        </button>
                         <button type="button" onClick={() => openEdit(p)} className="p-2 hover:bg-gray-100 rounded-md">
                           <Edit2 size={16} />
                         </button>
@@ -240,6 +250,14 @@ export default function SalaoProfissionaisPage() {
           profissionalId={horariosProf.id}
           profissionalNome={horariosProf.nome}
           onClose={() => setHorariosProf(null)}
+        />
+      )}
+
+      {comissoesProf && (
+        <ModalComissoesSalao
+          profissionalId={comissoesProf.id}
+          profissionalNome={comissoesProf.nome}
+          onClose={() => setComissoesProf(null)}
         />
       )}
     </div>

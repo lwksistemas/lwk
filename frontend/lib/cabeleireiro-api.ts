@@ -65,6 +65,17 @@ export type SalaoHorarioTrabalho = {
   ativo: boolean;
 };
 
+export type SalaoProfissionalComissao = {
+  id?: number;
+  profissional?: number;
+  categoria: number;
+  categoria_nome?: string;
+  modo: 'percentual' | 'fixo';
+  modo_display?: string;
+  valor: number | string;
+  is_active?: boolean;
+};
+
 export type SalaoAgendamento = {
   id: number;
   cliente: number;
@@ -173,6 +184,16 @@ export const CabeleireiroAPI = {
       save: async (id: number, payload: Record<string, unknown>[]) => {
         const { data } = await apiClient.put(`${BASE}/profissionais/${id}/horarios-trabalho/`, payload);
         return unwrapList<SalaoHorarioTrabalho>(data);
+      },
+    },
+    comissoes: {
+      list: async (id: number) => {
+        const { data } = await apiClient.get(`${BASE}/profissionais/${id}/comissoes/`);
+        return unwrapList<SalaoProfissionalComissao>(data);
+      },
+      save: async (id: number, payload: Record<string, unknown>[]) => {
+        const { data } = await apiClient.post(`${BASE}/profissionais/${id}/comissoes/`, payload);
+        return unwrapList<SalaoProfissionalComissao>(data);
       },
     },
   },

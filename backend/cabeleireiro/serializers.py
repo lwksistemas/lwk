@@ -2,7 +2,6 @@ from rest_framework import serializers
 
 from core.serializer_mixins import (
     CpfNormalizationMixin,
-    PhoneNormalizationMixin,
     TenantQuerysetMixin,
     TextNormalizationMixin,
     UniqueDocumentoPerLojaMixin,
@@ -15,7 +14,6 @@ class ClienteSerializer(
     TenantQuerysetMixin,
     UniqueDocumentoPerLojaMixin,
     CpfNormalizationMixin,
-    PhoneNormalizationMixin,
     TextNormalizationMixin,
     serializers.ModelSerializer,
 ):

@@ -77,10 +77,17 @@ export default function SalaoProfissionaisPage() {
         especialidade: form.especialidade.trim(),
         cor_agenda: form.cor_agenda,
       };
-      if (editing) await CabeleireiroAPI.profissionais.update(editing.id, payload);
-      else await CabeleireiroAPI.profissionais.create(payload);
-      setOpen(false);
-      await load();
+      if (editing) {
+        await CabeleireiroAPI.profissionais.update(editing.id, payload);
+        setOpen(false);
+        await load();
+      } else {
+        const created = await CabeleireiroAPI.profissionais.create(payload);
+        setOpen(false);
+        await load();
+        // Abre dias/horários logo após criar (já vem com seg–sex padrão no backend)
+        setHorariosProf(created);
+      }
     } catch {
       setError('Erro ao salvar');
     } finally {

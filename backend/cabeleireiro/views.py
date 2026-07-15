@@ -47,6 +47,28 @@ class ProfissionalViewSet(BaseModelViewSet):
     def get_queryset(self):
         return Profissional.objects.filter(is_active=True).order_by("nome")
 
+    def perform_create(self, serializer):
+        profissional = serializer.save()
+        self._seed_horarios_padrao(profissional)
+
+    @staticmethod
+    def _seed_horarios_padrao(profissional):
+        """Seg–sex 08:00–18:00 com intervalo 12:00–13:00 (mesmo padrão da clínica)."""
+        from datetime import time
+
+        if HorarioTrabalhoProfissional.objects.filter(profissional=profissional).exists():
+            return
+        for dia in range(5):  # 0=seg … 4=sex
+            HorarioTrabalhoProfissional.objects.create(
+                profissional=profissional,
+                dia_semana=dia,
+                hora_entrada=time(8, 0),
+                hora_saida=time(18, 0),
+                intervalo_inicio=time(12, 0),
+                intervalo_fim=time(13, 0),
+                ativo=True,
+            )
+
     @action(detail=True, methods=["get", "put"], url_path="horarios-trabalho")
     def horarios_trabalho(self, request, pk=None):
         profissional = self.get_object()

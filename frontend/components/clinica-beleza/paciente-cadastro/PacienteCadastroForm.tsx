@@ -24,6 +24,7 @@ export function PacienteCadastroForm({
   accentColor = 'var(--cb-primary, #8B3D52)',
   lojaSlug,
   showHeader = true,
+  hideConvenio = false,
 }: PacienteCadastroFormProps) {
   const onChange = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -62,6 +63,7 @@ export function PacienteCadastroForm({
               accentColor={accentColor}
               lojaSlug={lojaSlug}
               onChange={onChange}
+              hideConvenio={hideConvenio}
             />
             <PacienteEnderecoSection
               form={form}

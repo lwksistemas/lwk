@@ -18,6 +18,7 @@ interface PacienteDadosPessoaisSectionProps {
   accentColor: string;
   lojaSlug: string;
   onChange: (patch: Partial<PacienteFormState>) => void;
+  hideConvenio?: boolean;
 }
 
 export function PacienteDadosPessoaisSection({
@@ -27,6 +28,7 @@ export function PacienteDadosPessoaisSection({
   accentColor,
   lojaSlug,
   onChange,
+  hideConvenio = false,
 }: PacienteDadosPessoaisSectionProps) {
   return (
     <div className="space-y-4">
@@ -92,26 +94,28 @@ export function PacienteDadosPessoaisSection({
             maxLength={15}
           />
         </div>
-        <div className="sm:col-span-2">
-          <FieldLabel>Convênio padrão</FieldLabel>
-          <select
-            value={form.convenio}
-            onChange={(e) =>
-              onChange({ convenio: e.target.value ? Number(e.target.value) : "" })
-            }
-            className={FORM_SELECT_CLASS}
-          >
-            {!findConvenioParticular(convenios) && (
-              <option value="">{CONVENIO_PARTICULAR_LABEL}</option>
-            )}
-            {ordenarConveniosComParticularPrimeiro(convenios).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-                {isConvenioParticularNome(c.nome) ? " (padrão)" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!hideConvenio && (
+          <div className="sm:col-span-2">
+            <FieldLabel>Convênio padrão</FieldLabel>
+            <select
+              value={form.convenio}
+              onChange={(e) =>
+                onChange({ convenio: e.target.value ? Number(e.target.value) : "" })
+              }
+              className={FORM_SELECT_CLASS}
+            >
+              {!findConvenioParticular(convenios) && (
+                <option value="">{CONVENIO_PARTICULAR_LABEL}</option>
+              )}
+              {ordenarConveniosComParticularPrimeiro(convenios).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                  {isConvenioParticularNome(c.nome) ? " (padrão)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <label className="flex items-start gap-2.5 cursor-pointer pt-1">

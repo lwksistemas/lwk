@@ -112,7 +112,7 @@ TIPO_LOJA_EXTRA_APPS = {
     "ecommerce": ["ecommerce"],
     "restaurante": ["restaurante"],
     "servicos": ["servicos"],
-    "cabeleireiro": ["cabeleireiro"],
+    "cabeleireiro": ["cabeleireiro", "whatsapp", "nfse_integration"],
     "crm-vendas": ["crm_vendas", "nfse_integration", "whatsapp"],
     "hotel-pousada": ["hotel"],
     "hotel": ["hotel"],

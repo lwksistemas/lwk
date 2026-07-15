@@ -3,6 +3,7 @@
  * Usadas quando a loja não definiu login_background nas configurações.
  */
 import {
+  isTipoCabeleireiro,
   isTipoClinicaBeleza,
   isTipoCRMVendas,
   isTipoHotel,
@@ -13,6 +14,8 @@ export const LOGIN_BACKGROUND_PATHS = {
   clinicaBeleza: '/login-backgrounds/clinica-beleza.jpg',
   hotel: '/login-backgrounds/hotel.jpg',
   crm: '/login-backgrounds/crm-vendas.jpg',
+  /** Reusa visual clínica até haver asset dedicado do salão */
+  salao: '/login-backgrounds/clinica-beleza.jpg',
   default: '/login-backgrounds/default.jpg',
 } as const;
 
@@ -23,6 +26,7 @@ const FALLBACK_COLORS: Record<LoginBackgroundKey, string> = {
   clinicaBeleza: '#3d1a24',
   hotel: '#1a2744',
   crm: '#1e3a5f',
+  salao: '#4A3042',
   default: '#1f2937',
 };
 
@@ -31,12 +35,14 @@ export const LOGIN_THEME_COLORS: Record<LoginBackgroundKey, string> = {
   clinicaBeleza: '#c4737b',
   hotel: '#4a7ab5',
   crm: '#3b7d5c',
+  salao: '#4A3042',
   default: '#4a6a8a',
 };
 
 export function getLoginThemeColor(tipoLojaNome: string): string {
   const tipo = (tipoLojaNome || '').trim();
   if (isTipoClinicaBeleza(tipo)) return LOGIN_THEME_COLORS.clinicaBeleza;
+  if (isTipoCabeleireiro(tipo)) return LOGIN_THEME_COLORS.salao;
   if (isTipoHotel(tipo)) return LOGIN_THEME_COLORS.hotel;
   if (isTipoCRMVendas(tipo)) return LOGIN_THEME_COLORS.crm;
   return LOGIN_THEME_COLORS.default;
@@ -50,6 +56,7 @@ const LOCAL = LOGIN_BACKGROUND_PATHS;
 export function getDefaultLoginBackground(tipoLojaNome: string): string {
   const tipo = (tipoLojaNome || '').trim();
   if (isTipoClinicaBeleza(tipo)) return LOCAL.clinicaBeleza;
+  if (isTipoCabeleireiro(tipo)) return LOCAL.salao;
   if (isTipoHotel(tipo)) return LOCAL.hotel;
   if (isTipoCRMVendas(tipo)) return LOCAL.crm;
   return LOCAL.default;
@@ -89,6 +96,7 @@ export function getLoginBackgroundHintFromSlug(slug: string): string {
   if (exact[s]) return exact[s];
 
   if (s.includes('beleza') || s.includes('estetica')) return LOCAL.clinicaBeleza;
+  if (s.includes('salao') || s.includes('cabeleireiro') || s.includes('lumina')) return LOCAL.salao;
   if (s.includes('hotel') || s.includes('pousada')) return LOCAL.hotel;
   if (s.includes('crm') || s.includes('vendas')) return LOCAL.crm;
 

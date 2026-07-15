@@ -2,7 +2,7 @@
  * Helpers para tipo de app.
  * Regras centralizadas: valem para todas as lojas criadas no sistema (por tipo_loja_nome da API).
  *
- * Apps ativos: CRM Vendas, Clínica da Beleza, Hotel / Pousada.
+ * Apps ativos: CRM Vendas, Clínica da Beleza, Hotel / Pousada, Salão (cabeleireiro).
  * Clínica de Estética (legado) foi unificada em Clínica da Beleza — mesmo produto e rotas.
  */
 
@@ -35,11 +35,17 @@ export function isTipoHotel(tipoLojaNome: string): boolean {
   return s.includes('hotel') || s.includes('pousada') || s.includes('hospedagem');
 }
 
+export function isTipoCabeleireiro(tipoLojaNome: string): boolean {
+  const s = normalizarTipo(tipoLojaNome);
+  return s.includes('cabeleireiro') || s.includes('salao') || s.includes('salon');
+}
+
 /** Rota de configurações do app (para voltar da tela de WhatsApp). */
 export function configuracoesPathForTipo(slug: string, tipoLojaNome: string): string {
   if (isTipoClinicaBeleza(tipoLojaNome)) return `/loja/${slug}/clinica-beleza/configuracoes`;
   if (isTipoCRMVendas(tipoLojaNome)) return `/loja/${slug}/crm-vendas/configuracoes`;
   if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/configuracoes`;
+  if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/cabeleireiro/configuracoes`;
   return `/loja/${slug}/dashboard`;
 }
 
@@ -48,5 +54,6 @@ export function homePathForTipo(slug: string, tipoLojaNome: string): string {
   if (isTipoCRMVendas(tipoLojaNome)) return `/loja/${slug}/crm-vendas`;
   if (isTipoClinicaBeleza(tipoLojaNome)) return `/loja/${slug}/clinica-beleza/consultas`;
   if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/reservas`;
+  if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/dashboard`;
   return `/loja/${slug}/dashboard`;
 }

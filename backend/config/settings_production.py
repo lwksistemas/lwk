@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "nfse_integration.apps.NfseIntegrationConfig",  # NFS-e (emissão/listagem) — deve coincidir com config.settings
     "clinica_beleza.apps.ClinicaBelezaConfig",  # Clínica da Beleza (agenda, profissionais, etc.)
     "hotel.apps.HotelConfig",  # App de hotelaria (Hotel / Pousada)
+    "cabeleireiro.apps.CabeleireiroConfig",  # Salão de cabeleireiro (Lumina)
     "notificacoes.apps.NotificacoesConfig",  # Base de notificações (in-app, push, email, etc.)
     "push.apps.PushConfig",  # Push notifications (VAPID)
     "whatsapp.apps.WhatsappConfig",  # WhatsApp oficial (Meta Cloud API) - ETAPA 4

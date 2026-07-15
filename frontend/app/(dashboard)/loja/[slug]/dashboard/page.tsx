@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
-import { isTipoClinicaBeleza, isTipoCRMVendas, isTipoHotel } from '@/lib/loja-tipo';
+import { isTipoCabeleireiro, isTipoClinicaBeleza, isTipoCRMVendas, isTipoHotel } from '@/lib/loja-tipo';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import { logger } from '@/lib/logger';
 
@@ -18,6 +18,7 @@ const DashboardChunkSkeleton = () => (
 
 const DashboardClinicaBeleza = dynamic(() => import('./templates/clinica-beleza'), { loading: DashboardChunkSkeleton });
 const DashboardHotel = dynamic(() => import('./templates/hotel'), { loading: DashboardChunkSkeleton });
+const DashboardCabeleireiro = dynamic(() => import('./templates/cabeleireiro'), { loading: DashboardChunkSkeleton });
 
 interface LojaInfo {
   id: number;
@@ -140,11 +141,12 @@ export default function LojaDashboardDinamicoPage() {
   }
 
   const isClinicaBeleza = isTipoClinicaBeleza(lojaInfo.tipo_loja_nome);
+  const isSalao = isTipoCabeleireiro(lojaInfo.tipo_loja_nome);
   const isFullWidth = isClinicaBeleza;
 
   return (
     <>
-      {isClinicaBeleza ? (
+      {isClinicaBeleza || isSalao ? (
         renderDashboardPorTipo(lojaInfo, handleLogout)
       ) : (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
@@ -249,6 +251,7 @@ export default function LojaDashboardDinamicoPage() {
 
 function renderDashboardPorTipo(loja: LojaInfo, onLogout: () => void) {
   if (isTipoClinicaBeleza(loja.tipo_loja_nome)) return <DashboardClinicaBeleza loja={loja} onLogout={onLogout} />;
+  if (isTipoCabeleireiro(loja.tipo_loja_nome)) return <DashboardCabeleireiro loja={loja} onLogout={onLogout} />;
   if (isTipoHotel(loja.tipo_loja_nome)) return <DashboardHotel loja={loja} />;
   return <DashboardGenerico loja={loja} />;
 }

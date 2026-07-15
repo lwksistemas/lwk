@@ -13,6 +13,7 @@ import { SALAO_PRIMARY } from '@/components/cabeleireiro/salao-nav';
 import {
   dateFromFc,
   formatDateRangeISO,
+  mergeSalaoAgendaStatusColors,
   salaoAgendamentoToEvent,
   salaoBloqueioToEvent,
   SALAO_STATUS_COLORS,
@@ -20,6 +21,7 @@ import {
   shiftRange,
   weekRangeAround,
   type SalaoCalendarEvent,
+  type SalaoStatusColorMap,
 } from '@/components/cabeleireiro/salao-agenda-mappers';
 import {
   CabeleireiroAPI,
@@ -28,6 +30,7 @@ import {
   type SalaoProfissional,
   type SalaoServico,
 } from '@/lib/cabeleireiro-api';
+import apiClient from '@/lib/api-client';
 
 const FullCalendar = dynamic(() => import('@fullcalendar/react'), {
   ssr: false,
@@ -49,6 +52,9 @@ export default function SalaoAgendaPage() {
   const [clientes, setClientes] = useState<SalaoCliente[]>([]);
   const [profissionais, setProfissionais] = useState<SalaoProfissional[]>([]);
   const [servicos, setServicos] = useState<SalaoServico[]>([]);
+  const [statusColors, setStatusColors] = useState<SalaoStatusColorMap>(() =>
+    mergeSalaoAgendaStatusColors(),
+  );
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<{ data_inicio: string; data_fim: string } | null>(() =>
     weekRangeAround(),
@@ -97,11 +103,20 @@ export default function SalaoAgendaPage() {
       CabeleireiroAPI.clientes.list(),
       CabeleireiroAPI.profissionais.list(),
       CabeleireiroAPI.servicos.list(),
+      apiClient
+        .get<{ agenda_status_colors?: Record<string, { bg?: string; border?: string }> | null }>(
+          '/crm-vendas/login-config/',
+        )
+        .then((r) => r.data)
+        .catch(() => null),
     ])
-      .then(([cls, prs, svs]) => {
+      .then(([cls, prs, svs, loginCfg]) => {
         setClientes(cls);
         setProfissionais(prs);
         setServicos(svs);
+        if (loginCfg) {
+          setStatusColors(mergeSalaoAgendaStatusColors(loginCfg.agenda_status_colors));
+        }
       })
       .catch(() => undefined);
   }, []);
@@ -115,7 +130,7 @@ export default function SalaoAgendaPage() {
           CabeleireiroAPI.bloqueios.list({ start: data_inicio, end: data_fim }),
         ]);
         setEvents([
-          ...list.map((ag) => salaoAgendamentoToEvent(ag, servicosById)),
+          ...list.map((ag) => salaoAgendamentoToEvent(ag, servicosById, statusColors)),
           ...bloqueios.map(salaoBloqueioToEvent),
         ]);
       } catch {
@@ -124,7 +139,7 @@ export default function SalaoAgendaPage() {
         setLoading(false);
       }
     },
-    [servicosById],
+    [servicosById, statusColors],
   );
 
   loadRef.current = loadRange;

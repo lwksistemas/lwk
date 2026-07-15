@@ -43,6 +43,35 @@ export const SALAO_STATUS_LABEL: Record<string, string> = {
   CANCELLED: 'Cancelado',
 };
 
+export const SALAO_AGENDA_STATUS_COLOR_EDITABLE = [
+  'SCHEDULED',
+  'CLIENT_CONFIRMED',
+  'ARRIVED',
+  'IN_PROGRESS',
+  'DONE',
+  'NO_SHOW',
+  'CANCELLED',
+] as const;
+
+export type SalaoStatusColorMap = Record<string, { bg: string; border: string; text?: string }>;
+
+export function mergeSalaoAgendaStatusColors(
+  overrides?: Record<string, { bg?: string; border?: string }> | null,
+): SalaoStatusColorMap {
+  const merged: SalaoStatusColorMap = { ...SALAO_STATUS_COLORS };
+  if (!overrides || typeof overrides !== 'object') return merged;
+  for (const key of SALAO_AGENDA_STATUS_COLOR_EDITABLE) {
+    const entry = overrides[key];
+    if (!entry) continue;
+    const bg = typeof entry.bg === 'string' ? entry.bg.trim() : '';
+    const border = typeof entry.border === 'string' ? entry.border.trim() : '';
+    if (/^#[0-9A-Fa-f]{6}$/.test(bg) && /^#[0-9A-Fa-f]{6}$/.test(border)) {
+      merged[key] = { bg: bg.toLowerCase(), border: border.toLowerCase(), text: '#ffffff' };
+    }
+  }
+  return merged;
+}
+
 export const SALAO_BLOQUEIO_COLORS = { bg: '#4f46e5', border: '#4338ca', text: '#ffffff' };
 
 function pad2(n: number) {
@@ -69,6 +98,7 @@ function addMinutes(data: string, hora: string, minutes: number) {
 export function salaoAgendamentoToEvent(
   ag: SalaoAgendamento,
   servicosById?: Map<number, SalaoServico>,
+  statusColors?: SalaoStatusColorMap,
 ): SalaoCalendarEvent {
   const startHora = (ag.hora_inicio || '09:00').slice(0, 5);
   const start = `${ag.data}T${startHora}:00`;
@@ -81,7 +111,8 @@ export function salaoAgendamentoToEvent(
       40;
     end = addMinutes(ag.data, startHora, dur);
   }
-  const colors = SALAO_STATUS_COLORS[ag.status] || {
+  const palette = statusColors || SALAO_STATUS_COLORS;
+  const colors = palette[ag.status] || {
     bg: SALAO_PRIMARY,
     border: SALAO_PRIMARY,
     text: '#ffffff',
@@ -95,7 +126,7 @@ export function salaoAgendamentoToEvent(
     end,
     backgroundColor: colors.bg,
     borderColor: colors.border,
-    textColor: colors.text,
+    textColor: colors.text || '#ffffff',
     extendedProps: {
       agendamento: ag,
       status: ag.status,

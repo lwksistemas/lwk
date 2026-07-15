@@ -11,8 +11,10 @@ AGENDA_STATUS_COLOR_KEYS = (
     "CLIENT_CONFIRMED",
     "PHONE_CONFIRMED",
     "CONFIRMED",
+    "ARRIVED",  # salão
     "IN_PROGRESS",
     "COMPLETED",
+    "DONE",  # salão (alias semântico de COMPLETED)
     "CANCELLED",
     "NO_SHOW",
 )

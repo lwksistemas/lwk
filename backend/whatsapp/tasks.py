@@ -36,6 +36,104 @@ def _lojas_clinica_beleza_whatsapp():
     )
 
 
+def _lojas_cabeleireiro_whatsapp():
+    from superadmin.models import Loja
+
+    return Loja.objects.filter(
+        database_created=True,
+        is_active=True,
+        tipo_loja__slug="cabeleireiro",
+    )
+
+
+def _send_lembretes_salao_24h():
+    from cabeleireiro.models import Agendamento
+    from cabeleireiro.whatsapp_agenda import SalaoAgendamentoWhatsAppAdapter
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
+    from whatsapp.services import enviar_lembrete_agendamento
+
+    amanha = (timezone.now() + timedelta(days=1)).date()
+    enviados = 0
+    for loja in _lojas_cabeleireiro_whatsapp():
+        try:
+            db_name = _ensure_loja_db(loja)
+            set_current_loja_id(loja.id)
+            set_current_tenant_db(db_name)
+            config = _get_whatsapp_config(loja)
+            if not config or not config.whatsapp_ativo or not config.enviar_lembrete_24h:
+                continue
+            qs = Agendamento.objects.filter(
+                data=amanha,
+                is_active=True,
+                status__in=["SCHEDULED", "CLIENT_CONFIRMED"],
+            ).select_related("cliente", "servico", "profissional")
+            for ag in qs:
+                if not getattr(ag.cliente, "allow_whatsapp", True):
+                    continue
+                if not (getattr(ag.cliente, "telefone", None) or "").strip():
+                    continue
+                ok, _ = enviar_lembrete_agendamento(
+                    SalaoAgendamentoWhatsAppAdapter(ag), user=None, config=config,
+                )
+                if ok:
+                    enviados += 1
+        except Exception as e:
+            logger.exception("WhatsApp lembrete 24h salão loja %s: %s", getattr(loja, "slug", loja.id), e)
+        finally:
+            set_current_loja_id(None)
+            set_current_tenant_db("default")
+    return enviados
+
+
+def _send_lembretes_salao_2h():
+    from cabeleireiro.models import Agendamento
+    from cabeleireiro.whatsapp_agenda import SalaoAgendamentoWhatsAppAdapter
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
+    from whatsapp.services import enviar_lembrete_agendamento
+
+    now = timezone.localtime()
+    inicio = now + timedelta(hours=1, minutes=50)
+    fim = now + timedelta(hours=2, minutes=10)
+    enviados = 0
+    for loja in _lojas_cabeleireiro_whatsapp():
+        try:
+            db_name = _ensure_loja_db(loja)
+            set_current_loja_id(loja.id)
+            set_current_tenant_db(db_name)
+            config = _get_whatsapp_config(loja)
+            if not config or not config.whatsapp_ativo or not config.enviar_lembrete_2h:
+                continue
+            # Filtra por data nos dias da janela e checa hora no Python
+            datas = {inicio.date(), fim.date()}
+            qs = Agendamento.objects.filter(
+                data__in=datas,
+                is_active=True,
+                status__in=["SCHEDULED", "CLIENT_CONFIRMED"],
+            ).select_related("cliente", "servico", "profissional")
+            from datetime import datetime as dt_cls
+
+            for ag in qs:
+                if not getattr(ag.cliente, "allow_whatsapp", True):
+                    continue
+                if not (getattr(ag.cliente, "telefone", None) or "").strip():
+                    continue
+                naive = dt_cls.combine(ag.data, ag.hora_inicio)
+                aware = timezone.make_aware(naive, timezone.get_current_timezone())
+                if not (inicio <= aware <= fim):
+                    continue
+                ok, _ = enviar_lembrete_agendamento(
+                    SalaoAgendamentoWhatsAppAdapter(ag), user=None, config=config,
+                )
+                if ok:
+                    enviados += 1
+        except Exception as e:
+            logger.exception("WhatsApp lembrete 2h salão loja %s: %s", getattr(loja, "slug", loja.id), e)
+        finally:
+            set_current_loja_id(None)
+            set_current_tenant_db("default")
+    return enviados
+
+
 def send_lembretes_24h_whatsapp():
     """Envia lembrete por WhatsApp 24h antes do agendamento.
     Itera sobre lojas com database_created e configuração habilitada.
@@ -73,6 +171,7 @@ def send_lembretes_24h_whatsapp():
         finally:
             set_current_loja_id(None)
             set_current_tenant_db("default")
+    enviados += _send_lembretes_salao_24h()
     logger.info("WhatsApp lembretes 24h: %d enviados", enviados)
     return enviados
 
@@ -117,6 +216,7 @@ def send_lembretes_2h_whatsapp():
         finally:
             set_current_loja_id(None)
             set_current_tenant_db("default")
+    enviados += _send_lembretes_salao_2h()
     logger.info("WhatsApp lembretes 2h: %d enviados", enviados)
     return enviados
 

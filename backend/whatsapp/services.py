@@ -642,7 +642,8 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
     loja_id = getattr(agendamento, "loja_id", None) or _config_loja_id(config)
     link = None
     if loja_id and agendamento.id:
-        token = gerar_token_confirmacao(loja_id, agendamento.id)
+        modulo = getattr(agendamento, "whatsapp_modulo", None) or "clinica_beleza"
+        token = gerar_token_confirmacao(loja_id, agendamento.id, modulo=modulo)
         link = url_confirmacao_frontend(token)
 
     msg = msg_confirmacao(agendamento, link_confirmacao=link, config=config)
@@ -705,7 +706,8 @@ def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, conf
 
 def enviar_lembrete_agendamento(agendamento, user=None, config=None):
     """Envia lembrete por WhatsApp (ex.: dia do atendimento). Passar config da loja. Retorna (ok, erro)."""
-    phone = getattr(agendamento.patient, "phone", None)
+    patient = getattr(agendamento, "patient", None)
+    phone = getattr(patient, "phone", None) or getattr(patient, "telefone", None) if patient else None
     if not phone:
         return False, "Paciente sem telefone cadastrado."
     msg = msg_lembrete(agendamento)

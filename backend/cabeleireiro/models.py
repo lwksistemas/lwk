@@ -61,6 +61,7 @@ class Agendamento(LojaIsolationMixin, models.Model):
     """Agendamento / atendimento do salão."""
 
     STATUS_SCHEDULED = "SCHEDULED"
+    STATUS_CLIENT_CONFIRMED = "CLIENT_CONFIRMED"
     STATUS_ARRIVED = "ARRIVED"
     STATUS_IN_PROGRESS = "IN_PROGRESS"
     STATUS_DONE = "DONE"
@@ -68,6 +69,7 @@ class Agendamento(LojaIsolationMixin, models.Model):
     STATUS_CANCELLED = "CANCELLED"
     STATUS_CHOICES = [
         (STATUS_SCHEDULED, "Agendado"),
+        (STATUS_CLIENT_CONFIRMED, "Confirmado pelo cliente"),
         (STATUS_ARRIVED, "Chegou"),
         (STATUS_IN_PROGRESS, "Em atendimento"),
         (STATUS_DONE, "Concluído"),

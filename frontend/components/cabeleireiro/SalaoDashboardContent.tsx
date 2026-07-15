@@ -1,11 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
 import { CabeleireiroAPI, type SalaoAgendamento, type SalaoDashboard } from '@/lib/cabeleireiro-api';
 import { SALAO_PRIMARY } from './salao-nav';
 import { SalaoShell } from './SalaoShell';
 import { Parisienne } from 'next/font/google';
+
+const sidebarStorageKey = (slug: string) => `salao_sidebar_hidden_${slug}`;
 
 const scriptFont = Parisienne({
   weight: '400',
@@ -30,6 +33,7 @@ export function SalaoDashboardContent({
   const [data, setData] = useState<SalaoDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
   const primary = loja.cor_primaria || SALAO_PRIMARY;
 
   const load = useCallback(async () => {
@@ -46,6 +50,28 @@ export function SalaoDashboardContent({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sync = () => setSidebarHidden(sessionStorage.getItem(sidebarStorageKey(loja.slug)) === '1');
+    sync();
+    const onToggle = (e: Event) => {
+      const detail = (e as CustomEvent<{ hidden?: boolean }>).detail;
+      if (typeof detail?.hidden === 'boolean') setSidebarHidden(detail.hidden);
+      else sync();
+    };
+    window.addEventListener('salao-sidebar-toggle', onToggle);
+    return () => window.removeEventListener('salao-sidebar-toggle', onToggle);
+  }, [loja.slug]);
+
+  const toggleSidebar = () => {
+    const next = !sidebarHidden;
+    setSidebarHidden(next);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(sidebarStorageKey(loja.slug), next ? '1' : '0');
+      window.dispatchEvent(new CustomEvent('salao-sidebar-toggle', { detail: { hidden: next } }));
+    }
+  };
 
   const confirmar = async (ag: SalaoAgendamento) => {
     setConfirmingId(ag.id);
@@ -76,6 +102,18 @@ export function SalaoDashboardContent({
       <div className="absolute inset-0 bg-[#F7F0F3]/55 backdrop-blur-[1px]" />
 
       <div className="relative z-10 flex flex-col items-center px-4 py-10 md:py-16 max-w-3xl mx-auto">
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className="absolute top-4 right-4 md:top-6 md:right-6 hidden lg:inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-white/80 backdrop-blur border border-white/70 shadow-sm hover:bg-white transition-colors"
+          style={{ color: primary }}
+          title={sidebarHidden ? 'Mostrar menu lateral' : 'Ocultar menu lateral'}
+          aria-label={sidebarHidden ? 'Mostrar menu lateral' : 'Ocultar menu lateral'}
+        >
+          {sidebarHidden ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          {sidebarHidden ? 'Mostrar menu' : 'Ocultar menu'}
+        </button>
+
         <h1
           className="text-5xl md:text-6xl text-[var(--salao-primary)] drop-shadow-sm"
           style={{ fontFamily: 'var(--font-salao-script), cursive' }}
@@ -121,7 +159,9 @@ export function SalaoDashboardContent({
                     {ag.profissional_nome ? ` · ${ag.profissional_nome}` : ''}
                   </p>
                 </div>
-                {ag.status === 'SCHEDULED' || ag.status === 'ARRIVED' ? (
+                {ag.status === 'SCHEDULED' ||
+                ag.status === 'CLIENT_CONFIRMED' ||
+                ag.status === 'ARRIVED' ? (
                   <button
                     type="button"
                     disabled={confirmingId === ag.id || ag.status === 'ARRIVED'}

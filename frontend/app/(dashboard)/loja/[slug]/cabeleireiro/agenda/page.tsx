@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Check } from 'lucide-react';
+import { CalendarDays, Check, MessageCircle } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { SalaoPageHeader } from '@/components/cabeleireiro/SalaoPageHeader';
 import { SALAO_PRIMARY } from '@/components/cabeleireiro/salao-nav';
@@ -31,6 +31,7 @@ export default function SalaoAgendaPage() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [reenviandoId, setReenviandoId] = useState<number | null>(null);
   const [form, setForm] = useState({
     cliente: '',
     profissional: '',
@@ -117,6 +118,22 @@ export default function SalaoAgendaPage() {
     }
   };
 
+  const reenviarWhatsApp = async (ag: SalaoAgendamento) => {
+    setReenviandoId(ag.id);
+    try {
+      await CabeleireiroAPI.reenviarConfirmacaoWhatsApp(ag.id);
+      alert('Confirmação reenviada por WhatsApp.');
+    } catch (e: unknown) {
+      const detail =
+        e && typeof e === 'object' && 'response' in e
+          ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : null;
+      alert(detail || 'Não foi possível reenviar. Verifique WhatsApp em Configurações.');
+    } finally {
+      setReenviandoId(null);
+    }
+  };
+
   return (
     <div>
       <SalaoPageHeader
@@ -159,18 +176,35 @@ export default function SalaoAgendaPage() {
                   {ag.status_display ? ` · ${ag.status_display}` : ''}
                 </p>
               </div>
-              {(ag.status === 'SCHEDULED' || ag.status === 'ARRIVED') && (
-                <button
-                  type="button"
-                  disabled={ag.status === 'ARRIVED'}
-                  onClick={() => void confirmarChegada(ag)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white disabled:opacity-60"
-                  style={{ backgroundColor: SALAO_PRIMARY }}
-                >
-                  <Check size={14} />
-                  {ag.status === 'ARRIVED' ? 'Chegou' : 'Confirmar chegada'}
-                </button>
-              )}
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {ag.status === 'SCHEDULED' && (
+                  <button
+                    type="button"
+                    disabled={reenviandoId === ag.id}
+                    onClick={() => void reenviarWhatsApp(ag)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-[#E8D5DC] bg-white hover:bg-[#F7F0F3] disabled:opacity-60"
+                    style={{ color: SALAO_PRIMARY }}
+                    title="Reenviar confirmação por WhatsApp"
+                  >
+                    <MessageCircle size={14} />
+                    {reenviandoId === ag.id ? 'Enviando...' : 'WhatsApp'}
+                  </button>
+                )}
+                {(ag.status === 'SCHEDULED' ||
+                  ag.status === 'CLIENT_CONFIRMED' ||
+                  ag.status === 'ARRIVED') && (
+                  <button
+                    type="button"
+                    disabled={ag.status === 'ARRIVED'}
+                    onClick={() => void confirmarChegada(ag)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white disabled:opacity-60"
+                    style={{ backgroundColor: SALAO_PRIMARY }}
+                  >
+                    <Check size={14} />
+                    {ag.status === 'ARRIVED' ? 'Chegou' : 'Confirmar chegada'}
+                  </button>
+                )}
+              </div>
             </div>
           ))
         )}

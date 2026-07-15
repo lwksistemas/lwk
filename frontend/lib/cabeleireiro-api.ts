@@ -89,6 +89,13 @@ export const CabeleireiroAPI = {
     );
     return data;
   },
+  reenviarConfirmacaoWhatsApp: async (id: number) => {
+    const { data } = await apiClient.post<{ ok: boolean; detail: string }>(
+      `${BASE}/agendamentos/${id}/reenviar-mensagem/`,
+      {},
+    );
+    return data;
+  },
   clientes: {
     list: async (params?: { search?: string }) => {
       const { data } = await apiClient.get(`${BASE}/clientes/`, { params });

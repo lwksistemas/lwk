@@ -65,6 +65,12 @@ class AgendamentoViewSet(BaseModelViewSet):
             qs = qs.filter(profissional_id=profissional_id)
         return qs
 
+    def perform_create(self, serializer):
+        ag = serializer.save()
+        from .whatsapp_agenda import enviar_confirmacao_agendamento_salao
+
+        enviar_confirmacao_agendamento_salao(ag, user=self.request.user)
+
     @action(detail=True, methods=["post"], url_path="confirmar-chegada")
     def confirmar_chegada(self, request, pk=None):
         ag = self.get_object()
@@ -76,6 +82,28 @@ class AgendamentoViewSet(BaseModelViewSet):
         ag.status = Agendamento.STATUS_ARRIVED
         ag.save(update_fields=["status", "updated_at"])
         return Response(AgendamentoSerializer(ag).data)
+
+    @action(detail=True, methods=["post"], url_path="reenviar-mensagem")
+    def reenviar_mensagem(self, request, pk=None):
+        """Reenvia confirmação WhatsApp (mesmo fluxo da clínica)."""
+        ag = self.get_object()
+        if ag.status not in (Agendamento.STATUS_SCHEDULED, Agendamento.STATUS_CLIENT_CONFIRMED):
+            return Response(
+                {"detail": "Só é possível reenviar para agendamentos aguardando ou já confirmados."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if ag.status == Agendamento.STATUS_CLIENT_CONFIRMED:
+            # Clínica só reenvia em STATUS_ACIONAVEIS; alinhamos a só SCHEDULED
+            return Response(
+                {"detail": "Cliente já confirmou. Crie novo agendamento se precisar remarcar."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        from .whatsapp_agenda import enviar_confirmacao_agendamento_salao
+
+        ok, err = enviar_confirmacao_agendamento_salao(ag, user=request.user)
+        if not ok:
+            return Response({"detail": err or "Falha ao enviar WhatsApp."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"ok": True, "detail": "Mensagem reenviada."})
 
 
 class SalaoDashboardViewSet(ViewSet):
@@ -95,6 +123,7 @@ class SalaoDashboardViewSet(ViewSet):
                 data=hoje,
                 status__in=(
                     Agendamento.STATUS_SCHEDULED,
+                    Agendamento.STATUS_CLIENT_CONFIRMED,
                     Agendamento.STATUS_ARRIVED,
                     Agendamento.STATUS_IN_PROGRESS,
                 ),

@@ -1,10 +1,11 @@
 """Models do app Salão (cabeleireiro) — multi-tenant por schema."""
+from datetime import datetime, time
 from decimal import Decimal
 
 from django.core.validators import MinValueValidator
 from django.db import models
 
-from agenda_base.models import ClienteBase, ProfissionalBase, ServicoBase
+from agenda_base.models import BloqueioAgendaBase, ClienteBase, ProfissionalBase, ServicoBase
 from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 
@@ -128,3 +129,53 @@ class Agendamento(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f"{self.cliente_id} @ {self.data} {self.hora_inicio}"
+
+
+class BloqueioHorario(BloqueioAgendaBase):
+    """Bloqueio de horário na agenda do salão (mesmo padrão da clínica)."""
+
+    profissional = models.ForeignKey(
+        Profissional,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="bloqueios",
+        verbose_name="Profissional",
+        help_text="Vazio = bloqueio geral (todos)",
+    )
+    motivo = models.CharField(max_length=100, verbose_name="Motivo")
+    criado_em = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
+
+    @property
+    def data_inicio_dt(self):
+        if self.horario_inicio:
+            return datetime.combine(self.data_inicio, self.horario_inicio)
+        return datetime.combine(self.data_inicio, time.min)
+
+    @property
+    def data_fim_dt(self):
+        if self.horario_fim:
+            return datetime.combine(self.data_fim, self.horario_fim)
+        return datetime.combine(self.data_fim, time.max)
+
+    class Meta(BloqueioAgendaBase.Meta):
+        app_label = "cabeleireiro"
+        db_table = "cabeleireiro_bloqueiohorario"
+        verbose_name = "Bloqueio de Horário"
+        verbose_name_plural = "Bloqueios de Horário"
+        ordering = ["-data_inicio"]
+        indexes = [
+            models.Index(fields=["data_inicio", "data_fim"], name="cab_bloq_data_idx"),
+            models.Index(fields=["profissional", "data_inicio"], name="cab_bloq_prof_idx"),
+            models.Index(fields=["loja_id", "data_inicio"], name="cab_bloq_loja_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.motivo} ({self.data_inicio} - {self.data_fim})"
+
+    def save(self, *args, **kwargs):
+        if not self.titulo:
+            self.titulo = self.motivo
+        if not self.tipo:
+            self.tipo = "outros"
+        super().save(*args, **kwargs)

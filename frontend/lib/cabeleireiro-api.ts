@@ -62,6 +62,18 @@ export type SalaoAgendamento = {
   observacoes?: string;
 };
 
+export type SalaoBloqueio = {
+  id: number;
+  professional?: number | null;
+  profissional?: number | null;
+  professional_name?: string | null;
+  data_inicio: string;
+  data_fim: string;
+  motivo: string;
+  observacoes?: string | null;
+  criado_em?: string;
+};
+
 export type SalaoDashboard = {
   data: string;
   total_hoje: number;
@@ -172,6 +184,29 @@ export const CabeleireiroAPI = {
     },
     remove: async (id: number) => {
       await apiClient.delete(`${BASE}/agendamentos/${id}/`);
+    },
+  },
+  bloqueios: {
+    list: async (params?: {
+      start?: string;
+      end?: string;
+      data_inicio?: string;
+      data_fim?: string;
+      professional?: number | string;
+    }) => {
+      const { data } = await apiClient.get(`${BASE}/bloqueios/`, { params });
+      return unwrapList<SalaoBloqueio>(data);
+    },
+    create: async (payload: Record<string, unknown>) => {
+      const { data } = await apiClient.post<SalaoBloqueio>(`${BASE}/bloqueios/`, payload);
+      return data;
+    },
+    update: async (id: number, payload: Record<string, unknown>) => {
+      const { data } = await apiClient.patch<SalaoBloqueio>(`${BASE}/bloqueios/${id}/`, payload);
+      return data;
+    },
+    remove: async (id: number) => {
+      await apiClient.delete(`${BASE}/bloqueios/${id}/`);
     },
   },
 };

@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
@@ -10,9 +11,10 @@ from rest_framework.viewsets import ViewSet
 from core.views import BaseModelViewSet
 from tenants.middleware import get_current_loja_id
 
-from .models import Agendamento, Cliente, Profissional, Servico
+from .models import Agendamento, BloqueioHorario, Cliente, Profissional, Servico
 from .serializers import (
     AgendamentoSerializer,
+    BloqueioHorarioSerializer,
     ClienteSerializer,
     ProfissionalSerializer,
     ServicoSerializer,
@@ -110,6 +112,29 @@ class AgendamentoViewSet(BaseModelViewSet):
         if not ok:
             return Response({"detail": err or "Falha ao enviar WhatsApp."}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"ok": True, "detail": "Mensagem reenviada."})
+
+
+class BloqueioHorarioViewSet(BaseModelViewSet):
+    serializer_class = BloqueioHorarioSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = BloqueioHorario.objects.filter(is_active=True).select_related("profissional").order_by(
+            "-data_inicio",
+        )
+        start = self.request.query_params.get("start") or self.request.query_params.get("data_inicio")
+        end = self.request.query_params.get("end") or self.request.query_params.get("data_fim")
+        if start:
+            qs = qs.filter(data_fim__gte=start[:10])
+        if end:
+            qs = qs.filter(data_inicio__lte=end[:10])
+        profissional = (
+            self.request.query_params.get("profissional")
+            or self.request.query_params.get("professional")
+        )
+        if profissional:
+            qs = qs.filter(Q(profissional_id=profissional) | Q(profissional_id__isnull=True))
+        return qs
 
 
 class SalaoDashboardViewSet(ViewSet):

@@ -1,20 +1,25 @@
-"""Libera loja beta (vendasbeta) para testes com vencimento em 1 ano."""
+"""Libera loja beta para testes com vencimento em 1 ano (remove aviso de assinatura)."""
 from datetime import date, timedelta
 
 from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
-    help = "Libera a loja beta (vendasbeta) de inadimplencia e define vencimento em 1 ano"
+    help = "Libera loja de teste (inadimplência + vencimento em 1 ano). Aceita slug ou atalho."
 
     def add_arguments(self, parser):
-        parser.add_argument("--slug", default="vendasbeta", help="Slug da loja a liberar")
+        parser.add_argument(
+            "--slug",
+            default="vendasbeta",
+            help="Slug ou atalho da loja (ex.: luminademo, lumina-demo, vendasbeta)",
+        )
 
     def handle(self, *args, **options):
-        from superadmin.models import FinanceiroLoja, Loja
+        from superadmin.loja_utils import resolve_loja_by_slug_or_atalho
+        from superadmin.models import FinanceiroLoja
 
         slug = options["slug"]
-        loja = Loja.objects.filter(slug=slug).first()
+        loja = resolve_loja_by_slug_or_atalho(slug, is_active=False)
         if not loja:
             self.stdout.write(self.style.ERROR(f"Loja {slug} nao encontrada"))
             return
@@ -38,6 +43,10 @@ class Command(BaseCommand):
         financeiro.status_pagamento = "ativo"
         financeiro.save(update_fields=["data_proxima_cobranca", "status_pagamento"])
 
-        self.stdout.write(self.style.SUCCESS(
-            f"Loja {slug} liberada. Proximo vencimento: {proximo_ano.isoformat()}",
-        ))
+        label = loja.atalho or loja.slug
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Loja {label} (slug={loja.slug}) liberada. "
+                f"Proximo vencimento: {proximo_ano.isoformat()}",
+            ),
+        )

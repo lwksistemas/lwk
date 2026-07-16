@@ -176,6 +176,54 @@ def msg_confirmacao_agendamento(
     return "\n".join(linhas)
 
 
+def msg_confirmacao_agendamento_salao(
+    *,
+    nome: str,
+    data: str,
+    hora: str,
+    procedimento: str,
+    profissional: str | None = None,
+    link: str | None = None,
+) -> str:
+    """Confirmação WhatsApp para salão / cabeleireiro (sem linguagem de consulta clínica)."""
+    linhas = [
+        "📅 *Confirmação de Agendamento*",
+        SEPARADOR,
+        f"Olá *{nome}*! 😊",
+        "",
+        "Você tem um horário marcado conosco:",
+        "",
+        f"📆 *Data:* {data}",
+        f"⏰ *Hora:* {hora}",
+        f"✂️ *Serviço:* {procedimento}",
+    ]
+    if profissional:
+        linhas.append(f"👤 *Profissional:* {profissional}")
+
+    linhas.append("")
+
+    if link:
+        linhas.extend([
+            "Por favor, confirme ou cancele seu horário:",
+            "",
+            "👇 *Abra o link e toque em Confirmar ou Cancelar:*",
+            link,
+            "",
+            "_Ou responda neste chat:_ *CONFIRMAR* ou *CANCELAR*",
+            "",
+            SEPARADOR,
+            "_Qualquer dúvida, fale conosco. Até breve!_",
+        ])
+    else:
+        linhas.extend([
+            "Responda *CONFIRMAR* ou *CANCELAR* neste chat.",
+            "",
+            SEPARADOR,
+            "_Qualquer dúvida, fale conosco. Até breve!_",
+        ])
+    return "\n".join(linhas)
+
+
 def msg_lembrete_agendamento(*, nome: str, hora: str, procedimento: str) -> str:
     """Lembrete de agendamento no dia."""
     return "\n".join([
@@ -187,6 +235,21 @@ def msg_lembrete_agendamento(*, nome: str, hora: str, procedimento: str) -> str:
         f"💆 *{procedimento}*",
         "",
         "Estamos te aguardando! 🤗",
+        SEPARADOR,
+    ])
+
+
+def msg_lembrete_agendamento_salao(*, nome: str, hora: str, procedimento: str) -> str:
+    """Lembrete no dia — salão / cabeleireiro."""
+    return "\n".join([
+        "⏰ *Lembrete de Horário*",
+        SEPARADOR,
+        f"Olá *{nome}*! 😊",
+        "",
+        f"Seu horário é *hoje às {hora}*.",
+        f"✂️ *{procedimento}*",
+        "",
+        "Te esperamos no salão! 💇‍♀️",
         SEPARADOR,
     ])
 

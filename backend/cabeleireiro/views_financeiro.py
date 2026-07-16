@@ -19,6 +19,24 @@ from .models import Agendamento, Payment
 from .serializers import PaymentSerializer
 
 
+class LojaInfoView(APIView):
+    """GET /cabeleireiro/loja-info/ — dados da loja para recibo impresso."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Mesmo payload da clínica (nome, CPF/CNPJ, endereço, tel, e-mail).
+        from clinica_beleza.utils import LojaContextHelper
+
+        info = LojaContextHelper.get_loja_owner_info()
+        if info is None:
+            return Response(
+                {"error": "Contexto de loja não encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(info)
+
+
 class PaymentListView(APIView):
     """GET /cabeleireiro/payments/"""
 
@@ -74,7 +92,11 @@ class PaymentEnviarReciboView(APIView):
 
 
 class ReciboPdfPublicView(APIView):
-    """GET /cabeleireiro/payments/<id>/recibo-pdf/<token>/"""
+    """GET /cabeleireiro/payments/<id>/recibo-pdf/<token>/
+
+    Aceita cache (rápido) ou regenera via token HMAC se o worker não tiver o PDF
+    (staging com locmem / multi-réplica).
+    """
 
     permission_classes = []
     authentication_classes = []
@@ -82,14 +104,70 @@ class ReciboPdfPublicView(APIView):
     def get(self, request, pk, token):
         from django.core.cache import cache as django_cache
 
+        from .recibo_service import (
+            gerar_pdf_recibo_payment,
+            parse_recibo_pdf_token,
+        )
+
         cached = django_cache.get(f"recibo_pdf_salao_{token}")
-        if not cached:
-            return Response({"error": "Recibo expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
-        if not isinstance(cached, dict) or cached.get("payment_id") != pk:
-            return Response({"error": "Recibo expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
-        pdf_bytes = cached.get("pdf")
-        if not pdf_bytes:
-            return Response({"error": "Recibo expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
+        if isinstance(cached, dict) and cached.get("payment_id") == pk and cached.get("pdf"):
+            response = HttpResponse(cached["pdf"], content_type="application/pdf")
+            response["Content-Disposition"] = f'inline; filename="recibo_{pk}.pdf"'
+            return response
+
+        loja_id = parse_recibo_pdf_token(token, expected_payment_id=pk)
+        if not loja_id:
+            return Response(
+                {"error": "Recibo expirado ou inválido."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            from superadmin.models import Loja
+            from tenants.middleware import (
+                _configure_tenant_db_for_loja,
+                set_current_loja_id,
+                set_current_tenant_db,
+            )
+
+            loja = Loja.objects.filter(id=loja_id).first()
+            if not loja:
+                return Response(
+                    {"error": "Recibo expirado ou inválido."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if not _configure_tenant_db_for_loja(loja, request=None):
+                return Response(
+                    {"error": "Recibo expirado ou inválido."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            try:
+                payment = Payment.objects.select_related(
+                    "agendamento",
+                    "agendamento__cliente",
+                    "agendamento__profissional",
+                    "agendamento__servico",
+                ).get(pk=pk, loja_id=loja_id)
+                pdf_bytes = gerar_pdf_recibo_payment(payment)
+            finally:
+                set_current_loja_id(None)
+                set_current_tenant_db("default")
+        except Payment.DoesNotExist:
+            return Response(
+                {"error": "Recibo expirado ou inválido."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception:
+            return Response(
+                {"error": "Recibo expirado ou inválido."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        django_cache.set(
+            f"recibo_pdf_salao_{token}",
+            {"payment_id": pk, "pdf": pdf_bytes},
+            600,
+        )
         response = HttpResponse(pdf_bytes, content_type="application/pdf")
         response["Content-Disposition"] = f'inline; filename="recibo_{pk}.pdf"'
         return response

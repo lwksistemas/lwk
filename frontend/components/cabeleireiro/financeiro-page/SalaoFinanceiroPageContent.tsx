@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { SalaoPageHeader } from '@/components/cabeleireiro/SalaoPageHeader';
 import { SALAO_PRIMARY } from '@/components/cabeleireiro/salao-nav';
+import { formatApiError } from '@/lib/api-errors';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import {
   CabeleireiroAPI,
@@ -103,8 +104,8 @@ export function SalaoFinanceiroPageContent() {
     try {
       const res = await CabeleireiroAPI.payments.enviarRecibo(id, canal);
       alert(res.message || (res.success ? 'Enviado' : res.error || 'Falha'));
-    } catch {
-      alert('Erro ao enviar recibo');
+    } catch (e) {
+      alert(formatApiError(e) || 'Erro ao enviar recibo');
     } finally {
       setSendingRecibo(null);
     }

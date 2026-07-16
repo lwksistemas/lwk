@@ -12,6 +12,7 @@ from .views import (
 )
 from .views_financeiro import (
     FinanceiroResumoView,
+    LojaInfoView,
     PaymentEnviarReciboView,
     PaymentListView,
     ReciboPdfPublicView,
@@ -29,6 +30,7 @@ router.register(r"bloqueios", BloqueioHorarioViewSet, basename="salao-bloqueios"
 router.register(r"dashboard", SalaoDashboardViewSet, basename="salao-dashboard")
 
 urlpatterns = [
+    path("loja-info/", LojaInfoView.as_view(), name="salao-loja-info"),
     path("financeiro/resumo/", FinanceiroResumoView.as_view(), name="salao-financeiro-resumo"),
     path("payments/", PaymentListView.as_view(), name="salao-payments"),
     path("payments/<int:pk>/enviar-recibo/", PaymentEnviarReciboView.as_view(), name="salao-enviar-recibo"),

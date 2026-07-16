@@ -183,10 +183,28 @@ function unwrapList<T>(data: unknown): T[] {
   return [];
 }
 
+export type SalaoLojaInfo = {
+  nome?: string;
+  cpf_cnpj?: string;
+  endereco?: string;
+  telefone?: string;
+  email?: string;
+  cep?: string;
+  owner_username?: string;
+  owner_email?: string;
+  owner_telefone?: string;
+};
+
 export const CabeleireiroAPI = {
   dashboard: async () => {
     const { data } = await apiClient.get<SalaoDashboard>(`${BASE}/dashboard/`);
     return data;
+  },
+  loja: {
+    info: async () => {
+      const { data } = await apiClient.get<SalaoLojaInfo>(`${BASE}/loja-info/`);
+      return data;
+    },
   },
   confirmarChegada: async (id: number) => {
     const { data } = await apiClient.post<SalaoAgendamento>(

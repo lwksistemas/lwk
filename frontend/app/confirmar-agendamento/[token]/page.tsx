@@ -10,11 +10,14 @@ interface AgendamentoData {
   paciente_nome: string;
   profissional_nome: string;
   procedimento: string;
+  servico_label?: string;
   data: string;
   hora: string;
   status: string;
   status_display: string;
   clinica_nome: string;
+  loja_nome?: string;
+  modulo?: string;
   pode_responder: boolean;
   motivo_bloqueio?: 'confirmado' | 'cancelado' | 'indisponivel' | null;
 }
@@ -35,11 +38,21 @@ function useIsMobileViewport() {
   return isMobile;
 }
 
-function mensagemPacientePosResposta(status: string): string {
-  if (status === "CANCELLED") {
-    return "Consulta cancelada. Se precisar remarcar, entre em contato conosco.";
+function isSalaoModulo(modulo?: string): boolean {
+  const m = (modulo || '').toLowerCase();
+  return m === 'cabeleireiro' || m === 'salao';
+}
+
+function mensagemPacientePosResposta(status: string, modulo?: string): string {
+  const salao = isSalaoModulo(modulo);
+  if (status === 'CANCELLED') {
+    return salao
+      ? 'Horário cancelado. Se precisar remarcar, fale conosco.'
+      : 'Consulta cancelada. Se precisar remarcar, entre em contato conosco.';
   }
-  return "Consulta confirmada! Aguardamos você no horário marcado.";
+  return salao
+    ? 'Horário confirmado! Te esperamos no salão.'
+    : 'Consulta confirmada! Aguardamos você no horário marcado.';
 }
 
 function fecharPagina() {
@@ -227,6 +240,7 @@ export default function ConfirmarAgendamentoPage() {
   const bloqueadoSemResposta =
     !agendamento.pode_responder && !jaRespondido && !resultado?.ok;
 
+  const salao = isSalaoModulo(agendamento.modulo);
   const mensagemBloqueio = (() => {
     if (agendamento.motivo_bloqueio === 'confirmado') {
       return 'Este agendamento já foi confirmado.';
@@ -234,8 +248,15 @@ export default function ConfirmarAgendamentoPage() {
     if (agendamento.motivo_bloqueio === 'cancelado') {
       return 'Este agendamento já foi cancelado.';
     }
-    return `Não é possível confirmar ou cancelar online. Status atual: ${agendamento.status_display}. Entre em contato com a clínica.`;
+    return salao
+      ? `Não é possível confirmar ou cancelar online. Status atual: ${agendamento.status_display}. Entre em contato com o salão.`
+      : `Não é possível confirmar ou cancelar online. Status atual: ${agendamento.status_display}. Entre em contato com a clínica.`;
   })();
+  const titulo = salao ? 'Confirmação de horário' : 'Confirmação de consulta';
+  const labelServico = agendamento.servico_label || (salao ? 'Serviço' : 'Procedimento');
+  const promptAcao = salao
+    ? 'Confirme ou cancele seu horário:'
+    : 'Confirme ou cancele sua consulta:';
 
   return (
     <ConfirmacaoShell isMobile={isMobile}>
@@ -245,13 +266,13 @@ export default function ConfirmarAgendamentoPage() {
       >
         {mostrarDetalhes && (
           <>
-            {agendamento.clinica_nome && (
+            {(agendamento.clinica_nome || agendamento.loja_nome) && (
               <p className="text-sm md:text-xs text-purple-600 font-medium text-center mb-1 pr-6">
-                {agendamento.clinica_nome}
+                {agendamento.clinica_nome || agendamento.loja_nome}
               </p>
             )}
             <h1 className="text-2xl md:text-base font-bold text-gray-800 text-center mb-5 md:mb-3 pr-6">
-              Confirmação de consulta
+              {titulo}
             </h1>
 
             <div className="space-y-2.5 md:space-y-2 mb-5 md:mb-4 text-sm md:text-[13px]">
@@ -269,7 +290,9 @@ export default function ConfirmarAgendamentoPage() {
               </div>
               <div className="flex items-center gap-2.5 text-gray-700">
                 <Stethoscope className="w-4 h-4 text-purple-500 shrink-0" />
-                <span>{agendamento.procedimento}</span>
+                <span>
+                  {labelServico}: {agendamento.procedimento}
+                </span>
               </div>
               {agendamento.profissional_nome && (
                 <div className="flex items-center gap-2.5 text-gray-700">
@@ -308,7 +331,7 @@ export default function ConfirmarAgendamentoPage() {
         {!resultado?.ok && agendamento.pode_responder && (
           <div className="space-y-3">
             <p className="text-center text-sm font-medium text-gray-700">
-              Confirme ou cancele sua consulta:
+              {promptAcao}
             </p>
             <div className="flex flex-col sm:flex-row gap-2.5">
             <button
@@ -353,7 +376,7 @@ export default function ConfirmarAgendamentoPage() {
               cancelado ? "bg-gray-50 text-gray-700" : "bg-green-50 text-green-800"
             }`}
           >
-            <p className="mb-2">{mensagemPacientePosResposta(agendamento.status)}</p>
+            <p className="mb-2">{mensagemPacientePosResposta(agendamento.status, agendamento.modulo)}</p>
             <button
               type="button"
               onClick={tentarFechar}

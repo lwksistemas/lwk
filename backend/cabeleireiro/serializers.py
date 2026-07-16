@@ -15,6 +15,7 @@ from .models import (
     CategoriaServico,
     Cliente,
     HorarioTrabalhoProfissional,
+    Payment,
     Profissional,
     ProfissionalComissao,
     Servico,
@@ -305,3 +306,37 @@ class BloqueioHorarioSerializer(serializers.ModelSerializer):
             setattr(instance, k, v)
         instance.save()
         return instance
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    cliente_nome = serializers.CharField(source="agendamento.cliente.nome", read_only=True)
+    profissional_nome = serializers.SerializerMethodField()
+    servico_nome = serializers.SerializerMethodField()
+    data_atendimento = serializers.DateField(source="agendamento.data", read_only=True)
+    hora_atendimento = serializers.TimeField(source="agendamento.hora_inicio", read_only=True)
+    payment_method_label = serializers.CharField(source="get_payment_method_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    valor_total_efetivo = serializers.SerializerMethodField()
+    profissional_id = serializers.SerializerMethodField()
+
+    def get_profissional_nome(self, obj):
+        p = obj.agendamento.profissional if obj.agendamento_id else None
+        return p.nome if p else ""
+
+    def get_servico_nome(self, obj):
+        s = obj.agendamento.servico if obj.agendamento_id else None
+        return s.nome if s else ""
+
+    def get_profissional_id(self, obj):
+        return obj.agendamento.profissional_id if obj.agendamento_id else None
+
+    def get_valor_total_efetivo(self, obj):
+        try:
+            return float(obj.valor_total_efetivo)
+        except Exception:
+            return float(obj.amount or 0)
+
+    class Meta:
+        model = Payment
+        exclude = ["loja_id"]
+        read_only_fields = ["created_at", "updated_at", "comissao_percentual", "comissao_valor"]

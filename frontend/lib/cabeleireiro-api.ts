@@ -76,6 +76,67 @@ export type SalaoProfissionalComissao = {
   is_active?: boolean;
 };
 
+export type SalaoPayment = {
+  id: number;
+  agendamento: number;
+  amount: number | string;
+  valor_total?: number | string | null;
+  valor_total_efetivo?: number;
+  payment_method: string;
+  payment_method_label?: string;
+  status: string;
+  status_display?: string;
+  payment_date?: string | null;
+  notes?: string;
+  desconto?: number | string;
+  comissao_percentual?: number | string;
+  comissao_valor?: number | string;
+  cliente_nome?: string;
+  profissional_nome?: string;
+  profissional_id?: number | null;
+  servico_nome?: string;
+  data_atendimento?: string;
+  hora_atendimento?: string;
+};
+
+export type SalaoFinanceiroResumo = {
+  caixa_diario: number;
+  total_mes: number;
+  contas_a_receber: number;
+  comissao_mes: number;
+  faturamento: number;
+  despesas: number;
+  lucro: number;
+  filter?: { mes: number; ano: number };
+};
+
+export type SalaoComissoesRelatorio = {
+  data_inicio: string;
+  data_fim: string;
+  profissionais: {
+    profissional_id: number | null;
+    nome: string;
+    qtd: number;
+    valor_total: number;
+    comissao_total: number;
+    itens: {
+      payment_id: number;
+      data: string;
+      cliente: string;
+      servico: string;
+      valor: number;
+      comissao: number;
+      comissao_percentual: number;
+      modo: string;
+    }[];
+  }[];
+  totais: {
+    qtd: number;
+    valor_total: number;
+    comissao_total: number;
+  };
+};
+
 export type SalaoAgendamento = {
   id: number;
   cliente: number;
@@ -131,6 +192,65 @@ export const CabeleireiroAPI = {
       {},
     );
     return data;
+  },
+  receberAgendamento: async (
+    id: number,
+    payload: { amount: number; payment_method: string; desconto?: number },
+  ) => {
+    const { data } = await apiClient.post<{ payment: SalaoPayment; agendamento: SalaoAgendamento }>(
+      `${BASE}/agendamentos/${id}/receber/`,
+      payload,
+    );
+    return data;
+  },
+  financeiro: {
+    resumo: async (params?: { mes?: number; ano?: number }) => {
+      const { data } = await apiClient.get<SalaoFinanceiroResumo>(`${BASE}/financeiro/resumo/`, {
+        params,
+      });
+      return data;
+    },
+  },
+  payments: {
+    list: async (params?: {
+      status?: string;
+      date?: string;
+      profissional?: number | string;
+      professional?: number | string;
+    }) => {
+      const { data } = await apiClient.get(`${BASE}/payments/`, { params });
+      return unwrapList<SalaoPayment>(data);
+    },
+    enviarRecibo: async (id: number, canal: 'email' | 'whatsapp') => {
+      const { data } = await apiClient.post<{ success?: boolean; message?: string; error?: string }>(
+        `${BASE}/payments/${id}/enviar-recibo/`,
+        { canal },
+      );
+      return data;
+    },
+  },
+  relatorios: {
+    comissoes: async (params: {
+      data_inicio: string;
+      data_fim: string;
+      profissional_id?: number | string;
+    }) => {
+      const { data } = await apiClient.get<SalaoComissoesRelatorio>(`${BASE}/relatorios/comissoes/`, {
+        params,
+      });
+      return data;
+    },
+    comissoesPdf: async (params: {
+      data_inicio: string;
+      data_fim: string;
+      profissional_id?: number | string;
+    }) => {
+      const { data } = await apiClient.get(`${BASE}/relatorios/comissoes/pdf/`, {
+        params,
+        responseType: 'blob',
+      });
+      return data as Blob;
+    },
   },
   reenviarConfirmacaoWhatsApp: async (id: number) => {
     const { data } = await apiClient.post<{ ok: boolean; detail: string }>(

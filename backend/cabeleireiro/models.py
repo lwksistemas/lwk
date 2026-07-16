@@ -297,3 +297,100 @@ class BloqueioHorario(BloqueioAgendaBase):
         if not self.tipo:
             self.tipo = "outros"
         super().save(*args, **kwargs)
+
+
+class Payment(LojaIsolationMixin, models.Model):
+    """Pagamento de atendimento do salão (caixa / recibo / comissão)."""
+
+    METHOD_CASH = "CASH"
+    METHOD_CREDIT = "CREDIT_CARD"
+    METHOD_DEBIT = "DEBIT_CARD"
+    METHOD_PIX = "PIX"
+    METHOD_TRANSFER = "TRANSFER"
+    PAYMENT_METHOD_CHOICES = (
+        (METHOD_CASH, "Dinheiro"),
+        (METHOD_CREDIT, "Cartão de Crédito"),
+        (METHOD_DEBIT, "Cartão de Débito"),
+        (METHOD_PIX, "PIX"),
+        (METHOD_TRANSFER, "Transferência"),
+    )
+
+    STATUS_PENDING = "PENDING"
+    STATUS_PAID = "PAID"
+    STATUS_CANCELLED = "CANCELLED"
+    STATUS_CHOICES = (
+        (STATUS_PENDING, "Pendente"),
+        (STATUS_PAID, "Pago"),
+        (STATUS_CANCELLED, "Cancelado"),
+    )
+
+    agendamento = models.ForeignKey(
+        Agendamento,
+        on_delete=models.CASCADE,
+        related_name="payments",
+        verbose_name="Agendamento",
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor cobrado")
+    valor_total = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Valor total original",
+    )
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default=METHOD_CASH,
+        verbose_name="Método de Pagamento",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        verbose_name="Status",
+    )
+    payment_date = models.DateTimeField(blank=True, null=True, verbose_name="Data do Pagamento")
+    notes = models.TextField(blank=True, default="", verbose_name="Observações")
+    desconto = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+        verbose_name="Desconto (R$)",
+    )
+    comissao_percentual = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="Comissão %",
+    )
+    comissao_valor = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="Comissão R$",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "cabeleireiro"
+        db_table = "cabeleireiro_payment"
+        verbose_name = "Pagamento"
+        verbose_name_plural = "Pagamentos"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "payment_date"], name="cab_pay_status_dt_idx"),
+            models.Index(fields=["agendamento", "status"], name="cab_pay_ag_status_idx"),
+            models.Index(fields=["loja_id", "payment_date"], name="cab_pay_loja_dt_idx"),
+        ]
+
+    def __str__(self):
+        return f"Pagamento {self.id} — R$ {self.amount}"
+
+    @property
+    def valor_total_efetivo(self):
+        return self.valor_total if self.valor_total is not None else self.amount

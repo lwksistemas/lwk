@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { CalendarDays, Check, List, Lock, MessageCircle, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, Check, DollarSign, List, Lock, MessageCircle, Plus, Trash2 } from 'lucide-react';
 import type { DatesSetArg, EventClickArg, EventDropArg } from '@fullcalendar/core';
 import type { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction';
 import { Modal } from '@/components/ui/Modal';
 import { SalaoPageHeader } from '@/components/cabeleireiro/SalaoPageHeader';
 import { SalaoAgendaLista } from '@/components/cabeleireiro/SalaoAgendaLista';
 import { ModalBloqueioSalao } from '@/components/cabeleireiro/ModalBloqueioSalao';
+import { ModalReceberSalao } from '@/components/cabeleireiro/ModalReceberSalao';
 import { SALAO_PRIMARY } from '@/components/cabeleireiro/salao-nav';
 import {
   dateFromFc,
@@ -62,6 +63,7 @@ export default function SalaoAgendaPage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [openBloqueio, setOpenBloqueio] = useState(false);
   const [detail, setDetail] = useState<SalaoAgendamento | null>(null);
+  const [receberAg, setReceberAg] = useState<SalaoAgendamento | null>(null);
   const [bloqueioDetail, setBloqueioDetail] = useState<SalaoCalendarEvent | null>(null);
   const [saving, setSaving] = useState(false);
   const [reenviando, setReenviando] = useState(false);
@@ -604,6 +606,20 @@ export default function SalaoAgendaPage() {
                   {detail.status === 'ARRIVED' ? 'Chegou' : 'Confirmar chegada'}
                 </button>
               )}
+              {detail.status !== 'CANCELLED' && detail.status !== 'NO_SHOW' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReceberAg(detail);
+                    setDetail(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white"
+                  style={{ backgroundColor: '#15803d' }}
+                >
+                  <DollarSign size={14} />
+                  Receber
+                </button>
+              )}
               <button type="button" onClick={() => setDetail(null)} className="ml-auto px-3 py-2 text-sm border rounded-lg">
                 Fechar
               </button>
@@ -635,6 +651,21 @@ export default function SalaoAgendaPage() {
           </div>
         )}
       </Modal>
+
+      {receberAg && (
+        <ModalReceberSalao
+          agendamento={receberAg}
+          onClose={() => setReceberAg(null)}
+          onSuccess={(ag) => {
+            setEvents((prev) =>
+              prev.map((ev) => {
+                if (ev.extendedProps.agendamento?.id !== ag.id) return ev;
+                return salaoAgendamentoToEvent(ag, servicosById, statusColors);
+              }),
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

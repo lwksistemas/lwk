@@ -226,6 +226,38 @@ class AgendamentoViewSet(BaseModelViewSet):
         ag.save(update_fields=["status", "updated_at"])
         return Response(AgendamentoSerializer(ag).data)
 
+    @action(detail=True, methods=["post"], url_path="receber")
+    def receber(self, request, pk=None):
+        """Registra pagamento do atendimento e marca como concluído."""
+        from decimal import Decimal, InvalidOperation
+
+        from .serializers import PaymentSerializer
+        from .views_financeiro import receber_agendamento
+
+        ag = self.get_object()
+        try:
+            amount = Decimal(str(request.data.get("amount") or ag.valor or "0"))
+            desconto = Decimal(str(request.data.get("desconto") or "0"))
+        except (InvalidOperation, TypeError, ValueError):
+            return Response({"error": "Valor inválido."}, status=status.HTTP_400_BAD_REQUEST)
+        method = (request.data.get("payment_method") or "CASH").strip()
+        try:
+            payment = receber_agendamento(
+                ag,
+                payment_method=method,
+                amount=amount,
+                desconto=desconto,
+            )
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {
+                "payment": PaymentSerializer(payment).data,
+                "agendamento": AgendamentoSerializer(ag).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
     @action(detail=True, methods=["post"], url_path="reenviar-mensagem")
     def reenviar_mensagem(self, request, pk=None):
         """Reenvia confirmação WhatsApp (mesmo fluxo da clínica)."""

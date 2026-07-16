@@ -215,6 +215,8 @@ class SecurityIsolationMiddleware:
             return None
         if self._is_clinica_beleza_public_path(path):
             return None
+        if self._is_cabeleireiro_public_path(path):
+            return None
         if self._is_nfse_public_path(path):
             return None
         if self._is_whatsapp_public_path(path):
@@ -360,6 +362,10 @@ class SecurityIsolationMiddleware:
         return bool(path.startswith("/api/clinica-beleza/payments/") and "/recibo-pdf/" in path)
 
     @staticmethod
+    def _is_cabeleireiro_public_path(path):
+        return bool(path.startswith("/api/cabeleireiro/payments/") and "/recibo-pdf/" in path)
+
+    @staticmethod
     def _is_nfse_public_path(path):
         return any(path.startswith(prefix) for prefix in _NFSE_PUBLIC_PREFIXES)
 
@@ -409,6 +415,7 @@ class SecurityIsolationMiddleware:
         """Verifica se a rota é de uma loja"""
         store_routes = (
             "/api/clinica-beleza/",
+            "/api/cabeleireiro/",
             "/api/hotel/",
             "/api/crm-vendas/",
             "/api/stores/",
@@ -418,7 +425,11 @@ class SecurityIsolationMiddleware:
             return False
         if path.startswith("/api/crm-vendas/") and SecurityIsolationMiddleware._is_crm_vendas_public_path(path):
             return False
-        return not (path.startswith("/api/clinica-beleza/") and SecurityIsolationMiddleware._is_clinica_beleza_public_path(path))
+        if path.startswith("/api/clinica-beleza/") and SecurityIsolationMiddleware._is_clinica_beleza_public_path(path):
+            return False
+        if path.startswith("/api/cabeleireiro/") and SecurityIsolationMiddleware._is_cabeleireiro_public_path(path):
+            return False
+        return True
 
     def _extract_store_slug(self, request):
         """Extrai o slug da loja da requisição.

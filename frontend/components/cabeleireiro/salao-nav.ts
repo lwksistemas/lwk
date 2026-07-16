@@ -5,6 +5,7 @@ import {
   Users,
   Scissors,
   UserCog,
+  DollarSign,
   Settings,
   Headphones,
 } from 'lucide-react';
@@ -25,6 +26,7 @@ export const SALAO_NAV_ITEMS: SalaoNavItem[] = [
   { label: 'Clientes', icon: Users, path: 'cabeleireiro/clientes' },
   { label: 'Serviços', icon: Scissors, path: 'cabeleireiro/servicos' },
   { label: 'Profissionais', icon: UserCog, path: 'cabeleireiro/profissionais' },
+  { label: 'Financeiro', icon: DollarSign, path: 'cabeleireiro/financeiro' },
   { label: 'Configurações', icon: Settings, path: 'cabeleireiro/configuracoes' },
   { label: 'Suporte', icon: Headphones, path: 'suporte' },
 ];

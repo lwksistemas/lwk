@@ -240,15 +240,15 @@ export default function PropostaFormContent({
                 </select>
               </div>
             </section>
-          </div>
-
-          <div className="space-y-6">
             <section className="space-y-4">
               <h3 className={crmFormSectionTitleClass}>Produtos e serviços</h3>
               {renderProdutosBlock() || (
                 <p className="text-xs text-gray-500">Selecione uma oportunidade para ver os itens.</p>
               )}
             </section>
+          </div>
+
+          <div className="space-y-6">
             {form.oportunidade_id && (
               <section className="space-y-4">
                 <h3 className={crmFormSectionTitleClass}>Valores</h3>

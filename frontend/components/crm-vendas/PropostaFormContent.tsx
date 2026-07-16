@@ -248,16 +248,19 @@ export default function PropostaFormContent({
             </section>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-6 flex flex-col">
             {form.oportunidade_id && (
               <section className="space-y-4">
                 <h3 className={crmFormSectionTitleClass}>Valores</h3>
                 {renderValoresBlock()}
               </section>
             )}
-            <section className="space-y-4">
+            <section className="space-y-4 flex-1 min-h-0">
               <h3 className={crmFormSectionTitleClass}>Conteúdo</h3>
-              {renderConteudoBlock()}
+              {renderConteudoBlock({
+                minHeightClass: 'min-h-[380px] lg:min-h-[520px] xl:min-h-[560px]',
+                rows: 24,
+              })}
             </section>
             <section className="space-y-4">
               <h3 className={crmFormSectionTitleClass}>Assinaturas</h3>

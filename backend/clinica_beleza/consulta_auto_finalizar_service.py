@@ -79,11 +79,12 @@ def finalizar_consultas_esquecidas() -> int:
             consultas_em_andamento = (
                 Consulta.objects
                 .filter(status="IN_PROGRESS", data_inicio__isnull=False)
-                .select_related("appointment", "appointment__professional")
+                .select_related("appointment", "appointment__professional", "patient")
                 .prefetch_related("appointment__appointment_procedures__procedure")
             )
 
-            for consulta in consultas_em_andamento.iterator():
+            # Django exige chunk_size quando iterator() é usado com prefetch_related()
+            for consulta in consultas_em_andamento.iterator(chunk_size=100):
                 try:
                     limite = _horario_limite_finalizacao(consulta)
                     if limite is None:

@@ -70,6 +70,8 @@ export type SalaoProfissionalComissao = {
   profissional?: number;
   categoria: number;
   categoria_nome?: string;
+  servico?: number | null;
+  servico_nome?: string;
   modo: 'percentual' | 'fixo';
   modo_display?: string;
   valor: number | string;

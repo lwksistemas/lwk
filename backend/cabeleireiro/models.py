@@ -90,7 +90,7 @@ class CategoriaServico(LojaIsolationMixin, models.Model):
 
 
 class ProfissionalComissao(LojaIsolationMixin, models.Model):
-    """Comissão do profissional vinculada a uma categoria de serviço (fixo ou %)."""
+    """Comissão do profissional por categoria + serviço (fixo ou %)."""
 
     MODO_PERCENTUAL = "percentual"
     MODO_FIXO = "fixo"
@@ -110,6 +110,15 @@ class ProfissionalComissao(LojaIsolationMixin, models.Model):
         on_delete=models.CASCADE,
         related_name="comissoes",
         verbose_name="Categoria de serviço",
+    )
+    servico = models.ForeignKey(
+        "Servico",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="comissoes",
+        verbose_name="Serviço",
+        help_text="Serviço específico da categoria. Vazio = regra legada só por categoria.",
     )
     modo = models.CharField(
         max_length=15,
@@ -136,15 +145,17 @@ class ProfissionalComissao(LojaIsolationMixin, models.Model):
         db_table = "cabeleireiro_profissionalcomissao"
         verbose_name = "Comissão do profissional"
         verbose_name_plural = "Comissões dos profissionais"
-        ordering = ["profissional", "categoria"]
+        ordering = ["profissional", "categoria", "servico"]
         indexes = [
             models.Index(fields=["loja_id", "profissional", "is_active"], name="cab_com_loja_prof_idx"),
             models.Index(fields=["profissional", "categoria"], name="cab_com_prof_cat_idx"),
+            models.Index(fields=["profissional", "servico"], name="cab_com_prof_svc_idx"),
         ]
 
     def __str__(self):
         sufixo = "%" if self.modo == self.MODO_PERCENTUAL else "R$"
-        return f"{self.profissional_id} / {self.categoria_id}: {self.valor}{sufixo}"
+        svc = self.servico_id or "-"
+        return f"{self.profissional_id} / {self.categoria_id} / {svc}: {self.valor}{sufixo}"
 
 
 class HorarioTrabalhoProfissional(HorarioTrabalhoProfissionalBase):

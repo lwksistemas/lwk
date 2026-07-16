@@ -134,10 +134,15 @@ class CategoriaServicoSerializer(TextNormalizationMixin, serializers.ModelSerial
 
 class ProfissionalComissaoSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     categoria_nome = serializers.CharField(source="categoria.nome", read_only=True)
+    servico_nome = serializers.SerializerMethodField()
     modo_display = serializers.CharField(source="get_modo_display", read_only=True)
 
     def apply_tenant_querysets(self):
         self.bind_tenant_queryset("categoria", CategoriaServico.objects.filter(is_active=True))
+        self.bind_tenant_queryset("servico", Servico.objects.filter(is_active=True))
+
+    def get_servico_nome(self, obj):
+        return obj.servico.nome if obj.servico_id else ""
 
     class Meta:
         model = ProfissionalComissao
@@ -146,6 +151,8 @@ class ProfissionalComissaoSerializer(TenantQuerysetMixin, serializers.ModelSeria
             "profissional",
             "categoria",
             "categoria_nome",
+            "servico",
+            "servico_nome",
             "modo",
             "modo_display",
             "valor",
@@ -165,6 +172,18 @@ class ProfissionalComissaoSerializer(TenantQuerysetMixin, serializers.ModelSeria
         valor = attrs.get("valor") if "valor" in attrs else getattr(self.instance, "valor", None)
         if modo == ProfissionalComissao.MODO_PERCENTUAL and valor is not None and valor > 100:
             raise serializers.ValidationError({"valor": "Percentual não pode ser maior que 100."})
+
+        categoria = attrs.get("categoria") or getattr(self.instance, "categoria", None)
+        servico = attrs.get("servico") if "servico" in attrs else getattr(self.instance, "servico", None)
+        if not servico:
+            raise serializers.ValidationError({"servico": "Informe o serviço da categoria."})
+        if categoria and servico:
+            cat_nome = (getattr(categoria, "nome", None) or "").strip().upper()
+            svc_cat = (getattr(servico, "categoria", None) or "").strip().upper()
+            if cat_nome and svc_cat and cat_nome != svc_cat:
+                raise serializers.ValidationError(
+                    {"servico": "O serviço não pertence à categoria selecionada."},
+                )
         return attrs
 
 

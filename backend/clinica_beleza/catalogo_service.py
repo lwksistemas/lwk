@@ -78,6 +78,14 @@ def _aplicar_locais_catalogo(db, lid, emit) -> int:
         )
     return len(LOCAIS_CATALOGO)
 TIPO_CLINICA_BELEZA_SLUG = "clinica-beleza"
+TIPO_CLINICA_BELEZA_SLUGS = frozenset(
+    {
+        "clinica-beleza",
+        "clinica-da-beleza",
+        "clinica-estetica",
+        "clinica-de-estetica",
+    },
+)
 
 
 def is_clinica_beleza_loja(loja) -> bool:
@@ -86,7 +94,7 @@ def is_clinica_beleza_loja(loja) -> bool:
         return False
     nome = (getattr(tipo, "nome", "") or "").strip()
     slug = (getattr(tipo, "slug", "") or "").strip()
-    return nome == TIPO_CLINICA_BELEZA_NOME or slug == TIPO_CLINICA_BELEZA_SLUG
+    return nome == TIPO_CLINICA_BELEZA_NOME or slug in TIPO_CLINICA_BELEZA_SLUGS
 
 
 def lojas_clinica_beleza_com_schema(*, apenas_ativas: bool = True):
@@ -98,7 +106,7 @@ def lojas_clinica_beleza_com_schema(*, apenas_ativas: bool = True):
         database_created=True,
     ).filter(
         Q(tipo_loja__nome=TIPO_CLINICA_BELEZA_NOME)
-        | Q(tipo_loja__slug=TIPO_CLINICA_BELEZA_SLUG),
+        | Q(tipo_loja__slug__in=TIPO_CLINICA_BELEZA_SLUGS),
     ).select_related("tipo_loja").order_by("slug")
     if apenas_ativas:
         qs = qs.filter(is_active=True)

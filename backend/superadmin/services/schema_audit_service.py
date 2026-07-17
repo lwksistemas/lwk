@@ -56,26 +56,44 @@ ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
         "ensure_professional_nascimento_sexo",
         "ensure_professional_tempo_consulta",
         "ensure_memed_timbrado_table",
+        "ensure_memed_prescricao_table",
+        "ensure_professional_memed_fields",
         "ensure_professional_commission_local",
         "ensure_professional_commission_convenio",
         "ensure_convenio_tables",
         "ensure_nomes_agenda_table",
+        "ensure_retorno_gratuito_tables",
         "ensure_appointment_local_atendimento",
         "ensure_local_tempo_consulta",
         "ensure_local_nomeagenda_is_padrao",
         "ensure_estoque_produto_fields",
+        "ensure_categoria_estoque",
+        "ensure_despesas_tables",
+        "ensure_document_templates_tables",
         "ensure_termo_consentimento",
         "ensure_paciente_fotos_table",
         "ensure_patient_foto_url",
         "ensure_estoque_catalogo",
+        "ensure_payment_draft_nao_finalizadas",
+        "ensure_nfse_tenant_clinica_beleza",
         "ensure_crm_config_colunas",
-    ],
-    "crm-vendas": [
-        "ensure_crm_config_colunas",
-        "ensure_canal_assinatura_vendedor",
-        "ensure_assinatura_link_enviado_em",
     ],
 }
+
+# Aliases de tipo_loja.slug usam os mesmos ensures da clínica.
+_CLINICA_ENSURES = ENSURE_COMANDOS_POR_TIPO["clinica-beleza"]
+ENSURE_COMANDOS_POR_TIPO.update(
+    {
+        "clinica-da-beleza": _CLINICA_ENSURES,
+        "clinica-estetica": _CLINICA_ENSURES,
+        "clinica-de-estetica": _CLINICA_ENSURES,
+        "crm-vendas": [
+            "ensure_crm_config_colunas",
+            "ensure_canal_assinatura_vendedor",
+            "ensure_assinatura_link_enviado_em",
+        ],
+    },
+)
 
 
 # Tabelas com prefixo fora do padrão do app, mas válidas para o tipo.

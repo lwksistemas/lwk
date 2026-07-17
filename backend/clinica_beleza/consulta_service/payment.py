@@ -304,6 +304,14 @@ def registrar_recebimento_consulta(
     Só entra no Financeiro (PAID/PARTIAL + payment_date + NFS-e) ao finalizar a consulta.
     """
     from clinica_beleza import consulta_service
+    from clinica_beleza.models import Consulta
+
+    # Lock evita race de dois "Receber" simultâneos na mesma consulta.
+    consulta = (
+        Consulta.objects.select_for_update()
+        .select_related("appointment", "appointment__professional", "patient")
+        .get(pk=consulta.pk)
+    )
 
     if consulta.status in ("COMPLETED", "CANCELLED"):
         raise ValueError("Consulta não está aberta para recebimento.")
@@ -314,7 +322,11 @@ def registrar_recebimento_consulta(
     if isinstance(valor_bruto, (int, float, str)):
         valor_bruto = Decimal(str(valor_bruto))
 
-    payment = consulta_service.Payment.objects.filter(appointment=appointment).first()
+    payment = (
+        consulta_service.Payment.objects.select_for_update()
+        .filter(appointment=appointment)
+        .first()
+    )
     valor_total = _calcular_valor_total_com_desconto(valor_bruto, desconto, payment)
     valor_desconto = valor_bruto - valor_total
 
@@ -363,12 +375,22 @@ def publicar_pagamento_financeiro(consulta):
     DRAFT → PAID/PARTIAL + payment_date; dispara NFS-e se quitado.
     """
     from clinica_beleza import consulta_service
+    from clinica_beleza.models import Consulta
 
+    consulta = (
+        Consulta.objects.select_for_update()
+        .select_related("appointment")
+        .get(pk=consulta.pk)
+    )
     appointment = getattr(consulta, "appointment", None)
     if not appointment:
         return None
 
-    payment = consulta_service.Payment.objects.filter(appointment=appointment).first()
+    payment = (
+        consulta_service.Payment.objects.select_for_update()
+        .filter(appointment=appointment)
+        .first()
+    )
     if not payment or payment.status == "CANCELLED":
         return payment
 

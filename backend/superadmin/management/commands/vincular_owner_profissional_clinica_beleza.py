@@ -44,16 +44,13 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f'Loja com slug "{slug}" não encontrada.'))
                 return
         else:
-            lojas = Loja.objects.filter(
-                is_active=True,
-                tipo_loja__nome="Clínica da Beleza",
-                database_created=True,
-            ).select_related("tipo_loja", "owner")
+            from clinica_beleza.catalogo_service import lojas_clinica_beleza_com_schema
+
+            lojas = lojas_clinica_beleza_com_schema(apenas_ativas=True).select_related(
+                "tipo_loja", "owner"
+            )
 
         for loja in lojas:
-            if loja.tipo_loja.nome != "Clínica da Beleza":
-                self.stdout.write(self.style.WARNING(f"   Loja {loja.slug} não é Clínica da Beleza, pulando."))
-                continue
             if not loja.database_created or not loja.database_name:
                 self.stdout.write(self.style.WARNING(f"   Loja {loja.slug}: schema não criado. Rode setup_loja_schema primeiro."))
                 continue

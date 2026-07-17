@@ -23,7 +23,7 @@ export function useRetornoAgenda(open: boolean) {
       const cfg = await ClinicaBelezaAPI.retorno.getConfig();
       const [regs, procs] = await Promise.all([
         ClinicaBelezaAPI.retorno.listRegras(),
-        ClinicaBelezaAPI.procedures.list({ active: true, page_size: 500 }),
+        ClinicaBelezaAPI.procedures.list({ active: true, page_size: 200 }),
       ]);
       setConfig(cfg);
       setRegras(Array.isArray(regs) ? regs : []);

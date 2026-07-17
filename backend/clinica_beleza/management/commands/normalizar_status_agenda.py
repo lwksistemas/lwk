@@ -5,18 +5,16 @@ from contextlib import suppress
 from django.core.management.base import BaseCommand
 from django.db import connections
 
+from clinica_beleza.catalogo_service import lojas_clinica_beleza_com_schema
 from clinica_beleza.schema_ensure import table_exists
 from core.db_config import ensure_loja_database_config
-from superadmin.models import Loja
 
 
 class Command(BaseCommand):
     help = "Converte agendamentos PENDING para SCHEDULED (remove redundância)."
 
     def handle(self, *args, **options):
-        lojas = (
-            Loja.objects.filter(is_active=True, database_created=True, tipo_loja__nome="Clínica da Beleza")
-        )
+        lojas = lojas_clinica_beleza_com_schema(apenas_ativas=True)
         total = 0
         for loja in lojas:
             db_name = loja.database_name

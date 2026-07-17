@@ -96,12 +96,22 @@ export function useAgendaPageEffects({
       showModal &&
       (selectedEvent?.extendedProps.status === "SCHEDULED" ||
         selectedEvent?.extendedProps.status === "PENDING");
-    const intervalMs = aguardando ? 5000 : 15000;
-    const timer = window.setInterval(() => {
+    // 5s só no check-in; 20s em uso normal (antes 15s) — reduz carga na API.
+    const intervalMs = aguardando ? 5000 : 20000;
+    const tick = () => {
       if (userScrollingRef.current) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       void carregarDadosRef.current();
-    }, intervalMs);
-    return () => window.clearInterval(timer);
+    };
+    const timer = window.setInterval(tick, intervalMs);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void carregarDadosRef.current();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [calendarPlugins.length, selectedProfessional, showModal, selectedEvent?.extendedProps.status]);
 
   useEffect(() => {

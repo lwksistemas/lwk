@@ -17,11 +17,9 @@ class Command(BaseCommand):
     help = "Payment PAID/PARTIAL de consulta não finalizada → DRAFT (fora do Financeiro)."
 
     def handle(self, *args, **options):
-        lojas = Loja.objects.filter(
-            is_active=True,
-            database_created=True,
-            tipo_loja__nome="Clínica da Beleza",
-        )
+        from clinica_beleza.catalogo_service import lojas_clinica_beleza_com_schema
+
+        lojas = lojas_clinica_beleza_com_schema(apenas_ativas=True)
         total = 0
         for loja in lojas:
             db_name = loja.database_name

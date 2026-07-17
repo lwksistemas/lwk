@@ -63,13 +63,14 @@ export function ConsultaFotosTab({
       } else {
         setFotosConsultaCount(lista.filter((f) => f.consulta_id === consultaId).length);
       }
-    } catch {
+    } catch (e: unknown) {
       setFotos([]);
       setFotosConsultaCount(0);
+      toast.error(e instanceof Error ? e.message : "Erro ao carregar fotos.");
     } finally {
       setLoading(false);
     }
-  }, [consultaId]);
+  }, [consultaId, toast]);
 
   const limiteAtingido = fotosConsultaCount >= MAX_FOTOS_POR_CONSULTA;
   const podeEnviarMais = Boolean(permiteEnviar) && !limiteAtingido;

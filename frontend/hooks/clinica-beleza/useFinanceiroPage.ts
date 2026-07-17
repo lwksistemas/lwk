@@ -60,19 +60,21 @@ export function useFinanceiroPage() {
     try {
       const data = await ClinicaBelezaAPI.financeiro.resumo();
       setResumo(data as FinanceiroResumo);
-    } catch {
+    } catch (e: unknown) {
       setResumo(null);
+      toast.error(e instanceof Error ? e.message : "Erro ao carregar resumo financeiro.");
     }
-  }, []);
+  }, [toast]);
 
   const loadProfessionals = useCallback(async () => {
     try {
       const data = await ClinicaBelezaAPI.professionals.list();
       setProfessionals(Array.isArray(data) ? (data as FinanceiroProfessional[]) : []);
-    } catch {
+    } catch (e: unknown) {
       setProfessionals([]);
+      toast.error(e instanceof Error ? e.message : "Erro ao carregar profissionais.");
     }
-  }, []);
+  }, [toast]);
 
   const loadAll = useCallback(async () => {
     setLoadingResumo(true);

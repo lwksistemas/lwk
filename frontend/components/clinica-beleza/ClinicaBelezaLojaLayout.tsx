@@ -48,18 +48,30 @@ export function ClinicaBelezaLojaLayout({
   const slug = params.slug as string;
   const { loginPath, handleLogout, isLoja, ready } = useLojaAuth(slug);
   const [loja, setLoja] = useState<LojaInfo | null>(null);
+  const [lojaLoading, setLojaLoading] = useState(true);
+  const [lojaError, setLojaError] = useState<string | null>(null);
 
   const loadLoja = useCallback(async () => {
+    setLojaLoading(true);
+    setLojaError(null);
     try {
       const res = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
       const data = res.data as LojaInfo;
+      if (!data?.id) {
+        setLoja(null);
+        setLojaError('Não foi possível carregar os dados da loja.');
+        return;
+      }
       setLoja(data);
-      if (typeof window !== 'undefined' && data?.id) {
+      if (typeof window !== 'undefined') {
         sessionStorage.setItem('current_loja_id', String(data.id));
         if (data.slug) sessionStorage.setItem('loja_slug', data.slug);
       }
     } catch {
       setLoja(null);
+      setLojaError('Falha ao carregar o módulo. Verifique a conexão e tente novamente.');
+    } finally {
+      setLojaLoading(false);
     }
   }, [slug]);
 
@@ -76,10 +88,28 @@ export function ClinicaBelezaLojaLayout({
     return <LoadingScreen variant={loadingVariant} />;
   }
 
-  if (!loja) {
+  if (lojaLoading && !loja) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <p className="text-gray-500">Carregando módulo...</p>
+      </div>
+    );
+  }
+
+  if (!loja) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-gray-50 dark:bg-gray-900 px-4">
+        <p className="text-sm text-red-600 dark:text-red-400 text-center max-w-md">
+          {lojaError || 'Não foi possível carregar o módulo da clínica.'}
+        </p>
+        <button
+          type="button"
+          onClick={() => void loadLoja()}
+          className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+          style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
+        >
+          Tentar novamente
+        </button>
       </div>
     );
   }

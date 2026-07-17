@@ -22,13 +22,9 @@ INATIVIDADE_MINIMA_HORAS = 3
 
 
 def _lojas_clinica_beleza():
-    from superadmin.models import Loja
+    from .catalogo_service import lojas_clinica_beleza_com_schema
 
-    return (
-        Loja.objects.using("default")
-        .select_related("tipo_loja")
-        .filter(is_active=True, database_created=True, tipo_loja__nome="Clínica da Beleza")
-    )
+    return lojas_clinica_beleza_com_schema(apenas_ativas=True)
 
 
 def _consulta_tem_procedimentos(consulta) -> bool:

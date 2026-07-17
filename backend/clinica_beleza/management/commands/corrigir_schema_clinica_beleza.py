@@ -8,7 +8,7 @@ Uso:
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 
-from superadmin.models import Loja
+from clinica_beleza.catalogo_service import lojas_clinica_beleza_com_schema
 from superadmin.services.schema_audit_service import corrigir_loja
 
 
@@ -20,12 +20,7 @@ class Command(BaseCommand):
         parser.add_argument("--loja-id", type=int, help="ID de uma loja")
 
     def handle(self, *args, **options):
-        qs = (
-            Loja.objects.using("default")
-            .select_related("tipo_loja")
-            .filter(is_active=True, database_created=True)
-            .filter(tipo_loja__nome="Clínica da Beleza")
-        )
+        qs = lojas_clinica_beleza_com_schema(apenas_ativas=True)
         if options.get("slug"):
             ident = options["slug"].strip()
             qs = qs.filter(Q(slug=ident) | Q(atalho__iexact=ident))

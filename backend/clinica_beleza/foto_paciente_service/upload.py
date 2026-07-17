@@ -4,7 +4,14 @@ import os
 
 from core.cloudinary_upload_preset import server_image_upload_options
 
-from .constants import LIMITE_UPLOAD_BYTES, MAX_LADO_IMAGEM
+from .constants import (
+    JPEG_QUALIDADE_INICIAL,
+    JPEG_QUALIDADE_MINIMA,
+    JPEG_QUALIDADE_PASSO,
+    LIMITE_UPLOAD_BYTES,
+    MAX_LADO_IMAGEM,
+    MIN_LADO_IMAGEM,
+)
 from .exceptions import FotoUploadInvalida
 from .validation import cloudinary_upload_config
 
@@ -127,7 +134,7 @@ def _configurar_cloudinary_sdk() -> dict | None:
 
 
 def comprimir_imagem_bytes(conteudo: bytes) -> bytes:
-    """Reduz JPEG/PNG/HEIC do celular para ficar abaixo do limite do Cloudinary."""
+    """Reduz JPEG/PNG/HEIC do celular (alvo ~1,5 MB, qualidade moderada para estética)."""
     from PIL import Image, ImageOps
 
     if not conteudo:
@@ -143,7 +150,7 @@ def comprimir_imagem_bytes(conteudo: bytes) -> bytes:
         img = img.convert("RGB")
 
     max_lado = MAX_LADO_IMAGEM
-    while max_lado >= 960:
+    while max_lado >= MIN_LADO_IMAGEM:
         copia = img.copy()
         w, h = copia.size
         maior = max(w, h)
@@ -154,15 +161,30 @@ def comprimir_imagem_bytes(conteudo: bytes) -> bytes:
                 Image.Resampling.LANCZOS,
             )
 
-        qualidade = 88
-        while qualidade >= 45:
+        qualidade = JPEG_QUALIDADE_INICIAL
+        while qualidade >= JPEG_QUALIDADE_MINIMA:
             buf = io.BytesIO()
             copia.save(buf, format="JPEG", quality=qualidade, optimize=True)
             dados = buf.getvalue()
             if len(dados) <= LIMITE_UPLOAD_BYTES:
                 return dados
-            qualidade -= 8
-        max_lado = int(max_lado * 0.75)
+            qualidade -= JPEG_QUALIDADE_PASSO
+        max_lado = int(max_lado * 0.9)
+
+    # Última tentativa: piso de qualidade um pouco abaixo só se ainda > alvo.
+    buf = io.BytesIO()
+    w, h = img.size
+    maior = max(w, h)
+    if maior > MIN_LADO_IMAGEM:
+        escala = MIN_LADO_IMAGEM / maior
+        img = img.resize(
+            (max(1, int(w * escala)), max(1, int(h * escala))),
+            Image.Resampling.LANCZOS,
+        )
+    img.save(buf, format="JPEG", quality=JPEG_QUALIDADE_MINIMA, optimize=True)
+    dados = buf.getvalue()
+    if len(dados) <= LIMITE_UPLOAD_BYTES * 2:
+        return dados
 
     raise FotoUploadInvalida(
         "Não foi possível reduzir a imagem. Tente outra foto ou menor resolução.",

@@ -11,6 +11,8 @@ import {
   X,
 } from 'lucide-react';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
+import { prepararArquivoImagemUpload } from '@/lib/cloudinary-direct-upload';
+import { MAX_FOTOS_POR_CONSULTA } from '@/components/clinica-beleza/consultas/fotos/fotos-constants';
 
 function normalizarTokenFoto(raw: string | null | undefined): string {
   const value = (raw || '').trim();
@@ -29,6 +31,9 @@ interface FotoUploadConfig {
   cloud_name: string;
   upload_preset: string;
   folder: string;
+  max_fotos?: number;
+  fotos_consulta_count?: number;
+  fotos_restantes?: number;
 }
 
 interface ArquivoPendente {
@@ -37,7 +42,6 @@ interface ArquivoPendente {
   preview: string;
 }
 
-const MAX_FOTOS = 20;
 const EXT_IMAGEM = /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i;
 const FECHAR_APOS_ENVIO_MS = 1800;
 
@@ -54,94 +58,6 @@ function arquivoEhImagem(file: File): boolean {
   return EXT_IMAGEM.test(file.name);
 }
 
-const LIMITE_CLOUDINARY_BYTES = 9 * 1024 * 1024;
-const MAX_LADO_INICIAL = 1920;
-
-type FonteImagem = ImageBitmap | HTMLImageElement;
-
-async function carregarFonteImagem(file: File): Promise<FonteImagem | null> {
-  if (typeof createImageBitmap === 'function') {
-    try {
-      return await createImageBitmap(file);
-    } catch {
-      /* fallback abaixo */
-    }
-  }
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('imagem inválida'));
-    };
-    img.src = url;
-  });
-}
-
-function liberarFonteImagem(fonte: FonteImagem) {
-  if ('close' in fonte && typeof fonte.close === 'function') fonte.close();
-}
-
-function dimensoesFonte(fonte: FonteImagem) {
-  return { w: fonte.width, h: fonte.height };
-}
-
-async function canvasParaJpeg(
-  canvas: HTMLCanvasElement,
-  qualidade: number,
-): Promise<Blob | null> {
-  return new Promise((resolve) => {
-    canvas.toBlob((b) => resolve(b), 'image/jpeg', qualidade);
-  });
-}
-
-/** Reduz fotos do celular antes do upload (limite Cloudinary: 10 MB). */
-async function prepararArquivoUpload(file: File): Promise<File> {
-  try {
-    const fonte = await carregarFonteImagem(file);
-    if (!fonte) return file;
-
-    const { w: iw, h: ih } = dimensoesFonte(fonte);
-    let maxLado = MAX_LADO_INICIAL;
-    let resultado: File | null = null;
-
-    while (maxLado >= 960) {
-      const escala = Math.min(1, maxLado / Math.max(iw, ih));
-      const w = Math.max(1, Math.round(iw * escala));
-      const h = Math.max(1, Math.round(ih * escala));
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) break;
-      ctx.drawImage(fonte, 0, 0, w, h);
-
-      let qualidade = 0.88;
-      let blob: Blob | null = null;
-      while (qualidade >= 0.45) {
-        blob = await canvasParaJpeg(canvas, qualidade);
-        if (blob && blob.size <= LIMITE_CLOUDINARY_BYTES) break;
-        qualidade -= 0.08;
-      }
-      if (blob && blob.size <= LIMITE_CLOUDINARY_BYTES) {
-        const nome = file.name.replace(EXT_IMAGEM, '.jpg') || 'foto.jpg';
-        resultado = new File([blob], nome, { type: 'image/jpeg' });
-        break;
-      }
-      maxLado = Math.round(maxLado * 0.75);
-    }
-
-    liberarFonteImagem(fonte);
-    return resultado ?? file;
-  } catch {
-    return file;
-  }
-}
-
 export function EnviarFotoPublicaClient({ token: tokenProp }: { token?: string | null }) {
   const token = normalizarTokenFoto(tokenProp);
   const tokenApiSegment = token ? encodeURIComponent(token) : '';
@@ -156,6 +72,13 @@ export function EnviarFotoPublicaClient({ token: tokenProp }: { token?: string |
   const [pendentes, setPendentes] = useState<ArquivoPendente[]>([]);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galeriaInputRef = useRef<HTMLInputElement>(null);
+
+  const maxFotos = config?.max_fotos ?? MAX_FOTOS_POR_CONSULTA;
+  const fotosRestantes =
+    typeof config?.fotos_restantes === 'number'
+      ? Math.max(0, config.fotos_restantes - fotosEnviadas)
+      : Math.max(0, maxFotos - fotosEnviadas);
+  const maxNesteEnvio = Math.max(0, fotosRestantes);
 
   const limparPendentes = () => {
     pendentes.forEach((p) => URL.revokeObjectURL(p.preview));
@@ -195,10 +118,10 @@ export function EnviarFotoPublicaClient({ token: tokenProp }: { token?: string |
 
   const enviarArquivo = async (file: File): Promise<boolean> => {
     if (!config) return false;
-    const arquivo = await prepararArquivoUpload(file);
+    // `file` já vem comprimido de adicionarArquivos
     const api = getPrimaryApiBaseUrl();
     const formData = new FormData();
-    formData.append('file', arquivo);
+    formData.append('file', file);
 
     let res: Response;
     try {
@@ -247,9 +170,13 @@ export function EnviarFotoPublicaClient({ token: tokenProp }: { token?: string |
       setErro('Selecione apenas imagens (JPG, PNG, etc.).');
       return;
     }
-    const restante = MAX_FOTOS - pendentes.length;
+    const restante = maxNesteEnvio - pendentes.length;
     if (restante <= 0) {
-      setErro(`Máximo de ${MAX_FOTOS} fotos por envio.`);
+      setErro(
+        maxNesteEnvio <= 0
+          ? `Máximo de ${maxFotos} fotos por consulta já atingido.`
+          : `Máximo de ${maxNesteEnvio} foto(s) restantes nesta consulta.`,
+      );
       return;
     }
 
@@ -259,7 +186,7 @@ export function EnviarFotoPublicaClient({ token: tokenProp }: { token?: string |
       const selecionadas = imagens.slice(0, restante);
       const novos: ArquivoPendente[] = [];
       for (const original of selecionadas) {
-        const file = await prepararArquivoUpload(original);
+        const file = await prepararArquivoImagemUpload(original);
         novos.push({
           id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
           file,
@@ -267,7 +194,7 @@ export function EnviarFotoPublicaClient({ token: tokenProp }: { token?: string |
         });
       }
       if (imagens.length > restante) {
-        setErro(`Só é possível adicionar mais ${restante} foto(s) neste envio.`);
+        setErro(`Só é possível adicionar mais ${restante} foto(s) nesta consulta.`);
       }
       setPendentes((prev) => [...prev, ...novos]);
     } catch {
@@ -394,7 +321,7 @@ export function EnviarFotoPublicaClient({ token: tokenProp }: { token?: string |
             <p className="text-xs text-center text-gray-500">
               {pendentes.length} foto{pendentes.length !== 1 ? 's' : ''} selecionada
               {pendentes.length !== 1 ? 's' : ''}
-              {pendentes.length < MAX_FOTOS && ' — você pode adicionar mais'}
+              {pendentes.length < maxNesteEnvio && ' — você pode adicionar mais'}
             </p>
           )}
 
@@ -422,7 +349,11 @@ export function EnviarFotoPublicaClient({ token: tokenProp }: { token?: string |
             onChange={onGaleriaChange}
           />
 
-          {temPendentes ? (
+          {maxNesteEnvio <= 0 && !temPendentes ? (
+            <p className="text-sm text-center text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-3">
+              Limite de {maxFotos} fotos por consulta já atingido.
+            </p>
+          ) : temPendentes ? (
             <div className="space-y-3">
               <button
                 type="button"
@@ -442,7 +373,7 @@ export function EnviarFotoPublicaClient({ token: tokenProp }: { token?: string |
                   </>
                 )}
               </button>
-              {!enviando && pendentes.length < MAX_FOTOS && (
+              {!enviando && pendentes.length < maxNesteEnvio && (
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -484,7 +415,7 @@ export function EnviarFotoPublicaClient({ token: tokenProp }: { token?: string |
                 Galeria — escolher fotos salvas
               </button>
               <p className="text-xs text-center text-gray-500 px-2">
-                Na galeria você pode marcar várias fotos de uma vez antes de confirmar o envio.
+                Até {maxNesteEnvio} foto(s) restantes nesta consulta (máx. {maxFotos}).
               </p>
             </div>
           )}

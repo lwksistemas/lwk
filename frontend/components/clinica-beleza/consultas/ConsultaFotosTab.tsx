@@ -18,6 +18,7 @@ import { cloudinaryLojaClinicaFotos, useLojaCloudinaryDocument } from "@/lib/clo
 import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
 import { useToast } from "@/components/ui/Toast";
 import { PacienteFotoZoomModal } from "./PacienteFotoZoomModal";
+import { MAX_FOTOS_POR_CONSULTA } from "./fotos/fotos-constants";
 
 const MIN_COMPARAR = 2;
 const MAX_COMPARAR = 3;
@@ -40,6 +41,7 @@ export function ConsultaFotosTab({
   const { documento: lojaDoc, ready: lojaDocReady, loading: lojaDocLoading } = useLojaCloudinaryDocument(slug);
 
   const [fotos, setFotos] = useState<PacienteFotoItem[]>([]);
+  const [fotosConsultaCount, setFotosConsultaCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [qrAberto, setQrAberto] = useState(false);
   const [qrData, setQrData] = useState<{ url: string; qr_base64: string } | null>(null);
@@ -53,13 +55,24 @@ export function ConsultaFotosTab({
   const carregar = useCallback(async () => {
     try {
       const res = await ClinicaBelezaAPI.consultas.fotos.list(consultaId);
-      setFotos(res.fotos || []);
+      const lista = res.fotos || [];
+      setFotos(lista);
+      const countApi = res.fotos_consulta_count;
+      if (typeof countApi === "number") {
+        setFotosConsultaCount(countApi);
+      } else {
+        setFotosConsultaCount(lista.filter((f) => f.consulta_id === consultaId).length);
+      }
     } catch {
       setFotos([]);
+      setFotosConsultaCount(0);
     } finally {
       setLoading(false);
     }
   }, [consultaId]);
+
+  const limiteAtingido = fotosConsultaCount >= MAX_FOTOS_POR_CONSULTA;
+  const podeEnviarMais = Boolean(permiteEnviar) && !limiteAtingido;
 
   useEffect(() => {
     void carregar();
@@ -74,6 +87,10 @@ export function ConsultaFotosTab({
   }, [ativa, carregar]);
 
   const abrirQr = useCallback(async () => {
+    if (limiteAtingido) {
+      toast.error(`Máximo de ${MAX_FOTOS_POR_CONSULTA} fotos por consulta.`);
+      return;
+    }
     setQrLoading(true);
     try {
       const res = await ClinicaBelezaAPI.consultas.fotos.gerarQr(consultaId);
@@ -84,7 +101,7 @@ export function ConsultaFotosTab({
     } finally {
       setQrLoading(false);
     }
-  }, [consultaId, toast]);
+  }, [consultaId, limiteAtingido, toast]);
 
   const salvarUploadPainel = async (url: string) => {
     if (!url) return;
@@ -126,7 +143,7 @@ export function ConsultaFotosTab({
     onToolbarChange(
       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
         <span className="hidden xl:inline text-xs text-gray-500 dark:text-gray-400 max-w-[220px] truncate">
-          Fotos em todas as consultas · zoom · compare 3
+          Esta consulta {fotosConsultaCount}/{MAX_FOTOS_POR_CONSULTA} · histórico · compare 3
         </span>
         <button
           type="button"
@@ -136,7 +153,7 @@ export function ConsultaFotosTab({
           <RefreshCw size={14} />
           <span className="hidden sm:inline">Atualizar</span>
         </button>
-        {permiteEnviar && (
+        {podeEnviarMais && (
           <button
             type="button"
             onClick={() => void abrirQr()}
@@ -152,7 +169,7 @@ export function ConsultaFotosTab({
       </div>,
     );
     return () => onToolbarChange(null);
-  }, [onToolbarChange, permiteEnviar, qrLoading, carregar, abrirQr]);
+  }, [onToolbarChange, podeEnviarMais, qrLoading, carregar, abrirQr, fotosConsultaCount]);
 
   const podeComparar = selecionadas.length >= MIN_COMPARAR;
   const colsComparacao =
@@ -173,19 +190,29 @@ export function ConsultaFotosTab({
       <div className="flex flex-wrap items-center justify-between gap-2">
         {permiteEnviar ? (
           <div className="flex flex-wrap items-center gap-2">
-            <ImageUpload
-              compact
-              buttonLabel={salvando ? "Salvando…" : "Adicionar foto"}
-              value={uploadUrl}
-              onChange={(url) => {
-                setUploadUrl(url);
-                if (url) void salvarUploadPainel(url);
-              }}
-              folder={cloudinaryLojaClinicaFotos(lojaDoc)}
-              disabled={salvando || lojaDocLoading || !lojaDocReady}
-            />
-            <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">
-              ou QR no topo da página
+            {podeEnviarMais ? (
+              <ImageUpload
+                compact
+                buttonLabel={salvando ? "Salvando…" : "Adicionar foto"}
+                value={uploadUrl}
+                onChange={(url) => {
+                  setUploadUrl(url);
+                  if (url) void salvarUploadPainel(url);
+                }}
+                folder={cloudinaryLojaClinicaFotos(lojaDoc)}
+                disabled={salvando || lojaDocLoading || !lojaDocReady}
+                maxSize={2}
+                maxImageWidth={1600}
+                maxImageHeight={1600}
+              />
+            ) : (
+              <span className="text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-2.5 py-1.5">
+                Limite de {MAX_FOTOS_POR_CONSULTA} fotos nesta consulta
+              </span>
+            )}
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {fotosConsultaCount}/{MAX_FOTOS_POR_CONSULTA}
+              {podeEnviarMais ? " · ou QR no topo" : ""}
             </span>
           </div>
         ) : (

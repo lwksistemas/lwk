@@ -12,6 +12,9 @@ interface ImageUploadProps {
   description?: string;
   disabled?: boolean;
   maxSize?: number; // em MB
+  /** Lado máximo enviado ao widget Cloudinary (px). */
+  maxImageWidth?: number;
+  maxImageHeight?: number;
   aspectRatio?: string; // ex: '16:9', '1:1', '4:3'
   folder?: string; // pasta no Cloudinary (ex: 'lwksistemas/22239255889')
   /** Botão inline, sem área de preview — para barras de ação compactas */
@@ -109,6 +112,8 @@ export function ImageUpload({
   description,
   disabled = false,
   maxSize = 5,
+  maxImageWidth = 2000,
+  maxImageHeight = 2000,
   aspectRatio,
   folder = 'lwksistemas/misc',
   compact = false,
@@ -182,8 +187,8 @@ export function ImageUpload({
       multiple: false,
       maxFileSize: maxSize * 1024 * 1024,
       clientAllowedFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-      maxImageWidth: 2000,
-      maxImageHeight: 2000,
+      maxImageWidth,
+      maxImageHeight,
       cropping: aspectRatio ? true : false,
       croppingAspectRatio: aspectRatio ? parseAspectRatio(aspectRatio) : undefined,
       croppingShowDimensions: true,

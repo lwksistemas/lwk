@@ -1,10 +1,24 @@
 """Modelos Super Admin."""
 
+from datetime import time
+
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 
 from .loja import Loja
+
+# Madrugada BRT: 20 slots de 15 min (00:00–04:45) distribuídos por loja_id.
+BACKUP_SLOT_NOTURNO_INICIO_MIN = 0  # 00:00
+BACKUP_SLOT_NOTURNO_QTD = 20
+BACKUP_SLOT_NOTURNO_PASSO_MIN = 15
+
+
+def horario_envio_slot_noturno(loja_id: int) -> time:
+    """Deriva horário noturno estável a partir do id da loja (America/Sao_Paulo)."""
+    slot = int(loja_id or 0) % BACKUP_SLOT_NOTURNO_QTD
+    total_min = BACKUP_SLOT_NOTURNO_INICIO_MIN + slot * BACKUP_SLOT_NOTURNO_PASSO_MIN
+    return time(hour=total_min // 60, minute=total_min % 60, second=0)
 
 
 class ConfiguracaoBackup(models.Model):
@@ -52,8 +66,8 @@ class ConfiguracaoBackup(models.Model):
         help_text="Ativa ou desativa o backup automático",
     )
     horario_envio = models.TimeField(
-        default="03:00:00",
-        help_text="Horário para envio automático do backup (formato 24h)",
+        default=time(0, 0),
+        help_text="Slot noturno (00:00–04:45 BRT) atribuído pelo sistema por loja",
     )
     frequencia = models.CharField(
         max_length=20,
@@ -151,7 +165,10 @@ class ConfiguracaoBackup(models.Model):
             })
 
     def save(self, *args, **kwargs):
-        """Executa validações antes de salvar"""
+        """Força slot noturno distribuído e valida antes de salvar."""
+        loja_id = self.loja_id or getattr(self.loja, "id", None)
+        if loja_id:
+            self.horario_envio = horario_envio_slot_noturno(loja_id)
         self.full_clean()
         super().save(*args, **kwargs)
 

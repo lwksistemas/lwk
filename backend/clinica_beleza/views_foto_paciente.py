@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 
 from .consentimento_assinatura_publica_service import configurar_tenant_publico_clinica
 from .foto_paciente_service import (
+    MAX_FOTOS_POR_CONSULTA,
     FotoCloudinaryInvalida,
     FotoUploadInvalida,
     ambiente_do_token_foto,
@@ -20,6 +21,7 @@ from .foto_paciente_service import (
     excluir_foto_paciente,
     extrair_bytes_upload_request,
     gerar_qr_foto,
+    limites_fotos_consulta,
     listar_fotos_paciente,
     parse_json_body_seguro,
     registrar_foto,
@@ -75,6 +77,7 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
             "patient_id": consulta.patient_id,
             "patient_nome": consulta.patient.nome if consulta.patient else "",
             "fotos": listar_fotos_paciente(consulta.patient_id),
+            **limites_fotos_consulta(consulta.id),
         })
 
     def post(self, request, pk):
@@ -90,7 +93,7 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
         public_id = (request.data.get("cloudinary_public_id") or "").strip()
         try:
             foto = registrar_foto(consulta, url, "painel", public_id)
-        except FotoCloudinaryInvalida as exc:
+        except (FotoCloudinaryInvalida, FotoUploadInvalida) as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"message": "Foto salva.", "foto": foto}, status=status.HTTP_201_CREATED)
 
@@ -110,6 +113,12 @@ class ConsultaFotoQrView(GetObjectMixin, APIView):
         bloqueio = _consulta_permite_envio_foto(consulta)
         if bloqueio:
             return bloqueio
+        limites = limites_fotos_consulta(consulta.id)
+        if limites["fotos_restantes"] <= 0:
+            return Response(
+                {"detail": f"Máximo de {MAX_FOTOS_POR_CONSULTA} fotos por consulta."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         origin = (request.data.get("frontend_origin") or "").strip()
         frontend_base = resolver_frontend_base_qr(request, origin or None)
         # Sem Origin (cron/API): usa beta ou produção conforme LWK_ENVIRONMENT
@@ -117,6 +126,7 @@ class ConsultaFotoQrView(GetObjectMixin, APIView):
             from .foto_paciente_service import default_frontend_base_foto
             frontend_base = default_frontend_base_foto()
         data = gerar_qr_foto(consulta, frontend_base=frontend_base)
+        data.update(limites)
         return Response(data)
 
 
@@ -198,6 +208,7 @@ class EnviarFotoPublicaView(View):
             "clinica_nome": loja.nome if loja else "Clínica",
             "consulta_id": consulta.id,
             "upload_via_api": True,
+            **limites_fotos_consulta(consulta.id),
             **upload_cfg,
         })
 
@@ -258,6 +269,6 @@ class EnviarFotoPublicaView(View):
         public_id = (body.get("cloudinary_public_id") or "").strip()
         try:
             foto = registrar_foto(consulta, url, "qr", public_id)
-        except FotoCloudinaryInvalida as exc:
+        except (FotoCloudinaryInvalida, FotoUploadInvalida) as exc:
             return JsonResponse({"error": str(exc)}, status=400)
         return JsonResponse({"success": True, "foto": foto})

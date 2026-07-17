@@ -84,9 +84,14 @@ export const consultasApi = {
   },
   fotos: {
     list: (consultaId: number) =>
-      cbGet<{ patient_id: number; patient_nome: string; fotos: PacienteFotoItem[] }>(
-        `/consultas/${consultaId}/fotos/`,
-      ),
+      cbGet<{
+        patient_id: number;
+        patient_nome: string;
+        fotos: PacienteFotoItem[];
+        max_fotos?: number;
+        fotos_consulta_count?: number;
+        fotos_restantes?: number;
+      }>(`/consultas/${consultaId}/fotos/`),
     salvar: (consultaId: number, cloudinaryUrl: string, publicId?: string) =>
       cbPost<{ message: string; foto: PacienteFotoItem }>(`/consultas/${consultaId}/fotos/`, {
         cloudinary_url: cloudinaryUrl,

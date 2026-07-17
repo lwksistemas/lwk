@@ -1,8 +1,14 @@
 /** Upload direto ao Cloudinary (preset unsigned) — galeria ou câmera nativa. */
 
 const EXT_IMAGEM = /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i;
-const LIMITE_CLOUDINARY_BYTES = 9 * 1024 * 1024;
-const MAX_LADO_INICIAL = 1920;
+
+/** Compressão moderada para estética clínica (alvo ~1,5 MB). */
+export const LIMITE_FOTO_CLINICA_BYTES = Math.round(1.5 * 1024 * 1024);
+export const MAX_LADO_FOTO_CLINICA = 1600;
+const JPEG_QUALIDADE_INICIAL = 0.82;
+const JPEG_QUALIDADE_MINIMA = 0.75;
+const JPEG_QUALIDADE_PASSO = 0.02;
+const MIN_LADO_IMAGEM = 1200;
 
 type FonteImagem = ImageBitmap | HTMLImageElement;
 
@@ -39,7 +45,7 @@ async function canvasParaJpeg(canvas: HTMLCanvasElement, qualidade: number): Pro
   });
 }
 
-/** Reduz fotos grandes antes do upload (limite Cloudinary ~10 MB). */
+/** Reduz fotos grandes antes do upload (qualidade moderada para estética). */
 export async function prepararArquivoImagemUpload(file: File): Promise<File> {
   try {
     const fonte = await carregarFonteImagem(file);
@@ -47,10 +53,10 @@ export async function prepararArquivoImagemUpload(file: File): Promise<File> {
 
     const iw = fonte.width;
     const ih = fonte.height;
-    let maxLado = MAX_LADO_INICIAL;
+    let maxLado = MAX_LADO_FOTO_CLINICA;
     let resultado: File | null = null;
 
-    while (maxLado >= 960) {
+    while (maxLado >= MIN_LADO_IMAGEM) {
       const escala = Math.min(1, maxLado / Math.max(iw, ih));
       const w = Math.max(1, Math.round(iw * escala));
       const h = Math.max(1, Math.round(ih * escala));
@@ -61,19 +67,37 @@ export async function prepararArquivoImagemUpload(file: File): Promise<File> {
       if (!ctx) break;
       ctx.drawImage(fonte, 0, 0, w, h);
 
-      let qualidade = 0.88;
+      let qualidade = JPEG_QUALIDADE_INICIAL;
       let blob: Blob | null = null;
-      while (qualidade >= 0.45) {
+      while (qualidade >= JPEG_QUALIDADE_MINIMA - 1e-6) {
         blob = await canvasParaJpeg(canvas, qualidade);
-        if (blob && blob.size <= LIMITE_CLOUDINARY_BYTES) break;
-        qualidade -= 0.08;
+        if (blob && blob.size <= LIMITE_FOTO_CLINICA_BYTES) break;
+        qualidade -= JPEG_QUALIDADE_PASSO;
       }
-      if (blob && blob.size <= LIMITE_CLOUDINARY_BYTES) {
+      if (blob && blob.size <= LIMITE_FOTO_CLINICA_BYTES) {
         const nome = file.name.replace(EXT_IMAGEM, '.jpg') || 'foto.jpg';
         resultado = new File([blob], nome, { type: 'image/jpeg' });
         break;
       }
-      maxLado = Math.round(maxLado * 0.75);
+      maxLado = Math.round(maxLado * 0.9);
+    }
+
+    if (!resultado) {
+      const escala = Math.min(1, MIN_LADO_IMAGEM / Math.max(iw, ih));
+      const w = Math.max(1, Math.round(iw * escala));
+      const h = Math.max(1, Math.round(ih * escala));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(fonte, 0, 0, w, h);
+        const blob = await canvasParaJpeg(canvas, JPEG_QUALIDADE_MINIMA);
+        if (blob) {
+          const nome = file.name.replace(EXT_IMAGEM, '.jpg') || 'foto.jpg';
+          resultado = new File([blob], nome, { type: 'image/jpeg' });
+        }
+      }
     }
 
     liberarFonteImagem(fonte);
@@ -98,9 +122,9 @@ export async function uploadImagemCloudinary(file: File, folder: string): Promis
     method: 'POST',
     body: formData,
   });
-  const data = (await res.json().catch(() => ({}))) as { secure_url?: string; error?: { message?: string } };
-  if (!res.ok || !data.secure_url) {
-    throw new Error(data.error?.message || 'Erro ao enviar imagem.');
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error((data as { error?: { message?: string } }).error?.message || 'Falha no upload');
   }
-  return data.secure_url;
+  return (data as { secure_url: string }).secure_url;
 }

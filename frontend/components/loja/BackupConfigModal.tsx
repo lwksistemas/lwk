@@ -63,10 +63,9 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
     if (!config) return;
     setSaving(true);
     try {
-      const horario = config.horario_envio?.slice(0, 5) || '03:00';
+      // Horário é definido pelo servidor (slot noturno BRT distribuído por loja).
       const payload = {
         backup_automatico_ativo: config.backup_automatico_ativo,
-        horario_envio: horario.length === 5 ? `${horario}:00` : '03:00:00',
         frequencia: config.frequencia,
         dia_semana: config.frequencia === 'semanal' ? (config.dia_semana ?? 0) : null,
         dia_mes: config.frequencia === 'mensal' ? (config.dia_mes ?? 1) : null,
@@ -160,14 +159,14 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
                   </label>
                   {config.backup_automatico_ativo && (
                     <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Horário</label>
-                        <input
-                          type="time"
-                          value={config.horario_envio?.slice(0, 5) || '03:00'}
-                          onChange={(e) => setConfig((c) => (c ? { ...c, horario_envio: e.target.value + ':00' } : c))}
-                          className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-2 py-1"
-                        />
+                      <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 px-3 py-2">
+                        <p className="text-sm text-blue-900 dark:text-blue-100 font-medium">
+                          Envio automático à madrugada (horário de Brasília)
+                        </p>
+                        <p className="text-xs text-blue-800/80 dark:text-blue-200/80 mt-1">
+                          O sistema escolhe um horário entre 00:00 e 04:45 e distribui entre as lojas
+                          para não sobrecarregar o servidor no horário comercial.
+                        </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Frequência</label>

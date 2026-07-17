@@ -261,10 +261,26 @@ class LojaBackupMixin:
         from ...models import ConfiguracaoBackup
         from ...serializers import ConfiguracaoBackupSerializer
 
+        from ...models.backup import horario_envio_slot_noturno
+
         loja = self.get_object()
         config, created = ConfiguracaoBackup.objects.get_or_create(
-            loja=loja, defaults={"frequencia": "diario"},
+            loja=loja,
+            defaults={
+                "frequencia": "diario",
+                "horario_envio": horario_envio_slot_noturno(loja.id),
+            },
         )
+        # Garante slot noturno mesmo em configs antigas (sem migration em massa).
+        from django.utils import timezone as dj_tz
+
+        slot = horario_envio_slot_noturno(loja.id)
+        if config.horario_envio != slot:
+            ConfiguracaoBackup.objects.filter(pk=config.pk).update(
+                horario_envio=slot,
+                updated_at=dj_tz.now(),
+            )
+            config.horario_envio = slot
         serializer = ConfiguracaoBackupSerializer(config)
 
         return Response({"success": True, "config": serializer.data, "created": created})
@@ -273,21 +289,34 @@ class LojaBackupMixin:
     def atualizar_configuracao_backup(self, request, pk=None):
         """Atualiza configuração de backup da loja."""
         from ...models import ConfiguracaoBackup
+        from ...models.backup import horario_envio_slot_noturno
         from ...serializers import ConfiguracaoBackupSerializer
 
         loja = self.get_object()
         config, _ = ConfiguracaoBackup.objects.get_or_create(
-            loja=loja, defaults={"frequencia": "diario"},
+            loja=loja,
+            defaults={
+                "frequencia": "diario",
+                "horario_envio": horario_envio_slot_noturno(loja.id),
+            },
         )
 
-        serializer = ConfiguracaoBackupSerializer(config, data=request.data, partial=True)
+        # Cliente não escolhe horário — ignora qualquer horario_envio do payload.
+        data = {k: v for k, v in request.data.items() if k != "horario_envio"}
+        serializer = ConfiguracaoBackupSerializer(config, data=data, partial=True)
 
         if serializer.is_valid():
             serializer.save()
+            # save() do model já força o slot; reforça após partial update
+            config.refresh_from_db()
+            slot = horario_envio_slot_noturno(loja.id)
+            if config.horario_envio != slot:
+                config.horario_envio = slot
+                config.save(update_fields=["horario_envio", "updated_at"])
             logger.info(f"✅ Configuração de backup atualizada - Loja: {loja.nome}")
             return Response({
                 "success": True,
-                "config": serializer.data,
+                "config": ConfiguracaoBackupSerializer(config).data,
                 "message": "Configuração atualizada com sucesso",
             })
         return Response({

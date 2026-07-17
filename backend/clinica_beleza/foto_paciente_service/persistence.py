@@ -2,11 +2,27 @@ import logging
 
 from django.utils import timezone
 
-from .exceptions import FotoCloudinaryInvalida
+from .constants import MAX_FOTOS_POR_CONSULTA
+from .exceptions import FotoCloudinaryInvalida, FotoUploadInvalida
 from .upload import excluir_foto_cloudinary
 from .validation import validar_cloudinary_foto_loja
 
 logger = logging.getLogger(__name__)
+
+
+def contar_fotos_consulta(consulta_id: int) -> int:
+    from ..models import PacienteFotoAcompanhamento
+
+    return PacienteFotoAcompanhamento.objects.filter(consulta_id=consulta_id).count()
+
+
+def limites_fotos_consulta(consulta_id: int) -> dict:
+    count = contar_fotos_consulta(consulta_id)
+    return {
+        "max_fotos": MAX_FOTOS_POR_CONSULTA,
+        "fotos_consulta_count": count,
+        "fotos_restantes": max(0, MAX_FOTOS_POR_CONSULTA - count),
+    }
 
 
 def serializar_foto(foto) -> dict:
@@ -62,6 +78,11 @@ def registrar_foto(
     if not loja:
         raise FotoCloudinaryInvalida("Loja não encontrada.")
     validar_cloudinary_foto_loja(loja, cloudinary_url, public_id)
+
+    if contar_fotos_consulta(consulta.id) >= MAX_FOTOS_POR_CONSULTA:
+        raise FotoUploadInvalida(
+            f"Máximo de {MAX_FOTOS_POR_CONSULTA} fotos por consulta.",
+        )
 
     foto = PacienteFotoAcompanhamento.objects.create(
         patient_id=consulta.patient_id,

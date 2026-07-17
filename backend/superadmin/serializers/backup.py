@@ -40,6 +40,7 @@ class ConfiguracaoBackupSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "loja",
+            "horario_envio",  # slot noturno definido pelo servidor (f(loja_id))
             "ultimo_backup",
             "ultimo_envio_email",
             "total_backups_realizados",

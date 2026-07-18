@@ -6,8 +6,13 @@ import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 import { isTipoCabeleireiro, isTipoClinicaBeleza, isTipoCRMVendas, isTipoHotel } from '@/lib/loja-tipo';
+import {
+  readLojaInfoPublicaCache,
+  writeLojaInfoPublicaCache,
+} from '@/lib/loja-info-publica-cache';
 import ModalChamado from '@/components/suporte/ModalChamado';
 import { logger } from '@/lib/logger';
+import type { LojaInfo as LojaInfoFull } from '@/types/dashboard';
 
 const DashboardChunkSkeleton = () => (
   <div className="flex flex-col items-center justify-center min-h-[200px] gap-3 p-6">
@@ -37,8 +42,21 @@ export default function LojaDashboardDinamicoPage() {
   const slug = params.slug as string;
   const { loginPath, handleLogout, isLoja, ready } = useLojaAuth(slug);
 
-  const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [lojaInfo, setLojaInfo] = useState<LojaInfo | null>(() => {
+    const cached = readLojaInfoPublicaCache(slug);
+    if (!cached?.id) return null;
+    return {
+      id: cached.id,
+      nome: cached.nome,
+      slug: cached.slug || slug,
+      tipo_loja_nome: cached.tipo_loja_nome,
+      cor_primaria: cached.cor_primaria,
+      cor_secundaria: cached.cor_secundaria,
+      logo: cached.logo,
+      senha_foi_alterada: Boolean((cached as LojaInfoFull & { senha_foi_alterada?: boolean }).senha_foi_alterada),
+    };
+  });
+  const [loading, setLoading] = useState(() => !readLojaInfoPublicaCache(slug));
   const [loadingLento, setLoadingLento] = useState(false);
   const [modalSuporteAberto, setModalSuporteAberto] = useState(false);
 
@@ -51,12 +69,14 @@ export default function LojaDashboardDinamicoPage() {
   }, []);
 
   const verificarECarregarLoja = useCallback(async () => {
+    const cached = readLojaInfoPublicaCache(slug);
+    const hasCache = Boolean(cached?.id);
     try {
-      setLoading(true);
+      if (!hasCache) setLoading(true);
       const lojaResponse = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
-      const data = lojaResponse.data;
+      const data = lojaResponse.data as LojaInfo & LojaInfoFull;
       if (data?.id && typeof window !== 'undefined') {
-        sessionStorage.setItem('current_loja_id', String(data.id));
+        writeLojaInfoPublicaCache(slug, data);
         // Preferir o slug/atalho da URL (bate com cookie do middleware).
         sessionStorage.setItem('loja_slug', slug);
         document.cookie = `loja_slug=${encodeURIComponent(slug)}; path=/; max-age=86400; SameSite=Lax`;
@@ -66,6 +86,7 @@ export default function LojaDashboardDinamicoPage() {
       logger.warn('Erro ao carregar loja:', error);
       const ax = error && typeof error === 'object' && 'response' in error ? (error as { response?: { status?: number } }).response : undefined;
       if (ax?.status === 401) router.push(`/loja/${slug}/login`);
+      if (!hasCache) setLojaInfo(null);
     } finally {
       setLoading(false);
     }
@@ -83,6 +104,20 @@ export default function LojaDashboardDinamicoPage() {
         clinicaBelezaFetch(`/financeiro/resumo/?mes=${mes}&ano=${ano}`, {}, { slug }),
       ]).catch(() => undefined),
     );
+    const cached = readLojaInfoPublicaCache(slug);
+    if (cached?.id) {
+      setLojaInfo({
+        id: cached.id,
+        nome: cached.nome,
+        slug: cached.slug || slug,
+        tipo_loja_nome: cached.tipo_loja_nome,
+        cor_primaria: cached.cor_primaria,
+        cor_secundaria: cached.cor_secundaria,
+        logo: cached.logo,
+        senha_foi_alterada: Boolean((cached as LojaInfoFull & { senha_foi_alterada?: boolean }).senha_foi_alterada),
+      });
+      setLoading(false);
+    }
     verificarECarregarLoja();
   }, [ready, isLoja, slug, verificarECarregarLoja]);
 

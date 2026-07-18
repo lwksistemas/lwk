@@ -6,6 +6,10 @@ import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
 import { ClinicaBelezaShell } from '@/components/clinica-beleza/clinica-beleza-shell/ClinicaBelezaShell';
 import { ClinicaBelezaThemeProvider } from '@/components/clinica-beleza/ClinicaBelezaThemeContext';
+import {
+  readLojaInfoPublicaCache,
+  writeLojaInfoPublicaCache,
+} from '@/lib/loja-info-publica-cache';
 import type { LojaInfo } from '@/types/dashboard';
 
 type ClinicaBelezaLojaLayoutProps = {
@@ -15,37 +19,6 @@ type ClinicaBelezaLojaLayoutProps = {
   /** Spinner com cor da marca (agenda) vs texto simples. */
   loadingVariant?: 'default' | 'branded';
 };
-
-function lojaInfoCacheKey(slug: string) {
-  return `cb_loja_info_${(slug || '').trim().toLowerCase()}`;
-}
-
-function readCachedLojaInfo(slug: string): LojaInfo | null {
-  if (typeof window === 'undefined' || !slug) return null;
-  try {
-    const raw = sessionStorage.getItem(lojaInfoCacheKey(slug));
-    if (!raw) return null;
-    const data = JSON.parse(raw) as LojaInfo;
-    return data?.id ? data : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedLojaInfo(urlSlug: string, data: LojaInfo) {
-  if (typeof window === 'undefined' || !data?.id) return;
-  const payload = JSON.stringify(data);
-  const keys = new Set<string>([
-    urlSlug,
-    data.slug || '',
-    data.atalho || '',
-  ].map((s) => s.trim().toLowerCase()).filter(Boolean));
-  for (const key of keys) {
-    sessionStorage.setItem(lojaInfoCacheKey(key), payload);
-  }
-  sessionStorage.setItem('current_loja_id', String(data.id));
-  if (data.slug) sessionStorage.setItem('loja_slug', data.slug);
-}
 
 function LoadingScreen({ variant }: { variant: 'default' | 'branded' }) {
   if (variant === 'branded') {
@@ -78,12 +51,12 @@ export function ClinicaBelezaLojaLayout({
   const params = useParams();
   const slug = params.slug as string;
   const { loginPath, handleLogout, isLoja, ready } = useLojaAuth(slug);
-  const [loja, setLoja] = useState<LojaInfo | null>(() => readCachedLojaInfo(slug));
-  const [lojaLoading, setLojaLoading] = useState(() => !readCachedLojaInfo(slug));
+  const [loja, setLoja] = useState<LojaInfo | null>(() => readLojaInfoPublicaCache(slug));
+  const [lojaLoading, setLojaLoading] = useState(() => !readLojaInfoPublicaCache(slug));
   const [lojaError, setLojaError] = useState<string | null>(null);
 
   const loadLoja = useCallback(async (opts?: { silent?: boolean }) => {
-    const silent = Boolean(opts?.silent && readCachedLojaInfo(slug));
+    const silent = Boolean(opts?.silent && readLojaInfoPublicaCache(slug));
     if (!silent) {
       setLojaLoading(true);
       setLojaError(null);
@@ -99,7 +72,7 @@ export function ClinicaBelezaLojaLayout({
         return;
       }
       setLoja(data);
-      writeCachedLojaInfo(slug, data);
+      writeLojaInfoPublicaCache(slug, data);
       setLojaError(null);
     } catch {
       if (!silent) {
@@ -113,7 +86,7 @@ export function ClinicaBelezaLojaLayout({
 
   useEffect(() => {
     if (!ready || !isLoja) return;
-    const cached = readCachedLojaInfo(slug);
+    const cached = readLojaInfoPublicaCache(slug);
     if (cached) {
       setLoja(cached);
       setLojaLoading(false);

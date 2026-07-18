@@ -216,5 +216,5 @@ export function buildComissoesSavePayload(
 }
 
 export function formatConvenioLabel(cv: ConvenioItem): string {
-  return cv.codigo ? `${cv.codigo} — ${cv.nome}` : cv.nome;
+  return cv.nome;
 }

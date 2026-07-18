@@ -49,7 +49,11 @@ export function ConsultaDetailShell({
   return (
     <>
       <ClinicaBelezaStandardPageHeader
-        title={toUpperCase(selected.patient_name)}
+        title={
+          selected.numero
+            ? `Nº ${selected.numero} · ${toUpperCase(selected.patient_name)}`
+            : toUpperCase(selected.patient_name)
+        }
         subtitle={`${consultaProcedimentosNomes(selected)} · ${toUpperCase(selected.professional_name)}`}
         onBack={onBack}
         leadingContent={

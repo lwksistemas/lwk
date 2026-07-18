@@ -8,6 +8,7 @@ import {
 export type ConsultasColunaDef = CrmColunaDef;
 
 export const COLUNAS_CONSULTAS_DISPONIVEIS: ConsultasColunaDef[] = [
+  { key: 'numero', label: 'Nº' },
   { key: 'patient', label: 'Cliente' },
   { key: 'agenda', label: 'Agenda' },
   { key: 'procedure', label: 'Procedimento' },
@@ -19,6 +20,7 @@ export const COLUNAS_CONSULTAS_DISPONIVEIS: ConsultasColunaDef[] = [
 
 /** Padrão sem AGENDA (pedido Harmonis / listagem mais limpa). */
 export const DEFAULT_COLUNAS_CONSULTAS = [
+  'numero',
   'patient',
   'procedure',
   'date',
@@ -30,8 +32,13 @@ export const DEFAULT_COLUNAS_CONSULTAS = [
 export function resolveColunasConsultas(
   keys: string[] | undefined | null,
 ): ConsultasColunaDef[] {
+  // Preferências antigas sem "numero": inclui Nº no início da listagem.
+  let resolvedKeys = keys;
+  if (keys && keys.length > 0 && !keys.includes("numero")) {
+    resolvedKeys = ["numero", ...keys];
+  }
   return colunasVisiveisFromConfig(
-    keys,
+    resolvedKeys,
     COLUNAS_CONSULTAS_DISPONIVEIS,
     DEFAULT_COLUNAS_CONSULTAS,
   );

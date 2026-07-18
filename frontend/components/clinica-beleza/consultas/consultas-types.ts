@@ -18,6 +18,8 @@ export interface ConsultaProcedimento {
 
 export interface Consulta {
   id: number;
+  /** Número sequencial da loja (ex.: "001"). */
+  numero?: string | null;
   patient: number;
   procedure: number;
   professional?: number | null;

@@ -38,7 +38,7 @@ export function ConveniosListView({
     <>
       <ClinicaBelezaStandardPageHeader
         title="Convênios"
-        subtitle="Planos cadastrados com código automático — preços nos procedimentos"
+        subtitle="Gerencie os convênios aceitos pela clínica"
         newLabel="Novo convênio"
         onNew={onNova}
         icon={FileText}
@@ -57,7 +57,6 @@ export function ConveniosListView({
                 <thead className="bg-gray-50 dark:bg-neutral-900/80 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-neutral-700">
                   <tr>
                     <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Nome</th>
-                    <th className="text-left px-4 md:px-6 py-3.5 font-semibold">Código</th>
                     <th className="text-right px-4 md:px-6 py-3.5 font-semibold w-28">Ações</th>
                   </tr>
                 </thead>
@@ -78,9 +77,6 @@ export function ConveniosListView({
                               </span>
                             )}
                           </span>
-                        </td>
-                        <td className="px-4 md:px-6 py-4 text-gray-600 dark:text-gray-400 font-mono text-xs">
-                          {c.codigo || "—"}
                         </td>
                         <td className="px-4 md:px-6 py-4">
                           <div className="flex justify-end">

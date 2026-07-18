@@ -28,6 +28,12 @@ class Consulta(LojaIsolationMixin, models.Model):
         related_name="consulta",
         verbose_name="Agendamento",
     )
+    numero = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Número",
+        help_text="Número sequencial da consulta na loja (ex.: 1 → 001).",
+    )
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="consultas", verbose_name="Cliente")
     professional = models.ForeignKey(
         Professional, on_delete=models.SET_NULL, null=True, related_name="consultas", verbose_name="Profissional",
@@ -113,10 +119,41 @@ class Consulta(LojaIsolationMixin, models.Model):
             models.Index(fields=["patient", "status"]),
             models.Index(fields=["loja_id", "status"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["loja_id", "numero"],
+                name="uniq_consulta_numero_por_loja",
+            ),
+        ]
 
     def __str__(self):
         proc = self.procedure.nome if self.procedure_id and self.procedure else "Sem procedimento"
-        return f"Consulta {self.patient.nome} — {proc}"
+        prefix = f"#{self.numero_display} " if self.numero else ""
+        return f"{prefix}Consulta {self.patient.nome} — {proc}"
+
+    @property
+    def numero_display(self) -> str:
+        if self.numero is None:
+            return ""
+        return str(self.numero).zfill(3)
+
+    def save(self, *args, **kwargs):
+        if not self.loja_id:
+            from tenants.middleware import get_current_loja_id
+
+            current_loja_id = get_current_loja_id()
+            if current_loja_id:
+                self.loja_id = current_loja_id
+        if self.numero is None and self.loja_id:
+            from django.db.models import Max
+
+            ultimo = (
+                Consulta.objects.filter(loja_id=self.loja_id)
+                .aggregate(m=Max("numero"))
+                .get("m")
+            )
+            self.numero = int(ultimo or 0) + 1
+        super().save(*args, **kwargs)
 
     @property
     def duracao_minutos(self):

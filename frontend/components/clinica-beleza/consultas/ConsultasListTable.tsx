@@ -36,6 +36,16 @@ function buildColumnRegistry(
   recebendoConsultaId: number | null = null,
 ): Record<string, ColumnDef> {
   return {
+    numero: {
+      key: "numero",
+      header: "Nº",
+      className: "w-16",
+      render: (c) => (
+        <span className="font-mono text-xs font-semibold text-gray-700 dark:text-gray-300 tabular-nums">
+          {c.numero || "—"}
+        </span>
+      ),
+    },
     patient: {
       key: "patient",
       header: "CLIENTE",

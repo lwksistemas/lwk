@@ -78,6 +78,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     payment_status = serializers.SerializerMethodField()
     payment_id = serializers.SerializerMethodField()
     payment_date = serializers.SerializerMethodField()
+    numero = serializers.SerializerMethodField()
     status_assinatura_termo_display = serializers.CharField(
         source="get_status_assinatura_termo_display", read_only=True,
     )
@@ -85,7 +86,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     class Meta:
         model = Consulta
         fields = [
-            "id", "appointment", "patient", "patient_name", "patient_foto_url",
+            "id", "numero", "appointment", "patient", "patient_name", "patient_foto_url",
             "professional", "professional_name",
             "procedure", "procedure_name", "procedures_list", "protocol", "protocol_name", "status",
             "data_inicio", "data_fim", "duracao_minutos", "observacoes_gerais", "protocolo_notas",
@@ -99,7 +100,16 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             "status_assinatura_termo", "status_assinatura_termo_display", "exige_termo_consentimento",
             "created_at", "updated_at", "loja_id",
         ]
-        read_only_fields = ["created_at", "updated_at", "loja_id", "appointment", "retorno_gratuito", "retorno_tipo"]
+        read_only_fields = [
+            "numero", "created_at", "updated_at", "loja_id", "appointment",
+            "retorno_gratuito", "retorno_tipo",
+        ]
+
+    def get_numero(self, obj):
+        n = getattr(obj, "numero", None)
+        if n is None:
+            return None
+        return str(n).zfill(3)
 
     def get_total_evolucoes(self, obj):
         return obj.evolucoes.count()

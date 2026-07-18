@@ -28,7 +28,7 @@ export function ConvenioFormView({
     <>
       <ClinicaBelezaStandardPageHeader
         title="Novo convênio"
-        subtitle="Informe o nome; o código será gerado automaticamente"
+        subtitle="Informe o nome do convênio aceito pela clínica"
         backHref={basePath}
       />
       <ClinicaBelezaPageContent className="flex flex-col flex-1 !p-0">

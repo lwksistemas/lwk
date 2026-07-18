@@ -12,7 +12,6 @@ import {
   clinicaBelezaQueryKeys,
   fetchClinicaAgendaBloqueios,
   fetchClinicaAgendaEvents,
-  fetchClinicaAgendaPatients,
   fetchClinicaHorariosTrabalho,
   fetchClinicaLocaisAtendimento,
   fetchClinicaNomesAgenda,
@@ -21,16 +20,22 @@ import {
 } from "@/lib/clinica-beleza-cadastros-api";
 
 export function useAgendaCadastroQueries(isOnline: boolean) {
+  const queryClient = useQueryClient();
+
   const professionalsQuery = useQuery({
     queryKey: clinicaBelezaQueryKeys.schedulingProfessionals(),
     queryFn: fetchClinicaSchedulingProfessionals,
     enabled: isOnline,
   });
 
+  // Cache local de pacientes da sessão (criados no modal); autocomplete usa search sob demanda.
   const patientsQuery = useQuery({
     queryKey: clinicaBelezaQueryKeys.agendaPatients(),
-    queryFn: fetchClinicaAgendaPatients,
-    enabled: isOnline,
+    queryFn: async (): Promise<ClinicaPatient[]> =>
+      queryClient.getQueryData<ClinicaPatient[]>(clinicaBelezaQueryKeys.agendaPatients()) ?? [],
+    enabled: false,
+    initialData: [],
+    staleTime: Infinity,
   });
 
   const proceduresQuery = useQuery({
@@ -108,7 +113,6 @@ export function useAgendaRefresh(
     }
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: clinicaBelezaQueryKeys.schedulingProfessionals() }),
-      queryClient.invalidateQueries({ queryKey: clinicaBelezaQueryKeys.agendaPatients() }),
       queryClient.invalidateQueries({ queryKey: clinicaBelezaQueryKeys.procedures() }),
       queryClient.invalidateQueries({ queryKey: clinicaBelezaQueryKeys.nomesAgenda() }),
       queryClient.invalidateQueries({ queryKey: clinicaBelezaQueryKeys.locaisAtendimento() }),

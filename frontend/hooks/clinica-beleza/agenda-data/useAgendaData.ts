@@ -16,7 +16,6 @@ export function useAgendaData(selectedProfessional: string) {
 
   const {
     professionalsQuery,
-    patientsQuery,
     proceduresQuery,
     professionals,
     patients,
@@ -52,7 +51,6 @@ export function useAgendaData(selectedProfessional: string) {
 
   const loading = isOnline
     ? professionalsQuery.isLoading ||
-      patientsQuery.isLoading ||
       proceduresQuery.isLoading ||
       eventsQuery.isLoading
     : offlineLoading;

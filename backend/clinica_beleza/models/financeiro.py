@@ -58,6 +58,12 @@ class Payment(LojaIsolationMixin, models.Model):
             models.Index(fields=["appointment", "status"]),
             models.Index(fields=["loja_id", "payment_date"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["appointment"],
+                name="uniq_payment_per_appointment",
+            ),
+        ]
 
     def __str__(self):
         return f"Pagamento {self.id} - R$ {self.amount}"

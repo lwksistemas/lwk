@@ -154,10 +154,14 @@ export function buildPendingSyncEvents({
       endDate.setMinutes(endDate.getMinutes() + duration);
       const status = String(p.status || "SCHEDULED");
       const cores = getAgendaStatusColor(status, statusColors);
+      const patientName =
+        String(p.patient_name ?? "").trim() || entityName(patient || {}) || "";
+      const procedureName =
+        String(p.procedure_name ?? "").trim() || entityName(procedure || {}) || "";
       return {
         id: `offline-${item.id}`,
         title:
-          [entityName(patient || {}), entityName(procedure || {})].filter(Boolean).join(" • ") ||
+          [patientName, procedureName].filter(Boolean).join(" • ") ||
           "Agendamento (pendente sync)",
         start: date.toISOString(),
         end: endDate.toISOString(),
@@ -168,10 +172,10 @@ export function buildPendingSyncEvents({
         extendedProps: {
           dbId: `offline-${item.id}`,
           status,
-          patient_name: entityName(patient || {}),
+          patient_name: patientName,
           patient_phone: "",
           professional_name: professional?.name ?? "",
-          procedure_name: entityName(procedure || {}),
+          procedure_name: procedureName,
           procedure_duration: duration,
           procedure_price: String(procedure?.price ?? ""),
           notes: String(p.notes ?? ""),

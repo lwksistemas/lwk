@@ -97,7 +97,17 @@ class AgendaView(APIView):
         scope = resolve_agenda_professional_scope(request)
         if scope is None and (p := request.query_params.get("professional")):
             qs = qs.filter(professional_id=p)
-        return Response(AgendaEventSerializer(qs.order_by("date"), many=True).data)
+        appointments = list(qs.order_by("date"))
+        from clinica_beleza.retorno_service import verificar_retorno_appointments_batch
+
+        retorno_map = verificar_retorno_appointments_batch(appointments)
+        return Response(
+            AgendaEventSerializer(
+                appointments,
+                many=True,
+                context={"request": request, "retorno_by_appointment_id": retorno_map},
+            ).data,
+        )
 
 
 class AgendaUpdateView(APIView):

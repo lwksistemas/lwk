@@ -53,15 +53,6 @@ export async function fetchClinicaSchedulingProfessionals(): Promise<ClinicaProf
   });
 }
 
-export async function fetchClinicaAgendaPatients() {
-  // Cap moderado para autocomplete; busca sob demanda cobre o restante.
-  return ClinicaBelezaAPI.getList("/patients/", {
-    page: 1,
-    page_size: 200,
-    active: true,
-  });
-}
-
 export async function fetchClinicaAgendaEvents(professionalId: string): Promise<AgendaEventData[]> {
   const path = professionalId ? `/agenda/?professional=${professionalId}` : "/agenda/";
   const res = await clinicaBelezaFetch(path);

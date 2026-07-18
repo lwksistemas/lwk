@@ -262,6 +262,137 @@ def verificar_retorno_appointment(appointment, reference_date=None) -> RetornoEl
     )
 
 
+def verificar_retorno_appointments_batch(appointments) -> dict[int, RetornoElegibilidade]:
+    """Calcula elegibilidade de retorno para muitos agendamentos com poucas queries.
+
+    Usado pelo list da agenda (evita N+1 de config + histórico por evento).
+    """
+    from collections import defaultdict
+
+    from .models import Consulta, RetornoProcedimentoRegra
+
+    appointments = list(appointments)
+    out: dict[int, RetornoElegibilidade] = {}
+    if not appointments:
+        return out
+
+    need: list = []
+    for appt in appointments:
+        consulta = getattr(appt, "consulta", None)
+        if consulta is not None and getattr(consulta, "retorno_gratuito", False):
+            out[appt.id] = RetornoElegibilidade(
+                elegivel=True,
+                tipo=getattr(consulta, "retorno_tipo", None) or None,
+            )
+            continue
+        need.append(appt)
+
+    if not need:
+        return out
+
+    by_loja: dict = defaultdict(list)
+    for appt in need:
+        by_loja[appt.loja_id].append(appt)
+
+    for loja_id, appts in by_loja.items():
+        config = get_agenda_retorno_config(loja_id)
+        patient_ids = {a.patient_id for a in appts if a.patient_id}
+        by_patient: dict[int, list] = defaultdict(list)
+        if patient_ids:
+            for consulta in (
+                Consulta.objects.filter(
+                    patient_id__in=patient_ids,
+                    loja_id=loja_id,
+                    status="COMPLETED",
+                )
+                .select_related("appointment")
+                .prefetch_related("appointment__appointment_procedures")
+                .order_by("-data_fim", "-data_inicio", "-id")
+            ):
+                by_patient[consulta.patient_id].append(consulta)
+
+        regra_por_proc = {}
+        if config.retorno_procedimento_ativo:
+            regra_por_proc = {
+                r.procedure_id: r
+                for r in RetornoProcedimentoRegra.objects.filter(
+                    loja_id=loja_id,
+                    is_active=True,
+                ).select_related("procedure")
+            }
+
+        for appt in appts:
+            hist = [
+                c
+                for c in by_patient.get(appt.patient_id, [])
+                if c.appointment_id != appt.id
+            ]
+            ref = _aware_dt(getattr(appt, "date", None)) or timezone.now()
+            proc_ids = _procedure_ids_from_appointment(appt)
+            found: RetornoElegibilidade | None = None
+
+            if config.retorno_procedimento_ativo and proc_ids and regra_por_proc:
+                for consulta in hist:
+                    hist_procs = _procedure_ids_from_consulta(consulta)
+                    dt = _data_referencia_consulta(consulta)
+                    if not dt:
+                        continue
+                    for proc_id in hist_procs & proc_ids:
+                        regra = regra_por_proc.get(proc_id)
+                        if not regra:
+                            continue
+                        dias_passados = _dias_entre(ref, dt)
+                        if dias_passados <= regra.dias_retorno:
+                            restantes = regra.dias_retorno - dias_passados
+                            found = RetornoElegibilidade(
+                                elegivel=True,
+                                tipo="procedimento",
+                                procedure_id=proc_id,
+                                procedure_nome=regra.procedure.nome,
+                                dias_retorno=regra.dias_retorno,
+                                dias_restantes=max(0, restantes),
+                                consulta_origem_id=consulta.id,
+                                mensagem=(
+                                    f"Retorno de acompanhamento — {regra.procedure.nome} "
+                                    f"({restantes} dia(s) restantes no prazo de {regra.dias_retorno}). "
+                                    f"Taxa de consulta isenta."
+                                ),
+                            )
+                            break
+                    if found:
+                        break
+
+            if (
+                not found
+                and config.retorno_consulta_ativo
+                and int(config.dias_retorno_consulta or 0) > 0
+            ):
+                dias_limite = int(config.dias_retorno_consulta)
+                for consulta in hist:
+                    dt = _data_referencia_consulta(consulta)
+                    if not dt:
+                        continue
+                    dias_passados = _dias_entre(ref, dt)
+                    if dias_passados <= dias_limite:
+                        restantes = dias_limite - dias_passados
+                        found = RetornoElegibilidade(
+                            elegivel=True,
+                            tipo="consulta",
+                            dias_retorno=dias_limite,
+                            dias_restantes=max(0, restantes),
+                            consulta_origem_id=consulta.id,
+                            mensagem=(
+                                f"Retorno por consulta ({restantes} dia(s) restantes no prazo de {dias_limite}). "
+                                f"Taxa de consulta isenta."
+                            ),
+                        )
+                        break
+
+            out[appt.id] = found or RetornoElegibilidade(elegivel=False)
+
+    return out
+
+
 def aplicar_retorno_em_consulta(consulta, appointment=None) -> RetornoElegibilidade:
     """Zera valor_consulta quando elegível; persiste flags na consulta."""
     appointment = appointment or consulta.appointment

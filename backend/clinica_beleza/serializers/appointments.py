@@ -210,6 +210,9 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         ]
 
     def _retorno_info(self, obj):
+        by_id = self.context.get("retorno_by_appointment_id")
+        if isinstance(by_id, dict) and obj.id in by_id:
+            return by_id[obj.id]
         from ..retorno_service import verificar_retorno_appointment
         cached = getattr(obj, "_retorno_cache", None)
         if cached is None:

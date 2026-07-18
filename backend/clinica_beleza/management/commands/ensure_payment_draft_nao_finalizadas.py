@@ -10,18 +10,26 @@ from django.db import connections
 
 from clinica_beleza.schema_ensure import table_exists
 from core.db_config import ensure_loja_database_config
-from superadmin.models import Loja
 
 
 class Command(BaseCommand):
     help = "Payment PAID/PARTIAL de consulta não finalizada → DRAFT (fora do Financeiro)."
 
+    def add_arguments(self, parser):
+        parser.add_argument("--slug", type=str, help="Processar apenas loja com este slug/atalho")
+
     def handle(self, *args, **options):
         from clinica_beleza.catalogo_service import lojas_clinica_beleza_com_schema
 
+        slug_filter = (options.get("slug") or "").strip().lower()
         lojas = lojas_clinica_beleza_com_schema(apenas_ativas=True)
         total = 0
         for loja in lojas:
+            if slug_filter and slug_filter not in (
+                (loja.slug or "").lower(),
+                (getattr(loja, "atalho", None) or "").lower(),
+            ):
+                continue
             db_name = loja.database_name
             if not ensure_loja_database_config(db_name, conn_max_age=0):
                 continue

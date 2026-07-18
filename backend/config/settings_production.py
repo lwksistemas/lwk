@@ -291,6 +291,10 @@ CORS_ALLOWED_ORIGIN_REGEXES = []
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False  # Manter segurança
 
+# Front (lwksistemas.com.br) e API (api.lwksistemas.com.br) são origens diferentes.
+# Views Django “puras” (sem @api_view) precisam disso no CSRF Origin check.
+CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
+
 # ✅ CORREÇÃO v764: Adicionar configurações CORS necessárias para preflight
 CORS_ALLOW_METHODS = [
     "DELETE",

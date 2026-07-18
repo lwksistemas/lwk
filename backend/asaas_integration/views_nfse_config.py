@@ -281,8 +281,15 @@ def _testar_conexao_issnet_nfse(data, config, cert_data: bytes, senha_cert: str)
             os.unlink(cert_tmp.name)
 
 
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, IsSuperAdmin])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
 def nfse_config_test_nacional(request):
-    """Testa conexão com o provedor configurado (ISSNet ou ADN Nacional)."""
+    """Testa conexão com o provedor configurado (ISSNet ou ADN Nacional).
+
+    Precisa de ``@api_view``: sem isso o CSRF do Django bloqueia POST cross-origin
+    (front lwksistemas.com.br → API api.lwksistemas.com.br) com 403 genérico.
+    """
     from .models_nfse_config import SuperadminNFSeConfig
 
     config = SuperadminNFSeConfig.get_config()
@@ -308,22 +315,36 @@ def nfse_config_test_nacional(request):
         if resultado.get("success"):
             cert_info = {}
             try:
+                from core.encryption import decrypt_value
                 from nfse_integration.nacional.xml_signer import carregar_certificado_bytes
-                _, cert_obj, _ = carregar_certificado_bytes(
-                    bytes(config.nacional_certificado),
-                    config.nacional_senha_certificado,
+
+                cert_bytes = bytes(
+                    config.issnet_certificado
+                    if config.provedor_nfse == "issnet"
+                    else (config.nacional_certificado or b"")
+                    or b"",
                 )
-                cert_info["subject"] = cert_obj.subject.rfc4514_string()[:300]
-                cert_info["valid_to"] = cert_obj.not_valid_after_utc.isoformat()
+                senha_info = decrypt_value(
+                    (
+                        config.issnet_senha_certificado
+                        if config.provedor_nfse == "issnet"
+                        else config.nacional_senha_certificado
+                    )
+                    or "",
+                ) or senha_cert
+                if cert_bytes and senha_info:
+                    _, cert_obj, _ = carregar_certificado_bytes(cert_bytes, senha_info)
+                    cert_info["subject"] = cert_obj.subject.rfc4514_string()[:300]
+                    cert_info["valid_to"] = cert_obj.not_valid_after_utc.isoformat()
             except Exception:
                 pass
 
             return Response({
                 "success": True,
-                "message": resultado.get("message", "Conexão ADN Nacional OK"),
+                "message": resultado.get("message", "Conexão OK"),
                 "certificado_subject": cert_info.get("subject", ""),
                 "certificado_validade": cert_info.get("valid_to", ""),
-                "ambiente": config.nacional_ambiente,
+                "ambiente": resultado.get("ambiente") or config.nacional_ambiente,
             })
         return Response({"success": False, "detail": resultado.get("detail", "Falha no teste")}, status=400)
 

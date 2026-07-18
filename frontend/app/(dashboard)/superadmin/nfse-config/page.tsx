@@ -360,10 +360,18 @@ export default function NFSeConfigPage() {
         text: data.message || 'Conexão testada com sucesso!',
       })
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string; error?: string } } }
+      const err = error as {
+        response?: { status?: number; data?: { detail?: string; error?: string } }
+      }
+      const detail = err.response?.data?.detail || err.response?.data?.error
       setMessage({
         type: 'error',
-        text: err.response?.data?.detail || err.response?.data?.error || 'Erro ao testar conexão',
+        text:
+          (typeof detail === 'string' && detail) ||
+          (err.response?.status === 403
+            ? 'Acesso negado ao testar conexão (403). Recarregue a página e tente de novo.'
+            : '') ||
+          'Erro ao testar conexão',
       })
     } finally {
       setTesting(false)

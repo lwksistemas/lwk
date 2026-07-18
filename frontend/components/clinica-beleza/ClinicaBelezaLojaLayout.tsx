@@ -16,6 +16,37 @@ type ClinicaBelezaLojaLayoutProps = {
   loadingVariant?: 'default' | 'branded';
 };
 
+function lojaInfoCacheKey(slug: string) {
+  return `cb_loja_info_${(slug || '').trim().toLowerCase()}`;
+}
+
+function readCachedLojaInfo(slug: string): LojaInfo | null {
+  if (typeof window === 'undefined' || !slug) return null;
+  try {
+    const raw = sessionStorage.getItem(lojaInfoCacheKey(slug));
+    if (!raw) return null;
+    const data = JSON.parse(raw) as LojaInfo;
+    return data?.id ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedLojaInfo(urlSlug: string, data: LojaInfo) {
+  if (typeof window === 'undefined' || !data?.id) return;
+  const payload = JSON.stringify(data);
+  const keys = new Set<string>([
+    urlSlug,
+    data.slug || '',
+    data.atalho || '',
+  ].map((s) => s.trim().toLowerCase()).filter(Boolean));
+  for (const key of keys) {
+    sessionStorage.setItem(lojaInfoCacheKey(key), payload);
+  }
+  sessionStorage.setItem('current_loja_id', String(data.id));
+  if (data.slug) sessionStorage.setItem('loja_slug', data.slug);
+}
+
 function LoadingScreen({ variant }: { variant: 'default' | 'branded' }) {
   if (variant === 'branded') {
     return (
@@ -47,38 +78,50 @@ export function ClinicaBelezaLojaLayout({
   const params = useParams();
   const slug = params.slug as string;
   const { loginPath, handleLogout, isLoja, ready } = useLojaAuth(slug);
-  const [loja, setLoja] = useState<LojaInfo | null>(null);
-  const [lojaLoading, setLojaLoading] = useState(true);
+  const [loja, setLoja] = useState<LojaInfo | null>(() => readCachedLojaInfo(slug));
+  const [lojaLoading, setLojaLoading] = useState(() => !readCachedLojaInfo(slug));
   const [lojaError, setLojaError] = useState<string | null>(null);
 
-  const loadLoja = useCallback(async () => {
-    setLojaLoading(true);
-    setLojaError(null);
+  const loadLoja = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = Boolean(opts?.silent && readCachedLojaInfo(slug));
+    if (!silent) {
+      setLojaLoading(true);
+      setLojaError(null);
+    }
     try {
-      const res = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${slug}`);
+      const res = await apiClient.get(`/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug)}`);
       const data = res.data as LojaInfo;
       if (!data?.id) {
-        setLoja(null);
-        setLojaError('Não foi possível carregar os dados da loja.');
+        if (!silent) {
+          setLoja(null);
+          setLojaError('Não foi possível carregar os dados da loja.');
+        }
         return;
       }
       setLoja(data);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('current_loja_id', String(data.id));
-        if (data.slug) sessionStorage.setItem('loja_slug', data.slug);
-      }
+      writeCachedLojaInfo(slug, data);
+      setLojaError(null);
     } catch {
-      setLoja(null);
-      setLojaError('Falha ao carregar o módulo. Verifique a conexão e tente novamente.');
+      if (!silent) {
+        setLoja(null);
+        setLojaError('Falha ao carregar o módulo. Verifique a conexão e tente novamente.');
+      }
     } finally {
-      setLojaLoading(false);
+      if (!silent) setLojaLoading(false);
     }
   }, [slug]);
 
   useEffect(() => {
     if (!ready || !isLoja) return;
+    const cached = readCachedLojaInfo(slug);
+    if (cached) {
+      setLoja(cached);
+      setLojaLoading(false);
+      void loadLoja({ silent: true });
+      return;
+    }
     void loadLoja();
-  }, [ready, isLoja, loadLoja]);
+  }, [ready, isLoja, loadLoja, slug]);
 
   useEffect(() => {
     if (ready && !isLoja) window.location.href = loginPath;

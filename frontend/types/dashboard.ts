@@ -6,6 +6,7 @@ export interface LojaInfo {
   id: number;
   nome: string;
   slug: string;
+  atalho?: string;
   tipo_loja_nome: string;
   cor_primaria: string;
   cor_secundaria: string;

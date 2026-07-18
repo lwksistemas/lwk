@@ -1,13 +1,11 @@
 """Resolução e construção de cabeçalho dos PDFs."""
-from io import BytesIO
-
-import requests
 from reportlab.lib import colors
 from reportlab.lib.units import cm, mm
-from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
 from ..models import MemedTimbrado
-from .constants import MARGIN, PAGE_WIDTH, logger
+from ..pdf_common import logo_image
+from .constants import MARGIN, PAGE_WIDTH
 
 
 def _resolver_cabecalho(loja_id):
@@ -75,16 +73,7 @@ def get_top_margin(loja_id):
 
 def _logo_image_flowable(logo_url: str, max_w=4 * cm, max_h=2.5 * cm):
     """Carrega logo por URL e retorna flowable ReportLab."""
-    try:
-        resp = requests.get(logo_url, timeout=8)
-        if resp.status_code != 200:
-            return None
-        img = Image(BytesIO(resp.content), width=max_w, height=max_h, kind="proportional")
-        img.hAlign = "CENTER"
-        return img
-    except Exception as e:
-        logger.warning("Falha ao carregar logo para PDF: %s", e)
-        return None
+    return logo_image(logo_url, max_w=max_w, max_h=max_h)
 
 
 # ---------------------------------------------------------------------------

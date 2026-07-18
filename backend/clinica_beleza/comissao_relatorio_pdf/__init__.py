@@ -16,7 +16,8 @@ from .formatting import (
 )
 from .generator import gerar_pdf_comissoes
 from .tables import _legenda_pagamento_pdf, _make_data_table, _titulo_secao
-from .timbrado import _logo_image, _merge_timbrado_fundo
+from ..pdf_common import logo_image as _logo_image
+from ..pdf_common import merge_timbrado_fundo as _merge_timbrado_fundo
 
 __all__ = [
     "LABEL_CONSULTA",

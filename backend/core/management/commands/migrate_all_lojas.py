@@ -118,6 +118,25 @@ class Command(BaseCommand):
                     # Best-effort: se tabela ainda não existe, deixa o migrate criar normalmente
                     pass
 
+                # WhatsApp 0002 depende de superadmin.0001 no histórico; tabelas ficam no public.
+                try:
+                    with connections[loja.database_name].cursor() as cursor:
+                        cursor.execute(
+                            """
+                            SELECT EXISTS (
+                              SELECT 1 FROM django_migrations
+                              WHERE app = 'whatsapp' AND name LIKE '0002%%'
+                            )
+                            """,
+                        )
+                        has_wa = bool(cursor.fetchone()[0])
+                    if has_wa:
+                        self._force_mark_migration_applied(
+                            loja.database_name, "superadmin", "0001_initial",
+                        )
+                except Exception:
+                    pass
+
                 try:
                     call_command("migrate", *migrate_args, **migrate_kwargs)
                 except InconsistentMigrationHistory as e:

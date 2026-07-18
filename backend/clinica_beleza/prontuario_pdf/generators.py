@@ -23,7 +23,7 @@ from .elements import (
 )
 from .header import _build_header_elements, _resolver_cabecalho, get_top_margin
 from .styles import _get_styles
-from .timbrado import merge_timbrado_fundo
+from ..pdf_common import merge_timbrado_fundo
 
 SECOES_CONSULTA_PDF = {
     "atendimento": "Atendimento",

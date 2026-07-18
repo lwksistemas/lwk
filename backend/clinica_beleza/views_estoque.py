@@ -12,74 +12,28 @@ from rest_framework.views import APIView
 from .estoque_categorias import (
     categorias_com_contagem,
     garantir_categorias_estoque_padrao,
-    normalizar_slug_categoria,
     resolver_categoria,
 )
 from .models import MovimentacaoEstoque, ProdutoEstoque
 from .models.estoque import CategoriaEstoque
-from .pagination import paginate_queryset
 from .permissions import CLINICA_ESTOQUE, CLINICA_ESTOQUE_LEITURA
 from .serializers import MovimentacaoEstoqueSerializer, ProdutoEstoqueSerializer
 from .serializers.estoque import CategoriaEstoqueSerializer
 from .views_base import GetObjectMixin, resolve_loja_id_from_request
-
-logger = logging.getLogger(__name__)
-
-# Campos para listagem via .values() (inclui numero_nota desde migration 0034).
-_PRODUTO_VALUES_FIELDS = (
-    "id", "nome", "categoria_id", "categoria__slug", "categoria__nome", "categoria__cor",
-    "marca", "unidade_medida",
-    "quantidade_atual", "quantidade_minima", "preco_custo", "preco_venda",
-    "validade", "lote", "numero_nota", "dias_alerta_validade",
-    "observacoes", "is_active", "created_at", "updated_at",
+from .views_estoque_helpers import (  # noqa: F401
+    _PRODUTO_VALUES_FIELDS,
+    _filtrar_por_categoria,
+    _paginate_produtos_values,
+    _produto_values_row,
+)
+from .views_estoque_xml import (  # noqa: F401
+    EstoqueImportarXmlView,
+    _mesclar_overrides_categoria,
+    _parsear_override_produtos,
+    _verificar_destinatario_nf,
 )
 
-
-def _produto_values_row(row: dict) -> dict:
-    item = dict(row)
-    item.setdefault("numero_nota", "")
-    item["categoria"] = row.get("categoria_id")
-    item["categoria_slug"] = row.get("categoria__slug") or "outro"
-    item["categoria_display"] = row.get("categoria__nome") or "Outro"
-    item["categoria_cor"] = row.get("categoria__cor") or "#8B3D52"
-    item.pop("categoria__slug", None)
-    item.pop("categoria__nome", None)
-    item.pop("categoria__cor", None)
-    item["estoque_baixo"] = row.get("quantidade_atual", 0) <= row.get("quantidade_minima", 0)
-    validade = row.get("validade")
-    dias_alerta = row.get("dias_alerta_validade") or 90
-    if validade:
-        from datetime import date, timedelta
-        limite = date.today() + timedelta(days=dias_alerta)
-        item["validade_proxima"] = validade <= limite
-    else:
-        item["validade_proxima"] = False
-    return item
-
-
-def _paginate_produtos_values(queryset, request):
-    """Lista produtos via .values() usando paginação padrão."""
-    return paginate_queryset(
-        queryset.values(*_PRODUTO_VALUES_FIELDS),
-        request,
-        to_representation=_produto_values_row,
-    )
-
-
-def _filtrar_por_categoria(qs, request):
-    categoria_id = request.query_params.get("categoria_id")
-    categoria = request.query_params.get("categoria")
-    if categoria_id:
-        try:
-            return qs.filter(categoria_id=int(categoria_id))
-        except (TypeError, ValueError):
-            return qs.none()
-    if not categoria:
-        return qs
-    cat = str(categoria).strip()
-    if cat.isdigit():
-        return qs.filter(categoria_id=int(cat))
-    return qs.filter(categoria__slug=normalizar_slug_categoria(cat))
+logger = logging.getLogger(__name__)
 
 
 class CategoriaEstoqueListView(APIView):
@@ -417,136 +371,3 @@ class EstoqueResumoView(APIView):
             "validade_proxima": validade_proxima,
             "valor_total_estoque": float(valor_total),
         })
-
-
-def _verificar_destinatario_nf(resultado, loja_id):
-    """Verifica se o destinatário da NF confere com o documento da loja. Retorna aviso ou None."""
-    import re as _re
-
-    from superadmin.models import Loja
-    from tenants.middleware import get_current_loja_id
-
-    lid = get_current_loja_id() or loja_id
-    if not (lid and resultado.get("nota", {}).get("destinatario_documento")):
-        return None
-    loja = Loja.objects.filter(id=lid).first()
-    if not loja:
-        return None
-    loja_doc = _re.sub(r"\D", "", loja.cpf_cnpj or "")
-    nf_doc = _re.sub(r"\D", "", resultado["nota"]["destinatario_documento"])
-    if loja_doc and nf_doc and loja_doc != nf_doc:
-        return (
-            f'O destinatário da NF ({resultado["nota"].get("destinatario_nome", "")} - '
-            f'{nf_doc}) não confere com o documento da loja ({loja_doc}).'
-        )
-    return None
-
-
-def _parsear_override_produtos(raw):
-    """Converte raw (str JSON ou lista) para lista de dicts, ou None se inválido."""
-    import json as _json
-    if not raw:
-        return None
-    if isinstance(raw, str):
-        try:
-            raw = _json.loads(raw)
-        except _json.JSONDecodeError:
-            return None
-    return raw if isinstance(raw, list) and raw else None
-
-
-def _mesclar_overrides_categoria(resultado_produtos, produtos_override, loja_id):
-    """Aplica overrides de categoria dos produtos_override sobre os produtos do resultado."""
-    by_nome = {str(p.get("nome", "")).strip().lower(): p for p in produtos_override if isinstance(p, dict)}
-    for p in resultado_produtos:
-        ov = by_nome.get(str(p.get("nome", "")).strip().lower())
-        if not ov:
-            continue
-        if ov.get("categoria"):
-            p["categoria"] = ov["categoria"]
-        if ov.get("categoria_id") not in (None, ""):
-            p["categoria_id"] = ov["categoria_id"]
-        cat = resolver_categoria(
-            loja_id=loja_id,
-            categoria_id=int(p["categoria_id"]) if str(p.get("categoria_id") or "").isdigit() else None,
-            slug=p.get("categoria") or "outro",
-        )
-        if cat:
-            p["categoria"] = cat.slug
-            p["categoria_id"] = cat.id
-
-
-class EstoqueImportarXmlView(APIView):
-    """POST /clinica-beleza/estoque/importar-xml/
-    Upload de XML NF-e para importar produtos ao estoque.
-
-    Body: multipart/form-data com campo 'arquivo' (XML) e 'categoria' (opcional).
-    Retorna preview dos produtos encontrados ou cria se 'confirmar=true'.
-    """
-
-    permission_classes = CLINICA_ESTOQUE
-
-    def post(self, request):
-        from core.upload_validation import validate_xml_upload
-
-        from .estoque_xml_import_service import importar_produtos_xml
-
-        arquivo = request.FILES.get("arquivo")
-        if not arquivo:
-            return Response({"error": "Envie o arquivo XML da NF-e."}, status=status.HTTP_400_BAD_REQUEST)
-
-        valid, msg = validate_xml_upload(arquivo)
-        if not valid:
-            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
-
-        loja_id = resolve_loja_id_from_request(request)
-        garantir_categorias_estoque_padrao(loja_id)
-
-        categoria_raw = request.data.get("categoria", "outro")
-        categoria_id = request.data.get("categoria_id")
-        forcar = str(request.data.get("forcar_categoria", "false")).lower() in ("true", "1")
-        cat = resolver_categoria(
-            loja_id=loja_id,
-            categoria_id=int(categoria_id) if categoria_id not in (None, "") else None,
-            slug=str(categoria_raw) if categoria_raw else "outro",
-        )
-        categoria_slug = cat.slug if cat else normalizar_slug_categoria(str(categoria_raw))
-        confirmar = str(request.data.get("confirmar", "false")).lower() in ("true", "1")
-
-        try:
-            resultado = importar_produtos_xml(
-                arquivo.read(),
-                categoria=categoria_slug,
-                categoria_id=cat.id if cat else None,
-                loja_id=loja_id,
-                forcar_categoria=forcar,
-            )
-        except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            logger.exception("Erro ao processar XML de estoque: %s", e)
-            return Response({"error": "Erro ao processar o XML. Verifique o formato."}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not confirmar:
-            resp = {"preview": True, **resultado}
-            aviso = _verificar_destinatario_nf(resultado, loja_id)
-            if aviso:
-                resp["aviso_destinatario"] = aviso
-            return Response(resp)
-
-        from .estoque_xml_import_service import confirmar_importacao_xml
-
-        produtos_override = _parsear_override_produtos(request.data.get("produtos"))
-        if produtos_override:
-            _mesclar_overrides_categoria(resultado["produtos"], produtos_override, loja_id)
-
-        result = confirmar_importacao_xml(resultado["produtos"], loja_id=loja_id)
-        response_data = {**result, "nota": resultado["nota"]}
-        aviso = _verificar_destinatario_nf(resultado, loja_id)
-        if aviso:
-            response_data["aviso_destinatario"] = aviso
-
-        return Response(
-            response_data,
-            status=status.HTTP_201_CREATED if (result["criados"] + result["atualizados"]) > 0 else status.HTTP_400_BAD_REQUEST,
-        )

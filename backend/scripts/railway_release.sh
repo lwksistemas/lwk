@@ -38,6 +38,7 @@ log_step "migrate suporte"
 python manage.py migrate --database=suporte --noinput
 
 run_best_effort "migrate_all_lojas" python manage.py migrate_all_lojas
+run_best_effort "corrigir_migrations_inconsistentes" python manage.py corrigir_migrations_inconsistentes
 
 log_step "ensure_all"
 python manage.py ensure_all

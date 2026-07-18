@@ -1,5 +1,8 @@
-"""Comando para corrigir migrations inconsistentes em schemas de lojas.
-Marca stores.0001_initial como aplicada quando necessário.
+"""Corrige migrations inconsistentes em schemas de lojas.
+
+- Marca stores.0001_initial quando faltando.
+- Marca superadmin.0001_initial quando whatsapp.0002* já está aplicada
+  (histórico legado; não cria tabelas superadmin_* no tenant).
 
 Uso:
     python manage.py corrigir_migrations_inconsistentes
@@ -14,11 +17,45 @@ from superadmin.models import Loja
 logger = logging.getLogger(__name__)
 
 
+def _migration_applied(cursor, app: str, name: str) -> bool:
+    cursor.execute(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM django_migrations
+            WHERE app = %s AND name = %s
+        );
+        """,
+        [app, name],
+    )
+    return bool(cursor.fetchone()[0])
+
+
+def _fake_mark(cursor, app: str, name: str) -> None:
+    cursor.execute(
+        """
+        INSERT INTO django_migrations (app, name, applied)
+        VALUES (%s, %s, NOW());
+        """,
+        [app, name],
+    )
+
+
+def _whatsapp_0002_applied(cursor) -> bool:
+    cursor.execute(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM django_migrations
+            WHERE app = 'whatsapp' AND name LIKE '0002%%'
+        );
+        """,
+    )
+    return bool(cursor.fetchone()[0])
+
+
 class Command(BaseCommand):
     help = "Corrige migrations inconsistentes em schemas de lojas"
 
     def handle(self, *args, **options):
-        # Buscar todas as lojas
         lojas = list(Loja.objects.using("default").all())
 
         if not lojas:
@@ -33,50 +70,47 @@ class Command(BaseCommand):
             schema_name = db_name.replace("-", "_")
 
             try:
-                # Configurar banco
                 from core.db_config import ensure_loja_database_config
                 if not ensure_loja_database_config(db_name, conn_max_age=0):
                     continue
 
-                # Conectar ao banco da loja
                 conn = connections[db_name]
                 conn.ensure_connection()
 
                 with conn.cursor() as cursor:
-                    # Definir search_path
                     cursor.execute(f'SET search_path TO "{schema_name}", public;')
+                    mudou = False
 
-                    # Verificar se stores.0001_initial já está aplicada
-                    cursor.execute("""
-                        SELECT EXISTS (
-                            SELECT 1 FROM django_migrations
-                            WHERE app = 'stores' AND name = '0001_initial'
-                        );
-                    """)
-
-                    existe = cursor.fetchone()[0]
-
-                    if not existe:
-                        # Inserir migration
-                        cursor.execute("""
-                            INSERT INTO django_migrations (app, name, applied)
-                            VALUES ('stores', '0001_initial', NOW());
-                        """)
+                    if not _migration_applied(cursor, "stores", "0001_initial"):
+                        _fake_mark(cursor, "stores", "0001_initial")
                         self.stdout.write(self.style.SUCCESS(
-                            f"  ✅ Loja {loja.nome} (ID: {loja.id}): Migration stores.0001_initial marcada",
+                            f"  ✅ Loja {loja.nome} (ID: {loja.id}): stores.0001_initial marcada",
                         ))
+                        mudou = True
+
+                    # WhatsApp 0002 depende de superadmin.0001 no histórico Django,
+                    # mas as tabelas superadmin ficam no public — só alinhar django_migrations.
+                    if _whatsapp_0002_applied(cursor) and not _migration_applied(
+                        cursor, "superadmin", "0001_initial",
+                    ):
+                        _fake_mark(cursor, "superadmin", "0001_initial")
+                        self.stdout.write(self.style.SUCCESS(
+                            f"  ✅ Loja {loja.nome} (ID: {loja.id}): superadmin.0001_initial marcada (dep. whatsapp)",
+                        ))
+                        mudou = True
+
+                    if mudou:
                         corrigidas += 1
                     else:
                         self.stdout.write(f"  ℹ️  Loja {loja.nome} (ID: {loja.id}): Já corrigida")
 
-                # Fechar conexão
                 conn.close()
 
             except Exception as e:
                 self.stdout.write(self.style.ERROR(
                     f"  ❌ Loja {loja.nome} (ID: {loja.id}): Erro - {e}",
                 ))
-                logger.exception(f"Erro ao corrigir loja {loja.id}")
+                logger.exception("Erro ao corrigir loja %s", loja.id)
 
         self.stdout.write(self.style.SUCCESS(
             f"\n✅ Processamento concluído: {corrigidas} loja(s) corrigida(s)",

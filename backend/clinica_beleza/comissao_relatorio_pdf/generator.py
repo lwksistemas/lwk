@@ -17,7 +17,8 @@ from .blocos import (
 )
 from .constants import _CINZA, _COR_PRIMARIA
 from .formatting import _fmt_data_br, _is_linha_consulta
-from .timbrado import _logo_image, _merge_timbrado_fundo
+from ..pdf_common import logo_image as _logo_image
+from ..pdf_common import merge_timbrado_fundo as _merge_timbrado_fundo
 
 
 def _styles_comissoes(styles):

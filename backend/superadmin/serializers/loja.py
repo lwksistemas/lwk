@@ -250,12 +250,28 @@ class LojaCreateSerializer(
                     "Tente novamente ou entre em contato com o suporte.",
                 )
 
-            # 7. CRIAR FINANCEIRO
+            # 7. CRIAR FINANCEIRO (+ cobrança Asaas/MP via signal post_save)
             try:
-                FinanceiroService.criar_financeiro_loja(loja, dia_vencimento)
+                financeiro = FinanceiroService.criar_financeiro_loja(loja, dia_vencimento)
             except Exception as e:
                 logger.error(f"Erro ao criar financeiro: {e}")
                 raise
+
+            # Rede de segurança: se o signal não gerou boleto, tenta criar aqui.
+            try:
+                financeiro.refresh_from_db()
+                if not (financeiro.asaas_payment_id or financeiro.mercadopago_payment_id):
+                    from superadmin.cobranca_service import CobrancaService
+
+                    result = CobrancaService().criar_cobranca(loja, financeiro)
+                    if not result.get("success"):
+                        logger.error(
+                            "Cobrança não criada no cadastro da loja %s: %s",
+                            loja.slug,
+                            result.get("error"),
+                        )
+            except Exception as e:
+                logger.exception("Falha ao garantir cobrança no cadastro da loja %s: %s", loja.slug, e)
 
             # 8. CRIAR PROFISSIONAL/FUNCIONÁRIO ADMIN
             # Re-fetch loja para garantir database_created atualizado após configurar_schema
@@ -276,11 +292,6 @@ class LojaCreateSerializer(
                 )
                 # Não falhar a criação da loja
 
-            # 9. INTEGRAÇÃO ASAAS
-            # A cobrança é criada automaticamente pelo signal em asaas_integration/signals.py
-            # Signal: create_asaas_subscription_on_loja_creation
-            # Cria: AsaasCustomer, AsaasPayment, LojaAssinatura
-
             logger.info(
                 "Loja criada com sucesso: %s (owner: %s). Senha será enviada após confirmação do pagamento.",
                 loja.slug,
@@ -293,5 +304,25 @@ class LojaCreateSerializer(
             logger.error(f"Erro ao criar loja: {e}")
             logger.error(traceback.format_exc())
             raise serializers.ValidationError(f"Erro ao criar loja: {e!s}")
+
+    def to_representation(self, instance):
+        """Inclui boleto/PIX na resposta do cadastro público (SucessoCadastro)."""
+        data = super().to_representation(instance)
+        try:
+            fin = getattr(instance, "financeiro", None)
+            if fin is None:
+                from superadmin.models import FinanceiroLoja
+
+                fin = FinanceiroLoja.objects.filter(loja_id=instance.pk).first()
+            if fin:
+                data["boleto_url"] = fin.boleto_url or ""
+                data["pix_qr_code"] = fin.pix_qr_code or ""
+                data["pix_copy_paste"] = fin.pix_copy_paste or ""
+        except Exception:
+            logger.exception(
+                "to_representation: falha ao anexar boleto da loja %s",
+                getattr(instance, "slug", "?"),
+            )
+        return data
 
 

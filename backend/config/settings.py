@@ -34,7 +34,7 @@ INSTALLED_APPS = [
     "suporte",  # App de suporte/chamados
     "tenants",  # App de gerenciamento de tenants
     "superadmin",  # App de super admin
-    "asaas_integration",  # App de integração com Asaas
+    "asaas_integration.apps.AsaasIntegrationConfig",  # App Asaas (signals no ready)
     "nfse_integration.apps.NfseIntegrationConfig",  # App de integração NFS-e (ISSNet, API Nacional, etc)
     "hotel.apps.HotelConfig",  # App de hotelaria (Hotel / Pousada)
     "clinica_beleza.apps.ClinicaBelezaConfig",  # App de clínica da beleza

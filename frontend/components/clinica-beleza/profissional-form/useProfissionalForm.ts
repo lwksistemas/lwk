@@ -46,13 +46,15 @@ export function useProfissionalForm(editId: string | null, onDone: () => void) {
   const { save: offlineSave, saving } = useOfflineSave<ProfissionalEditing>({
     entityType: "profissional",
     saveOnline: async (body, editing) => {
-      let profId: number;
       if (editing) {
-        await ClinicaBelezaAPI.professionals.update(editing.id, body);
-        profId = editing.id;
-      } else {
-        profId = (await ClinicaBelezaAPI.professionals.create(body)).id;
+        // Em edição o id já é conhecido: profissional + comissões em paralelo.
+        await Promise.all([
+          ClinicaBelezaAPI.professionals.update(editing.id, body),
+          salvarComissoesOnline(editing.id),
+        ]);
+        return;
       }
+      const profId = (await ClinicaBelezaAPI.professionals.create(body)).id;
       await salvarComissoesOnline(profId);
     },
   });

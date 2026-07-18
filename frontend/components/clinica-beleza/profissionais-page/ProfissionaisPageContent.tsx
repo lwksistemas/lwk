@@ -42,7 +42,7 @@ export function ProfissionaisPageContent() {
         editId={isNovo ? null : editIdParam}
         onDone={() => {
           voltarLista();
-          load();
+          void load();
         }}
       />
     );

@@ -329,6 +329,19 @@ class DatabaseSchemaService:
                     )
                 """)
                 logger.info("✅ Tabela django_migrations criada em '%s'", schema_name)
+                # WhatsApp 0002 depende de superadmin.0001 no histórico; tabelas ficam no public.
+                cur.execute(
+                    """
+                    SELECT EXISTS (
+                      SELECT 1 FROM django_migrations
+                      WHERE app = 'whatsapp' AND name LIKE '0002%%'
+                    )
+                    """,
+                )
+                if cur.fetchone()[0]:
+                    _record_migration_if_missing(
+                        loja.database_name, schema_name, "superadmin", "0001_initial",
+                    )
 
             for app in apps_to_migrate:
                 try:

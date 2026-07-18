@@ -144,14 +144,13 @@ class Consulta(LojaIsolationMixin, models.Model):
             current_loja_id = get_current_loja_id()
             if current_loja_id:
                 self.loja_id = current_loja_id
-        if self.numero is None and self.loja_id:
+        if self.numero is None:
             from django.db.models import Max
 
-            ultimo = (
-                Consulta.objects.filter(loja_id=self.loja_id)
-                .aggregate(m=Max("numero"))
-                .get("m")
-            )
+            qs = Consulta.objects.all()
+            if self.loja_id:
+                qs = qs.filter(loja_id=self.loja_id)
+            ultimo = qs.aggregate(m=Max("numero")).get("m")
             self.numero = int(ultimo or 0) + 1
         super().save(*args, **kwargs)
 

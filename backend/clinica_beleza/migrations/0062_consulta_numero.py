@@ -4,23 +4,12 @@ from django.db import migrations, models
 
 
 def backfill_numeros(apps, schema_editor):
+    """Numera todas as consultas do schema (inclui loja_id NULL — bug da 0062 original)."""
     Consulta = apps.get_model("clinica_beleza", "Consulta")
-    loja_ids = (
-        Consulta.objects.order_by()
-        .values_list("loja_id", flat=True)
-        .distinct()
-    )
-    for loja_id in loja_ids:
-        if loja_id is None:
-            continue
-        n = 1
-        for consulta_id in (
-            Consulta.objects.filter(loja_id=loja_id)
-            .order_by("id")
-            .values_list("id", flat=True)
-        ):
-            Consulta.objects.filter(pk=consulta_id).update(numero=n)
-            n += 1
+    n = 1
+    for consulta_id in Consulta.objects.order_by("id").values_list("id", flat=True):
+        Consulta.objects.filter(pk=consulta_id).update(numero=n)
+        n += 1
 
 
 class Migration(migrations.Migration):

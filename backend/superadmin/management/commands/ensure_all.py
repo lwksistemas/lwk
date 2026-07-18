@@ -50,7 +50,7 @@ ENSURES = [
     ("ensure_document_templates_tables", {}),
     ("ensure_termo_consentimento", {}),
     ("ensure_procedimentos_catalogo", {"all_clinica_beleza": True}),
-    ("ensure_estoque_catalogo", {"all_clinica_beleza": True}),
+    # Estoque: loja nova começa vazia; catálogo demo só via ensure_estoque_catalogo --slug …
     ("ensure_paciente_fotos_table", {}),
     ("ensure_patient_foto_url", {}),
     ("ensure_whatsapp_evolution_fields", {}),

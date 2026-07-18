@@ -1,4 +1,4 @@
-"""Garante produtos padrão de estoque (estética + soroterapia) nas lojas Clínica da Beleza.
+"""Catálogo demo de estoque (opt-in). Não roda no ensure_all — loja nova começa vazia.
 
 Uso:
     python manage.py ensure_estoque_catalogo --slug lnfd

@@ -73,7 +73,6 @@ ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
         "ensure_termo_consentimento",
         "ensure_paciente_fotos_table",
         "ensure_patient_foto_url",
-        "ensure_estoque_catalogo",
         "ensure_payment_draft_nao_finalizadas",
         "ensure_consulta_numero",
         "ensure_nfse_tenant_clinica_beleza",

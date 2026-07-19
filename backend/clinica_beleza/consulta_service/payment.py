@@ -1,4 +1,5 @@
 from decimal import Decimal
+from functools import wraps
 
 from django.db import transaction
 from django.utils.timezone import now
@@ -8,6 +9,19 @@ from core.decimal_utils import to_decimal
 from ._deps import logger
 
 _METODOS_VALIDOS = frozenset({"CASH", "CREDIT_CARD", "DEBIT_CARD", "PIX", "TRANSFER"})
+
+
+def _tenant_atomic(func):
+    """@atomic no alias do tenant — select_for_update falha se o atomic for só no default."""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        from clinica_beleza.estoque_service import tenant_atomic
+
+        with tenant_atomic():
+            return func(*args, **kwargs)
+
+    return wrapper
 
 
 def _tentar_nfse_pos_pagamento(consulta, payment):
@@ -289,7 +303,7 @@ def _sincronizar_recebimento_apos_procedimento(consulta) -> None:
         _atualizar_status_consulta_apos_recebimento(consulta, payment)
 
 
-@transaction.atomic
+@_tenant_atomic
 def registrar_recebimento_consulta(
     consulta,
     *,
@@ -368,7 +382,7 @@ def registrar_recebimento_consulta(
     return payment
 
 
-@transaction.atomic
+@_tenant_atomic
 def publicar_pagamento_financeiro(consulta):
     """Publica o rascunho de pagamento no Financeiro ao finalizar a consulta.
 
@@ -376,6 +390,7 @@ def publicar_pagamento_financeiro(consulta):
     """
     from clinica_beleza import consulta_service
     from clinica_beleza.models import Consulta
+    from tenants.middleware import get_current_tenant_db
 
     consulta = (
         Consulta.objects.select_for_update()
@@ -430,6 +445,7 @@ def publicar_pagamento_financeiro(consulta):
     if payment.status == "PAID":
         payment_id = payment.id
         consulta_id = consulta.id
+        using = get_current_tenant_db() or "default"
 
         def _emitir_nfse():
             from clinica_beleza import consulta_service as cs
@@ -441,12 +457,12 @@ def publicar_pagamento_financeiro(consulta):
             if pay and cons:
                 _tentar_nfse_pos_pagamento(cons, pay)
 
-        transaction.on_commit(_emitir_nfse)
+        transaction.on_commit(_emitir_nfse, using=using)
 
     return payment
 
 
-@transaction.atomic
+@_tenant_atomic
 def estornar_recebimento_consulta(consulta):
     """Estorna lançamentos de pagamento de uma consulta ainda não finalizada.
 

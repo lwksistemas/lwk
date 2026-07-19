@@ -9,8 +9,21 @@ from clinica_beleza.consulta_service.payment import (
     registrar_recebimento_consulta,
 )
 
-# registrar_recebimento_consulta usa @transaction.atomic — acessar via __wrapped__
+# @_tenant_atomic — acessar via __wrapped__ nos unit tests sem DB
 _registrar = registrar_recebimento_consulta.__wrapped__
+
+
+def _lock_consulta(mock_consulta_model, consulta):
+    mock_consulta_model.objects.select_for_update.return_value.select_related.return_value.get.return_value = (
+        consulta
+    )
+
+
+def _payment_qs(mock_payment_model, payment):
+    mock_payment_model.objects.select_for_update.return_value.filter.return_value.first.return_value = (
+        payment
+    )
+    mock_payment_model.objects.filter.return_value.first.return_value = payment
 
 
 class AtualizarStatusAposRecebimentoTest(SimpleTestCase):
@@ -64,6 +77,7 @@ class AtualizarStatusAposRecebimentoTest(SimpleTestCase):
 
 
 class RegistrarRecebimentoConsultaTest(SimpleTestCase):
+    @patch("clinica_beleza.models.Consulta")
     @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
     @patch("clinica_beleza.models.financeiro.PaymentParcela")
     @patch("clinica_beleza.consulta_service.Payment")
@@ -78,6 +92,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         mock_payment_model,
         _mock_parcela,
         mock_atualizar_status,
+        mock_consulta_model,
     ):
         mock_comissao.return_value = (Decimal(10), Decimal(20))
         mock_valor_padrao.return_value = Decimal(200)
@@ -86,10 +101,11 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         payment.parcelas.exists.return_value = False
         payment.saldo_devedor = Decimal(200)
         payment.valor_pago_parcelas = Decimal(200)
-        mock_payment_model.objects.filter.return_value.first.return_value = None
+        _payment_qs(mock_payment_model, None)
         mock_payment_model.objects.create.return_value = payment
 
-        consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1))
+        consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1), pk=1)
+        _lock_consulta(mock_consulta_model, consulta)
 
         _registrar(
             consulta,
@@ -102,6 +118,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         _mock_parcela.objects.create.assert_called_once()
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 
+    @patch("clinica_beleza.models.Consulta")
     @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
     @patch("clinica_beleza.models.financeiro.PaymentParcela")
     @patch("clinica_beleza.consulta_service.Payment")
@@ -116,6 +133,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         mock_payment_model,
         mock_parcela_model,
         mock_atualizar_status,
+        mock_consulta_model,
     ):
         mock_comissao.return_value = (Decimal(10), Decimal(20))
         mock_valor_padrao.return_value = Decimal(200)
@@ -125,9 +143,10 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         payment.valor_pago_parcelas = Decimal(80)
         payment.saldo_devedor = Decimal(200)
         payment.valor_total = Decimal(200)
-        mock_payment_model.objects.filter.return_value.first.return_value = payment
+        _payment_qs(mock_payment_model, payment)
 
-        consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1))
+        consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1), pk=1)
+        _lock_consulta(mock_consulta_model, consulta)
 
         _registrar(
             consulta,
@@ -140,11 +159,14 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         self.assertEqual(payment.status, "DRAFT")
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 
-    def test_bloqueia_consulta_finalizada(self):
-        consulta = MagicMock(status="COMPLETED", appointment=MagicMock())
+    @patch("clinica_beleza.models.Consulta")
+    def test_bloqueia_consulta_finalizada(self, mock_consulta_model):
+        consulta = MagicMock(status="COMPLETED", appointment=MagicMock(), pk=1)
+        _lock_consulta(mock_consulta_model, consulta)
         with self.assertRaisesMessage(ValueError, "aberta para recebimento"):
             _registrar(consulta, amount=Decimal(50))
 
+    @patch("clinica_beleza.models.Consulta")
     @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
     @patch("clinica_beleza.models.financeiro.PaymentParcela")
     @patch("clinica_beleza.consulta_service.Payment")
@@ -159,6 +181,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         mock_payment_model,
         mock_parcela_model,
         mock_atualizar_status,
+        mock_consulta_model,
     ):
         mock_comissao.return_value = (Decimal(10), Decimal(50))
         mock_valor_padrao.return_value = Decimal(700)
@@ -167,10 +190,11 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         payment.valor_total = Decimal(500)  # set after _garantir_ou_criar_payment
         payment.valor_pago_parcelas = Decimal(500)
         payment.saldo_devedor = Decimal(500)
-        mock_payment_model.objects.filter.return_value.first.return_value = None
+        _payment_qs(mock_payment_model, None)
         mock_payment_model.objects.create.return_value = payment
 
-        consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1))
+        consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1), pk=1)
+        _lock_consulta(mock_consulta_model, consulta)
 
         _registrar(
             consulta,

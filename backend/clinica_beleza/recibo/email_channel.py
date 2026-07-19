@@ -5,6 +5,7 @@ from .context import (
     _formas_pagamento_html,
     _formas_pagamento_texto,
     _linha_documento_loja,
+    _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
 )
@@ -61,11 +62,16 @@ def _montar_email_html(ctx: dict) -> str:
         f'<li>{p["nome"]} — R$ {p["valor"]:.2f}</li>' for p in ctx["procedimentos"]
     )
     doc_line = _linha_documento_loja(ctx)
+    descontos = _linhas_descontos_recibo(ctx)
     desconto_html = ""
-    if ctx.get("desconto", 0) > 0:
+    if descontos:
+        linhas_desc = "".join(
+            f'<p style="margin:4px 0;"><strong>{label}:</strong> - R$ {valor:.2f}</p>'
+            for label, valor in descontos
+        )
         desconto_html = (
             f'<p style="margin:4px 0;"><strong>Subtotal:</strong> R$ {ctx.get("subtotal", 0):.2f}</p>'
-            f'<p style="margin:4px 0;"><strong>Desconto:</strong> - R$ {ctx["desconto"]:.2f}</p>'
+            f"{linhas_desc}"
         )
     return f"""
     <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px;color:#333;">
@@ -92,6 +98,7 @@ def _montar_email_html(ctx: dict) -> str:
         <p style="margin:12px 0 0;font-size:16px;font-weight:bold;color:#2e7d32;">
           Valor pago: R$ {ctx['valor_pago']:.2f}
         </p>
+        {f'<p style="margin:12px 0 0;font-size:12px;color:#555;">{ctx["retorno_aviso"]}</p>' if (ctx.get("retorno_aviso") or "").strip() else ''}
       </div>
 
       <p style="font-size:12px;color:#666;">
@@ -113,11 +120,13 @@ def _montar_email_texto(ctx: dict) -> str:
     procs_lines.extend(f'  • {p["nome"]} — R$ {p["valor"]:.2f}' for p in ctx["procedimentos"])
     procs = "\n".join(procs_lines) or "  —"
     doc_line = _linha_documento_loja(ctx)
+    descontos = _linhas_descontos_recibo(ctx)
     desconto_lines = ""
-    if ctx.get("desconto", 0) > 0:
+    if descontos:
+        linhas_desc = "".join(f"{label}: - R$ {valor:.2f}\n" for label, valor in descontos)
         desconto_lines = (
             f'Subtotal: R$ {ctx.get("subtotal", 0):.2f}\n'
-            f'Desconto: - R$ {ctx["desconto"]:.2f}\n'
+            f"{linhas_desc}"
         )
     header_extra = ""
     if doc_line:
@@ -141,6 +150,7 @@ def _montar_email_texto(ctx: dict) -> str:
         f'{desconto_lines}'
         f'Total: R$ {ctx["valor_total"]:.2f}\n'
         f'Forma(s) de pagamento:\n{_formas_pagamento_texto(ctx)}'
-        f'Valor pago: R$ {ctx["valor_pago"]:.2f}\n\n'
-        f'Atenciosamente,\n{ctx["loja_nome"]}\n'
+        f'Valor pago: R$ {ctx["valor_pago"]:.2f}\n'
+        f'{((ctx.get("retorno_aviso") or "").strip() + "\n") if (ctx.get("retorno_aviso") or "").strip() else ""}'
+        f'\nAtenciosamente,\n{ctx["loja_nome"]}\n'
     )

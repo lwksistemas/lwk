@@ -3,7 +3,12 @@ import hashlib
 import logging
 import time
 
-from .context import _formas_pagamento_texto, _linhas_taxa_consulta_recibo, _obter_dados_contexto
+from .context import (
+    _formas_pagamento_texto,
+    _linhas_descontos_recibo,
+    _linhas_taxa_consulta_recibo,
+    _obter_dados_contexto,
+)
 from .pdf import _gerar_pdf_recibo
 
 logger = logging.getLogger(__name__)
@@ -76,11 +81,16 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
     procs = "\n".join(procs_lines)
     prof_line = f'👩‍⚕️ *Profissional:* {ctx["profissional_nome"]}\n' if ctx["profissional_nome"] else ""
     valor_pago = f'{ctx["valor_pago"]:.2f}'
+    descontos = _linhas_descontos_recibo(ctx)
     desconto_block = ""
-    if ctx.get("desconto", 0) > 0:
+    if descontos:
+        linhas_desc = "\n".join(
+            f"🏷️ *{label}:* - R$ {valor:.2f}" for label, valor in descontos
+        )
         desconto_block = (
             f'🧾 *Subtotal:* R$ {ctx.get("subtotal", 0):.2f}\n'
-            f'🏷️ *Desconto:* - R$ {ctx["desconto"]:.2f}\n'
+            f"{linhas_desc}\n"
+            f'💵 *Total:* R$ {ctx.get("valor_total", 0):.2f}\n'
         )
     return (
         f'🏥 *{ctx["loja_nome"] or "Clínica"}*\n'
@@ -99,6 +109,7 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
         f'{_formas_pagamento_texto(ctx)}'
         f'💰 *Valor pago: R$ {valor_pago}*\n'
         f'━━━━━━━━━━━━━━━━━━━━\n\n'
+        f'{("ℹ️ " + ctx["retorno_aviso"] + "\n\n") if (ctx.get("retorno_aviso") or "").strip() else ""}'
         f'_O recibo completo em PDF segue em anexo._\n'
         f'Agradecemos pela confiança! 🙏'
     )

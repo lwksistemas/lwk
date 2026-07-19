@@ -57,19 +57,33 @@ export function gerarHtmlRecibo(params: {
       });
   const valorConsulta = Number(consulta.valor_consulta ?? 0);
   const valorProcs = Number(consulta.valor_procedimentos ?? 0);
-  const totalGeral = valorConsulta + valorProcs;
   const retornoGratuito = Boolean(consulta.retorno_gratuito);
   const valorConsultaReferencia = Number(
     consulta.local_atendimento_valor_consulta ?? (retornoGratuito ? 0 : valorConsulta),
   );
+  const retornoDias = consulta.retorno_dias_prazo != null ? Number(consulta.retorno_dias_prazo) : null;
+  const retornoAviso = (consulta.retorno_aviso_recibo || "").trim();
+  const taxaExibida = retornoGratuito ? valorConsultaReferencia : valorConsulta;
+  const descontoRetorno =
+    retornoGratuito && valorConsultaReferencia > 0 ? valorConsultaReferencia : 0;
+  const labelDescontoRetorno =
+    retornoDias && retornoDias > 0
+      ? `Desconto retorno (prazo ${retornoDias} dias)`
+      : "Desconto retorno";
   const telCep = linhaTelCep(lojaData.telefone, lojaData.cep);
 
-  const taxaConsultaHtml = retornoGratuito
-    ? `<tr><td>Taxa de consulta</td><td style="text-align:right">R$ ${valorConsultaReferencia.toFixed(2)}</td></tr>
-    <tr><td>Retorno gratuito</td><td style="text-align:right">R$ 0.00</td></tr>`
-    : valorConsulta > 0
-      ? `<tr><td>Taxa de consulta</td><td style="text-align:right">R$ ${valorConsulta.toFixed(2)}</td></tr>`
+  const taxaConsultaHtml =
+    taxaExibida > 0
+      ? `<tr><td>Taxa de consulta</td><td style="text-align:right">R$ ${taxaExibida.toFixed(2)}</td></tr>`
       : "";
+  const descontosHtml = [
+    descontoRetorno > 0
+      ? `<tr><td>${labelDescontoRetorno}</td><td style="text-align:right">- R$ ${descontoRetorno.toFixed(2)}</td></tr>`
+      : "",
+    desconto > 0
+      ? `<tr><td>Desconto</td><td style="text-align:right">- R$ ${desconto.toFixed(2)}</td></tr>`
+      : "",
+  ].join("");
 
   const formasHtml = entradas
     .filter((e) => parseMoneyInput(e.valor) > 0)
@@ -87,6 +101,12 @@ export function gerarHtmlRecibo(params: {
     .join("");
 
   const procs = consulta.procedures_list ?? [];
+  const procsSoma =
+    procs.length > 0
+      ? procs.reduce((acc, p) => acc + Number(p.valor || 0), 0)
+      : valorProcs;
+  const subtotalBruto = taxaExibida + procsSoma;
+  const totalFinal = Math.max(0, subtotalBruto - descontoRetorno - desconto);
   const procsHtml =
     procs.length > 0
       ? procs
@@ -164,9 +184,9 @@ export function gerarHtmlRecibo(params: {
 
 <div class="divider"></div>
 <table>
-  <tr><td><strong>Subtotal</strong></td><td style="text-align:right"><strong>R$ ${(totalGeral + desconto).toFixed(2)}</strong></td></tr>
-  ${desconto > 0 ? `<tr><td>Desconto</td><td style="text-align:right">- R$ ${desconto.toFixed(2)}</td></tr>` : ""}
-  <tr><td><strong>Total</strong></td><td style="text-align:right"><strong>R$ ${(totalGeral - desconto).toFixed(2)}</strong></td></tr>
+  <tr><td><strong>Subtotal</strong></td><td style="text-align:right"><strong>R$ ${subtotalBruto.toFixed(2)}</strong></td></tr>
+  ${descontosHtml}
+  <tr><td><strong>Total</strong></td><td style="text-align:right"><strong>R$ ${totalFinal.toFixed(2)}</strong></td></tr>
 </table>
 
 <div class="section">
@@ -184,6 +204,7 @@ ${
 }
 
 <div class="footer">
+  ${retornoAviso ? `<p style="color:#333;margin-bottom:6px;">${retornoAviso}</p>` : ""}
   <p>Agradecemos pela confiança!</p>
   <p>Documento não fiscal — gerado pelo sistema.</p>
   <button onclick="window.print()" style="margin-top:8px;padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #333;border-radius:4px;background:#fff;">Imprimir</button>

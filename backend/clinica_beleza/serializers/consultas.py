@@ -55,6 +55,8 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         source="local_atendimento.nome", read_only=True, default=None, allow_null=True,
     )
     local_atendimento_valor_consulta = serializers.SerializerMethodField()
+    retorno_dias_prazo = serializers.SerializerMethodField()
+    retorno_aviso_recibo = serializers.SerializerMethodField()
     convenio = serializers.PrimaryKeyRelatedField(
         queryset=Convenio.objects.none(),
         allow_null=True,
@@ -93,7 +95,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             "data_inicio", "data_fim", "duracao_minutos", "observacoes_gerais", "protocolo_notas",
             "valor_consulta", "valor_procedimentos", "valor_pagamento",
             "valor_pago", "valor_restante", "payment_status", "payment_id", "payment_date",
-            "retorno_gratuito", "retorno_tipo",
+            "retorno_gratuito", "retorno_tipo", "retorno_dias_prazo", "retorno_aviso_recibo",
             "local_atendimento", "local_atendimento_name", "local_atendimento_valor_consulta",
             "convenio", "convenio_name",
             "nome_agenda_id", "nome_agenda_name",
@@ -103,7 +105,8 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         ]
         read_only_fields = [
             "numero", "created_at", "updated_at", "loja_id", "appointment",
-            "retorno_gratuito", "retorno_tipo", "local_atendimento_valor_consulta",
+            "retorno_gratuito", "retorno_tipo", "retorno_dias_prazo", "retorno_aviso_recibo",
+            "local_atendimento_valor_consulta",
         ]
 
     def get_numero(self, obj):
@@ -113,10 +116,26 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         return str(n).zfill(3)
 
     def get_local_atendimento_valor_consulta(self, obj):
-        local = getattr(obj, "local_atendimento", None)
-        if local is None:
+        info = self._info_retorno_recibo(obj)
+        ref = info.get("taxa_consulta_referencia")
+        if ref is None:
             return None
-        return float(getattr(local, "valor_consulta", 0) or 0)
+        return float(ref or 0)
+
+    def _info_retorno_recibo(self, obj):
+        cache = self.context.setdefault("_info_retorno_recibo", {})
+        key = getattr(obj, "pk", None) or id(obj)
+        if key not in cache:
+            from clinica_beleza.recibo.retorno_info import montar_info_retorno_recibo
+
+            cache[key] = montar_info_retorno_recibo(obj, getattr(obj, "appointment", None))
+        return cache[key]
+
+    def get_retorno_dias_prazo(self, obj):
+        return self._info_retorno_recibo(obj).get("retorno_dias")
+
+    def get_retorno_aviso_recibo(self, obj):
+        return self._info_retorno_recibo(obj).get("retorno_aviso") or ""
 
     def get_total_evolucoes(self, obj):
         return obj.evolucoes.count()

@@ -69,18 +69,23 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     taxa_consulta = 0.0
     taxa_consulta_referencia = 0.0
     retorno_gratuito = False
+    retorno_dias = None
+    retorno_aviso = ""
     try:
         consulta = getattr(appointment, "consulta", None)
         if consulta:
             taxa_consulta = float(getattr(consulta, "valor_consulta", 0) or 0)
-            retorno_gratuito = bool(getattr(consulta, "retorno_gratuito", False))
-            local = getattr(consulta, "local_atendimento", None)
-            if local is None:
-                local = getattr(appointment, "local_atendimento", None)
-            if local is not None:
-                taxa_consulta_referencia = float(getattr(local, "valor_consulta", 0) or 0)
-            if retorno_gratuito and taxa_consulta_referencia <= 0 and taxa_consulta > 0:
-                taxa_consulta_referencia = taxa_consulta
+        from .retorno_info import montar_info_retorno_recibo
+
+        info_ret = montar_info_retorno_recibo(
+            consulta, appointment, loja_id=payment.loja_id,
+        )
+        retorno_gratuito = bool(info_ret.get("retorno_gratuito"))
+        taxa_consulta_referencia = float(info_ret.get("taxa_consulta_referencia") or 0)
+        retorno_dias = info_ret.get("retorno_dias")
+        retorno_aviso = (info_ret.get("retorno_aviso") or "").strip()
+        if retorno_gratuito and taxa_consulta_referencia <= 0 and taxa_consulta > 0:
+            taxa_consulta_referencia = taxa_consulta
     except Exception:
         logger.exception("Erro ao ler taxa de consulta do recibo (payment %s)", payment.id)
 
@@ -90,8 +95,19 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     desconto = _extrair_desconto_notes(payment)
     valor_total = float(payment.valor_total_efetivo)
     valor_pago = float(payment.amount or 0)
-    servicos_soma = taxa_consulta + sum(p["valor"] for p in procs)
-    subtotal = valor_total + desconto if desconto > 0 else servicos_soma
+    desconto_retorno = (
+        float(taxa_consulta_referencia)
+        if retorno_gratuito and taxa_consulta_referencia > 0
+        else 0.0
+    )
+    taxa_para_subtotal = (
+        taxa_consulta_referencia if retorno_gratuito and taxa_consulta_referencia > 0 else taxa_consulta
+    )
+    servicos_soma = taxa_para_subtotal + sum(p["valor"] for p in procs)
+    if desconto_retorno > 0 or desconto > 0:
+        subtotal = servicos_soma
+    else:
+        subtotal = servicos_soma if servicos_soma > 0 else valor_total
     loja_telefone = telefone_exibicao_brasileiro(tel_raw)
     loja_cep = _formatar_cep(cep_raw)
     loja_email = (getattr(getattr(loja, "owner", None), "email", "") or "").strip() if loja else ""
@@ -114,8 +130,11 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         "taxa_consulta": taxa_consulta,
         "taxa_consulta_referencia": taxa_consulta_referencia,
         "retorno_gratuito": retorno_gratuito,
+        "retorno_dias": retorno_dias,
+        "retorno_aviso": retorno_aviso,
         "subtotal": float(subtotal),
         "desconto": desconto,
+        "desconto_retorno": desconto_retorno,
         "valor_total": valor_total,
         "valor_pago": valor_pago,
         "metodo": (
@@ -215,14 +234,34 @@ def _linha_documento_loja(ctx: dict) -> str:
 
 
 def _linhas_taxa_consulta_recibo(ctx: dict) -> list[tuple[str, float]]:
-    """Linhas da taxa de consulta no recibo (inclui retorno gratuito)."""
+    """Linha da taxa de consulta no recibo (valor de tabela quando há retorno)."""
     if ctx.get("retorno_gratuito"):
         ref = float(ctx.get("taxa_consulta_referencia") or 0)
-        return [
-            ("Taxa de consulta", ref),
-            ("Retorno gratuito", 0.0),
-        ]
+        if ref > 0:
+            return [("Taxa de consulta", ref)]
+        return []
     taxa = float(ctx.get("taxa_consulta") or 0)
     if taxa > 0:
         return [("Taxa de consulta", taxa)]
     return []
+
+
+def _label_desconto_retorno_recibo(ctx: dict) -> str:
+    dias = ctx.get("retorno_dias")
+    if dias:
+        return f"Desconto retorno (prazo {int(dias)} dias)"
+    return "Desconto retorno"
+
+
+def _linhas_descontos_recibo(ctx: dict) -> list[tuple[str, float]]:
+    """Linhas de desconto (retorno gratuito e desconto comercial)."""
+    linhas: list[tuple[str, float]] = []
+    desconto_retorno = float(ctx.get("desconto_retorno") or 0)
+    if desconto_retorno <= 0 and ctx.get("retorno_gratuito"):
+        desconto_retorno = float(ctx.get("taxa_consulta_referencia") or 0)
+    if desconto_retorno > 0:
+        linhas.append((_label_desconto_retorno_recibo(ctx), desconto_retorno))
+    desconto = float(ctx.get("desconto") or 0)
+    if desconto > 0:
+        linhas.append(("Desconto", desconto))
+    return linhas

@@ -57,12 +57,15 @@ class GerarPdfReciboTests(SimpleTestCase):
         self.assertGreater(len(pdf), 100)
 
     def test_gera_pdf_com_retorno_gratuito(self):
-        """PDF com retorno gratuito mostra valor da consulta e isenção."""
+        """PDF com retorno gratuito mostra taxa e desconto retorno."""
         from clinica_beleza.recibo_service import _gerar_pdf_recibo
         ctx = self._ctx(
             taxa_consulta=0.0,
             taxa_consulta_referencia=150.0,
+            desconto_retorno=150.0,
+            subtotal=2150.0,
             retorno_gratuito=True,
+            retorno_dias=30,
             valor_total=2000.0,
             valor_pago=2000.0,
         )

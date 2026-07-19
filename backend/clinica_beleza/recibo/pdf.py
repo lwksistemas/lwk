@@ -1,7 +1,12 @@
 """Geração de PDF do recibo de pagamento."""
 import io
 
-from .context import _linha_documento_loja, _linha_tel_cep, _linhas_taxa_consulta_recibo
+from .context import (
+    _linha_documento_loja,
+    _linha_tel_cep,
+    _linhas_descontos_recibo,
+    _linhas_taxa_consulta_recibo,
+)
 
 
 def _gerar_pdf_recibo(ctx: dict) -> bytes:
@@ -87,15 +92,17 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     story.append(hr)
 
     totals_data = []
-    if ctx.get("desconto", 0) > 0:
+    descontos = _linhas_descontos_recibo(ctx)
+    if descontos:
         totals_data.append([
             Paragraph("Subtotal", s_left),
-            Paragraph(f'R$ {ctx.get("subtotal", ctx["valor_total"] + ctx["desconto"]):.2f}', s_right),
+            Paragraph(f'R$ {ctx.get("subtotal", ctx["valor_total"]):.2f}', s_right),
         ])
-        totals_data.append([
-            Paragraph("Desconto", s_left),
-            Paragraph(f'- R$ {ctx["desconto"]:.2f}', s_right),
-        ])
+        for label, valor in descontos:
+            totals_data.append([
+                Paragraph(label, s_left),
+                Paragraph(f"- R$ {valor:.2f}", s_right),
+            ])
     totals_data.append([
         Paragraph("<b>Total</b>", s_bold),
         Paragraph(f'<b>R$ {ctx["valor_total"]:.2f}</b>', s_right),
@@ -128,6 +135,11 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
         story.append(Paragraph("<b>Quitado</b>", s_center))
     story.append(Spacer(1, 2 * mm))
     story.append(hr)
+
+    aviso = (ctx.get("retorno_aviso") or "").strip()
+    if aviso:
+        story.append(Spacer(1, 2 * mm))
+        story.append(Paragraph(aviso, s_footer))
 
     story.append(Spacer(1, 2 * mm))
     story.append(Paragraph("Agradecemos pela confiança!", s_footer))

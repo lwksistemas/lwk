@@ -39,6 +39,10 @@ export interface Consulta {
   /** Taxa isenta por retorno dentro do prazo. */
   retorno_gratuito?: boolean;
   retorno_tipo?: string | null;
+  /** Prazo (dias) da regra de retorno aplicável (configuração da clínica). */
+  retorno_dias_prazo?: number | null;
+  /** Texto explicativo do retorno gratuito para o recibo. */
+  retorno_aviso_recibo?: string | null;
   /** Valor de tabela do local (para exibir no recibo quando há retorno gratuito). */
   local_atendimento_valor_consulta?: string | number | null;
   /** Soma dos procedimentos do agendamento. */

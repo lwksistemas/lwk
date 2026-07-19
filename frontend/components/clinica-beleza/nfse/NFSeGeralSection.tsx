@@ -152,7 +152,7 @@ export function NFSeGeralSection({ formData, onFieldChange }: Props) {
               className="w-4 h-4"
             />
             <span className="text-sm text-gray-700 dark:text-gray-300">
-              Emitir NF automaticamente ao confirmar pagamento
+              Emitir NF automaticamente ao confirmar pagamento (opcional; desligado por padrão)
             </span>
           </label>
         </div>

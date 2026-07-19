@@ -41,7 +41,7 @@ export const NFSE_FORM_DEFAULTS: NFSeFormData = {
   issnet_ultimo_rps_conhecido: '',
   issnet_numero_lote: '',
   issnet_ambiente_homologacao: false,
-  emitir_nf_automaticamente: true,
+  emitir_nf_automaticamente: false,
 };
 
 export const NFSE_PROVEDOR_INFO = {
@@ -120,6 +120,6 @@ export function nfseFormDataFromConfig(config: NFSeConfigSnapshot): NFSeFormData
       config.issnet_ultimo_rps_conhecido != null ? String(config.issnet_ultimo_rps_conhecido) : '',
     issnet_numero_lote: config.issnet_numero_lote != null ? String(config.issnet_numero_lote) : '',
     issnet_ambiente_homologacao: config.issnet_ambiente_homologacao ?? false,
-    emitir_nf_automaticamente: config.emitir_nf_automaticamente ?? true,
+    emitir_nf_automaticamente: config.emitir_nf_automaticamente ?? false,
   };
 }

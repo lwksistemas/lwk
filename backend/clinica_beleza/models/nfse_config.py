@@ -110,8 +110,9 @@ class ClinicaBelezaNFSeConfig(LojaIsolationMixin, models.Model):
         verbose_name="Alíquota ISS (%)",
     )
     emitir_nf_automaticamente = models.BooleanField(
-        default=True,
+        default=False,
         verbose_name="Emitir NF Automaticamente",
+        help_text="Desligado por padrão. Só emite NFS-e ao finalizar consulta se a clínica ativar.",
     )
 
     # === Asaas da loja (conta própria) ===

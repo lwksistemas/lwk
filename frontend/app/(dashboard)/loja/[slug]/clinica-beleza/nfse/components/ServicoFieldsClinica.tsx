@@ -1,0 +1,65 @@
+'use client';
+
+import { NFSE_EMISSAO_INPUT_CLASS } from '@/lib/nfse-emissao-form';
+
+interface ServicoFieldsClinicaProps {
+  servico_descricao: string;
+  valor_servicos: string;
+  enviar_email: boolean;
+  onChange: (field: string, value: string | boolean) => void;
+}
+
+/** Campos de serviço da clínica — sem atalhos de atividade do CRM. */
+export function ServicoFieldsClinica({
+  servico_descricao,
+  valor_servicos,
+  enviar_email,
+  onChange,
+}: ServicoFieldsClinicaProps) {
+  return (
+    <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+      <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Dados do Serviço</h3>
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Descrição do Serviço *
+          </label>
+          <textarea
+            value={servico_descricao}
+            onChange={(e) => onChange('servico_descricao', e.target.value)}
+            required
+            rows={3}
+            className={NFSE_EMISSAO_INPUT_CLASS}
+            placeholder="Ex: Serviços de estética, saúde e bem-estar"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Valor dos Serviços (R$) *
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={valor_servicos}
+            onChange={(e) => onChange('valor_servicos', e.target.value)}
+            required
+            className={NFSE_EMISSAO_INPUT_CLASS}
+            placeholder="0.00"
+          />
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={enviar_email}
+            onChange={(e) => onChange('enviar_email', e.target.checked)}
+            className="w-4 h-4"
+          />
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            Enviar NFS-e por email para o cliente
+          </span>
+        </label>
+      </div>
+    </div>
+  );
+}

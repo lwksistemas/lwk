@@ -16,7 +16,6 @@ export function ModalEmitirNFSeStepInicioClinica({
   buscandoTomador,
   onContinuar,
   onClose,
-  emitenteNome,
 }: {
   documentoTomador: string;
   onDocumentoChange: (value: string) => void;
@@ -29,16 +28,9 @@ export function ModalEmitirNFSeStepInicioClinica({
   buscandoTomador: boolean;
   onContinuar: () => void | Promise<void>;
   onClose: () => void;
-  emitenteNome: string;
 }) {
-  const nome = (emitenteNome || '').trim() || 'esta clínica';
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-[#8B3D52]/30 bg-[#F5E6EA] dark:bg-[#8B3D52]/20 p-3 text-sm text-gray-900 dark:text-gray-100">
-        A nota será emitida pela <strong>{nome}</strong> (CNPJ cadastrado desta loja) para o
-        cliente informado abaixo.
-      </div>
-
       <div>
         <h3 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
           <Search size={18} style={{ color: 'var(--cb-primary, #8B3D52)' }} />

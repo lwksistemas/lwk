@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import { X, AlertCircle } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
@@ -16,12 +15,11 @@ import {
 } from '@/lib/nfse-emissao-form';
 import { parseNfseEmissaoResult, type NfseEmissaoResult, type NfseEmitirResponse } from '@/lib/nfse-helpers';
 import { useClinicaNFSeConfig } from '@/contexts/ClinicaBelezaNFSeConfigContext';
-import { useLojaInfoPublica } from '@/hooks/useLojaInfoPublica';
-import { ServicoFields } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/ServicoFields';
 import { ModalFormButtons } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/ModalFormButtons';
 import { ModalEmitirNFSeTomadorFields } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/ModalEmitirNFSeTomadorFields';
 import { ModalEmitirNFSeEnderecoFields } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/ModalEmitirNFSeEnderecoFields';
 import { ModalEmitirNFSeStepInicioClinica } from './ModalEmitirNFSeStepInicioClinica';
+import { ServicoFieldsClinica } from './ServicoFieldsClinica';
 
 interface ModalEmitirNFSeClinicaProps {
   onClose: () => void;
@@ -32,10 +30,6 @@ interface ModalEmitirNFSeClinicaProps {
 type PacienteOpcao = { id: number; nome: string; cpf: string };
 
 export function ModalEmitirNFSeClinica({ onClose, onSuccess, onRefreshList }: ModalEmitirNFSeClinicaProps) {
-  const params = useParams();
-  const slug = (params?.slug as string) || '';
-  const { loja } = useLojaInfoPublica(slug);
-  const emitenteNome = (loja?.nome || '').trim();
   const { config } = useClinicaNFSeConfig();
   const defaultsServico = defaultsServicoFromCrmConfig(config);
   const [step, setStep] = useState<'inicio' | 'formulario'>('inicio');
@@ -212,19 +206,11 @@ export function ModalEmitirNFSeClinica({ onClose, onSuccess, onRefreshList }: Mo
               buscandoTomador={buscandoTomador}
               onContinuar={handleContinuarInicio}
               onClose={onClose}
-              emitenteNome={emitenteNome}
             />
           )}
 
           {step === 'formulario' && (
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="rounded-lg border border-[#8B3D52]/30 bg-[#F5E6EA] dark:bg-[#8B3D52]/20 p-3 text-sm">
-                <span className="font-medium text-gray-900 dark:text-gray-100">Emissor: </span>
-                <span className="text-gray-800 dark:text-gray-200">
-                  {emitenteNome || 'Loja atual (CNPJ do cadastro)'}
-                </span>
-              </div>
-
               {formData.tomador_nome ? (
                 <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3 text-sm text-green-900 dark:text-green-100">
                   {fonteTomador === 'paciente'
@@ -244,13 +230,10 @@ export function ModalEmitirNFSeClinica({ onClose, onSuccess, onRefreshList }: Mo
               <ModalEmitirNFSeTomadorFields formData={formData} onChange={handleFieldChange} />
               <ModalEmitirNFSeEnderecoFields formData={formData} onChange={handleFieldChange} />
 
-              <ServicoFields
+              <ServicoFieldsClinica
                 servico_descricao={formData.servico_descricao}
                 valor_servicos={formData.valor_servicos}
                 enviar_email={formData.enviar_email}
-                codigo_cnae={formData.codigo_cnae}
-                codigo_servico={formData.codigo_servico}
-                item_lista_servico={formData.item_lista_servico}
                 onChange={handleFieldChange}
               />
               <ModalFormButtons

@@ -14,6 +14,7 @@ type LifecycleUiSlice = {
   setProfissionaisDisponiveis: (p: { id: number; nome?: string; name?: string }[]) => void;
   setShowReceberModal: (v: boolean) => void;
   setRecebendo: (v: boolean) => void;
+  setEmitindoNfse: (v: boolean) => void;
   setFinalizando: (v: boolean) => void;
   memedRef: RefObject<MemedPrescricaoHandle | null>;
   memedBusy: boolean;
@@ -44,6 +45,7 @@ export function useConsultaLifecycleHandlers(
     setProfissionaisDisponiveis,
     setShowReceberModal,
     setRecebendo,
+    setEmitindoNfse,
     setFinalizando,
     memedRef,
     memedBusy,
@@ -173,6 +175,23 @@ export function useConsultaLifecycleHandlers(
     }
   }, [onBack, onListRefresh, selected, toast]);
 
+  const emitirNfseConsulta = useCallback(async () => {
+    if (selected.payment_status !== "PAID") {
+      toast.warning("Só é possível emitir nota quando o pagamento estiver quitado.");
+      return;
+    }
+    if (!confirm("Emitir NFS-e desta consulta paga?")) return;
+    setEmitindoNfse(true);
+    try {
+      const res = await ClinicaBelezaAPI.consultas.emitirNfse(selected.id);
+      toast.success(res.message || (res.queued ? "NFS-e enfileirada." : "NFS-e emitida."));
+    } catch (e: unknown) {
+      toast.error(formatApiErrorBody(e) || "Erro ao emitir NFS-e.");
+    } finally {
+      setEmitindoNfse(false);
+    }
+  }, [selected, setEmitindoNfse, toast]);
+
   return {
     iniciarConsulta,
     abrirReceberModal,
@@ -180,5 +199,6 @@ export function useConsultaLifecycleHandlers(
     abrirFinalizarModal,
     abrirMemed,
     excluirConsulta,
+    emitirNfseConsulta,
   };
 }

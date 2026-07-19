@@ -4,7 +4,11 @@ from decimal import Decimal
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
-from clinica_beleza.nfse_consulta_service import montar_payload_nfse_consulta, tentar_emitir_nfse_consulta
+from clinica_beleza.nfse_consulta_service import (
+    emitir_nfse_consulta_manual,
+    montar_payload_nfse_consulta,
+    tentar_emitir_nfse_consulta,
+)
 
 
 class NFSeConsultaServiceTest(TestCase):
@@ -63,33 +67,36 @@ class NFSeConsultaServiceTest(TestCase):
         )
         self.assertIsNone(payload)
 
-    @patch("nfse_integration.loja_nfse_api.processar_emissao_nfse_loja_sync")
-    @patch("nfse_integration.queue_dispatch.should_enqueue_nfse", return_value=False)
+    @patch("nfse_integration.loja_nfse_api.processar_emissao_nfse_loja")
     @patch("clinica_beleza.nfse_consulta_service._get_nfse_config")
     @patch("superadmin.models.Loja")
-    def test_emite_quando_pago_e_config_ativa(self, mock_loja, mock_get_config, _enqueue, mock_processar):
+    def test_emite_quando_pago_e_config_ativa(self, mock_loja, mock_get_config, mock_processar):
         mock_get_config.return_value = self._config()
         mock_loja.objects.using.return_value.filter.return_value.first.return_value = MagicMock(id=10)
+        mock_processar.return_value = ({"success": True, "message": "ok"}, 201)
 
         tentar_emitir_nfse_consulta(self._consulta(), self._payment())
 
         mock_processar.assert_called_once()
 
-    @patch("nfse_integration.queue_dispatch.enqueue_emissao_nfse_loja")
-    @patch("nfse_integration.queue_dispatch.should_enqueue_nfse", return_value=True)
+    @patch("nfse_integration.loja_nfse_api.processar_emissao_nfse_loja")
     @patch("clinica_beleza.nfse_consulta_service._get_nfse_config")
     @patch("superadmin.models.Loja")
-    def test_enfileira_quando_fila_ativa(self, mock_loja, mock_get_config, _should, mock_enqueue):
+    def test_enfileira_quando_fila_ativa(self, mock_loja, mock_get_config, mock_processar):
         loja = MagicMock(id=10)
         mock_get_config.return_value = self._config()
         mock_loja.objects.using.return_value.filter.return_value.first.return_value = loja
+        mock_processar.return_value = (
+            {"success": True, "queued": True, "message": "enfileirada"},
+            202,
+        )
 
         tentar_emitir_nfse_consulta(self._consulta(), self._payment())
 
-        mock_enqueue.assert_called_once()
-        self.assertEqual(mock_enqueue.call_args[0][0], 10)
+        mock_processar.assert_called_once()
+        self.assertEqual(mock_processar.call_args[0][1], 10)
 
-    @patch("nfse_integration.loja_nfse_api.processar_emissao_nfse_loja_sync")
+    @patch("nfse_integration.loja_nfse_api.processar_emissao_nfse_loja")
     @patch("clinica_beleza.nfse_consulta_service._get_nfse_config")
     def test_nao_emite_se_provedor_desabilitado(self, mock_get_config, mock_processar):
         mock_get_config.return_value = self._config(provedor="desabilitado")
@@ -97,6 +104,19 @@ class NFSeConsultaServiceTest(TestCase):
         tentar_emitir_nfse_consulta(self._consulta(), self._payment())
 
         mock_processar.assert_not_called()
+
+    @patch("nfse_integration.loja_nfse_api.processar_emissao_nfse_loja")
+    @patch("clinica_beleza.nfse_consulta_service._get_nfse_config")
+    @patch("superadmin.models.Loja")
+    def test_manual_emite_mesmo_com_auto_desligada(self, mock_loja, mock_get_config, mock_processar):
+        mock_get_config.return_value = self._config(auto=False)
+        mock_loja.objects.using.return_value.filter.return_value.first.return_value = MagicMock(id=10)
+        mock_processar.return_value = ({"success": True, "message": "ok"}, 201)
+
+        result = emitir_nfse_consulta_manual(self._consulta(), self._payment())
+
+        self.assertTrue(result["success"])
+        mock_processar.assert_called_once()
 
     @patch("clinica_beleza.consulta_service._garantir_valor_consulta_consulta")
     @patch("clinica_beleza.consulta_service._valor_pagamento_padrao", return_value=Decimal(100))

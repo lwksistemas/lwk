@@ -86,9 +86,11 @@ export function ConsultaDetailShell({
             podeExcluir={actions.podeExcluir}
             consultaAtiva={actions.consultaAtiva}
             recebendo={actions.recebendo}
+            emitindoNfse={actions.emitindoNfse}
             iniciando={actions.iniciando}
             onIniciar={() => actions.iniciarConsulta()}
             onReceber={actions.abrirReceberModal}
+            onEmitirNfse={actions.emitirNfseConsulta}
             onFinalizar={actions.abrirFinalizarModal}
             onExcluir={actions.excluirConsulta}
           />

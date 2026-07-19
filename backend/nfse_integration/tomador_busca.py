@@ -143,25 +143,37 @@ def _payload_from_nfse(nf, digits: str) -> dict[str, Any]:
 
 def _buscar_conta_crm(loja_id: int, digits: str):
     """Varre todas as contas (Clientes) da loja — mesma base de /crm-vendas/contas/."""
-    from crm_vendas.models import Conta
+    try:
+        from crm_vendas.models import Conta
+    except Exception:
+        return None
 
-    qs = Conta.objects.filter(loja_id=loja_id)
-    for conta in qs.iterator():
-        if _digitos_equivalentes(conta.cnpj, digits):
-            return conta
+    try:
+        qs = Conta.objects.filter(loja_id=loja_id)
+        for conta in qs.iterator():
+            if _digitos_equivalentes(conta.cnpj, digits):
+                return conta
+    except Exception:
+        return None
     return None
 
 
 def _buscar_lead_crm(loja_id: int, digits: str):
     """Varre leads e contas vinculadas — mesma base de /crm-vendas/leads/."""
-    from crm_vendas.models import Lead
+    try:
+        from crm_vendas.models import Lead
+    except Exception:
+        return None
 
-    qs = Lead.objects.filter(loja_id=loja_id).select_related("conta")
-    for lead in qs.iterator():
-        if _digitos_equivalentes(lead.cpf_cnpj, digits):
-            return lead
-        if lead.conta_id and lead.conta and _digitos_equivalentes(lead.conta.cnpj, digits):
-            return lead
+    try:
+        qs = Lead.objects.filter(loja_id=loja_id).select_related("conta")
+        for lead in qs.iterator():
+            if _digitos_equivalentes(lead.cpf_cnpj, digits):
+                return lead
+            if lead.conta_id and lead.conta and _digitos_equivalentes(lead.conta.cnpj, digits):
+                return lead
+    except Exception:
+        return None
     return None
 
 
@@ -192,15 +204,51 @@ def _buscar_nfse_por_documento(loja_id: int, digits: str):
     return None
 
 
+def _payload_from_paciente(patient, digits: str) -> dict[str, Any]:
+    cpf = patient.cpf or ""
+    if not somente_digitos_documento(cpf) and digits:
+        cpf = digits
+    endereco = (getattr(patient, "endereco", None) or getattr(patient, "address", None) or "") or ""
+    return _tomador_payload(
+        fonte="paciente",
+        cpf_cnpj=cpf,
+        nome=patient.nome or "",
+        email=patient.email or "",
+        logradouro=str(endereco).strip() or "",
+        numero="S/N",
+        cidade=(getattr(patient, "cidade", None) or "") or "",
+        uf=(getattr(patient, "estado", None) or getattr(patient, "uf", None) or "") or "",
+    )
+
+
+def _buscar_paciente_clinica(loja_id: int, digits: str):
+    """Busca paciente da Clínica da Beleza pelo CPF (schema tenant)."""
+    try:
+        from clinica_beleza.models import Patient
+    except Exception:
+        return None
+
+    qs = Patient.objects.filter(loja_id=loja_id, is_active=True)
+    for patient in qs.iterator():
+        if _digitos_equivalentes(getattr(patient, "cpf", None), digits):
+            return patient
+    return None
+
+
 def buscar_tomador_nfse_loja(loja_id: int, documento: str) -> dict[str, Any] | None:
     """Localiza tomador por CPF/CNPJ na ordem:
-    1. Conta CRM (Clientes)
-    2. Lead CRM (Leads), incluindo conta vinculada
-    3. NFS-e já emitida
+    1. Paciente Clínica da Beleza
+    2. Conta CRM (Clientes)
+    3. Lead CRM (Leads), incluindo conta vinculada
+    4. NFS-e já emitida
     """
     digits = somente_digitos_documento(documento)
     if len(digits) not in (11, 14):
         return None
+
+    paciente = _buscar_paciente_clinica(loja_id, digits)
+    if paciente:
+        return _payload_from_paciente(paciente, digits)
 
     conta = _buscar_conta_crm(loja_id, digits)
     if conta:

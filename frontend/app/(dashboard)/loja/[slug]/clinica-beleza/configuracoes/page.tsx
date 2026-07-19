@@ -74,10 +74,10 @@ export default function ClinicaBelezaConfiguracoesPage() {
     },
     {
       titulo: 'Nota Fiscal (NFS-e)',
-      descricao: 'Configure como as notas fiscais serão emitidas',
+      descricao: 'Configure provedor e certificado (emissão manual no menu NFS-e)',
       href: `${base}/nota-fiscal`,
       icon: FileText,
-      itens: ['Provedor de NF', 'Certificado digital', 'Emissão automática'],
+      itens: ['Provedor de NF', 'Certificado digital', 'Emissão automática (opcional)'],
     },
     {
       titulo: 'Backup',

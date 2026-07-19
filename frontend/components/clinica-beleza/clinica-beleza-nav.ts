@@ -13,6 +13,7 @@ import {
   Settings,
   Headphones,
   FileText,
+  Receipt,
 } from 'lucide-react';
 
 /** Cor principal do app (mockup Beleza & Vitalidade) */
@@ -43,6 +44,7 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Templates', icon: FileText, path: 'clinica-beleza/templates' },
   { label: 'Estoque', icon: Package, path: 'clinica-beleza/estoque' },
   { label: 'Financeiro', icon: DollarSign, path: 'clinica-beleza/financeiro' },
+  { label: 'NFS-e', icon: Receipt, path: 'clinica-beleza/nfse' },
   { label: 'Marketing', icon: Megaphone, path: 'clinica-beleza/campanhas' },
   { label: 'Relatórios', icon: BarChart3, path: 'relatorios' },
   { label: 'Configurações', icon: Settings, path: 'clinica-beleza/configuracoes' },

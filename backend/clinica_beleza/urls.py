@@ -51,6 +51,7 @@ from .views_assinatura_consentimento import (
 from .views_consultas import (
     ConsultaAplicarProtocoloView,
     ConsultaDetailView,
+    ConsultaEmitirNfseView,
     ConsultaEstornarPagamentoView,
     ConsultaEvolucaoListView,
     ConsultaFinalizarView,
@@ -146,6 +147,7 @@ urlpatterns = [
     path("consultas/<int:pk>/iniciar/", ConsultaIniciarView.as_view(), name="consultas-iniciar"),
     path("consultas/<int:pk>/receber/", ConsultaReceberView.as_view(), name="consultas-receber"),
     path("consultas/<int:pk>/estornar-pagamento/", ConsultaEstornarPagamentoView.as_view(), name="consultas-estornar-pagamento"),
+    path("consultas/<int:pk>/emitir-nfse/", ConsultaEmitirNfseView.as_view(), name="consultas-emitir-nfse"),
     path("consultas/<int:pk>/finalizar/", ConsultaFinalizarView.as_view(), name="consultas-finalizar"),
     path("consultas/<int:pk>/aplicar-protocolo/", ConsultaAplicarProtocoloView.as_view(), name="consultas-aplicar-protocolo"),
     path("consultas/<int:consulta_id>/evolucoes/", ConsultaEvolucaoListView.as_view(), name="consultas-evolucoes"),

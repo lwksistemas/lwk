@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Play, Trash2 } from "lucide-react";
+import { CheckCircle2, FileText, Play, Trash2 } from "lucide-react";
 import {
   CLINICA_CONSULTA_STATUS_COLORS,
   CLINICA_CONSULTA_STATUS_LABEL,
@@ -21,9 +21,11 @@ interface ConsultaDetailStatusBarProps {
   podeExcluir: boolean;
   consultaAtiva?: boolean;
   recebendo: boolean;
+  emitindoNfse?: boolean;
   iniciando: boolean;
   onIniciar: () => void;
   onReceber: () => void;
+  onEmitirNfse?: () => void;
   onFinalizar: () => void;
   onExcluir: () => void;
 }
@@ -39,9 +41,11 @@ export function ConsultaDetailStatusBar({
   podeExcluir,
   consultaAtiva = false,
   recebendo,
+  emitindoNfse = false,
   iniciando,
   onIniciar,
   onReceber,
+  onEmitirNfse,
   onFinalizar,
   onExcluir,
 }: ConsultaDetailStatusBarProps) {
@@ -106,6 +110,19 @@ export function ConsultaDetailStatusBar({
           size="md"
           loading={recebendo}
         />
+        {selected.payment_status === "PAID" && onEmitirNfse && (
+          <button
+            type="button"
+            onClick={onEmitirNfse}
+            disabled={emitindoNfse}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+            style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+            title="Emitir NFS-e desta consulta"
+          >
+            <FileText size={16} />
+            {emitindoNfse ? "Emitindo…" : "Emitir NFS-e"}
+          </button>
+        )}
         {/* Em atendimento, Finalizar/Excluir ficam no header — aqui só pagamento */}
         {!consultaAtiva && podeIniciar && (
           <button

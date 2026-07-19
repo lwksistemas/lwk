@@ -54,7 +54,7 @@ export function defaultsServicoFromCrmConfig(config: {
 export type NfseEmissaoContaOption = {
   id: number | string;
   _tipo: 'conta' | 'lead';
-  _fonte?: 'conta' | 'lead' | 'nfse' | 'brasilapi';
+  _fonte?: 'conta' | 'lead' | 'nfse' | 'brasilapi' | 'paciente';
   _display?: string;
   _lead_id?: number;
   nome?: string;

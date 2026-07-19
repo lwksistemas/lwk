@@ -8,6 +8,7 @@ from .clinical import (
 from .crud import (
     ConsultaAplicarProtocoloView,
     ConsultaDetailView,
+    ConsultaEmitirNfseView,
     ConsultaEstornarPagamentoView,
     ConsultaFinalizarView,
     ConsultaIniciarView,
@@ -25,6 +26,7 @@ from .produtos import ConsultaProdutoDetailView, ConsultaProdutoListView
 __all__ = [
     "ConsultaAplicarProtocoloView",
     "ConsultaDetailView",
+    "ConsultaEmitirNfseView",
     "ConsultaEstornarPagamentoView",
     "ConsultaEvolucaoListView",
     "ConsultaFinalizarView",

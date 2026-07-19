@@ -37,6 +37,11 @@ export const consultasApi = {
       `/consultas/${id}/estornar-pagamento/`,
       {},
     ),
+  emitirNfse: (id: number) =>
+    cbPost<{ success?: boolean; queued?: boolean; message?: string; error?: string }>(
+      `/consultas/${id}/emitir-nfse/`,
+      {},
+    ),
   finalizar: (
     id: number,
     data?: {

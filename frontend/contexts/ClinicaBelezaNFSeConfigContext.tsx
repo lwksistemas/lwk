@@ -63,7 +63,7 @@ export function ClinicaBelezaNFSeConfigProvider({ children }: { children: ReactN
         codigo_servico_municipal: '0601',
         descricao_servico_padrao: 'Serviços de estética, saúde e bem-estar',
         aliquota_iss: '2.00',
-        emitir_nf_automaticamente: true,
+        emitir_nf_automaticamente: false,
         asaas_api_key_configured: false,
         issnet_senhas_salvas: false,
         issnet_ambiente_homologacao: false,

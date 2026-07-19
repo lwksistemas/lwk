@@ -14,7 +14,7 @@ from ..consulta_service import (
 )
 from ..models import Consulta, Patient, Procedure, ProcedureProtocol, Professional
 from ..pagination import paginate_queryset
-from ..permissions import CLINICA_CLINICAL
+from ..permissions import CLINICA_CLINICAL, CLINICA_FINANCEIRO
 from ..serializers import ConsultaSerializer
 from ..views_base import GetObjectMixin, resolve_loja_id_from_request
 from .helpers import get_consulta_or_404
@@ -302,6 +302,46 @@ class ConsultaEstornarPagamentoView(APIView):
             "payment": PaymentSerializer(payment).data,
             "message": "Pagamento estornado. Você pode lançar novamente.",
         })
+
+
+class ConsultaEmitirNfseView(APIView):
+    """POST /clinica-beleza/consultas/<id>/emitir-nfse/ — emissão manual de NFS-e (consulta paga)."""
+
+    permission_classes = CLINICA_FINANCEIRO
+
+    def post(self, request, pk):
+        from ..models import Payment
+        from ..nfse_consulta_service import emitir_nfse_consulta_manual
+
+        consulta, error = get_consulta_or_404(pk, select_related=(
+            "patient", "professional", "procedure", "protocol", "appointment",
+            "appointment__procedure",
+        ))
+        if error:
+            return error
+
+        appointment = getattr(consulta, "appointment", None)
+        payment = None
+        if appointment is not None:
+            payment = (
+                Payment.objects.filter(appointment=appointment, status="PAID")
+                .order_by("-id")
+                .first()
+            )
+        if payment is None:
+            return Response(
+                {"error": "Só é possível emitir nota de consulta com pagamento quitado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = emitir_nfse_consulta_manual(consulta, payment)
+        if not result.get("success"):
+            return Response(
+                {"error": result.get("error") or "Falha ao emitir NFS-e."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        http_status = status.HTTP_202_ACCEPTED if result.get("queued") else status.HTTP_201_CREATED
+        return Response(result, status=http_status)
 
 
 class ConsultaFinalizarView(APIView):

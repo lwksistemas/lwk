@@ -320,9 +320,9 @@ def registrar_recebimento_consulta(
     from clinica_beleza import consulta_service
     from clinica_beleza.models import Consulta
 
-    # Lock evita race de dois "Receber" simultâneos na mesma consulta.
+    # Lock só na Consulta (of=self): Postgres rejeita FOR UPDATE no lado nullable do OUTER JOIN.
     consulta = (
-        Consulta.objects.select_for_update()
+        Consulta.objects.select_for_update(of=("self",))
         .select_related("appointment", "appointment__professional", "patient")
         .get(pk=consulta.pk)
     )
@@ -337,7 +337,7 @@ def registrar_recebimento_consulta(
         valor_bruto = Decimal(str(valor_bruto))
 
     payment = (
-        consulta_service.Payment.objects.select_for_update()
+        consulta_service.Payment.objects.select_for_update(of=("self",))
         .filter(appointment=appointment)
         .first()
     )
@@ -393,7 +393,7 @@ def publicar_pagamento_financeiro(consulta):
     from tenants.middleware import get_current_tenant_db
 
     consulta = (
-        Consulta.objects.select_for_update()
+        Consulta.objects.select_for_update(of=("self",))
         .select_related("appointment")
         .get(pk=consulta.pk)
     )
@@ -402,7 +402,7 @@ def publicar_pagamento_financeiro(consulta):
         return None
 
     payment = (
-        consulta_service.Payment.objects.select_for_update()
+        consulta_service.Payment.objects.select_for_update(of=("self",))
         .filter(appointment=appointment)
         .first()
     )

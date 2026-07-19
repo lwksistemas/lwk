@@ -65,7 +65,17 @@ export function useProfissionalForm(editId: string | null, onDone: () => void) {
 
   useEffect(() => {
     ClinicaBelezaAPI.procedures.list().then((data) => {
-      setProcedures(Array.isArray(data) ? (data as ProfissionalProcedure[]) : []);
+      const list = Array.isArray(data) ? (data as ProfissionalProcedure[]) : [];
+      // Evita nomes duplicados no select (ex.: seed title-case + API em MAIÚSCULAS).
+      const seen = new Set<string>();
+      const unique: ProfissionalProcedure[] = [];
+      for (const p of list) {
+        const key = (p.nome || "").trim().toUpperCase();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        unique.push(p);
+      }
+      setProcedures(unique);
     }).catch(() => {});
     ClinicaBelezaAPI.locaisAtendimento.list().then((data) => {
       setLocais(Array.isArray(data) ? (data as LocalAtendimentoItem[]) : []);

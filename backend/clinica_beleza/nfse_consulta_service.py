@@ -10,40 +10,54 @@ logger = logging.getLogger(__name__)
 
 
 def _get_nfse_config(loja_id: int):
-    """Obtém configuração de NFS-e para a loja.
-    Lê da tabela clinica_beleza_nfse_config (configuração individual da clínica).
-    Fallback: tabela crm_vendas_crmconfig para lojas que ainda não migraram.
-    """
+    """Obtém configuração de NFS-e da loja no schema tenant (não no public/default)."""
+    try:
+        from tenants.middleware import get_current_tenant_db
+
+        from .models import ClinicaBelezaNFSeConfig
+
+        db = get_current_tenant_db() or "default"
+        config = (
+            ClinicaBelezaNFSeConfig.objects.using(db)
+            .filter(loja_id=loja_id)
+            .only(
+                "emitir_nf_automaticamente",
+                "provedor_nf",
+                "descricao_servico_padrao",
+                "codigo_servico_municipal",
+                "item_lista_servico",
+            )
+            .first()
+        )
+        if config is not None:
+            return config
+    except Exception:
+        logger.debug("NFS-e config clinica_beleza indisponível loja_id=%s", loja_id, exc_info=True)
+
+    # Fallback: tabela antiga (CRM) no mesmo tenant
     try:
         from django.db import connections
-        conn = connections["default"]
+        from tenants.middleware import get_current_tenant_db
+
+        db = get_current_tenant_db() or "default"
+        conn = connections[db]
         with conn.cursor() as c:
-            c.execute("""
+            c.execute(
+                """
                 SELECT emitir_nf_automaticamente, provedor_nf,
                        descricao_servico_padrao, codigo_servico_municipal,
                        item_lista_servico
-                FROM clinica_beleza_nfse_config
+                FROM crm_vendas_crmconfig
                 WHERE loja_id = %s
                 LIMIT 1
-            """, [loja_id])
+                """,
+                [loja_id],
+            )
             row = c.fetchone()
-            if not row:
-                # Fallback: tabela antiga (CRM) para retrocompatibilidade
-                c.execute("""
-                    SELECT emitir_nf_automaticamente, provedor_nf,
-                           descricao_servico_padrao, codigo_servico_municipal,
-                           item_lista_servico
-                    FROM crm_vendas_crmconfig
-                    WHERE loja_id = %s
-                    LIMIT 1
-                """, [loja_id])
-                row = c.fetchone()
-            if not row:
-                return None
+        if not row:
+            return None
 
         class _NfseConfig:
-            """Config de NFS-e lida diretamente do banco."""
-
             emitir_nf_automaticamente = row[0]
             provedor_nf = row[1] or "asaas"
             descricao_servico_padrao = row[2] or ""
@@ -52,6 +66,7 @@ def _get_nfse_config(loja_id: int):
 
         return _NfseConfig()
     except Exception:
+        logger.debug("NFS-e config CRM fallback indisponível loja_id=%s", loja_id, exc_info=True)
         return None
 
 

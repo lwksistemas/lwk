@@ -172,8 +172,11 @@ export async function clinicaBelezaFetch(
     );
     throw new Error("SESSION_ENDED");
   }
-  // Reportar erros de API ao suporte (exceto 429/401 — evita loop ao atingir rate limit)
-  if (!response.ok && response.status !== 429 && response.status !== 401) {
+  // Reportar erros de API ao suporte (exceto 429/401 e Memed 404 esperado sem prescritor)
+  const pathNorm = path.startsWith("/") ? path : `/${path}`;
+  const memedToken404 =
+    response.status === 404 && pathNorm.startsWith("/memed/token");
+  if (!response.ok && response.status !== 429 && response.status !== 401 && !memedToken404) {
     const clone = response.clone();
     (async () => {
       try {
@@ -187,7 +190,7 @@ export async function clinicaBelezaFetch(
             bodyText = String(response.status);
           }
         }
-        const pathDisplay = `/clinica-beleza${path.startsWith("/") ? path : `/${path}`}`;
+        const pathDisplay = `/clinica-beleza${pathNorm}`;
         reportarErroApiParaSuporte(method, pathDisplay, response.status, bodyText);
       } catch {
         // ignora falha ao reportar

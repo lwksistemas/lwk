@@ -8,7 +8,7 @@ from django.utils import timezone
 from core.cloudinary_folders import resolve_ambiente_segment
 from core.mfa_service import qr_code_base64
 
-from .constants import MODULO, PATH_PUBLICO, TOKEN_EXPIRACAO_HORAS
+from .constants import MODULO, TOKEN_EXPIRACAO_HORAS
 
 
 def gerar_token_foto(
@@ -49,8 +49,18 @@ def decodificar_token_foto(token: str) -> dict | None:
 
 
 def build_link_foto(token: str, frontend_base: str | None = None) -> str:
-    base = (frontend_base or getattr(settings, "FRONTEND_URL", "https://lwksistemas.com.br")).rstrip("/")
-    return f"{base}{PATH_PUBLICO}{quote(token, safe='')}"
+    """Link público com token na query (?t=); encurta para QR quando possível."""
+    base = (frontend_base or default_frontend_base_foto()).rstrip("/")
+    full_url = f"{base}/enviar-foto?t={quote(token, safe='')}"
+    try:
+        from core.short_link import build_short_url
+
+        short = build_short_url(full_url, ttl_days=2)
+        if short and "/r/" in short:
+            return short
+    except Exception:
+        pass
+    return full_url
 
 
 def frontend_base_permitido(origin: str | None) -> str | None:
@@ -77,12 +87,10 @@ def frontend_base_permitido(origin: str | None) -> str | None:
 
 def default_frontend_base_foto() -> str:
     """Retorna URL base do frontend para fotos quando não há Origin na requisição."""
-    from core.cloudinary_folders import resolve_ambiente_segment
-
-    ambiente = resolve_ambiente_segment()
-    if ambiente == "beta":
+    env = (getattr(settings, "LWK_ENVIRONMENT", "") or "").strip().lower()
+    if env in ("staging", "beta", "homologacao", "homologação"):
         return "https://beta.lwksistemas.com.br"
-    return getattr(settings, "FRONTEND_URL", "https://lwksistemas.com.br").rstrip("/")
+    return (getattr(settings, "FRONTEND_URL", None) or "https://lwksistemas.com.br").rstrip("/")
 
 
 def resolver_frontend_base_qr(request=None, frontend_origin: str | None = None) -> str | None:

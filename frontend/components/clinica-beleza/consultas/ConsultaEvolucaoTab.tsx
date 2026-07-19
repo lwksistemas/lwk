@@ -42,8 +42,8 @@ export function ConsultaEvolucaoTab({
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-semibold text-gray-900 dark:text-gray-100">Registros desta consulta</h3>
             <ConsultaPrintButton
-              label={evolucoes.length > 1 ? "Imprimir todas" : "Imprimir"}
-              onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "evolucao")}
+              labelImprimir={evolucoes.length > 1 ? "Imprimir todas" : "Imprimir"}
+              onAction={(modo) => imprimirConsultaPdf(printMeta.consultaId, "evolucao", modo)}
             />
           </div>
           {evolucoes.map((ev) => (

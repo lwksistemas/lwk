@@ -77,8 +77,8 @@ export function DocumentoListaSection({
               </div>
               <div className="flex-shrink-0 flex items-center gap-1">
                 <ConsultaPrintButton
-                  onPrint={async () => {
-                    const url = await abrirPdfPrescricaoMemed(p);
+                  onAction={async (modo) => {
+                    const url = await abrirPdfPrescricaoMemed(p, modo);
                     onPrescricaoPdfUrl(p.id, url);
                   }}
                 />
@@ -108,7 +108,9 @@ export function DocumentoListaSection({
               </div>
 
               <div className="flex-shrink-0 flex items-center gap-1">
-                <ConsultaPrintButton onPrint={() => imprimirDocumentoPdfLazy(doc)} />
+                <ConsultaPrintButton
+                  onAction={(modo) => imprimirDocumentoPdfLazy(doc, modo)}
+                />
                 {consultaAtiva && (
                   <>
                     {confirmDeleteId === doc.id ? (

@@ -170,15 +170,42 @@ def _formas_pagamento_html(ctx: dict) -> str:
 
 
 def _listar_formas_pagamento(payment) -> list[dict]:
-    """Retorna lista de formas de pagamento usadas (com valor cada)."""
+    """Retorna formas de pagamento do recibo.
+
+    No mesmo dia, a mesma forma é somada em uma linha (ex.: dois PIX no dia → um PIX).
+    Em dias diferentes, não soma — mantém linhas separadas (com a data quando houver
+    mais de um dia de pagamento).
+    """
+    from collections import OrderedDict
+
     METODOS = dict(payment.PAYMENT_METHOD_CHOICES)
     try:
-        parcelas = payment.parcelas.filter(status="PAID").order_by("payment_date")
-        if parcelas.exists():
-            return [
-                {"metodo": METODOS.get(p.payment_method, p.payment_method), "valor": float(p.valor)}
-                for p in parcelas
-            ]
+        parcelas = list(
+            payment.parcelas.filter(status="PAID").order_by("payment_date", "id"),
+        )
+        if parcelas:
+            grupos: OrderedDict[tuple[str, str], dict] = OrderedDict()
+            for p in parcelas:
+                data = getattr(p, "payment_date", None)
+                data_key = data.isoformat() if hasattr(data, "isoformat") else str(data or "")
+                key = (str(p.payment_method or ""), data_key)
+                if key not in grupos:
+                    grupos[key] = {
+                        "metodo_code": p.payment_method,
+                        "data": data,
+                        "valor": 0.0,
+                    }
+                grupos[key]["valor"] += float(p.valor or 0)
+
+            datas = {g["data"] for g in grupos.values() if g["data"]}
+            multi_data = len(datas) > 1
+            result = []
+            for g in grupos.values():
+                label = METODOS.get(g["metodo_code"], g["metodo_code"])
+                if multi_data and g["data"] is not None and hasattr(g["data"], "strftime"):
+                    label = f"{label} ({g['data'].strftime('%d/%m/%Y')})"
+                result.append({"metodo": label, "valor": round(g["valor"], 2)})
+            return result
     except Exception:
         logger.exception("Erro ao listar parcelas do recibo (payment %s)", payment.id)
     metodo_label = METODOS.get(payment.payment_method, payment.payment_method)

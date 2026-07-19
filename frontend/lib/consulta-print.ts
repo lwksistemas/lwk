@@ -10,6 +10,9 @@ export interface ConsultaPrintMeta {
 
 export type ConsultaPrintSecao = "atendimento" | "produtos" | "anamnese" | "evolucao" | "evolucoes";
 
+/** visualizar = abrir PDF; imprimir = abrir e acionar diálogo de impressão. */
+export type ConsultaPdfModo = "visualizar" | "imprimir";
+
 async function extrairErroApi(response: Response): Promise<string> {
   const fallback = `Erro ao gerar PDF (${response.status})`;
   try {
@@ -26,7 +29,35 @@ async function extrairErroApi(response: Response): Promise<string> {
   return fallback;
 }
 
-async function abrirPdfBlob(response: Response): Promise<void> {
+function dispararImpressao(win: Window): void {
+  const tentar = () => {
+    try {
+      win.focus();
+      win.print();
+    } catch {
+      // usuário pode imprimir manualmente na aba
+    }
+  };
+  // blob:/PDF: load costuma ser imediato; espera curta cobre render do viewer
+  if (win.document?.readyState === "complete") {
+    setTimeout(tentar, 350);
+  } else {
+    win.addEventListener("load", () => setTimeout(tentar, 350), { once: true });
+    setTimeout(tentar, 800);
+  }
+}
+
+export function abrirPdfUrl(url: string, modo: ConsultaPdfModo = "visualizar"): void {
+  const opened = window.open(url, "_blank");
+  if (!opened) {
+    throw new Error("Permita pop-ups para abrir o PDF.");
+  }
+  if (modo === "imprimir") {
+    dispararImpressao(opened);
+  }
+}
+
+async function abrirPdfBlob(response: Response, modo: ConsultaPdfModo = "visualizar"): Promise<void> {
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("pdf") && !contentType.includes("octet-stream")) {
     const msg = await extrairErroApi(response);
@@ -37,10 +68,11 @@ async function abrirPdfBlob(response: Response): Promise<void> {
     throw new Error("PDF vazio ou inválido.");
   }
   const url = window.URL.createObjectURL(blob);
-  const opened = window.open(url, "_blank");
-  if (!opened) {
+  try {
+    abrirPdfUrl(url, modo);
+  } catch (e) {
     window.URL.revokeObjectURL(url);
-    throw new Error("Permita pop-ups para abrir o PDF.");
+    throw e;
   }
   setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
 }
@@ -49,6 +81,7 @@ async function abrirPdfBlob(response: Response): Promise<void> {
 export async function imprimirConsultaPdf(
   consultaId: number,
   secao: ConsultaPrintSecao,
+  modo: ConsultaPdfModo = "visualizar",
 ): Promise<void> {
   const secaoParam = secao === "evolucoes" ? "evolucao" : secao;
   const { clinicaBelezaFetch } = await import("@/lib/clinica-beleza-api");
@@ -58,16 +91,19 @@ export async function imprimirConsultaPdf(
     logger.warn("Erro ao gerar PDF da consulta:", response.status, msg);
     throw new Error(msg);
   }
-  await abrirPdfBlob(response);
+  await abrirPdfBlob(response, modo);
 }
 
-/** Gera PDF do documento clínico e abre em nova aba para impressão. */
-export async function imprimirDocumentoPdf(doc: {
-  id: number;
-  pdf_url?: string | null;
-}): Promise<void> {
+/** Gera PDF do documento clínico e abre em nova aba. */
+export async function imprimirDocumentoPdf(
+  doc: {
+    id: number;
+    pdf_url?: string | null;
+  },
+  modo: ConsultaPdfModo = "visualizar",
+): Promise<void> {
   if (doc.pdf_url) {
-    window.open(doc.pdf_url, "_blank");
+    abrirPdfUrl(doc.pdf_url, modo);
     return;
   }
 
@@ -78,5 +114,5 @@ export async function imprimirDocumentoPdf(doc: {
     logger.warn("Erro ao gerar PDF do documento:", response.status, msg);
     throw new Error(msg);
   }
-  await abrirPdfBlob(response);
+  await abrirPdfBlob(response, modo);
 }

@@ -1,4 +1,5 @@
 import { ClinicaBelezaAPI, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
+import { abrirPdfUrl, type ConsultaPdfModo } from "@/lib/consulta-print";
 
 function mensagemErroApi(erro: unknown): string {
   if (erro instanceof Error) return erro.message;
@@ -13,10 +14,11 @@ function mensagemErroApi(erro: unknown): string {
 /** Abre o PDF da prescrição Memed — busca na API se ainda não estiver salvo. */
 export async function abrirPdfPrescricaoMemed(
   prescricao: Pick<PrescricaoMemedItem, "id" | "pdf_url">,
+  modo: ConsultaPdfModo = "visualizar",
 ): Promise<string> {
   const salvo = (prescricao.pdf_url || "").trim();
   if (salvo) {
-    window.open(salvo, "_blank");
+    abrirPdfUrl(salvo, modo);
     return salvo;
   }
 
@@ -26,7 +28,7 @@ export async function abrirPdfPrescricaoMemed(
     if (!url) {
       throw new Error("PDF da prescrição não disponível.");
     }
-    window.open(url, "_blank");
+    abrirPdfUrl(url, modo);
     return url;
   } catch (erro) {
     throw new Error(mensagemErroApi(erro));

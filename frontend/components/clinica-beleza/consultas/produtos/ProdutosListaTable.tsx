@@ -33,8 +33,8 @@ export function ProdutosListaTable({
     <div className="rounded-xl border border-gray-200 dark:border-neutral-700 overflow-hidden">
       <div className="flex justify-end p-3 border-b border-gray-100 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/50">
         <ConsultaPrintButton
-          label="Imprimir lista"
-          onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "produtos")}
+          labelImprimir="Imprimir lista"
+          onAction={(modo) => imprimirConsultaPdf(printMeta.consultaId, "produtos", modo)}
         />
       </div>
       <table className="w-full text-sm">

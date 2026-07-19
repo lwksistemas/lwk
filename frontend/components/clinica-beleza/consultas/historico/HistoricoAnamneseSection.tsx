@@ -22,7 +22,9 @@ export function HistoricoAnamneseSection({
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <ConsultaPrintButton onPrint={() => imprimirConsultaPdfLazy(printMeta.consultaId, "anamnese")} />
+        <ConsultaPrintButton
+          onAction={(modo) => imprimirConsultaPdfLazy(printMeta.consultaId, "anamnese", modo)}
+        />
       </div>
       {preenchidos.map(([key, label]) => (
         <div key={key}>

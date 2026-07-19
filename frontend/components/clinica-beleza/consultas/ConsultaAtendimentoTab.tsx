@@ -117,7 +117,7 @@ export function ConsultaAtendimentoTab({
             <div className="flex items-center gap-2 flex-wrap justify-end">
               {observacoes.trim() && (
                 <ConsultaPrintButton
-                  onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "atendimento")}
+                  onAction={(modo) => imprimirConsultaPdf(printMeta.consultaId, "atendimento", modo)}
                 />
               )}
               <button

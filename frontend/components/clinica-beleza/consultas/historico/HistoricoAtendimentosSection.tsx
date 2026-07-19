@@ -57,7 +57,9 @@ export function HistoricoAtendimentosSection({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {conteudo && (
-                    <ConsultaPrintButton onPrint={() => imprimirConsultaPdfLazy(h.id, "atendimento")} />
+                    <ConsultaPrintButton
+                      onAction={(modo) => imprimirConsultaPdfLazy(h.id, "atendimento", modo)}
+                    />
                   )}
                   {h.id !== selectedId &&
                     (conteudo ? (

@@ -41,7 +41,7 @@ export function ConsultaAnamneseTab({
           <div className="flex items-center gap-2">
             {anamneseTemConteudo(anamnese) && (
               <ConsultaPrintButton
-                onPrint={() => imprimirConsultaPdf(printMeta.consultaId, "anamnese")}
+                onAction={(modo) => imprimirConsultaPdf(printMeta.consultaId, "anamnese", modo)}
               />
             )}
             <button

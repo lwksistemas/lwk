@@ -85,20 +85,37 @@ export function gerarHtmlRecibo(params: {
       : "",
   ].join("");
 
-  const formasHtml = entradas
-    .filter((e) => parseMoneyInput(e.valor) > 0)
-    .map((e) => {
-      const label =
-        CLINICA_FORMA_PAGAMENTO_LABEL[e.payment_method as keyof typeof CLINICA_FORMA_PAGAMENTO_LABEL] ||
-        e.payment_method;
-      const nParc = Number(e.parcelas) || 1;
-      const parcInfo =
-        e.payment_method === "CREDIT_CARD" && nParc > 1
-          ? ` (${nParc}x R$ ${e.valorParcela || (parseMoneyInput(e.valor) / nParc).toFixed(2)})`
-          : "";
-      return `<tr><td>${label}${parcInfo}</td><td style="text-align:right">R$ ${parseMoneyInput(e.valor).toFixed(2)}</td></tr>`;
-    })
+  // Mesmo dia / mesmo comprovante: soma valores da mesma forma (não repetir linha).
+  const formasAgrupadas = new Map<
+    string,
+    { label: string; valor: number; parcInfo: string }
+  >();
+  for (const e of entradas) {
+    const valor = parseMoneyInput(e.valor);
+    if (valor <= 0) continue;
+    const label =
+      CLINICA_FORMA_PAGAMENTO_LABEL[e.payment_method as keyof typeof CLINICA_FORMA_PAGAMENTO_LABEL] ||
+      e.payment_method;
+    const nParc = Number(e.parcelas) || 1;
+    const parcInfo =
+      e.payment_method === "CREDIT_CARD" && nParc > 1
+        ? ` (${nParc}x R$ ${e.valorParcela || (valor / nParc).toFixed(2)})`
+        : "";
+    const key = `${e.payment_method}|${parcInfo}`;
+    const prev = formasAgrupadas.get(key);
+    if (prev) {
+      prev.valor += valor;
+    } else {
+      formasAgrupadas.set(key, { label, valor, parcInfo });
+    }
+  }
+  const formasHtml = Array.from(formasAgrupadas.values())
+    .map(
+      (f) =>
+        `<tr><td>${f.label}${f.parcInfo}</td><td style="text-align:right">R$ ${f.valor.toFixed(2)}</td></tr>`,
+    )
     .join("");
+
 
   const procs = consulta.procedures_list ?? [];
   const procsSoma =

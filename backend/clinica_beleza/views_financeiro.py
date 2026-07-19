@@ -219,48 +219,47 @@ class PaymentParcelaView(APIView):
         payment_date = request.data.get("payment_date") or now().date().isoformat()
         observacoes = request.data.get("observacoes") or ""
 
-        consulta = getattr(payment.appointment, "consulta", None)
-        if consulta and consulta.status not in ("COMPLETED", "CANCELLED"):
-            from .consulta_service import registrar_recebimento_consulta
-            try:
-                payment = registrar_recebimento_consulta(
-                    consulta,
-                    payment_method=payment_method,
-                    amount=valor,
-                    mark_as_paid=False,
-                )
-            except ValueError as e:
-                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            parcela = payment.parcelas.order_by("-id").first()
-        elif consulta and consulta.status == "COMPLETED":
-            parcela = PaymentParcela.objects.create(
-                payment=payment,
-                valor=valor,
-                payment_method=payment_method,
-                payment_date=payment_date,
-                observacoes=observacoes,
-                loja_id=payment.loja_id,
-            )
-            total_pago = payment.valor_pago_parcelas
-            total_devedor = payment.valor_total_efetivo
-            if total_pago >= total_devedor:
-                payment.status = "PAID"
-                payment.amount = total_pago
-                payment.payment_date = now()
-            else:
-                payment.status = "PARTIAL"
-                payment.amount = total_pago
-            payment.save(update_fields=["status", "amount", "payment_date", "updated_at"])
-        else:
+        consulta = getattr(getattr(payment, "appointment", None), "consulta", None)
+        if consulta is not None and consulta.status != "COMPLETED":
             return Response(
                 {
                     "error": (
-                        "Não é possível registrar parcela neste pagamento. "
-                        "Use o Receber da consulta ou finalize o atendimento."
+                        "Pagamento do dia da consulta é pelo Receber. "
+                        "Complemento em outro dia só no Financeiro após finalizar a consulta."
                     ),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if consulta is None:
+            return Response(
+                {
+                    "error": (
+                        "Não é possível registrar parcela neste pagamento. "
+                        "Finalize a consulta ou use o Receber."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Consulta finalizada: baixa / complemento em qualquer data pelo Financeiro
+        parcela = PaymentParcela.objects.create(
+            payment=payment,
+            valor=valor,
+            payment_method=payment_method,
+            payment_date=payment_date,
+            observacoes=observacoes,
+            loja_id=payment.loja_id,
+        )
+        total_pago = payment.valor_pago_parcelas
+        total_devedor = payment.valor_total_efetivo
+        if total_pago >= total_devedor:
+            payment.status = "PAID"
+            payment.amount = total_pago
+            payment.payment_date = now()
+        else:
+            payment.status = "PARTIAL"
+            payment.amount = total_pago
+        payment.save(update_fields=["status", "amount", "payment_date", "updated_at"])
 
         return Response({
             "parcela": PaymentParcelaSerializer(parcela).data if parcela else None,

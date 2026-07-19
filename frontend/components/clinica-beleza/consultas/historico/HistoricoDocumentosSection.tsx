@@ -88,7 +88,9 @@ export function HistoricoDocumentosSection({
                         </p>
                       )}
                     </div>
-                    <ConsultaPrintButton onPrint={() => abrirPdfPrescricaoMemed(p)} />
+                    <ConsultaPrintButton
+                      onAction={(modo) => abrirPdfPrescricaoMemed(p, modo)}
+                    />
                   </div>
                 </div>
               ))}
@@ -114,7 +116,9 @@ export function HistoricoDocumentosSection({
                         {doc.professional_name ? ` · ${doc.professional_name}` : ""}
                       </p>
                     </div>
-                    <ConsultaPrintButton onPrint={() => imprimirDocumentoPdfLazy(doc)} />
+                    <ConsultaPrintButton
+                      onAction={(modo) => imprimirDocumentoPdfLazy(doc, modo)}
+                    />
                   </div>
                   {doc.conteudo && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 whitespace-pre-wrap line-clamp-4">

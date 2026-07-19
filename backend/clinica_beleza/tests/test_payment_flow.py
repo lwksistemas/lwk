@@ -63,10 +63,7 @@ class ReciboFormasPagamentoTests(SimpleTestCase):
         payment.PAYMENT_METHOD_CHOICES = (("CASH", "Dinheiro"), ("PIX", "PIX"))
         payment.payment_method = "CASH"
         payment.amount = Decimal(200)
-        # Chain: parcelas.filter(status='PAID').order_by('payment_date').exists() = False
-        mock_qs = MagicMock()
-        mock_qs.exists.return_value = False
-        payment.parcelas.filter.return_value.order_by.return_value = mock_qs
+        payment.parcelas.filter.return_value.order_by.return_value = []
 
         result = _listar_formas_pagamento(payment)
         self.assertEqual(len(result), 1)
@@ -74,11 +71,14 @@ class ReciboFormasPagamentoTests(SimpleTestCase):
         self.assertEqual(result[0]["valor"], 200.0)
 
     def test_listar_formas_payment_com_parcelas(self):
-        """Com parcelas PAID: lista cada parcela com seu método."""
+        """Com parcelas PAID no mesmo dia: lista cada método (soma se repetir)."""
+        from datetime import date
+
         from clinica_beleza.recibo_service import _listar_formas_pagamento
 
-        p1 = MagicMock(payment_method="PIX", valor=Decimal(300))
-        p2 = MagicMock(payment_method="CREDIT_CARD", valor=Decimal(200))
+        d = date(2026, 7, 19)
+        p1 = MagicMock(payment_method="PIX", valor=Decimal(300), payment_date=d)
+        p2 = MagicMock(payment_method="CREDIT_CARD", valor=Decimal(200), payment_date=d)
 
         payment = MagicMock()
         payment.PAYMENT_METHOD_CHOICES = (
@@ -86,11 +86,7 @@ class ReciboFormasPagamentoTests(SimpleTestCase):
         )
         payment.payment_method = "PIX"
         payment.amount = Decimal(500)
-        # Chain: parcelas.filter(status='PAID').order_by('payment_date')
-        mock_qs = MagicMock()
-        mock_qs.exists.return_value = True
-        mock_qs.__iter__ = MagicMock(return_value=iter([p1, p2]))
-        payment.parcelas.filter.return_value.order_by.return_value = mock_qs
+        payment.parcelas.filter.return_value.order_by.return_value = [p1, p2]
 
         result = _listar_formas_pagamento(payment)
         self.assertEqual(len(result), 2)
@@ -98,6 +94,35 @@ class ReciboFormasPagamentoTests(SimpleTestCase):
         self.assertEqual(result[0]["valor"], 300.0)
         self.assertEqual(result[1]["metodo"], "Cartão de Crédito")
         self.assertEqual(result[1]["valor"], 200.0)
+
+    def test_listar_formas_soma_mesmo_dia_nao_soma_outro_dia(self):
+        """Dinheiro no mesmo dia soma; dinheiro em outro dia fica linha separada."""
+        from datetime import date
+
+        from clinica_beleza.recibo_service import _listar_formas_pagamento
+
+        d1 = date(2026, 7, 19)
+        d2 = date(2026, 7, 21)
+        parcelas = [
+            MagicMock(payment_method="CASH", valor=Decimal(300), payment_date=d1),
+            MagicMock(payment_method="PIX", valor=Decimal(300), payment_date=d1),
+            MagicMock(payment_method="CASH", valor=Decimal(100), payment_date=d1),
+            MagicMock(payment_method="CASH", valor=Decimal(20), payment_date=d2),
+            MagicMock(payment_method="PIX", valor=Decimal(530), payment_date=d2),
+        ]
+        payment = MagicMock()
+        payment.PAYMENT_METHOD_CHOICES = (("CASH", "Dinheiro"), ("PIX", "PIX"))
+        payment.payment_method = "PIX"
+        payment.amount = Decimal(1250)
+        payment.parcelas.filter.return_value.order_by.return_value = parcelas
+
+        result = _listar_formas_pagamento(payment)
+        self.assertEqual(len(result), 4)
+        self.assertEqual(result[0], {"metodo": "Dinheiro (19/07/2026)", "valor": 400.0})
+        self.assertEqual(result[1], {"metodo": "PIX (19/07/2026)", "valor": 300.0})
+        self.assertEqual(result[2], {"metodo": "Dinheiro (21/07/2026)", "valor": 20.0})
+        self.assertEqual(result[3], {"metodo": "PIX (21/07/2026)", "valor": 530.0})
+
 
 
 class PaymentValidacaoTests(SimpleTestCase):

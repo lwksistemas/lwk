@@ -56,6 +56,20 @@ class GerarPdfReciboTests(SimpleTestCase):
         pdf = _gerar_pdf_recibo(ctx)
         self.assertGreater(len(pdf), 100)
 
+    def test_gera_pdf_com_retorno_gratuito(self):
+        """PDF com retorno gratuito mostra valor da consulta e isenção."""
+        from clinica_beleza.recibo_service import _gerar_pdf_recibo
+        ctx = self._ctx(
+            taxa_consulta=0.0,
+            taxa_consulta_referencia=150.0,
+            retorno_gratuito=True,
+            valor_total=2000.0,
+            valor_pago=2000.0,
+        )
+        pdf = _gerar_pdf_recibo(ctx)
+        self.assertTrue(pdf[:5] == b"%PDF-")
+        self.assertGreater(len(pdf), 100)
+
     def test_gera_pdf_multiplas_formas(self):
         """PDF com múltiplas formas de pagamento."""
         from clinica_beleza.recibo_service import _gerar_pdf_recibo

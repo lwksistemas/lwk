@@ -18,6 +18,25 @@ def enviar_recibo_pagamento(payment, *, canal: str) -> tuple[bool, str]:
     if not appointment:
         return False, "Pagamento sem agendamento vinculado."
 
+    # Garante consulta + local para exibir taxa/retorno gratuito no recibo.
+    try:
+        from clinica_beleza.models import Appointment
+
+        appointment = (
+            Appointment.objects.select_related(
+                "patient",
+                "procedure",
+                "professional",
+                "local_atendimento",
+                "consulta",
+                "consulta__local_atendimento",
+            )
+            .prefetch_related("appointment_procedures__procedure")
+            .get(pk=appointment.pk)
+        )
+    except Exception:
+        pass
+
     patient = getattr(appointment, "patient", None)
     if not patient:
         return False, "Paciente não encontrado no agendamento."

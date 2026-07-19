@@ -1,7 +1,7 @@
 """Geração de PDF do recibo de pagamento."""
 import io
 
-from .context import _linha_documento_loja, _linha_tel_cep
+from .context import _linha_documento_loja, _linha_tel_cep, _linhas_taxa_consulta_recibo
 
 
 def _gerar_pdf_recibo(ctx: dict) -> bytes:
@@ -63,10 +63,10 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     story.append(Spacer(1, 1 * mm))
 
     svc_data = []
-    if ctx["taxa_consulta"] > 0:
+    for label, valor in _linhas_taxa_consulta_recibo(ctx):
         svc_data.append([
-            Paragraph("Taxa de consulta", s_left),
-            Paragraph(f'R$ {ctx["taxa_consulta"]:.2f}', s_right),
+            Paragraph(label, s_left),
+            Paragraph(f"R$ {valor:.2f}", s_right),
         ])
     for p in ctx["procedimentos"]:
         svc_data.append([

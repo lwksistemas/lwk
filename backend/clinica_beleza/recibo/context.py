@@ -67,10 +67,20 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         procs = [{"nome": appointment.procedure.nome, "valor": float(appointment.procedure.preco or 0)}]
 
     taxa_consulta = 0.0
+    taxa_consulta_referencia = 0.0
+    retorno_gratuito = False
     try:
         consulta = getattr(appointment, "consulta", None)
         if consulta:
             taxa_consulta = float(getattr(consulta, "valor_consulta", 0) or 0)
+            retorno_gratuito = bool(getattr(consulta, "retorno_gratuito", False))
+            local = getattr(consulta, "local_atendimento", None)
+            if local is None:
+                local = getattr(appointment, "local_atendimento", None)
+            if local is not None:
+                taxa_consulta_referencia = float(getattr(local, "valor_consulta", 0) or 0)
+            if retorno_gratuito and taxa_consulta_referencia <= 0 and taxa_consulta > 0:
+                taxa_consulta_referencia = taxa_consulta
     except Exception:
         logger.exception("Erro ao ler taxa de consulta do recibo (payment %s)", payment.id)
 
@@ -102,6 +112,8 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         "loja_tel_cep": _linha_tel_cep(loja_telefone, loja_cep),
         "procedimentos": procs,
         "taxa_consulta": taxa_consulta,
+        "taxa_consulta_referencia": taxa_consulta_referencia,
+        "retorno_gratuito": retorno_gratuito,
         "subtotal": float(subtotal),
         "desconto": desconto,
         "valor_total": valor_total,
@@ -200,3 +212,17 @@ def _linha_documento_loja(ctx: dict) -> str:
         return ""
     label = ctx.get("loja_documento_label") or _label_documento_loja(doc)
     return f"{label}: {doc}"
+
+
+def _linhas_taxa_consulta_recibo(ctx: dict) -> list[tuple[str, float]]:
+    """Linhas da taxa de consulta no recibo (inclui retorno gratuito)."""
+    if ctx.get("retorno_gratuito"):
+        ref = float(ctx.get("taxa_consulta_referencia") or 0)
+        return [
+            ("Taxa de consulta", ref),
+            ("Retorno gratuito", 0.0),
+        ]
+    taxa = float(ctx.get("taxa_consulta") or 0)
+    if taxa > 0:
+        return [("Taxa de consulta", taxa)]
+    return []

@@ -5,6 +5,7 @@ from .context import (
     _formas_pagamento_html,
     _formas_pagamento_texto,
     _linha_documento_loja,
+    _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
 )
 from .pdf import _gerar_pdf_recibo
@@ -52,9 +53,10 @@ def _enviar_recibo_email(payment, patient, appointment) -> tuple[bool, str]:
 
 def _montar_email_html(ctx: dict) -> str:
     """Email profissional com resumo completo — PDF vai em anexo."""
-    procs_html = ""
-    if ctx["taxa_consulta"] > 0:
-        procs_html += f'<li>Taxa de consulta — R$ {ctx["taxa_consulta"]:.2f}</li>'
+    procs_html = "".join(
+        f"<li>{label} — R$ {valor:.2f}</li>"
+        for label, valor in _linhas_taxa_consulta_recibo(ctx)
+    )
     procs_html += "".join(
         f'<li>{p["nome"]} — R$ {p["valor"]:.2f}</li>' for p in ctx["procedimentos"]
     )
@@ -104,9 +106,10 @@ def _montar_email_html(ctx: dict) -> str:
 
 def _montar_email_texto(ctx: dict) -> str:
     """Versão texto puro do email."""
-    procs_lines = []
-    if ctx["taxa_consulta"] > 0:
-        procs_lines.append(f'  • Taxa de consulta — R$ {ctx["taxa_consulta"]:.2f}')
+    procs_lines = [
+        f"  • {label} — R$ {valor:.2f}"
+        for label, valor in _linhas_taxa_consulta_recibo(ctx)
+    ]
     procs_lines.extend(f'  • {p["nome"]} — R$ {p["valor"]:.2f}' for p in ctx["procedimentos"])
     procs = "\n".join(procs_lines) or "  —"
     doc_line = _linha_documento_loja(ctx)

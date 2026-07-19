@@ -58,7 +58,18 @@ export function gerarHtmlRecibo(params: {
   const valorConsulta = Number(consulta.valor_consulta ?? 0);
   const valorProcs = Number(consulta.valor_procedimentos ?? 0);
   const totalGeral = valorConsulta + valorProcs;
+  const retornoGratuito = Boolean(consulta.retorno_gratuito);
+  const valorConsultaReferencia = Number(
+    consulta.local_atendimento_valor_consulta ?? (retornoGratuito ? 0 : valorConsulta),
+  );
   const telCep = linhaTelCep(lojaData.telefone, lojaData.cep);
+
+  const taxaConsultaHtml = retornoGratuito
+    ? `<tr><td>Taxa de consulta</td><td style="text-align:right">R$ ${valorConsultaReferencia.toFixed(2)}</td></tr>
+    <tr><td>Retorno gratuito</td><td style="text-align:right">R$ 0.00</td></tr>`
+    : valorConsulta > 0
+      ? `<tr><td>Taxa de consulta</td><td style="text-align:right">R$ ${valorConsulta.toFixed(2)}</td></tr>`
+      : "";
 
   const formasHtml = entradas
     .filter((e) => parseMoneyInput(e.valor) > 0)
@@ -146,7 +157,7 @@ export function gerarHtmlRecibo(params: {
 <div class="section">
   <div class="section-title">Serviços</div>
   <table>
-    ${valorConsulta > 0 ? `<tr><td>Taxa de consulta</td><td style="text-align:right">R$ ${valorConsulta.toFixed(2)}</td></tr>` : ""}
+    ${taxaConsultaHtml}
     ${procsHtml}
   </table>
 </div>

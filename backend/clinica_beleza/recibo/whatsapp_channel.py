@@ -3,7 +3,7 @@ import hashlib
 import logging
 import time
 
-from .context import _formas_pagamento_texto, _obter_dados_contexto
+from .context import _formas_pagamento_texto, _linhas_taxa_consulta_recibo, _obter_dados_contexto
 from .pdf import _gerar_pdf_recibo
 
 logger = logging.getLogger(__name__)
@@ -67,9 +67,8 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
 def _montar_mensagem_whatsapp(ctx: dict) -> str:
     """Mensagem profissional formatada para WhatsApp."""
     procs_lines = []
-    if ctx["taxa_consulta"] > 0:
-        val = f'{ctx["taxa_consulta"]:.2f}'
-        procs_lines.append(f"  • Taxa de consulta ......... R$ {val}")
+    for label, valor in _linhas_taxa_consulta_recibo(ctx):
+        procs_lines.append(f"  • {label} ......... R$ {valor:.2f}")
     for p in ctx["procedimentos"]:
         nome = p["nome"][:35]
         val = f'{p["valor"]:.2f}'

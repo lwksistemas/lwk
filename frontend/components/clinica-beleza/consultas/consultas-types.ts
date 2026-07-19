@@ -36,6 +36,11 @@ export interface Consulta {
   observacoes_gerais?: string;
   protocolo_notas?: string;
   valor_consulta: string | number;
+  /** Taxa isenta por retorno dentro do prazo. */
+  retorno_gratuito?: boolean;
+  retorno_tipo?: string | null;
+  /** Valor de tabela do local (para exibir no recibo quando há retorno gratuito). */
+  local_atendimento_valor_consulta?: string | number | null;
   /** Soma dos procedimentos do agendamento. */
   valor_procedimentos?: string | number;
   /** Total a cobrar: taxa de consulta + procedimentos. */

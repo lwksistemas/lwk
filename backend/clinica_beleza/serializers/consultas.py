@@ -54,6 +54,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     local_atendimento_name = serializers.CharField(
         source="local_atendimento.nome", read_only=True, default=None, allow_null=True,
     )
+    local_atendimento_valor_consulta = serializers.SerializerMethodField()
     convenio = serializers.PrimaryKeyRelatedField(
         queryset=Convenio.objects.none(),
         allow_null=True,
@@ -93,7 +94,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             "valor_consulta", "valor_procedimentos", "valor_pagamento",
             "valor_pago", "valor_restante", "payment_status", "payment_id", "payment_date",
             "retorno_gratuito", "retorno_tipo",
-            "local_atendimento", "local_atendimento_name",
+            "local_atendimento", "local_atendimento_name", "local_atendimento_valor_consulta",
             "convenio", "convenio_name",
             "nome_agenda_id", "nome_agenda_name",
             "appointment_date", "appointment_status", "total_evolucoes",
@@ -102,7 +103,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         ]
         read_only_fields = [
             "numero", "created_at", "updated_at", "loja_id", "appointment",
-            "retorno_gratuito", "retorno_tipo",
+            "retorno_gratuito", "retorno_tipo", "local_atendimento_valor_consulta",
         ]
 
     def get_numero(self, obj):
@@ -110,6 +111,12 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         if n is None:
             return None
         return str(n).zfill(3)
+
+    def get_local_atendimento_valor_consulta(self, obj):
+        local = getattr(obj, "local_atendimento", None)
+        if local is None:
+            return None
+        return float(getattr(local, "valor_consulta", 0) or 0)
 
     def get_total_evolucoes(self, obj):
         return obj.evolucoes.count()

@@ -21,7 +21,7 @@ WORKDIR /app
 # Dependências: backend (base) + raiz (NFS-e, docs, etc.)
 # django-q importa pkg_resources; setuptools 83 remove o shim — pin <81 (PYSEC-2026-3447 >=78.1.1).
 ARG PIP_CACHE_BUST=2026-06-12-agenda-client-confirmed
-ARG BUILD_ID=fix-receber-for-update-of-self-20260719
+ARG BUILD_ID=fix-anamnese-textfields-20260719
 ENV LWK_BUILD=${BUILD_ID}
 COPY backend/requirements.txt ./requirements-backend.txt
 COPY requirements.txt ./requirements-root.txt

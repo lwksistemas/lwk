@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   formatDateInputValue,
   formatTimeFromDate,
@@ -58,6 +58,8 @@ export function useCriarAgendamentoEffects(
   } = localState;
 
   const [mounted, setMounted] = useState(false);
+  /** Evita resetar data/hora enquanto o usuário edita (deps como nomesAgenda mudam a cada refetch). */
+  const initializedOpenRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
@@ -73,7 +75,13 @@ export function useCriarAgendamentoEffects(
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      initializedOpenRef.current = false;
+      return;
+    }
+    if (initializedOpenRef.current) return;
+    initializedOpenRef.current = true;
+
     resetForm();
     setConvenioId("");
     setProfessionalId(defaultProfessionalId ? Number(defaultProfessionalId) : "");

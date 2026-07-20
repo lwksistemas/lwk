@@ -124,7 +124,17 @@ export default function AgendaPage() {
   }
 
   const abrirNovoAgendamento = useCallback(() => {
-    setSelectedDate(new Date());
+    const now = new Date();
+    const step = 15;
+    const rounded = new Date(now);
+    const mins = rounded.getMinutes();
+    const next = Math.ceil(mins / step) * step;
+    if (next >= 60) {
+      rounded.setHours(rounded.getHours() + 1, 0, 0, 0);
+    } else {
+      rounded.setMinutes(next, 0, 0);
+    }
+    setSelectedDate(rounded);
     setShowCreateModal(true);
   }, []);
 

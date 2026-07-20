@@ -1,6 +1,7 @@
 import { ConvenioSelect } from "@/components/clinica-beleza/ConvenioSelect";
 import {
   CRIAR_AGENDAMENTO_INPUT_CLASS,
+  CRIAR_AGENDAMENTO_TIME_SLOTS,
 } from "@/components/clinica-beleza/criar-agendamento/criar-agendamento-utils";
 import type { UseCriarAgendamentoReturn } from "@/hooks/clinica-beleza/useCriarAgendamento";
 import { entityName } from "@/lib/clinica-beleza-entities";
@@ -138,13 +139,25 @@ export function CriarAgendamentoAgendaSection({
         </div>
         <div>
           <FieldLabel>Horário *</FieldLabel>
-          <input
-            type="time"
-            value={time}
+          <select
+            value={
+              CRIAR_AGENDAMENTO_TIME_SLOTS.includes(time)
+                ? time
+                : time || CRIAR_AGENDAMENTO_TIME_SLOTS[0]
+            }
             onChange={(e) => setTime(e.target.value)}
-            className={inputClass}
+            className={`${inputClass} touch-manipulation`}
             required
-          />
+          >
+            {!CRIAR_AGENDAMENTO_TIME_SLOTS.includes(time) && time ? (
+              <option value={time}>{time}</option>
+            ) : null}
+            {CRIAR_AGENDAMENTO_TIME_SLOTS.map((slot) => (
+              <option key={slot} value={slot}>
+                {slot}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="sm:col-span-2">
           <FieldLabel>Profissional</FieldLabel>

@@ -15,6 +15,24 @@ export function formatTimeFromDate(date: Date): string {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+/** Opções de horário em intervalos de 15 min (mais estável que input type=time no Android). */
+export function buildTimeSlotOptions(
+  startHour = 6,
+  endHour = 22,
+  stepMinutes = 15,
+): string[] {
+  const opts: string[] = [];
+  for (let h = startHour; h <= endHour; h++) {
+    for (let m = 0; m < 60; m += stepMinutes) {
+      if (h === endHour && m > 0) break;
+      opts.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
+  }
+  return opts;
+}
+
+export const CRIAR_AGENDAMENTO_TIME_SLOTS = buildTimeSlotOptions();
+
 export function resolveDefaultNomeAgendaId(items: NomeAgendaItem[]): number | "" {
   if (items.length === 0) return "";
   const padrao = items.find((n) => n.is_padrao);

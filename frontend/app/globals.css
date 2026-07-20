@@ -534,7 +534,7 @@
   background: #80868b;
 }
 
-/* Agenda Clínica — height="auto" no FullCalendar; rolagem no container pai (.overflow-y-auto) */
+/* Agenda Clínica — desktop: height="auto"; rolagem no container pai */
 .fc-agenda-calendar-root {
   min-height: 0;
 }
@@ -545,6 +545,21 @@
 
 /* ========== FULLCALENDAR MOBILE (Agenda - celular) ========== */
 @media (max-width: 639px) {
+  /* Mobile: grade com height 100% — rolagem interna do FullCalendar até o fim do dia */
+  .fc-agenda-calendar-root .fc-view-harness {
+    height: 100% !important;
+  }
+  .fc-agenda-calendar-root .fc-scroller {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .fc-agenda-calendar-root .fc-timegrid-body {
+    /* Espaço para FAB + home indicator do iOS */
+    padding-bottom: max(5.5rem, calc(1rem + env(safe-area-inset-bottom, 0px))) !important;
+  }
+
   .dark .fc-agenda-calendar-root .fc-timegrid-slot,
   .dark .fc-agenda-calendar-root .fc-timegrid-axis,
   .dark .fc-agenda-calendar-root .fc-col-header-cell,

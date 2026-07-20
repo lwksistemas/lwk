@@ -7,6 +7,7 @@
 
 import { useCallback, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { Plus } from "lucide-react";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { useAgendaMutations } from "@/hooks/useAgendaMutations";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
@@ -122,8 +123,13 @@ export default function AgendaPage() {
     );
   }
 
+  const abrirNovoAgendamento = useCallback(() => {
+    setSelectedDate(new Date());
+    setShowCreateModal(true);
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 min-h-0">
+    <div className="relative flex flex-col flex-1 min-h-0">
       <ClinicaBelezaStandardPageHeader
         title="Agenda"
         subtitle="Calendário de agendamentos"
@@ -137,10 +143,7 @@ export default function AgendaPage() {
             onSelectProfessional={setSelectedProfessional}
             professionals={professionals}
             onBloquear={() => setShowModalBloqueio(true)}
-            onNovo={() => {
-              setSelectedDate(new Date());
-              setShowCreateModal(true);
-            }}
+            onNovo={abrirNovoAgendamento}
           />
         }
       />
@@ -171,6 +174,19 @@ export default function AgendaPage() {
           />
         </div>
       </div>
+
+      {/* FAB mobile — botão Novo some do topo lotado; fica fixo e visível */}
+      <button
+        type="button"
+        onClick={abrirNovoAgendamento}
+        className="sm:hidden fixed z-40 flex items-center justify-center gap-2 rounded-full text-white shadow-lg active:scale-95 transition-transform touch-manipulation px-4 h-14 bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4"
+        style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+        aria-label="Novo agendamento"
+        title="Novo agendamento"
+      >
+        <Plus size={22} strokeWidth={2.5} />
+        <span className="text-sm font-semibold pr-0.5">Agendar</span>
+      </button>
 
       <AgendaPageModals
         selectedBloqueio={selectedBloqueio}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import { CalendarDays } from "lucide-react";
 import {
@@ -9,13 +9,13 @@ import {
   CLINICA_AGENDA_SNAP_DURATION,
 } from "@/lib/clinica-beleza-constants";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
-import type { DatesSetArg, EventClickArg, EventDropArg } from "@fullcalendar/core";
+import type { EventClickArg, EventDropArg } from "@fullcalendar/core";
 import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
 import { AgendaListaColunas } from "./AgendaListaColunas";
 
 const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
   ssr: false,
-  loading: () => <div className="flex items-center justify-center h-full">Carregando calendário...</div>,
+  loading: () => <div className="flex items-center justify-center h-40 text-sm text-gray-500">Carregando calendário...</div>,
 });
 
 function toInputDate(d: Date): string {
@@ -24,11 +24,6 @@ function toInputDate(d: Date): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
-
-type CalendarApi = {
-  gotoDate: (date: string | Date) => void;
-  getDate: () => Date;
-};
 
 export function AgendaCalendarSection({
   modoAgenda,
@@ -65,37 +60,28 @@ export function AgendaCalendarSection({
   onEventDrop: (info: EventDropArg) => void;
   onEventResize: (info: EventResizeDoneArg) => void;
 }) {
-  const calendarRef = useRef<{ getApi: () => CalendarApi } | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const [currentDateIso, setCurrentDateIso] = useState(() => toInputDate(new Date()));
+  /** Incrementa só ao escolher data no input — remonta o FC sem usar ref no dynamic(). */
+  const [jumpKey, setJumpKey] = useState(0);
 
-  const handleDatesSet = (arg: DatesSetArg) => {
-    setCurrentDateIso(toInputDate(arg.view.currentStart));
-    // Ao trocar o dia no mobile, volta ao topo da grade
-    if (isMobile && scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
-    }
-  };
+  const gradeMobile = modoAgenda === "grade" && isMobile;
 
   const irParaData = (iso: string) => {
     if (!iso) return;
     setCurrentDateIso(iso);
-    calendarRef.current?.getApi()?.gotoDate(iso);
+    setJumpKey((k) => k + 1);
   };
-
-  const gradeMobile = modoAgenda === "grade" && isMobile;
 
   return (
     <div
-      ref={scrollRef}
-      className={`flex-1 min-h-0 flex flex-col p-2 sm:p-3 fc-agenda-scroll-host ${
+      className={`flex-1 min-h-0 flex flex-col p-2 sm:p-3 overflow-y-auto overscroll-contain fc-agenda-scroll-host ${
         modoAgenda === "grade" ? "fc-agenda-calendar-root" : ""
-      } ${gradeMobile ? "overflow-y-auto overscroll-y-contain touch-pan-y" : "overflow-y-auto overscroll-contain"}`}
-      style={{ WebkitOverflowScrolling: "touch" }}
+      }`}
+      style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
     >
       {gradeMobile && (
-        <div className="shrink-0 sticky top-0 z-20 flex flex-col gap-2 mb-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm pb-1">
-          <label className="flex-1 relative flex items-center gap-2 rounded-lg border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-2 text-sm text-gray-800 dark:text-gray-100">
+        <div className="shrink-0 sticky top-0 z-20 mb-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm pb-1">
+          <label className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-2 text-sm text-gray-800 dark:text-gray-100">
             <CalendarDays size={16} className="text-[#8B3D52] shrink-0" aria-hidden />
             <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">Dia</span>
             <input
@@ -114,20 +100,21 @@ export function AgendaCalendarSection({
           <AgendaListaColunas eventos={eventos} onAbrir={onAbrirLista} />
         </div>
       ) : calendarPlugins.length > 0 && ptBrLocale ? (
-        <div className={gradeMobile ? "pb-28" : undefined}>
+        <div className={gradeMobile ? "pb-28 min-w-0" : "min-w-0"}>
           <FullCalendar
-            ref={calendarRef as never}
-            key={`${isMobile ? "mobile" : "desktop"}-${selectedProfessional}`}
+            key={`${isMobile ? "m" : "d"}-${selectedProfessional}-${jumpKey}`}
             plugins={calendarPlugins as never[]}
             initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
+            initialDate={currentDateIso}
             locale={ptBrLocale as never}
-            /* No celular, drag/select rouba o gesto de scroll — só toque simples (dateClick). */
             editable={!isMobile}
             eventStartEditable={!isMobile}
             eventDurationEditable={!isMobile}
             selectable={!isMobile}
             selectMirror={!isMobile}
-            selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
+            selectConstraint={
+              !isMobile && temHorarioExpediente ? "businessHours" : undefined
+            }
             dayMaxEvents={isMobile ? 6 : true}
             weekends
             events={eventos}
@@ -135,12 +122,25 @@ export function AgendaCalendarSection({
             eventResize={onEventResize}
             eventClick={onEventClick}
             dateClick={onDateClick}
-            datesSet={handleDatesSet}
+            datesSet={(arg) => {
+              try {
+                const d = arg.view?.currentStart ?? arg.start;
+                if (d instanceof Date && !Number.isNaN(d.getTime())) {
+                  setCurrentDateIso(toInputDate(d));
+                }
+              } catch {
+                // não derruba a página se o calendário emitir datesSet incompleto
+              }
+            }}
             height="auto"
             headerToolbar={
               isMobile
                 ? { left: "prev,next", center: "title", right: "today" }
-                : { left: "prev,next today", center: "title", right: "timeGridDay,timeGridWeek,dayGridMonth" }
+                : {
+                    left: "prev,next today",
+                    center: "title",
+                    right: "timeGridDay,timeGridWeek,dayGridMonth",
+                  }
             }
             buttonText={isMobile ? { today: "Hoje" } : undefined}
             slotMinTime={slotMinTime}

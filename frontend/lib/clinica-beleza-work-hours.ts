@@ -15,9 +15,9 @@ export function weekdayFromDate(date: Date): number {
   return js === 0 ? 6 : js - 1;
 }
 
-function parseHm(value: string): number {
-  const [h, m] = value.slice(0, 5).split(':').map(Number);
-  return h * 60 + (m || 0);
+function parseHm(value: string | null | undefined): number {
+  const [h, m] = (value || "00:00").slice(0, 5).split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
 }
 
 /**
@@ -68,8 +68,8 @@ export function workHoursRejectionMessage(
 
   if (isWithinWorkHours(date, durationMin, horarios)) return null;
 
-  const entrada = h.hora_entrada.slice(0, 5);
-  const saida = h.hora_saida.slice(0, 5);
+  const entrada = (h.hora_entrada || "00:00").slice(0, 5);
+  const saida = (h.hora_saida || "00:00").slice(0, 5);
   if (h.intervalo_inicio && h.intervalo_fim) {
     const ini = h.intervalo_inicio.slice(0, 5);
     const fim = h.intervalo_fim.slice(0, 5);

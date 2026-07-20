@@ -40,6 +40,11 @@ export function useAgendaPageEffects({
   }, [searchParams, setSelectedDate, setShowCreateModal]);
 
   useEffect(() => {
+    // Celular usa AgendaMobileDayView — não carrega FullCalendar (economiza memória/Android).
+    if (typeof window !== "undefined" && window.innerWidth < 640) {
+      void carregarDadosRef.current();
+      return;
+    }
     const loadPlugins = async () => {
       const [dayGrid, timeGrid, interaction, ptBr] = await Promise.all([
         import("@fullcalendar/daygrid"),
@@ -54,6 +59,11 @@ export function useAgendaPageEffects({
   }, []);
 
   useEffect(() => {
+    // Desktop: recarrega quando plugins/profissional mudam. Mobile já carregou no efeito acima.
+    if (typeof window !== "undefined" && window.innerWidth < 640) {
+      void carregarDadosRef.current();
+      return;
+    }
     if (calendarPlugins.length > 0) void carregarDadosRef.current();
   }, [selectedProfessional, calendarPlugins]);
 
@@ -90,7 +100,10 @@ export function useAgendaPageEffects({
   }, []);
 
   useEffect(() => {
-    if (!calendarPlugins.length) return;
+    const isMobileViewport =
+      typeof window !== "undefined" && window.innerWidth < 640;
+    // Desktop só faz poll depois dos plugins; mobile não usa FullCalendar.
+    if (!isMobileViewport && !calendarPlugins.length) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     const aguardando =
       showModal &&

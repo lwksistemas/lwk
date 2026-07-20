@@ -109,20 +109,7 @@ export default function AgendaPage() {
     setShowCreateModal,
   });
 
-  if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center min-h-[320px]">
-        <div className="text-center">
-          <div
-            className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4"
-            style={{ borderColor: 'var(--cb-primary, #8B3D52) transparent transparent transparent' }}
-          />
-          <p className="text-sm text-gray-600 dark:text-gray-300">Carregando agenda...</p>
-        </div>
-      </div>
-    );
-  }
-
+  // IMPORTANTE: hooks antes de qualquer return — loading flip quebrava a página no Android.
   const abrirNovoAgendamento = useCallback(() => {
     const now = new Date();
     const step = 15;
@@ -137,6 +124,20 @@ export default function AgendaPage() {
     setSelectedDate(rounded);
     setShowCreateModal(true);
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center min-h-[320px]">
+        <div className="text-center">
+          <div
+            className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+            style={{ borderColor: 'var(--cb-primary, #8B3D52) transparent transparent transparent' }}
+          />
+          <p className="text-sm text-gray-600 dark:text-gray-300">Carregando agenda...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex flex-col flex-1 min-h-0">

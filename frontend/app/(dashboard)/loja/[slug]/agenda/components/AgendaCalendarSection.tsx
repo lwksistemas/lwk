@@ -66,11 +66,15 @@ export function AgendaCalendarSection({
   onEventResize: (info: EventResizeDoneArg) => void;
 }) {
   const calendarRef = useRef<{ getApi: () => CalendarApi } | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [currentDateIso, setCurrentDateIso] = useState(() => toInputDate(new Date()));
 
   const handleDatesSet = (arg: DatesSetArg) => {
-    // timeGridDay: start = dia visível
     setCurrentDateIso(toInputDate(arg.view.currentStart));
+    // Ao trocar o dia no mobile, volta ao topo da grade
+    if (isMobile && scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
   };
 
   const irParaData = (iso: string) => {
@@ -83,17 +87,14 @@ export function AgendaCalendarSection({
 
   return (
     <div
-      className={`flex-1 min-h-0 flex flex-col p-2 sm:p-3 ${
+      ref={scrollRef}
+      className={`flex-1 min-h-0 flex flex-col p-2 sm:p-3 fc-agenda-scroll-host ${
         modoAgenda === "grade" ? "fc-agenda-calendar-root" : ""
-      } ${
-        gradeMobile
-          ? "overflow-hidden"
-          : "overflow-y-auto overscroll-contain"
-      }`}
-      style={gradeMobile ? undefined : { WebkitOverflowScrolling: "touch" }}
+      } ${gradeMobile ? "overflow-y-auto overscroll-y-contain touch-pan-y" : "overflow-y-auto overscroll-contain"}`}
+      style={{ WebkitOverflowScrolling: "touch" }}
     >
       {gradeMobile && (
-        <div className="shrink-0 flex items-center gap-2 mb-2">
+        <div className="shrink-0 sticky top-0 z-20 flex flex-col gap-2 mb-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm pb-1">
           <label className="flex-1 relative flex items-center gap-2 rounded-lg border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-2 text-sm text-gray-800 dark:text-gray-100">
             <CalendarDays size={16} className="text-[#8B3D52] shrink-0" aria-hidden />
             <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">Dia</span>
@@ -109,22 +110,23 @@ export function AgendaCalendarSection({
       )}
 
       {modoAgenda === "lista" ? (
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-4">
+        <div className="pb-4">
           <AgendaListaColunas eventos={eventos} onAbrir={onAbrirLista} />
         </div>
       ) : calendarPlugins.length > 0 && ptBrLocale ? (
-        <div className={`min-h-0 ${gradeMobile ? "flex-1" : ""}`}>
+        <div className={gradeMobile ? "pb-28" : undefined}>
           <FullCalendar
             ref={calendarRef as never}
             key={`${isMobile ? "mobile" : "desktop"}-${selectedProfessional}`}
             plugins={calendarPlugins as never[]}
             initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
             locale={ptBrLocale as never}
-            editable
-            eventStartEditable
-            eventDurationEditable
-            selectable
-            selectMirror
+            /* No celular, drag/select rouba o gesto de scroll — só toque simples (dateClick). */
+            editable={!isMobile}
+            eventStartEditable={!isMobile}
+            eventDurationEditable={!isMobile}
+            selectable={!isMobile}
+            selectMirror={!isMobile}
             selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
             dayMaxEvents={isMobile ? 6 : true}
             weekends
@@ -134,7 +136,7 @@ export function AgendaCalendarSection({
             eventClick={onEventClick}
             dateClick={onDateClick}
             datesSet={handleDatesSet}
-            height={gradeMobile ? "100%" : "auto"}
+            height="auto"
             headerToolbar={
               isMobile
                 ? { left: "prev,next", center: "title", right: "today" }

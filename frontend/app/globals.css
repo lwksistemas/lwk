@@ -534,30 +534,47 @@
   background: #80868b;
 }
 
-/* Agenda Clínica — desktop: height="auto"; rolagem no container pai */
+/* Agenda Clínica — height="auto"; um único scroller no container pai */
 .fc-agenda-calendar-root {
   min-height: 0;
 }
 
 .fc-agenda-calendar-root .fc-scroller {
   overflow: visible !important;
+  /* Evita scroller interno do FC competir com o toque no celular */
+  height: auto !important;
+}
+
+.fc-agenda-calendar-root .fc-scroller-liquid-absolute {
+  position: relative !important;
+  inset: auto !important;
+  height: auto !important;
+}
+
+.fc-agenda-scroll-host {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
 }
 
 /* ========== FULLCALENDAR MOBILE (Agenda - celular) ========== */
 @media (max-width: 639px) {
-  /* Mobile: grade com height 100% — rolagem interna do FullCalendar até o fim do dia */
-  .fc-agenda-calendar-root .fc-view-harness {
-    height: 100% !important;
+  .fc-agenda-calendar-root .fc-view-harness,
+  .fc-agenda-calendar-root .fc-view-harness-active {
+    height: auto !important;
+    min-height: 0 !important;
   }
-  .fc-agenda-calendar-root .fc-scroller {
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+  .fc-agenda-calendar-root .fc-timegrid,
+  .fc-agenda-calendar-root .fc-timegrid-body,
+  .fc-agenda-calendar-root .fc-timegrid-slots,
+  .fc-agenda-calendar-root .fc-timegrid-cols {
+    height: auto !important;
   }
-  .fc-agenda-calendar-root .fc-timegrid-body {
-    /* Espaço para FAB + home indicator do iOS */
-    padding-bottom: max(5.5rem, calc(1rem + env(safe-area-inset-bottom, 0px))) !important;
+  /* Libera gesto vertical: FC não captura pan para drag no mobile */
+  .fc-agenda-calendar-root .fc-timegrid-slot,
+  .fc-agenda-calendar-root .fc-timegrid-col,
+  .fc-agenda-calendar-root .fc-scrollgrid {
+    touch-action: pan-y;
   }
 
   .dark .fc-agenda-calendar-root .fc-timegrid-slot,

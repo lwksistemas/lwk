@@ -215,7 +215,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
     },
     nacional: {
       titulo: 'API Nacional NFS-e (Direto)',
-      descricao: 'Emissão através da API Nacional NFS-e com o CNPJ da sua loja. Em breve disponível.',
+      descricao: 'Emissão através da API Nacional NFS-e com o CNPJ da sua loja. Requer certificado digital A1 e município conveniado.',
     },
     manual: {
       titulo: 'Emissão Manual',
@@ -292,7 +292,6 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
           <div className="space-y-3">
             {(Object.keys(provedorInfo) as Array<keyof typeof provedorInfo>).map((key) => {
               const info = provedorInfo[key];
-              const isDisabled = key === 'nacional'; // API Nacional ainda não disponível
               
               return (
                 <label
@@ -301,7 +300,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
                     formData.provedor_nf === key
                       ? 'border-[#0176d3] bg-[#e3f3ff] dark:bg-[#0176d3]/10'
                       : 'border-gray-200 dark:border-[#0d1f3c] hover:border-gray-300 dark:hover:border-gray-600'
-                  } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  }`}
                 >
                   <input
                     type="radio"
@@ -309,15 +308,11 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
                     value={key}
                     checked={formData.provedor_nf === key}
                     onChange={(e) => setFormData({ ...formData, provedor_nf: e.target.value as typeof formData.provedor_nf })}
-                    disabled={isDisabled}
                     className="mt-1"
                   />
                   <div className="flex-1">
                     <div className="font-medium text-gray-900 dark:text-white">
                       {info.titulo}
-                      {isDisabled && (
-                        <span className="ml-2 text-xs text-gray-500">(Em breve)</span>
-                      )}
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                       {info.descricao}

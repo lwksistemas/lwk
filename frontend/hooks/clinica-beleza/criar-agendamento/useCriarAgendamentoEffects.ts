@@ -128,7 +128,8 @@ export function useCriarAgendamentoEffects(
   }, [open, locaisAtendimento, setLocalAtendimentoId]);
 
   useEffect(() => {
-    if (!open || !patientId) {
+    if (!open || !patientId || !dateInput) {
+      if (!dateInput && open && patientId) return; // aguardar dateInput ser preenchido
       setRetornoInfo(null);
       return;
     }

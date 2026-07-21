@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
 import { formatCurrency } from "@/lib/financeiro-helpers";
+import { valorPagamentoConsulta } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import { consultaProcedimentosNomes, type Consulta } from "../consultas-types";
 import {
   formatEntradasResumo,
@@ -49,6 +50,7 @@ export function ReceberSucessoPanel({
   const resumoFormas = snap
     ? formatEntradasResumo(snap.entradas, CLINICA_FORMA_PAGAMENTO_LABEL as Record<string, string>)
     : "";
+  const valorTotalConsulta = valorPagamentoConsulta(consultaExibida);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
@@ -81,9 +83,19 @@ export function ReceberSucessoPanel({
             <p>
               <strong>Procedimento:</strong> {consultaProcedimentosNomes(consultaExibida)}
             </p>
+            {valorTotalConsulta > 0 && (
+              <p>
+                <strong>Valor:</strong> {formatCurrency(valorTotalConsulta)}
+              </p>
+            )}
             {snap && snap.desconto > 0 && (
               <p>
                 <strong>Desconto:</strong> {formatCurrency(snap.desconto)}
+              </p>
+            )}
+            {Boolean(consultaExibida.retorno_gratuito) && snap && snap.desconto <= 0 && (
+              <p>
+                <strong>Desconto retorno:</strong> {formatCurrency(valorTotalConsulta)}
               </p>
             )}
             <p>

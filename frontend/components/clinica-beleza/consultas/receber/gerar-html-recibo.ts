@@ -59,7 +59,7 @@ export function gerarHtmlRecibo(params: {
   const valorProcs = Number(consulta.valor_procedimentos ?? 0);
   const retornoGratuito = Boolean(consulta.retorno_gratuito);
   const valorConsultaReferencia = Number(
-    consulta.local_atendimento_valor_consulta ?? (retornoGratuito ? 0 : valorConsulta),
+    consulta.local_atendimento_valor_consulta ?? valorConsulta,
   );
   const retornoDias = consulta.retorno_dias_prazo != null ? Number(consulta.retorno_dias_prazo) : null;
   const retornoAviso = (consulta.retorno_aviso_recibo || "").trim();

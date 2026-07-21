@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, DollarSign, AlertCircle } from "lucide-react";
+import { CheckCircle2, DollarSign, AlertCircle, Printer } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { consultaPagamentoUi } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import type { Consulta } from "./consultas-types";
@@ -19,7 +19,7 @@ export function ConsultaPagamentoButton({
   loading = false,
 }: ConsultaPagamentoButtonProps) {
   const toast = useToast();
-  const { mostrarReceber, mostrarPago, mostrarParcial, consultaFinalizada } = consultaPagamentoUi(consulta);
+  const { mostrarReceber, mostrarPago, mostrarParcial, mostrarRecibo, consultaFinalizada } = consultaPagamentoUi(consulta);
   const pad = size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-1.5 text-sm";
   const iconSize = size === "sm" ? 14 : 16;
 
@@ -98,6 +98,22 @@ export function ConsultaPagamentoButton({
       >
         <CheckCircle2 size={iconSize} />
         Pago
+      </span>
+    );
+  }
+
+  if (mostrarRecibo) {
+    return (
+      <span
+        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-green-600 cursor-pointer hover:bg-green-700 ${pad}`}
+        title="Retorno gratuito — clique para imprimir/enviar recibo"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onReceber) onReceber(consulta);
+        }}
+      >
+        <Printer size={iconSize} />
+        Recibo
       </span>
     );
   }

@@ -69,6 +69,7 @@ describe("consultaPagamentoUi", () => {
       mostrarReceber: true,
       mostrarPago: false,
       mostrarParcial: false,
+      mostrarRecibo: false,
       consultaFinalizada: false,
     });
   });
@@ -87,6 +88,7 @@ describe("consultaPagamentoUi", () => {
       mostrarReceber: false,
       mostrarPago: true,
       mostrarParcial: false,
+      mostrarRecibo: false,
       consultaFinalizada: false,
     });
   });
@@ -105,6 +107,7 @@ describe("consultaPagamentoUi", () => {
       mostrarReceber: false,
       mostrarPago: false,
       mostrarParcial: true,
+      mostrarRecibo: false,
       consultaFinalizada: false,
     });
   });
@@ -124,7 +127,48 @@ describe("consultaPagamentoUi", () => {
       mostrarReceber: false,
       mostrarPago: true,
       mostrarParcial: false,
+      mostrarRecibo: false,
       consultaFinalizada: false,
+    });
+  });
+
+  it("mostra Recibo para retorno gratuito finalizado", () => {
+    expect(
+      consultaPagamentoUi(
+        consulta({
+          status: "COMPLETED",
+          retorno_gratuito: true,
+          valor_pagamento: 0,
+          valor_pago: 0,
+          valor_restante: 0,
+        }),
+      ),
+    ).toEqual({
+      mostrarReceber: false,
+      mostrarPago: false,
+      mostrarParcial: false,
+      mostrarRecibo: true,
+      consultaFinalizada: true,
+    });
+  });
+
+  it("mostra Recibo para consulta finalizada sem pagamento", () => {
+    expect(
+      consultaPagamentoUi(
+        consulta({
+          status: "COMPLETED",
+          payment_status: undefined,
+          valor_pagamento: 0,
+          valor_pago: 0,
+          valor_restante: 0,
+        }),
+      ),
+    ).toEqual({
+      mostrarReceber: false,
+      mostrarPago: false,
+      mostrarParcial: false,
+      mostrarRecibo: true,
+      consultaFinalizada: true,
     });
   });
 });

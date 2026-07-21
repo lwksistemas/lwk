@@ -77,7 +77,9 @@ export function ModalReceberConsulta({
     if (open && !prevOpen) {
       const novoSaldo = saldoReceberConsulta(consulta);
       const quitado = novoSaldo <= 0 && consulta.payment_status === "PAID";
-      if (quitado) {
+      const retornoGratuitoFinalizado = Boolean(consulta.retorno_gratuito) && consulta.status === "COMPLETED" && novoSaldo <= 0;
+      const finalizadaSemPagamento = consulta.status === "COMPLETED" && novoSaldo <= 0 && !consulta.payment_status;
+      if (quitado || retornoGratuitoFinalizado || finalizadaSemPagamento) {
         setConfirmado(true);
         setConsultaAtualizada(consulta);
         setReciboSnapshot(null);

@@ -45,12 +45,13 @@ export function consultaPagamentoUi(c: Consulta): {
   mostrarReceber: boolean;
   mostrarPago: boolean;
   mostrarParcial: boolean;
+  mostrarRecibo: boolean;
   consultaFinalizada: boolean;
 } {
   const finalizada = c.status === "COMPLETED";
 
   if (c.status === "CANCELLED") {
-    return { mostrarReceber: false, mostrarPago: false, mostrarParcial: false, consultaFinalizada: false };
+    return { mostrarReceber: false, mostrarPago: false, mostrarParcial: false, mostrarRecibo: false, consultaFinalizada: false };
   }
 
   const saldo = saldoReceberConsulta(c);
@@ -58,11 +59,19 @@ export function consultaPagamentoUi(c: Consulta): {
   const isPago = c.payment_status === "PAID" && saldo <= 0;
 
   if (isPago) {
-    return { mostrarReceber: false, mostrarPago: true, mostrarParcial: false, consultaFinalizada: finalizada };
+    return { mostrarReceber: false, mostrarPago: true, mostrarParcial: false, mostrarRecibo: false, consultaFinalizada: finalizada };
   }
 
   if (isParcial) {
-    return { mostrarReceber: false, mostrarPago: false, mostrarParcial: true, consultaFinalizada: finalizada };
+    return { mostrarReceber: false, mostrarPago: false, mostrarParcial: true, mostrarRecibo: false, consultaFinalizada: finalizada };
+  }
+
+  // Retorno gratuito finalizado: sem pagamento a cobrar, mas deve mostrar opção de recibo
+  // Consulta finalizada sem saldo pendente e sem pagamento: também mostra recibo
+  const isFinalizadaSemPendencia = finalizada && saldo <= 0 && !c.payment_status;
+  const isRetornoGratuitoFinalizado = Boolean(c.retorno_gratuito) && finalizada && saldo <= 0;
+  if (isRetornoGratuitoFinalizado || isFinalizadaSemPendencia) {
+    return { mostrarReceber: false, mostrarPago: false, mostrarParcial: false, mostrarRecibo: true, consultaFinalizada: true };
   }
 
   // Pendente ou sem pagamento — saldo em aberto
@@ -74,6 +83,7 @@ export function consultaPagamentoUi(c: Consulta): {
     mostrarReceber: mostrarReceber || mostrarReceberFinanceiro,
     mostrarPago: false,
     mostrarParcial: false,
+    mostrarRecibo: false,
     consultaFinalizada: finalizada,
   };
 }
@@ -86,7 +96,7 @@ export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) 
   const emAtendimento =
     selected.status === "IN_PROGRESS" ||
     (selected.status === "RECEBER" && !!selected.data_inicio);
-  const { mostrarReceber, mostrarPago, mostrarParcial, consultaFinalizada: _cFin } = consultaPagamentoUi(selected);
+  const { mostrarReceber, mostrarPago, mostrarParcial, mostrarRecibo, consultaFinalizada: _cFin } = consultaPagamentoUi(selected);
   return {
     outraConsultaEmAndamento,
     podeIniciar:
@@ -102,6 +112,7 @@ export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) 
     mostrarReceber,
     mostrarPago,
     mostrarParcial,
+    mostrarRecibo,
   };
 }
 

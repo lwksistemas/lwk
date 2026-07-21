@@ -79,21 +79,37 @@ export function AgendaMobileDayView({
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const swiped = useRef(false);
+  const scrolling = useRef(false);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
     swiped.current = false;
+    scrolling.current = false;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = Math.abs(e.touches[0].clientX - touchStartX.current);
+    const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
+    // Se moveu mais vertical que horizontal, é scroll — não interceptar
+    if (dy > 10 && dy > dx) {
+      scrolling.current = true;
+    }
   }, []);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (touchStartX.current === null || touchStartY.current === null) return;
+    if (touchStartX.current === null || touchStartY.current === null || scrolling.current) {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      return;
+    }
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
     touchStartX.current = null;
     touchStartY.current = null;
-    // Swipe horizontal > 60px e predominantemente horizontal
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    // Swipe horizontal > 80px e predominantemente horizontal (3x mais que vertical)
+    if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 3) {
       swiped.current = true;
       onDateChange(addDaysIso(dateIso, dx < 0 ? 1 : -1));
     }
@@ -208,6 +224,7 @@ export function AgendaMobileDayView({
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24"
         style={{ WebkitOverflowScrolling: "touch" }}
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         {slots.length === 0 ? (

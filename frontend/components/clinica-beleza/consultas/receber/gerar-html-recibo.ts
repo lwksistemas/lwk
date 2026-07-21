@@ -118,21 +118,36 @@ export function gerarHtmlRecibo(params: {
 
 
   const procs = consulta.procedures_list ?? [];
+  // Filtrar procedimentos redundantes: se já mostra "Taxa de consulta" e o procedimento é
+  // apenas "Consulta" com valor 0, não exibir linha repetida
+  const procsVisiveis = procs.filter((p) => {
+    if (taxaExibida > 0 && Number(p.valor || 0) === 0) {
+      const nome = (p.nome || "").toLowerCase().trim();
+      if (nome === "consulta" || nome === "taxa de consulta") return false;
+    }
+    return true;
+  });
   const procsSoma =
-    procs.length > 0
-      ? procs.reduce((acc, p) => acc + Number(p.valor || 0), 0)
-      : valorProcs;
+    procsVisiveis.length > 0
+      ? procsVisiveis.reduce((acc, p) => acc + Number(p.valor || 0), 0)
+      : procs.length > 0
+        ? procs.reduce((acc, p) => acc + Number(p.valor || 0), 0)
+        : valorProcs;
   const subtotalBruto = taxaExibida + procsSoma;
   const totalFinal = Math.max(0, subtotalBruto - descontoRetorno - desconto);
   const procsHtml =
-    procs.length > 0
-      ? procs
+    procsVisiveis.length > 0
+      ? procsVisiveis
           .map(
             (p) =>
               `<tr><td style="padding-left:8px">• ${p.nome}</td><td style="text-align:right">R$ ${Number(p.valor).toFixed(2)}</td></tr>`,
           )
           .join("")
-      : `<tr><td style="padding-left:8px">• ${consulta.procedure_name || "Consulta"}</td><td style="text-align:right">R$ ${valorProcs.toFixed(2)}</td></tr>`;
+      : procs.length > 0
+        ? ""
+        : valorProcs > 0
+          ? `<tr><td style="padding-left:8px">• ${consulta.procedure_name || "Procedimento"}</td><td style="text-align:right">R$ ${valorProcs.toFixed(2)}</td></tr>`
+          : "";
 
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
@@ -209,11 +224,11 @@ export function gerarHtmlRecibo(params: {
 <div class="section">
   <div class="section-title">Formas de pagamento:</div>
   <table>
-    ${formasHtml || `<tr><td>Pagamento</td><td style="text-align:right">R$ ${valorPago.toFixed(2)}</td></tr>`}
+    ${formasHtml || (valorPago > 0 ? `<tr><td>Pagamento</td><td style="text-align:right">R$ ${valorPago.toFixed(2)}</td></tr>` : "")}
   </table>
 </div>
 
-<div class="total">VALOR PAGO: R$ ${valorPago.toFixed(2)}</div>
+${valorPago > 0 ? `<div class="total">VALOR PAGO: R$ ${valorPago.toFixed(2)}</div>` : ""}
 ${
   saldoRestante > 0.009
     ? `<div class="total" style="font-size:12px;">SALDO: R$ ${saldoRestante.toFixed(2)}</div>`

@@ -72,7 +72,7 @@ class AssinaturaDigital(LojaIsolationMixin, models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=(
+                check=(
                     models.Q(proposta__isnull=False, contrato__isnull=True) |
                     models.Q(proposta__isnull=True, contrato__isnull=False)
                 ),

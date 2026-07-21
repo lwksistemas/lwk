@@ -68,12 +68,18 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     story.append(Spacer(1, 1 * mm))
 
     svc_data = []
-    for label, valor in _linhas_taxa_consulta_recibo(ctx):
+    linhas_taxa = _linhas_taxa_consulta_recibo(ctx)
+    taxa_exibida = linhas_taxa[0][1] if linhas_taxa else 0.0
+    for label, valor in linhas_taxa:
         svc_data.append([
             Paragraph(label, s_left),
             Paragraph(f"R$ {valor:.2f}", s_right),
         ])
     for p in ctx["procedimentos"]:
+        # Ocultar procedimento redundante: "Consulta" com valor 0 quando taxa já está exibida
+        nome_lower = (p["nome"] or "").strip().lower()
+        if taxa_exibida > 0 and float(p["valor"]) == 0.0 and nome_lower in ("consulta", "taxa de consulta"):
+            continue
         svc_data.append([
             Paragraph(f'• {p["nome"]}', s_left),
             Paragraph(f'R$ {p["valor"]:.2f}', s_right),
@@ -108,6 +114,7 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
         Paragraph(f'<b>R$ {ctx["valor_total"]:.2f}</b>', s_right),
     ])
     formas = ctx.get("formas_pagamento", [])
+    valor_pago = ctx.get("valor_pago", 0)
     if formas:
         totals_data.append([Paragraph("<b>Formas de pagamento:</b>", s_bold), Paragraph("", s_right)])
         for f in formas:
@@ -115,9 +122,9 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
                 Paragraph(f'  {f["metodo"]}', s_left),
                 Paragraph(f'R$ {f["valor"]:.2f}', s_right),
             ])
-    else:
+    elif valor_pago > 0:
         metodo = ctx.get("metodo", "")
-        totals_data.append([Paragraph(metodo, s_left), Paragraph(f'R$ {ctx["valor_pago"]:.2f}', s_right)])
+        totals_data.append([Paragraph(metodo, s_left), Paragraph(f'R$ {valor_pago:.2f}', s_right)])
 
     totals_table = Table(totals_data, colWidths=[col_w * 0.55, col_w * 0.45])
     totals_table.setStyle(TableStyle([
@@ -129,8 +136,9 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     story.append(totals_table)
 
     story.append(Spacer(1, 3 * mm))
-    story.append(Paragraph(f"VALOR PAGO: R$ {ctx['valor_pago']:.2f}", s_total))
-    if ctx.get("valor_pago", 0) >= ctx.get("valor_total", 0) and ctx.get("valor_total", 0) > 0:
+    if valor_pago > 0:
+        story.append(Paragraph(f"VALOR PAGO: R$ {valor_pago:.2f}", s_total))
+    if valor_pago >= ctx.get("valor_total", 0) and ctx.get("valor_total", 0) >= 0:
         story.append(Spacer(1, 1 * mm))
         story.append(Paragraph("<b>Quitado</b>", s_center))
     story.append(Spacer(1, 2 * mm))

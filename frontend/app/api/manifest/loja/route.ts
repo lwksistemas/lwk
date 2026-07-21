@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   try {
     const res = await fetch(
       `${API_BASE}/superadmin/lojas/info_publica/?slug=${encodeURIComponent(slug.trim())}`,
-      { cache: 'no-store' }
+      { next: { revalidate: 300 } }
     );
     if (!res.ok) {
       return new Response(

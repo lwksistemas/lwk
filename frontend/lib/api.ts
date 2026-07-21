@@ -22,7 +22,7 @@ export async function getHomepage() {
 
   try {
     const res = await fetch(`${API_BASE}/homepage/`, {
-      cache: 'no-store',
+      next: { revalidate: 300 }, // Cache por 5 minutos — reduz Function Invocations
       signal: controller.signal,
       headers: { Accept: 'application/json' },
     });

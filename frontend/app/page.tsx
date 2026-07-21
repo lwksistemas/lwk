@@ -10,6 +10,9 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import { getHomepage } from "@/lib/api";
 import type { HomepageData } from "@/types/homepage";
 
+/** ISR: revalida a homepage a cada 5 minutos (reduz Function Invocations no Vercel). */
+export const revalidate = 300;
+
 const DEFAULTS: HomepageData = {
   hero: {
     titulo: "Controle total da sua empresa em um único sistema",

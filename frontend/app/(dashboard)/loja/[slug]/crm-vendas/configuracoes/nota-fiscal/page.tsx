@@ -215,7 +215,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
     },
     nacional: {
       titulo: 'API Nacional NFS-e (Direto)',
-      descricao: 'Emissão através da API Nacional NFS-e com o CNPJ da sua loja. Requer certificado digital A1 e município conveniado.',
+      descricao: 'Emissão através da API Nacional NFS-e com o CNPJ da sua loja. Requer certificado digital A1 e município com emissão direta liberada.',
     },
     manual: {
       titulo: 'Emissão Manual',

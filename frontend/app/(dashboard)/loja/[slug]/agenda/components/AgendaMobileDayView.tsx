@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo, useRef, useCallback } from "react";
+import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { parseEventDate } from "@/lib/clinica-beleza-datetime";
 import { CLINICA_AGENDA_SLOT_VISUAL_MIN } from "@/lib/clinica-beleza-constants";
@@ -28,10 +28,14 @@ function addDaysIso(iso: string, delta: number): string {
 function formatLabel(iso: string): string {
   const [y, mo, d] = iso.split("-").map(Number);
   return new Date(y, (mo || 1) - 1, d || 1).toLocaleDateString("pt-BR", {
-    weekday: "long",
+    weekday: "short",
     day: "2-digit",
-    month: "long",
+    month: "short",
   });
+}
+
+function isToday(iso: string): boolean {
+  return iso === toInputDate(new Date());
 }
 
 function slotDate(iso: string, minutesFromMidnight: number): Date {
@@ -69,6 +73,31 @@ export function AgendaMobileDayView({
   onSlotClick: (date: Date) => void;
 }) {
   const step = CLINICA_AGENDA_SLOT_VISUAL_MIN || 15;
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  // ─── Swipe horizontal para navegar entre dias ───
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const swiped = useRef(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    swiped.current = false;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    touchStartX.current = null;
+    touchStartY.current = null;
+    // Swipe horizontal > 60px e predominantemente horizontal
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      swiped.current = true;
+      onDateChange(addDaysIso(dateIso, dx < 0 ? 1 : -1));
+    }
+  }, [dateIso, onDateChange]);
 
   const dayEvents = useMemo(() => {
     return eventos
@@ -122,44 +151,64 @@ export function AgendaMobileDayView({
     return items;
   }, [dayEvents, slotMinTime, slotMaxTime, step]);
 
+  const totalEventos = dayEvents.length;
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div className="shrink-0 sticky top-0 z-20 space-y-2 bg-white dark:bg-gray-800 pb-2 border-b border-gray-100 dark:border-neutral-700">
-        <div className="flex items-center gap-1">
+      {/* Header compacto com navegação e date picker inline */}
+      <div className="shrink-0 sticky top-0 z-20 bg-white dark:bg-gray-800 pb-1.5 pt-1 border-b border-gray-100 dark:border-neutral-700">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => onDateChange(addDaysIso(dateIso, -1))}
-            className="p-2.5 rounded-lg border border-gray-200 dark:border-neutral-600 text-gray-700 dark:text-gray-200 touch-manipulation"
+            className="p-3 rounded-xl border border-gray-200 dark:border-neutral-600 text-gray-700 dark:text-gray-200 touch-manipulation active:bg-gray-100 dark:active:bg-neutral-700 min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Dia anterior"
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={20} />
           </button>
-          <div className="flex-1 min-w-0 text-center px-1">
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 capitalize truncate">
+          <div className="flex-1 min-w-0 text-center">
+            <p className="text-sm font-bold text-gray-900 dark:text-gray-100 capitalize truncate">
               {formatLabel(dateIso)}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {isToday(dateIso) ? "Hoje" : ""} · {totalEventos} {totalEventos === 1 ? "agendamento" : "agendamentos"}
             </p>
           </div>
           <button
             type="button"
             onClick={() => onDateChange(addDaysIso(dateIso, 1))}
-            className="p-2.5 rounded-lg border border-gray-200 dark:border-neutral-600 text-gray-700 dark:text-gray-200 touch-manipulation"
+            className="p-3 rounded-xl border border-gray-200 dark:border-neutral-600 text-gray-700 dark:text-gray-200 touch-manipulation active:bg-gray-100 dark:active:bg-neutral-700 min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Próximo dia"
           >
-            <ChevronRight size={18} />
+            <ChevronRight size={20} />
+          </button>
+          <button
+            type="button"
+            onClick={() => dateInputRef.current?.showPicker()}
+            className="p-3 rounded-xl border border-gray-200 dark:border-neutral-600 text-gray-700 dark:text-gray-200 touch-manipulation active:bg-gray-100 dark:active:bg-neutral-700 min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label="Escolher data"
+          >
+            <Calendar size={18} />
           </button>
         </div>
+        {/* Input date hidden — ativado via botão calendário */}
         <input
+          ref={dateInputRef}
           type="date"
           value={dateIso}
           onChange={(e) => e.target.value && onDateChange(e.target.value)}
-          className="w-full rounded-lg border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2.5 text-sm font-medium text-gray-900 dark:text-gray-100 touch-manipulation [color-scheme:light] dark:[color-scheme:dark]"
-          aria-label="Escolher qualquer data"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
         />
       </div>
 
+      {/* Grade de horários com swipe */}
       <div
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-28"
-        style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24"
+        style={{ WebkitOverflowScrolling: "touch" }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         {slots.length === 0 ? (
           <p className="text-sm text-gray-500 py-8 text-center">Sem horários neste dia.</p>
@@ -168,29 +217,39 @@ export function AgendaMobileDayView({
             {slots.map((slot) => {
               if (slot.kind === "event") {
                 const ev = slot.event;
+                const statusColor = ev.extendedProps?.status === "COMPLETED"
+                  ? "border-l-emerald-500"
+                  : ev.extendedProps?.status === "CANCELLED"
+                    ? "border-l-red-400"
+                    : "border-l-transparent";
                 return (
                   <li key={`e-${ev.id}-${slot.minutes}`}>
                     <button
                       type="button"
-                      onClick={() => onOpenEvent(ev)}
-                      className="w-full flex gap-3 px-2 py-2.5 text-left touch-manipulation active:opacity-80"
+                      onClick={() => { if (!swiped.current) onOpenEvent(ev); }}
+                      className={`w-full flex gap-3 px-3 py-3 text-left touch-manipulation active:opacity-80 border-l-4 ${statusColor} rounded-r-lg`}
                       style={{
-                        minHeight: Math.max(48, slot.spanSlots * 40),
+                        minHeight: Math.max(56, slot.spanSlots * 44),
                         backgroundColor: ev.backgroundColor || "#fce7f3",
                       }}
                     >
-                      <span className="w-12 shrink-0 text-xs font-semibold text-gray-800 pt-0.5">
+                      <span className="w-11 shrink-0 text-xs font-bold text-gray-800 dark:text-gray-200 pt-0.5">
                         {slot.label}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium text-gray-900 truncate">
+                        <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                           {ev.title}
                         </span>
-                        {ev.extendedProps?.professional_name ? (
-                          <span className="block text-xs text-gray-700/80 truncate">
+                        {ev.extendedProps?.professional_name && (
+                          <span className="block text-xs text-gray-600 dark:text-gray-400 truncate mt-0.5">
                             {ev.extendedProps.professional_name}
                           </span>
-                        ) : null}
+                        )}
+                        {ev.extendedProps?.procedure_name && (
+                          <span className="block text-xs text-gray-500 dark:text-gray-500 truncate">
+                            {ev.extendedProps.procedure_name}
+                          </span>
+                        )}
                       </span>
                     </button>
                   </li>
@@ -200,13 +259,13 @@ export function AgendaMobileDayView({
                 <li key={`s-${slot.minutes}`}>
                   <button
                     type="button"
-                    onClick={() => onSlotClick(slotDate(dateIso, slot.minutes))}
-                    className="w-full flex gap-3 px-2 py-3.5 text-left touch-manipulation active:bg-pink-50 dark:active:bg-neutral-700 min-h-[48px]"
+                    onClick={() => { if (!swiped.current) onSlotClick(slotDate(dateIso, slot.minutes)); }}
+                    className="w-full flex gap-3 px-3 py-4 text-left touch-manipulation active:bg-pink-50 dark:active:bg-neutral-700 min-h-[52px]"
                   >
-                    <span className="w-12 shrink-0 text-xs font-medium text-gray-500">
+                    <span className="w-11 shrink-0 text-xs font-medium text-gray-400 dark:text-gray-500">
                       {slot.label}
                     </span>
-                    <span className="text-xs text-gray-400 self-center">Toque para agendar</span>
+                    <span className="text-xs text-gray-300 dark:text-gray-600 self-center">—</span>
                   </button>
                 </li>
               );

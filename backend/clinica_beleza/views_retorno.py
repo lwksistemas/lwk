@@ -1,4 +1,5 @@
 """Views de configuração de retorno gratuito — Clínica da Beleza."""
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -121,9 +122,17 @@ class RetornoVerificarView(APIView):
         reference_date = None
         raw_date = (request.query_params.get("reference_date") or "").strip()
         if raw_date:
-            from django.utils.dateparse import parse_datetime, parse_date
+            from datetime import datetime as dt_cls
 
-            reference_date = parse_datetime(raw_date) or parse_date(raw_date)
+            from django.utils.dateparse import parse_date, parse_datetime
+
+            parsed = parse_datetime(raw_date)
+            if not parsed:
+                d = parse_date(raw_date)
+                if d:
+                    parsed = dt_cls.combine(d, dt_cls.min.time())
+            if parsed:
+                reference_date = timezone.make_aware(parsed, timezone.get_current_timezone()) if timezone.is_naive(parsed) else parsed
 
         resultado = verificar_retorno(
             int(patient_id),

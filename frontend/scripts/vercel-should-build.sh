@@ -16,10 +16,17 @@ if [[ -z "${VERCEL_GIT_COMMIT_SHA:-}" ]]; then
   exit 1
 fi
 
-# Produção (main): sempre buildar — evita deploy cancelado quando o último
-# commit do push é só backend mas commits anteriores tinham frontend.
+# Produção (main): verificar se houve mudança real em frontend/.
+# Se o push foi só de backend, pular o build (economiza Build CPU Minutes).
 if [[ "${VERCEL_GIT_COMMIT_REF:-}" == "main" ]] || [[ "${VERCEL_ENV:-}" == "production" ]]; then
-  echo ">> Branch main / ambiente production — sempre executando build"
+  # Se temos SHA anterior para comparar, verificar se frontend/ mudou.
+  if [[ -n "${VERCEL_GIT_PREVIOUS_SHA:-}" ]] && git cat-file -e "${VERCEL_GIT_PREVIOUS_SHA}^{commit}" 2>/dev/null; then
+    if git diff --quiet "$VERCEL_GIT_PREVIOUS_SHA" "$VERCEL_GIT_COMMIT_SHA" -- "$ROOT" 2>/dev/null; then
+      echo ">> Branch main mas sem mudanças em frontend/ — pulando build"
+      exit 0
+    fi
+  fi
+  echo ">> Branch main com mudanças em frontend/ — executando build"
   exit 1
 fi
 

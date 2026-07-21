@@ -170,7 +170,7 @@ export function AgendaMobileDayView({
   const totalEventos = dayEvents.length;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
+    <div className="flex flex-col">
       {/* Header compacto com navegação e date picker inline */}
       <div className="shrink-0 sticky top-0 z-20 bg-white dark:bg-gray-800 pb-1.5 pt-1 border-b border-gray-100 dark:border-neutral-700">
         <div className="flex items-center gap-2">
@@ -221,8 +221,7 @@ export function AgendaMobileDayView({
 
       {/* Grade de horários com swipe */}
       <div
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24"
-        style={{ WebkitOverflowScrolling: "touch" }}
+        className="pb-24"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

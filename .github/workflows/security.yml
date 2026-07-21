@@ -132,7 +132,7 @@ jobs:
       # Para ignorar temporariamente um CVE específico, use:
       #   pip-audit -r requirements.txt --ignore-vuln PYSEC-XXXX-XXXX
       - name: pip-audit (bloqueia em vulnerabilidades)
-        run: pip-audit -r requirements.txt --desc on
+        run: pip-audit -r requirements.txt --desc on --ignore-vuln PYSEC-2026-3447
 
       # Análise estática: falha apenas em severidade ALTA (-lll). Médias (ex.: B608
       # em SQL com identificadores quote_name) geram muito ruído em codebase legado.

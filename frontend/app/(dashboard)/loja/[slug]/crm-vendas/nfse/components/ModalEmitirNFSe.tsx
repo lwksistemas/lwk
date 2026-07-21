@@ -41,7 +41,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
   const [error, setError] = useState('');
   const [erroInicio, setErroInicio] = useState('');
   const [buscandoTomador, setBuscandoTomador] = useState(false);
-  const [fonteTomador, setFonteTomador] = useState<'conta' | 'lead' | 'nfse' | 'brasilapi' | null>(null);
+  const [fonteTomador, setFonteTomador] = useState<'conta' | 'lead' | 'nfse' | 'brasilapi' | 'paciente' | null>(null);
   const [documentoTomador, setDocumentoTomador] = useState('');
   const [contaBuscaId, setContaBuscaId] = useState('');
   const [formData, setFormData] = useState(NFSE_EMISSAO_INITIAL_FORM);

@@ -34,7 +34,7 @@ export function ModalBloqueioSalao({
 }: Props) {
   const hoje = dataSugerida || new Date().toISOString().slice(0, 10);
   const [modo, setModo] = useState<ModoBloqueioIntervalo>('horario');
-  const [tipo, setTipo] = useState(TIPOS_BLOQUEIO[0].value);
+  const [tipo, setTipo] = useState<string>(TIPOS_BLOQUEIO[0].value);
   const [motivoOutro, setMotivoOutro] = useState('');
   const [obs, setObs] = useState('');
   const [profissionalId, setProfissionalId] = useState('');

@@ -57,6 +57,7 @@ class ConsultaPrescricaoView(APIView):
     """GET  /clinica-beleza/consultas/<consulta_id>/prescricoes/ — lista prescrições da consulta.
     POST /clinica-beleza/consultas/<consulta_id>/prescricoes/ — registra uma prescrição emitida
          na Memed (a partir do evento prescricaoImpressa).
+    DELETE /clinica-beleza/consultas/<consulta_id>/prescricoes/<prescricao_id>/ — exclui prescrição.
     """
 
     permission_classes = CLINICA_CLINICAL
@@ -90,6 +91,20 @@ class ConsultaPrescricaoView(APIView):
             serializer.save(loja_id=consulta.loja_id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ConsultaPrescricaoDeleteView(APIView):
+    """DELETE /clinica-beleza/consultas/<consulta_id>/prescricoes/<pk>/ — exclui prescrição Memed."""
+
+    permission_classes = CLINICA_CLINICAL
+
+    def delete(self, request, consulta_id, pk):
+        try:
+            prescricao = PrescricaoMemed.objects.get(pk=pk, consulta_id=consulta_id)
+        except PrescricaoMemed.DoesNotExist:
+            return Response({"error": "Prescrição não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        prescricao.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PatientPrescricaoView(APIView):

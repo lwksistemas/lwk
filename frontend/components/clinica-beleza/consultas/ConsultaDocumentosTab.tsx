@@ -32,6 +32,9 @@ export function ConsultaDocumentosTab({
     deletingId,
     confirmDeleteId,
     setConfirmDeleteId,
+    confirmDeleteMemedId,
+    setConfirmDeleteMemedId,
+    deletingMemedId,
     templateModalTipo,
     setTemplateModalTipo,
     manualModalTipo,
@@ -40,6 +43,7 @@ export function ConsultaDocumentosTab({
     fetchDocumentos,
     registrarDocumentoCriado,
     handleDelete,
+    handleDeleteMemed,
     toggleDropdown,
     handleAcao,
     salvarDocumentoManual,
@@ -62,9 +66,14 @@ export function ConsultaDocumentosTab({
         consultaAtiva={consultaAtiva}
         confirmDeleteId={confirmDeleteId}
         deletingId={deletingId}
+        confirmDeleteMemedId={confirmDeleteMemedId}
+        deletingMemedId={deletingMemedId}
         onConfirmDelete={setConfirmDeleteId}
         onCancelDelete={() => setConfirmDeleteId(null)}
         onDelete={(id) => void handleDelete(id)}
+        onConfirmDeleteMemed={setConfirmDeleteMemedId}
+        onCancelDeleteMemed={() => setConfirmDeleteMemedId(null)}
+        onDeleteMemed={(id) => void handleDeleteMemed(id)}
         onPrescricaoPdfUrl={atualizarPdfUrlPrescricao}
       />
 

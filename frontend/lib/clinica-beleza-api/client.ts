@@ -45,6 +45,8 @@ export class ClinicaBelezaAPI {
     listarPrescricoesPaciente: (patientId) =>
       loadMemedApi().then((m) => m.listarPrescricoesPaciente(patientId)),
     obterPdf: (prescricaoId) => loadMemedApi().then((m) => m.obterPdf(prescricaoId)),
+    excluirPrescricao: (consultaId, prescricaoId) =>
+      loadMemedApi().then((m) => m.excluirPrescricao(consultaId, prescricaoId)),
   };
 
   static templates = templatesApi;

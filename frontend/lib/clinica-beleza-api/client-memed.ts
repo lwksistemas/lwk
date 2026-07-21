@@ -59,6 +59,10 @@ export const memedApi = {
 
   obterPdf: (prescricaoId: number) =>
     apiPost<{ pdf_url: string }>(`/prescricoes-memed/${prescricaoId}/pdf/`, {}),
+
+  excluirPrescricao: (consultaId: number, prescricaoId: number) =>
+    clinicaBelezaFetch(`/consultas/${consultaId}/prescricoes/${prescricaoId}/`, { method: "DELETE" })
+      .then((res) => { if (!res.ok) throw new Error("Erro ao excluir prescrição"); }),
 };
 
 export type MemedApi = typeof memedApi;

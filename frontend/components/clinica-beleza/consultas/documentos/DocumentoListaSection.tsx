@@ -22,9 +22,14 @@ export function DocumentoListaSection({
   consultaAtiva,
   confirmDeleteId,
   deletingId,
+  confirmDeleteMemedId,
+  deletingMemedId,
   onConfirmDelete,
   onCancelDelete,
   onDelete,
+  onConfirmDeleteMemed,
+  onCancelDeleteMemed,
+  onDeleteMemed,
   onPrescricaoPdfUrl,
 }: {
   loading: boolean;
@@ -33,9 +38,14 @@ export function DocumentoListaSection({
   consultaAtiva: boolean;
   confirmDeleteId: number | null;
   deletingId: number | null;
+  confirmDeleteMemedId: number | null;
+  deletingMemedId: number | null;
   onConfirmDelete: (id: number) => void;
   onCancelDelete: () => void;
   onDelete: (id: number) => void;
+  onConfirmDeleteMemed: (id: number) => void;
+  onCancelDeleteMemed: () => void;
+  onDeleteMemed: (id: number) => void;
   onPrescricaoPdfUrl: (prescricaoId: number, url: string) => void;
 }) {
   return (
@@ -82,6 +92,39 @@ export function DocumentoListaSection({
                     onPrescricaoPdfUrl(p.id, url);
                   }}
                 />
+                {consultaAtiva && (
+                  <>
+                    {confirmDeleteMemedId === p.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => onDeleteMemed(p.id)}
+                          disabled={deletingMemedId === p.id}
+                          className="text-xs px-2 py-1 rounded bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+                        >
+                          {deletingMemedId === p.id ? <Loader2 size={12} className="animate-spin" /> : "Confirmar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={onCancelDeleteMemed}
+                          className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-neutral-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-neutral-500 transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onConfirmDeleteMemed(p.id)}
+                        title="Excluir prescrição"
+                        aria-label="Excluir prescrição"
+                        className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           ))}

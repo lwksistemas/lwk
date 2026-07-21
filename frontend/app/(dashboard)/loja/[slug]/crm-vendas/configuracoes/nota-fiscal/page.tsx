@@ -10,16 +10,17 @@ import { formatApiErrorBody } from '@/lib/api-errors';
 import { FileText, Upload, AlertCircle, CheckCircle2, Info, Loader2, ArrowLeft } from 'lucide-react';
 
 type ConfiguracaoNotaFiscalPageProps = {
-  configBackHref?: string;
-  descricaoServicoPadrao?: string;
-  codigoServicoPadrao?: string;
+  params?: Promise<{ slug: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default function ConfiguracaoNotaFiscalPage({
-  configBackHref,
-  descricaoServicoPadrao = 'Desenvolvimento e licenciamento de software sob demanda',
-  codigoServicoPadrao = '1401',
-}: ConfiguracaoNotaFiscalPageProps = {}) {
+const DEFAULT_DESCRICAO_SERVICO = 'Desenvolvimento e licenciamento de software sob demanda';
+const DEFAULT_CODIGO_SERVICO = '1401';
+
+export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFiscalPageProps) {
+  const configBackHref: string | undefined = undefined;
+  const descricaoServicoPadrao = DEFAULT_DESCRICAO_SERVICO;
+  const codigoServicoPadrao = DEFAULT_CODIGO_SERVICO;
   const router = useRouter();
   const params = useParams();
   const lojaSlug = typeof params?.slug === 'string' ? params.slug : '';

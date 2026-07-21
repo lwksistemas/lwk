@@ -13,6 +13,8 @@ export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmDeleteMemedId, setConfirmDeleteMemedId] = useState<number | null>(null);
+  const [deletingMemedId, setDeletingMemedId] = useState<number | null>(null);
   const [templateModalTipo, setTemplateModalTipo] = useState<DocumentoTipo | null>(null);
   const [manualModalTipo, setManualModalTipo] = useState<DocumentoTipo | null>(null);
   const [savingManualDoc, setSavingManualDoc] = useState(false);
@@ -60,6 +62,20 @@ export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0
     } finally {
       setDeletingId(null);
       setConfirmDeleteId(null);
+    }
+  };
+
+  const handleDeleteMemed = async (prescricaoId: number) => {
+    setDeletingMemedId(prescricaoId);
+    try {
+      await ClinicaBelezaAPI.memed.excluirPrescricao(consultaId, prescricaoId);
+      await fetchDocumentos();
+      toast.success("Prescrição excluída.");
+    } catch {
+      toast.error("Erro ao excluir prescrição.");
+    } finally {
+      setDeletingMemedId(null);
+      setConfirmDeleteMemedId(null);
     }
   };
 
@@ -114,6 +130,9 @@ export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0
     deletingId,
     confirmDeleteId,
     setConfirmDeleteId,
+    confirmDeleteMemedId,
+    setConfirmDeleteMemedId,
+    deletingMemedId,
     templateModalTipo,
     setTemplateModalTipo,
     manualModalTipo,
@@ -122,6 +141,7 @@ export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0
     fetchDocumentos,
     registrarDocumentoCriado,
     handleDelete,
+    handleDeleteMemed,
     toggleDropdown,
     handleAcao,
     salvarDocumentoManual,

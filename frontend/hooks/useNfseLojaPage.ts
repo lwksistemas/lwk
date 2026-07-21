@@ -51,6 +51,7 @@ const CONFIRM_COPY: Record<
 /** Listagem + ações de NFS-e da loja (CRM e Clínica da Beleza). */
 export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
   const toast = useToast();
+  const _lojaProvedor = lojaProvedor ?? undefined;
   const { whatsappAtivo } = useWhatsappEnvioFlags();
 
   const [showModal, setShowModal] = useState(false);
@@ -139,7 +140,7 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
   const sincronizarStatus = async (e: MouseEvent, nf: NFSe) => {
     e.preventDefault();
     e.stopPropagation();
-    const endpoint = nfseSyncEndpoint(nf, lojaProvedor);
+    const endpoint = nfseSyncEndpoint(nf, _lojaProvedor);
     if (!endpoint) {
       setSyncMsg({ type: 'err', text: 'Sincronização não disponível para este provedor.' });
       return;
@@ -212,7 +213,7 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
       const res = await apiClient.get(`/nfse/${nf.id}/download_pdf/`);
 
       if (openPdfFromJsonUrl(res.data)) {
-        if (nfUsaIssnet(nf, lojaProvedor)) {
+        if (nfUsaIssnet(nf, _lojaProvedor)) {
           try {
             await apiClient.post(`/nfse/${nf.id}/sincronizar-issnet/`);
             await carregarNFSes(true);
@@ -299,7 +300,7 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
   const confirmCopy = confirmAction ? CONFIRM_COPY[confirmAction.type] : null;
 
   return {
-    lojaProvedor,
+    lojaProvedor: _lojaProvedor,
     whatsappAtivo,
     showModal,
     setShowModal,

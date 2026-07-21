@@ -35,6 +35,7 @@ export function useCriarAgendamentoEffects(
     setShowAdvanced: (v: boolean) => void;
     retornoProcedureId: number | "";
     professionalId: number | "";
+    dateInput: string;
     setHorariosProfissional: (h: HorarioTrabalho[]) => void;
     setVerificandoRetorno: (v: boolean) => void;
   },
@@ -53,6 +54,7 @@ export function useCriarAgendamentoEffects(
     setShowAdvanced,
     retornoProcedureId,
     professionalId,
+    dateInput,
     setHorariosProfissional,
     setVerificandoRetorno,
   } = localState;
@@ -142,6 +144,7 @@ export function useCriarAgendamentoEffects(
           patient_id: Number(patientId),
           procedure_ids: procedureIds.length ? procedureIds : undefined,
           retorno_procedure_id: retornoProcedureId ? Number(retornoProcedureId) : undefined,
+          reference_date: dateInput || undefined,
         });
         if (!cancelled) setRetornoInfo(result);
       } catch {
@@ -159,6 +162,7 @@ export function useCriarAgendamentoEffects(
     patientId,
     selectedProcedures,
     retornoProcedureId,
+    dateInput,
     setRetornoInfo,
     setVerificandoRetorno,
   ]);

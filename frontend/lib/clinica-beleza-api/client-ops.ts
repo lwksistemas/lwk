@@ -110,11 +110,13 @@ export const retornoApi = {
     procedure_ids?: number[];
     retorno_procedure_id?: number;
     exclude_appointment_id?: number;
+    reference_date?: string;
   }) => {
     const qs = new URLSearchParams({ patient_id: String(params.patient_id) });
     if (params.procedure_ids?.length) qs.set("procedure_ids", params.procedure_ids.join(","));
     if (params.retorno_procedure_id) qs.set("retorno_procedure_id", String(params.retorno_procedure_id));
     if (params.exclude_appointment_id) qs.set("exclude_appointment_id", String(params.exclude_appointment_id));
+    if (params.reference_date) qs.set("reference_date", params.reference_date);
     return cbGet<RetornoVerificacaoResult>(`/retorno/verificar/?${qs.toString()}`);
   },
 };

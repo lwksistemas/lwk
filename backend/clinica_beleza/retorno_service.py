@@ -394,7 +394,7 @@ def verificar_retorno_appointments_batch(appointments) -> dict[int, RetornoElegi
 
 
 def aplicar_retorno_em_consulta(consulta, appointment=None) -> RetornoElegibilidade:
-    """Zera valor_consulta quando elegível; persiste flags na consulta."""
+    """Zera valor_consulta quando elegível; persiste flags na consulta e sincroniza Payment."""
     appointment = appointment or consulta.appointment
     resultado = verificar_retorno_appointment(appointment)
     update_fields = ["updated_at"]
@@ -411,6 +411,12 @@ def aplicar_retorno_em_consulta(consulta, appointment=None) -> RetornoElegibilid
             update_fields.append("retorno_tipo")
         if len(update_fields) > 1:
             consulta.save(update_fields=update_fields)
+            # Sincronizar Payment.valor_total para refletir o novo valor (taxa zerada)
+            try:
+                from .consulta_service.payment import _sincronizar_recebimento_apos_procedimento
+                _sincronizar_recebimento_apos_procedimento(consulta)
+            except Exception:
+                logger.exception("Erro ao sincronizar Payment após retorno (consulta %s)", consulta.id)
 
     return resultado
 

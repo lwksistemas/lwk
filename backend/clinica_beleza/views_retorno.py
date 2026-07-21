@@ -117,10 +117,19 @@ class RetornoVerificarView(APIView):
         exclude_appt = request.query_params.get("exclude_appointment_id")
         exclude_id = int(exclude_appt) if exclude_appt and str(exclude_appt).isdigit() else None
 
+        # Data do agendamento como referência para cálculo do prazo
+        reference_date = None
+        raw_date = (request.query_params.get("reference_date") or "").strip()
+        if raw_date:
+            from django.utils.dateparse import parse_datetime, parse_date
+
+            reference_date = parse_datetime(raw_date) or parse_date(raw_date)
+
         resultado = verificar_retorno(
             int(patient_id),
             procedure_ids,
             loja_id,
+            reference_date=reference_date,
             exclude_appointment_id=exclude_id,
         )
         config = get_agenda_retorno_config(loja_id)

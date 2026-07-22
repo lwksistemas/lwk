@@ -22,6 +22,9 @@ class ContaSerializer(
     phone_fields = ["telefone"]
     uppercase_fields = ["nome", "razao_social", "segmento", "cidade", "bairro", "uf"]
 
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
+    site = serializers.URLField(required=False, allow_blank=True, allow_null=True)
+
     class Meta:
         model = Conta
         fields = [
@@ -33,12 +36,12 @@ class ContaSerializer(
         read_only_fields = ["created_at", "updated_at"]
 
     def validate_email(self, value):
-        if value == "":
+        if not value or value.strip() == "":
             return None
         return value
 
     def validate_site(self, value):
-        if value == "":
+        if not value or value.strip() == "":
             return None
         return value
 

@@ -110,11 +110,20 @@ export default function NovaContaPage() {
       if (detail) {
         setFormErro(detail);
       } else if (resData && typeof resData === 'object') {
-        // Erros de validação: {"campo": ["mensagem"]}
-        const msgs = Object.entries(resData)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-          .join(' | ');
-        setFormErro(msgs || 'Erro ao salvar conta.');
+        // Erros de validação: {"campo": ["mensagem"]} ou {"non_field_errors": ["msg"]}
+        const nonField = resData.non_field_errors;
+        if (Array.isArray(nonField) && nonField.length > 0) {
+          setFormErro(nonField.join(' '));
+        } else {
+          const msgs = Object.entries(resData)
+            .filter(([k]) => k !== 'non_field_errors')
+            .map(([k, v]) => {
+              const msg = Array.isArray(v) ? v.join(', ') : String(v);
+              return `${k}: ${msg}`;
+            })
+            .join(' | ');
+          setFormErro(msgs || 'Erro ao salvar conta.');
+        }
       } else {
         setFormErro('Erro ao salvar conta.');
       }

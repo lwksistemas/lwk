@@ -17,6 +17,7 @@ export function formatApiErrorBody(data: unknown): string {
     .filter(([k]) => k !== 'detail' && k !== 'error')
     .map(([key, val]) => {
       const msg = Array.isArray(val) ? val.map((v) => String(v)).join(' ') : String(val);
+      if (key === 'non_field_errors') return msg;
       return `${key}: ${msg}`;
     });
   if (fieldMessages.length) return fieldMessages.join(' · ');

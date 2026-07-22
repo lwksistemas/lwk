@@ -151,10 +151,14 @@ class ConsultaDetailView(GetObjectMixin, APIView):
         if err:
             return err
         if consulta_esta_concluida(obj):
-            return Response(
-                {"error": "Consulta finalizada não pode ser editada."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            # Consulta finalizada: permite editar apenas convênio e local de atendimento
+            campos_permitidos = {"convenio", "local_atendimento"}
+            campos_enviados = set(request.data.keys())
+            if not campos_enviados.issubset(campos_permitidos):
+                return Response(
+                    {"error": "Consulta finalizada — só é possível editar convênio e local de atendimento."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         serializer = ConsultaSerializer(obj, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()

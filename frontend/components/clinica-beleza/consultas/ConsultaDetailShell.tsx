@@ -93,6 +93,7 @@ export function ConsultaDetailShell({
             onEmitirNfse={actions.emitirNfseConsulta}
             onFinalizar={actions.abrirFinalizarModal}
             onExcluir={actions.excluirConsulta}
+            onRefreshConsulta={refreshConsulta}
           />
           <ConsultaDetailTabBar
             tab={tab}

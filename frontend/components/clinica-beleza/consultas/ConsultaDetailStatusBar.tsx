@@ -1,12 +1,14 @@
 "use client";
 
-import { CheckCircle2, FileText, Play, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, FileText, Pencil, Play, Trash2 } from "lucide-react";
 import {
   CLINICA_CONSULTA_STATUS_COLORS,
   CLINICA_CONSULTA_STATUS_LABEL,
 } from "@/lib/clinica-beleza-constants";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { toUpperCase } from "@/lib/format-br";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { ConsultaPagamentoButton } from "./ConsultaPagamentoButton";
 import type { Consulta, ConsultaProcedimento } from "./consultas-types";
 
@@ -28,6 +30,7 @@ interface ConsultaDetailStatusBarProps {
   onEmitirNfse?: () => void;
   onFinalizar: () => void;
   onExcluir: () => void;
+  onRefreshConsulta?: () => void;
 }
 
 export function ConsultaDetailStatusBar({
@@ -48,9 +51,40 @@ export function ConsultaDetailStatusBar({
   onEmitirNfse,
   onFinalizar,
   onExcluir,
+  onRefreshConsulta,
 }: ConsultaDetailStatusBarProps) {
   const statusColors =
     CLINICA_CONSULTA_STATUS_COLORS[selected.status] ?? CLINICA_CONSULTA_STATUS_COLORS.SCHEDULED;
+  const consultaFinalizada = selected.status === "COMPLETED";
+  const [editandoLocal, setEditandoLocal] = useState(false);
+  const [editandoConvenio, setEditandoConvenio] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [locaisAtendimento, setLocaisAtendimento] = useState<Array<{ id: number; nome: string }>>([]);
+  const [convenios, setConvenios] = useState<Array<{ id: number; nome: string }>>([]);
+
+  useEffect(() => {
+    if (!consultaFinalizada) return;
+    ClinicaBelezaAPI.locaisAtendimento.list().then((data) => {
+      setLocaisAtendimento(Array.isArray(data) ? data.map((l: { id: number; nome: string }) => ({ id: l.id, nome: l.nome })) : []);
+    }).catch(() => {});
+    ClinicaBelezaAPI.convenios.list().then((data) => {
+      const items = Array.isArray(data) ? data : (data as { results?: unknown[] })?.results ?? [];
+      setConvenios(items.map((c: { id: number; nome: string }) => ({ id: c.id, nome: c.nome })));
+    }).catch(() => {});
+  }, [consultaFinalizada]);
+
+  const salvarCampo = async (campo: "local_atendimento" | "convenio", valor: number | null) => {
+    setSalvando(true);
+    try {
+      await ClinicaBelezaAPI.consultas.update(selected.id, { [campo]: valor });
+      onRefreshConsulta?.();
+    } catch { /* silencioso */ }
+    finally {
+      setSalvando(false);
+      setEditandoLocal(false);
+      setEditandoConvenio(false);
+    }
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
@@ -81,20 +115,72 @@ export function ConsultaDetailStatusBar({
           </strong>
         </span>
       )}
-      {selected.local_atendimento_name && (
-        <span>
+      {selected.local_atendimento_name && !editandoLocal && (
+        <span className="inline-flex items-center gap-1">
           Local:{" "}
           <strong className="text-gray-800 dark:text-gray-200 uppercase">
             {toUpperCase(selected.local_atendimento_name)}
           </strong>
+          {consultaFinalizada && locaisAtendimento.length > 0 && (
+            <button type="button" onClick={() => setEditandoLocal(true)} className="text-gray-400 hover:text-gray-600" title="Editar local">
+              <Pencil size={12} />
+            </button>
+          )}
         </span>
       )}
-      <span>
-        Convênio:{" "}
-        <strong className="text-gray-800 dark:text-gray-200 uppercase">
-          {toUpperCase(selected.convenio_name || "Particular")}
-        </strong>
-      </span>
+      {editandoLocal && (
+        <span className="inline-flex items-center gap-1">
+          Local:{" "}
+          <select
+            className="text-xs border rounded px-1 py-0.5 dark:bg-neutral-800 dark:border-neutral-600"
+            defaultValue={selected.local_atendimento ?? ""}
+            disabled={salvando}
+            onChange={(e) => {
+              const v = e.target.value;
+              salvarCampo("local_atendimento", v ? Number(v) : null);
+            }}
+          >
+            <option value="">— Nenhum —</option>
+            {locaisAtendimento.map((l) => (
+              <option key={l.id} value={l.id}>{l.nome}</option>
+            ))}
+          </select>
+          <button type="button" onClick={() => setEditandoLocal(false)} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+        </span>
+      )}
+      {!editandoConvenio && (
+        <span className="inline-flex items-center gap-1">
+          Convênio:{" "}
+          <strong className="text-gray-800 dark:text-gray-200 uppercase">
+            {toUpperCase(selected.convenio_name || "Particular")}
+          </strong>
+          {consultaFinalizada && convenios.length > 0 && (
+            <button type="button" onClick={() => setEditandoConvenio(true)} className="text-gray-400 hover:text-gray-600" title="Editar convênio">
+              <Pencil size={12} />
+            </button>
+          )}
+        </span>
+      )}
+      {editandoConvenio && (
+        <span className="inline-flex items-center gap-1">
+          Convênio:{" "}
+          <select
+            className="text-xs border rounded px-1 py-0.5 dark:bg-neutral-800 dark:border-neutral-600"
+            defaultValue={selected.convenio ?? ""}
+            disabled={salvando}
+            onChange={(e) => {
+              const v = e.target.value;
+              salvarCampo("convenio", v ? Number(v) : null);
+            }}
+          >
+            <option value="">Particular</option>
+            {convenios.map((c) => (
+              <option key={c.id} value={c.id}>{c.nome}</option>
+            ))}
+          </select>
+          <button type="button" onClick={() => setEditandoConvenio(false)} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+        </span>
+      )}
       <div className="ml-auto flex flex-wrap gap-2">
         {outraConsultaEmAndamento &&
           (selected.status === "SCHEDULED" || selected.status === "RECEBER") && (

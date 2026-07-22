@@ -32,3 +32,13 @@ class ContaSerializer(
         ]
         read_only_fields = ["created_at", "updated_at"]
 
+    def validate_email(self, value):
+        if value == "":
+            return None
+        return value
+
+    def validate_site(self, value):
+        if value == "":
+            return None
+        return value
+

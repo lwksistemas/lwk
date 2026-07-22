@@ -6,8 +6,8 @@ inclusion: always
 
 ## Arquitetura
 
-- **Backend**: Django 5 + DRF, multi-tenant com schemas PostgreSQL por loja
-- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS
+- **Backend**: Django 6 + DRF 3.17, multi-tenant com schemas PostgreSQL por loja
+- **Frontend**: Next.js 16.2 (App Router), TypeScript 6, Tailwind CSS 4
 - **Deploy**: Backend no Railway (`npx railway up --detach`), Frontend no Vercel (`npx vercel --prod --yes`)
 - **Banco**: PostgreSQL (Railway) + Redis (cache)
 - **Apps por tipo de loja**: clinica_beleza, crm_vendas, cabeleireiro, hotel, restaurante
@@ -43,6 +43,13 @@ inclusion: always
 2. Verificar frontend: `getDiagnostics` nos arquivos alterados
 3. Git: `git add` apenas arquivos relevantes → `git commit` com mensagem descritiva → `git push`
 4. Backend: `npx railway up --detach` (a partir da raiz do projeto)
+5. Frontend: `npx vercel --prod --yes` (a partir da raiz do projeto — rootDirectory=frontend no Vercel)
+6. Se criou tabela nova: rodar SQL `CREATE TABLE IF NOT EXISTS` em todos os schemas via `npx railway run python3 -c "..."`
+
+### Regra de ambientes
+
+- **Padrão**: desenvolver no branch `staging`, testar no beta (beta.lwksistemas.com.br), depois fazer merge para `main` e deploy em produção
+- **Correções urgentes em produção**: corrigir direto no `main` e deployar em produção, depois sincronizar o beta: `git checkout staging && git merge main --no-edit && git push origin staging` + deploy preview Vercel + alias beta
 5. Frontend: `npx vercel --prod --yes` (a partir da raiz do projeto — rootDirectory=frontend no Vercel)
 6. Se criou tabela nova: rodar SQL `CREATE TABLE IF NOT EXISTS` em todos os schemas via `npx railway run python3 -c "..."`
 

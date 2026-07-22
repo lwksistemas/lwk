@@ -196,5 +196,23 @@ export function useLojaInadimplenciaGuard(slug: string) {
 
   const avisoVisivel = Boolean(aviso?.mensagem);
 
-  return { aviso, avisoVisivel };
+  // Auto-dismiss: sumir após 2 minutos, reaparecer ao trocar de página
+  const [dismissed, setDismissed] = useState(false);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Ao mudar de página, mostra o banner novamente e reinicia o timer
+  useEffect(() => {
+    setDismissed(false);
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    if (aviso?.mensagem) {
+      dismissTimerRef.current = setTimeout(() => setDismissed(true), 2 * 60 * 1000);
+    }
+    return () => {
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    };
+  }, [pathname, aviso?.mensagem]);
+
+  const bannerVisivel = avisoVisivel && !dismissed;
+
+  return { aviso, avisoVisivel: bannerVisivel };
 }

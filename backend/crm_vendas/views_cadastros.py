@@ -48,6 +48,12 @@ class ContaViewSet(
     cache_keys = ["contas"]
     crm_permission_model = "conta"
 
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        if response.status_code >= 400:
+            logger.warning("[ContaViewSet.create] 400 payload=%s erros=%s", request.data, response.data)
+        return response
+
     def get_queryset(self):
         qs = super().get_queryset()
         qs = self.filter_by_vendedor(qs)

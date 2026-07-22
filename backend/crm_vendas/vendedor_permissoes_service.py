@@ -156,6 +156,8 @@ def aplicar_permissoes_usuario_crm(user, grupo_id: int | None, permissoes_ids: l
 
 def permissoes_codenames_usuario_crm(user) -> list[str]:
     """Codenames Django efetivos (diretas + via grupo) no escopo CRM."""
+    if not user or not hasattr(user, "pk") or not user.pk:
+        return []
     crm_ids = set(obter_queryset_permissoes_crm().values_list("id", flat=True))
     codenames: set[str] = set()
     for codename in user.user_permissions.filter(id__in=crm_ids).values_list("codename", flat=True):

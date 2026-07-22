@@ -105,8 +105,19 @@ export default function NovaContaPage() {
       await apiClient.post('/crm-vendas/contas/', applyTelefoneInternacionalPayload(formData));
       router.push(listPath);
     } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setFormErro(detail || 'Erro ao salvar conta.');
+      const resData = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
+      const detail = resData?.detail as string | undefined;
+      if (detail) {
+        setFormErro(detail);
+      } else if (resData && typeof resData === 'object') {
+        // Erros de validação: {"campo": ["mensagem"]}
+        const msgs = Object.entries(resData)
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+          .join(' | ');
+        setFormErro(msgs || 'Erro ao salvar conta.');
+      } else {
+        setFormErro('Erro ao salvar conta.');
+      }
     } finally {
       setSaving(false);
     }

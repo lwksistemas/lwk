@@ -35,6 +35,7 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
   const [parcelasData, setParcelasData] = useState<ParcelasData | null>(null);
   const [loadingParcelas, setLoadingParcelas] = useState(false);
   const [valor, setValor] = useState("");
+  const [desconto, setDesconto] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
   const [observacoes, setObservacoes] = useState("");
@@ -56,6 +57,7 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
   useEffect(() => {
     if (!payment) return;
     setValor("");
+    setDesconto("");
     setPaymentMethod("CASH");
     setPaymentDate(new Date().toISOString().slice(0, 10));
     setObservacoes("");
@@ -72,22 +74,28 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
   const parcelas = parcelasData?.parcelas ?? [];
 
   const valorEntrada = Number(valor) || 0;
-  const saldoAposEntrada = Math.max(0, saldoDevedor - valorEntrada);
-  const quitaTotal = valorEntrada > 0 && valorEntrada >= saldoDevedor;
+  const valorDesconto = Number(desconto) || 0;
+  const saldoAposEntrada = Math.max(0, saldoDevedor - valorEntrada - valorDesconto);
+  const quitaTotal = (valorEntrada + valorDesconto) > 0 && (valorEntrada + valorDesconto) >= saldoDevedor;
 
   const handleConfirm = async () => {
-    if (!valor || Number(valor) <= 0) {
-      setError("Informe o valor recebido.");
+    if ((!valor || Number(valor) <= 0) && valorDesconto <= 0) {
+      setError("Informe o valor recebido ou um desconto.");
+      return;
+    }
+    if (valorDesconto > saldoDevedor) {
+      setError("Desconto não pode ser maior que o saldo devedor.");
       return;
     }
     setSaving(true);
     setError("");
     try {
       await ClinicaBelezaAPI.financeiro.payments.parcelas.add(payment.id, {
-        valor: Number(valor),
+        valor: valorEntrada,
         payment_method: paymentMethod,
         payment_date: paymentDate,
         observacoes,
+        desconto: valorDesconto > 0 ? valorDesconto : undefined,
       });
       if (quitaTotal) {
         onSuccess();
@@ -95,6 +103,7 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
       } else {
         await carregarParcelas(payment.id);
         setValor("");
+        setDesconto("");
         setObservacoes("");
       }
     } catch {
@@ -240,6 +249,28 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
                         {quitaTotal
                           ? "Quita o saldo completo"
                           : `Restará ${formatCurrency(saldoAposEntrada)} após este pagamento`}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Desconto (R$){" "}
+                      <span className="text-gray-400 font-normal">(opcional)</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={saldoDevedor}
+                      value={desconto}
+                      onChange={(e) => setDesconto(e.target.value)}
+                      placeholder="0,00"
+                      className={inputClass}
+                    />
+                    {valorDesconto > 0 && (
+                      <p className="text-xs mt-1 font-medium text-orange-600 dark:text-orange-400">
+                        Desconto de {formatCurrency(valorDesconto)} será aplicado no saldo
                       </p>
                     )}
                   </div>

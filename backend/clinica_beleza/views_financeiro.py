@@ -212,7 +212,10 @@ class PaymentParcelaView(APIView):
         except InvalidOperation:
             return Response({"error": "Valor inválido."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if valor <= 0:
+        desconto_param = request.data.get("desconto")
+        has_desconto = desconto_param and Decimal(str(desconto_param)) > 0 if desconto_param else False
+
+        if valor <= 0 and not has_desconto:
             return Response({"error": "Valor deve ser maior que zero."}, status=status.HTTP_400_BAD_REQUEST)
 
         payment_method = (request.data.get("payment_method") or "CASH").strip()
@@ -242,14 +245,33 @@ class PaymentParcelaView(APIView):
             )
 
         # Consulta finalizada: baixa / complemento em qualquer data pelo Financeiro
-        parcela = PaymentParcela.objects.create(
-            payment=payment,
-            valor=valor,
-            payment_method=payment_method,
-            payment_date=payment_date,
-            observacoes=observacoes,
-            loja_id=payment.loja_id,
-        )
+
+        # Aplicar desconto se informado (reduz valor_total do payment)
+        desconto_raw = request.data.get("desconto")
+        desconto = Decimal(0)
+        if desconto_raw:
+            try:
+                desconto = Decimal(str(desconto_raw))
+            except (InvalidOperation, TypeError, ValueError):
+                desconto = Decimal(0)
+            if desconto > 0:
+                novo_total = max(Decimal(0), payment.valor_total_efetivo - desconto)
+                payment.valor_total = novo_total
+                # Registrar desconto nas notas do payment
+                notas_desc = f"Desconto: R$ {desconto:.2f}"
+                payment.notes = f"{payment.notes or ''}\n{notas_desc}".strip() if payment.notes else notas_desc
+                payment.save(update_fields=["valor_total", "notes", "updated_at"])
+
+        parcela = None
+        if valor > 0:
+            parcela = PaymentParcela.objects.create(
+                payment=payment,
+                valor=valor,
+                payment_method=payment_method,
+                payment_date=payment_date,
+                observacoes=observacoes,
+                loja_id=payment.loja_id,
+            )
         total_pago = payment.valor_pago_parcelas
         total_devedor = payment.valor_total_efetivo
         if total_pago >= total_devedor:

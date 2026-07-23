@@ -114,7 +114,6 @@ export default function OportunidadeItensEditor({
             itensSelecionados={itens.map((i) => i.produto_servico_id)}
             onSelecionar={(ps) => {
               onAddProduto(ps);
-              onSeletorAbertoChange(false);
             }}
             onFechar={() => onSeletorAbertoChange(false)}
           />

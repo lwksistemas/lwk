@@ -57,11 +57,6 @@ export default function OportunidadeFormFields({ slug, etapas, layout, formState
         inputClassName={inputCls}
         limit={15}
       />
-      {form.lead_id && leadResumo && (
-        <p className={`text-xs text-green-600 dark:text-green-400 mt-1 ${isPage ? 'font-medium' : ''}`}>
-          ✓ {leadResumo.nome}
-        </p>
-      )}
       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
         Não encontrou?{' '}
         <Link href={`/loja/${slug}/crm-vendas/leads/novo`} className={`underline ${isPage ? 'font-medium' : ''}`}>

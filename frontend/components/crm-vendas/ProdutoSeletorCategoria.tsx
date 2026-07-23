@@ -17,11 +17,15 @@ interface Props {
   produtos: Produto[];
   onSelecionar: (produto: Produto) => void;
   onFechar: () => void;
-  itensSelecionados?: number[]; // ids já adicionados
+  itensSelecionados?: number[];
+  categoriaSelecionada?: string | null;
+  onCategoriaChange?: (cat: string | null) => void;
 }
 
-export default function ProdutoSeletorCategoria({ produtos, onSelecionar, onFechar, itensSelecionados = [] }: Props) {
-  const [categoriaSelecionada, setCategoriaSelecionada] = useState<string | null>(null);
+export default function ProdutoSeletorCategoria({ produtos, onSelecionar, onFechar, itensSelecionados = [], categoriaSelecionada: categoriaProp, onCategoriaChange }: Props) {
+  const [categoriaLocal, setCategoriaLocal] = useState<string | null>(null);
+  const categoriaSelecionada = categoriaProp !== undefined ? categoriaProp : categoriaLocal;
+  const setCategoriaSelecionada = onCategoriaChange || setCategoriaLocal;
 
   // Agrupar por categoria
   const grupos = produtos.reduce<Record<string, Produto[]>>((acc, p) => {

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { X } from 'lucide-react';
 import ProdutoSeletorCategoria from '@/components/crm-vendas/ProdutoSeletorCategoria';
@@ -36,6 +37,7 @@ export default function OportunidadeItensEditor({
   showHeader = true,
 }: Props) {
   const isPage = layout === 'page';
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState<string | null>(null);
 
   return (
     <div>
@@ -112,10 +114,15 @@ export default function OportunidadeItensEditor({
           <ProdutoSeletorCategoria
             produtos={produtos}
             itensSelecionados={itens.map((i) => i.produto_servico_id)}
+            categoriaSelecionada={categoriaSelecionada}
+            onCategoriaChange={setCategoriaSelecionada}
             onSelecionar={(ps) => {
               onAddProduto(ps);
             }}
-            onFechar={() => onSeletorAbertoChange(false)}
+            onFechar={() => {
+              onSeletorAbertoChange(false);
+              setCategoriaSelecionada(null);
+            }}
           />
         </div>
       )}

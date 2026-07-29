@@ -139,10 +139,12 @@ class RecorrenciaFinanceiroCRM(LojaIsolationMixin, models.Model):
 
     FREQ_MENSAL = "mensal"
     FREQ_TRIMESTRAL = "trimestral"
+    FREQ_SEMESTRAL = "semestral"
     FREQ_ANUAL = "anual"
     FREQ_CHOICES = (
         (FREQ_MENSAL, "Mensal"),
         (FREQ_TRIMESTRAL, "Trimestral"),
+        (FREQ_SEMESTRAL, "Semestral"),
         (FREQ_ANUAL, "Anual"),
     )
 

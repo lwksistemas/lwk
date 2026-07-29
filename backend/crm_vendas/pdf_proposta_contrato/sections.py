@@ -132,13 +132,20 @@ def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=Tru
     valor_unico = 0
     valor_mensal = 0
     valor_trimestral = 0
+    valor_semestral = 0
     valor_anual = 0
     for item in itens:
         ps = item.produto_servico
         tipo_ps = ps.get_tipo_display() if hasattr(ps, "get_tipo_display") else getattr(ps, "tipo", "")
         nome = f"{tipo_ps}: {ps.nome}" if tipo_ps else ps.nome
         recorrencia = getattr(ps, "recorrencia", "unico") or "unico"
-        recorrencia_label = {"unico": "Único", "mensal": "Mensal", "trimestral": "Trimestral", "anual": "Anual"}.get(recorrencia, recorrencia)
+        recorrencia_label = {
+            "unico": "Único",
+            "mensal": "Mensal",
+            "trimestral": "Trimestral",
+            "semestral": "Semestral",
+            "anual": "Anual",
+        }.get(recorrencia, recorrencia)
         qtd = str(item.quantidade) if item.quantidade is not None else "1"
         preco = _formatar_valor(item.preco_unitario)
         sub = item.quantidade * item.preco_unitario if item.quantidade and item.preco_unitario else 0
@@ -153,6 +160,8 @@ def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=Tru
             valor_mensal += float(sub)
         elif recorrencia == "trimestral":
             valor_trimestral += float(sub)
+        elif recorrencia == "semestral":
+            valor_semestral += float(sub)
         elif recorrencia == "anual":
             valor_anual += float(sub)
     if incluir_recorrencia:
@@ -173,7 +182,7 @@ def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=Tru
     ]))
     t.hAlign = "LEFT"
     elements.append(t)
-    return valor_unico, valor_mensal, valor_trimestral, valor_anual
+    return valor_unico, valor_mensal, valor_trimestral, valor_semestral, valor_anual
 
 
 def _build_secao_desconto(elements, documento, style):
@@ -187,6 +196,7 @@ def _build_secao_desconto(elements, documento, style):
     valor_unico = 0
     valor_mensal = 0
     valor_trimestral = 0
+    valor_semestral = 0
     valor_anual = 0
     if oportunidade:
         try:
@@ -200,6 +210,8 @@ def _build_secao_desconto(elements, documento, style):
                     valor_mensal += sub
                 elif recorrencia == "trimestral":
                     valor_trimestral += sub
+                elif recorrencia == "semestral":
+                    valor_semestral += sub
                 elif recorrencia == "anual":
                     valor_anual += sub
         except Exception:
@@ -213,6 +225,8 @@ def _build_secao_desconto(elements, documento, style):
         resumo_data.append(["Valor Mensal:", f"{_formatar_valor(valor_mensal)}/mês"])
     if valor_trimestral > 0:
         resumo_data.append(["Valor Trimestral:", f"{_formatar_valor(valor_trimestral)}/trimestre"])
+    if valor_semestral > 0:
+        resumo_data.append(["Valor Semestral:", f"{_formatar_valor(valor_semestral)}/semestre"])
     if valor_anual > 0:
         resumo_data.append(["Valor Anual:", f"{_formatar_valor(valor_anual)}/ano"])
     resumo_data.append(["Valor Total:", _formatar_valor(valor_total)])

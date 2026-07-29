@@ -11,6 +11,9 @@ interface DocumentoData {
   valor_total: string;
   valor_adesao?: string;
   valor_mensal?: string;
+  valor_trimestral?: string;
+  valor_semestral?: string;
+  valor_anual?: string;
   tem_desconto?: boolean;
   desconto_tipo?: string;
   desconto_valor?: string;
@@ -47,7 +50,11 @@ function BlocoValores({ documento }: { documento: DocumentoData }) {
   const valorComDesconto = formatarMoeda(documento.valor_com_desconto || documento.valor_total);
   const adesao = parseFloat(documento.valor_adesao || '0');
   const mensal = parseFloat(documento.valor_mensal || '0');
+  const trimestral = parseFloat(documento.valor_trimestral || '0');
+  const semestral = parseFloat(documento.valor_semestral || '0');
+  const anual = parseFloat(documento.valor_anual || '0');
   const temDesconto = Boolean(documento.tem_desconto);
+  const temParcelas = adesao > 0 || mensal > 0 || trimestral > 0 || semestral > 0 || anual > 0;
 
   const linhaDesconto = temDesconto ? (
     <>
@@ -62,38 +69,42 @@ function BlocoValores({ documento }: { documento: DocumentoData }) {
     </>
   ) : null;
 
-  if (adesao > 0 && mensal > 0) {
+  if (temParcelas) {
     return (
       <div className="space-y-2">
-        <div>
-          <p className="text-sm text-gray-500">Adesão/Implantação</p>
-          <p className="text-lg font-bold text-gray-800">{formatarMoeda(adesao)}</p>
-        </div>
-        <div>
-          <p className="text-sm text-gray-500">Valor Mensal</p>
-          <p className="text-lg font-bold text-blue-600">{formatarMoeda(mensal)}/mês</p>
-        </div>
+        {adesao > 0 && (
+          <div>
+            <p className="text-sm text-gray-500">Adesão/Implantação</p>
+            <p className="text-lg font-bold text-gray-800">{formatarMoeda(adesao)}</p>
+          </div>
+        )}
+        {mensal > 0 && (
+          <div>
+            <p className="text-sm text-gray-500">Valor Mensal</p>
+            <p className="text-lg font-bold text-blue-600">{formatarMoeda(mensal)}/mês</p>
+          </div>
+        )}
+        {trimestral > 0 && (
+          <div>
+            <p className="text-sm text-gray-500">Valor Trimestral</p>
+            <p className="text-lg font-bold text-indigo-600">{formatarMoeda(trimestral)}/trimestre</p>
+          </div>
+        )}
+        {semestral > 0 && (
+          <div>
+            <p className="text-sm text-gray-500">Valor Semestral</p>
+            <p className="text-lg font-bold text-teal-600">{formatarMoeda(semestral)}/semestre</p>
+          </div>
+        )}
+        {anual > 0 && (
+          <div>
+            <p className="text-sm text-gray-500">Valor Anual</p>
+            <p className="text-lg font-bold text-purple-600">{formatarMoeda(anual)}/ano</p>
+          </div>
+        )}
         <div className="pt-1 border-t">
           <p className="text-sm text-gray-500">Valor Total</p>
           <p className={`text-2xl font-bold ${temDesconto ? 'text-gray-700 line-through decoration-red-400' : 'text-green-600'}`}>
-            {valorTotal}
-          </p>
-        </div>
-        {linhaDesconto}
-      </div>
-    );
-  }
-
-  if (mensal > 0) {
-    return (
-      <div className="space-y-2">
-        <div>
-          <p className="text-sm text-gray-500">Valor Mensal</p>
-          <p className="text-2xl font-bold text-blue-600">{formatarMoeda(mensal)}/mês</p>
-        </div>
-        <div>
-          <p className="text-sm text-gray-500">Valor Total</p>
-          <p className={`text-lg font-bold ${temDesconto ? 'text-gray-700 line-through decoration-red-400' : 'text-green-600'}`}>
             {valorTotal}
           </p>
         </div>

@@ -123,12 +123,17 @@ export function ProdutoServicoForm({
         </label>
         <select
           value={formData.recorrencia || 'unico'}
-          onChange={(e) => onChange({ recorrencia: e.target.value as 'unico' | 'mensal' | 'trimestral' | 'anual' })}
+          onChange={(e) =>
+            onChange({
+              recorrencia: e.target.value as 'unico' | 'mensal' | 'trimestral' | 'semestral' | 'anual',
+            })
+          }
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
         >
           <option value="unico">Único (adesão/implantação)</option>
           <option value="mensal">Mensal</option>
           <option value="trimestral">Trimestral</option>
+          <option value="semestral">Semestral (6 meses)</option>
           <option value="anual">Anual</option>
         </select>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">

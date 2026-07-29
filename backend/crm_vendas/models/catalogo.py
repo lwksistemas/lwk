@@ -61,11 +61,12 @@ class ProdutoServico(LojaIsolationMixin, models.Model):
         ("unico", "Único (adesão/implantação)"),
         ("mensal", "Mensal"),
         ("trimestral", "Trimestral"),
+        ("semestral", "Semestral"),
         ("anual", "Anual"),
     ]
     recorrencia = models.CharField(
         max_length=20, choices=RECORRENCIA_CHOICES, default="unico",
-        help_text="Tipo de cobrança: único (adesão) ou recorrente (mensal, trimestral, anual)",
+        help_text="Tipo de cobrança: único (adesão) ou recorrente (mensal, trimestral, semestral, anual)",
     )
     ativo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -220,6 +220,12 @@ class TestRecorrenciaFinanceiro(TestCase):
 
         self.assertEqual(_adicionar_periodo(date(2026, 3, 10), "trimestral"), date(2026, 6, 10))
 
+    def test_adicionar_periodo_semestral(self):
+        from crm_vendas.services_recorrencia_financeiro import _adicionar_periodo
+
+        self.assertEqual(_adicionar_periodo(date(2026, 1, 31), "semestral"), date(2026, 7, 31))
+        self.assertEqual(_adicionar_periodo(date(2026, 8, 15), "semestral"), date(2027, 2, 15))
+
     def test_criar_recorrencia_vincula_primeiro_lancamento(self):
         from crm_vendas.services_recorrencia_financeiro import criar_recorrencia_com_primeiro_lancamento
 

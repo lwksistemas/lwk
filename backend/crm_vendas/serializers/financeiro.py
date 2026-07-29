@@ -28,7 +28,12 @@ class LancamentoFinanceiroCRMSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
         default="mensal",
-        choices=[("mensal", "Mensal"), ("trimestral", "Trimestral"), ("anual", "Anual")],
+        choices=[
+            ("mensal", "Mensal"),
+            ("trimestral", "Trimestral"),
+            ("semestral", "Semestral"),
+            ("anual", "Anual"),
+        ],
     )
     data_fim_recorrencia = serializers.DateField(write_only=True, required=False, allow_null=True)
 

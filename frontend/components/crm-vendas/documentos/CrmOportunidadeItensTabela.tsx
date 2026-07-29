@@ -7,8 +7,24 @@ const RECORRENCIA_LABEL: Record<string, string> = {
   unico: 'Único',
   mensal: 'Mensal',
   trimestral: 'Trimestral',
+  semestral: 'Semestral',
   anual: 'Anual',
 };
+
+function badgeClass(recorrencia: string | undefined): string {
+  switch (recorrencia) {
+    case 'mensal':
+      return 'bg-blue-100 text-blue-700';
+    case 'trimestral':
+      return 'bg-indigo-100 text-indigo-700';
+    case 'semestral':
+      return 'bg-teal-100 text-teal-700';
+    case 'anual':
+      return 'bg-purple-100 text-purple-700';
+    default:
+      return 'bg-gray-100 text-gray-600';
+  }
+}
 
 interface Props {
   itens: OportunidadeItem[];
@@ -28,9 +44,15 @@ export default function CrmOportunidadeItensTabela({ itens }: Props) {
   const valorTrimestral = itens
     .filter((i) => i.produto_servico_recorrencia === 'trimestral')
     .reduce((s, i) => s + i.subtotal, 0);
+  const valorSemestral = itens
+    .filter((i) => i.produto_servico_recorrencia === 'semestral')
+    .reduce((s, i) => s + i.subtotal, 0);
   const valorAnual = itens
     .filter((i) => i.produto_servico_recorrencia === 'anual')
     .reduce((s, i) => s + i.subtotal, 0);
+
+  const temRecorrente =
+    valorMensal > 0 || valorTrimestral > 0 || valorSemestral > 0 || valorAnual > 0;
 
   return (
     <>
@@ -55,17 +77,7 @@ export default function CrmOportunidadeItensTabela({ itens }: Props) {
                   {item.produto_servico_nome}
                 </td>
                 <td className="py-2 px-3 text-center">
-                  <span
-                    className={`text-xs px-1.5 py-0.5 rounded ${
-                      item.produto_servico_recorrencia === 'mensal'
-                        ? 'bg-blue-100 text-blue-700'
-                        : item.produto_servico_recorrencia === 'anual'
-                          ? 'bg-purple-100 text-purple-700'
-                          : item.produto_servico_recorrencia === 'trimestral'
-                            ? 'bg-indigo-100 text-indigo-700'
-                            : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${badgeClass(item.produto_servico_recorrencia)}`}>
                     {RECORRENCIA_LABEL[item.produto_servico_recorrencia || 'unico'] || 'Único'}
                   </span>
                 </td>
@@ -77,7 +89,7 @@ export default function CrmOportunidadeItensTabela({ itens }: Props) {
           </tbody>
         </table>
       </div>
-      {(valorMensal > 0 || valorTrimestral > 0 || valorAnual > 0) && (
+      {temRecorrente && (
         <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 space-y-1">
           {valorUnico > 0 && (
             <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -92,6 +104,11 @@ export default function CrmOportunidadeItensTabela({ itens }: Props) {
           {valorTrimestral > 0 && (
             <p className="text-sm text-indigo-700 dark:text-indigo-300 font-semibold">
               Valor Trimestral: {formatCrmBrl(valorTrimestral)}/trimestre
+            </p>
+          )}
+          {valorSemestral > 0 && (
+            <p className="text-sm text-teal-700 dark:text-teal-300 font-semibold">
+              Valor Semestral: {formatCrmBrl(valorSemestral)}/semestre
             </p>
           )}
           {valorAnual > 0 && (

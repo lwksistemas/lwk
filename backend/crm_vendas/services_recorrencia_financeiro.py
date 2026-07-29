@@ -13,17 +13,17 @@ logger = logging.getLogger(__name__)
 
 def _adicionar_periodo(data: date, frequencia: str) -> date:
     if frequencia == "trimestral":
-        mes = data.month + 3
-        ano = data.year + (mes - 1) // 12
-        mes = ((mes - 1) % 12) + 1
-        dia = min(data.day, calendar.monthrange(ano, mes)[1])
-        return date(ano, mes, dia)
-    if frequencia == "anual":
+        meses = 3
+    elif frequencia == "semestral":
+        meses = 6
+    elif frequencia == "anual":
         ano = data.year + 1
         dia = min(data.day, calendar.monthrange(ano, data.month)[1])
         return date(ano, data.month, dia)
-    # mensal
-    mes = data.month + 1
+    else:
+        # mensal
+        meses = 1
+    mes = data.month + meses
     ano = data.year + (mes - 1) // 12
     mes = ((mes - 1) % 12) + 1
     dia = min(data.day, calendar.monthrange(ano, mes)[1])

@@ -22,7 +22,7 @@ export interface ProdutoServico {
   categoria_nome?: string;
   categoria_cor?: string;
   preco: string;
-  recorrencia: 'unico' | 'mensal' | 'trimestral' | 'anual';
+  recorrencia: 'unico' | 'mensal' | 'trimestral' | 'semestral' | 'anual';
   ativo: boolean;
   created_at: string;
 }
@@ -44,7 +44,7 @@ export interface FormData {
   descricao: string;
   categoria: number | null;
   preco: string;
-  recorrencia: 'unico' | 'mensal' | 'trimestral' | 'anual';
+  recorrencia: 'unico' | 'mensal' | 'trimestral' | 'semestral' | 'anual';
   ativo: boolean;
 }
 

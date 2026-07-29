@@ -83,12 +83,13 @@ class LojaContextHelper:
         if not loja_id:
             return None
 
-        cache_key = f"loja_owner_info_v2_{loja_id}"
+        cache_key = f"loja_owner_info_v3_{loja_id}"
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
 
         try:
+            from superadmin.loja_utils import contato_publico_loja
             from superadmin.models import Loja
             loja = Loja.objects.using("default").select_related("owner").get(id=loja_id)
             # Endereço formatado (sem CEP — CEP vai com telefone no recibo)
@@ -106,17 +107,21 @@ class LojaContextHelper:
                     cidade += f" - {loja.uf}"
                 partes_end.append(cidade)
 
+            tel_publico, email_publico = contato_publico_loja(loja)
             result = {
                 "owner_username": loja.owner.username,
                 "owner_email": loja.owner.email or "",
                 "owner_telefone": getattr(loja, "owner_telefone", "") or "",
-                # Dados da loja para recibos
+                # Contato configurável (recibo) — valores salvos + efetivos
+                "telefone_contato": (loja.telefone_contato or "").strip(),
+                "email_contato": (loja.email_contato or "").strip(),
+                # Dados da loja para recibos (usa contato da clínica se preenchido)
                 "nome": loja.nome or "",
                 "cpf_cnpj": getattr(loja, "cpf_cnpj", "") or "",
                 "endereco": ", ".join(partes_end),
                 "cep": getattr(loja, "cep", "") or "",
-                "telefone": getattr(loja, "owner_telefone", "") or "",
-                "email": loja.owner.email or "",
+                "telefone": tel_publico,
+                "email": email_publico,
             }
             cache.set(cache_key, result, 3600)  # 1 hora
             return result
@@ -162,6 +167,8 @@ class LojaContextHelper:
         cache.delete(f"owner_professional_{loja_id}")
         cache.delete(f"admin_professional_ids_{loja_id}")
         cache.delete(f"loja_owner_info_{loja_id}")
+        cache.delete(f"loja_owner_info_v2_{loja_id}")
+        cache.delete(f"loja_owner_info_v3_{loja_id}")
         cache.delete(f"whatsapp_config_{loja_id}")
         invalidate_dashboard_cache(loja_id)
 

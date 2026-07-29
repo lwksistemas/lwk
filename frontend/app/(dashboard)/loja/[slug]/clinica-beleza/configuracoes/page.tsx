@@ -13,6 +13,7 @@ import {
   Database,
   FileText,
   Palette,
+  Phone,
 } from 'lucide-react';
 import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { useClinicaBelezaTheme } from '@/components/clinica-beleza/ClinicaBelezaThemeContext';
@@ -50,6 +51,13 @@ export default function ClinicaBelezaConfiguracoesPage() {
       href: `${base}/login`,
       icon: LogIn,
       itens: ['Logo', 'Imagem de fundo', 'Cores do login'],
+    },
+    {
+      titulo: 'Contato no recibo',
+      descricao: 'Telefone e e-mail da clínica no recibo impresso ou enviado ao paciente',
+      href: `${base}/contato`,
+      icon: Phone,
+      itens: ['Telefone da clínica', 'E-mail da clínica'],
     },
     {
       titulo: 'Cadastrar profissionais',

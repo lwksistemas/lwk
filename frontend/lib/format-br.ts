@@ -55,6 +55,7 @@ export const TELEFONE_FIELD_NAMES = [
   "celular",
   "whatsapp",
   "owner_telefone",
+  "telefone_contato",
   "whatsapp_numero",
   "telefone_whatsapp",
   "telefone_comercial",

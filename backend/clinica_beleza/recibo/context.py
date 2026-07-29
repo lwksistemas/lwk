@@ -89,9 +89,11 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     except Exception:
         logger.exception("Erro ao ler taxa de consulta do recibo (payment %s)", payment.id)
 
+    from superadmin.loja_utils import contato_publico_loja
+
     doc_raw = (getattr(loja, "cpf_cnpj", "") or "") if loja else ""
-    tel_raw = (getattr(loja, "owner_telefone", "") or "") if loja else ""
     cep_raw = (getattr(loja, "cep", "") or "") if loja else ""
+    tel_raw, email_raw = contato_publico_loja(loja)
     desconto = _extrair_desconto_notes(payment)
     valor_total = float(payment.valor_total_efetivo)
     valor_pago = float(payment.amount or 0)
@@ -110,7 +112,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         subtotal = servicos_soma if servicos_soma > 0 else valor_total
     loja_telefone = telefone_exibicao_brasileiro(tel_raw)
     loja_cep = _formatar_cep(cep_raw)
-    loja_email = (getattr(getattr(loja, "owner", None), "email", "") or "").strip() if loja else ""
+    loja_email = email_raw
 
     return {
         "paciente_nome": getattr(patient, "nome", "Cliente"),

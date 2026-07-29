@@ -118,6 +118,8 @@ class ObterDadosContextoTests(SimpleTestCase):
         loja.uf = "SP"
         loja.cep = "01000000"
         loja.owner_telefone = "11999990000"
+        loja.telefone_contato = ""
+        loja.email_contato = ""
         loja.owner = MagicMock(email="admin@test.com")
         mock_loja_objects.filter.return_value.first.return_value = loja
 

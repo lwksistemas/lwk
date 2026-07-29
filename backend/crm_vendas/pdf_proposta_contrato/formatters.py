@@ -125,14 +125,17 @@ def _obter_dados_loja(loja_id):
         loja = Loja.objects.using("default").filter(id=loja_id).select_related("owner").first()
         if not loja:
             return {}
+        from superadmin.loja_utils import contato_publico_loja
+
         endereco = _montar_endereco_loja(loja)
         admin_nome, admin_email = _montar_admin_loja(getattr(loja, "owner", None))
-        telefone = getattr(loja, "owner_telefone", "") or getattr(loja, "telefone", "") or ""
+        telefone, email_publico = contato_publico_loja(loja)
         return {
             "nome": getattr(loja, "nome", "") or "",
             "endereco": endereco,
             "cpf_cnpj": getattr(loja, "cpf_cnpj", "") or None,
-            "telefone": telefone.strip() or None,
+            "telefone": telefone or None,
+            "email": email_publico or None,
             "admin_nome": admin_nome,
             "admin_email": admin_email,
             "logo": getattr(loja, "logo", "") or None,

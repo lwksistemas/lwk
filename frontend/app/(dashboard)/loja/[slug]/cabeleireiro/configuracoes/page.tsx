@@ -12,6 +12,7 @@ import {
   LogIn,
   MessageCircle,
   Palette,
+  Phone,
   Users,
 } from 'lucide-react';
 import { SalaoPageHeader } from '@/components/cabeleireiro/SalaoPageHeader';
@@ -42,6 +43,13 @@ export default function SalaoConfiguracoesPage() {
       href: `${base}/login`,
       icon: LogIn,
       itens: ['Logo', 'Imagem de fundo', 'Cores do login'],
+    },
+    {
+      titulo: 'Contato no recibo',
+      descricao: 'Telefone e e-mail do salão no recibo impresso ou enviado ao cliente',
+      href: `${base}/contato`,
+      icon: Phone,
+      itens: ['Telefone do salão', 'E-mail do salão'],
     },
     {
       titulo: 'Cadastrar profissionais',

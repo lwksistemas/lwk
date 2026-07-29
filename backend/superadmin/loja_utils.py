@@ -101,6 +101,28 @@ def set_loja_info_publica_cache(
         pass
 
 
+def _texto_campo(obj, attr: str) -> str:
+    """Lê atributo string com segurança (evita MagicMock em testes)."""
+    if obj is None:
+        return ""
+    val = getattr(obj, attr, None)
+    return val.strip() if isinstance(val, str) else ""
+
+
+def contato_publico_loja(loja) -> tuple[str, str]:
+    """Telefone e e-mail públicos da loja (recibo).
+
+    Prefere telefone_contato / email_contato; se vazios, cai no telefone/e-mail do admin.
+    """
+    if not loja:
+        return "", ""
+    telefone = _texto_campo(loja, "telefone_contato") or _texto_campo(loja, "owner_telefone")
+    email = _texto_campo(loja, "email_contato")
+    if not email:
+        email = _texto_campo(getattr(loja, "owner", None), "email")
+    return telefone, email
+
+
 def invalidate_loja_info_publica_cache(loja) -> None:
     """Limpa cache Redis de info_publica (slug e atalho) após mudar cores/bloqueio."""
     if not loja:

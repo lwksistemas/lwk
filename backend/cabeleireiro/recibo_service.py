@@ -214,12 +214,14 @@ def _obter_dados_contexto(payment, cliente, agendamento) -> dict:
     servicos_soma = sum(s["valor"] for s in servicos)
     subtotal = valor_total + desconto if desconto > 0 else servicos_soma
 
+    from superadmin.loja_utils import contato_publico_loja
+
     doc_raw = (getattr(loja, "cpf_cnpj", "") or "") if loja else ""
-    tel_raw = (getattr(loja, "owner_telefone", "") or "") if loja else ""
     cep_raw = (getattr(loja, "cep", "") or "") if loja else ""
+    tel_raw, email_raw = contato_publico_loja(loja)
     loja_telefone = telefone_exibicao_brasileiro(tel_raw)
     loja_cep = _formatar_cep(cep_raw)
-    loja_email = (getattr(getattr(loja, "owner", None), "email", "") or "").strip() if loja else ""
+    loja_email = email_raw
 
     data_at = agendamento.data
     hora = agendamento.hora_inicio

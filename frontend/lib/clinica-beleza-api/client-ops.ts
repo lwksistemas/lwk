@@ -16,10 +16,19 @@ export const lojaApi = {
       telefone?: string;
       email?: string;
       cep?: string;
+      telefone_contato?: string;
+      email_contato?: string;
       owner_username?: string;
       owner_email?: string;
       owner_telefone?: string;
     }>("/loja-info/"),
+  updateContato: (data: { telefone_contato?: string; email_contato?: string }) =>
+    cbPatch<{
+      telefone?: string;
+      email?: string;
+      telefone_contato?: string;
+      email_contato?: string;
+    }>("/loja-info/", data),
 };
 
 export const financeiroApi = {

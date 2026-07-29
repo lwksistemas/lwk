@@ -13,21 +13,30 @@ from .dashboard_service import (
     next_appointments_queryset,
     parse_dashboard_period,
 )
-from .permissions import CLINICA_RECEPCAO
+from .loja_contato_api import patch_contato_loja
+from .permissions import CLINICA_ADMIN, CLINICA_RECEPCAO
 from .serializers import AppointmentListSerializer
 from .utils import DASHBOARD_CACHE_VERSION, LojaContextHelper
 
 
 class LojaInfoView(APIView):
-    """GET /clinica-beleza/loja-info/"""
+    """GET /clinica-beleza/loja-info/ — dados da loja (recibo).
+    PATCH — telefone/e-mail de contato exibidos no recibo (admin).
+    """
 
-    permission_classes = CLINICA_RECEPCAO
+    def get_permissions(self):
+        if self.request.method == "PATCH":
+            return [perm() for perm in CLINICA_ADMIN]
+        return [perm() for perm in CLINICA_RECEPCAO]
 
     def get(self, request):
         info = LojaContextHelper.get_loja_owner_info()
         if info is None:
             return Response({"error": "Contexto de loja não encontrado"}, status=status.HTTP_404_NOT_FOUND)
         return Response(info)
+
+    def patch(self, request):
+        return patch_contato_loja(request)
 
 
 class DashboardView(APIView):

@@ -44,6 +44,7 @@ class PhoneNormalizationMixin:
         "telefone_comercial",
         "telefone_residencial",
         "owner_telefone",
+        "telefone_contato",
         "whatsapp_numero",
         "telefone_whatsapp",
     ]

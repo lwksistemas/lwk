@@ -69,6 +69,19 @@ class Loja(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="lojas_owned")
     owner_telefone = models.CharField(max_length=20, blank=True, help_text="Telefone do administrador da loja")
 
+    # Contato público (recibo impresso/enviado ao cliente — não usa login do admin)
+    telefone_contato = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        help_text="Telefone da clínica/salão exibido no recibo de pagamento",
+    )
+    email_contato = models.EmailField(
+        blank=True,
+        default="",
+        help_text="E-mail da clínica/salão exibido no recibo de pagamento",
+    )
+
     # Senha provisória (para mostrar ao super admin)
     senha_provisoria = models.CharField(max_length=50, blank=True, help_text="Senha provisória gerada automaticamente")
     senha_foi_alterada = models.BooleanField(default=False, help_text="Indica se o proprietário já alterou a senha provisória")

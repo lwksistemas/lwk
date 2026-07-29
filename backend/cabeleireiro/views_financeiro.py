@@ -20,7 +20,9 @@ from .serializers import PaymentSerializer
 
 
 class LojaInfoView(APIView):
-    """GET /cabeleireiro/loja-info/ — dados da loja para recibo impresso."""
+    """GET /cabeleireiro/loja-info/ — dados da loja para recibo impresso.
+    PATCH — telefone/e-mail de contato no recibo (admin da loja / owner).
+    """
 
     permission_classes = [IsAuthenticated]
 
@@ -35,6 +37,11 @@ class LojaInfoView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(info)
+
+    def patch(self, request):
+        from clinica_beleza.loja_contato_api import patch_contato_loja
+
+        return patch_contato_loja(request)
 
 
 class PaymentListView(APIView):

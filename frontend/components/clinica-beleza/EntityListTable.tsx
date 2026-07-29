@@ -31,12 +31,15 @@ export function EntityListTable<T>({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto max-w-full min-w-0 overscroll-x-contain">
       <table className="w-full text-sm">
         <thead className="bg-gray-50 dark:bg-neutral-900/80 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-neutral-700">
           <tr>
             {columns.map((col) => (
-              <th key={col.key} className={`text-left px-4 md:px-6 py-3.5 font-semibold ${col.className || ""}`}>
+              <th
+                key={col.key}
+                className={`text-left px-3 sm:px-4 md:px-6 py-3.5 font-semibold ${col.className || ""}`}
+              >
                 {col.header}
               </th>
             ))}
@@ -55,7 +58,10 @@ export function EntityListTable<T>({
               }`}
             >
               {columns.map((col) => (
-                <td key={col.key} className={`px-4 md:px-6 py-4 ${col.className || ""}`}>
+                <td
+                  key={col.key}
+                  className={`px-3 sm:px-4 md:px-6 py-3 sm:py-4 align-middle ${col.className || ""}`}
+                >
                   {col.render(row)}
                 </td>
               ))}

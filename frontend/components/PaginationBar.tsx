@@ -28,15 +28,15 @@ export default function PaginationBar({
   const fim = Math.min(page * pageSize, totalCount);
 
   return (
-    <div className="flex flex-col gap-2 border-t border-gray-200 dark:border-gray-700 pt-3 mt-1">
+    <div className="flex flex-col gap-2 border-t border-gray-200 dark:border-gray-700 pt-3 mt-1 min-w-0 max-w-full">
       <p className="text-xs text-gray-500 dark:text-gray-400 px-1">
-        Role até o final da tabela. Use Anterior / Próxima para ver os demais cadastros.
+        Role até o final da lista. Use Anterior / Próxima para ver os demais cadastros.
       </p>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1 pb-1">
-      <p className="text-sm text-gray-600 dark:text-gray-400">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1 pb-1 min-w-0">
+      <p className="text-sm text-gray-600 dark:text-gray-400 break-words">
         Mostrando {inicio}–{fim} de {totalCount} {itemLabel}
       </p>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0 flex-wrap">
         <button
           type="button"
           disabled={page <= 1 || loading}

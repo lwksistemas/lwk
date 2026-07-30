@@ -177,16 +177,38 @@ export function usePacienteForm({
     load();
   };
 
+  const [deleting, setDeleting] = useState(false);
+
+  const deletePaciente = async () => {
+    if (!editing) return;
+    if (!confirm("Deseja realmente excluir este cliente? Agendamentos futuros serão cancelados.")) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await ClinicaBelezaAPI.patients.delete(editing.id);
+      toast.success("Cliente excluído com sucesso.");
+      voltarLista();
+      load();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(msg || "Erro ao excluir cliente.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return {
     editing,
     form,
     setForm,
     error,
     saving,
+    deleting,
     convenios,
     buscarCepLoading,
     handleCepChange,
     handleBuscarCep,
     save,
+    deletePaciente,
   };
 }

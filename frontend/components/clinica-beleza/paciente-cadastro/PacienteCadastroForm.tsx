@@ -21,6 +21,8 @@ export function PacienteCadastroForm({
   onBuscarCep,
   onSave,
   onCancel,
+  onDelete,
+  deleting = false,
   accentColor = 'var(--cb-primary, #8B3D52)',
   lojaSlug,
   showHeader = true,
@@ -78,24 +80,38 @@ export function PacienteCadastroForm({
       </div>
 
       <div className="shrink-0 border-t border-gray-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-800/80 px-4 md:px-6 lg:px-8 py-4">
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 w-full">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="sm:min-w-[120px] py-2.5 px-5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={saving}
-            className="sm:min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-white text-sm font-medium disabled:opacity-60"
-            style={{ backgroundColor: accentColor }}
-          >
-            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-            {saving ? "Salvando..." : editing ? "Salvar alterações" : "Cadastrar cliente"}
-          </button>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3 w-full">
+          <div className="flex gap-3">
+            {editing && onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={deleting || saving}
+                className="py-2.5 px-5 rounded-lg border border-red-300 dark:border-red-700 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+              >
+                {deleting ? "Excluindo..." : "Excluir cliente"}
+              </button>
+            )}
+          </div>
+          <div className="flex gap-3 sm:ml-auto">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="sm:min-w-[120px] py-2.5 px-5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={saving}
+              className="sm:min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-white text-sm font-medium disabled:opacity-60"
+              style={{ backgroundColor: accentColor }}
+            >
+              {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              {saving ? "Salvando..." : editing ? "Salvar alterações" : "Cadastrar cliente"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

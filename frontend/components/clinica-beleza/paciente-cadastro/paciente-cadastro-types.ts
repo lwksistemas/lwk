@@ -40,6 +40,8 @@ export interface PacienteCadastroFormProps {
   onBuscarCep: () => void;
   onSave: () => void;
   onCancel: () => void;
+  onDelete?: () => void;
+  deleting?: boolean;
   accentColor?: string;
   lojaSlug: string;
   /** Quando false, o cabeçalho fica só no ClinicaBelezaStandardPageHeader (topbar). */

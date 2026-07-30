@@ -22,6 +22,7 @@ export const patientsApi = {
   list: (params?: { active?: boolean; page?: number; page_size?: number }) =>
     cbGetList<ClinicaPatient>("/patients/", params),
   get: (id: number) => cbGet<ClinicaPatient>(`/patients/${id}/`),
+  delete: (id: number) => cbDelete(`/patients/${id}/`),
 };
 
 type ProfessionalRow = ProfissionalApiRow & { id: number; tempo_consulta_minutos?: number | null };

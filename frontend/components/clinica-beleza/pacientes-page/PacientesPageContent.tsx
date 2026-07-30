@@ -90,6 +90,8 @@ export function PacientesPageContent() {
             onBuscarCep={formState.handleBuscarCep}
             onSave={formState.save}
             onCancel={voltarLista}
+            onDelete={formState.editing ? formState.deletePaciente : undefined}
+            deleting={formState.deleting}
             accentColor={theme.corPrimaria || CLINICA_BELEZA_PRIMARY}
             lojaSlug={slug}
           />

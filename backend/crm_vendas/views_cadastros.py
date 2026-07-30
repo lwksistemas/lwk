@@ -23,6 +23,7 @@ from .views_common import (
     CRMNoCacheListMixin,
     CRMPagination,
     filtrar_contas_busca_lista,
+    filtrar_contatos_busca_lista,
     filtrar_leads_busca_lista,
     filtrar_leads_por_documento,
     filtrar_queryset_por_documento,
@@ -144,11 +145,12 @@ class ContatoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, CRMNoCa
     def get_queryset(self):
         qs = super().get_queryset()
         qs = qs.select_related("conta")
-        return filtrar_queryset_por_query_params(
+        qs = filtrar_queryset_por_query_params(
             qs,
             self.request,
             {"conta_id": "conta_id"},
         )
+        return filtrar_contatos_busca_lista(qs, self.request)
 
     def perform_update(self, serializer):
         instance_antes = self.get_object()

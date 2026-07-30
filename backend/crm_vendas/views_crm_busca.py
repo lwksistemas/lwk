@@ -18,10 +18,10 @@ def _aplicar_filtro_vendedor(qs, vendedor_id, request, vendedor_field="vendedor_
 
 
 def _busca_leads(term, term_digits, vendedor_id, request, limit, q_icontains_sem_acento, Lead, Q):
-    """Busca leads por nome/empresa/email/cpf."""
+    """Busca leads por nome/empresa/email/cpf/telefone."""
     f = q_icontains_sem_acento(term, "nome", "empresa", "email") | Q(telefone__icontains=term) | Q(cpf_cnpj__icontains=term)
     if term_digits and len(term_digits) >= 3:
-        f |= Q(cpf_cnpj__icontains=term_digits)
+        f |= Q(cpf_cnpj__icontains=term_digits) | Q(telefone__icontains=term_digits)
     if vendedor_id is not None and not is_owner(request):
         qs = Lead.objects.filter(f).filter(
             Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id),
@@ -32,23 +32,25 @@ def _busca_leads(term, term_digits, vendedor_id, request, limit, q_icontains_sem
 
 
 def _busca_oportunidades(term, term_digits, vendedor_id, request, limit, q_icontains_sem_acento, Oportunidade, Q):
-    """Busca oportunidades por título/lead/conta."""
+    """Busca oportunidades por título/lead/conta/telefone/cpf."""
     f = (
         q_icontains_sem_acento(term, "titulo", "lead__nome", "lead__empresa", "lead__conta__nome", "lead__conta__razao_social")
         | Q(lead__cpf_cnpj__icontains=term)
         | Q(lead__conta__cnpj__icontains=term)
+        | Q(lead__telefone__icontains=term)
+        | Q(lead__email__icontains=term)
     )
     if term_digits and len(term_digits) >= 3:
-        f |= Q(lead__cpf_cnpj__icontains=term_digits) | Q(lead__conta__cnpj__icontains=term_digits)
+        f |= Q(lead__cpf_cnpj__icontains=term_digits) | Q(lead__conta__cnpj__icontains=term_digits) | Q(lead__telefone__icontains=term_digits)
     qs = _aplicar_filtro_vendedor(Oportunidade.objects.filter(f), vendedor_id, request)
     return list(qs.values("id", "titulo", "valor", "etapa", "lead__nome", "lead__empresa")[:limit])
 
 
 def _busca_contas(term, term_digits, vendedor_id, request, limit, q_icontains_sem_acento, Conta, Q):
-    """Busca contas por nome/razão social/cnpj."""
+    """Busca contas por nome/razão social/cnpj/email/telefone."""
     f = q_icontains_sem_acento(term, "nome", "razao_social", "email") | Q(telefone__icontains=term) | Q(cnpj__icontains=term)
     if term_digits and len(term_digits) >= 3:
-        f |= Q(cnpj__icontains=term_digits)
+        f |= Q(cnpj__icontains=term_digits) | Q(telefone__icontains=term_digits)
     qs = _aplicar_filtro_vendedor(Conta.objects.filter(f), vendedor_id, request)
     return list(qs.values("id", "nome", "segmento", "cnpj")[:limit])
 

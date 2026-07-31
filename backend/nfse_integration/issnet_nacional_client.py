@@ -132,9 +132,9 @@ class ISSNetNacionalClient:
         cert_path = self._pfx_temp()
 
         cabecalhos = [
+            ("SPED sem xmlns 1.01", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL),
             ("SPED 1.01 (padrão)", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL),
             ("ABRASF 2.04 (híbrido)", self._cabec_msg_nacional_abrasf("2.04"), NS_NFSE_NACIONAL),
-            ("SPED sem xmlns 1.01", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL),
         ]
 
         try:

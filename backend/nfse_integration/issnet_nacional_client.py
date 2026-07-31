@@ -70,15 +70,32 @@ class ISSNetNacionalClient:
         self.url = ISSNET_NACIONAL_URLS.get(self.ambiente, ISSNET_NACIONAL_URLS["producao"])
 
     def _assinar_xml(self, xml_str: str) -> str:
-        """Assina XML com certificado digital."""
+        """Assina XML com certificado digital (salva cert em arquivo temp)."""
+        import os
+        import tempfile
+        from contextlib import suppress
+
         from nfse_integration.issnet_xml_signer import assinar_xml_issnet
 
         cert_data = self.cert_bytes
         if not cert_data and self.cert_path:
-            cert_data = carregar_certificado(self.cert_path)
+            from nfse_integration.issnet_cert import carregar_certificado
+            # cert_path é path direto
+            return assinar_xml_issnet(xml_str, self.cert_path, self.cert_password)
+
         if not cert_data:
             raise ValueError("Certificado digital não disponível para assinatura.")
-        return assinar_xml_issnet(xml_str, cert_data, self.cert_password)
+
+        # Salvar bytes em arquivo temporário
+        cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_nac_")
+        try:
+            cert_tmp.write(bytes(cert_data))
+            cert_tmp.close()
+            return assinar_xml_issnet(xml_str, cert_tmp.name, self.cert_password)
+        finally:
+            if os.path.isfile(cert_tmp.name):
+                with suppress(OSError):
+                    os.unlink(cert_tmp.name)
 
     def _enviar_soap(self, xml_dados: str, soap_action: str) -> str:
         """Envia requisição SOAP ao webservice Nacional."""

@@ -364,8 +364,21 @@ def financeiro_crm_relatorio_pdf(request):
             data_inicio=data_inicio,
             data_fim=data_fim,
         )
+
+        # Nome do arquivo com vendedor e período
+        from .models import Vendedor
+        nome_vendedor = "geral"
+        if vendedor_id:
+            vend = Vendedor.objects.filter(id=vendedor_id).first()
+            if vend:
+                nome_vendedor = (vend.nome or "vendedor").replace(" ", "_").lower()[:30]
+        periodo_label = periodo
+        if periodo == "personalizado" and data_inicio and data_fim:
+            periodo_label = f"{data_inicio}_a_{data_fim}"
+        filename = f"relatorio_financeiro_{nome_vendedor}_{periodo_label}.pdf"
+
         response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
-        response["Content-Disposition"] = f'attachment; filename="financeiro_crm_{periodo}.pdf"'
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
     except Exception as exc:
         logger.exception("Erro ao gerar PDF financeiro CRM: %s", exc)

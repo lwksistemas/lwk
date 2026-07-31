@@ -71,12 +71,22 @@ def gerar_relatorio(request):
 
     try:
         # Gerar PDF
+        from .models import Vendedor as VendedorModel
+        nome_vendedor_label = ""
+        if vendedor_id:
+            vend = VendedorModel.objects.filter(id=vendedor_id).first()
+            if vend:
+                nome_vendedor_label = "_" + (vend.nome or "vendedor").replace(" ", "_").lower()[:30]
+        periodo_label = periodo
+        if periodo == "personalizado" and data_inicio_custom and data_fim_custom:
+            periodo_label = f"{data_inicio_custom}_a_{data_fim_custom}"
+
         if tipo == "vendas_total":
             pdf_buffer = gerar_relatorio_vendas_total(loja_id, periodo, empresa_prestadora_id=empresa_prestadora_id, data_inicio_custom=data_inicio_custom, data_fim_custom=data_fim_custom)
-            filename = f"relatorio_vendas_total_{periodo}.pdf"
+            filename = f"relatorio_vendas_total_{periodo_label}.pdf"
         elif tipo in ["vendas_vendedor", "comissoes"]:
             pdf_buffer = gerar_relatorio_vendas_vendedor(loja_id, periodo, vendedor_id, empresa_prestadora_id=empresa_prestadora_id, data_inicio_custom=data_inicio_custom, data_fim_custom=data_fim_custom)
-            filename = f"relatorio_vendas_vendedor_{periodo}.pdf"
+            filename = f"relatorio_vendas{nome_vendedor_label}_{periodo_label}.pdf"
         else:
             return Response({"detail": "Tipo de relatório inválido."}, status=400)
 

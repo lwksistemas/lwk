@@ -150,8 +150,16 @@ export function useCrmRelatoriosComissao(isVendedor: boolean) {
     try {
       const res = await apiClient.get(`/crm-vendas/relatorios-comissao/${id}/pdf/`, { responseType: 'blob' });
       const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' });
+      const contentDisposition = res.headers?.['content-disposition'] || '';
+      const filenameMatch = contentDisposition.match(/filename="?([^";\n]+)"?/);
+      const filename = filenameMatch?.[1] || `relatorio_comissao_${id}.pdf`;
       const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       setTimeout(() => window.URL.revokeObjectURL(url), 10000);
     } catch {
       toast.error('Erro ao baixar PDF.');

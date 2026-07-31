@@ -12,7 +12,6 @@ from typing import Any
 
 from nfse_integration.issnet_cert import carregar_certificado
 from nfse_integration.issnet_constants import (
-    CABEC_MSG_NACIONAL,
     ISSNET_NACIONAL_URLS,
     SOAP_ACTION_NACIONAL_CANCELAR_NFSE,
     SOAP_ACTION_NACIONAL_CONSULTAR_NFSE_DPS,
@@ -99,19 +98,36 @@ class ISSNetNacionalClient:
 
     def _enviar_soap(self, xml_dados: str, soap_action: str) -> str:
         """Envia requisição SOAP ao webservice Nacional."""
+        import os
+        import tempfile
+        from contextlib import suppress
+
         cert_data = self.cert_bytes
         if not cert_data and self.cert_path:
-            cert_data = carregar_certificado(self.cert_path)
+            from nfse_integration.issnet_cert import carregar_certificado
+            cert_path = self.cert_path
+        else:
+            # Salvar bytes em arquivo temporário para mTLS
+            cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_soap_")
+            cert_tmp.write(bytes(cert_data))
+            cert_tmp.close()
+            cert_path = cert_tmp.name
 
-        resultado = post_soap_operacao(
-            url=self.url,
-            soap_action=soap_action,
-            cabec_msg=CABEC_MSG_NACIONAL,
-            dados_msg=xml_dados,
-            cert_bytes=cert_data,
-            cert_password=self.cert_password,
-        )
-        return resultado
+        try:
+            parsed, xml_body = post_soap_operacao(
+                base_url=self.url,
+                wsdl_url=self.url + "?wsdl",
+                certificado_path=cert_path,
+                senha_certificado=self.cert_password,
+                nome_operacao=soap_action.rsplit("/", 1)[-1] if "/" in soap_action else soap_action,
+                soap_action_uri=soap_action,
+                dados_xml=xml_dados,
+            )
+            return xml_body
+        finally:
+            if cert_data and os.path.isfile(cert_path):
+                with suppress(OSError):
+                    os.unlink(cert_path)
 
     def emitir_nfse(
         self,

@@ -22,7 +22,9 @@ import requests as req
 
 from nfse_integration.issnet_cert import certificado_mtls_temporario
 from nfse_integration.issnet_constants import (
+    CABEC_MSG_NACIONAL,
     ISSNET_NACIONAL_URLS,
+    NS_NFSE_NACIONAL,
     SOAP_ACTION_NACIONAL_CANCELAR_NFSE,
     SOAP_ACTION_NACIONAL_CONSULTAR_NFSE_DPS,
     SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
@@ -36,12 +38,10 @@ from nfse_integration.issnet_nacional_xml_builder import (
 )
 from nfse_integration.issnet_response import extrair_body_soap, extrair_erros
 from nfse_integration.issnet_soap import (
+    _montar_soap_envelope,
     issnet_corpo_parece_xml,
     issnet_erro_schema_ou_cabecalho,
     issnet_fault_soap_generico,
-    montar_soap_envelope_nacional_aninhado,
-    montar_soap_envelope_nacional_cdata,
-    montar_soap_envelope_nacional_xsd_string,
 )
 from nfse_integration.issnet_xml_builder import somente_digitos
 from nfse_integration.nacional.xml_signer import assinar_xml_enviar_lote_dps
@@ -126,94 +126,126 @@ class ISSNetNacionalClient:
                     os.unlink(cert_path)
 
     def _enviar_soap(self, xml_dados: str, soap_action: str) -> str:
-        """POST SOAP 1.1 com mTLS; tenta envelopes Nacional (xsd:string → CDATA → aninhado)."""
+        """POST SOAP 1.1 com mTLS; tenta cabeçalhos e envelopes alternativos."""
         nome_op = _nome_operacao_de_soap_action(soap_action)
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        estrategias = (
-            (montar_soap_envelope_nacional_xsd_string, "xsd:string (ACBr XmlToStr)"),
-            (montar_soap_envelope_nacional_cdata, "CDATA"),
-            (montar_soap_envelope_nacional_aninhado, "XML aninhado"),
-        )
+        cabecalhos = [
+            ("SPED 1.01 (padrão)", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL),
+            ("ABRASF 2.04 (híbrido)", self._cabec_msg_nacional_abrasf("2.04"), NS_NFSE_NACIONAL),
+            ("SPED sem xmlns 1.01", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL),
+        ]
 
         try:
             with certificado_mtls_temporario(cert_path, self.cert_password) as (pem_cert, pem_key):
                 last_text = ""
-                for idx, (montar, label) in enumerate(estrategias):
-                    envelope = montar(nome_op, xml_dados)
-                    headers = {
-                        "Content-Type": "text/xml; charset=utf-8",
-                        "SOAPAction": f'"{soap_action}"',
-                        "Connection": "close",
-                        "Accept": "text/xml",
-                        "User-Agent": "LWK-Sistemas/ISSNet-Nacional",
-                    }
-                    logger.info(
-                        "ISSNet Nacional SOAP %s (~%d bytes, %s) → %s",
-                        nome_op, len(envelope.encode("utf-8")), label, self.url,
-                    )
-                    try:
-                        r = req.post(
-                            self.url,
-                            data=envelope.encode("utf-8"),
-                            headers=headers,
-                            cert=(pem_cert, pem_key),
-                            timeout=(8, 45),
-                            verify=True,
-                        )
-                    except (req.exceptions.ConnectionError, req.exceptions.ReadTimeout) as e:
-                        logger.warning("ISSNet Nacional %s conexão falhou (%s); retry 1x", nome_op, e)
-                        time.sleep(1.5)
-                        r = req.post(
-                            self.url,
-                            data=envelope.encode("utf-8"),
-                            headers=headers,
-                            cert=(pem_cert, pem_key),
-                            timeout=(8, 45),
-                            verify=True,
-                        )
-
-                    last_text = r.text or ""
-                    logger.info(
-                        "ISSNet Nacional %s HTTP %s (%d bytes) via %s",
-                        nome_op, r.status_code, len(last_text), label,
-                    )
-                    if r.status_code >= 400 or "Fault" in last_text:
-                        logger.error(
-                            "ISSNet Nacional %s erro (%s): %s",
-                            nome_op, label, last_text[:2000],
-                        )
-
-                    # Namespace/operação errada, Fault genérico ou erro de schema/cabeçalho
-                    # → tenta próximo envelope para aumentar chance de sucesso
-                    ns_fault = (
-                        "with namespace name" in last_text
-                        and "was not found" in last_text
-                    )
-                    schema_fault = issnet_erro_schema_ou_cabecalho(last_text)
-                    if schema_fault:
-                        logger.error(
-                            "ISSNet Nacional %s erro de schema/cabeçalho (%s): %s",
-                            nome_op, label, last_text[:4000],
-                        )
-                    if (
-                        idx < len(estrategias) - 1
-                        and issnet_corpo_parece_xml(last_text)
-                        and (issnet_fault_soap_generico(last_text) or ns_fault or schema_fault)
+                for cabec_label, cabec_txt, target_ns in cabecalhos:
+                    for modo, modo_label in (
+                        ("xsd_string", "xsd:string (ACBr XmlToStr)"),
+                        ("cdata", "CDATA"),
+                        ("aninhado", "XML aninhado"),
                     ):
-                        logger.warning(
-                            "ISSNet Nacional %s falhou com %r; tentando formato alternativo",
-                            nome_op, label,
+                        label = f"{cabec_label} + {modo_label}"
+                        envelope = _montar_soap_envelope(
+                            nome_op, xml_dados, cabec_txt=cabec_txt,
+                            target_ns=target_ns, modo=modo,
                         )
-                        continue
-                    return last_text
+                        headers = {
+                            "Content-Type": "text/xml; charset=utf-8",
+                            "SOAPAction": f'"{soap_action}"',
+                            "Connection": "close",
+                            "Accept": "text/xml",
+                            "User-Agent": "LWK-Sistemas/ISSNet-Nacional",
+                        }
+                        logger.info(
+                            "ISSNet Nacional SOAP %s (~%d bytes, %s) → %s",
+                            nome_op, len(envelope.encode("utf-8")), label, self.url,
+                        )
+                        try:
+                            r = req.post(
+                                self.url,
+                                data=envelope.encode("utf-8"),
+                                headers=headers,
+                                cert=(pem_cert, pem_key),
+                                timeout=(8, 45),
+                                verify=True,
+                            )
+                        except (req.exceptions.ConnectionError, req.exceptions.ReadTimeout) as e:
+                            logger.warning("ISSNet Nacional %s conexão falhou (%s); retry 1x", nome_op, e)
+                            time.sleep(1.5)
+                            r = req.post(
+                                self.url,
+                                data=envelope.encode("utf-8"),
+                                headers=headers,
+                                cert=(pem_cert, pem_key),
+                                timeout=(8, 45),
+                                verify=True,
+                            )
+
+                        last_text = r.text or ""
+                        logger.info(
+                            "ISSNet Nacional %s HTTP %s (%d bytes) via %s",
+                            nome_op, r.status_code, len(last_text), label,
+                        )
+
+                        ns_fault = (
+                            "with namespace name" in last_text
+                            and "was not found" in last_text
+                        )
+                        schema_fault = issnet_erro_schema_ou_cabecalho(last_text)
+
+                        if r.status_code >= 400 or "Fault" in last_text:
+                            logger.error(
+                                "ISSNet Nacional %s erro (%s): %s",
+                                nome_op, label, last_text[:2000],
+                            )
+
+                        if schema_fault:
+                            logger.error(
+                                "ISSNet Nacional %s erro de schema/cabeçalho (%s): envelope=%s | resposta=%s",
+                                nome_op, label, envelope[:4000], last_text[:4000],
+                            )
+
+                        if issnet_corpo_parece_xml(last_text) and not (
+                            issnet_fault_soap_generico(last_text) or ns_fault or schema_fault
+                        ):
+                            # Resposta válida sem erros reconhecidos -> retorna
+                            return last_text
+
+                        # Se não for erro de schema/cabeçalho, não adianta insistir com outros formatos
+                        if not (ns_fault or schema_fault):
+                            return last_text
 
                 return last_text
         finally:
             if created_tmp and os.path.isfile(cert_path):
                 with suppress(OSError):
                     os.unlink(cert_path)
+
+    @staticmethod
+    def _cabec_msg_nacional_abrasf(versao: str) -> str:
+        return (
+            f'<cabecalho xmlns="http://www.abrasf.org.br/nfse.xsd" versao="{versao}">'
+            '<versaoDados>1.01</versaoDados>'
+            '</cabecalho>'
+        )
+
+    @staticmethod
+    def _cabec_msg_nacional_sped(versao: str) -> str:
+        return (
+            f'<cabecalho xmlns="http://www.sped.fazenda.gov.br/nfse" versao="{versao}">'
+            '<versaoDados>1.01</versaoDados>'
+            '</cabecalho>'
+        )
+
+    @staticmethod
+    def _cabec_msg_nacional_sem_ns(versao: str) -> str:
+        return (
+            f'<cabecalho versao="{versao}">'
+            '<versaoDados>1.01</versaoDados>'
+            '</cabecalho>'
+        )
 
     def emitir_nfse(
         self,

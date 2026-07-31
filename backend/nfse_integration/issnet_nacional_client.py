@@ -130,10 +130,16 @@ class ISSNetNacionalClient:
 
                 envelope = (
                     '<?xml version="1.0" encoding="utf-8"?>'
-                    '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
+                    '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
+                    'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+                    'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+                    'xmlns:nfse="http://nfse.abrasf.org.br">'
                     '<soap:Header/>'
                     '<soap:Body>'
-                    f'{dados}'
+                    f'<nfse:{nome_op}>'
+                    f'<nfseCabecMsg><![CDATA[{cabec_nac}]]></nfseCabecMsg>'
+                    f'<nfseDadosMsg><![CDATA[{dados}]]></nfseDadosMsg>'
+                    f'</nfse:{nome_op}>'
                     '</soap:Body>'
                     '</soap:Envelope>'
                 )

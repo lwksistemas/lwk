@@ -196,8 +196,9 @@ def construir_xml_enviar_lote_dps_sincrono(
 
     nsmap = {None: NS_NFSE_NACIONAL}
 
-    # === Raiz: EnviarLoteDpsSincronoEnvio ===
-    root = etree.Element(f"{{{NS_NFSE_NACIONAL}}}EnviarLoteDpsSincronoEnvio", nsmap=nsmap)
+    # === Raiz: RecepcionarLoteDpsSincrono ===
+    # O ISSNet Nacional espera o XML raiz com nome do método SOAP (RecepcionarLoteDpsSincrono)
+    root = etree.Element(f"{{{NS_NFSE_NACIONAL}}}RecepcionarLoteDpsSincrono", nsmap=nsmap)
 
     # === LoteDps ===
     lote_dps = _el(root, "LoteDps")

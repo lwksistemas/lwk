@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
@@ -14,24 +14,95 @@ type ConfiguracaoNotaFiscalPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
+type ProvedorNf = 'asaas' | 'issnet' | 'nacional' | 'manual';
+
+/** Opções visíveis na tela (4 caminhos de emissão). */
+type EmissaoOpcao = 'asaas' | 'issnet_abrasf' | 'issnet_nacional' | 'nacional_adn';
+
 const DEFAULT_DESCRICAO_SERVICO = 'Desenvolvimento e licenciamento de software sob demanda';
 const DEFAULT_CODIGO_SERVICO = '1401';
 
+const EMISSAO_OPCOES: Array<{
+  key: EmissaoOpcao;
+  numero: number;
+  titulo: string;
+  descricao: string;
+  badge?: string;
+}> = [
+  {
+    key: 'asaas',
+    numero: 1,
+    titulo: 'Asaas (conta da sua loja)',
+    descricao:
+      'Emissão de NFS-e pela conta Asaas da loja. A API Key fica em Configurações → Asaas (banco).',
+  },
+  {
+    key: 'issnet_abrasf',
+    numero: 2,
+    titulo: 'ISSNet — Ribeirão Preto (Direto)',
+    descricao:
+      'Layout ABRASF atual (RPS). Emissão direta na prefeitura com o CNPJ da loja. Descontinuado em 03/08/2026.',
+    badge: 'Atual / legado',
+  },
+  {
+    key: 'issnet_nacional',
+    numero: 3,
+    titulo: 'ISSNet — Padrão Nacional (DPS / RTC)',
+    descricao:
+      'Novo layout NFS-e via webservice Nacional da ISSNet (Ribeirão Preto). Use este a partir da Reforma Tributária.',
+    badge: 'Padrão novo',
+  },
+  {
+    key: 'nacional_adn',
+    numero: 4,
+    titulo: 'API Nacional NFS-e (Direto)',
+    descricao:
+      'Emissão direta na API Nacional (ADN/SEFIN), sem intermediário. Para municípios com emissão direta liberada.',
+  },
+];
+
+function resolvEmissaoOpcao(provedor: ProvedorNf, usarNacional: boolean): EmissaoOpcao {
+  if (provedor === 'asaas') return 'asaas';
+  if (provedor === 'nacional') return 'nacional_adn';
+  if (provedor === 'issnet') return usarNacional ? 'issnet_nacional' : 'issnet_abrasf';
+  return 'asaas';
+}
+
+function aplicarEmissaoOpcao(opcao: EmissaoOpcao): {
+  provedor_nf: ProvedorNf;
+  issnet_usar_padrao_nacional: boolean;
+} {
+  switch (opcao) {
+    case 'asaas':
+      return { provedor_nf: 'asaas', issnet_usar_padrao_nacional: false };
+    case 'issnet_abrasf':
+      return { provedor_nf: 'issnet', issnet_usar_padrao_nacional: false };
+    case 'issnet_nacional':
+      return { provedor_nf: 'issnet', issnet_usar_padrao_nacional: true };
+    case 'nacional_adn':
+      return { provedor_nf: 'nacional', issnet_usar_padrao_nacional: false };
+  }
+}
+
+const INPUT =
+  'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white';
+const CARD =
+  'bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6';
+
 export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFiscalPageProps) {
-  const configBackHref: string | undefined = undefined;
   const descricaoServicoPadrao = DEFAULT_DESCRICAO_SERVICO;
   const codigoServicoPadrao = DEFAULT_CODIGO_SERVICO;
   const router = useRouter();
   const params = useParams();
   const lojaSlug = typeof params?.slug === 'string' ? params.slug : '';
-  const configBase = configBackHref ?? `/loja/${lojaSlug}/crm-vendas/configuracoes`;
+  const configBase = `/loja/${lojaSlug}/crm-vendas/configuracoes`;
   const { config, recarregar } = useCRMConfig();
-  
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  
+
   const [formData, setFormData] = useState({
-    provedor_nf: 'asaas' as 'asaas' | 'issnet' | 'nacional' | 'manual',
+    provedor_nf: 'asaas' as ProvedorNf,
     issnet_usuario: '',
     issnet_senha: '',
     issnet_senha_certificado: '',
@@ -51,69 +122,73 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
     issnet_ambiente_homologacao: false,
     issnet_usar_padrao_nacional: true,
     codigo_tributacao_nacional: '',
+    nacional_codigo_municipio: '',
     emitir_nf_automaticamente: true,
   });
-  
+
   const [certificadoFile, setCertificadoFile] = useState<File | null>(null);
   const [issnetTestLoading, setIssnetTestLoading] = useState(false);
   const [issnetTestMessage, setIssnetTestMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(
-    null
+    null,
   );
 
   useEffect(() => {
-    if (config) {
-      setFormData({
-        provedor_nf: config.provedor_nf || 'asaas',
-        issnet_usuario: config.issnet_usuario || '',
-        issnet_senha: '',
-        issnet_senha_certificado: '',
-        codigo_servico_municipal: config.codigo_servico_municipal || codigoServicoPadrao,
-        descricao_servico_padrao: config.descricao_servico_padrao || descricaoServicoPadrao,
-        aliquota_iss: config.aliquota_iss || '2.00',
-        inscricao_municipal: config.inscricao_municipal || '',
-        codigo_cnae: config.codigo_cnae || '',
-        optante_simples_nacional: config.optante_simples_nacional ?? true,
-        regime_especial_tributacao: config.regime_especial_tributacao || '0',
-        incentivador_cultural: config.incentivador_cultural ?? false,
-        item_lista_servico: config.item_lista_servico || '',
-        codigo_nbs: config.codigo_nbs || '',
-        issnet_serie_rps: config.issnet_serie_rps || '',
-        issnet_ultimo_rps_conhecido:
-          config.issnet_ultimo_rps_conhecido != null && config.issnet_ultimo_rps_conhecido !== undefined
-            ? String(config.issnet_ultimo_rps_conhecido)
-            : '',
-        issnet_numero_lote:
-          config.issnet_numero_lote != null && config.issnet_numero_lote !== undefined
-            ? String(config.issnet_numero_lote)
-            : '',
-        issnet_ambiente_homologacao: config.issnet_ambiente_homologacao ?? false,
-        issnet_usar_padrao_nacional: config.issnet_usar_padrao_nacional ?? true,
-        codigo_tributacao_nacional: config.codigo_tributacao_nacional || '',
-        emitir_nf_automaticamente: config.emitir_nf_automaticamente ?? true,
-      });
-    }
+    if (!config) return;
+    setFormData({
+      provedor_nf: (config.provedor_nf as ProvedorNf) || 'asaas',
+      issnet_usuario: config.issnet_usuario || '',
+      issnet_senha: '',
+      issnet_senha_certificado: '',
+      codigo_servico_municipal: config.codigo_servico_municipal || codigoServicoPadrao,
+      descricao_servico_padrao: config.descricao_servico_padrao || descricaoServicoPadrao,
+      aliquota_iss: config.aliquota_iss || '2.00',
+      inscricao_municipal: config.inscricao_municipal || '',
+      codigo_cnae: config.codigo_cnae || '',
+      optante_simples_nacional: config.optante_simples_nacional ?? true,
+      regime_especial_tributacao: config.regime_especial_tributacao || '0',
+      incentivador_cultural: config.incentivador_cultural ?? false,
+      item_lista_servico: config.item_lista_servico || '',
+      codigo_nbs: config.codigo_nbs || '',
+      issnet_serie_rps: config.issnet_serie_rps || '',
+      issnet_ultimo_rps_conhecido:
+        config.issnet_ultimo_rps_conhecido != null ? String(config.issnet_ultimo_rps_conhecido) : '',
+      issnet_numero_lote: config.issnet_numero_lote != null ? String(config.issnet_numero_lote) : '',
+      issnet_ambiente_homologacao: config.issnet_ambiente_homologacao ?? false,
+      issnet_usar_padrao_nacional: config.issnet_usar_padrao_nacional ?? true,
+      codigo_tributacao_nacional: config.codigo_tributacao_nacional || '',
+      nacional_codigo_municipio: config.nacional_codigo_municipio || '',
+      emitir_nf_automaticamente: config.emitir_nf_automaticamente ?? true,
+    });
   }, [config, codigoServicoPadrao, descricaoServicoPadrao]);
+
+  const emissaoOpcao = useMemo(
+    () => resolvEmissaoOpcao(formData.provedor_nf, formData.issnet_usar_padrao_nacional),
+    [formData.provedor_nf, formData.issnet_usar_padrao_nacional],
+  );
+
+  const selecionarEmissao = (opcao: EmissaoOpcao) => {
+    const mapped = aplicarEmissaoOpcao(opcao);
+    setFormData((prev) => ({ ...prev, ...mapped }));
+    setMessage(null);
+    setIssnetTestMessage(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
-
     try {
       const data = new FormData();
-      
-      // Adicionar campos de texto
-      // Campos que podem ser limpos (string vazia deve ser enviada para limpar no backend)
       const clearableFields = [
         'codigo_cnae',
         'codigo_nbs',
         'item_lista_servico',
         'inscricao_municipal',
         'codigo_tributacao_nacional',
+        'nacional_codigo_municipio',
       ];
       Object.entries(formData).forEach(([key, value]) => {
         if (value === null || value === undefined) return;
-        // Campos limpaveis: enviar string vazia para o backend poder limpar
         if (value === '' && !clearableFields.includes(key)) return;
         if (typeof value === 'boolean') {
           data.append(key, value ? 'true' : 'false');
@@ -121,27 +196,14 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
         }
         data.append(key, String(value));
       });
-
-      // Adicionar certificado se houver
-      if (certificadoFile) {
-        data.append('issnet_certificado', certificadoFile);
-      }
+      if (certificadoFile) data.append('issnet_certificado', certificadoFile);
 
       await apiClient.patch('/crm-vendas/config/', data, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-
       setMessage({ type: 'success', text: 'Configurações salvas com sucesso!' });
       await recarregar();
-      
-      // Limpar senhas após salvar
-      setFormData(prev => ({
-        ...prev,
-        issnet_senha: '',
-        issnet_senha_certificado: '',
-      }));
+      setFormData((prev) => ({ ...prev, issnet_senha: '', issnet_senha_certificado: '' }));
       setCertificadoFile(null);
     } catch (error) {
       logger.warn('Erro ao salvar configurações fiscais:', error);
@@ -171,14 +233,10 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
         success?: boolean;
         message?: string;
         detail?: string;
-        ambiente?: string;
       }>('/crm-vendas/config/test-issnet/', fd);
 
       if (res.data?.success) {
-        setIssnetTestMessage({
-          type: 'ok',
-          text: res.data.message || 'Conexão com o ISSNet OK.',
-        });
+        setIssnetTestMessage({ type: 'ok', text: res.data.message || 'Conexão com o ISSNet OK.' });
       } else {
         setIssnetTestMessage({
           type: 'error',
@@ -199,39 +257,21 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Validar extensão .pfx
-      if (!file.name.endsWith('.pfx')) {
-        setMessage({
-          type: 'error',
-          text: 'Por favor, selecione um arquivo .pfx (certificado digital A1)',
-        });
-        return;
-      }
-      setCertificadoFile(file);
-      setMessage(null);
+    if (!file) return;
+    if (!file.name.endsWith('.pfx')) {
+      setMessage({ type: 'error', text: 'Selecione um arquivo .pfx (certificado digital A1).' });
+      return;
     }
+    setCertificadoFile(file);
+    setMessage(null);
   };
 
-  const provedorInfo = {
-    asaas: {
-      titulo: 'Asaas (conta da sua loja)',
-      descricao:
-        'Emissão de NFS-e pela conta Asaas da loja. A API Key é configurada em Configurações → Asaas (banco).',
-    },
-    issnet: {
-      titulo: 'ISSNet - Ribeirão Preto (Direto)',
-      descricao: 'Emissão direta na Prefeitura de Ribeirão Preto com o CNPJ da sua loja. Requer certificado digital A1 próprio.',
-    },
-    nacional: {
-      titulo: 'API Nacional NFS-e (Direto)',
-      descricao: 'Emissão através da API Nacional NFS-e com o CNPJ da sua loja. Requer certificado digital A1 e município com emissão direta liberada.',
-    },
-    manual: {
-      titulo: 'Emissão Manual',
-      descricao: 'Sem integração automática. Você emitirá as notas manualmente no portal da prefeitura.',
-    },
-  };
+  const isIssnet = emissaoOpcao === 'issnet_abrasf' || emissaoOpcao === 'issnet_nacional';
+  const isIssnetNacional = emissaoOpcao === 'issnet_nacional';
+  const isNacionalAdn = emissaoOpcao === 'nacional_adn';
+  const isAsaas = emissaoOpcao === 'asaas';
+  const showCertConfig = isIssnet || isNacionalAdn;
+  const showServicoConfig = !isAsaas;
 
   return (
     <div className="space-y-6">
@@ -246,31 +286,19 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <FileText size={28} />
-          Provedor de Nota Fiscal
+          Nota fiscal — emissão
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Escolha como sua loja emitirá NFS-e para seus clientes (independente do Asaas para boletos)
+          Escolha um modo de emissão. As configurações do emissor aparecem abaixo da opção selecionada.
         </p>
-        
-        <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <Info size={20} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-800 dark:text-blue-200">
-              <p className="font-medium mb-2">⚠️ Importante: Duas emissões diferentes</p>
-              <ul className="list-disc list-inside space-y-1 text-xs">
-                <li><strong>NF da sua assinatura LWK:</strong> Emitida automaticamente pela LWK Sistemas quando você paga sua mensalidade</li>
-                <li><strong>NF para seus clientes:</strong> Esta configuração é para quando VOCÊ prestar serviços aos SEUS clientes</li>
-              </ul>
-              <p className="mt-2 text-xs">
-                Cada loja tem seu próprio CNPJ e certificado digital. As configurações abaixo são exclusivas da sua loja.
-              </p>
-              <p className="mt-2 text-xs text-blue-900/90 dark:text-blue-200/90">
-                A tela <strong>Superadmin → NFS-e (assinaturas)</strong> configura outro fluxo: nota quando a loja paga a
-                mensalidade LWK. Os campos ISSNet/Ribeirão coincidem na ideia (serviço municipal, alíquota, RPS, regime),
-                mas lá constam também CNPJ/razão social do <strong>prestador LWK</strong> e não há item de lista / lote
-                opcionais — o modelo de dados do Superadmin é mais enxuto.
-              </p>
-            </div>
+        <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-start gap-3">
+          <Info size={20} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+          <div className="text-sm text-blue-800 dark:text-blue-200">
+            <p className="font-medium mb-1">NF para seus clientes (não é a NF da assinatura LWK)</p>
+            <p className="text-xs">
+              Esta tela define como a loja emite NFS-e aos clientes. A nota da mensalidade LWK é outro fluxo
+              (Superadmin).
+            </p>
           </div>
         </div>
       </div>
@@ -293,48 +321,62 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Provedor de NF */}
-        <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Provedor de Nota Fiscal
+        <div className={CARD}>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+            Como deseja emitir?
           </h2>
-          
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Selecione uma das 4 opções. Em seguida configure o emissor escolhido.
+          </p>
+
           <div className="space-y-3">
-            {(Object.keys(provedorInfo) as Array<keyof typeof provedorInfo>).map((key) => {
-              const info = provedorInfo[key];
-              
+            {EMISSAO_OPCOES.map((op) => {
+              const selected = emissaoOpcao === op.key;
               return (
                 <label
-                  key={key}
+                  key={op.key}
                   className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    formData.provedor_nf === key
+                    selected
                       ? 'border-[#0176d3] bg-[#e3f3ff] dark:bg-[#0176d3]/10'
                       : 'border-gray-200 dark:border-[#0d1f3c] hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
                   <input
                     type="radio"
-                    name="provedor_nf"
-                    value={key}
-                    checked={formData.provedor_nf === key}
-                    onChange={(e) => setFormData({ ...formData, provedor_nf: e.target.value as typeof formData.provedor_nf })}
+                    name="emissao_opcao"
+                    value={op.key}
+                    checked={selected}
+                    onChange={() => selecionarEmissao(op.key)}
                     className="mt-1"
                   />
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900 dark:text-white">
-                      {info.titulo}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold text-[#0176d3] tabular-nums">
+                        {op.numero}.
+                      </span>
+                      <span className="font-medium text-gray-900 dark:text-white">{op.titulo}</span>
+                      {op.badge ? (
+                        <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                          {op.badge}
+                        </span>
+                      ) : null}
                     </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {info.descricao}
-                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{op.descricao}</p>
                   </div>
                 </label>
               );
             })}
           </div>
-          {formData.provedor_nf === 'asaas' && (
-            <p className="mt-4 text-sm text-gray-700 dark:text-gray-300 border-t border-gray-200 dark:border-[#0d1f3c] pt-4">
-              <strong>Asaas:</strong> configure a API Key da loja em{' '}
+        </div>
+
+        {/* —— 1. Asaas —— */}
+        {isAsaas && (
+          <div className={CARD}>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Configurações — Asaas
+            </h2>
+            <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+              Configure a API Key da loja em{' '}
               <Link href={`${configBase}/asaas`} className="text-[#0176d3] underline font-medium">
                 Configurações → Asaas (banco)
               </Link>
@@ -344,501 +386,503 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
                 <span className="text-amber-700 dark:text-amber-300"> — chave ainda não configurada.</span>
               )}
             </p>
-          )}
-          {formData.provedor_nf === 'issnet' && (
-            <p className="mt-4 text-sm text-gray-700 dark:text-gray-300 border-t border-gray-200 dark:border-[#0d1f3c] pt-4">
-              <strong>ISSNet:</strong> preencha inscrição municipal, série do RPS e último RPS em{' '}
-              <strong>Configurações Gerais</strong> (logo abaixo). Credenciais e certificado ficam na
-              seção seguinte.
-            </p>
-          )}
-        </div>
-
-        {/* Configurações ISSNet */}
-        {formData.provedor_nf === 'issnet' && (
-          <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Credenciais ISSNet
-            </h2>
-
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex items-start gap-3">
-              <Info size={20} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-800 dark:text-blue-200">
-                <p className="font-medium mb-1">Requisitos para emissão direta com CNPJ da sua loja:</p>
-                <ul className="list-disc list-inside space-y-1 text-xs">
-                  <li>Certificado Digital A1 (e-CNPJ) válido <strong>da sua loja</strong></li>
-                  <li>Credenciais de acesso ao webservice da Prefeitura <strong>no nome da sua loja</strong></li>
-                  <li>Cadastro ativo no portal ISSNet de Ribeirão Preto <strong>com CNPJ da sua loja</strong></li>
-                </ul>
-                <p className="mt-2 text-xs font-medium">
-                  ⚠️ Este certificado é diferente do certificado da LWK Sistemas usado para emitir NF da sua assinatura.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Usuário ISSNet *
-                </label>
-                <input
-                  type="text"
-                  value={formData.issnet_usuario}
-                  onChange={(e) => setFormData({ ...formData, issnet_usuario: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Senha ISSNet *
-                </label>
-                <input
-                  type="password"
-                  value={formData.issnet_senha}
-                  onChange={(e) => setFormData({ ...formData, issnet_senha: e.target.value })}
-                  placeholder="Digite para alterar"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Certificado Digital A1 (.pfx) *
-                </label>
-                <div className="flex items-center gap-3">
-                  <label className="flex-1 flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-[#0176d3] transition-colors">
-                    <Upload size={20} className="text-gray-400" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {certificadoFile
-                        ? certificadoFile.name
-                        : config?.issnet_certificado
-                        ? 'Certificado já enviado - Clique para alterar'
-                        : 'Clique para selecionar o arquivo .pfx'}
-                    </span>
-                    <input
-                      type="file"
-                      accept=".pfx"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Senha do Certificado *
-                </label>
-                <input
-                  type="password"
-                  value={formData.issnet_senha_certificado}
-                  onChange={(e) => setFormData({ ...formData, issnet_senha_certificado: e.target.value })}
-                  placeholder="Senha do arquivo .pfx"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-                />
-              </div>
-
-              <div className="md:col-span-2 space-y-3 pt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.issnet_usar_padrao_nacional}
-                    onChange={(e) =>
-                      setFormData({ ...formData, issnet_usar_padrao_nacional: e.target.checked })
-                    }
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                    Padrão Nacional (DPS / RTC) — layout novo
-                  </span>
-                </label>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 pl-7">
-                  Emite DPS no webservice Nacional da ISSNet (
-                  <code className="text-[10px]">wsnfsenacional/ribeiraopreto</code>
-                  ). Desmarque só se a prefeitura pedir o ABRASF antigo (descontinuado em 03/08/2026).
-                </p>
-
-                {formData.issnet_usar_padrao_nacional && (
-                  <div className="pl-7">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Código de tributação nacional (cTribNac)
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={formData.codigo_tributacao_nacional}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          codigo_tributacao_nacional: e.target.value.replace(/\D/g, '').slice(0, 6),
-                        })
-                      }
-                      placeholder="Ex.: 140100 (item 14.01)"
-                      className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-                    />
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                      6 dígitos. Se vazio, o sistema deriva do item da lista (ex.: 14.01 → 140100).
-                    </p>
-                  </div>
-                )}
-
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.issnet_ambiente_homologacao}
-                    onChange={(e) =>
-                      setFormData({ ...formData, issnet_ambiente_homologacao: e.target.checked })
-                    }
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Homologação / teste (ISSNet Nacional)
-                  </span>
-                </label>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 pl-7">
-                  Com o padrão Nacional marcado, homologação usa{' '}
-                  <code className="text-[10px]">wsnfsenacional/homologacao/nfse.asmx</code>. Produção usa
-                  Ribeirão Preto. Valide o XML no ambiente de teste antes da obrigatoriedade de 03/08/2026.
-                  Dúvidas: suporte@notacontrol.com.br —{' '}
-                  <a
-                    href="https://www.ribeiraopreto.sp.gov.br/portal/fazenda/iss-digital"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#0176d3] underline"
-                  >
-                    ISS Digital
-                  </a>
-                  .
-                </p>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => void testarConexaoIssnet()}
-                    disabled={
-                      issnetTestLoading ||
-                      !formData.issnet_usuario.trim() ||
-                      (!certificadoFile && !config?.issnet_certificado) ||
-                      (!formData.issnet_senha &&
-                        !formData.issnet_senha_certificado &&
-                        !config?.issnet_senhas_salvas)
-                    }
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-[#0176d3] text-[#0176d3] dark:text-[#5eb0ff] dark:border-[#5eb0ff] hover:bg-[#0176d3]/10 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {issnetTestLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Testando…
-                      </>
-                    ) : (
-                      'Testar conexão com o ISSNet (Ribeirão Preto)'
-                    )}
-                  </button>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 sm:max-w-md">
-                    Valida o .pfx e tenta acessar o WSDL do webservice (sem emitir nota). Use credenciais
-                    digitadas ou as já salvas; envie um novo .pfx se ainda não salvou.
-                  </p>
-                </div>
-                {issnetTestMessage && (
-                  <div
-                    className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
-                      issnetTestMessage.type === 'ok'
-                        ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800'
-                        : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
-                    }`}
-                  >
-                    {issnetTestMessage.type === 'ok' ? (
-                      <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                    )}
-                    <span>{issnetTestMessage.text}</span>
-                  </div>
-                )}
-              </div>
-            </div>
+            <CamposServicoBasicos formData={formData} setFormData={setFormData} inputClass={INPUT} />
           </div>
         )}
 
-        {/* Configurações Gerais */}
-        <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Configurações Gerais
-          </h2>
-
-          {formData.provedor_nf === 'issnet' && (
-            <div className="mb-6 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/80 dark:bg-amber-950/20 p-4">
-              <h3 className="text-sm font-semibold text-amber-950 dark:text-amber-100 mb-1">
-                ISSNet — Informações do Portal Emissor
-              </h3>
-              <p className="text-xs text-amber-900/90 dark:text-amber-200/90 mb-4">
-                Preencha com os mesmos dados do Asaas (Informações da empresa / NFS-e) e da prefeitura de Ribeirão Preto. Na
-                emissão direta ISSNet, o item da lista LC 116 e o código de tributação no XML são derivados do{' '}
-                <strong>Código do Serviço Municipal</strong> (seção Configurações Gerais abaixo), não destes campos
-                opcionais de referência.
+        {/* —— 2 e 3. ISSNet —— */}
+        {isIssnet && (
+          <>
+            <div className={CARD}>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                {isIssnetNacional
+                  ? 'Configurações — ISSNet Padrão Nacional'
+                  : 'Configurações — ISSNet ABRASF (legado)'}
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                {isIssnetNacional
+                  ? 'Endpoint: wsnfsenacional/ribeiraopreto (DPS). Homologação: wsnfsenacional/homologacao.'
+                  : 'Endpoint ABRASF 2.04 (RPS). Em 03/08/2026 o município deixa de validar este layout.'}
               </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Usuário ISSNet *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.issnet_usuario}
+                    onChange={(e) => setFormData({ ...formData, issnet_usuario: e.target.value })}
+                    className={INPUT}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Senha ISSNet
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.issnet_senha}
+                    onChange={(e) => setFormData({ ...formData, issnet_senha: e.target.value })}
+                    placeholder="Digite para alterar"
+                    className={INPUT}
+                  />
+                </div>
+              </div>
+
+              <CertificadoFields
+                certificadoFile={certificadoFile}
+                temCertificadoSalvo={Boolean(config?.issnet_certificado)}
+                senha={formData.issnet_senha_certificado}
+                onSenha={(v) => setFormData({ ...formData, issnet_senha_certificado: v })}
+                onFileChange={handleFileChange}
+                inputClass={INPUT}
+              />
+
+              <label className="flex items-center gap-2 cursor-pointer mt-4">
+                <input
+                  type="checkbox"
+                  checked={formData.issnet_ambiente_homologacao}
+                  onChange={(e) =>
+                    setFormData({ ...formData, issnet_ambiente_homologacao: e.target.checked })
+                  }
+                  className="w-4 h-4"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Homologação / teste
+                  {isIssnetNacional ? ' (webservice Nacional)' : ' (ISSNet)'}
+                </span>
+              </label>
+
+              <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void testarConexaoIssnet()}
+                  disabled={
+                    issnetTestLoading ||
+                    !formData.issnet_usuario.trim() ||
+                    (!certificadoFile && !config?.issnet_certificado) ||
+                    (!formData.issnet_senha &&
+                      !formData.issnet_senha_certificado &&
+                      !config?.issnet_senhas_salvas)
+                  }
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-[#0176d3] text-[#0176d3] text-sm font-medium disabled:opacity-50"
+                >
+                  {issnetTestLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Testando…
+                    </>
+                  ) : (
+                    'Testar conexão ISSNet'
+                  )}
+                </button>
+                {issnetTestMessage && (
+                  <span
+                    className={`text-sm ${
+                      issnetTestMessage.type === 'ok'
+                        ? 'text-green-700 dark:text-green-300'
+                        : 'text-red-700 dark:text-red-300'
+                    }`}
+                  >
+                    {issnetTestMessage.text}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className={CARD}>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Dados do prestador e da nota
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
-                    Inscrição municipal (prestador) *
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Inscrição municipal *
                   </label>
                   <input
                     type="text"
                     value={formData.inscricao_municipal}
                     onChange={(e) => setFormData({ ...formData, inscricao_municipal: e.target.value })}
+                    className={INPUT}
                     placeholder="Ex.: 20130440"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-                    autoComplete="off"
                   />
-                  <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
-                    Mesmos dígitos do cadastro (ex.: <strong>20130440</strong> no Asaas). Só números.
-                  </p>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
-                    Código CNAE (opcional)
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Código CNAE
                   </label>
                   <input
                     type="text"
                     value={formData.codigo_cnae}
                     onChange={(e) => setFormData({ ...formData, codigo_cnae: e.target.value })}
-                    placeholder="Apenas números"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-                    autoComplete="off"
+                    className={INPUT}
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
-                    Item da Lista de Serviços (opcional — referência)
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Item da lista de serviços
                   </label>
                   <input
                     type="text"
                     value={formData.item_lista_servico}
                     onChange={(e) => setFormData({ ...formData, item_lista_servico: e.target.value })}
-                    placeholder="Ex.: 17.02 ou 08.02"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-                    autoComplete="off"
+                    placeholder="Ex.: 14.01"
+                    className={INPUT}
                   />
-                  <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
-                    Apenas para alinhar com seu cadastro (Asaas/portal). A integração ISSNet não lê este campo; use o{' '}
-                    <strong>Código do Serviço Municipal</strong> abaixo para classificar o serviço na nota.
-                  </p>
                 </div>
-
+                {isIssnetNacional && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        cTribNac (tributação nacional)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={formData.codigo_tributacao_nacional}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            codigo_tributacao_nacional: e.target.value.replace(/\D/g, '').slice(0, 6),
+                          })
+                        }
+                        placeholder="140100"
+                        className={INPUT}
+                      />
+                      <p className="text-[11px] text-gray-500 mt-1">6 dígitos. Vazio → deriva do item (14.01 → 140100).</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Código NBS
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.codigo_nbs}
+                        onChange={(e) => setFormData({ ...formData, codigo_nbs: e.target.value })}
+                        className={INPUT}
+                      />
+                    </div>
+                  </>
+                )}
                 <div>
-                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
-                    Código NBS (opcional — referência)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.codigo_nbs}
-                    onChange={(e) => setFormData({ ...formData, codigo_nbs: e.target.value })}
-                    placeholder="Nomenclatura Brasileira de Serviços"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-                    autoComplete="off"
-                  />
-                  <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
-                    Não enviado no XML ISSNet atual; mantenha se quiser registro interno alinhado ao cadastro.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
-                    Regime Especial de Tributação
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Regime especial de tributação
                   </label>
                   <select
                     value={formData.regime_especial_tributacao}
-                    onChange={(e) => setFormData({ ...formData, regime_especial_tributacao: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    onChange={(e) =>
+                      setFormData({ ...formData, regime_especial_tributacao: e.target.value })
+                    }
+                    className={INPUT}
                   >
                     <option value="0">Nenhum</option>
                     <option value="1">Microempresa Municipal</option>
                     <option value="2">Estimativa</option>
                     <option value="3">Sociedade de Profissionais</option>
                     <option value="4">Cooperativa</option>
-                    <option value="5">MEI - Simples Nacional</option>
-                    <option value="6">ME/EPP - Simples Nacional</option>
+                    <option value="5">MEI</option>
+                    <option value="6">ME/EPP Simples Nacional</option>
                   </select>
                 </div>
-
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 justify-end">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formData.optante_simples_nacional}
-                      onChange={(e) => setFormData({ ...formData, optante_simples_nacional: e.target.checked })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, optante_simples_nacional: e.target.checked })
+                      }
                       className="w-4 h-4"
                     />
-                    <span className="text-sm text-gray-800 dark:text-gray-200">
-                      Optante pelo Simples Nacional
-                    </span>
+                    <span className="text-sm">Optante pelo Simples Nacional</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formData.incentivador_cultural}
-                      onChange={(e) => setFormData({ ...formData, incentivador_cultural: e.target.checked })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, incentivador_cultural: e.target.checked })
+                      }
                       className="w-4 h-4"
                     />
-                    <span className="text-sm text-gray-800 dark:text-gray-200">
-                      Incentivador Cultural
-                    </span>
+                    <span className="text-sm">Incentivador cultural</span>
                   </label>
                 </div>
-                <div className="md:col-span-2 border-t border-amber-200 dark:border-amber-800 pt-4 mt-2">
-                  <h4 className="text-sm font-semibold text-amber-950 dark:text-amber-100 mb-3">
-                    Informações da Nota Fiscal de Serviço
-                  </h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Série {isIssnetNacional ? 'DPS / RPS' : 'RPS'}
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.issnet_serie_rps}
+                    onChange={(e) => setFormData({ ...formData, issnet_serie_rps: e.target.value })}
+                    className={INPUT}
+                    placeholder="1"
+                  />
                 </div>
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
-                      Série do RPS
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.issnet_serie_rps}
-                      onChange={(e) => setFormData({ ...formData, issnet_serie_rps: e.target.value })}
-                      placeholder="NFSE"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-                      autoComplete="off"
-                    />
-                    <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
-                      Deve coincidir com a série cadastrada no ISSNet. Se vazio, o sistema usa <strong>E</strong> (padrão do
-                      integrador). No Asaas costuma aparecer como NFSE — no ISSNet use a série numérica/letra do seu
-                      cadastro municipal.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
-                      Último RPS já emitido
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={formData.issnet_ultimo_rps_conhecido}
-                      onChange={(e) =>
-                        setFormData({ ...formData, issnet_ultimo_rps_conhecido: e.target.value })
-                      }
-                      placeholder="106"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-                      autoComplete="off"
-                    />
-                    <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
-                      Próximo envio será esse + 1 (ex.: 107) se ainda não houver NF aqui.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">
-                      Número do lote (opcional)
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={formData.issnet_numero_lote}
-                      onChange={(e) => setFormData({ ...formData, issnet_numero_lote: e.target.value })}
-                      placeholder="Só se a prefeitura exigir"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-                      autoComplete="off"
-                    />
-                    <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-1">
-                      Só se o lote for diferente do RPS; vazio = mesmo número do RPS.
-                    </p>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Último RPS/DPS emitido
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.issnet_ultimo_rps_conhecido}
+                    onChange={(e) =>
+                      setFormData({ ...formData, issnet_ultimo_rps_conhecido: e.target.value })
+                    }
+                    className={INPUT}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Número do lote (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.issnet_numero_lote}
+                    onChange={(e) => setFormData({ ...formData, issnet_numero_lote: e.target.value })}
+                    className={INPUT}
+                  />
                 </div>
               </div>
+              <div className="mt-6 pt-4 border-t border-gray-200 dark:border-[#0d1f3c]">
+                <CamposServicoBasicos formData={formData} setFormData={setFormData} inputClass={INPUT} />
+              </div>
             </div>
-          )}
+          </>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Código do Serviço Municipal
-              </label>
-              <input
-                type="text"
-                value={formData.codigo_servico_municipal}
-                onChange={(e) => setFormData({ ...formData, codigo_servico_municipal: e.target.value })}
-                placeholder="Ex: 1401"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Código do serviço na lista municipal (ex.: 1401 para desenvolvimento de software).
-                {formData.provedor_nf === 'issnet' && (
-                  <>
-                    {' '}
-                    Com ISSNet, este valor é o que a integração usa para montar item da lista LC 116 e tributação no XML
-                    (ABRASF).
-                  </>
-                )}
-              </p>
-            </div>
+        {/* —— 4. API Nacional ADN —— */}
+        {isNacionalAdn && (
+          <div className={CARD}>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Configurações — API Nacional NFS-e
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+              Emissão direta (ADN). Requer certificado A1 da loja e município habilitado para emissão sem
+              intermediário.
+            </p>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Alíquota ISS (%)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                value={formData.aliquota_iss}
-                onChange={(e) => setFormData({ ...formData, aliquota_iss: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-              />
-            </div>
+            <CertificadoFields
+              certificadoFile={certificadoFile}
+              temCertificadoSalvo={Boolean(config?.issnet_certificado)}
+              senha={formData.issnet_senha_certificado}
+              onSenha={(v) => setFormData({ ...formData, issnet_senha_certificado: v })}
+              onFileChange={handleFileChange}
+              inputClass={INPUT}
+              labelCertificado="Certificado Digital A1 (.pfx) *"
+            />
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Descrição Padrão do Serviço
-              </label>
-              <textarea
-                value={formData.descricao_servico_padrao}
-                onChange={(e) => setFormData({ ...formData, descricao_servico_padrao: e.target.value })}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="flex items-center gap-2 cursor-pointer">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Inscrição municipal *
+                </label>
+                <input
+                  type="text"
+                  value={formData.inscricao_municipal}
+                  onChange={(e) => setFormData({ ...formData, inscricao_municipal: e.target.value })}
+                  className={INPUT}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Código IBGE do município *
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={7}
+                  value={formData.nacional_codigo_municipio}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      nacional_codigo_municipio: e.target.value.replace(/\D/g, '').slice(0, 7),
+                    })
+                  }
+                  placeholder="3543402"
+                  className={INPUT}
+                />
+                <p className="text-[11px] text-gray-500 mt-1">7 dígitos (ex.: 3543402 Ribeirão Preto).</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Código NBS
+                </label>
+                <input
+                  type="text"
+                  value={formData.codigo_nbs}
+                  onChange={(e) => setFormData({ ...formData, codigo_nbs: e.target.value })}
+                  className={INPUT}
+                />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer self-end pb-2">
                 <input
                   type="checkbox"
-                  checked={formData.emitir_nf_automaticamente}
-                  onChange={(e) => setFormData({ ...formData, emitir_nf_automaticamente: e.target.checked })}
+                  checked={formData.optante_simples_nacional}
+                  onChange={(e) =>
+                    setFormData({ ...formData, optante_simples_nacional: e.target.checked })
+                  }
                   className="w-4 h-4"
                 />
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Emitir nota fiscal automaticamente ao confirmar pagamento
-                </span>
+                <span className="text-sm">Optante pelo Simples Nacional</span>
               </label>
             </div>
-          </div>
-        </div>
 
-        {/* Botões */}
-        <div className="flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#0d1f3c] rounded-lg transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-2 bg-[#0176d3] text-white rounded-lg hover:bg-[#0176d3]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? 'Salvando...' : 'Salvar Configurações'}
-          </button>
-        </div>
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-[#0d1f3c]">
+              <CamposServicoBasicos formData={formData} setFormData={setFormData} inputClass={INPUT} />
+            </div>
+          </div>
+        )}
+
+        {(showCertConfig || showServicoConfig || isAsaas) && (
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#0d1f3c] rounded-lg"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2 bg-[#0176d3] text-white rounded-lg hover:bg-[#0176d3]/90 disabled:opacity-50"
+            >
+              {loading ? 'Salvando...' : 'Salvar configurações'}
+            </button>
+          </div>
+        )}
       </form>
+    </div>
+  );
+}
+
+function CamposServicoBasicos({
+  formData,
+  setFormData,
+  inputClass,
+}: {
+  formData: {
+    codigo_servico_municipal: string;
+    aliquota_iss: string;
+    descricao_servico_padrao: string;
+    emitir_nf_automaticamente: boolean;
+  };
+  setFormData: React.Dispatch<React.SetStateAction<any>>;
+  inputClass: string;
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Código do serviço municipal
+        </label>
+        <input
+          type="text"
+          value={formData.codigo_servico_municipal}
+          onChange={(e) => setFormData((p: any) => ({ ...p, codigo_servico_municipal: e.target.value }))}
+          className={inputClass}
+          placeholder="Ex: 1401"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Alíquota ISS (%)
+        </label>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          max="100"
+          value={formData.aliquota_iss}
+          onChange={(e) => setFormData((p: any) => ({ ...p, aliquota_iss: e.target.value }))}
+          className={inputClass}
+        />
+      </div>
+      <div className="md:col-span-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Descrição padrão do serviço
+        </label>
+        <textarea
+          value={formData.descricao_servico_padrao}
+          onChange={(e) => setFormData((p: any) => ({ ...p, descricao_servico_padrao: e.target.value }))}
+          rows={3}
+          className={inputClass}
+        />
+      </div>
+      <div className="md:col-span-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={formData.emitir_nf_automaticamente}
+            onChange={(e) =>
+              setFormData((p: any) => ({ ...p, emitir_nf_automaticamente: e.target.checked }))
+            }
+            className="w-4 h-4"
+          />
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            Emitir nota fiscal automaticamente ao confirmar pagamento
+          </span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function CertificadoFields({
+  certificadoFile,
+  temCertificadoSalvo,
+  senha,
+  onSenha,
+  onFileChange,
+  inputClass,
+  labelCertificado = 'Certificado Digital A1 (.pfx) *',
+}: {
+  certificadoFile: File | null;
+  temCertificadoSalvo: boolean;
+  senha: string;
+  onSenha: (v: string) => void;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  inputClass: string;
+  labelCertificado?: string;
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+      <div className="md:col-span-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          {labelCertificado}
+        </label>
+        <label className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-[#0176d3]">
+          <Upload size={20} className="text-gray-400" />
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            {certificadoFile
+              ? certificadoFile.name
+              : temCertificadoSalvo
+                ? 'Certificado já enviado — clique para alterar'
+                : 'Clique para selecionar o arquivo .pfx'}
+          </span>
+          <input type="file" accept=".pfx" onChange={onFileChange} className="hidden" />
+        </label>
+      </div>
+      <div className="md:col-span-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Senha do certificado
+        </label>
+        <input
+          type="password"
+          value={senha}
+          onChange={(e) => onSenha(e.target.value)}
+          placeholder="Senha do arquivo .pfx"
+          className={inputClass}
+        />
+      </div>
     </div>
   );
 }

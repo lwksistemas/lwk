@@ -56,6 +56,8 @@ interface CRMConfig {
   issnet_usar_padrao_nacional?: boolean;
   /** cTribNac — 6 dígitos (ex.: 140100). */
   codigo_tributacao_nacional?: string;
+  /** IBGE 7 dígitos — API Nacional ADN. */
+  nacional_codigo_municipio?: string;
   emitir_nf_automaticamente: boolean;
   asaas_sandbox?: boolean;
   asaas_api_key_configured?: boolean;

@@ -156,6 +156,7 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             "issnet_ambiente_homologacao",
             "issnet_usar_padrao_nacional",
             "codigo_tributacao_nacional",
+            "nacional_codigo_municipio",
             "codigo_servico_municipal", "descricao_servico_padrao",
             "aliquota_iss", "emitir_nf_automaticamente",
             "asaas_api_key", "asaas_sandbox", "asaas_api_key_configured",

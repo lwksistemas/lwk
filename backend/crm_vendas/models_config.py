@@ -74,8 +74,8 @@ class CRMConfig(LojaIsolationMixin, models.Model):
     # ============================================================================
 
     PROVEDOR_NF_CHOICES = [
-        ("asaas", "Asaas (Intermediário - Padrão)"),
-        ("issnet", "ISSNet - Ribeirão Preto (Direto)"),
+        ("asaas", "Asaas (conta da sua loja)"),
+        ("issnet", "ISSNet - Ribeirão Preto"),
         ("nacional", "API Nacional NFS-e (Direto)"),
         ("manual", "Emissão Manual (Sem integração)"),
     ]
@@ -236,6 +236,13 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         default="",
         verbose_name="Código de Tributação Nacional (cTribNac)",
         help_text="Código de 6 dígitos do serviço no padrão Nacional (ex: 140100 para item 14.01).",
+    )
+    nacional_codigo_municipio = models.CharField(
+        max_length=7,
+        blank=True,
+        default="",
+        verbose_name="Código IBGE do município (API Nacional)",
+        help_text="Código IBGE de 7 dígitos do município de prestação (ex.: 3543402 Ribeirão Preto).",
     )
 
     # Conta Asaas da própria loja (NFS-e para clientes — não confundir com cobrança LWK)

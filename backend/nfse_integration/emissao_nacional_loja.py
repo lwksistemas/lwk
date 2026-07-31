@@ -18,7 +18,11 @@ def _validar_config_nacional(loja: Any, config: Any) -> tuple[Any, str, str, str
     """Valida e retorna (cert_data, senha_cert, codigo_municipio, ambiente) ou dict de erro."""
     cert_data = getattr(config, "nacional_certificado", None) or getattr(config, "issnet_certificado", None)
     senha_cert = getattr(config, "nacional_senha_certificado", "") or getattr(config, "issnet_senha_certificado", "")
-    codigo_municipio = getattr(config, "nacional_codigo_municipio", "") or ""
+    codigo_municipio = (
+        getattr(config, "nacional_codigo_municipio", "")
+        or getattr(config, "codigo_municipio", "")
+        or ""
+    )
     if not cert_data:
         return {"success": False, "error": "Certificado digital não configurado"}
     if not senha_cert:
